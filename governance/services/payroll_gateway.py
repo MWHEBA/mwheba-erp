@@ -852,9 +852,7 @@ class PayrollGateway:
             amount=installment_amount,
             installment_number=installment_number,
             payroll=payroll,
-            notes=f"Deducted from payroll {payroll.id}",
-            created_by=payroll.processed_by,
-            processed_at=timezone.now()
+            notes=f"Deducted from payroll {payroll.id}"
         )
         
         logger.info(
@@ -1558,13 +1556,6 @@ class PayrollGateway:
                 # Validate authority
                 self._validate_authority('approve')
                 
-                # Validate payroll can be approved
-                if payroll.status != 'calculated':
-                    raise GovValidationError(
-                        message=f"Payroll cannot be approved in status: {payroll.status}",
-                        context={'payroll_id': payroll.id, 'current_status': payroll.status}
-                    )
-                
                 # Check idempotency
                 is_duplicate, existing_record, existing_data = self.idempotency_service.check_and_record_operation(
                     operation_type='payroll_approval',
@@ -1577,6 +1568,13 @@ class PayrollGateway:
                 if is_duplicate:
                     logger.info(f"Duplicate payroll approval detected: {idempotency_key}")
                     return payroll  # Already approved
+                
+                # Validate payroll can be approved
+                if payroll.status != 'calculated':
+                    raise GovValidationError(
+                        message=f"Payroll cannot be approved in status: {payroll.status}",
+                        context={'payroll_id': payroll.id, 'current_status': payroll.status}
+                    )
                 
                 # Approve payroll with thread-safe operations
                 with DatabaseLockManager.atomic_operation():

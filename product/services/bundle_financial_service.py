@@ -348,10 +348,10 @@ class BundleFinancialService:
         
         journal_entry = gateway.create_journal_entry(
             source_module='product',
-            source_model='BundleSale',
+            source_model='Product',
             source_id=bundle_product.id,
             lines=lines,
-            idempotency_key=f"JE:product:BundleSale:{bundle_product.id}:{reference_number}",
+            idempotency_key=f"JE:product:Product:{bundle_product.id}:{reference_number}",
             user=created_by,
             entry_type='automatic',
             description=description,

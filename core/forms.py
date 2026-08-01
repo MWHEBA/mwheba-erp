@@ -517,6 +517,21 @@ class SystemSettingsForm(forms.Form):
         required=False,
         widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
     )
+    enable_custom_fields = forms.BooleanField(
+        label='تفعيل الحقول الإضافية المخصصة بالفواتير وعروض الأسعار',
+        required=False,
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
+    )
+    custom_fields_display_mode = forms.ChoiceField(
+        label='نمط عرض الحقول الإضافية في واجهة النموذج',
+        choices=[
+            ('expanded', 'مفتوحة افتراضياً (Expanded)'),
+            ('collapsed', 'مطوية افتراضياً (Collapsed)'),
+            ('hidden', 'مخفية (Hidden)')
+        ],
+        initial='expanded',
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
     enable_thermal_printing = forms.BooleanField(
         label='تفعيل الطباعة الحرارية للفواتير',
         required=False,

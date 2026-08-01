@@ -29,6 +29,8 @@ def common_variables(request):
                 'name': SystemSetting.get_setting('company_name', "موهبة ERP"),
                 'slogan': SystemSetting.get_setting('company_slogan', "نظام إدارة المبيعات والمخزون"),
                 'logo': settings.STATIC_URL + "img/logo.png",
+                'stamp': "",
+                'enable_stamp': SystemSetting.get_setting('enable_company_stamp', True),
                 'address': SystemSetting.get_setting('company_address', "القاهرة، مصر"),
                 'phone': SystemSetting.get_setting('company_phone', "+201234567890"),
                 'email': SystemSetting.get_setting('company_email', "info@mwheba-erp.com"),
@@ -36,12 +38,17 @@ def common_variables(request):
             }
             db_logo = SystemSetting.get_setting('company_logo')
             if db_logo:
-                company_info['logo'] = settings.MEDIA_URL + db_logo
+                company_info['logo'] = db_logo.replace('/media/', '').lstrip('/')
+            db_stamp = SystemSetting.get_setting('company_stamp')
+            if db_stamp:
+                company_info['stamp'] = db_stamp.replace('/media/', '').lstrip('/')
         except Exception:
             company_info = {
                 'name': "موهبة ERP",
                 'slogan': "نظام إدارة المبيعات والمخزون",
                 'logo': settings.STATIC_URL + "img/logo.png",
+                'stamp': "",
+                'enable_stamp': True,
                 'address': "القاهرة، مصر",
                 'phone': "+201234567890",
                 'email': "info@mwheba-erp.com",
@@ -60,6 +67,8 @@ def common_variables(request):
         "company_name": company_info['name'],
         "company_slogan": company_info['slogan'],
         "company_logo": company_info['logo'],
+        "company_stamp": company_info.get('stamp', ''),
+        "enable_company_stamp": company_info.get('enable_stamp', True),
         "company_address": company_info['address'],
         "company_phone": company_info['phone'],
         "company_email": company_info['email'],

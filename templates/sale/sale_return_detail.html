@@ -35,8 +35,6 @@
 <div class="container-fluid">
     <!-- Page Header المركزي -->
     {% include "shared/page_header.html" %}
-                    </a>
-                    {% endif %}
                     
                     <button type="button" class="btn btn-outline-secondary" onclick="window.print()">
                         <i class="fas fa-print me-1"></i> {% trans "طباعة" %}
@@ -145,6 +143,24 @@
                 </div>
                 <div class="card-body">
                     {{ sale_return.notes|linebreaks }}
+                </div>
+            </div>
+            {% endif %}
+
+            {% if sale_return.sale.custom_fields %}
+            <div class="card shadow-sm info-card">
+                <div class="card-header bg-light">
+                    <h5 class="card-title mb-0"><i class="fas fa-list-ul me-2 text-primary"></i>{% trans "حقول الفاتورة الأصلية" %}</h5>
+                </div>
+                <div class="card-body">
+                    <dl class="row mb-0">
+                        {% for field in sale_return.sale.custom_fields %}
+                        {% if field.value %}
+                        <dt class="col-sm-6 text-muted small">{{ field.name }}</dt>
+                        <dd class="col-sm-6 text-dark fw-bold mb-2">{% if field.value == 'true' %}نعم{% elif field.value == 'false' %}لا{% else %}{{ field.value }}{% endif %}</dd>
+                        {% endif %}
+                        {% endfor %}
+                    </dl>
                 </div>
             </div>
             {% endif %}

@@ -24,9 +24,34 @@ class SalePaymentValidationTest(TestCase):
             username='testuser',
             password='password123'
         )
+        from financial.models import ChartOfAccounts, AccountType, AccountingPeriod
+        AccountingPeriod.objects.get_or_create(
+            start_date=datetime.date(2026, 1, 1),
+            end_date=datetime.date(2026, 12, 31),
+            defaults={'name': 'فترة 2026', 'status': 'open'}
+        )
+        self.acc_type = AccountType.objects.create(
+            code='ASSET',
+            name='أصول',
+            category='asset',
+            nature='debit'
+        )
+        self.accounts_receivable = ChartOfAccounts.objects.create(
+            code='10301',
+            name='عميل اختبار حساب',
+            account_type=self.acc_type,
+            is_active=True
+        )
+        self.cash_account = ChartOfAccounts.objects.create(
+            code='10100',
+            name='الصندوق الرئيسية',
+            account_type=self.acc_type,
+            is_active=True
+        )
         self.customer = Customer.objects.create(
             name='عميل اختبار',
-            phone='01000000000'
+            phone='01000000000',
+            financial_account=self.accounts_receivable
         )
         self.warehouse = Warehouse.objects.create(
             name='المخزن الرئيسي',
@@ -57,7 +82,7 @@ class SalePaymentValidationTest(TestCase):
             product=self.product,
             quantity=Decimal('1'),
             unit_price=Decimal('100.00'),
-            total_price=Decimal('100.00')
+            total=Decimal('100.00')
         )
 
     def test_form_blocks_overpayment(self):

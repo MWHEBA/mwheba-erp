@@ -62,8 +62,19 @@ class CustomerCreateAccountAPITest(TestCase):
         
     def test_create_account_ajax_already_exists(self):
         """اختبار محاولة إنشاء حساب لعميل لديه حساب بالفعل"""
-        # تخطي هذا الاختبار لأنه يحتاج حساب محاسبي حقيقي
-        self.skipTest("يحتاج إعداد نظام محاسبي")
+        from financial.models import AccountType, ChartOfAccounts
+        acc_type, _ = AccountType.objects.get_or_create(code='ASSET', defaults={'name': 'أصول', 'category': 'asset', 'nature': 'debit'})
+        account, _ = ChartOfAccounts.objects.get_or_create(code='11030099', defaults={'name': 'حساب عميل', 'account_type': acc_type, 'is_leaf': True})
+        self.customer.financial_account = account
+        self.customer.save()
+        
+        response = self.client.post(
+            reverse('client:customer_create_account', kwargs={'pk': self.customer.pk}),
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest'
+        )
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertFalse(data.get('success', True))
         
     def test_create_account_ajax_error_handling(self):
         """اختبار معالجة الأخطاء عند إنشاء الحساب"""

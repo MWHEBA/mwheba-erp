@@ -74,3 +74,19 @@ def clear_module_cache_on_delete(sender, instance, **kwargs):
         logger.info(f"Cache cleared after deleting module: {instance.code}")
     except Exception as e:
         logger.error(f"Error clearing cache after deleting module {instance.code}: {str(e)}")
+
+
+from django.db.models.signals import post_migrate
+
+@receiver(post_migrate)
+def auto_init_system_modules(sender, **kwargs):
+    """
+    تهيئة تطبيقات النظام تلقائياً بعد كل migrate لضمان وجودها وتفعيلها لأي عميل جديد
+    """
+    if sender.name == 'core':
+        try:
+            from django.core.management import call_command
+            call_command('init_modules')
+        except Exception as e:
+            logger.error(f"Error auto initializing system modules: {str(e)}")
+

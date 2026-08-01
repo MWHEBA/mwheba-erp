@@ -1030,17 +1030,33 @@ def purchase_delete(request, pk):
 @login_required
 def purchase_print(request, pk):
     """
-    طباعة فاتورة المشتريات
+    طباعة فاتورة المشتريات (عربي / إنجليزي / ثنائي اللغة)
     """
     purchase = get_object_or_404(Purchase, pk=pk)
+    items = purchase.items.all().select_related('product', 'product__unit', 'product__category')
+    from core.models import SystemSetting
+
+    default_lang = SystemSetting.get_default_print_language()
+    print_lang = request.GET.get('lang', default_lang).lower()
+    if print_lang not in ['ar', 'en']:
+        print_lang = 'ar'
+    
+    is_english = (print_lang == 'en')
+    is_bilingual = False
+    print_dir = 'ltr' if is_english else 'rtl'
     today = timezone.now().date()
     year = timezone.now().year
 
     context = {
         "purchase": purchase,
+        "items": items,
         "title": f"طباعة فاتورة المشتريات - {purchase.number}",
         "today": today,
         "year": year,
+        "print_lang": print_lang,
+        "print_dir": print_dir,
+        "is_english": is_english,
+        "is_bilingual": is_bilingual,
         "has_item_discounts": purchase.has_item_discounts,
     }
 

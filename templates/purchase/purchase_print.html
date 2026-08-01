@@ -50,7 +50,13 @@
     </td>
     {% endif %}
     <td>
-        <div style="font-weight: 700;">{{ item.product.name }}</div>
+        <div style="font-weight: 700;">
+            {% if is_english %}
+                {{ item.product.name_en|default:item.product.name }}
+            {% else %}
+                {{ item.product.name }}
+            {% endif %}
+        </div>
         {% if item.notes %}
         <div class="item-description">{{ item.notes }}</div>
         {% endif %}
@@ -58,7 +64,13 @@
     <td style="text-align: center;">
         <span style="font-weight: 700;">{{ item.quantity|smart_float }}</span>
         {% if item.product.unit %}
-        <span class="item-unit">({{ item.product.unit.name }})</span>
+        <span class="item-unit">(
+            {% if is_english %}
+                {{ item.product.unit.name_en|default:item.product.unit.name }}
+            {% else %}
+                {{ item.product.unit.name }}
+            {% endif %}
+        )</span>
         {% endif %}
     </td>
     <td style="text-align: center;">{{ item.unit_price|currency }}</td>
@@ -115,15 +127,12 @@
 
 {% block signatures %}
 <div class="signature-box">
-    <div class="signature-label">{% trans "توقيع المستلم / أمين المخزن" %}</div>
-    <div class="signature-line"></div>
+    <div class="signature-label">{% trans "أمين المخزن" %}</div>
 </div>
 <div class="signature-box">
     <div class="signature-label">{% trans "المشتريات / المحاسب" %}</div>
-    <div class="signature-line"></div>
 </div>
 <div class="signature-box">
     <div class="signature-label">{% trans "اعتماد الإدارة" %}</div>
-    <div class="signature-line"></div>
 </div>
 {% endblock %}

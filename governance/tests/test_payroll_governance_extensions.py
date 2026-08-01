@@ -283,7 +283,7 @@ class PayrollAuthorityServiceTest(TestCase):
         """Test successful payroll authority validation."""
         # Should not raise exception for authorized service
         result = AuthorityService.validate_payroll_authority(
-            service_name='PayrollService',
+            service_name='PayrollGateway',
             operation='CREATE',
             user=self.user
         )

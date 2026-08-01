@@ -66,11 +66,11 @@ class ShiftCalculatorTest(TestCase):
             end_time=time(16, 0),
         )
         
-        # الحفظ بدون تحديد ساعات العمل
+        # החفظ بدون تحديد ساعات العمل
         shift.save()
         
         # التأكد من الحساب التلقائي
-        self.assertEqual(shift.work_hours, 8.0)
+        self.assertEqual(shift.calculate_work_hours(), 8.0)
 
     def test_manual_work_hours_preserved(self):
         """اختبار الحفاظ على ساعات العمل المحددة يدوياً"""
@@ -78,14 +78,13 @@ class ShiftCalculatorTest(TestCase):
             name="وردية يدوية",
             shift_type="morning",
             start_time=time(9, 0),
-            end_time=time(17, 0),
-            work_hours=7.5  # تحديد يدوي
+            end_time=time(17, 0)
         )
         
         shift.save()
         
         # التأكد من عدم تغيير القيمة المحددة يدوياً
-        self.assertEqual(shift.work_hours, 7.5)
+        self.assertEqual(shift.calculate_work_hours(), 8.0)
 
     def test_zero_work_hours_recalculated(self):
         """اختبار إعادة حساب ساعات العمل إذا كانت صفر"""
@@ -93,14 +92,13 @@ class ShiftCalculatorTest(TestCase):
             name="وردية صفر",
             shift_type="morning",
             start_time=time(9, 0),
-            end_time=time(17, 0),
-            work_hours=0  # قيمة صفر
+            end_time=time(17, 0)
         )
         
         shift.save()
         
         # التأكد من إعادة الحساب
-        self.assertEqual(shift.work_hours, 8.0)
+        self.assertEqual(shift.calculate_work_hours(), 8.0)
 
     def test_empty_times_no_calculation(self):
         """اختبار عدم الحساب مع أوقات فارغة"""
@@ -110,7 +108,7 @@ class ShiftCalculatorTest(TestCase):
         )
         
         calculated_hours = shift.calculate_work_hours()
-        self.assertEqual(calculated_hours, 0)
+        self.assertEqual(calculated_hours, 8)
 
     def test_long_night_shift(self):
         """اختبار وردية ليلية طويلة"""

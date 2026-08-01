@@ -48,104 +48,78 @@ class AccountingIntegrationService:
         """
         try:
             with transaction.atomic():
-                # الحصول على الحسابات المطلوبة
                 accounts = cls._get_required_accounts_for_sale()
                 if not accounts:
-                    logger.error(
-                        "لا يمكن العثور على الحسابات المحاسبية المطلوبة للمبيعات"
-                    )
-                    return None
+                    error_msg = "لا يمكن العثور على الحسابات المحاسبية المطلوبة للمبيعات"
+                    logger.error(error_msg)
+                    raise ValidationError(error_msg)
 
-                # تجميع بنود الفاتورة حسب التصنيف
-                items_by_category = cls._group_sale_items_by_category(sale)
-                
-                if not items_by_category:
-                    logger.warning(f"لا توجد بنود في الفاتورة {sale.number}")
-                    return None
-
-                # الحصول على معلومات العميل/ولي الأمر
                 client_account, client_name = cls._get_client_info(sale, user)
                 if not client_account:
-                    return None
+                    error_msg = f"لا يوجد حساب محاسبي مرتبط بالعميل في الفاتورة {sale.number}"
+                    logger.error(error_msg)
+                    raise ValidationError(error_msg)
 
-                created_entries = []
-                
-                # إنشاء قيد منفصل لكل تصنيف
-                for category_name, category_items in items_by_category.items():
-                    category_total = sum(item.total for item in category_items)
-                    category_cost = sum(cls._get_item_cost(item) for item in category_items)
-                    
-                    # Prepare journal entry lines
-                    lines = [
-                        JournalEntryLineData(
-                            account_code=client_account.code,
-                            debit=category_total,
-                            credit=Decimal("0.00"),
-                            description=f"مبيعات {category_name} - {client_name} - فاتورة {sale.number}"
-                        )
-                    ]
-                    
-                    # قيد الإيرادات (دائن)
-                    revenue_account = cls._get_fee_revenue_account(category_name) or accounts["sales_revenue"]
+                total_sale_amount = sale.total
+                total_cost_amount = sum(cls._get_item_cost(item) for item in sale.items.all() if not item.product.is_service)
+
+                lines = [
+                    JournalEntryLineData(
+                        account_code=client_account.code,
+                        debit=total_sale_amount,
+                        credit=Decimal("0.00"),
+                        description=f"مبيعات - {client_name} - فاتورة {sale.number}"
+                    ),
+                    JournalEntryLineData(
+                        account_code=accounts["sales_revenue"].code,
+                        debit=Decimal("0.00"),
+                        credit=total_sale_amount,
+                        description=f"إيرادات مبيعات - فاتورة {sale.number}"
+                    )
+                ]
+
+                if total_cost_amount > 0:
                     lines.append(
                         JournalEntryLineData(
-                            account_code=revenue_account.code,
+                            account_code=accounts["cost_of_goods_sold"].code,
+                            debit=total_cost_amount,
+                            credit=Decimal("0.00"),
+                            description=f"تكلفة بضاعة مباعة - فاتورة {sale.number}"
+                        )
+                    )
+                    lines.append(
+                        JournalEntryLineData(
+                            account_code=accounts["inventory"].code,
                             debit=Decimal("0.00"),
-                            credit=category_total,
-                            description=f"إيرادات {category_name} - فاتورة {sale.number}"
+                            credit=total_cost_amount,
+                            description=f"تخفيض مخزون - فاتورة {sale.number}"
                         )
                     )
-                    
-                    # قيد تكلفة البضاعة المباعة (إذا كانت متاحة)
-                    if category_cost > 0:
-                        lines.append(
-                            JournalEntryLineData(
-                                account_code=accounts["cost_of_goods_sold"].code,
-                                debit=category_cost,
-                                credit=Decimal("0.00"),
-                                description=f"تكلفة {category_name} المباعة - فاتورة {sale.number}"
-                            )
-                        )
-                        lines.append(
-                            JournalEntryLineData(
-                                account_code=accounts["inventory"].code,
-                                debit=Decimal("0.00"),
-                                credit=category_cost,
-                                description=f"تخفيض مخزون {category_name} - فاتورة {sale.number}"
-                            )
-                        )
-                    
-                    # Create journal entry via AccountingGateway
-                    gateway = AccountingGateway()
-                    journal_entry = gateway.create_journal_entry(
-                        source_module='sales',
-                        source_model='Sale',
-                        source_id=sale.id,
-                        lines=lines,
-                        idempotency_key=f"JE:sales:Sale:{sale.id}:{category_name[:3].upper()}:create",
-                        user=user or sale.created_by,
-                        entry_type='automatic',
-                        description=f"مبيعات {category_name} لـ {client_name}",
-                        reference=f"فاتورة مبيعات رقم {sale.number} - {category_name}",
-                        date=sale.date
-                    )
 
-                    created_entries.append(journal_entry)
+                gateway = AccountingGateway()
+                idem_key = AccountingGateway.generate_idempotency_key('sale', 'Sale', sale.id, 'create')
+                journal_entry = gateway.create_journal_entry(
+                    source_module='sale',
+                    source_model='Sale',
+                    source_id=sale.id,
+                    lines=lines,
+                    idempotency_key=idem_key,
+                    user=user or sale.created_by,
+                    entry_type='automatic',
+                    description=f"مبيعات لـ {client_name}",
+                    reference=f"فاتورة مبيعات رقم {sale.number}",
+                    date=sale.date
+                )
 
-                # ربط أول قيد بالفاتورة (للمرجعية)
-                if created_entries:
-                    sale.journal_entry = created_entries[0]
+                if journal_entry:
+                    sale.journal_entry = journal_entry
                     sale.save(update_fields=["journal_entry"])
 
-                return created_entries[0] if created_entries else None
+                return journal_entry
 
         except Exception as e:
-            logger.error(f"خطأ في إنشاء قيود المبيعات: {str(e)}")
-            return None
-
-        except Exception as e:
-            logger.error(f"خطأ في إنشاء قيد المبيعات: {str(e)}")
-            return None
+            logger.error(f"خطأ في إنشاء قيد المبيعات للفاتورة {sale.number}: {str(e)}")
+            raise ValidationError(f"فشل إنشاء قيد المبيعات المحاسبي: {str(e)}")
 
     @classmethod
     def create_purchase_journal_entry(

@@ -1,0 +1,295 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    {% include "shared/page_header.html" %}
+
+    <div class="row g-4 mb-4">
+        <!-- نموذج إضافة حقل إضافي جديد -->
+        <div class="col-12 col-lg-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-light border-0 py-3">
+                    <h6 class="card-title mb-0 fw-bold text-dark">
+                        <i class="fas fa-plus-circle me-2 text-primary"></i>إضافة حقل إضافي جديد
+                    </h6>
+                </div>
+                <div class="card-body p-4">
+                    <form method="post" action="{% url 'sale:custom_field_create' %}">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label class="form-label text-dark fw-medium">اسم الحقل (بالعربي) <span class="text-danger">*</span></label>
+                            {{ form.name }}
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label text-dark fw-medium">اسم الحقل (English)</label>
+                            {{ form.name_en }}
+                            <small class="text-muted d-block mt-1">يُستخدم في الفواتير والطباعة باللغة الإنجليزية</small>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label text-dark fw-medium">المفتاح الفريد (Slug)</label>
+                            {{ form.key }}
+                            <small class="text-muted d-block mt-1">يُترك فارغاً للتوليد التلقائي (مثال: po_number)</small>
+                        </div>
+                        <div class="row g-3 mb-3">
+                            <div class="col-6">
+                                <label class="form-label text-dark fw-medium">الموديول المستهدف</label>
+                                {{ form.module }}
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label text-dark fw-medium">نوع البيانات</label>
+                                {{ form.field_type }}
+                            </div>
+                        </div>
+                        <div class="mb-3" id="select-options-group">
+                            <label class="form-label text-dark fw-medium">خيارات القائمة المنسدلة</label>
+                            {{ form.select_options }}
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label text-dark fw-medium">ترتيب الظهور</label>
+                            {{ form.sort_order }}
+                        </div>
+                        <div class="p-3 border rounded bg-light mb-3">
+                            <h6 class="small text-muted fw-bold mb-2">خيارات العرض والطباعة</h6>
+                            <div class="form-check form-switch mb-2">
+                                {{ form.is_required }}
+                                <label class="form-check-label" for="{{ form.is_required.id_for_label }}">حقل إجباري في النموذج</label>
+                            </div>
+                            <div class="form-check form-switch mb-2">
+                                {{ form.show_in_header }}
+                                <label class="form-check-label fw-medium text-primary" for="{{ form.show_in_header.id_for_label }}">
+                                    <i class="fas fa-heading me-1"></i>إظهار في قسم معلومات الفاتورة (أعلى الصفحة)
+                                </label>
+                            </div>
+                            <div class="form-check form-switch mb-2">
+                                {{ form.show_on_print }}
+                                <label class="form-check-label" for="{{ form.show_on_print.id_for_label }}">إظهار في طباعة A4 والـ PDF</label>
+                            </div>
+                            <div class="form-check form-switch mb-2">
+                                {{ form.show_on_thermal }}
+                                <label class="form-check-label" for="{{ form.show_on_thermal.id_for_label }}">إظهار في الطباعة الحرارية 80mm</label>
+                            </div>
+                            <div class="form-check form-switch mb-0">
+                                {{ form.is_active }}
+                                <label class="form-check-label" for="{{ form.is_active.id_for_label }}">تفعيل الحقل</label>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="fas fa-save me-1"></i>حفظ الحقل الإضافي
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- جدول تعاريف الحقول الإضافية القائمة -->
+        <div class="col-12 col-lg-8">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-light border-0 py-3 d-flex justify-content-between align-items-center">
+                    <h6 class="card-title mb-0 fw-bold text-dark">
+                        <i class="fas fa-list me-2 text-primary"></i>الحقول الإضافية المعتمدة ({{ fields_list|length }})
+                    </h6>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th class="ps-3" style="width: 5%;">#</th>
+                                    <th style="width: 25%;">اسم الحقل</th>
+                                    <th style="width: 15%;">الموديل</th>
+                                    <th style="width: 15%;">النوع</th>
+                                    <th style="width: 20%;" class="text-center">خصائص الظهور والطباعة</th>
+                                    <th style="width: 10%;" class="text-center">الحالة</th>
+                                    <th class="pe-3 text-center" style="width: 10%;">الإجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for field in fields_list %}
+                                <tr>
+                                    <td class="ps-3 fw-bold text-muted">{{ field.sort_order }}</td>
+                                     <td>
+                                        <div class="fw-bold text-dark">{{ field.name }}</div>
+                                        {% if field.name_en %}<div class="small text-secondary fw-medium">{{ field.name_en }}</div>{% endif %}
+                                        <small class="text-muted code">{{ field.key }}</small>
+                                     </td>
+                                    <td>
+                                        <span class="badge bg-secondary-subtle text-secondary border">
+                                            {{ field.get_module_display }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info-subtle text-info border">
+                                            {{ field.get_field_type_display }}
+                                        </span>
+                                    </td>
+                                    <td class="text-center">
+                                        {% if field.show_in_header %}
+                                            <span class="badge bg-primary-subtle text-primary me-1" title="قسم معلومات الفاتورة بالأعلى"><i class="fas fa-arrow-up me-1"></i>معلومات الفاتورة</span>
+                                        {% endif %}
+                                        {% if field.show_on_print %}
+                                            <span class="badge bg-success-subtle text-success me-1" title="A4 Print"><i class="fas fa-print me-1"></i>A4</span>
+                                        {% endif %}
+                                        {% if field.show_on_thermal %}
+                                            <span class="badge bg-warning-subtle text-warning" title="80mm Thermal"><i class="fas fa-receipt me-1"></i>حراري</span>
+                                        {% endif %}
+                                        {% if field.is_required %}
+                                            <span class="badge bg-danger-subtle text-danger ms-1">إجباري</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        {% if field.is_active %}
+                                            <span class="badge bg-success">نشط</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">معطل</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="pe-3 text-center">
+                                        <div class="btn-group btn-group-sm">
+                                            <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editModal{{ field.pk }}" title="تعديل الحقل">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            <a href="{% url 'sale:custom_field_toggle' field.pk %}" class="btn btn-outline-secondary" title="تغيير الحالة">
+                                                <i class="fas {% if field.is_active %}fa-eye-slash{% else %}fa-eye{% endif %}"></i>
+                                            </a>
+                                            <a href="{% url 'sale:custom_field_delete' field.pk %}" class="btn btn-outline-danger" onclick="return confirm('هل أنت تأكد من حذف هذا الحقل الإضافي؟');" title="حذف">
+                                                <i class="fas fa-trash"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="7" class="text-center py-4 text-muted">
+                                        <i class="fas fa-sliders-h fa-2x mb-2 d-block opacity-50"></i>
+                                        لا توجد حقول إضافية معرّفة حالياً. أنشئ أول حقل من النموذج المجاور.
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modals التعديل منفصلة خارج الجدول لمنع الوميض وتداخل العناصر -->
+{% for field in fields_list %}
+<div class="modal fade" id="editModal{{ field.pk }}" tabindex="-1" aria-labelledby="editModalLabel{{ field.pk }}" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content text-start">
+            <div class="modal-header bg-light py-3">
+                <h6 class="modal-title fw-bold text-dark mb-0" id="editModalLabel{{ field.pk }}">
+                    <i class="fas fa-edit me-1 text-primary"></i>تعديل الحقل الإضافي: {{ field.name }}
+                </h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="{% url 'sale:custom_field_edit' field.pk %}" method="post">
+                {% csrf_token %}
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label text-dark fw-medium small mb-1">اسم الحقل (عربي) <span class="text-danger">*</span></label>
+                        <input type="text" name="name" class="form-control" value="{{ field.name }}" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label text-dark fw-medium small mb-1">اسم الحقل بالإنجليزية (English)</label>
+                        <input type="text" name="name_en" class="form-control" value="{{ field.name_en|default:'' }}">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label text-dark fw-medium small mb-1">مفتاح الحقل (Slug Key)</label>
+                        <input type="text" name="key" class="form-control bg-light" value="{{ field.key }}" readonly>
+                    </div>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="form-label text-dark fw-medium small mb-1">الموديول المستهدف <span class="text-danger">*</span></label>
+                            <select name="module" class="form-select">
+                                <option value="sale" {% if field.module == 'sale' %}selected{% endif %}>مبيعات فقط</option>
+                                <option value="quotation" {% if field.module == 'quotation' %}selected{% endif %}>عروض أسعار فقط</option>
+                                <option value="both" {% if field.module == 'both' %}selected{% endif %}>كلاهما (مبيعات وعروض أسعار)</option>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label text-dark fw-medium small mb-1">نوع الحقل <span class="text-danger">*</span></label>
+                            <select name="field_type" class="form-select edit-field-type" data-pk="{{ field.pk }}">
+                                <option value="text" {% if field.field_type == 'text' %}selected{% endif %}>نص عادي (Text)</option>
+                                <option value="number" {% if field.field_type == 'number' %}selected{% endif %}>رقم (Number)</option>
+                                <option value="date" {% if field.field_type == 'date' %}selected{% endif %}>تاريخ (Date)</option>
+                                <option value="select" {% if field.field_type == 'select' %}selected{% endif %}>قائمة منسدلة (Select)</option>
+                                <option value="checkbox" {% if field.field_type == 'checkbox' %}selected{% endif %}>مربع اختيار (Checkbox)</option>
+                                <option value="textarea" {% if field.field_type == 'textarea' %}selected{% endif %}>نص متعدد الأسطر (Textarea)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="mb-3 edit-select-options-box" id="editSelectOptionsBox{{ field.pk }}" {% if field.field_type != 'select' %}style="display: none;"{% endif %}>
+                        <label class="form-label text-dark fw-medium small mb-1">خيارات القائمة المنسدلة (مفصولة بفاصلة)</label>
+                        <textarea name="select_options" class="form-control" rows="3" placeholder="خيار 1, خيار 2, خيار 3">{{ field.select_options|default:'' }}</textarea>
+                    </div>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="form-label text-dark fw-medium small mb-1">ترتيب الظهور</label>
+                            <input type="number" name="sort_order" class="form-control" min="0" value="{{ field.sort_order }}">
+                        </div>
+                    </div>
+
+                    <div class="p-3 border rounded bg-light mb-2">
+                        <h6 class="small text-muted fw-bold mb-2">خيارات العرض والطباعة</h6>
+                        <div class="form-check form-switch mb-2">
+                            <input type="checkbox" name="is_required" class="form-check-input" id="edit_is_required_{{ field.pk }}" {% if field.is_required %}checked{% endif %}>
+                            <label class="form-check-label" for="edit_is_required_{{ field.pk }}">حقل إجباري في النموذج</label>
+                        </div>
+                        <div class="form-check form-switch mb-2">
+                            <input type="checkbox" name="show_in_header" class="form-check-input" id="edit_show_in_header_{{ field.pk }}" {% if field.show_in_header %}checked{% endif %}>
+                            <label class="form-check-label fw-medium text-primary" for="edit_show_in_header_{{ field.pk }}">
+                                <i class="fas fa-heading me-1"></i>إظهار في قسم معلومات الفاتورة (أعلى الصفحة)
+                            </label>
+                        </div>
+                        <div class="form-check form-switch mb-2">
+                            <input type="checkbox" name="show_on_print" class="form-check-input" id="edit_show_on_print_{{ field.pk }}" {% if field.show_on_print %}checked{% endif %}>
+                            <label class="form-check-label" for="edit_show_on_print_{{ field.pk }}">إظهار في طباعة A4 والـ PDF</label>
+                        </div>
+                        <div class="form-check form-switch mb-2">
+                            <input type="checkbox" name="show_on_thermal" class="form-check-input" id="edit_show_on_thermal_{{ field.pk }}" {% if field.show_on_thermal %}checked{% endif %}>
+                            <label class="form-check-label" for="edit_show_on_thermal_{{ field.pk }}">إظهار في الطباعة الحرارية 80mm</label>
+                        </div>
+                        <div class="form-check form-switch mb-0">
+                            <input type="checkbox" name="is_active" class="form-check-input" id="edit_is_active_{{ field.pk }}" {% if field.is_active %}checked{% endif %}>
+                            <label class="form-check-label" for="edit_is_active_{{ field.pk }}">تفعيل الحقل</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light py-2">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-save me-1"></i>حفظ التعديلات</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    $(document).on('change', '.edit-field-type', function() {
+        var pk = $(this).data('pk');
+        if ($(this).val() === 'select') {
+            $('#editSelectOptionsBox' + pk).slideDown();
+        } else {
+            $('#editSelectOptionsBox' + pk).slideUp();
+        }
+    });
+});
+</script>
+{% endblock %}
+{% endblock %}

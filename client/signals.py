@@ -45,6 +45,7 @@ def create_customer_account_signal(sender, instance, created, **kwargs):
         # Update customer with financial account using update() to avoid triggering signal again
         Customer.objects.filter(pk=instance.pk).update(financial_account=account)
         instance.financial_account = account  # Update in-memory instance
+        instance.financial_account_id = account.id
         
         action = "created" if created else "recovered"
         logger.info(

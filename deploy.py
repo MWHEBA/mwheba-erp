@@ -1129,6 +1129,8 @@ class DeploymentManager:
             exec_commands.append((f"{venv} {manage} migrate --noinput", "عمل ميجريشن لقاعدة البيانات (migrate)"))
         if run_collectstatic:
             exec_commands.append((f"{venv} {manage} collectstatic --noinput", "تجميع الملفات الثابتة (collectstatic)"))
+        if run_reload:
+            exec_commands.append((f"{venv} {manage} init_modules", "تحديث وتأكيد موديولات النظام (init_modules)"))
 
         # تنفيذ الأوامر
         if exec_commands or run_reload:

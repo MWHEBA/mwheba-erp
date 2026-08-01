@@ -20,11 +20,11 @@ class ProductConfig(AppConfig):
         except ImportError:
             pass
 
-        # استيراد إشارات المحاسبة
-        try:
-            import product.signals_accounting
-        except ImportError:
-            pass
+        # إشارات المحاسبة (معطلة - النقل لطبقة الخدمات المباشرة)
+        # try:
+        #     import product.signals_accounting
+        # except ImportError:
+        #     pass
 
         # استيراد إشارات إعادة حساب مخزون المنتجات المجمعة
         try:

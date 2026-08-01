@@ -37,7 +37,10 @@ class BaseNotificationTest(TestCase):
         Product.objects.all().delete()
         Category.objects.all().delete()
         Unit.objects.all().delete()
-        User.objects.all().delete()
+        try:
+            User.objects.all().delete()
+        except Exception:
+            pass
 
 
 class NotificationModelTest(TestCase):
@@ -47,7 +50,10 @@ class NotificationModelTest(TestCase):
         """إعداد البيانات الأساسية"""
         Notification.objects.all().delete()
         NotificationPreference.objects.all().delete()
-        User.objects.all().delete()
+        try:
+            User.objects.all().delete()
+        except Exception:
+            pass
         
         self.user = User.objects.create_user(
             username="testuser",
@@ -135,7 +141,10 @@ class NotificationPreferenceTest(TestCase):
     def setUp(self):
         """إعداد البيانات الأساسية"""
         NotificationPreference.objects.all().delete()
-        User.objects.all().delete()
+        try:
+            User.objects.all().delete()
+        except Exception:
+            pass
         
         self.user = User.objects.create_user(
             username="testuser",
@@ -205,7 +214,10 @@ class NotificationServiceTest(TestCase):
         """إعداد البيانات الأساسية"""
         Notification.objects.all().delete()
         NotificationPreference.objects.all().delete()
-        User.objects.all().delete()
+        try:
+            User.objects.all().delete()
+        except Exception:
+            pass
         
         self.user = User.objects.create_user(
             username="testuser_service",
@@ -223,7 +235,10 @@ class NotificationServiceTest(TestCase):
         """تنظيف بعد كل اختبار"""
         Notification.objects.all().delete()
         NotificationPreference.objects.all().delete()
-        User.objects.all().delete()
+        try:
+            User.objects.all().delete()
+        except Exception:
+            pass
 
     def test_create_notification_basic(self):
         """اختبار إنشاء إشعار أساسي"""
@@ -389,17 +404,13 @@ class LowStockAlertsTest(TestCase):
 
     def setUp(self):
         """إعداد البيانات"""
-        Notification.objects.all().delete()
-        Product.objects.all().delete()
-        Category.objects.all().delete()
-        Unit.objects.all().delete()
-        User.objects.all().delete()
-        
-        self.admin = User.objects.create_superuser(
-            username="admin",
-            email="admin@example.com",
-            password="adminpass123"
-        )
+        self.admin = User.objects.filter(username="admin").first()
+        if not self.admin:
+            self.admin = User.objects.create_superuser(
+                username="admin",
+                email="admin@example.com",
+                password="adminpass123"
+            )
         
         self.unit = Unit.objects.create(
             name="قطعة",
@@ -415,8 +426,7 @@ class LowStockAlertsTest(TestCase):
         from product.models import Stock, Warehouse
         
         warehouse = Warehouse.objects.create(
-            name="مخزن اختبار",
-            created_by=self.admin
+            name="مخزن اختبار"
         )
         
         product = Product.objects.create(
@@ -446,8 +456,7 @@ class LowStockAlertsTest(TestCase):
         from product.models import Stock, Warehouse
         
         warehouse = Warehouse.objects.create(
-            name="مخزن اختبار 2",
-            created_by=self.admin
+            name="مخزن اختبار 2"
         )
         
         product = Product.objects.create(
@@ -477,8 +486,7 @@ class LowStockAlertsTest(TestCase):
         from product.models import Stock, Warehouse
         
         warehouse = Warehouse.objects.create(
-            name="مخزن اختبار 3",
-            created_by=self.admin
+            name="مخزن اختبار 3"
         )
         
         product = Product.objects.create(
@@ -513,7 +521,10 @@ class NotificationIntegrationTest(TestCase):
     def setUp(self):
         """إعداد البيانات"""
         Notification.objects.all().delete()
-        User.objects.all().delete()
+        try:
+            User.objects.all().delete()
+        except Exception:
+            pass
         
         self.user = User.objects.create_user(
             username="testuser",
@@ -558,7 +569,10 @@ class NotificationEmailTest(TestCase):
     def setUp(self):
         """إعداد البيانات"""
         NotificationPreference.objects.all().delete()
-        User.objects.all().delete()
+        try:
+            User.objects.all().delete()
+        except Exception:
+            pass
         
         self.user = User.objects.create_user(
             username="testuser",
@@ -607,7 +621,10 @@ class NotificationPerformanceTest(TestCase):
     def setUp(self):
         """إعداد البيانات"""
         Notification.objects.all().delete()
-        User.objects.all().delete()
+        try:
+            User.objects.all().delete()
+        except Exception:
+            pass
         
         self.users = [
             User.objects.create_user(
@@ -621,7 +638,10 @@ class NotificationPerformanceTest(TestCase):
     def tearDown(self):
         """تنظيف بعد كل اختبار"""
         Notification.objects.all().delete()
-        User.objects.all().delete()
+        try:
+            User.objects.all().delete()
+        except Exception:
+            pass
 
     def test_bulk_notification_performance(self):
         """اختبار أداء الإشعارات الجماعية"""
@@ -1054,7 +1074,10 @@ class NotificationConcurrencyTest(TransactionTestCase):
     def setUp(self):
         """إعداد البيانات"""
         Notification.objects.all().delete()
-        User.objects.all().delete()
+        try:
+            User.objects.all().delete()
+        except Exception:
+            pass
         
         self.user = User.objects.create_user(
             username="concuser",
@@ -1065,7 +1088,10 @@ class NotificationConcurrencyTest(TransactionTestCase):
     def tearDown(self):
         """تنظيف بعد كل اختبار"""
         Notification.objects.all().delete()
-        User.objects.all().delete()
+        try:
+            User.objects.all().delete()
+        except Exception:
+            pass
 
     def test_concurrent_notification_creation(self):
         """اختبار إنشاء إشعارات متزامنة (مبسط)"""
@@ -1170,7 +1196,10 @@ class NotificationFilteringTest(TestCase):
     def setUp(self):
         """إعداد البيانات"""
         Notification.objects.all().delete()
-        User.objects.all().delete()
+        try:
+            User.objects.all().delete()
+        except Exception:
+            pass
         
         self.user1 = User.objects.create_user(
             username="user1",
@@ -1402,7 +1431,10 @@ class NotificationStatsTest(TestCase):
     def setUp(self):
         """إعداد البيانات"""
         Notification.objects.all().delete()
-        User.objects.all().delete()
+        try:
+            User.objects.all().delete()
+        except Exception:
+            pass
         
         self.user = User.objects.create_user(
             username="statsuser",
@@ -1413,7 +1445,10 @@ class NotificationStatsTest(TestCase):
     def tearDown(self):
         """تنظيف بعد كل اختبار"""
         Notification.objects.all().delete()
-        User.objects.all().delete()
+        try:
+            User.objects.all().delete()
+        except Exception:
+            pass
 
     def test_stats_with_multiple_types(self):
         """اختبار إحصائيات مع أنواع متعددة"""
@@ -1529,7 +1564,10 @@ class NotificationSecurityTest(TestCase):
     def setUp(self):
         """إعداد البيانات"""
         Notification.objects.all().delete()
-        User.objects.all().delete()
+        try:
+            User.objects.all().delete()
+        except Exception:
+            pass
         
         self.user1 = User.objects.create_user(
             username="user1",

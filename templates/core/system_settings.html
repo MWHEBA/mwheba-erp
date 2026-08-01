@@ -315,7 +315,7 @@
                                                 </small>
                                             </div>
 
-                                            <div class="mb-0">
+                                            <div class="mb-3">
                                                 <div class="form-check form-switch mb-1">
                                                     {{ form.enable_quotations }}
                                                     <label class="form-check-label fw-bold" for="{{ form.enable_quotations.id_for_label }}">
@@ -325,6 +325,24 @@
                                                 <small class="form-text text-muted">
                                                     <i class="fas fa-info-circle"></i> تفعيل إمكانية إنشاء عروض أسعار للعملاء وإدارتها وتحويلها لفواتير مبيعات
                                                 </small>
+                                            </div>
+
+                                            <div class="mb-3 p-3 border rounded bg-white">
+                                                <div class="form-check form-switch mb-2">
+                                                    {{ form.enable_custom_fields }}
+                                                    <label class="form-check-label fw-bold" for="{{ form.enable_custom_fields.id_for_label }}">
+                                                        تفعيل الحقول الإضافية المخصصة
+                                                    </label>
+                                                </div>
+                                                <div class="mb-2">
+                                                    {{ form.custom_fields_display_mode.label_tag }}
+                                                    {{ form.custom_fields_display_mode }}
+                                                </div>
+                                                <div class="d-flex justify-content-end align-items-center mt-2 pt-2 border-top">
+                                                    <a href="{% url 'sale:custom_field_list' %}" class="btn btn-outline-primary btn-sm">
+                                                        <i class="fas fa-sliders-h me-1"></i>إدارة تعاريف الحقول الإضافية
+                                                    </a>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>

@@ -1,4 +1,4 @@
-﻿{% extends 'base.html' %}
+{% extends 'base.html' %}
 {% load static %}
 {% load i18n %}
 {% load utils_extras %}
@@ -455,6 +455,11 @@
                 <h5><i class="fas fa-info-circle me-2"></i>المعلومات الأساسية</h5>
                 
                 <div class="info-row">
+                    <span class="info-label">{% if product.is_service %}اسم الخدمة (English){% else %}اسم المنتج (English){% endif %}</span>
+                    <span class="info-value" dir="ltr">{{ product.name_en|default:"-" }}</span>
+                </div>
+
+                <div class="info-row">
                     <span class="info-label">الكود</span>
                     <span class="info-value">{{ product.sku }}</span>
                 </div>
@@ -466,7 +471,7 @@
                 
                 <div class="info-row">
                     <span class="info-label">التصنيف</span>
-                    <span class="info-value">{{ product.category.name }}</span>
+                    <span class="info-value">{{ product.category.name }}{% if product.category.name_en %} / {{ product.category.name_en }}{% endif %}</span>
                 </div>
                 
                 <div class="info-row">
@@ -484,7 +489,7 @@
                 
                 <div class="info-row">
                     <span class="info-label">وحدة القياس</span>
-                    <span class="info-value">{{ product.unit.name }}</span>
+                    <span class="info-value">{{ product.unit.name }}{% if product.unit.name_en %} / {{ product.unit.name_en }}{% endif %}</span>
                 </div>
                 
                 <div class="info-row">
@@ -553,20 +558,20 @@
                                     {% endif %}
                                 </td>
                                 <td class="text-center">
-                                    <div class="btn-group btn-group-sm">
-                                        <button class="btn btn-outline-primary btn-sm" onclick="editSupplierPrice({{ sp.id }})" title="تعديل">
-                                            <i class="fas fa-edit"></i>
-                                        </button>
-                                        {% if not sp.is_default %}
-                                        <button class="btn btn-outline-warning btn-sm" onclick="setDefaultSupplier({{ sp.id }})" title="تعيين كافتراضي">
-                                            <i class="fas fa-star"></i>
-                                        </button>
-                                        {% endif %}
-                                        <button class="btn btn-outline-info btn-sm" onclick="viewPriceHistory({{ sp.id }})" title="تاريخ الأسعار">
-                                            <i class="fas fa-history"></i>
-                                        </button>
-                                    </div>
-                                </td>
+                                     <div class="btn-group btn-group-sm">
+                                         <button class="btn btn-outline-primary btn-sm" onclick="editSupplierPrice('{{ sp.id }}')" title="تعديل">
+                                             <i class="fas fa-edit"></i>
+                                         </button>
+                                         {% if not sp.is_default %}
+                                         <button class="btn btn-outline-warning btn-sm" onclick="setDefaultSupplier('{{ sp.id }}')" title="تعيين كافتراضي">
+                                             <i class="fas fa-star"></i>
+                                         </button>
+                                         {% endif %}
+                                         <button class="btn btn-outline-info btn-sm" onclick="viewPriceHistory('{{ sp.id }}')" title="تاريخ الأسعار">
+                                             <i class="fas fa-history"></i>
+                                         </button>
+                                     </div>
+                                 </td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -704,9 +709,9 @@
                             <div class="bar-container">
                                 {% if sales_stats.max_monthly_quantity > 0 %}
                                     {% widthratio month.quantity sales_stats.max_monthly_quantity 100 as bar_height %}
-                                    <div class="bar" style="height: {{ bar_height }}%"></div>
+                                    <div class="bar" style="--bar-h: {{ bar_height }}%; height: var(--bar-h, 0%);"></div>
                                 {% else %}
-                                    <div class="bar" style="height: 0%"></div>
+                                    <div class="bar" style="height: 0%;"></div>
                                 {% endif %}
                             </div>
                             <div class="month-info">
@@ -1197,30 +1202,27 @@
     }
     
     // دالة عرض التنبيهات
-    // Removed: Using toastr library directly);
-        } else {
-            // fallback للتنبيهات العادية
-            const alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
-            const alertHtml = `
-                <div class="alert ${alertClass} alert-dismissible fade show position-fixed" 
-                     style="top: 20px; right: 20px; z-index: 9999; min-width: 300px;">
-                    ${message}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                </div>
-            `;
-            
-            document.body.insertAdjacentHTML('beforeend', alertHtml);
-            
-            // إزالة التنبيه تلقائياً بعد 5 ثوان
-            setTimeout(() => {
-                const alerts = document.querySelectorAll('.alert');
-                alerts.forEach(alert => {
-                    if (alert.textContent.includes(message)) {
-                        alert.remove();
-                    }
-                });
-            }, 5000);
-        }
+    function showAlert(message, type = 'info') {
+        const alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
+        const alertHtml = `
+            <div class="alert ${alertClass} alert-dismissible fade show position-fixed" 
+                 style="top: 20px; right: 20px; z-index: 9999; min-width: 300px;">
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        `;
+        
+        document.body.insertAdjacentHTML('beforeend', alertHtml);
+        
+        // إزالة التنبيه تلقائياً بعد 5 ثوان
+        setTimeout(() => {
+            const alerts = document.querySelectorAll('.alert');
+            alerts.forEach(alert => {
+                if (alert.textContent.includes(message)) {
+                    alert.remove();
+                }
+            });
+        }, 5000);
     }
     
     // دالة الحصول على CSRF token

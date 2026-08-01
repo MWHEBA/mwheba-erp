@@ -378,6 +378,40 @@
                                     </div>
                                     {% endif %}
                                 </div>
+
+                                <!-- ختم الشركة الرسمى -->
+                                <div class="mb-4 p-3 border rounded">
+                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                        <h6 class="mb-0">
+                                            <i class="fas fa-stamp text-danger me-2"></i>
+                                            ختم الشركة الرسمى (Company Stamp)
+                                        </h6>
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" id="enable_company_stamp" name="enable_company_stamp" {% if enable_company_stamp or settings.enable_company_stamp %}checked{% endif %}>
+                                            <label class="form-check-label fw-bold text-dark small" for="enable_company_stamp">تفعيل طباعة الختم</label>
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="company_stamp" class="form-label">رفع ختم الشركة</label>
+                                        <input type="file" class="form-control logo-upload" id="company_stamp" name="company_stamp" accept="image/*" data-logo-type="company_stamp">
+                                        <div class="help-text">
+                                            <i class="fas fa-info-circle"></i>
+                                            يُطبع فوق الفوتر والتوقيع في فواتير البيع وعروض الأسعار. يُفضّل استخدام صيغة PNG بخلفية شفافة.
+                                        </div>
+                                    </div>
+                                    {% if company_stamp %}
+                                    <div class="mt-2" id="preview-company_stamp">
+                                        <div class="p-2 border rounded d-inline-block bg-light">
+                                            <img src="{{ MEDIA_URL }}{{ company_stamp }}" class="logo-preview" alt="ختم الشركة" style="max-height: 100px;">
+                                        </div>
+                                        <div class="mt-1">
+                                            <small class="text-success">
+                                                <i class="fas fa-check-circle"></i> تم الرفع
+                                            </small>
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                </div>
                             </div>
                             
                             <div class="col-md-4">
@@ -385,13 +419,14 @@
                                     <div class="d-flex align-items-start">
                                         <i class="fas fa-info-circle fa-2x text-info me-3 mt-1"></i>
                                         <div>
-                                            <h6 class="mb-2"><strong>معلومات الشعارات</strong></h6>
+                                            <h6 class="mb-2"><strong>معلومات الشعارات والختم</strong></h6>
                                             <ul class="mb-0 small ps-3">
                                                 <li><strong>الصيغ:</strong> PNG, JPG, SVG</li>
                                                 <li><strong>الحجم:</strong> حد أقصى 2 MB</li>
                                                 <li><strong>الأساسي:</strong> 300×100 بكسل</li>
                                                 <li><strong>الفاتح:</strong> خلفية شفافة</li>
                                                 <li><strong>المصغر:</strong> مربع 50×50</li>
+                                                <li><strong>ختم الشركة:</strong> يُفضل PNG شفاف</li>
                                             </ul>
                                         </div>
                                     </div>

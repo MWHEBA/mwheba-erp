@@ -62,8 +62,7 @@ class PurchaseModelTest(TestCase):
             name='المخزن الرئيسي',
             code='MAIN',
             location='الموقع الرئيسي',
-            is_active=True,
-            created_by=self.user
+            is_active=True
         )
         
         self.product = Product.objects.create(
@@ -118,15 +117,14 @@ class PurchaseModelTest(TestCase):
             purchase=purchase,
             product=self.product,
             quantity=10,
-            unit_price=Decimal('10.00'),
-            total_price=Decimal('100.00')
+            unit_price=Decimal('10.00')
         )
         
         self.assertEqual(purchase_item.purchase, purchase)
         self.assertEqual(purchase_item.product, self.product)
         self.assertEqual(purchase_item.quantity, 10)
         self.assertEqual(purchase_item.unit_price, Decimal('10.00'))
-        self.assertEqual(purchase_item.total_price, Decimal('100.00'))
+        self.assertEqual(purchase_item.total, Decimal('100.00'))
     
     def test_purchase_total_calculation(self):
         """اختبار حساب إجمالي الفاتورة"""
@@ -146,19 +144,17 @@ class PurchaseModelTest(TestCase):
             purchase=purchase,
             product=self.product,
             quantity=5,
-            unit_price=Decimal('10.00'),
-            total_price=Decimal('50.00')
+            unit_price=Decimal('10.00')
         )
         
         PurchaseItem.objects.create(
             purchase=purchase,
             product=self.product,
             quantity=3,
-            unit_price=Decimal('10.00'),
-            total_price=Decimal('30.00')
+            unit_price=Decimal('10.00')
         )
         
-        subtotal = sum(item.total_price for item in purchase.items.all())
+        subtotal = sum(item.total for item in purchase.items.all())
         self.assertEqual(subtotal, Decimal('80.00'))
 
 
@@ -189,8 +185,7 @@ class PurchaseAPITest(TestCase):
         self.warehouse = Warehouse.objects.create(
             name='المخزن الرئيسي',
             code='MAIN',
-            location='الموقع الرئيسي',
-            created_by=self.user
+            location='الموقع الرئيسي'
         )
     
     def test_purchase_list_view_loads(self):
@@ -240,8 +235,7 @@ class PurchaseSignalTest(TransactionTestCase):
         self.warehouse = Warehouse.objects.create(
             name='المخزن الرئيسي',
             code='MAIN',
-            location='الموقع الرئيسي',
-            created_by=self.user
+            location='الموقع الرئيسي'
         )
         
         self.category = Category.objects.create(name='فئة اختبار')
@@ -277,8 +271,7 @@ class PurchaseSignalTest(TransactionTestCase):
             purchase=self.purchase,
             product=self.product,
             quantity=10,
-            unit_price=Decimal('100.00'),
-            total_price=Decimal('1000.00')
+            unit_price=Decimal('100.00')
         )
         
         self.assertIsNotNone(purchase_item)
@@ -321,8 +314,7 @@ class PurchaseIntegrationTest(TransactionTestCase):
             name='المخزن الرئيسي',
             code='MAIN',
             location='الموقع الرئيسي',
-            is_active=True,
-            created_by=self.user
+            is_active=True
         )
         
         self.product = Product.objects.create(
@@ -356,8 +348,7 @@ class PurchaseIntegrationTest(TransactionTestCase):
             purchase=purchase,
             product=self.product,
             quantity=20,
-            unit_price=Decimal('10.00'),
-            total_price=Decimal('200.00')
+            unit_price=Decimal('10.00')
         )
         
         # 3. تحديث الإجمالي

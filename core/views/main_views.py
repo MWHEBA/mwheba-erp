@@ -262,6 +262,7 @@ def company_settings(request):
             "company_email", "company_website", "company_whatsapp",
             "company_working_hours", "company_bank_name", "company_bank_account",
             "company_bank_iban", "company_bank_swift",
+            "enable_company_stamp",
             # ألوان الـ CSS
             "color_primary", "color_primary_dark", "color_primary_light", "color_primary_hover",
             "color_success", "color_success_dark",
@@ -277,7 +278,10 @@ def company_settings(request):
         
         # حفظ كل إعداد فقط إذا تم تعديله
         for field in settings_fields:
-            value = request.POST.get(field, "").strip()
+            if field == "enable_company_stamp":
+                value = "true" if "enable_company_stamp" in request.POST else "false"
+            else:
+                value = request.POST.get(field, "").strip()
             
             if field in existing_settings:
                 setting = existing_settings[field]
@@ -287,9 +291,11 @@ def company_settings(request):
                     setting.is_active = True
                     setting.save()
             else:
+                data_type = "boolean" if field == "enable_company_stamp" else "string"
                 SystemSetting.objects.create(
                     key=field,
                     value=value,
+                    data_type=data_type,
                     is_active=True
                 )
 
@@ -297,6 +303,7 @@ def company_settings(request):
         try:
             from django.core.cache import cache
             cache.delete('global_settings_dict_v2')
+            cache.delete('company_info_v1')
         except Exception as e:
             logger.error(f"Error clearing global settings cache: {e}")
 
@@ -308,9 +315,9 @@ def company_settings(request):
     for setting in SystemSetting.objects.all():
         settings_dict[setting.key] = setting.value
 
-    # التحقق من وجود ملفات الشعارات فعلياً على الـ storage
+    # التحقق من وجود ملفات الشعارات والختم فعلياً على الـ storage
     from django.core.files.storage import default_storage
-    for logo_key in ['company_logo', 'company_logo_light', 'company_logo_mini']:
+    for logo_key in ['company_logo', 'company_logo_light', 'company_logo_mini', 'company_stamp']:
         if logo_key in settings_dict and settings_dict[logo_key]:
             if not default_storage.exists(settings_dict[logo_key]):
                 settings_dict[logo_key] = ""  # مسح المسار لو الملف مش موجود
@@ -441,6 +448,8 @@ def system_settings(request):
         'sale_invoice_item_types': settings_dict.get('sale_invoice_item_types', 'both'),
         'invoice_product_code_display': settings_dict.get('invoice_product_code_display', 'sku'),
         'enable_quotations': settings_dict.get('enable_quotations') == 'true',
+        'enable_custom_fields': settings_dict.get('enable_custom_fields', 'true') == 'true',
+        'custom_fields_display_mode': settings_dict.get('custom_fields_display_mode', 'expanded'),
         'enable_thermal_printing': settings_dict.get('enable_thermal_printing') == 'true',
     }
 

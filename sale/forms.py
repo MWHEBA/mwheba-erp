@@ -1,7 +1,8 @@
 from django import forms
+from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.db.models import Q
-from .models import Sale, SaleItem, SalePayment, SaleReturn, SaleReturnItem, Quotation
+from .models import Sale, SaleItem, SalePayment, SaleReturn, SaleReturnItem, Quotation, CustomFieldDefinition
 from client.models import Customer
 from product.models import Product, Stock, Warehouse
 from django.db import models
@@ -96,11 +97,19 @@ class SaleForm(forms.ModelForm):
         widget=forms.NumberInput(attrs={"class": "form-control", "id": "id_adjustment_amount", "min": "0", "placeholder": "0.00"}),
     )
 
+    salesman = forms.ModelChoiceField(
+        queryset=get_user_model().objects.none(),
+        label="مسؤول المبيعات",
+        required=False,
+        widget=forms.Select(attrs={"class": "form-control select2", "id": "id_salesman"}),
+    )
+
     class Meta:
         model = Sale
         fields = [
             "customer",
             "warehouse",
+            "salesman",
             "date",
             "number",
             "discount",
@@ -122,8 +131,32 @@ class SaleForm(forms.ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
+        user = kwargs.pop("user", None)
+        self.user = user
         super().__init__(*args, **kwargs)
-        
+
+        can_change_salesman = False
+        if user:
+            can_change_salesman = (
+                user.is_superuser or
+                getattr(user, 'is_admin', False) or
+                user.has_perm('sale.change_sale_salesman') or
+                user.has_perm('users.تغيير_مسؤول_المبيعات')
+            )
+        self.can_change_salesman = can_change_salesman
+
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        salesman_qs = User.objects.filter(is_active=True).order_by('first_name', 'username')
+        if self.instance and self.instance.pk and self.instance.salesman_id:
+            salesman_qs = User.objects.filter(
+                models.Q(is_active=True) | models.Q(pk=self.instance.salesman_id)
+            ).order_by('first_name', 'username')
+        self.fields['salesman'].queryset = salesman_qs
+
+        if not self.instance.pk and user and not self.initial.get('salesman'):
+            self.initial['salesman'] = user.pk
+
         from work_order.models import WorkOrder
         self.fields['work_order'] = forms.ModelChoiceField(
             queryset=WorkOrder.objects.all(),
@@ -149,15 +182,30 @@ class SaleForm(forms.ModelForm):
         try:
             from financial.models import ChartOfAccounts
             payment_accounts = ChartOfAccounts.objects.filter(
-                account_type__code__in=['cash', 'bank'],
+                models.Q(is_cash_account=True) |
+                models.Q(is_bank_account=True) |
+                models.Q(account_type__code__in=['cash', 'bank', 'AST']) |
+                models.Q(account_type__category='asset'),
                 is_active=True
             ).order_by('code')
             
             for account in payment_accounts:
                 payment_choices.append((account.code, f"{account.name} ({account.code})"))
-        except ImportError:
+        except Exception:
             pass
-        
+
+        current_method = self.data.get('payment_method') or self.initial.get('payment_method') or (self.instance.payment_method if self.instance and self.instance.pk else None)
+        if current_method and current_method not in [c[0] for c in payment_choices]:
+            try:
+                from financial.models import ChartOfAccounts
+                acc = ChartOfAccounts.objects.filter(code=current_method).first()
+                if acc:
+                    payment_choices.append((acc.code, f"{acc.name} ({acc.code})"))
+                else:
+                    payment_choices.append((current_method, current_method))
+            except Exception:
+                payment_choices.append((current_method, current_method))
+
         self.fields['payment_method'].choices = payment_choices
         
         # تعيين نوع الفاتورة والقيم الافتراضية عند التعديل أو الإنشاء
@@ -204,8 +252,25 @@ class SaleForm(forms.ModelForm):
                 from financial.models import FinancialSubcategory
                 if isinstance(self.instance.financial_category, FinancialCategory):
                     self.initial['financial_category'] = f"cat_{self.instance.financial_category.pk}"
-        except ImportError:
+        except Exception:
             self.fields['financial_category'].choices = [('', 'اختر التصنيف المالي')]
+
+    def clean_salesman(self):
+        salesman = self.cleaned_data.get('salesman')
+        user = getattr(self, 'user', None)
+        can_change = (
+            user and (
+                user.is_superuser or
+                getattr(user, 'is_admin', False) or
+                user.has_perm('sale.change_sale_salesman') or
+                user.has_perm('users.تغيير_مسؤول_المبيعات')
+            )
+        )
+        if not can_change:
+            if self.instance and self.instance.pk and self.instance.salesman:
+                return self.instance.salesman
+            return user
+        return salesman or user
 
     def clean(self):
         cleaned_data = super().clean()
@@ -668,11 +733,25 @@ class QuotationForm(forms.ModelForm):
         queryset=Customer.objects.filter(is_active=True), label="العميل",
         widget=forms.Select(attrs={"class": "form-control select2", "id": "id_customer"})
     )
+    salesman = forms.ModelChoiceField(
+        queryset=get_user_model().objects.none(),
+        label="مسؤول المبيعات",
+        required=False,
+        widget=forms.Select(attrs={"class": "form-control select2", "id": "id_salesman"}),
+    )
+    warehouse = forms.ModelChoiceField(
+        queryset=Warehouse.objects.filter(is_active=True),
+        label="المخزن",
+        required=False,
+        widget=forms.Select(attrs={"class": "form-control select2", "id": "id_warehouse"}),
+    )
 
     class Meta:
         model = Quotation
         fields = [
             "customer",
+            "salesman",
+            "warehouse",
             "date",
             "valid_until",
             "discount",
@@ -695,8 +774,32 @@ class QuotationForm(forms.ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
+        user = kwargs.pop("user", None)
+        self.user = user
         super().__init__(*args, **kwargs)
         
+        can_change_salesman = False
+        if user:
+            can_change_salesman = (
+                user.is_superuser or
+                getattr(user, 'is_admin', False) or
+                user.has_perm('sale.change_sale_salesman') or
+                user.has_perm('users.تغيير_مسؤول_المبيعات')
+            )
+        self.can_change_salesman = can_change_salesman
+
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        salesman_qs = User.objects.filter(is_active=True).order_by('first_name', 'username')
+        if self.instance and self.instance.pk and self.instance.salesman_id:
+            salesman_qs = User.objects.filter(
+                models.Q(is_active=True) | models.Q(pk=self.instance.salesman_id)
+            ).order_by('first_name', 'username')
+        self.fields['salesman'].queryset = salesman_qs
+
+        if not self.instance.pk and user and not self.initial.get('salesman'):
+            self.initial['salesman'] = user.pk
+
         from work_order.models import WorkOrder
         self.fields['work_order'] = forms.ModelChoiceField(
             queryset=WorkOrder.objects.all(),
@@ -712,3 +815,60 @@ class QuotationForm(forms.ModelForm):
         warehouses = Warehouse.objects.filter(is_active=True)
         if warehouses.exists() and not self.initial.get("warehouse"):
             self.initial["warehouse"] = warehouses.first().pk
+
+    def clean_salesman(self):
+        salesman = self.cleaned_data.get('salesman')
+        user = getattr(self, 'user', None)
+        can_change = (
+            user and (
+                user.is_superuser or
+                getattr(user, 'is_admin', False) or
+                user.has_perm('sale.change_sale_salesman') or
+                user.has_perm('users.تغيير_مسؤول_المبيعات')
+            )
+        )
+        if not can_change:
+            if self.instance and self.instance.pk and self.instance.salesman:
+                return self.instance.salesman
+            return user
+        return salesman or user
+
+
+class CustomFieldDefinitionForm(forms.ModelForm):
+    """
+    نموذج إنشاء وتعديل تعاريف الحقول الإضافية
+    """
+    class Meta:
+        model = CustomFieldDefinition
+        fields = [
+            "name",
+            "name_en",
+            "key",
+            "module",
+            "field_type",
+            "select_options",
+            "is_required",
+            "show_in_header",
+            "show_on_print",
+            "show_on_thermal",
+            "is_active",
+            "sort_order",
+        ]
+        widgets = {
+            "name": forms.TextInput(attrs={"class": "form-control", "placeholder": "مثال: رقم أمر الشراء"}),
+            "name_en": forms.TextInput(attrs={"class": "form-control", "placeholder": "e.g. PO Number"}),
+            "key": forms.TextInput(attrs={"class": "form-control", "placeholder": "مثال: po_number (يترك فارغاً للتوليد التلقائي)"}),
+            "module": forms.Select(attrs={"class": "form-select"}),
+            "field_type": forms.Select(attrs={"class": "form-select", "id": "id_field_type"}),
+            "select_options": forms.Textarea(attrs={"class": "form-control", "rows": 3, "placeholder": "خيار 1, خيار 2, خيار 3 (مفصولة بفاصلة)"}),
+            "is_required": forms.CheckboxInput(attrs={"class": "form-check-input"}),
+            "show_in_header": forms.CheckboxInput(attrs={"class": "form-check-input"}),
+            "show_on_print": forms.CheckboxInput(attrs={"class": "form-check-input"}),
+            "show_on_thermal": forms.CheckboxInput(attrs={"class": "form-check-input"}),
+            "is_active": forms.CheckboxInput(attrs={"class": "form-check-input"}),
+            "sort_order": forms.NumberInput(attrs={"class": "form-control", "min": "0"}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['key'].required = False

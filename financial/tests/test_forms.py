@@ -16,10 +16,7 @@ from financial.models import (
     CategoryBudget,
 )
 
-# استيراد آمن للـ Forms
-# ملاحظة: AccountForm موجود في financial/forms.py (ملف منفصل)
-# لكن بسبب وجود مجلد forms/ أيضاً، نحتاج استيراد خاص
-AccountForm = None  # تم تعطيله مؤقتاً بسبب تعارض المجلد/الملف
+from financial.forms import AccountForm
 
 User = get_user_model()
 
@@ -125,42 +122,46 @@ class FinancialCategoryFormTest(TestCase):
             username='testuser',
             password='testpass123'
         )
+        self.account_type, _ = AccountType.objects.get_or_create(
+            code='5000',
+            defaults={'name': 'المصروفات', 'category': 'expense', 'nature': 'debit'}
+        )
+        self.expense_account, _ = ChartOfAccounts.objects.get_or_create(
+            code='50100',
+            defaults={'name': 'مصروفات إدارية', 'account_type': self.account_type, 'is_leaf': True}
+        )
     
     def test_category_creation_via_dict(self):
         """اختبار إنشاء تصنيف عبر بيانات نموذج"""
         category_data = {
+            'code': 'admin_exp',
             'name': 'مصروفات إدارية',
-            'type': 'expense',
-            'priority': 'high',
+            'default_expense_account': self.expense_account,
             'is_active': True,
         }
         
-        # محاكاة نموذج
         try:
             category = FinancialCategory.objects.create(
-                **category_data,
-                created_by=self.user
+                **category_data
             )
             self.assertEqual(category.name, 'مصروفات إدارية')
-            self.assertEqual(category.type, 'expense')
+            self.assertEqual(category.code, 'admin_exp')
         except Exception as e:
             self.fail(f"Category creation failed: {e}")
     
-    def test_category_with_budget_limit(self):
-        """اختبار تصنيف مع حد ميزانية"""
+    def test_category_with_code_and_name(self):
+        """اختبار تصنيف بكود واسم"""
         category_data = {
+            'code': 'mkt_exp',
             'name': 'مصروفات تسويق',
-            'type': 'expense',
-            'budget_limit': Decimal('50000.00'),
-            'warning_threshold': Decimal('80.00'),
+            'default_expense_account': self.expense_account,
         }
         
         try:
             category = FinancialCategory.objects.create(
-                **category_data,
-                created_by=self.user
+                **category_data
             )
-            self.assertEqual(category.budget_limit, Decimal('50000.00'))
+            self.assertEqual(category.code, 'mkt_exp')
         except Exception as e:
             self.fail(f"Category creation failed: {e}")
 
@@ -174,26 +175,20 @@ class JournalEntryFormTest(TestCase):
             password='testpass123'
         )
         
-        self.period = AccountingPeriod.objects.create(
-            name='2024',
+        self.period, _ = AccountingPeriod.objects.get_or_create(
             start_date=datetime.date(2024, 1, 1),
             end_date=datetime.date(2024, 12, 31),
-            created_by=self.user
+            defaults={'name': '2024', 'created_by': self.user}
         )
         
-        self.account_type = AccountType.objects.create(
+        self.account_type, _ = AccountType.objects.get_or_create(
             code='1000',
-            name='الأصول',
-            category='asset',
-            nature='debit',
-            created_by=self.user
+            defaults={'name': 'الأصول', 'category': 'asset', 'nature': 'debit', 'created_by': self.user}
         )
         
-        self.account = ChartOfAccounts.objects.create(
+        self.account, _ = ChartOfAccounts.objects.get_or_create(
             code='11010',
-            name='النقدية',
-            account_type=self.account_type,
-            created_by=self.user
+            defaults={'name': 'النقدية', 'account_type': self.account_type, 'created_by': self.user}
         )
     
     def test_journal_entry_creation_via_dict(self):
@@ -254,10 +249,22 @@ class CategoryBudgetFormTest(TestCase):
             password='testpass123'
         )
         
-        self.category = FinancialCategory.objects.create(
+        self.account_type = AccountType.objects.create(
+            code='5001',
+            name='المصروفات',
+            category='expense',
+            nature='debit'
+        )
+        self.expense_account = ChartOfAccounts.objects.create(
+            code='50101',
             name='مصروفات إدارية',
-            type='expense',
-            created_by=self.user
+            account_type=self.account_type,
+            is_leaf=True
+        )
+        self.category = FinancialCategory.objects.create(
+            code='admin_exp_budget',
+            name='مصروفات إدارية',
+            default_expense_account=self.expense_account
         )
     
     def test_budget_creation_via_dict(self):

@@ -27,6 +27,11 @@ class ProductImportService:
         'اسم المنتج *': 'name',
         'الاسم': 'name',
         'name': 'name',
+        'اسم المنتج بالإنجليزية': 'name_en',
+        'اسم المنتج انجليزي': 'name_en',
+        'الاسم بالإنجليزية': 'name_en',
+        'name_en': 'name_en',
+        'english_name': 'name_en',
         'التصنيف': 'category',
         'التصنيف *': 'category',
         'category': 'category',
@@ -48,6 +53,10 @@ class ProductImportService:
         'barcode': 'barcode',
         'الوصف': 'description',
         'description': 'description',
+        'الوصف بالإنجليزية': 'description_en',
+        'الوصف انجليزي': 'description_en',
+        'description_en': 'description_en',
+        'english_description': 'description_en',
         'الحد الأدنى للمخزون': 'min_stock',
         'min_stock': 'min_stock',
         'الكمية': 'initial_quantity',
@@ -379,47 +388,21 @@ class ProductImportService:
             self.skipped_count += 1
             return {'error': f'السطر {row_num} ({name}): سعر البيع غير صحيح'}
 
-        sku = row.get('sku', '').strip() or None
-        barcode = row.get('barcode', '').strip() or None
-        description = row.get('description', '').strip() or ''
-        min_stock_raw = row.get('min_stock', '0').strip() if row.get('min_stock') else '0'
-        try:
-            min_stock = int(float(min_stock_raw)) if min_stock_raw else 0
-        except (ValueError, TypeError):
-            min_stock = 0
-
-        is_active_raw = str(row.get('is_active', 'نعم')).strip().lower()
-        is_active = is_active_raw not in ('0', 'false', 'لا', 'no', 'غير نشط')
-
-        is_service_raw = str(row.get('is_service', 'لا')).strip().lower()
-        is_service = is_service_raw in ('1', 'true', 'نعم', 'yes', 'خدمة')
-
-        item_type = self._resolve_item_type(row.get('item_type', 'general'))
-
-        initial_qty_raw = str(row.get('initial_quantity', '0')).strip()
-        try:
-            initial_quantity = int(float(initial_qty_raw.replace(',', ''))) if initial_qty_raw else 0
-        except (ValueError, TypeError):
-            initial_quantity = 0
-
-        existing = None
-        if sku:
-            existing = Product.objects.filter(sku=sku).first()
-        if not existing:
-            existing = Product.objects.filter(name__iexact=name, category=category).first()
-
-        if existing and not update_existing:
-            self.skipped_count += 1
-            return {'error': None}
+        name_en = row.get('name_en', '').strip() or None
+        description_en = row.get('description_en', '').strip() or ''
 
         try:
             if existing and update_existing:
                 existing.name = name
+                if name_en:
+                    existing.name_en = name_en
                 existing.category = category
                 existing.unit = unit
                 existing.cost_price = cost_price
                 existing.selling_price = selling_price
                 existing.description = description
+                if description_en:
+                    existing.description_en = description_en
                 existing.min_stock = min_stock
                 existing.is_active = is_active
                 existing.is_service = is_service
@@ -438,6 +421,7 @@ class ProductImportService:
 
                 product = Product.objects.create(
                     name=name,
+                    name_en=name_en,
                     category=category,
                     unit=unit,
                     cost_price=cost_price,
@@ -445,6 +429,7 @@ class ProductImportService:
                     sku=sku,
                     barcode=barcode,
                     description=description,
+                    description_en=description_en,
                     min_stock=min_stock,
                     is_active=is_active,
                     is_service=is_service,

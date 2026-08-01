@@ -43,8 +43,8 @@ def create_accounting_entry_for_stock_movement(sender, instance, created, **kwar
     
     ⚠️ ملاحظة: تم تعطيل القيود المحاسبية للمشتريات - يتم إنشاؤها عبر AccountingIntegrationService
     """
-    if not created or getattr(instance, "_skip_accounting", False):
-        return
+    # Explicitly disabled - Service Layer (AccountingIntegrationService / SaleService / PurchaseService) handles journal entries
+    return
     
     # ✅ تخطي المشتريات - يتم إنشاء القيود عبر AccountingIntegrationService
     if instance.document_type == "purchase":

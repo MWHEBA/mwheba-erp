@@ -32,6 +32,18 @@ class TestSalesProcessingEngine:
         self.unit = unit
         self.warehouse = warehouse
         
+        from datetime import date
+        from financial.models import ChartOfAccounts, AccountType, AccountingPeriod
+        AccountingPeriod.objects.get_or_create(
+            start_date=date(2026, 1, 1),
+            end_date=date(2026, 12, 31),
+            defaults={'name': 'فترة 2026', 'status': 'open'}
+        )
+        asset_type, _ = AccountType.objects.get_or_create(code='asset', defaults={'name': 'أصول', 'category': 'asset'})
+        revenue_type, _ = AccountType.objects.get_or_create(code='revenue', defaults={'name': 'إيرادات', 'category': 'revenue'})
+        ChartOfAccounts.objects.get_or_create(code='40500', defaults={'name': 'إيراد منتجات مجمعة', 'account_type': revenue_type, 'is_active': True})
+        ChartOfAccounts.objects.get_or_create(code='10100', defaults={'name': 'الخزينة', 'account_type': asset_type, 'is_active': True})
+        
         # إنشاء منتجات مكونة
         self.component1 = Product.objects.create(
             name="مكون 1",
@@ -183,13 +195,13 @@ class TestSalesProcessingEngine:
         assert len(component_deductions) == 2
         
         # التحقق من خصم المكون الأول (2 × 10 = 20)
-        comp1_deduction = next(d for d in component_deductions if d['component_id'] == self.component1.id)
+        comp1_deduction = next(d for d in component_deductions if d['deducted_product_id'] == self.component1.id)
         assert comp1_deduction['deducted_quantity'] == 20
         assert comp1_deduction['required_per_unit'] == 2
         assert comp1_deduction['units_sold'] == 10
         
         # التحقق من خصم المكون الثاني (1 × 10 = 10)
-        comp2_deduction = next(d for d in component_deductions if d['component_id'] == self.component2.id)
+        comp2_deduction = next(d for d in component_deductions if d['deducted_product_id'] == self.component2.id)
         assert comp2_deduction['deducted_quantity'] == 10
         assert comp2_deduction['required_per_unit'] == 1
         assert comp2_deduction['units_sold'] == 10
@@ -390,14 +402,14 @@ class TestSalesProcessingEngine:
         assert comp2_impact['remaining_after_sale'] == 0  # max(0, 50-60)
         assert comp2_impact['sufficient'] is False
 
-    @patch('product.services.sales_processing_engine.logger')
+    @patch('product.services.bundle_error_handler.logger')
     def test_error_logging(self, mock_logger):
         """اختبار تسجيل الأخطاء"""
         # محاولة معالجة بيع بمدخلات غير صحيحة لإثارة خطأ
         with patch.object(SalesProcessingEngine, '_validate_sale_inputs', side_effect=Exception("Test error")):
             SalesProcessingEngine.process_bundle_sale(self.bundle_product, 10, self.transaction_context)
         
-        # التحقق من تسجيل الخطأ
+        # التحقق من تسجيل الخطأ عبر معالج الأخطاء
         mock_logger.error.assert_called()
 
     def test_transaction_atomicity(self):
@@ -437,6 +449,18 @@ class TestSalesProcessingEngineIntegration:
         self.category = category
         self.unit = unit
         self.warehouse = warehouse
+        
+        from datetime import date
+        from financial.models import ChartOfAccounts, AccountType, AccountingPeriod
+        AccountingPeriod.objects.get_or_create(
+            start_date=date(2026, 1, 1),
+            end_date=date(2026, 12, 31),
+            defaults={'name': 'فترة 2026', 'status': 'open'}
+        )
+        asset_type, _ = AccountType.objects.get_or_create(code='asset', defaults={'name': 'أصول', 'category': 'asset'})
+        revenue_type, _ = AccountType.objects.get_or_create(code='revenue', defaults={'name': 'إيرادات', 'category': 'revenue'})
+        ChartOfAccounts.objects.get_or_create(code='40500', defaults={'name': 'إيراد منتجات مجمعة', 'account_type': revenue_type, 'is_active': True})
+        ChartOfAccounts.objects.get_or_create(code='10100', defaults={'name': 'الخزينة', 'account_type': asset_type, 'is_active': True})
         
         # إنشاء منتجات مكونة متعددة
         self.components = []
@@ -522,7 +546,7 @@ class TestSalesProcessingEngineIntegration:
         for i, expected_deduction in enumerate(expected_deductions):
             comp_deduction = next(
                 d for d in component_deductions 
-                if d['component_id'] == self.components[i].id
+                if d['deducted_product_id'] == self.components[i].id
             )
             assert comp_deduction['deducted_quantity'] == expected_deduction
 

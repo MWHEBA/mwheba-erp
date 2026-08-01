@@ -1,4 +1,4 @@
-﻿"""
+"""
 اختبارات خدمة تحليل الربحية حسب التصنيفات
 """
 import pytest
@@ -33,38 +33,26 @@ class TestCategoryProfitabilityService:
             password='testpass123'
         )
         
-        # إنشاء أنواع الحسابات
-        self.revenue_type = AccountType.objects.create(
+        # إنشاء أو جلب أنواع الحسابات
+        self.revenue_type, _ = AccountType.objects.get_or_create(
             code='4000',
-            name='الإيرادات',
-            category='revenue',
-            nature='credit',
-            created_by=self.user
+            defaults={'name': 'الإيرادات', 'category': 'revenue', 'nature': 'credit', 'created_by': self.user}
         )
         
-        self.expense_type = AccountType.objects.create(
+        self.expense_type, _ = AccountType.objects.get_or_create(
             code='5000',
-            name='المصروفات',
-            category='expense',
-            nature='debit',
-            created_by=self.user
+            defaults={'name': 'المصروفات', 'category': 'expense', 'nature': 'debit', 'created_by': self.user}
         )
         
-        # إنشاء حسابات محاسبية
-        self.revenue_account = ChartOfAccounts.objects.create(
+        # إنشاء أو جلب حسابات محاسبية
+        self.revenue_account, _ = ChartOfAccounts.objects.get_or_create(
             code='40100',
-            name='إيرادات الرسوم',
-            account_type=self.revenue_type,
-            is_leaf=True,
-            created_by=self.user
+            defaults={'name': 'إيرادات الرسوم', 'account_type': self.revenue_type, 'is_leaf': True, 'created_by': self.user}
         )
         
-        self.expense_account = ChartOfAccounts.objects.create(
+        self.expense_account, _ = ChartOfAccounts.objects.get_or_create(
             code='50100',
-            name='مصروفات المنهجيات',
-            account_type=self.expense_type,
-            is_leaf=True,
-            created_by=self.user
+            defaults={'name': 'مصروفات المنهجيات', 'account_type': self.expense_type, 'is_leaf': True, 'created_by': self.user}
         )
         
         # إنشاء تصنيف مالي
@@ -101,20 +89,13 @@ class TestCategoryProfitabilityService:
         # إيراد 10000 (دائن) + حساب نقدي 10000 (مدين)
         # مصروف 6000 (مدين) + حساب نقدي 6000 (دائن)
         
-        # إنشاء حساب نقدي
-        cash_type = AccountType.objects.create(
+        cash_type, _ = AccountType.objects.get_or_create(
             code='1000',
-            name='الأصول',
-            category='asset',
-            nature='debit',
-            created_by=self.user
+            defaults={'name': 'الأصول', 'category': 'asset', 'nature': 'debit', 'created_by': self.user}
         )
-        cash_account = ChartOfAccounts.objects.create(
+        cash_account, _ = ChartOfAccounts.objects.get_or_create(
             code='10100',
-            name='الصندوق',
-            account_type=cash_type,
-            is_leaf=True,
-            created_by=self.user
+            defaults={'name': 'الصندوق', 'account_type': cash_type, 'is_leaf': True, 'created_by': self.user}
         )
         
         # بند الإيراد: مدين صندوق 10000

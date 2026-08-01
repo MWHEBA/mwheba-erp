@@ -6,29 +6,27 @@ from django.utils import timezone
 
 def seed_serial_numbers(apps, schema_editor):
     SerialNumber = apps.get_model("product", "SerialNumber")
-    Sale = apps.get_model("sale", "Sale")
-    JournalEntry = apps.get_model("financial", "JournalEntry")
-    Purchase = apps.get_model("purchase", "Purchase")
-
     current_year = timezone.now().year
 
-    # Helper function to extract numeric suffix
     def extract_max_number(queryset, field_name="number"):
         max_num = 0
         for obj in queryset:
             val = getattr(obj, field_name, "")
             if val:
-                # Find all digit groups
                 digits = re.findall(r"\d+", str(val))
                 if digits:
-                    # Take the last group of digits as sequence number
                     num = int(digits[-1])
                     if num > max_num:
                         max_num = num
         return max_num
 
     # 1. Seed Sale Serial
-    sale_max = extract_max_number(Sale.objects.all())
+    try:
+        Sale = apps.get_model("sale", "Sale")
+        sale_max = extract_max_number(Sale.objects.all())
+    except (LookupError, ValueError):
+        sale_max = 0
+
     SerialNumber.objects.update_or_create(
         document_type="sale",
         year=current_year,
@@ -36,7 +34,12 @@ def seed_serial_numbers(apps, schema_editor):
     )
 
     # 2. Seed Journal Entry Serial
-    je_max = extract_max_number(JournalEntry.objects.all())
+    try:
+        JournalEntry = apps.get_model("financial", "JournalEntry")
+        je_max = extract_max_number(JournalEntry.objects.all())
+    except (LookupError, ValueError):
+        je_max = 0
+
     SerialNumber.objects.update_or_create(
         document_type="journal_entry",
         year=current_year,
@@ -44,7 +47,12 @@ def seed_serial_numbers(apps, schema_editor):
     )
 
     # 3. Seed Purchase Serial
-    pur_max = extract_max_number(Purchase.objects.all())
+    try:
+        Purchase = apps.get_model("purchase", "Purchase")
+        pur_max = extract_max_number(Purchase.objects.all())
+    except (LookupError, ValueError):
+        pur_max = 0
+
     SerialNumber.objects.update_or_create(
         document_type="purchase",
         year=current_year,

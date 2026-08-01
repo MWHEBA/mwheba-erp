@@ -107,7 +107,7 @@
     <div class="collapse" id="filterSection">
       <div class="filter-section mb-4">
         <form method="GET" action="" class="row g-3">
-          <div class="col-md-3">
+          <div class="col-md-2">
             <label for="customer" class="form-label">{% trans "العميل" %}</label>
             <select class="form-select select2-filter" id="customer" name="customer">
               <option value="">{% trans "جميع العملاء" %}</option>
@@ -118,7 +118,18 @@
               {% endfor %}
             </select>
           </div>
-          <div class="col-md-3">
+          <div class="col-md-2">
+            <label for="salesman" class="form-label">{% trans "مسؤول المبيعات" %}</label>
+            <select class="form-select select2-filter" id="salesman" name="salesman">
+              <option value="">{% trans "الكل" %}</option>
+              {% for sm in salesmen %}
+              <option value="{{ sm.id }}" {% if request.GET.salesman == sm.id|stringformat:"i" %}selected{% endif %}>
+                {{ sm.get_full_name|default:sm.username }}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-2">
             <label for="status" class="form-label">{% trans "الحالة" %}</label>
             <select class="form-select" id="status" name="status">
               <option value="">{% trans "الكل" %}</option>
@@ -162,6 +173,7 @@
               <th>#</th>
               <th>{% trans "رقم العرض" %}</th>
               <th>{% trans "العميل" %}</th>
+              <th>{% trans "مسؤول المبيعات" %}</th>
               <th>{% trans "التاريخ" %}</th>
               <th>{% trans "صالح حتى" %}</th>
               <th>{% trans "المبلغ" %}</th>
@@ -180,6 +192,7 @@
                 </div>
               </td>
               <td class="fw-bold text-start">{{ quote.customer.name }}</td>
+              <td>{{ quote.salesman_display_name }}</td>
               <td>{{ quote.date|date:"Y-m-d" }}</td>
               <td>{{ quote.valid_until|date:"Y-m-d"|default:"-" }}</td>
               <td>

@@ -84,16 +84,22 @@
                                         </div>
                                         <div class="card-body">
                                             <div class="row">
-                                                <div class="col-md-6">
+                                                <div class="col-md-6 mb-3">
                                                     {{ form.name|as_crispy_field }}
                                                 </div>
-                                                <div class="col-md-6">
+                                                <div class="col-md-6 mb-3">
+                                                    {{ form.name_en|as_crispy_field }}
+                                                </div>
+                                                <div class="col-md-6 mb-3">
+                                                    {{ form.description|as_crispy_field }}
+                                                </div>
+                                                <div class="col-md-6 mb-3">
+                                                    {{ form.description_en|as_crispy_field }}
+                                                </div>
+                                                <div class="col-12 mb-3">
                                                     <div class="position-relative">
                                                         {{ form.sku|as_crispy_field }}
                                                     </div>
-                                                </div>
-                                                <div class="col-12">
-                                                    {{ form.description|as_crispy_field }}
                                                 </div>
                                             </div>
                                         </div>
@@ -217,23 +223,7 @@
                                             <h6 class="card-title mb-0"><i class="fas fa-cog me-2"></i>الخيارات العامة</h6>
                                         </div>
                                         <div class="card-body">
-                                            {% if not is_service %}
-                                            <div class="form-check mb-3">
-                                                {{ form.is_service }}
-                                                <label class="form-check-label" for="{{ form.is_service.id_for_label }}">
-                                                    <strong>{{ form.is_service.label }}</strong>
-                                                    <small class="d-block text-muted">{{ form.is_service.help_text }}</small>
-                                                </label>
-                                            </div>
-                                            {% else %}
-                                            <!-- حقل مخفي للخدمات -->
-                                            <input type="hidden" name="is_service" value="True">
-                                            <div class="alert alert-info mb-3">
-                                                <i class="fas fa-info-circle me-2"></i>
-                                                <strong>هذا عنصر من نوع: خدمة</strong>
-                                                <small class="d-block mt-1">الخدمات لا تحتاج إدارة مخزون</small>
-                                            </div>
-                                            {% endif %}
+                                            <input type="hidden" name="is_service" value="{% if form.instance.is_service or is_service %}True{% else %}False{% endif %}">
                                             <div class="form-check mb-3">
                                                 {{ form.is_active }}
                                                 <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
@@ -353,9 +343,15 @@
             <div class="modal-body">
                 <form id="category-form-modal">
                     {% csrf_token %}
-                    <div class="mb-3">
-                        <label for="modal-cat-name" class="form-label">اسم التصنيف <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="modal-cat-name" name="name" required>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="modal-cat-name" class="form-label">اسم التصنيف (عربي) <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="modal-cat-name" name="name" required placeholder="اسم التصنيف (عربي)">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="modal-cat-name-en" class="form-label">اسم التصنيف (English)</label>
+                            <input type="text" class="form-control" id="modal-cat-name-en" name="name_en" placeholder="Category Name (English)">
+                        </div>
                     </div>
                     <div class="mb-3">
                         <label for="modal-cat-code" class="form-label">رمز التصنيف (اختياري)</label>
@@ -367,7 +363,7 @@
                         <select class="form-select" id="modal-cat-parent" name="parent">
                             <option value="">--- تصنيف رئيسي ---</option>
                             {% for cat in form.fields.category.queryset %}
-                                <option value="{{ cat.pk }}">{{ cat }}</option>
+                                <option value="{{ cat.pk }}">{{ cat.name }}{% if cat.name_en %} / {{ cat.name_en }}{% endif %}</option>
                             {% endfor %}
                         </select>
                     </div>
@@ -396,13 +392,19 @@
             <div class="modal-body">
                 <form id="unit-form-modal">
                     {% csrf_token %}
-                    <div class="mb-3">
-                        <label for="modal-unit-name" class="form-label">اسم الوحدة <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="modal-unit-name" name="name" required>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="modal-unit-name" class="form-label">اسم الوحدة (عربي) <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="modal-unit-name" name="name" required placeholder="اسم الوحدة (عربي)">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="modal-unit-name-en" class="form-label">اسم الوحدة (English)</label>
+                            <input type="text" class="form-control" id="modal-unit-name-en" name="name_en" placeholder="Unit Name (English)">
+                        </div>
                     </div>
                     <div class="mb-3">
                         <label for="modal-unit-symbol" class="form-label">الرمز <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="modal-unit-symbol" name="symbol" required>
+                        <input type="text" class="form-control" id="modal-unit-symbol" name="symbol" required placeholder="مثال: Pcs">
                         <small class="text-muted">الرمز المختصر للوحدة (مثل: كجم، متر، حبة)</small>
                     </div>
                 </form>

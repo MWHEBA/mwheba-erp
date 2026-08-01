@@ -24,20 +24,14 @@ class CustomerSignalsTest(TestCase):
         )
         
         # إنشاء البنية المحاسبية المطلوبة
-        asset_type = AccountType.objects.create(
-            code='ASSET',
-            name='أصول',
-            name_en='Assets',
-            nature='debit'
+        asset_type, _ = AccountType.objects.get_or_create(
+            code='asset',
+            defaults={'name': 'أصول', 'name_en': 'Assets', 'category': 'asset'}
         )
         
-        self.customers_parent = ChartOfAccounts.objects.create(
-            code='10300',
-            name='العملاء',
-            name_en='Customers',
-            account_type=asset_type,
-            is_active=True,
-            is_leaf=False
+        self.customers_parent, _ = ChartOfAccounts.objects.get_or_create(
+            code='11030',
+            defaults={'name': 'العملاء', 'name_en': 'Customers', 'account_type': asset_type, 'is_active': True, 'is_leaf': False}
         )
         
     # ==================== اختبارات create_customer_account_signal ====================
@@ -234,21 +228,14 @@ class CustomerSignalsIntegrationTest(TestCase):
             password="test123"
         )
         
-        # إنشاء البنية المحاسبية المطلوبة
-        asset_type = AccountType.objects.create(
-            code='ASSET',
-            name='أصول',
-            name_en='Assets',
-            nature='debit'
+        asset_type, _ = AccountType.objects.get_or_create(
+            code='asset',
+            defaults={'name': 'أصول', 'name_en': 'Assets', 'category': 'asset'}
         )
         
-        ChartOfAccounts.objects.create(
-            code='10300',
-            name='مدينو العملاء',
-            name_en='Customers Receivables',
-            account_type=asset_type,
-            is_active=True,
-            is_leaf=False
+        ChartOfAccounts.objects.get_or_create(
+            code='11030',
+            defaults={'name': 'مدينو العملاء', 'name_en': 'Customers Receivables', 'account_type': asset_type, 'is_active': True, 'is_leaf': False}
         )
         
     @override_settings(AUTO_CREATE_CUSTOMER_ACCOUNTS=True)
@@ -268,8 +255,8 @@ class CustomerSignalsIntegrationTest(TestCase):
         
         # التحقق من إنشاء 3 حسابات فرعية
         customer_accounts = ChartOfAccounts.objects.filter(
-            code__startswith='1030',
-            parent__code='10300'
+            code__startswith='1103',
+            parent__code='11030'
         )
         self.assertEqual(customer_accounts.count(), 3)
         

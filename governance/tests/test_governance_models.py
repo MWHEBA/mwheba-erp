@@ -1205,6 +1205,14 @@ class GovernanceModelsIntegrationTests:
                 quarantined_by=user
             )
             
+            AuditTrail.log_operation(
+                model_name='WorkflowModel',
+                object_id=123,
+                operation='UPDATE',
+                user=user,
+                source_service='QuarantineSystem',
+                after_data={'status': 'QUARANTINED'}
+            )
             assert quarantine_record.status == 'QUARANTINED'
             
             # 6. Resolve quarantine

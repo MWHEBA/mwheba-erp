@@ -92,10 +92,24 @@ class Command(BaseCommand):
                 'description': 'إدارة طلبات تسعير المطبوعات وحساب التكاليف',
                 'icon': 'fas fa-print',
                 'module_type': 'optional',
+                'is_enabled': False,
                 'order': 50,
                 'url_namespace': 'printing_pricing',
                 'menu_id': 'printingPricingMenu',
                 'required_modules_codes': [],
+            },
+            {
+                'code': 'work_orders',
+                'name_ar': 'إدارة أوامر الشغل',
+                'name_en': 'Work Orders Management',
+                'description': 'إدارة أوامر الشغل ومراكز التكاليف والأرباح للطلبات',
+                'icon': 'fas fa-tasks',
+                'module_type': 'optional',
+                'is_enabled': False,
+                'order': 60,
+                'url_namespace': 'work_order',
+                'menu_id': 'workOrdersMenu',
+                'required_modules_codes': ['customers_sales'],
             },
         ]
         
@@ -104,10 +118,18 @@ class Command(BaseCommand):
         
         for data in modules_data:
             required_codes = data.pop('required_modules_codes', [])
-            module, created = SystemModule.objects.update_or_create(
-                code=data['code'],
+            code = data.pop('code')
+            module, created = SystemModule.objects.get_or_create(
+                code=code,
                 defaults=data
             )
+            
+            if not created:
+                # تحديث البيانات فقط دون تغيير حالة التفعيل الحالية
+                for key, value in data.items():
+                    if key != 'is_enabled':
+                        setattr(module, key, value)
+                module.save()
             
             # ربط التطبيقات المطلوبة
             if required_codes:
@@ -117,12 +139,12 @@ class Command(BaseCommand):
             if created:
                 created_count += 1
                 self.stdout.write(
-                    self.style.SUCCESS(f'✓ تم إنشاء التطبيق: {module.name_ar}')
+                    self.style.SUCCESS(f'[+] تم إنشاء التطبيق: {module.name_ar}')
                 )
             else:
                 updated_count += 1
                 self.stdout.write(
-                    self.style.WARNING(f'⟳ تم تحديث التطبيق: {module.name_ar}')
+                    self.style.WARNING(f'[*] تم تحديث التطبيق: {module.name_ar}')
                 )
         
         self.stdout.write('')
@@ -142,4 +164,5 @@ class Command(BaseCommand):
             # LocMemCache لا يدعم delete_pattern
             pass
         
-        self.stdout.write(self.style.SUCCESS('✓ تم مسح الكاش'))
+        self.stdout.write(self.style.SUCCESS('[+] تم مسح الكاش'))
+

@@ -17,9 +17,10 @@ from .models.inventory_movement import InventoryMovement
 class CategoryForm(forms.ModelForm):
     class Meta:
         model = Category
-        fields = ["name", "code", "parent", "description", "is_active"]
+        fields = ["name", "name_en", "code", "parent", "description", "is_active"]
         widgets = {
-            "name": forms.TextInput(attrs={"class": "form-control"}),
+            "name": forms.TextInput(attrs={"class": "form-control", "placeholder": "اسم التصنيف (عربي)"}),
+            "name_en": forms.TextInput(attrs={"class": "form-control", "placeholder": "اسم التصنيف (English)"}),
             "code": forms.TextInput(attrs={
                 "class": "form-control",
                 "placeholder": "مثل: SUP للمواد والمستلزمات",
@@ -33,6 +34,8 @@ class CategoryForm(forms.ModelForm):
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields['name'].label = "اسم التصنيف (عربي)"
+        self.fields['name_en'].label = "اسم التصنيف (English)"
         self.fields['code'].help_text = "رمز مختصر للتصنيف (حروف إنجليزية فقط، حد أقصى 10 أحرف)"
         
     def clean_code(self):
@@ -53,13 +56,20 @@ class CategoryForm(forms.ModelForm):
         return code
 
 
-
-
-
 class UnitForm(forms.ModelForm):
     class Meta:
         model = Unit
         fields = ["name", "name_en", "symbol", "is_active"]
+        widgets = {
+            "name": forms.TextInput(attrs={"class": "form-control", "placeholder": "اسم الوحدة (عربي)"}),
+            "name_en": forms.TextInput(attrs={"class": "form-control", "placeholder": "اسم الوحدة (English)"}),
+            "symbol": forms.TextInput(attrs={"class": "form-control", "placeholder": "الرمز"}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['name'].label = "اسم الوحدة (عربي)"
+        self.fields['name_en'].label = "اسم الوحدة (English)"
 
 
 class ProductForm(forms.ModelForm):
@@ -72,8 +82,10 @@ class ProductForm(forms.ModelForm):
         model = Product
         fields = [
             "name",
+            "name_en",
             "category",
             "description",
+            "description_en",
             "sku",
             "barcode",
             "unit",
@@ -85,7 +97,10 @@ class ProductForm(forms.ModelForm):
             "is_featured",
         ]
         widgets = {
-            "description": forms.Textarea(attrs={"rows": 3}),
+            "name": forms.TextInput(attrs={"placeholder": "الاسم (عربي)"}),
+            "name_en": forms.TextInput(attrs={"placeholder": "الاسم (English)"}),
+            "description": forms.Textarea(attrs={"rows": 3, "placeholder": "الوصف (عربي)"}),
+            "description_en": forms.Textarea(attrs={"rows": 3, "placeholder": "الوصف (English)"}),
             "cost_price": forms.NumberInput(attrs={"step": "0.01"}),
             "selling_price": forms.NumberInput(attrs={"step": "0.01"}),
             "sku": forms.TextInput(attrs={
@@ -109,16 +124,22 @@ class ProductForm(forms.ModelForm):
         item_type = "الخدمة" if is_service_value else "المنتج"
         
         # تحديث labels ديناميكياً
-        self.fields['name'].label = f"اسم {item_type}"
+        self.fields['name'].label = f"اسم {item_type} (عربي)"
+        self.fields['name_en'].label = f"اسم {item_type} (English)"
+        self.fields['description'].label = f"وصف {item_type} (عربي)"
+        self.fields['description_en'].label = f"وصف {item_type} (English)"
         self.fields['sku'].label = f"كود {item_type}"
-        self.fields['description'].label = f"وصف {item_type}"
         self.fields['barcode'].label = "الباركود"
         self.fields['cost_price'].label = "سعر التكلفة"
         self.fields['selling_price'].label = "سعر البيع"
         
-        # تحديث help texts
+        # تحديث help texts و placeholders
+        self.fields['name'].widget.attrs['placeholder'] = f"اسم {item_type} (عربي)"
+        self.fields['name_en'].widget.attrs['placeholder'] = f"اسم {item_type} (English)"
+        self.fields['description'].widget.attrs['placeholder'] = f"وصف {item_type} (عربي)"
+        self.fields['description_en'].widget.attrs['placeholder'] = f"وصف {item_type} (English)"
         self.fields['sku'].help_text = f"سيتم توليد كود {item_type} تلقائياً بناءً على التصنيف إذا ترك فارغاً"
-        self.fields['name'].help_text = f"أدخل اسم {item_type} بوضوح"
+        self.fields['name'].help_text = f"أدخل اسم {item_type} (عربي) بوضوح"
         
         # جعل حقل SKU اختياري
         self.fields['sku'].required = False

@@ -114,10 +114,10 @@ def chart_of_accounts(db):
     # Create accounting period for current year
     current_year = timezone.now().year
     AccountingPeriod.objects.get_or_create(
-        name=f'السنة المالية {current_year}',
         start_date=timezone.datetime(current_year, 1, 1).date(),
         end_date=timezone.datetime(current_year, 12, 31).date(),
         defaults={
+            'name': f'السنة المالية {current_year}',
             'status': 'open'
         }
     )

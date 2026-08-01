@@ -57,6 +57,7 @@ class CreateSupplierAccountSignalTest(TestCase):
             name="مورد للتعديل",
             code="EDIT001"
         )
+        supplier.refresh_from_db()
         
         # تعديل المورد
         supplier.name = "مورد معدل"
@@ -155,13 +156,18 @@ class DeleteSupplierAccountSignalTest(TestCase):
 class SignalIntegrationTest(TestCase):
     """اختبارات تكامل Signals"""
     
+    def setUp(self):
+        from supplier.models import SupplierType
+        self.supplier_type = SupplierType.objects.create(name="عام", code="sig_integ")
+
     def test_multiple_suppliers_creation(self):
         """اختبار إنشاء عدة موردين"""
         # إنشاء عدة موردين
         for i in range(3):
             Supplier.objects.create(
                 name=f"مورد {i+1}",
-                code=f"SUP00{i+1}"
+                code=f"SUP00{i+1}",
+                primary_type=self.supplier_type
             )
         
         # التحقق من إنشاء 3 موردين
@@ -171,7 +177,7 @@ class SignalIntegrationTest(TestCase):
         """اختبار Signal مع bulk_create (لا يشتغل - سلوك Django طبيعي)"""
         # إنشاء موردين باستخدام bulk_create
         suppliers = [
-            Supplier(name=f"مورد {i}", code=f"BULK00{i}")
+            Supplier(name=f"مورد {i}", code=f"BULK00{i}", primary_type=self.supplier_type)
             for i in range(3)
         ]
         Supplier.objects.bulk_create(suppliers)

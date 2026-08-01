@@ -87,37 +87,28 @@ class CategoryProfitabilityService:
         if date_to:
             entries_query = entries_query.filter(date__lte=date_to)
         
-        # حساب الإيرادات على أساس نقدي (Cash Basis)
-        # نحسب المبالغ المحصلة فعلياً من الخزينة/البنك
-        cash_receipts = JournalEntryLine.objects.filter(
-            journal_entry__in=entries_query,
-            account__code__in=['10100', '10200'],  # الخزينة والبنك
-            debit__gt=0  # المبالغ المدينة (المستلمة)
-        ).aggregate(
-            total=Coalesce(Sum('debit'), Value(Decimal('0')), output_field=DecimalField())
-        )
-        
-        # حساب الاستردادات (المبالغ الدائنة من الخزينة/البنك - أي قيد فيه خروج نقدية)
-        cash_refunds = JournalEntryLine.objects.filter(
-            journal_entry__in=entries_query,
-            account__code__in=['10100', '10200'],  # الخزينة والبنك
-            credit__gt=0  # المبالغ الدائنة (المدفوعة)
+        # حساب الإيرادات (حسابات تبدأ بـ 4 أو تصنيف إيرادات)
+        revenue_lines = JournalEntryLine.objects.filter(
+            journal_entry__in=entries_query
+        ).filter(
+            Q(account__code__startswith='4') | Q(account__account_type__category='revenue')
         ).aggregate(
             total=Coalesce(Sum('credit'), Value(Decimal('0')), output_field=DecimalField())
         )
         
-        # حساب المصروفات (حسابات تبدأ بـ 5)
+        # حساب المصروفات (حسابات تبدأ بـ 5 أو تصنيف مصروفات)
         expense_lines = JournalEntryLine.objects.filter(
-            journal_entry__in=entries_query,
-            account__code__startswith='5'
+            journal_entry__in=entries_query
+        ).filter(
+            Q(account__code__startswith='5') | Q(account__account_type__category='expense')
         ).aggregate(
             total=Coalesce(Sum('debit'), Value(Decimal('0')), output_field=DecimalField())
         )
         
-        gross_revenues = cash_receipts['total'] or Decimal('0')
-        refunds = cash_refunds['total'] or Decimal('0')
-        revenues = gross_revenues - refunds  # صافي الإيرادات بعد الاستردادات
+        revenues = revenue_lines['total'] or Decimal('0')
         expenses = expense_lines['total'] or Decimal('0')
+        gross_revenues = revenues
+        refunds = Decimal('0')
         profit = revenues - expenses
         margin = (profit / revenues * 100) if revenues > 0 else Decimal('0')
         
@@ -237,33 +228,26 @@ class CategoryProfitabilityService:
                 parent_entries = parent_entries.filter(date__lte=date_to)
             
             # حساب إيرادات ومصروفات الأب المباشرة
-            parent_cash_receipts = JournalEntryLine.objects.filter(
-                journal_entry__in=parent_entries,
-                account__code__in=['10100', '10200'],
-                debit__gt=0
-            ).aggregate(
-                total=Coalesce(Sum('debit'), Value(Decimal('0')), output_field=DecimalField())
-            )
-            
-            parent_cash_refunds = JournalEntryLine.objects.filter(
-                journal_entry__in=parent_entries,
-                account__code__in=['10100', '10200'],
-                credit__gt=0
+            parent_revenue = JournalEntryLine.objects.filter(
+                journal_entry__in=parent_entries
+            ).filter(
+                Q(account__code__startswith='4') | Q(account__account_type__category='revenue')
             ).aggregate(
                 total=Coalesce(Sum('credit'), Value(Decimal('0')), output_field=DecimalField())
             )
             
-            parent_expenses = JournalEntryLine.objects.filter(
-                journal_entry__in=parent_entries,
-                account__code__startswith='5'
+            parent_expense = JournalEntryLine.objects.filter(
+                journal_entry__in=parent_entries
+            ).filter(
+                Q(account__code__startswith='5') | Q(account__account_type__category='expense')
             ).aggregate(
                 total=Coalesce(Sum('debit'), Value(Decimal('0')), output_field=DecimalField())
             )
             
-            parent_gross_revenues = parent_cash_receipts['total'] or Decimal('0')
-            parent_refunds = parent_cash_refunds['total'] or Decimal('0')
-            parent_revenues = parent_gross_revenues - parent_refunds
-            parent_expenses_total = parent_expenses['total'] or Decimal('0')
+            parent_revenues = parent_revenue['total'] or Decimal('0')
+            parent_expenses_total = parent_expense['total'] or Decimal('0')
+            parent_gross_revenues = parent_revenues
+            parent_refunds = Decimal('0')
             
             # معالجة التصنيفات الفرعية
             subcategories_data = []
@@ -285,33 +269,26 @@ class CategoryProfitabilityService:
                     sub_entries = sub_entries.filter(date__lte=date_to)
                 
                 # حساب إيرادات ومصروفات الفرعي
-                sub_cash_receipts = JournalEntryLine.objects.filter(
-                    journal_entry__in=sub_entries,
-                    account__code__in=['10100', '10200'],
-                    debit__gt=0
-                ).aggregate(
-                    total=Coalesce(Sum('debit'), Value(Decimal('0')), output_field=DecimalField())
-                )
-                
-                sub_cash_refunds = JournalEntryLine.objects.filter(
-                    journal_entry__in=sub_entries,
-                    account__code__in=['10100', '10200'],
-                    credit__gt=0
+                sub_revenue = JournalEntryLine.objects.filter(
+                    journal_entry__in=sub_entries
+                ).filter(
+                    Q(account__code__startswith='4') | Q(account__account_type__category='revenue')
                 ).aggregate(
                     total=Coalesce(Sum('credit'), Value(Decimal('0')), output_field=DecimalField())
                 )
                 
-                sub_expenses = JournalEntryLine.objects.filter(
-                    journal_entry__in=sub_entries,
-                    account__code__startswith='5'
+                sub_expense = JournalEntryLine.objects.filter(
+                    journal_entry__in=sub_entries
+                ).filter(
+                    Q(account__code__startswith='5') | Q(account__account_type__category='expense')
                 ).aggregate(
                     total=Coalesce(Sum('debit'), Value(Decimal('0')), output_field=DecimalField())
                 )
                 
-                sub_gross_revenues = sub_cash_receipts['total'] or Decimal('0')
-                sub_refunds = sub_cash_refunds['total'] or Decimal('0')
-                sub_revenues = sub_gross_revenues - sub_refunds
-                sub_expenses_total = sub_expenses['total'] or Decimal('0')
+                sub_revenues = sub_revenue['total'] or Decimal('0')
+                sub_expenses_total = sub_expense['total'] or Decimal('0')
+                sub_gross_revenues = sub_revenues
+                sub_refunds = Decimal('0')
                 
                 # إضافة للإجماليات الفرعية
                 subcategories_gross_revenues += sub_gross_revenues
@@ -396,38 +373,29 @@ class CategoryProfitabilityService:
         date_to: Optional[date] = None
     ) -> List[Dict]:
         """
-        أفضل التصنيفات الفرعية ربحاً
-        
-        Args:
-            limit: عدد التصنيفات المطلوبة
-            date_from: تاريخ البداية (اختياري)
-            date_to: تاريخ النهاية (اختياري)
-        
-        Returns:
-            list: قائمة بأفضل التصنيفات الفرعية
+        أفضل التصنيفات ربحاً
         """
         summary = CategoryProfitabilityService.get_all_summary(date_from, date_to)
         
         if not summary['success']:
             return []
         
-        # جمع كل التصنيفات الفرعية من جميع التصنيفات الرئيسية
-        all_subcategories = []
+        all_categories = []
         for category in summary['categories']:
             if category.get('has_subcategories') and category.get('subcategories'):
                 for subcategory in category['subcategories']:
-                    # إضافة اسم التصنيف الرئيسي للسياق
                     subcategory['parent_name'] = category['name']
-                    all_subcategories.append(subcategory)
+                    all_categories.append(subcategory)
+            else:
+                all_categories.append(category)
         
-        # ترتيب حسب الربح
-        sorted_subcategories = sorted(
-            all_subcategories,
+        sorted_categories = sorted(
+            all_categories,
             key=lambda x: x['profit'],
             reverse=True
         )
         
-        return sorted_subcategories[:limit]
+        return sorted_categories[:limit]
     
     @staticmethod
     def get_loss_making_categories(
@@ -435,39 +403,30 @@ class CategoryProfitabilityService:
         date_to: Optional[date] = None
     ) -> List[Dict]:
         """
-        التصنيفات الفرعية الخاسرة
-        
-        Args:
-            date_from: تاريخ البداية (اختياري)
-            date_to: تاريخ النهاية (اختياري)
-        
-        Returns:
-            list: قائمة بالتصنيفات الفرعية الخاسرة
+        التصنيفات الخاسرة
         """
         summary = CategoryProfitabilityService.get_all_summary(date_from, date_to)
         
         if not summary['success']:
             return []
         
-        # جمع كل التصنيفات الفرعية من جميع التصنيفات الرئيسية
-        all_subcategories = []
+        all_categories = []
         for category in summary['categories']:
             if category.get('has_subcategories') and category.get('subcategories'):
                 for subcategory in category['subcategories']:
-                    # إضافة اسم التصنيف الرئيسي للسياق
                     subcategory['parent_name'] = category['name']
-                    all_subcategories.append(subcategory)
+                    all_categories.append(subcategory)
+            else:
+                all_categories.append(category)
         
-        # فلترة التصنيفات الفرعية الخاسرة
-        loss_subcategories = [
-            cat for cat in all_subcategories
+        loss_categories = [
+            cat for cat in all_categories
             if cat['profit'] < 0
         ]
         
-        # ترتيب حسب الخسارة (الأكبر خسارة أولاً)
-        sorted_subcategories = sorted(
-            loss_subcategories,
+        sorted_categories = sorted(
+            loss_categories,
             key=lambda x: x['profit']
         )
         
-        return sorted_subcategories
+        return sorted_categories

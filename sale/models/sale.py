@@ -70,6 +70,7 @@ class Sale(models.Model):
         _("حالة الدفع"), max_length=20, choices=PAYMENT_STATUSES, default="unpaid"
     )
     notes = models.TextField(_("ملاحظات"), blank=True, null=True)
+    custom_fields = models.JSONField(_("الحقول الإضافية"), default=list, blank=True, help_text=_("مصفوفة الحقول الإضافية المخصصة"))
 
     # التصنيف المالي
     financial_category = models.ForeignKey(
@@ -120,11 +121,31 @@ class Sale(models.Model):
         verbose_name=_("أنشئ بواسطة"),
         related_name="sales_created",
     )
+    salesman = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name=_("مسؤول المبيعات"),
+        related_name="sales_assigned",
+        help_text=_("المستخدم أو مسؤول المبيعات الخاص بالفاتورة"),
+    )
+
+    @property
+    def salesman_display_name(self):
+        user = self.salesman or self.created_by
+        if user:
+            return user.get_full_name() or user.username
+        return ""
 
     class Meta:
         verbose_name = _("فاتورة مبيعات")
         verbose_name_plural = _("فواتير المبيعات")
         ordering = ["-date", "-number"]
+        permissions = [
+            ("change_sale_salesman", "تغيير مسؤول المبيعات في الفواتير وعروض الأسعار"),
+            ("manage_custom_fields", "إدارة وتعديل الحقول الإضافية المخصصة"),
+        ]
 
     def __str__(self):
         return f"{self.number} - {self.customer} - {self.date}"
@@ -206,6 +227,14 @@ class Sale(models.Model):
         هل الفاتورة تحتوي على دفعات مرحلة
         """
         return self.payments.filter(status="posted").exists()
+
+    @property
+    def merged_custom_fields(self):
+        """
+        دمج الحقول المخصصة مع إعدادات التعاريف الحديثة (بما فيها show_in_header و show_on_print)
+        """
+        from sale.services.sale_service import SaleService
+        return SaleService.smart_merge_custom_fields("sale", self.custom_fields)
 
     def update_payment_status(self):
         """

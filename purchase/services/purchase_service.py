@@ -15,6 +15,7 @@ import logging
 
 from purchase.models import Purchase, PurchaseItem, PurchasePayment, PurchaseReturn, PurchaseReturnItem
 from governance.services.movement_service import MovementService
+from governance.services.accounting_gateway import AccountingGateway, JournalEntryLineData
 
 User = get_user_model()
 logger = logging.getLogger(__name__)

@@ -80,10 +80,12 @@ class QuotationSystemTest(TestCase):
         # 1. الفترة المالية المفتوحة للسنة الحالية
         current_year = timezone.now().year
         AccountingPeriod.objects.get_or_create(
-            name=f'السنة المالية {current_year}',
             start_date=timezone.datetime(current_year, 1, 1).date(),
             end_date=timezone.datetime(current_year, 12, 31).date(),
-            defaults={'status': 'open'}
+            defaults={
+                'name': f'السنة المالية {current_year}',
+                'status': 'open'
+            }
         )
 
         # 2. أرقام الفواتير وعروض الأسعار التسلسلية
@@ -251,6 +253,7 @@ class QuotationSystemTest(TestCase):
             data={
                 "customer": self.customer.id,
                 "warehouse": self.warehouse.id,
+                "salesman": self.user.id,
                 "date": timezone.now().date().strftime("%Y-%m-%d"),
                 "discount": "0.00",
                 # tax_active is omitted to simulate being unchecked

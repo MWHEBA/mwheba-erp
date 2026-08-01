@@ -462,6 +462,10 @@
                                 <div class="party-label">{% trans "الهاتف:" %}</div>
                                 <div class="party-value">{{ sale.customer.phone|default:"غير متوفر" }}</div>
                             </div>
+                            <div class="party-info">
+                                <div class="party-label">{% trans "العملة:" %}</div>
+                                <div class="party-value">{{ sale.currency|default:currency_symbol }}</div>
+                            </div>
                         </div>
                         
                         <div class="invoice-party">
@@ -479,13 +483,25 @@
                             </div>
                             {% endif %}
                             <div class="party-info">
+                                <div class="party-label">{% trans "مسؤول المبيعات:" %}</div>
+                                <div class="party-value"><i class="fas fa-user-tie me-1 text-primary"></i> {{ sale.salesman_display_name }}</div>
+                            </div>
+                            <div class="party-info">
                                 <div class="party-label">{% trans "طريقة الدفع:" %}</div>
                                 <div class="party-value">{{ sale.get_payment_method_display }}</div>
                             </div>
+                            {% if sale.merged_custom_fields %}
+                            {% for field in sale.merged_custom_fields %}
+                            {% if field.show_in_header and field.value %}
                             <div class="party-info">
-                                <div class="party-label">{% trans "العملة:" %}</div>
-                                <div class="party-value">{{ sale.currency|default:currency_symbol }}</div>
+                                <div class="party-label">{{ field.name }}:</div>
+                                <div class="party-value fw-medium text-dark">
+                                    {% if field.value == 'true' %}<i class="fas fa-check text-success me-1"></i>نعم{% elif field.value == 'false' %}<i class="fas fa-times text-danger me-1"></i>لا{% else %}{{ field.value }}{% endif %}
+                                </div>
                             </div>
+                            {% endif %}
+                            {% endfor %}
+                            {% endif %}
                         </div>
                     </div>
                     
@@ -573,6 +589,24 @@
                     <div class="invoice-notes mt-4">
                         <div class="notes-title"><i class="fas fa-sticky-note me-2"></i> {% trans "ملاحظات:" %}</div>
                         <div class="notes-content">{{ sale.notes|safe }}</div>
+                    </div>
+                    {% endif %}
+
+                    {% if sale.merged_custom_fields %}
+                    <div class="invoice-notes mt-4">
+                        <div class="notes-title"><i class="fas fa-list-ul me-2 text-primary"></i> {% trans "الحقول الإضافية المخصصة:" %}</div>
+                        <div class="row g-3 mt-1">
+                            {% for field in sale.merged_custom_fields %}
+                            {% if not field.show_in_header and field.value %}
+                            <div class="col-md-6 col-lg-4">
+                                <div class="p-2 border rounded bg-light">
+                                    <small class="text-muted d-block fw-bold">{{ field.name }}</small>
+                                    <span class="text-dark fw-medium">{% if field.value == 'true' %}<i class="fas fa-check text-success me-1"></i>نعم{% elif field.value == 'false' %}<i class="fas fa-times text-danger me-1"></i>لا{% else %}{{ field.value }}{% endif %}</span>
+                                </div>
+                            </div>
+                            {% endif %}
+                            {% endfor %}
+                        </div>
                     </div>
                     {% endif %}
                     

@@ -248,8 +248,11 @@ class Purchase(models.Model):
                 serial.last_number = last_number
                 serial.save()
 
-            next_number = serial.get_next_number()
-            self.number = f"{serial.prefix}{next_number:04d}"
+            next_num_str = str(serial.get_next_number())
+            if next_num_str.startswith(serial.prefix):
+                self.number = next_num_str
+            else:
+                self.number = f"{serial.prefix}{next_num_str}"
 
         # حفظ الفاتورة أولاً
         is_new = self.pk is None

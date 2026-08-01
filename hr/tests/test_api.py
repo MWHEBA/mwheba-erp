@@ -28,7 +28,7 @@ class DepartmentViewSetTest(TestCase):
     def setUp(self):
         self.client = APIClient()
         from datetime import datetime
-        ts = datetime.now().strftime("%Y%m%d%H%M%S%f")
+        ts = datetime.now().strftime("%M%S%f")[:5]
         
         self.user = User.objects.create_user(
             username=f'api_user_{ts}',
@@ -68,7 +68,7 @@ class JobTitleViewSetTest(TestCase):
     def setUp(self):
         self.client = APIClient()
         from datetime import datetime
-        ts = datetime.now().strftime("%Y%m%d%H%M%S%f")
+        ts = datetime.now().strftime("%M%S%f")[:5]
         
         self.user = User.objects.create_user(
             username=f'api_job_{ts}',
@@ -109,7 +109,7 @@ class EmployeeViewSetTest(TestCase):
     def setUp(self):
         self.client = APIClient()
         from datetime import datetime
-        ts = datetime.now().strftime("%Y%m%d%H%M%S%f")
+        ts = datetime.now().strftime("%M%S%f")[:5]
         
         self.user = User.objects.create_user(
             username=f'api_emp_{ts}',

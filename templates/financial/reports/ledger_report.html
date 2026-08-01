@@ -481,7 +481,7 @@
                                 <td class="number-cell credit-cell text-center">
                                     {% if trans.credit > 0 %}{{ trans.credit|smart_float }}{% else %}-{% endif %}
                                 </td>
-                                <td class="number-cell balance-cell {% if trans.balance < 0 %}negative-balance{% elif trans.balance> 0 %}positive-balance{% endif %}">
+                                <td class="number-cell balance-cell {% if trans.balance < 0 %}negative-balance{% elif trans.balance > 0 %}positive-balance{% endif %}">
                                     {{ trans.balance|smart_float }}
                                 </td>
                                 <td class="no-print text-center">

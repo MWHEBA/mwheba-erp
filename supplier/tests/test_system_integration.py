@@ -1,4 +1,4 @@
-﻿"""
+"""
 اختبارات التكامل النظامي لوظائف الموردين الأساسية
 System Integration Tests for Core Supplier Functionality
 
@@ -165,12 +165,14 @@ class CoreSupplierFunctionalityTest(TestCase):
             code='general',
             defaults={'name': 'مورد عام'}
         )[0]
+        from django.db import transaction
         with self.assertRaises(IntegrityError):
-            Supplier.objects.create(
-                name='مورد آخر',
-                code='TEST001',  # نفس الكود
-                primary_type=general_type
-            )
+            with transaction.atomic():
+                Supplier.objects.create(
+                    name='مورد آخر',
+                    code='TEST001',  # نفس الكود
+                    primary_type=general_type
+                )
         
         # اختبار إنشاء مورد بكود فريد
         supplier2 = Supplier.objects.create(
@@ -280,7 +282,7 @@ class SupplierAdminInterfaceTest(TestCase):
         # التحقق من وجود الحقول المطلوبة
         self.assertContains(response, 'name')
         self.assertContains(response, 'code')
-        self.assertContains(response, 'supplier_type')
+        self.assertContains(response, 'primary_type')
         
         print("   ✅ عرض إضافة مورد في الإدارة يعمل بشكل صحيح")
     
@@ -432,7 +434,7 @@ class SupplierSystemIntegrationTest(TestCase):
         self.assertEqual(supplier.primary_type, supplier_type)
         
         # التحقق من العلاقات
-        self.assertIn(supplier, supplier_type.primary_suppliers.all())
+        self.assertIn(supplier, supplier_type.suppliers.all())
         
         print("   ✅ سلامة البيانات محفوظة")
     
@@ -456,16 +458,15 @@ class SupplierSystemIntegrationTest(TestCase):
             code='WF001',
             phone='+201234567890',
             email='workflow@test.com',
-            primary_type=supplier_type,
-            educational_specialization='مواد متخصصة'
+            primary_type=supplier_type
         )
+        supplier.refresh_from_db()
         
-        # 3. إضافة أنواع متعددة
+        # 3. إضافة نوع خدمات إضافية
         service_type = SupplierType.objects.create(
             name='خدمات إضافية',
             code='additional_service'
         )
-        supplier.supplier_types.add(service_type)
         
         # 4. تحديث بيانات المورد
         supplier.balance = Decimal('500.00')
@@ -477,12 +478,7 @@ class SupplierSystemIntegrationTest(TestCase):
         self.assertEqual(updated_supplier.name, 'مورد سير العمل الكامل')
         self.assertEqual(updated_supplier.balance, Decimal('500.00'))
         self.assertTrue(updated_supplier.is_preferred)
-        self.assertEqual(updated_supplier.supplier_types.count(), 1)
-        
-        # 6. اختبار الوظائف المتقدمة
-        self.assertTrue(updated_supplier.is_educational_supplier())
-        edu_info = updated_supplier.get_educational_info()
-        self.assertEqual(edu_info['specialization'], 'مواد متخصصة')
+        self.assertEqual(updated_supplier.primary_type, supplier_type)
         
         print("   ✅ سير العمل الكامل للموردين يعمل بشكل صحيح")
 

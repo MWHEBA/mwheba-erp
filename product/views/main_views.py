@@ -216,8 +216,10 @@ def product_list(request):
         if search_query:
             products = products.filter(
                 Q(name__icontains=search_query) |
+                Q(name_en__icontains=search_query) |
                 Q(sku__icontains=search_query) |
-                Q(description__icontains=search_query)
+                Q(description__icontains=search_query) |
+                Q(description_en__icontains=search_query)
             )
         if status == "active":
             products = products.filter(is_active=True)
@@ -607,14 +609,19 @@ def service_list(request):
         # البحث البسيط
         search_query = request.GET.get("search", "")
         if search_query:
-            services = services.filter(name__icontains=search_query)
+            services = services.filter(
+                Q(name__icontains=search_query) | Q(name_en__icontains=search_query)
+            )
 
         # تطبيق التصفية
         filter_form = ProductSearchForm(request.GET)
         
         if filter_form.is_valid():
             if filter_form.cleaned_data.get('name'):
-                services = services.filter(name__icontains=filter_form.cleaned_data['name'])
+                srv_name = filter_form.cleaned_data['name']
+                services = services.filter(
+                    Q(name__icontains=srv_name) | Q(name_en__icontains=srv_name)
+                )
             
             if filter_form.cleaned_data.get('category'):
                 services = services.filter(category=filter_form.cleaned_data['category'])
@@ -1543,7 +1550,7 @@ def category_list(request):
     if search_query:
         # لو في بحث — اعرض كل التصنيفات المطابقة بدون تجميع
         all_cats = Category.objects.filter(
-            name__icontains=search_query
+            Q(name__icontains=search_query) | Q(name_en__icontains=search_query)
         ).select_related('parent').annotate(
             products_count=Count('products', distinct=True)
         ).order_by('parent__name', 'name')
@@ -1600,11 +1607,12 @@ def category_create(request):
         if form.is_valid():
             category = form.save()
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                cat_display = f"{category.name} ({category.name_en})" if category.name_en else category.name
                 return JsonResponse({
                     'success': True,
                     'message': f'تم إضافة التصنيف "{category.name}" بنجاح',
                     'category_id': category.id,
-                    'category_name': category.name
+                    'category_name': cat_display
                 })
             messages.success(request, f'تم إضافة التصنيف "{category.name}" بنجاح')
             return redirect("product:category_list")
@@ -1778,12 +1786,14 @@ def unit_list(request):
     # البحث البسيط
     search_query = request.GET.get("search", "")
     if search_query:
-        units = units.filter(name__icontains=search_query)
+        units = units.filter(
+            Q(name__icontains=search_query) | Q(name_en__icontains=search_query)
+        )
 
     # تعريف أعمدة جدول الوحدات
     unit_headers = [
-        {"key": "name", "label": "اسم الوحدة", "sortable": True, "class": "text-start"},
-        {"key": "name_en", "label": "الاسم (English)", "sortable": True, "class": "text-start"},
+        {"key": "name", "label": "اسم الوحدة (عربي)", "sortable": True, "class": "text-start"},
+        {"key": "name_en", "label": "اسم الوحدة (English)", "sortable": True, "class": "text-start"},
         {
             "key": "symbol",
             "label": "الرمز",
@@ -1888,11 +1898,12 @@ def unit_create(request):
         if form.is_valid():
             unit = form.save()
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                unit_display = f"{unit.name} ({unit.name_en})" if unit.name_en else unit.name
                 return JsonResponse({
                     'success': True,
                     'message': f'تم إضافة وحدة القياس "{unit.name}" بنجاح',
                     'unit_id': unit.id,
-                    'unit_name': unit.name
+                    'unit_name': unit_display
                 })
             messages.success(request, f'تم إضافة وحدة القياس "{unit.name}" بنجاح')
             return redirect("product:unit_list")

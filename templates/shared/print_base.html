@@ -428,6 +428,22 @@
 
         .signature-box {
             flex: 1;
+            position: relative;
+        }
+
+        .floating-company-stamp {
+            position: absolute;
+            bottom: -8px;
+            left: 50%;
+            transform: translateX(-50%) rotate(-12deg);
+            width: 4cm;
+            height: auto;
+            max-height: 4.5cm;
+            object-fit: contain;
+            opacity: 0.88;
+            mix-blend-mode: multiply;
+            pointer-events: none;
+            z-index: 10;
         }
 
         .signature-line {
@@ -492,7 +508,7 @@
     <div class="print-actions-bar no-print">
         <h5 class="m-0 font-weight-bold">{% block page_title %}{{ title }}{% endblock %}</h5>
         <div class="d-flex align-items-center gap-2">
-            <a href="?lang=ar" class="btn btn-sm {% if print_lang != 'en' %}btn-light fw-bold{% else %}btn-outline-light{% endif %}">
+            <a href="?lang=ar" class="btn btn-sm {% if print_lang == 'ar' or not print_lang %}btn-light fw-bold{% else %}btn-outline-light{% endif %}">
                 <svg class="me-1" width="19" height="13" viewBox="0 0 640 480" style="border-radius: 2px; vertical-align: sub; box-shadow: 0 1px 2px rgba(0,0,0,0.3);">
                     <path fill="#ce1126" d="M0 0h640v160H0z"/>
                     <path fill="#fff" d="M0 160h640v160H0z"/>
@@ -517,6 +533,9 @@
                     <circle cx="160" cy="190" r="12" fill="#fff"/>
                 </svg> English
             </a>
+            <button type="button" id="toggleStampBtn" onclick="toggleCompanyStamp()" class="btn btn-sm btn-outline-light ms-1 me-1" title="إظهار/إخفاء ختم الشركة">
+                <i class="fas fa-stamp me-1"></i> <span id="toggleStampText">{% if is_english %}Hide Stamp{% else %}إخفاء الختم{% endif %}</span>
+            </button>
             <button onclick="window.print()" class="btn btn-light btn-sm fw-bold ms-2 me-2">
                 <i class="fas fa-print me-1"></i> {% if is_english %}Print{% else %}طباعة{% endif %}
             </button>
@@ -579,6 +598,9 @@
                 </div>
             </div>
 
+            {% block header_custom_fields %}
+            {% endblock %}
+
             <!-- Items Table -->
             <div class="items-table-wrapper">
                 <table class="items-table">
@@ -591,7 +613,7 @@
                             <th class="col-desc">{% if is_english %}Item & Description{% else %}البند / البيان{% endif %}</th>
                             <th style="width: 100px; text-align: center;">{% if is_english %}Qty{% else %}الكمية{% endif %}</th>
                             <th class="col-amount" style="width: 110px; text-align: center;">{% if is_english %}Unit Price{% else %}سعر الوحدة{% endif %}</th>
-                            {% if has_item_discounts or sale.has_item_discounts or quotation.has_item_discounts or purchase.has_item_discounts %}
+                            {% if has_item_discounts or sale and sale.has_item_discounts or quotation and quotation.has_item_discounts or purchase and purchase.has_item_discounts %}
                             <th style="width: 100px; text-align: center;">{% if is_english %}Discount{% else %}الخصم{% endif %}</th>
                             {% endif %}
                             <th class="col-amount" style="width: 110px; text-align: center;">{% if is_english %}Total{% else %}الإجمالي{% endif %}</th>
@@ -628,16 +650,20 @@
                     <div class="signatures-grid">
                         {% block signatures %}
                         <div class="signature-box">
-                            <div class="signature-label">{% if is_english %}Recipient{% else %}المستلم{% endif %}</div>
-                            <div class="signature-line"></div>
-                        </div>
-                        <div class="signature-box">
                             <div class="signature-label">{% if is_english %}Sales Representative{% else %}المسؤول / المبيعات{% endif %}</div>
-                            <div class="signature-line"></div>
+                            <div class="signature-name" style="font-weight: 700; margin-top: 4px; font-size: 0.95rem;">
+                                {% if sale %}{{ sale.salesman_display_name|default:salesman_name }}{% elif quotation %}{{ quotation.salesman_display_name|default:salesman_name }}{% else %}{{ salesman_name }}{% endif %}
+                            </div>
                         </div>
-                        <div class="signature-box">
+                        <div class="signature-box stamp-box">
                             <div class="signature-label">{% if is_english %}Stamp & Signature{% else %}الختم والتوقيع{% endif %}</div>
-                            <div class="signature-line"></div>
+                            {% if settings.enable_company_stamp|default:True and company_stamp %}
+                                {% if "http" in company_stamp or "/media/" in company_stamp %}
+                                    <img src="{{ company_stamp }}" id="printableCompanyStamp" class="floating-company-stamp" alt="ختم الشركة">
+                                {% else %}
+                                    <img src="{{ MEDIA_URL }}{{ company_stamp }}" id="printableCompanyStamp" class="floating-company-stamp" alt="ختم الشركة">
+                                {% endif %}
+                            {% endif %}
                         </div>
                         {% endblock %}
                     </div>
@@ -649,5 +675,21 @@
             </div>
         </div>
     </div>
+
+    <script>
+    function toggleCompanyStamp() {
+        const stampImg = document.getElementById('printableCompanyStamp');
+        const stampText = document.getElementById('toggleStampText');
+        if (stampImg) {
+            if (stampImg.style.display === 'none') {
+                stampImg.style.display = 'block';
+                if (stampText) stampText.innerText = "{% if is_english %}Hide Stamp{% else %}إخفاء الختم{% endif %}";
+            } else {
+                stampImg.style.display = 'none';
+                if (stampText) stampText.innerText = "{% if is_english %}Show Stamp{% else %}إظهار الختم{% endif %}";
+            }
+        }
+    }
+    </script>
 </body>
 </html>

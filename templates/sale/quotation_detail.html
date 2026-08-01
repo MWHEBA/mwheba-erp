@@ -422,6 +422,10 @@
                   <div class="party-label">{% trans "العنوان:" %}</div>
                   <div class="party-value text-muted">{{ quotation.customer.address|default:"-" }}</div>
                 </div>
+                <div class="party-info">
+                  <div class="party-label">{% trans "العملة:" %}</div>
+                  <div class="party-value fw-medium">{{ quotation.currency|default:currency_symbol }}</div>
+                </div>
               </div>
             </div>
             
@@ -430,6 +434,10 @@
               <div class="quotation-party">
                 <div class="party-title">
                   <i class="fas fa-file-signature me-2"></i> {% trans "تفاصيل عرض السعر" %}
+                </div>
+                <div class="party-info">
+                  <div class="party-label">{% trans "مسؤول المبيعات:" %}</div>
+                  <div class="party-value fw-bold text-primary"><i class="fas fa-user-tie me-1"></i> {{ quotation.salesman_display_name }}</div>
                 </div>
                 <div class="party-info">
                   <div class="party-label">{% trans "صالح حتى:" %}</div>
@@ -449,6 +457,18 @@
                   <div class="party-label">{% trans "تاريخ الإنشاء:" %}</div>
                   <div class="party-value">{{ quotation.created_at|date:"d-m-Y h:i A" }}</div>
                 </div>
+                {% if quotation.merged_custom_fields %}
+                {% for field in quotation.merged_custom_fields %}
+                {% if field.show_in_header and field.value %}
+                <div class="party-info">
+                  <div class="party-label">{{ field.name }}:</div>
+                  <div class="party-value fw-bold text-dark">
+                    {% if field.value == 'true' %}<i class="fas fa-check text-success me-1"></i>نعم{% elif field.value == 'false' %}<i class="fas fa-times text-danger me-1"></i>لا{% else %}{{ field.value }}{% endif %}
+                  </div>
+                </div>
+                {% endif %}
+                {% endfor %}
+                {% endif %}
                 {% if quotation.work_order %}
                 <div class="party-info">
                   <div class="party-label">{% trans "أمر الشغل المرتبط:" %}</div>
@@ -541,9 +561,27 @@
 
           <!-- شروط وأحكام عرض السعر وملاحظاته -->
           {% if quotation.notes %}
-          <div class="quotation-notes mt-4">
-            <div class="notes-title"><i class="fas fa-sticky-note me-2"></i> {% trans "الشروط والأحكام والملاحظات" %}</div>
+          <div class="quotation-notes">
+            <div class="notes-title"><i class="fas fa-sticky-note me-2"></i> {% trans "ملاحظات وشروط عرض السعر:" %}</div>
             <div class="notes-content">{{ quotation.notes|safe }}</div>
+          </div>
+          {% endif %}
+
+          {% if quotation.merged_custom_fields %}
+          <div class="quotation-notes mt-3">
+            <div class="notes-title"><i class="fas fa-list-ul me-2 text-primary"></i> {% trans "الحقول الإضافية المخصصة:" %}</div>
+            <div class="row g-3 mt-1">
+              {% for field in quotation.merged_custom_fields %}
+              {% if not field.show_in_header and field.value %}
+              <div class="col-md-6 col-lg-4">
+                <div class="p-2 border rounded bg-light">
+                  <small class="text-muted d-block fw-bold">{{ field.name }}</small>
+                  <span class="text-dark fw-medium">{% if field.value == 'true' %}<i class="fas fa-check text-success me-1"></i>نعم{% elif field.value == 'false' %}<i class="fas fa-times text-danger me-1"></i>لا{% else %}{{ field.value }}{% endif %}</span>
+                </div>
+              </div>
+              {% endif %}
+              {% endfor %}
+            </div>
           </div>
           {% endif %}
           

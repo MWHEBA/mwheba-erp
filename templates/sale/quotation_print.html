@@ -57,7 +57,13 @@
     </td>
     {% endif %}
     <td class="col-desc">
-        <div style="font-weight: 700;">{{ item.product.name }}</div>
+        <div style="font-weight: 700;">
+            {% if is_english %}
+                {{ item.product.name_en|default:item.product.name }}
+            {% else %}
+                {{ item.product.name }}
+            {% endif %}
+        </div>
         {% if item.notes %}
         <div class="item-description">{{ item.notes }}</div>
         {% endif %}
@@ -65,7 +71,13 @@
     <td style="text-align: center;">
         <span style="font-weight: 700;">{{ item.quantity|smart_float }}</span>
         {% if item.product.unit %}
-        <span class="item-unit">({% if is_english %}{{ item.product.unit.name_en|default:item.product.unit.name }}{% else %}{{ item.product.unit.name }}{% endif %})</span>
+        <span class="item-unit">(
+            {% if is_english %}
+                {{ item.product.unit.name_en|default:item.product.unit.name }}
+            {% else %}
+                {{ item.product.unit.name }}
+            {% endif %}
+        )</span>
         {% endif %}
     </td>
     <td class="col-amount" style="text-align: center;">{{ item.unit_price|currency:currency_symbol_active }}</td>
@@ -115,7 +127,47 @@
 </tr>
 {% endblock %}
 
+{% block header_custom_fields %}
+{% if quotation.merged_custom_fields %}
+<div class="header-custom-fields-print" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px 12px; margin-bottom: 15px; margin-top: 5px; font-size: 12px;">
+    {% for field in quotation.merged_custom_fields %}
+    {% if field.show_in_header and field.show_on_print and field.value %}
+    <div style="display: flex; border: 1px solid var(--gray-300, #cbd5e1); border-radius: 4px; overflow: hidden; height: 100%;">
+        <div style="background-color: var(--gray-100, #f8fafc); padding: 6px 10px; font-weight: bold; text-align: center; border-inline-end: 1px solid var(--gray-300, #cbd5e1); color: var(--gray-700, #334155); flex: 0 0 42%; display: flex; align-items: center; justify-content: center;">
+            {% if is_english %}{{ field.name_en|default:field.name }}{% else %}{{ field.name }}{% endif %}
+        </div>
+        <div style="background-color: #ffffff; padding: 6px 10px; font-weight: 500; text-align: center; color: var(--gray-900, #0f172a); flex: 1; display: flex; align-items: center; justify-content: center;">
+            {% if field.value == 'true' %}{% if is_english %}Yes{% else %}نعم{% endif %}{% elif field.value == 'false' %}{% if is_english %}No{% else %}لا{% endif %}{% else %}{{ field.value }}{% endif %}
+        </div>
+    </div>
+    {% endif %}
+    {% endfor %}
+</div>
+{% endif %}
+{% endblock %}
+
 {% block terms_and_conditions %}
+{% if quotation.merged_custom_fields %}
+<div style="margin-top: 15px; margin-bottom: 15px;">
+    <table style="width: 100%; border-collapse: collapse; font-size: 12px; border: 1px solid #ddd;">
+        <tbody>
+            {% for field in quotation.merged_custom_fields %}
+            {% if not field.show_in_header and field.show_on_print and field.value %}
+            <tr>
+                <td style="padding: 6px 10px; background-color: #f8f9fa; font-weight: bold; width: 30%; border: 1px solid #ddd;">
+                    {% if is_english %}{{ field.name_en|default:field.name }}{% else %}{{ field.name }}{% endif %}
+                </td>
+                <td style="padding: 6px 10px; border: 1px solid #ddd;">
+                    {% if field.value == 'true' %}{% if is_english %}Yes{% else %}نعم{% endif %}{% elif field.value == 'false' %}{% if is_english %}No{% else %}لا{% endif %}{% else %}{{ field.value }}{% endif %}
+                </td>
+            </tr>
+            {% endif %}
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
 {% if quotation.notes or default_notes %}
 <div class="terms-title">{% if is_english %}Terms & Conditions:{% else %}شروط وملاحظات عرض السعر:{% endif %}</div>
 <div class="terms-content">
@@ -126,15 +178,19 @@
 
 {% block signatures %}
 <div class="signature-box">
-    <div class="signature-label">{% if is_english %}Client (Recipient){% else %}العميل (المستلم){% endif %}</div>
-    <div class="signature-line"></div>
+    <div class="signature-label">{% if is_english %}Sales Representative{% else %}مسؤول المبيعات{% endif %}</div>
+    <div class="signature-name" style="font-weight: 700; margin-top: 4px; font-size: 0.95rem;">
+        {{ quotation.salesman_display_name|default:salesman_name }}
+    </div>
 </div>
-<div class="signature-box">
-    <div class="signature-label">{% if is_english %}Sales Manager{% else %}مسؤول المبيعات{% endif %}</div>
-    <div class="signature-line"></div>
-</div>
-<div class="signature-box">
+<div class="signature-box stamp-box">
     <div class="signature-label">{% if is_english %}Stamp & Signature{% else %}الختم والتوقيع{% endif %}</div>
-    <div class="signature-line"></div>
+    {% if settings.enable_company_stamp|default:True and company_stamp %}
+        {% if "http" in company_stamp or "/media/" in company_stamp %}
+            <img src="{{ company_stamp }}" id="printableCompanyStamp" class="floating-company-stamp" alt="ختم الشركة">
+        {% else %}
+            <img src="{{ MEDIA_URL }}{{ company_stamp }}" id="printableCompanyStamp" class="floating-company-stamp" alt="ختم الشركة">
+        {% endif %}
+    {% endif %}
 </div>
 {% endblock %}

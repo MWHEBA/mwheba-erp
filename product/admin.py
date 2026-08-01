@@ -100,10 +100,10 @@ class CategoryAdmin(admin.ModelAdmin):
     إدارة تصنيفات المنتجات
     """
 
-    list_display = ("name", "code", "parent", "is_active")
+    list_display = ("name", "name_en", "code", "parent", "is_active")
     list_filter = ("is_active", "parent")
-    search_fields = ("name", "code", "description")
-    fields = ("name", "code", "parent", "description", "is_active")
+    search_fields = ("name", "name_en", "code", "description")
+    fields = ("name", "name_en", "code", "parent", "description", "is_active")
     
     def save_model(self, request, obj, form, change):
         # تحويل الكود إلى أحرف كبيرة
@@ -134,6 +134,7 @@ class ProductAdmin(admin.ModelAdmin):
 
     list_display = (
         "name",
+        "name_en",
         "sku",
         "barcode",
         "category",
@@ -146,14 +147,14 @@ class ProductAdmin(admin.ModelAdmin):
         "is_active",
     )
     list_filter = ("category", "is_active", "is_featured", "is_bundle", "is_service", "item_type")
-    search_fields = ("name", "sku", "barcode", "description")
+    search_fields = ("name", "name_en", "sku", "barcode", "description", "description_en")
     readonly_fields = ("created_at", "updated_at", "created_by", "updated_by")
     
     # إضافة الـ inline للمنتجات المجمعة
     inlines = []
     
     fieldsets = (
-        (None, {"fields": ("name", "sku", "barcode", "category", "unit")}),
+        (None, {"fields": ("name", "name_en", "sku", "barcode", "category", "unit")}),
         (
             _("التسعير"),
             {
@@ -196,7 +197,7 @@ class ProductAdmin(admin.ModelAdmin):
                 "classes": ("collapse",)
             }
         ),
-        (_("معلومات إضافية"), {"fields": ("description", "is_active", "is_featured")}),
+        (_("معلومات إضافية"), {"fields": ("description", "description_en", "is_active", "is_featured")}),
         (_("معلومات النظام"), {"fields": ("created_at", "updated_at", "created_by")}),
     )
     

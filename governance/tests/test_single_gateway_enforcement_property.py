@@ -21,6 +21,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from unittest.mock import patch, MagicMock, Mock
 
 from hypothesis import given, strategies as st, settings, assume, note
+from hypothesis.extra.django import TransactionTestCase as HypothesisTestCase
 
 logger = logging.getLogger(__name__)
 
@@ -822,7 +823,7 @@ class SingleGatewayEnforcementPropertyTestMixin:
 
 
 if DJANGO_AVAILABLE:
-    class TestSingleGatewayEnforcementProperty(TestCase, SingleGatewayEnforcementPropertyTestMixin):
+    class TestSingleGatewayEnforcementProperty(HypothesisTestCase, SingleGatewayEnforcementPropertyTestMixin):
         """
         **Property 1: Single Gateway Enforcement**
         

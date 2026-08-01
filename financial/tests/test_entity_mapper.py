@@ -83,18 +83,14 @@ class TestEntityAccountMapperIntegration(TestCase):
         from financial.models import ChartOfAccounts, AccountType
         from supplier.models import Supplier
         
-        self.account_type = AccountType.objects.create(
+        self.account_type, _ = AccountType.objects.get_or_create(
             code='1000',
-            name='أصول',
-            category='asset'
+            defaults={'name': 'أصول', 'category': 'asset'}
         )
         
-        self.chart_account = ChartOfAccounts.objects.create(
+        self.chart_account, _ = ChartOfAccounts.objects.get_or_create(
             code='1001',
-            name='حساب اختبار',
-            account_type=self.account_type,
-            is_active=True,
-            is_leaf=True
+            defaults={'name': 'حساب اختبار', 'account_type': self.account_type, 'is_active': True, 'is_leaf': True}
         )
         
         self.supplier_with_account = Supplier.objects.create(

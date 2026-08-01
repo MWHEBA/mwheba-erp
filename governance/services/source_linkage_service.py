@@ -41,6 +41,8 @@ class SourceLinkageService:
         'purchase.Purchase',  # Added for purchase invoices
         'purchase.PurchaseReturn',  # Added for purchase returns
         'product.BatchVoucher',  # Added for batch vouchers
+        'product.BundleSale',  # Added for bundle sale transactions
+        'product.Product',  # Added for product master transactions
         # Note: 'financial.ManualAdjustment' will be added when the model is implemented
     }
     

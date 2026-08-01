@@ -211,9 +211,9 @@ class Attendance(models.Model):
             check_out = self.check_out
             
             # التأكد من أن التواريخ timezone-aware
-            if timezone.is_naive(check_in):
+            if check_in.tzinfo is None or check_in.tzinfo.utcoffset(check_in) is None:
                 check_in = timezone.make_aware(check_in)
-            if timezone.is_naive(check_out):
+            if check_out.tzinfo is None or check_out.tzinfo.utcoffset(check_out) is None:
                 check_out = timezone.make_aware(check_out)
             
             delta = check_out - check_in

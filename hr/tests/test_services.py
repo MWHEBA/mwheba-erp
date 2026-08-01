@@ -30,18 +30,18 @@ User = get_user_model()
 def create_unique_employee(user, department, job_title, prefix='EMP'):
     """Helper function to create unique employee with timestamp"""
     from datetime import datetime
-    ts = datetime.now().strftime("%Y%m%d%H%M%S%f")
+    ts = datetime.now().strftime("%M%S%f")[:5]
     
     return Employee.objects.create(
         employee_number=f'{prefix}{ts[:10]}',
         user=user,
         name='أحمد محمد علي',  # Pure Arabic name without numbers
-        national_id=f'{ts[:14]}',
+        national_id=f'290010112{ts.zfill(5)[:5]}',
         birth_date=date(1990, 1, 1),
         gender='male',
         marital_status='single',
         work_email=f'{prefix.lower()}{ts[:8]}@test.com',
-        mobile_phone=f'01{ts[:9]}',
+        mobile_phone=f'01012345{ts.zfill(5)[:3]}',
         address='القاهرة',
         city='القاهرة',
         department=department,
@@ -61,7 +61,7 @@ class EmployeeServiceTest(TestCase):
     
     def setUp(self):
         from datetime import datetime
-        ts = datetime.now().strftime("%Y%m%d%H%M%S%f")
+        ts = datetime.now().strftime("%M%S%f")[:5]
         self.user = User.objects.create_user(
             username=f'test_emp_{ts}',
             password='test',
@@ -99,7 +99,7 @@ class AttendanceServiceTest(TestCase):
     
     def setUp(self):
         from datetime import datetime
-        ts = datetime.now().strftime("%Y%m%d%H%M%S%f")
+        ts = datetime.now().strftime("%M%S%f")[:5]
         
         self.user = User.objects.create_user(
             username=f'att_test_{ts}',
@@ -159,7 +159,7 @@ class LeaveServiceTest(TestCase):
     
     def setUp(self):
         from datetime import datetime
-        ts = datetime.now().strftime("%Y%m%d%H%M%S%f")
+        ts = datetime.now().strftime("%M%S%f")[:5]
         
         self.user = User.objects.create_user(
             username=f'leave_test_{ts}',
@@ -226,7 +226,7 @@ class PayrollServiceTest(TransactionTestCase):
     
     def setUp(self):
         from datetime import datetime
-        ts = datetime.now().strftime("%Y%m%d%H%M%S%f")
+        ts = datetime.now().strftime("%M%S%f")[:5]
         
         self.user = User.objects.create_user(
             username=f'pay_test_{ts}',
@@ -322,7 +322,7 @@ class HRPayrollGatewayServiceTest(TestCase):
         from datetime import datetime
         from hr.services.payroll_gateway_service import HRPayrollGatewayService
         
-        ts = datetime.now().strftime("%Y%m%d%H%M%S%f")
+        ts = datetime.now().strftime("%M%S%f")[:5]
         self.user = User.objects.create_user(
             username=f'gateway_test_{ts}',
             password='test',
@@ -430,7 +430,7 @@ class HRPayrollGatewayServiceTest(TestCase):
         """اختبار معالجة دفعة من الرواتب"""
         # إنشاء موظفين إضافيين
         from datetime import datetime
-        ts = datetime.now().strftime("%Y%m%d%H%M%S%f")
+        ts = datetime.now().strftime("%M%S%f")[:5]
         
         employees = []
         for i in range(3):
@@ -510,7 +510,7 @@ class PayrollAccountingServiceTest(TestCase):
         from hr.services.payroll_accounting_service import PayrollAccountingService
         from financial.models import ChartOfAccounts, AccountType, AccountingPeriod
         
-        ts = datetime.now().strftime("%Y%m%d%H%M%S%f")
+        ts = datetime.now().strftime("%M%S%f")[:5]
         self.user = User.objects.create_user(
             username=f'acc_test_{ts}',
             password='test',
@@ -523,8 +523,8 @@ class PayrollAccountingServiceTest(TestCase):
         
         # إنشاء chart of accounts
         self.expense_account, _ = ChartOfAccounts.objects.get_or_create(
-            code='50200',
-            defaults={'name': 'مصروف الرواتب', 'account_type': expense_type, 'is_active': True}
+            code='50210',
+            defaults={'name': 'مصروف المرتبات والأجور', 'account_type': expense_type, 'is_active': True}
         )
         self.cash_account, _ = ChartOfAccounts.objects.get_or_create(
             code='10100',
@@ -555,7 +555,7 @@ class PayrollAccountingServiceTest(TestCase):
             employee_number=f'ACCEMP{ts[:8]}',
             user=self.user,
             name='محمد علي',
-            national_id=f'5555555555{ts[:4]}',
+            national_id=f'555555559{ts.zfill(5)[:5]}',
             birth_date=date(1990, 1, 1),
             gender='male',
             marital_status='single',
@@ -699,7 +699,7 @@ class PayrollViewIntegrationTest(TestCase):
         from datetime import datetime
         from django.test import Client
         
-        ts = datetime.now().strftime("%Y%m%d%H%M%S%f")
+        ts = datetime.now().strftime("%M%S%f")[:5]
         
         # Create user with permissions
         self.user = User.objects.create_user(
@@ -741,7 +741,7 @@ class PayrollViewIntegrationTest(TestCase):
             employee_number=f'VIEWEMP{ts[:8]}',
             user=self.user,
             name='موظف اختبار',
-            national_id=f'11111111{ts[:6]}',
+            national_id=f'111111119{ts.zfill(5)[:5]}',
             birth_date=date(1990, 1, 1),
             gender='male',
             marital_status='single',
@@ -816,7 +816,7 @@ class ErrorHandlingTest(TestCase):
         from datetime import datetime
         from hr.services.payroll_gateway_service import HRPayrollGatewayService
         
-        ts = datetime.now().strftime("%Y%m%d%H%M%S%f")
+        ts = datetime.now().strftime("%M%S%f")[:5]
         self.user = User.objects.create_user(
             username=f'error_test_{ts}',
             password='test',
@@ -921,7 +921,7 @@ class EdgeCaseTest(TestCase):
         from datetime import datetime
         from hr.services.payroll_gateway_service import HRPayrollGatewayService
         
-        ts = datetime.now().strftime("%Y%m%d%H%M%S%f")
+        ts = datetime.now().strftime("%M%S%f")[:5]
         self.user = User.objects.create_user(
             username=f'edge_test_{ts}',
             password='test',
@@ -996,13 +996,13 @@ class EdgeCaseTest(TestCase):
     def test_concurrent_payroll_creation(self):
         """اختبار إنشاء رواتب متزامنة (idempotency)"""
         from datetime import datetime
-        ts = datetime.now().strftime("%Y%m%d%H%M%S%f")
+        ts = datetime.now().strftime("%M%S%f")[:5]
         
         employee = Employee.objects.create(
             employee_number=f'CONCURRENT{ts[:8]}',
             user=self.user,
             name='متزامن اختبار',
-            national_id=f'66666666{ts[:6]}',
+            national_id=f'666666669{ts.zfill(5)[:5]}',
             birth_date=date(1990, 1, 1),
             gender='male',
             marital_status='single',
@@ -1074,7 +1074,7 @@ class DeprecationWarningTest(TestCase):
         from datetime import datetime
         from financial.models import AccountingPeriod, ChartOfAccounts, AccountType
         
-        ts = datetime.now().strftime("%Y%m%d%H%M%S%f")
+        ts = datetime.now().strftime("%M%S%f")[:5]
         self.user = User.objects.create_user(
             username=f'dep_test_{ts}',
             password='test',
@@ -1124,7 +1124,7 @@ class DeprecationWarningTest(TestCase):
             employee_number=f'DEPEMP{ts[:8]}',
             user=self.user,
             name='قديم اختبار',
-            national_id=f'55555555{ts[:6]}',
+            national_id=f'555555559{ts.zfill(5)[:5]}',
             birth_date=date(1990, 1, 1),
             gender='male',
             marital_status='single',
@@ -1209,7 +1209,7 @@ class AbsenceMultiplierTest(TestCase):
         from datetime import datetime
         from hr.models import AttendanceSummary
         
-        ts = datetime.now().strftime("%Y%m%d%H%M%S%f")
+        ts = datetime.now().strftime("%M%S%f")[:5]
         
         self.user = User.objects.create_user(
             username=f'abs_test_{ts}',
@@ -1251,16 +1251,14 @@ class AbsenceMultiplierTest(TestCase):
 
     def _create_absent_records(self, month, days_list, multiplier=Decimal('1.0')):
         """إنشاء سجلات غياب فعلية في قاعدة البيانات."""
-        from django.utils import timezone as tz
+        from datetime import timezone as dt_tz
         for day in days_list:
             Attendance.objects.get_or_create(
                 employee=self.employee,
                 date=month.replace(day=day),
                 defaults={
                     'shift': self.shift,
-                    'check_in': tz.make_aware(
-                        datetime.combine(month.replace(day=day), time(8, 0))
-                    ),
+                    'check_in': datetime.combine(month.replace(day=day), time(8, 0)).replace(tzinfo=dt_tz.utc),
                     'status': 'absent',
                     'work_hours': Decimal('0'),
                     'absence_multiplier': multiplier,

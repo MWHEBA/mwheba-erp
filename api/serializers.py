@@ -63,7 +63,7 @@ class CategorySerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Category
-        fields = ['id', 'name', 'description', 'parent', 'product_count', 'created_at']
+        fields = ['id', 'name', 'name_en', 'description', 'parent', 'product_count', 'created_at']
         read_only_fields = ['id', 'created_at']
     
     def get_product_count(self, obj):
@@ -74,12 +74,13 @@ class ProductListSerializer(serializers.ModelSerializer):
     """Serializer لقائمة المنتجات (مختصر)"""
     
     category_name = serializers.CharField(source='category.name', read_only=True)
+    category_name_en = serializers.CharField(source='category.name_en', read_only=True)
     total_stock = serializers.SerializerMethodField()
     
     class Meta:
         model = Product
         fields = [
-            'id', 'name', 'sku', 'category', 'category_name',
+            'id', 'name', 'name_en', 'sku', 'category', 'category_name', 'category_name_en',
             'selling_price', 'cost_price', 'total_stock', 'is_active'
         ]
         read_only_fields = ['id']
@@ -92,14 +93,15 @@ class ProductDetailSerializer(serializers.ModelSerializer):
     """Serializer لتفاصيل المنتج (كامل)"""
     
     category_name = serializers.CharField(source='category.name', read_only=True)
+    category_name_en = serializers.CharField(source='category.name_en', read_only=True)
     total_stock = serializers.SerializerMethodField()
     stock_value = serializers.SerializerMethodField()
     
     class Meta:
         model = Product
         fields = [
-            'id', 'name', 'sku', 'barcode', 'category', 'category_name',
-            'description', 'selling_price', 'cost_price', 'min_stock',
+            'id', 'name', 'name_en', 'sku', 'barcode', 'category', 'category_name', 'category_name_en',
+            'description', 'description_en', 'selling_price', 'cost_price', 'min_stock',
             'is_active', 'total_stock', 'stock_value',
             'created_at', 'updated_at'
         ]

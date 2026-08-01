@@ -503,7 +503,7 @@ def upload_company_logo(request):
             }, status=403)
         
         # تحديد نوع الشعار
-        logo_types = ['company_logo', 'company_logo_light', 'company_logo_mini']
+        logo_types = ['company_logo', 'company_logo_light', 'company_logo_mini', 'company_stamp']
         logo_type = None
         logo_file = None
         
@@ -583,15 +583,17 @@ def upload_company_logo(request):
         setting.is_active = True
         setting.save()
         
-        # مسح الـ cache بعد رفع الشعار عشان التغييرات تظهر فوراً
+        # مسح الـ cache بعد رفع الشعار/الختم عشان التغييرات تظهر فوراً
         from django.core.cache import cache
         cache.delete('global_settings_dict_v2')
+        cache.delete('company_info_v1')
 
         # رسائل مخصصة حسب نوع الشعار
         messages_map = {
             'company_logo': 'تم رفع الشعار الأساسي بنجاح',
             'company_logo_light': 'تم رفع الشعار الفاتح بنجاح',
-            'company_logo_mini': 'تم رفع الشعار المصغر بنجاح'
+            'company_logo_mini': 'تم رفع الشعار المصغر بنجاح',
+            'company_stamp': 'تم رفع ختم الشركة بنجاح'
         }
         
         # إرجاع النتيجة مع timestamp للـ cache-busting في المتصفح

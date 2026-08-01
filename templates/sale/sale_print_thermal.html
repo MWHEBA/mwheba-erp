@@ -429,6 +429,19 @@
             </div>
         </div>
 
+        {% if sale.custom_fields %}
+        <div class="receipt-meta border-top pt-1 mt-1">
+            {% for field in sale.custom_fields %}
+            {% if field.show_on_thermal and field.value %}
+            <div class="meta-row" style="display: flex; justify-content: space-between; font-size: 11px;">
+                <span class="meta-label" style="font-weight: bold;">{% if is_english %}{{ field.name_en|default:field.name }}{% else %}{{ field.name }}{% endif %}:</span>
+                <span class="meta-value">{% if field.value == 'true' %}{% if is_english %}Yes{% else %}نعم{% endif %}{% elif field.value == 'false' %}{% if is_english %}No{% else %}لا{% endif %}{% else %}{{ field.value }}{% endif %}</span>
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+        {% endif %}
+
         <!-- كود الـ QR -->
         <div class="qr-container">
             <img src="data:image/png;base64,{{ qr_code }}" class="qr-image" alt="رمز الاستجابة السريعة">

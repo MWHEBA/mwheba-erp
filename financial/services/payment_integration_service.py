@@ -209,12 +209,12 @@ class PaymentIntegrationService:
             # دفعة مبيعات: مدين الخزينة/البنك، دائن حساب العميل المحدد
 
             # استخدام الحساب المالي لولي الأمر المحدد بدلاً من الحساب العام
-            parent = payment.sale.parent
-            if parent.financial_account:
-                parent_account = parent.financial_account
+            customer = getattr(payment.sale, 'customer', None) or getattr(payment.sale, 'parent', None)
+            if customer and getattr(customer, 'financial_account', None):
+                parent_account = customer.financial_account
             else:
-                # إذا لم يكن لولي الأمر حساب محدد، رفض العملية
-                error_msg = f"❌ ولي الأمر {parent.name} ليس له حساب محاسبي. يجب إنشاء حساب محاسبي لولي الأمر أولاً."
+                cust_name = getattr(customer, 'name', 'العميل') if customer else 'العميل'
+                error_msg = f"❌ العميل {cust_name} ليس له حساب محاسبي. يجب إنشاء حساب محاسبي للعميل أولاً."
                 logger.error(error_msg)
                 raise PaymentIntegrationError(error_msg)
 
@@ -229,7 +229,7 @@ class PaymentIntegrationService:
                 debit_account=cash_account_code,
                 credit_account=parent_account.code,
                 amount=payment.amount,
-                description=f"دفعة من ولي الأمر {payment.sale.parent.name} - فاتورة {payment.sale.number}",
+                description=f"دفعة من العميل {customer.name} - فاتورة {payment.sale.number}",
                 date=payment.payment_date,
                 reference=f"SALE-PAY-{payment.id}",
                 user=user or payment.created_by,

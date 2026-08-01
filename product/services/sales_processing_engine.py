@@ -240,13 +240,13 @@ class SalesProcessingEngine:
                 restored_components = []
                 
                 for deduction in component_deductions:
-                    component_id = deduction.get('component_id')
+                    product_id = deduction.get('deducted_product_id') or deduction.get('component_id')
                     deducted_quantity = deduction.get('deducted_quantity', 0)
                     
-                    if component_id and deducted_quantity > 0:
+                    if product_id and deducted_quantity > 0:
                         # إنشاء حركة مخزون لإرجاع الكمية
                         SalesProcessingEngine._create_stock_movement(
-                            product_id=component_id,
+                            product_id=product_id,
                             quantity=deducted_quantity,
                             movement_type='return_in',
                             reference_number=transaction_record.get('transaction_id'),
@@ -255,7 +255,7 @@ class SalesProcessingEngine:
                         )
                         
                         restored_components.append({
-                            'component_id': component_id,
+                            'component_id': product_id,
                             'restored_quantity': deducted_quantity
                         })
                 

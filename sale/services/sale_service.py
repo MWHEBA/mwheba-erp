@@ -47,6 +47,10 @@ class SaleService:
         """
         try:
             # Validation: التحقق من صحة البيانات
+            items_data = data.get('items', [])
+            for item in items_data:
+                if Decimal(str(item.get('unit_price', 0))) <= Decimal('0'):
+                    raise ValidationError('لا يمكن بيع البند بسعر صفر أو أقل (Zero price is rejected)')
             # 0. قفل المنتجات والمخزون والعميل بترتيب منظم لمنع الـ Deadlocks وسباق التزامن
             product_ids = sorted([int(item['product_id']) for item in items_data if item.get('product_id')])
             if product_ids:
@@ -75,8 +79,10 @@ class SaleService:
                 notes=data.get('notes', ''),
                 status='confirmed',
                 created_by=user,
+                salesman=data.get('salesman') or user,
                 financial_category_id=data.get('financial_category_id'),
                 work_order_id=data.get('work_order_id'),
+                custom_fields=SaleService.parse_custom_fields(data.get('custom_fields') or data.get('custom_fields_json')),
             )
             
             logger.info(f"✅ تم إنشاء فاتورة المبيعات: {sale.number}")
@@ -219,20 +225,23 @@ class SaleService:
         # 7. توليد قيد جديد بمفتاح تحديث فريد
         version_stamp = int(timezone.now().timestamp())
         try:
+            update_key = AccountingGateway.generate_idempotency_key('sale', 'Sale', sale.id, f'update_v{version_stamp}')
             journal_entry = SaleService._create_sale_journal_entry(
-                sale, user, idempotency_key=f'sale_{sale.id}_je_update_{version_stamp}'
+                sale, user, idempotency_key=update_key
             )
             if journal_entry:
                 sale.journal_entry = journal_entry
                 sale.save(update_fields=['journal_entry'])
         except Exception as e:
-            logger.warning(f"⚠️ فشل إنشاء القيد المحاسبي المعدل للفاتورة {sale.number}: {e}")
+            logger.error(f"❌ فشل إنشاء القيد المحاسبي المعدل للفاتورة {sale.number}: {e}")
+            raise ValidationError(f"فشل إنشاء القيد المحاسبي التعديلي: {e}")
 
         # 8. إنشاء حركات المخزون الجديدة
         try:
             SaleService._create_stock_movements(sale, user, version_stamp=version_stamp)
         except Exception as e:
-            logger.warning(f"⚠️ فشل إنشاء حركات المخزون المعدلة للفاتورة {sale.number}: {e}")
+            logger.error(f"❌ فشل إنشاء حركات المخزون المعدلة للفاتورة {sale.number}: {e}")
+            raise ValidationError(f"فشل تحديث حركات المخزون المعدلة: {e}")
 
         logger.info(f"✅ تم تعديل الفاتورة بنجاح: {sale.number}")
         return sale
@@ -261,13 +270,17 @@ class SaleService:
             # تحديد حساب المدين: يجب دائماً مدين حساب العميل في قيد الفاتورة
             # لضمان عدم حدوث تكرار لمديونية الخزينة (Double-Debit) وتكامل الحسابات
             if not sale.customer.financial_account:
-                # استدعاء الـ signal لإنشاء الحساب (Single Source of Truth)
-                logger.warning(
-                    f"⚠️ العميل '{sale.customer.name}' (ID: {sale.customer.id}) ليس لديه حساب محاسبي. "
-                    f"سيتم إنشاؤه تلقائياً عبر signal."
+                logger.info(
+                    f"ℹ️ العميل '{sale.customer.name}' (ID: {sale.customer.id}) ليس لديه حساب محاسبي. "
+                    f"سيتم إنشاؤه عبر CustomerService مباشرة."
                 )
-                sale.customer.save()  # Trigger post_save signal
-                sale.customer.refresh_from_db()
+                try:
+                    CustomerService.create_financial_account_for_customer(sale.customer)
+                    sale.customer.refresh_from_db()
+                except Exception as e:
+                    logger.warning(f"⚠️ يتعذر إنشاء حساب العميل عبر الخدمة: {e}")
+                    sale.customer.save()
+                    sale.customer.refresh_from_db()
                 
                 # التحقق من نجاح الإنشاء
                 if not sale.customer.financial_account:
@@ -404,7 +417,7 @@ class SaleService:
             
             # إنشاء القيد عبر AccountingGateway (مع الحوكمة الكاملة)
             gateway = AccountingGateway()
-            entry_idem_key = idempotency_key if idempotency_key else f'sale_{sale.id}_journal_entry'
+            entry_idem_key = idempotency_key if idempotency_key else AccountingGateway.generate_idempotency_key('sale', 'Sale', sale.id, 'create')
             journal_entry = gateway.create_journal_entry(
                 source_module='sale',
                 source_model='Sale',
@@ -442,7 +455,7 @@ class SaleService:
                     logger.info(f"ℹ️ تخطي بند الخدمة: {item.product.name} من حركة المخزون")
                     continue
                 # إنشاء الحركة عبر MovementService (مع الحوكمة الكاملة)
-                item_idem_key = f'sale_{sale.id}_item_{item.id}_mov_{version_stamp}' if version_stamp else f'sale_{sale.id}_item_{item.id}_movement'
+                item_idem_key = AccountingGateway.generate_idempotency_key('product', 'StockMovement', item.id, f'sale_{sale.id}_out' if not version_stamp else f'sale_{sale.id}_v{version_stamp}')
                 movement = movement_service.process_movement(
                     product_id=item.product.id,
                     quantity_change=-item.quantity,  # Negative for outbound
@@ -451,7 +464,7 @@ class SaleService:
                     idempotency_key=item_idem_key,
                     user=user,
                     unit_cost=item.product.cost_price,
-                    document_number=None,
+                    document_number=sale.number,
                     notes=f'مبيعات - فاتورة رقم {sale.number}',
                     movement_date=sale.date,
                     warehouse_id=sale.warehouse_id if sale.warehouse_id else None
@@ -949,3 +962,90 @@ class SaleService:
             'is_returned': sale.is_returned,
             'return_status': sale.return_status,
         }
+
+    @staticmethod
+    def parse_custom_fields(raw_data):
+        """
+        فك وتسطيح الحقول الإضافية بأمان تام (Defensive JSON Parsing)
+        """
+        import json
+        if not raw_data:
+            return []
+        
+        if isinstance(raw_data, list):
+            data_list = raw_data
+        elif isinstance(raw_data, str):
+            try:
+                data_list = json.loads(raw_data)
+                if not isinstance(data_list, list):
+                    data_list = []
+            except (json.JSONDecodeError, TypeError):
+                data_list = []
+        else:
+            data_list = []
+
+        cleaned = []
+        for item in data_list:
+            if isinstance(item, dict):
+                key = str(item.get('key', '')).strip()
+                name = str(item.get('name', '')).strip()
+                name_en = str(item.get('name_en', '') if item.get('name_en') else '').strip()
+                val = str(item.get('value', '') if item.get('value') is not None else '').strip()
+                if key and name:
+                    cleaned.append({
+                        'key': key,
+                        'name': name,
+                        'name_en': name_en,
+                        'value': val,
+                        'show_in_header': bool(item.get('show_in_header', False)),
+                        'show_on_print': bool(item.get('show_on_print', True)),
+                        'show_on_thermal': bool(item.get('show_on_thermal', False))
+                    })
+        return cleaned
+
+    @staticmethod
+    def smart_merge_custom_fields(module, existing_fields):
+        """
+        دمج الحقول المخزنة سابقاً مع التعاريف النشطة في الإعدادات
+        """
+        from sale.models import CustomFieldDefinition
+        existing_list = SaleService.parse_custom_fields(existing_fields)
+        existing_keys = {f['key']: f for f in existing_list}
+        
+        active_defs = CustomFieldDefinition.objects.filter(
+            is_active=True,
+            module__in=[module, 'both']
+        ).order_by('sort_order', 'id')
+
+        merged = []
+        for defn in active_defs:
+            if defn.key in existing_keys:
+                field_data = dict(existing_keys[defn.key])
+                field_data['name'] = defn.name  # تحديث الاسم العربي المعروض إذا تغير في الإعدادات
+                field_data['name_en'] = defn.name_en or ''
+                field_data['field_type'] = defn.field_type
+                field_data['select_options'] = defn.get_options_list()
+                field_data['is_required'] = defn.is_required
+                field_data['show_in_header'] = defn.show_in_header
+                merged.append(field_data)
+            else:
+                merged.append({
+                    'key': defn.key,
+                    'name': defn.name,
+                    'name_en': defn.name_en or '',
+                    'value': '',
+                    'field_type': defn.field_type,
+                    'select_options': defn.get_options_list(),
+                    'is_required': defn.is_required,
+                    'show_in_header': defn.show_in_header,
+                    'show_on_print': defn.show_on_print,
+                    'show_on_thermal': defn.show_on_thermal
+                })
+        
+        # إضافة أي حقول قديمة مخزنة لم تعد نشطة في التعاريف
+        active_keys = {d.key for d in active_defs}
+        for old_field in existing_list:
+            if old_field['key'] not in active_keys:
+                merged.append(old_field)
+                
+        return merged

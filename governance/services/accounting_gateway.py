@@ -121,6 +121,8 @@ class AccountingGateway:
         'purchase.Purchase',
         'purchase.PurchaseReturn',
         'product.BatchVoucher',
+        'product.BundleSale',
+        'product.Product',
     }
     
     # High-priority workflows that require strict validation

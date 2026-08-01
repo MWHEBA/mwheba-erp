@@ -234,7 +234,18 @@ class Supplier(models.Model):
         return self.name
     
     def save(self, *args, **kwargs):
-        """Generate automatic supplier code if not provided"""
+        """Generate automatic supplier code and set default primary_type if not provided"""
+        if not hasattr(self, 'primary_type') or self.primary_type_id is None:
+            default_type, _ = SupplierType.objects.get_or_create(
+                code='GENERAL',
+                defaults={
+                    'name': 'عام',
+                    'slug': 'general',
+                    'description': 'مورد عام'
+                }
+            )
+            self.primary_type = default_type
+
         if not self.code:
             # Get the last supplier code (without locking to avoid transaction issues)
             last_supplier = Supplier.objects.filter(

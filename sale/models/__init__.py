@@ -4,3 +4,4 @@ from sale.models.payment import SalePayment
 from sale.models.return_model import SaleReturn, SaleReturnItem
 from sale.models.quotation import Quotation
 from sale.models.quotation_item import QuotationItem
+from sale.models.custom_field import CustomFieldDefinition

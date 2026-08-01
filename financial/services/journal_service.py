@@ -220,10 +220,23 @@ class JournalEntryService:
                 # لو في reference بيبدأ بـ ACT_EXP_ يبقى ده مصروف نشاط
                 source_module_to_use = 'financial'
                 source_model_to_use = 'ManualEntry'
-                source_id_to_use = 0
+                source_id_to_use = 1
                 
-                if reference and reference.startswith('ACT_EXP_'):
-                    # استخراج الـ ID من الـ reference
+                if reference and (reference.startswith('SALE-PAY-') or reference.startswith('SALE_PAY_')):
+                    try:
+                        source_id_to_use = int(reference.split('-')[-1].split('_')[-1])
+                        source_module_to_use = 'sale'
+                        source_model_to_use = 'SalePayment'
+                    except (ValueError, IndexError):
+                        pass
+                elif reference and (reference.startswith('PURCH-PAY-') or reference.startswith('PUR-PAY-') or reference.startswith('PURCH_PAY_')):
+                    try:
+                        source_id_to_use = int(reference.split('-')[-1].split('_')[-1])
+                        source_module_to_use = 'purchase'
+                        source_model_to_use = 'PurchasePayment'
+                    except (ValueError, IndexError):
+                        pass
+                elif reference and reference.startswith('ACT_EXP_'):
                     try:
                         expense_id = int(reference.split('_')[-1])
                         source_module_to_use = 'activities'

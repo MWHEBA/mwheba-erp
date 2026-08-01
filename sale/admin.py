@@ -1,6 +1,15 @@
 from django.contrib import admin
 from django.utils.translation import gettext_lazy as _
-from sale.models import Sale, SaleItem, SalePayment, SaleReturn, SaleReturnItem
+from sale.models import Sale, SaleItem, SalePayment, SaleReturn, SaleReturnItem, CustomFieldDefinition
+
+
+@admin.register(CustomFieldDefinition)
+class CustomFieldDefinitionAdmin(admin.ModelAdmin):
+    list_display = ("name", "key", "module", "field_type", "is_required", "show_on_print", "show_on_thermal", "is_active", "sort_order")
+    list_filter = ("module", "field_type", "is_active", "is_required", "show_on_print", "show_on_thermal")
+    search_fields = ("name", "key")
+    ordering = ("sort_order", "id")
+    prepopulated_fields = {"key": ("name",)}
 
 
 class SaleItemInline(admin.TabularInline):

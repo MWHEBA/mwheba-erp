@@ -210,7 +210,7 @@ class SupplierViewSet(viewsets.ModelViewSet):
     queryset = Supplier.objects.select_related('primary_type', 'financial_account').all()
     permission_classes = [IsAuthenticated, IsManagerOrReadOnly]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['supplier_type', 'is_active']
+    filterset_fields = ['primary_type', 'is_active']
     search_fields = ['name', 'phone', 'email', 'tax_number']
     ordering_fields = ['name', 'created_at']
     ordering = ['name']

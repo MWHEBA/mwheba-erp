@@ -42,6 +42,7 @@ class Quotation(models.Model):
     tax_active = models.BooleanField(_("الضريبة نشطة"), default=True)
     total = models.DecimalField(_("الإجمالي"), max_digits=12, decimal_places=2, default=0)
     notes = models.TextField(_("ملاحظات وشروط"), blank=True, null=True)
+    custom_fields = models.JSONField(_("الحقول الإضافية"), default=list, blank=True, help_text=_("مصفوفة الحقول الإضافية المخصصة"))
     
     # ربط بالفاتورة الناتجة
     converted_to_sale = models.ForeignKey(
@@ -69,8 +70,24 @@ class Quotation(models.Model):
         verbose_name=_("أنشئ بواسطة"),
         related_name="quotations_created",
     )
+    salesman = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name=_("مسؤول المبيعات"),
+        related_name="quotations_assigned",
+        help_text=_("المستخدم أو مسؤول المبيعات الخاص بعرض السعر"),
+    )
     created_at = models.DateTimeField(_("تاريخ الإنشاء"), auto_now_add=True)
     updated_at = models.DateTimeField(_("تاريخ التحديث"), auto_now=True)
+
+    @property
+    def salesman_display_name(self):
+        user = self.salesman or self.created_by
+        if user:
+            return user.get_full_name() or user.username
+        return ""
 
     class Meta:
         verbose_name = _("عرض سعر")
@@ -105,8 +122,11 @@ class Quotation(models.Model):
                 serial.last_number = last_number
                 serial.save()
 
-            next_number = serial.get_next_number()
-            self.number = f"{serial.prefix}{next_number:04d}"
+            next_num_str = str(serial.get_next_number())
+            if next_num_str.startswith(serial.prefix):
+                self.number = next_num_str
+            else:
+                self.number = f"{serial.prefix}{next_num_str}"
 
         super().save(*args, **kwargs)
 
@@ -116,3 +136,11 @@ class Quotation(models.Model):
         فحص ما إذا كان هناك أي خصم على أي بند من بنود عرض السعر
         """
         return any(item.discount and item.discount > 0 for item in self.items.all())
+
+    @property
+    def merged_custom_fields(self):
+        """
+        دمج الحقول المخصصة مع إعدادات التعاريف الحديثة (بما فيها show_in_header و show_on_print)
+        """
+        from sale.services.sale_service import SaleService
+        return SaleService.smart_merge_custom_fields("quotation", self.custom_fields)

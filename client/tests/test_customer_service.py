@@ -164,8 +164,8 @@ class TestCustomerServiceFinancialAccount:
         # Verify account was created by signal
         assert customer.financial_account is not None
         assert customer.financial_account.is_active is True
-        assert customer.financial_account.code.startswith('1030')
-        assert customer.financial_account.parent.code == '10300'
+        assert customer.financial_account.code.startswith('1103')
+        assert customer.financial_account.parent.code == '11030'
         assert customer.name in customer.financial_account.name
 
 

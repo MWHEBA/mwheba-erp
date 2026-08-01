@@ -48,7 +48,9 @@
                                   {% with empty_message="لا توجد مرتجعات مبيعات متاحة" %}
                                     {% with clickable_rows=True row_click_url="/sales/returns/0/" %}
                                       {% with show_export=True export_filename="sale_returns" %}
-                                        {% include "components/data_table.html" %}
+                                        {% with primary_key="id" %}
+                                          {% include "components/data_table.html" %}
+                                        {% endwith %}
                                       {% endwith %}
                                     {% endwith %}
                                   {% endwith %}

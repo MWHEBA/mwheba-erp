@@ -80,6 +80,7 @@ def create_supplier_account_signal(sender, instance, created, **kwargs):
         # Update supplier with financial account using update() to avoid triggering signal again
         Supplier.objects.filter(pk=instance.pk).update(financial_account=account)
         instance.financial_account = account  # Update in-memory instance
+        instance.financial_account_id = account.id
         
         # Log successful account creation to governance audit service
         AuditService.log_signal_operation(

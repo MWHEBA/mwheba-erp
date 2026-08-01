@@ -266,8 +266,11 @@ class InventoryMovement(models.Model):
                 year=timezone.now().year,
                 defaults={"prefix": "INV"},
             )[0]
-            next_number = serial.get_next_number()
-            self.movement_number = f"{serial.prefix}{next_number:04d}"
+            next_num_str = str(serial.get_next_number())
+            if next_num_str.startswith(serial.prefix):
+                self.movement_number = next_num_str
+            else:
+                self.movement_number = f"{serial.prefix}{next_num_str}"
 
         # حساب التكلفة الإجمالية
         self.total_cost = self.quantity * self.unit_cost

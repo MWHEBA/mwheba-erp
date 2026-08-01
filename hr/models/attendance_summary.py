@@ -606,17 +606,16 @@ class AttendanceSummary(models.Model):
                 f'لشهر {self.month.strftime("%Y-%m")} — يجب حساب الملخص أولاً'
             )
 
-        # Guard: prevent re-approval only if already approved AND payroll already calculated
-        if self.is_approved:
-            payroll_exists = self.employee.payrolls.filter(
-                month=self.month,
-                status__in=['calculated', 'approved', 'paid']
-            ).exists()
-            if payroll_exists:
-                raise ValueError(
-                    f'لا يمكن تعديل اعتماد ملخص الحضور للموظف {self.employee.get_full_name_ar()} '
-                    f'لشهر {self.month.strftime("%Y-%m")} — تم حساب الراتب بالفعل'
-                )
+        # Guard: prevent approval if payroll already calculated for this month
+        payroll_exists = self.employee.payrolls.filter(
+            month=self.month,
+            status__in=['calculated', 'approved', 'paid']
+        ).exists()
+        if payroll_exists:
+            raise ValueError(
+                f'لا يمكن تعديل اعتماد ملخص الحضور للموظف {self.employee.get_full_name_ar()} '
+                f'لشهر {self.month.strftime("%Y-%m")} — تم حساب الراتب بالفعل'
+            )
 
         self.is_approved = True
         self.approved_by = approved_by

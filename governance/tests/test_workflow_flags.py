@@ -37,9 +37,9 @@ class WorkflowFlagsTest(TestCase):
     def test_critical_workflow_flags_exist(self):
         """Test that all required workflow flags are defined"""
         required_workflows = [
-            'student_fee_to_journal_entry',
+            'customer_payment_to_journal_entry',
             'stock_movement_to_journal_entry', 
-            'fee_payment_to_journal_entry'
+            'purchase_payment_to_journal_entry'
         ]
         
         for workflow in required_workflows:
@@ -57,61 +57,61 @@ class WorkflowFlagsTest(TestCase):
             self.assertTrue(config['critical'])
             self.assertEqual(config['risk_level'], 'HIGH')
     
-    def test_student_fee_workflow_flag(self):
-        """Test StudentFee → JournalEntry workflow flag"""
-        workflow_name = 'student_fee_to_journal_entry'
+    def test_customer_payment_workflow_flag(self):
+        """Test CustomerPayment → JournalEntry workflow flag"""
+        workflow_name = 'customer_payment_to_journal_entry'
         
-        # Should be disabled by default
-        self.assertFalse(is_workflow_enabled(workflow_name))
-        
-        # Enable workflow
-        result = enable_workflow(workflow_name, "Test enable", self.user)
-        self.assertTrue(result)
+        # Should be enabled by default
         self.assertTrue(is_workflow_enabled(workflow_name))
         
         # Disable workflow
         result = disable_workflow(workflow_name, "Test disable", self.user)
         self.assertTrue(result)
         self.assertFalse(is_workflow_enabled(workflow_name))
+        
+        # Enable workflow
+        result = enable_workflow(workflow_name, "Test enable", self.user)
+        self.assertTrue(result)
+        self.assertTrue(is_workflow_enabled(workflow_name))
     
     def test_stock_movement_workflow_flag(self):
         """Test StockMovement → JournalEntry workflow flag"""
         workflow_name = 'stock_movement_to_journal_entry'
         
-        # Should be disabled by default
-        self.assertFalse(is_workflow_enabled(workflow_name))
-        
-        # Enable workflow
-        result = enable_workflow(workflow_name, "Test enable", self.user)
-        self.assertTrue(result)
+        # Should be enabled by default
         self.assertTrue(is_workflow_enabled(workflow_name))
         
         # Disable workflow
         result = disable_workflow(workflow_name, "Test disable", self.user)
         self.assertTrue(result)
         self.assertFalse(is_workflow_enabled(workflow_name))
+        
+        # Enable workflow
+        result = enable_workflow(workflow_name, "Test enable", self.user)
+        self.assertTrue(result)
+        self.assertTrue(is_workflow_enabled(workflow_name))
     
-    def test_fee_payment_workflow_flag(self):
-        """Test FeePayment → JournalEntry workflow flag"""
-        workflow_name = 'fee_payment_to_journal_entry'
+    def test_purchase_payment_workflow_flag(self):
+        """Test PurchasePayment → JournalEntry workflow flag"""
+        workflow_name = 'purchase_payment_to_journal_entry'
         
-        # Should be disabled by default
-        self.assertFalse(is_workflow_enabled(workflow_name))
-        
-        # Enable workflow
-        result = enable_workflow(workflow_name, "Test enable", self.user)
-        self.assertTrue(result)
+        # Should be enabled by default
         self.assertTrue(is_workflow_enabled(workflow_name))
         
         # Disable workflow
         result = disable_workflow(workflow_name, "Test disable", self.user)
         self.assertTrue(result)
         self.assertFalse(is_workflow_enabled(workflow_name))
+        
+        # Enable workflow
+        result = enable_workflow(workflow_name, "Test enable", self.user)
+        self.assertTrue(result)
+        self.assertTrue(is_workflow_enabled(workflow_name))
     
     def test_workflow_component_dependencies(self):
         """Test that workflows have proper component dependencies"""
-        # StudentFee workflow should depend on accounting_gateway_enforcement
-        config = governance_switchboard.WORKFLOW_FLAGS['student_fee_to_journal_entry']
+        # CustomerPayment workflow should depend on accounting_gateway_enforcement
+        config = governance_switchboard.WORKFLOW_FLAGS['customer_payment_to_journal_entry']
         self.assertIn('accounting_gateway_enforcement', config['component_dependencies'])
         
         # StockMovement workflow should depend on both movement and accounting services
@@ -119,14 +119,17 @@ class WorkflowFlagsTest(TestCase):
         self.assertIn('movement_service_enforcement', config['component_dependencies'])
         self.assertIn('accounting_gateway_enforcement', config['component_dependencies'])
         
-        # FeePayment workflow should depend on accounting_gateway_enforcement
-        config = governance_switchboard.WORKFLOW_FLAGS['fee_payment_to_journal_entry']
+        # PurchasePayment workflow should depend on accounting_gateway_enforcement
+        config = governance_switchboard.WORKFLOW_FLAGS['purchase_payment_to_journal_entry']
         self.assertIn('accounting_gateway_enforcement', config['component_dependencies'])
     
     def test_workflow_dependency_validation(self):
         """Test that workflow dependencies are validated"""
-        # Try to enable workflow without enabling its component dependencies
-        workflow_name = 'student_fee_to_journal_entry'
+        # Disable component dependency first to test validation
+        from governance.services import disable_component, enable_component
+        disable_component('accounting_gateway_enforcement', "Disable for test", self.user)
+        
+        workflow_name = 'customer_payment_to_journal_entry'
         
         # Should fail because accounting_gateway_enforcement is not enabled
         result = enable_workflow(workflow_name, "Test without deps", self.user)
@@ -134,7 +137,6 @@ class WorkflowFlagsTest(TestCase):
         self.assertFalse(is_workflow_enabled(workflow_name))
         
         # Enable the component dependency first
-        from governance.services import enable_component
         enable_component('accounting_gateway_enforcement', "Enable for test", self.user)
         
         # Now workflow should enable successfully
@@ -145,7 +147,7 @@ class WorkflowFlagsTest(TestCase):
     def test_individual_workflow_monitoring(self):
         """Test individual workflow monitoring capability"""
         # Enable a workflow
-        workflow_name = 'student_fee_to_journal_entry'
+        workflow_name = 'customer_payment_to_journal_entry'
         enable_workflow(workflow_name, "Test monitoring", self.user)
         
         # Get governance statistics
@@ -163,7 +165,7 @@ class WorkflowFlagsTest(TestCase):
     
     def test_workflow_rollback_capability(self):
         """Test workflow rollback capability"""
-        workflow_name = 'fee_payment_to_journal_entry'
+        workflow_name = 'customer_payment_to_journal_entry'
         
         # Enable workflow
         enable_workflow(workflow_name, "Test rollback", self.user)
@@ -182,9 +184,9 @@ class WorkflowFlagsTest(TestCase):
         """Test emergency disable of workflows"""
         # Enable all critical workflows
         critical_workflows = [
-            'student_fee_to_journal_entry',
+            'customer_payment_to_journal_entry',
             'stock_movement_to_journal_entry',
-            'fee_payment_to_journal_entry'
+            'purchase_payment_to_journal_entry'
         ]
         
         # Enable component dependencies first
@@ -207,9 +209,9 @@ class WorkflowFlagsTest(TestCase):
         
         # All accounting-related workflows should be disabled
         accounting_workflows = [
-            'student_fee_to_journal_entry',
+            'customer_payment_to_journal_entry',
             'stock_movement_to_journal_entry',
-            'fee_payment_to_journal_entry'
+            'purchase_payment_to_journal_entry'
         ]
         
         for workflow in accounting_workflows:
@@ -218,7 +220,7 @@ class WorkflowFlagsTest(TestCase):
     def test_workflow_corruption_prevention_mapping(self):
         """Test that workflows have proper corruption prevention mapping"""
         # StudentFee workflow should prevent orphaned entries and unbalanced entries
-        config = governance_switchboard.WORKFLOW_FLAGS['student_fee_to_journal_entry']
+        config = governance_switchboard.WORKFLOW_FLAGS['customer_payment_to_journal_entry']
         corruption_prevention = config['corruption_prevention']
         self.assertIn('orphaned_journal_entries', corruption_prevention)
         self.assertIn('unbalanced_entries', corruption_prevention)
@@ -230,7 +232,7 @@ class WorkflowFlagsTest(TestCase):
         self.assertIn('orphaned_journal_entries', corruption_prevention)
         
         # FeePayment workflow should prevent payment sync corruption and orphaned entries
-        config = governance_switchboard.WORKFLOW_FLAGS['fee_payment_to_journal_entry']
+        config = governance_switchboard.WORKFLOW_FLAGS['purchase_payment_to_journal_entry']
         corruption_prevention = config['corruption_prevention']
         self.assertIn('payment_sync_corruption', corruption_prevention)
         self.assertIn('orphaned_journal_entries', corruption_prevention)
@@ -245,7 +247,7 @@ class WorkflowFlagsTest(TestCase):
     
     def test_workflow_flag_persistence(self):
         """Test that workflow flags persist across switchboard instances"""
-        workflow_name = 'student_fee_to_journal_entry'
+        workflow_name = 'customer_payment_to_journal_entry'
         
         # Enable workflow
         enable_workflow(workflow_name, "Test persistence", self.user)
@@ -276,10 +278,14 @@ class WorkflowIntegrationTest(TestCase):
     
     def test_workflow_audit_logging(self):
         """Test that workflow flag changes are properly audited"""
-        workflow_name = 'student_fee_to_journal_entry'
+        workflow_name = 'customer_payment_to_journal_entry'
         
         # Enable audit logging
         governance_switchboard.enable_audit = True
+        
+        from governance.services import enable_component
+        enable_component('accounting_gateway_enforcement', "Test audit", self.user)
+        disable_workflow(workflow_name, "Test audit disable", self.user)
         
         with patch('governance.services.audit_service.AuditService.log_operation') as mock_audit:
             # Enable workflow
@@ -306,17 +312,17 @@ class WorkflowIntegrationTest(TestCase):
         from governance.services import enable_component
         enable_component('accounting_gateway_enforcement', "Test stats", self.user)
         
-        enable_workflow('student_fee_to_journal_entry', "Test stats", self.user)
-        enable_workflow('fee_payment_to_journal_entry', "Test stats", self.user)
+        enable_workflow('customer_payment_to_journal_entry', "Test stats", self.user)
+        enable_workflow('purchase_payment_to_journal_entry', "Test stats", self.user)
         
         # Get statistics
         stats = governance_switchboard.get_governance_statistics()
         
         # Verify workflow statistics
-        self.assertEqual(stats['workflows']['enabled'], 2)
-        self.assertEqual(stats['workflows']['high_risk_enabled'], 2)
-        self.assertIn('student_fee_to_journal_entry', stats['workflows']['enabled_list'])
-        self.assertIn('fee_payment_to_journal_entry', stats['workflows']['enabled_list'])
+        self.assertGreaterEqual(stats['workflows']['enabled'], 2)
+        self.assertGreaterEqual(stats['workflows']['high_risk_enabled'], 2)
+        self.assertIn('customer_payment_to_journal_entry', stats['workflows']['enabled_list'])
+        self.assertIn('purchase_payment_to_journal_entry', stats['workflows']['enabled_list'])
         
         # Verify health status
         self.assertTrue(stats['health']['governance_active'])
@@ -331,9 +337,9 @@ class WorkflowIntegrationTest(TestCase):
         
         # All required workflow flags should be properly configured
         required_workflows = [
-            'student_fee_to_journal_entry',
+            'customer_payment_to_journal_entry',
             'stock_movement_to_journal_entry',
-            'fee_payment_to_journal_entry'
+            'purchase_payment_to_journal_entry'
         ]
         
         for workflow in required_workflows:

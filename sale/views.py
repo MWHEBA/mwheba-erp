@@ -9,6 +9,7 @@ from django.utils import timezone
 from django.utils.translation import gettext as _
 from django.urls import reverse
 from django.core.paginator import Paginator
+from django.core.serializers.json import DjangoJSONEncoder
 from decimal import Decimal
 import logging
 
@@ -60,10 +61,10 @@ def _extract_posted_items(request):
                             "product_id": prod_obj.id,
                             "code": product_code,
                             "name": prod_obj.name,
-                            "quantity": q,
-                            "unit_price": p,
-                            "price": p,
-                            "discount": d,
+                            "quantity": float(q),
+                            "unit_price": float(p),
+                            "price": float(p),
+                            "discount": float(d),
                             "is_service": prod_obj.is_service,
                             "unit": prod_obj.unit.name if prod_obj.unit else "",
                         })
@@ -134,7 +135,7 @@ def sale_create(request, customer_id=None):
     posted_items = []
     if request.method == "POST":
         posted_items = _extract_posted_items(request)
-        form = SaleForm(request.POST)
+        form = SaleForm(request.POST, user=request.user)
 
         if form.is_valid():
             try:
@@ -174,6 +175,7 @@ def sale_create(request, customer_id=None):
                     'date': form.cleaned_data['date'],
                     'customer_id': form.cleaned_data['customer'].id,
                     'warehouse_id': form.cleaned_data['warehouse'].id,
+                    'salesman': form.cleaned_data.get('salesman'),
                     'discount': discount_amount,
                     'discount_type': discount_type,
                     'adjustment_name': adjustment_name,
@@ -181,6 +183,7 @@ def sale_create(request, customer_id=None):
                     'tax': Decimal(request.POST.get("tax", "0")),
                     'notes': form.cleaned_data.get('notes', ''),
                     'work_order_id': form.cleaned_data['work_order'].id if form.cleaned_data.get('work_order') else None,
+                    'custom_fields': SaleService.parse_custom_fields(request.POST.get('custom_fields_json', '[]')),
                     'items': []
                 }
                 
@@ -289,7 +292,7 @@ def sale_create(request, customer_id=None):
         if warehouses.exists():
             initial_data["warehouse"] = warehouses.first()
             
-        form = SaleForm(initial=initial_data)
+        form = SaleForm(initial=initial_data, user=request.user)
 
     # الحصول على الرقم التسلسلي التالي
     next_sale_number = None
@@ -326,6 +329,7 @@ def sale_create(request, customer_id=None):
     product_categories = Category.objects.filter(category_filter).distinct().order_by("name")
 
     import json
+    custom_fields_merged = SaleService.smart_merge_custom_fields('sale', [])
     context = {
         "products": products,
         "product_categories": product_categories,
@@ -336,7 +340,10 @@ def sale_create(request, customer_id=None):
         "warehouses": warehouses,
         "selected_customer": selected_customer,
         "default_warehouse": warehouses.first() if warehouses.exists() else None,
-        "posted_items_json": json.dumps(posted_items) if posted_items else "null",
+        "posted_items_json": json.dumps(posted_items, cls=DjangoJSONEncoder) if posted_items else "null",
+        "custom_fields_json": json.dumps(custom_fields_merged),
+        "custom_fields_display_mode": SystemSetting.get_setting('custom_fields_display_mode', 'expanded'),
+        "enable_custom_fields": SystemSetting.get_setting('enable_custom_fields', 'true'),
         "page_title": "إضافة فاتورة مبيعات" + (f" - {selected_customer.name}" if selected_customer else ""),
         "page_subtitle": "إضافة فاتورة مبيعات جديدة إلى النظام",
         "page_icon": "fas fa-file-invoice-dollar",
@@ -620,6 +627,17 @@ def sale_list(request):
     """
     sales_query = Sale.objects.all().order_by("-date", "-id")
 
+    # تصفية حسب نص البحث
+    search_query = request.GET.get("search") or request.GET.get("q")
+    if search_query:
+        search_query = search_query.strip()
+        sales_query = sales_query.filter(
+            models.Q(number__icontains=search_query) |
+            models.Q(customer__name__icontains=search_query) |
+            models.Q(notes__icontains=search_query) |
+            models.Q(custom_fields__icontains=search_query)
+        )
+
     # تصفية حسب العميل
     customer = request.GET.get("customer")
     if customer:
@@ -629,6 +647,11 @@ def sale_list(request):
     warehouse = request.GET.get("warehouse")
     if warehouse:
         sales_query = sales_query.filter(warehouse_id=warehouse)
+
+    # تصفية حسب مسؤول المبيعات
+    salesman_filter = request.GET.get("salesman")
+    if salesman_filter:
+        sales_query = sales_query.filter(models.Q(salesman_id=salesman_filter) | models.Q(created_by_id=salesman_filter))
 
     # تصفية حسب حالة الدفع
     payment_status = request.GET.get("payment_status")
@@ -696,8 +719,9 @@ def sale_list(request):
             'id': sale.id,
             'number': sale.number,
             'created_at': sale.created_at,
-            'customer': sale.customer.name,
-            'warehouse': sale.warehouse.name,
+            'customer': sale.customer.name if sale.customer else '-',
+            'salesman': sale.salesman_display_name,
+            'warehouse': sale.warehouse.name if sale.warehouse else '-',
             'total': sale.total,
             'amount_paid': sale.amount_paid,
             'amount_due': sale.amount_due,
@@ -718,6 +742,10 @@ def sale_list(request):
     customers = Customer.objects.filter(id__in=Sale.objects.values('customer_id')).order_by("name")
     warehouses = Warehouse.objects.filter(is_active=True).order_by("name") if allowed_types != 'services' else Warehouse.objects.none()
 
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
+    salesmen = User.objects.filter(is_active=True).order_by("first_name", "username")
+
     # إعداد headers للجدول الموحد
     sale_headers = [
         {
@@ -736,7 +764,8 @@ def sale_list(request):
             'class': 'text-center',
             'format': 'datetime_12h',
         },
-        {'key': 'customer', 'label': 'العميل', 'sortable': True, 'width': '20%', 'class': 'fw-bold'},
+        {'key': 'customer', 'label': 'العميل', 'sortable': True, 'width': '18%', 'class': 'fw-bold'},
+        {'key': 'salesman', 'label': 'مسؤول المبيعات', 'sortable': True, 'class': 'text-center'},
     ]
     if allowed_types != 'services':
         sale_headers.append({'key': 'warehouse', 'label': 'المخزن', 'sortable': True, 'width': '12%'})
@@ -748,10 +777,46 @@ def sale_list(request):
         {'key': 'actions', 'label': 'الإجراءات', 'width': '1%', 'class': 'text-center text-nowrap'}
     ])
 
-    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+    context = {
+        "sales": sales_page,
+        "sales_data": sales_data,
+        "sale_headers": sale_headers,
+        "paid_sales_count": paid_sales_count,
+        "partially_paid_sales_count": partially_paid_sales_count,
+        "unpaid_sales_count": unpaid_sales_count,
+        "returned_sales_count": returned_sales_count,
+        "total_amount": total_amount,
+        "customers": customers,
+        "warehouses": warehouses,
+        "salesmen": salesmen,
+        "selected_customer": customer,
+        "selected_warehouse": warehouse,
+        "selected_salesman": salesman_filter,
+        "selected_payment_status": payment_status,
+        "date_from": date_from,
+        "date_to": date_to,
+        "title": "فواتير المبيعات",
+        "page_title": "فواتير المبيعات",
+        "page_subtitle": "عرض وإدارة فواتير المبيعات",
+        "page_icon": "fas fa-shopping-cart",
+        "header_buttons": [
+            {
+                "url": reverse("sale:sale_create"),
+                "icon": "fa-plus-circle",
+                "text": "إضافة فاتورة جديدة",
+                "class": "btn-primary",
+            }
+        ],
+        "breadcrumb_items": [
+            {"title": "الرئيسية", "url": reverse("core:dashboard"), "icon": "fas fa-home"},
+            {"title": "المبيعات", "active": True, "icon": "fas fa-shopping-cart"},
+        ],
+    }
+
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
         from django.template.loader import render_to_string
         from django.http import JsonResponse
-        ctx = {
+        table_html = render_to_string('components/data_table.html', {
             'table_id': 'sales-table',
             'headers': sale_headers,
             'data': sales_data,
@@ -761,56 +826,16 @@ def sale_list(request):
             'clickable_rows': True,
             'row_click_url': '/sales/0/',
             'show_currency': True,
-            'currency_symbol': getattr(request, 'currency_symbol', 'ج.م'),
             'disable_pagination': True,
             'show_search': False,
             'show_length_menu': False,
-            'sortable': False,
-        }
-        table_html = render_to_string('components/data_table.html', ctx, request=request)
-        pagination_html = ''
-        if paginator.num_pages > 1:
-            pagination_html = render_to_string('partials/pagination.html', {
-                'page_obj': sales_page,
-                'align': 'center',
-            }, request=request)
-            
+            'sortable': False
+        }, request=request)
+        pagination_html = render_to_string('partials/pagination.html', {'page_obj': sales_page}, request=request) if sales_page.paginator.num_pages > 1 else ''
         return JsonResponse({
             'table_html': table_html,
-            'pagination_html': pagination_html,
-            'count': paginator.count,
+            'pagination_html': pagination_html
         })
-
-    context = {
-        "sales": sales_data,
-        "sale_headers": sale_headers,
-        "page_obj": sales_page,  # للـ pagination
-        "paginator": paginator,
-        "paid_sales_count": paid_sales_count,
-        "partially_paid_sales_count": partially_paid_sales_count,
-        "unpaid_sales_count": unpaid_sales_count,
-        "returned_sales_count": returned_sales_count,
-        "total_amount": total_amount,
-        "customers": customers,
-        "warehouses": warehouses,
-        "allowed_item_types": allowed_types,
-        "page_title": "فواتير المبيعات",
-        "page_subtitle": "قائمة بجميع فواتير المبيعات في النظام",
-        "page_icon": "fas fa-shopping-cart",
-        "header_buttons": [
-            {
-                "url": reverse("sale:sale_create"),
-                "icon": "fa-plus",
-                "text": "إضافة فاتورة",
-                "class": "btn-primary",
-            }
-        ],
-        "breadcrumb_items": [
-            {"title": "الرئيسية", "url": reverse("core:dashboard"), "icon": "fas fa-home"},
-            {"title": "المبيعات", "url": "#", "icon": "fas fa-truck"},
-            {"title": "فواتير المبيعات", "active": True},
-        ],
-    }
 
     return render(request, "sale/sale_list.html", context)
 
@@ -818,19 +843,20 @@ def sale_list(request):
 @login_required
 def sale_print(request, pk):
     """
-    طباعة فاتورة مبيعات (عربي / إنجليزي)
+    طباعة فاتورة مبيعات (عربي / إنجليزي / ثنائي اللغة)
     """
     sale = get_object_or_404(Sale, pk=pk)
-    items = sale.items.all()
+    items = sale.items.all().select_related('product', 'product__unit', 'product__category')
     from core.models import SystemSetting
     
-    # تحديد لغة الطباعة الاتجاه
+    # تحديد لغة الطباعة والاتجاه
     default_lang = SystemSetting.get_default_print_language()
     print_lang = request.GET.get('lang', default_lang).lower()
     if print_lang not in ['ar', 'en']:
         print_lang = 'ar'
     
     is_english = (print_lang == 'en')
+    is_bilingual = False
     print_dir = 'ltr' if is_english else 'rtl'
     
     # جلب الإعدادات المحددة للشركة
@@ -854,6 +880,19 @@ def sale_print(request, pk):
             'unpaid': 'UNPAID',
             'partial': 'PARTIALLY PAID',
             'draft': 'DRAFT'
+        }
+    elif is_bilingual:
+        company_name_en = SystemSetting.get_setting('company_name_en') or SystemSetting.get_setting('site_name_en') or ''
+        company_name_active = f"{company_name} / {company_name_en}" if company_name_en else company_name
+        company_address_active = company_address
+        invoice_title_active = "فاتورة مبيعات / Sales Invoice"
+        default_notes = SystemSetting.get_setting('default_sale_invoice_notes', '')
+        currency_symbol_active = getattr(sale, 'currency', None) or SystemSetting.get_currency_symbol()
+        status_map = {
+            'paid': 'مدفوع بالكامل / PAID',
+            'unpaid': 'غير مدفوع / UNPAID',
+            'partial': 'مدفوع جزئياً / PARTIAL',
+            'draft': 'مسودة / DRAFT'
         }
     else:
         company_name_active = company_name
@@ -887,11 +926,13 @@ def sale_print(request, pk):
         "print_lang": print_lang,
         "print_dir": print_dir,
         "is_english": is_english,
+        "is_bilingual": is_bilingual,
         "currency_symbol_active": currency_symbol_active,
         "default_notes": default_notes,
         "translated_status": translated_status,
         "is_service_invoice": is_service_invoice,
         "has_item_discounts": sale.has_item_discounts,
+        "salesman_name": sale.salesman_display_name,
     }
     
     return render(request, "sale/sale_print.html", context)
@@ -1065,7 +1106,7 @@ def sale_edit(request, pk):
         "customers": customers,
         "warehouses": warehouses,
         "duplicate_items": json.dumps(duplicate_items),
-        "posted_items_json": json.dumps(posted_items) if posted_items else "null",
+        "posted_items_json": json.dumps(posted_items, cls=DjangoJSONEncoder) if posted_items else "null",
         "duplicate_invoice_type": getattr(sale, 'payment_method', 'credit'),
         "currency_symbol": "ج.م",
         "page_title": f"تعديل فاتورة مبيعات {sale.number}",
@@ -1506,6 +1547,10 @@ def sale_duplicate(request, pk):
         "is_duplicate": True,
         "duplicate_from": original.number,
         "duplicate_items": duplicate_items,
+        "duplicate_custom_fields_json": json.dumps(SaleService.smart_merge_custom_fields('sale', original.custom_fields)),
+        "custom_fields_json": json.dumps(SaleService.smart_merge_custom_fields('sale', original.custom_fields)),
+        "custom_fields_display_mode": SystemSetting.get_setting('custom_fields_display_mode', 'expanded'),
+        "enable_custom_fields": SystemSetting.get_setting('enable_custom_fields', 'true'),
         "duplicate_invoice_type": invoice_type,
         "duplicate_payment_method": payment_account_code,
         "duplicate_down_payment_amount": down_payment_amount,
@@ -1548,3 +1593,148 @@ from .quotation_views import (
     quotation_convert_to_sale,
     check_product_stock
 )
+
+
+# ==================== إدارة تعاريف الحقول الإضافية ====================
+
+@login_required
+def custom_field_list(request):
+    """
+    قائمة تعاريف الحقول الإضافية المخصصة
+    """
+    if not request.user.is_superuser and not request.user.is_admin and not request.user.has_perm('sale.manage_custom_fields'):
+        messages.error(request, _("ليس لديك صلاحية لإدارة الحقول الإضافية"))
+        return redirect("sale:sale_list")
+
+    from sale.models import CustomFieldDefinition
+    from sale.forms import CustomFieldDefinitionForm
+    
+    fields_list = CustomFieldDefinition.objects.all().order_by("sort_order", "id")
+    form = CustomFieldDefinitionForm()
+
+    context = {
+        "fields_list": fields_list,
+        "form": form,
+        "page_title": _("إدارة الحقول الإضافية المخصصة"),
+        "page_subtitle": _("تخصيص الحقول الاختيارية لعروض الأسعار وفواتير البيع"),
+        "page_icon": "fas fa-sliders-h",
+        "breadcrumb_items": [
+            {"title": _("الرئيسية"), "url": reverse("core:dashboard"), "icon": "fas fa-home"},
+            {"title": _("المبيعات"), "url": reverse("sale:sale_list"), "icon": "fas fa-shopping-cart"},
+            {"title": _("إدارة الحقول الإضافية"), "active": True},
+        ],
+    }
+    return render(request, "sale/custom_fields/custom_field_list.html", context)
+
+
+@login_required
+def custom_field_create(request):
+    """
+    إنشاء تعريف حقل إضافي جديد
+    """
+    if not request.user.is_superuser and not request.user.is_admin and not request.user.has_perm('sale.manage_custom_fields'):
+        messages.error(request, _("ليس لديك صلاحية لإدارة الحقول الإضافية"))
+        return redirect("sale:sale_list")
+
+    from sale.forms import CustomFieldDefinitionForm
+    if request.method == "POST":
+        form = CustomFieldDefinitionForm(request.POST)
+        if form.is_valid():
+            custom_field = form.save()
+            messages.success(request, _("تم إضافة الحقل الإضافي '{}' بنجاح").format(custom_field.name))
+        else:
+            messages.error(request, _("حدث خطأ أثناء إضافة الحقل: {}").format(form.errors))
+    
+    return redirect("sale:custom_field_list")
+
+
+@login_required
+def custom_field_edit(request, pk):
+    """
+    تعديل تعريف حقل إضافي
+    """
+    if not request.user.is_superuser and not request.user.is_admin and not request.user.has_perm('sale.manage_custom_fields'):
+        messages.error(request, _("ليس لديك صلاحية لإدارة الحقول الإضافية"))
+        return redirect("sale:sale_list")
+
+    from sale.models import CustomFieldDefinition
+    from sale.forms import CustomFieldDefinitionForm
+    
+    custom_field = get_object_or_404(CustomFieldDefinition, pk=pk)
+    if request.method == "POST":
+        form = CustomFieldDefinitionForm(request.POST, instance=custom_field)
+        if form.is_valid():
+            form.save()
+            messages.success(request, _("تم تحديث الحقل الإضافي بنجاح"))
+        else:
+            messages.error(request, _("حدث خطأ أثناء تعديل الحقل"))
+    
+    return redirect("sale:custom_field_list")
+
+
+@login_required
+def custom_field_toggle(request, pk):
+    """
+    تفعيل أو تعطيل حقل إضافي
+    """
+    if not request.user.is_superuser and not request.user.is_admin and not request.user.has_perm('sale.manage_custom_fields'):
+        messages.error(request, _("غير مصرح"))
+        return redirect("sale:sale_list")
+
+    from sale.models import CustomFieldDefinition
+    custom_field = get_object_or_404(CustomFieldDefinition, pk=pk)
+    custom_field.is_active = not custom_field.is_active
+    custom_field.save()
+    
+    status_str = _("تفعيل") if custom_field.is_active else _("تعطيل")
+    messages.success(request, _("تم {} الحقل '{}' بنجاح").format(status_str, custom_field.name))
+    return redirect("sale:custom_field_list")
+
+
+@login_required
+def custom_field_delete(request, pk):
+    """
+    حذف تعريف حقل إضافي
+    """
+    if not request.user.is_superuser and not request.user.is_admin and not request.user.has_perm('sale.manage_custom_fields'):
+        messages.error(request, _("غير مصرح"))
+        return redirect("sale:sale_list")
+
+    from sale.models import CustomFieldDefinition
+    custom_field = get_object_or_404(CustomFieldDefinition, pk=pk)
+    name = custom_field.name
+    custom_field.delete()
+    messages.success(request, _("تم حذف الحقل '{}' بنجاح").format(name))
+    return redirect("sale:custom_field_list")
+
+
+@login_required
+def api_create_custom_field(request):
+    """
+    API إنشاء حقل إضافي جديد عبر AJAX Modal من داخل نموذج الفاتورة
+    """
+    from django.http import JsonResponse
+    if not request.user.is_superuser and not request.user.is_admin and not request.user.has_perm('sale.manage_custom_fields'):
+        return JsonResponse({"success": False, "message": _("غير مصرح لك بإضافة حقول إضافية")}, status=403)
+
+    if request.method == "POST":
+        from sale.forms import CustomFieldDefinitionForm
+        form = CustomFieldDefinitionForm(request.POST)
+        if form.is_valid():
+            custom_field = form.save()
+            return JsonResponse({
+                "success": True,
+                "field": {
+                    "key": custom_field.key,
+                    "name": custom_field.name,
+                    "field_type": custom_field.field_type,
+                    "select_options": custom_field.get_options_list(),
+                    "is_required": custom_field.is_required,
+                    "show_on_print": custom_field.show_on_print,
+                    "show_on_thermal": custom_field.show_on_thermal,
+                }
+            })
+        else:
+            return JsonResponse({"success": False, "errors": form.errors}, status=400)
+            
+    return JsonResponse({"success": False, "message": _("طريقة الطلب غير صحيحة")}, status=405)

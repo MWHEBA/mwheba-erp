@@ -64,6 +64,12 @@ class AppTagsTemplateTagsTest(TestCase):
         context = Context({'value': 1234})
         rendered = template.render(context)
         self.assertIn(',', rendered)
+
+    def test_divide_filter(self):
+        """اختبار فلتر القسمة"""
+        template = Template('{% load utils_extras %}{{ value|div:divisor }}')
+        test_cases = [
+            (100, 2, 50.0),
             (100, 0, 0),  # قسمة على صفر
             (0, 5, 0.0),
             ('invalid', 5, 0),  # قيمة غير صحيحة
@@ -97,4 +103,15 @@ class AppTagsTemplateTagsTest(TestCase):
         template = Template('{% load utils_extras %}{{ status|status_badge }}')
         
         test_cases = [
+            ('active', 'badge-success'),
+            ('pending', 'badge-warning'),
+            ('inactive', 'badge-secondary'),
+        ]
+        
+        for status, expected in test_cases:
+            with self.subTest(status=status):
+                context = Context({'status': status})
+                rendered = template.render(context)
+                self.assertIn(expected, rendered)
+
 

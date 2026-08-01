@@ -64,6 +64,17 @@
         </div>
         {% endif %}
         <div class="col-md-2">
+          <label for="salesman" class="form-label">{% trans "مسؤول المبيعات" %}</label>
+          <select class="form-select select2-filter" id="salesman" name="salesman">
+            <option value="">{% trans "الكل" %}</option>
+            {% for sm in salesmen %}
+            <option value="{{ sm.id }}" {% if request.GET.salesman == sm.id|stringformat:"i" %}selected{% endif %}>
+              {{ sm.get_full_name|default:sm.username }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-2">
           <label for="payment_status" class="form-label">{% trans "حالة الدفع" %}</label>
           <select class="form-select" id="payment_status" name="payment_status">
             <option value="">{% trans "الكل" %}</option>
@@ -97,7 +108,7 @@
     <!-- استخدام قالب الجدول الموحد -->
       {% with table_id="sales-table" %}
         {% with headers=sale_headers %}
-          {% with data=sales %}
+          {% with data=sales_data %}
             {% with empty_message="لا توجد فواتير مبيعات متاحة" %}
               {% with table_class="hover" %}
                 {% with primary_key="id" %}
@@ -130,9 +141,9 @@
 
     <!-- Django Pagination -->
     <div id="pagination-wrapper">
-    {% if paginator and paginator.num_pages > 1 %}
+    {% if sales and sales.paginator.num_pages > 1 %}
     <div class="card-footer mt-3">
-      {% include "partials/pagination.html" with page_obj=page_obj align="center" %}
+      {% include "partials/pagination.html" with page_obj=sales align="center" %}
     </div>
     {% endif %}
     </div>
@@ -177,6 +188,7 @@
       const params = new URLSearchParams({
         customer: $('#customer').val(),
         warehouse: $('#warehouse').val(),
+        salesman: $('#salesman').val(),
         payment_status: $('#payment_status').val(),
         date_from: $('#date_from').val(),
         date_to: $('#date_to').val(),
@@ -202,7 +214,7 @@
       doSearch();
     });
 
-    $('#customer, #warehouse, #payment_status').on('change', function() {
+    $('#customer, #warehouse, #salesman, #payment_status').on('change', function() {
       doSearch();
     });
     

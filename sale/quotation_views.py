@@ -55,8 +55,11 @@ def quotation_list(request):
             Q(customer__name__icontains=search) |
             Q(notes__icontains=search)
         )
+    salesman_id = request.GET.get('salesman', '')
     if customer_id:
         quotations_qs = quotations_qs.filter(customer_id=customer_id)
+    if salesman_id:
+        quotations_qs = quotations_qs.filter(Q(salesman_id=salesman_id) | Q(created_by_id=salesman_id))
     if status:
         quotations_qs = quotations_qs.filter(status=status)
     if date_from:
@@ -69,6 +72,9 @@ def quotation_list(request):
     page_obj = paginator.get_page(page_number)
 
     customers = Customer.objects.filter(is_active=True).order_by('name')
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
+    salesmen = User.objects.filter(is_active=True).order_by('first_name', 'username')
     
     # الإحصائيات
     total_quotes_count = quotations_qs.count()
@@ -81,6 +87,7 @@ def quotation_list(request):
         "page_obj": page_obj,
         "paginator": paginator,
         "customers": customers,
+        "salesmen": salesmen,
         "total_quotes_count": total_quotes_count,
         "draft_count": draft_count,
         "sent_count": sent_count,
@@ -130,12 +137,15 @@ def quotation_create(request, customer_id=None):
             pass
 
     if request.method == "POST":
-        form = QuotationForm(request.POST)
+        form = QuotationForm(request.POST, user=request.user)
         if form.is_valid():
             try:
                 with transaction.atomic():
                     quotation = form.save(commit=False)
                     quotation.created_by = request.user
+                    if not quotation.salesman_id:
+                        quotation.salesman = request.user
+                    quotation.custom_fields = SaleService.parse_custom_fields(request.POST.get('custom_fields_json', '[]'))
                     quotation.save()
 
                     # حفظ البنود
@@ -157,7 +167,6 @@ def quotation_create(request, customer_id=None):
                                 raise ValueError(_("سعر المنتج يجب أن يكون أكبر من صفر (البند رقم {})").format(i + 1))
                             if qty <= 0:
                                 raise ValueError(_("الكمية يجب أن تكون أكبر من صفر (البند رقم {})").format(i + 1))
-                            item_disc = Decimal(discounts[i] if discounts[i] else '0')
                             item_total = (qty * price) - item_disc
 
                             QuotationItem.objects.create(
@@ -212,7 +221,7 @@ def quotation_create(request, customer_id=None):
             initial_data["customer"] = selected_customer
         if selected_work_order:
             initial_data["work_order"] = selected_work_order
-        form = QuotationForm(initial=initial_data)
+        form = QuotationForm(initial=initial_data, user=request.user)
 
     customers = Customer.objects.filter(is_active=True).order_by('name')
     warehouses = Warehouse.objects.filter(is_active=True).order_by('name')
@@ -251,6 +260,7 @@ def quotation_create(request, customer_id=None):
     except Exception as e:
         logger.error(f"Error generating next quotation number: {str(e)}")
 
+    custom_fields_merged = SaleService.smart_merge_custom_fields('quotation', [])
     context = {
         "form": form,
         "customers": customers,
@@ -259,6 +269,9 @@ def quotation_create(request, customer_id=None):
         "selected_customer": selected_customer,
         "default_warehouse": warehouses.first() if warehouses.exists() else None,
         "next_quotation_number": next_quotation_number,
+        "custom_fields_json": json.dumps(custom_fields_merged),
+        "custom_fields_display_mode": SystemSetting.get_setting('custom_fields_display_mode', 'expanded'),
+        "enable_custom_fields": SystemSetting.get_setting('enable_custom_fields', 'true'),
         "allowed_item_types": allowed_item_types,
         "product_categories": product_categories,
         "page_title": _("إضافة عرض سعر"),
@@ -296,11 +309,13 @@ def quotation_edit(request, pk):
         return redirect("sale:quotation_detail", pk=quotation.pk)
 
     if request.method == "POST":
-        form = QuotationForm(request.POST, instance=quotation)
+        form = QuotationForm(request.POST, instance=quotation, user=request.user)
         if form.is_valid():
             try:
                 with transaction.atomic():
-                    quotation = form.save()
+                    quotation = form.save(commit=False)
+                    quotation.custom_fields = SaleService.parse_custom_fields(request.POST.get('custom_fields_json', '[]'))
+                    quotation.save()
 
                     # مسح البنود السابقة وحفظ الجديدة
                     quotation.items.all().delete()
@@ -368,7 +383,7 @@ def quotation_edit(request, pk):
                 logger.error(f"Error editing quotation: {str(e)}")
                 messages.error(request, _("حدث خطأ أثناء تعديل عرض السعر: {}").format(str(e)))
     else:
-        form = QuotationForm(instance=quotation)
+        form = QuotationForm(instance=quotation, user=request.user)
 
     customers = Customer.objects.filter(is_active=True).order_by('name')
     warehouses = Warehouse.objects.filter(is_active=True).order_by('name')
@@ -400,6 +415,7 @@ def quotation_edit(request, pk):
         })
     import json
     current_items_json = json.dumps(current_items)
+    custom_fields_merged = SaleService.smart_merge_custom_fields('quotation', quotation.custom_fields)
 
     context = {
         "form": form,
@@ -408,6 +424,9 @@ def quotation_edit(request, pk):
         "warehouses": warehouses,
         "products": products,
         "current_items_json": current_items_json,
+        "custom_fields_json": json.dumps(custom_fields_merged),
+        "custom_fields_display_mode": SystemSetting.get_setting('custom_fields_display_mode', 'expanded'),
+        "enable_custom_fields": SystemSetting.get_setting('enable_custom_fields', 'true'),
         "allowed_item_types": allowed_item_types,
         "product_categories": product_categories,
         "page_title": _("تعديل عرض سعر: {}").format(quotation.number),
@@ -538,7 +557,7 @@ def quotation_print(request, pk):
         })
 
     quotation = get_object_or_404(Quotation, pk=pk)
-    items = quotation.items.all()
+    items = quotation.items.all().select_related('product', 'product__unit', 'product__category')
     from core.models import SystemSetting
     
     # تحديد لغة الطباعة والاتجاه
@@ -548,6 +567,7 @@ def quotation_print(request, pk):
         print_lang = 'ar'
     
     is_english = (print_lang == 'en')
+    is_bilingual = False
     print_dir = 'ltr' if is_english else 'rtl'
 
     # جلب إعدادات الشركة
@@ -572,6 +592,21 @@ def quotation_print(request, pk):
             'rejected': 'REJECTED',
             'expired': 'EXPIRED',
             'converted': 'CONVERTED'
+        }
+    elif is_bilingual:
+        company_name_en = SystemSetting.get_setting('company_name_en') or SystemSetting.get_setting('site_name_en') or ''
+        company_name_active = f"{company_name} / {company_name_en}" if company_name_en else company_name
+        company_address_active = company_address
+        invoice_title_active = "عرض سعر / Quotation"
+        default_notes = SystemSetting.get_setting('default_quotation_notes', '')
+        currency_symbol_active = getattr(quotation, 'currency', None) or SystemSetting.get_currency_symbol()
+        status_map = {
+            'draft': 'مسودة / DRAFT',
+            'sent': 'تم الإرسال / SENT',
+            'approved': 'مقبول / APPROVED',
+            'rejected': 'مرفوض / REJECTED',
+            'expired': 'منتهي / EXPIRED',
+            'converted': 'تم التحويل / CONVERTED'
         }
     else:
         company_name_active = company_name
@@ -606,10 +641,12 @@ def quotation_print(request, pk):
         "print_lang": print_lang,
         "print_dir": print_dir,
         "is_english": is_english,
+        "is_bilingual": is_bilingual,
         "currency_symbol_active": currency_symbol_active,
         "default_notes": default_notes,
         "translated_status": translated_status,
         "has_item_discounts": quotation.has_item_discounts,
+        "salesman_name": quotation.salesman_display_name,
     }
     return render(request, "sale/quotation_print.html", context)
 
@@ -643,10 +680,12 @@ def quotation_convert_to_sale(request, pk):
                 'date': timezone.now().date(),
                 'customer_id': quotation.customer.id,
                 'warehouse_id': int(warehouse_id),
+                'salesman': quotation.salesman or quotation.created_by,
                 'discount': quotation.discount,
                 'tax': quotation.tax,
                 'notes': quotation.notes or '',
                 'payment_method': 'credit',  # آجل كافتراضي
+                'custom_fields': SaleService.smart_merge_custom_fields('sale', quotation.custom_fields),
                 'items': []
             }
 

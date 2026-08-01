@@ -86,15 +86,15 @@ class PermissionsTest(TestCase):
         self.assertFalse(self.normal_user.has_perm('hr.delete_employee'))
 
     def test_hr_manager_can_access(self):
-        """اختبار أن HR Manager يمكنه الوصول"""
-        # Skip - decorator not available
-        self.skipTest("hr_manager_required decorator not available")
+        """اختبار أن HR Manager يمكنه الوصول والصلاحيات"""
+        self.assertTrue(self.hr_manager.is_staff or self.hr_manager.groups.filter(name='HR Manager').exists())
     
-
     def test_reports_home_access(self):
         """اختبار الوصول للصفحة الرئيسية للتقارير"""
+        from django.urls import reverse
         try:
-            response = self.client.get('/hr/reports/')
-            self.assertIn(response.status_code, [200, 302, 404])
-        except:
-            self.assertTrue(True)  # URL قد لا يكون موجود
+            url = reverse('hr:reports_dashboard')
+        except Exception:
+            url = '/hr/'
+        response = self.client.get(url)
+        self.assertIn(response.status_code, [200, 302, 404])

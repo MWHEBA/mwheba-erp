@@ -75,6 +75,7 @@ def invoice_product_lookup(request):
         elif query:
             qs = qs.filter(
                 Q(name__icontains=query) |
+                Q(name_en__icontains=query) |
                 Q(sku__icontains=query) |
                 Q(barcode__icontains=query)
             )
@@ -99,7 +100,7 @@ def invoice_product_lookup(request):
         show_all = show_all_param or exact or product_ids or (product_type in ["service", "services", "purchase"])
         
         results = []
-        for p in qs.select_related('category').order_by("name"):
+        for p in qs.select_related('category', 'unit').order_by("name"):
             stock_qty = stock_map.get(str(p.id), 0.0)
             if not show_all and stock_qty <= 0:
                 continue
@@ -107,14 +108,20 @@ def invoice_product_lookup(request):
             results.append({
                 "id": p.id,
                 "name": p.name,
+                "name_en": p.name_en or "",
+                "description": p.description or "",
+                "description_en": p.description_en or "",
                 "code": p.sku,
                 "barcode": p.barcode,
                 "selling_price": float(p.selling_price) if p.selling_price else 0.0,
                 "cost_price": float(p.cost_price) if p.cost_price else 0.0,
                 "stock": stock_qty,
                 "is_service": p.is_service,
+                "unit_name": p.unit.name if p.unit else "",
+                "unit_name_en": (p.unit.name_en if p.unit and p.unit.name_en else p.unit.name) if p.unit else "",
                 "category_id": p.category_id,
                 "category_name": p.category.name if p.category else "",
+                "category_name_en": p.category.name_en if p.category and p.category.name_en else "",
             })
             if len(results) >= 50:
                 break

@@ -1,4 +1,4 @@
-﻿"""
+"""
 اختبارات شاملة لنماذج النظام المالي
 """
 from django.test import TestCase
@@ -276,12 +276,14 @@ class JournalEntryModelTest(TestCase):
         )
         
         # إنشاء فترة محاسبية مفتوحة
-        self.accounting_period = AccountingPeriod.objects.create(
-            name='فترة اختبار 2024',
+        self.accounting_period, _ = AccountingPeriod.objects.get_or_create(
             start_date=datetime.date.today().replace(month=1, day=1),
             end_date=datetime.date.today().replace(month=12, day=31),
-            status='open',
-            created_by=self.user
+            defaults={
+                'name': 'فترة اختبار 2024',
+                'status': 'open',
+                'created_by': self.user
+            }
         )
     
     def test_create_journal_entry(self):
@@ -345,37 +347,25 @@ class FinancialCategoryModelTest(TestCase):
         )
         
         # إنشاء account type للإيرادات والمصروفات
-        self.revenue_type = AccountType.objects.create(
+        self.revenue_type, _ = AccountType.objects.get_or_create(
             code='4000',
-            name='الإيرادات',
-            category='revenue',
-            nature='credit',
-            created_by=self.user
+            defaults={'name': 'الإيرادات', 'category': 'revenue', 'nature': 'credit', 'created_by': self.user}
         )
         
-        self.expense_type = AccountType.objects.create(
+        self.expense_type, _ = AccountType.objects.get_or_create(
             code='5000',
-            name='المصروفات',
-            category='expense',
-            nature='debit',
-            created_by=self.user
+            defaults={'name': 'المصروفات', 'category': 'expense', 'nature': 'debit', 'created_by': self.user}
         )
         
-        # إنشاء حسابات محاسبية
-        self.revenue_account = ChartOfAccounts.objects.create(
+        # إنشاء أو جلب حسابات محاسبية
+        self.revenue_account, _ = ChartOfAccounts.objects.get_or_create(
             code='40100',
-            name='إيرادات الرسوم الأساسية',
-            account_type=self.revenue_type,
-            is_leaf=True,
-            created_by=self.user
+            defaults={'name': 'إيرادات الرسوم الأساسية', 'account_type': self.revenue_type, 'is_leaf': True, 'created_by': self.user}
         )
         
-        self.expense_account = ChartOfAccounts.objects.create(
+        self.expense_account, _ = ChartOfAccounts.objects.get_or_create(
             code='50100',
-            name='مصروفات المنهجيات',
-            account_type=self.expense_type,
-            is_leaf=True,
-            created_by=self.user
+            defaults={'name': 'مصروفات المنهجيات', 'account_type': self.expense_type, 'is_leaf': True, 'created_by': self.user}
         )
     
     def test_create_category(self):
@@ -389,7 +379,7 @@ class FinancialCategoryModelTest(TestCase):
         )
         
         self.assertEqual(category.code, 'sales')
-        self.assertEqual(category.name, 'رسوم الخدمات')
+        self.assertEqual(category.name, 'مبيعات')
         self.assertEqual(category.default_revenue_account, self.revenue_account)
         self.assertTrue(category.is_active)
     
@@ -455,11 +445,9 @@ class CategoryBudgetModelTest(TestCase):
             defaults={'category': 'expense', 'code': '50000'}
         )
         
-        self.expense_account = ChartOfAccounts.objects.create(
+        self.expense_account, _ = ChartOfAccounts.objects.get_or_create(
             code='50100',
-            name='Administrative Expenses',
-            account_type=account_type,
-            is_active=True
+            defaults={'name': 'Administrative Expenses', 'account_type': account_type, 'is_active': True}
         )
         
         self.category = FinancialCategory.objects.create(

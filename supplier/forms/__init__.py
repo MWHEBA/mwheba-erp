@@ -22,6 +22,7 @@ class SupplierForm(forms.ModelForm):
             "code",
             "primary_type",
             "phone",
+            "email",
             "whatsapp",
             "website",
             "contact_person",

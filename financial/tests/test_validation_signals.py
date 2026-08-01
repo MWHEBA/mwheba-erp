@@ -34,19 +34,15 @@ class TestFinancialValidationSignals(TestCase):
         )
         
         # إنشاء نوع حساب محاسبي
-        self.account_type = AccountType.objects.create(
-            name='أصول',
+        self.account_type, _ = AccountType.objects.get_or_create(
             code='asset',
-            nature='debit'
+            defaults={'name': 'أصول', 'nature': 'debit'}
         )
         
         # إنشاء حساب محاسبي
-        self.account = ChartOfAccounts.objects.create(
+        self.account, _ = ChartOfAccounts.objects.get_or_create(
             code='1001',
-            name='حساب اختبار',
-            account_type=self.account_type,
-            is_active=True,
-            is_leaf=True
+            defaults={'name': 'حساب اختبار', 'account_type': self.account_type, 'is_active': True, 'is_leaf': True}
         )
         
         # إنشاء فترة محاسبية مفتوحة
@@ -106,19 +102,15 @@ class TestSignalIntegration(TestCase):
         )
         
         # إنشاء نوع حساب محاسبي
-        self.account_type = AccountType.objects.create(
-            name='أصول',
+        self.account_type, _ = AccountType.objects.get_or_create(
             code='asset',
-            nature='debit'
+            defaults={'name': 'أصول', 'nature': 'debit'}
         )
         
         # إنشاء حساب محاسبي
-        self.account = ChartOfAccounts.objects.create(
+        self.account, _ = ChartOfAccounts.objects.get_or_create(
             code='1001',
-            name='حساب اختبار',
-            account_type=self.account_type,
-            is_active=True,
-            is_leaf=True
+            defaults={'name': 'حساب اختبار', 'account_type': self.account_type, 'is_active': True, 'is_leaf': True}
         )
         
         # إنشاء فترة محاسبية مفتوحة

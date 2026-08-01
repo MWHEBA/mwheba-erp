@@ -68,6 +68,7 @@ def global_settings(request):
         'sale_invoice_item_types': 'both',
         'site_name': 'موهبة ERP',
         'enable_thermal_printing': False,
+        'enable_company_stamp': True,
         'color_primary': '#04578d',
         'color_primary_dark': '#033d64',
         'color_primary_light': '#e6f0fa',
@@ -77,7 +78,7 @@ def global_settings(request):
         if def_key not in settings_dict or settings_dict[def_key] is None or settings_dict[def_key] == '':
             settings_dict[def_key] = def_val
 
-    # تحويل maintenance_mode و enable_thermal_printing إلى boolean
+    # تحويل maintenance_mode و enable_thermal_printing و enable_company_stamp إلى boolean
     maintenance_value = settings_dict.get("maintenance_mode", False)
     if isinstance(maintenance_value, str):
         maintenance_value = maintenance_value.lower() in ["true", "1", "yes", "نعم"]
@@ -86,6 +87,11 @@ def global_settings(request):
     if isinstance(thermal_value, str):
         thermal_value = thermal_value.lower() in ["true", "1", "yes", "نعم"]
     settings_dict["enable_thermal_printing"] = thermal_value
+
+    stamp_value = settings_dict.get("enable_company_stamp", True)
+    if isinstance(stamp_value, str):
+        stamp_value = stamp_value.lower() in ["true", "1", "yes", "نعم"]
+    settings_dict["enable_company_stamp"] = stamp_value
 
     return {
         "settings": settings_dict,

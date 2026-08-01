@@ -56,4 +56,12 @@ urlpatterns = [
     path("quotations/<int:pk>/print/", views.quotation_print, name="quotation_print"),
     path("quotations/<int:pk>/convert/", views.quotation_convert_to_sale, name="quotation_convert_to_sale"),
     path("quotations/api/check-stock/", views.check_product_stock, name="check_product_stock"),
+
+    # إدارة الحقول الإضافية المخصصة
+    path("custom-fields/", views.custom_field_list, name="custom_field_list"),
+    path("custom-fields/create/", views.custom_field_create, name="custom_field_create"),
+    path("custom-fields/<int:pk>/edit/", views.custom_field_edit, name="custom_field_edit"),
+    path("custom-fields/<int:pk>/toggle/", views.custom_field_toggle, name="custom_field_toggle"),
+    path("custom-fields/<int:pk>/delete/", views.custom_field_delete, name="custom_field_delete"),
+    path("custom-fields/api/create/", views.api_create_custom_field, name="api_create_custom_field"),
 ]

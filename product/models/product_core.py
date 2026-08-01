@@ -16,7 +16,8 @@ class Category(models.Model):
     نموذج تصنيفات المنتجات
     """
 
-    name = models.CharField(_("اسم التصنيف"), max_length=255)
+    name = models.CharField(_("اسم التصنيف (عربي)"), max_length=255)
+    name_en = models.CharField(_("اسم التصنيف (English)"), max_length=255, blank=True, null=True)
     code = models.CharField(
         _("رمز التصنيف"), 
         max_length=10, 
@@ -46,6 +47,11 @@ class Category(models.Model):
     def __str__(self):
         if self.parent:
             return f"{self.parent} > {self.name}"
+        return self.name
+
+    def get_name(self, lang="ar"):
+        if lang == "en" and self.name_en:
+            return self.name_en
         return self.name
     
     @classmethod
@@ -126,8 +132,8 @@ class Unit(models.Model):
     نموذج وحدات القياس
     """
 
-    name = models.CharField(_("اسم الوحدة"), max_length=50)
-    name_en = models.CharField(_("اسم الوحدة بالإنجليزية"), max_length=50, blank=True, null=True)
+    name = models.CharField(_("اسم الوحدة (عربي)"), max_length=50)
+    name_en = models.CharField(_("اسم الوحدة (English)"), max_length=50, blank=True, null=True)
     symbol = models.CharField(_("الرمز"), max_length=10)
     is_active = models.BooleanField(_("نشط"), default=True)
     created_at = models.DateTimeField(_("تاريخ الإنشاء"), auto_now_add=True)
@@ -152,7 +158,8 @@ class Product(models.Model):
     نموذج المنتجات
     """
 
-    name = models.CharField(_("اسم المنتج"), max_length=255)
+    name = models.CharField(_("الاسم (عربي)"), max_length=255)
+    name_en = models.CharField(_("الاسم (English)"), max_length=255, blank=True, null=True)
     category = models.ForeignKey(
         Category,
         on_delete=models.PROTECT,
@@ -160,7 +167,8 @@ class Product(models.Model):
         verbose_name=_("التصنيف"),
     )
 
-    description = models.TextField(_("الوصف"), blank=True, null=True)
+    description = models.TextField(_("الوصف (عربي)"), blank=True, null=True)
+    description_en = models.TextField(_("الوصف (English)"), blank=True, null=True)
     sku = models.CharField(_("كود المنتج"), max_length=50, unique=True, blank=True)
     barcode = models.CharField(_("الباركود"), max_length=50, blank=True, null=True)
     unit = models.ForeignKey(
@@ -315,6 +323,24 @@ class Product(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.sku})"
+
+    def get_name(self, lang="ar"):
+        """جلب اسم المنتج حسب اللغة المطلوبة"""
+        if lang == "en" and self.name_en:
+            return self.name_en
+        return self.name
+
+    def get_description(self, lang="ar"):
+        """جلب وصف المنتج حسب اللغة المطلوبة"""
+        if lang == "en" and self.description_en:
+            return self.description_en
+        return self.description or ""
+
+    def get_bilingual_name(self):
+        """عرض الاسم الثنائي (عربي / إنجليزي)"""
+        if self.name_en:
+            return f"{self.name} / {self.name_en}"
+        return self.name
     
     def get_type_display_ar(self):
         """عرض نوع المنتج بالعربي"""

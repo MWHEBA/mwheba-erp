@@ -45,6 +45,10 @@
       {% if posted_items_json %}{{ posted_items_json|safe }}{% else %}null{% endif %}
     </script>
 
+    <script type="application/json" id="custom-fields-initial-json">
+      {% if custom_fields_json %}{{ custom_fields_json|safe }}{% else %}[]{% endif %}
+    </script>
+
     {% include "shared/page_header.html" %}
 
     {% if is_duplicate %}
@@ -120,13 +124,15 @@
                             <input type="number" step="0.01" name="down_payment_amount" id="id_down_payment_amount" class="form-control" value="{{ form.down_payment_amount.value|default:'0' }}" min="0">
                         </div>
                     </div>
+                    <!-- حقول مخصصة معروضة بالرأس العلوي -->
+                    <div id="header-custom-fields-container" class="row g-4 mt-1"></div>
                 </div>
 
-                <!-- بيانات العميل والمخزن -->
+                <!-- بيانات العميل والمخزن ومسؤول المبيعات -->
                 <div class="mb-4">
-                    <h6 class="text-muted mb-3 fw-medium">العميل والمخزن</h6>
+                    <h6 class="text-muted mb-3 fw-medium">العميل والمخزن ومسؤول المبيعات</h6>
                     <div class="row g-4">
-                        <div class="col-12 col-lg-6">
+                        <div class="col-12 col-lg-4">
                             <label class="form-label text-dark d-flex justify-content-between align-items-center w-100">
                                 <span>العميل <span class="text-danger">*</span></span>
                                 {% if not sale.id %}
@@ -151,7 +157,7 @@
                             {% endif %}
                         </div>
 
-                        <div class="col-12 col-lg-6" id="warehouse-container">
+                        <div class="col-12 col-lg-4" id="warehouse-container">
                             <label class="form-label text-dark">المخزن <span class="text-danger">*</span></label>
                             {% if sale.id %}
                                 <input type="text" class="form-control bg-light" value="{{ sale.warehouse.name }}" readonly>
@@ -166,6 +172,19 @@
                                         </option>
                                     {% endfor %}
                                 </select>
+                            {% endif %}
+                        </div>
+
+                        <div class="col-12 col-lg-4">
+                            <label class="form-label text-dark">مسؤول المبيعات</label>
+                            {% if form.can_change_salesman %}
+                                {{ form.salesman }}
+                            {% else %}
+                                <div class="form-control bg-light d-flex align-items-center gap-2">
+                                    <i class="fas fa-user-tie text-primary"></i>
+                                    <span class="fw-medium text-dark">{{ sale.salesman_display_name|default:request.user.get_full_name|default:request.user.username }}</span>
+                                </div>
+                                <input type="hidden" name="salesman" value="{{ form.salesman.value|default:request.user.id }}">
                             {% endif %}
                         </div>
                     </div>
@@ -327,7 +346,15 @@
                                         <i class="fas fa-sticky-note me-1 text-primary"></i> الملاحظات والشروط
                                     </button>
                                 </li>
+                                {% if enable_custom_fields != 'false' and custom_fields_display_mode != 'hidden' %}
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link fw-medium" id="custom-fields-tab" data-bs-toggle="tab" data-bs-target="#tab-custom-fields" type="button" role="tab" aria-controls="tab-custom-fields" aria-selected="false">
+                                        <i class="fas fa-list-ul me-1 text-primary"></i> الحقول الإضافية
+                                    </button>
+                                </li>
+                                {% endif %}
                             </ul>
+                            <input type="hidden" name="custom_fields_json" id="custom_fields_json" value="">
                             <div class="tab-content p-3 bg-light border rounded-bottom" id="totalSectionTabsContent">
                                 <!-- تبويب الخصم والتسوية -->
                                 <div class="tab-pane fade show active" id="tab-discount" role="tabpanel" aria-labelledby="discount-tab">
@@ -367,6 +394,20 @@
                                 <!-- تبويب الملاحظات والشروط -->
                                 <div class="tab-pane fade" id="tab-notes" role="tabpanel" aria-labelledby="notes-tab">
                                     {% include "partials/editor.html" with id="id_notes" name="notes" value=form.notes.value|default:'' placeholder="أضف أي ملاحظات أو شروط إضافية تظهر في الفاتورة..." height=180 toolbar="basic" %}
+                                </div>
+                                <!-- تبويب الحقول الإضافية -->
+                                <div class="tab-pane fade" id="tab-custom-fields" role="tabpanel" aria-labelledby="custom-fields-tab">
+                                    <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
+                                        <h6 class="small text-muted fw-bold mb-0"><i class="fas fa-sliders-h me-1 text-primary"></i>الحقول المخصصة للفاتورة</h6>
+                                        {% if user.is_superuser or user.is_admin or 'sale.manage_custom_fields' in user.get_all_permissions %}
+                                        <a href="{% url 'sale:custom_field_list' %}" target="_blank" class="btn btn-link btn-sm p-0 text-decoration-none" style="font-size: 0.825rem;">
+                                            <i class="fas fa-cog me-1"></i>إدارة تعاريف الحقول
+                                        </a>
+                                        {% endif %}
+                                    </div>
+                                    <div id="custom-fields-render-container" class="row g-3">
+                                        <!-- توليد العناصر هنا ديناميكياً بـ JavaScript -->
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -508,6 +549,134 @@
 <script src="{% static 'js/product_picker.js' %}"></script>
 <script>
     $(document).ready(function() {
+        // ===== Custom Fields Component Engine =====
+        var customFieldsInitial = [];
+        try {
+            var rawJson = $('#custom-fields-initial-json').text();
+            if (rawJson) customFieldsInitial = JSON.parse(rawJson);
+        } catch(e) {
+            customFieldsInitial = [];
+        }
+
+        var duplicateDataJson = {};
+        try {
+            var rawDup = $('#duplicate-data-json').text();
+            if (rawDup) duplicateDataJson = JSON.parse(rawDup);
+        } catch(e) {}
+
+        if (duplicateDataJson.customFields && duplicateDataJson.customFields.length > 0) {
+            customFieldsInitial = duplicateDataJson.customFields;
+        }
+
+        function renderCustomFields(fields) {
+            var container = $('#custom-fields-render-container');
+            var headerContainer = $('#header-custom-fields-container');
+            container.empty();
+            if (headerContainer.length) headerContainer.empty();
+
+            if (!fields || fields.length === 0) {
+                container.html('<div class="col-12 text-center text-muted py-3 small"><i class="fas fa-info-circle me-1"></i> لا توجد حقول إضافية معرّفة حالياً.</div>');
+                return;
+            }
+
+            var bottomCount = 0;
+
+            fields.forEach(function(f, idx) {
+                var isHeader = f.show_in_header === true || f.show_in_header === 'true';
+                var targetContainer = (isHeader && headerContainer.length) ? headerContainer : container;
+                if (!isHeader || !headerContainer.length) {
+                    bottomCount++;
+                }
+
+                var colClass = (isHeader && headerContainer.length) ? 'col-6 col-lg-3 col-md-6 mb-3' : 'col-12 col-md-6 mb-3';
+                var col = $('<div class="' + colClass + '"></div>');
+                var reqBadge = f.is_required ? ' <span class="text-danger">*</span>' : '';
+                var labelText = f.name + (f.name_en ? ' / ' + f.name_en : '');
+                var labelClass = isHeader ? 'form-label text-dark fw-medium mb-1' : 'form-label text-dark fw-medium small mb-1';
+                var label = $('<label class="' + labelClass + '"></label>').html(labelText + reqBadge);
+                
+                var inputHtml = '';
+                var val = f.value || '';
+                var key = f.key || 'cf_' + idx;
+                var nameEn = f.name_en || '';
+                var requiredAttr = f.is_required ? 'required' : '';
+                var headerAttr = 'data-show-header="' + isHeader + '"';
+                var printAttr = 'data-show-print="' + f.show_on_print + '"';
+                var thermalAttr = 'data-show-thermal="' + f.show_on_thermal + '"';
+
+                var formControlClass = isHeader ? 'form-control' : 'form-control form-control-sm';
+                var formSelectClass = isHeader ? 'form-select' : 'form-select form-select-sm';
+
+                if (f.field_type === 'number') {
+                    inputHtml = '<input type="number" step="any" class="' + formControlClass + ' cf-input" data-key="' + key + '" data-name="' + f.name + '" data-name-en="' + nameEn + '" ' + headerAttr + ' ' + printAttr + ' ' + thermalAttr + ' value="' + val + '" ' + requiredAttr + '>';
+                } else if (f.field_type === 'date') {
+                    inputHtml = '<input type="date" class="' + formControlClass + ' cf-input" data-key="' + key + '" data-name="' + f.name + '" data-name-en="' + nameEn + '" ' + headerAttr + ' ' + printAttr + ' ' + thermalAttr + ' value="' + val + '" ' + requiredAttr + '>';
+                } else if (f.field_type === 'select') {
+                    var opts = f.select_options || [];
+                    inputHtml = '<select class="' + formSelectClass + ' cf-input" data-key="' + key + '" data-name="' + f.name + '" data-name-en="' + nameEn + '" ' + headerAttr + ' ' + printAttr + ' ' + thermalAttr + ' ' + requiredAttr + '><option value="">-- اختر --</option>';
+                    opts.forEach(function(opt) {
+                        var sel = (opt === val) ? 'selected' : '';
+                        inputHtml += '<option value="' + opt + '" ' + sel + '>' + opt + '</option>';
+                    });
+                    inputHtml += '</select>';
+                } else if (f.field_type === 'checkbox') {
+                    var chk = (val === 'true' || val === true) ? 'checked' : '';
+                    inputHtml = '<div class="form-check form-switch ' + (isHeader ? 'mt-4' : '') + '"><input type="checkbox" class="form-check-input cf-input-chk" data-key="' + key + '" data-name="' + f.name + '" data-name-en="' + nameEn + '" ' + headerAttr + ' ' + printAttr + ' ' + thermalAttr + ' ' + chk + '> <span class="small text-dark fw-medium">' + labelText + '</span></div>';
+                } else if (f.field_type === 'textarea') {
+                    inputHtml = '<textarea class="' + formControlClass + ' cf-input" rows="2" data-key="' + key + '" data-name="' + f.name + '" data-name-en="' + nameEn + '" ' + headerAttr + ' ' + printAttr + ' ' + thermalAttr + ' ' + requiredAttr + '>' + val + '</textarea>';
+                } else { // text
+                    inputHtml = '<input type="text" class="' + formControlClass + ' cf-input" data-key="' + key + '" data-name="' + f.name + '" data-name-en="' + nameEn + '" ' + headerAttr + ' ' + printAttr + ' ' + thermalAttr + ' value="' + val + '" ' + requiredAttr + '>';
+                }
+
+                if (f.field_type !== 'checkbox') {
+                    col.append(label);
+                }
+                col.append(inputHtml);
+                targetContainer.append(col);
+            });
+
+            if (bottomCount === 0) {
+                container.html('<div class="col-12 text-center text-muted py-3 small"><i class="fas fa-info-circle me-1"></i> جميع الحقول الإضافية معروضة في قسم معلومات الفاتورة بالأعلى.</div>');
+            }
+
+            updateCustomFieldsHiddenInput();
+        }
+
+        function updateCustomFieldsHiddenInput() {
+            var result = [];
+            $('.cf-input').each(function() {
+                var el = $(this);
+                result.push({
+                    key: el.data('key'),
+                    name: el.data('name'),
+                    name_en: el.data('name-en') || '',
+                    value: el.val(),
+                    show_in_header: el.data('show-header') === true || el.data('show-header') === 'true',
+                    show_on_print: el.data('show-print') === true || el.data('show-print') === 'true',
+                    show_on_thermal: el.data('show-thermal') === true || el.data('show-thermal') === 'true'
+                });
+            });
+            $('.cf-input-chk').each(function() {
+                var el = $(this);
+                result.push({
+                    key: el.data('key'),
+                    name: el.data('name'),
+                    name_en: el.data('name-en') || '',
+                    value: el.is(':checked') ? 'true' : 'false',
+                    show_in_header: el.data('show-header') === true || el.data('show-header') === 'true',
+                    show_on_print: el.data('show-print') === true || el.data('show-print') === 'true',
+                    show_on_thermal: el.data('show-thermal') === true || el.data('show-thermal') === 'true'
+                });
+            });
+            $('#custom_fields_json').val(JSON.stringify(result));
+        }
+
+        $(document).on('change input', '.cf-input, .cf-input-chk', function() {
+            updateCustomFieldsHiddenInput();
+        });
+
+        renderCustomFields(customFieldsInitial);
+
         // ===== smartFloat =====
         function smartFloat(value) {
             var num = parseFloat(String(value).replace(/,/g, ''));
