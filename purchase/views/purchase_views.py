@@ -27,10 +27,7 @@ def purchase_list(request):
     """
     عرض قائمة فواتير المشتريات
     """
-    # الاستعلام الأساسي مع ترتيب تنازلي حسب التاريخ ثم الرقم
-    purchases_query = Purchase.objects.select_related(
-        'supplier', 'warehouse', 'financial_category'
-    ).all().order_by("-date", "-id")
+    purchases_query = Purchase.objects.with_list_details().all().order_by("-date", "-id")
 
     # تصفية حسب المورد
     supplier = request.GET.get("supplier")
@@ -184,34 +181,42 @@ def purchase_list(request):
     # تحضير بيانات الجدول
     table_data = []
     for purchase in purchases:
-        # تحضير أزرار الإجراءات لكل فاتورة
+        # أزرار الإجراءات لكل فاتورة
         actions = []
+
+        # زر عرض التفاصيل
+        actions.append({
+            'url': reverse('purchase:purchase_detail', args=[purchase.pk]),
+            'icon': 'fa-eye',
+            'label': 'عرض التفاصيل',
+            'class': 'action-view',
+        })
 
         # زر إضافة دفعة (إذا لم تكن مدفوعة بالكامل)
         if purchase.payment_status != 'paid':
             actions.append({
                 'url': reverse('purchase:purchase_add_payment', args=[purchase.pk]),
-                'icon': 'fas fa-money-bill',
-                'label': 'دفعة',
-                'class': 'btn-outline-success btn-sm'
+                'icon': 'fa-money-bill-wave',
+                'label': 'إضافة دفعة',
+                'class': 'action-paid',
             })
 
         # زر الطباعة (للفواتير المدفوعة فقط)
         if purchase.payment_status == 'paid':
             actions.append({
                 'url': reverse('purchase:purchase_print', args=[purchase.pk]),
-                'icon': 'fas fa-print',
+                'icon': 'fa-print',
                 'label': 'طباعة',
-                'class': 'btn-outline-secondary btn-sm',
+                'class': 'action-print',
                 'target': '_blank',
             })
 
         # زر نسخ الفاتورة
         actions.append({
             'url': reverse('purchase:purchase_duplicate', args=[purchase.pk]),
-            'icon': 'fas fa-copy',
-            'label': 'نسخ',
-            'class': 'btn-outline-primary btn-sm',
+            'icon': 'fa-copy',
+            'label': 'نسخ الفاتورة',
+            'class': 'action-copy',
         })
         
         # تحضير بيانات الصف
@@ -557,7 +562,7 @@ def purchase_detail(request, pk):
     """
     عرض تفاصيل فاتورة المشتريات
     """
-    purchase = get_object_or_404(Purchase, pk=pk)
+    purchase = get_object_or_404(Purchase.objects.with_details(), pk=pk)
     # الحصول على المدفوعات مرتبة حسب تاريخ الإنشاء من الأحدث إلى الأقدم
     payments = purchase.payments.all().order_by("-created_at")
 
@@ -581,6 +586,29 @@ def purchase_detail(request, pk):
                 "icon": "fa-print",
                 "text": "طباعة",
                 "class": "btn-info",
+            },
+            {
+                "dropdown": True,
+                "icon": "fa-file-pdf",
+                "text": "مشاركة",
+                "class": "btn-success",
+                "items": [
+                    {
+                        "onclick": f"downloadDocumentPDF('{reverse('purchase:purchase_pdf_download', kwargs={'pk': purchase.pk})}', '{reverse('purchase:purchase_print', kwargs={'pk': purchase.pk})}', '{purchase.number}')",
+                        "icon": "fas fa-file-download text-primary",
+                        "text": "تحميل PDF"
+                    },
+                    {
+                        "onclick": f"shareWhatsAppPDF('{purchase.supplier.phone if purchase.supplier and purchase.supplier.phone else ''}', '{purchase.number}', 'فاتورة مشتريات', '{reverse('purchase:purchase_pdf_download', kwargs={'pk': purchase.pk})}', '{reverse('purchase:purchase_print', kwargs={'pk': purchase.pk})}')",
+                        "icon": "fab fa-whatsapp text-success",
+                        "text": "إرسال واتساب"
+                    },
+                    {
+                        "onclick": f"sendEmailPDF('{reverse('purchase:purchase_email_pdf', kwargs={'pk': purchase.pk})}', '{purchase.supplier.email if purchase.supplier and purchase.supplier.email else ''}', '{purchase.number}', 'فاتورة مشتريات', '{reverse('purchase:purchase_pdf_download', kwargs={'pk': purchase.pk})}', '{reverse('purchase:purchase_print', kwargs={'pk': purchase.pk})}')",
+                        "icon": "far fa-envelope text-primary",
+                        "text": "إرسال بريد"
+                    }
+                ]
             },
         ] + ([{
             "url": reverse("purchase:purchase_add_payment", kwargs={"pk": purchase.pk}),
@@ -1027,11 +1055,7 @@ def purchase_delete(request, pk):
     return render(request, "purchase/purchase_confirm_delete.html", context)
 
 
-@login_required
-def purchase_print(request, pk):
-    """
-    طباعة فاتورة المشتريات (عربي / إنجليزي / ثنائي اللغة)
-    """
+def get_purchase_print_context(request, pk):
     purchase = get_object_or_404(Purchase, pk=pk)
     items = purchase.items.all().select_related('product', 'product__unit', 'product__category')
     from core.models import SystemSetting
@@ -1044,8 +1068,18 @@ def purchase_print(request, pk):
     is_english = (print_lang == 'en')
     is_bilingual = False
     print_dir = 'ltr' if is_english else 'rtl'
+    from django.utils import timezone
     today = timezone.now().date()
     year = timezone.now().year
+    currency_symbol_active = getattr(purchase, 'currency', None) or SystemSetting.get_currency_symbol()
+    status_map = {
+        'paid': 'مدفوع بالكامل' if not is_english else 'PAID',
+        'unpaid': 'غير مدفوع' if not is_english else 'UNPAID',
+        'partial': 'مدفوع جزئياً' if not is_english else 'PARTIALLY PAID',
+        'draft': 'مسودة' if not is_english else 'DRAFT'
+    }
+    status_code = getattr(purchase, 'payment_status', getattr(purchase, 'status', 'unpaid'))
+    translated_status = status_map.get(str(status_code).lower(), str(status_code))
 
     context = {
         "purchase": purchase,
@@ -1057,10 +1091,63 @@ def purchase_print(request, pk):
         "print_dir": print_dir,
         "is_english": is_english,
         "is_bilingual": is_bilingual,
+        "currency_symbol_active": currency_symbol_active,
+        "translated_status": translated_status,
         "has_item_discounts": purchase.has_item_discounts,
     }
+    return purchase, context
 
+
+@login_required
+def purchase_print(request, pk):
+    """
+    طباعة فاتورة المشتريات (عربي / إنجليزي / ثنائي اللغة)
+    """
+    purchase, context = get_purchase_print_context(request, pk)
     return render(request, "purchase/purchase_print.html", context)
+
+
+@login_required
+def purchase_pdf_download(request, pk):
+    """
+    تصدير/تنزيل فاتورة مشتريات مباشرة كـ PDF بنسق نقي
+    """
+    from django.template.loader import render_to_string
+    from utils.pdf_utils import generate_pdf_from_html, generate_guaranteed_pdf_response
+    
+    purchase, context = get_purchase_print_context(request, pk)
+    
+    try:
+        html_content = render_to_string("purchase/purchase_print.html", context, request=request)
+        pdf_response = generate_pdf_from_html(html_content, request=request, filename=f"{purchase.number}.pdf", doc_type="purchase", context=context)
+        
+        if pdf_response:
+            return pdf_response
+    except Exception as e:
+        logger.error(f"Purchase PDF generation error for {purchase.number}: {e}")
+        
+    return generate_guaranteed_pdf_response("purchase", context, filename=f"{purchase.number}.pdf")
+
+
+@login_required
+def purchase_email_pdf(request, pk):
+    """
+    إرسال فاتورة المشتريات عبر البريد الإلكتروني للمورد مباشرة
+    """
+    from django.http import JsonResponse
+    purchase = get_object_or_404(Purchase, pk=pk)
+    supplier_email = purchase.supplier.email if purchase.supplier and purchase.supplier.email else None
+    if not supplier_email:
+        return JsonResponse({'success': False, 'message': 'لا يوجد بريد إلكتروني مسجل للمورد'}, status=400)
+    
+    try:
+        from utils.email_utils import send_email
+        subject = f"فاتورة مشتريات #{purchase.number}"
+        body = f"مرحباً {purchase.supplier.name}،\n\nيرجى الاطلاع على فاتورة المشتريات الخاصة بكم رقم #{purchase.number}.\n\nرابط الفاتورة المباشر:\n{request.build_absolute_uri(reverse('purchase:purchase_print', kwargs={'pk': purchase.pk}))}\n\nشكراً لتعاملكم معنا."
+        send_email(subject, body, [supplier_email])
+        return JsonResponse({'success': True, 'message': 'تم إرسال البريد بنجاح!'})
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=500)
 
 
 @login_required

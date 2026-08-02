@@ -9,7 +9,7 @@
                    {% for key, value in button.data.items %}data-{{ key }}="{{ value }}" {% endfor %}
                {% endif %}
                {% if button.data_attrs %}{{ button.data_attrs|safe }}{% endif %}>
-            <i class="fas {{ button.icon }}"></i>
+            <i class="{% if 'fas ' in button.icon or 'far ' in button.icon %}{{ button.icon }}{% elif button.icon|slice:':3' == 'fa-' %}fas {{ button.icon }}{% else %}fas fa-{{ button.icon }}{% endif %}"></i>
         </button>
     {% elif button.onclick %}
         {% comment %} زر بـ onclick function {% endcomment %}
@@ -21,7 +21,7 @@
                    {% for key, value in button.data.items %}data-{{ key }}="{{ value }}" {% endfor %}
                {% endif %}
                {% if button.data_attrs %}{{ button.data_attrs|safe }}{% endif %}>
-            <i class="fas {{ button.icon }}"></i>
+            <i class="{% if 'fas ' in button.icon or 'far ' in button.icon %}{{ button.icon }}{% elif button.icon|slice:':3' == 'fa-' %}fas {{ button.icon }}{% else %}fas fa-{{ button.icon }}{% endif %}"></i>
         </button>
     {% elif button.modal %}
         {% comment %} زر مودال {% endcomment %}
@@ -33,13 +33,13 @@
                {% elif button.class == 'action-approve' %}
                onclick="openApproveModal('{{ item_id }}')"
                {% elif button.onclick %}
-               onclick="openPostModal({{ item.id }})"
+               onclick="openPostModal('{{ item_id }}')"
                {% endif %}
                {% if button.data %}
                    {% for key, value in button.data.items %}data-{{ key }}="{{ value }}" {% endfor %}
                {% endif %}
                {% if button.data_attrs %}{{ button.data_attrs|safe }}{% endif %}>
-            <i class="fas {{ button.icon }}"></i>
+            <i class="{% if 'fas ' in button.icon or 'far ' in button.icon %}{{ button.icon }}{% elif button.icon|slice:':3' == 'fa-' %}fas {{ button.icon }}{% else %}fas fa-{{ button.icon }}{% endif %}"></i>
         </button>
     {% elif button.url and ':' in button.url %}
         {% comment %} رابط بـ URL name {% endcomment %}
@@ -53,7 +53,7 @@
                        {% for key, value in button.data.items %}data-{{ key }}="{{ value }}" {% endfor %}
                    {% endif %}
                    {% if button.data_attrs %}{{ button.data_attrs|safe }}{% endif %}>
-                    <i class="fas {{ button.icon }}"></i>
+                    <i class="{% if 'fas ' in button.icon or 'far ' in button.icon %}{{ button.icon }}{% elif button.icon|slice:':3' == 'fa-' %}fas {{ button.icon }}{% else %}fas fa-{{ button.icon }}{% endif %}"></i>
                 </a>
             {% else %}
                 <a href="{% url url_name item_id %}" 
@@ -64,7 +64,7 @@
                        {% for key, value in button.data.items %}data-{{ key }}="{{ value }}" {% endfor %}
                    {% endif %}
                    {% if button.data_attrs %}{{ button.data_attrs|safe }}{% endif %}>
-                    <i class="fas {{ button.icon }}"></i>
+                    <i class="{% if 'fas ' in button.icon or 'far ' in button.icon %}{{ button.icon }}{% elif button.icon|slice:':3' == 'fa-' %}fas {{ button.icon }}{% else %}fas fa-{{ button.icon }}{% endif %}"></i>
                 </a>
             {% endif %}
         {% endwith %}
@@ -78,7 +78,7 @@
                {% for key, value in button.data.items %}data-{{ key }}="{{ value }}" {% endfor %}
            {% endif %}
            {% if button.data_attrs %}{{ button.data_attrs|safe }}{% endif %}>
-            <i class="fas {{ button.icon }}"></i>
+            <i class="{% if 'fas ' in button.icon or 'far ' in button.icon %}{{ button.icon }}{% elif button.icon|slice:':3' == 'fa-' %}fas {{ button.icon }}{% else %}fas fa-{{ button.icon }}{% endif %}"></i>
         </a>
     {% else %}
         {% comment %} رابط افتراضي {% endcomment %}
@@ -89,7 +89,7 @@
                {% for key, value in button.data.items %}data-{{ key }}="{{ value }}" {% endfor %}
            {% endif %}
            {% if button.data_attrs %}{{ button.data_attrs|safe }}{% endif %}>
-            <i class="fas {{ button.icon }}"></i>
+            <i class="{% if 'fas ' in button.icon or 'far ' in button.icon %}{{ button.icon }}{% elif button.icon|slice:':3' == 'fa-' %}fas {{ button.icon }}{% else %}fas fa-{{ button.icon }}{% endif %}"></i>
         </a>
     {% endif %}
 {% endif %}

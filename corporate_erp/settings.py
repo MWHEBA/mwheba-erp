@@ -500,7 +500,7 @@ if REDIS_URL and not DEBUG:
                 "RETRY_ON_TIMEOUT": True,
                 "IGNORE_EXCEPTIONS": True,  # ✅ يجعل الكاش مرناً ضد انقطاع الاتصال بـ Redis في cPanel
             },
-            "KEY_PREFIX": "corporate_erp",
+            "KEY_PREFIX": f"erp_{env('CLIENT_NAME', default='mwheba')}",
             "VERSION": 1,
         },
     }

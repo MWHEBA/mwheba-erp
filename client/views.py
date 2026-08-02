@@ -91,7 +91,7 @@ def customer_list(request):
         },
         {
             "url": "client:customer_edit",
-            "icon": "fa-edit",
+            "icon": "fa-pen",
             "class": "action-edit",
             "label": "تعديل",
         },
@@ -341,12 +341,13 @@ def customer_detail(request, pk):
     # جلب دفعات فواتير المبيعات المرتبطة بالعميل
     from sale.models import SalePayment
 
-    payments = SalePayment.objects.filter(sale__customer=customer).order_by(
+    payments = SalePayment.objects.filter(sale__customer=customer).select_related("sale", "created_by").order_by(
         "-payment_date"
     )
 
     # جلب فواتير البيع المرتبطة بالعميل
-    invoices = Sale.objects.filter(customer=customer).order_by("-date")
+    from sale.models import Sale
+    invoices = Sale.objects.with_list_details().filter(customer=customer).order_by("-date")
     invoices_count = invoices.count()
 
     # جلب طلبات التسعير المرتبطة بالعميل (مؤقتاً معطل)
@@ -365,7 +366,7 @@ def customer_detail(request, pk):
     
     if enable_quotations:
         from sale.models import Quotation
-        quotations = Quotation.objects.filter(customer=customer).order_by("-date", "-number")
+        quotations = Quotation.objects.with_list_details().filter(customer=customer).order_by("-date", "-number")
         quotations_count = quotations.count()
         
         quotations_headers = [

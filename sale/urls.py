@@ -12,6 +12,8 @@ urlpatterns = [
     path("<int:pk>/edit/", views.sale_edit, name="sale_edit"),
     path("<int:pk>/delete/", views.sale_delete, name="sale_delete"),
     path("<int:pk>/print/", views.sale_print, name="sale_print"),
+    path("<int:pk>/pdf/", views.sale_pdf_download, name="sale_pdf_download"),
+    path("<int:pk>/email-pdf/", views.sale_email_pdf, name="sale_email_pdf"),
     path("<int:pk>/print/thermal/", views.sale_print_thermal, name="sale_print_thermal"),
     path("<int:pk>/duplicate/", views.sale_duplicate, name="sale_duplicate"),
     path("<int:pk>/payment/", views.add_payment, name="sale_add_payment"),
@@ -54,6 +56,8 @@ urlpatterns = [
     path("quotations/<int:pk>/edit/", views.quotation_edit, name="quotation_edit"),
     path("quotations/<int:pk>/delete/", views.quotation_delete, name="quotation_delete"),
     path("quotations/<int:pk>/print/", views.quotation_print, name="quotation_print"),
+    path("quotations/<int:pk>/pdf/", views.quotation_pdf_download, name="quotation_pdf_download"),
+    path("quotations/<int:pk>/email-pdf/", views.quotation_email_pdf, name="quotation_email_pdf"),
     path("quotations/<int:pk>/convert/", views.quotation_convert_to_sale, name="quotation_convert_to_sale"),
     path("quotations/api/check-stock/", views.check_product_stock, name="check_product_stock"),
 

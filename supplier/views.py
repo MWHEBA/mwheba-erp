@@ -138,7 +138,7 @@ def supplier_list(request):
         },
         {
             "url": "supplier:supplier_edit",
-            "icon": "fa-edit",
+            "icon": "fa-pen",
             "class": "action-edit",
             "label": "تعديل",
         },

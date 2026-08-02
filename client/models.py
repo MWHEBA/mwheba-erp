@@ -147,25 +147,9 @@ class Customer(models.Model):
     @property
     def actual_balance(self):
         """
-        حساب المديونية الفعلية من الفواتير والمدفوعات
+        حساب المديونية الفعلية (تعتمد على الحقل المخزن المحدث آلياً لمنع N+1 Queries)
         """
-        from django.db.models import Sum
-
-        # إجمالي كل الفواتير (نقدية وآجلة)
-        total_sales = self.sales.aggregate(total=Sum("total"))["total"] or 0
-
-        # إجمالي المدفوعات الفعلية على الفواتير
-        from sale.models import SalePayment
-
-        total_sale_payments = (
-            SalePayment.objects.filter(sale__customer=self).aggregate(
-                total=Sum("amount")
-            )["total"]
-            or 0
-        )
-
-        # المديونية = إجمالي الفواتير - إجمالي المدفوعات على الفواتير
-        return total_sales - total_sale_payments
+        return self.balance
 
 
 class CustomerPayment(models.Model):

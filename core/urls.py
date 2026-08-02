@@ -15,13 +15,15 @@ from .views import (
 )
 from .views.module_management import module_management
 
+from .views import security_views
+
 app_name = "core"
 
 urlpatterns = [
     path("", dashboard, name="dashboard"),
     
-    # ✅ Security endpoints - نقاط الأمان (معطلة مؤقتاً)
-    # path("api/csp-report/", security_views.csp_report_handler, name="csp_report"),
+    # ✅ Security endpoints - نقاط الأمان
+    path("api/csp-report/", security_views.csp_report_handler, name="csp_report"),
     # path("api/security-log/", security_views.SecurityLogView.as_view(), name="security_log"),
     # path("api/security-dashboard/", security_views.security_dashboard, name="security_dashboard"),
     # path("api/security-report/", security_views.security_report, name="security_report"),

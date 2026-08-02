@@ -7,6 +7,8 @@ from .views import (
     purchase_update,
     purchase_delete,
     purchase_print,
+    purchase_pdf_download,
+    purchase_email_pdf,
     purchase_duplicate,
     # Payment Views
     payment_detail,
@@ -43,6 +45,8 @@ urlpatterns = [
     path("<int:pk>/edit/", purchase_update, name="purchase_edit"),
     path("<int:pk>/delete/", purchase_delete, name="purchase_delete"),
     path("<int:pk>/print/", purchase_print, name="purchase_print"),
+    path("<int:pk>/pdf/", purchase_pdf_download, name="purchase_pdf_download"),
+    path("<int:pk>/email-pdf/", purchase_email_pdf, name="purchase_email_pdf"),
     path("<int:pk>/duplicate/", purchase_duplicate, name="purchase_duplicate"),
     # المدفوعات
     path("<int:pk>/add-payment/", add_payment, name="purchase_add_payment"),

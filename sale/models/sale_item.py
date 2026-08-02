@@ -32,6 +32,9 @@ class SaleItem(models.Model):
     class Meta:
         verbose_name = _("بند الفاتورة")
         verbose_name_plural = _("بنود الفاتورة")
+        indexes = [
+            models.Index(fields=["sale", "product"]),
+        ]
 
     def __str__(self):
         return f"{self.product} x {self.quantity}"

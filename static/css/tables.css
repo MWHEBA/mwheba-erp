@@ -331,6 +331,16 @@ th.col-date {
 }
 
 /* أرقام الفواتير */
+.invoice-number-text {
+    font-family: var(--font-family-sans);
+    font-size: var(--font-size-md);
+    font-weight: var(--font-weight-semibold);
+    color: var(--gray-900);
+    direction: ltr;
+    display: inline-block;
+    letter-spacing: 0.5px;
+}
+
 .badge.invoice-number {
     font-family: var(--font-family-sans);
     font-size: var(--font-size-sm);
@@ -396,26 +406,30 @@ th.col-date {
     transform: translateY(-1px);
 }
 
-/* ألوان الأزرار في الحالة العادية */
+/* ألوان الأزرار الـ Pale (خفيفة وأنيقة) */
+.action-button {
+    border: 1px solid transparent;
+}
+
 .action-button.action-view {
-    background-color: var(--primary-color);
-    border-color: var(--primary-color);
-    color: var(--white);
+    background-color: var(--bg-soft-primary);
+    border-color: rgba(4, 87, 141, 0.15);
+    color: var(--primary-color);
 }
 
 .action-button.action-edit {
-    background-color: var(--secondary-color);
-    border-color: var(--secondary-color);
-    color: var(--white);
+    background-color: var(--bg-soft-secondary);
+    border-color: rgba(102, 119, 136, 0.2);
+    color: var(--secondary-dark);
 }
 
 .action-button.action-delete,
 .action-button.action-remove,
 .action-button.action-cancel,
 .action-button.action-reject {
-    background-color: var(--danger-color);
-    border-color: var(--danger-color);
-    color: var(--white);
+    background-color: var(--bg-soft-danger);
+    border-color: rgba(239, 68, 68, 0.2);
+    color: var(--danger-color);
 }
 
 .action-button.action-success,
@@ -424,55 +438,63 @@ th.col-date {
 .action-button.action-paid,
 .action-button.action-received,
 .action-button.action-pay {
-    background-color: var(--success-color);
-    border-color: var(--success-color);
-    color: var(--white);
+    background-color: var(--bg-soft-success);
+    border-color: rgba(34, 197, 94, 0.2);
+    color: var(--success-dark);
 }
 
 .action-button.action-warning {
-    background-color: var(--warning-color);
-    border-color: var(--warning-color);
-    color: var(--text-dark);
+    background-color: var(--bg-soft-warning);
+    border-color: rgba(245, 158, 11, 0.25);
+    color: var(--warning-dark);
 }
 
-.action-button.action-info {
-    background-color: var(--info-color);
-    border-color: var(--info-color);
-    color: var(--white);
+.action-button.action-info,
+.action-button.action-copy,
+.action-button.action-duplicate {
+    background-color: var(--bg-soft-info);
+    border-color: rgba(14, 165, 233, 0.2);
+    color: var(--info-dark);
 }
 
 .action-button.action-print {
-    background-color: var(--badge-purple);
-    border-color: var(--badge-purple);
-    color: var(--white);
+    background-color: var(--bg-soft-purple);
+    border-color: rgba(126, 34, 206, 0.2);
+    color: var(--purple-color);
 }
 
 .action-button.action-download {
-    background-color: var(--success-dark);
-    border-color: var(--success-dark);
-    color: var(--white);
+    background-color: var(--bg-soft-success);
+    border-color: rgba(5, 150, 105, 0.2);
+    color: var(--success-dark);
 }
 
 .action-button.action-return {
-    background-color: var(--secondary-dark);
-    border-color: var(--secondary-dark);
+    background-color: var(--bg-soft-secondary);
+    border-color: rgba(74, 90, 104, 0.2);
+    color: var(--secondary-dark);
+}
+
+/* تأثيرات hover للأزرار الهادئة */
+.action-button.action-view:hover {
+    background-color: var(--primary-color);
+    border-color: var(--primary-dark);
     color: var(--white);
 }
 
-/* تأثيرات hover - تغميق اللون قليلاً */
-.action-button.action-view:hover {
-    filter: brightness(0.9);
-}
-
 .action-button.action-edit:hover {
-    filter: brightness(0.9);
+    background-color: var(--secondary-color);
+    border-color: var(--secondary-dark);
+    color: var(--white);
 }
 
 .action-button.action-delete:hover,
 .action-button.action-remove:hover,
 .action-button.action-cancel:hover,
 .action-button.action-reject:hover {
-    filter: brightness(0.9);
+    background-color: var(--danger-color);
+    border-color: var(--danger-dark);
+    color: var(--white);
 }
 
 .action-button.action-success:hover,
@@ -481,27 +503,41 @@ th.col-date {
 .action-button.action-paid:hover,
 .action-button.action-received:hover,
 .action-button.action-pay:hover {
-    filter: brightness(0.9);
+    background-color: var(--success-color);
+    border-color: var(--success-dark);
+    color: var(--white);
 }
 
 .action-button.action-warning:hover {
-    filter: brightness(0.9);
+    background-color: var(--warning-color);
+    border-color: var(--warning-dark);
+    color: var(--white);
 }
 
-.action-button.action-info:hover {
-    filter: brightness(0.9);
+.action-button.action-info:hover,
+.action-button.action-copy:hover,
+.action-button.action-duplicate:hover {
+    background-color: var(--info-color);
+    border-color: var(--info-dark);
+    color: var(--white);
 }
 
 .action-button.action-print:hover {
-    filter: brightness(0.9);
+    background-color: var(--purple-color);
+    border-color: var(--purple-dark);
+    color: var(--white);
 }
 
 .action-button.action-download:hover {
-    filter: brightness(0.9);
+    background-color: var(--success-dark);
+    border-color: var(--success-dark);
+    color: var(--white);
 }
 
 .action-button.action-return:hover {
-    filter: brightness(0.9);
+    background-color: var(--secondary-dark);
+    border-color: var(--secondary-dark);
+    color: var(--white);
 }
 
 /* ========================================

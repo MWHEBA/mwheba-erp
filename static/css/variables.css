@@ -135,8 +135,12 @@
     --bg-soft-info: #e0f7ff;
     --bg-soft-warning: #fff8e0;
     --bg-soft-danger: #ffebeb;
+    --bg-soft-purple: #f3e8ff;
     --bg-soft-light: #f8f9fa;
     --bg-soft-dark: #eaeaea;
+
+    --purple-color: #7e22ce;
+    --purple-dark: #6b21a8;
 
     /* ========================================
        4. الحدود والظلال (Borders & Shadows)
@@ -419,9 +423,4 @@
     }
 }
 
-/* متغيرات للوضع الداكن (للاستخدام المستقبلي) */
-@media (prefers-color-scheme: dark) {
-    :root {
-        /* سيتم إضافة متغيرات الوضع الداكن هنا عند الحاجة */
-    }
-} 
+ 

@@ -366,4 +366,249 @@ If custom_filters is available, it will be used for JSON parsing.
     {% endif %}
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script>
+function formatInternationalPhone(phone) {
+    if (!phone) return '';
+    let cleaned = phone.replace(/\D/g, '');
+    if (cleaned.startsWith('01') && cleaned.length === 11) {
+        return '20' + cleaned.substring(1);
+    }
+    if (cleaned.startsWith('05') && cleaned.length === 10) {
+        return '966' + cleaned.substring(1);
+    }
+    return cleaned;
+}
+
+function downloadDocumentPDF(pdfUrl, printUrl, docNumber) {
+    if (!docNumber && typeof printUrl === 'string' && !printUrl.startsWith('/')) {
+        docNumber = printUrl;
+        printUrl = pdfUrl;
+        pdfUrl = null;
+    }
+    
+    showToastNotification("{% if is_english %}Preparing PDF document...{% else %}جاري تحضير وتنزيل مستند الـ PDF...{% endif %}");
+    
+    let targetPdfUrl = pdfUrl || (window.location.pathname.replace(/\/$/, '') + '/pdf/');
+    let fileName = (docNumber || 'Document') + '.pdf';
+    
+    fetch(targetPdfUrl, { credentials: 'same-origin' })
+        .then(response => {
+            let contentType = response.headers.get('content-type') || '';
+            if (response.ok && contentType.includes('application/pdf')) {
+                return response.blob().then(blob => {
+                    let blobUrl = URL.createObjectURL(blob);
+                    let link = document.createElement('a');
+                    link.href = blobUrl;
+                    link.download = fileName;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+                    showToastNotification("{% if is_english %}PDF downloaded successfully!{% else %}تم تحميل الـ PDF بنجاح!{% endif %}");
+                });
+            } else {
+                generateClientPDF(fileName);
+            }
+        })
+        .catch(err => {
+            generateClientPDF(fileName);
+        });
+}
+
+function generateClientPDF(fileName) {
+    let element = document.querySelector('.print-container') || document.querySelector('.invoice-card') || document.querySelector('.card') || document.body;
+    
+    if (typeof html2pdf !== 'undefined' && element) {
+        let opt = {
+            margin:       [5, 5, 5, 5],
+            filename:     fileName,
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { scale: 2, useCORS: true, logging: false },
+            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+        html2pdf().set(opt).from(element).save().then(function() {
+            showToastNotification("{% if is_english %}PDF downloaded successfully!{% else %}تم تحميل الـ PDF بنجاح!{% endif %}");
+        }).catch(function() {
+            let targetUrl = window.location.pathname.replace(/\/$/, '') + '/pdf/';
+            window.open(targetUrl, '_blank');
+        });
+    } else {
+        let targetUrl = window.location.pathname.replace(/\/$/, '') + '/pdf/';
+        window.open(targetUrl, '_blank');
+    }
+}
+
+function formatInternationalPhone(phone) {
+    if (!phone) return "";
+    let cleaned = phone.replace(/[^\d+]/g, '');
+    if (cleaned.startsWith('00')) cleaned = cleaned.substring(2);
+    if (cleaned.startsWith('+')) cleaned = cleaned.substring(1);
+    if (cleaned.startsWith('01') && cleaned.length === 11) {
+        cleaned = '2' + cleaned;
+    }
+    return cleaned;
+}
+
+function shareWhatsAppPDF(phone, docNumber, docTitle, pdfUrl, printUrl) {
+    let formattedPhone = formatInternationalPhone(phone);
+    let targetPdfUrl = pdfUrl || (window.location.pathname.replace(/\/$/, '') + '/pdf/');
+    let fileName = (docNumber || 'Document') + '.pdf';
+    
+    showToastNotification("{% if is_english %}Preparing PDF document for WhatsApp...{% else %}جاري إرفاق وتجهيز مستند الـ PDF للواتساب...{% endif %}");
+    
+    fetch(targetPdfUrl, { credentials: 'same-origin' })
+        .then(response => {
+            if (!response.ok) throw new Error("Network error");
+            return response.blob();
+        })
+        .then(async blob => {
+            let file = new File([blob], fileName, { type: 'application/pdf' });
+            
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                try {
+                    await navigator.share({
+                        files: [file],
+                        title: `${docTitle} #${docNumber}`,
+                        text: `مستند ${docTitle} رقم #${docNumber}`
+                    });
+                    showToastNotification("{% if is_english %}PDF file shared successfully!{% else %}تمت مشاركة مستند الـ PDF بنجاح!{% endif %}");
+                    return;
+                } catch (shareErr) {
+                    if (shareErr.name !== 'AbortError') {
+                        console.log('Share API fallback:', shareErr);
+                    } else {
+                        return;
+                    }
+                }
+            }
+            
+            let blobUrl = URL.createObjectURL(blob);
+            let link = document.createElement('a');
+            link.href = blobUrl;
+            link.download = fileName;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+            
+            try {
+                if (navigator.clipboard && window.ClipboardItem) {
+                    await navigator.clipboard.write([
+                        new ClipboardItem({ [blob.type]: blob })
+                    ]);
+                }
+            } catch (clipErr) {}
+            
+            showToastNotification("{% if is_english %}PDF downloaded! Paste (Ctrl+V) or attach in WhatsApp chat.{% else %}تم تنزيل المستند! اضغط (Ctrl+V) أو أرفق الملف المحمل جوة محادثة الواتساب.{% endif %}");
+            
+            let waUrl = formattedPhone ? `https://api.whatsapp.com/send?phone=${formattedPhone}` : `https://web.whatsapp.com/`;
+            setTimeout(function() {
+                window.open(waUrl, '_blank');
+            }, 800);
+        })
+        .catch(err => {
+            let waUrl = formattedPhone ? `https://api.whatsapp.com/send?phone=${formattedPhone}` : `https://web.whatsapp.com/`;
+            window.open(waUrl, '_blank');
+        });
+}
+
+function sendEmailPDF(emailUrl, customerEmail, docNumber, docTitle, pdfUrl, printUrl) {
+    if (!customerEmail) {
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                icon: 'warning',
+                title: '{% if is_english %}No Email Address{% else %}تنبيه{% endif %}',
+                text: '{% if is_english %}No email address registered for this customer/supplier.{% else %}لا يوجد بريد إلكتروني مسجل للعميل{% endif %}',
+                confirmButtonText: '{% if is_english %}OK{% else %}حسناً{% endif %}',
+                confirmButtonColor: '#04578d'
+            });
+        } else {
+            alert('{% if is_english %}No email address registered for this customer/supplier.{% else %}لا يوجد بريد إلكتروني مسجل للعميل{% endif %}');
+        }
+        return;
+    }
+    
+    if (emailUrl) {
+        showToastNotification("{% if is_english %}Sending PDF via Email...{% else %}جاري إرسال المستند عبر البريد...{% endif %}");
+        fetch(emailUrl, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCsrfTokenHeader(),
+                'Content-Type': 'application/json'
+            }
+        }).then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'success',
+                        title: '{% if is_english %}Email Sent{% else %}تم الإرسال بنجاح!{% endif %}',
+                        text: data.message || '{% if is_english %}PDF emailed successfully!{% else %}تم إرسال مستند الـ PDF عبر البريد بنجاح!{% endif %}',
+                        confirmButtonText: '{% if is_english %}OK{% else %}حسناً{% endif %}',
+                        confirmButtonColor: '#04578d'
+                    });
+                } else {
+                    showToastNotification("{% if is_english %}PDF emailed successfully!{% else %}تم إرسال مستند الـ PDF عبر البريد بنجاح!{% endif %}");
+                }
+            } else {
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: '{% if is_english %}Warning{% else %}تنبيه{% endif %}',
+                        text: data.message || "{% if is_english %}Failed to send email{% else %}حدث خطأ في إرسال البريد{% endif %}",
+                        confirmButtonText: '{% if is_english %}OK{% else %}حسناً{% endif %}',
+                        confirmButtonColor: '#04578d'
+                    });
+                } else {
+                    alert(data.message || "{% if is_english %}Failed to send email{% else %}حدث خطأ في إرسال البريد{% endif %}");
+                }
+            }
+        }).catch(err => {
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    icon: 'error',
+                    title: '{% if is_english %}Error{% else %}خطأ{% endif %}',
+                    text: '{% if is_english %}Connection error while sending email{% else %}حدث خطأ في الاتصال أثناء إرسال البريد{% endif %}',
+                    confirmButtonText: '{% if is_english %}OK{% else %}حسناً{% endif %}',
+                    confirmButtonColor: '#04578d'
+                });
+            } else {
+                downloadDocumentPDF(pdfUrl, printUrl, docNumber);
+            }
+        });
+    } else {
+        downloadDocumentPDF(pdfUrl, printUrl, docNumber);
+    }
+}
+
+function getCsrfTokenHeader() {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        let cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            let cookie = cookies[i].trim();
+            if (cookie.substring(0, 10) === ('csrftoken=')) {
+                cookieValue = decodeURIComponent(cookie.substring(10));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+function showToastNotification(msg) {
+    let toast = document.getElementById("headerToast");
+    if (!toast) {
+        toast = document.createElement("div");
+        toast.id = "headerToast";
+        toast.style.cssText = "position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #1f2937; color: #ffffff; padding: 10px 22px; border-radius: 20px; font-size: 13px; font-weight: 600; z-index: 9999; box-shadow: 0 4px 14px rgba(0,0,0,0.2); opacity: 0; transition: opacity 0.3s ease;";
+        document.body.appendChild(toast);
+    }
+    toast.innerText = msg;
+    toast.style.opacity = "1";
+    setTimeout(() => { toast.style.opacity = "0"; }, 3000);
+}
+</script>
+
 

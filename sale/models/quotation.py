@@ -4,10 +4,14 @@ from django.conf import settings
 from django.utils import timezone
 
 
+from sale.managers import QuotationManager
+
+
 class Quotation(models.Model):
     """
     نموذج عرض السعر
     """
+    objects = QuotationManager()
     STATUS_CHOICES = (
         ("draft", _("مسودة")),
         ("sent", _("تم الإرسال")),
@@ -96,6 +100,11 @@ class Quotation(models.Model):
         permissions = [
             ("convert_quotation", _("تحويل عروض الأسعار إلى فواتير")),
         ]
+        indexes = [
+            models.Index(fields=["-date", "-number"]),
+            models.Index(fields=["customer", "-date"]),
+            models.Index(fields=["status", "-date"]),
+        ]
 
     def __str__(self):
         return f"{self.number} - {self.customer} - {self.date}"
@@ -144,3 +153,13 @@ class Quotation(models.Model):
         """
         from sale.services.sale_service import SaleService
         return SaleService.smart_merge_custom_fields("quotation", self.custom_fields)
+
+    @property
+    def has_header_custom_fields(self):
+        """هل توجد حقول مخصصة للهيدر تحتوي على قيم حقيقية؟"""
+        return any(f.get('show_in_header') and f.get('show_on_print') and f.get('value') for f in (self.merged_custom_fields or []))
+
+    @property
+    def has_body_custom_fields(self):
+        """هل توجد حقول مخصصة في التفاصيل تحتوي على قيم حقيقية؟"""
+        return any(not f.get('show_in_header') and f.get('value') for f in (self.merged_custom_fields or []))

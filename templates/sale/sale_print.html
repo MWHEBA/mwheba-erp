@@ -132,19 +132,35 @@
 
 {% block header_custom_fields %}
 {% if sale.merged_custom_fields %}
-<div class="header-custom-fields-print" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px 12px; margin-bottom: 15px; margin-top: 5px; font-size: 12px;">
-    {% for field in sale.merged_custom_fields %}
-    {% if field.show_in_header and field.show_on_print and field.value %}
-    <div style="display: flex; border: 1px solid var(--gray-300, #cbd5e1); border-radius: 4px; overflow: hidden; height: 100%;">
-        <div style="background-color: var(--gray-100, #f8fafc); padding: 6px 10px; font-weight: bold; text-align: center; border-inline-end: 1px solid var(--gray-300, #cbd5e1); color: var(--gray-700, #334155); flex: 0 0 42%; display: flex; align-items: center; justify-content: center;">
-            {% if is_english %}{{ field.name_en|default:field.name }}{% else %}{{ field.name }}{% endif %}
-        </div>
-        <div style="background-color: #ffffff; padding: 6px 10px; font-weight: 500; text-align: center; color: var(--gray-900, #0f172a); flex: 1; display: flex; align-items: center; justify-content: center;">
-            {% if field.value == 'true' %}{% if is_english %}Yes{% else %}نعم{% endif %}{% elif field.value == 'false' %}{% if is_english %}No{% else %}لا{% endif %}{% else %}{{ field.value }}{% endif %}
-        </div>
-    </div>
-    {% endif %}
-    {% endfor %}
+<div class="header-custom-fields-print" style="margin-top: 10px !important; margin-bottom: 15px !important;">
+    <table style="width: 100% !important; border-collapse: separate !important; border-spacing: 10px 8px !important; margin: 0 !important; padding: 0 !important; border: 0 !important;">
+        <tbody>
+            {% for field in sale.merged_custom_fields %}
+            {% if field.show_in_header and field.show_on_print and field.value %}
+            {% cycle 'start' 'end' as row_pos silent %}
+            {% if row_pos == 'start' %}<tr>{% endif %}
+                <td style="width: 50% !important; padding: 0 !important; vertical-align: top !important; border: 0 !important; background: transparent !important;">
+                    <table style="width: 100% !important; border-collapse: separate !important; border-spacing: 0 !important; border: 1px solid #cbd5e1 !important; border-radius: 6px !important; overflow: hidden !important; table-layout: fixed !important; background-color: #ffffff !important; margin: 0 !important;">
+                        <tr>
+                            <td style="width: 40% !important; background-color: #f1f5f9 !important; color: #334155 !important; font-weight: 700 !important; font-size: 12px !important; padding: 7px 10px !important; text-align: center !important; vertical-align: middle !important; border-left: 1px solid #cbd5e1 !important; border-right: 0 !important; border-top: 0 !important; border-bottom: 0 !important; border-radius: 0 !important;">
+                                {% if is_english %}{{ field.name_en|default:field.name }}{% else %}{{ field.name }}{% endif %}
+                            </td>
+                            <td style="width: 60% !important; background-color: #ffffff !important; color: #0f172a !important; font-weight: 700 !important; font-size: 13px !important; padding: 7px 10px !important; text-align: center !important; vertical-align: middle !important; border: 0 !important; border-radius: 0 !important; word-break: break-word !important;">
+                                {% if field.value == 'true' %}{% if is_english %}Yes{% else %}نعم{% endif %}{% elif field.value == 'false' %}{% if is_english %}No{% else %}لا{% endif %}{% else %}{{ field.value }}{% endif %}
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            {% if row_pos == 'end' or forloop.last %}
+                {% if row_pos == 'start' and forloop.last %}
+                <td style="width: 50% !important; padding: 0 !important; border: 0 !important; background: transparent !important;"></td>
+                {% endif %}
+            </tr>
+            {% endif %}
+            {% endif %}
+            {% endfor %}
+        </tbody>
+    </table>
 </div>
 {% endif %}
 {% endblock %}

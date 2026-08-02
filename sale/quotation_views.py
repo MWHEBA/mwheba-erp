@@ -1,3 +1,4 @@
+import json
 import logging
 from decimal import Decimal
 from django.contrib import messages
@@ -47,7 +48,7 @@ def quotation_list(request):
     date_from = request.GET.get('date_from', '')
     date_to = request.GET.get('date_to', '')
 
-    quotations_qs = Quotation.objects.all().order_by('-date', '-number')
+    quotations_qs = Quotation.objects.with_list_details().all().order_by('-date', '-number')
 
     if search:
         quotations_qs = quotations_qs.filter(
@@ -167,6 +168,7 @@ def quotation_create(request, customer_id=None):
                                 raise ValueError(_("سعر المنتج يجب أن يكون أكبر من صفر (البند رقم {})").format(i + 1))
                             if qty <= 0:
                                 raise ValueError(_("الكمية يجب أن تكون أكبر من صفر (البند رقم {})").format(i + 1))
+                            item_disc = Decimal(discounts[i]) if i < len(discounts) and discounts[i] else Decimal("0")
                             item_total = (qty * price) - item_disc
 
                             QuotationItem.objects.create(
@@ -452,7 +454,7 @@ def quotation_detail(request, pk):
             "title": _("غير مصرح"), "message": _("ليس لديك صلاحية لعرض تفاصيل عروض الأسعار")
         })
 
-    quotation = get_object_or_404(Quotation, pk=pk)
+    quotation = get_object_or_404(Quotation.objects.with_details(), pk=pk)
     items = quotation.items.all()
 
     # شارات الهيدر
@@ -482,6 +484,29 @@ def quotation_detail(request, pk):
             "text": _("طباعة"),
             "class": "btn-info",
             "target": "_blank",
+        },
+        {
+            "dropdown": True,
+            "icon": "fa-file-pdf",
+            "text": _("مشاركة"),
+            "class": "btn-success",
+            "items": [
+                {
+                    "onclick": f"downloadDocumentPDF('{reverse('sale:quotation_pdf_download', kwargs={'pk': quotation.pk})}', '{reverse('sale:quotation_print', kwargs={'pk': quotation.pk})}', '{quotation.number}')",
+                    "icon": "fas fa-file-download text-primary",
+                    "text": _("تحميل PDF")
+                },
+                {
+                    "onclick": f"shareWhatsAppPDF('{quotation.customer.phone if quotation.customer and quotation.customer.phone else ''}', '{quotation.number}', 'عرض سعر', '{reverse('sale:quotation_pdf_download', kwargs={'pk': quotation.pk})}', '{reverse('sale:quotation_print', kwargs={'pk': quotation.pk})}')",
+                    "icon": "fab fa-whatsapp text-success",
+                    "text": _("إرسال واتساب")
+                },
+                {
+                    "onclick": f"sendEmailPDF('{reverse('sale:quotation_email_pdf', kwargs={'pk': quotation.pk})}', '{quotation.customer.email if quotation.customer and quotation.customer.email else ''}', '{quotation.number}', 'عرض سعر', '{reverse('sale:quotation_pdf_download', kwargs={'pk': quotation.pk})}', '{reverse('sale:quotation_print', kwargs={'pk': quotation.pk})}')",
+                    "icon": "far fa-envelope text-primary",
+                    "text": _("إرسال بريد")
+                }
+            ]
         }
     ]
     if not quotation.converted_to_sale:
@@ -548,19 +573,11 @@ def quotation_delete(request, pk):
     return render(request, "sale/quotation_confirm_delete.html", context)
 
 
-@login_required
-@check_quotations_enabled
-def quotation_print(request, pk):
-    if not request.user.has_perm('sale.view_quotation') and not request.user.is_superuser and not request.user.is_admin:
-        return render(request, "core/permission_denied.html", {
-            "title": _("غير مصرح"), "message": _("ليس لديك صلاحية لعرض أو طباعة عروض الأسعار")
-        })
-
+def get_quotation_print_context(request, pk):
     quotation = get_object_or_404(Quotation, pk=pk)
     items = quotation.items.all().select_related('product', 'product__unit', 'product__category')
     from core.models import SystemSetting
     
-    # تحديد لغة الطباعة والاتجاه
     default_lang = SystemSetting.get_default_print_language()
     print_lang = request.GET.get('lang', default_lang).lower()
     if print_lang not in ['ar', 'en']:
@@ -570,7 +587,6 @@ def quotation_print(request, pk):
     is_bilingual = False
     print_dir = 'ltr' if is_english else 'rtl'
 
-    # جلب إعدادات الشركة
     company_name = SystemSetting.objects.filter(key="company_name").values_list("value", flat=True).first() or "مؤسسة موهبة"
     company_address = SystemSetting.objects.filter(key="company_address").values_list("value", flat=True).first() or ""
     company_phone = SystemSetting.objects.filter(key="company_phone").values_list("value", flat=True).first() or ""
@@ -648,7 +664,59 @@ def quotation_print(request, pk):
         "has_item_discounts": quotation.has_item_discounts,
         "salesman_name": quotation.salesman_display_name,
     }
+    return quotation, context
+
+
+@login_required
+def quotation_print(request, pk):
+    """
+    طباعة عرض السعر (عربي / إنجليزي / ثنائي اللغة)
+    """
+    quotation, context = get_quotation_print_context(request, pk)
     return render(request, "sale/quotation_print.html", context)
+
+
+@login_required
+def quotation_pdf_download(request, pk):
+    """
+    تصدير/تنزيل عرض سعر مباشرة كـ PDF بنسق نقي
+    """
+    from django.template.loader import render_to_string
+    from utils.pdf_utils import generate_pdf_from_html, generate_guaranteed_pdf_response
+    
+    quotation, context = get_quotation_print_context(request, pk)
+    
+    try:
+        html_content = render_to_string("sale/quotation_print.html", context, request=request)
+        pdf_response = generate_pdf_from_html(html_content, request=request, filename=f"{quotation.number}.pdf", doc_type="quotation", context=context)
+        
+        if pdf_response:
+            return pdf_response
+    except Exception as e:
+        logger.error(f"Quotation PDF generation error for {quotation.number}: {e}")
+        
+    return generate_guaranteed_pdf_response("quotation", context, filename=f"{quotation.number}.pdf")
+
+
+@login_required
+def quotation_email_pdf(request, pk):
+    """
+    إرسال عرض السعر عبر البريد الإلكتروني للعميل مباشرة
+    """
+    from django.http import JsonResponse
+    quotation = get_object_or_404(Quotation, pk=pk)
+    customer_email = quotation.customer.email if quotation.customer and quotation.customer.email else None
+    if not customer_email:
+        return JsonResponse({'success': False, 'message': 'لا يوجد بريد إلكتروني مسجل للعميل'}, status=400)
+    
+    try:
+        from utils.email_utils import send_email
+        subject = f"عرض سعر #{quotation.number}"
+        body = f"مرحباً {quotation.customer.name}،\n\nيرجى الاطلاع على عرض السعر الخاص بكم رقم #{quotation.number}.\n\nرابط عرض السعر المباشر:\n{request.build_absolute_uri(reverse('sale:quotation_print', kwargs={'pk': quotation.pk}))}\n\nشكراً لتعاملكم معنا."
+        send_email(subject, body, [customer_email])
+        return JsonResponse({'success': True, 'message': 'تم إرسال البريد بنجاح!'})
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=500)
 
 
 @login_required

@@ -6,6 +6,7 @@
 {% load utils_extras %}
 
 <html lang="{{ print_lang|default:'ar' }}" dir="{{ print_dir|default:'rtl' }}">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -16,7 +17,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.rtl.min.css">
     {% endif %}
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
+
     <style>
         @font-face {
             font-family: 'Tajawal';
@@ -24,12 +25,14 @@
             font-weight: 400;
             src: url("{% static 'fonts/Tajawal-Regular.ttf' %}") format('truetype');
         }
+
         @font-face {
             font-family: 'Tajawal';
             font-style: normal;
             font-weight: 500;
             src: url("{% static 'fonts/Tajawal-Medium.ttf' %}") format('truetype');
         }
+
         @font-face {
             font-family: 'Tajawal';
             font-style: normal;
@@ -63,10 +66,12 @@
                 -webkit-print-color-adjust: exact !important;
                 print-color-adjust: exact !important;
             }
+
             @page {
                 size: A4;
                 margin: 0.5cm;
             }
+
             body {
                 background-color: var(--bg-white) !important;
                 font-size: 11pt;
@@ -74,9 +79,11 @@
                 padding: 0 !important;
                 margin: 0 !important;
             }
+
             .no-print {
                 display: none !important;
             }
+
             .invoice-container {
                 box-shadow: none !important;
                 padding: 0 !important;
@@ -89,17 +96,21 @@
                 flex-direction: column !important;
                 box-sizing: border-box !important;
             }
+
             .print-footer-wrapper {
                 margin-top: auto !important;
                 page-break-inside: avoid !important;
                 break-inside: avoid !important;
             }
+
             .table-header-sticky {
                 display: table-header-group;
             }
+
             tr {
                 page-break-inside: avoid;
             }
+
             .keep-together {
                 page-break-inside: avoid;
             }
@@ -114,6 +125,9 @@
         }
 
         .print-actions-bar {
+            position: sticky;
+            top: 0;
+            z-index: 1000;
             background-color: var(--print-bar-bg);
             color: var(--print-bar-text);
             padding: 12px 20px;
@@ -121,14 +135,15 @@
             justify-content: space-between;
             align-items: center;
             margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
         }
 
         .invoice-container {
             background-color: var(--bg-white);
-            padding: 30px;
+            padding: 20px;
             border-radius: 8px;
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
-            margin: 0 auto 30px auto;
+            margin: 0 auto 20px auto;
             max-width: 900px;
             min-height: 275mm;
             display: flex;
@@ -144,27 +159,26 @@
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
-            margin-bottom: 20px;
         }
 
         .company-logo {
-            max-height: 75px;
+            max-height: 52px;
             max-width: 180px;
             object-fit: contain;
-            margin-bottom: 8px;
+            margin-bottom: 4px;
         }
 
         .company-name {
-            font-size: 22px;
+            font-size: 20px;
             font-weight: 700;
             color: var(--primary-color);
-            margin-bottom: 4px;
+            margin-bottom: 2px;
         }
 
         .company-meta {
             font-size: 13px;
             color: var(--text-muted);
-            line-height: 1.6;
+            line-height: 1.35;
         }
 
         .company-meta bdi {
@@ -177,7 +191,7 @@
             display: flex;
             align-items: center;
             text-align: center;
-            margin: 20px 0;
+            margin: 10px 0;
         }
 
         .document-title-divider::before,
@@ -199,14 +213,14 @@
         .client-info-section {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 20px;
+            margin-bottom: 12px;
             gap: 20px;
         }
 
         .party-box {
             flex: 1;
             font-size: 14px;
-            line-height: 1.6;
+            line-height: 1.35;
         }
 
         .party-title {
@@ -214,7 +228,7 @@
             font-weight: 700;
             text-transform: uppercase;
             color: var(--text-muted);
-            margin-bottom: 6px;
+            margin-bottom: 2px;
         }
 
         .party-name {
@@ -232,7 +246,7 @@
             font-size: 12px;
             color: var(--text-muted);
             font-weight: 600;
-            margin-bottom: 6px;
+            margin-bottom: 2px;
         }
 
         .doc-date-value {
@@ -250,12 +264,12 @@
             font-size: 12px;
             color: var(--text-muted);
             font-weight: 600;
-            margin-bottom: 6px;
+            margin-bottom: 2px;
         }
 
         .doc-number-value {
-            font-size: 20px;
-            font-weight: 800;
+            font-size: 16px;
+            font-weight: 700;
             color: var(--text-color);
         }
 
@@ -263,7 +277,7 @@
             border-radius: 8px;
             overflow: hidden;
             border: 1px solid var(--border-color);
-            margin-bottom: 25px;
+            margin-bottom: 18px;
         }
 
         .items-table {
@@ -294,8 +308,8 @@
         }
 
         .items-table td {
-            padding: 12px 14px;
-            font-size: 14px;
+            padding: 5px 10px;
+            font-size: 13px;
             border-bottom: 1px solid var(--border-color);
             border-left: 1px solid var(--border-color);
             vertical-align: middle;
@@ -323,6 +337,54 @@
             font-size: 11px;
             color: var(--text-muted);
             display: block;
+        }
+
+        .header-custom-fields-print {
+            margin-top: 10px;
+            margin-bottom: 15px;
+            font-size: 12px;
+        }
+
+        .custom-fields-grid-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0 8px;
+            margin: 0;
+            padding: 0;
+            border: 0;
+        }
+
+        .custom-field-card {
+            width: 100%;
+            border-collapse: collapse;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            overflow: hidden;
+            table-layout: fixed;
+            background-color: #ffffff;
+        }
+
+        .custom-field-label {
+            background-color: #f1f5f9;
+            padding: 7px 12px;
+            font-weight: 700;
+            text-align: center;
+            width: 40%;
+            border-inline-end: 1px solid #cbd5e1;
+            color: #334155;
+            vertical-align: middle;
+            font-size: 12px;
+        }
+
+        .custom-field-value {
+            background-color: #ffffff;
+            padding: 7px 12px;
+            font-weight: 700;
+            text-align: center;
+            color: #0f172a;
+            vertical-align: middle;
+            word-break: break-word;
+            font-size: 13px;
         }
 
         .financial-summary-wrapper {
@@ -356,7 +418,7 @@
         }
 
         .summary-table td {
-            padding: 10px 14px;
+            padding: 5px 14px;
             font-size: 14px;
             border-bottom: 1px solid var(--border-color);
         }
@@ -433,7 +495,7 @@
 
         .floating-company-stamp {
             position: absolute;
-            bottom: -8px;
+            bottom: 0px;
             left: 50%;
             transform: translateX(-50%) rotate(-12deg);
             width: 4cm;
@@ -473,70 +535,93 @@
         html[dir="ltr"] body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         }
+
         html[dir="ltr"] .doc-number-box {
             text-align: right !important;
         }
+
         html[dir="ltr"] .party-box {
             text-align: left !important;
         }
+
         html[dir="ltr"] .items-table th,
         html[dir="ltr"] .items-table td {
             border-left: none !important;
             border-right: 1px solid var(--border-color) !important;
         }
+
         html[dir="ltr"] .items-table th {
             border-right: 1px solid rgba(255, 255, 255, 0.25) !important;
         }
+
         html[dir="ltr"] .items-table th:last-child,
         html[dir="ltr"] .items-table td:last-child {
             border-right: none !important;
         }
+
         html[dir="ltr"] .items-table th.col-desc,
         html[dir="ltr"] .items-table td.col-desc {
             text-align: left !important;
         }
+
         html[dir="ltr"] .summary-table td:first-child {
             text-align: left !important;
         }
+
         html[dir="ltr"] .summary-table td:last-child {
             text-align: right !important;
         }
     </style>
     {% block extra_css %}{% endblock %}
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
+
 <body>
     <div class="print-actions-bar no-print">
         <h5 class="m-0 font-weight-bold">{% block page_title %}{{ title }}{% endblock %}</h5>
         <div class="d-flex align-items-center gap-2">
-            <a href="?lang=ar" class="btn btn-sm {% if print_lang == 'ar' or not print_lang %}btn-light fw-bold{% else %}btn-outline-light{% endif %}">
-                <svg class="me-1" width="19" height="13" viewBox="0 0 640 480" style="border-radius: 2px; vertical-align: sub; box-shadow: 0 1px 2px rgba(0,0,0,0.3);">
-                    <path fill="#ce1126" d="M0 0h640v160H0z"/>
-                    <path fill="#fff" d="M0 160h640v160H0z"/>
-                    <path fill="#000" d="M0 320h640v160H0z"/>
-                    <path fill="#c09300" d="M310 200h20v80h-20zM290 230h60v20h-60z"/>
-                </svg> عربي
-            </a>
-            <a href="?lang=en" class="btn btn-sm {% if print_lang == 'en' %}btn-light fw-bold{% else %}btn-outline-light{% endif %}">
-                <svg class="me-1" width="19" height="13" viewBox="0 0 640 480" style="border-radius: 2px; vertical-align: sub; box-shadow: 0 1px 2px rgba(0,0,0,0.3);">
-                    <path fill="#bd3d44" d="M0 0h640v480H0z"/>
-                    <path fill="#fff" d="M0 37h640v37H0zm0 74h640v37H0zm0 74h640v37H0zm0 74h640v37H0zm0 74h640v37H0zm0 74h640v37H0z"/>
-                    <path fill="#192f5d" d="M0 0h256v259H0z"/>
-                    <circle cx="40" cy="40" r="12" fill="#fff"/>
-                    <circle cx="120" cy="40" r="12" fill="#fff"/>
-                    <circle cx="200" cy="40" r="12" fill="#fff"/>
-                    <circle cx="80" cy="90" r="12" fill="#fff"/>
-                    <circle cx="160" cy="90" r="12" fill="#fff"/>
-                    <circle cx="40" cy="140" r="12" fill="#fff"/>
-                    <circle cx="120" cy="140" r="12" fill="#fff"/>
-                    <circle cx="200" cy="140" r="12" fill="#fff"/>
-                    <circle cx="80" cy="190" r="12" fill="#fff"/>
-                    <circle cx="160" cy="190" r="12" fill="#fff"/>
-                </svg> English
-            </a>
-            <button type="button" id="toggleStampBtn" onclick="toggleCompanyStamp()" class="btn btn-sm btn-outline-light ms-1 me-1" title="إظهار/إخفاء ختم الشركة">
-                <i class="fas fa-stamp me-1"></i> <span id="toggleStampText">{% if is_english %}Hide Stamp{% else %}إخفاء الختم{% endif %}</span>
+            <div class="btn-group btn-group-sm" role="group">
+                <a href="?lang=ar"
+                    class="btn btn-sm {% if print_lang == 'ar' or not print_lang %}btn-light fw-bold{% else %}btn-outline-light{% endif %}">
+                    <svg class="me-1" width="19" height="13" viewBox="0 0 640 480"
+                        style="border-radius: 2px; vertical-align: sub; box-shadow: 0 1px 2px rgba(0,0,0,0.3);">
+                        <path fill="#ce1126" d="M0 0h640v160H0z" />
+                        <path fill="#fff" d="M0 160h640v160H0z" />
+                        <path fill="#000" d="M0 320h640v160H0z" />
+                        <path fill="#c09300" d="M310 200h20v80h-20zM290 230h60v20h-60z" />
+                    </svg> عربي
+                </a>
+                <a href="?lang=en"
+                    class="btn btn-sm {% if print_lang == 'en' %}btn-light fw-bold{% else %}btn-outline-light{% endif %}">
+                    <svg class="me-1" width="19" height="13" viewBox="0 0 640 480"
+                        style="border-radius: 2px; vertical-align: sub; box-shadow: 0 1px 2px rgba(0,0,0,0.3);">
+                        <path fill="#bd3d44" d="M0 0h640v480H0z" />
+                        <path fill="#fff"
+                            d="M0 37h640v37H0zm0 74h640v37H0zm0 74h640v37H0zm0 74h640v37H0zm0 74h640v37H0zm0 74h640v37H0z" />
+                        <path fill="#192f5d" d="M0 0h256v259H0z" />
+                        <circle cx="40" cy="40" r="12" fill="#fff" />
+                        <circle cx="120" cy="40" r="12" fill="#fff" />
+                        <circle cx="200" cy="40" r="12" fill="#fff" />
+                        <circle cx="80" cy="90" r="12" fill="#fff" />
+                        <circle cx="160" cy="90" r="12" fill="#fff" />
+                        <circle cx="40" cy="140" r="12" fill="#fff" />
+                        <circle cx="120" cy="140" r="12" fill="#fff" />
+                        <circle cx="200" cy="140" r="12" fill="#fff" />
+                        <circle cx="80" cy="190" r="12" fill="#fff" />
+                        <circle cx="160" cy="190" r="12" fill="#fff" />
+                    </svg> English
+                </a>
+            </div>
+
+            <div class="vr bg-white opacity-50 mx-1" style="height: 20px;"></div>
+
+            <button type="button" id="toggleStampBtn" onclick="toggleCompanyStamp()"
+                class="btn btn-sm btn-light fw-bold" title="إظهار/إخفاء ختم الشركة">
+                <i class="fas fa-toggle-on text-success me-1" id="stampToggleIcon"></i>
+                <span id="toggleStampText">{% if is_english %}Stamp: ON{% else %}الختم: مفعّل{% endif %}</span>
             </button>
-            <button onclick="window.print()" class="btn btn-light btn-sm fw-bold ms-2 me-2">
+
+            <button onclick="window.print()" class="btn btn-light btn-sm fw-bold ms-1 me-1">
                 <i class="fas fa-print me-1"></i> {% if is_english %}Print{% else %}طباعة{% endif %}
             </button>
             {% block back_button %}
@@ -553,9 +638,10 @@
             <div class="company-header">
                 <div>
                     {% if company_logo %}
-                        <img src="{{ MEDIA_URL }}{{ company_logo }}" alt="{{ company_name }}" class="company-logo">
+                    <img src="{{ MEDIA_URL }}{{ company_logo }}" alt="{{ company_name }}" class="company-logo">
                     {% else %}
-                        <img src="{% static 'img/logo.png' %}" alt="{{ company_name }}" class="company-logo" onerror="this.style.display='none'">
+                    <img src="{% static 'img/logo.png' %}" alt="{{ company_name }}" class="company-logo"
+                        onerror="this.style.display='none'">
                     {% endif %}
                     <div class="company-name">{{ company_name }}</div>
                     <div class="company-meta">
@@ -658,38 +744,66 @@
                         <div class="signature-box stamp-box">
                             <div class="signature-label">{% if is_english %}Stamp & Signature{% else %}الختم والتوقيع{% endif %}</div>
                             {% if settings.enable_company_stamp|default:True and company_stamp %}
-                                {% if "http" in company_stamp or "/media/" in company_stamp %}
-                                    <img src="{{ company_stamp }}" id="printableCompanyStamp" class="floating-company-stamp" alt="ختم الشركة">
-                                {% else %}
-                                    <img src="{{ MEDIA_URL }}{{ company_stamp }}" id="printableCompanyStamp" class="floating-company-stamp" alt="ختم الشركة">
-                                {% endif %}
+                            {% if "http" in company_stamp or "/media/" in company_stamp %}
+                            <img src="{{ company_stamp }}" id="printableCompanyStamp" class="floating-company-stamp"
+                                alt="ختم الشركة">
+                            {% else %}
+                            <img src="{{ MEDIA_URL }}{{ company_stamp }}" id="printableCompanyStamp"
+                                class="floating-company-stamp" alt="ختم الشركة">
+                            {% endif %}
                             {% endif %}
                         </div>
                         {% endblock %}
                     </div>
                 </div>
 
-                <div class="print-footer-note">
-                    &copy; {% now "Y" %} {{ company_name }}
-                </div>
+
             </div>
         </div>
     </div>
 
     <script>
-    function toggleCompanyStamp() {
-        const stampImg = document.getElementById('printableCompanyStamp');
-        const stampText = document.getElementById('toggleStampText');
-        if (stampImg) {
-            if (stampImg.style.display === 'none') {
-                stampImg.style.display = 'block';
-                if (stampText) stampText.innerText = "{% if is_english %}Hide Stamp{% else %}إخفاء الختم{% endif %}";
-            } else {
-                stampImg.style.display = 'none';
-                if (stampText) stampText.innerText = "{% if is_english %}Show Stamp{% else %}إظهار الختم{% endif %}";
+        function toggleCompanyStamp() {
+            const stampImg = document.getElementById('printableCompanyStamp');
+            const stampBtn = document.getElementById('toggleStampBtn');
+            const stampIcon = document.getElementById('stampToggleIcon');
+            const stampText = document.getElementById('toggleStampText');
+            if (stampImg) {
+                if (stampImg.style.display === 'none') {
+                    stampImg.style.display = 'block';
+                    if (stampText) stampText.innerText = "{% if is_english %}Stamp: ON{% else %}الختم: مفعّل{% endif %}";
+                    if (stampIcon) stampIcon.className = "fas fa-toggle-on text-success me-1";
+                    if (stampBtn) stampBtn.className = "btn btn-sm btn-light fw-bold";
+                } else {
+                    stampImg.style.display = 'none';
+                    if (stampText) stampText.innerText = "{% if is_english %}Stamp: OFF{% else %}الختم: معطّل{% endif %}";
+                    if (stampIcon) stampIcon.className = "fas fa-toggle-off opacity-75 me-1";
+                    if (stampBtn) stampBtn.className = "btn btn-sm btn-outline-light";
+                }
             }
         }
-    }
+
+        function formatPhoneNumber(phone) {
+            if (!phone) return '';
+            let cleaned = phone.replace(/\D/g, '');
+            if (cleaned.startsWith('01') && cleaned.length === 11) {
+                return '20' + cleaned.substring(1);
+            }
+            if (cleaned.startsWith('05') && cleaned.length === 10) {
+                return '966' + cleaned.substring(1);
+            }
+            return cleaned;
+        }
+
+        window.addEventListener('DOMContentLoaded', function () {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('auto_print') === '1' || urlParams.get('auto_pdf') === 'true') {
+                setTimeout(function () {
+                    window.print();
+                }, 400);
+            }
+        });
     </script>
 </body>
+
 </html>

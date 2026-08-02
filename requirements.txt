@@ -33,7 +33,6 @@ crispy-bootstrap5==2025.6
 # crispy-tailwind==0.5.0  # ✅ REMOVED: Project uses Bootstrap, not Tailwind
 # cron_descriptor==1.4.0  # ✅ REMOVED: Not used in codebase
 cryptography==46.0.3  # Already compatible with Python 3.13
-# cssselect2  # ✅ REMOVED: WeasyPrint dependency - replaced with ReportLab
 defusedxml==0.7.1
 Deprecated==1.2.18
 diff-match-patch==20241021
@@ -158,6 +157,7 @@ rcssmin==1.1.2
 redis==5.2.1  # ✅ UPDATED: From 3.5.3 to latest stable
 referencing
 regex==2023.6.3
+reportlab==4.0.9
 requests
 # requests-oauthlib==1.3.1  # ✅ REMOVED: django-allauth dependency (allauth not used)
 # retrying==1.3.4  # ✅ REMOVED: Not used - can implement simple retry if needed
@@ -172,7 +172,10 @@ sqlparse==0.5.0
 # sslcommerz-lib==1.0  # ✅ REMOVED: SSLCommerz payment gateway not used
 # stripe==5.5.0  # ✅ REMOVED: Stripe payment gateway not used
 text-unidecode==1.3
-# tinycss2  # ✅ REMOVED: WeasyPrint dependency - replaced with ReportLab
+tinycss2
+cssselect2
+pyphen
+weasyprint==69.0
 # tinyhtml5==2.0.0  # ✅ REMOVED: Not used in project
 toml==0.10.2
 tomli

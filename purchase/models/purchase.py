@@ -5,10 +5,14 @@ from django.utils import timezone
 from django.urls import reverse
 
 
+from purchase.managers import PurchaseManager
+
+
 class Purchase(models.Model):
     """
     نموذج فاتورة المشتريات
     """
+    objects = PurchaseManager()
 
     STATUS_CHOICES = (
         ("draft", _("مسودة")),
@@ -132,6 +136,13 @@ class Purchase(models.Model):
         verbose_name = _("فاتورة مشتريات")
         verbose_name_plural = _("فواتير المشتريات")
         ordering = ["-date", "-number"]
+        indexes = [
+            models.Index(fields=["-date", "-number"]),
+            models.Index(fields=["supplier", "-date"]),
+            models.Index(fields=["warehouse", "-date"]),
+            models.Index(fields=["payment_status", "-date"]),
+            models.Index(fields=["status", "-date"]),
+        ]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

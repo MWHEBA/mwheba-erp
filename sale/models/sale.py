@@ -2,12 +2,14 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 from django.conf import settings
 from django.utils import timezone
+from sale.managers import SaleManager
 
 
 class Sale(models.Model):
     """
     نموذج فاتورة المبيعات
     """
+    objects = SaleManager()
 
     STATUS_CHOICES = (
         ("draft", _("مسودة")),
@@ -146,6 +148,13 @@ class Sale(models.Model):
             ("change_sale_salesman", "تغيير مسؤول المبيعات في الفواتير وعروض الأسعار"),
             ("manage_custom_fields", "إدارة وتعديل الحقول الإضافية المخصصة"),
         ]
+        indexes = [
+            models.Index(fields=["-date", "-number"]),
+            models.Index(fields=["customer", "-date"]),
+            models.Index(fields=["warehouse", "-date"]),
+            models.Index(fields=["payment_status", "-date"]),
+            models.Index(fields=["status", "-date"]),
+        ]
 
     def __str__(self):
         return f"{self.number} - {self.customer} - {self.date}"
@@ -235,6 +244,16 @@ class Sale(models.Model):
         """
         from sale.services.sale_service import SaleService
         return SaleService.smart_merge_custom_fields("sale", self.custom_fields)
+
+    @property
+    def has_header_custom_fields(self):
+        """هل توجد حقول مخصصة للهيدر تحتوي على قيم حقيقية؟"""
+        return any(f.get('show_in_header') and f.get('show_on_print') and f.get('value') for f in (self.merged_custom_fields or []))
+
+    @property
+    def has_body_custom_fields(self):
+        """هل توجد حقول مخصصة في التفاصيل تحتوي على قيم حقيقية؟"""
+        return any(not f.get('show_in_header') and f.get('value') for f in (self.merged_custom_fields or []))
 
     def update_payment_status(self):
         """

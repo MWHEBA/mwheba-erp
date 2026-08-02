@@ -1081,6 +1081,7 @@ class DeploymentManager:
         run_pip = False
         run_migrate = False
         run_collectstatic = False
+        run_init_modules = False
         run_reload = False
 
         # ذكي: كشف التغييرات التلقائية
@@ -1088,6 +1089,7 @@ class DeploymentManager:
         has_migrations = False
         has_static = False
         has_py = False
+        has_modules = False
 
         uploaded_list = getattr(self, 'uploaded_files', []) or []
         for file_path in uploaded_list:
@@ -1098,13 +1100,16 @@ class DeploymentManager:
                 has_migrations = True
             if 'static/' in file_name:
                 has_static = True
-            if file_name.endswith('.py'):
+            if file_name.endswith('.py') or file_name.endswith('.html'):
                 has_py = True
+            if any(k in file_name for k in ['system_modules', 'fixtures/', 'apps.py', 'settings.py']):
+                has_modules = True
 
         run_pip = has_reqs
         run_migrate = has_migrations
         run_collectstatic = has_static
-        run_reload = has_py or has_migrations or has_reqs
+        run_init_modules = has_modules or has_migrations
+        run_reload = has_py or has_migrations or has_reqs or has_static
 
         print("\n🔍 التحديث الذكي التلقائي اكتشف:")
         if run_pip:
@@ -1113,11 +1118,13 @@ class DeploymentManager:
             print("   🗄️  تعديل في ملفات الميجريشن → سيتم عمل الميجريشن")
         if run_collectstatic:
             print("   🎨 تعديل في الملفات الثابتة → سيتم عمل كولكت الستاتيك")
+        if run_init_modules:
+            print("   ⚙️  تعديل في موديولات أو ميجريشن النظام → سيتم تحديث وتأكيد الموديولات (init_modules)")
         if run_reload:
-            print("   💻 تعديل في ملفات الكود (Python) → سيتم إعادة تشغيل التطبيق")
+            print("   💻 تعديل في ملفات الكود/الصفحات → سيتم إعادة تشغيل التطبيق")
         
-        if not (run_pip or run_migrate or run_collectstatic or run_reload):
-            print("   ⏭️  لم يتم كشف أي تغييرات تتطلب تثبيت متطلبات أو ميجريشن أو كولكت ستاتيك.")
+        if not (run_pip or run_migrate or run_collectstatic or run_init_modules or run_reload):
+            print("   ⏭️  لم يتم كشف أي تغييرات تتطلب تثبيت متطلبات أو ميجريشن أو كولكت ستاتيك أو init_modules.")
             print("   💻 سيتم إعادة تشغيل التطبيق للاحتياط.")
             run_reload = True
 
@@ -1129,7 +1136,7 @@ class DeploymentManager:
             exec_commands.append((f"{venv} {manage} migrate --noinput", "عمل ميجريشن لقاعدة البيانات (migrate)"))
         if run_collectstatic:
             exec_commands.append((f"{venv} {manage} collectstatic --noinput", "تجميع الملفات الثابتة (collectstatic)"))
-        if run_reload:
+        if run_init_modules:
             exec_commands.append((f"{venv} {manage} init_modules", "تحديث وتأكيد موديولات النظام (init_modules)"))
 
         # تنفيذ الأوامر
@@ -1434,7 +1441,7 @@ class DeploymentManager:
                 f.write(f"\n" + "=" * 50 + "\n")
                 f.write(f"✅ تم حفظ {len(uploaded_files)} ملف بنجاح\n")
             
-            print(f"📝 تم حفظ تفاصيل الرفع في: {log_file}")
+
             
             # الاحتفاظ بأحدث 10 ملفات فقط وحذف الباقي
             log_dir = log_file.parent

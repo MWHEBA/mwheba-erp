@@ -541,9 +541,9 @@ def sale_return(request, pk):
 def sale_detail(request, pk):
     """
     عرض تفاصيل فاتورة مبيعات
-    ✅ محدث: يستخدم SaleService للإحصائيات
+    ✅ محدث: يستخدم معمارية with_details() المجمعة للأداء وسرعة الاستجابة
     """
-    sale_qs = Sale.objects.all()
+    sale_qs = Sale.objects.with_details()
     if not request.user.is_superuser and not request.user.is_staff:
         if hasattr(request.user, 'warehouse') and request.user.warehouse:
             sale_qs = sale_qs.filter(warehouse=request.user.warehouse)
@@ -552,14 +552,14 @@ def sale_detail(request, pk):
 
     sale = get_object_or_404(sale_qs, pk=pk)
     
-    # الحصول على الإحصائيات من SaleService
-    statistics = SaleService.get_sale_statistics(sale)
+    # الحصول على البنود والدفعات والمرتجعات في قوائم صريحة بالذاكرة لمنع Lazy Evaluation
+    items = list(sale.items.all())
+    payments = list(sale.payments.all())
+    returns = list(sale.returns.all())
     
-    # الحصول على البنود والدفعات والمرتجعات
-    items = sale.items.all()
-    payments = sale.payments.all().order_by('-payment_date')
-    returns = sale.returns.filter(status='confirmed').order_by('-date')
-    is_service_invoice = all(item.product.is_service for item in items)
+    # الحصول على الإحصائيات من SaleService بتمرير القوائم المجلوبة
+    statistics = SaleService.get_sale_statistics(sale, items=items, returns=returns)
+    is_service_invoice = all(item.product and getattr(item.product, 'is_service', False) for item in items)
 
     context = {
         "sale": sale,
@@ -588,7 +588,7 @@ def sale_detail(request, pk):
             *([{
                 "url": reverse("sale:sale_return", kwargs={"pk": sale.pk}),
                 "icon": "fa-undo",
-                "text": "إنشاء مرتجع",
+                "text": "مرتجع",
                 "class": "btn-warning",
             }] if sale.status != 'cancelled' else []),
             {
@@ -602,6 +602,29 @@ def sale_detail(request, pk):
                 "icon": "fa-print",
                 "text": "طباعة",
                 "class": "btn-info",
+            },
+            {
+                "dropdown": True,
+                "icon": "fa-file-pdf",
+                "text": "مشاركة",
+                "class": "btn-success",
+                "items": [
+                    {
+                        "onclick": f"downloadDocumentPDF('{reverse('sale:sale_pdf_download', kwargs={'pk': sale.pk})}', '{reverse('sale:sale_print', kwargs={'pk': sale.pk})}', '{sale.number}')",
+                        "icon": "fas fa-file-download text-primary",
+                        "text": "تحميل PDF"
+                    },
+                    {
+                        "onclick": f"shareWhatsAppPDF('{sale.customer.phone if sale.customer and sale.customer.phone else ''}', '{sale.number}', 'فاتورة مبيعات', '{reverse('sale:sale_pdf_download', kwargs={'pk': sale.pk})}', '{reverse('sale:sale_print', kwargs={'pk': sale.pk})}')",
+                        "icon": "fab fa-whatsapp text-success",
+                        "text": "إرسال واتساب"
+                    },
+                    {
+                        "onclick": f"sendEmailPDF('{reverse('sale:sale_email_pdf', kwargs={'pk': sale.pk})}', '{sale.customer.email if sale.customer and sale.customer.email else ''}', '{sale.number}', 'فاتورة مبيعات', '{reverse('sale:sale_pdf_download', kwargs={'pk': sale.pk})}', '{reverse('sale:sale_print', kwargs={'pk': sale.pk})}')",
+                        "icon": "far fa-envelope text-primary",
+                        "text": "إرسال بريد"
+                    }
+                ]
             },
             *([{
                 "url": reverse("sale:sale_print_thermal", kwargs={"pk": sale.pk}),
@@ -625,7 +648,7 @@ def sale_list(request):
     """
     عرض قائمة فواتير المبيعات
     """
-    sales_query = Sale.objects.all().order_by("-date", "-id")
+    sales_query = Sale.objects.with_list_details().all().order_by("-date", "-id")
 
     # تصفية حسب نص البحث
     search_query = request.GET.get("search") or request.GET.get("q")
@@ -687,31 +710,39 @@ def sale_list(request):
         # أزرار الإجراءات
         actions = []
 
+        # زر عرض التفاصيل
+        actions.append({
+            'url': reverse('sale:sale_detail', args=[sale.pk]),
+            'icon': 'fa-eye',
+            'label': 'عرض التفاصيل',
+            'class': 'action-view',
+        })
+
         # زر إضافة دفعة (إذا لم تكن مدفوعة بالكامل)
         if sale.payment_status != 'paid':
             actions.append({
                 'url': reverse('sale:sale_add_payment', args=[sale.pk]),
-                'icon': 'fas fa-money-bill',
-                'label': 'دفعة',
-                'class': 'btn-outline-success btn-sm',
+                'icon': 'fa-money-bill-wave',
+                'label': 'إضافة دفعة',
+                'class': 'action-paid',
             })
 
         # زر الطباعة (للفواتير المدفوعة فقط)
         if sale.payment_status == 'paid':
             actions.append({
                 'url': reverse('sale:sale_print', args=[sale.pk]),
-                'icon': 'fas fa-print',
+                'icon': 'fa-print',
                 'label': 'طباعة',
-                'class': 'btn-outline-secondary btn-sm',
+                'class': 'action-print',
                 'target': '_blank',
             })
 
         # زر نسخ الفاتورة
         actions.append({
             'url': reverse('sale:sale_duplicate', args=[sale.pk]),
-            'icon': 'fas fa-copy',
-            'label': 'نسخ',
-            'class': 'btn-outline-primary btn-sm',
+            'icon': 'fa-copy',
+            'label': 'نسخ الفاتورة',
+            'class': 'action-copy',
         })
 
         
@@ -840,16 +871,11 @@ def sale_list(request):
     return render(request, "sale/sale_list.html", context)
 
 
-@login_required
-def sale_print(request, pk):
-    """
-    طباعة فاتورة مبيعات (عربي / إنجليزي / ثنائي اللغة)
-    """
+def get_sale_print_context(request, pk):
     sale = get_object_or_404(Sale, pk=pk)
     items = sale.items.all().select_related('product', 'product__unit', 'product__category')
     from core.models import SystemSetting
     
-    # تحديد لغة الطباعة والاتجاه
     default_lang = SystemSetting.get_default_print_language()
     print_lang = request.GET.get('lang', default_lang).lower()
     if print_lang not in ['ar', 'en']:
@@ -859,7 +885,6 @@ def sale_print(request, pk):
     is_bilingual = False
     print_dir = 'ltr' if is_english else 'rtl'
     
-    # جلب الإعدادات المحددة للشركة
     company_name = SystemSetting.objects.filter(key="company_name").values_list("value", flat=True).first() or "مؤسسة موهبة"
     company_address = SystemSetting.objects.filter(key="company_address").values_list("value", flat=True).first() or ""
     company_phone = SystemSetting.objects.filter(key="company_phone").values_list("value", flat=True).first() or ""
@@ -934,8 +959,59 @@ def sale_print(request, pk):
         "has_item_discounts": sale.has_item_discounts,
         "salesman_name": sale.salesman_display_name,
     }
-    
+    return sale, context
+
+
+@login_required
+def sale_print(request, pk):
+    """
+    طباعة فاتورة مبيعات (عربي / إنجليزي / ثنائي اللغة)
+    """
+    sale, context = get_sale_print_context(request, pk)
     return render(request, "sale/sale_print.html", context)
+
+
+@login_required
+def sale_pdf_download(request, pk):
+    """
+    تصدير/تنزيل فاتورة مبيعات مباشرة كـ PDF بنسق نقي
+    """
+    from django.template.loader import render_to_string
+    from utils.pdf_utils import generate_pdf_from_html, generate_guaranteed_pdf_response
+    
+    sale, context = get_sale_print_context(request, pk)
+    
+    try:
+        html_content = render_to_string("sale/sale_print.html", context, request=request)
+        pdf_response = generate_pdf_from_html(html_content, request=request, filename=f"{sale.number}.pdf", doc_type="sale", context=context)
+        
+        if pdf_response:
+            return pdf_response
+    except Exception as e:
+        logger.error(f"Sale PDF generation error for {sale.number}: {e}")
+        
+    return generate_guaranteed_pdf_response("sale", context, filename=f"{sale.number}.pdf")
+
+
+@login_required
+def sale_email_pdf(request, pk):
+    """
+    إرسال الفاتورة عبر البريد الإلكتروني للعميل مباشرة
+    """
+    from django.http import JsonResponse
+    sale = get_object_or_404(Sale, pk=pk)
+    customer_email = sale.customer.email if sale.customer and sale.customer.email else None
+    if not customer_email:
+        return JsonResponse({'success': False, 'message': 'لا يوجد بريد إلكتروني مسجل للعميل'}, status=400)
+    
+    try:
+        from utils.email_utils import send_email
+        subject = f"فاتورة مبيعات #{sale.number}"
+        body = f"مرحباً {sale.customer.name}،\n\nيرجى الاطلاع على فاتورة المبيعات الخاصة بكم رقم #{sale.number}.\n\nرابط الفاتورة المباشر:\n{request.build_absolute_uri(reverse('sale:sale_print', kwargs={'pk': sale.pk}))}\n\nشكراً لتعاملكم معنا."
+        send_email(subject, body, [customer_email])
+        return JsonResponse({'success': True, 'message': 'تم إرسال البريد بنجاح!'})
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=500)
 
 
 @login_required
@@ -1738,3 +1814,17 @@ def api_create_custom_field(request):
             return JsonResponse({"success": False, "errors": form.errors}, status=400)
             
     return JsonResponse({"success": False, "message": _("طريقة الطلب غير صحيحة")}, status=405)
+
+
+from .quotation_views import (
+    quotation_list,
+    quotation_create,
+    quotation_detail,
+    quotation_edit,
+    quotation_delete,
+    quotation_print,
+    quotation_pdf_download,
+    quotation_email_pdf,
+    quotation_convert_to_sale,
+    check_product_stock,
+)

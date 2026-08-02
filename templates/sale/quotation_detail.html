@@ -457,7 +457,7 @@
                   <div class="party-label">{% trans "تاريخ الإنشاء:" %}</div>
                   <div class="party-value">{{ quotation.created_at|date:"d-m-Y h:i A" }}</div>
                 </div>
-                {% if quotation.merged_custom_fields %}
+                {% if quotation.has_header_custom_fields %}
                 {% for field in quotation.merged_custom_fields %}
                 {% if field.show_in_header and field.value %}
                 <div class="party-info">
@@ -567,7 +567,7 @@
           </div>
           {% endif %}
 
-          {% if quotation.merged_custom_fields %}
+          {% if quotation.has_body_custom_fields %}
           <div class="quotation-notes mt-3">
             <div class="notes-title"><i class="fas fa-list-ul me-2 text-primary"></i> {% trans "الحقول الإضافية المخصصة:" %}</div>
             <div class="row g-3 mt-1">

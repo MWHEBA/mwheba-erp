@@ -490,7 +490,7 @@
                                 <div class="party-label">{% trans "طريقة الدفع:" %}</div>
                                 <div class="party-value">{{ sale.get_payment_method_display }}</div>
                             </div>
-                            {% if sale.merged_custom_fields %}
+                            {% if sale.has_header_custom_fields %}
                             {% for field in sale.merged_custom_fields %}
                             {% if field.show_in_header and field.value %}
                             <div class="party-info">
@@ -525,7 +525,7 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {% for item in sale.items.all %}
+                                    {% for item in items %}
                                     <tr>
                                         <td>{{ forloop.counter }}</td>
                                         {% if settings.invoice_product_code_display and settings.invoice_product_code_display != 'none' %}
@@ -592,7 +592,7 @@
                     </div>
                     {% endif %}
 
-                    {% if sale.merged_custom_fields %}
+                    {% if sale.has_body_custom_fields %}
                     <div class="invoice-notes mt-4">
                         <div class="notes-title"><i class="fas fa-list-ul me-2 text-primary"></i> {% trans "الحقول الإضافية المخصصة:" %}</div>
                         <div class="row g-3 mt-1">
@@ -611,11 +611,11 @@
                     {% endif %}
                     
                     <!-- بداية قسم المرتجعات -->
-                    {% if sale.returns.exists %}
+                    {% if returns %}
                     <div class="mt-5">
                         <div class="section-title">
                             <i class="fas fa-undo-alt"></i> {% trans "مرتجعات الفاتورة" %}
-                            <span class="badge bg-danger ms-2">{{ sale.returns.count }}</span>
+                            <span class="badge bg-danger ms-2">{{ returns|length }}</span>
                         </div>
                         <div class="table-responsive">
                             <table class="related-table">
@@ -630,7 +630,7 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {% for return in sale.returns.all %}
+                                    {% for return in returns %}
                                     <tr>
                                         <td>{{ forloop.counter }}</td>
                                         <td>
@@ -668,11 +668,11 @@
                     <!-- نهاية قسم المرتجعات -->
                     
                     <!-- بداية قسم المدفوعات -->
-                    {% if sale.payments.exists %}
+                    {% if payments %}
                     <div class="mt-5">
                         <div class="section-title">
                             <i class="fas fa-money-bill-wave"></i> {% trans "سجل المدفوعات" %}
-                            <span class="badge bg-primary ms-2">{{ sale.payments.count }}</span>
+                            <span class="badge bg-primary ms-2">{{ payments|length }}</span>
                         </div>
                         <div class="table-responsive">
                             <table class="related-table">
@@ -689,7 +689,7 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {% for payment in sale.payments.all %}
+                                    {% for payment in payments %}
                                     <tr class="clickable-row" data-payment-url="{% url 'sale:payment_detail' payment.id %}" style="cursor: pointer;">
                                         <td>
                                             {% if payment.financial_transaction and payment.financial_transaction.reference %}
@@ -805,7 +805,7 @@
               <i class="fas fa-undo"></i>
             </div>
             <div>
-              <div class="fw-bold" style="font-weight: 700;">{% trans "إنشاء مرتجع" %}</div>
+              <div class="fw-bold" style="font-weight: 700;">{% trans "مرتجع" %}</div>
               <small class="text-muted">{% trans "إنشاء فاتورة مرتجع لهذه الفاتورة" %}</small>
             </div>
           </a>

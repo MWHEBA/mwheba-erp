@@ -8,32 +8,64 @@ Sale Signals - Updated
 - update_customer_balance_on_sale_save: تحديث الرصيد عند حفظ الفاتورة
 - update_customer_balance_on_sale_delete: تحديث الرصيد عند حذف الفاتورة
 """
+from django.db import transaction as db_transaction
+from django.db.models import Sum
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
-from django.db.models import Sum
 from decimal import Decimal
-from .models import SalePayment, Sale
+from client.models import Customer
+from .models import SalePayment, Sale, SaleReturn, CustomFieldDefinition
+from django.core.cache import cache
+from django.conf import settings
 
 
 def recalculate_customer_balance(customer):
     """
-    إعادة حساب رصيد العميل الفعلي وتحديثه في قاعدة البيانات
+    إعادة حساب رصيد العميل الفعلي وتحديثه بحماية كاملة للتزامن (Atomic Transaction & Row Locking)
+    الحسبة الشاملة: (إجمالي الفواتير - إجمالي المرتجعات - إجمالي المدفوعات)
     """
-    if not customer:
+    if not customer or not customer.pk:
         return
     
-    # مجموع كل فواتير المبيعات للعميل
-    total_sales = customer.sales.aggregate(total=Sum('total'))['total'] or Decimal('0')
-    
-    # مجموع كل الدفعات المرحلة للعميل
-    total_payments = SalePayment.objects.filter(
-        sale__customer=customer,
-        status='posted'
-    ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
-    
-    # تحديث الحقل المخزن بالرصيد الفعلي
-    customer.balance = total_sales - total_payments
-    customer.save(update_fields=['balance'])
+    with db_transaction.atomic():
+        try:
+            locked_customer = Customer.objects.select_for_update().get(pk=customer.pk)
+        except Customer.DoesNotExist:
+            return
+
+        # مجموع كل فواتير المبيعات للعميل (المؤكدة وغير الملغاة)
+        total_sales = Sale.objects.filter(
+            customer=locked_customer
+        ).exclude(status='cancelled').aggregate(total=Sum('total'))['total'] or Decimal('0')
+        
+        # مجموع كل المرتجعات المؤكدة للعميل
+        total_returns = SaleReturn.objects.filter(
+            sale__customer=locked_customer,
+            status='confirmed'
+        ).aggregate(total=Sum('total'))['total'] or Decimal('0')
+
+        # مجموع كل الدفعات المرحلة للعميل
+        total_payments = SalePayment.objects.filter(
+            sale__customer=locked_customer,
+            status='posted'
+        ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+        
+        # تحديث الحقل المخزن بالرصيد الفعلي بحماية ضد الـ Race Conditions
+        new_balance = total_sales - total_returns - total_payments
+        locked_customer.balance = new_balance
+        locked_customer.save(update_fields=['balance'])
+        customer.balance = new_balance
+
+
+@receiver(post_save, sender=CustomFieldDefinition)
+@receiver(post_delete, sender=CustomFieldDefinition)
+def invalidate_custom_fields_cache(sender, instance, **kwargs):
+    """
+    إبطال كاش تعاريف الحقول المخصصة فور تعديلها أو حذفها
+    """
+    client_name = getattr(settings, 'CLIENT_NAME', 'mwheba')
+    for module in ['sale', 'quotation', 'both']:
+        cache.delete(f"custom_field_defs_{module}_{client_name}")
 
 
 # ✅ Signal نشط: تحديث حالة الدفع ورصيد العميل عند الدفع

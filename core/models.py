@@ -53,26 +53,94 @@ class SystemSetting(models.Model):
         return f"{self.key} ({self.group})"
 
     @classmethod
+    def _get_all_settings_dict(cls):
+        from django.core.cache import cache
+        cache_key = 'global_settings_dict_v2'
+        settings_dict = cache.get(cache_key)
+        if settings_dict is None:
+            settings_dict = {}
+            for s in cls.objects.filter(is_active=True).values('key', 'value', 'data_type'):
+                val = s['value']
+                dt = s['data_type']
+                if dt == "boolean":
+                    val = str(val).lower() in ("true", "1", "yes", "نعم")
+                elif dt == "integer":
+                    try:
+                        val = int(val)
+                    except (ValueError, TypeError):
+                        val = 0
+                elif dt in ("decimal", "float"):
+                    try:
+                        val = float(val)
+                    except (ValueError, TypeError):
+                        val = 0.0
+                elif dt == "json":
+                    import json
+                    try:
+                        val = json.loads(val)
+                    except Exception:
+                        val = {}
+                settings_dict[s['key']] = val
+            cache.set(cache_key, settings_dict, 300)
+        return settings_dict
+
+    @classmethod
+    def invalidate_cache(cls):
+        from django.core.cache import cache
+        cache.delete('global_settings_dict_v2')
+
+    @classmethod
     def get_setting(cls, key, default=None):
         """
-        الحصول على قيمة إعداد معين
+        الحصول على قيمة إعداد معين باستخدام الكاش الموحد
         """
         try:
-            setting = cls.objects.get(key=key, is_active=True)
-            if setting.data_type == "integer":
-                return int(setting.value)
-            elif setting.data_type == "decimal":
-                return float(setting.value)
-            elif setting.data_type == "boolean":
-                return setting.value.lower() in ("true", "1", "yes")
-            elif setting.data_type == "json":
-                import json
-
-                return json.loads(setting.value)
-            else:
-                return setting.value
-        except cls.DoesNotExist:
+            settings_dict = cls._get_all_settings_dict()
+            if key in settings_dict:
+                return settings_dict[key]
             return default
+        except Exception:
+            try:
+                setting = cls.objects.get(key=key, is_active=True)
+                if setting.data_type == "integer":
+                    return int(setting.value)
+                elif setting.data_type == "decimal":
+                    return float(setting.value)
+                elif setting.data_type == "boolean":
+                    return setting.value.lower() in ("true", "1", "yes", "نعم")
+                elif setting.data_type == "json":
+                    import json
+                    return json.loads(setting.value)
+                else:
+                    return setting.value
+            except cls.DoesNotExist:
+                return default
+
+    @classmethod
+    def set_setting(cls, key, value, group="general", data_type="string", description=""):
+        """
+        تحديث أو إنشاء إعداد مع مسح الكاش صراحة
+        """
+        obj, created = cls.objects.update_or_create(
+            key=key,
+            defaults={
+                "value": str(value),
+                "group": group,
+                "data_type": data_type,
+                "description": description,
+                "is_active": True,
+            }
+        )
+        cls.invalidate_cache()
+        return obj
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        self.invalidate_cache()
+
+    def delete(self, *args, **kwargs):
+        super().delete(*args, **kwargs)
+        self.invalidate_cache()
     
     @classmethod
     def get_currency_symbol(cls):

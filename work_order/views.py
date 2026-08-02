@@ -193,17 +193,17 @@ def work_order_detail(request, pk):
             "title": _("غير مصرح"), "message": _("ليس لديك صلاحية لعرض تفاصيل أمر الشغل")
         })
 
-    work_order = get_object_or_404(WorkOrder, pk=pk)
+    work_order = get_object_or_404(WorkOrder.objects.select_related("customer", "created_by"), pk=pk)
 
     # 1. عروض الأسعار المرتبطة
-    quotations = work_order.quotations.all()
+    quotations = work_order.quotations.select_related("customer", "salesman", "created_by").all()
 
     # 2. فواتير المبيعات المرتبطة (إيرادات)
-    sales = work_order.sales.filter(status='confirmed')
+    sales = work_order.sales.select_related("customer", "warehouse", "salesman", "created_by").filter(status='confirmed')
     sales_total = sales.aggregate(total=Sum('total'))['total'] or Decimal('0.00')
 
     # 3. فواتير المشتريات المرتبطة (تكلفة خامات)
-    purchases = work_order.purchases.filter(status='confirmed')
+    purchases = work_order.purchases.select_related("supplier", "warehouse", "created_by").filter(status='confirmed')
     purchases_total = purchases.aggregate(total=Sum('total'))['total'] or Decimal('0.00')
 
     # 4. المصروفات والإيرادات المباشرة

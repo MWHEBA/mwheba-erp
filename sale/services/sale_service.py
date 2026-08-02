@@ -947,18 +947,29 @@ class SaleService:
             raise
 
     @staticmethod
-    def get_sale_statistics(sale):
+    def get_sale_statistics(sale, items=None, returns=None):
         """
-        الحصول على إحصائيات الفاتورة
+        الحصول على إحصائيات الفاتورة بأسلوب عالي الأداء يعتمد على القوائم المسحوبة بالذاكرة إن وُجدت
         """
+        if items is not None:
+            items_count = len(items)
+        else:
+            items_count = sale.items.count()
+
+        if returns is not None:
+            confirmed_returns = [r for r in returns if getattr(r, 'status', None) == 'confirmed']
+            returns_count = len(confirmed_returns)
+        else:
+            returns_count = sale.returns.filter(status='confirmed').count()
+
         return {
             'total': sale.total,
             'amount_paid': sale.amount_paid,
             'amount_due': sale.amount_due,
             'is_fully_paid': sale.is_fully_paid,
             'payment_status': sale.get_payment_status_display(),
-            'items_count': sale.items.count(),
-            'returns_count': sale.returns.filter(status='confirmed').count(),
+            'items_count': items_count,
+            'returns_count': returns_count,
             'is_returned': sale.is_returned,
             'return_status': sale.return_status,
         }
@@ -1006,16 +1017,25 @@ class SaleService:
     @staticmethod
     def smart_merge_custom_fields(module, existing_fields):
         """
-        دمج الحقول المخزنة سابقاً مع التعاريف النشطة في الإعدادات
+        دمج الحقول المخزنة سابقاً مع التعاريف النشطة في الإعدادات باستخدام Caching عالي الأداء
         """
-        from sale.models import CustomFieldDefinition
+        from django.core.cache import cache
+        from django.conf import settings
+
+        client_name = getattr(settings, 'CLIENT_NAME', 'mwheba')
+        cache_key = f"custom_field_defs_{module}_{client_name}"
+        active_defs = cache.get(cache_key)
+
+        if active_defs is None:
+            from sale.models import CustomFieldDefinition
+            active_defs = list(CustomFieldDefinition.objects.filter(
+                is_active=True,
+                module__in=[module, 'both']
+            ).order_by('sort_order', 'id'))
+            cache.set(cache_key, active_defs, timeout=300)
+
         existing_list = SaleService.parse_custom_fields(existing_fields)
         existing_keys = {f['key']: f for f in existing_list}
-        
-        active_defs = CustomFieldDefinition.objects.filter(
-            is_active=True,
-            module__in=[module, 'both']
-        ).order_by('sort_order', 'id')
 
         merged = []
         for defn in active_defs:

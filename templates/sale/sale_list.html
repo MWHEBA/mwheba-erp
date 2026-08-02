@@ -105,26 +105,7 @@
   <div class="section-container">
     <h5 class="section-title"><i class="fas fa-list me-2"></i>{% trans "قائمة فواتير المبيعات" %}</h5>
     <div id="sales-table-container">
-    <!-- استخدام قالب الجدول الموحد -->
-      {% with table_id="sales-table" %}
-        {% with headers=sale_headers %}
-          {% with data=sales_data %}
-            {% with empty_message="لا توجد فواتير مبيعات متاحة" %}
-              {% with table_class="hover" %}
-                {% with primary_key="id" %}
-                  {% with clickable_rows=True row_click_url="/sales/0/" %}
-                    {% with show_currency=True %}
-                      {% with disable_pagination=True show_search=False show_length_menu=False sortable=False %}
-                        {% include "components/data_table.html" %}
-                      {% endwith %}
-                    {% endwith %}
-                  {% endwith %}
-                {% endwith %}
-              {% endwith %}
-            {% endwith %}
-          {% endwith %}
-        {% endwith %}
-      {% endwith %}
+    {% include "components/data_table.html" with table_id="sales-table" headers=sale_headers data=sales_data primary_key="id" table_class="hover" empty_message="لا توجد فواتير مبيعات متاحة" show_search=False show_length_menu=False disable_pagination=True show_currency=True clickable_rows=True row_click_url="/sales/0/" sortable=False %}
     </div>
     
     {% if sales %}

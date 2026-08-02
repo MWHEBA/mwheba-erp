@@ -31,6 +31,10 @@ class PurchaseItem(models.Model):
     def __str__(self):
         return f"{self.product} x {self.quantity}"
 
+    @property
+    def total_price(self):
+        return self.total
+
     def save(self, *args, **kwargs):
         self.total = (self.quantity * self.unit_price) - self.discount
         super().save(*args, **kwargs)

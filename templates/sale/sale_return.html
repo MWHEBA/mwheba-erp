@@ -228,7 +228,11 @@
                 input.val(0);
             } else if (value > max) {
                 input.val(max);
-                alert('الكمية المرتجعة لا يمكن أن تتجاوز الكمية المباعة');
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({ icon: 'warning', title: 'تنبيه', text: 'الكمية المرتجعة لا يمكن أن تتجاوز الكمية المباعة', confirmButtonText: 'حسناً', confirmButtonColor: '#04578d' });
+                } else {
+                    alert('الكمية المرتجعة لا يمكن أن تتجاوز الكمية المباعة');
+                }
             }
         });
         
@@ -246,7 +250,11 @@
             
             if (!hasItems) {
                 e.preventDefault();
-                alert('يجب إدخال كمية مرتجعة لمنتج واحد على الأقل');
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({ icon: 'warning', title: 'تنبيه', text: 'يجب إدخال كمية مرتجعة لمنتج واحد على الأقل', confirmButtonText: 'حسناً', confirmButtonColor: '#04578d' });
+                } else {
+                    alert('يجب إدخال كمية مرتجعة لمنتج واحد على الأقل');
+                }
             }
         });
     });

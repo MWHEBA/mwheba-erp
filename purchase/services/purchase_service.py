@@ -277,7 +277,7 @@ class PurchaseService:
     @transaction.atomic
     def create_return(purchase, return_data, user):
         """
-        إنشاء مرتجع مشتريات
+        مرتجع مشتريات
         
         Args:
             purchase: الفاتورة الأصلية

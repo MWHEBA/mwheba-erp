@@ -282,25 +282,9 @@ class Supplier(models.Model):
     @property
     def actual_balance(self):
         """
-        حساب الاستحقاق الفعلي من فواتير المشتريات والمدفوعات
+        حساب الاستحقاق الفعلي من فواتير المشتريات والمدفوعات (يستخدم الحقل المخزن لمنع N+1 Queries)
         """
-        from django.db.models import Sum
-
-        # إجمالي كل فواتير المشتريات
-        total_purchases = self.purchases.aggregate(total=Sum("total"))["total"] or 0
-
-        # إجمالي المدفوعات الفعلية على فواتير المشتريات
-        from purchase.models import PurchasePayment
-
-        total_purchase_payments = (
-            PurchasePayment.objects.filter(purchase__supplier=self).aggregate(
-                total=Sum("amount")
-            )["total"]
-            or 0
-        )
-
-        # الاستحقاق = إجمالي فواتير المشتريات - إجمالي المدفوعات على الفواتير
-        return total_purchases - total_purchase_payments
+        return self.balance
 
 
 

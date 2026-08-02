@@ -1,4 +1,4 @@
-﻿{% load static %}
+{% load static %}
 {% load i18n %}
 {% load pricing_filters %}
 {% load utils_extras %}
@@ -233,27 +233,9 @@
                                         </div>
                                     {% elif header.format == 'reference' %}
                                         {% if field_value %}
-                                            {% if header.variant == 'highlight-code' %}
-                                                <div class="transaction-ref text-center">
-                                                    {% if header.key == 'reference_number' or header.key == 'number' %}
-                                                        {% if header.app == 'purchase' %}
-                                                        <a href="{% url 'purchase:purchase_detail' item|get_attr:primary_key|default:'0' %}" class="text-decoration-none">
-                                                        {% comment %}
-                                                        {% elif header.app == 'sale' %}
-                                                        <a href="{% url 'sale:sale_detail' item|get_attr:primary_key|default:'0' %}" class="text-decoration-none">
-                                                        {% endcomment %}
-                                                        {% else %}
-                                                        <a href="#" class="text-decoration-none">
-                                                        {% endif %}
-                                                            <span class="badge invoice-number"><i class="fas fa-file-invoice me-1"></i> {{ field_value }}</span>
-                                                        </a>
-                                                    {% else %}
-                                                        <span class="badge invoice-number"><i class="fas fa-file-invoice me-1"></i> {{ field_value }}</span>
-                                                    {% endif %}
-                                                </div>
-                                            {% else %}
-                                                <div class="transaction-ref text-center">{{ field_value }}</div>
-                                            {% endif %}
+                                            <div class="transaction-ref text-center">
+                                                <span class="invoice-number-text fw-bold text-dark">{{ field_value }}</span>
+                                            </div>
                                         {% else %}
                                             <strong style="text-align: center; display: block;"><span class="text-muted">-</span></strong>
                                         {% endif %}
@@ -467,126 +449,122 @@ document.addEventListener('DOMContentLoaded', function() {
     const table = document.getElementById(tableId);
     if (!table) return;
     
+    const isClickableRows = '{{ clickable_rows|default:False|yesno:"true,false" }}' === 'true';
+    const rowClickField = '{{ row_click_field|default:""|escapejs }}';
+    const rowClickUrl = '{{ row_click_url|default:""|escapejs }}';
+    const showExport = '{{ show_export|default:False|yesno:"true,false" }}' === 'true';
+    const showFilters = '{{ show_filters|default:False|yesno:"true,false" }}' === 'true';
+    const showColumnToggle = '{{ show_column_toggle|default:False|yesno:"true,false" }}' === 'true';
+
     // Clickable Rows Functionality
-    {% if clickable_rows|default:False %}
-    const tableBody = table.querySelector('tbody');
-    if (tableBody) {
-        // إضافة event listener واحد للجدول بدلاً من كل صف منفرد
-        tableBody.addEventListener('click', function(e) {
-            const row = e.target.closest('tr[data-clickable="true"]');
-            if (!row) return;
-            
-            // تجاهل النقر على أزرار الإجراءات أو الروابط
-            if (e.target.closest('.col-actions, .btn, a, button, input, select, textarea')) return;
-            
-            // تجاهل الصفوف الفارغة
-            if (row.getAttribute('data-empty') === 'true') return;
-            
-            const itemId = row.getAttribute('data-id');
-            
-            {% if row_click_field %}
-            // استخدام URL من البيانات
-            const url = row.getAttribute('data-url');
-            if (url && (url.startsWith('/') || url.startsWith(window.location.origin))) {
-                window.location.href = url;
-            }
-            {% elif row_click_url %}
-            // استخدام URL ثابت مع ID
-            if (itemId && itemId !== '0' && /^\d+$/.test(itemId)) {
-                const baseUrl = '{{ row_click_url|escapejs }}';
-                const url = baseUrl.replace('/0/', `/${encodeURIComponent(itemId)}/`);
-                if (url.startsWith('/') || url.startsWith(window.location.origin)) {
-                    window.location.href = url;
+    if (isClickableRows) {
+        const tableBody = table.querySelector('tbody');
+        if (tableBody) {
+            tableBody.addEventListener('click', function(e) {
+                const row = e.target.closest('tr[data-clickable="true"]');
+                if (!row) return;
+                
+                if (e.target.closest('.col-actions, .btn, a, button, input, select, textarea')) return;
+                if (row.getAttribute('data-empty') === 'true') return;
+                
+                const itemId = row.getAttribute('data-id');
+                
+                if (rowClickField) {
+                    const url = row.getAttribute('data-url');
+                    if (url && (url.startsWith('/') || url.startsWith(window.location.origin))) {
+                        window.location.href = url;
+                    }
+                } else if (rowClickUrl) {
+                    if (itemId && itemId !== '0' && /^\d+$/.test(itemId)) {
+                        const url = rowClickUrl.replace('/0/', `/${encodeURIComponent(itemId)}/`);
+                        if (url.startsWith('/') || url.startsWith(window.location.origin)) {
+                            window.location.href = url;
+                        }
+                    }
                 }
-            }
-            {% endif %}
-        });
-        
-        // إضافة cursor pointer وhover effects للصفوف القابلة للنقر
-        const clickableRows = tableBody.querySelectorAll('tr[data-clickable="true"]');
-        clickableRows.forEach(row => {
-            const itemId = row.getAttribute('data-id');
-            if (itemId && itemId !== '0' && row.getAttribute('data-empty') !== 'true') {
-                row.style.cursor = 'pointer';
-                row.title = 'انقر لعرض التفاصيل';
-                
-                row.addEventListener('mouseenter', function() {
-                    this.style.backgroundColor = 'var(--bs-light, #f8f9fa)';
-                });
-                
-                row.addEventListener('mouseleave', function() {
-                    this.style.backgroundColor = '';
-                });
-            }
-        });
+            });
+            
+            const clickableRows = tableBody.querySelectorAll('tr[data-clickable="true"]');
+            clickableRows.forEach(row => {
+                const itemId = row.getAttribute('data-id');
+                if (itemId && itemId !== '0' && row.getAttribute('data-empty') !== 'true') {
+                    row.style.cursor = 'pointer';
+                    row.title = 'انقر لعرض التفاصيل';
+                    
+                    row.addEventListener('mouseenter', function() {
+                        this.style.backgroundColor = 'var(--bs-light, #f8f9fa)';
+                    });
+                    
+                    row.addEventListener('mouseleave', function() {
+                        this.style.backgroundColor = '';
+                    });
+                }
+            });
+        }
     }
-    {% endif %}
     
     // Export Functionality
-    {% if show_export|default:False %}
-    // Excel Export
-    const excelBtn = document.querySelector('.btn-export-excel[data-table="' + tableId + '"]');
-    if (excelBtn && !excelBtn.dataset.listenerAdded) {
-        excelBtn.dataset.listenerAdded = 'true';
-        excelBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            
-            let filename = this.dataset.filename || 'table_data';
-            const dateFrom = this.dataset.dateFrom;
-            const dateTo = this.dataset.dateTo;
-            
-            // Add date range to filename if available
-            if (dateFrom && dateTo) {
-                filename = filename + '-' + dateFrom + '-' + dateTo;
-            } else if (dateFrom) {
-                filename = filename + '-from-' + dateFrom;
-            } else if (dateTo) {
-                filename = filename + '-to-' + dateTo;
-            }
-            
-            exportTableToExcel(tableId, filename);
-        }, { once: false });
+    if (showExport) {
+        const excelBtn = document.querySelector('.btn-export-excel[data-table="' + tableId + '"]');
+        if (excelBtn && !excelBtn.dataset.listenerAdded) {
+            excelBtn.dataset.listenerAdded = 'true';
+            excelBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                let filename = this.dataset.filename || 'table_data';
+                const dateFrom = this.dataset.dateFrom;
+                const dateTo = this.dataset.dateTo;
+                
+                if (dateFrom && dateTo) {
+                    filename = filename + '-' + dateFrom + '-' + dateTo;
+                } else if (dateFrom) {
+                    filename = filename + '-from-' + dateFrom;
+                } else if (dateTo) {
+                    filename = filename + '-to-' + dateTo;
+                }
+                
+                exportTableToExcel(tableId, filename);
+            }, { once: false });
+        }
     }
-    {% endif %}
     
     // Advanced Filters Functionality
-    {% if show_filters|default:False %}
-    const applyFiltersBtn = document.querySelector('.btn-apply-filters[data-table="' + tableId + '"]');
-    const clearFiltersBtn = document.querySelector('.btn-clear-filters[data-table="' + tableId + '"]');
-    
-    if (applyFiltersBtn) {
-        applyFiltersBtn.addEventListener('click', function() {
-            applyTableFilters(tableId);
-        });
-    }
-    
-    if (clearFiltersBtn) {
-        clearFiltersBtn.addEventListener('click', function() {
-            clearTableFilters(tableId);
-        });
-    }
-    
-    // Auto-apply filters on change
-    const filterInputs = document.querySelectorAll('.table-filter[data-table="' + tableId + '"]');
-    filterInputs.forEach(input => {
-        input.addEventListener('change', function() {
-            if (this.value) {
+    if (showFilters) {
+        const applyFiltersBtn = document.querySelector('.btn-apply-filters[data-table="' + tableId + '"]');
+        const clearFiltersBtn = document.querySelector('.btn-clear-filters[data-table="' + tableId + '"]');
+        
+        if (applyFiltersBtn) {
+            applyFiltersBtn.addEventListener('click', function() {
                 applyTableFilters(tableId);
-            }
+            });
+        }
+        
+        if (clearFiltersBtn) {
+            clearFiltersBtn.addEventListener('click', function() {
+                clearTableFilters(tableId);
+            });
+        }
+        
+        const filterInputs = document.querySelectorAll('.table-filter[data-table="' + tableId + '"]');
+        filterInputs.forEach(input => {
+            input.addEventListener('change', function() {
+                if (this.value) {
+                    applyTableFilters(tableId);
+                }
+            });
         });
-    });
-    {% endif %}
+    }
     
     // Column Toggle Functionality
-    {% if show_column_toggle|default:False %}
-    const columnToggles = document.querySelectorAll('.column-toggle[data-table="' + tableId + '"]');
-    columnToggles.forEach(toggle => {
-        toggle.addEventListener('change', function() {
-            toggleTableColumn(tableId, this.dataset.column, this.checked);
+    if (showColumnToggle) {
+        const columnToggles = document.querySelectorAll('.column-toggle[data-table="' + tableId + '"]');
+        columnToggles.forEach(toggle => {
+            toggle.addEventListener('change', function() {
+                toggleTableColumn(tableId, this.dataset.column, this.checked);
+            });
         });
-    });
-    {% endif %}
+    }
 });
 
 // Export Functions
