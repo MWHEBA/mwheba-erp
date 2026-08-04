@@ -8,7 +8,6 @@
 {% block title %}{{ product.name }}{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/shared-components.css' %}">
 <link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
 <!-- تمرير البيانات من Django إلى JavaScript -->
 {{ product.id|json_script:"product-id" }}
