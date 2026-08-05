@@ -17,8 +17,12 @@ class Currency(models.Model):
     symbol = models.CharField(_("رمز الرمزية"), max_length=10, blank=True, null=True)
     decimal_places = models.PositiveSmallIntegerField(_("الكسور العشريّة"), default=2)
     is_active = models.BooleanField(_("نشط"), default=True)
-    is_base = models.BooleanField(_("عملة الأساس (EGP)"), default=False)
-    created_at = models.DateTimeField(_("تاريخ الإنشاء"), auto_now_add=True)
+    is_functional = models.BooleanField(_("العملة المحلية الأساسية؟"), default=False)
+
+    @property
+    def is_base(self):
+
+        return self.is_functional
 
     class Meta:
         verbose_name = _("عملة")
@@ -29,9 +33,9 @@ class Currency(models.Model):
         return f"{self.code} - {self.name}"
 
     def save(self, *args, **kwargs):
-        if self.is_base:
+        if self.is_functional:
             # Ensure only one base currency exists
-            Currency.objects.filter(is_base=True).exclude(pk=self.pk).update(is_base=False)
+            Currency.objects.filter(is_functional=True).exclude(pk=self.pk).update(is_functional=False)
         super().save(*args, **kwargs)
 
 

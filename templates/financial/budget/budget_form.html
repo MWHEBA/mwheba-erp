@@ -1,0 +1,242 @@
+{% extends "base.html" %}
+{% load i18n static %}
+
+{% block title %}{% trans "إعداد موازنة تقديرية لمركز تكلفة" %}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/select2.min.css' %}">
+<style>
+  .select2-container--default .select2-selection--single {
+    height: 38px;
+    border: 1px solid var(--border-color, #ced4da);
+    border-radius: 0.375rem;
+    padding: 4px 8px;
+  }
+  .select2-container--default .select2-selection--single .select2-selection__arrow {
+    height: 36px;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+  {% include "shared/page_header.html" %}
+
+  <div class="card border-0 shadow-sm" style="border-radius: var(--border-radius-lg, 12px); background-color: var(--bg-card, #ffffff);">
+    <div class="card-header bg-light border-bottom px-4 py-3">
+      <h5 class="mb-0 fw-bold" style="color: var(--text-dark, #1f2937);">
+        <i class="fas fa-plus-circle text-primary me-2"></i>{% trans "إعداد موازنة تقديرية لمركز تكلفة" %}
+      </h5>
+    </div>
+    <form method="post" action="{% url 'financial:budget_create' %}">
+      {% csrf_token %}
+      <div class="card-body p-4">
+        <!-- بيانات هيدر الموازنة -->
+        <div class="row g-3 mb-4">
+          <div class="col-md-4">
+            <label class="form-label fw-bold">{% trans "مركز التكلفة" %} <span class="text-danger">*</span></label>
+            <select name="cost_center" class="form-select select2-cost-center" required>
+              <option value="">-- {% trans "اختر مركز التكلفة" %} --</option>
+              {% for cc in cost_centers %}
+                <option value="{{ cc.id }}" {% if selected_cost_center_id and selected_cost_center_id|stringformat:'s' == cc.id|stringformat:'s' %}selected{% endif %}>
+                  {{ cc.code }} - {{ cc.name }}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label fw-bold">{% trans "السنة المالية" %} <span class="text-danger">*</span></label>
+            <select name="fiscal_year" class="form-select" required>
+              <option value="">-- {% trans "اختر السنة المالية" %} --</option>
+              {% for fy in fiscal_years %}
+                <option value="{{ fy.id }}">{{ fy.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label fw-bold">{% trans "إجمالي الموازنة الاسترشادية" %}</label>
+            <input type="number" step="0.01" id="budget_amount" name="budget_amount" class="form-control font-mono" placeholder="0.00">
+            <div id="budget-summary-badge" class="form-text mt-1 fw-bold"></div>
+          </div>
+        </div>
+
+        <hr class="my-4">
+
+        <!-- جدول بنود الحسابات وسياسات الرقابة -->
+        <div class="d-flex align-items-center justify-content-between mb-3">
+          <h6 class="fw-bold mb-0" style="color: var(--text-dark, #1f2937);">
+            <i class="fas fa-list text-primary me-2"></i>{% trans "تخصيص بنود الحسابات والسياسات الوقائية" %}
+          </h6>
+          <button type="button" class="btn btn-sm btn-outline-primary" id="add-line-btn">
+            <i class="fas fa-plus me-1"></i> {% trans "إضافة بند حساب" %}
+          </button>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table table-bordered align-middle" id="budget-lines-table">
+            <thead class="bg-light">
+              <tr>
+                <th style="width: 40%;">{% trans "الحساب المحاسبي" %} <span class="text-danger">*</span></th>
+                <th style="width: 25%;">{% trans "المبلغ التقديري المعتمد" %} <span class="text-danger">*</span></th>
+                <th style="width: 30%;">{% trans "سياسة الرقابة المحاسبية الوقائية" %}</th>
+                <th style="width: 5%;" class="text-center">#</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>
+                  <select name="account_id[]" class="form-select account-select2" required>
+                    <option value="">-- {% trans "اختر الحساب المحاسبي" %} --</option>
+                    {% for acc in accounts %}
+                      <option value="{{ acc.id }}">{{ acc.code }} - {{ acc.name }}</option>
+                    {% endfor %}
+                  </select>
+                </td>
+                <td>
+                  <input type="number" step="0.01" min="0" name="allocated_amount[]" class="form-control font-mono" placeholder="0.00" required>
+                </td>
+                <td>
+                  <select name="control_policy[]" class="form-select">
+                    {% for key, val in control_policies %}
+                      <option value="{{ key }}" {% if key == 'BLOCK' %}selected{% endif %}>{{ val }}</option>
+                    {% endfor %}
+                  </select>
+                </td>
+                <td class="text-center">
+                  <button type="button" class="btn btn-sm btn-outline-danger remove-line-btn"><i class="fas fa-trash"></i></button>
+                </td>
+              </tr>
+            </tbody>
+            <tfoot class="bg-light fw-bold">
+              <tr>
+                <td class="text-end py-2 px-3">{% trans "مجموع البنود المخصصة:" %}</td>
+                <td class="py-2 px-3 font-mono text-primary fs-6" id="total-allocated-display">0.00</td>
+                <td colspan="2"></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+      <div class="card-footer border-top px-4 py-3 bg-light d-flex justify-content-end gap-2">
+        <a href="{% url 'financial:budget_list' %}" class="btn btn-outline-secondary">{% trans "إلغاء" %}</a>
+        <button type="submit" class="btn btn-primary px-4"><i class="fas fa-save me-1"></i>{% trans "حفظ مسودة الموازنة" %}</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="{% static 'js/select2.min.js' %}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  $('.select2-cost-center').select2({
+    width: '100%',
+    dir: 'rtl',
+    placeholder: '-- {% trans "اختر مركز التكلفة" %} --',
+    allowClear: true
+  });
+
+  function initSelect2(context) {
+    $(context).find('.account-select2').select2({
+      width: '100%',
+      dir: 'rtl',
+      placeholder: '-- {% trans "اختر الحساب المحاسبي" %} --',
+      allowClear: true
+    });
+  }
+
+  initSelect2(document);
+
+  const addBtn = document.getElementById('add-line-btn');
+  const tableBody = document.querySelector('#budget-lines-table tbody');
+  const targetBudgetInput = document.getElementById('budget_amount');
+  const totalDisplay = document.getElementById('total-allocated-display');
+  const summaryBadge = document.getElementById('budget-summary-badge');
+
+  function calculateTotals() {
+    let total = 0;
+    document.querySelectorAll('input[name="allocated_amount[]"]').forEach(input => {
+      const val = parseFloat(input.value) || 0;
+      total += val;
+    });
+
+    totalDisplay.textContent = total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    const targetVal = parseFloat(targetBudgetInput.value);
+    if (!isNaN(targetVal) && targetVal > 0) {
+      const diff = targetVal - total;
+      if (diff === 0) {
+        summaryBadge.className = 'form-text mt-1 text-success fw-bold';
+        summaryBadge.innerHTML = `<i class="fas fa-check-circle me-1"></i> إجمالي البنود متطابق 100% مع الموازنة الاسترشادية (${total.toLocaleString('en-US')})`;
+      } else if (diff < 0) {
+        summaryBadge.className = 'form-text mt-1 text-danger fw-bold';
+        summaryBadge.innerHTML = `<i class="fas fa-exclamation-circle me-1"></i> البنود تتجاوز الموازنة الاسترشادية بـ (${Math.abs(diff).toLocaleString('en-US')})`;
+      } else {
+        summaryBadge.className = 'form-text mt-1 text-info fw-bold';
+        summaryBadge.innerHTML = `<i class="fas fa-info-circle me-1"></i> المتبقي غير مخصص من الموازنة: (${diff.toLocaleString('en-US')})`;
+      }
+    } else {
+      summaryBadge.className = 'form-text mt-1 text-muted';
+      summaryBadge.innerHTML = `<i class="fas fa-calculator me-1"></i> إجمالي البنود المخصصة حالياً: (${total.toLocaleString('en-US')})`;
+      if (total > 0 && targetBudgetInput.value === '') {
+        targetBudgetInput.value = total.toFixed(2);
+      }
+    }
+  }
+
+  addBtn.addEventListener('click', function() {
+    const newRowHTML = `
+      <tr>
+        <td>
+          <select name="account_id[]" class="form-select account-select2" required>
+            <option value="">-- {% trans "اختر الحساب المحاسبي" %} --</option>
+            {% for acc in accounts %}
+              <option value="{{ acc.id }}">{{ acc.code }} - {{ acc.name }}</option>
+            {% endfor %}
+          </select>
+        </td>
+        <td>
+          <input type="number" step="0.01" min="0" name="allocated_amount[]" class="form-control font-mono" placeholder="0.00" required>
+        </td>
+        <td>
+          <select name="control_policy[]" class="form-select">
+            {% for key, val in control_policies %}
+              <option value="{{ key }}" {% if key == 'BLOCK' %}selected{% endif %}>{{ val }}</option>
+            {% endfor %}
+          </select>
+        </td>
+        <td class="text-center">
+          <button type="button" class="btn btn-sm btn-outline-danger remove-line-btn"><i class="fas fa-trash"></i></button>
+        </td>
+      </tr>
+    `;
+    const $newRow = $(newRowHTML);
+    $('#budget-lines-table tbody').append($newRow);
+    initSelect2($newRow);
+    calculateTotals();
+  });
+
+  tableBody.addEventListener('click', function(e) {
+    if (e.target.closest('.remove-line-btn')) {
+      if (tableBody.querySelectorAll('tr').length > 1) {
+        const row = e.target.closest('tr');
+        $(row).find('.account-select2').select2('destroy');
+        row.remove();
+        calculateTotals();
+      }
+    }
+  });
+
+  tableBody.addEventListener('input', function(e) {
+    if (e.target.name === 'allocated_amount[]') {
+      calculateTotals();
+    }
+  });
+
+  targetBudgetInput.addEventListener('input', calculateTotals);
+
+  calculateTotals();
+});
+</script>
+{% endblock %}

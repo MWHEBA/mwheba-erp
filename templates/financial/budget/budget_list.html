@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% load i18n static utils_extras %}
+
+{% block title %}{% trans "إدارة الموازنات التقديرية لمراكز التكلفة" %}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+<link rel="stylesheet" href="{% static 'css/tables.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+  {% include "shared/page_header.html" %}
+
+  <!-- كارت التصفية والبحث -->
+  <div class="card border-0 shadow-sm mb-4" style="border-radius: var(--border-radius-lg, 12px); background-color: var(--bg-card, #ffffff);">
+    <div class="card-body p-4">
+      <form method="get" action="{% url 'financial:budget_list' %}" class="row g-3 align-items-end">
+        <div class="col-md-4">
+          <label class="form-label fw-bold">{% trans "بحث بمركز التكلفة" %}</label>
+          <input type="text" name="search" class="form-control" placeholder="{% trans 'ابحث بكود أو اسم مركز التكلفة...' %}" value="{{ search_query|default:'' }}">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label fw-bold">{% trans "حالة الموازنة" %}</label>
+          <select name="status" class="form-select">
+            <option value="">-- {% trans "كل الحالات" %} --</option>
+            <option value="DRAFT" {% if status_filter == 'DRAFT' %}selected{% endif %}>{% trans "مسودة" %}</option>
+            <option value="SUBMITTED" {% if status_filter == 'SUBMITTED' %}selected{% endif %}>{% trans "مقدمة للاعتماد" %}</option>
+            <option value="APPROVED" {% if status_filter == 'APPROVED' %}selected{% endif %}>{% trans "معتمدة" %}</option>
+            <option value="REVISED" {% if status_filter == 'REVISED' %}selected{% endif %}>{% trans "معدلة" %}</option>
+          </select>
+        </div>
+        <div class="col-md-3 d-flex gap-2">
+          <button type="submit" class="btn btn-primary flex-grow-1"><i class="fas fa-search me-1"></i>{% trans "تصفية" %}</button>
+          <a href="{% url 'financial:budget_list' %}" class="btn btn-outline-secondary"><i class="fas fa-undo me-1"></i>{% trans "إعادة تعيين" %}</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- جدول الموازنات التقديرية -->
+  <div class="card border-0 shadow-sm" style="border-radius: var(--border-radius-lg, 12px); background-color: var(--bg-card, #ffffff);">
+    <div class="card-header bg-light border-bottom px-4 py-3 d-flex align-items-center justify-content-between">
+      <h5 class="mb-0 fw-bold" style="color: var(--text-dark, #1f2937);">
+        <i class="fas fa-list-alt text-primary me-2"></i>{% trans "سجل الموازنات التقديرية المعرفة" %}
+      </h5>
+      <a href="{% url 'financial:budget_create' %}" class="btn btn-primary btn-sm">
+        <i class="fas fa-plus-circle me-1"></i>{% trans "إضافة موازنة تقديرية" %}
+      </a>
+    </div>
+    <div class="card-body p-0">
+      {% if budgets %}
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="bg-light">
+              <tr>
+                <th class="py-3 px-4">{% trans "مركز التكلفة" %}</th>
+                <th class="py-3 px-4 text-center">{% trans "السنة المالية" %}</th>
+                <th class="py-3 px-4 text-center">{% trans "الإصدار" %}</th>
+                <th class="py-3 px-4 text-end">{% trans "إجمالي الموازنة" %}</th>
+                <th class="py-3 px-4 text-center">{% trans "الحالة" %}</th>
+                <th class="py-3 px-4 text-center">{% trans "الإجراءات" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for b in budgets %}
+                <tr>
+                  <td class="py-3 px-4">
+                    <a href="{% url 'financial:cost_center_detail' b.cost_center.pk %}" class="fw-bold text-decoration-none text-dark">
+                      {{ b.cost_center.code }} - {{ b.cost_center.name }}
+                    </a>
+                  </td>
+                  <td class="py-3 px-4 text-center"><span class="badge bg-light text-dark border">{{ b.fiscal_year.name }}</span></td>
+                  <td class="py-3 px-4 text-center"><span class="badge bg-info text-dark font-mono">v{{ b.version }}</span></td>
+                  <td class="py-3 px-4 text-end font-mono fw-bold text-primary">{{ b.budget_amount|smart_float }}</td>
+                  <td class="py-3 px-4 text-center">
+                    {% if b.status == 'APPROVED' %}
+                      <span class="badge bg-success px-3 py-2"><i class="fas fa-check-circle me-1"></i>{% trans "معتمدة" %}</span>
+                    {% elif b.status == 'SUBMITTED' %}
+                      <span class="badge bg-warning text-dark px-3 py-2"><i class="fas fa-clock me-1"></i>{% trans "مقدمة للاعتماد" %}</span>
+                    {% elif b.status == 'REVISED' %}
+                      <span class="badge bg-info px-3 py-2"><i class="fas fa-history me-1"></i>{% trans "معدلة" %}</span>
+                    {% else %}
+                      <span class="badge bg-secondary px-3 py-2"><i class="fas fa-edit me-1"></i>{% trans "مسودة" %}</span>
+                    {% endif %}
+                  </td>
+                  <td class="py-3 px-4 text-center">
+                    <a href="{% url 'financial:budget_detail' b.pk %}" class="btn btn-sm btn-outline-primary"><i class="fas fa-eye me-1"></i>{% trans "عرض التفاصيل" %}</a>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="text-center py-5 text-muted">
+          <i class="fas fa-calculator fs-1 d-block mb-3 opacity-50"></i>
+          <h6>{% trans "لا توجد موازنات تقديرية معرفة حالياً" %}</h6>
+          <a href="{% url 'financial:budget_create' %}" class="btn btn-primary btn-sm mt-2"><i class="fas fa-plus-circle me-1"></i>{% trans "إنشاء موازنة تقديرية" %}</a>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

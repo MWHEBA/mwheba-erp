@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% load i18n static utils_extras %}
+
+{% block title %}{% trans "تقرير تباين أداء الموازنة اللحظي" %}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+<link rel="stylesheet" href="{% static 'css/tables.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+  {% include "shared/page_header.html" %}
+
+  <!-- كارت التصفية والفلترة بمركز التكلفة -->
+  <div class="card border-0 shadow-sm mb-4" style="border-radius: var(--border-radius-lg, 12px); background-color: var(--bg-card, #ffffff);">
+    <div class="card-body p-4">
+      <form method="get" action="{% url 'financial:budget_performance_report' %}" class="row g-3 align-items-end">
+        <div class="col-md-5">
+          <label class="form-label fw-bold">{% trans "تصفية بمركز التكلفة" %}</label>
+          <select name="cost_center" class="form-select">
+            <option value="">-- {% trans "جميع مراكز التكلفة" %} --</option>
+            {% for cc in cost_centers %}
+              <option value="{{ cc.id }}" {% if selected_cost_center_id and selected_cost_center_id|stringformat:'s' == cc.id|stringformat:'s' %}selected{% endif %}>
+                {{ cc.code }} - {{ cc.name }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-4 d-flex gap-2">
+          <button type="submit" class="btn btn-primary flex-grow-1"><i class="fas fa-filter me-1"></i>{% trans "تطبيق التصفية" %}</button>
+          <a href="{% url 'financial:budget_performance_report' %}" class="btn btn-outline-secondary"><i class="fas fa-undo me-1"></i>{% trans "إعادة تعيين" %}</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm" style="border-radius: var(--border-radius-lg, 12px); background-color: var(--bg-card, #ffffff);">
+    <div class="card-header bg-light border-bottom px-4 py-3 d-flex align-items-center justify-content-between">
+      <h5 class="mb-0 fw-bold" style="color: var(--text-dark, #1f2937);">
+        <i class="fas fa-chart-line text-primary me-2"></i>{% trans "تقرير التباين اللحظي للموازنة المعتمدة" %}
+      </h5>
+      <span class="badge bg-success font-mono px-3 py-2"><i class="fas fa-bolt me-1"></i>{% trans "تحديث لحظي < 50ms" %}</span>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="bg-light">
+            <tr>
+              <th class="py-3 px-4">{% trans "مركز التكلفة" %}</th>
+              <th class="py-3 px-4">{% trans "الحساب المحاسبي" %}</th>
+              <th class="py-3 px-4 text-center">{% trans "السياسة" %}</th>
+              <th class="py-3 px-4 text-end">{% trans "الموازنة المعتمدة" %}</th>
+              <th class="py-3 px-4 text-end">{% trans "المنفق الفعلي" %}</th>
+              <th class="py-3 px-4 text-end">{% trans "الالتزامات (PO)" %}</th>
+              <th class="py-3 px-4 text-end">{% trans "المتبقي / الانحراف" %}</th>
+              <th class="py-3 px-4" style="min-width: 140px;">{% trans "نسبة الاستهلاك" %}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in report_items %}
+              <tr>
+                <td class="py-3 px-4">
+                  <a href="{% url 'financial:cost_center_detail' item.cost_center.pk %}" class="fw-bold text-decoration-none text-dark">
+                    {{ item.cost_center.code }} - {{ item.cost_center.name }}
+                  </a>
+                </td>
+                <td class="py-3 px-4">
+                  <span class="font-mono text-muted me-2">{{ item.account.code }}</span>
+                  <span>{{ item.account.name }}</span>
+                </td>
+                <td class="py-3 px-4 text-center">
+                  {% if item.policy == 'BLOCK' %}
+                    <span class="badge bg-danger">{% trans "حظر (BLOCK)" %}</span>
+                  {% elif item.policy == 'WARN' %}
+                    <span class="badge bg-warning text-dark">{% trans "تحذير (WARN)" %}</span>
+                  {% else %}
+                    <span class="badge bg-info">{% trans "سماح (ALLOW)" %}</span>
+                  {% endif %}
+                </td>
+                <td class="py-3 px-4 text-end font-mono fw-bold text-primary">{{ item.allocated|smart_float }}</td>
+                <td class="py-3 px-4 text-end font-mono text-danger">{{ item.actual|smart_float }}</td>
+                <td class="py-3 px-4 text-end font-mono text-warning">{{ item.committed|smart_float }}</td>
+                <td class="py-3 px-4 text-end font-mono fw-bold {% if item.variance < 0 %}text-danger{% else %}text-success{% endif %}">
+                  {{ item.variance|smart_float }}
+                </td>
+                <td class="py-3 px-4" style="min-width: 140px;">
+                  <div class="d-flex align-items-center gap-2">
+                    <div class="progress flex-grow-1" style="height: 8px;">
+                      <div class="progress-bar {% if item.percentage > 100 %}bg-danger{% elif item.percentage > 80 %}bg-warning{% else %}bg-success{% endif %}"
+                           role="progressbar" data-progress="{{ item.percentage }}"></div>
+                    </div>
+                    <span class="small font-mono fw-bold">{{ item.percentage }}%</span>
+                  </div>
+                </td>
+              </tr>
+            {% empty %}
+              <tr>
+                <td colspan="8" class="text-center py-5 text-muted">{% trans "لا توجد سجلات تباين موازنة مسجلة حالياً." %}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('.progress-bar[data-progress]').forEach(function(el) {
+    el.style.width = el.getAttribute('data-progress') + '%';
+  });
+});
+</script>
+{% endblock %}

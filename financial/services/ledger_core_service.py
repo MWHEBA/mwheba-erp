@@ -67,18 +67,25 @@ class LedgerCoreService:
                 exchange_rate = Decimal(str(item.get("exchange_rate", "1.000000")))
                 foreign_debit = Decimal(str(item.get("foreign_debit", 0)))
                 foreign_credit = Decimal(str(item.get("foreign_credit", 0)))
+                cost_center = item.get("cost_center")
 
                 JournalEntryLine.objects.create(
+
                     journal_entry=journal_entry,
                     account=account,
-                    debit=debit,
-                    credit=credit,
+                    debit=debit.quantize(Decimal('0.01')),
+                    credit=credit.quantize(Decimal('0.01')),
+                    transaction_debit=debit.quantize(Decimal('0.01')),
+                    transaction_credit=credit.quantize(Decimal('0.01')),
+                    exchange_rate_snapshot=exchange_rate.quantize(Decimal('0.000001')),
+                    cost_center=cost_center,
                     description=line_desc,
                     currency=currency,
-                    exchange_rate=exchange_rate,
-                    foreign_debit=foreign_debit,
-                    foreign_credit=foreign_credit
+                    exchange_rate=exchange_rate.quantize(Decimal('0.000001')),
+                    foreign_debit=foreign_debit.quantize(Decimal('0.01')),
+                    foreign_credit=foreign_credit.quantize(Decimal('0.01'))
                 )
+
 
             if total_debit != total_credit:
                 raise FinancialCoreError(f"Unbalanced entry: total debit {total_debit} != total credit {total_credit}")
@@ -135,7 +142,8 @@ class LedgerCoreService:
             if not entry.is_balanced:
                 raise FinancialCoreError("Cannot post unbalanced journal entry.")
 
-            # الفحص المزدوج وتجميد لقطات مراكز التكلفة الأربعة قبل التترحيل
+            # الفحص المزدوج وتجميد لقطات مراكز التكلفة الأربعة والتحقق الوقائي من الموازنة قبل الترحيل
+            from financial.services.budget_control_service import BudgetControlService
             for line in entry.lines.all():
                 line.full_clean()
                 if line.cost_center:
@@ -147,6 +155,16 @@ class LedgerCoreService:
                         'cost_center_name_snapshot',
                         'cost_center_path_snapshot'
                     ])
+                    # التحقق الوقائي من سقف الموازنة المتاحة
+                    amount = line.debit if line.debit > 0 else line.credit
+                    BudgetControlService.validate_budget_limit(
+                        cost_center=line.cost_center,
+                        account=line.account,
+                        accounting_period=entry.accounting_period,
+                        amount=amount,
+                        user=user
+                    )
+
 
             entry.status = "posted"
             entry.posted_at = timezone.now()

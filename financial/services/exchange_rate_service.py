@@ -1,8 +1,10 @@
 from decimal import Decimal
 from typing import Dict, Any, Optional
+from django.db import models
 from django.utils import timezone
 from django.core.exceptions import ValidationError
 from financial.models.currency import Currency, ExchangeRate
+
 
 
 class ExchangeRateService:
@@ -12,7 +14,15 @@ class ExchangeRateService:
     """
 
     @classmethod
+    def get_functional_currency(cls) -> Optional[Currency]:
+        """الحصول على العملة الوظيفية/الأساسية للمؤسسة"""
+        return Currency.objects.filter(is_functional=True).first() or Currency.objects.first()
+
+
+
+    @classmethod
     def get_rate(cls, from_code: str, to_code: str = "EGP", date=None) -> Decimal:
+
         """
         الحصول على سعر الصرف اللحظي بتاريخ معين
         """

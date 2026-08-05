@@ -59,8 +59,88 @@
         </div>
       </div>
 
+      <!-- كارت الموازنة التقديرية المعتمدة ومتابعة الانحرافات -->
+      <div class="card mb-4">
+        <div class="card-header border-bottom py-3 d-flex justify-content-between align-items-center">
+          <h5 class="card-title mb-0 fw-bold">
+            <i class="fas fa-chart-pie me-2 text-primary"></i>الموازنة التقديرية المعتمدة ومتابعة الانحرافات
+          </h5>
+          {% if active_budget %}
+            <span class="badge bg-success px-3 py-2">
+              <i class="fas fa-check-circle me-1"></i>الموازنة المعتمدة (إصدار v{{ active_budget.version }} - {{ active_budget.fiscal_year.name }})
+            </span>
+          {% else %}
+            <span class="badge bg-secondary px-3 py-2">
+              <i class="fas fa-info-circle me-1"></i>لا توجد موازنة معتمدة لهذا المركز
+            </span>
+          {% endif %}
+        </div>
+        <div class="card-body">
+          {% if active_budget %}
+            <div class="row g-3 text-center mb-4">
+              <div class="col-md-3">
+                <div class="p-3 border rounded bg-light">
+                  <span class="text-muted fs-8 d-block mb-1">السقف المعتمد</span>
+                  <span class="fw-bold fs-6 text-primary font-mono">{{ budget_summary.allocated_amount|smart_float }}</span>
+                </div>
+              </div>
+              <div class="col-md-3">
+                <div class="p-3 border rounded bg-light">
+                  <span class="text-muted fs-8 d-block mb-1">المنفق الفعلي</span>
+                  <span class="fw-bold fs-6 text-danger font-mono">{{ budget_summary.actual_spent|smart_float }}</span>
+                </div>
+              </div>
+              <div class="col-md-3">
+                <div class="p-3 border rounded bg-light">
+                  <span class="text-muted fs-8 d-block mb-1">المتبقي للتخصيص</span>
+                  <span class="fw-bold fs-6 {% if budget_summary.variance < 0 %}text-danger{% else %}text-success{% endif %} font-mono">
+                    {{ budget_summary.variance|smart_float }}
+                  </span>
+                </div>
+              </div>
+              <div class="col-md-3">
+                <div class="p-3 border rounded bg-light">
+                  <span class="text-muted fs-8 d-block mb-1">نسبة الاستهلاك</span>
+                  <span class="fw-bold fs-6 font-mono">{{ budget_summary.usage_pct }}%</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- شريط نسبة الاستهلاك -->
+            <div class="mb-3">
+              <div class="d-flex justify-content-between mb-1">
+                <span class="fs-8 text-muted">مؤشر الانحراف واستنفاذ الموازنة</span>
+                <span class="fs-8 fw-bold">{{ budget_summary.usage_pct }}%</span>
+              </div>
+              <div class="progress" style="height: 10px;">
+                <div class="progress-bar {% if budget_summary.usage_pct > 100 %}bg-danger{% elif budget_summary.usage_pct > 80 %}bg-warning{% else %}bg-success{% endif %}"
+                     role="progressbar" data-progress="{{ budget_summary.usage_pct }}"></div>
+              </div>
+            </div>
+
+            <div class="d-flex justify-content-end gap-2 mt-3">
+              <a href="{% url 'financial:budget_detail' active_budget.pk %}" class="btn btn-sm btn-outline-primary">
+                <i class="fas fa-eye me-1"></i>عرض تفاصيل الموازنة
+              </a>
+              <a href="{% url 'financial:budget_performance_report' %}?cost_center={{ cost_center.pk }}" class="btn btn-sm btn-outline-success">
+                <i class="fas fa-chart-line me-1"></i>تقرير تباين الموازنة اللحظي
+              </a>
+            </div>
+          {% else %}
+            <div class="text-center py-4">
+              <i class="fas fa-calculator fs-3 text-muted opacity-50 d-block mb-2"></i>
+              <p class="text-muted fs-7 mb-3">لم يتم إنشاء موازنة تقديرية معتمدة لـ "{{ cost_center.name }}" حتى الآن.</p>
+              <a href="{% url 'financial:budget_create' %}?cost_center={{ cost_center.pk }}" class="btn btn-sm btn-primary">
+                <i class="fas fa-plus-circle me-1"></i>إعداد موازنة تقديرية جديدة لهذا المركز
+              </a>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+
       <!-- قسم الحركات والعمليات المحاسبية المرحّلة -->
       <div class="card">
+
         <div class="card-header border-bottom py-3 d-flex justify-content-between align-items-center">
           <h5 class="card-title mb-0 fw-bold">
             <i class="fas fa-exchange-alt me-2 text-success"></i>العمليات والحركات المحاسبية المرحّلة

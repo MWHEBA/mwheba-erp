@@ -30,6 +30,18 @@ urlpatterns = [
     path("cost-centers/<int:pk>/edit/", views.cost_center_edit_view, name="cost_center_edit"),
     path("cost-centers/tree-api/", views.cost_center_tree_api, name="cost_center_tree_api"),
 
+    # الموازنات التقديرية والرقابة المحاسبية المعيارية (Enterprise Budget Engine)
+    path("budgets/", views.budget_list, name="budget_list"),
+    path("budgets/create/", views.budget_create, name="budget_create"),
+    path("budgets/<int:pk>/", views.budget_detail, name="budget_detail"),
+    path("budgets/<int:pk>/submit/", views.budget_submit, name="budget_submit"),
+    path("budgets/<int:pk>/approve/", views.budget_approve, name="budget_approve"),
+    path("budgets/<int:pk>/revise/", views.budget_revise, name="budget_revise"),
+    path("budgets/overrides/", views.budget_override_list, name="budget_override_list"),
+    path("budgets/overrides/<int:pk>/action/", views.budget_override_action, name="budget_override_action"),
+    path("budgets/performance-report/", views.budget_performance_report, name="budget_performance_report"),
+
+
     # دليل الحسابات (النظام الجديد) - شجرة الحسابات الكاملة
     path("accounts/", views.chart_of_accounts_list, name="chart_of_accounts_list"),
     # alias للاسم القديم المستخدم في بعض القوالب/المناظر

@@ -72,10 +72,11 @@
             <table class="table table-hover mb-0" id="cost-centers-table">
               <thead class="table-light">
                 <tr>
-                  <th style="width: 20%;" class="text-center">كود المركز</th>
-                  <th style="width: 45%;">اسم المركز والتبعية</th>
-                  <th style="width: 20%;" class="text-center">سياسة الفرض</th>
-                  <th style="width: 15%;" class="text-center">الحالة والمصدر</th>
+                  <th style="width: 15%;" class="text-center">كود المركز</th>
+                  <th style="width: 35%;">اسم المركز والتبعية</th>
+                  <th style="width: 25%;" class="text-center">الموازنة التقديرية والاستهلاك</th>
+                  <th style="width: 13%;" class="text-center">سياسة الفرض</th>
+                  <th style="width: 12%;" class="text-center">الحالة</th>
                 </tr>
               </thead>
               <tbody>
@@ -98,6 +99,22 @@
                       {% endif %}
                     </td>
                     <td class="text-center">
+                      {% if cc.active_budget %}
+                        <div class="d-flex flex-column align-items-center gap-1">
+                          <span class="badge bg-success font-mono">
+                            {{ cc.budget_amount|smart_float }} (v{{ cc.active_budget.version }})
+                          </span>
+                          <span class="fs-8 {% if cc.variance < 0 %}text-danger fw-bold{% else %}text-muted{% endif %} font-mono">
+                            منفق: {{ cc.actual_spent|smart_float }} ({{ cc.usage_pct }}%)
+                          </span>
+                        </div>
+                      {% else %}
+                        <a href="{% url 'financial:budget_create' %}?cost_center={{ cc.id }}" class="badge bg-light text-muted border text-decoration-none" onclick="event.stopPropagation();">
+                          <i class="fas fa-plus me-1"></i>إعداد موازنة
+                        </a>
+                      {% endif %}
+                    </td>
+                    <td class="text-center">
                       {% if cc.cost_center_policy == 'REQUIRED' %}
                         <span class="badge bg-danger">إجباري (REQUIRED)</span>
                       {% elif cc.cost_center_policy == 'FORBIDDEN' %}
@@ -115,6 +132,7 @@
                     </td>
                   </tr>
                 {% endfor %}
+
               </tbody>
             </table>
           </div>

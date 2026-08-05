@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% load i18n static utils_extras %}
+
+{% block title %}{% trans "طلبات استثناء الموازنة والاعتمادات الخاصة" %}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+<link rel="stylesheet" href="{% static 'css/tables.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+  {% include "shared/page_header.html" %}
+
+  <div class="card border-0 shadow-sm" style="border-radius: var(--border-radius-lg, 12px); background-color: var(--bg-card, #ffffff);">
+    <div class="card-header bg-light border-bottom px-4 py-3">
+      <h5 class="mb-0 fw-bold" style="color: var(--text-dark, #1f2937);">
+        <i class="fas fa-user-shield text-primary me-2"></i>{% trans "طلبات الموافقة الاستثنائية على تجاوز الموازنة" %}
+      </h5>
+    </div>
+    <div class="card-body p-0">
+      {% if override_requests %}
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="bg-light">
+              <tr>
+                <th class="py-3 px-4">#</th>
+                <th class="py-3 px-4">{% trans "مركز التكلفة والحساب" %}</th>
+                <th class="py-3 px-4 text-end">{% trans "المبلغ المطلوب" %}</th>
+                <th class="py-3 px-4">{% trans "سبب التجاوز" %}</th>
+                <th class="py-3 px-4 text-center">{% trans "مقدم الطلب" %}</th>
+                <th class="py-3 px-4 text-center">{% trans "الحالة" %}</th>
+                <th class="py-3 px-4 text-center">{% trans "الإجراء" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for req in override_requests %}
+                <tr>
+                  <td class="py-3 px-4 font-mono fw-bold">#{{ req.id }}</td>
+                  <td class="py-3 px-4">
+                    <div class="fw-bold text-dark">{{ req.cost_center.code }} - {{ req.cost_center.name }}</div>
+                    <div class="small text-muted">{{ req.account.code }} - {{ req.account.name }}</div>
+                  </td>
+                  <td class="py-3 px-4 text-end font-mono fw-bold text-danger">{{ req.requested_amount|smart_float }}</td>
+                  <td class="py-3 px-4"><small class="text-muted">{{ req.reason }}</small></td>
+                  <td class="py-3 px-4 text-center">{{ req.requested_by.username }}</td>
+                  <td class="py-3 px-4 text-center">
+                    {% if req.status == 'APPROVED' %}
+                      <span class="badge bg-success px-3 py-1">{% trans "مقبول" %}</span>
+                    {% elif req.status == 'REJECTED' %}
+                      <span class="badge bg-danger px-3 py-1">{% trans "مرفوض" %}</span>
+                    {% else %}
+                      <span class="badge bg-warning text-dark px-3 py-1">{% trans "قيد النظر" %}</span>
+                    {% endif %}
+                  </td>
+                  <td class="py-3 px-4 text-center">
+                    {% if req.status == 'PENDING' %}
+                      <form method="post" action="{% url 'financial:budget_override_action' req.pk %}" class="d-inline-flex gap-1">
+                        {% csrf_token %}
+                        <button type="submit" name="action" value="approve" class="btn btn-sm btn-success"><i class="fas fa-check"></i></button>
+                        <button type="submit" name="action" value="reject" class="btn btn-sm btn-danger"><i class="fas fa-times"></i></button>
+                      </form>
+                    {% else %}
+                      <span class="text-muted small">-</span>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="text-center py-5 text-muted">
+          <i class="fas fa-check-double fs-1 d-block mb-3 opacity-50 text-success"></i>
+          <h6>{% trans "لا توجد طلبات تجاوز معلقة حالياً" %}</h6>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

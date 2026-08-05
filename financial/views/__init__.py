@@ -174,3 +174,17 @@ from .profitability_views import (
     export_profitability_excel,
     export_category_detail_excel,
 )
+
+# من budget_views.py - إدارة الموازنات والرقابة المعيارية
+from .budget_views import (
+    budget_list,
+    budget_create,
+    budget_detail,
+    budget_submit,
+    budget_approve,
+    budget_revise,
+    budget_override_list,
+    budget_override_action,
+    budget_performance_report,
+)
+

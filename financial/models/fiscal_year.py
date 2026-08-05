@@ -19,10 +19,14 @@ class FiscalYear(models.Model):
     start_date = models.DateField(verbose_name=_("تاريخ البداية"))
     end_date = models.DateField(verbose_name=_("تاريخ النهاية"))
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft', verbose_name=_("الحالة"))
-    is_closed = models.BooleanField(default=False, verbose_name=_("مغلقة؟"))
-
     created_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(default=timezone.now)
+
+    @property
+    def is_closed(self):
+        return self.status == 'closed'
+
+
 
     class Meta:
         verbose_name = _("سنة مالية")

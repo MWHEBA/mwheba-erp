@@ -323,8 +323,12 @@ class JournalEntry(models.Model):
         verbose_name=_("أنشئ بواسطة"),
         related_name="entries_created",
     )
+    currency_source = models.CharField(max_length=50, default='SYSTEM', blank=True, null=True)
+    default_exchange_rate_snapshot = models.DecimalField(max_digits=12, decimal_places=6, default=Decimal('1.000000'), blank=True, null=True)
 
     class Meta:
+
+
         verbose_name = _("قيد يومي")
         verbose_name_plural = _("القيود اليومية")
         ordering = ["-date", "-number"]
@@ -1011,6 +1015,11 @@ class JournalEntryLine(models.Model):
     exchange_rate = models.DecimalField(_("سعر الصرف"), max_digits=12, decimal_places=6, default=Decimal("1.000000"))
     foreign_debit = models.DecimalField(_("مدين أجنبي"), max_digits=15, decimal_places=2, default=Decimal("0.00"))
     foreign_credit = models.DecimalField(_("دائن أجنبي"), max_digits=15, decimal_places=2, default=Decimal("0.00"))
+    transaction_debit = models.DecimalField(_("مدين العملة"), max_digits=15, decimal_places=2, default=Decimal("0.00"), blank=True, null=True)
+    transaction_credit = models.DecimalField(_("دائن العملة"), max_digits=15, decimal_places=2, default=Decimal("0.00"), blank=True, null=True)
+    exchange_rate_snapshot = models.DecimalField(_("لقطة سعر الصرف"), max_digits=12, decimal_places=6, default=Decimal("1.000000"), blank=True, null=True)
+
+
 
     # معلومات إضافية وحوكمة مراكز التكلفة
     cost_center = models.ForeignKey(
@@ -1028,8 +1037,10 @@ class JournalEntryLine(models.Model):
 
     # معلومات التتبع
     created_at = models.DateTimeField(_("تاريخ الإنشاء"), auto_now_add=True)
+    is_migrated_legacy = models.BooleanField(default=False)
 
     class Meta:
+
         verbose_name = _("بند قيد")
         verbose_name_plural = _("بنود القيود")
         indexes = [
@@ -1038,10 +1049,45 @@ class JournalEntryLine(models.Model):
             models.Index(fields=["account", "created_at"]),
         ]
 
+    def clean_fields(self, exclude=None):
+        if self.transaction_debit is not None:
+            self.transaction_debit = Decimal(str(self.transaction_debit)).quantize(Decimal('0.01'))
+        else:
+            self.transaction_debit = Decimal('0.00')
+
+        if self.transaction_credit is not None:
+            self.transaction_credit = Decimal(str(self.transaction_credit)).quantize(Decimal('0.01'))
+        else:
+            self.transaction_credit = Decimal('0.00')
+
+        if self.exchange_rate_snapshot is not None:
+            self.exchange_rate_snapshot = Decimal(str(self.exchange_rate_snapshot)).quantize(Decimal('0.000001'))
+        else:
+            self.exchange_rate_snapshot = Decimal('1.000000')
+
+        super().clean_fields(exclude=exclude)
+
     def clean(self):
         super().clean()
+
+        if self.transaction_debit is not None:
+            self.transaction_debit = Decimal(str(self.transaction_debit)).quantize(Decimal('0.01'))
+        else:
+            self.transaction_debit = Decimal('0.00')
+
+        if self.transaction_credit is not None:
+            self.transaction_credit = Decimal(str(self.transaction_credit)).quantize(Decimal('0.01'))
+        else:
+            self.transaction_credit = Decimal('0.00')
+
+        if self.exchange_rate_snapshot is not None:
+            self.exchange_rate_snapshot = Decimal(str(self.exchange_rate_snapshot)).quantize(Decimal('0.000001'))
+        else:
+            self.exchange_rate_snapshot = Decimal('1.000000')
+
         if self.account_id:
             self.validate_line()
+
 
         # فحص إنفاذ سياسة مركز التكلفة (Dual-Layer Policy Enforcement)
         policy = 'OPTIONAL'
@@ -1067,7 +1113,23 @@ class JournalEntryLine(models.Model):
             raise ValidationError(_("حظر الحوكمة: سياسة مركز التكلفة تحظر اختيار مركز تكلفة لهذا السطر."))
 
     def save(self, *args, **kwargs):
+        if self.transaction_debit is None:
+            self.transaction_debit = Decimal('0.00')
+        else:
+            self.transaction_debit = Decimal(str(self.transaction_debit)).quantize(Decimal('0.01'))
+
+        if self.transaction_credit is None:
+            self.transaction_credit = Decimal('0.00')
+        else:
+            self.transaction_credit = Decimal(str(self.transaction_credit)).quantize(Decimal('0.01'))
+
+        if self.exchange_rate_snapshot is None:
+            self.exchange_rate_snapshot = Decimal('1.000000')
+        else:
+            self.exchange_rate_snapshot = Decimal(str(self.exchange_rate_snapshot)).quantize(Decimal('0.000001'))
+
         self.full_clean()
+
         from financial.exceptions import ImmutableLedgerError
         if self.pk and self.journal_entry_id:
             try:

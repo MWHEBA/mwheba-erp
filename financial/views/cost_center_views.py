@@ -1,17 +1,19 @@
+from decimal import Decimal
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.utils.translation import gettext_lazy as _
 from django.urls import reverse
-from django.http import JsonResponse
+from django.db.models import Sum
+from django.utils import timezone
 
-from financial.models import CostCenter, CostCenterBudget, CostCenterAuditLog
+from financial.models import CostCenter, CostCenterBudget, CostCenterBalanceSnapshot, CostCenterAuditLog, JournalEntryLine
 
 
 @login_required
 def cost_centers_list_view(request):
     """
-    شاشة شجرة ورصيد مراكز التكلفة (Cost Centers Tree & List View)
+    شاشة شجرة ورصيد مراكز التكلفة والموازنة المعتمدة (Cost Centers Tree, Budgets & Balance View)
     """
     queryset = CostCenter.objects.all().order_by('tree_path')
 
@@ -23,6 +25,27 @@ def cost_centers_list_view(request):
 
     if policy_filter in ['OPTIONAL', 'REQUIRED', 'FORBIDDEN']:
         queryset = queryset.filter(cost_center_policy=policy_filter)
+
+    # جلب الموازنات الفعالة المعتمدة لكل مركز تكلفة
+    active_budgets = {}
+    for b in CostCenterBudget.objects.filter(status='APPROVED').select_related('fiscal_year'):
+        active_budgets[b.cost_center_id] = b
+
+    for cc in queryset:
+        cc.active_budget = active_budgets.get(cc.id)
+        if cc.active_budget:
+            snapshots = CostCenterBalanceSnapshot.objects.filter(cost_center=cc)
+            cc.total_debit = snapshots.aggregate(s=Sum('total_debit'))['s'] or Decimal('0.00')
+            cc.total_credit = snapshots.aggregate(s=Sum('total_credit'))['s'] or Decimal('0.00')
+            cc.actual_spent = cc.total_debit - cc.total_credit
+            cc.budget_amount = cc.active_budget.current_budget
+            cc.variance = cc.budget_amount - cc.actual_spent
+            cc.usage_pct = round(float(cc.actual_spent / cc.budget_amount * 100), 1) if cc.budget_amount > 0 else 0
+        else:
+            cc.actual_spent = Decimal('0.00')
+            cc.budget_amount = Decimal('0.00')
+            cc.variance = Decimal('0.00')
+            cc.usage_pct = 0
 
     header_buttons = [
         {
@@ -61,11 +84,10 @@ def cost_center_create_view(request):
         name = request.POST.get('name', '').strip()
         parent_id = request.POST.get('parent')
         policy = request.POST.get('cost_center_policy', 'OPTIONAL')
-        description = request.POST.get('description', '').strip()
 
         if not code or not name:
             messages.error(request, "كود واسم مركز التكلفة حقول مطلوبة.")
-            return redirect('financial:cost_center_create')
+            return redirect('financial:cost_centers_list')
 
         parent_obj = CostCenter.objects.filter(id=parent_id).first() if parent_id else None
 
@@ -93,14 +115,11 @@ def cost_center_create_view(request):
 @login_required
 def cost_center_detail_view(request, pk):
     """
-    تفاصيل مركز التكلفة
+    تفاصيل مركز التكلفة ورابط الموازنة والانحرافات
     """
     cost_center = get_object_or_404(CostCenter, pk=pk)
     children = cost_center.children.all().order_by('code')
     audit_logs = cost_center.audit_logs.all().order_by('-timestamp')[:20]
-
-    from financial.models import JournalEntryLine
-    from django.db.models import Sum
 
     movements = JournalEntryLine.objects.filter(
         cost_center=cost_center,
@@ -112,6 +131,29 @@ def cost_center_detail_view(request, pk):
         total_credit=Sum('credit')
     )
 
+    # الموازنة التقديرية المعتمدة الفعالة لمركز التكلفة
+    active_budget = CostCenterBudget.objects.filter(
+        cost_center=cost_center,
+        status='APPROVED'
+    ).order_by('-version').first()
+
+    budget_summary = {
+        'allocated_amount': Decimal('0.00'),
+        'actual_spent': Decimal('0.00'),
+        'variance': Decimal('0.00'),
+        'usage_pct': 0,
+    }
+
+    if active_budget:
+        budget_summary['allocated_amount'] = active_budget.current_budget
+        snapshots = CostCenterBalanceSnapshot.objects.filter(cost_center=cost_center)
+        total_debit = snapshots.aggregate(s=Sum('total_debit'))['s'] or Decimal('0.00')
+        total_credit = snapshots.aggregate(s=Sum('total_credit'))['s'] or Decimal('0.00')
+        budget_summary['actual_spent'] = total_debit - total_credit
+        budget_summary['variance'] = budget_summary['allocated_amount'] - budget_summary['actual_spent']
+        if budget_summary['allocated_amount'] > 0:
+            budget_summary['usage_pct'] = round(float(budget_summary['actual_spent'] / budget_summary['allocated_amount'] * 100), 1)
+
     all_cost_centers = CostCenter.objects.exclude(pk=cost_center.pk).order_by('code')
 
     header_buttons = [
@@ -120,7 +162,7 @@ def cost_center_detail_view(request, pk):
             'target': '#editCostCenterModal',
             'text': 'تعديل مركز التكلفة',
             'icon': 'fa-edit',
-            'class': 'btn-primary',
+            'class': 'btn-outline-primary',
         }
     ]
 
@@ -131,6 +173,8 @@ def cost_center_detail_view(request, pk):
         'audit_logs': audit_logs,
         'movements': movements,
         'movements_totals': movements_totals,
+        'active_budget': active_budget,
+        'budget_summary': budget_summary,
         'header_buttons': header_buttons,
         'page_title': f'تفاصيل مركز التكلفة: {cost_center.name}',
         'page_subtitle': f'كود مركز التكلفة: {cost_center.code}',
@@ -154,11 +198,10 @@ def cost_center_edit_view(request, pk):
     if request.method == 'POST':
         name = request.POST.get('name', '').strip()
         policy = request.POST.get('cost_center_policy', 'OPTIONAL')
-        description = request.POST.get('description', '').strip()
 
         if not name:
             messages.error(request, "اسم مركز التكلفة مطلوب.")
-            return redirect('financial:cost_center_edit', pk=pk)
+            return redirect('financial:cost_center_detail', pk=pk)
 
         cost_center.name = name
         cost_center.cost_center_policy = policy
@@ -172,7 +215,7 @@ def cost_center_edit_view(request, pk):
             changes_json=f'{{"name": "{name}", "policy": "{policy}"}}'
         )
 
-        messages.success(request, f"تم تعديل مركز التكلفة بنجاح: {cost_center.code}")
+        messages.success(request, f"تم تحديث بيانات مركز التكلفة بنجاح: {cost_center.code}")
         return redirect('financial:cost_center_detail', pk=pk)
 
     return redirect('financial:cost_center_detail', pk=pk)
@@ -181,7 +224,7 @@ def cost_center_edit_view(request, pk):
 @login_required
 def cost_center_tree_api(request):
     """
-    API لاسترجاع الهيكل الشجري الكامل لمراكز التكلفة
+    API استرجاع الهيكل الشجري لمراكز التكلفة
     """
     cost_centers = CostCenter.objects.all().order_by('code')
     data = [
@@ -190,10 +233,8 @@ def cost_center_tree_api(request):
             'code': cc.code,
             'name': cc.name,
             'parent_id': cc.parent_id,
-            'tree_path': cc.tree_path,
-            'policy': cc.cost_center_policy,
-            'is_system': cc.is_system,
+            'policy': cc.cost_center_policy
         }
         for cc in cost_centers
     ]
-    return JsonResponse({'status': 'success', 'data': data})
+    return JsonResponse({'status': 'success', 'cost_centers': data})
