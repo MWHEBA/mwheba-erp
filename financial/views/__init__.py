@@ -2,6 +2,15 @@
 # ملف التجميع الرئيسي لجميع العروض المالية
 # تم تقسيم views.py الأصلي إلى ملفات متخصصة لسهولة الصيانة
 
+# من cost_center_views.py
+from .cost_center_views import (
+    cost_centers_list_view,
+    cost_center_create_view,
+    cost_center_detail_view,
+    cost_center_edit_view,
+    cost_center_tree_api,
+)
+
 # من account_views.py
 from .account_views import (
     get_cash_and_bank_accounts,

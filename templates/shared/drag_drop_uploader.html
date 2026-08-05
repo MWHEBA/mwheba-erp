@@ -1,0 +1,128 @@
+{% load i18n %}
+{% comment %}
+  مكون السحب والإفلات الموحد الفاخر للمرفقات (Enterprise Drag & Drop Uploader Component)
+  المعلمات المقبولة:
+  - uploader_id: معرف فريد للمكون (مثال: 'journal_uploader')
+  - category_code: كود فئة المستند الحوكمية (مثال: 'JOURNAL_ENTRY')
+  - label: النص التوضيحي المكتوب فوق المكون
+{% endcomment %}
+
+<div class="mb-3 dms-uploader-container" id="container_{{ uploader_id|default:'default_uploader' }}">
+    {% if label %}
+        <label class="form-label fw-semibold text-secondary mb-1">
+            <i class="bi bi-paperclip me-1"></i>{{ label }}
+        </label>
+    {% endif %}
+
+    <div class="dms-dropzone border border-2 border-dashed rounded-3 p-3 text-center bg-light position-relative transition-all"
+         id="dropzone_{{ uploader_id|default:'default_uploader' }}"
+         style="border-color: var(--bs-border-color, #dee2e6) !important; min-height: 110px;">
+        
+        <input type="file" 
+               class="d-none" 
+               id="file_input_{{ uploader_id|default:'default_uploader' }}"
+               name="{{ input_name|default:'attachment_file' }}"
+               data-category="{{ category_code|default:'GENERAL' }}">
+
+        <input type="hidden"
+               id="draft_token_{{ uploader_id|default:'default_uploader' }}"
+               name="draft_tokens[]">
+
+        <!-- واجهة الإفلات البدائية -->
+        <div class="dropzone-prompt d-flex flex-column align-items-center justify-content-center h-100 cursor-pointer"
+             id="prompt_{{ uploader_id|default:'default_uploader' }}">
+            <i class="bi bi-cloud-arrow-up text-primary display-6 mb-2"></i>
+            <span class="fs-7 text-dark fw-medium">اسحب وأسقط الملف هنا، أو <span class="text-primary text-decoration-underline">استعرض الجهاز</span></span>
+            <small class="text-muted fs-8 mt-1">الامتدادات المسموح بها: PDF, PNG, JPG, DOCX, XLSX (الحد الأقصى: 10MB)</small>
+        </div>
+
+        <!-- واجهة معاينة الملف المرفوع -->
+        <div class="file-preview-card d-none align-items-center justify-content-between bg-white border rounded-2 p-2 shadow-sm text-start"
+             id="preview_{{ uploader_id|default:'default_uploader' }}">
+            <div class="d-flex align-items-center gap-2 overflow-hidden flex-grow-1">
+                <div class="file-icon-badge bg-primary-subtle text-primary rounded-2 p-2 d-flex align-items-center justify-content-center" style="width: 38px; height: 38px;">
+                    <i class="bi bi-file-earmark-text fs-5" id="icon_{{ uploader_id|default:'default_uploader' }}"></i>
+                </div>
+                <div class="file-details overflow-hidden" style="max-width: 80%;">
+                    <div class="file-name text-truncate fw-semibold text-dark fs-7" dir="ltr" id="name_{{ uploader_id|default:'default_uploader' }}">filename.pdf</div>
+                    <div class="file-size text-muted fs-8" id="size_{{ uploader_id|default:'default_uploader' }}">0 KB</div>
+                </div>
+            </div>
+            <button type="button" 
+                    class="btn btn-outline-danger btn-sm rounded-circle p-1 d-flex align-items-center justify-content-center ms-2 flex-shrink-0"
+                    style="width: 28px; height: 28px;"
+                    id="remove_btn_{{ uploader_id|default:'default_uploader' }}"
+                    title="إزالة المرفق">
+                <i class="bi bi-x-lg fs-8"></i>
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const uploaderId = "{{ uploader_id|default:'default_uploader' }}";
+    const dropzone = document.getElementById('dropzone_' + uploaderId);
+    const fileInput = document.getElementById('file_input_' + uploaderId);
+    const prompt = document.getElementById('prompt_' + uploaderId);
+    const preview = document.getElementById('preview_' + uploaderId);
+    const fileName = document.getElementById('name_' + uploaderId);
+    const fileSize = document.getElementById('size_' + uploaderId);
+    const removeBtn = document.getElementById('remove_btn_' + uploaderId);
+
+    if (!dropzone || !fileInput) return;
+
+    if (prompt) {
+        prompt.addEventListener('click', function () {
+            fileInput.click();
+        });
+    }
+
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dropzone.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropzone.classList.add('border-primary', 'bg-primary-subtle');
+        }, false);
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+        dropzone.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropzone.classList.remove('border-primary', 'bg-primary-subtle');
+        }, false);
+    });
+
+    dropzone.addEventListener('drop', (e) => {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        if (files.length > 0) {
+            fileInput.files = files;
+            handleFileSelect(files[0]);
+        }
+    });
+
+    fileInput.addEventListener('change', function () {
+        if (this.files.length > 0) {
+            handleFileSelect(this.files[0]);
+        }
+    });
+
+    removeBtn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        fileInput.value = '';
+        preview.classList.add('d-none');
+        preview.classList.remove('d-flex');
+        prompt.classList.remove('d-none');
+    });
+
+    function handleFileSelect(file) {
+        fileName.textContent = file.name;
+        fileSize.textContent = (file.size / 1024 / 1024).toFixed(2) + ' MB';
+        prompt.classList.add('d-none');
+        preview.classList.remove('d-none');
+        preview.classList.add('d-flex');
+    }
+});
+</script>

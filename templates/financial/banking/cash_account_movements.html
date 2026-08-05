@@ -195,24 +195,62 @@
   <!-- الهيدر الموحد -->
   {% include "shared/page_header.html" with title=title subtitle=subtitle icon=icon header_buttons=header_buttons breadcrumb_items=breadcrumb_items %}
 
-  <!-- ملخص الأرصدة البسيط -->
-  <div class="row mb-3">
-    <div class="col-12">
-      <div class="alert alert-light border" style="background-color: #f8f9fa; border-color: #dee2e6;">
-        <div class="row text-center">
-          <div class="col-md-4 summary-col">
-            <h6 class="mb-1 text-success">{{ total_debit|smart_float }} {{ currency_symbol }}</h6>
-            <small class="text-muted">إجمالي المدين</small>
+  <!-- ملخص الأرصدة الموحد الأنيق -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-4">
+      <div class="card h-100">
+        <div class="card-body py-3 d-flex align-items-center justify-content-between">
+          <div>
+            <span class="text-muted fs-8 d-block mb-1">إجمالي المقبوضات (مدين)</span>
+            <h5 class="fw-bold text-success mb-0">
+              {{ total_debit|smart_float }} <small class="fs-8 text-muted">{{ currency_symbol }}</small>
+            </h5>
+            {% if is_filtered %}
+              <small class="text-info fs-8 d-block mt-1"><i class="fas fa-filter me-1"></i>نتائج الفلترة الحالية</small>
+            {% else %}
+              <small class="text-muted fs-8 d-block mt-1"><i class="fas fa-chart-bar me-1"></i>إجمالي كافة الفترات</small>
+            {% endif %}
           </div>
-          <div class="col-md-4 summary-col">
-            <h6 class="mb-1 text-danger">{{ total_credit|smart_float }} {{ currency_symbol }}</h6>
-            <small class="text-muted">إجمالي الدائن</small>
+          <div class="p-3 bg-success-subtle text-success rounded-circle">
+            <i class="fas fa-arrow-down-left fs-5"></i>
           </div>
-          <div class="col-md-4">
-            <div class="current-balance-box">
-              <div class="current-balance-value">{{ current_balance|smart_float }} {{ currency_symbol }}</div>
-              <div class="current-balance-label">الرصيد الحالي</div>
-            </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-4">
+      <div class="card h-100">
+        <div class="card-body py-3 d-flex align-items-center justify-content-between">
+          <div>
+            <span class="text-muted fs-8 d-block mb-1">إجمالي المدفوعات (دائن)</span>
+            <h5 class="fw-bold text-danger mb-0">
+              {{ total_credit|smart_float }} <small class="fs-8 text-muted">{{ currency_symbol }}</small>
+            </h5>
+            {% if is_filtered %}
+              <small class="text-info fs-8 d-block mt-1"><i class="fas fa-filter me-1"></i>نتائج الفلترة الحالية</small>
+            {% else %}
+              <small class="text-muted fs-8 d-block mt-1"><i class="fas fa-chart-bar me-1"></i>إجمالي كافة الفترات</small>
+            {% endif %}
+          </div>
+          <div class="p-3 bg-danger-subtle text-danger rounded-circle">
+            <i class="fas fa-arrow-up-right fs-5"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-4">
+      <div class="card h-100">
+        <div class="card-body py-3 d-flex align-items-center justify-content-between">
+          <div>
+            <span class="text-muted fs-8 d-block mb-1">الرصيد الصافي الحالي</span>
+            <h5 class="fw-bold text-primary mb-0">
+              {{ current_balance|smart_float }} <small class="fs-8 text-muted">{{ currency_symbol }}</small>
+            </h5>
+            <small class="text-muted fs-8 d-block mt-1"><i class="fas fa-lock me-1"></i>الرصيد الكلي الشامل</small>
+          </div>
+          <div class="p-3 bg-primary-subtle text-primary rounded-circle">
+            <i class="fas fa-wallet fs-5"></i>
           </div>
         </div>
       </div>
@@ -738,7 +776,7 @@
   
   // تحميل الحسابات المتاحة للتحويل
   function loadAvailableAccounts() {
-    var currentAccountId = {{ account.id }};
+    var currentAccountId = parseInt("{{ account.id|default:0 }}", 10);
     var toAccountSelect = $('#to_account');
     
     toAccountSelect.html('<option value="">جاري التحميل...</option>');
@@ -895,7 +933,7 @@
       e.preventDefault();
       
       var amount = parseFloat($('#amount').val());
-      var currentBalance = {{ current_balance|default:0 }};
+      var currentBalance = parseFloat("{{ current_balance|default:0 }}") || 0;
       
       // التحقق من الرصيد
       if (amount > currentBalance) {

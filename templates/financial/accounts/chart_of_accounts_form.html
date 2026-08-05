@@ -216,6 +216,22 @@
                                     </div>
                                 </div>
                             </div>
+
+                            <div class="row mt-3">
+                                <div class="col-md-6">
+                                    <div class="form-row">
+                                        <label for="cost_center_policy" class="form-label fw-bold">
+                                            سياسة فرض مركز التكلفة (Cost Center Policy)
+                                        </label>
+                                        <select class="form-select" id="cost_center_policy" name="cost_center_policy">
+                                            <option value="OPTIONAL" {% if account.cost_center_policy == 'OPTIONAL' or not account.cost_center_policy %}selected{% endif %}>اختياري (OPTIONAL)</option>
+                                            <option value="REQUIRED" {% if account.cost_center_policy == 'REQUIRED' %}selected{% endif %}>إجباري (REQUIRED)</option>
+                                            <option value="FORBIDDEN" {% if account.cost_center_policy == 'FORBIDDEN' %}selected{% endif %}>ممنوع (FORBIDDEN)</option>
+                                        </select>
+                                        <div class="help-text">حدد ما إذا كان إدخال مركز التكلفة إجبارياً أو اختيارياً أو محظوراً عند اختيار هذا الحساب</div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                         
                         <!-- المعلومات البنكية (تظهر فقط للحسابات البنكية) -->
@@ -324,6 +340,32 @@
     </div>
 </div>
 {% endblock %}
+
+<script type="application/json" id="account-types-json">
+[
+    {% for account_type in account_types %}
+    {
+        "id": "{{ account_type.id }}",
+        "code": "{{ account_type.code|escapejs }}",
+        "name": "{{ account_type.name|escapejs }}",
+        "level": {{ account_type.level|default:1 }},
+        "category": "{{ account_type.category|escapejs }}"
+    }{% if not forloop.last %},{% endif %}
+    {% endfor %}
+]
+</script>
+
+<script type="application/json" id="parent-accounts-json">
+[
+    {% for parent_account in parent_accounts %}
+    {
+        "id": "{{ parent_account.id }}",
+        "code": "{{ parent_account.code|escapejs }}",
+        "name": "{{ parent_account.name|escapejs }}"
+    }{% if not forloop.last %},{% endif %}
+    {% endfor %}
+]
+</script>
 
 {% block extra_js %}
 <script>
@@ -468,24 +510,14 @@ function loadAccountTypes() {
         'expense': { name: 'المصروفات', types: [] }
     };
     
-    // تحميل أنواع الحسابات من السياق
-    {% if account_types %}
-        {% for account_type in account_types %}
-            var typeData = {
-                id: '{{ account_type.id }}',
-                code: '{{ account_type.code }}',
-                name: '{{ account_type.name }}',
-                level: {{ account_type.level|default:1 }},
-                category: '{{ account_type.category }}',
-                selected: ('{{ account_type.id }}' == currentValue)
-            };
-            
-            if (categories[typeData.category]) {
-                categories[typeData.category].types.push(typeData);
-            }
-        {% endfor %}
-    {% endif %}
-    
+    const accountTypesData = JSON.parse(document.getElementById('account-types-json')?.textContent || '[]');
+    accountTypesData.forEach(function (typeData) {
+        typeData.selected = (String(typeData.id) === String(currentValue));
+        if (categories[typeData.category]) {
+            categories[typeData.category].types.push(typeData);
+        }
+    });
+
     // بناء القائمة مع optgroups
     for (var catKey in categories) {
         var category = categories[catKey];
@@ -511,13 +543,11 @@ function loadParentAccounts() {
     var parentSelect = $('#parent');
     var currentValue = '{{ account.parent.id|default:"" }}';
     
-    // تحميل الحسابات الأب من السياق
-    {% if parent_accounts %}
-        {% for parent_account in parent_accounts %}
-            var selected = ('{{ parent_account.id }}' == currentValue) ? 'selected' : '';
-            parentSelect.append(`<option value="{{ parent_account.id }}" ${selected}>{{ parent_account.code }} - {{ parent_account.name }}</option>`);
-        {% endfor %}
-    {% endif %}
+    const parentAccountsData = JSON.parse(document.getElementById('parent-accounts-json')?.textContent || '[]');
+    parentAccountsData.forEach(function (parentAcc) {
+        var selected = (String(parentAcc.id) === String(currentValue)) ? 'selected' : '';
+        parentSelect.append(`<option value="${parentAcc.id}" ${selected}>${parentAcc.code} - ${parentAcc.name}</option>`);
+    });
 }
 
 function validateForm() {

@@ -2167,12 +2167,17 @@ def cash_account_movements(request, pk):
     page_number = request.GET.get("page")
     page_obj = paginator.get_page(page_number)
 
-    # حساب الرصيد الإجمالي
+    # حساب الرصيد الصافي الإجمالي الثابت للحساب (غير متأثر بالفلترة)
     from django.db.models import Sum
 
+    all_account_lines = JournalEntryLine.objects.filter(account=account)
+    all_debit = all_account_lines.aggregate(Sum("debit"))["debit__sum"] or 0
+    all_credit = all_account_lines.aggregate(Sum("credit"))["credit__sum"] or 0
+    current_balance = all_debit - all_credit
+
+    # حساب إجمالي المقبوضات والمدفوعات المتأثر بالفلترة الحالية
     total_debit = movements.aggregate(Sum("debit"))["debit__sum"] or 0
     total_credit = movements.aggregate(Sum("credit"))["credit__sum"] or 0
-    current_balance = opening_balance + total_debit - total_credit
 
     # جلب التصنيفات المالية للفلتر
     from financial.models import FinancialCategory
@@ -2193,6 +2198,8 @@ def cash_account_movements(request, pk):
         account_icon = "fas fa-landmark"
         account_type = "حساب آخر"
     
+    is_filtered = bool(date_from or date_to or search or category_filter)
+    
     context = {
         "account": account,
         "movements": page_obj,
@@ -2204,6 +2211,7 @@ def cash_account_movements(request, pk):
         "date_to": date_to,
         "search": search,
         "category_filter": category_filter,
+        "is_filtered": is_filtered,
         "categories": categories,
         "currency_symbol": currency_symbol,
         "title": f"حركات {account.name}",

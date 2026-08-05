@@ -16,7 +16,17 @@
 
 <div class="empty-state {{ container_class }}">
     <div class="empty-state-icon">
-        <i class="fas {{ icon|default:'fa-folder-open' }} {{ icon_class }}"></i>
+        {% if icon %}
+            {% if " " in icon %}
+                <i class="{{ icon }} {{ icon_class }}"></i>
+            {% elif "fa-" in icon %}
+                <i class="fas {{ icon }} {{ icon_class }}"></i>
+            {% else %}
+                <i class="fas fa-{{ icon }} {{ icon_class }}"></i>
+            {% endif %}
+        {% else %}
+            <i class="fas fa-folder-open {{ icon_class }}"></i>
+        {% endif %}
     </div>
     <h4 class="empty-state-title">{{ message }}</h4>
     

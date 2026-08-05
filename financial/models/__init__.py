@@ -1,9 +1,18 @@
 # استيراد النماذج الجديدة
+from .cost_center import CostCenter
+from .cost_center_budget import CostCenterBudget, CostCenterBalanceSnapshot
+from .cost_center_governance import (
+    EmployeeCostCenterAllocation,
+    UserCostCenterPermission,
+    CostCenterAuditLog,
+    CostAllocationRuleAuditLog
+)
 from .chart_of_accounts import AccountType, ChartOfAccounts, AccountGroup
 from .journal_entry import (
     AccountingPeriod,
     JournalEntry,
     JournalEntryLine,
+    JournalEntryLineCostAllocation,
     JournalEntryTemplate,
     JournalEntryTemplateLine,
 )

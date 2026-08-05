@@ -104,6 +104,12 @@ html[dir="rtl"] .unified-breadcrumb {
     direction: rtl;
 }
 
+.breadcrumb-item+.breadcrumb-item,
+.page-breadcrumb .breadcrumb-item+.breadcrumb-item,
+.unified-breadcrumb-item+.unified-breadcrumb-item {
+    padding-right: 0 !important;
+}
+
 .page-breadcrumb .breadcrumb-item+.breadcrumb-item::before,
 .unified-breadcrumb-item+.unified-breadcrumb-item::before {
     content: "‹";

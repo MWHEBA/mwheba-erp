@@ -635,8 +635,74 @@ def journal_entries_detail(request, pk):
 
     # Sale module removed - skip sale invoice lookup
 
+    # استخراج المرفقات المنسوبة للقيد المحاسبي
+    from django.contrib.contenttypes.models import ContentType
+    from core.models import Attachment
+    
+    ct = ContentType.objects.get_for_model(journal_entry)
+    attachments = Attachment.objects.filter(
+        content_type=ct,
+        object_id=journal_entry.pk,
+        deleted_at__isnull=True
+    ).select_related('category', 'file_blob')
+
+    header_buttons = [
+        {
+            "url": reverse("financial:journal_entries_list"),
+            "icon": "fa-arrow-right",
+            "text": "العودة للقيود",
+            "class": "btn-outline-secondary",
+        }
+    ]
+    if journal_entry.status == 'draft':
+        header_buttons.append({
+            "url": reverse("financial:journal_entries_edit", kwargs={"pk": journal_entry.pk}),
+            "icon": "fa-edit",
+            "text": "تعديل المسودة",
+            "class": "btn-warning",
+        })
+        if total_debits == total_credits and journal_entry.lines.exists():
+            header_buttons.append({
+                "url": reverse("financial:journal_entries_post", kwargs={"pk": journal_entry.pk}),
+                "icon": "fa-check",
+                "text": "ترحيل القيد",
+                "class": "btn-success",
+            })
+    elif journal_entry.status == 'posted':
+        if not journal_entry.is_locked:
+            header_buttons.append({
+                "onclick": f"unpostJournalEntry({journal_entry.pk})",
+                "id": "unpost_entry_btn",
+                "icon": "fa-undo",
+                "text": "إلغاء الترحيل",
+                "class": "btn-warning",
+            })
+        if not journal_entry.is_reversal and not journal_entry.reversed_entry:
+            header_buttons.append({
+                "onclick": f"reverseJournalEntry({journal_entry.pk})",
+                "id": "reverse_entry_btn",
+                "icon": "fa-exchange-alt",
+                "text": "إنشاء قيد عكسي",
+                "class": "btn-danger",
+            })
+
+    header_badges = []
+    if journal_entry.status == 'posted':
+        header_badges.append({
+            "text": "القيد مرحل محمي في السجلات",
+            "class": "bg-success",
+            "icon": "fa-shield-alt"
+        })
+    elif journal_entry.status == 'draft':
+        header_badges.append({
+            "text": "مسودة قيد غير مرحل",
+            "class": "bg-warning text-dark",
+            "icon": "fa-pencil-alt"
+        })
+
     context = {
         "journal_entry": journal_entry,
+        "attachments": attachments,
         "total_debits": total_debits,
         "total_credits": total_credits,
         "difference": difference,
@@ -645,49 +711,16 @@ def journal_entries_detail(request, pk):
         "invoice_type": invoice_type,
         "source_payment": source_payment,
         "source_payment_url": source_payment_url,
-        "page_title": f"قيد رقم: {journal_entry.number}",
-        "page_subtitle": "تفاصيل القيد المحاسبي والبنود المرتبطة",
+        "header_buttons": header_buttons,
+        "header_badges": header_badges,
+        "page_title": f"تفاصيل قيد رقم: {journal_entry.number}",
+        "page_subtitle": f"تاريخ القيد: {journal_entry.date}",
         "page_icon": "fas fa-file-invoice",
         "breadcrumb_items": [
             {"title": "الرئيسية", "url": reverse("core:dashboard"), "icon": "fas fa-home"},
-            {"title": "القيود المحاسبية", "url": reverse("financial:journal_entries_list"), "icon": "fas fa-book"},
+            {"title": "الإدارة المالية", "url": reverse("financial:journal_entries_list"), "icon": "fas fa-calculator"},
             {"title": f"قيد {journal_entry.number}", "active": True},
         ],
-        "header_buttons": [
-            {
-                "url": reverse("financial:journal_entries_list"),
-                "icon": "fa-arrow-left",
-                "text": "العودة للقيود",
-                "class": "btn-secondary",
-            }
-        ] + ([
-            {
-                "url": reverse("financial:journal_entries_edit", kwargs={"pk": journal_entry.pk}),
-                "icon": "fa-edit",
-                "text": "تعديل القيد",
-                "class": "btn-warning",
-            },
-            {
-                "url": reverse("financial:journal_entries_post", kwargs={"pk": journal_entry.pk}),
-                "icon": "fa-check",
-                "text": "ترحيل القيد",
-                "class": "btn-success",
-            }
-        ] if journal_entry.status == 'draft' else []) + ([
-            {
-                "onclick": f"unpostJournalEntry({journal_entry.pk})",
-                "icon": "fa-undo",
-                "text": "إلغاء الترحيل",
-                "class": "btn-warning",
-            }
-        ] if journal_entry.status == 'posted' and not journal_entry.is_locked else []) + ([
-            {
-                "onclick": f"reverseJournalEntry({journal_entry.pk})",
-                "icon": "fa-exchange-alt",
-                "text": "قيد عكسي",
-                "class": "btn-danger",
-            }
-        ] if journal_entry.status == 'posted' and journal_entry.is_locked and not journal_entry.reversed_entry and not journal_entry.is_reversal else []),
     }
     return render(request, "financial/transactions/journal_entries_detail.html", context)
 
@@ -1798,75 +1831,107 @@ def reverse_entry_optimized(entry_id, reversal_date=None, user=None):
 @login_required
 def manual_journal_entry_create(request):
     """
-    إنشاء قيد يدوي - متاح فقط للسوبر أدمن
+    إنشاء قيد يدوي مركّب ومحسّن - دعم الأسطر المتعددة ومراكز التكلفة والمرفقات
     """
-    # التحقق من صلاحيات السوبر أدمن
     if not request.user.is_superuser:
         messages.error(request, "عذراً، هذه الصفحة متاحة فقط للمسؤول الرئيسي")
         return redirect('financial:journal_entries_list')
-    
+
+    from financial.models import CostCenter
+    from core.services.attachment_binding_service import AttachmentBindingService
+
     if request.method == 'POST':
         try:
-            # استيراد AccountingGateway والخدمات المطلوبة
             from governance.services import AccountingGateway, JournalEntryLineData
             from governance.exceptions import IdempotencyError, AuthorityViolationError
-            
-            # جلب البيانات من الفورم
-            amount = Decimal(request.POST.get('amount', 0))
-            debit_account_id = request.POST.get('debit_account')
-            credit_account_id = request.POST.get('credit_account')
-            description = request.POST.get('description', '').strip()
+
             entry_date = request.POST.get('entry_date')
+            description = request.POST.get('description', '').strip()
+
+            # التمييز بين القيد المركب الشبكي (Multi-Line Grid) والقيد الثنائي البسيط (Legacy Form)
+            accounts_list = request.POST.getlist('accounts[]')
             
-            # التحقق من البيانات
-            if not all([amount, debit_account_id, credit_account_id, description, entry_date]):
-                messages.error(request, "جميع الحقول مطلوبة")
-                return redirect('financial:manual_journal_entry_create')
-            
-            if amount <= 0:
-                messages.error(request, "المبلغ يجب أن يكون أكبر من صفر")
-                return redirect('financial:manual_journal_entry_create')
-            
-            if debit_account_id == credit_account_id:
-                messages.error(request, "لا يمكن أن يكون الحساب المدين والدائن نفس الحساب")
-                return redirect('financial:manual_journal_entry_create')
-            
-            # جلب الحسابات
-            debit_account = get_object_or_404(ChartOfAccounts, id=debit_account_id, is_active=True)
-            credit_account = get_object_or_404(ChartOfAccounts, id=credit_account_id, is_active=True)
-            
-            # تحويل التاريخ
+            lines = []
+            if accounts_list and len(accounts_list) > 0:
+                # 1. معالجة القيد المركب المتعدد الأسطر
+                debits_list = request.POST.getlist('debits[]')
+                credits_list = request.POST.getlist('credits[]')
+                line_descriptions = request.POST.getlist('line_descriptions[]')
+                cost_centers_list = request.POST.getlist('cost_centers[]')
+
+                total_debit = Decimal('0.00')
+                total_credit = Decimal('0.00')
+
+                for idx, account_id in enumerate(accounts_list):
+                    if not account_id:
+                        continue
+
+                    account = get_object_or_404(ChartOfAccounts, id=account_id, is_active=True)
+                    debit_val = Decimal(debits_list[idx]) if idx < len(debits_list) and debits_list[idx] else Decimal('0.00')
+                    credit_val = Decimal(credits_list[idx]) if idx < len(credits_list) and credits_list[idx] else Decimal('0.00')
+                    line_desc = line_descriptions[idx].strip() if idx < len(line_descriptions) and line_descriptions[idx] else description
+                    
+                    cc_code = None
+                    if idx < len(cost_centers_list) and cost_centers_list[idx]:
+                        cc_obj = CostCenter.objects.filter(id=cost_centers_list[idx]).first()
+                        if cc_obj:
+                            cc_code = cc_obj.code
+
+                    total_debit += debit_val
+                    total_credit += credit_val
+
+                    lines.append(
+                        JournalEntryLineData(
+                            account_code=account.code,
+                            debit=debit_val,
+                            credit=credit_val,
+                            description=line_desc,
+                            cost_center_code=cc_code
+                        )
+                    )
+
+                if abs(total_debit - total_credit) > Decimal('0.001'):
+                    messages.error(request, f"القيد غير متوازن: إجمالي المدين ({total_debit}) لا يساوي إجمالي الدائن ({total_credit})")
+                    return redirect('financial:manual_journal_entry_create')
+
+            else:
+                # 2. معالجة النموذج الثنائي المباشر (Legacy Fallback)
+                amount = Decimal(request.POST.get('amount', 0))
+                debit_account_id = request.POST.get('debit_account')
+                credit_account_id = request.POST.get('credit_account')
+
+                if not all([amount, debit_account_id, credit_account_id, description, entry_date]):
+                    messages.error(request, "جميع الحقول مطلوبة")
+                    return redirect('financial:manual_journal_entry_create')
+
+                debit_account = get_object_or_404(ChartOfAccounts, id=debit_account_id, is_active=True)
+                credit_account = get_object_or_404(ChartOfAccounts, id=credit_account_id, is_active=True)
+
+                lines = [
+                    JournalEntryLineData(
+                        account_code=debit_account.code,
+                        debit=amount,
+                        credit=Decimal('0.00'),
+                        description=f"مدين - {description}"
+                    ),
+                    JournalEntryLineData(
+                        account_code=credit_account.code,
+                        debit=Decimal('0.00'),
+                        credit=amount,
+                        description=f"دائن - {description}"
+                    )
+                ]
+
             entry_date_obj = datetime.strptime(entry_date, '%Y-%m-%d').date()
-            
-            # إنشاء idempotency key فريد
-            # استخدام timestamp بالثواني + user_id لضمان الفرادة
             timestamp_seconds = int(timezone.now().timestamp())
-            unique_id = (timestamp_seconds % 1000000000) + request.user.id  # رقم صغير نسبياً
+            unique_id = (timestamp_seconds % 1000000000) + request.user.id
             idempotency_key = f"manual_entry_{request.user.id}_{timestamp_seconds}"
-            
-            # إعداد بيانات خطوط القيد
-            lines = [
-                JournalEntryLineData(
-                    account_code=debit_account.code,
-                    debit=amount,
-                    credit=Decimal('0.00'),
-                    description=f"مدين - {description}"
-                ),
-                JournalEntryLineData(
-                    account_code=credit_account.code,
-                    debit=Decimal('0.00'),
-                    credit=amount,
-                    description=f"دائن - {description}"
-                )
-            ]
-            
-            # إنشاء القيد عبر AccountingGateway
+
             gateway = AccountingGateway()
-            
             journal_entry = gateway.create_journal_entry(
                 source_module='financial',
                 source_model='ManualJournalEntry',
-                source_id=unique_id,  # استخدام ID صغير نسبياً للقيود اليدوية
+                source_id=unique_id,
                 lines=lines,
                 idempotency_key=idempotency_key,
                 user=request.user,
@@ -1875,47 +1940,40 @@ def manual_journal_entry_create(request):
                 reference=f"MANUAL-{timezone.now().strftime('%Y%m%d%H%M%S')}",
                 date=entry_date_obj
             )
-            
+
+            # ربط المسودات المرفوعة إن وجدت
+            draft_tokens = request.POST.getlist('draft_tokens[]')
+            if draft_tokens:
+                AttachmentBindingService.bind_draft_attachments(draft_tokens, journal_entry, request.user)
+
             messages.success(request, f"تم إنشاء القيد اليدوي بنجاح - رقم القيد: {journal_entry.number}")
             return redirect('financial:journal_entries_detail', pk=journal_entry.id)
-            
-        except IdempotencyError as e:
-            messages.error(request, "هذا القيد موجود بالفعل (تكرار)")
-            return redirect('financial:manual_journal_entry_create')
-        except AuthorityViolationError as e:
-            messages.error(request, f"خطأ في الصلاحيات: {str(e)}")
-            return redirect('financial:manual_journal_entry_create')
-        except ValueError as e:
-            messages.error(request, f"خطأ في البيانات المدخلة: {str(e)}")
-            return redirect('financial:manual_journal_entry_create')
+
         except Exception as e:
-            # Log the full error for debugging
             import logging
             logger = logging.getLogger(__name__)
             logger.error(f"Error creating manual journal entry: {str(e)}", exc_info=True)
             messages.error(request, f"حدث خطأ أثناء إنشاء القيد: {str(e)}")
             return redirect('financial:manual_journal_entry_create')
-    
-    # GET request - عرض الفورم
-    # جلب جميع الحسابات النشطة
-    accounts = ChartOfAccounts.objects.filter(
-        is_active=True
-    ).select_related('account_type').order_by('code')
-    
-    # تجميع الحسابات حسب النوع
+
+    # GET request - إعداد البيانات
+    accounts = ChartOfAccounts.objects.filter(is_active=True).select_related('account_type').order_by('code')
+    cost_centers = CostCenter.objects.filter(is_active=True).order_by('code')
+
     accounts_by_type = {}
     for account in accounts:
         type_name = account.account_type.name if account.account_type else "غير مصنف"
         if type_name not in accounts_by_type:
             accounts_by_type[type_name] = []
         accounts_by_type[type_name].append(account)
-    
+
     context = {
         'accounts': accounts,
         'accounts_by_type': accounts_by_type,
+        'cost_centers': cost_centers,
         'today': timezone.now().date(),
-        'page_title': 'إضافة قيد يدوي',
-        'page_subtitle': 'إنشاء قيد محاسبي يدوي (متاح للمسؤول الرئيسي فقط)',
+        'page_title': 'إضافة قيد يدوي مركّب',
+        'page_subtitle': 'إدخال قيود محاسبية مركبة ومرفقات ومراكز تكلفة',
         'page_icon': 'fas fa-edit',
         'breadcrumb_items': [
             {'title': 'الرئيسية', 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},
@@ -1923,5 +1981,5 @@ def manual_journal_entry_create(request):
             {'title': 'إضافة قيد يدوي', 'active': True}
         ]
     }
-    
+
     return render(request, 'financial/transactions/manual_journal_entry_create.html', context)

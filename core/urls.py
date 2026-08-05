@@ -16,11 +16,13 @@ from .views import (
 from .views.module_management import module_management
 
 from .views import security_views
+from .views.attachment_views import secure_attachment_download_view
 
 app_name = "core"
 
 urlpatterns = [
     path("", dashboard, name="dashboard"),
+    path("attachments/<int:pk>/download/", secure_attachment_download_view, name="secure_attachment_download"),
     
     # ✅ Security endpoints - نقاط الأمان
     path("api/csp-report/", security_views.csp_report_handler, name="csp_report"),

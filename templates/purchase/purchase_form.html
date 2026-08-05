@@ -109,6 +109,18 @@
                         <div class="col-6 col-lg-3 col-md-6" id="payment-method-field" style="display: none;">
                             {% include "components/payment_account_select.html" with field_name="payment_method" field_id="id_payment_method" label="طريقة الدفع" required=False selected_value=form.payment_method.value %}
                         </div>
+
+                        <div class="col-6 col-lg-3 col-md-6">
+                            <label class="form-label text-dark">مركز التكلفة الرئيسي</label>
+                            <select name="cost_center" id="id_cost_center" class="form-control">
+                                <option value="">-- بدون مركز تكلفة --</option>
+                                {% for cc in cost_centers %}
+                                    <option value="{{ cc.id }}" {% if form.cost_center.value == cc.id|stringformat:'s' or purchase.cost_center_id == cc.id %}selected{% endif %}>
+                                        {{ cc.code }} - {{ cc.name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
                     </div>
                 </div>
 

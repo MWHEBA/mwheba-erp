@@ -135,14 +135,18 @@ class LedgerCoreService:
             if not entry.is_balanced:
                 raise FinancialCoreError("Cannot post unbalanced journal entry.")
 
-            # إذا تم تمرير بيانات المصدر للتأكد من عدم التكرار
-            if source_type and source_id:
-                cls.register_posting_reference(
-                    source_type=source_type,
-                    source_id=source_id,
-                    journal_entry=entry,
-                    posting_type=posting_type
-                )
+            # الفحص المزدوج وتجميد لقطات مراكز التكلفة الأربعة قبل التترحيل
+            for line in entry.lines.all():
+                line.full_clean()
+                if line.cost_center:
+                    line.cost_center_code_snapshot = line.cost_center.code
+                    line.cost_center_name_snapshot = line.cost_center.name
+                    line.cost_center_path_snapshot = line.cost_center.tree_path
+                    line.save(update_fields=[
+                        'cost_center_code_snapshot',
+                        'cost_center_name_snapshot',
+                        'cost_center_path_snapshot'
+                    ])
 
             entry.status = "posted"
             entry.posted_at = timezone.now()

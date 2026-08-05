@@ -1293,3 +1293,189 @@ class SystemModule(models.Model):
             'all_enabled': all(dep.is_enabled for dep in deps),
             'missing': [dep for dep in deps if not dep.is_enabled]
         }
+
+
+# ============================================================
+# ENTERPRISE DOCUMENT MANAGEMENT SYSTEM (DMS) MODELS
+# ============================================================
+import uuid
+from django.db.models import Q, UniqueConstraint
+from django.contrib.contenttypes.fields import GenericForeignKey
+from django.contrib.contenttypes.models import ContentType
+
+
+def attachment_upload_path(instance, filename):
+    """
+    توليد مسار تخزين فيزيائي مخصص ومفهرس حسب الشركة والفئة لمنع ثغرات Directory Traversal
+    """
+    company_id = getattr(instance, 'company_id', 1) or 1
+    sha_prefix = getattr(instance, 'sha256_hash', 'blob')[:16]
+    random_suffix = uuid.uuid4().hex[:8]
+    return f"companies/{company_id}/attachments/%Y/%m/{sha_prefix}_{random_suffix}.dat"
+
+
+class AttachmentCategory(models.Model):
+    """
+    نموذج فئات المستندات والمرفقات بحوكمة الاستبقاء والأمان (AttachmentCategory Model)
+    """
+    code = models.CharField(_("كود الفئة"), max_length=50, unique=True, db_index=True)
+    name = models.CharField(_("اسم الفئة"), max_length=150)
+    description = models.TextField(_("الوصف"), blank=True, null=True)
+
+    max_size_mb = models.PositiveIntegerField(_("الحد الأقصى لحجم الملف (ميجابايت)"), default=10)
+    allowed_extensions = models.CharField(_("الامتدادات المسموح بها"), max_length=255, default="pdf,png,jpg,jpeg,docx,xlsx")
+    retention_days = models.PositiveIntegerField(_("مدة الاستبقاء القانونية (أيام)"), default=365)
+    requires_integrity_check = models.BooleanField(_("يتطلب فحص السلامة (SHA-256)"), default=True)
+    permission_required = models.CharField(_("الصلاحية المطلوبة للوصول"), max_length=150, blank=True, null=True)
+
+    class Meta:
+        verbose_name = _("فئة مستندات")
+        verbose_name_plural = _("فئات المستندات")
+        ordering = ['code']
+
+    def __str__(self):
+        return f"{self.code} - {self.name}"
+
+    def get_allowed_extensions_list(self):
+        if not self.allowed_extensions:
+            return []
+        return [ext.strip().lower().lstrip('.') for ext in self.allowed_extensions.split(',') if ext.strip()]
+
+
+class FileBlob(models.Model):
+    """
+    نموذج كتلة التخزين الفيزيائية والمعزولة للملفات (FileBlob Model)
+    """
+    SECURITY_STATUS_CHOICES = (
+        ('PENDING', _('قيد الفحص')),
+        ('CLEAN', _('سليم')),
+        ('BLOCKED', _('محظور')),
+        ('QUARANTINED', _('في الحجر الصحي')),
+    )
+
+    sha256_hash = models.CharField(_("بصمة الملف (SHA-256)"), max_length=64, unique=True, db_index=True)
+    file = models.FileField(_("الملف الفيزيائي"), upload_to=attachment_upload_path)
+    file_size = models.PositiveBigIntegerField(_("حجم الملف (بايت)"))
+    content_type = models.CharField(_("نوع MIME"), max_length=100)
+    company_id = models.PositiveIntegerField(_("معرف الشركة"), default=1, db_index=True)
+    reference_count = models.PositiveIntegerField(_("عداد الإشارات المرجعية الذري"), default=0)
+    security_status = models.CharField(_("حالة الأمان"), max_length=20, choices=SECURITY_STATUS_CHOICES, default='CLEAN')
+    created_at = models.DateTimeField(_("تاريخ الإنشاء"), auto_now_add=True)
+
+    class Meta:
+        verbose_name = _("كتلة تخزين فيزيائية")
+        verbose_name_plural = _("كتل التخزين الفيزيائية")
+        indexes = [
+            models.Index(fields=['sha256_hash']),
+            models.Index(fields=['company_id', 'security_status']),
+        ]
+
+    def __str__(self):
+        return f"Blob [{self.sha256_hash[:8]}] - {self.file_size} Bytes (Refs: {self.reference_count})"
+
+
+class Attachment(models.Model):
+    """
+    نموذج المرفقات المربوطة بمصادر الأعمال وقواعد الإصدارات (Attachment Model)
+    """
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
+    object_id = models.PositiveIntegerField(db_index=True)
+    content_object = GenericForeignKey('content_type', 'object_id')
+
+    category = models.ForeignKey(AttachmentCategory, on_delete=models.PROTECT, related_name='attachments', verbose_name=_("فئة المستند"))
+    file_blob = models.ForeignKey(FileBlob, on_delete=models.PROTECT, related_name='attachments', verbose_name=_("كتلة التخزين الفيزيائية"))
+    original_name = models.CharField(_("اسم الملف الأصلي"), max_length=255)
+    version = models.PositiveIntegerField(_("رقم الإصدار"), default=1)
+    is_latest = models.BooleanField(_("النسخة الأحدث"), default=True, db_index=True)
+    uploaded_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, verbose_name=_("القائم بالرفع"))
+    deleted_at = models.DateTimeField(_("تاريخ الحذف الناعم"), null=True, blank=True, db_index=True)
+    created_at = models.DateTimeField(_("تاريخ الرفع"), auto_now_add=True)
+
+    class Meta:
+        verbose_name = _("مرفق مستند")
+        verbose_name_plural = _("مرفقات المستندات")
+        indexes = [
+            models.Index(fields=['content_type', 'object_id', 'is_latest']),
+            models.Index(fields=['deleted_at']),
+        ]
+        constraints = [
+            UniqueConstraint(
+                fields=['content_type', 'object_id', 'category'],
+                condition=Q(is_latest=True, deleted_at__isnull=True),
+                name='one_latest_attachment_per_category'
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.original_name} (V{self.version}) -> {self.category.name}"
+
+
+class DraftAttachment(models.Model):
+    """
+    نموذج المسودات المؤقتة للمرفقات قبل حفظ الكائن الرئيسي (DraftAttachment Model)
+    """
+    draft_token = models.UUIDField(_("رمز المسودة الموقت"), default=uuid.uuid4, db_index=True, unique=True)
+    session_key = models.CharField(_("مفتاح الجلسة"), max_length=100, db_index=True)
+    file_blob = models.ForeignKey(FileBlob, on_delete=models.CASCADE, related_name='draft_attachments', verbose_name=_("كتلة التخزين"))
+    category = models.ForeignKey(AttachmentCategory, on_delete=models.CASCADE, verbose_name=_("فئة المستند"))
+    original_name = models.CharField(_("اسم الملف الأصلي"), max_length=255)
+    uploaded_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, verbose_name=_("القائم بالرفع"))
+    expires_at = models.DateTimeField(_("تاريخ الانتهاء"), db_index=True)
+    created_at = models.DateTimeField(_("تاريخ الإنشاء"), auto_now_add=True)
+
+    class Meta:
+        verbose_name = _("مسودة مرفق مؤقتة")
+        verbose_name_plural = _("مسودات المرفقات المؤقتة")
+
+    def __str__(self):
+        return f"Draft [{self.draft_token}] - {self.original_name}"
+
+
+class AttachmentAuditLog(models.Model):
+    """
+    سجل التدقيق التاريخي للمرفقات (AttachmentAuditLog Model)
+    """
+    ACTION_CHOICES = (
+        ('UPLOADED', _('رفع')),
+        ('VIEWED', _('عرض')),
+        ('DOWNLOADED', _('تنزيل')),
+        ('REPLACED', _('استبدال / تحديث إصدار')),
+        ('DELETED', _('حذف ناعم')),
+        ('RESTORED', _('استعادة')),
+    )
+
+    attachment = models.ForeignKey(Attachment, on_delete=models.SET_NULL, null=True, blank=True, related_name='audit_logs', verbose_name=_("المرفق"))
+    action = models.CharField(_("نوع الإجراء"), max_length=20, choices=ACTION_CHOICES)
+    performed_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, verbose_name=_("القائم بالإجراء"))
+    user_name_snapshot = models.CharField(_("لقطة اسم المستخدم"), max_length=150, blank=True, null=True)
+    user_email_snapshot = models.CharField(_("لقطة بريد المستخدم"), max_length=150, blank=True, null=True)
+    ip_address = models.GenericIPAddressField(_("عنوان IP"), blank=True, null=True)
+    timestamp = models.DateTimeField(_("التوقيت"), auto_now_add=True)
+
+    class Meta:
+        verbose_name = _("سجل تدقيق مرفق")
+        verbose_name_plural = _("سجلات تدقيق المرفقات")
+        ordering = ['-timestamp']
+
+
+class AttachmentOrphanReview(models.Model):
+    """
+    نموذج مراجعة وإدارة كتل التخزين الأيتام (AttachmentOrphanReview Model)
+    """
+    STATUS_CHOICES = (
+        ('FOUND', _('مكتشف كأيتام')),
+        ('REVIEWED', _('تمت المراجعة')),
+        ('MARKED_FOR_DELETE', _('مُعلم للحذف')),
+        ('DELETED', _('تم الحذف النهائي')),
+    )
+
+    file_blob = models.ForeignKey(FileBlob, on_delete=models.CASCADE, related_name='orphan_reviews')
+    status = models.CharField(_("حالة المراجعة"), max_length=30, choices=STATUS_CHOICES, default='FOUND')
+    detected_at = models.DateTimeField(_("توقيت الاكتشاف"), auto_now_add=True)
+    reviewed_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, verbose_name=_("المراجع"))
+    deleted_at = models.DateTimeField(_("تاريخ الحذف النهائي"), null=True, blank=True)
+
+    class Meta:
+        verbose_name = _("مراجعة مستند يتيتم")
+        verbose_name_plural = _("مراجعات المستندات الأيتام")
+

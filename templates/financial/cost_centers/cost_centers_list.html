@@ -1,0 +1,197 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load utils_extras %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<link rel="stylesheet" href="{% static 'css/tables.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  {% csrf_token %}
+  
+  <!-- Page Header الموحد -->
+  {% include "shared/page_header.html" %}
+
+  <!-- قسم الفلاتر والبحث الأنيق -->
+  <div class="card mb-4">
+    <div class="card-body py-3">
+      <form method="get" action="{% url 'financial:cost_centers_list' %}" class="row g-3 align-items-end">
+        <div class="col-md-5">
+          <label for="search" class="form-label text-muted fs-8 mb-1">البحث بالتكلفة أو الكود</label>
+          <div class="input-group">
+            <span class="input-group-text bg-light text-muted"><i class="fas fa-search"></i></span>
+            <input type="text" name="search" id="search" class="form-control" placeholder="ابحث بكود أو اسم مركز التكلفة..." value="{{ search_query|default:'' }}">
+          </div>
+        </div>
+
+        <div class="col-md-4">
+          <label for="policy" class="form-label text-muted fs-8 mb-1">سياسة الفرض الحوكمية</label>
+          <select name="policy" id="policy" class="form-select">
+            <option value="">كافة السياسات</option>
+            <option value="OPTIONAL" {% if policy_filter == 'OPTIONAL' %}selected{% endif %}>اختياري (OPTIONAL)</option>
+            <option value="REQUIRED" {% if policy_filter == 'REQUIRED' %}selected{% endif %}>إجباري (REQUIRED)</option>
+            <option value="FORBIDDEN" {% if policy_filter == 'FORBIDDEN' %}selected{% endif %}>محظور (FORBIDDEN)</option>
+          </select>
+        </div>
+
+        <div class="col-md-3 d-flex gap-2">
+          <button type="submit" class="btn btn-primary w-100">
+            <i class="fas fa-filter me-1"></i>تصفية
+          </button>
+          {% if search_query or policy_filter %}
+            <a href="{% url 'financial:cost_centers_list' %}" class="btn btn-outline-secondary" title="إعادة تعيين">
+              <i class="fas fa-undo"></i>
+            </a>
+          {% endif %}
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- قائمة ومراكز التكلفة الموحدة -->
+  <div class="section-container">
+    <div class="card">
+      <div class="card-header">
+        <h5 class="card-title mb-0 fw-bold">
+          <i class="fas fa-network-wired me-2"></i>{% trans "قائمة وشجرة مراكز التكلفة" %}
+          {% if cost_centers %}
+            <small class="text-muted">({{ cost_centers.count }} مركز تكلفة)</small>
+          {% endif %}
+        </h5>
+      </div>
+      
+      <div class="card-body p-0">
+        {% if cost_centers %}
+          <div class="table-responsive">
+            <table class="table table-hover mb-0" id="cost-centers-table">
+              <thead class="table-light">
+                <tr>
+                  <th style="width: 20%;" class="text-center">كود المركز</th>
+                  <th style="width: 45%;">اسم المركز والتبعية</th>
+                  <th style="width: 20%;" class="text-center">سياسة الفرض</th>
+                  <th style="width: 15%;" class="text-center">الحالة والمصدر</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for cc in cost_centers %}
+                  <tr class="clickable-row" data-href="{% url 'financial:cost_center_detail' cc.pk %}" style="cursor: pointer;">
+                    <td class="text-center">
+                      <span class="badge bg-primary fs-7">
+                        {{ cc.code }}
+                      </span>
+                    </td>
+                    <td {% if cc.parent %}class="ps-4"{% endif %}>
+                      <div class="fw-semibold text-dark">
+                        {% if cc.parent %}
+                          <i class="fas fa-level-up-alt fa-rotate-90 me-2 text-primary opacity-75"></i>
+                        {% endif %}
+                        {{ cc.name }}
+                      </div>
+                      {% if cc.parent %}
+                        <small class="text-muted"><i class="fas fa-sitemap me-1"></i>تابع لـ: {{ cc.parent.name }} ({{ cc.parent.code }})</small>
+                      {% endif %}
+                    </td>
+                    <td class="text-center">
+                      {% if cc.cost_center_policy == 'REQUIRED' %}
+                        <span class="badge bg-danger">إجباري (REQUIRED)</span>
+                      {% elif cc.cost_center_policy == 'FORBIDDEN' %}
+                        <span class="badge bg-secondary">محظور (FORBIDDEN)</span>
+                      {% else %}
+                        <span class="badge bg-success">اختياري (OPTIONAL)</span>
+                      {% endif %}
+                    </td>
+                    <td class="text-center">
+                      {% if cc.is_system %}
+                        <span class="badge bg-warning text-dark"><i class="fas fa-lock me-1"></i>نظام تاريخي</span>
+                      {% else %}
+                        <span class="badge bg-success"><i class="fas fa-check-circle me-1"></i>نشط</span>
+                      {% endif %}
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          {% include 'partials/empty_state.html' with message="لا توجد مراكز تكلفة معرفة متاحة" icon="network-wired" %}
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal إضافة مركز تكلفة جديد (الموحد) -->
+<div class="modal fade" id="createCostCenterModal" tabindex="-1" aria-labelledby="createCostCenterModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold" id="createCostCenterModalLabel">
+          <i class="fas fa-network-wired me-2"></i>إضافة مركز تكلفة جديد
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="إغلاق"></button>
+      </div>
+      <form method="post" action="{% url 'financial:cost_center_create' %}">
+        {% csrf_token %}
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label for="code" class="form-label fw-bold text-dark">كود مركز التكلفة <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" id="code" name="code" placeholder="مثال: CC-ENG-01" required>
+            </div>
+
+            <div class="col-md-6">
+              <label for="name" class="form-label fw-bold text-dark">اسم مركز التكلفة <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" id="name" name="name" placeholder="مثال: قسم المشروعات الهندسية" required>
+            </div>
+
+            <div class="col-md-6">
+              <label for="parent" class="form-label fw-bold text-dark">المركز الأب (Parent Cost Center)</label>
+              <select class="form-select" id="parent" name="parent">
+                <option value="">-- بدون أب (مركز رئيسي) --</option>
+                {% for p in cost_centers %}
+                  <option value="{{ p.id }}">{{ p.code }} - {{ p.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="col-md-6">
+              <label for="cost_center_policy" class="form-label fw-bold text-dark">سياسة الفرض الحوكمية</label>
+              <select class="form-select" id="cost_center_policy" name="cost_center_policy">
+                <option value="OPTIONAL" selected>اختياري (OPTIONAL)</option>
+                <option value="REQUIRED">إجباري (REQUIRED)</option>
+                <option value="FORBIDDEN">محظور (FORBIDDEN)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+          <button type="submit" class="btn btn-primary px-4 fw-bold">حفظ مركز التكلفة</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const rows = document.querySelectorAll('.clickable-row');
+    rows.forEach(row => {
+        row.addEventListener('click', function(e) {
+            if (!e.target.closest('a, button, input, select, textarea, .btn-group')) {
+                const href = this.getAttribute('data-href');
+                if (href) window.location.href = href;
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

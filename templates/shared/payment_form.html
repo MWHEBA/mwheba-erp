@@ -342,6 +342,22 @@
                   <div id="reference-hint" class="form-hint mt-1"></div>
                 </div>
               </div>
+
+              <div class="col-md-6 mb-3">
+                <div class="form-group">
+                  <label for="id_cost_center" class="form-label fw-bold">
+                    <i class="bi bi-diagram-3 me-1 text-primary"></i>مركز التكلفة
+                  </label>
+                  <select name="cost_center" id="id_cost_center" class="form-select">
+                    <option value="">-- بدون مركز تكلفة --</option>
+                    {% for cc in cost_centers %}
+                      <option value="{{ cc.id }}" {% if form.cost_center.value == cc.id|stringformat:'s' %}selected{% endif %}>
+                        {{ cc.code }} - {{ cc.name }}
+                      </option>
+                    {% endfor %}
+                  </select>
+                </div>
+              </div>
             </div>
             
             <!-- حقل الملاحظات -->

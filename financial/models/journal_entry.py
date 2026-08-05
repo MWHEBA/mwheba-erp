@@ -1012,10 +1012,18 @@ class JournalEntryLine(models.Model):
     foreign_debit = models.DecimalField(_("مدين أجنبي"), max_digits=15, decimal_places=2, default=Decimal("0.00"))
     foreign_credit = models.DecimalField(_("دائن أجنبي"), max_digits=15, decimal_places=2, default=Decimal("0.00"))
 
-    # معلومات إضافية
-    cost_center = models.CharField(
-        _("مركز التكلفة"), max_length=50, blank=True, null=True
+    # معلومات إضافية وحوكمة مراكز التكلفة
+    cost_center = models.ForeignKey(
+        'financial.CostCenter',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        verbose_name=_("مركز التكلفة"),
+        related_name='journal_lines'
     )
+    cost_center_code_snapshot = models.CharField(_("لقطة كود مركز التكلفة"), max_length=50, blank=True, null=True)
+    cost_center_name_snapshot = models.CharField(_("لقطة اسم مركز التكلفة"), max_length=150, blank=True, null=True)
+    cost_center_path_snapshot = models.CharField(_("لقطة المسار الشجري للمركز"), max_length=255, blank=True, null=True)
     project = models.CharField(_("المشروع"), max_length=50, blank=True, null=True)
 
     # معلومات التتبع
@@ -1030,7 +1038,36 @@ class JournalEntryLine(models.Model):
             models.Index(fields=["account", "created_at"]),
         ]
 
+    def clean(self):
+        super().clean()
+        if self.account_id:
+            self.validate_line()
+
+        # فحص إنفاذ سياسة مركز التكلفة (Dual-Layer Policy Enforcement)
+        policy = 'OPTIONAL'
+        cc = None
+        try:
+            cc = self.cost_center
+        except Exception:
+            if self.cost_center_id:
+                from financial.models import CostCenter
+                cc = CostCenter.objects.filter(pk=self.cost_center_id).first()
+
+        if cc:
+            policy = cc.cost_center_policy
+        elif self.account_id and hasattr(self.account, 'cost_center_policy'):
+            policy = getattr(self.account, 'cost_center_policy', 'OPTIONAL')
+
+        if policy == 'REQUIRED' and not cc:
+            has_allocations = self.pk and hasattr(self, 'cost_allocations') and self.cost_allocations.exists()
+            if not has_allocations:
+                raise ValidationError(_("حظر الحوكمة: سياسة مركز التكلفة تفرض اختيار مركز تكلفة أو توزيع متعدد لهذا السطر."))
+
+        if policy == 'FORBIDDEN' and cc:
+            raise ValidationError(_("حظر الحوكمة: سياسة مركز التكلفة تحظر اختيار مركز تكلفة لهذا السطر."))
+
     def save(self, *args, **kwargs):
+        self.full_clean()
         from financial.exceptions import ImmutableLedgerError
         if self.pk and self.journal_entry_id:
             try:
@@ -1055,10 +1092,6 @@ class JournalEntryLine(models.Model):
     def __str__(self):
         amount = self.debit if self.debit > 0 else self.credit
         return f"{self.account.code} - {amount}"
-
-    def clean(self):
-        """التحقق من صحة البند"""
-        self.validate_line()
 
     def validate_line(self):
         """التحقق من صحة بند القيد"""
@@ -1193,3 +1226,40 @@ class JournalEntryTemplateLine(models.Model):
     def __str__(self):
         amount = self.debit if self.debit > 0 else self.credit
         return f"{self.account.code} - {amount}"
+
+
+class JournalEntryLineCostAllocation(models.Model):
+    """
+    موديل حصص التوزيع الفرعية لمراكز التكلفة متعددة النسبة/المبالغ على مستوى سطر القيد
+    """
+    line = models.ForeignKey(
+        'JournalEntryLine',
+        on_delete=models.CASCADE,
+        related_name='cost_allocations',
+        verbose_name=_("سطر القيد")
+    )
+    cost_center = models.ForeignKey(
+        'financial.CostCenter',
+        on_delete=models.PROTECT,
+        related_name='line_allocations',
+        verbose_name=_("مركز التكلفة")
+    )
+    percentage = models.DecimalField(_("النسبة المئوية"), max_digits=5, decimal_places=2, default=Decimal("0.00"))
+    amount = models.DecimalField(_("المبلغ الموزع (ج.م)"), max_digits=15, decimal_places=2, default=Decimal("0.00"))
+
+    class Meta:
+        verbose_name = _("حصة توزيع سطر")
+        verbose_name_plural = _("حصص توزيع الأسطر")
+
+    def __str__(self):
+        return f"{self.cost_center.code}: {self.percentage}% ({self.amount})"
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            old = JournalEntryLineCostAllocation.objects.get(pk=self.pk)
+            if old.line and old.line.journal_entry and old.line.journal_entry.status == 'posted':
+                if (old.amount != self.amount or old.percentage != self.percentage or 
+                    old.cost_center_id != self.cost_center_id or old.line_id != self.line_id):
+                    raise ValidationError(_("لا يمكن تعديل حصص التوزيع لقيد مرحل بالفعل."))
+        super().save(*args, **kwargs)
+

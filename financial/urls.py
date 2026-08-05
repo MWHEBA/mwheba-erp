@@ -23,7 +23,13 @@ urlpatterns = [
         views.cash_account_movements,
         name="cash_account_movements",
     ),
-    # نظام تتبع حركات الخزن
+    # مراكز التكلفة المحاسبية (Cost Centers)
+    path("cost-centers/", views.cost_centers_list_view, name="cost_centers_list"),
+    path("cost-centers/create/", views.cost_center_create_view, name="cost_center_create"),
+    path("cost-centers/<int:pk>/", views.cost_center_detail_view, name="cost_center_detail"),
+    path("cost-centers/<int:pk>/edit/", views.cost_center_edit_view, name="cost_center_edit"),
+    path("cost-centers/tree-api/", views.cost_center_tree_api, name="cost_center_tree_api"),
+
     # دليل الحسابات (النظام الجديد) - شجرة الحسابات الكاملة
     path("accounts/", views.chart_of_accounts_list, name="chart_of_accounts_list"),
     # alias للاسم القديم المستخدم في بعض القوالب/المناظر
