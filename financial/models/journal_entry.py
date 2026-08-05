@@ -1027,6 +1027,7 @@ class JournalEntryLine(models.Model):
         indexes = [
             models.Index(fields=["account", "journal_entry"]),
             models.Index(fields=["journal_entry"]),
+            models.Index(fields=["account", "created_at"]),
         ]
 
     def save(self, *args, **kwargs):

@@ -33,7 +33,7 @@ class TestSprint65ProcurementHardening:
         cogs_acc = ChartOfAccounts.objects.create(code="50100", name="COGS Control", account_type=expense_type, is_active=True)
 
         fiscal_year = FiscalYear.objects.create(name="FY2026", start_date="2026-01-01", end_date="2026-12-31")
-        period = AccountingPeriod.objects.create(fiscal_year=fiscal_year, name="AUG2026", period_number=8, start_date="2026-08-01", end_date="2026-08-31", status="OPEN")
+        period = AccountingPeriod.objects.create(fiscal_year=fiscal_year, name="AUG2026", period_number=8, start_date="2026-08-01", end_date="2026-08-31", status="open")
 
         supplier = Supplier.objects.create(code="SUP-HARD-01", name="Suez Chemicals Ltd", is_active=True)
         warehouse = Warehouse.objects.create(code="WH-HARD", name="Harbor Central Warehouse", is_active=True)

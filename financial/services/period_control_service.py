@@ -18,6 +18,24 @@ class PeriodControlService:
     """
 
     @classmethod
+    def validate_period_open(cls, target_date: date):
+        """
+        فحص هل التاريخ يقع ضمن فترة محاسبية مفتوحة
+        """
+        period = AccountingPeriod.objects.filter(
+            start_date__lte=target_date,
+            end_date__gte=target_date
+        ).first()
+
+        if not period:
+            return False, None
+
+        if period.status in ['closed', 'hard_closed']:
+            return False, period
+
+        return True, period
+
+    @classmethod
     @transaction.atomic
     def create_fiscal_year_with_periods(
         cls,

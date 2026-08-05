@@ -40,7 +40,9 @@ class InventoryCostLayer(models.Model):
 
     original_qty = models.DecimalField(_("الكمية الأصلية بالوحدة الأساسية"), max_digits=15, decimal_places=4)
     remaining_qty = models.DecimalField(_("الكمية المتبقية بالوحدة الأساسية"), max_digits=15, decimal_places=4)
-    unit_cost = models.DecimalField(_("تكلفة الوحدة بالعملة الوظيفية"), max_digits=15, decimal_places=4)
+    base_unit_cost = models.DecimalField(_("تكلفة الشراء الأصلية للوحدة"), max_digits=15, decimal_places=4, default=Decimal("0.0000"))
+    landed_cost_unit = models.DecimalField(_("التكاليف المضافة للوحدة (مصاريف جمارك وشحن)"), max_digits=15, decimal_places=4, default=Decimal("0.0000"))
+    unit_cost = models.DecimalField(_("تكلفة الوحدة الإجمالية بالعملة الوظيفية"), max_digits=15, decimal_places=4)
 
     status = models.CharField(_("الحالة"), max_length=20, choices=STATUS_CHOICES, default="OPEN", db_index=True)
 

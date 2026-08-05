@@ -1,204 +1,145 @@
-"""
-نموذج التسوية البنكية
-مستعاد من النظام القديم مع تحسينات للنظام الجديد
-"""
-
+import hashlib
+from decimal import Decimal
 from django.db import models
-from django.utils import timezone
-from django.utils.translation import gettext_lazy as _
 from django.conf import settings
+from django.utils.translation import gettext_lazy as _
 
-from .chart_of_accounts import ChartOfAccounts
+from financial.models.chart_of_accounts import ChartOfAccounts
+from financial.models.journal_entry import JournalEntryLine
 
-User = settings.AUTH_USER_MODEL
 
-
-class BankReconciliation(models.Model):
+class BankStatementBatch(models.Model):
     """
-    نموذج التسوية البنكية
-    يسجل عمليات التسوية بين رصيد النظام ورصيد البنك
+    دفعة استيراد كشف الحساب البنكي (FIN-BANK-001)
     """
+    STATUS_CHOICES = [
+        ('imported', _('مستورد')),
+        ('reconciling', _('قيد التسوية')),
+        ('completed', _('مكتمل والتسوية معتمدة')),
+    ]
 
-    account = models.ForeignKey(
+    batch_number = models.CharField(_("رقم الدفعة"), max_length=64, unique=True)
+    bank_account = models.ForeignKey(
         ChartOfAccounts,
-        on_delete=models.CASCADE,
-        verbose_name=_("الحساب"),
-        related_name="bank_reconciliations",
+        on_delete=models.PROTECT,
+        verbose_name=_("حساب البنك المحاسبي")
     )
-    reconciliation_date = models.DateField(_("تاريخ التسوية"), default=timezone.now)
-    system_balance = models.DecimalField(
-        _("رصيد النظام"), max_digits=15, decimal_places=2
-    )
-    bank_balance = models.DecimalField(_("رصيد البنك"), max_digits=15, decimal_places=2)
-    difference = models.DecimalField(_("الفرق"), max_digits=15, decimal_places=2)
-
-    # تفاصيل إضافية
-    bank_statement_reference = models.CharField(
-        _("مرجع كشف الحساب"), max_length=100, blank=True, null=True
-    )
-    notes = models.TextField(_("ملاحظات"), blank=True, null=True)
-
-    # حالة التسوية
-    STATUS_CHOICES = (
-        ("pending", _("قيد المراجعة")),
-        ("approved", _("معتمدة")),
-        ("rejected", _("مرفوضة")),
-    )
-    status = models.CharField(
-        _("الحالة"), max_length=20, choices=STATUS_CHOICES, default="pending"
-    )
-
-    # القيد المحاسبي المرتبط
-    journal_entry = models.ForeignKey(
-        "JournalEntry",
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        verbose_name=_("القيد المحاسبي"),
-        related_name="bank_reconciliations",
-    )
-
-    # معلومات التتبع
-    created_at = models.DateTimeField(_("تاريخ الإنشاء"), auto_now_add=True)
-    updated_at = models.DateTimeField(_("تاريخ التحديث"), auto_now=True)
+    statement_date = models.DateField(_("تاريخ كشف الحساب"))
+    opening_balance = models.DecimalField(_("رصيد البداية"), max_digits=15, decimal_places=2, default=Decimal('0.00'))
+    closing_balance = models.DecimalField(_("رصيد النهاية"), max_digits=15, decimal_places=2, default=Decimal('0.00'))
+    status = models.CharField(_("الحالة"), max_length=20, choices=STATUS_CHOICES, default='imported')
+    created_at = models.DateTimeField(_("تاريخ الاستيراد"), auto_now_add=True)
     created_by = models.ForeignKey(
-        User,
-        on_delete=models.SET_NULL,
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        verbose_name=_("مستورد الكشف"),
         null=True,
-        verbose_name=_("أنشئ بواسطة"),
-        related_name="bank_reconciliations",
+        blank=True
     )
-    approved_by = models.ForeignKey(
-        User,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        verbose_name=_("اعتمد بواسطة"),
-        related_name="approved_reconciliations",
-    )
-    approved_at = models.DateTimeField(_("تاريخ الاعتماد"), null=True, blank=True)
 
     class Meta:
-        verbose_name = _("تسوية بنكية")
-        verbose_name_plural = _("التسويات البنكية")
-        ordering = ["-reconciliation_date", "-created_at"]
+        verbose_name = _("دفعة كشف حساب بنكي")
+        verbose_name_plural = _("دفوعات كشوف الحسابات البنكية")
+
+    def __str__(self):
+        return f"Statement Batch {self.batch_number} ({self.bank_account.name})"
+
+
+class BankStatementLine(models.Model):
+    """
+    سطر كشف الحساب البنكي الخارجي (FIN-BANK-001 & FIN-BANK-002 Line Hash Guard)
+    """
+    batch = models.ForeignKey(
+        BankStatementBatch,
+        on_delete=models.CASCADE,
+        related_name='lines',
+        verbose_name=_("دفعة الكشف")
+    )
+    transaction_date = models.DateField(_("تاريخ المعاملة"))
+    value_date = models.DateField(_("تاريخ الاستحقاق / القيمة"), null=True, blank=True)
+    reference_number = models.CharField(_("الرقم المرجعي"), max_length=128, blank=True, default="")
+    description = models.TextField(_("البيان / الوصف"), blank=True, default="")
+    debit = models.DecimalField(_("مدين (إيداع)"), max_digits=15, decimal_places=2, default=Decimal('0.00'))
+    credit = models.DecimalField(_("دائن (سحب)"), max_digits=15, decimal_places=2, default=Decimal('0.00'))
+    
+    # FIN-BANK-002: SHA-256 Line Hash Guard لمنع التكرار
+    line_hash = models.CharField(_("البصمة التشفيرية للسطر"), max_length=64, unique=True, default='')
+    is_matched = models.BooleanField(_("تمت المطابقة"), default=False)
+
+    class Meta:
+        verbose_name = _("سطر كشف حساب بنكي")
+        verbose_name_plural = _("سطور كشف الحساب البنكي")
         indexes = [
-            models.Index(fields=["account", "reconciliation_date"]),
-            models.Index(fields=["status", "created_at"]),
+            models.Index(fields=["batch", "is_matched"]),
+            models.Index(fields=["transaction_date"]),
+            models.Index(fields=["reference_number"]),
+        ]
+
+    def save(self, *args, **kwargs):
+        if not self.line_hash:
+            bank_id = self.batch.bank_account_id if self.batch_id else '0'
+            raw_data = f"{bank_id}_{self.transaction_date}_{self.reference_number}_{self.debit}_{self.credit}_{self.description[:30]}"
+            self.line_hash = hashlib.sha256(raw_data.encode('utf-8')).hexdigest()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"Line {self.reference_number} ({self.debit}/{self.credit})"
+
+
+class BankReconciliationMatch(models.Model):
+    """
+    موديل مطابقة السطور البنكية مع بنود الأستاذ العام N:M Junction Model (FIN-BANK-001 & FIN-BANK-005)
+    """
+    MATCH_TYPES = [
+        ('EXACT', _('مطابقة تامة')),
+        ('PROBABLE', _('مطابقة مرجحة')),
+        ('MANUAL', _('مطابقة يدوية')),
+    ]
+    MATCH_STATUSES = [
+        ('MATCHED', _('مطابق')),
+        ('UNMATCHED', _('ملغى المطابقة')),
+    ]
+
+    statement_line = models.ForeignKey(
+        BankStatementLine,
+        on_delete=models.PROTECT,
+        related_name='matches',
+        verbose_name=_("سطر كشف البنك")
+    )
+    journal_line = models.ForeignKey(
+        JournalEntryLine,
+        on_delete=models.PROTECT,
+        related_name='bank_matches',
+        verbose_name=_("بند قيد الأستاذ العام")
+    )
+    matched_amount = models.DecimalField(_("المبلغ المطابق"), max_digits=15, decimal_places=2)
+    match_type = models.CharField(_("نوع المطابقة"), max_length=20, choices=MATCH_TYPES, default='EXACT')
+    status = models.CharField(_("حالة المطابقة"), max_length=20, choices=MATCH_STATUSES, default='MATCHED')
+    matched_at = models.DateTimeField(_("تاريخ المطابقة"), auto_now_add=True)
+    matched_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        verbose_name=_("تم بواسطة"),
+        null=True,
+        blank=True
+    )
+    unmatched_at = models.DateTimeField(_("تاريخ فك المطابقة"), null=True, blank=True)
+    unmatched_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name='unmatched_bank_matches',
+        verbose_name=_("فك بواسطة"),
+        null=True,
+        blank=True
+    )
+
+    class Meta:
+        verbose_name = _("مطابقة بنكية")
+        verbose_name_plural = _("المطابقات البنكية")
+        indexes = [
+            models.Index(fields=["statement_line", "status"]),
+            models.Index(fields=["journal_line", "status"]),
         ]
 
     def __str__(self):
-        return f"{self.account.name} - {self.reconciliation_date} - {self.difference}"
-
-    def save(self, *args, **kwargs):
-        # حساب الفرق تلقائياً
-        if self.system_balance is not None and self.bank_balance is not None:
-            self.difference = self.bank_balance - self.system_balance
-
-        super().save(*args, **kwargs)
-
-    @property
-    def is_balanced(self):
-        """التحقق من توازن التسوية"""
-        return self.difference == 0
-
-    @property
-    def difference_type(self):
-        """نوع الفرق (زيادة/نقص)"""
-        if self.difference > 0:
-            return "زيادة"
-        elif self.difference < 0:
-            return "نقص"
-        return "متوازن"
-
-    @property
-    def difference_abs(self):
-        """القيمة المطلقة للفرق"""
-        return abs(self.difference)
-
-    def approve(self, approved_by_user):
-        """اعتماد التسوية"""
-        self.status = "approved"
-        self.approved_by = approved_by_user
-        self.approved_at = timezone.now()
-        self.save(update_fields=["status", "approved_by", "approved_at"])
-
-    def reject(self):
-        """رفض التسوية"""
-        self.status = "rejected"
-        self.save(update_fields=["status"])
-
-    def create_journal_entry(self):
-        """إنشاء قيد محاسبي للتسوية"""
-        if self.difference == 0 or self.journal_entry:
-            return None
-
-        from .journal_entry import JournalEntry, JournalEntryLine
-
-        try:
-            # إنشاء قيد التسوية
-            # إنشاء قيد التسوية عبر Service
-            from financial.services.bank_reconciliation_service import BankReconciliationService
-            
-            reconciliation_entry = BankReconciliationService.create_reconciliation_entry(
-                reconciliation=self,
-                user=getattr(self, 'created_by', None)
-            )
-
-            # ربط القيد بالتسوية
-            self.journal_entry = reconciliation_entry
-            self.save(update_fields=["journal_entry"])
-
-            return reconciliation_entry
-
-        except Exception as e:
-            print(f"خطأ في إنشاء قيد التسوية: {str(e)}")
-            return None
-
-
-class BankReconciliationItem(models.Model):
-    """
-    بنود التسوية البنكية
-    للتفاصيل الدقيقة لكل تسوية
-    """
-
-    reconciliation = models.ForeignKey(
-        BankReconciliation,
-        on_delete=models.CASCADE,
-        verbose_name=_("التسوية"),
-        related_name="items",
-    )
-
-    ITEM_TYPES = (
-        ("deposit_in_transit", _("إيداعات في الطريق")),
-        ("outstanding_payment", _("مدفوعات معلقة")),
-        ("bank_charge", _("رسوم بنكية")),
-        ("bank_interest", _("فوائد بنكية")),
-        ("error_correction", _("تصحيح خطأ")),
-        ("other", _("أخرى")),
-    )
-
-    item_type = models.CharField(_("نوع البند"), max_length=30, choices=ITEM_TYPES)
-    description = models.CharField(_("الوصف"), max_length=200)
-    amount = models.DecimalField(_("المبلغ"), max_digits=15, decimal_places=2)
-    reference = models.CharField(_("المرجع"), max_length=100, blank=True, null=True)
-
-    # تأثير البند على الرصيد
-    EFFECT_CHOICES = (
-        ("add_to_book", _("إضافة لرصيد الدفاتر")),
-        ("subtract_from_book", _("خصم من رصيد الدفاتر")),
-        ("add_to_bank", _("إضافة لرصيد البنك")),
-        ("subtract_from_bank", _("خصم من رصيد البنك")),
-    )
-
-    effect = models.CharField(_("التأثير"), max_length=30, choices=EFFECT_CHOICES)
-
-    created_at = models.DateTimeField(_("تاريخ الإنشاء"), auto_now_add=True)
-
-    class Meta:
-        verbose_name = _("بند تسوية بنكية")
-        verbose_name_plural = _("بنود التسوية البنكية")
-        ordering = ["item_type", "description"]
-
-    def __str__(self):
-        return f"{self.get_item_type_display()} - {self.amount}"
+        return f"Match {self.statement_line_id} <-> {self.journal_line_id} ({self.matched_amount})"

@@ -212,9 +212,13 @@ class CustomerService:
         
         try:
             from financial.models import AccountType
-            
-            # Get or create the main customers account (11030 / 1103)
-            customers_parent = ChartOfAccounts.objects.filter(code__in=['11030', '1103']).first()
+            from financial.services.role_registry import AccountRoleRegistry, AccountRoleNames
+
+            # Resolve control account via AccountRoleRegistry
+            try:
+                customers_parent = AccountRoleRegistry.get_account(AccountRoleNames.CUSTOMER_RECEIVABLE_CONTROL)
+            except Exception:
+                customers_parent = ChartOfAccounts.objects.filter(code__in=['11030', '1103']).first()
             
             if not customers_parent:
                 # Create main customers account if not exists

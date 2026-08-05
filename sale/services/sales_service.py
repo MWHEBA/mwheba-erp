@@ -330,11 +330,14 @@ class SalesService:
             inv.total_amount = total_inv_val
             inv.functional_amount = func_val
 
-            # Accounting Entry via AccountingGateway: Dr. 11010 Customer AR / Cr. 40100 Revenue
+            # Accounting Entry via AccountingGateway: Dr. 11010 Customer AR / Cr. 40100 Revenue (or 22010 Deferred Revenue if pre-delivery)
             cust_account_code = so.customer.financial_account.code if so.customer.financial_account else "11010"
+            revenue_account = "40100" if dn else "22010_UNEARNED_REV"
+            revenue_desc = f"Sales Revenue Credit Invoice #{inv.invoice_number}" if dn else f"Deferred Revenue Credit Invoice #{inv.invoice_number}"
+
             lines_data = [
                 {"account_code": cust_account_code, "debit": func_val, "credit": Decimal("0.00"), "description": f"Customer AR Debit Invoice #{inv.invoice_number}"},
-                {"account_code": "40100", "debit": Decimal("0.00"), "credit": func_val, "description": f"Sales Revenue Credit Invoice #{inv.invoice_number}"}
+                {"account_code": revenue_account, "debit": Decimal("0.00"), "credit": func_val, "description": revenue_desc}
             ]
 
             draft_entry = LedgerCoreService.create_draft_entry(

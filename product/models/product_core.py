@@ -36,6 +36,14 @@ class Category(models.Model):
     )
     description = models.TextField(_("الوصف"), blank=True, null=True)
     is_active = models.BooleanField(_("نشط"), default=True)
+    valuation_method = models.CharField(
+        _("طريقة تقييم المخزون الإفتراضية"),
+        max_length=20,
+        choices=(("FIFO", _("الوارد أولاً يصدر أولاً")), ("MOVING_AVERAGE", _("المتوسط المتحرك"))),
+        default="FIFO",
+        null=True,
+        blank=True
+    )
     created_at = models.DateTimeField(_("تاريخ الإنشاء"), auto_now_add=True)
     updated_at = models.DateTimeField(_("تاريخ التحديث"), auto_now=True)
 
@@ -190,7 +198,17 @@ class Product(models.Model):
         validators=[MinValueValidator(0)],
     )
     min_stock = models.PositiveIntegerField(_("الحد الأدنى للمخزون"), default=0)
-    valuation_method = models.CharField(_("طريقة تقييم المخزون"), max_length=20, default="FIFO")
+    valuation_method = models.CharField(_("طريقة تقييم المخزون"), max_length=20, default="", blank=True)
+
+    def get_effective_valuation_method(self) -> str:
+        """
+        إرجاع طريقة تقييم المخزون الفعلية الهيكلية (Product Override -> Category Default -> System Default FIFO)
+        """
+        if self.valuation_method:
+            return self.valuation_method
+        if self.category and hasattr(self.category, 'valuation_method') and self.category.valuation_method:
+            return self.category.valuation_method
+        return "FIFO"
     is_active = models.BooleanField(_("نشط"), default=True)
     is_featured = models.BooleanField(_("مميز"), default=False)
     tax_rate = models.DecimalField(

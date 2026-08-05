@@ -877,7 +877,47 @@ class ServicePriceTier(models.Model):
     def __str__(self):
         if self.max_quantity:
             return f"{self.service.name}: {self.min_quantity}–{self.max_quantity} → {self.price_per_unit}"
-        return f"{self.service.name}: {self.min_quantity}+ → {self.price_per_unit}"
+
+class SupplierTransaction(models.Model):
+    """
+    معاملات الموردين المفتوحة للتسوية (FIN-SUB-001 & FIN-SUB-007 DB CheckConstraint)
+    """
+    supplier = models.ForeignKey(
+        'Supplier',
+        on_delete=models.CASCADE,
+        related_name='transactions',
+        verbose_name=_("المورد")
+    )
+    transaction_type = models.CharField(_("نوع المعاملة"), max_length=50) # BILL, PAYMENT, CREDIT_NOTE
+    transaction_number = models.CharField(_("رقم المعاملة"), max_length=100)
+    issue_date = models.DateField(_("تاريخ الإصدار"))
+    due_date = models.DateField(_("تاريخ الاستحقاق"))
+    currency = models.CharField(_("العملة"), max_length=10, default="EGP")
+    foreign_amount = models.DecimalField(_("المبلغ بالعملة الأجنبية"), max_digits=15, decimal_places=2, default=Decimal('0.00'))
+    exchange_rate = models.DecimalField(_("سعر الصرف"), max_digits=12, decimal_places=6, default=Decimal('1.000000'))
+    functional_amount = models.DecimalField(_("المبلغ الوظيفي بالعملة المحلية"), max_digits=15, decimal_places=2)
+    open_amount_foreign = models.DecimalField(_("المبلغ المفتوح بالعملة الأجنبية"), max_digits=15, decimal_places=2, default=Decimal('0.00'))
+    open_amount_functional = models.DecimalField(_("المبلغ المفتوح الوظيفي"), max_digits=15, decimal_places=2, default=Decimal('0.00'))
+    open_amount = models.DecimalField(_("المبلغ المفتوح المتبقي للتسوية"), max_digits=15, decimal_places=2)
+    status = models.CharField(_("الحالة"), max_length=20, default="OPEN") # OPEN, PARTIAL, CLOSED
+
+    class Meta:
+        verbose_name = _("معاملة مالية للمورد")
+        verbose_name_plural = _("معاملات الموردين المالية")
+        indexes = [
+            models.Index(fields=["supplier", "status"]),
+            models.Index(fields=["due_date"]),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(open_amount__gte=Decimal('0.00')),
+                name="check_supplier_txn_open_amount_positive"
+            )
+        ]
+
+    def __str__(self):
+        return f"SupplierTxn {self.transaction_number} ({self.open_amount} {self.currency})"
+
 
 
 

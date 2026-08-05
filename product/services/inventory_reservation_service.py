@@ -160,3 +160,33 @@ class InventoryReservationService:
 
             logger.info(f"Released {len(released)} reservations for Sales Order ID {sales_order_id} (Reason: {reason}).")
             return released
+
+    @classmethod
+    def sweep_expired_reservations(cls, user=None) -> List[InventoryReservation]:
+        """
+        FIN-SAL-008: تنظيف وإفراج تلقائي عن الحجوزات المنتهية (Sweep Expired Stock Reservations)
+        """
+        now = timezone.now()
+        with transaction.atomic():
+            expired_res = InventoryReservation.objects.filter(
+                reservation_status__in=["EXPIRED", "CANCELLED"]
+            )
+            swept = []
+            for res in expired_res:
+                res.reservation_status = "EXPIRED"
+                res.released_at = now
+                res.save()
+
+                InventoryReservationAudit.objects.create(
+                    reservation=res,
+                    action="EXPIRED",
+                    previous_quantity=res.quantity,
+                    new_quantity=Decimal("0.0000"),
+                    reason="Automatic Sweep: Reservation TTL Expired",
+                    user=user
+                )
+                swept.append(res)
+
+            if swept:
+                logger.info(f"Auto-swept {len(swept)} expired stock reservations.")
+            return swept

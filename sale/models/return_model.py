@@ -38,6 +38,13 @@ class SaleReturn(models.Model):
     status = models.CharField(
         _("الحالة"), max_length=20, choices=RETURN_STATUSES, default="draft"
     )
+    inspection_status = models.CharField(
+        _("حالة فحص الجودة"),
+        max_length=20,
+        choices=(("pending", _("قيد الفحص")), ("passed", _("مقبول جودة")), ("rejected", _("مرفوض جودة"))),
+        default="passed"
+    )
+    inspection_notes = models.TextField(_("تقرير فحص الجودة QC Notes"), blank=True, null=True)
     notes = models.TextField(_("ملاحظات"), blank=True, null=True)
     
     # ربط محاسبي

@@ -7,6 +7,8 @@ from .journal_entry import (
     JournalEntryTemplate,
     JournalEntryTemplateLine,
 )
+from .posting_reference import FinancialPostingReference
+from .reporting_snapshot import FinancialStatementSnapshot
 from .validation_audit_log import ValidationAuditLog
 
 from .enhanced_balance import (
@@ -46,6 +48,9 @@ except Exception:
     TransactionAttachment = None
 
 from .fiscal_year import FiscalYear
+from .opening_balance import OpeningBalanceBatch, OpeningBalanceLine
+from .allocation import PaymentAllocation, AllocationStatus
+from .bank_reconciliation import BankStatementBatch, BankStatementLine, BankReconciliationMatch
 from .currency import Currency, ExchangeRate
 from .tax import (
     TaxJurisdiction,

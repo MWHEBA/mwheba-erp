@@ -142,6 +142,11 @@ class SupplierBill(models.Model):
     نموذج فاتورة المورد (Supplier Bill - FIN-PUR-004)
     يحسب الاستحقاق المحاسبي ذمم الموردين AP 20100 وإخلاء حـ/ GRNI 20150
     """
+    INVOICE_TYPES = (
+        ("GOODS", _("فاتورة بضائع ومخزون - تتطلب GRN معتمد")),
+        ("SERVICE", _("فاتورة خدمات مباشرة")),
+        ("EXPENSE", _("فاتورة مصاريف تشغيلية")),
+    )
     BILL_TYPES = (
         ("INVENTORY_INVOICE", _("فاتورة بضائع ومخزون (GRN Mandatory)")),
         ("SERVICE_INVOICE", _("فاتورة خدمات ومصروفات")),
@@ -158,6 +163,7 @@ class SupplierBill(models.Model):
     supplier = models.ForeignKey("supplier.Supplier", on_delete=models.PROTECT, related_name="supplier_bills")
     supplier_bill_number = models.CharField(_("رقم فاتورة المورد الأصلي"), max_length=100)
 
+    invoice_type = models.CharField(_("نوع الفاتورة الحوكمي"), max_length=20, choices=INVOICE_TYPES, default="GOODS")
     bill_type = models.CharField(_("نوع الفاتورة"), max_length=30, choices=BILL_TYPES, default="INVENTORY_INVOICE")
     bill_date = models.DateField(_("تاريخ الفاتورة"))
     due_date = models.DateField(_("تاريخ الاستحقاق"))

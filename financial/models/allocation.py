@@ -1,58 +1,135 @@
+import uuid
 from decimal import Decimal
 from django.db import models
 from django.conf import settings
 from django.utils.translation import gettext_lazy as _
 
 
+class AllocationStatus(models.TextChoices):
+    ACTIVE = 'ACTIVE', _('نشط')
+    REVERSED = 'REVERSED', _('ملغى / معكوس')
+
+
 class PaymentAllocation(models.Model):
     """
-    نموذج تخصيص السداد المحكوم والمجرد (Payment Allocation Engine - FIN-SUB-001 & FIN-SUB-002)
-    يدير التخصيص والمطابقة بين مستندات المدين والمدفوعات والمستندات الدائنة بشكل مجرد ومعزول.
+    موديل التسويات المالية المخصص (FIN-SUB-001 & FIN-SUB-008)
+    يدعم التجريد المالي (Decoupled Financial Allocation) دون الارتباط الصلب بموديولات المبيعات أو الموردين
     """
-    SUBLEDGER_TYPES = (
-        ("customer", _("عميل")),
-        ("supplier", _("مورد")),
+    allocation_number = models.CharField(
+        _("رقم عملية التسوية"),
+        max_length=64,
+        unique=True,
+        editable=False,
+        default=uuid.uuid4
     )
 
-    allocation_number = models.CharField(_("رقم التخصيص"), max_length=50, unique=True)
+    # الربط الاختياري بالعميل أو المورد
+    customer = models.ForeignKey(
+        'client.Customer',
+        on_delete=models.PROTECT,
+        verbose_name=_("العميل"),
+        null=True,
+        blank=True,
+        related_name='payment_allocations'
+    )
+    supplier = models.ForeignKey(
+        'supplier.Supplier',
+        on_delete=models.PROTECT,
+        verbose_name=_("المورد"),
+        null=True,
+        blank=True,
+        related_name='payment_allocations'
+    )
 
-    # مستند المدين (Debit Document e.g. SALE_INVOICE, PURCHASE_BILL)
-    debit_document_type = models.CharField(_("نوع مستند المدين"), max_length=50)
-    debit_document_id = models.CharField(_("معرف مستند المدين"), max_length=100)
+    # مستند الدفع / المصدر (source_document)
+    source_document_type = models.CharField(
+        _("نوع مستند المصدر"),
+        max_length=64,
+        default='PAYMENT',
+        help_text=_("مثال: PAYMENT, CREDIT_NOTE, ADVANCE, OPENING_BALANCE")
+    )
+    source_document_id = models.PositiveIntegerField(
+        _("معرف مستند المصدر"),
+        default=0
+    )
 
-    # مستند الدائن (Credit Document e.g. CUSTOMER_PAYMENT, SUPPLIER_PAYMENT, CREDIT_NOTE)
-    credit_document_type = models.CharField(_("نوع مستند الدائن"), max_length=50)
-    credit_document_id = models.CharField(_("معرف مستند الدائن"), max_length=100)
+    # مستند الفاتورة / الهدف (target_document)
+    target_document_type = models.CharField(
+        _("نوع المستند المستهدف"),
+        max_length=64,
+        default='INVOICE',
+        help_text=_("مثال: INVOICE, BILL, DEBIT_NOTE, OPENING_BALANCE")
+    )
+    target_document_id = models.PositiveIntegerField(
+        _("معرف مستند الهدف"),
+        default=0
+    )
 
-    # نوع الدفتر الفرعي والمشترك (Customer/Supplier)
-    subledger_type = models.CharField(_("نوع الدفتر الفرعي"), max_length=20, choices=SUBLEDGER_TYPES)
-    entity_id = models.IntegerField(_("معرف الكيان"), help_text=_("معرف العميل أو المورد"))
-
+    # مبالغ التسوية وأسعار الصرف (FIN-SUB-008 Cross-Currency Triangulation)
     allocated_amount = models.DecimalField(
-        _("المبلغ المخصص"),
+        _("المبلغ المخصص بعملة المستند"),
+        max_digits=15,
+        decimal_places=2
+    )
+    allocation_currency = models.CharField(
+        _("عملة التسوية"),
+        max_length=10,
+        default="EGP"
+    )
+    source_exchange_rate = models.DecimalField(
+        _("سعر صرف المصدر"),
+        max_digits=12,
+        decimal_places=6,
+        default=Decimal('1.000000')
+    )
+    target_exchange_rate = models.DecimalField(
+        _("سعر صرف الهدف"),
+        max_digits=12,
+        decimal_places=6,
+        default=Decimal('1.000000')
+    )
+    functional_amount = models.DecimalField(
+        _("المبلغ الوظيفي بالعملة المحلية"),
         max_digits=15,
         decimal_places=2,
-        default=Decimal("0.00")
+        default=Decimal('0.00')
     )
-    allocation_date = models.DateField(_("تاريخ التخصيص"))
+    realized_fx_difference = models.DecimalField(
+        _("فرق العملة المحقق"),
+        max_digits=15,
+        decimal_places=2,
+        default=Decimal('0.00')
+    )
 
+    allocation_status = models.CharField(
+        _("حالة التسوية"),
+        max_length=20,
+        choices=AllocationStatus.choices,
+        default=AllocationStatus.ACTIVE
+    )
+    allocation_date = models.DateField(
+        _("تاريخ التسوية")
+    )
+    created_at = models.DateTimeField(
+        _("تاريخ الإنشاء"),
+        auto_now_add=True
+    )
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
-        verbose_name=_("أنشئ بواسطة"),
-        related_name="payment_allocations_created"
+        verbose_name=_("تم بواسطة"),
+        null=True,
+        blank=True
     )
-    created_at = models.DateTimeField(_("تاريخ الإنشاء"), auto_now_add=True)
 
     class Meta:
-        verbose_name = _("تخصيص سداد")
-        verbose_name_plural = _("تخصيصات المدفوعات")
-        ordering = ["-allocation_date", "-id"]
+        verbose_name = _("تسوية مالية")
+        verbose_name_plural = _("التسويات المالية")
         indexes = [
-            models.Index(fields=["debit_document_type", "debit_document_id"]),
-            models.Index(fields=["credit_document_type", "credit_document_id"]),
-            models.Index(fields=["subledger_type", "entity_id"]),
+            models.Index(fields=["source_document_type", "source_document_id"]),
+            models.Index(fields=["target_document_type", "target_document_id"]),
+            models.Index(fields=["allocation_status"]),
         ]
 
     def __str__(self):
-        return f"Alloc #{self.allocation_number}: {self.allocated_amount} ({self.debit_document_type} <- {self.credit_document_type})"
+        return f"Allocation {self.allocation_number} ({self.allocated_amount} {self.allocation_currency})"

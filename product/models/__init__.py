@@ -38,6 +38,10 @@ try:
         LocationTask,
     )
     from .inventory_reservation import InventoryReservation, InventoryReservationAudit
+    from .stock_ledger import StockLedgerEntry
+    from .cost_layer import InventoryCostLayer, InventoryCostConsumption
+    from .landed_cost import LandedCostDocument, LandedCostAllocation
+    from .valuation_adjustment import InventoryValuationAdjustment
 except ImportError:
     # في حالة عدم توفر النماذج الجديدة، استخدم None
     StockTransfer = StockSnapshot = None
@@ -90,4 +94,10 @@ __all__ = [
     "ProductLocation",
     "LocationMovement",
     "LocationTask",
+    "StockLedgerEntry",
+    "InventoryCostLayer",
+    "InventoryCostConsumption",
+    "LandedCostDocument",
+    "LandedCostAllocation",
+    "InventoryValuationAdjustment",
 ]

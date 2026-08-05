@@ -67,14 +67,22 @@ class ThreeWayMatchingService:
             # تحديث طبقة التكلفة الأساسية إذا كانت البضاعة متبقية بالمخزن (Base Unit Cost Adjustment)
             cost_layer = InventoryCostLayer.objects.filter(stock_ledger_entry__movement_service_ref=str(grn_item.grn.id)).first()
 
-            if cost_layer and cost_layer.remaining_qty > Decimal("0.0000") and unit_variance != Decimal("0.0000"):
-                # تعديل التكلفة الأساسية للطبقة دون المساس بـ landed_cost
-                cost_layer.unit_cost += unit_variance
-                cost_layer.save(update_fields=["unit_cost"])
-                logger.info(f"Updated InventoryCostLayer #{cost_layer.id} unit_cost by PPV variance {unit_variance}.")
+            in_stock_ppv = Decimal("0.00")
+            sold_stock_ppv = total_ppv_variance
 
-            bill_item.ppv_variance = total_ppv_variance
+            if cost_layer and cost_layer.remaining_qty > Decimal("0.0000") and unit_variance != Decimal("0.0000"):
+                # حساب الجزء المتبقي بالمخزن والجزء المباع نسبة وتناسب
+                in_stock_ratio = min(Decimal("1.0"), cost_layer.remaining_qty / cost_layer.original_qty)
+                in_stock_ppv = (total_ppv_variance * in_stock_ratio).quantize(Decimal("0.01"))
+                sold_stock_ppv = total_ppv_variance - in_stock_ppv
+
+                # إضافة الجزء المتبقي للتكلفة
+                cost_layer.unit_cost += (in_stock_ppv / cost_layer.remaining_qty).quantize(Decimal("0.0001"))
+                cost_layer.save(update_fields=["unit_cost"])
+                logger.info(f"Capitalized PPV variance {in_stock_ppv} to InventoryCostLayer #{cost_layer.id}. Sold PPV: {sold_stock_ppv}.")
+
+            bill_item.ppv_variance = sold_stock_ppv
             bill_item.save(update_fields=["ppv_variance"])
 
-            logger.info(f"Line-Level 3-Way Matching executed: Matching #{matching.id}, PPV Variance={total_ppv_variance} EGP.")
+            logger.info(f"Line-Level 3-Way Matching executed: Matching #{matching.id}, PPV Variance={total_ppv_variance} EGP (Sold={sold_stock_ppv}, Capitalized={in_stock_ppv}).")
             return matching

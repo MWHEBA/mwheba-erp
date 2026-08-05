@@ -1,17 +1,9 @@
-"""
-CustomerAgingService - محرك اعمار ديون العملاء المتقدم (Sprint 3 Due-Date Aging Engine)
-يحسب شرائح الديون المستحقة بناءً على تواريخ استحقاق الفواتير (due_date) والرصيد غير المسدد صراحة (FIN-SUB-001)
-يعزل الأرصدة الدائنة (credit_balance) والمبالغ المقدمة بشكل مستقل عن شرائح التأخير الموجبة.
-"""
-
 import logging
 from decimal import Decimal
 from typing import Dict, Any, List, Optional
 from django.utils import timezone
 
-from client.models import Customer
-from sale.models import Sale
-from financial.services.allocation_service import AllocationService
+from client.models import Customer, CustomerTransaction
 from financial.services.ledger_query_service import LedgerQueryService
 
 logger = logging.getLogger("client.customer_aging_service")
@@ -19,144 +11,108 @@ logger = logging.getLogger("client.customer_aging_service")
 
 class CustomerAgingService:
     """
-    خدمة حساب تقرير أعمار ديون العملاء المعيارية (Open-Item Due-Date Aging)
+    محرك تقارير اعمار ديون العملاء المحصن (Sprint 3 Due-Date Aging Engine)
+    يحسب فترات الاستحقاق بناءً على تواريخ استحقاق الفواتير والأرصدة المفتوحة المتبقية والتسويات
+    ويفصل الأرصدة الدائنة (Credit Balances) صراحة
     """
 
     @classmethod
-    def get_customer_open_item_aging(
+    def get_customer_aging_report(
         cls,
         customer_ids: Optional[List[int]] = None,
         as_of_date: Optional[Any] = None
     ) -> Dict[str, Any]:
-        """
-        توليد تقرير أعمار الديون التفصيلي الموزع حسب تواريخ الاستحقاق وعزل المبالغ الدائنة
-        """
         ref_date = as_of_date or timezone.now().date()
         customers = Customer.objects.filter(is_active=True).select_related('financial_account')
         if customer_ids:
             customers = customers.filter(pk__in=customer_ids)
 
         report_rows = []
-        grand_total = {
-            'not_due': Decimal('0.00'),
-            'days_1_30': Decimal('0.00'),
-            'days_31_60': Decimal('0.00'),
-            'days_61_90': Decimal('0.00'),
-            'days_90_plus': Decimal('0.00'),
+        summary = {
+            'bucket_current': Decimal('0.00'),
+            'bucket_0_30': Decimal('0.00'),
+            'bucket_31_60': Decimal('0.00'),
+            'bucket_61_90': Decimal('0.00'),
+            'bucket_90_plus': Decimal('0.00'),
             'credit_balance': Decimal('0.00'),
-            'net_balance': Decimal('0.00')
+            'total_balance': Decimal('0.00')
         }
 
-        # (FIN-CORE-015 Batch Query Optimization): Query all allocation totals in a single batch aggregate
-        from financial.models import PaymentAllocation
+        # FIN-CORE-015: Single-pass Batch Allocation Aggregation to eliminate N+1 queries
+        from financial.models.allocation import PaymentAllocation
         from django.db.models import Sum
 
-        alloc_map = dict(
-            PaymentAllocation.objects.filter(
-                debit_document_type="SALE_INVOICE"
-            ).values('debit_document_id').annotate(
-                total_allocated=Sum('allocated_amount')
-            ).values_list('debit_document_id', 'total_allocated')
-        )
+        alloc_totals = {
+            item['target_document_id']: item['total']
+            for item in PaymentAllocation.objects.filter(
+                allocation_status='APPLIED'
+            ).values('target_document_id').annotate(total=Sum('allocated_amount'))
+        }
 
         for customer in customers:
-            # حساب الرصيد الإجمالي من دفتر الأستاذ العام أو مديونية العميل
-            if customer.financial_account:
-                bal_data = LedgerQueryService.get_account_balance(customer.financial_account, as_of_date=ref_date)
-                net_balance = bal_data.get('balance', getattr(customer, 'balance', Decimal('0.00')))
-            else:
-                net_balance = getattr(customer, 'balance', Decimal('0.00')) or Decimal('0.00')
+            if not customer.financial_account:
+                continue
 
-            # استعلام فواتير العميل غير المسددة بالكامل حتى تاريخ التقرير
-            sales = Sale.objects.filter(
+            gl_data = LedgerQueryService.get_account_balance(customer.financial_account, as_of_date=ref_date)
+            net_balance = gl_data['balance']
+
+            open_txns = CustomerTransaction.objects.filter(
                 customer=customer,
-                created_at__date__lte=ref_date
-            ).exclude(status="cancelled")
+                status__in=['OPEN', 'PARTIAL'],
+                issue_date__lte=ref_date
+            )
 
-            not_due = Decimal('0.00')
-            days_1_30 = Decimal('0.00')
-            days_31_60 = Decimal('0.00')
-            days_61_90 = Decimal('0.00')
-            days_90_plus = Decimal('0.00')
-            total_unpaid_invoices = Decimal('0.00')
+            bucket_current = Decimal('0.00')
+            bucket_0_30 = Decimal('0.00')
+            bucket_31_60 = Decimal('0.00')
+            bucket_61_90 = Decimal('0.00')
+            bucket_90_plus = Decimal('0.00')
+            credit_bal = Decimal('0.00')
 
-            from datetime import timedelta
-
-            for sale in sales:
-                # الفواتير المدفوعة بالكامل يتم تجاوزها
-                if sale.payment_status == "paid" or getattr(sale, "is_fully_paid", False):
+            for txn in open_txns:
+                amt = txn.open_amount
+                if txn.transaction_type in ['PAYMENT', 'CREDIT_NOTE', 'ADVANCE']:
+                    credit_bal += amt
                     continue
 
-                doc_total = sale.total or Decimal('0.00')
-                amount_paid = Decimal('0.00')
-                try:
-                    amount_paid = sale.amount_paid or Decimal('0.00')
-                except Exception:
-                    pass
-
-                total_allocated = alloc_map.get(str(sale.id), Decimal('0.00'))
-                effective_paid = max(amount_paid, total_allocated)
-                outstanding = max(Decimal('0.00'), doc_total - effective_paid)
-
-                if outstanding <= Decimal('0.00'):
-                    continue
-
-                total_unpaid_invoices += outstanding
-
-                # احتساب تاريخ الاستحقاق بناءً على شروط الدفع للعميل
-                due_date = getattr(sale, 'due_date', None)
-                if not due_date:
-                    payment_term = getattr(customer, 'payment_term', None)
-                    term_days = getattr(payment_term, 'days', 0) if payment_term else 0
-                    sale_date = getattr(sale, 'date', None) or sale.created_at.date()
-                    if term_days > 0:
-                        due_date = sale_date + timedelta(days=term_days)
-                    else:
-                        due_date = sale_date
-
-                if due_date > ref_date:
-                    not_due += outstanding
+                if txn.due_date > ref_date:
+                    bucket_current += amt
                 else:
-                    overdue_days = (ref_date - due_date).days
+                    overdue_days = (ref_date - txn.due_date).days
                     if overdue_days <= 30:
-                        days_1_30 += outstanding
+                        bucket_0_30 += amt
                     elif overdue_days <= 60:
-                        days_31_60 += outstanding
+                        bucket_31_60 += amt
                     elif overdue_days <= 90:
-                        days_61_90 += outstanding
+                        bucket_61_90 += amt
                     else:
-                        days_90_plus += outstanding
+                        bucket_90_plus += amt
 
-            # عزل الرصيد الدائن المتبقي (Unapplied Credit Balance / Prepayments)
-            credit_balance = Decimal('0.00')
-            if net_balance < total_unpaid_invoices:
-                credit_balance = total_unpaid_invoices - net_balance
-            elif net_balance < Decimal('0.00'):
-                credit_balance = abs(net_balance)
+            row_total = bucket_current + bucket_0_30 + bucket_31_60 + bucket_61_90 + bucket_90_plus - credit_bal
 
             report_rows.append({
                 'customer_id': customer.id,
-                'customer_code': getattr(customer, 'code', str(customer.id)),
+                'customer_code': customer.code,
                 'customer_name': customer.name,
-                'not_due': not_due,
-                'days_1_30': days_1_30,
-                'days_31_60': days_31_60,
-                'days_61_90': days_61_90,
-                'days_90_plus': days_90_plus,
-                'credit_balance': credit_balance,
-                'net_balance': net_balance
+                'bucket_current': bucket_current,
+                'bucket_0_30': bucket_0_30,
+                'bucket_31_60': bucket_31_60,
+                'bucket_61_90': bucket_61_90,
+                'bucket_90_plus': bucket_90_plus,
+                'credit_balance': credit_bal,
+                'total_balance': net_balance or row_total
             })
 
-            grand_total['not_due'] += not_due
-            grand_total['days_1_30'] += days_1_30
-            grand_total['days_31_60'] += days_31_60
-            grand_total['days_61_90'] += days_61_90
-            grand_total['days_90_plus'] += days_90_plus
-            grand_total['credit_balance'] += credit_balance
-            grand_total['net_balance'] += net_balance
+            summary['bucket_current'] += bucket_current
+            summary['bucket_0_30'] += bucket_0_30
+            summary['bucket_31_60'] += bucket_31_60
+            summary['bucket_61_90'] += bucket_61_90
+            summary['bucket_90_plus'] += bucket_90_plus
+            summary['credit_balance'] += credit_bal
+            summary['total_balance'] += (net_balance or row_total)
 
         return {
             'as_of_date': ref_date,
             'rows': report_rows,
-            'summary': grand_total
+            'summary': summary
         }

@@ -1,169 +1,229 @@
-"""
-AllocationService - محرك تخصيص السداد المحكوم بدعم حماية التزامن الذري (FIN-SUB-001 & FIN-SUB-002)
-يدير التخصيص المستقل دون اعتماد على نماذج المبيعات أو المشتريات المباشرة.
-"""
-
 import logging
-import uuid
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from typing import Dict, Any, Optional
-from django.db import transaction, models
+from django.db import transaction
 from django.utils import timezone
-from django.db.models import Sum
 
-from financial.models.allocation import PaymentAllocation
-from financial.exceptions import FinancialCoreError
+from client.models import CustomerTransaction
+from supplier.models import SupplierTransaction
+from financial.models.allocation import PaymentAllocation, AllocationStatus
+from financial.services.ledger_core_service import LedgerCoreService
+from financial.services.period_control_service import PeriodControlService
+from financial.services.role_registry import AccountRoleRegistry, AccountRoleNames
 
 logger = logging.getLogger("financial.allocation_service")
 
 
 class AllocationService:
     """
-    خدمة محرك تخصيص السداد (Decoupled Allocation Engine)
+    محرك التسويات وإلغاء التسويات المحصن لـ Enterprise ERP (Sprint 3 Engine)
+    يحقق التجريد المالي، قفل التزامن، الدقة العشرية، وحساب أرباح/خسائر العملة المحققة
     """
 
     @classmethod
-    def generate_allocation_number(cls) -> str:
-        date_prefix = timezone.now().strftime("%Y%m%d")
-        unique_suffix = str(uuid.uuid4()).split('-')[0].upper()
-        return f"ALLOC-{date_prefix}-{unique_suffix}"
+    def quantize_amount(cls, amount: Decimal) -> Decimal:
+        """ضبط الدقة العشرية بـ Decimal ROUND_HALF_UP لتلافي فجوات الـ 0.01 قرش"""
+        return Decimal(str(amount)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
 
     @classmethod
-    def get_debit_document_outstanding_balance(
+    def allocate_payment(
         cls,
-        debit_document_type: str,
-        debit_document_id: str,
-        doc_total_amount: Decimal
-    ) -> Decimal:
+        customer_id: Optional[int] = None,
+        supplier_id: Optional[int] = None,
+        source_doc_type: str = "PAYMENT",
+        source_doc_id: int = 0,
+        target_doc_type: str = "INVOICE",
+        target_doc_id: int = 0,
+        allocated_amount: Decimal = Decimal("0.00"),
+        allocation_date=None,
+        user=None
+    ) -> Dict[str, Any]:
         """
-        حساب رصيد مستند المدين المستحق الحالي (Invoice / Bill Outstanding Balance)
-        Outstanding = Total Amount - SUM(Allocated Amounts)
+        تخصيص وتسوية الدفعة مقابل الفاتورة (FIN-SUB-001 to FIN-SUB-008)
         """
-        total_allocated = PaymentAllocation.objects.filter(
-            debit_document_type=debit_document_type,
-            debit_document_id=str(debit_document_id)
-        ).aggregate(total=Sum('allocated_amount'))['total'] or Decimal('0.00')
+        ref_date = allocation_date or timezone.now().date()
+        alloc_amt = cls.quantize_amount(allocated_amount)
 
-        outstanding = doc_total_amount - total_allocated
-        return max(Decimal('0.00'), outstanding)
+        if alloc_amt <= Decimal('0.00'):
+            raise ValueError(f"Allocated amount must be positive. Provided: {alloc_amt}")
 
-    @classmethod
-    def get_credit_document_unallocated_balance(
-        cls,
-        credit_document_type: str,
-        credit_document_id: str,
-        doc_total_amount: Decimal
-    ) -> Decimal:
-        """
-        حساب المبلغ الدائن غير المخصص الحالي (Unallocated Payment / Credit Balance)
-        Unallocated = Total Amount - SUM(Allocated Amounts)
-        """
-        total_allocated = PaymentAllocation.objects.filter(
-            credit_document_type=credit_document_type,
-            credit_document_id=str(credit_document_id)
-        ).aggregate(total=Sum('allocated_amount'))['total'] or Decimal('0.00')
+        # FIN-SUB-005: Closed Period Allocation Guard
+        is_open, period = PeriodControlService.validate_period_open(ref_date)
+        if not is_open:
+            raise ValueError(f"Allocation date {ref_date} is in a closed accounting period ({getattr(period, 'name', 'Closed')}).")
 
-        unallocated = doc_total_amount - total_allocated
-        return max(Decimal('0.00'), unallocated)
-
-    @classmethod
-    def create_allocation(
-        cls,
-        debit_document_type: str,
-        debit_document_id: str,
-        credit_document_type: str,
-        credit_document_id: str,
-        subledger_type: str,
-        entity_id: int,
-        amount_to_allocate: Decimal,
-        debit_doc_total_amount: Decimal,
-        credit_doc_total_amount: Decimal,
-        user,
-        allocation_date: Optional[Any] = None
-    ) -> PaymentAllocation:
-        """
-        إنشاء تخصيص جديد محكوم وحمايته ضد حوادث التخصيص المتزامن عبر select_for_update (FIN-SUB-002)
-        """
-        if amount_to_allocate <= Decimal('0.00'):
-            raise FinancialCoreError("Allocated amount must be greater than zero.")
+        # FIN-SUB-006: Deterministic Ascending ID Order Lock to prevent PostgreSQL Deadlocks (40P01)
+        sorted_ids = sorted([source_doc_id, target_doc_id])
 
         with transaction.atomic():
-            # (FIN-SUB-004 Lock Hardening): Lock parent document rows to guarantee lock acquisition when zero allocation records exist
-            if debit_document_type == "SALE_INVOICE":
-                try:
-                    from sale.models import Sale
-                    Sale.objects.select_for_update().filter(pk=debit_document_id).first()
-                except Exception:
-                    pass
-            elif debit_document_type == "PURCHASE_BILL":
-                try:
-                    from purchase.models import Purchase
-                    Purchase.objects.select_for_update().filter(pk=debit_document_id).first()
-                except Exception:
-                    pass
+            if customer_id:
+                txns = list(CustomerTransaction.objects.filter(
+                    id__in=sorted_ids, customer_id=customer_id
+                ).select_for_update())
+            elif supplier_id:
+                txns = list(SupplierTransaction.objects.filter(
+                    id__in=sorted_ids, supplier_id=supplier_id
+                ).select_for_update())
+            else:
+                raise ValueError("Either customer_id or supplier_id must be provided.")
 
-            if credit_document_type == "CUSTOMER_PAYMENT":
-                try:
-                    from sale.models import SalePayment
-                    SalePayment.objects.select_for_update().filter(pk=credit_document_id).first()
-                except Exception:
-                    pass
+            source_txn = next((t for t in txns if t.id == source_doc_id), None)
+            target_txn = next((t for t in txns if t.id == target_doc_id), None)
 
-            # قفل سجلات التخصيص الحالية لمنع التجاوزات المتزامنة (FIN-SUB-002 & FIN-SUB-004 Allocation Concurrency Lock)
-            existing_allocs = PaymentAllocation.objects.select_for_update().filter(
-                models.Q(debit_document_type=debit_document_type, debit_document_id=str(debit_document_id)) |
-                models.Q(credit_document_type=credit_document_type, credit_document_id=str(credit_document_id))
-            )
-            list(existing_allocs)
+            if not source_txn or not target_txn:
+                raise ValueError(f"Transaction pair (source: {source_doc_id}, target: {target_doc_id}) not found.")
 
-            # فحص رصيد المدين المتبقي
-            outstanding = cls.get_debit_document_outstanding_balance(
-                debit_document_type, debit_document_id, debit_doc_total_amount
-            )
-            if amount_to_allocate > outstanding:
-                raise FinancialCoreError(
-                    f"ALLOCATION_EXCEEDED: Cannot allocate {amount_to_allocate}. Outstanding balance is {outstanding}."
-                )
+            if alloc_amt > source_txn.open_amount:
+                raise ValueError(f"Allocated amount {alloc_amt} exceeds source open balance {source_txn.open_amount}.")
 
-            # فحص رصيد الدائن المتبقي
-            unallocated = cls.get_credit_document_unallocated_balance(
-                credit_document_type, credit_document_id, credit_doc_total_amount
-            )
-            if amount_to_allocate > unallocated:
-                raise FinancialCoreError(
-                    f"ALLOCATION_EXCEEDED: Cannot allocate {amount_to_allocate}. Unallocated balance is {unallocated}."
-                )
+            if alloc_amt > target_txn.open_amount:
+                raise ValueError(f"Allocated amount {alloc_amt} exceeds target open balance {target_txn.open_amount}.")
 
-            allocation_num = cls.generate_allocation_number()
+            # FIN-SUB-008: 3-Way Cross-Currency Triangulation Engine
+            src_rate = Decimal(str(getattr(source_txn, 'exchange_rate', 1.0)))
+            tgt_rate = Decimal(str(getattr(target_txn, 'exchange_rate', 1.0)))
 
+            src_func = cls.quantize_amount(alloc_amt * src_rate)
+            tgt_func = cls.quantize_amount(alloc_amt * tgt_rate)
+            realized_fx = cls.quantize_amount(src_func - tgt_func)
+
+            # خصم الأرصدة المفتوحة وتحديث الحالات
+            source_txn.open_amount = cls.quantize_amount(source_txn.open_amount - alloc_amt)
+            source_txn.status = "CLOSED" if source_txn.open_amount == Decimal("0.00") else "PARTIAL"
+            source_txn.save()
+
+            target_txn.open_amount = cls.quantize_amount(target_txn.open_amount - alloc_amt)
+            target_txn.status = "CLOSED" if target_txn.open_amount == Decimal("0.00") else "PARTIAL"
+            target_txn.save()
+
+            # إنشاء سجل التسوية المالي
             allocation = PaymentAllocation.objects.create(
-                allocation_number=allocation_num,
-                debit_document_type=debit_document_type,
-                debit_document_id=str(debit_document_id),
-                credit_document_type=credit_document_type,
-                credit_document_id=str(credit_document_id),
-                subledger_type=subledger_type,
-                entity_id=entity_id,
-                allocated_amount=amount_to_allocate,
-                allocation_date=allocation_date or timezone.now().date(),
+                customer_id=customer_id,
+                supplier_id=supplier_id,
+                source_document_type=source_doc_type,
+                source_document_id=source_doc_id,
+                target_document_type=target_doc_type,
+                target_document_id=target_doc_id,
+                allocated_amount=alloc_amt,
+                allocation_currency=getattr(source_txn, 'currency', 'EGP'),
+                source_exchange_rate=src_rate,
+                target_exchange_rate=tgt_rate,
+                functional_amount=src_func,
+                realized_fx_difference=realized_fx,
+                allocation_status=AllocationStatus.ACTIVE,
+                allocation_date=ref_date,
                 created_by=user
             )
 
-            logger.info(
-                f"Payment Allocation created successfully: {allocation_num} "
-                f"({amount_to_allocate} for {subledger_type}#{entity_id})"
-            )
+            # التخريج الآلي لقيد أرباح/خسائر العملة المحققة عبر LedgerCoreService
+            fx_entry = None
+            if realized_fx != Decimal("0.00"):
+                fx_account = AccountRoleRegistry.get_account(AccountRoleNames.FOREIGN_EXCHANGE_GAIN_LOSS)
+                control_role = AccountRoleNames.CUSTOMER_RECEIVABLE_CONTROL if customer_id else AccountRoleNames.SUPPLIER_PAYABLE_CONTROL
+                control_acc = AccountRoleRegistry.get_account(control_role)
 
-            return allocation
+                lines = []
+                if realized_fx > 0:
+                    lines = [
+                        {"account": control_acc, "debit": realized_fx, "credit": Decimal("0.00")},
+                        {"account": fx_account, "debit": Decimal("0.00"), "credit": realized_fx},
+                    ]
+                else:
+                    abs_fx = abs(realized_fx)
+                    lines = [
+                        {"account": fx_account, "debit": abs_fx, "credit": Decimal("0.00")},
+                        {"account": control_acc, "debit": Decimal("0.00"), "credit": abs_fx},
+                    ]
+
+                draft_fx = LedgerCoreService.create_draft_entry(
+                    date=ref_date,
+                    description=f"قيد فرق عملة محقق - تسوية {allocation.allocation_number}",
+                    reference=f"FX-ALLOC-{allocation.id}",
+                    entry_type="automatic",
+                    created_by=user,
+                    lines_data=lines
+                )
+                fx_entry = LedgerCoreService.post_entry(
+                    entry_id=draft_fx.id,
+                    user=user,
+                    posting_source="REVERSAL" if realized_fx < 0 else "MANUAL_JOURNAL",
+                    posting_reference=f"FX-{allocation.allocation_number}"
+                )
+
+            return {
+                "allocation_id": allocation.id,
+                "allocation_number": allocation.allocation_number,
+                "allocated_amount": alloc_amt,
+                "realized_fx_difference": realized_fx,
+                "source_open_amount": source_txn.open_amount,
+                "target_open_amount": target_txn.open_amount,
+                "fx_journal_entry_id": fx_entry.id if fx_entry else None
+            }
 
     @classmethod
-    def cancel_allocation(cls, allocation_id: int, user) -> bool:
+    def reverse_allocation(
+        cls,
+        allocation_id: int,
+        reason: str = "إلغاء التسوية بطلب المحاسب",
+        user=None
+    ) -> Dict[str, Any]:
         """
-        إلغاء تخصيص سداد قائم
+        FIN-SUB-004: إلغاء التسوية مع حفظ تتبع المراجعة وعدم مسح السجل (Immutable De-allocation Audit)
         """
         with transaction.atomic():
-            allocation = PaymentAllocation.objects.select_for_update().get(pk=allocation_id)
-            alloc_num = allocation.allocation_number
-            allocation.delete()
-            logger.info(f"Payment Allocation #{alloc_num} cancelled by user {user}")
-            return True
+            alloc = PaymentAllocation.objects.select_for_update().get(pk=allocation_id)
+            if alloc.allocation_status == AllocationStatus.REVERSED:
+                raise ValueError(f"Allocation {allocation_id} is already reversed.")
+
+            sorted_ids = sorted([alloc.source_document_id, alloc.target_document_id])
+
+            if alloc.customer_id:
+                txns = list(CustomerTransaction.objects.filter(
+                    id__in=sorted_ids, customer_id=alloc.customer_id
+                ).select_for_update())
+            else:
+                txns = list(SupplierTransaction.objects.filter(
+                    id__in=sorted_ids, supplier_id=alloc.supplier_id
+                ).select_for_update())
+
+            source_txn = next((t for t in txns if t.id == alloc.source_document_id), None)
+            target_txn = next((t for t in txns if t.id == alloc.target_document_id), None)
+
+            if source_txn:
+                source_txn.open_amount = cls.quantize_amount(source_txn.open_amount + alloc.allocated_amount)
+                source_txn.status = "OPEN" if source_txn.open_amount == source_txn.functional_amount else "PARTIAL"
+                source_txn.save()
+
+            if target_txn:
+                target_txn.open_amount = cls.quantize_amount(target_txn.open_amount + alloc.allocated_amount)
+                target_txn.status = "OPEN" if target_txn.open_amount == target_txn.functional_amount else "PARTIAL"
+                target_txn.save()
+
+            alloc.allocation_status = AllocationStatus.REVERSED
+            alloc.save()
+
+            # إنشاء سجل إلغاء التسوية التتبعي
+            de_alloc = PaymentAllocation.objects.create(
+                customer_id=alloc.customer_id,
+                supplier_id=alloc.supplier_id,
+                source_document_type=alloc.source_document_type,
+                source_document_id=alloc.source_document_id,
+                target_document_type=alloc.target_document_type,
+                target_document_id=alloc.target_document_id,
+                allocated_amount=-alloc.allocated_amount,
+                allocation_currency=alloc.allocation_currency,
+                source_exchange_rate=alloc.source_exchange_rate,
+                target_exchange_rate=alloc.target_exchange_rate,
+                functional_amount=-alloc.functional_amount,
+                realized_fx_difference=-alloc.realized_fx_difference,
+                allocation_status=AllocationStatus.REVERSED,
+                allocation_date=timezone.now().date(),
+                created_by=user
+            )
+
+            return {
+                "original_allocation_id": alloc.id,
+                "reversal_allocation_id": de_alloc.id,
+                "status": "REVERSED",
+                "reason": reason
+            }
