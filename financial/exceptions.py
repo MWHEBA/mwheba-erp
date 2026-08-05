@@ -18,6 +18,11 @@ class ImmutableLedgerError(FinancialCoreError):
     pass
 
 
+class DuplicatePostingError(FinancialCoreError):
+    """استثناء التكرار في ترحيل معاملة مالية"""
+    pass
+
+
 class UnbalancedJournalEntryError(FinancialCoreError):
     """استثناء عند محاولة إنتاج قيد غير متوازن (المدين != الدائن)"""
     pass

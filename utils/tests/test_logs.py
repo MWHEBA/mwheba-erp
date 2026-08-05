@@ -38,12 +38,19 @@ class SystemLogHandlerTest(TestCase):
         """
         تنظيف بيئة الاختبار
         """
-        # حذف ملف السجل المؤقت
+        if hasattr(self, 'log_handler') and hasattr(self.log_handler, 'file_handler'):
+            try:
+                self.log_handler.file_handler.close()
+            except Exception:
+                pass
         if os.path.exists(self.temp_log_file):
-            os.unlink(self.temp_log_file)
+            try:
+                os.unlink(self.temp_log_file)
+            except OSError:
+                pass
 
-    @patch("logging.FileHandler.emit")
-    def test_log_action(self, mock_emit):
+    @patch("logging.Logger.info")
+    def test_log_action(self, mock_info):
         """
         اختبار تسجيل إجراء في النظام
         """
@@ -56,8 +63,8 @@ class SystemLogHandlerTest(TestCase):
             details={"test": "value"},
         )
 
-        # التحقق من استدعاء طريقة emit
-        self.assertTrue(mock_emit.called)
+        # التحقق من استدعاء طريقة info
+        self.assertTrue(mock_info.called)
 
         # التحقق من بيانات السجل
         self.assertEqual(log_entry["action"], "test_action")
@@ -66,8 +73,9 @@ class SystemLogHandlerTest(TestCase):
         self.assertEqual(log_entry["object_id"], 1)
         self.assertEqual(log_entry["details"], {"test": "value"})
 
+    @patch("logging.FileHandler.__init__", return_value=None)
     @patch("os.makedirs")
-    def test_directory_creation(self, mock_makedirs):
+    def test_directory_creation(self, mock_makedirs, mock_file_handler):
         """
         اختبار إنشاء دليل السجلات
         """
@@ -102,9 +110,16 @@ class SecurityLogHandlerTest(TestCase):
         """
         تنظيف بيئة الاختبار
         """
-        # حذف ملف السجل المؤقت
+        if hasattr(self, 'log_handler') and hasattr(self.log_handler, 'file_handler'):
+            try:
+                self.log_handler.file_handler.close()
+            except Exception:
+                pass
         if os.path.exists(self.temp_log_file):
-            os.unlink(self.temp_log_file)
+            try:
+                os.unlink(self.temp_log_file)
+            except OSError:
+                pass
 
     @patch("logging.Logger.warning")
     def test_log_security_event(self, mock_warning):
@@ -155,9 +170,16 @@ class AuditLogHandlerTest(TestCase):
         """
         تنظيف بيئة الاختبار
         """
-        # حذف ملف السجل المؤقت
+        if hasattr(self, 'log_handler') and hasattr(self.log_handler, 'file_handler'):
+            try:
+                self.log_handler.file_handler.close()
+            except Exception:
+                pass
         if os.path.exists(self.temp_log_file):
-            os.unlink(self.temp_log_file)
+            try:
+                os.unlink(self.temp_log_file)
+            except OSError:
+                pass
 
     @patch("logging.Logger.info")
     def test_log_data_change(self, mock_info):
@@ -200,7 +222,8 @@ class GetLogsTest(TestCase):
         إعداد بيئة الاختبار
         """
         # تهيئة بيانات الاختبار
-        self.start_date = timezone.now() - timezone.timedelta(days=7)
+        from datetime import timedelta
+        self.start_date = timezone.now() - timedelta(days=7)
         self.end_date = timezone.now()
 
         # محاكاة محتوى ملف السجل
@@ -250,8 +273,9 @@ class GetLogsTest(TestCase):
             self.system_log_content.splitlines()
         )
 
-        # استرجاع السجلات
-        logs = get_system_logs()
+        # استرجاع السجلات مع تحديد تاريخ البداية ليشمل بيانات عام 2023
+        from datetime import datetime, timezone as dt_tz
+        logs = get_system_logs(start_date=datetime(2020, 1, 1, tzinfo=dt_tz.utc))
 
         # التحقق من النتائج
         self.assertGreater(len(logs), 0)

@@ -35,7 +35,22 @@ class CostCenterBudget(models.Model):
     budget_allocation_method = models.CharField(_("طريقة توزيع الميزانية"), max_length=20, default='EQUAL')
     cached_spent_amount = models.DecimalField(_("المبلغ المنفق المخزن كاش"), max_digits=15, decimal_places=2, default=Decimal("0.00"))
     status = models.CharField(_("حالة الميزانية"), max_length=20, choices=STATUS_CHOICES, default='DRAFT')
-    approved_at = models.DateTimeField(_("تاريخ الاعتماد"), null=True, blank=True)
+    def __init__(self, *args, **kwargs):
+        if 'allocated_amount' in kwargs:
+            kwargs['budget_amount'] = kwargs.pop('allocated_amount')
+        super().__init__(*args, **kwargs)
+
+    @property
+    def allocated_amount(self):
+        return self.budget_amount
+
+    @allocated_amount.setter
+    def allocated_amount(self, value):
+        self.budget_amount = value
+
+    @property
+    def current_budget(self):
+        return self.budget_amount
     approved_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='approved_cost_center_budgets')
     created_at = models.DateTimeField(_("تاريخ الإنشاء"), auto_now_add=True)
     updated_at = models.DateTimeField(_("تاريخ التحديث"), auto_now=True)

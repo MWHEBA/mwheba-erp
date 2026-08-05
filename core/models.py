@@ -1479,3 +1479,85 @@ class AttachmentOrphanReview(models.Model):
         verbose_name = _("مراجعة مستند يتيتم")
         verbose_name_plural = _("مراجعات المستندات الأيتام")
 
+
+class DocumentSequenceRule(models.Model):
+    """
+    نموذج قواعد ترقيم المستندات (DocumentSequenceRule Model)
+    """
+    company_code = models.CharField(_("كود الشركة"), max_length=50, default="DEFAULT", db_index=True)
+    warehouse = models.ForeignKey('product.Warehouse', on_delete=models.SET_NULL, null=True, blank=True, related_name='sequence_rules', verbose_name=_("المخزن / الفرع"))
+    document_type = models.CharField(_("نوع المستند"), max_length=50, db_index=True)
+    prefix = models.CharField(_("البادئة"), max_length=20)
+    padding = models.PositiveIntegerField(_("طول الخانة التسلسلية"), default=5)
+    numbering_basis = models.CharField(_("أساس السنة التسلسلية"), max_length=20, default="POSTING_DATE")
+    version = models.PositiveIntegerField(_("إصدار القاعدة"), default=1)
+    is_locked = models.BooleanField(_("مقفلة لإنشاء مستندات حقيقية"), default=False, help_text=_("تقفل القاعدة تلقائياً بعد إنتاج أول رقم لحماية تاريخ السجلات"))
+    status = models.CharField(_("الحالة"), max_length=20, default="ACTIVE")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = _("قاعدة ترقيم مستند")
+        verbose_name_plural = _("قواعد ترقيم المستندات")
+        constraints = [
+            models.UniqueConstraint(
+                fields=["company_code", "warehouse", "document_type", "version"],
+                name="unique_sequence_rule_version",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.document_type} - {self.prefix} (v{self.version})"
+
+
+class DocumentSequenceCounter(models.Model):
+    """
+    نموذج عداد ترقيم المستندات (DocumentSequenceCounter Model)
+    """
+    company_code = models.CharField(_("كود الشركة"), max_length=50, default="DEFAULT", db_index=True)
+    warehouse = models.ForeignKey('product.Warehouse', on_delete=models.SET_NULL, null=True, blank=True, related_name='sequence_counters', verbose_name=_("المخزن / الفرع"))
+    document_type = models.CharField(_("نوع المستند"), max_length=50, db_index=True)
+    year = models.PositiveIntegerField(_("السنة التسلسلية"), db_index=True)
+    last_number = models.PositiveIntegerField(_("آخر رقم تسلسلي"), default=0)
+    last_reserved_at = models.DateTimeField(_("تاريخ آخر حجز/توليد"), auto_now=True)
+    rule = models.ForeignKey(DocumentSequenceRule, on_delete=models.PROTECT, related_name='counters', verbose_name=_("قاعدة الترقيم المرتبطة"))
+
+    class Meta:
+        verbose_name = _("عداد ترقيم مستند")
+        verbose_name_plural = _("عدادات ترقيم المستندات")
+        constraints = [
+            models.UniqueConstraint(
+                fields=["company_code", "warehouse", "document_type", "year"],
+                name="unique_sequence_counter_scope",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.document_type} - {self.year}: {self.last_number}"
+
+
+class DocumentSequenceAudit(models.Model):
+    """
+    سجل تدقيق الترقيم (DocumentSequenceAudit Model)
+    """
+    event_type = models.CharField(_("نوع الحدث"), max_length=30, db_index=True)
+    document_type = models.CharField(_("نوع المستند"), max_length=50, db_index=True)
+    document_number = models.CharField(_("رقم المستند الناتج"), max_length=100, blank=True, null=True, db_index=True)
+    company_code = models.CharField(_("كود الشركة"), max_length=50, default="DEFAULT")
+    warehouse = models.ForeignKey('product.Warehouse', on_delete=models.SET_NULL, null=True, blank=True, verbose_name=_("المخزن / الفرع"))
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, verbose_name=_("المستخدم (إن وجد)"))
+    source_type = models.CharField(_("مصدر الطلب"), max_length=20, default="USER")
+    timestamp = models.DateTimeField(_("تاريخ وتوقيت الحدث"), auto_now_add=True, db_index=True)
+    reason = models.TextField(_("السبب / الملاحظات"), blank=True, null=True)
+    old_value = models.CharField(_("القيمة القديمة"), max_length=100, blank=True, null=True)
+    new_value = models.CharField(_("القيمة الجديدة"), max_length=100, blank=True, null=True)
+    prefix_snapshot = models.CharField(_("لقطة البادئة"), max_length=20, blank=True, null=True)
+    padding_snapshot = models.PositiveIntegerField(_("لقطة الطول"), blank=True, null=True)
+    year_snapshot = models.PositiveIntegerField(_("لقطة السنة"), blank=True, null=True)
+    sequence_number = models.PositiveIntegerField(_("الرقم التسلسلي المجرد"), blank=True, null=True)
+
+    class Meta:
+        verbose_name = _("سجل تدقيق الترقيم")
+        verbose_name_plural = _("سجلات تدقيق الترقيم")
+        ordering = ["-timestamp"]
+

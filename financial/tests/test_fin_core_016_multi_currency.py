@@ -17,16 +17,16 @@ class TestFINCORE016MultiCurrencyFoundation:
     def setup_currency_data(self):
         user = User.objects.create_user(username="curr_user16", password="password123")
 
-        base_curr, _ = Currency.objects.get_or_create(code="EGP", defaults={"name": "Egyptian Pound", "symbol": "EGP", "is_base": True})
-        usd_curr, _ = Currency.objects.get_or_create(code="USD", defaults={"name": "US Dollar", "symbol": "$", "is_base": False})
+        base_curr, _ = Currency.objects.get_or_create(code="EGP", defaults={"name": "Egyptian Pound", "symbol": "EGP", "is_functional": True})
+        usd_curr, _ = Currency.objects.get_or_create(code="USD", defaults={"name": "US Dollar", "symbol": "$", "is_functional": False})
 
         ExchangeRateService.set_rate(from_code="USD", to_code="EGP", rate=Decimal("48.500000"), date=timezone.now().date(), user=user)
 
         asset_type, _ = AccountType.objects.get_or_create(code="ASSET", defaults={"name": "Asset", "category": "ASSET"})
         revenue_type, _ = AccountType.objects.get_or_create(code="REVENUE", defaults={"name": "Revenue", "category": "REVENUE"})
 
-        ar_acc = ChartOfAccounts.objects.create(code="11010_USD", name="Customer AR Foreign", account_type=asset_type, is_active=True)
-        sales_acc = ChartOfAccounts.objects.create(code="40100_USD", name="Sales Revenue Foreign", account_type=revenue_type, is_active=True)
+        ar_acc, _ = ChartOfAccounts.objects.get_or_create(code="11010_USD", defaults={"name": "Customer AR Foreign", "account_type": asset_type, "is_active": True})
+        sales_acc, _ = ChartOfAccounts.objects.get_or_create(code="40100_USD", defaults={"name": "Sales Revenue Foreign", "account_type": revenue_type, "is_active": True})
 
         today = timezone.now().date()
         AccountingPeriod.objects.get_or_create(

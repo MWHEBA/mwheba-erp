@@ -30,23 +30,17 @@ class SalePaymentValidationTest(TestCase):
             end_date=datetime.date(2026, 12, 31),
             defaults={'name': 'فترة 2026', 'status': 'open'}
         )
-        self.acc_type = AccountType.objects.create(
+        self.acc_type, _ = AccountType.objects.get_or_create(
             code='ASSET',
-            name='أصول',
-            category='asset',
-            nature='debit'
+            defaults={'name': 'أصول', 'category': 'asset', 'nature': 'debit'}
         )
-        self.accounts_receivable = ChartOfAccounts.objects.create(
+        self.accounts_receivable, _ = ChartOfAccounts.objects.get_or_create(
             code='10301',
-            name='عميل اختبار حساب',
-            account_type=self.acc_type,
-            is_active=True
+            defaults={'name': 'عملاء تجاريون', 'account_type': self.acc_type, 'is_active': True}
         )
-        self.cash_account = ChartOfAccounts.objects.create(
+        self.cash_account, _ = ChartOfAccounts.objects.get_or_create(
             code='10100',
-            name='الصندوق الرئيسية',
-            account_type=self.acc_type,
-            is_active=True
+            defaults={'name': 'الصندوق الرئيسية', 'account_type': self.acc_type, 'is_active': True}
         )
         self.customer = Customer.objects.create(
             name='عميل اختبار',

@@ -13,8 +13,9 @@ class CustomFieldsTestCase(TestCase):
         from financial.models import ChartOfAccounts, AccountType, AccountingPeriod
         from datetime import date
         AccountingPeriod.objects.get_or_create(
-            name='سنة 2026',
-            defaults={'start_date': date(2026, 1, 1), 'end_date': date(2026, 12, 31), 'status': 'open'}
+            start_date=date(2026, 1, 1),
+            end_date=date(2026, 12, 31),
+            defaults={'name': 'سنة 2026', 'status': 'open'}
         )
         rev_type, _ = AccountType.objects.get_or_create(code='REV', defaults={'name': 'إيرادات', 'category': 'revenue'})
         asset_type, _ = AccountType.objects.get_or_create(code='AST', defaults={'name': 'أصول متداولة', 'category': 'asset'})

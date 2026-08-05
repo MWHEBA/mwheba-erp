@@ -491,9 +491,11 @@ class PurchaseService:
                 try:
                     # فك قفل القيد وتغيير الحالة قبل الحذف
                     journal_entry = purchase.journal_entry
-                    journal_entry.is_locked = False
+                    journal_entry._allow_lock_operation = True
+                    from financial.models import JournalEntry, FinancialPostingReference
+                    FinancialPostingReference.objects.filter(journal_entry_id=journal_entry.pk).delete()
+                    JournalEntry.objects.filter(pk=journal_entry.pk).update(status='draft', is_locked=False)
                     journal_entry.status = 'draft'
-                    journal_entry.save(update_fields=['is_locked', 'status'])
                     journal_entry.delete()
                     logger.info(f"✅ تم حذف القيد المحاسبي للفاتورة: {purchase.number}")
                 except Exception as e:

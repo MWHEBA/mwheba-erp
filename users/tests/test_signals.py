@@ -10,6 +10,7 @@ class ActivityLogSignalsTest(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(
             username="testuser_sig",
+            email="testuser_sig@example.com",
             password="password123",
             first_name="Ahmed"
         )
@@ -24,6 +25,7 @@ class ActivityLogSignalsTest(TestCase):
         # Create a new user
         another_user = User.objects.create_user(
             username="newuser_sig",
+            email="newuser_sig@example.com",
             password="password123",
             first_name="Sayed"
         )
@@ -44,6 +46,7 @@ class ActivityLogSignalsTest(TestCase):
     def test_user_delete_creates_log(self):
         another_user = User.objects.create_user(
             username="newuser_del_sig",
+            email="newuser_del_sig@example.com",
             password="password123"
         )
         user_id = another_user.id

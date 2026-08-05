@@ -27,8 +27,7 @@ class DateRangeStatsTest(TestCase):
 
         # إنشاء مجموعة استعلام وهمية
         queryset = MagicMock()
-        queryset.filter.return_value = MagicMock()
-        queryset.filter().aggregate.return_value = {"total": 1000, "count": 10}
+        queryset.filter.return_value.aggregate.return_value = {"total": 1000, "count": 10}
 
         # اختبار النطاق اليومي
         result = get_date_range_stats(
@@ -41,7 +40,7 @@ class DateRangeStatsTest(TestCase):
 
         # اختبار النطاق الأسبوعي
         queryset.reset_mock()
-        queryset.filter().aggregate.return_value = {"total": 2000, "count": 20}
+        queryset.filter.return_value.aggregate.return_value = {"total": 2000, "count": 20}
 
         result = get_date_range_stats(
             queryset, date_field="created_at", value_field="amount", range_type="weekly"
@@ -53,7 +52,7 @@ class DateRangeStatsTest(TestCase):
 
         # اختبار النطاق الشهري
         queryset.reset_mock()
-        queryset.filter().aggregate.return_value = {"total": 3000, "count": 30}
+        queryset.filter.return_value.aggregate.return_value = {"total": 3000, "count": 30}
 
         result = get_date_range_stats(
             queryset,
@@ -68,7 +67,7 @@ class DateRangeStatsTest(TestCase):
 
         # اختبار النطاق السنوي
         queryset.reset_mock()
-        queryset.filter().aggregate.return_value = {"total": 4000, "count": 40}
+        queryset.filter.return_value.aggregate.return_value = {"total": 4000, "count": 40}
 
         result = get_date_range_stats(
             queryset, date_field="created_at", value_field="amount", range_type="yearly"
@@ -80,7 +79,7 @@ class DateRangeStatsTest(TestCase):
 
         # اختبار النطاق المخصص
         queryset.reset_mock()
-        queryset.filter().aggregate.return_value = {"total": 5000, "count": 50}
+        queryset.filter.return_value.aggregate.return_value = {"total": 5000, "count": 50}
 
         start_date = today - timedelta(days=10)
         end_date = today

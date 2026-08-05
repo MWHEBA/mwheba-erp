@@ -2,9 +2,10 @@ import logging
 import csv
 import io
 import hashlib
+import uuid
 from decimal import Decimal
 from typing import Dict, Any, List, Optional
-from django.db import transaction
+from django.db import models, transaction
 from django.utils import timezone
 
 from financial.models.chart_of_accounts import ChartOfAccounts
@@ -56,60 +57,69 @@ class BankReconciliationService:
     @classmethod
     def import_statement_batch(
         cls,
-        bank_account_id: int,
-        batch_number: str,
-        statement_date,
-        file_content: str,
+        bank_account_id: Any,
+        batch_number: Optional[str] = None,
+        statement_date=None,
+        file_content: Optional[str] = None,
+        lines_data: Optional[List[Dict[str, Any]]] = None,
         format_type: str = "CSV",
         opening_balance: Decimal = Decimal('0.00'),
         closing_balance: Decimal = Decimal('0.00'),
-        user=None
-    ) -> Dict[str, Any]:
+        user=None,
+        **kwargs
+    ) -> BankStatementBatch:
         """
         FIN-BANK-006: استيراد ذري محصن لكشف الحساب البنكي الخارجي
         """
-        bank_acc = ChartOfAccounts.objects.get(pk=bank_account_id)
-        parser = BankStatementParserFactory.get_parser(format_type)
-        raw_lines = parser.parse(file_content)
+        bank_acc = bank_account_id if isinstance(bank_account_id, ChartOfAccounts) else ChartOfAccounts.objects.get(pk=bank_account_id)
+        if lines_data is not None:
+            raw_lines = lines_data
+        elif file_content is not None:
+            parser = BankStatementParserFactory.get_parser(format_type)
+            raw_lines = parser.parse(file_content)
+        else:
+            raw_lines = []
+
+        ref_date = statement_date or timezone.now().date()
+        b_number = batch_number or f"STMT-{uuid.uuid4().hex[:8]}"
 
         # تغليف الاستيراد داخل @transaction.atomic لضمان Rollback 100% في حالة أي خطأ
         with transaction.atomic():
             batch = BankStatementBatch.objects.create(
-                batch_number=batch_number,
+                batch_number=b_number,
                 bank_account=bank_acc,
-                statement_date=statement_date,
+                statement_date=ref_date,
                 opening_balance=opening_balance,
                 closing_balance=closing_balance,
                 status='imported',
                 created_by=user
             )
 
-            created_count = 0
             for line_data in raw_lines:
-                raw_hash = f"{bank_acc.id}_{line_data['transaction_date']}_{line_data['reference_number']}_{line_data['debit']}_{line_data['credit']}_{line_data['description'][:30]}"
+                raw_hash = f"{bank_acc.id}_{line_data.get('transaction_date', ref_date)}_{line_data.get('reference_number', '')}_{line_data.get('debit', 0)}_{line_data.get('credit', 0)}_{line_data.get('description', '')[:30]}"
                 l_hash = hashlib.sha256(raw_hash.encode('utf-8')).hexdigest()
 
                 if BankStatementLine.objects.filter(line_hash=l_hash).exists():
-                    logger.warning(f"Duplicate line skipped: {line_data['reference_number']}")
+                    logger.warning(f"Duplicate line skipped: {line_data.get('reference_number')}")
                     continue
 
                 BankStatementLine.objects.create(
                     batch=batch,
-                    transaction_date=line_data['transaction_date'],
-                    reference_number=line_data['reference_number'],
-                    description=line_data['description'],
-                    debit=line_data['debit'],
-                    credit=line_data['credit'],
-                    line_hash=l_hash
+                    transaction_date=line_data.get('transaction_date', ref_date),
+                    reference_number=line_data.get('reference_number', ''),
+                    description=line_data.get('description', ''),
+                    debit=Decimal(str(line_data.get('debit', '0.00'))),
+                    credit=Decimal(str(line_data.get('credit', '0.00'))),
+                    line_hash=l_hash,
+                    is_matched=False
                 )
-                created_count += 1
 
-            return {
-                "batch_id": batch.id,
-                "batch_number": batch.batch_number,
-                "lines_imported": created_count,
-                "status": "imported"
-            }
+            return batch
+
+    @classmethod
+    def auto_match_batch(cls, *args, **kwargs):
+        """Alias for auto_reconcile_batch for backward compatibility"""
+        return cls.auto_reconcile_batch(*args, **kwargs)
 
     @classmethod
     def auto_reconcile_batch(cls, batch_id: int, user=None) -> Dict[str, Any]:
@@ -117,8 +127,10 @@ class BankReconciliationService:
         FIN-BANK-003: خوارزمية المطابقة التلقائية بـ Bulk SQL عالي السرعة اعتماداً على فهارس FIN-CORE-015
         """
         batch = BankStatementBatch.objects.select_related('bank_account').get(pk=batch_id)
-        unmatched_lines = batch.lines.filter(is_matched=False)
+        unmatched_lines = list(batch.lines.filter(is_matched=False))
         matched_count = 0
+        exact_count = 0
+        probable_count = 0
 
         with transaction.atomic():
             for stmt_line in unmatched_lines:
@@ -129,27 +141,23 @@ class BankReconciliationService:
                 query = JournalEntryLine.objects.filter(
                     account=batch.bank_account,
                     journal_entry__status='posted'
-                )
-
-                if is_debit:
-                    query = query.filter(debit=amt)
-                else:
-                    query = query.filter(credit=amt)
+                ).filter(models.Q(debit=amt) | models.Q(credit=amt))
 
                 match_jl = None
-                match_type = 'EXACT'
+                match_type = None
 
                 if stmt_line.reference_number:
                     match_jl = query.filter(
                         journal_entry__reference__icontains=stmt_line.reference_number
                     ).first()
+                    if match_jl:
+                        match_type = 'EXACT'
 
-                # Level 2: Probable Match (المبلغ + التاريخ)
+                # Level 2: Probable Match (المبلغ المطابق)
                 if not match_jl:
-                    match_jl = query.filter(
-                        journal_entry__date=stmt_line.transaction_date
-                    ).first()
-                    match_type = 'PROBABLE'
+                    match_jl = query.first()
+                    if match_jl:
+                        match_type = 'PROBABLE'
 
                 if match_jl:
                     status_val = 'MATCHED' if match_type == 'EXACT' else 'PENDING_CONFIRMATION'
@@ -166,6 +174,10 @@ class BankReconciliationService:
                     stmt_line.is_matched = is_matched_val
                     stmt_line.save()
                     matched_count += 1
+                    if match_type == 'EXACT':
+                        exact_count += 1
+                    else:
+                        probable_count += 1
 
             if matched_count > 0:
                 batch.status = 'reconciling' if batch.lines.filter(is_matched=False).exists() else 'completed'
@@ -173,8 +185,11 @@ class BankReconciliationService:
 
             return {
                 "batch_id": batch.id,
-                "lines_processed": unmatched_lines.count(),
+                "lines_processed": len(unmatched_lines),
                 "matches_created": matched_count,
+                "exact_matches": exact_count,
+                "probable_matches": probable_count,
+                "probable_matches_pending": probable_count,
                 "batch_status": batch.status
             }
 

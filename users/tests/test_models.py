@@ -310,18 +310,21 @@ class UserSecurityTest(TestCase):
     def test_password_hashing(self):
         """اختبار تشفير كلمة المرور"""
         user = User.objects.create_user(
-            username="testuser",
+            username="testuser_hash",
+            email="testuser_hash@example.com",
             password="plaintext123"
         )
         
-        # كلمة المرور يجب أن تكون مشفرة
+        # كلمة المرور يجب أن تكون مشفرة وصالحة
         self.assertNotEqual(user.password, "plaintext123")
-        self.assertTrue(user.password.startswith('pbkdf2_'))
+        self.assertTrue(user.has_usable_password())
+        self.assertTrue(user.check_password("plaintext123"))
         
     def test_invalid_login(self):
         """اختبار تسجيل الدخول بكلمة مرور خاطئة"""
         user = User.objects.create_user(
-            username="testuser",
+            username="testuser_login",
+            email="testuser_login@example.com",
             password="correct123"
         )
         
@@ -334,7 +337,8 @@ class UserSecurityTest(TestCase):
     def test_inactive_user_permissions(self):
         """اختبار صلاحيات المستخدم غير النشط"""
         user = User.objects.create_user(
-            username="testuser",
+            username="testuser_inactive",
+            email="testuser_inactive@example.com",
             password="test123",
             is_active=False
         )

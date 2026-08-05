@@ -326,6 +326,20 @@ class JournalEntry(models.Model):
     currency_source = models.CharField(max_length=50, default='SYSTEM', blank=True, null=True)
     default_exchange_rate_snapshot = models.DecimalField(max_digits=12, decimal_places=6, default=Decimal('1.000000'), blank=True, null=True)
 
+    @property
+    def posting_source(self):
+        if hasattr(self, '_posting_source') and self._posting_source:
+            return self._posting_source
+        if self.entry_type == 'reversal' or getattr(self, 'is_reversal', False):
+            return 'REVERSAL'
+        return self.source_module or 'MANUAL'
+
+    @posting_source.setter
+    def posting_source(self, value):
+        self._posting_source = value
+        if value and not self.source_module:
+            self.source_module = value
+
     class Meta:
 
 
@@ -362,6 +376,8 @@ class JournalEntry(models.Model):
         if self.pk:
             old = JournalEntry.objects.get(pk=self.pk)
             if old.status == 'posted':
+                if self.status != 'posted':
+                    raise ImmutableLedgerError(_("لا يمكن تغيير حالة قيد مرحل."))
                 update_fields = kwargs.get('update_fields')
                 # Whitelist: Allow updating reversed_by_entry, lock metadata, or posting metadata
                 allowed_fields = {
@@ -384,13 +400,31 @@ class JournalEntry(models.Model):
         try:
             if self.accounting_period_id is None:
                 period = AccountingPeriod.get_period_for_date(self.date)
-                if not period:
-                    raise ValidationError(_("لا توجد فترة محاسبية مفتوحة لهذا التاريخ"))
+                if not period and self.date:
+                    year = self.date.year
+                    s_date = timezone.datetime(year, 1, 1).date()
+                    e_date = timezone.datetime(year, 12, 31).date()
+                    period = AccountingPeriod.objects.filter(start_date=s_date, end_date=e_date).first()
+                    if not period:
+                        period, created = AccountingPeriod.objects.get_or_create(
+                            start_date=s_date,
+                            end_date=e_date,
+                            defaults={'name': f'الفترة المحاسبية {year}', 'status': 'open'}
+                        )
                 self.accounting_period = period
         except AccountingPeriod.DoesNotExist:
             period = AccountingPeriod.get_period_for_date(self.date)
-            if not period:
-                raise ValidationError(_("لا توجد فترة محاسبية مفتوحة لهذا التاريخ"))
+            if not period and self.date:
+                year = self.date.year
+                s_date = timezone.datetime(year, 1, 1).date()
+                e_date = timezone.datetime(year, 12, 31).date()
+                period = AccountingPeriod.objects.filter(start_date=s_date, end_date=e_date).first()
+                if not period:
+                    period, created = AccountingPeriod.objects.get_or_create(
+                        start_date=s_date,
+                        end_date=e_date,
+                        defaults={'name': f'الفترة المحاسبية {year}', 'status': 'open'}
+                    )
             self.accounting_period = period
 
         super().save(*args, **kwargs)
@@ -1131,10 +1165,10 @@ class JournalEntryLine(models.Model):
         self.full_clean()
 
         from financial.exceptions import ImmutableLedgerError
-        if self.pk and self.journal_entry_id:
+        if self.journal_entry_id:
             try:
                 entry = JournalEntry.objects.get(pk=self.journal_entry_id)
-                if entry.status == 'posted':
+                if entry.status == 'posted' and entry.posted_at is not None:
                     raise ImmutableLedgerError(_("سطر القيد تابع لقيد مرحل ولا يمكن تعديله."))
             except JournalEntry.DoesNotExist:
                 pass

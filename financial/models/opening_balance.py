@@ -65,11 +65,15 @@ class OpeningBalanceLine(models.Model):
         return f"{self.account.name}: Dr {self.debit} / Cr {self.credit}"
 
     def save(self, *args, **kwargs):
-        if self.batch and self.batch.status == 'posted':
-            raise ImmutableLedgerError(_("لا يمكن تعديل أسطر دفعة أرصدة افتتاحية مرحلة."))
+        if self.batch_id:
+            batch_status = OpeningBalanceBatch.objects.filter(pk=self.batch_id).values_list('status', flat=True).first()
+            if batch_status == 'posted':
+                raise ImmutableLedgerError(_("لا يمكن تعديل أسطر دفعة أرصدة افتتاحية مرحلة."))
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
-        if self.batch and self.batch.status == 'posted':
-            raise ImmutableLedgerError(_("لا يمكن حذف أسطر دفعة أرصدة افتتاحية مرحلة."))
+        if self.batch_id:
+            batch_status = OpeningBalanceBatch.objects.filter(pk=self.batch_id).values_list('status', flat=True).first()
+            if batch_status == 'posted':
+                raise ImmutableLedgerError(_("لا يمكن حذف أسطر دفعة أرصدة افتتاحية مرحلة."))
         super().delete(*args, **kwargs)

@@ -11,6 +11,7 @@ Requirements: 9.1, 9.2 - Test performance validation
 import time
 import subprocess
 import sys
+import os
 from pathlib import Path
 import pytest
 from django.test import TestCase

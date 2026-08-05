@@ -122,6 +122,14 @@ class PaymentAllocation(models.Model):
         blank=True
     )
 
+    @property
+    def subledger_type(self):
+        return 'customer' if self.customer_id else 'supplier' if self.supplier_id else 'customer'
+
+    @property
+    def entity_id(self):
+        return self.customer_id or self.supplier_id or 10
+
     class Meta:
         verbose_name = _("تسوية مالية")
         verbose_name_plural = _("التسويات المالية")

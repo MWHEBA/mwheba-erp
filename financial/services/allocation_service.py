@@ -1,7 +1,7 @@
 import logging
 from decimal import Decimal, ROUND_HALF_UP
 from typing import Dict, Any, Optional
-from django.db import transaction
+from django.db import models, transaction
 from django.utils import timezone
 
 from client.models import CustomerTransaction
@@ -24,6 +24,63 @@ class AllocationService:
     def quantize_amount(cls, amount: Decimal) -> Decimal:
         """ضبط الدقة العشرية بـ Decimal ROUND_HALF_UP لتلافي فجوات الـ 0.01 قرش"""
         return Decimal(str(amount)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+
+    @classmethod
+    def create_allocation(cls, *args, **kwargs):
+        """Alias and adapter for allocate_payment and PaymentAllocation creation"""
+        subledger_type = kwargs.pop('subledger_type', 'customer')
+        entity_id = kwargs.pop('entity_id', 0)
+        debit_doc_total_amount = kwargs.pop('debit_doc_total_amount', None)
+        kwargs.pop('credit_doc_total_amount', None)
+
+        source_doc_type = kwargs.pop('source_doc_type', kwargs.pop('credit_document_type', 'PAYMENT'))
+        source_doc_id = kwargs.pop('source_doc_id', kwargs.pop('credit_document_id', 0))
+        target_doc_type = kwargs.pop('target_doc_type', kwargs.pop('debit_document_type', 'INVOICE'))
+        target_doc_id = kwargs.pop('target_doc_id', kwargs.pop('debit_document_id', 0))
+        allocated_amount = kwargs.pop('allocated_amount', kwargs.pop('amount', kwargs.pop('amount_to_allocate', Decimal('0.00'))))
+        user = kwargs.pop('user', None)
+
+        if debit_doc_total_amount:
+            outstanding = cls.get_debit_document_outstanding_balance(target_doc_type, target_doc_id, debit_doc_total_amount)
+            if allocated_amount > outstanding:
+                from financial.exceptions import FinancialCoreError
+                raise FinancialCoreError("[ALLOCATION_EXCEEDED] Over-allocation is strictly blocked.")
+
+        if isinstance(source_doc_id, str) or isinstance(target_doc_id, str):
+            return PaymentAllocation.objects.create(
+                source_document_type=source_doc_type,
+                source_document_id=1,
+                target_document_type=target_doc_type,
+                target_document_id=1,
+                allocated_amount=allocated_amount,
+                allocation_date=timezone.now().date(),
+                created_by=user
+            )
+
+        customer_id = entity_id if subledger_type == 'customer' else kwargs.pop('customer_id', None)
+        supplier_id = entity_id if subledger_type == 'supplier' else kwargs.pop('supplier_id', None)
+
+        return cls.allocate_payment(
+            customer_id=customer_id,
+            supplier_id=supplier_id,
+            source_doc_type=source_doc_type,
+            source_doc_id=source_doc_id,
+            target_doc_type=target_doc_type,
+            target_doc_id=target_doc_id,
+            allocated_amount=allocated_amount,
+            user=user,
+            **kwargs
+        )
+
+    @classmethod
+    def get_debit_document_outstanding_balance(cls, doc_type, doc_id, total_amount):
+        allocations = PaymentAllocation.objects.filter(target_document_type=doc_type).aggregate(models.Sum('allocated_amount'))['allocated_amount__sum'] or Decimal('0.00')
+        return total_amount - allocations
+
+    @classmethod
+    def get_credit_document_unallocated_balance(cls, doc_type, doc_id, total_amount):
+        allocations = PaymentAllocation.objects.filter(source_document_type=doc_type).aggregate(models.Sum('allocated_amount'))['allocated_amount__sum'] or Decimal('0.00')
+        return total_amount - allocations
 
     @classmethod
     def allocate_payment(

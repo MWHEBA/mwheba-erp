@@ -667,10 +667,10 @@ class AuthorityBoundaryEnforcementProperties(HypothesisTestCase):
             assert updated_stats['active_delegations'] == stats['active_delegations'] + 1
 
 
-# ===== Integration Tests with Real Django Models =====
+from hypothesis.extra.django import TestCase as HypothesisTestCase
 
 @pytest.mark.django_db
-class AuthorityBoundaryEnforcementIntegrationTests(TransactionTestCase):
+class AuthorityBoundaryEnforcementIntegrationTests(HypothesisTestCase):
     """
     Integration tests for Authority Boundary Enforcement with real Django models
     """
@@ -681,17 +681,15 @@ class AuthorityBoundaryEnforcementIntegrationTests(TransactionTestCase):
         from governance.models import GovernanceContext
         
         self.authority_service = AuthorityService
-        self.user = User.objects.create_user(
+        self.user, _ = User.objects.get_or_create(
             username='test_authority_user',
-            email='test@example.com',
-            password='testpass123'
+            defaults={'email': 'test@example.com'}
         )
         self.user.is_superuser = True
         self.user.save()
         
         # Set governance context
-        GovernanceContext.set_current_user(self.user)
-        GovernanceContext.set_current_service('TestService')
+        GovernanceContext.set_context(user=self.user, service='TestService')
     
     def tearDown(self):
         """Clean up after tests"""

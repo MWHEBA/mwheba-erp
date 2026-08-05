@@ -93,11 +93,11 @@ class SessionTrackingMiddleware(MiddlewareMixin):
 @receiver(user_logged_in)
 def handle_user_login(sender, request, user, **kwargs):
     """Handle successful user login"""
-    ip_address = BlockedIPMiddleware.get_client_ip(request)
-    user_agent = request.META.get('HTTP_USER_AGENT', '')
+    ip_address = BlockedIPMiddleware.get_client_ip(request) if request else '127.0.0.1'
+    user_agent = request.META.get('HTTP_USER_AGENT', '') if (request and hasattr(request, 'META') and request.META) else ''
     
     # Create active session
-    if hasattr(request, 'session') and request.session.session_key:
+    if request and hasattr(request, 'session') and request.session and getattr(request.session, 'session_key', None):
         ActiveSession.create_session(
             user=user,
             session_key=request.session.session_key,
@@ -111,7 +111,7 @@ def handle_user_login(sender, request, user, **kwargs):
 @receiver(user_logged_out)
 def handle_user_logout(sender, request, user, **kwargs):
     """Handle user logout"""
-    if user and hasattr(request, 'session') and request.session.session_key:
+    if user and request and hasattr(request, 'session') and request.session and getattr(request.session, 'session_key', None):
         try:
             session = ActiveSession.objects.get(
                 session_key=request.session.session_key,

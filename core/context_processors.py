@@ -137,13 +137,15 @@ def payment_accounts(request):
             models.Q(is_cash_account=True) | models.Q(is_bank_account=True)
         ).order_by('code')
         
-        # الحساب الافتراضي عبر سجل الوظائف المحاسبية Dynamic Role Registry
-        from financial.services.account_role_registry import AccountRoleRegistry
-        default_account = AccountRoleRegistry.get_account_by_role("DEFAULT_CASH_DRAWER")
+        # الحسابات الافتراضية عبر سجل الوظائف المحاسبية Dynamic Role Registry
+        from financial.services.role_registry import AccountRoleRegistry
+        default_account = AccountRoleRegistry.get_account("DEFAULT_CASH_DRAWER")
+        default_bank = AccountRoleRegistry.get_account("DEFAULT_BANK_ACCOUNT")
         
         return {
             'payment_accounts': accounts,
-            'default_payment_account': default_account
+            'default_payment_account': default_account,
+            'default_bank_account': default_bank
         }
     except Exception as e:
         # في حالة عدم وجود موديول المحاسبة أو أي خطأ
@@ -152,7 +154,8 @@ def payment_accounts(request):
         logger.debug(f"Payment accounts context processor: {str(e)}")
         return {
             'payment_accounts': [],
-            'default_payment_account': None
+            'default_payment_account': None,
+            'default_bank_account': None
         }
 
 

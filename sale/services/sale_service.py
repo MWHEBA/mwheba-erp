@@ -49,6 +49,8 @@ class SaleService:
             # Validation: التحقق من صحة البيانات
             items_data = data.get('items', [])
             for item in items_data:
+                if Decimal(str(item.get('quantity', 0))) <= Decimal('0'):
+                    raise ValidationError('لا يمكن بيع البند بكمية صفر أو أقل (Negative/Zero quantity is rejected)')
                 if Decimal(str(item.get('unit_price', 0))) <= Decimal('0'):
                     raise ValidationError('لا يمكن بيع البند بسعر صفر أو أقل (Zero price is rejected)')
             # 0. قفل المنتجات والمخزون والعميل بترتيب منظم لمنع الـ Deadlocks وسباق التزامن
@@ -364,15 +366,17 @@ class SaleService:
             service_revenue_total = (sale.total - physical_revenue_total).quantize(Decimal('0.01'))
             
             # إعداد بيانات القيد باستخدام JournalEntryLineData
-            lines = [
-                # مدين: العملاء/الخزينة/البنك
-                JournalEntryLineData(
-                    account_code=debit_account.code,
-                    debit=sale.total,
-                    credit=Decimal('0'),
-                    description=f'مبيعات - فاتورة {sale.number}'
+            lines = []
+            if sale.total > 0:
+                lines.append(
+                    # مدين: العملاء/الخزينة/البنك
+                    JournalEntryLineData(
+                        account_code=debit_account.code,
+                        debit=sale.total,
+                        credit=Decimal('0'),
+                        description=f'مبيعات - فاتورة {sale.number}'
+                    )
                 )
-            ]
 
             # دائن: إيرادات المنتجات المادية
             if physical_revenue_total > 0:
@@ -414,6 +418,10 @@ class SaleService:
                         description=f'تكلفة مبيعات - فاتورة {sale.number}'
                     )
                 )
+            
+            if not lines:
+                logger.info(f"الفاتورة {sale.number} بقيمة صفري، لا يتطلب قيد محاسبي.")
+                return None
             
             # إنشاء القيد عبر AccountingGateway (مع الحوكمة الكاملة)
             gateway = AccountingGateway()
@@ -914,10 +922,12 @@ class SaleService:
             if sale.journal_entry:
                 try:
                     # فك قفل القيد وتغيير الحالة قبل الحذف
+                    from financial.models import JournalEntry, FinancialPostingReference
                     journal_entry = sale.journal_entry
-                    journal_entry.is_locked = False
-                    journal_entry.status = 'draft'  # تغيير الحالة من posted إلى draft
-                    journal_entry.save(update_fields=['is_locked', 'status'])
+                    journal_entry._allow_lock_operation = True
+                    FinancialPostingReference.objects.filter(journal_entry_id=journal_entry.pk).delete()
+                    JournalEntry.objects.filter(pk=journal_entry.pk).update(status='draft', is_locked=False)
+                    journal_entry.status = 'draft'
                     journal_entry.delete()
                     logger.info(f"✅ تم حذف القيد المحاسبي للفاتورة: {sale.number}")
                 except Exception as e:

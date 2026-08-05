@@ -271,14 +271,14 @@ class SalePayment(PaymentAuditMixin, models.Model):
                     }
 
                 # فك قفل القيد وتغيير حالته إلى مسودة للسماح بالحذف
-                journal_entry.is_locked = False
+                from financial.models import JournalEntry, FinancialPostingReference
+                FinancialPostingReference.objects.filter(journal_entry_id=journal_entry.pk).delete()
+                JournalEntry.objects.filter(pk=journal_entry.pk).update(status='draft', is_locked=False)
                 journal_entry.status = "draft"
                 journal_entry._bypass_period_lock = True
-                journal_entry.save(update_fields=["is_locked", "status"])
 
-                # حذف بنود القيد
+                # حذف بنود القيد والقيد
                 journal_entry.lines.all().delete()
-                # حذف القيد نفسه
                 journal_entry.delete()
 
             # إعادة تعيين حالة الدفعة

@@ -466,61 +466,47 @@ class AccountingGateway:
             validated_lines = self._validate_and_prepare_lines(lines)
             entry_date = date or timezone.now().date()
             
-            # Get or validate accounting period
-            if accounting_period is None:
-                accounting_period = self._get_accounting_period(entry_date)
+            from financial.services.ledger_core_service import LedgerCoreService
             
-            # Validate accounting period
-            self._validate_accounting_period(accounting_period, entry_date)
+            p_source = f"{source_info.module}_{source_info.model}".upper() if source_info and source_info.module and source_info.model else "MANUAL_JOURNAL"
             
-            # Generate journal entry number
-            entry_number = self._generate_entry_number(entry_type, source_info)
-            
-            # Create journal entry
-            journal_entry = JournalEntry(
-                number=entry_number,
+            # Create draft entry via LedgerCoreService
+            draft_entry = LedgerCoreService.create_draft_entry(
                 date=entry_date,
-                entry_type=entry_type,
-                status='posted',  # Auto-post entries from gateway
                 description=description or self._generate_description(source_info),
                 reference=reference,
-                source_module=source_info.module,
-                source_model=source_info.model,
-                source_id=source_info.object_id,
-                accounting_period=accounting_period,
-                idempotency_key=idempotency_key,
-                created_by_service='AccountingGateway',
+                entry_type=entry_type,
+                source_module=source_info.module if source_info else "",
+                source_model=source_info.model if source_info else "",
+                source_id=source_info.object_id if source_info else None,
                 created_by=user,
-                posted_at=timezone.now(),
-                posted_by=user,
-                financial_category=financial_category,
-                financial_subcategory=financial_subcategory
+                lines_data=validated_lines,
+                idempotency_key=idempotency_key
             )
             
-            # Mark as gateway approved to avoid development warnings
-            journal_entry.mark_as_gateway_approved()
-            journal_entry.save()
+            # Post entry via LedgerCoreService
+            posted_entry = LedgerCoreService.post_entry(
+                draft_entry.id,
+                user,
+                posting_source=p_source,
+                posting_reference=reference
+            )
             
-            # Create journal entry lines
-            for line_data in validated_lines:
-                line = JournalEntryLine(
-                    journal_entry=journal_entry,
-                    account=line_data['account'],
-                    debit=line_data['debit'],
-                    credit=line_data['credit'],
-                    description=line_data['description'],
-                    cost_center=line_data.get('cost_center'),
-                    project=line_data.get('project')
+            # Record posting reference for idempotency if source info provided
+            s_type = source_info.module if source_info and source_info.module else "MANUAL"
+            s_id = str(source_info.object_id) if source_info and source_info.object_id else reference or str(draft_entry.id)
+            if s_type and s_id:
+                from financial.models import FinancialPostingReference
+                FinancialPostingReference.objects.get_or_create(
+                    source_type=s_type,
+                    source_id=s_id,
+                    posting_type="MAIN",
+                    defaults={
+                        "journal_entry": posted_entry
+                    }
                 )
-                line.save()
             
-            # Final validation of complete entry
-            self._validate_complete_entry(journal_entry)
-            
-            # Enforce posting controls (auto-lock posted entries)
-            self._enforce_posting_controls(journal_entry)
-            
-            return journal_entry
+            return posted_entry
     
     def _validate_authority(self, source_module: str, source_model: str) -> None:
         """

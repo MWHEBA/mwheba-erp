@@ -799,6 +799,12 @@ class PayrollService:
         from financial.models import JournalEntry, JournalEntryLine, ChartOfAccounts
         from decimal import Decimal
         
+        # الحصول على حساب مصروف الأجور والرواتب
+        from financial.services.role_registry import AccountRoleRegistry
+        salary_expense_account = AccountRoleRegistry.get_account("SALARY_EXPENSE") or ChartOfAccounts.objects.filter(code="50200", is_active=True).first()
+        if not salary_expense_account:
+            raise ValueError("حساب مصروف الرواتب (50200) غير موجود أو غير نشط.")
+        
         # الحصول على التصنيف المالي للرواتب
         try:
             from financial.models.categories import FinancialCategory
@@ -808,20 +814,37 @@ class PayrollService:
         except:
             financial_category = None
         
+        gross_salary = Decimal(str(getattr(payroll, 'gross_salary', 0)))
+        net_salary = Decimal(str(getattr(payroll, 'net_salary', 0)))
+        
         lines_data = [
             {
                 "account": salary_expense_account,
-                "debit": correct_gross_ps,
+                "debit": gross_salary,
                 "credit": Decimal('0'),
                 "description": f'إجمالي راتب - {payroll.employee.get_full_name_ar()}'
             }
         ]
 
-        if payroll.payment_account:
+        net_account = payroll.payment_account
+        if not net_account:
+            try:
+                net_account = AccountRoleRegistry.get_account("SALARY_PAYABLES")
+            except Exception:
+                pass
+        if not net_account:
+            try:
+                net_account = AccountRoleRegistry.get_account("DEFAULT_CASH_DRAWER")
+            except Exception:
+                pass
+        if not net_account:
+            net_account = ChartOfAccounts.objects.filter(is_active=True).first()
+
+        if net_account:
             lines_data.append({
-                "account": payroll.payment_account,
+                "account": net_account,
                 "debit": Decimal('0'),
-                "credit": correct_net_ps,
+                "credit": net_salary if net_salary > 0 else gross_salary,
                 "description": f'صافي راتب {payroll.employee.get_full_name_ar()}'
             })
 

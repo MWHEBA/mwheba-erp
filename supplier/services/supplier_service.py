@@ -246,23 +246,21 @@ class SupplierService:
             idempotency_key=idempotency_key
         )
         
-        if exists and result_data:
+        if exists and result_data and result_data.get('account_id'):
             # Account already created, return existing account
             account_id = result_data.get('account_id')
-            if account_id:
-                try:
-                    account = ChartOfAccounts.objects.get(id=account_id)
-                    logger.info(
-                        f"✅ Idempotency: Returning existing account {account.code} "
-                        f"for supplier {supplier.code}"
-                    )
-                    return account
-                except ChartOfAccounts.DoesNotExist:
-                    # Account was deleted, continue to create new one
-                    logger.warning(
-                        f"⚠️ Idempotency record exists but account {account_id} not found. "
-                        f"Creating new account."
-                    )
+            try:
+                account = ChartOfAccounts.objects.get(id=account_id)
+                logger.info(
+                    f"✅ Idempotency: Returning existing account {account.code} "
+                    f"for supplier {supplier.code}"
+                )
+                return account
+            except ChartOfAccounts.DoesNotExist:
+                logger.warning(
+                    f"⚠️ Idempotency record exists but account {account_id} not found. "
+                    f"Creating new account."
+                )
         
         try:
             # التحقق من عدم وجود حساب محاسبي مسبقاً
@@ -279,17 +277,25 @@ class SupplierService:
                     nature='credit'
                 )
             
-            # الحصول على الحساب الرئيسي للموردين عبر مسجل الأدوار المحوكم
-            from financial.services.account_role_registry import AccountRoleRegistry
-            parent_account = AccountRoleRegistry.get_account_by_role("AP_CONTROL_ACCOUNT") or AccountRoleRegistry.get_account_by_role("SUPPLIER_PAYABLE_CONTROL")
-            if not parent_account:
-                ctrl_code = AccountRoleRegistry.get_account_code("AP_CONTROL_ACCOUNT")
-                parent_account = ChartOfAccounts.objects.create(
-                    code=ctrl_code,
-                    name='الموردون',
-                    account_type=liability_type,
-                    is_active=True
-                )
+            from financial.services.role_registry import AccountRoleRegistry, RoleConfigurationError
+            import os
+            role_key = "SUPPLIER_PAYABLE_CONTROL" if "ACCOUNT_ROLE_SUPPLIER_PAYABLE_CONTROL" in os.environ else "AP_CONTROL_ACCOUNT"
+            try:
+                parent_account = AccountRoleRegistry.get_account(role_key)
+            except RoleConfigurationError as r_err:
+                ctrl_code = AccountRoleRegistry.resolve_role_code(role_key)
+                parent_account = ChartOfAccounts.objects.filter(code=ctrl_code, is_active=True).first()
+                if not parent_account:
+                    if not ctrl_code.isdigit():
+                        raise r_err
+                    parent_account, _ = ChartOfAccounts.objects.get_or_create(
+                        code=ctrl_code,
+                        defaults={
+                            'name': 'الموردون',
+                            'account_type': liability_type,
+                            'is_active': True
+                        }
+                    )
             
             ctrl_code = parent_account.code
             prefix = ctrl_code[:4]
@@ -309,13 +315,13 @@ class SupplierService:
             else:
                 new_number = 1
             
-            # توليد الكود الجديد: 2010 + 4 digits
-            account_code = f"2010{new_number:04d}"
+            # توليد الكود الجديد: prefix + 4 digits
+            account_code = f"{prefix}{new_number:04d}"
             
             # التأكد من عدم تكرار الكود
             while ChartOfAccounts.objects.filter(code=account_code).exists():
                 new_number += 1
-                account_code = f"2010{new_number:04d}"
+                account_code = f"{prefix}{new_number:04d}"
             
             # إنشاء الحساب المحاسبي
             financial_account = ChartOfAccounts.objects.create(

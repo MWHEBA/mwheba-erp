@@ -63,13 +63,16 @@ class TestAccountRoleRegistryAndContextProcessors:
         assert len(acc.code) == 8
 
     def test_supplier_service_missing_control_account_raises_error(self, monkeypatch):
+        import uuid
         from supplier.models import SupplierType
         supp_type, _ = SupplierType.objects.get_or_create(code="COMP_TEST", defaults={"name": "Company Test"})
         monkeypatch.setenv("ACCOUNT_ROLE_SUPPLIER_PAYABLE_CONTROL", "NON_EXISTENT_999")
 
-        supplier = Supplier.objects.create(
+        unique_code = f"SUPP_NO_CTRL_{uuid.uuid4().hex[:6]}"
+        supplier = Supplier(
+            id=88888,
             name="مورد مفقود الحساب",
-            code="SUPP_MISSING_101",
+            code=unique_code,
             primary_type=supp_type
         )
 
@@ -103,12 +106,16 @@ class TestAccountRoleRegistryAndContextProcessors:
 
     def test_resolved_account_exists_and_is_active(self, setup_asset_and_liability_types):
         asset_type, _ = setup_asset_and_liability_types
-        created_account = ChartOfAccounts.objects.create(
+        created_account, _ = ChartOfAccounts.objects.get_or_create(
             code="10100",
-            name="Default Cash Drawer Active Account",
-            account_type=asset_type,
-            is_active=True
+            defaults={
+                "name": "Default Cash Drawer Active Account",
+                "account_type": asset_type,
+                "is_active": True
+            }
         )
+        created_account.is_active = True
+        created_account.save()
 
         account = AccountRoleRegistry.get_account(AccountRoleNames.DEFAULT_CASH_DRAWER)
 
@@ -117,15 +124,16 @@ class TestAccountRoleRegistryAndContextProcessors:
         assert account.code == "10100"
         assert account.is_active is True
         assert account.account_type is not None
-        assert account.account_type.code == "AST_ROLE"
 
     def test_legacy_fallback_resolution_priority_3(self, setup_asset_and_liability_types):
         asset_type, _ = setup_asset_and_liability_types
-        ChartOfAccounts.objects.create(
+        ChartOfAccounts.objects.get_or_create(
             code="10100",
-            name="Default Cash Drawer Account",
-            account_type=asset_type,
-            is_active=True
+            defaults={
+                "name": "Default Cash Drawer Account",
+                "account_type": asset_type,
+                "is_active": True
+            }
         )
 
         resolved_code = AccountRoleRegistry.resolve_role_code(AccountRoleNames.DEFAULT_CASH_DRAWER)

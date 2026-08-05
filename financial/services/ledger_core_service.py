@@ -44,6 +44,10 @@ class LedgerCoreService:
                 entry_type=entry_type,
                 created_by=created_by,
                 status="draft",
+                idempotency_key=kwargs.get("idempotency_key") or None,
+                source_module=kwargs.get("source_module", ""),
+                source_model=kwargs.get("source_model", ""),
+                source_id=kwargs.get("source_id", None),
                 is_reversal=kwargs.get("is_reversal", False),
                 original_entry=kwargs.get("original_entry", None),
                 reversal_reason=kwargs.get("reversal_reason", "")
@@ -179,6 +183,17 @@ class LedgerCoreService:
                 update_fields.append("posting_source")
             entry.save(update_fields=update_fields)
 
+            if source_type and source_id:
+                from financial.models import FinancialPostingReference
+                from financial.exceptions import DuplicatePostingError
+                existing_ref = FinancialPostingReference.objects.filter(
+                    source_type=source_type,
+                    source_id=str(source_id),
+                    posting_type=posting_type
+                ).first()
+                if existing_ref and existing_ref.journal_entry_id != entry_id:
+                    raise DuplicatePostingError(f"[DUPLICATE_POSTING_BLOCKED] Transaction {source_type}:{source_id} already posted.")
+
             # تحديث كاش لقطات المنفق الفعلي لجميع مراكز التكلفة المرتبطة فور الترحيل
             from financial.services.budget_actual_service import BudgetActualService
             for line in entry.lines.all():
@@ -188,6 +203,15 @@ class LedgerCoreService:
                         account=line.account,
                         accounting_period=entry.accounting_period
                     )
+
+            if source_type and source_id:
+                from financial.models import FinancialPostingReference
+                FinancialPostingReference.objects.get_or_create(
+                    source_type=source_type,
+                    source_id=str(source_id),
+                    posting_type=posting_type,
+                    defaults={'journal_entry': entry}
+                )
 
             return entry
 

@@ -1,3 +1,4 @@
+from datetime import timedelta
 from django.test import TestCase
 from django.contrib.auth import get_user_model
 from django.utils import timezone
@@ -48,10 +49,11 @@ class WorkOrderTests(TestCase):
         """
         اختبار إنشاء أمر الشغل وتوليد الرقم المسلسل تلقائياً
         """
+        from datetime import timedelta
         wo = WorkOrder.objects.create(
             customer=self.customer,
             start_date=timezone.now().date(),
-            delivery_date=timezone.now().date() + timezone.timedelta(days=7),
+            delivery_date=timezone.now().date() + timedelta(days=7),
             estimated_cost=Decimal("15000.00"),
             created_by=self.user
         )
@@ -106,7 +108,7 @@ class WorkOrderTests(TestCase):
         quotation = Quotation.objects.create(
             customer=self.customer,
             date=timezone.now().date(),
-            valid_until=timezone.now().date() + timezone.timedelta(days=7),
+            valid_until=timezone.now().date() + timedelta(days=7),
             discount=Decimal("0.00"),
             tax=Decimal("0.00"),
             total=Decimal("5000.00"),

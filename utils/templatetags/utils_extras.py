@@ -139,18 +139,31 @@ def currency(value, currency_symbol=None):
 
 
 @register.filter
+def div(value, arg):
+    """قسمة value على arg"""
+    try:
+        val = float(value)
+        divisor = float(arg)
+        if divisor == 0:
+            return 0.0
+        return val / divisor
+    except (ValueError, TypeError, ZeroDivisionError):
+        return 0
+
+
+@register.filter
 def status_badge(status):
     """عرض حالة كـ badge"""
     if not status:
         return ""
     
     status_classes = {
-        'active': 'bg-success',
-        'inactive': 'bg-secondary',
-        'pending': 'bg-warning',
-        'completed': 'bg-primary',
-        'cancelled': 'bg-danger',
-        'draft': 'bg-info',
+        'active': 'bg-success badge-success',
+        'inactive': 'bg-secondary badge-secondary',
+        'pending': 'bg-warning badge-warning',
+        'completed': 'bg-primary badge-primary',
+        'cancelled': 'bg-danger badge-danger',
+        'draft': 'bg-info badge-info',
     }
     
     status_text = {
@@ -162,7 +175,7 @@ def status_badge(status):
         'draft': 'مسودة',
     }
     
-    css_class = status_classes.get(status, 'bg-secondary')
+    css_class = status_classes.get(status, 'bg-secondary badge-secondary')
     text = status_text.get(status, status)
     
     return mark_safe(f'<span class="badge {css_class}">{text}</span>')

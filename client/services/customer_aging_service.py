@@ -17,6 +17,11 @@ class CustomerAgingService:
     """
 
     @classmethod
+    def get_customer_open_item_aging(cls, *args, **kwargs):
+        """Alias for get_customer_aging_report for backward compatibility"""
+        return cls.get_customer_aging_report(*args, **kwargs)
+
+    @classmethod
     def get_customer_aging_report(
         cls,
         customer_ids: Optional[List[int]] = None,
@@ -100,6 +105,7 @@ class CustomerAgingService:
                 'bucket_61_90': bucket_61_90,
                 'bucket_90_plus': bucket_90_plus,
                 'credit_balance': credit_bal,
+                'net_balance': net_balance or row_total,
                 'total_balance': net_balance or row_total
             })
 

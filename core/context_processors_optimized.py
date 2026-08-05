@@ -122,17 +122,24 @@ def payment_accounts(request):
                 .order_by('code')
             )
             
-            # الحساب الافتراضي عبر سجل الوظائف المحاسبية Dynamic Role Registry
-            from financial.services.account_role_registry import AccountRoleRegistry
-            def_code = AccountRoleRegistry.get_account_code("DEFAULT_CASH_DRAWER")
+            # الحسابات الافتراضية عبر سجل الوظائف المحاسبية Dynamic Role Registry
+            from financial.services.role_registry import AccountRoleRegistry
+            def_code = AccountRoleRegistry.resolve_role_code("DEFAULT_CASH_DRAWER")
             default_account_data = ChartOfAccounts.objects.filter(
                 code=def_code,
+                is_active=True
+            ).values('id', 'code', 'name').first()
+
+            def_bank_code = AccountRoleRegistry.resolve_role_code("DEFAULT_BANK_ACCOUNT")
+            default_bank_data = ChartOfAccounts.objects.filter(
+                code=def_bank_code,
                 is_active=True
             ).values('id', 'code', 'name').first()
             
             cached_data = {
                 'accounts': accounts_data,
-                'default': default_account_data
+                'default': default_account_data,
+                'default_bank': default_bank_data
             }
             
             # Cache لمدة 10 دقائق
@@ -142,12 +149,14 @@ def payment_accounts(request):
             logger.debug(f"Payment accounts context processor: {e}")
             cached_data = {
                 'accounts': [],
-                'default': None
+                'default': None,
+                'default_bank': None
             }
     
     return {
         'payment_accounts': cached_data['accounts'],
-        'default_payment_account': cached_data['default']
+        'default_payment_account': cached_data['default'],
+        'default_bank_account': cached_data.get('default_bank')
     }
 
 

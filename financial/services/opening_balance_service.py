@@ -115,8 +115,8 @@ class OpeningBalanceService:
         batch = OpeningBalanceBatch.objects.select_for_update().get(pk=batch_id)
 
         if batch.status == 'posted':
-            logger.info(f"الدفعة الافتتاحية {batch.batch_number} مرحلة بالفعل.")
-            return batch
+            from financial.exceptions import ImmutableLedgerError
+            raise ImmutableLedgerError(_("الدفعة الافتتاحية مرحلة بالفعل وحصينة ولا يمكن إعادة ترحيلها."))
 
         # 1. الفحص الصارم عبر OpeningBalanceValidationService
         is_valid, errors = OpeningBalanceValidationService.validate_batch(batch)

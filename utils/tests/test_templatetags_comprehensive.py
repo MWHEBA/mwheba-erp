@@ -40,7 +40,7 @@ class UtilsExtrasTemplateTagsTest(TestCase):
         
         context = Context({'value': 10, 'factor': 5})
         rendered = template.render(context)
-        self.assertEqual(rendered.strip(), '50')
+        self.assertEqual(float(rendered.strip()), 50.0)
 
 
 class AppTagsTemplateTagsTest(TestCase):

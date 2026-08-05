@@ -17,6 +17,14 @@ class SupplierAgingService:
     """
 
     @classmethod
+    def get_supplier_open_item_aging(
+        cls,
+        supplier_ids: Optional[List[int]] = None,
+        as_of_date: Optional[Any] = None
+    ) -> Dict[str, Any]:
+        return cls.get_supplier_aging_report(supplier_ids=supplier_ids, as_of_date=as_of_date)
+
+    @classmethod
     def get_supplier_aging_report(
         cls,
         supplier_ids: Optional[List[int]] = None,
@@ -62,7 +70,8 @@ class SupplierAgingService:
                 issue_date__lte=ref_date
             )
 
-            bucket_current = Decimal('0.00')
+            if not open_txns.exists() and net_balance:
+                bucket_current = net_balance
             bucket_0_30 = Decimal('0.00')
             bucket_31_60 = Decimal('0.00')
             bucket_61_90 = Decimal('0.00')
@@ -100,7 +109,8 @@ class SupplierAgingService:
                 'bucket_61_90': bucket_61_90,
                 'bucket_90_plus': bucket_90_plus,
                 'credit_balance': credit_bal,
-                'total_balance': net_balance or row_total
+                'total_balance': net_balance or row_total,
+                'net_balance': row_total
             })
 
             summary['bucket_current'] += bucket_current

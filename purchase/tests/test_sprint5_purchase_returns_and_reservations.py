@@ -39,8 +39,8 @@ class Sprint5TestSuite(TestCase):
             fiscal_year=fy,
             defaults={
                 "name": "فترة أغسطس 2026",
-                "start_date": date(2026, 1, 1),
-                "end_date": date(2026, 12, 31),
+                "start_date": date(2026, 8, 1),
+                "end_date": date(2026, 8, 31),
                 "status": "open"
             }
         )

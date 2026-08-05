@@ -356,27 +356,6 @@ class Migration(migrations.Migration):
                 "verbose_name_plural": "كتل التخزين الفيزيائية",
             },
         ),
-        migrations.RemoveField(
-            model_name="documentsequencecounter",
-            name="rule",
-        ),
-        migrations.RemoveField(
-            model_name="documentsequencecounter",
-            name="warehouse",
-        ),
-        migrations.RemoveField(
-            model_name="documentsequencerule",
-            name="warehouse",
-        ),
-        migrations.DeleteModel(
-            name="DocumentSequenceAudit",
-        ),
-        migrations.DeleteModel(
-            name="DocumentSequenceCounter",
-        ),
-        migrations.DeleteModel(
-            name="DocumentSequenceRule",
-        ),
         migrations.AddIndex(
             model_name="fileblob",
             index=models.Index(
