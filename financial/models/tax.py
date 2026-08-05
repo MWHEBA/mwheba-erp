@@ -98,10 +98,25 @@ class TaxRule(models.Model):
     FIN-TAX-001 v3.0: Configurable Tax Rule Engine Model
     نموذج سياسات وقواعد احتساب وتطبيق الضرائب الحاكمة
     """
+    SCOPE_CHOICES = (
+        ("GLOBAL", _("شامل عام")),
+        ("PRODUCT", _("منتج محدد")),
+        ("PRODUCT_CATEGORY", _("فئة منتجات")),
+        ("CUSTOMER", _("عميل محدد")),
+        ("CUSTOMER_TYPE", _("فئة عملاء")),
+        ("SUPPLIER", _("مورد محدد")),
+        ("SUPPLIER_TYPE", _("فئة موردين")),
+        ("TRANSACTION_TYPE", _("نوع المعاملة")),
+        ("LOCATION", _("الموقع / النطاق")),
+    )
+
     code = models.CharField(_("كود القاعدة"), max_length=50)
     name = models.CharField(_("اسم القاعدة الضريبية"), max_length=150)
     version = models.IntegerField(_("إصدار القاعدة"), default=1)
     priority = models.IntegerField(_("الأولوية (الرقم الأكبر أعلى أولوية)"), default=10)
+
+    rule_scope = models.CharField(_("نطاق القاعدة الضريبية"), max_length=30, choices=SCOPE_CHOICES, default="GLOBAL")
+    scope_value = models.CharField(_("قيمة النطاق المشروط"), max_length=255, blank=True, null=True)
 
     tax_code = models.ForeignKey(TaxCode, on_delete=models.PROTECT, related_name="rules", verbose_name=_("كود الضريبة"))
     jurisdiction = models.ForeignKey(TaxJurisdiction, on_delete=models.SET_NULL, null=True, blank=True, verbose_name=_("النطاق الضريبي"))
@@ -370,3 +385,67 @@ class TaxReversal(models.Model):
 
     def __str__(self):
         return f"Tax Reversal for Audit #{self.original_audit.id} ({self.reversal_amount} EGP)"
+
+
+class TaxTransactionSnapshot(models.Model):
+    """
+    FIN-TAX-001 v2.0: Transaction-Time Tax Snapshot Log Entity
+    لقطة تجميد بيانات الضريبة والطرف في لحظة تنفيذ المعاملة التجاري
+    """
+    audit = models.ForeignKey(TaxDeterminationAudit, on_delete=models.CASCADE, related_name="snapshots", verbose_name=_("سجل التدقيق المرتبط"))
+    document_type = models.CharField(_("نوع المستند"), max_length=50)
+    document_number = models.CharField(_("رقم المستند"), max_length=100)
+    customer_name = models.CharField(_("اسم العميل اللحظي"), max_length=255, blank=True, null=True)
+    supplier_name = models.CharField(_("اسم المورد اللحظي"), max_length=255, blank=True, null=True)
+    tax_registration_number = models.CharField(_("رقم التسجيل الضريبي اللحظي"), max_length=100, blank=True, null=True)
+    applied_rule_code = models.CharField(_("كود القاعدة المطبقة"), max_length=100)
+    applied_tax_rate = models.DecimalField(_("نسبة الضريبة اللحظية %"), max_digits=8, decimal_places=4)
+    captured_at = models.DateTimeField(_("تاريخ التقاط اللقطة"), auto_now_add=True)
+
+    class Meta:
+        verbose_name = _("لقطة معاملة ضريبية")
+        verbose_name_plural = _("لقطات المعاملات الضريبية")
+
+
+class TaxExemptionSnapshot(models.Model):
+    """
+    FIN-TAX-001 v2.0: Transaction-Time Exemption Snapshot Entity
+    لقطة تجميد بيانات الإعفاء الضريبي في لحظة المعاملة
+    """
+    audit = models.ForeignKey(TaxDeterminationAudit, on_delete=models.CASCADE, related_name="exemption_snapshots", verbose_name=_("سجل التدقيق المرتبط"))
+    certificate_number = models.CharField(_("رقم شهادة الإعفاء"), max_length=100)
+    tax_code_code = models.CharField(_("كود الضريبة المعفى منها"), max_length=50)
+    valid_from = models.DateField(_("صالحة من تاريخ"))
+    valid_to = models.DateField(_("صالحة إلى تاريخ"))
+    exemption_reason = models.TextField(_("سبب الإعفاء"))
+    captured_at = models.DateTimeField(_("تاريخ التقاط اللقطة"), auto_now_add=True)
+
+    class Meta:
+        verbose_name = _("لقطة إعفاء ضريبي")
+        verbose_name_plural = _("لقطات الإعفاءات الضريبية")
+
+
+class TaxAdjustment(models.Model):
+    """
+    FIN-TAX-001 v2.0: Tax Debit/Credit Adjustment Model
+    تسويات وتعديلات الحصيلة والالتزام الضريبي (إشعارات تسوية ضريبية)
+    """
+    ADJUSTMENT_TYPE_CHOICES = (
+        ("INCREASE", _("زيادة التزام / محصل")),
+        ("DECREASE", _("تخفيض التزام / محصل")),
+        ("CORRECTION", _("تصحيح خطأ محاسبي")),
+    )
+
+    original_audit = models.ForeignKey(TaxDeterminationAudit, on_delete=models.PROTECT, related_name="adjustments", verbose_name=_("السجل الأصلي"))
+    adjustment_type = models.CharField(_("نوع التسوية الضريبية"), max_length=20, choices=ADJUSTMENT_TYPE_CHOICES)
+    adjustment_amount = models.DecimalField(_("مبلغ التسوية (EGP)"), max_digits=15, decimal_places=2)
+    reason = models.TextField(_("سبب التسوية الضريبية"))
+    journal_entry = models.ForeignKey(JournalEntry, on_delete=models.SET_NULL, null=True, blank=True, verbose_name=_("قيد التسوية بالأستاذ"))
+    created_at = models.DateTimeField(_("تاريخ التسوية"), auto_now_add=True)
+
+    class Meta:
+        verbose_name = _("تسوية ضريبية")
+        verbose_name_plural = _("تسويات ضريبية")
+
+    def __str__(self):
+        return f"TaxAdjustment [{self.adjustment_type}]: #{self.id} ({self.adjustment_amount} EGP)"

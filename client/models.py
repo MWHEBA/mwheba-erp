@@ -258,11 +258,31 @@ class CustomerTransaction(models.Model):
         return f"AR Subledger [{self.transaction_type}] #{self.transaction_number} - {self.customer.name} ({self.open_amount} EGP)"
 
 
+class ImmutableAllocationAuditQuerySet(models.QuerySet):
+    def update(self, **kwargs):
+        raise ValueError("FIN-AR-004 Immutability Guard: Bulk UPDATE operations on CustomerAllocationAudit are strictly prohibited.")
+
+    def delete(self):
+        raise ValueError("FIN-AR-004 Immutability Guard: Bulk DELETE operations on CustomerAllocationAudit are strictly prohibited.")
+
+
+class ImmutableAllocationAuditManager(models.Manager):
+    def get_queryset(self):
+        return ImmutableAllocationAuditQuerySet(self.model, using=self._db)
+
+    def update(self, **kwargs):
+        return self.get_queryset().update(**kwargs)
+
+    def delete(self):
+        return self.get_queryset().delete()
+
+
 class CustomerAllocationAudit(models.Model):
     """
     FIN-AR-004: Customer Allocation Audit Evidence Model
     سجل تدقيق وإثبات توزيعات السداد والربط غير القابل للتعديل
     """
+    objects = ImmutableAllocationAuditManager()
     TYPE_CHOICES = (
         ("PAYMENT_TO_INVOICE", _("سداد فاتورة")),
         ("CREDIT_NOTE_TO_INVOICE", _("تسوية إشعار دائن")),
@@ -304,6 +324,7 @@ class CustomerAllocationAudit(models.Model):
         ordering = ["-allocation_date", "-created_at"]
         indexes = [
             models.Index(fields=["customer", "allocation_date"]),
+            models.Index(fields=["allocation_reference", "created_at"], name="idx_cust_alloc_corr_time"),
         ]
 
     def save(self, *args, **kwargs):

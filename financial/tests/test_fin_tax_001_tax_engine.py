@@ -183,3 +183,41 @@ class TestFINTAX001TaxEngineV3:
         # Attempt to delete audit record must raise ValueError
         with pytest.raises(ValueError, match="cannot be deleted"):
             audit.delete()
+
+    def test_tax_transaction_snapshot_and_exemption_certificate_v2(self, setup_tax_engine_data):
+        user, customer, product, warehouse, tax_code, tax_rule = setup_tax_engine_data
+        from financial.models import TaxTransactionSnapshot, TaxExemptionSnapshot, TaxAdjustment
+
+        # 1. Test Exemption Certificate handling
+        ex_cert = TaxExemptionCertificate.objects.create(
+            customer=customer,
+            certificate_number="EX-CERT-999",
+            tax_code=tax_code,
+            valid_from=timezone.now().date() - timezone.timedelta(days=10),
+            valid_to=timezone.now().date() + timezone.timedelta(days=30),
+            exemption_reason="Governmental Tax Free Status",
+            status="ACTIVE"
+        )
+
+        lines = [{"line_id": 1, "amount": Decimal("5000.00")}]
+        audit = TaxDeterminationService.apply_tax_posting("SalesInvoice", 888, "INV-EX-888", customer=customer, lines=lines, user=user)
+
+        assert audit.tax_amount == Decimal("0.00")
+        assert audit.audit_status == "CALCULATED"
+
+        # Verify Snapshots created
+        snap = TaxTransactionSnapshot.objects.get(audit=audit)
+        assert snap.customer_name == customer.name
+        assert snap.applied_rule_code == "EXEMPT"
+
+        ex_snap = TaxExemptionSnapshot.objects.get(audit=audit)
+        assert ex_snap.certificate_number == "EX-CERT-999"
+
+        # Test TaxAdjustment creation
+        adj = TaxAdjustment.objects.create(
+            original_audit=audit,
+            adjustment_type="INCREASE",
+            adjustment_amount=Decimal("100.00"),
+            reason="Tax Inspection Adjustment"
+        )
+        assert adj.adjustment_amount == Decimal("100.00")

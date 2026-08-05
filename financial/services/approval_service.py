@@ -33,7 +33,7 @@ class ApprovalService:
         # Convert amount to functional EGP using ExchangeRateService if foreign
         func_amount = amount
         if currency != "EGP":
-            spot_rate = ExchangeRateService.get_spot_rate(currency)
+            spot_rate = ExchangeRateService.get_rate(currency, "EGP")
             func_amount = (amount * spot_rate).quantize(Decimal("0.01"))
 
         rules = EnterpriseApprovalRule.objects.filter(

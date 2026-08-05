@@ -1,3 +1,4 @@
+import hashlib
 from decimal import Decimal
 from django.db import models
 from django.utils import timezone
@@ -16,7 +17,25 @@ class InventoryReservation(models.Model):
         ("FULFILLED", _("مستوفى بالكامل")),
         ("RELEASED", _("محرر")),
         ("CANCELLED", _("ملغي")),
+        ("EXPIRED", _("منتهي الصلاحية")),
     )
+
+    SOURCE_TYPE_CHOICES = (
+        ("SALES_ORDER", _("أمر بيع")),
+        ("PRODUCTION_ORDER", _("أمر تصنيع")),
+        ("TRANSFER_ORDER", _("أمر تحويل")),
+        ("MANUAL", _("حجز يدوي")),
+    )
+
+    PRIORITY_CHOICES = (
+        ("LOW", _("منخفض")),
+        ("NORMAL", _("عادي")),
+        ("HIGH", _("مرتفع")),
+        ("URGENT", _("عاجل")),
+    )
+
+    reservation_source_type = models.CharField(_("مصدر الحجز"), max_length=30, choices=SOURCE_TYPE_CHOICES, default="SALES_ORDER")
+    priority = models.CharField(_("أولوية الحجز"), max_length=20, choices=PRIORITY_CHOICES, default="NORMAL")
 
     sales_order = models.ForeignKey("sale.SalesOrder", on_delete=models.CASCADE, related_name="inventory_reservations", verbose_name=_("أمر البيع"))
     sales_order_line = models.ForeignKey("sale.SalesOrderItem", on_delete=models.CASCADE, related_name="inventory_reservations", verbose_name=_("سطر أمر البيع"))
@@ -25,6 +44,7 @@ class InventoryReservation(models.Model):
     quantity = models.DecimalField(_("الكمية المحجوزة الكلية"), max_digits=15, decimal_places=4)
     fulfilled_quantity = models.DecimalField(_("الكمية المستوفاة/المسلمة"), max_digits=15, decimal_places=4, default=Decimal("0.0000"))
     reservation_status = models.CharField(_("حالة الحجز"), max_length=25, choices=STATUS_CHOICES, default="ACTIVE")
+    expires_at = models.DateTimeField(_("تاريخ وقت انتهاء صلاحية الحجز"), null=True, blank=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, verbose_name=_("أنشئ بواسطة"))
     created_at = models.DateTimeField(_("تاريخ الحجز"), auto_now_add=True)
     released_at = models.DateTimeField(_("تاريخ الإفراج/الإلغاء"), null=True, blank=True)
@@ -41,7 +61,7 @@ class InventoryReservation(models.Model):
 
     @property
     def remaining_reserved_quantity(self) -> Decimal:
-        if self.reservation_status in ["FULFILLED", "RELEASED", "CANCELLED"]:
+        if self.reservation_status in ["FULFILLED", "RELEASED", "CANCELLED", "EXPIRED"]:
             return Decimal("0.0000")
         rem = self.quantity - self.fulfilled_quantity
         return max(Decimal("0.0000"), rem)
@@ -53,7 +73,7 @@ class InventoryReservation(models.Model):
 class InventoryReservationAudit(models.Model):
     """
     FIN-SAL-003: Immutable Inventory Reservation Audit Log Model
-    سجل تدقيق وإثبات التغييرات التاريخية غير القابل للتعديل لحجوزات المخزون
+    سجل تدقيق وإثبات التغييرات التاريخية غير القابل للتعديل لحجوزات المخزون مع توقيع SHA256
     """
     ACTION_CHOICES = (
         ("CREATED", _("إنشاء حجز")),
@@ -62,6 +82,7 @@ class InventoryReservationAudit(models.Model):
         ("FULFILLED", _("استيفاء كامل")),
         ("RELEASED", _("إفراج عن حجز")),
         ("CANCELLED", _("إلغاء حجز")),
+        ("EXPIRED", _("انقضاء صلاحية")),
     )
 
     reservation = models.ForeignKey(InventoryReservation, on_delete=models.CASCADE, related_name="audit_logs", verbose_name=_("الحجز المرتبط"))
@@ -69,6 +90,7 @@ class InventoryReservationAudit(models.Model):
     previous_quantity = models.DecimalField(_("الكمية السابقة"), max_digits=15, decimal_places=4, default=Decimal("0.0000"))
     new_quantity = models.DecimalField(_("الكمية الجديدة"), max_digits=15, decimal_places=4, default=Decimal("0.0000"))
     reason = models.TextField(_("السبب / الملاحظات"), blank=True, null=True)
+    evidence_hash = models.CharField(_("توقيع إثبات التدقيق SHA256"), max_length=64, blank=True, null=True)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, verbose_name=_("المستخدم"))
     created_at = models.DateTimeField(_("تاريخ الإجراء"), auto_now_add=True)
 
@@ -80,6 +102,9 @@ class InventoryReservationAudit(models.Model):
     def save(self, *args, **kwargs):
         if self.pk:
             raise ValueError("FIN-SAL-003 Immutability Guard: InventoryReservationAudit records are strictly INSERT-ONLY and cannot be updated.")
+        if not self.evidence_hash and self.reservation_id:
+            raw = f"{self.reservation_id}:{self.action}:{self.previous_quantity}:{self.new_quantity}:{self.reason}"
+            self.evidence_hash = hashlib.sha256(raw.encode("utf-8")).hexdigest()
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):

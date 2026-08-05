@@ -130,8 +130,29 @@ class CustomerAllocationAuditService:
         تسجيل حدث عكس التوزيع (Reversal Audit) وتوصيل التوزيع المعكوس عبر FK reversed_audit
         """
         with transaction.atomic():
-            orig_audit = CustomerAllocationAudit.objects.get(pk=audit_id)
+            orig_audit = CustomerAllocationAudit.objects.select_for_update().get(pk=audit_id)
+            if orig_audit.allocation_status == "REVERSED":
+                raise ValueError(f"Allocation Audit #{audit_id} is already reversed.")
+
             now = timezone.now()
+
+            # 1. Restore subledger transaction open balances
+            pay_txn = CustomerTransaction.objects.select_for_update().get(pk=orig_audit.payment_transaction_id)
+            inv_txn = CustomerTransaction.objects.select_for_update().get(pk=orig_audit.invoice_transaction_id)
+
+            pay_txn.open_amount += orig_audit.allocated_amount
+            pay_txn.open_amount_functional = pay_txn.open_amount
+            if pay_txn.exchange_rate and pay_txn.exchange_rate > Decimal("0.000000"):
+                pay_txn.open_amount_foreign = (pay_txn.open_amount / pay_txn.exchange_rate).quantize(Decimal("0.01"))
+            pay_txn.status = "OPEN" if pay_txn.open_amount >= pay_txn.functional_amount else "PARTIAL"
+            pay_txn.save()
+
+            inv_txn.open_amount += orig_audit.allocated_amount
+            inv_txn.open_amount_functional = inv_txn.open_amount
+            if inv_txn.exchange_rate and inv_txn.exchange_rate > Decimal("0.000000"):
+                inv_txn.open_amount_foreign = (inv_txn.open_amount / inv_txn.exchange_rate).quantize(Decimal("0.01"))
+            inv_txn.status = "OPEN" if inv_txn.open_amount >= inv_txn.functional_amount else "PARTIAL"
+            inv_txn.save()
 
             rev_audit = CustomerAllocationAudit(
                 customer=orig_audit.customer,

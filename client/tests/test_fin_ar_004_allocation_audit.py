@@ -108,6 +108,21 @@ class TestFINAR004CustomerAllocationAudit:
 
         assert rev_audit.allocation_status == "REVERSED"
         assert rev_audit.allocated_amount == Decimal("-40000.00")
+
+        # Test Immutability Guards (Single & Bulk ORM operations)
+        orig_audit = CustomerAllocationAudit.objects.get(pk=res["audit_id"])
+        with pytest.raises(ValueError, match="INSERT-ONLY"):
+            orig_audit.allocated_amount = Decimal("50000.00")
+            orig_audit.save()
+
+        with pytest.raises(ValueError, match="cannot be deleted"):
+            orig_audit.delete()
+
+        with pytest.raises(ValueError, match="Bulk UPDATE operations"):
+            CustomerAllocationAudit.objects.filter(id=res["audit_id"]).update(allocated_amount=Decimal("50000.00"))
+
+        with pytest.raises(ValueError, match="Bulk DELETE operations"):
+            CustomerAllocationAudit.objects.filter(id=res["audit_id"]).delete()
         assert rev_audit.reversed_audit == CustomerAllocationAudit.objects.get(pk=res["audit_id"])
         assert CustomerAllocationAudit.objects.filter(customer=customer).count() == 2
 

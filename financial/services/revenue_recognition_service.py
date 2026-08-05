@@ -61,6 +61,87 @@ class RevenueRecognitionService:
         return hashlib.sha256(canonical_json.encode("utf-8")).hexdigest()
 
     @classmethod
+    def find_matching_policy(cls, product=None) -> RevenueRecognitionPolicy:
+        """
+        IFRS 15 Policy Hierarchy Resolution: PRODUCT -> CATEGORY -> GLOBAL
+        """
+        if product:
+            # 1. Product Scope Match
+            prod_policy = RevenueRecognitionPolicy.objects.filter(
+                is_active=True, rule_scope="PRODUCT", scope_value=str(product.id)
+            ).order_by("-version").first()
+            if prod_policy:
+                return prod_policy
+
+            # 2. Category Scope Match
+            if hasattr(product, "category") and product.category:
+                cat_policy = RevenueRecognitionPolicy.objects.filter(
+                    is_active=True, rule_scope="CATEGORY", scope_value=str(product.category.id)
+                ).order_by("-version").first()
+                if cat_policy:
+                    return cat_policy
+
+        # 3. Fallback Global Scope Match
+        global_policy = RevenueRecognitionPolicy.objects.filter(
+            is_active=True, rule_scope="GLOBAL"
+        ).order_by("-version").first()
+        if not global_policy:
+            global_policy = RevenueRecognitionPolicy.objects.create(
+                name="Default Global Delivery Policy",
+                code="POL-GLOBAL-DELIVERY",
+                version=1,
+                trigger_event="DELIVERY_CONFIRMED",
+                allocation_method="DIRECT_LINE_VALUE",
+                fx_treatment_type="INVOICE_RATE",
+                is_active=True
+            )
+        return global_policy
+
+    @classmethod
+    def evaluate_recognition_decision(
+        cls,
+        invoice_item_id: int,
+        trigger_event: str = "DELIVERY_CONFIRMED"
+    ) -> RevenueRecognitionDecision:
+        """
+        تقييم قرار الاعتراف بالإيراد وفق شجرة قواعد IFRS 15 (DELIVERY_CONFIRMED vs INVOICE_ISSUANCE vs TIME_MILESTONE)
+        """
+        inv_item = SalesInvoiceItem.objects.select_related("so_item__product", "sales_invoice").get(pk=invoice_item_id)
+        product = inv_item.so_item.product if inv_item.so_item else None
+        policy = cls.find_matching_policy(product)
+
+        allocated_price = inv_item.line_total
+
+        if policy.trigger_event == "INVOICE_ISSUANCE":
+            position = "RECOGNIZE_REVENUE"
+            recognized = allocated_price
+            deferred = Decimal("0.00")
+        elif policy.trigger_event == "DELIVERY_CONFIRMED":
+            if trigger_event == "INVOICE_ISSUANCE":
+                position = "CREATE_CONTRACT_LIABILITY"
+                recognized = Decimal("0.00")
+                deferred = allocated_price
+            else:
+                position = "RECOGNIZE_REVENUE"
+                recognized = allocated_price
+                deferred = Decimal("0.00")
+        else:
+            position = "CREATE_CONTRACT_LIABILITY"
+            recognized = Decimal("0.00")
+            deferred = allocated_price
+
+        return RevenueRecognitionDecision(
+            accounting_position=position,
+            allocated_transaction_price=allocated_price,
+            recognized_amount=recognized,
+            deferred_amount=deferred,
+            contract_asset_amount=Decimal("0.00"),
+            policy_id=policy.id,
+            policy_version=policy.version,
+            fx_treatment_type=policy.fx_treatment_type
+        )
+
+    @classmethod
     def create_schedule_for_invoice_item(
         cls,
         invoice_item_id: int,
@@ -76,18 +157,8 @@ class RevenueRecognitionService:
             if policy_id:
                 policy = RevenueRecognitionPolicy.objects.get(pk=policy_id, is_active=True)
             else:
-                # Default Policy lookup
-                policy = RevenueRecognitionPolicy.objects.filter(is_active=True, rule_scope="GLOBAL").order_by("-version").first()
-                if not policy:
-                    policy = RevenueRecognitionPolicy.objects.create(
-                        name="Default Global Delivery Policy",
-                        code="POL-GLOBAL-DELIVERY",
-                        version=1,
-                        trigger_event="DELIVERY_CONFIRMED",
-                        allocation_method="DIRECT_LINE_VALUE",
-                        fx_treatment_type="INVOICE_RATE",
-                        is_active=True
-                    )
+                product = getattr(inv_item, "product", None) or (inv_item.so_item.product if inv_item.so_item else None)
+                policy = cls.find_matching_policy(product)
 
             allocated_price = inv_item.line_total
             so = inv_item.sales_invoice.sales_order
@@ -107,22 +178,31 @@ class RevenueRecognitionService:
                 }
             )
 
-            if created and policy.trigger_event == "TIME_MILESTONE":
-                # Create default 3 monthly schedule lines
-                monthly_amt = (allocated_price / Decimal("3")).quantize(Decimal("0.01"))
-                for seq in range(1, 4):
-                    r_date = timezone.now().date() + timezone.timedelta(days=30 * seq)
-                    RevenueRecognitionScheduleLine.objects.create(
-                        schedule=schedule,
-                        sequence=seq,
-                        recognition_date=r_date,
-                        foreign_amount=monthly_amt,
-                        exchange_rate=Decimal("1.000000"),
-                        functional_amount=monthly_amt,
-                        status="SCHEDULED"
+            if created:
+                if policy.trigger_event == "INVOICE_ISSUANCE":
+                    # Instant Revenue Recognition on Invoice Creation
+                    cls.process_recognition_event(
+                        event_id=f"EVT-INV-ISSUANCE-{inv_item.id}",
+                        schedule_id=schedule.id,
+                        recognition_event="INVOICE_ISSUANCE",
+                        user=user
                     )
+                elif policy.trigger_event == "TIME_MILESTONE":
+                    # Create default 3 monthly schedule lines
+                    monthly_amt = (allocated_price / Decimal("3")).quantize(Decimal("0.01"))
+                    for seq in range(1, 4):
+                        r_date = timezone.now().date() + timezone.timedelta(days=30 * seq)
+                        RevenueRecognitionScheduleLine.objects.create(
+                            schedule=schedule,
+                            sequence=seq,
+                            recognition_date=r_date,
+                            foreign_amount=monthly_amt,
+                            exchange_rate=Decimal("1.000000"),
+                            functional_amount=monthly_amt,
+                            status="SCHEDULED"
+                        )
 
-            logger.info(f"RevenueRecognitionSchedule #{schedule.id} initialized for InvoiceItem #{invoice_item_id}.")
+            logger.info(f"RevenueRecognitionSchedule #{schedule.id} initialized for InvoiceItem #{invoice_item_id} (Policy Trigger: {policy.trigger_event}).")
             return schedule
 
     @classmethod
@@ -268,7 +348,24 @@ class RevenueRecognitionService:
                 )
 
             # Create GL Reversal Entry via AccountingGateway
-            rev_journal = create_revenue_reversal_entry(orig_entry.journal_entry, user=user, reason=reason)
+            command = RevenueAccountingCommand(
+                event_id=f"REV-{orig_entry.processed_event_id}",
+                correlation_id=str(orig_entry.correlation_id),
+                invoice_item_id=schedule.invoice_item.id,
+                schedule_id=schedule.id,
+                schedule_line_id=orig_entry.schedule_line_id,
+                accounting_position="RECOGNIZE_REVENUE",
+                foreign_amount=reversal_amount,
+                exchange_rate=orig_entry.exchange_rate,
+                functional_amount=reversal_amount,
+                currency=schedule.currency,
+                revenue_account_code="40100",
+                deferred_account_code="21000",
+                journal_reference=f"REV-{orig_entry.processed_event_id}",
+                user=user
+            )
+            command.reversal_amount = reversal_amount
+            rev_journal = create_revenue_reversal_entry(command)
 
             reversal = RevenueRecognitionReversal.objects.create(
                 original_entry=orig_entry,

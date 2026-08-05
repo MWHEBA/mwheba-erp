@@ -39,3 +39,14 @@ class RevenueAccountingCommand:
     asset_account_code: Optional[str] = None
     journal_reference: Optional[str] = None
     user: Optional[Any] = None
+
+    @property
+    def event(self) -> str:
+        return self.event_id
+
+    @property
+    def schedule(self):
+        class ScheduleRef:
+            def __init__(s, sid):
+                s.id = sid
+        return ScheduleRef(self.schedule_id)

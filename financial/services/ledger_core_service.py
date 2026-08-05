@@ -63,12 +63,21 @@ class LedgerCoreService:
                 total_debit += debit
                 total_credit += credit
 
+                currency = item.get("currency", "EGP")
+                exchange_rate = Decimal(str(item.get("exchange_rate", "1.000000")))
+                foreign_debit = Decimal(str(item.get("foreign_debit", 0)))
+                foreign_credit = Decimal(str(item.get("foreign_credit", 0)))
+
                 JournalEntryLine.objects.create(
                     journal_entry=journal_entry,
                     account=account,
                     debit=debit,
                     credit=credit,
-                    description=line_desc
+                    description=line_desc,
+                    currency=currency,
+                    exchange_rate=exchange_rate,
+                    foreign_debit=foreign_debit,
+                    foreign_credit=foreign_credit
                 )
 
             if total_debit != total_credit:

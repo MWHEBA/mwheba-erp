@@ -41,6 +41,19 @@ class TestFINAR002RevenueRecognition:
         ChartOfAccounts.objects.get_or_create(code="40100", defaults={"name": "Sales Revenue Account", "account_type": rev_type, "is_active": True})
         ChartOfAccounts.objects.get_or_create(code="50100", defaults={"name": "COGS Control", "account_type": exp_type, "is_active": True})
 
+        from financial.models.journal_entry import AccountingPeriod
+        today = timezone.now().date()
+        AccountingPeriod.objects.filter(start_date__lte=today, end_date__gte=today).update(status="open")
+        period, _ = AccountingPeriod.objects.get_or_create(
+            name=f"Period-{today.strftime('%Y-%m')}",
+            start_date=today.replace(day=1),
+            end_date=today.replace(day=28),
+            defaults={"status": "open"}
+        )
+        if period.status != "open":
+            period.status = "open"
+            period.save()
+
         category = Category.objects.create(name="Software Subscription")
         unit = Unit.objects.create(name="LIC")
         product = Product.objects.create(name="Enterprise ERP License", category=category, unit=unit, cost_price=Decimal("1000.00"), selling_price=Decimal("5000.00"), created_by=user)
@@ -172,3 +185,35 @@ class TestFINAR002RevenueRecognition:
         # Attempting to delete entry must raise ValueError
         with pytest.raises(ValueError, match="cannot be deleted"):
             entry.delete()
+
+    def test_ifrs15_policy_rule_engine_delivery_vs_invoice_creation(self, setup_rev_rec_data):
+        user, customer, product, warehouse, global_policy = setup_rev_rec_data
+
+        # 1. Test INVOICE_ISSUANCE policy scope
+        inv_policy = RevenueRecognitionPolicy.objects.create(
+            name="Instant Invoice Policy",
+            code="POL-INSTANT-INV",
+            version=1,
+            rule_scope="PRODUCT",
+            scope_value=str(product.id),
+            trigger_event="INVOICE_ISSUANCE",
+            allocation_method="DIRECT_LINE_VALUE",
+            is_active=True
+        )
+
+        items_data = [{"product": product, "ordered_qty": Decimal("1.0000"), "unit_price": Decimal("5000.00")}]
+        result = SalesService.create_fast_sale(customer=customer, warehouse=warehouse, order_date=timezone.now().date(), items_data=items_data, user=user)
+
+        inv_item = result["sales_invoice"].items.first()
+        schedule = RevenueRecognitionSchedule.objects.get(invoice_item=inv_item)
+
+        # Revenue should be immediately recognized upon invoice issuance
+        assert schedule.policy == inv_policy
+        assert schedule.recognized_amount == Decimal("5000.00")
+        assert schedule.status == "FULLY_RECOGNIZED"
+
+        # Evaluate decision domain object
+        decision = RevenueRecognitionService.evaluate_recognition_decision(inv_item.id, trigger_event="INVOICE_ISSUANCE")
+        assert decision.accounting_position == "RECOGNIZE_REVENUE"
+        assert decision.recognized_amount == Decimal("5000.00")
+

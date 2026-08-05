@@ -65,6 +65,10 @@ class JournalEntryLineData:
     description: str = ""
     cost_center: Optional[str] = None
     project: Optional[str] = None
+    currency: str = "EGP"
+    exchange_rate: Decimal = Decimal("1.000000")
+    foreign_debit: Decimal = Decimal("0.00")
+    foreign_credit: Decimal = Decimal("0.00")
     
     def __post_init__(self):
         """Validate line data after initialization"""

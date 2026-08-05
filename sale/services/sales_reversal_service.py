@@ -142,6 +142,17 @@ class SalesReversalService:
             if cn.status == "POSTED":
                 raise FinancialCoreError(f"Credit Note #{cn.credit_note_number} is already posted.")
 
+            # Accounting Period Close Guard Protection
+            from financial.models import AccountingPeriod
+            today = timezone.now().date()
+            open_period = AccountingPeriod.objects.filter(
+                start_date__lte=today,
+                end_date__gte=today,
+                status="open"
+            ).exists()
+            if not open_period:
+                raise FinancialCoreError(f"Period Close Guard: Cannot post Credit Note #{cn.credit_note_number} because the current accounting period is closed or inactive.")
+
             correlation_id = uuid.uuid4()
 
             # 1. Post GL Entry via AccountingGateway (Dr. Revenue Reversal 41100, Dr. Output VAT 22010, Cr. Customer AR 11010)

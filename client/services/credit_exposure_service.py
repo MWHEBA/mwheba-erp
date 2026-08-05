@@ -48,7 +48,7 @@ class CreditExposureService:
 
         limit_func = profile.credit_limit
         if profile.currency != "EGP":
-            spot_rate = ExchangeRateService.get_spot_rate(profile.currency)
+            spot_rate = ExchangeRateService.get_rate(profile.currency, "EGP")
             limit_func = (profile.credit_limit * spot_rate).quantize(Decimal("0.01"))
 
         avail_credit = limit_func - total_exposure
@@ -82,7 +82,7 @@ class CreditExposureService:
 
             func_req_amount = requested_amount
             if currency != "EGP":
-                spot_rate = ExchangeRateService.get_spot_rate(currency)
+                spot_rate = ExchangeRateService.get_rate(currency, "EGP")
                 func_req_amount = (requested_amount * spot_rate).quantize(Decimal("0.01"))
 
             exposure = cls.calculate_customer_exposure(customer_id)

@@ -258,16 +258,28 @@ class CustomerSubledgerService:
             if allocated_amount > inv_txn.open_amount:
                 raise ValueError(f"Allocated amount {allocated_amount} exceeds invoice open amount {inv_txn.open_amount}.")
 
-            # Update balances
+            # Update balances with full multi-currency sync
             pay_txn.open_amount -= allocated_amount
-            if pay_txn.open_amount == Decimal("0.00"):
+            pay_txn.open_amount_functional = pay_txn.open_amount
+            if pay_txn.exchange_rate and pay_txn.exchange_rate > Decimal("0.000000"):
+                pay_txn.open_amount_foreign = (pay_txn.open_amount / pay_txn.exchange_rate).quantize(Decimal("0.01"))
+            if pay_txn.open_amount <= Decimal("0.00"):
+                pay_txn.open_amount = Decimal("0.00")
+                pay_txn.open_amount_functional = Decimal("0.00")
+                pay_txn.open_amount_foreign = Decimal("0.00")
                 pay_txn.status = "CLOSED"
             else:
                 pay_txn.status = "PARTIAL"
             pay_txn.save()
 
             inv_txn.open_amount -= allocated_amount
-            if inv_txn.open_amount == Decimal("0.00"):
+            inv_txn.open_amount_functional = inv_txn.open_amount
+            if inv_txn.exchange_rate and inv_txn.exchange_rate > Decimal("0.000000"):
+                inv_txn.open_amount_foreign = (inv_txn.open_amount / inv_txn.exchange_rate).quantize(Decimal("0.01"))
+            if inv_txn.open_amount <= Decimal("0.00"):
+                inv_txn.open_amount = Decimal("0.00")
+                inv_txn.open_amount_functional = Decimal("0.00")
+                inv_txn.open_amount_foreign = Decimal("0.00")
                 inv_txn.status = "CLOSED"
             else:
                 inv_txn.status = "PARTIAL"

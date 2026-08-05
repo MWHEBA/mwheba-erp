@@ -1,3 +1,4 @@
+import uuid
 import pytest
 from decimal import Decimal
 from django.utils import timezone
@@ -26,7 +27,8 @@ class TestFINSAL002SalesReturn:
 
     @pytest.fixture
     def setup_return_data(self):
-        user = User.objects.create_user(username="ret_user1", email="ret1@example.com", password="password123")
+        uid = uuid.uuid4().hex[:6]
+        user = User.objects.create_user(username=f"ret_user_{uid}", email=f"ret_{uid}@example.com", password="password123")
         from financial.models import AccountingPeriod
         today = timezone.now().date()
         AccountingPeriod.objects.get_or_create(
@@ -35,7 +37,7 @@ class TestFINSAL002SalesReturn:
             end_date=today.replace(day=28),
             defaults={"status": "open"}
         )
-        customer = Customer.objects.create(name="Alexandria Trading", code="CUST-RET-001", credit_limit=Decimal("500000.00"))
+        customer = Customer.objects.create(name=f"Alexandria Trading {uid}", code=f"CUST-RET-{uid}", credit_limit=Decimal("500000.00"))
 
         asset_type, _ = AccountType.objects.get_or_create(code="ASSET", name="Assets", category="ASSET")
         liab_type, _ = AccountType.objects.get_or_create(code="LIAB", name="Liabilities", category="LIABILITY")
@@ -50,10 +52,10 @@ class TestFINSAL002SalesReturn:
         ChartOfAccounts.objects.get_or_create(code="40100", defaults={"name": "Sales Revenue Account", "account_type": rev_type, "is_active": True})
         ChartOfAccounts.objects.get_or_create(code="50100", defaults={"name": "COGS Control", "account_type": exp_type, "is_active": True})
 
-        category = Category.objects.create(name="Consumer Electronics")
-        unit = Unit.objects.create(name="PCS")
-        product = Product.objects.create(name="Smart Display 10inch", category=category, unit=unit, cost_price=Decimal("150.00"), selling_price=Decimal("300.00"), created_by=user)
-        warehouse = Warehouse.objects.create(code="WH-RET-01", name="Main Delivery Warehouse", is_active=True)
+        category = Category.objects.create(name=f"Consumer Electronics {uid}")
+        unit = Unit.objects.create(name=f"PCS-{uid}")
+        product = Product.objects.create(name=f"Smart Display {uid}", category=category, unit=unit, cost_price=Decimal("150.00"), selling_price=Decimal("300.00"), created_by=user)
+        warehouse = Warehouse.objects.create(code=f"WH-RET-{uid}", name=f"Main Delivery Warehouse {uid}", is_active=True)
         Stock.objects.create(product=product, warehouse=warehouse, quantity=100)
 
         # Execute Fast Sale for 10 units

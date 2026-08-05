@@ -147,7 +147,7 @@ class TaxDeterminationService:
                 line_decisions=[]
             )
 
-        # 3. Rule Evaluation Hierarchy: Jurisdiction -> TaxRule -> Priority
+        # 3. Rule Evaluation Hierarchy: Jurisdiction -> TaxRule Priority Resolution
         candidate_rules_qs = TaxRule.objects.filter(is_active=True, effective_from__lte=date_val).filter(
             models.Q(effective_to__isnull=True) | models.Q(effective_to__gte=date_val)
         ).select_related("tax_code", "jurisdiction")
@@ -170,6 +170,7 @@ class TaxDeterminationService:
                 name="Default System VAT 14%",
                 version=1,
                 priority=1,
+                rule_scope="GLOBAL",
                 tax_code=tax_code_obj,
                 jurisdiction=jurisdiction,
                 is_active=True
@@ -369,6 +370,37 @@ class TaxDeterminationService:
 
             TaxDeterminationAudit.objects.filter(pk=audit.id).update(audit_hash=hash_val)
             audit.audit_hash = hash_val
+
+            # Capture Transaction-Time Snapshots
+            from financial.models import TaxTransactionSnapshot, TaxExemptionSnapshot
+            cust_name = customer.name if (customer and hasattr(customer, 'name')) else None
+            supp_name = supplier.name if (supplier and hasattr(supplier, 'name')) else None
+            party_tax_num = getattr(customer, 'tax_number', None) or getattr(supplier, 'tax_number', None)
+
+            TaxTransactionSnapshot.objects.create(
+                audit=audit,
+                document_type=document_type,
+                document_number=document_number,
+                customer_name=cust_name,
+                supplier_name=supp_name,
+                tax_registration_number=party_tax_num,
+                applied_rule_code=decision.selected_rule_code or "EXEMPT",
+                applied_tax_rate=decision.tax_rate
+            )
+
+            if decision.exemption_certificate_id:
+                try:
+                    ex_cert = TaxExemptionCertificate.objects.get(pk=decision.exemption_certificate_id)
+                    TaxExemptionSnapshot.objects.create(
+                        audit=audit,
+                        certificate_number=ex_cert.certificate_number,
+                        tax_code_code=ex_cert.tax_code.code,
+                        valid_from=ex_cert.valid_from,
+                        valid_to=ex_cert.valid_to,
+                        exemption_reason=ex_cert.exemption_reason
+                    )
+                except TaxExemptionCertificate.DoesNotExist:
+                    pass
 
             # Log Independent Domain TaxEvent
             TaxEvent.objects.create(

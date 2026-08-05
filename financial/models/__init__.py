@@ -66,6 +66,9 @@ from .tax import (
     TaxEvent,
     TaxDeterminationAudit,
     TaxReversal,
+    TaxTransactionSnapshot,
+    TaxExemptionSnapshot,
+    TaxAdjustment,
 )
 from .revenue_recognition import RevenueRecognitionPolicy, RevenueRecognitionSchedule, RevenueRecognitionScheduleLine, RevenueRecognitionEntry, RevenueRecognitionAccountMapping, RevenueRecognitionReversal
 from .approval import EnterpriseApprovalRule, EnterpriseApprovalRequest, EnterpriseApprovalStep, EnterpriseApprovalAuditLog

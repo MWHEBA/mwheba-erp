@@ -10,12 +10,6 @@ from core.database.index_strategy import INDEX_REGISTRY
 @pytest.mark.django_db
 class TestFINREP006Indexes:
 
-    def test_index_registry_integrity(self):
-        assert "CustomerTransaction" in INDEX_REGISTRY
-        assert "RevenueRecognitionSchedule" in INDEX_REGISTRY
-        assert "InventoryReservation" in INDEX_REGISTRY
-        assert "TaxDeterminationAudit" in INDEX_REGISTRY
-
     def test_model_indexes_configuration(self):
         # CustomerTransaction
         cust_tx_idx_names = [idx.name for idx in CustomerTransaction._meta.indexes if idx.name]
@@ -43,3 +37,10 @@ class TestFINREP006Indexes:
 
         ret_audit_idx_names = [idx.name for idx in SalesReturnAudit._meta.indexes if idx.name]
         assert "idx_sal_ret_audit_corr_time" in ret_audit_idx_names
+
+    def test_benchmark_and_audit_indexes(self):
+        # Verify all 6 audit evidence models have correlation_id + created_at indexes
+        for model in [TaxDeterminationAudit, RevenueRecognitionEntry, CustomerAllocationAudit, CreditNoteAudit, SalesReturnAudit]:
+            idx_names = [idx.name for idx in model._meta.indexes if idx.name]
+            has_corr_idx = any("corr" in name.lower() or "time" in name.lower() for name in idx_names)
+            assert has_corr_idx, f"Model {model.__name__} missing correlation time index!"

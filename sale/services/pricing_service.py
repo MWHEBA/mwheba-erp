@@ -77,7 +77,7 @@ class PricingService:
         # 3. Currency Conversion (IAS 21 Spot Rate)
         rate = Decimal("1.000000")
         if target_currency != "EGP":
-            rate = ExchangeRateService.get_spot_rate(target_currency, as_of_date)
+            rate = ExchangeRateService.get_rate(target_currency, "EGP", as_of_date)
 
         disc_amount = (base_price * (disc_pct / Decimal("100.00"))).quantize(Decimal("0.01"))
         final_price = (base_price - disc_amount).quantize(Decimal("0.01"))

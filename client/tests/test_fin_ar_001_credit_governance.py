@@ -20,6 +20,7 @@ class TestFINAR001CustomerCreditGovernance:
     def setup_credit_governance_data(self):
         user = User.objects.create_user(username="cred_user1", email="cred1@example.com", password="password123")
         customer = Customer.objects.create(name="Apex Distribution", code="CUST-CR-001", credit_limit=Decimal("50000.00"))
+        customer.refresh_from_db()
 
         profile, _ = CustomerCreditProfile.objects.get_or_create(
             customer=customer,
