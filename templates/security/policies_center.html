@@ -6,7 +6,6 @@
 {% block title %}{{ title }} | {{ block.super }}{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
 <link rel="stylesheet" href="{% static 'css/governance.css' %}">
 {% endblock %}
 
@@ -174,11 +173,11 @@
                                                 </span>
                                             </td>
                                             <td class="text-center">
-                                                {% if key.status_code == 'ACTIVE' or key.status_code == 'EXPIRING_SOON' %}
-                                                <button class="btn btn-outline-warning btn-sm" onclick="rotateKey({{ key.id }}, '{{ key.key_name }}')">
-                                                    <i class="fas fa-sync me-1"></i>تدوير
-                                                </button>
-                                                {% endif %}
+                                                 {% if key.status_code == 'ACTIVE' or key.status_code == 'EXPIRING_SOON' %}
+                                                 <button class="btn btn-outline-warning btn-sm" data-key-id="{{ key.id }}" data-key-name="{{ key.key_name }}" onclick="rotateKey(this.dataset.keyId, this.dataset.keyName)">
+                                                     <i class="fas fa-sync me-1"></i>تدوير
+                                                 </button>
+                                                 {% endif %}
                                             </td>
                                         </tr>
                                         {% empty %}

@@ -58,7 +58,7 @@
 /* Enhanced Form Sections */
 .form-section {
     background: var(--gray-50);
-    border-radius: var(--radius-lg);
+    border-radius: var(--border-radius);
     padding: var(--spacing-5);
     margin-bottom: var(--spacing-5);
     border: 1px solid var(--border-light);
@@ -294,7 +294,7 @@
     margin-bottom: var(--spacing-6);
     padding: var(--spacing-4);
     background: var(--gray-50);
-    border-radius: var(--radius-lg);
+    border-radius: var(--border-radius);
 }
 
 .progress-step {
@@ -464,7 +464,7 @@
 .financial-preview-card {
     background: linear-gradient(135deg, var(--warning-soft) 0%, var(--success-soft) 100%);
     border: 2px solid var(--warning-color);
-    border-radius: var(--radius-lg);
+    border-radius: var(--border-radius);
     padding: var(--spacing-5);
     margin-top: var(--spacing-4);
     display: none;
@@ -564,7 +564,7 @@
 .approval-info-card {
     background: linear-gradient(135deg, var(--primary-soft) 0%, var(--info-soft) 100%);
     border: 2px solid var(--primary-color);
-    border-radius: var(--radius-lg);
+    border-radius: var(--border-radius);
     padding: var(--spacing-5);
     margin-top: var(--spacing-4);
     display: none;
@@ -662,7 +662,7 @@
     align-items: flex-start;
     gap: var(--spacing-3);
     padding: var(--spacing-4) var(--spacing-5);
-    border-radius: var(--radius-lg);
+    border-radius: var(--border-radius);
     margin-bottom: var(--spacing-4);
     border: 2px solid;
     position: relative;
@@ -796,7 +796,7 @@
 
 .enhanced-toast {
     background: var(--white);
-    border-radius: var(--radius-lg);
+    border-radius: var(--border-radius);
     box-shadow: var(--shadow-xl);
     border: 1px solid var(--border-color);
     margin-bottom: var(--spacing-3);
@@ -914,6 +914,7 @@
         opacity: 0;
         transform: translateY(-20px);
     }
+
     to {
         opacity: 1;
         transform: translateY(0);
@@ -925,6 +926,7 @@
         opacity: 0;
         transform: translateX(30px);
     }
+
     to {
         opacity: 1;
         transform: translateX(0);
@@ -938,9 +940,12 @@
 }
 
 @keyframes pulse {
-    0%, 100% {
+
+    0%,
+    100% {
         opacity: 1;
     }
+
     50% {
         opacity: 0.5;
     }
@@ -954,28 +959,28 @@
     .settlement-form-container {
         margin: var(--spacing-4);
     }
-    
+
     .settlement-form-header,
     .settlement-form-body {
         padding: var(--spacing-4);
     }
-    
+
     .form-section {
         padding: var(--spacing-4);
     }
-    
+
     .financial-impact-grid {
         grid-template-columns: 1fr;
         gap: var(--spacing-3);
     }
-    
+
     .impact-item::after {
         content: "↓";
         top: -15px;
         left: 50%;
         transform: translateX(-50%);
     }
-    
+
     .toast-container {
         top: var(--spacing-4);
         left: var(--spacing-4);
@@ -990,22 +995,22 @@
         flex-direction: column;
         gap: var(--spacing-2);
     }
-    
+
     .form-section-header {
         flex-direction: column;
         text-align: center;
     }
-    
+
     .enhanced-alert {
         flex-direction: column;
         text-align: center;
     }
-    
+
     .progress-step {
         padding: var(--spacing-1) var(--spacing-2);
         font-size: 0.75rem;
     }
-    
+
     .progress-connector {
         width: 20px;
     }
@@ -1025,6 +1030,7 @@
 
 /* Reduced Motion Support */
 @media (prefers-reduced-motion: reduce) {
+
     .enhanced-form-control,
     .form-section,
     .enhanced-alert,
@@ -1037,12 +1043,13 @@
 
 /* High Contrast Mode Support */
 @media (prefers-contrast: high) {
+
     .form-section,
     .enhanced-alert,
     .enhanced-toast {
         border-width: 3px;
     }
-    
+
     .enhanced-form-control {
         border-width: 3px;
     }
@@ -1050,13 +1057,14 @@
 
 /* Print Styles */
 @media print {
+
     .help-tooltip,
     .enhanced-alert-close,
     .enhanced-toast-close,
     .loading-overlay {
         display: none;
     }
-    
+
     .enhanced-alert,
     .form-section {
         break-inside: avoid;
@@ -1133,6 +1141,7 @@
 .financial-summary .unified-card-header {
     background: linear-gradient(135deg, var(--info-soft) 0%, var(--primary-soft) 100%);
 }
+
 /* ========================================
    Settlement Detail Page Enhancements (تحسينات صفحة تفاصيل التسوية)
    ======================================== */

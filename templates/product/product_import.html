@@ -5,15 +5,14 @@
 {% block title %}{{ title }}{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
 <style>
 .upload-zone {
-    border: 2px dashed var(--bs-border-color);
-    border-radius: 12px;
+    border: 2px dashed var(--border-color);
+    border-radius: var(--border-radius-lg);
     padding: 2.5rem 2rem;
     text-align: center;
-    background: var(--bs-light);
-    transition: border-color .25s, background .25s;
+    background: var(--bg-light);
+    transition: var(--transition-colors);
     cursor: pointer;
     position: relative;
     min-height: 160px;
@@ -26,56 +25,52 @@
     width: 100%; height: 100%;
 }
 .upload-zone:hover, .upload-zone.dragover {
-    border-color: var(--bs-primary);
-    background: var(--bs-primary-bg-subtle);
+    border-color: var(--primary-color);
+    background: var(--primary-soft);
 }
 .upload-zone.has-file {
-    border-color: var(--bs-success);
-    background: var(--bs-success-bg-subtle);
+    border-color: var(--success-color);
+    background: var(--success-soft);
 }
-.upload-zone-icon { font-size: 2.5rem; color: var(--bs-primary); margin-bottom: .75rem; pointer-events: none; }
-.upload-zone-text { color: var(--bs-secondary); font-size: .95rem; pointer-events: none; }
+.upload-zone-icon { font-size: 2.5rem; color: var(--primary-color); margin-bottom: .75rem; pointer-events: none; }
+.upload-zone-text { color: var(--text-secondary); font-size: .95rem; pointer-events: none; }
 .file-badge {
     display: inline-flex; align-items: center; gap: .5rem;
-    background: var(--bs-success-bg-subtle);
-    border: 1px solid var(--bs-success-border-subtle);
-    color: var(--bs-success-text-emphasis);
-    border-radius: 8px; padding: .5rem 1rem;
+    background: var(--success-soft);
+    border: 1px solid var(--success-color);
+    color: var(--success-dark);
+    border-radius: var(--border-radius); padding: .5rem 1rem;
     font-size: .875rem; font-weight: 500; margin-top: .75rem;
 }
 .result-stat {
     text-align: center; padding: 1.25rem 1rem;
-    border-radius: 10px; border: 1px solid var(--bs-border-color);
+    border-radius: var(--border-radius); border: 1px solid var(--border-color);
 }
 .result-stat .stat-number { font-size: 2rem; font-weight: 700; line-height: 1; }
-.result-stat .stat-label  { font-size: .8rem; color: var(--bs-secondary); margin-top: .25rem; }
-.result-stat.created { background: var(--bs-success-bg-subtle); border-color: var(--bs-success-border-subtle); }
-.result-stat.created .stat-number { color: var(--bs-success); }
-.result-stat.updated { background: var(--bs-info-bg-subtle);    border-color: var(--bs-info-border-subtle); }
-.result-stat.updated .stat-number { color: var(--bs-info); }
-.result-stat.skipped { background: var(--bs-warning-bg-subtle); border-color: var(--bs-warning-border-subtle); }
-.result-stat.skipped .stat-number { color: var(--bs-warning); }
-.result-stat.errors  { background: var(--bs-danger-bg-subtle);  border-color: var(--bs-danger-border-subtle); }
-.result-stat.errors  .stat-number { color: var(--bs-danger); }
+.result-stat .stat-label  { font-size: .8rem; color: var(--text-secondary); margin-top: .25rem; }
+.result-stat.created { background: var(--success-soft); border-color: var(--success-color); }
+.result-stat.created .stat-number { color: var(--success-color); }
+.result-stat.updated { background: var(--info-soft); border-color: var(--info-color); }
+.result-stat.updated .stat-number { color: var(--info-color); }
+.result-stat.skipped { background: var(--warning-soft); border-color: var(--warning-color); }
+.result-stat.skipped .stat-number { color: var(--warning-color); }
+.result-stat.errors  { background: var(--danger-soft); border-color: var(--danger-color); }
+.result-stat.errors  .stat-number { color: var(--danger-color); }
 .col-guide {
-    background: var(--bs-light); border-radius: 8px;
+    background: var(--bg-light); border-radius: var(--border-radius);
     padding: .6rem .9rem; font-size: .82rem;
-    border: 1px solid var(--bs-border-color);
+    border: 1px solid var(--border-color);
 }
 .col-guide .col-name { font-weight: 600; font-family: monospace; }
-.col-guide.required { border-right: 3px solid var(--bs-success); }
-.col-guide.optional { border-right: 3px solid var(--bs-info); }
+.col-guide.required { border-right: 3px solid var(--success-color); }
+.col-guide.optional { border-right: 3px solid var(--info-color); }
 .preview-table th, .preview-table td { vertical-align: middle; font-size: .85rem; }
-.action-badge-new    { background: var(--bs-success-bg-subtle); color: var(--bs-success-text-emphasis); border: 1px solid var(--bs-success-border-subtle); }
-.action-badge-update { background: var(--bs-info-bg-subtle);    color: var(--bs-info-text-emphasis);    border: 1px solid var(--bs-info-border-subtle); }
-.action-badge-skip   { background: var(--bs-warning-bg-subtle); color: var(--bs-warning-text-emphasis); border: 1px solid var(--bs-warning-border-subtle); }
-.action-badge-error  { background: var(--bs-danger-bg-subtle);  color: var(--bs-danger-text-emphasis);  border: 1px solid var(--bs-danger-border-subtle); }
-.action-badge { display: inline-block; padding: .2rem .6rem; border-radius: 6px; font-size: .78rem; font-weight: 600; }
-.preview-row-error td { background: var(--bs-danger-bg-subtle) !important; }
-.section-title[data-bs-toggle="collapse"] { cursor: pointer; transition: all 0.2s ease; }
-.section-title[data-bs-toggle="collapse"]:hover { opacity: 0.8; }
-.section-title .fa-chevron-down { transition: transform 0.3s ease; }
-.section-title[aria-expanded="true"] .fa-chevron-down { transform: rotate(180deg); }
+.action-badge-new    { background: var(--success-soft); color: var(--success-dark); border: 1px solid var(--success-color); }
+.action-badge-update { background: var(--info-soft); color: var(--info-dark); border: 1px solid var(--info-color); }
+.action-badge-skip   { background: var(--warning-soft); color: var(--warning-dark); border: 1px solid var(--warning-color); }
+.action-badge-error  { background: var(--danger-soft); color: var(--danger-dark); border: 1px solid var(--danger-color); }
+.action-badge { display: inline-block; padding: .2rem .6rem; border-radius: var(--border-radius-sm); font-size: .78rem; font-weight: 600; }
+.preview-row-error td { background: var(--danger-soft) !important; }
 </style>
 {% endblock %}
 

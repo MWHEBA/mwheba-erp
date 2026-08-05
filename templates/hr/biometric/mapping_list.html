@@ -5,37 +5,7 @@
 
 {% block title %}{{ page_title }}{% endblock %}
 
-{% block extra_css %}
-<style>
-  .avatar-circle {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: bold;
-    font-size: 1.1rem;
-  }
-  
-  .section-title[data-bs-toggle="collapse"] {
-    cursor: pointer;
-    transition: all 0.2s ease;
-  }
-  
-  .section-title[data-bs-toggle="collapse"]:hover {
-    opacity: 0.8;
-  }
-  
-  .section-title .fa-chevron-down {
-    transition: transform 0.3s ease;
-  }
-  
-  .section-title[aria-expanded="true"] .fa-chevron-down {
-    transform: rotate(180deg);
-  }
-</style>
-{% endblock %}
+{% block extra_css %}{% endblock %}
 
 {% block content %}
 <div class="container-fluid">

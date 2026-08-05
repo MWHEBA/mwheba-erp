@@ -6,39 +6,25 @@
 {% block title %}استيراد جماعي - ربط البصمة{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/components.css' %}">
 <style>
   .info-box {
-    background-color: #e7f3ff;
-    border-left: 4px solid #2196F3;
+    background-color: var(--info-soft);
+    border-left: 4px solid var(--info-color);
     padding: 1rem;
-    border-radius: 4px;
+    border-radius: var(--border-radius-sm);
     margin-bottom: 1.5rem;
   }
   .info-box i {
-    color: #2196F3;
+    color: var(--info-color);
     font-size: 1.2rem;
   }
   .example-box {
-    background-color: #f8f9fa;
-    border: 1px solid #dee2e6;
-    border-radius: 8px;
+    background-color: var(--bg-light);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
     padding: 1rem;
-    font-family: 'Courier New', monospace;
+    font-family: inherit;
     font-size: 0.9rem;
-  }
-  .section-title[data-bs-toggle="collapse"] {
-    cursor: pointer;
-    transition: all 0.2s ease;
-  }
-  .section-title[data-bs-toggle="collapse"]:hover {
-    opacity: 0.8;
-  }
-  .section-title .fa-chevron-down {
-    transition: transform 0.3s ease;
-  }
-  .section-title[aria-expanded="true"] .fa-chevron-down {
-    transform: rotate(180deg);
   }
 </style>
 {% endblock %}

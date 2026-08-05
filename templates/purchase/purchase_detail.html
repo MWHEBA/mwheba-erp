@@ -9,8 +9,6 @@
 {% block title %}{{ title }}{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
-<link rel="stylesheet" href="{% static 'css/variables.css' %}">
 <style>
     .invoice-container {
         background-color: var(--white);
@@ -23,11 +21,11 @@
     
     .invoice-header {
         position: relative;
-        background: #f8f9fa;
-        color: #2c3e50;
+        background: var(--bg-light);
+        color: var(--text-dark);
         padding: 2rem;
-        border: 1px solid #e9ecef;
-        border-radius: 8px;
+        border: 1px solid var(--border-color);
+        border-radius: var(--border-radius);
         margin-bottom: 1.5rem;
     }
     
@@ -42,10 +40,10 @@
     }
     
     .total-summary {
-        background: white;
+        background: var(--white);
         padding: 1.5rem;
-        border-radius: 6px;
-        border: 1px solid #e9ecef;
+        border-radius: var(--border-radius-md);
+        border: 1px solid var(--border-color);
     }
     
     .total-amount h3 {
@@ -70,21 +68,21 @@
     }
     
     .invoice-status-paid {
-        background-color: #d4edda;
-        color: #155724;
-        border: 1px solid #c3e6cb;
+        background-color: var(--success-soft);
+        color: var(--success-dark);
+        border: 1px solid var(--success-color);
     }
     
     .invoice-status-partially-paid {
-        background-color: #fff3cd;
-        color: #856404;
-        border: 1px solid #ffeaa7;
+        background-color: var(--warning-soft);
+        color: var(--warning-dark);
+        border: 1px solid var(--warning-color);
     }
     
     .invoice-status-unpaid {
-        background-color: #f8d7da;
-        color: #721c24;
-        border: 1px solid #f5c6cb;
+        background-color: var(--danger-soft);
+        color: var(--danger-dark);
+        border: 1px solid var(--danger-color);
     }
     
     .invoice-meta {

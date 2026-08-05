@@ -9,32 +9,8 @@
 {% block title %}{{ page_title|default:"قائمة الخدمات" }}{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
 <link rel="stylesheet" href="{% static 'css/product-enhancements.css' %}">
 <style>
-.section-title[data-bs-toggle="collapse"] {
-    cursor: pointer;
-    user-select: none;
-    transition: all 0.2s ease;
-}
-
-.section-title[data-bs-toggle="collapse"]:hover {
-    opacity: 0.8;
-}
-
-.section-title .fa-chevron-down {
-    transition: transform 0.3s ease;
-    font-size: 0.875rem;
-}
-
-.section-title[aria-expanded="true"] .fa-chevron-down {
-    transform: rotate(180deg);
-}
-
-.collapse {
-    transition: height 0.3s ease;
-}
-
 #services-table tbody tr[data-clickable="true"] {
     cursor: pointer;
     transition: background-color 0.2s ease;
