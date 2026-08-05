@@ -202,7 +202,7 @@ function initializeModalForm() {
                 totalDisplay.className = 'alert alert-info mt-3';
                 unitCostInput.parentElement.parentElement.appendChild(totalDisplay);
             }
-            totalDisplay.innerHTML = `<strong>التكلفة الإجمالية:</strong> ${total.toFixed(2)} ج.م`;
+            totalDisplay.innerHTML = `<strong>التكلفة الإجمالية:</strong> ${total.toFixed(2)} {{ currency_symbol }}`;
         };
         
         quantityInput.addEventListener('input', calculateTotal);

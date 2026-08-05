@@ -80,11 +80,11 @@
                 <table class="table table-borderless">
                     <tr>
                         <th class="text-center" width="40%">تكلفة الوحدة:</th>
-                        <td class="text-center">{{ voucher.unit_cost|smart_float }} ج.م</td>
+                        <td class="text-center">{{ voucher.unit_cost|smart_float }} {{ currency_symbol }}</td>
                     </tr>
                     <tr>
                         <th class="text-center">القيمة الإجمالية:</th>
-                        <td class="text-center"><strong>{{ voucher.total_cost|smart_float }} ج.م</strong></td>
+                        <td class="text-center"><strong>{{ voucher.total_cost|smart_float }} {{ currency_symbol }}</strong></td>
                     </tr>
                     <tr>
                         <th class="text-center">الحالة:</th>

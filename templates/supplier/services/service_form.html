@@ -74,12 +74,12 @@
           </div>
           <div class="row">
             <div class="col-md-6 mb-3">
-              <label class="form-label">السعر الأساسي (ج.م)</label>
+              <label class="form-label">السعر الأساسي ({{ currency_symbol }})</label>
               <input type="number" name="base_price" class="form-control" step="0.01" min="0"
                      value="{{ form_data.base_price|default:'0' }}">
             </div>
             <div class="col-md-6 mb-3">
-              <label class="form-label">تكلفة الإعداد (ج.م)</label>
+              <label class="form-label">تكلفة الإعداد ({{ currency_symbol }})</label>
               <input type="number" name="setup_cost" class="form-control" step="0.01" min="0"
                      value="{{ form_data.setup_cost|default:'0' }}">
             </div>

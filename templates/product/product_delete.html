@@ -70,10 +70,10 @@
                                 </div>
                                 <div class="col-md-6">
                                     <p class="mb-2"><strong>سعر التكلفة:</strong> 
-                                        <span class="badge bg-info">{{ product.cost_price|smart_float }} ج.م</span>
+                                        <span class="badge bg-info">{{ product.cost_price|smart_float }} {{ currency_symbol }}</span>
                                     </p>
                                     <p class="mb-2"><strong>سعر البيع:</strong> 
-                                        <span class="badge bg-success">{{ product.selling_price|smart_float }} ج.م</span>
+                                        <span class="badge bg-success">{{ product.selling_price|smart_float }} {{ currency_symbol }}</span>
                                     </p>
                                     {% if not product.is_service %}
                                     <p class="mb-2"><strong>المخزون الحالي:</strong> 

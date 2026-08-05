@@ -34,7 +34,7 @@
                             <div class="card bg-light">
                                 <div class="card-body text-center">
                                     <h6 class="text-muted">إجمالي الرواتب</h6>
-                                    <h3 class="text-info">{{ total_gross|remove_trailing_zeros }} ج.م</h3>
+                                    <h3 class="text-info">{{ total_gross|remove_trailing_zeros }} {{ currency_symbol }}</h3>
                                 </div>
                             </div>
                         </div>
@@ -42,7 +42,7 @@
                             <div class="card bg-light">
                                 <div class="card-body text-center">
                                     <h6 class="text-muted">صافي المدفوع</h6>
-                                    <h3 class="text-success">{{ total_net|remove_trailing_zeros }} ج.م</h3>
+                                    <h3 class="text-success">{{ total_net|remove_trailing_zeros }} {{ currency_symbol }}</h3>
                                 </div>
                             </div>
                         </div>
@@ -118,9 +118,9 @@
                                     <tr>
                                         <td class="text-center">{{ forloop.counter }}</td>
                                         <td class="text-center">{{ payroll.employee.get_full_name_ar }}</td>
-                                        <td class="text-center">{{ payroll.correct_gross_salary|remove_trailing_zeros }} ج.م</td>
-                                        <td class="text-center">{{ payroll.total_deductions|remove_trailing_zeros }} ج.م</td>
-                                        <td class="text-success fw-bold text-center">{{ payroll.correct_net_salary|remove_trailing_zeros }} ج.م</td>
+                                        <td class="text-center">{{ payroll.correct_gross_salary|remove_trailing_zeros }} {{ currency_symbol }}</td>
+                                        <td class="text-center">{{ payroll.total_deductions|remove_trailing_zeros }} {{ currency_symbol }}</td>
+                                        <td class="text-success fw-bold text-center">{{ payroll.correct_net_salary|remove_trailing_zeros }} {{ currency_symbol }}</td>
                                     </tr>
                                     {% endfor %}                                </tbody>
                             </table>

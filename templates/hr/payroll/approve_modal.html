@@ -65,19 +65,19 @@
             <div class="col-md-4">
                 <div class="summary-box bg-light">
                     <small class="text-muted">إجمالي الراتب</small>
-                    <div class="fs-5 fw-bold text-primary" id="modalTotalEarnings">{{ correct_gross_salary|remove_trailing_zeros }} ج.م</div>
+                    <div class="fs-5 fw-bold text-primary" id="modalTotalEarnings">{{ correct_gross_salary|remove_trailing_zeros }} {{ currency_symbol }}</div>
                 </div>
             </div>
             <div class="col-md-4">
                 <div class="summary-box bg-light">
                     <small class="text-muted">إجمالي الخصومات</small>
-                    <div class="fs-5 fw-bold text-danger" id="modalTotalDeductions">{{ total_deductions|remove_trailing_zeros }} ج.م</div>
+                    <div class="fs-5 fw-bold text-danger" id="modalTotalDeductions">{{ total_deductions|remove_trailing_zeros }} {{ currency_symbol }}</div>
                 </div>
             </div>
             <div class="col-md-4">
                 <div class="summary-box bg-success-subtle">
                     <small class="text-muted">صافي الراتب</small>
-                    <div class="fs-4 fw-bold text-success" id="modalNetSalary">{{ correct_net_salary|remove_trailing_zeros }} ج.م</div>
+                    <div class="fs-4 fw-bold text-success" id="modalNetSalary">{{ correct_net_salary|remove_trailing_zeros }} {{ currency_symbol }}</div>
                 </div>
             </div>
         </div>
@@ -141,7 +141,7 @@ function confirmApprove() {
         html: `
             <p class="mb-3">سيتم اعتماد قسيمة راتب <strong>{{ payroll.employee.get_full_name_ar }}</strong></p>
             <div class="alert alert-info">
-                <strong>صافي الراتب: ${netSalary} ج.م</strong>
+                <strong>صافي الراتب: ${netSalary} {{ currency_symbol }}</strong>
             </div>
             <p class="text-warning mb-0"><i class="fas fa-exclamation-triangle me-2"></i>لن تتمكن من التعديل بعد الاعتماد</p>
         `,

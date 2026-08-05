@@ -381,7 +381,7 @@ if (typeof window.UnifiedSalaryComponentManager === 'undefined') {
                     <strong>${template.name}</strong><br>
                     <small class="text-muted">
                         النوع: ${template.component_type_display} | 
-                        المبلغ الافتراضي: ${template.default_amount} ج.م
+                        المبلغ الافتراضي: ${template.default_amount} {{ currency_symbol }}
                         ${template.description ? ' | ' + template.description : ''}
                     </small>
                 `;
@@ -466,7 +466,7 @@ if (typeof window.UnifiedSalaryComponentManager === 'undefined') {
                         ${preview.notes ? `<div class="mt-1"><small class="text-secondary"><i class="fas fa-info-circle me-1"></i>${preview.notes}</small></div>` : ''}
                     </div>
                     <div class="text-end">
-                        <span class="h5 mb-0">${preview.amount} ج.م</span>
+                        <span class="h5 mb-0">${preview.amount} {{ currency_symbol }}</span>
                     </div>
                 </div>
             </div>
@@ -476,17 +476,17 @@ if (typeof window.UnifiedSalaryComponentManager === 'undefined') {
                 <div class="row text-center">
                     <div class="col-4">
                         <small class="text-muted d-block">الراتب الحالي</small>
-                        <div class="fw-bold">${salaryImpact.current_salary} ج.م</div>
+                        <div class="fw-bold">${salaryImpact.current_salary} {{ currency_symbol }}</div>
                     </div>
                     <div class="col-4">
                         <small class="text-muted d-block">التغيير</small>
                         <div class="fw-bold ${changeClass}">
-                            <i class="fas ${changeIcon}"></i> ${Math.abs(salaryImpact.salary_change)} ج.م
+                            <i class="fas ${changeIcon}"></i> ${Math.abs(salaryImpact.salary_change)} {{ currency_symbol }}
                         </div>
                     </div>
                     <div class="col-4">
                         <small class="text-muted d-block">الراتب الجديد</small>
-                        <div class="fw-bold text-primary">${salaryImpact.new_salary} ج.م</div>
+                        <div class="fw-bold text-primary">${salaryImpact.new_salary} {{ currency_symbol }}</div>
                     </div>
                 </div>
             </div>

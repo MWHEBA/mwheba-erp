@@ -72,6 +72,11 @@ def common_variables(request):
         "current_year": current_date.year,
         "currency_symbol": currency_symbol,
         "currency_symbol_en": currency_symbol_en,
+        "functional_currency": {
+            "symbol": currency_symbol,
+            "code": currency_symbol_en,
+            "name": "العملة المحلية",
+        },
         "company_name": company_info['name'],
         "company_slogan": company_info['slogan'],
         "company_logo": company_info['logo'],
@@ -85,6 +90,7 @@ def common_variables(request):
         "installed_apps": installed_apps,
         "debug": settings.DEBUG,
     }
+
 
 
 def user_permissions(request):

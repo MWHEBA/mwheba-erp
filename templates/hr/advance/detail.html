@@ -61,13 +61,13 @@
                 <h6 class="mb-3"><i class="fas fa-file-invoice-dollar me-2"></i>بيانات السلفة</h6>
                 <dl class="row mb-0">
                   <dt class="col-6 text-muted">المبلغ الإجمالي</dt>
-                  <dd class="col-6"><strong>{{ advance.amount|remove_trailing_zeros }}</strong> جنيه</dd>
+                  <dd class="col-6"><strong>{{ advance.amount|remove_trailing_zeros }}</strong> {{ currency_symbol }}</dd>
                   <dt class="col-6 text-muted">عدد الأقساط</dt>
                   <dd class="col-6">{{ advance.installments_count }}</dd>
                   <dt class="col-6 text-muted">قيمة القسط</dt>
-                  <dd class="col-6">{{ advance.installment_amount|remove_trailing_zeros }} جنيه</dd>
+                  <dd class="col-6">{{ advance.installment_amount|remove_trailing_zeros }} {{ currency_symbol }}</dd>
                   <dt class="col-6 text-muted">المبلغ المتبقي</dt>
-                  <dd class="col-6">{{ advance.remaining_amount|remove_trailing_zeros }} جنيه</dd>
+                  <dd class="col-6">{{ advance.remaining_amount|remove_trailing_zeros }} {{ currency_symbol }}</dd>
                   <dt class="col-6 text-muted">شهر بدء الخصم</dt>
                   <dd class="col-6">
                     {% if advance.deduction_start_month %}{{ advance.deduction_start_month|date:"Y-m" }}{% else %}<span class="text-muted">-</span>{% endif %}
@@ -128,7 +128,7 @@
                           <small class="text-muted">{{ installment.month|date:"Y-m" }}</small>
                         </div>
                         <div class="text-end">
-                          <div><strong>{{ installment.amount|remove_trailing_zeros }} جنيه</strong></div>
+                          <div><strong>{{ installment.amount|remove_trailing_zeros }} {{ currency_symbol }}</strong></div>
                           {% if installment.payroll %}
                             <small class="text-success">مدفوع ضمن قسيمة {{ installment.payroll.month|date:"Y-m" }}</small>
                           {% else %}
@@ -157,11 +157,11 @@
           <div class="card-body">
             <div class="installment-summary-item">
               <span class="text-muted">إجمالي السلفة</span>
-              <span><strong>{{ advance.amount|remove_trailing_zeros }}</strong> جنيه</span>
+              <span><strong>{{ advance.amount|remove_trailing_zeros }}</strong> {{ currency_symbol }}</span>
             </div>
             <div class="installment-summary-item">
               <span class="text-muted">المبلغ المتبقي</span>
-              <span><strong>{{ advance.remaining_amount|remove_trailing_zeros }}</strong> جنيه</span>
+              <span><strong>{{ advance.remaining_amount|remove_trailing_zeros }}</strong> {{ currency_symbol }}</span>
             </div>
             <div class="installment-summary-item">
               <span class="text-muted">الأقساط المدفوعة</span>
@@ -170,7 +170,7 @@
             <div class="mt-3">
               <div class="progress" style="height: 10px;">
                 <div class="progress-bar bg-success" role="progressbar"
-                     style="width: {% if advance.installments_count %}{% widthratio advance.paid_installments advance.installments_count 100 %}{% else %}0{% endif %}%;"
+                     data-progress="{% if advance.installments_count %}{% widthratio advance.paid_installments advance.installments_count 100 %}{% else %}0{% endif %}"
                      aria-valuemin="0" aria-valuemax="100">
                 </div>
               </div>
@@ -178,6 +178,7 @@
                 {% if advance.installments_count %}{% widthratio advance.paid_installments advance.installments_count 100 %}{% else %}0{% endif %}% مكتمل
               </small>
             </div>
+
           </div>
         </div>
       </div>
@@ -270,9 +271,10 @@ function advancePay(id) {
         }).then(r => r.json()).then(data => {
             modal.hide();
             if (data.success) { toastr.success(data.message); setTimeout(() => location.reload(), 800); }
-            else { toastr.error(data.message || 'حدث خطأ'); }
         }).catch(() => toastr.error('حدث خطأ في الاتصال'));
     };
 }
+document.querySelectorAll('.progress-bar[data-progress]').forEach(el => el.style.width = el.getAttribute('data-progress') + '%');
 </script>
 {% endblock %}
+

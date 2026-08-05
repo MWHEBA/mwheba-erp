@@ -35,7 +35,7 @@
             </div>
             <div class="col-md-6 text-center">
                 <strong><i class="fas fa-hand-holding-usd me-2"></i>صافي الراتب:</strong>
-                <span class="text-primary fw-bold fs-4">{{ correct_net_salary|remove_trailing_zeros }} ج.م</span>
+                <span class="text-primary fw-bold fs-4">{{ correct_net_salary|remove_trailing_zeros }} {{ currency_symbol }}</span>
             </div>
         </div>
     </div>
@@ -101,7 +101,7 @@ function submitPayment() {
         html: `
             <div class="text-start">
                 <p><strong>الموظف:</strong> {{ payroll.employee.get_full_name_ar }}</p>
-                <p><strong>المبلغ:</strong> {{ correct_net_salary|remove_trailing_zeros }} ج.م</p>
+                <p><strong>المبلغ:</strong> {{ correct_net_salary|remove_trailing_zeros }} {{ currency_symbol }}</p>
                 <p><strong>الشهر:</strong> {{ payroll.month|arabic_month_year }}</p>
             </div>
         `,

@@ -56,7 +56,7 @@
                                 <div class="col-md-6">
                                     <p class="mb-2"><strong>الرصيد الحالي:</strong> 
                                         <span class="badge {% if supplier.balance > 0 %}bg-danger{% elif supplier.balance < 0 %}bg-success{% else %}bg-secondary{% endif %}">
-                                            {{ supplier.balance|smart_float }} ج.م
+                                            {{ supplier.balance|smart_float }} {{ currency_symbol }}
                                         </span>
                                     </p>
                                     <p class="mb-2"><strong>الحالة:</strong> 

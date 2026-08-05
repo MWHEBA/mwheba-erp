@@ -126,7 +126,7 @@
                             </td>
                             <td class="{% if summary.absence_deduction_amount > 0 %}text-danger{% else %}text-muted{% endif %}">
                                 {% if summary.absence_deduction_amount > 0 %}
-                                    {{ summary.absence_deduction_amount|smart_float }} ج.م
+                                    {{ summary.absence_deduction_amount|smart_float }} {{ currency_symbol }}
                                 {% else %}
                                     <span class="text-warning" title="سيتم الحساب عند وجود عقد نشط">
                                         <i class="fas fa-clock"></i> قيد الانتظار
@@ -167,7 +167,7 @@
                             </td>
                             <td class="{% if leave_summary.deduction_amount > 0 %}text-danger{% else %}text-muted{% endif %}">
                                 {% if leave_summary.deduction_amount > 0 %}
-                                    {{ leave_summary.deduction_amount|smart_float }} ج.م
+                                    {{ leave_summary.deduction_amount|smart_float }} {{ currency_symbol }}
                                 {% else %}
                                     <span class="text-warning" title="سيتم الحساب عند وجود عقد نشط">
                                         <i class="fas fa-clock"></i> قيد الانتظار
@@ -187,7 +187,7 @@
                                     {% if penalty_details %}
                                         جزاء: {{ penalty_details.name }}
                                         {% if daily_salary %}
-                                            <br>{{ penalty_details.penalty_days|smart_float }} يوم × {{ daily_salary|smart_float }} ج.م
+                                            <br>{{ penalty_details.penalty_days|smart_float }} يوم × {{ daily_salary|smart_float }} {{ currency_symbol }}
                                         {% else %}
                                             ({{ penalty_details.penalty_days|smart_float }} يوم)
                                             <br><span class="text-warning">
@@ -208,7 +208,7 @@
                             </td>
                             <td class="{% if summary.late_deduction_amount > 0 %}text-danger{% else %}text-muted{% endif %}">
                                 {% if summary.late_deduction_amount > 0 %}
-                                    {{ summary.late_deduction_amount|smart_float }} ج.م
+                                    {{ summary.late_deduction_amount|smart_float }} {{ currency_symbol }}
                                 {% else %}
                                     <span class="text-warning" title="سيتم الحساب عند وجود عقد نشط">
                                         <i class="fas fa-clock"></i> قيد الانتظار
@@ -226,7 +226,7 @@
                             <td>
                                 <small class="text-muted">
                                     {% if hourly_rate %}
-                                        {{ live_extra_permissions_hours|smart_float }} ساعة × {{ hourly_rate|smart_float }} ج.م
+                                        {{ live_extra_permissions_hours|smart_float }} ساعة × {{ hourly_rate|smart_float }} {{ currency_symbol }}
                                     {% else %}
                                         <span class="text-warning">
                                             <i class="fas fa-exclamation-triangle me-1"></i>
@@ -237,7 +237,7 @@
                             </td>
                             <td class="{% if live_extra_permissions_deduction_amount > 0 %}text-danger{% else %}text-muted{% endif %}">
                                 {% if live_extra_permissions_deduction_amount > 0 %}
-                                    {{ live_extra_permissions_deduction_amount|smart_float }} ج.م
+                                    {{ live_extra_permissions_deduction_amount|smart_float }} {{ currency_symbol }}
                                 {% else %}
                                     <span class="text-warning" title="سيتم الحساب عند وجود عقد نشط">
                                         <i class="fas fa-clock"></i> قيد الانتظار
@@ -251,7 +251,7 @@
                         {% if total_deductions_full > 0 %}
                         <tr class="table-active text-center fw-bold">
                             <td colspan="3">إجمالي الخصومات</td>
-                            <td class="text-danger">{{ total_deductions_full|smart_float }} ج.م</td>
+                            <td class="text-danger">{{ total_deductions_full|smart_float }} {{ currency_symbol }}</td>
                         </tr>
                         {% endif %}
                         
@@ -547,7 +547,7 @@
                                     <td class="text-start">خصم غياب ({{ summary.absent_days }} يوم)</td>
                                     <td class="{% if summary.absence_deduction_amount > 0 %}text-danger fw-bold{% else %}text-muted{% endif %}">
                                         {% if summary.absence_deduction_amount > 0 %}
-                                            {{ summary.absence_deduction_amount|smart_float }} ج.م
+                                            {{ summary.absence_deduction_amount|smart_float }} {{ currency_symbol }}
                                         {% else %}
                                             <small class="text-warning">قيد الانتظار</small>
                                         {% endif %}
@@ -560,7 +560,7 @@
                                 <tr class="text-center">
                                     <td><span class="badge bg-danger">خصم</span></td>
                                     <td class="text-start">خصم إجازات غير مدفوعة ({{ leave_summary.total_unpaid_days }} يوم)</td>
-                                    <td class="text-danger fw-bold">{{ leave_summary.deduction_amount|smart_float }} ج.م</td>
+                                    <td class="text-danger fw-bold">{{ leave_summary.deduction_amount|smart_float }} {{ currency_symbol }}</td>
                                 </tr>
                                 {% endif %}
                                 
@@ -571,7 +571,7 @@
                                     <td class="text-start">خصم تأخير ({{ summary.net_penalizable_minutes }} دقيقة)</td>
                                     <td class="{% if summary.late_deduction_amount > 0 %}text-danger fw-bold{% else %}text-muted{% endif %}">
                                         {% if summary.late_deduction_amount > 0 %}
-                                            {{ summary.late_deduction_amount|smart_float }} ج.م
+                                            {{ summary.late_deduction_amount|smart_float }} {{ currency_symbol }}
                                         {% else %}
                                             <small class="text-warning">قيد الانتظار</small>
                                         {% endif %}
@@ -586,7 +586,7 @@
                                     <td class="text-start">خصم أذونات إضافية ({{ live_extra_permissions_hours|smart_float }} ساعة)</td>
                                     <td class="{% if live_extra_permissions_deduction_amount > 0 %}text-danger fw-bold{% else %}text-muted{% endif %}">
                                         {% if live_extra_permissions_deduction_amount > 0 %}
-                                            {{ live_extra_permissions_deduction_amount|smart_float }} ج.م
+                                            {{ live_extra_permissions_deduction_amount|smart_float }} {{ currency_symbol }}
                                         {% else %}
                                             <small class="text-warning">قيد الانتظار</small>
                                         {% endif %}
@@ -598,7 +598,7 @@
                                 {% if total_deductions_full > 0 %}
                                 <tr class="table-active text-center fw-bold">
                                     <td colspan="2">إجمالي الخصومات</td>
-                                    <td class="text-danger">{{ total_deductions_full|smart_float }} ج.م</td>
+                                    <td class="text-danger">{{ total_deductions_full|smart_float }} {{ currency_symbol }}</td>
                                 </tr>
                                 {% else %}
                                 <tr>

@@ -94,10 +94,10 @@
                     <dd class="col-sm-7">{{ stock.product.unit|default:"-" }}</dd>
                     
                     <dt class="col-sm-5">سعر التكلفة</dt>
-                    <dd class="col-sm-7">{{ stock.product.cost_price|smart_float }} ج.م</dd>
+                    <dd class="col-sm-7">{{ stock.product.cost_price|smart_float }} {{ currency_symbol }}</dd>
                     
                     <dt class="col-sm-5">سعر البيع</dt>
-                    <dd class="col-sm-7">{{ stock.product.selling_price|smart_float }} ج.م</dd>
+                    <dd class="col-sm-7">{{ stock.product.selling_price|smart_float }} {{ currency_symbol }}</dd>
                 </dl>
             </div>
         </div>

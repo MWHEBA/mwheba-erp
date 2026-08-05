@@ -1,4 +1,4 @@
-﻿{% comment %}
+{% comment %}
 ========================================
 مكون بطاقة الإحصائيات الموحد
 Unified Stats Card Component
@@ -21,7 +21,7 @@ Unified Stats Card Component
 {% include "components/stats_card.html" with icon="fas fa-users" title="إجمالي العناصر" value=150 unit="عنصر" variant="primary" %}
 
 2. بطاقة قابلة للنقر | Clickable card:
-{% include "components/stats_card.html" with icon="fas fa-chart-line" title="المشتريات" value=50000 unit="جنيه" variant="success" url="/purchases/" %}
+{% include "components/stats_card.html" with icon="fas fa-chart-line" title="المشتريات" value=50000 unit=currency_symbol variant="success" url="/purchases/" %}
 
 3. بطاقة بدون وحدة | Card without unit:
 {% include "components/stats_card.html" with icon="fas fa-bell" title="الإشعارات" value=42 variant="warning" %}

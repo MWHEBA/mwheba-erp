@@ -25,7 +25,7 @@
                         <p class="mb-0">
                             <strong>الموظف:</strong> {{ contract.employee.get_full_name_ar }}<br>
                             <strong>تاريخ البداية:</strong> {{ contract.start_date }}<br>
-                            <strong>الأجر الأساسي:</strong> {{ contract.basic_salary }} ج.م
+                            <strong>الأجر الأساسي:</strong> {{ contract.basic_salary }} {{ currency_symbol }}
                         </p>
                     </div>
                     
@@ -45,7 +45,7 @@
                                     </h6>
                                     <p class="mb-0">
                                         <strong>عدد البنود:</strong> {{ summary.earnings_count }}<br>
-                                        <strong>إجمالي ثابت:</strong> {{ summary.total_fixed_earnings }} ج.م
+                                        <strong>إجمالي ثابت:</strong> {{ summary.total_fixed_earnings }} {{ currency_symbol }}
                                     </p>
                                 </div>
                             </div>
@@ -60,7 +60,7 @@
                                     </h6>
                                     <p class="mb-0">
                                         <strong>عدد البنود:</strong> {{ summary.deductions_count }}<br>
-                                        <strong>إجمالي ثابت:</strong> {{ summary.total_fixed_deductions }} ج.م
+                                        <strong>إجمالي ثابت:</strong> {{ summary.total_fixed_deductions }} {{ currency_symbol }}
                                     </p>
                                 </div>
                             </div>
@@ -70,7 +70,7 @@
                     <div class="alert alert-success mt-3">
                         <h5 class="mb-0">
                             <i class="fas fa-calculator me-2"></i>
-                            الراتب التقديري: {{ summary.estimated_net }} ج.م
+                            الراتب التقديري: {{ summary.estimated_net }} {{ currency_symbol }}
                         </h5>
                     </div>
                     

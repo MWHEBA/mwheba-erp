@@ -108,8 +108,8 @@
                 <th style="width: 28%;">الحساب المحاسبي <span class="text-danger">*</span></th>
                 <th style="width: 22%;">البيان / الوصف التفصيلي</th>
                 <th style="width: 20%;">مركز التكلفة</th>
-                <th style="width: 12%;" class="text-end">مدين (ج.م)</th>
-                <th style="width: 12%;" class="text-end">دائن (ج.م)</th>
+                <th style="width: 12%;" class="text-end">مدين ({{ currency_symbol }})</th>
+                <th style="width: 12%;" class="text-end">دائن ({{ currency_symbol }})</th>
                 <th style="width: 80px;" class="text-center">إجراءات</th>
               </tr>
             </thead>
@@ -214,10 +214,10 @@
               <tr>
                 <td colspan="4" class="text-end py-2">
                   <span id="balance_status_badge" class="badge bg-success-subtle text-success fs-7 me-2">القيد متوازن</span>
-                  <span id="difference_display" class="text-muted fs-7">الفارق: 0 ج.م</span>
+                  <span id="difference_display" class="text-muted fs-7">الفارق: 0 {{ currency_symbol }}</span>
                 </td>
-                <td class="text-end text-primary fs-6 py-2" id="total_debit_display">0 ج.م</td>
-                <td class="text-end text-primary fs-6 py-2" id="total_credit_display">0 ج.م</td>
+                <td class="text-end text-primary fs-6 py-2" id="total_debit_display">0 {{ currency_symbol }}</td>
+                <td class="text-end text-primary fs-6 py-2" id="total_credit_display">0 {{ currency_symbol }}</td>
                 <td></td>
               </tr>
             </tfoot>
@@ -245,9 +245,9 @@ document.addEventListener('DOMContentLoaded', function () {
     function formatSmartFloat(val) {
         const num = parseFloat(val) || 0;
         if (Math.abs(num % 1) < 0.00001) {
-            return Math.round(num).toLocaleString('en-US') + ' ج.م';
+            return Math.round(num).toLocaleString('en-US') + ' {{ currency_symbol }}';
         }
-        return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ج.م';
+        return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' {{ currency_symbol }}';
     }
 
     function calculateTotals() {
@@ -269,7 +269,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (diff < 0.001 && (totalDebit > 0 || totalCredit > 0)) {
             balanceBadge.className = 'badge bg-success-subtle text-success fs-7 me-2';
             balanceBadge.textContent = 'القيد متوازن';
-            diffDisplay.textContent = 'الفارق: 0 ج.م';
+            diffDisplay.textContent = 'الفارق: 0 {{ currency_symbol }}';
         } else {
             balanceBadge.className = 'badge bg-danger-subtle text-danger fs-7 me-2';
             balanceBadge.textContent = 'القيد غير متوازن';

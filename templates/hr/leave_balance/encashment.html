@@ -54,7 +54,7 @@
           <div class="stats-card-icon"><i class="fas fa-coins"></i></div>
           <div class="stats-card-title">إجمالي المبلغ</div>
           <div class="stats-card-value">{{ total_amount_all|smart_float }}</div>
-          <div class="stats-card-unit">ج.م</div>
+          <div class="stats-card-unit">{{ currency_symbol }}</div>
         </div>
       </div>
     </div>
@@ -135,12 +135,12 @@
               </td>
               <td class="text-center">
                 {% if item.daily_rate %}
-                  {{ item.daily_rate|smart_float }} ج.م
+                  {{ item.daily_rate|smart_float }} {{ currency_symbol }}
                 {% else %}—{% endif %}
               </td>
               <td class="text-center">
                 {% if item.total_amount %}
-                  <strong class="text-success">{{ item.total_amount|smart_float }} ج.م</strong>
+                  <strong class="text-success">{{ item.total_amount|smart_float }} {{ currency_symbol }}</strong>
                 {% else %}—{% endif %}
               </td>
               <td class="text-center">

@@ -150,7 +150,7 @@
                     {% include "shared/stats_card.html" with 
                         title="المبيعات اليوم" 
                         value=25000 
-                        unit="جنيه" 
+                        unit=currency_symbol 
                         icon="fa-chart-line" 
                         color="success" 
                     %}
@@ -190,7 +190,7 @@
                     {% include "shared/stats_card.html" with 
                         title="المبيعات الشهرية" 
                         value=75000 
-                        unit="جنيه" 
+                        unit=currency_symbol 
                         icon="fa-chart-line" 
                         color="success"
                         trend="up"
@@ -201,7 +201,7 @@
                     {% include "shared/stats_card.html" with 
                         title="المصروفات" 
                         value=35000 
-                        unit="جنيه" 
+                        unit=currency_symbol 
                         icon="fa-money-bill" 
                         color="danger"
                         trend="down"
@@ -214,7 +214,7 @@
 {% verbatim %}{% include "shared/stats_card.html" with 
     title="المبيعات الشهرية" 
     value=75000 
-    unit="جنيه" 
+    unit="currency_symbol" 
     icon="fa-chart-line" 
     color="success"
     trend="up"

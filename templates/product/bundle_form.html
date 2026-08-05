@@ -534,11 +534,11 @@
                         </div>
                         <div class="summary-item">
                             <span>إجمالي تكلفة المكونات:</span>
-                            <span id="total-cost">0.00 ج.م</span>
+                            <span id="total-cost">0.00 {{ currency_symbol }}</span>
                         </div>
                         <div class="summary-item">
                             <span>سعر البيع المحدد:</span>
-                            <span id="selling-price">{{ bundle.selling_price|smart_float|default:"0.00" }} ج.م</span>
+                            <span id="selling-price">{{ bundle.selling_price|smart_float|default:"0.00" }} {{ currency_symbol }}</span>
                         </div>
                         <div class="summary-item">
                             <span>هامش الربح المتوقع:</span>
@@ -1129,7 +1129,7 @@ $(document).ready(function() {
                     setTimeout(() => {
                         const option = new Option(alt.product_name, alt.product_id, true, true);
                         selectElement.append(option).trigger('change');
-                        row.find('.product-price-display').val((alt.product_price || 0).toFixed(2) + ' ج.م');
+                        row.find('.product-price-display').val((alt.product_price || 0).toFixed(2) + ' {{ currency_symbol }}');
                     }, 100);
                 }
             });
@@ -1300,7 +1300,7 @@ $(document).ready(function() {
                             results: data.products.map(function(product) {
                                 return {
                                     id: product.id,
-                                    text: `${product.name} (${product.sku}) - ${product.selling_price} ج.م - ${product.current_stock} متوفر`,
+                                    text: `${product.name} (${product.sku}) - ${product.selling_price} {{ currency_symbol }} - ${product.current_stock} متوفر`,
                                     price: product.selling_price,
                                     stock: product.current_stock,
                                     name: product.name,
@@ -1319,7 +1319,7 @@ $(document).ready(function() {
         selectElement.on('select2:select', function(e) {
             const data = e.params.data;
             const row = $(this).closest('.alternative-row');
-            row.find('.product-price-display').val((data.price || 0).toFixed(2) + ' ج.م');
+            row.find('.product-price-display').val((data.price || 0).toFixed(2) + ' {{ currency_symbol }}');
         });
     }
     
@@ -1349,8 +1349,8 @@ $(document).ready(function() {
         const profitMargin = sellingPrice > 0 ? ((sellingPrice - costPrice) / sellingPrice * 100) : 0;
         
         $('#components-count').text(componentsCount);
-        $('#total-cost').text(costPrice.toFixed(2) + ' ج.م');
-        $('#selling-price').text(sellingPrice.toFixed(2) + ' ج.م');
+        $('#total-cost').text(costPrice.toFixed(2) + ' {{ currency_symbol }}');
+        $('#selling-price').text(sellingPrice.toFixed(2) + ' {{ currency_symbol }}');
         $('#profit-margin').text(profitMargin.toFixed(1) + '%');
     }
     

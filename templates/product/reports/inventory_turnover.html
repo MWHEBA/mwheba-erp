@@ -255,7 +255,7 @@
                                 {% endif %}
                             </td>
                             <td class="text-center">
-                                <span class="badge bg-secondary">{{ item.product_cost|smart_float }} ج.م</span>
+                                <span class="badge bg-secondary">{{ item.product_cost|smart_float }} {{ currency_symbol }}</span>
                             </td>
                             <td class="text-center">{{ item.current_stock|smart_float }}</td>
                             <td class="text-center">{{ item.average_inventory|smart_float }}</td>
@@ -263,8 +263,8 @@
                                 <span class="badge bg-info">{{ item.quantity_sold|smart_float }}</span>
                             </td>
                             <td class="text-center">
-                                <strong>{{ item.cogs|smart_float }} ج.م</strong>
-                                <br><small class="text-muted">إيراد: {{ item.revenue|smart_float }} ج.م</small>
+                                <strong>{{ item.cogs|smart_float }} {{ currency_symbol }}</strong>
+                                <br><small class="text-muted">إيراد: {{ item.revenue|smart_float }} {{ currency_symbol }}</small>
                             </td>
                             <td class="text-center">
                                 <strong>{{ item.turnover_ratio|smart_float }}</strong>

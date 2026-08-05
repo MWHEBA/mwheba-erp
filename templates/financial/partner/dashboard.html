@@ -136,7 +136,7 @@
                     {% endif %}
                 </div>
                 <div class="col-md-3">
-                    <strong>{{ transaction.amount|smart_float }} ج.م</strong>
+                    <strong>{{ transaction.amount|smart_float }} {{ currency_symbol }}</strong>
                 </div>
                 <div class="col-md-4">
                     {{ transaction.description|truncatechars:50 }}
@@ -283,7 +283,7 @@
                                            step="0.01" min="0.01" required>
                                     <span class="input-group-text">{{ currency_symbol }}</span>
                                 </div>
-                                <small class="text-muted">الرصيد المتاح: {{ partner_balance.current_balance|smart_float }} ج.م</small>
+                                <small class="text-muted">الرصيد المتاح: {{ partner_balance.current_balance|smart_float }} {{ currency_symbol }}</small>
                             </div>
                         </div>
                         <div class="col-md-6">

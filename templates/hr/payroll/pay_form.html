@@ -27,10 +27,10 @@
                             <div class="col-md-6">
                                 <p class="mb-1"><strong>الموظف:</strong> {{ payroll.employee.get_full_name_ar }}</p>
                                 <p class="mb-1"><strong>الشهر:</strong> {{ payroll.month|date:"F Y" }}</p>
-                                <p class="mb-1"><strong>الراتب الإجمالي:</strong> {{ correct_gross_salary|remove_trailing_zeros }} ج.م</p>
+                                <p class="mb-1"><strong>الراتب الإجمالي:</strong> {{ correct_gross_salary|remove_trailing_zeros }} {{ currency_symbol }}</p>
                             </div>
                             <div class="col-md-6">
-                                <p class="mb-1"><strong>الاستقطاعات:</strong> {{ payroll.total_deductions|remove_trailing_zeros }} ج.م</p>
+                                <p class="mb-1"><strong>الاستقطاعات:</strong> {{ payroll.total_deductions|remove_trailing_zeros }} {{ currency_symbol }}</p>
                                 <p class="mb-1"><strong>التصنيف المالي:</strong> 
                                     {% if payroll.financial_category %}
                                         <span class="badge bg-info">{{ payroll.financial_category.name }}</span>
@@ -39,7 +39,7 @@
                                     {% endif %}
                                 </p>
                                 <p class="mb-0"><strong class="text-success fs-5">صافي الراتب:</strong> 
-                                    <span class="text-success fs-4">{{ correct_net_salary|remove_trailing_zeros }} ج.م</span>
+                                    <span class="text-success fs-4">{{ correct_net_salary|remove_trailing_zeros }} {{ currency_symbol }}</span>
                                 </p>
                             </div>
                         </div>

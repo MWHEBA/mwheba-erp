@@ -137,17 +137,17 @@
         </h5>
         <div class="summary-item">
             <span>الرصيد النقدي في بداية الفترة</span>
-            <span>{{ cash_flow_data.opening_cash|smart_float }} جنيه</span>
+            <span>{{ cash_flow_data.opening_cash|smart_float }} {{ currency_symbol }}</span>
         </div>
         <div class="summary-item">
             <span>صافي التدفق النقدي</span>
             <span class="{% if cash_flow_data.net_cash_flow >= 0 %}positive-amount{% else %}negative-amount{% endif %}">
-                {{ cash_flow_data.net_cash_flow|smart_float }} جنيه
+                {{ cash_flow_data.net_cash_flow|smart_float }} {{ currency_symbol }}
             </span>
         </div>
         <div class="summary-item">
             <span>الرصيد النقدي في نهاية الفترة</span>
-            <span>{{ cash_flow_data.closing_cash|smart_float }} جنيه</span>
+            <span>{{ cash_flow_data.closing_cash|smart_float }} {{ currency_symbol }}</span>
         </div>
     </div>
     {% endif %}

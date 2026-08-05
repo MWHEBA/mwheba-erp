@@ -48,7 +48,7 @@
                                                     <span class="badge bg-primary">أساسي</span>
                                                 </td>
                                                 <td class="text-center">ثابت</td>
-                                                <td class="text-center"><strong>{{ active_contract.basic_salary }} ج.م</strong></td>
+                                                <td class="text-center"><strong>{{ active_contract.basic_salary }} {{ currency_symbol }}</strong></td>
                                             </tr>
                                             {% endif %}
                                             
@@ -71,7 +71,7 @@
                                                 </td>
                                                 <td class="text-center">
                                                     {% if component.calculation_method == 'fixed' %}
-                                                    {{ component.amount }} ج.م
+                                                    {{ component.amount }} {{ currency_symbol }}
                                                     {% elif component.calculation_method == 'percentage' %}
                                                     {{ component.percentage }}%
                                                     {% else %}
@@ -115,7 +115,7 @@
                                                 </td>
                                                 <td class="text-center">
                                                     {% if component.calculation_method == 'fixed' %}
-                                                    {{ component.amount }} ج.م
+                                                    {{ component.amount }} {{ currency_symbol }}
                                                     {% elif component.calculation_method == 'percentage' %}
                                                     {{ component.percentage }}%
                                                     {% else %}
@@ -183,7 +183,7 @@
                                         {% for component in employee_earnings %}
                                         <tr>
                                             <td class="text-center">{{ component.name }}</td>
-                                            <td class="text-center">{{ component.amount }} ج.م</td>
+                                            <td class="text-center">{{ component.amount }} {{ currency_symbol }}</td>
                                             <td class="text-center">
                                                 <a href="{% url 'hr:salary_component_edit' employee.id component.id %}" 
                                                    class="btn btn-sm btn-primary">
@@ -220,7 +220,7 @@
                                         {% for component in employee_deductions %}
                                         <tr>
                                             <td class="text-center">{{ component.name }}</td>
-                                            <td class="text-center">{{ component.amount }} ج.م</td>
+                                            <td class="text-center">{{ component.amount }} {{ currency_symbol }}</td>
                                             <td class="text-center">
                                                 <a href="{% url 'hr:salary_component_edit' employee.id component.id %}" 
                                                    class="btn btn-sm btn-primary">
@@ -259,15 +259,15 @@
                 <div class="card-body">
                     <div class="row text-center">
                         <div class="col-md-4">
-                            <h3 class="text-success">{{ salary_summary.total_earnings }} ج.م</h3>
+                            <h3 class="text-success">{{ salary_summary.total_earnings }} {{ currency_symbol }}</h3>
                             <p class="text-muted">إجمالي المستحقات</p>
                         </div>
                         <div class="col-md-4">
-                            <h3 class="text-danger">{{ salary_summary.total_deductions }} ج.م</h3>
+                            <h3 class="text-danger">{{ salary_summary.total_deductions }} {{ currency_symbol }}</h3>
                             <p class="text-muted">إجمالي الاستقطاعات</p>
                         </div>
                         <div class="col-md-4">
-                            <h3 class="text-primary">{{ salary_summary.net_salary }} ج.م</h3>
+                            <h3 class="text-primary">{{ salary_summary.net_salary }} {{ currency_symbol }}</h3>
                             <p class="text-muted">صافي الراتب</p>
                         </div>
                     </div>

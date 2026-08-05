@@ -218,7 +218,7 @@
                                 {% endif %}
                             </td>
                             <td class="text-center">{{ movement.quantity }}</td>
-                            <td class="text-center">{{ movement.total_cost|smart_float }} ج.م</td>
+                            <td class="text-center">{{ movement.total_cost|smart_float }} {{ currency_symbol }}</td>
                             <td class="text-center">
                                 {% if movement.is_approved %}
                                     <span class="badge bg-success"><i class="fas fa-check"></i> معتمد</span>

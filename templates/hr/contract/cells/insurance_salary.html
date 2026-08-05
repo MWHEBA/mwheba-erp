@@ -1,6 +1,6 @@
 {% load custom_filters %}
 {% if value %}
-    {{ value|remove_trailing_zeros }} {{ currency_symbol|default:"ج.م" }}
+    {{ value|remove_trailing_zeros }} {{ currency_symbol }}
 {% else %}
     <span class="text-muted">—</span>
 {% endif %}

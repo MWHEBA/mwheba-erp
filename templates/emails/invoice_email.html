@@ -40,8 +40,8 @@
         <tr>
             <td class="text-center">{{ item.name }}</td>
             <td class="text-center">{{ item.quantity }}</td>
-            <td class="text-center">{{ item.price }} جنيه</td>
-            <td class="text-center">{{ item.total }} جنيه</td>
+            <td class="text-center">{{ item.price }} {{ currency_symbol }}</td>
+            <td class="text-center">{{ item.total }} {{ currency_symbol }}</td>
         </tr>
         {% endfor %}
     </tbody>
@@ -51,15 +51,15 @@
     <table style="width: 100%; border: none;">
         <tr>
             <td style="border: none; padding: 5px 0;"><strong>المجموع الفرعي:</strong></td>
-            <td style="border: none; padding: 5px 0; text-align: left;">{{ subtotal }} جنيه</td>
+            <td style="border: none; padding: 5px 0; text-align: left;">{{ subtotal }} {{ currency_symbol }}</td>
         </tr>
         <tr>
             <td style="border: none; padding: 5px 0;"><strong>الضريبة ({{ tax_rate }}%):</strong></td>
-            <td style="border: none; padding: 5px 0; text-align: left;">{{ tax_amount }} جنيه</td>
+            <td style="border: none; padding: 5px 0; text-align: left;">{{ tax_amount }} {{ currency_symbol }}</td>
         </tr>
         <tr style="font-size: 18px; color: #22c55e;">
             <td style="border: none; padding: 10px 0;"><strong>الإجمالي:</strong></td>
-            <td style="border: none; padding: 10px 0; text-align: left;"><strong>{{ total }} جنيه</strong></td>
+            <td style="border: none; padding: 10px 0; text-align: left;"><strong>{{ total }} {{ currency_symbol }}</strong></td>
         </tr>
     </table>
 </div>

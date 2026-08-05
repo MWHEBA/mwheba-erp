@@ -1011,7 +1011,7 @@
             // 3. الإجمالي النهائي
             var grandTotal = Math.max(0, subtotal - discountTotal + adjTotal);
 
-            const currencySymbol = $('#django-sales-form-data').data('currency-symbol') || 'ج.م';
+            const currencySymbol = $('#django-sales-form-data').data('currency-symbol') || '{{ currency_symbol }}';
             $('#subtotal').text(smartFloat(subtotal) + ' ' + currencySymbol);
 
             // عرض الخصم
@@ -1072,7 +1072,7 @@
             var paymentMethod = $('#id_payment_method').val();
             var downPaymentAmount = parseFloat($('#id_down_payment_amount').val()) || 0;
             var grandTotal = parseFloat($('#total-input').val()) || 0;
-            var currencySymbol = $('#django-sales-form-data').data('currency-symbol') || 'ج.م';
+            var currencySymbol = $('#django-sales-form-data').data('currency-symbol') || '{{ currency_symbol }}';
 
             if (invoiceType === 'cash') {
                 if (!paymentMethod || paymentMethod.trim() === '') {

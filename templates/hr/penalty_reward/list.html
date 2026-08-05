@@ -105,7 +105,7 @@
                 <td class="text-center">{{ pr.date|date:"Y-m-d" }}</td>
                 <td class="text-center">{{ pr.month|date:"Y-m" }}</td>
                 <td class="text-center">
-                  <strong>{{ pr.calculated_amount|smart_float }}</strong> ج.م
+                  <strong>{{ pr.calculated_amount|smart_float }}</strong> {{ currency_symbol }}
                 </td>
                 <td class="text-center">
                   {% if pr.status == 'pending' %}
@@ -218,7 +218,7 @@
           <div class="mb-3">
             <label class="form-label">طريقة الحساب <span class="text-danger">*</span></label>
             <select name="calculation_method" class="form-select" required id="id_calculation_method" onchange="updateValueLabel()">
-              <option value="fixed">قيمة ثابتة (جنيه)</option>
+              <option value="fixed">قيمة ثابتة ({{ currency_symbol }})</option>
               <option value="days">بالأيام</option>
               <option value="hours">بالساعات</option>
             </select>
@@ -227,7 +227,7 @@
 
           <!-- القيمة -->
           <div class="mb-3">
-            <label class="form-label" id="valueLabelText">المبلغ (جنيه) <span class="text-danger">*</span></label>
+            <label class="form-label" id="valueLabelText">المبلغ ({{ currency_symbol }}) <span class="text-danger">*</span></label>
             <input type="number" name="value" class="form-control" required id="id_value" step="0.01" min="0.01">
             <div class="invalid-feedback"></div>
           </div>
@@ -280,7 +280,7 @@ $(document).ready(function() {
 function updateValueLabel() {
   const method = document.getElementById('id_calculation_method').value;
   const label = document.getElementById('valueLabelText');
-  if (method === 'fixed') label.innerHTML = 'المبلغ (جنيه) <span class="text-danger">*</span>';
+  if (method === 'fixed') label.innerHTML = 'المبلغ ({{ currency_symbol }}) <span class="text-danger">*</span>';
   else if (method === 'days') label.innerHTML = 'عدد الأيام <span class="text-danger">*</span>';
   else label.innerHTML = 'عدد الساعات <span class="text-danger">*</span>';
 }

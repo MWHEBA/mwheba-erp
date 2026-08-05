@@ -728,7 +728,7 @@
             }
             var grandTotal = netSubtotal + tax;
 
-            const currencySymbol = $('#django-sales-form-data').data('currency-symbol') || 'ج.م';
+            const currencySymbol = $('#django-sales-form-data').data('currency-symbol') || '{{ currency_symbol }}';
             $('#subtotal').text(smartFloat(subtotal) + ' ' + currencySymbol);
 
             var discountText = smartFloat(discountTotal) + ' ' + currencySymbol;

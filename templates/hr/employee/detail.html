@@ -90,7 +90,7 @@
                         <i class="fas fa-check-circle me-2"></i>
                         <strong>بند التأمين مضاف</strong>
                     </div>
-                    <p class="mb-2"><strong>المبلغ الشهري:</strong> {{ insurance_component.amount|smart_float }} ج.م</p>
+                    <p class="mb-2"><strong>المبلغ الشهري:</strong> {{ insurance_component.amount|smart_float }} {{ currency_symbol }}</p>
                 {% else %}
                     <div class="alert alert-warning mb-3">
                         <i class="fas fa-exclamation-triangle me-2"></i>
@@ -162,7 +162,7 @@
                     {% with latest_payroll=payroll_slips.0 %}
                     <div class="mb-3">
                         <small class="text-muted d-block">آخر راتب ({{ latest_payroll.month|arabic_month_year }})</small>
-                        <strong class="text-success">{{ latest_payroll.correct_net_salary|remove_trailing_zeros }} ج.م</strong>
+                        <strong class="text-success">{{ latest_payroll.correct_net_salary|remove_trailing_zeros }} {{ currency_symbol }}</strong>
                     </div>
                     {% endwith %}
                     
@@ -248,7 +248,7 @@
                 {% if total_advances > 0 %}
                     <div class="mb-3">
                         <small class="text-muted d-block">إجمالي مبلغ السلف</small>
-                        <strong class="text-danger">{{ total_advances_amount|remove_trailing_zeros }} ج.م</strong>
+                        <strong class="text-danger">{{ total_advances_amount|remove_trailing_zeros }} {{ currency_symbol }}</strong>
                     </div>
                     <div class="mb-3">
                         <small class="text-muted d-block">عدد السلف</small>
@@ -416,13 +416,13 @@
                                         </td>
                                         <td class="text-center">
                                             {% if component.calculation_method == 'fixed' %}
-                                                {{ component.amount }} ج.م
+                                                {{ component.amount }} {{ currency_symbol }}
                                             {% elif component.calculation_method == 'percentage' %}
                                                 {{ component.percentage }}%
                                             {% elif component.calculation_method == 'formula' %}
                                                 <small class="text-muted">{{ component.get_formula_display }}</small>
                                             {% else %}
-                                                {{ component.amount }} ج.م
+                                                {{ component.amount }} {{ currency_symbol }}
                                             {% endif %}
                                         </td>
                                     </tr>
@@ -490,13 +490,13 @@
                                             <br><small class="text-muted">{{ payroll.month|date:"m/Y" }}</small>
                                         </td>
                                         <td class="text-center">
-                                            <span class="text-success">{{ payroll.correct_gross_salary|remove_trailing_zeros }} ج.م</span>
+                                            <span class="text-success">{{ payroll.correct_gross_salary|remove_trailing_zeros }} {{ currency_symbol }}</span>
                                         </td>
                                         <td class="text-center">
-                                            <span class="text-danger">{{ payroll.total_deductions|remove_trailing_zeros }} ج.م</span>
+                                            <span class="text-danger">{{ payroll.total_deductions|remove_trailing_zeros }} {{ currency_symbol }}</span>
                                         </td>
                                         <td class="text-center">
-                                            <span class="text-primary fw-bold">{{ payroll.correct_net_salary|remove_trailing_zeros }} ج.م</span>
+                                            <span class="text-primary fw-bold">{{ payroll.correct_net_salary|remove_trailing_zeros }} {{ currency_symbol }}</span>
                                         </td>
                                         <td class="text-center">
                                             {% if payroll.status == 'paid' %}
@@ -583,7 +583,7 @@
                                     {% for advance in advances %}
                                     <tr>
                                         <td class="text-center">{{ advance.requested_at|date:"Y-m-d" }}</td>
-                                        <td class="text-center"><span class="fw-bold">{{ advance.amount|remove_trailing_zeros }} ج.م</span></td>
+                                        <td class="text-center"><span class="fw-bold">{{ advance.amount|remove_trailing_zeros }} {{ currency_symbol }}</span></td>
                                         <td class="text-center">{{ advance.installments_count }}</td>
                                         <td class="text-center">
                                             {% include 'hr/advance/partials/status_badge.html' with status=advance.status %}
@@ -837,7 +837,7 @@
                         </div>
                     </div>
                     <div class="alert alert-info" id="insurancePreview" style="display:none">
-                        إجمالي التأمين الشهري: <strong id="insuranceAmount"></strong> ج.م
+                        إجمالي التأمين الشهري: <strong id="insuranceAmount"></strong> {{ currency_symbol }}
                     </div>
                 </div>
                 <div class="modal-footer">

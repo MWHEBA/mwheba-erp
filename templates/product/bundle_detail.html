@@ -377,9 +377,9 @@
                                                 </td>
                                                 <td class="text-center">
                                                     {% if alt.price_adjustment > 0 %}
-                                                    <span class="text-primary">+{{ alt.price_adjustment|smart_float }} ج.م</span>
+                                                    <span class="text-primary">+{{ alt.price_adjustment|smart_float }} {{ currency_symbol }}</span>
                                                     {% elif alt.price_adjustment < 0 %}
-                                                    <span class="text-success">{{ alt.price_adjustment|smart_float }} ج.م</span>
+                                                    <span class="text-success">{{ alt.price_adjustment|smart_float }} {{ currency_symbol }}</span>
                                                     {% else %}
                                                     <span class="text-muted">--</span>
                                                     {% endif %}
@@ -445,12 +445,12 @@
                 
                 <div class="info-row">
                     <span class="info-label">سعر التكلفة</span>
-                    <span class="info-value">{{ bundle.cost_price|smart_float }} ج.م</span>
+                    <span class="info-value">{{ bundle.cost_price|smart_float }} {{ currency_symbol }}</span>
                 </div>
                 
                 <div class="info-row">
                     <span class="info-label">سعر البيع</span>
-                    <span class="info-value">{{ bundle.selling_price|smart_float }} ج.م</span>
+                    <span class="info-value">{{ bundle.selling_price|smart_float }} {{ currency_symbol }}</span>
                 </div>
                 
                 <div class="info-row">

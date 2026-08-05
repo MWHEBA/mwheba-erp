@@ -30,7 +30,7 @@ Variables:
                 <i class="fas fa-info-circle text-warning ms-1"
                    data-bs-toggle="tooltip"
                    data-bs-html="true"
-                   title="<strong>تفاصيل الأذونات الإضافية:</strong><br>{% for perm in line.calculation_details.permissions %}- {{ perm.date }}: {{ perm.hours }} ساعة ({{ perm.amount }} ج.م)<br>{% endfor %}"></i>
+                   title="<strong>تفاصيل الأذونات الإضافية:</strong><br>{% for perm in line.calculation_details.permissions %}- {{ perm.date }}: {{ perm.hours }} ساعة ({{ perm.amount }} {{ currency_symbol }})<br>{% endfor %}"></i>
             {% endif %}
         </div>
         <div class="d-flex align-items-center gap-2">

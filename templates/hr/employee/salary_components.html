@@ -211,7 +211,7 @@
                         </div>
                         <div class="stats-card-title">الأجر الأساسي</div>
                         <div class="stats-card-value">{{ salary_summary.basic_salary|smart_float }}</div>
-                        <div class="stats-card-unit">ج.م</div>
+                        <div class="stats-card-unit">{{ currency_symbol }}</div>
                     </div>
                 </div>
             </div>
@@ -225,7 +225,7 @@
                         </div>
                         <div class="stats-card-title">إجمالي المستحقات</div>
                         <div class="stats-card-value">{{ salary_summary.total_earnings|smart_float }}</div>
-                        <div class="stats-card-unit">ج.م</div>
+                        <div class="stats-card-unit">{{ currency_symbol }}</div>
                     </div>
                 </div>
             </div>
@@ -239,7 +239,7 @@
                         </div>
                         <div class="stats-card-title">إجمالي الاستقطاعات</div>
                         <div class="stats-card-value">{{ salary_summary.total_deductions|smart_float }}</div>
-                        <div class="stats-card-unit">ج.م</div>
+                        <div class="stats-card-unit">{{ currency_symbol }}</div>
                     </div>
                 </div>
             </div>
@@ -253,7 +253,7 @@
                         </div>
                         <div class="stats-card-title">صافي الراتب</div>
                         <div class="stats-card-value">{{ salary_summary.net_salary|smart_float }}</div>
-                        <div class="stats-card-unit">ج.م</div>
+                        <div class="stats-card-unit">{{ currency_symbol }}</div>
                     </div>
                 </div>
             </div>
@@ -296,7 +296,7 @@
                                 </div>
                                 <div class="text-end">
                                     <h5 class="{% if component.component_type == 'earning' %}text-success{% else %}text-danger{% endif %} mb-0">
-                                        {{ component.amount|smart_float }} ج.م
+                                        {{ component.amount|smart_float }} {{ currency_symbol }}
                                     </h5>
                                     {% if component.calculation_method == 'formula' and component.formula %}
                                     <small class="text-muted d-block">
@@ -376,7 +376,7 @@
                                 </div>
                                 <div class="text-end">
                                     <h5 class="{% if component.component_type == 'earning' %}text-success{% else %}text-danger{% endif %} mb-0">
-                                        {{ component.amount|smart_float }} ج.م
+                                        {{ component.amount|smart_float }} {{ currency_symbol }}
                                     </h5>
                                     <div class="btn-group btn-group-sm mt-2">
                                         <button class="btn btn-outline-danger" onclick="deleteComponent({{ component.id }})">
@@ -449,7 +449,7 @@
                                 </div>
                                 <div class="text-end">
                                     <h5 class="{% if component.component_type == 'earning' %}text-success{% else %}text-danger{% endif %} mb-0">
-                                        {{ component.amount|smart_float }} ج.م
+                                        {{ component.amount|smart_float }} {{ currency_symbol }}
                                     </h5>
                                     <div class="btn-group btn-group-sm mt-2">
                                         <button class="btn btn-outline-danger" onclick="deleteComponent({{ component.id }})">
@@ -522,7 +522,7 @@
                                 </div>
                                 <div class="text-end">
                                     <h5 class="{% if component.component_type == 'earning' %}text-success{% else %}text-danger{% endif %} mb-0">
-                                        {{ component.amount|smart_float }} ج.م
+                                        {{ component.amount|smart_float }} {{ currency_symbol }}
                                     </h5>
                                     <div class="btn-group btn-group-sm mt-2">
                                         <button class="btn btn-outline-danger" onclick="deleteComponent({{ component.id }})">
@@ -595,7 +595,7 @@
                                 </div>
                                 <div class="text-end">
                                     <h5 class="{% if component.component_type == 'earning' %}text-success{% else %}text-danger{% endif %} mb-0">
-                                        {{ component.amount|smart_float }} ج.م
+                                        {{ component.amount|smart_float }} {{ currency_symbol }}
                                     </h5>
                                     <div class="btn-group btn-group-sm mt-2">
                                         <button class="btn btn-outline-danger" onclick="deleteComponent({{ component.id }})">
@@ -682,7 +682,7 @@
                             </td>
                             <td class="text-center">
                                 <strong class="{% if component.component_type == 'earning' %}text-success{% else %}text-danger{% endif %}">
-                                    {{ component.amount|smart_float }} ج.م
+                                    {{ component.amount|smart_float }} {{ currency_symbol }}
                                 </strong>
                                 {% if component.calculation_method == 'formula' and component.formula %}
                                 <br><small class="text-muted">

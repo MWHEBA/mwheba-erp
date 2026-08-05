@@ -85,7 +85,7 @@
                             <small class="text-muted">{{ advance.employee.employee_number }}</small>
                         </td>
                         <td class="text-center">
-                            <strong>{{ advance.amount|remove_trailing_zeros }}</strong> جنيه
+                            <strong>{{ advance.amount|remove_trailing_zeros }}</strong> {{ currency_symbol }}
                         </td>
                         <td class="text-center">
                             <span class="installment-badge">
@@ -93,7 +93,7 @@
                             </span>
                         </td>
                         <td class="text-center">
-                            {{ advance.installment_amount|remove_trailing_zeros }} جنيه
+                            {{ advance.installment_amount|remove_trailing_zeros }} {{ currency_symbol }}
                         </td>
                         <td class="text-center">
                             {% if advance.installments_count %}
@@ -104,7 +104,7 @@
                             <div class="progress" style="height: 8px;">
                                 <div class="progress-bar bg-success"
                                      role="progressbar"
-                                     style="width: {% if advance.installments_count %}{% widthratio advance.paid_installments advance.installments_count 100 %}{% else %}0{% endif %}%;"
+                                     data-progress="{% if advance.installments_count %}{% widthratio advance.paid_installments advance.installments_count 100 %}{% else %}0{% endif %}"
                                      aria-valuenow="{% if advance.installments_count %}{% widthratio advance.paid_installments advance.installments_count 100 %}{% else %}0{% endif %}"
                                      aria-valuemin="0" aria-valuemax="100">
                                 </div>
@@ -114,7 +114,7 @@
                             </small>
                         </td>
                         <td class="text-center">
-                            {{ advance.remaining_amount|remove_trailing_zeros }} جنيه
+                            {{ advance.remaining_amount|remove_trailing_zeros }} {{ currency_symbol }}
                         </td>
                         <td class="text-center">
                             {% if advance.deduction_start_month %}
@@ -264,6 +264,8 @@ $(document).ready(function() {
             else { toastr.error(data.message || 'حدث خطأ'); }
         }).catch(() => toastr.error('حدث خطأ في الاتصال'));
     });
+    document.querySelectorAll('.progress-bar[data-progress]').forEach(el => el.style.width = el.getAttribute('data-progress') + '%');
 });
 </script>
 {% endblock %}
+

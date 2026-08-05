@@ -345,7 +345,7 @@
                         <th style="width: 50%;" class="text-center">البند</th>
                         <th style="width: 20%;" class="text-center">المصدر</th>
                         <th style="width: 15%;" class="text-center">التفاصيل</th>
-                        <th style="width: 15%;" class="text-center">المبلغ (جنيه)</th>
+                        <th style="width: 15%;" class="text-center">المبلغ ({{ currency_symbol }})</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -389,7 +389,7 @@
                         <th style="width: 50%;" class="text-center">البند</th>
                         <th style="width: 20%;" class="text-center">المصدر</th>
                         <th style="width: 15%;" class="text-center">التفاصيل</th>
-                        <th style="width: 15%;" class="text-center">المبلغ (جنيه)</th>
+                        <th style="width: 15%;" class="text-center">المبلغ ({{ currency_symbol }})</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -440,7 +440,7 @@
                 <thead>
                     <tr>
                         <th style="width: 70%;" class="text-center">البند</th>
-                        <th style="width: 30%;" class="text-center">المبلغ (جنيه)</th>
+                        <th style="width: 30%;" class="text-center">المبلغ ({{ currency_symbol }})</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -457,28 +457,28 @@
         <div class="summary-section">
             <div class="summary-row">
                 <span class="summary-label">الأجر الأساسي:</span>
-                <span class="summary-value">{{ payroll.basic_salary|floatformat:2|intcomma }} جنيه</span>
+                <span class="summary-value">{{ payroll.basic_salary|floatformat:2|intcomma }} {{ currency_symbol }}</span>
             </div>
             <div class="summary-row">
                 <span class="summary-label">إجمالي المستحقات:</span>
-                <span class="summary-value positive-amount">{{ payroll.gross_salary|floatformat:2|intcomma }} جنيه</span>
+                <span class="summary-value positive-amount">{{ payroll.gross_salary|floatformat:2|intcomma }} {{ currency_symbol }}</span>
             </div>
             <div class="summary-row">
                 <span class="summary-label">إجمالي الخصومات:</span>
-                <span class="summary-value negative-amount">{{ payroll.total_deductions|floatformat:2|intcomma }} جنيه</span>
+                <span class="summary-value negative-amount">{{ payroll.total_deductions|floatformat:2|intcomma }} {{ currency_symbol }}</span>
             </div>
             <div class="summary-row total">
                 <span class="summary-label">صافي الراتب المستحق:</span>
-                <span class="summary-value">{{ correct_net_salary|floatformat:2|intcomma }} جنيه</span>
+                <span class="summary-value">{{ correct_net_salary|floatformat:2|intcomma }} {{ currency_symbol }}</span>
             </div>
         </div>
 
         <!-- Net Salary Highlight -->
         <div class="net-salary-box">
             <div class="net-salary-label">صافي الراتب المستحق</div>
-            <div class="net-salary-amount">{{ correct_net_salary|floatformat:2|intcomma }} جنيه</div>
+            <div class="net-salary-amount">{{ correct_net_salary|floatformat:2|intcomma }} {{ currency_symbol }}</div>
             <div class="net-salary-words">
-                {{ correct_net_salary|floatformat:0 }} جنيه مصري فقط لا غير
+                {{ correct_net_salary|floatformat:0 }} {{ currency_symbol }} فقط لا غير
             </div>
         </div>
 

@@ -89,7 +89,7 @@
                                         <div class="stats-card-icon"><i class="fas fa-tag"></i></div>
                                         <div class="stats-card-title">تكلفة الوحدة</div>
                                         <div class="stats-card-value">{{ voucher.unit_cost|smart_float }}</div>
-                                        <div class="stats-card-unit">ج.م</div>
+                                        <div class="stats-card-unit">{{ currency_symbol }}</div>
                                     </div>
                                 </div>
                             </div>
@@ -99,7 +99,7 @@
                                         <div class="stats-card-icon"><i class="fas fa-money-bill-wave"></i></div>
                                         <div class="stats-card-title">التكلفة الإجمالية</div>
                                         <div class="stats-card-value">{{ voucher.total_cost|smart_float }}</div>
-                                        <div class="stats-card-unit">ج.م</div>
+                                        <div class="stats-card-unit">{{ currency_symbol }}</div>
                                     </div>
                                 </div>
                             </div>
@@ -316,13 +316,13 @@
                         
                         <div class="info-item mb-2">
                             <label class="text-muted small">متوسط التكلفة قبل</label>
-                            <p class="mb-0">{{ voucher.average_cost_before|smart_float }} ج.م</p>
+                            <p class="mb-0">{{ voucher.average_cost_before|smart_float }} {{ currency_symbol }}</p>
                         </div>
                         
                         <div class="info-item">
                             <label class="text-muted small">متوسط التكلفة بعد</label>
                             <p class="mb-0">
-                                <strong>{{ voucher.average_cost_after|smart_float }} ج.م</strong>
+                                <strong>{{ voucher.average_cost_after|smart_float }} {{ currency_symbol }}</strong>
                             </p>
                         </div>
                     </div>

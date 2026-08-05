@@ -45,16 +45,16 @@ STATS CARD المركزي - Corporate ERP
 {% include "shared/stats_card.html" with title="إجمالي العملاء" value=150 unit="عميل" icon="fa-users" color="primary" %}
 
 2. كارت مع اتجاه صاعد:
-{% include "shared/stats_card.html" with title="المبيعات" value=50000 unit="جنيه" icon="fa-chart-line" color="success" trend="up" trend_value=12.5 trend_period="عن الشهر الماضي" %}
+{% include "shared/stats_card.html" with title="المبيعات" value=50000 unit=currency_symbol icon="fa-chart-line" color="success" trend="up" trend_value=12.5 trend_period="عن الشهر الماضي" %}
 
 3. كارت مع اتجاه هابط:
-{% include "shared/stats_card.html" with title="المصروفات" value=25000 unit="جنيه" icon="fa-money-bill" color="danger" trend="down" trend_value=-8.2 trend_period="عن الأسبوع الماضي" %}
+{% include "shared/stats_card.html" with title="المصروفات" value=25000 unit=currency_symbol icon="fa-money-bill" color="danger" trend="down" trend_value=-8.2 trend_period="عن الأسبوع الماضي" %}
 
 4. كارت قابل للضغط:
 {% include "shared/stats_card.html" with title="الطلبات" value=25 unit="طلب" icon="fa-shopping-cart" color="info" url="/orders/" %}
 
 5. كارت أفقي كبير:
-{% include "shared/stats_card.html" with title="الإيرادات الشهرية" value=125000 unit="جنيه" icon="fa-chart-bar" color="success" layout="horizontal" size="lg" %}
+{% include "shared/stats_card.html" with title="الإيرادات الشهرية" value=125000 unit=currency_symbol icon="fa-chart-bar" color="success" layout="horizontal" size="lg" %}
 
 6. كارت صغير بدون حركة:
 {% include "shared/stats_card.html" with title="المستخدمين" value=42 icon="fa-user" color="secondary" size="sm" animate=False %}

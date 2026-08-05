@@ -284,11 +284,11 @@
                         <!-- قيمة الزيادة الثابتة (يظهر عند اختيار fixed) -->
                         <div class="col-md-4" id="amount-field" style="display: none;">
                             <div class="mb-3">
-                                <label class="form-label">قيمة الزيادة الثابتة (جنيه) <span class="text-danger">*</span></label>
+                                <label class="form-label">قيمة الزيادة الثابتة ({{ currency_symbol }}) <span class="text-danger">*</span></label>
                                 {{ form.annual_increase_amount }}
                                 <small class="text-muted d-block">
                                     <i class="fas fa-info-circle me-1"></i>
-                                    مثال: 500 تعني زيادة 500 جنيه في السنة (يتم تقسيمها حسب التكرار)
+                                    مثال: 500 تعني زيادة 500 {{ currency_symbol }} في السنة (يتم تقسيمها حسب التكرار)
                                 </small>
                                 {% if form.annual_increase_amount.errors %}
                                     <div class="text-danger">{{ form.annual_increase_amount.errors }}</div>
@@ -331,7 +331,7 @@
                             <div class="col-md-6">
                                 <strong>الإعدادات:</strong>
                                 <ul class="mb-2">
-                                    <li>الأجر الأساسي: 10,000 جنيه</li>
+                                    <li>الأجر الأساسي: 10,000 {{ currency_symbol }}</li>
                                     <li>نسبة الزيادة السنوية: <strong>10%</strong></li>
                                     <li>التكرار: <strong>نصف سنوي</strong> (مرتين)</li>
                                 </ul>
@@ -339,9 +339,9 @@
                             <div class="col-md-6">
                                 <strong>النتيجة:</strong>
                                 <ul class="mb-2">
-                                    <li>المرة الأولى: <strong>5%</strong> = 500 جنيه</li>
-                                    <li>المرة الثانية: <strong>5%</strong> = 525 جنيه</li>
-                                    <li>الإجمالي بعد سنة: 11,025 جنيه</li>
+                                    <li>المرة الأولى: <strong>5%</strong> = 500 {{ currency_symbol }}</li>
+                                    <li>المرة الثانية: <strong>5%</strong> = 525 {{ currency_symbol }}</li>
+                                    <li>الإجمالي بعد سنة: 11,025 {{ currency_symbol }}</li>
                                 </ul>
                             </div>
                         </div>
@@ -358,24 +358,24 @@
                             <div class="col-md-6">
                                 <strong>الإعدادات:</strong>
                                 <ul class="mb-2">
-                                    <li>الأجر الأساسي: 10,000 جنيه</li>
-                                    <li>قيمة الزيادة السنوية: <strong>1,000 جنيه</strong></li>
+                                    <li>الأجر الأساسي: 10,000 {{ currency_symbol }}</li>
+                                    <li>قيمة الزيادة السنوية: <strong>1,000 {{ currency_symbol }}</strong></li>
                                     <li>التكرار: <strong>نصف سنوي</strong> (مرتين)</li>
                                 </ul>
                             </div>
                             <div class="col-md-6">
                                 <strong>النتيجة:</strong>
                                 <ul class="mb-2">
-                                    <li>المرة الأولى: 500 جنيه</li>
-                                    <li>المرة الثانية: 500 جنيه</li>
-                                    <li>الإجمالي بعد سنة: 11,000 جنيه</li>
+                                    <li>المرة الأولى: 500 {{ currency_symbol }}</li>
+                                    <li>المرة الثانية: 500 {{ currency_symbol }}</li>
+                                    <li>الإجمالي بعد سنة: 11,000 {{ currency_symbol }}</li>
                                 </ul>
                             </div>
                         </div>
                         <hr class="my-2">
                         <small class="text-muted">
                             <i class="fas fa-lightbulb me-1"></i>
-                            <strong>ملاحظة:</strong> القيمة الثابتة (1,000 جنيه) تُقسم على عدد المرات بالتساوي.
+                            <strong>ملاحظة:</strong> القيمة الثابتة (1,000 {{ currency_symbol }}) تُقسم على عدد المرات بالتساوي.
                         </small>
                     </div>
                 </div>
@@ -1700,7 +1700,7 @@ $(document).ready(function() {
                             <strong>${comp.name}</strong>
                             <small class="text-muted ms-2">(${translateSource(comp.source)})</small>
                         </span>
-                        <span class="text-success fw-bold">${comp.amount || 0} ج.م</span>
+                        <span class="text-success fw-bold">${comp.amount || 0} {{ currency_symbol }}</span>
                     </label>
                 </div>
             `;
@@ -1721,7 +1721,7 @@ $(document).ready(function() {
                             <strong>${comp.name}</strong>
                             <small class="text-muted ms-2">(${translateSource(comp.source)})</small>
                         </span>
-                        <span class="text-danger fw-bold">${comp.amount || 0} ج.م</span>
+                        <span class="text-danger fw-bold">${comp.amount || 0} {{ currency_symbol }}</span>
                     </label>
                 </div>
             `;

@@ -492,7 +492,7 @@
                                     <i class="fas fa-arrow-down text-success"></i>
                                 </div>
                                 <div class="h4 mb-0 text-success">{{ customer_dues|default:0|smart_float }}</div>
-                                <div class="text-muted small">ج.م</div>
+                                <div class="text-muted small">{{ currency_symbol }}</div>
                             </div>
                         </div>
                         <div class="col-md-3">
@@ -502,7 +502,7 @@
                                     <i class="fas fa-chart-line text-primary"></i>
                                 </div>
                                 <div class="h4 mb-0 text-primary">{{ sales_month_total|default:0|smart_float }}</div>
-                                <div class="text-muted small">ج.م</div>
+                                <div class="text-muted small">{{ currency_symbol }}</div>
                             </div>
                         </div>
                         {% endif %}
@@ -516,7 +516,7 @@
                                     <i class="fas fa-arrow-up text-danger"></i>
                                 </div>
                                 <div class="h4 mb-0 text-danger">{{ supplier_dues|default:0|smart_float }}</div>
-                                <div class="text-muted small">ج.م</div>
+                                <div class="text-muted small">{{ currency_symbol }}</div>
                             </div>
                         </div>
                         <div class="col-md-3">
@@ -526,7 +526,7 @@
                                     <i class="fas fa-chart-line text-warning"></i>
                                 </div>
                                 <div class="h4 mb-0 text-warning">{{ purchases_month_total|default:0|smart_float }}</div>
-                                <div class="text-muted small">ج.م</div>
+                                <div class="text-muted small">{{ currency_symbol }}</div>
                             </div>
                         </div>
                         {% endif %}

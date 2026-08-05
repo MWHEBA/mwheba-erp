@@ -138,7 +138,7 @@
                 <td class="text-start">{{ product.name }}</td>
                 <td class="text-center">{{ product.category.name|default:"-" }}</td>
                 <td class="text-center">-</td>
-                <td class="text-center">{{ product.sale_price|smart_float }} ج.م</td>
+                <td class="text-center">{{ product.sale_price|smart_float }} {{ currency_symbol }}</td>
                 <td class="text-center">{{ product.total_stock|smart_float }}</td>
                 <td class="text-center">
                     {% if product.is_active %}

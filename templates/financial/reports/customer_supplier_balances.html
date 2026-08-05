@@ -229,7 +229,7 @@
         
         <div class="total-section">
             <div class="total-label">إجمالي الرصيد</div>
-            <div class="total-amount">{{ report_data.summary.total_balance|smart_float }} جنيه</div>
+            <div class="total-amount">{{ report_data.summary.total_balance|smart_float }} {{ currency_symbol }}</div>
         </div>
     </div>
     {% endif %}
@@ -355,22 +355,24 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script id="due-periods-data" type="application/json">
+[
+    {% for period_key, period_data in report_data.due_periods.items %}
+    {"label": "{{ period_data.label|escapejs }}", "amount": {{ period_data.amount|default:0 }}}{% if not forloop.last %},{% endif %}
+    {% endfor %}
+]
+</script>
 <script>
     // بيانات الرسم البياني
+    const duePeriodsData = JSON.parse(document.getElementById('due-periods-data').textContent || '[]');
+    const chartLabels = duePeriodsData.map(item => item.label);
+    const chartData = duePeriodsData.map(item => item.amount);
+
     const balancesData = {
-        labels: [
-            {% for period_key, period_data in report_data.due_periods.items %}
-                '{{ period_data.label }}',
-            {% endfor %}
-        ],
+        labels: chartLabels,
         datasets: [{
             label: 'الرصيد',
-            data: [
-                {% for period_key, period_data in report_data.due_periods.items %}
-                    {{ period_data.amount }},
-                {% endfor %}
-            ],
+            data: chartData,
             backgroundColor: [
                 'rgba(25, 135, 84, 0.8)',   // أخضر - جاري
                 'rgba(255, 193, 7, 0.8)',   // أصفر - 30-60
@@ -420,7 +422,7 @@
                                     minimumFractionDigits: 0,
                                     maximumFractionDigits: 2
                                 });
-                                label += value + ' جنيه';
+                                label += value + ' ' + '{{ currency_symbol }}';
                                 
                                 // حساب النسبة المئوية
                                 const total = context.dataset.data.reduce((a, b) => a + b, 0);

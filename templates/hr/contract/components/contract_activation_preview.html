@@ -57,7 +57,7 @@
                             </div>
                             <div class="col-md-6">
                                 <p><strong>عدد البنود الحالية:</strong> <span class="current-components-count"></span></p>
-                                <p><strong>الراتب الصافي الحالي:</strong> <span class="current-net-salary"></span> ج.م</p>
+                                <p><strong>الراتب الصافي الحالي:</strong> <span class="current-net-salary"></span> {{ currency_symbol }}</p>
                             </div>
                         </div>
                     </div>
@@ -74,7 +74,7 @@
                     </div>
                     <div class="card-body text-center">
                         <h4 class="text-success mb-0 new-earnings">0</h4>
-                        <small class="text-muted">ج.م</small>
+                        <small class="text-muted">{{ currency_symbol }}</small>
                     </div>
                 </div>
             </div>
@@ -85,7 +85,7 @@
                     </div>
                     <div class="card-body text-center">
                         <h4 class="text-danger mb-0 new-deductions">0</h4>
-                        <small class="text-muted">ج.م</small>
+                        <small class="text-muted">{{ currency_symbol }}</small>
                     </div>
                 </div>
             </div>
@@ -96,7 +96,7 @@
                     </div>
                     <div class="card-body text-center">
                         <h4 class="text-primary mb-0 new-net-salary">0</h4>
-                        <small class="text-muted">ج.م</small>
+                        <small class="text-muted">{{ currency_symbol }}</small>
                         <div class="mt-2">
                             <span class="badge salary-change-badge">التغيير: <span class="salary-change">0</span></span>
                         </div>
@@ -252,7 +252,7 @@ class ContractActivationPreview {
         const changeElement = content.querySelector('.salary-change');
         const badgeElement = content.querySelector('.salary-change-badge');
         
-        changeElement.textContent = `${change >= 0 ? '+' : ''}${this.formatNumber(change)} ج.م`;
+        changeElement.textContent = `${change >= 0 ? '+' : ''}${this.formatNumber(change)} {{ currency_symbol }}`;
         badgeElement.className = `badge ${change >= 0 ? 'bg-success' : 'bg-danger'}`;
 
         // ملء تأثير البنود

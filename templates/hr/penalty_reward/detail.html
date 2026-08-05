@@ -73,7 +73,7 @@
             <label class="form-label text-muted">المبلغ المحسوب</label>
             <div>
               <strong class="fs-5 {% if pr.category == 'penalty' %}text-danger{% else %}text-success{% endif %}">
-                {{ pr.calculated_amount|smart_float }} ج.م
+                {{ pr.calculated_amount|smart_float }} {{ currency_symbol }}
               </strong>
             </div>
           </div>

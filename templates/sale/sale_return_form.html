@@ -21,7 +21,7 @@
                     <tr><th class="text-center">التاريخ</th><td class="text-center">{{ sale.date }}</td></tr>
                     <tr><th class="text-center">العميل</th><td class="text-center">{{ sale.customer.name }}</td></tr>
                     <tr><th class="text-center">المخزن</th><td class="text-center">{{ sale.warehouse.name }}</td></tr>
-                    <tr><th class="text-center">الإجمالي</th><td class="text-center">{{ sale.total|smart_float }} ج.م</td></tr>
+                    <tr><th class="text-center">الإجمالي</th><td class="text-center">{{ sale.total|smart_float }} {{ currency_symbol }}</td></tr>
                 </table>
             </div>
         </div>

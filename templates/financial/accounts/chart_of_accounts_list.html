@@ -119,7 +119,7 @@
                         </div>
                         <div class="stats-card-title">الأصول</div>
                         <div class="stats-card-value">{{ stats.assets_balance|smart_float }}</div>
-                        <div class="stats-card-unit">ج.م</div>
+                        <div class="stats-card-unit">{{ currency_symbol }}</div>
                     </div>
                 </div>
             </div>
@@ -132,7 +132,7 @@
                         </div>
                         <div class="stats-card-title">الخصوم</div>
                         <div class="stats-card-value">{{ stats.liabilities_balance|smart_float }}</div>
-                        <div class="stats-card-unit">ج.م</div>
+                        <div class="stats-card-unit">{{ currency_symbol }}</div>
                     </div>
                 </div>
             </div>
@@ -145,7 +145,7 @@
                         </div>
                         <div class="stats-card-title">حقوق الملكية</div>
                         <div class="stats-card-value">{{ stats.equity_balance|smart_float }}</div>
-                        <div class="stats-card-unit">ج.م</div>
+                        <div class="stats-card-unit">{{ currency_symbol }}</div>
                     </div>
                 </div>
             </div>
@@ -158,7 +158,7 @@
                         </div>
                         <div class="stats-card-title">الإيرادات</div>
                         <div class="stats-card-value">{{ stats.revenue_balance|smart_float }}</div>
-                        <div class="stats-card-unit">ج.م</div>
+                        <div class="stats-card-unit">{{ currency_symbol }}</div>
                     </div>
                 </div>
             </div>
@@ -171,7 +171,7 @@
                         </div>
                         <div class="stats-card-title">المصروفات</div>
                         <div class="stats-card-value">{{ stats.expense_balance|smart_float }}</div>
-                        <div class="stats-card-unit">ج.م</div>
+                        <div class="stats-card-unit">{{ currency_symbol }}</div>
                     </div>
                 </div>
             </div>
@@ -186,7 +186,7 @@
                         <div class="stats-card-value {% if stats.net_assets >= 0 %}text-success{% else %}text-danger{% endif %}">
                             {{ stats.net_assets|smart_float }}
                         </div>
-                        <div class="stats-card-unit">ج.م</div>
+                        <div class="stats-card-unit">{{ currency_symbol }}</div>
                     </div>
                 </div>
             </div>
