@@ -36,6 +36,19 @@ from .return_views import (
     purchase_return_cancel,
 )
 
+# GRN Views
+from .grn_views import (
+    grn_list,
+    grn_create,
+    grn_detail,
+)
+
+# Landed Cost Views
+from .landed_cost_views import (
+    landed_cost_list,
+    landed_cost_create,
+)
+
 # API Views
 from .api_views import (
     get_supplier_type_api,
@@ -68,6 +81,13 @@ __all__ = [
     'purchase_return_detail',
     'purchase_return_confirm',
     'purchase_return_cancel',
+    # GRN Views
+    'grn_list',
+    'grn_create',
+    'grn_detail',
+    # Landed Cost Views
+    'landed_cost_list',
+    'landed_cost_create',
     # API Views
     'get_supplier_type_api',
     'ajax_create_product',

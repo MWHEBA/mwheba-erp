@@ -196,6 +196,21 @@
                         
                         <div class="nav-divider"></div>
                         
+                        <!-- أذون الاستلام والتكاليف الإضافية -->
+                        <li class="submenu-title">الاستلام والتكاليف</li>
+                        <li>
+                            <a href="{% url 'purchase:grn_list' %}" class="submenu-link">
+                                <i class="fas fa-truck-loading me-2"></i>{% trans "أذون الاستلام GRN" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'purchase:landed_cost_list' %}" class="submenu-link">
+                                <i class="fas fa-ship me-2"></i>{% trans "التكاليف الإضافية والجمارك" %}
+                            </a>
+                        </li>
+
+                        <div class="nav-divider"></div>
+                        
                         <!-- المرتجعات -->
                         <li class="submenu-title">المرتجعات</li>
                         <li>
@@ -504,6 +519,31 @@
                         <li>
                             <a href="{% url 'financial:accounting_periods_list' %}" class="submenu-link">
                                 <i class="fas fa-calendar-alt me-2"></i>{% trans "الفترات المحاسبية" %}
+                            </a>
+                        </li>
+                        
+                        <div class="nav-divider"></div>
+
+                        <!-- الحوكمة والموافقات والضرائب -->
+                        <li class="submenu-title">الحوكمة والضرائب والإيرادات</li>
+                        <li>
+                            <a href="{% url 'financial:approval_inbox' %}" class="submenu-link">
+                                <i class="fas fa-user-check me-2"></i>{% trans "صندوق موافقات المؤسسة" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'financial:revenue_schedule_list' %}" class="submenu-link">
+                                <i class="fas fa-calendar-check me-2"></i>{% trans "الإيرادات المؤجلة IFRS 15" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'financial:tax_code_list' %}" class="submenu-link">
+                                <i class="fas fa-percent me-2"></i>{% trans "أكواد وضرائب المخرجات" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'financial:opening_balance_list' %}" class="submenu-link">
+                                <i class="fas fa-balance-scale me-2"></i>{% trans "الأرصدة الافتتاحية" %}
                             </a>
                         </li>
                         

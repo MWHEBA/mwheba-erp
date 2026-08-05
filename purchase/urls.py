@@ -24,6 +24,13 @@ from .views import (
     purchase_return_detail,
     purchase_return_confirm,
     purchase_return_cancel,
+    # GRN Views
+    grn_list,
+    grn_create,
+    grn_detail,
+    # Landed Cost Views
+    landed_cost_list,
+    landed_cost_create,
     # API Views
     get_supplier_type_api,
     ajax_create_product,
@@ -78,4 +85,12 @@ urlpatterns = [
         purchase_return_cancel,
         name="purchase_return_cancel",
     ),
+    # أذون الاستلام (GRN)
+    path("grn/", grn_list, name="grn_list"),
+    path("grn/create/", grn_create, name="grn_create"),
+    path("grn/create/<int:purchase_id>/", grn_create, name="grn_create_for_purchase"),
+    path("grn/<int:pk>/", grn_detail, name="grn_detail"),
+    # التكاليف الإضافية والجمارك (Landed Cost)
+    path("landed-cost/", landed_cost_list, name="landed_cost_list"),
+    path("landed-cost/create/", landed_cost_create, name="landed_cost_create"),
 ]

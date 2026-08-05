@@ -61,19 +61,19 @@
           <div class="col-md-4">
             <div class="p-3 bg-light rounded-3 text-center">
               <small class="text-muted d-block mb-1">{% trans "المبلغ قبل الضريبة" %}</small>
-              <div class="fs-5 fw-bold text-dark">{{ credit_note.subtotal_amount|smart_float:2 }} EGP</div>
+              <div class="fs-5 fw-bold text-dark">{{ credit_note.subtotal_amount|smart_float }} {% currency_symbol %}</div>
             </div>
           </div>
           <div class="col-md-4">
             <div class="p-3 bg-light rounded-3 text-center">
               <small class="text-muted d-block mb-1">{% trans "مبلغ ضريبة المخرجات المعكوسة" %}</small>
-              <div class="fs-5 fw-bold text-warning">{{ credit_note.tax_amount|smart_float:2 }} EGP</div>
+              <div class="fs-5 fw-bold text-warning">{{ credit_note.tax_amount|smart_float }} {% currency_symbol %}</div>
             </div>
           </div>
           <div class="col-md-4">
             <div class="p-3 bg-primary-subtle border border-primary-subtle rounded-3 text-center">
               <small class="text-primary fw-bold d-block mb-1">{% trans "الإجمالي الكلي للإشعار" %}</small>
-              <div class="fs-4 fw-bold text-primary">{{ credit_note.total_amount|smart_float:2 }} EGP</div>
+              <div class="fs-4 fw-bold text-primary">{{ credit_note.total_amount|smart_float }} {% currency_symbol %}</div>
             </div>
           </div>
         </div>

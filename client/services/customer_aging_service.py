@@ -50,7 +50,7 @@ class CustomerAgingService:
         alloc_totals = {
             item['target_document_id']: item['total']
             for item in PaymentAllocation.objects.filter(
-                allocation_status='APPLIED'
+                allocation_status__in=['ACTIVE', 'APPLIED']
             ).values('target_document_id').annotate(total=Sum('allocated_amount'))
         }
 

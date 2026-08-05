@@ -1,4 +1,5 @@
 import logging
+from decimal import Decimal
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -478,9 +479,25 @@ def supplier_detail(request, pk):
     # جلب دفعات فواتير المشتريات المرتبطة بالمورد
     from purchase.models import PurchasePayment
 
-    payments = PurchasePayment.objects.filter(purchase__supplier=supplier).order_by(
-        "-payment_date"
-    )
+    purchase_payments = list(PurchasePayment.objects.filter(purchase__supplier=supplier).select_related("purchase", "created_by").order_by("-payment_date"))
+
+    # توحيد قائمة المدفوعات لعرضها في التاب والتصدير
+    payments_list = []
+    for pp in purchase_payments:
+        payments_list.append({
+            "id": pp.id,
+            "payment_date": pp.payment_date,
+            "created_at": pp.created_at,
+            "amount": pp.amount,
+            "payment_method": pp.payment_method,
+            "reference_number": pp.reference_number or f"PAY-{pp.id}",
+            "notes": pp.notes or "-",
+            "purchase_number": pp.purchase.number if pp.purchase else "-",
+            "type_display": "سداد فاتورة",
+        })
+
+    payments_list.sort(key=lambda x: str(x["payment_date"] or ""), reverse=True)
+    total_payments = sum(pp.amount for pp in purchase_payments)
 
     # جلب فواتير الشراء المرتبطة بالمورد
     purchases = Purchase.objects.filter(supplier=supplier).order_by("-date")
@@ -511,12 +528,12 @@ def supplier_detail(request, pk):
             max_price=Max("unit_price"),
         )
         .order_by("-last_purchase_date")[:20]
-    )  # أحدث 20 منتج
+    )
 
     # تاريخ آخر معاملة
     last_transaction_date = None
-    if payments.exists() or purchases.exists():
-        last_payment_date = payments.first().payment_date if payments.exists() else None
+    if payments_list or purchases.exists():
+        last_payment_date = payments_list[0]["payment_date"] if payments_list else None
         last_purchase_date = purchases.first().date if purchases.exists() else None
 
         if last_payment_date and last_purchase_date:
@@ -526,91 +543,37 @@ def supplier_detail(request, pk):
         else:
             last_transaction_date = last_purchase_date
 
-    total_payments = payments.aggregate(total=Sum("amount"))["total"] or 0
-
+    # الحصول المباشر على الحساب المالي للمورد
+    financial_account = supplier.financial_account
 
     # جلب القيود المحاسبية المرتبطة بالمورد
-    from financial.models import JournalEntry, JournalEntryLine
-
+    from financial.models import JournalEntry
     journal_entries = []
     journal_entries_count = 0
 
     try:
-        # البحث عن القيود المرتبطة بفواتير المورد - بحث أوسع
-        # نبحث بـ contains عشان نلاقي أي قيد فيه رقم الفاتورة أو الدفعة
         purchase_ids = [p.id for p in purchases]
-        payment_ids = [pay.id for pay in payments]
-
-        # بناء query للبحث
         query = Q()
+        if financial_account:
+            query |= Q(lines__account=financial_account)
         for p_id in purchase_ids:
-            query |= Q(reference__icontains=f"PURCH-{p_id}") | Q(
-                reference__icontains=f"{p_id}"
-            )
-        for pay_id in payment_ids:
-            query |= Q(reference__icontains=f"PAY-{pay_id}") | Q(
-                reference__icontains=f"{pay_id}"
-            )
+            query |= Q(reference__icontains=f"PURCH-{p_id}") | Q(reference__icontains=f"{p_id}")
 
         if query:
             journal_entries = (
                 JournalEntry.objects.filter(query)
+                .distinct()
                 .prefetch_related("lines")
-                .order_by("-date")
+                .order_by("-date", "-created_at")
             )
             journal_entries_count = journal_entries.count()
-
-            # ملاحظة: total_amount هو property محسوب تلقائياً من lines
-            # لا حاجة لحسابه يدوياً
-
-        # Debug: طباعة عدد القيود
-        # عدد القيود المحاسبية للمورد
     except Exception as e:
-        # خطأ في جلب القيود المحاسبية
         import traceback
-
-        traceback.print_exc()
-
-    # محاولة الحصول على حساب المورد في دليل الحسابات
-    financial_account = None
-    try:
-        from financial.models import ChartOfAccounts, AccountType
-
-        # البحث بطرق متعددة
-        # 1. البحث باسم المورد في حسابات الموردين
-        payables_type = AccountType.objects.filter(code="PAYABLES").first()
-        if payables_type:
-            financial_account = ChartOfAccounts.objects.filter(
-                name__icontains=supplier.name,
-                account_type=payables_type,
-                is_active=True,
-            ).first()
-
-        # 2. إذا لم نجد، نبحث في أي حساب يحتوي على اسم المورد
-        if not financial_account:
-            financial_account = ChartOfAccounts.objects.filter(
-                name__icontains=supplier.name, is_active=True
-            ).first()
-
-        # 3. إذا لم نجد، نبحث في حسابات الموردين العامة
-        if not financial_account and payables_type:
-            # نجيب أول حساب موردين نشط
-            financial_account = ChartOfAccounts.objects.filter(
-                account_type=payables_type, is_active=True
-            ).first()
-
-        # Debug
-        # حساب المورد المالي
-    except Exception as e:
-        # خطأ في جلب الحساب المالي
-        import traceback
-
         traceback.print_exc()
 
     # تجهيز بيانات المعاملات لكشف الحساب
     transactions = []
 
-    # إضافة فواتير الشراء
     for purchase in purchases:
         transactions.append(
             {
@@ -621,45 +584,25 @@ def supplier_detail(request, pk):
                 "description": f"فاتورة شراء رقم {purchase.number}",
                 "debit": purchase.total,
                 "credit": 0,
-                "balance": 0,  # سيتم حسابه لاحقاً
+                "balance": 0,
             }
         )
 
-    # إضافة المدفوعات
-    for payment in payments:
-        # تحديد طريقة الدفع من الحساب المالي أو من payment_method
-        if payment.financial_account:
-            payment_method = payment.financial_account.name
-        elif payment.payment_method:
-            # محاولة الحصول على اسم الحساب من الكود
-            try:
-                account = ChartOfAccounts.objects.filter(code=payment.payment_method).first()
-                payment_method = account.name if account else payment.payment_method
-            except:
-                payment_method = payment.payment_method
-        else:
-            payment_method = "غير محدد"
-        
-        payment_desc = f"دفعة {payment_method}"
-        if payment.purchase:
-            payment_desc += f" - فاتورة {payment.purchase.number}"
-
+    for pay_item in payments_list:
         transactions.append(
             {
-                "date": payment.created_at,
-                "reference": payment.reference_number,
-                "payment_id": payment.id,
-                "purchase_id": payment.purchase.id if payment.purchase else None,
+                "date": pay_item["created_at"] or pay_item["payment_date"],
+                "reference": pay_item["reference_number"],
                 "type": "payment",
-                "description": payment_desc,
+                "description": f"{pay_item['type_display']} ({pay_item['payment_method']})",
                 "debit": 0,
-                "credit": payment.amount,
-                "balance": 0,  # سيتم حسابه لاحقاً
+                "credit": pay_item["amount"],
+                "balance": 0,
             }
         )
 
     # ترتيب المعاملات حسب التاريخ (من الأقدم للأحدث)
-    transactions.sort(key=lambda x: x["date"])
+    transactions.sort(key=lambda x: str(x["date"] or ""))
 
     # حساب الرصيد التراكمي
     running_balance = 0
@@ -808,7 +751,7 @@ def supplier_detail(request, pk):
 
     # تحويل المدفوعات لـ list of dicts للعرض في الجدول
     payments_data = []
-    for payment in payments:
+    for payment in purchase_payments:
         # تحديد طريقة الدفع من الحساب المالي أو من payment_method
         if payment.financial_account:
             payment_method_display = payment.financial_account.name
@@ -1408,9 +1351,12 @@ def supplier_detail(request, pk):
     # تجميع الخدمات حسب الفئة للعرض (نفس طريقة regroup)
     # Note: Specialized services have been removed as part of supplier categories cleanup
     services_by_category = []
+    credit_limit = getattr(supplier, 'credit_limit', Decimal('0.00')) or Decimal('0.00')
+    available_credit = credit_limit - total_purchases + total_payments
 
     context = {
         "supplier": supplier,
+        "available_credit": available_credit,
         "quick_action_buttons": quick_action_buttons,
         "payments": payments_data,  # استخدام البيانات المحولة
         "purchases": purchases,

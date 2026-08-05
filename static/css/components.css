@@ -1,12 +1,11 @@
 /**
- * =================================================================
- * Corporate ERP - Legacy Components Forwarder / Deprecated File
- * =================================================================
- * 
- * تم توحيد ودمج جميع مكونات هذا الملف بالكامل في:
- * static/css/unified-components.css
- * 
- * هذا الملف فارغ بحجم 0KB لضمان عدم تكرار الكود والأداء العالي، 
- * ولضمان سلامة وتوافقية أي قوالب قديمة تستدعيه بشكل مباشر.
- * =================================================================
+ * Corporate ERP - Legacy Components Forwarder
  */
+:root {
+  --components-loaded: 1;
+}
+
+.components-legacy-wrapper {
+  display: block;
+  box-sizing: border-box;
+}

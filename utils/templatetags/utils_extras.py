@@ -120,22 +120,21 @@ def percentage(value, arg):
 
 @register.filter
 def currency(value, currency_symbol=None):
-    """تنسيق العملة مع الرمز"""
+    """تنسيق العملة مع الرمز وإخفاء العلامة العشرية للأرقام الصحيحة"""
     if value is None or value == '':
         value = 0
     try:
         from core.utils import format_currency
-        return format_currency(value, currency_symbol=currency_symbol)
+        return format_currency(value, currency_symbol=currency_symbol, smart=True)
     except Exception:
         try:
             symbol = f" {currency_symbol}" if currency_symbol else ""
-            if isinstance(value, Decimal):
-                return f"{value:,.2f}{symbol}"
-            elif isinstance(value, (int, float)):
-                return f"{Decimal(str(value)):,.2f}{symbol}"
-            return f"{Decimal(str(value).strip()):,.2f}{symbol}"
+            d_val = Decimal(str(value).strip().replace(',', ''))
+            if d_val == d_val.to_integral_value():
+                return f"{int(d_val):,}{symbol}"
+            return f"{d_val:,.2f}{symbol}"
         except Exception:
-            return "0.00"
+            return "0"
 
 
 @register.filter

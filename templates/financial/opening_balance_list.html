@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load custom_filters %}
+
+{% block title %}{% trans "الأرصدة الافتتاحية والفترات" %}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  {% include "shared/page_header.html" %}
+
+  <div class="card border-0 shadow-sm rounded-3">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>{% trans "رقم الدفعة" %}</th>
+              <th>{% trans "ملاحظات" %}</th>
+              <th>{% trans "الحالة" %}</th>
+              <th>{% trans "أنشئ بواسطة" %}</th>
+              <th>{% trans "التاريخ" %}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for batch in batches %}
+            <tr>
+              <td class="fw-bold text-primary">{{ batch.batch_number }}</td>
+              <td>{{ batch.notes|default:"-" }}</td>
+              <td><span class="badge bg-primary">{{ batch.status }}</span></td>
+              <td>{{ batch.created_by.get_full_name|default:batch.created_by.username }}</td>
+              <td class="text-muted small">{{ batch.created_at|date:"d-m-Y" }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="5" class="text-center py-4 text-muted">
+                <i class="fas fa-balance-scale fa-2x mb-2 d-block text-secondary"></i>
+                {% trans "لا توجد دفعات أرصدة افتتاحية مسجلة حالياً." %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

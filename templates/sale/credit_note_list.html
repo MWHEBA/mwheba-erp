@@ -74,9 +74,9 @@
                 <span class="text-muted">-</span>
                 {% endif %}
               </td>
-              <td>{{ cn.subtotal_amount|smart_float:2 }} EGP</td>
-              <td>{{ cn.tax_amount|smart_float:2 }} EGP</td>
-              <td class="fw-bold text-success">{{ cn.total_amount|smart_float:2 }} EGP</td>
+              <td>{{ cn.subtotal_amount|smart_float }} {% currency_symbol %}</td>
+              <td>{{ cn.tax_amount|smart_float }} {% currency_symbol %}</td>
+              <td class="fw-bold text-success">{{ cn.total_amount|smart_float }} {% currency_symbol %}</td>
               <td>
                 {% if cn.status == 'POSTED' %}
                 <span class="badge bg-success"><i class="fas fa-check-circle me-1"></i>{% trans "مُرحل للدفاتر" %}</span>

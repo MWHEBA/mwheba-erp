@@ -338,12 +338,46 @@ def customer_detail(request, pk):
     # استخدام CustomerService للحصول على الإحصائيات
     customer_stats = customer_service.get_customer_statistics(customer)
     
-    # جلب دفعات فواتير المبيعات المرتبطة بالعميل
+    # جلب دفعات فواتير المبيعات والدفعات المباشرة/تحت الحساب المرتبطة بالعميل
     from sale.models import SalePayment
+    from client.models import CustomerPayment
 
-    payments = SalePayment.objects.filter(sale__customer=customer).select_related("sale", "created_by").order_by(
-        "-payment_date"
-    )
+    sale_payments = list(SalePayment.objects.filter(sale__customer=customer).select_related("sale", "created_by").order_by("-payment_date"))
+    advance_payments = list(CustomerPayment.objects.filter(customer=customer).select_related("created_by").order_by("-payment_date"))
+
+    # توحيد قائمة المدفوعات لعرضها في التاب والتصدير
+    payments = []
+    for sp in sale_payments:
+        payments.append({
+            "id": sp.id,
+            "payment_date": sp.payment_date,
+            "created_at": sp.created_at,
+            "amount": sp.amount,
+            "payment_method": sp.get_payment_method_display(),
+            "reference_number": sp.reference_number or f"PAY-{sp.id}",
+            "notes": sp.notes or "-",
+            "sale__number": sp.sale.number if sp.sale else "-",
+            "type_display": "سداد فاتورة",
+        })
+
+    for cp in advance_payments:
+        payments.append({
+            "id": cp.id,
+            "payment_date": cp.payment_date,
+            "created_at": cp.created_at,
+            "amount": cp.amount,
+            "payment_method": cp.get_payment_method_display() if hasattr(cp, "get_payment_method_display") else cp.payment_method,
+            "reference_number": cp.reference_number or f"CP-{cp.id}",
+            "notes": cp.notes or "دفعة من تحت الحساب",
+            "sale__number": "دفعة مقدمة (تحت الحساب)",
+            "type_display": "دفعة مقدمة",
+        })
+
+    payments.sort(key=lambda x: str(x["payment_date"] or ""), reverse=True)
+
+    sale_pay_total = sum(sp.amount for sp in sale_payments)
+    adv_pay_total = sum(cp.amount for cp in advance_payments)
+    total_payments = sale_pay_total + adv_pay_total
 
     # جلب فواتير البيع المرتبطة بالعميل
     from sale.models import Sale
@@ -351,8 +385,6 @@ def customer_detail(request, pk):
     invoices_count = invoices.count()
 
     # جلب طلبات التسعير المرتبطة بالعميل (مؤقتاً معطل)
-    # pricing_orders = PrintingOrder.objects.filter(client=customer).order_by("-created_at")
-    # pricing_orders_count = pricing_orders.count()
     pricing_orders = []
     pricing_orders_count = 0
 
@@ -436,15 +468,13 @@ def customer_detail(request, pk):
 
     # حساب عدد المنتجات الفريدة في فواتير البيع
     from sale.models import SaleItem
-    from django.db.models import Count
-
     sale_items = SaleItem.objects.filter(sale__customer=customer)
     total_products = sale_items.values("product").distinct().count()
 
     # تاريخ آخر معاملة
     last_transaction_date = None
-    if payments.exists() or invoices.exists():
-        last_payment_date = payments.first().payment_date if payments.exists() else None
+    if payments or invoices.exists():
+        last_payment_date = payments[0]["payment_date"] if payments else None
         last_invoice_date = invoices.first().date if invoices.exists() else None
 
         if last_payment_date and last_invoice_date:
@@ -454,89 +484,37 @@ def customer_detail(request, pk):
         else:
             last_transaction_date = last_invoice_date
 
-    total_payments = payments.aggregate(total=Sum("amount"))["total"] or 0
+    # الحصول المباشر على الحساب المالي للعميل
+    financial_account = customer.financial_account
 
     # جلب القيود المحاسبية المرتبطة بالعميل
-    from financial.models import JournalEntry, JournalEntryLine
-
+    from financial.models import JournalEntry
     journal_entries = []
     journal_entries_count = 0
 
     try:
-        # البحث عن القيود المرتبطة بفواتير العميل - بحث أوسع
         invoice_ids = [inv.id for inv in invoices]
-        payment_ids = [pay.id for pay in payments]
-
-        # بناء query للبحث
         query = Q()
+        if financial_account:
+            query |= Q(lines__account=financial_account)
         for inv_id in invoice_ids:
-            query |= Q(reference__icontains=f"SALE-{inv_id}") | Q(
-                reference__icontains=f"{inv_id}"
-            )
-        for pay_id in payment_ids:
-            query |= Q(reference__icontains=f"PAY-{pay_id}") | Q(
-                reference__icontains=f"{pay_id}"
-            )
+            query |= Q(reference__icontains=f"SALE-{inv_id}") | Q(reference__icontains=f"{inv_id}")
 
         if query:
             journal_entries = (
                 JournalEntry.objects.filter(query)
+                .distinct()
                 .prefetch_related("lines")
-                .order_by("-date")
+                .order_by("-date", "-created_at")
             )
             journal_entries_count = journal_entries.count()
-
-            # حساب إجمالي المدين لكل قيد
-            for entry in journal_entries:
-                entry.total_amount = (
-                    entry.lines.aggregate(total=Sum("debit"))["total"] or 0
-                )
-
-        # عدد القيود المحاسبية للعميل: {journal_entries_count}
     except Exception as e:
-        # خطأ في جلب القيود المحاسبية: {e}
         import traceback
-
-        traceback.print_exc()
-
-    # محاولة الحصول على حساب العميل في دليل الحسابات
-    financial_account = None
-    try:
-        from financial.models import ChartOfAccounts, AccountType
-
-        # البحث بطرق متعددة
-        # 1. البحث باسم العميل في حسابات العملاء
-        receivables_type = AccountType.objects.filter(code="RECEIVABLES").first()
-        if receivables_type:
-            financial_account = ChartOfAccounts.objects.filter(
-                name__icontains=customer.name,
-                account_type=receivables_type,
-                is_active=True,
-            ).first()
-
-        # 2. إذا لم نجد، نبحث في أي حساب يحتوي على اسم العميل
-        if not financial_account:
-            financial_account = ChartOfAccounts.objects.filter(
-                name__icontains=customer.name, is_active=True
-            ).first()
-
-        # 3. إذا لم نجد، نبحث في حسابات العملاء العامة
-        if not financial_account and receivables_type:
-            financial_account = ChartOfAccounts.objects.filter(
-                account_type=receivables_type, is_active=True
-            ).first()
-
-        # حساب العميل المالي: {financial_account.name if financial_account else 'لا يوجد'}
-    except Exception as e:
-        # خطأ في جلب الحساب المالي: {e}
-        import traceback
-
         traceback.print_exc()
 
     # تجهيز بيانات المعاملات لكشف الحساب
     transactions = []
 
-    # إضافة الفواتير
     for invoice in invoices:
         transactions.append(
             {
@@ -547,34 +525,29 @@ def customer_detail(request, pk):
                 "description": f"فاتورة بيع رقم {invoice.number}",
                 "debit": invoice.total,
                 "credit": 0,
-                "balance": 0,  # سيتم حسابه لاحقاً
+                "balance": 0,
             }
         )
 
-    # إضافة المدفوعات
-    for payment in payments:
+    for payment_item in payments:
         transactions.append(
             {
-                "date": payment.created_at,
-                "reference": payment.reference_number,
+                "date": payment_item["created_at"] or payment_item["payment_date"],
+                "reference": payment_item["reference_number"],
                 "type": "payment",
-                "description": f"دفعة {payment.get_payment_method_display()}",
+                "description": f"{payment_item['type_display']} ({payment_item['payment_method']})",
                 "debit": 0,
-                "credit": payment.amount,
-                "balance": 0,  # سيتم حسابه لاحقاً
+                "credit": payment_item["amount"],
+                "balance": 0,
             }
         )
 
-    # ترتيب المعاملات حسب التاريخ (من الأقدم للأحدث)
-    transactions.sort(key=lambda x: x["date"])
-
-    # حساب الرصيد التراكمي
+    transactions.sort(key=lambda x: str(x["date"] or ""))
     running_balance = 0
     for transaction in transactions:
         running_balance = running_balance + transaction["debit"] - transaction["credit"]
         transaction["balance"] = running_balance
 
-    # عكس ترتيب المعاملات (من الأحدث للأقدم) للعرض
     transactions.reverse()
 
     # تعريف أعمدة جدول الفواتير للنظام المحسن
@@ -913,9 +886,7 @@ def customer_detail(request, pk):
     ]
 
     # حساب الرصيد المتاح (credit_limit - المديونية الفعلية)
-    # المديونية = إجمالي المبيعات - إجمالي المدفوعات
-    total_sales = customer.sales.aggregate(total=Sum('total'))['total'] or 0
-    total_payments = customer.payments.aggregate(total=Sum('amount'))['total'] or 0
+    # المديونية = إجمالي المبيعات - إجمالي المدفوعات (فواتير + تحت الحساب)
     actual_debt = total_sales - total_payments
     available_credit = customer.credit_limit - actual_debt if customer.credit_limit else 0
     

@@ -188,3 +188,25 @@ from .budget_views import (
     budget_performance_report,
 )
 
+# من revenue_recognition_views.py
+from .revenue_recognition_views import (
+    revenue_schedule_list,
+)
+
+# من tax_views.py
+from .tax_views import (
+    tax_code_list,
+)
+
+# من opening_balance_views.py
+from .opening_balance_views import (
+    opening_balance_list,
+    opening_balance_create,
+)
+
+# من approval_views.py
+from .approval_views import (
+    approval_inbox,
+)
+
+

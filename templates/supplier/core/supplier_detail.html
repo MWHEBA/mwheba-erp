@@ -9,10 +9,7 @@
 {% block title %}{{ supplier.name }} - {% trans "تفاصيل المورد" %}{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
-<style>
-
-</style>
+<!-- جميع الستايلات موجودة في unified-components.css و components.css -->
 {% endblock %}
 
 {% block content %}
@@ -23,116 +20,121 @@
 
   <!-- Overview Cards -->
   <div class="section-container">
-    <h5 class="section-title"><i class="fas fa-chart-bar me-2"></i>{% trans "نظرة عامة" %}</h5>
-    <div class="row">
-
-      <div class="col-md-4 col-lg-3">
-        <div class="stats-card stats-card-success">
-          <div class="stats-card-header"></div>
-          <div class="stats-card-body">
-            <div class="stats-card-icon">
-              <i class="fas fa-shopping-cart"></i>
+    <h5 class="section-title" data-bs-toggle="collapse" data-bs-target="#overviewCollapse" aria-expanded="false" style="cursor: pointer;">
+      <i class="fas fa-chart-bar me-2"></i>{% trans "نظرة عامة" %}
+      <i class="fas fa-chevron-down float-end"></i>
+    </h5>
+    <div class="collapse" id="overviewCollapse">
+      <div class="row p-4 g-3">
+        <div class="col-md-4 col-lg-3">
+          <div class="stats-card stats-card-primary">
+            <div class="stats-card-header"></div>
+            <div class="stats-card-body">
+              <div class="stats-card-icon">
+                <i class="fas fa-money-bill-wave"></i>
+              </div>
+              <div class="stats-card-title">{% trans "إجمالي المدفوعات" %}</div>
+              <div class="stats-card-value">{{ total_payments|smart_float }}</div>
+              <div class="stats-card-unit">{% currency_symbol %}</div>
             </div>
-            <div class="stats-card-title">{% trans "إجمالي المشتريات" %}</div>
-            <div class="stats-card-value">{{ total_purchases|default:"0"|smart_float }}</div>
-            <small class="text-muted">{% currency_symbol %}</small>
           </div>
         </div>
-      </div>
 
-      <div class="col-md-4 col-lg-3">
-        <div class="stats-card stats-card-danger">
-          <div class="stats-card-header"></div>
-          <div class="stats-card-body">
-            <div class="stats-card-icon">
-              <i class="fas fa-box"></i>
+        <div class="col-md-4 col-lg-3">
+          <div class="stats-card stats-card-success">
+            <div class="stats-card-header"></div>
+            <div class="stats-card-body">
+              <div class="stats-card-icon">
+                <i class="fas fa-shopping-cart"></i>
+              </div>
+              <div class="stats-card-title">{% trans "إجمالي المشتريات" %}</div>
+              <div class="stats-card-value">{{ total_purchases|default:"0"|smart_float }}</div>
+              <div class="stats-card-unit">{% currency_symbol %}</div>
             </div>
-            <div class="stats-card-title">{% trans "إجمالي المنتجات" %}</div>
-            <div class="stats-card-value">{{ products_count|default:"0" }}</div>
-            <div class="stats-card-unit">{% trans "منتج" %}</div>
           </div>
         </div>
-      </div>
 
-      <div class="col-md-4 col-lg-3">
-        <div class="stats-card stats-card-info">
-          <div class="stats-card-header"></div>
-          <div class="stats-card-body">
-            <div class="stats-card-icon">
-              <i class="fas fa-file-invoice"></i>
+        <div class="col-md-4 col-lg-3">
+          <div class="stats-card stats-card-danger">
+            <div class="stats-card-header"></div>
+            <div class="stats-card-body">
+              <div class="stats-card-icon">
+                <i class="fas fa-box"></i>
+              </div>
+              <div class="stats-card-title">{% trans "إجمالي المنتجات" %}</div>
+              <div class="stats-card-value">{{ products_count|default:"0" }}</div>
+              <div class="stats-card-unit" style="font-weight: 600;">{% trans "منتج" %}</div>
             </div>
-            <div class="stats-card-title">{% trans "إجمالي الفواتير" %}</div>
-            <div class="stats-card-value">{{ purchases_count|default:"0" }}</div>
-            <div class="stats-card-unit">{% trans "فاتورة" %}</div>
           </div>
         </div>
-      </div>
 
-      {% if enabled_modules.printing_pricing %}
-      <div class="col-md-4 col-lg-3">
-        <div class="stats-card stats-card-warning">
-          <div class="stats-card-header"></div>
-          <div class="stats-card-body">
-            <div class="stats-card-icon">
-              <i class="fas fa-tools"></i>
+        <div class="col-md-4 col-lg-3">
+          <div class="stats-card stats-card-info">
+            <div class="stats-card-header"></div>
+            <div class="stats-card-body">
+              <div class="stats-card-icon">
+                <i class="fas fa-file-invoice"></i>
+              </div>
+              <div class="stats-card-title">{% trans "إجمالي الفواتير" %}</div>
+              <div class="stats-card-value">{{ purchases_count|default:"0" }}</div>
+              <div class="stats-card-unit" style="font-weight: 600;">{% trans "فاتورة" %}</div>
             </div>
-            <div class="stats-card-title">خدمات التسعير</div>
-            <div class="stats-card-value">{{ supplier_services_count|default:"0" }}</div>
-            <div class="stats-card-unit">خدمة</div>
           </div>
         </div>
+
       </div>
-      {% endif %}
     </div>
   </div>
 
   <!-- نظام التابات -->
   <div class="section-container mb-4">
     <div class="card-header bg-white border-0 pt-3 px-3 pb-0">
-      <ul class="nav nav-tabs card-header-tabs border-bottom" id="supplierTabs" role="tablist">
+      <ul class="nav nav-tabs card-header-tabs border-bottom flex-nowrap overflow-x-auto" id="supplierTabs" role="tablist">
         <li class="nav-item" role="presentation">
-          <button class="nav-link active" id="info-tab" data-bs-toggle="tab" data-bs-target="#info-tab-pane" type="button" role="tab" aria-controls="info-tab-pane" aria-selected="true">
+          <button class="nav-link active fw-semibold px-3" id="info-tab" data-bs-toggle="tab" data-bs-target="#info-tab-pane" type="button" role="tab" aria-controls="info-tab-pane" aria-selected="true">
             <i class="fas fa-info-circle me-2"></i>{% trans "معلومات المورد" %}
           </button>
         </li>
         <li class="nav-item" role="presentation">
-          <button class="nav-link" id="purchases-tab" data-bs-toggle="tab" data-bs-target="#purchases-tab-pane" type="button" role="tab" aria-controls="purchases-tab-pane" aria-selected="false">
+          <button class="nav-link fw-semibold px-3" id="purchases-tab" data-bs-toggle="tab" data-bs-target="#purchases-tab-pane" type="button" role="tab" aria-controls="purchases-tab-pane" aria-selected="false">
             <i class="fas fa-shopping-cart me-2"></i>{% trans "فواتير الشراء" %}
-            <span class="badge bg-light text-secondary border rounded-pill ms-1">{{ purchases_count|default:"0" }}</span>
+            <span class="badge rounded-pill bg-light text-secondary border ms-1">{{ purchases_count|default:"0" }}</span>
           </button>
         </li>
         <li class="nav-item" role="presentation">
-          <button class="nav-link" id="products-tab" data-bs-toggle="tab" data-bs-target="#products-tab-pane" type="button" role="tab" aria-controls="products-tab-pane" aria-selected="false">
-            <i class="fas fa-boxes me-2"></i>المنتجات
-            <span class="badge bg-light text-secondary border rounded-pill ms-1">{{ products_count|default:"0" }}</span>
+          <button class="nav-link fw-semibold px-3" id="products-tab" data-bs-toggle="tab" data-bs-target="#products-tab-pane" type="button" role="tab" aria-controls="products-tab-pane" aria-selected="false">
+            <i class="fas fa-boxes me-2"></i>{% trans "المنتجات" %}
+            <span class="badge rounded-pill bg-light text-secondary border ms-1">{{ products_count|default:"0" }}</span>
           </button>
         </li>
         {% if enabled_modules.printing_pricing %}
         <li class="nav-item" role="presentation">
-          <button class="nav-link" id="services-tab" data-bs-toggle="tab" data-bs-target="#services-tab-pane" type="button" role="tab" aria-controls="services-tab-pane" aria-selected="false">
-            <i class="fas fa-tags me-2"></i>خدمات التسعير
-            <span class="badge bg-light text-secondary border rounded-pill ms-1">{{ supplier_services_count|default:"0" }}</span>
+          <button class="nav-link fw-semibold px-3" id="services-tab" data-bs-toggle="tab" data-bs-target="#services-tab-pane" type="button" role="tab" aria-controls="services-tab-pane" aria-selected="false">
+            <i class="fas fa-tags me-2"></i>{% trans "خدمات التسعير" %}
+            <span class="badge rounded-pill bg-light text-secondary border ms-1">{{ supplier_services_count|default:"0" }}</span>
           </button>
         </li>
         {% endif %}
         <li class="nav-item" role="presentation">
-          <button class="nav-link" id="payments-tab" data-bs-toggle="tab" data-bs-target="#payments-tab-pane" type="button" role="tab" aria-controls="payments-tab-pane" aria-selected="false">
+          <button class="nav-link fw-semibold px-3" id="payments-tab" data-bs-toggle="tab" data-bs-target="#payments-tab-pane" type="button" role="tab" aria-controls="payments-tab-pane" aria-selected="false">
             <i class="fas fa-money-bill-wave me-2"></i>{% trans "المدفوعات" %}
-            <span class="badge bg-light text-secondary border rounded-pill ms-1">{{ payments|length|default:"0" }}</span>
+            <span class="badge rounded-pill bg-light text-secondary border ms-1">{{ payments|length|default:"0" }}</span>
           </button>
         </li>
         <li class="nav-item" role="presentation">
-          <button class="nav-link" id="journal-tab" data-bs-toggle="tab" data-bs-target="#journal-tab-pane" type="button" role="tab" aria-controls="journal-tab-pane" aria-selected="false">
+          <button class="nav-link fw-semibold px-3" id="journal-tab" data-bs-toggle="tab" data-bs-target="#journal-tab-pane" type="button" role="tab" aria-controls="journal-tab-pane" aria-selected="false">
             <i class="fas fa-book me-2"></i>{% trans "القيود المحاسبية" %}
+            <span class="badge rounded-pill bg-light text-secondary border ms-1">{{ journal_entries_count|default:"0" }}</span>
           </button>
         </li>
         <li class="nav-item" role="presentation">
-          <button class="nav-link" id="statement-tab" data-bs-toggle="tab" data-bs-target="#statement-tab-pane" type="button" role="tab" aria-controls="statement-tab-pane" aria-selected="false">
+          <button class="nav-link fw-semibold px-3" id="statement-tab" data-bs-toggle="tab" data-bs-target="#statement-tab-pane" type="button" role="tab" aria-controls="statement-tab-pane" aria-selected="false">
             <i class="fas fa-file-alt me-2"></i>{% trans "كشف الحساب" %}
+            <span class="badge rounded-pill bg-light text-secondary border ms-1">{{ transactions|length|default:"0" }}</span>
           </button>
         </li>
         <li class="nav-item" role="presentation">
-          <button class="nav-link" id="aging-tab" data-bs-toggle="tab" data-bs-target="#aging-tab-pane" type="button" role="tab" aria-controls="aging-tab-pane" aria-selected="false" data-supplier-id="{{ supplier.id }}">
+          <button class="nav-link fw-semibold px-3" id="aging-tab" data-bs-toggle="tab" data-bs-target="#aging-tab-pane" type="button" role="tab" aria-controls="aging-tab-pane" aria-selected="false" data-supplier-id="{{ supplier.id }}">
             <i class="fas fa-clock me-2"></i>{% trans "أعمار الديون" %}
           </button>
         </li>
@@ -143,7 +145,7 @@
       <!-- تاب معلومات المورد -->
       <div class="tab-pane fade show active" id="info-tab-pane" role="tabpanel" aria-labelledby="info-tab" tabindex="0">
         <div class="row g-4">
-          <div class="col-md-6 col-lg-3">
+          <div class="col-md-6 col-lg-4">
             <div class="d-flex align-items-start">
               <i class="fas fa-phone text-secondary mt-1 me-3"></i>
               <div>
@@ -153,32 +155,52 @@
             </div>
           </div>
           
-          <div class="col-md-6 col-lg-3">
+          <div class="col-md-6 col-lg-4">
+            <div class="d-flex align-items-start">
+              <i class="fas fa-envelope text-secondary mt-1 me-3"></i>
+              <div>
+                <small class="text-muted d-block mb-1">{% trans "البريد الإلكتروني" %}</small>
+                <span class="text-dark fw-semibold">{{ supplier.email|default:"-" }}</span>
+              </div>
+            </div>
+          </div>
+          
+          <div class="col-md-6 col-lg-4">
             <div class="d-flex align-items-start">
               <i class="fas fa-map-marker-alt text-secondary mt-1 me-3"></i>
               <div>
                 <small class="text-muted d-block mb-1">{% trans "العنوان" %}</small>
-                <span class="text-dark fw-semibold">{{ supplier.address|default:"-" }}</span>
+                <span class="text-dark fw-semibold">{{ supplier.address|default:"-" }}{% if supplier.city %} ({{ supplier.city }}){% endif %}</span>
               </div>
             </div>
           </div>
           
-          <div class="col-md-6 col-lg-3">
-            <div class="d-flex align-items-start">
-              <i class="fas fa-user-tie text-secondary mt-1 me-3"></i>
-              <div>
-                <small class="text-muted d-block mb-1">{% trans "جهة الاتصال" %}</small>
-                <span class="text-dark fw-semibold">{{ supplier.contact_person|default:"-" }}</span>
-              </div>
-            </div>
-          </div>
-          
-          <div class="col-md-6 col-lg-3">
+          <div class="col-md-6 col-lg-4">
             <div class="d-flex align-items-start">
               <i class="fas fa-file-invoice text-secondary mt-1 me-3"></i>
               <div>
                 <small class="text-muted d-block mb-1">{% trans "الرقم الضريبي" %}</small>
                 <span class="text-dark fw-semibold">{{ supplier.tax_number|default:"-" }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-md-6 col-lg-4">
+            <div class="d-flex align-items-start">
+              <i class="fas fa-user-tie text-secondary mt-1 me-3"></i>
+              <div>
+                <small class="text-muted d-block mb-1">{% trans "جهة الاتصال / النوع" %}</small>
+                <span class="text-dark fw-semibold">{{ supplier.contact_person|default:supplier.primary_type.name|default:"-" }}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-md-6 col-lg-4">
+            <div class="d-flex align-items-start">
+              <i class="fas fa-credit-card text-secondary mt-1 me-3"></i>
+              <div>
+                <small class="text-muted d-block mb-1">{% trans "الحد الائتماني" %}</small>
+                <span class="text-dark fw-semibold">{{ supplier.credit_limit|smart_float }} {% currency_symbol %}</span>
               </div>
             </div>
           </div>
@@ -205,9 +227,23 @@
             </a>
           </div>
           
-          {% if purchases %}
-          {% include "components/data_table.html" with table_id="supplier-purchases-table" headers=purchase_headers data=purchases empty_message="لا توجد فواتير مشتريات متاحة" clickable_rows=purchases_clickable row_click_url="/purchases/0/" show_export=True export_filename="supplier_purchases" %}
-          {% else %}
+          <!-- استخدام النظام المحسن للجداول -->
+          {% with table_id="supplier-purchases-table" %}
+            {% with headers=purchase_headers %}
+              {% with data=purchases %}
+                {% with action_buttons=purchase_action_buttons %}
+                  {% with empty_message="لا توجد فواتير مشتريات متاحة" %}
+                    {% with clickable_rows=purchases_clickable row_click_url="/purchases/0/" %}
+                      {% with show_export=True export_filename="supplier_purchases" %}
+                        {% include "components/data_table.html" %}
+                      {% endwith %}
+                    {% endwith %}
+                  {% endwith %}
+                {% endwith %}
+              {% endwith %}
+            {% endwith %}
+          {% endwith %}
+          {% if not purchases %}
           <div class="alert alert-info d-flex align-items-center m-3">
             <i class="fas fa-info-circle fa-2x me-3"></i>
             <div>
@@ -236,28 +272,33 @@
 
       <!-- تاب المدفوعات -->
       <div class="tab-pane fade" id="payments-tab-pane" role="tabpanel" aria-labelledby="payments-tab" tabindex="0">
-          <div class="d-flex justify-content-end mb-3">
+          <div class="d-flex justify-content-between align-items-center mb-3">
             <div class="badge bg-primary rounded-pill px-3 py-2 d-flex align-items-center">
               <i class="fas fa-money-bill-wave me-2"></i>
               <span>{% trans "الإجمالي:" %} {{ total_payments|currency }}</span>
             </div>
           </div>
           
-          {% if payments %}
-          {% include "components/data_table.html" with table_id="supplier-payments-table" headers=payments_headers data=payments empty_message="لا توجد مدفوعات مسجلة لهذا المورد" clickable_rows=payments_clickable row_click_url="/purchases/payments/0/" show_export=True export_filename="supplier_payments" %}
-          {% else %}
-          <div class="alert alert-info d-flex align-items-center m-3">
-            <i class="fas fa-info-circle fa-2x me-3"></i>
-            <div>
-              {% trans "لا توجد مدفوعات مسجلة لهذا المورد. يمكنك إضافة دفعات عبر فواتير المشتريات." %}
-            </div>
-          </div>
-          {% endif %}
+          <!-- استخدام النظام المحسن للجداول -->
+          {% with table_id="supplier-payments-table" %}
+            {% with headers=payments_headers %}
+              {% with data=payments %}
+                {% with empty_message="لا توجد مدفوعات مسجلة لهذا المورد" %}
+                  {% with clickable_rows=payments_clickable row_click_url="/purchases/payments/0/" %}
+                    {% with show_export=True export_filename="supplier_payments" %}
+                      {% include "components/data_table.html" %}
+                    {% endwith %}
+                  {% endwith %}
+                {% endwith %}
+              {% endwith %}
+            {% endwith %}
+          {% endwith %}
       </div>
       
       <!-- تاب القيود المحاسبية -->
       <div class="tab-pane fade" id="journal-tab-pane" role="tabpanel" aria-labelledby="journal-tab" tabindex="0">
-          <div class="d-flex justify-content-end mb-3">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="mb-0"><i class="fas fa-book me-2"></i>{% trans "القيود المحاسبية المرتبطة" %}</h5>
             {% if financial_account %}
             <a href="{% url 'financial:account_detail' financial_account.pk %}" class="btn btn-sm btn-outline-success">
               <i class="fas fa-link me-1"></i>{% trans "عرض الحساب المحاسبي" %}
@@ -265,27 +306,45 @@
             {% endif %}
           </div>
           
-          {% if journal_entries %}
-          {% include "components/data_table.html" with table_id="supplier-journal-table" headers=journal_headers data=journal_entries empty_message="لا توجد قيود محاسبية لهذا المورد" clickable_rows=journal_clickable row_click_url="/financial/journal-entries/0/" show_export=True export_filename="supplier_journal_entries" %}
-          {% else %}
-          <div class="alert alert-info d-flex align-items-center m-3">
-            <i class="fas fa-info-circle fa-2x me-3"></i>
-            <div>
-              {% trans "لا توجد قيود محاسبية مسجلة لهذا المورد." %}
-            </div>
-          </div>
-          {% endif %}
+          <!-- استخدام النظام المحسن للجداول -->
+          {% with table_id="supplier-journal-table" %}
+            {% with headers=journal_headers %}
+              {% with data=journal_entries %}
+                {% with action_buttons=journal_action_buttons %}
+                  {% with empty_message="لا توجد قيود محاسبية مسجلة لهذا المورد" %}
+                    {% with clickable_rows=journal_clickable row_click_url="/financial/journal-entries/0/" %}
+                      {% with show_export=True export_filename="supplier_journal_entries" %}
+                        {% include "components/data_table.html" %}
+                      {% endwith %}
+                    {% endwith %}
+                  {% endwith %}
+                {% endwith %}
+              {% endwith %}
+            {% endwith %}
+          {% endwith %}
       </div>
       
       <!-- تاب كشف الحساب -->
       <div class="tab-pane fade" id="statement-tab-pane" role="tabpanel" aria-labelledby="statement-tab" tabindex="0">
-          <div class="d-flex justify-content-end mb-3">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="mb-0"><i class="fas fa-file-alt me-2"></i>{% trans "كشف حساب المورد" %}</h5>
             <button class="btn btn-sm btn-outline-primary" onclick="window.print()">
               <i class="fas fa-print me-1"></i>{% trans "طباعة" %}
             </button>
           </div>
           
-          {% include "components/data_table.html" with table_id="supplier-statement-table" headers=statement_headers data=transactions empty_message="لا توجد معاملات مسجلة لهذا المورد" show_export=True export_filename="supplier_statement" %}
+          <!-- استخدام النظام المحسن للجداول -->
+          {% with table_id="supplier-statement-table" %}
+            {% with headers=statement_headers %}
+              {% with data=transactions %}
+                {% with empty_message="لا توجد معاملات مالية مسجلة" %}
+                  {% with show_export=True export_filename="supplier_statement" %}
+                    {% include "components/data_table.html" %}
+                  {% endwith %}
+                {% endwith %}
+              {% endwith %}
+            {% endwith %}
+          {% endwith %}
       </div>
 
       <!-- تاب خدمات التسعير -->
@@ -350,31 +409,31 @@
             <div class="col">
               <div class="p-3 bg-light rounded border">
                 <small class="text-muted d-block mb-1">{% trans "الحالي (غير مستحق)" %}</small>
-                <div id="val-current" class="fw-bold text-dark fs-6">0.00 EGP</div>
+                <div id="val-current" class="fw-bold text-dark fs-6">0 ج.م</div>
               </div>
             </div>
             <div class="col">
               <div class="p-3 bg-info-subtle border border-info-subtle rounded">
                 <small class="text-info-emphasis d-block mb-1">{% trans "1 - 30 يوماً" %}</small>
-                <div id="val-0-30" class="fw-bold text-info fs-6">0.00 EGP</div>
+                <div id="val-0-30" class="fw-bold text-info fs-6">0 ج.م</div>
               </div>
             </div>
             <div class="col">
               <div class="p-3 bg-warning-subtle border border-warning-subtle rounded">
                 <small class="text-warning-emphasis d-block mb-1">{% trans "31 - 60 يوماً" %}</small>
-                <div id="val-31-60" class="fw-bold text-warning fs-6">0.00 EGP</div>
+                <div id="val-31-60" class="fw-bold text-warning fs-6">0 ج.م</div>
               </div>
             </div>
             <div class="col">
               <div class="p-3 bg-danger-subtle border border-danger-subtle rounded">
                 <small class="text-danger-emphasis d-block mb-1">{% trans "61 - 90 يوماً" %}</small>
-                <div id="val-61-90" class="fw-bold text-danger fs-6">0.00 EGP</div>
+                <div id="val-61-90" class="fw-bold text-danger fs-6">0 ج.م</div>
               </div>
             </div>
             <div class="col">
               <div class="p-3 bg-danger text-white rounded">
                 <small class="d-block mb-1 opacity-75">{% trans "+90 يوماً" %}</small>
-                <div id="val-90-plus" class="fw-bold fs-6">0.00 EGP</div>
+                <div id="val-90-plus" class="fw-bold fs-6">0 ج.م</div>
               </div>
             </div>
           </div>
@@ -395,35 +454,79 @@
         </h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="إغلاق"></button>
       </div>
-      <div class="modal-body">
-        <div class="list-group">
-          <a href="{% url 'supplier:supplier_edit' supplier.pk %}" class="list-group-item list-group-item-action d-flex align-items-center">
-            <div class="me-3">
-              <i class="fas fa-edit fa-2x text-warning"></i>
+      <div class="modal-body p-0">
+        <!-- قسم المعلومات المالية -->
+        <div class="p-3" style="background-color: var(--gray-50); border-bottom: 2px solid var(--border-color);">
+          <h6 class="mb-3 text-muted" style="font-size: 0.85rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">
+            <i class="fas fa-chart-line me-2"></i>{% trans "المعلومات المالية" %}
+          </h6>
+          <div class="row g-3">
+            <div class="col-6">
+              <div class="p-3 rounded" style="background-color: var(--white); border: 1px solid var(--border-color); box-shadow: var(--shadow-xs);">
+                <div class="d-flex align-items-center mb-2">
+                  <div class="me-2" style="width: 32px; height: 32px; background-color: var(--warning-soft); border-radius: 6px; display: flex; align-items: center; justify-content: center;">
+                    <i class="fas fa-wallet" style="color: var(--warning-color); font-size: 14px;"></i>
+                  </div>
+                  <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600;">{% trans "الرصيد المتاح" %}</div>
+                </div>
+                <div class="h4 mb-0 fw-bold" style="color: var(--warning-color);">{{ available_credit|smart_float }}</div>
+                <div style="font-size: 0.7rem; color: var(--text-light);">{% currency_symbol %}</div>
+              </div>
             </div>
-            <div>
-              <div class="fw-bold">{% trans "تعديل بيانات المورد" %}</div>
-              <small class="text-muted">{% trans "تعديل معلومات الاتصال والبيانات الأساسية" %}</small>
+            <div class="col-6">
+              <div class="p-3 rounded" style="background-color: var(--white); border: 1px solid var(--border-color); box-shadow: var(--shadow-xs);">
+                <div class="d-flex align-items-center mb-2">
+                  <div class="me-2" style="width: 32px; height: 32px; background-color: var(--secondary-soft); border-radius: 6px; display: flex; align-items: center; justify-content: center;">
+                    <i class="fas fa-credit-card" style="color: var(--text-muted); font-size: 14px;"></i>
+                  </div>
+                  <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600;">{% trans "حد الائتمان" %}</div>
+                </div>
+                <div class="h4 mb-0 fw-bold" style="color: var(--text-muted);">{{ supplier.credit_limit|smart_float|default:"0" }}</div>
+                <div style="font-size: 0.7rem; color: var(--text-light);">{% currency_symbol %}</div>
+              </div>
             </div>
-          </a>
-          <a href="{% url 'supplier:supplier_change_account' supplier.pk %}" class="list-group-item list-group-item-action d-flex align-items-center">
-            <div class="me-3">
-              <i class="fas fa-exchange-alt fa-2x text-primary"></i>
-            </div>
-            <div>
-              <div class="fw-bold">تغيير الحساب المحاسبي</div>
-              <small class="text-muted">ربط المورد بحساب آخر في دليل الحسابات</small>
-            </div>
-          </a>
-          <a href="{% url 'supplier:supplier_delete' supplier.pk %}" class="list-group-item list-group-item-action d-flex align-items-center">
-            <div class="me-3">
-              <i class="fas fa-trash fa-2x text-danger"></i>
-            </div>
-            <div>
-              <div class="fw-bold">{% trans "حذف المورد" %}</div>
-              <small class="text-muted">{% trans "حذف المورد نهائياً من النظام" %}</small>
-            </div>
-          </a>
+          </div>
+        </div>
+        
+        <!-- قسم الإجراءات -->
+        <div class="p-3">
+          <h6 class="mb-3 text-muted" style="font-size: 0.85rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">
+            <i class="fas fa-cog me-2"></i>{% trans "الإجراءات" %}
+          </h6>
+          <div class="list-group">
+            <!-- تعديل بيانات المورد -->
+            <a href="{% url 'supplier:supplier_edit' supplier.pk %}" class="list-group-item list-group-item-action d-flex align-items-center">
+              <div class="me-3">
+                <i class="fas fa-edit fa-2x text-warning"></i>
+              </div>
+              <div>
+                <div class="fw-bold">{% trans "تعديل بيانات المورد" %}</div>
+                <small class="text-muted">{% trans "تعديل معلومات الاتصال والبيانات الأساسية" %}</small>
+              </div>
+            </a>
+            
+            <!-- تغيير الحساب المحاسبي -->
+            <a href="{% url 'supplier:supplier_change_account' supplier.pk %}" class="list-group-item list-group-item-action d-flex align-items-center">
+              <div class="me-3">
+                <i class="fas fa-exchange-alt fa-2x text-primary"></i>
+              </div>
+              <div>
+                <div class="fw-bold">{% trans "تغيير الحساب المحاسبي" %}</div>
+                <small class="text-muted">{% trans "ربط المورد بحساب آخر في دليل الحسابات" %}</small>
+              </div>
+            </a>
+            
+            <!-- حذف المورد -->
+            <a href="{% url 'supplier:supplier_delete' supplier.pk %}" class="list-group-item list-group-item-action d-flex align-items-center">
+              <div class="me-3">
+                <i class="fas fa-trash fa-2x text-danger"></i>
+              </div>
+              <div>
+                <div class="fw-bold">{% trans "حذف المورد" %}</div>
+                <small class="text-muted">{% trans "حذف المورد نهائياً من النظام" %}</small>
+              </div>
+            </a>
+          </div>
         </div>
       </div>
     </div>
@@ -441,6 +544,16 @@
 <script src="{% static 'js/global-table.js' %}"></script>
 
 <script>
+function formatSmartNumber(val, suffix = ' ج.م') {
+    if (val === null || val === undefined || val === '') return '0' + suffix;
+    let num = parseFloat(val);
+    if (isNaN(num)) return '0' + suffix;
+    if (Number.isInteger(num) || Math.abs(num - Math.round(num)) < 0.00001) {
+        return Math.round(num).toLocaleString('en-US') + suffix;
+    }
+    return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + suffix;
+}
+
 function loadSupplierAging(supplierId) {
     const spinner = document.getElementById('aging-loading-spinner');
     const content = document.getElementById('aging-content');
@@ -455,11 +568,11 @@ function loadSupplierAging(supplierId) {
             content.classList.remove('d-none');
             if (data.success && data.aging) {
                 const ag = data.aging;
-                document.getElementById('val-current').innerText = ag.bucket_current.toFixed(2) + ' EGP';
-                document.getElementById('val-0-30').innerText = ag.bucket_0_30.toFixed(2) + ' EGP';
-                document.getElementById('val-31-60').innerText = ag.bucket_31_60.toFixed(2) + ' EGP';
-                document.getElementById('val-61-90').innerText = ag.bucket_61_90.toFixed(2) + ' EGP';
-                document.getElementById('val-90-plus').innerText = ag.bucket_90_plus.toFixed(2) + ' EGP';
+                document.getElementById('val-current').innerText = formatSmartNumber(ag.bucket_current);
+                document.getElementById('val-0-30').innerText = formatSmartNumber(ag.bucket_0_30);
+                document.getElementById('val-31-60').innerText = formatSmartNumber(ag.bucket_31_60);
+                document.getElementById('val-61-90').innerText = formatSmartNumber(ag.bucket_61_90);
+                document.getElementById('val-90-plus').innerText = formatSmartNumber(ag.bucket_90_plus);
             }
         })
         .catch(err => {

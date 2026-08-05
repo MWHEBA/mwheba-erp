@@ -89,6 +89,27 @@
     box-shadow: var(--shadow-sm);
 }
 
+/* 100% Unified Zebra Striping for all transaction tables */
+.transaction-table.table-striped > tbody > tr:nth-of-type(odd) > *,
+.transaction-table.table-striped > tbody > tr.odd > * {
+    --bs-table-accent-bg: #ffffff !important;
+    --bs-table-bg-type: #ffffff !important;
+    background-color: #ffffff !important;
+}
+
+.transaction-table.table-striped > tbody > tr:nth-of-type(even) > *,
+.transaction-table.table-striped > tbody > tr.even > * {
+    --bs-table-accent-bg: #f8fafc !important;
+    --bs-table-bg-type: #f8fafc !important;
+    background-color: #f8fafc !important;
+}
+
+.transaction-table > tbody > tr:hover > * {
+    --bs-table-accent-bg: #eef2f6 !important;
+    --bs-table-bg-type: #eef2f6 !important;
+    background-color: #eef2f6 !important;
+}
+
 /* تنسيق رؤوس الأعمدة */
 .transaction-table thead th {
     background-color: var(--primary-color);
