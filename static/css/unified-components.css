@@ -2128,9 +2128,6 @@ html[dir="rtl"] .border-right-danger {
 .row {
     display: flex;
     flex-wrap: wrap;
-    margin-left: unset;
-    margin-right: unset;
-    padding: 15px 5px;
 }
 
 .unified-col {
