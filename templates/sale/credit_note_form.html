@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{% trans "إصدار إشعار دائن جديد" %}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  {% include "shared/page_header.html" %}
+
+  <div class="row justify-content-center">
+    <div class="col-lg-8">
+      <div class="card border-0 shadow-sm rounded-3">
+        <div class="card-body p-4">
+          <form method="post" action="{% url 'sale:credit_note_create' %}">
+            {% csrf_token %}
+
+            {% if selected_sale %}
+            <div class="alert alert-info d-flex align-items-center mb-4">
+              <i class="fas fa-file-invoice-dollar fa-2x me-3"></i>
+              <div>
+                <div class="fw-bold">{% trans "مرتبط بالفاتورة رقم:" %} {{ selected_sale.number }}</div>
+                <small>{% trans "العميل:" %} {{ selected_sale.customer.name }} | {% trans "إجمالي الفاتورة:" %} {{ selected_sale.total }} EGP</small>
+              </div>
+            </div>
+            <input type="hidden" name="sale" value="{{ selected_sale.id }}">
+            <input type="hidden" name="customer" value="{{ selected_sale.customer.id }}">
+            {% else %}
+            <div class="mb-3">
+              <label class="form-label fw-bold">{% trans "اختيار العميل" %} <span class="text-danger">*</span></label>
+              <select name="customer" class="form-select" required>
+                <option value="">{% trans "-- اختر العميل --" %}</option>
+                {% for cust in customers %}
+                <option value="{{ cust.id }}">{{ cust.name }} ({% trans "كود:" %} {{ cust.code }})</option>
+                {% endfor %}
+              </select>
+            </div>
+            {% endif %}
+
+            <div class="mb-3">
+              <label class="form-label fw-bold">{% trans "نوع الإشعار الدائن / الخصم" %} <span class="text-danger">*</span></label>
+              <select name="source_type" class="form-select" required>
+                <option value="PRICE_ADJUSTMENT">{% trans "تسوية تسعير / خصم مالي" %}</option>
+                <option value="SALES_RETURN">{% trans "مرتجع مبيعات" %}</option>
+                <option value="MANUAL_ADJUSTMENT">{% trans "تسوية دائنة يدوية" %}</option>
+                <option value="INVOICE_CANCELLATION">{% trans "إلغاء فاتورة" %}</option>
+              </select>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label fw-bold">{% trans "المبلغ الإجمالي للإشعار (شامل الضريبة)" %} <span class="text-danger">*</span></label>
+              <div class="input-group">
+                <input type="number" step="0.01" min="0.01" name="amount" class="form-control" placeholder="0.00" required>
+                <span class="input-group-text">EGP</span>
+              </div>
+            </div>
+
+            <div class="mb-4">
+              <label class="form-label fw-bold">{% trans "سبب وتفاصيل التسوية" %}</label>
+              <textarea name="reason" rows="3" class="form-control" placeholder="{% trans 'اكتب سبب إصدار الإشعار الدائن بالتفصيل...' %}"></textarea>
+            </div>
+
+            <div class="d-flex justify-content-end gap-2">
+              <a href="{% url 'sale:credit_note_list' %}" class="btn btn-light">{% trans "إلغاء" %}</a>
+              <button type="submit" class="btn btn-primary px-4">
+                <i class="fas fa-check me-1"></i>{% trans "إصدار وتأكيد الإشعار الدائن" %}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -23,6 +23,17 @@ from core.models import SystemSetting
 logger = logging.getLogger(__name__)
 
 
+def get_status_color(status):
+    colors = {
+        'draft': 'secondary',
+        'confirmed': 'success',
+        'cancelled': 'danger',
+        'completed': 'success',
+        'pending': 'warning'
+    }
+    return colors.get(status, 'secondary')
+
+
 def _extract_posted_items(request):
     """
     استخراج البنود المرسلة في POST لإعادة عرضها في الواجهة في حالة وجود خطأ للنموذج
@@ -557,9 +568,12 @@ def sale_detail(request, pk):
         "returns": returns,
         "is_service_invoice": is_service_invoice,
         "statistics": statistics,
-        "title": f"تفاصيل فاتورة مبيعات - {sale.number}",
+        "title": f"فاتورة مبيعات {sale.number}",
         "page_title": f"فاتورة مبيعات {sale.number}",
-        "page_subtitle": f"العميل: {sale.customer.name} - التاريخ: {sale.date}",
+        "page_subtitle": _('العميل: <a href="{}" class="text-decoration-none fw-bold text-primary"><i class="fas fa-user-tie me-1"></i>{}</a>').format(
+            reverse("client:customer_detail", kwargs={"pk": sale.customer.id}),
+            sale.customer.name
+        ),
         "page_icon": "fas fa-file-invoice-dollar",
         "header_buttons": [
             *([{
@@ -615,17 +629,33 @@ def sale_detail(request, pk):
                     }
                 ]
             },
-            *([{
-                "url": reverse("sale:sale_print_thermal", kwargs={"pk": sale.pk}),
-                "icon": "fa-receipt",
-                "text": "طباعة حرارية",
-                "class": "btn-outline-secondary",
-            }] if SystemSetting.get_setting('enable_thermal_printing', 'false') == 'true' else []),
+            {
+                "url": f"{reverse('sale:credit_note_create')}?sale_id={sale.pk}",
+                "icon": "fa-file-invoice-dollar",
+                "text": "إصدار إشعار دائن",
+                "class": "btn-outline-danger",
+            },
         ],
+        "page_title": f"فاتورة مبيعات {sale.number}",
+        "page_subtitle": _('العميل: <a href="{}" class="text-decoration-none fw-bold text-primary"><i class="fas fa-user-tie me-1"></i>{}</a>').format(
+            reverse("client:customer_detail", kwargs={"pk": sale.customer.id}),
+            sale.customer.name
+        ),
+        "page_icon": "fas fa-file-invoice",
+        "header_badges": [
+            *([{"text": sale.work_order.number, "class": "bg-info text-white", "icon": "fas fa-tasks", "url": reverse("work_order:work_order_detail", kwargs={"pk": sale.work_order.pk})}] if hasattr(sale, 'work_order') and sale.work_order else []),
+            {"text": sale.get_status_display(), "class": f"bg-{get_status_color(sale.status)}", "icon": "fas fa-info-circle"}
+        ],
+        "active_menu": "sales",
         "breadcrumb_items": [
             {"title": "الرئيسية", "url": reverse("core:dashboard"), "icon": "fas fa-home"},
-            {"title": "المبيعات", "url": reverse("sale:sale_list"), "icon": "fas fa-shopping-cart"},
-            {"title": f"فاتورة {sale.number}", "active": True},
+            *([
+                {"title": "أوامر الشغل", "url": reverse("work_order:work_order_list"), "icon": "fas fa-tasks"},
+                {"title": f"أمر شغل {sale.work_order.number}", "url": reverse("work_order:work_order_detail", kwargs={"pk": sale.work_order.pk})},
+            ] if hasattr(sale, 'work_order') and sale.work_order else [
+                {"title": "المبيعات", "url": reverse("sale:sale_list"), "icon": "fas fa-shopping-cart"},
+            ]),
+            {"title": f"فاتورة مبيعات {sale.number}", "active": True},
         ],
     }
     return render(request, "sale/sale_detail.html", context)
@@ -1805,4 +1835,11 @@ from .quotation_views import (
     quotation_email_pdf,
     quotation_convert_to_sale,
     check_product_stock,
+)
+
+from .credit_note_views import (
+    credit_note_list,
+    credit_note_create,
+    credit_note_detail,
+    credit_note_post,
 )

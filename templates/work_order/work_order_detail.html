@@ -5,7 +5,7 @@
 {% load custom_filters %}
 {% load utils_extras %}
 
-{% block title %}{{ title }}{% endblock %}
+{% block title %}{{ page_title }}{% endblock %}
 
 {% block content %}
 <div class="container-fluid">
@@ -206,7 +206,7 @@
               </thead>
               <tbody>
                 {% for s in sales %}
-                <tr>
+                <tr class="clickable-row" data-href="{% url 'sale:sale_detail' s.id %}" style="cursor: pointer;">
                   <td class="fw-bold">{{ s.number }}</td>
                   <td>{{ s.date|date:"Y-m-d" }}</td>
                   <td>{{ s.get_payment_method_display }}</td>
@@ -256,7 +256,7 @@
               </thead>
               <tbody>
                 {% for p in purchases %}
-                <tr>
+                <tr class="clickable-row" data-href="{% url 'purchase:purchase_detail' p.id %}" style="cursor: pointer;">
                   <td class="fw-bold">{{ p.number }}</td>
                   <td>{{ p.supplier.name }}</td>
                   <td>{{ p.date|date:"Y-m-d" }}</td>
@@ -437,4 +437,21 @@
     </div>
   </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.clickable-row').forEach(row => {
+        row.addEventListener('click', function(e) {
+            if (e.target.closest('a, button, input, select')) return;
+            const href = this.getAttribute('data-href');
+            if (href) {
+                window.location.href = href;
+            }
+        });
+    });
+});
+</script>
 {% endblock %}

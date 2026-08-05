@@ -450,6 +450,13 @@ def quotation_detail(request, pk):
         {"text": quotation.number, "class": "bg-primary", "icon": "fas fa-hashtag"},
         {"text": quotation.get_status_display(), "class": f"bg-{get_status_color(quotation.status)}", "icon": "fas fa-info-circle"}
     ]
+    if hasattr(quotation, 'work_order') and quotation.work_order:
+        header_badges.append({
+            "text": quotation.work_order.number,
+            "class": "bg-info text-white",
+            "icon": "fas fa-tasks",
+            "url": reverse("work_order:work_order_detail", kwargs={"pk": quotation.work_order.pk})
+        })
     if quotation.converted_to_sale:
         header_badges.append({
             "text": _("محول لفاتورة: {}").format(quotation.converted_to_sale.number),
@@ -459,7 +466,16 @@ def quotation_detail(request, pk):
         })
 
     # أزرار الهيدر
-    header_buttons = [
+    header_buttons = []
+    if hasattr(quotation, 'work_order') and quotation.work_order:
+        header_buttons.append({
+            "url": reverse("work_order:work_order_detail", kwargs={"pk": quotation.work_order.pk}),
+            "icon": "fa-tasks",
+            "text": _("عرض أمر الشغل"),
+            "class": "btn-outline-info",
+        })
+
+    header_buttons.extend([
         *([{
             "url": reverse("sale:quotation_edit", kwargs={"pk": quotation.pk}),
             "icon": "fa-edit",
@@ -496,7 +512,7 @@ def quotation_detail(request, pk):
                 }
             ]
         }
-    ]
+    ])
     if not quotation.converted_to_sale:
         header_buttons.append({
             "url": "#",
@@ -512,17 +528,26 @@ def quotation_detail(request, pk):
         "quotation": quotation,
         "items": items,
         "warehouses": Warehouse.objects.filter(is_active=True).order_by('name'),
-        "page_title": quotation.number,
-        "page_subtitle": _("تفاصيل عرض السعر للعميل والبنود والكميات"),
+        "title": _("عرض سعر {}").format(quotation.number),
+        "page_title": _("عرض سعر {}").format(quotation.number),
+        "page_subtitle": _('العميل: <a href="{}" class="text-decoration-none fw-bold text-primary"><i class="fas fa-user-tie me-1"></i>{}</a>').format(
+            reverse("client:customer_detail", kwargs={"pk": quotation.customer.id}),
+            quotation.customer.name
+        ),
         "page_icon": "fas fa-file-signature",
         "header_badges": header_badges,
         "header_buttons": header_buttons,
         "active_menu": "sales",
         "breadcrumb_items": [
             {"title": _("الرئيسية"), "url": reverse("core:dashboard"), "icon": "fas fa-home"},
-            {"title": _("المبيعات"), "url": reverse("sale:sale_list"), "icon": "fas fa-shopping-cart"},
-            {"title": _("عروض الأسعار"), "url": reverse("sale:quotation_list")},
-            {"title": quotation.number, "active": True},
+            *([
+                {"title": _("أوامر الشغل"), "url": reverse("work_order:work_order_list"), "icon": "fas fa-tasks"},
+                {"title": _("أمر شغل {}").format(quotation.work_order.number), "url": reverse("work_order:work_order_detail", kwargs={"pk": quotation.work_order.pk})},
+            ] if hasattr(quotation, 'work_order') and quotation.work_order else [
+                {"title": _("المبيعات"), "url": reverse("sale:sale_list"), "icon": "fas fa-shopping-cart"},
+                {"title": _("عروض الأسعار"), "url": reverse("sale:quotation_list")},
+            ]),
+            {"title": _("عرض سعر {}").format(quotation.number), "active": True},
         ]
     }
     return render(request, "sale/quotation_detail.html", context)
@@ -731,6 +756,24 @@ def quotation_convert_to_sale(request, pk):
             
             if not warehouse_id:
                 raise ValueError(_("يرجى تحديد المخزن لإصدار الفاتورة."))
+
+            # التحقق الفعلي من توفر الرصيد المخزني لجميع البنود قبل التحويل
+            from product.models import Stock
+            insufficient_items = []
+            for item in quotation.items.all():
+                if not item.product.is_service and not item.product.is_bundle:
+                    stock_rec = Stock.objects.filter(product_id=item.product.id, warehouse_id=int(warehouse_id)).first()
+                    current_stock = stock_rec.quantity if stock_rec else Decimal("0")
+                    if current_stock < item.quantity:
+                        req_val = item.quantity
+                        req_fmt = f"{req_val:.0f}" if req_val % 1 == 0 else f"{req_val:.2f}"
+                        curr_fmt = f"{current_stock:.0f}" if current_stock % 1 == 0 else f"{current_stock:.2f}"
+                        insufficient_items.append(f"• {item.product.name} (المطلوب: {req_fmt} | المتوفر: {curr_fmt})")
+            
+            if insufficient_items:
+                msg_body = "تعذر تحويل عرض السعر لفاتورة: الكمية المتاحة في المخزن المحدد لا تكفي لتغطية الكميات المطلوبة في الفاتورة.<br>يرجى اختيار مخزن آخر به كميات كافية أو إضافة رصيد مخزني أولاً.<br><br><b>البنود التي بها عجز:</b><br>" + "<br>".join(insufficient_items)
+                messages.error(request, msg_body)
+                return redirect("sale:quotation_detail", pk=quotation.pk)
 
             sale_data = {
                 'date': timezone.now().date(),

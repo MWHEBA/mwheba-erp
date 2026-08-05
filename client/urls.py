@@ -20,4 +20,9 @@ urlpatterns = [
         views.customer_create_account,
         name="customer_create_account",
     ),
+    path(
+        "<int:pk>/aging-api/",
+        views.customer_aging_api,
+        name="customer_aging_api",
+    ),
 ]

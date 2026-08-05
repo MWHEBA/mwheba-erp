@@ -575,9 +575,12 @@ def purchase_detail(request, pk):
     context = {
         "purchase": purchase,
         "payments": payments,
-        "title": f"تفاصيل {invoice_type_name}",
-        "page_title": f"{invoice_type_name} - {purchase.number}",
-        "page_subtitle": f"عرض تفاصيل {invoice_type_name} وإدارتها",
+        "title": f"{invoice_type_name} {purchase.number}",
+        "page_title": f"{invoice_type_name} {purchase.number}",
+        "page_subtitle": _('المورد: <a href="{}" class="text-decoration-none fw-bold text-primary"><i class="fas fa-truck me-1"></i>{}</a>').format(
+            reverse("supplier:supplier_detail", args=[purchase.supplier.pk]),
+            purchase.supplier.name
+        ),
         "page_icon": purchase.invoice_type_icon,
         "show_post_alert": show_post_alert,
         "header_buttons": [
@@ -631,23 +634,31 @@ def purchase_detail(request, pk):
                 "target": "#actionsModal",
             },
         ],
+        "header_badges": [
+            *([{"text": purchase.work_order.number, "class": "bg-info text-white", "icon": "fas fa-tasks", "url": reverse("work_order:work_order_detail", kwargs={"pk": purchase.work_order.pk})}] if hasattr(purchase, 'work_order') and purchase.work_order else []),
+        ],
         "breadcrumb_items": [
             {
                 "title": "لوحة التحكم",
                 "url": reverse("core:dashboard"),
                 "icon": "fas fa-tachometer-alt",
             },
-            {
-                "title": "المشتريات",
-                "url": reverse("purchase:purchase_list"),
-                "icon": "fas fa-shopping-basket",
-            },
-            {
-                "title": purchase.supplier.name,
-                "url": reverse("supplier:supplier_detail", args=[purchase.supplier.pk]),
-                "icon": "fas fa-truck",
-            },
-            {"title": f"فاتورة {purchase.number}", "active": True},
+            *([
+                {"title": "أوامر الشغل", "url": reverse("work_order:work_order_list"), "icon": "fas fa-tasks"},
+                {"title": f"أمر شغل {purchase.work_order.number}", "url": reverse("work_order:work_order_detail", kwargs={"pk": purchase.work_order.pk})},
+            ] if hasattr(purchase, 'work_order') and purchase.work_order else [
+                {
+                    "title": "المشتريات",
+                    "url": reverse("purchase:purchase_list"),
+                    "icon": "fas fa-shopping-basket",
+                },
+                {
+                    "title": purchase.supplier.name,
+                    "url": reverse("supplier:supplier_detail", args=[purchase.supplier.pk]),
+                    "icon": "fas fa-truck",
+                },
+            ]),
+            {"title": f"{invoice_type_name} {purchase.number}", "active": True},
         ],
     }
     return render(request, "purchase/purchase_detail.html", context)

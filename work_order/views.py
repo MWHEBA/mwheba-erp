@@ -271,8 +271,8 @@ def work_order_detail(request, pk):
         est_cost_str = est_cost_str[:-3]
 
     context.update({
-        "title": _("تفاصيل أمر الشغل - {}").format(work_order.number),
-        "page_title": work_order.number,
+        "title": _("أمر شغل {}").format(work_order.number),
+        "page_title": _("أمر شغل {}").format(work_order.number),
         "page_subtitle": _('العميل: <a href="{}" class="text-decoration-none fw-bold text-primary"><i class="fas fa-user-tie me-1"></i>{}</a>').format(
             reverse("client:customer_detail", kwargs={"pk": work_order.customer.id}),
             work_order.customer.name
@@ -362,7 +362,7 @@ def work_order_detail(request, pk):
         "breadcrumb_items": [
             {"title": _("الرئيسية"), "url": reverse("core:dashboard"), "icon": "fas fa-home"},
             {"title": _("أوامر الشغل"), "url": reverse("work_order:work_order_list")},
-            {"title": work_order.number, "active": True},
+            {"title": _("أمر شغل {}").format(work_order.number), "active": True},
         ]
     })
     return render(request, "work_order/work_order_detail.html", context)

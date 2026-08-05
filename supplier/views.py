@@ -2266,3 +2266,28 @@ def service_type_schema_options_api(request):
         return JsonResponse({'success': True, 'options': options})
     except Exception as e:
         return JsonResponse({'success': False, 'options': [], 'message': str(e)})
+
+
+@login_required
+def supplier_aging_api(request, pk):
+    """
+    API لكشف شرائح أعمار ديون المورد الكسول (Lazy Supplier Aging Buckets)
+    """
+    supplier = get_object_or_404(Supplier, pk=pk)
+    from supplier.services.supplier_aging_service import SupplierAgingService
+    aging_data = SupplierAgingService.get_supplier_aging_report(supplier_ids=[supplier.id])
+    rows = aging_data.get('rows', [])
+    row = rows[0] if rows else {}
+    return JsonResponse({
+        'success': True,
+        'aging': {
+            'bucket_current': float(row.get('bucket_current') or 0),
+            'bucket_0_30': float(row.get('bucket_0_30') or 0),
+            'bucket_31_60': float(row.get('bucket_31_60') or 0),
+            'bucket_61_90': float(row.get('bucket_61_90') or 0),
+            'bucket_90_plus': float(row.get('bucket_90_plus') or 0),
+            'credit_balance': float(row.get('credit_balance') or 0),
+            'total_balance': float(row.get('total_balance') or 0),
+        }
+    })
+

@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load custom_filters %}
+
+{% block title %}{{ credit_note.credit_note_number }} - {% trans "تفاصيل الإشعار الدائن" %}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  {% include "shared/page_header.html" %}
+
+  <div class="card border-0 shadow-sm rounded-3 mb-4">
+    <div class="card-header bg-white border-bottom p-3 d-flex justify-content-between align-items-center">
+      <div class="d-flex align-items-center gap-2">
+        <h5 class="mb-0 fw-bold text-primary">{{ credit_note.credit_note_number }}</h5>
+        {% if credit_note.status == 'POSTED' %}
+        <span class="badge bg-success p-2"><i class="fas fa-check-circle me-1"></i>{% trans "مرحل مالياً للدفاتر" %}</span>
+        {% else %}
+        <span class="badge bg-primary p-2">{% trans "معتمد ومعد للترحيل" %}</span>
+        {% endif %}
+      </div>
+      <div>
+        {% if credit_note.status != 'POSTED' %}
+        <a href="{% url 'sale:credit_note_post' credit_note.id %}" class="btn btn-success">
+          <i class="fas fa-file-export me-1"></i>{% trans "ترحيل للدفاتر المحاسبية" %}
+        </a>
+        {% endif %}
+      </div>
+    </div>
+    <div class="card-body p-4">
+      <div class="row g-4 mb-4">
+        <div class="col-md-6 col-lg-3">
+          <small class="text-muted d-block mb-1">{% trans "العميل" %}</small>
+          <a href="{% url 'client:customer_detail' credit_note.customer.id %}" class="fw-bold text-dark text-decoration-none fs-6">
+            <i class="fas fa-user-circle text-primary me-1"></i>{{ credit_note.customer.name }}
+          </a>
+        </div>
+        <div class="col-md-6 col-lg-3">
+          <small class="text-muted d-block mb-1">{% trans "الفاتورة الأصلية المرتبطة" %}</small>
+          {% if credit_note.sale %}
+          <a href="{% url 'sale:sale_detail' credit_note.sale.id %}" class="fw-bold text-primary text-decoration-none fs-6">
+            <i class="fas fa-file-invoice me-1"></i>{{ credit_note.sale.number }}
+          </a>
+          {% else %}
+          <span class="text-muted">-</span>
+          {% endif %}
+        </div>
+        <div class="col-md-6 col-lg-3">
+          <small class="text-muted d-block mb-1">{% trans "تاريخ الإشعارات" %}</small>
+          <span class="fw-medium text-dark fs-6">{{ credit_note.created_at|date:"d-m-Y H:i" }}</span>
+        </div>
+        <div class="col-md-6 col-lg-3">
+          <small class="text-muted d-block mb-1">{% trans "السبب / البيان" %}</small>
+          <span class="fw-normal text-secondary fs-6">{{ credit_note.reason|default:"-" }}</span>
+        </div>
+      </div>
+
+      <div class="border-top pt-4">
+        <h6 class="fw-bold mb-3"><i class="fas fa-calculator me-2 text-primary"></i>{% trans "القيم المالية الحاكمة" %}</h6>
+        <div class="row g-3">
+          <div class="col-md-4">
+            <div class="p-3 bg-light rounded-3 text-center">
+              <small class="text-muted d-block mb-1">{% trans "المبلغ قبل الضريبة" %}</small>
+              <div class="fs-5 fw-bold text-dark">{{ credit_note.subtotal_amount|smart_float:2 }} EGP</div>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="p-3 bg-light rounded-3 text-center">
+              <small class="text-muted d-block mb-1">{% trans "مبلغ ضريبة المخرجات المعكوسة" %}</small>
+              <div class="fs-5 fw-bold text-warning">{{ credit_note.tax_amount|smart_float:2 }} EGP</div>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="p-3 bg-primary-subtle border border-primary-subtle rounded-3 text-center">
+              <small class="text-primary fw-bold d-block mb-1">{% trans "الإجمالي الكلي للإشعار" %}</small>
+              <div class="fs-4 fw-bold text-primary">{{ credit_note.total_amount|smart_float:2 }} EGP</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endblock %}

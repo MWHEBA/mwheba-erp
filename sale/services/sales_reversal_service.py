@@ -121,6 +121,44 @@ class SalesReversalService:
             return cn
 
     @classmethod
+    def create_credit_note_for_sale(
+        cls,
+        sale_id: int,
+        amount: Decimal,
+        reason: str = "Price Adjustment / Credit Note",
+        source_type: str = "PRICE_ADJUSTMENT",
+        user=None
+    ) -> CreditNote:
+        """
+        إنشاء وتصديق إشعار دائن مالي مباشر لفاتورة مبيعات معتمدة
+        """
+        from sale.models import Sale
+        with transaction.atomic():
+            sale_obj = Sale.objects.select_for_update().get(pk=sale_id)
+            cn_num = f"CN-{timezone.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:4].upper()}"
+
+            subtotal = (amount / Decimal("1.14")).quantize(Decimal("0.01"))
+            tax_amount = (amount - subtotal).quantize(Decimal("0.01"))
+
+            cn = CreditNote.objects.create(
+                credit_note_number=cn_num,
+                customer=sale_obj.customer,
+                sale=sale_obj,
+                source_type=source_type,
+                status="APPROVED",
+                reason=reason,
+                subtotal_amount=subtotal,
+                tax_amount=tax_amount,
+                total_amount=amount,
+                currency="EGP",
+                exchange_rate=Decimal("1.000000"),
+                created_by=user
+            )
+
+            logger.info(f"CreditNote #{cn.credit_note_number} created directly for Sale #{sale_obj.number} (Amount: {cn.total_amount}).")
+            return cn
+
+    @classmethod
     def post_credit_note(
         cls,
         credit_note_id: int,
@@ -186,8 +224,14 @@ class SalesReversalService:
                 journal_entry=journal_entry
             )
 
-            # 3. Create Credit Note Allocation if linked to SalesInvoice
-            if cn.sales_invoice:
+            # 3. Create Credit Note Allocation if linked to Sale or SalesInvoice
+            if cn.sale:
+                CreditNoteAllocation.objects.create(
+                    credit_note=cn,
+                    invoice_transaction_id=cn.sale.id,
+                    allocated_amount=cn.total_amount
+                )
+            elif cn.sales_invoice:
                 CreditNoteAllocation.objects.create(
                     credit_note=cn,
                     invoice_transaction_id=cn.sales_invoice.id,

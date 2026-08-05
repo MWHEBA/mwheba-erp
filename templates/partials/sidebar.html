@@ -99,11 +99,16 @@
                         
                         <div class="nav-divider"></div>
                         
-                        <!-- المرتجعات -->
-                        <li class="submenu-title">المرتجعات</li>
+                        <!-- المرتجعات والإشعارات الدائنة -->
+                        <li class="submenu-title">المرتجعات والتسويات</li>
                         <li>
                             <a href="{% url 'sale:sale_return_list' %}" class="submenu-link">
                                 <i class="fas fa-undo-alt me-2"></i>{% trans "مرتجعات المبيعات" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'sale:credit_note_list' %}" class="submenu-link">
+                                <i class="fas fa-file-invoice-dollar me-2"></i>{% trans "الإشعارات الدائنة" %}
                             </a>
                         </li>
                     </ul>

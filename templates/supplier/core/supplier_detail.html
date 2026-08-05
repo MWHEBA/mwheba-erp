@@ -131,6 +131,11 @@
             <i class="fas fa-file-alt me-2"></i>{% trans "كشف الحساب" %}
           </button>
         </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="aging-tab" data-bs-toggle="tab" data-bs-target="#aging-tab-pane" type="button" role="tab" aria-controls="aging-tab-pane" aria-selected="false" data-supplier-id="{{ supplier.id }}">
+            <i class="fas fa-clock me-2"></i>{% trans "أعمار الديون" %}
+          </button>
+        </li>
       </ul>
     </div>
     <div class="card-body p-3">
@@ -332,6 +337,50 @@
       </div>
       {% endif %}
 
+      <!-- تاب أعمار الديون الكسول -->
+      <div class="tab-pane fade" id="aging-tab-pane" role="tabpanel" aria-labelledby="aging-tab" tabindex="0">
+        <div id="aging-loading-spinner" class="text-center py-4">
+          <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">{% trans "جاري التحميل..." %}</span>
+          </div>
+          <div class="mt-2 text-muted small">{% trans "جاري احتساب شرائح أعمار الديون..." %}</div>
+        </div>
+        <div id="aging-content" class="d-none p-3">
+          <div class="row g-3 text-center">
+            <div class="col">
+              <div class="p-3 bg-light rounded border">
+                <small class="text-muted d-block mb-1">{% trans "الحالي (غير مستحق)" %}</small>
+                <div id="val-current" class="fw-bold text-dark fs-6">0.00 EGP</div>
+              </div>
+            </div>
+            <div class="col">
+              <div class="p-3 bg-info-subtle border border-info-subtle rounded">
+                <small class="text-info-emphasis d-block mb-1">{% trans "1 - 30 يوماً" %}</small>
+                <div id="val-0-30" class="fw-bold text-info fs-6">0.00 EGP</div>
+              </div>
+            </div>
+            <div class="col">
+              <div class="p-3 bg-warning-subtle border border-warning-subtle rounded">
+                <small class="text-warning-emphasis d-block mb-1">{% trans "31 - 60 يوماً" %}</small>
+                <div id="val-31-60" class="fw-bold text-warning fs-6">0.00 EGP</div>
+              </div>
+            </div>
+            <div class="col">
+              <div class="p-3 bg-danger-subtle border border-danger-subtle rounded">
+                <small class="text-danger-emphasis d-block mb-1">{% trans "61 - 90 يوماً" %}</small>
+                <div id="val-61-90" class="fw-bold text-danger fs-6">0.00 EGP</div>
+              </div>
+            </div>
+            <div class="col">
+              <div class="p-3 bg-danger text-white rounded">
+                <small class="d-block mb-1 opacity-75">{% trans "+90 يوماً" %}</small>
+                <div id="val-90-plus" class="fw-bold fs-6">0.00 EGP</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div> <!-- End tab-content -->
     </div> <!-- End card-body -->
 </div> <!-- End container-fluid -->
@@ -392,7 +441,43 @@
 <script src="{% static 'js/global-table.js' %}"></script>
 
 <script>
+function loadSupplierAging(supplierId) {
+    const spinner = document.getElementById('aging-loading-spinner');
+    const content = document.getElementById('aging-content');
+    if (!content || !spinner) return;
+    if (!content.classList.contains('d-none')) return;
+    
+    const apiUrl = `{% url 'supplier:supplier_aging_api' 0 %}`.replace('/0/', `/${supplierId}/`);
+    fetch(apiUrl)
+        .then(res => res.json())
+        .then(data => {
+            spinner.classList.add('d-none');
+            content.classList.remove('d-none');
+            if (data.success && data.aging) {
+                const ag = data.aging;
+                document.getElementById('val-current').innerText = ag.bucket_current.toFixed(2) + ' EGP';
+                document.getElementById('val-0-30').innerText = ag.bucket_0_30.toFixed(2) + ' EGP';
+                document.getElementById('val-31-60').innerText = ag.bucket_31_60.toFixed(2) + ' EGP';
+                document.getElementById('val-61-90').innerText = ag.bucket_61_90.toFixed(2) + ' EGP';
+                document.getElementById('val-90-plus').innerText = ag.bucket_90_plus.toFixed(2) + ' EGP';
+            }
+        })
+        .catch(err => {
+            spinner.classList.add('d-none');
+            content.classList.remove('d-none');
+        });
+}
+
 document.addEventListener('DOMContentLoaded', function() {
+    const agingTabBtn = document.getElementById('aging-tab');
+    if (agingTabBtn) {
+        agingTabBtn.addEventListener('click', function() {
+            const suppId = this.getAttribute('data-supplier-id');
+            if (suppId) {
+                loadSupplierAging(suppId);
+            }
+        });
+    }
     // تهيئة الجداول باستخدام النظام الموحد مع ترتيب من الأحدث للأقدم
     if (typeof window.GlobalTableManager !== 'undefined') {
         // جدول الفواتير - ترتيب حسب التاريخ (عمود 1) تنازلياً

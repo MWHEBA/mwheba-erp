@@ -6,7 +6,7 @@
 {% load app_tags %}
 {% load module_tags %}
 
-{% block title %}{{ quotation.number }} - {% trans "تفاصيل عرض السعر" %}{% endblock %}
+{% block title %}{{ page_title }}{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/variables.css' %}">
@@ -189,7 +189,7 @@
     }
     
     /* صندوق ملخص المبالغ */
-    .quotation-summary {
+    .quotation-summary, .invoice-summary {
         background-color: var(--gray-50);
         border-radius: var(--border-radius);
         padding: var(--spacing-4);
@@ -199,7 +199,7 @@
         border: 1px solid var(--gray-200);
     }
     
-    .quotation-summary::before {
+    .quotation-summary::before, .invoice-summary::before {
         content: '';
         position: absolute;
         top: 0;
@@ -298,7 +298,7 @@
     }
     
     /* قسم الملاحظات والشروط */
-    .quotation-notes {
+    .quotation-notes, .invoice-notes {
         margin-top: var(--spacing-6);
         padding: var(--spacing-4);
         background-color: var(--gray-50);
@@ -553,20 +553,20 @@
             </div>
             <div class="summary-row">
               <div class="summary-label">{% trans "الإجمالي الكلي:" %}</div>
-              <div class="summary-value text-success font-weight-bold">{{ quotation.total|currency }}</div>
+              <div class="summary-value font-weight-bold">{{ quotation.total|currency }}</div>
             </div>
           </div>
 
           <!-- شروط وأحكام عرض السعر وملاحظاته -->
           {% if quotation.notes %}
-          <div class="quotation-notes">
+          <div class="quotation-notes mt-4">
             <div class="notes-title"><i class="fas fa-sticky-note me-2"></i> {% trans "ملاحظات وشروط عرض السعر:" %}</div>
             <div class="notes-content">{{ quotation.notes|safe }}</div>
           </div>
           {% endif %}
 
           {% if quotation.has_body_custom_fields %}
-          <div class="quotation-notes mt-3">
+          <div class="quotation-notes mt-4">
             <div class="notes-title"><i class="fas fa-list-ul me-2 text-primary"></i> {% trans "الحقول الإضافية المخصصة:" %}</div>
             <div class="row g-3 mt-1">
               {% for field in quotation.merged_custom_fields %}
@@ -583,11 +583,10 @@
           </div>
           {% endif %}
           
-          <!-- شريط الإجراءات والتحويل المتكامل -->
-          <div class="action-bar">
-            <!-- استمارة التحويل لفاتورة مبيعات آجل (إذا لم يتم تحويلها مسبقاً) -->
-            {% if not quotation.converted_to_sale %}
-            <div class="p-3 bg-white border rounded mb-2">
+          <!-- استمارة التحويل لفاتورة مبيعات آجل (بدون action-bar-buttons) -->
+          {% if not quotation.converted_to_sale %}
+          <div class="action-bar mt-4">
+            <div class="p-3 bg-white border rounded">
               <form method="post" action="{% url 'sale:quotation_convert_to_sale' quotation.id %}">
                 {% csrf_token %}
                 <div class="row align-items-end g-3">
@@ -607,23 +606,8 @@
                 </div>
               </form>
             </div>
-            {% endif %}
-            
-            <!-- أزرار التحكم والإجراءات المتاحة -->
-            <div class="action-bar-buttons">
-              <!-- إعدادات وإجراءات أمر الشغل المرتبط -->
-              {% is_module_enabled 'work_orders' as work_orders_enabled %}
-              {% if quotation.work_order %}
-              <a href="{% url 'work_order:work_order_detail' quotation.work_order.id %}" class="action-button btn-work-order">
-                <i class="fas fa-eye"></i>{% trans "عرض تفاصيل أمر الشغل" %}
-              </a>
-              {% elif work_orders_enabled %}
-              <a href="{% url 'work_order:work_order_create' %}?customer_id={{ quotation.customer.id }}&quotation_id={{ quotation.id }}" class="action-button btn-work-order">
-                <i class="fas fa-tasks"></i>{% trans "إنشاء أمر شغل مرتبط" %}
-              </a>
-              {% endif %}
-            </div>
           </div>
+          {% endif %}
           
         </div>
       </div>
@@ -671,20 +655,64 @@
   </div>
 </div>
 {% endif %}
+
+<!-- حاوية رسائل النظام لعرض SweetAlert2 -->
+{% if messages %}
+<div id="django-messages-container" class="d-none">
+  {% for message in messages %}
+  <div class="django-msg" data-tags="{{ message.tags }}" data-html="{{ message|escapejs }}"></div>
+  {% endfor %}
+</div>
+{% endif %}
+
 {% endblock %}
 
 {% block extra_js %}
 {{ block.super }}
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         var deleteLink = document.getElementById('delete-quotation-link');
         if (deleteLink) {
             deleteLink.addEventListener('click', function(e) {
-                if (!confirm('{% trans "هل أنت متأكد من حذف عرض السعر هذا؟" %}')) {
-                    e.preventDefault();
-                }
+                e.preventDefault();
+                const targetUrl = this.getAttribute('href');
+                Swal.fire({
+                    title: "{% trans 'حذف عرض السعر' %}",
+                    text: "{% trans 'هل أنت متأكد من حذف عرض السعر هذا نهائياً؟' %}",
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#d33',
+                    cancelButtonColor: '#6c757d',
+                    confirmButtonText: "{% trans 'نعم، احذف' %}",
+                    cancelButtonText: "{% trans 'إلغاء' %}"
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        window.location.href = targetUrl;
+                    }
+                });
             });
         }
+
+        // عرض رسائل النظام عبر SweetAlert2 مع دعم تعدد الأسطر للغة العربية
+        const msgElems = document.querySelectorAll('#django-messages-container .django-msg');
+        msgElems.forEach(function(el) {
+            const tags = el.getAttribute('data-tags') || 'info';
+            const htmlContent = el.getAttribute('data-html');
+            const iconType = tags.includes('error') ? 'error' : (tags.includes('success') ? 'success' : 'info');
+            const titleText = tags.includes('error') ? '{% trans "تعذر إجراء العملية" %}' : '{% trans "إشعار" %}';
+
+            Swal.fire({
+                title: titleText,
+                html: `<div style="text-align: right; direction: rtl; line-height: 1.6;">${htmlContent}</div>`,
+                icon: iconType,
+                confirmButtonText: '{% trans "حسناً" %}',
+                confirmButtonColor: '#3085d6',
+                customClass: {
+                    popup: 'text-end'
+                }
+            });
+        });
     });
 </script>
 {% endblock %}

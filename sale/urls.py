@@ -68,4 +68,10 @@ urlpatterns = [
     path("custom-fields/<int:pk>/toggle/", views.custom_field_toggle, name="custom_field_toggle"),
     path("custom-fields/<int:pk>/delete/", views.custom_field_delete, name="custom_field_delete"),
     path("custom-fields/api/create/", views.api_create_custom_field, name="api_create_custom_field"),
+
+    # الإشعارات الدائنة والخصومات المالية
+    path("credit-notes/", views.credit_note_list, name="credit_note_list"),
+    path("credit-notes/create/", views.credit_note_create, name="credit_note_create"),
+    path("credit-notes/<int:pk>/", views.credit_note_detail, name="credit_note_detail"),
+    path("credit-notes/<int:pk>/post/", views.credit_note_post, name="credit_note_post"),
 ]

@@ -1230,9 +1230,32 @@ def customer_add_ajax(request):
                 new_number = int(digits) + 1
         except Exception:
             pass
-    code = f'CUST{new_number:04d}'
     return JsonResponse({
         'success': True,
         'code': code
+    })
+
+
+@login_required
+def customer_aging_api(request, pk):
+    """
+    API لكشف شرائح أعمار ديون العميل الكسول (Lazy Aging Buckets)
+    """
+    customer = get_object_or_404(Customer, pk=pk)
+    from client.services.customer_aging_service import CustomerAgingService
+    aging_data = CustomerAgingService.get_customer_aging_report(customer_ids=[customer.id])
+    rows = aging_data.get('rows', [])
+    row = rows[0] if rows else {}
+    return JsonResponse({
+        'success': True,
+        'aging': {
+            'bucket_current': float(row.get('bucket_current') or 0),
+            'bucket_0_30': float(row.get('bucket_0_30') or 0),
+            'bucket_31_60': float(row.get('bucket_31_60') or 0),
+            'bucket_61_90': float(row.get('bucket_61_90') or 0),
+            'bucket_90_plus': float(row.get('bucket_90_plus') or 0),
+            'credit_balance': float(row.get('credit_balance') or 0),
+            'total_balance': float(row.get('total_balance') or 0),
+        }
     })
 
