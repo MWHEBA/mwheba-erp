@@ -447,6 +447,21 @@
                             </a>
                         </li>
                         <li>
+                            <a href="{% url 'financial:budget_list' %}" class="submenu-link">
+                                <i class="fas fa-calculator me-2"></i>{% trans "الموازنات التقديرية" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'financial:budget_override_list' %}" class="submenu-link">
+                                <i class="fas fa-user-shield me-2"></i>{% trans "استثناءات الموازنة" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'financial:budget_performance_report' %}" class="submenu-link">
+                                <i class="fas fa-chart-line me-2"></i>{% trans "تقرير تباين الموازنة" %}
+                            </a>
+                        </li>
+                        <li>
                             <a href="{% url 'financial:expense_list' %}" class="submenu-link">
                                 <i class="fas fa-money-bill-alt me-2"></i>{% trans "المصروفات" %}
                             </a>

@@ -177,10 +177,17 @@ class LedgerCoreService:
             update_fields = ["status", "posted_at", "posted_by"]
             if hasattr(entry, "posting_source") and "posting_source" in [f.name for f in entry._meta.fields]:
                 update_fields.append("posting_source")
-            if hasattr(entry, "posting_reference") and "posting_reference" in [f.name for f in entry._meta.fields]:
-                update_fields.append("posting_reference")
-
             entry.save(update_fields=update_fields)
+
+            # تحديث كاش لقطات المنفق الفعلي لجميع مراكز التكلفة المرتبطة فور الترحيل
+            from financial.services.budget_actual_service import BudgetActualService
+            for line in entry.lines.all():
+                if line.cost_center and entry.accounting_period:
+                    BudgetActualService.update_actual_snapshot(
+                        cost_center=line.cost_center,
+                        account=line.account,
+                        accounting_period=entry.accounting_period
+                    )
 
             return entry
 

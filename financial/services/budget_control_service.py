@@ -71,7 +71,7 @@ class BudgetControlService:
                 if approved_override:
                     return True
 
-            if policy == 'BLOCK':
+            if policy in ['BLOCK', 'REQUIRES_APPROVAL']:
                 raise BudgetExceededError(
                     _("حظر الحوكمة: القيد يتجاوز موازنة مركز التكلفة (%(cost_center)s) للحساب (%(account)s) بمبلغ (%(excess)s). السقف المعتمد: (%(allocated)s) - المتبقي: (%(remaining)s).") % {
                         'cost_center': cost_center.name,

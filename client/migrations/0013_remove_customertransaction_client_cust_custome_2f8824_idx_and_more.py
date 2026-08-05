@@ -12,12 +12,18 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RemoveIndex(
-            model_name="customertransaction",
-            name="client_cust_custome_2f8824_idx",
-        ),
-        migrations.RemoveIndex(
-            model_name="customertransaction",
-            name="client_cust_transac_9e10a8_idx",
+        migrations.SeparateDatabaseAndState(
+            state_operations=[
+                migrations.RemoveIndex(
+                    model_name="customertransaction",
+                    name="client_cust_custome_2f8824_idx",
+                ),
+                migrations.RemoveIndex(
+                    model_name="customertransaction",
+                    name="client_cust_transac_9e10a8_idx",
+                ),
+            ],
+            database_operations=[],
         ),
     ]
+

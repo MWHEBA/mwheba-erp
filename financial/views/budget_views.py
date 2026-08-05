@@ -122,7 +122,22 @@ def budget_create(request):
 
     cost_centers = CostCenter.objects.filter(is_active=True).order_by('code')
     fiscal_years = FiscalYear.objects.all().order_by('-start_date')
+    if not fiscal_years.exists():
+        from datetime import date
+        current_year = timezone.now().year
+        fy, _ = FiscalYear.objects.get_or_create(
+            year_code=str(current_year),
+            defaults={
+                'name': f'السنة المالية {current_year}',
+                'start_date': date(current_year, 1, 1),
+                'end_date': date(current_year, 12, 31),
+                'status': 'open'
+            }
+        )
+        fiscal_years = FiscalYear.objects.all().order_by('-start_date')
+
     accounts = ChartOfAccounts.objects.filter(is_active=True, is_leaf=True).order_by('code')
+
     control_policies = CostCenterBudgetLine.CONTROL_POLICIES
 
     selected_cost_center_id = request.GET.get('cost_center')
