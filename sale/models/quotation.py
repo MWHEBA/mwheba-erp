@@ -111,31 +111,9 @@ class Quotation(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.number:
-            from product.models import SerialNumber
-            # البحث عن آخر رقم مستخدم
-            last_quotation = Quotation.objects.order_by("-id").first()
-            last_number = 0
-            if last_quotation and last_quotation.number:
-                try:
-                    last_number = int(last_quotation.number.replace("QT", ""))
-                except (ValueError, AttributeError):
-                    pass
-
-            serial, created = SerialNumber.objects.get_or_create(
-                document_type="quotation",
-                year=timezone.now().year,
-                defaults={"prefix": "QT", "last_number": last_number},
-            )
-
-            if serial.last_number <= last_number:
-                serial.last_number = last_number
-                serial.save()
-
-            next_num_str = str(serial.get_next_number())
-            if next_num_str.startswith(serial.prefix):
-                self.number = next_num_str
-            else:
-                self.number = f"{serial.prefix}{next_num_str}"
+            from core.services.sequence_service import SequenceService
+            from core.enums.document_types import DocumentType
+            self.number = SequenceService.get_next_number(DocumentType.SALES_ORDER, date=self.date)
 
         super().save(*args, **kwargs)
 

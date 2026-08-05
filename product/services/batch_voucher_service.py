@@ -179,34 +179,13 @@ class BatchVoucherService:
             'transfer': 'transfer_out',
         }
         
-        # توليد أرقام الحركات مسبقاً لتجنب race condition
-        from product.models.system_utils import SerialNumber
-        
-        serial, created = SerialNumber.objects.get_or_create(
-            document_type="inventory_movement",
-            year=batch_voucher.voucher_date.year,
-            defaults={"prefix": "INV", "last_number": 0},
-        )
-        
-        # إذا كان SerialNumber جديد، نتحقق من آخر رقم موجود في الـ database
-        if created or serial.last_number == 0:
-            last_movement = InventoryMovement.objects.filter(
-                movement_number__startswith=serial.prefix
-            ).order_by('-movement_number').first()
-            
-            if last_movement:
-                try:
-                    last_num = int(last_movement.movement_number.replace(serial.prefix, ''))
-                    if last_num > serial.last_number:
-                        serial.last_number = last_num
-                        serial.save()
-                except ValueError:
-                    pass
-        
+        from core.services.sequence_service import SequenceService
+        from core.enums.document_types import DocumentType
+
         for item in batch_voucher.items.all():
-            # توليد رقم الحركة مسبقاً
-            movement_number = serial.get_next_number()
-            movement_number_str = f"{serial.prefix}{movement_number:04d}"
+            mtype = movement_type_map[batch_voucher.voucher_type]
+            doc_type = DocumentType.STOCK_RECEIPT if mtype in ['in', 'receipt'] else DocumentType.STOCK_ISSUE
+            movement_number_str = SequenceService.get_next_number(doc_type, warehouse=batch_voucher.warehouse, date=batch_voucher.voucher_date)
             
             # إنشاء الحركة الأساسية
             movement = InventoryMovement.objects.create(

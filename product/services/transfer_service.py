@@ -363,13 +363,6 @@ class TransferService:
     
     def _generate_transfer_number(self) -> str:
         """توليد رقم التحويل"""
-        from product.models.system_utils import SerialNumber
-        
-        serial = SerialNumber.objects.get_or_create(
-            document_type='stock_transfer',
-            year=timezone.now().year,
-            defaults={'prefix': 'TRF'}
-        )[0]
-        
-        next_number = serial.get_next_number()
-        return f"{serial.prefix}{next_number:04d}"
+        from core.services.sequence_service import SequenceService
+        from core.enums.document_types import DocumentType
+        return SequenceService.get_next_number(DocumentType.STOCK_TRANSFER)

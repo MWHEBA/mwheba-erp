@@ -297,20 +297,9 @@ def sale_create(request, customer_id=None):
     # الحصول على الرقم التسلسلي التالي
     next_sale_number = None
     try:
-        serial, created = SerialNumber.objects.get_or_create(
-            document_type="sale",
-            year=timezone.now().year,
-            defaults={"prefix": "SALE", "last_number": 0},
-        )
-        last_sale = Sale.objects.order_by("-id").first()
-        last_number = 0
-        if last_sale and last_sale.number:
-            try:
-                last_number = int(last_sale.number.replace("SALE", ""))
-            except (ValueError, AttributeError):
-                pass
-        next_number = max(serial.last_number, last_number) + 1
-        next_sale_number = f"{serial.prefix}{next_number:04d}"
+        from core.services.sequence_service import SequenceService
+        from core.enums.document_types import DocumentType
+        next_sale_number = SequenceService.get_next_number(DocumentType.SALES_INVOICE)
     except Exception as e:
         logger.error(f"خطأ في الحصول على الرقم التالي: {str(e)}")
 
@@ -1528,20 +1517,9 @@ def sale_duplicate(request, pk):
     # رقم الفاتورة الجديد
     next_sale_number = None
     try:
-        serial, _ = SerialNumber.objects.get_or_create(
-            document_type="sale",
-            year=timezone.now().year,
-            defaults={"prefix": "SALE", "last_number": 0},
-        )
-        last_sale = Sale.objects.order_by("-id").first()
-        last_number = 0
-        if last_sale and last_sale.number:
-            try:
-                last_number = int(last_sale.number.replace("SALE", ""))
-            except (ValueError, AttributeError):
-                pass
-        next_number = max(serial.last_number, last_number) + 1
-        next_sale_number = f"{serial.prefix}{next_number:04d}"
+        from core.services.sequence_service import SequenceService
+        from core.enums.document_types import DocumentType
+        next_sale_number = SequenceService.get_next_number(DocumentType.SALES_INVOICE)
     except Exception as e:
         logger.error(f"خطأ في الحصول على الرقم التالي: {str(e)}")
 

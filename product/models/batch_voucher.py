@@ -173,22 +173,11 @@ class BatchVoucher(models.Model):
             }
             prefix = prefix_map.get(self.voucher_type, 'BV')
             
-            # استخدام اسم أقصر للـ document_type
-            doc_type_map = {
-                'receipt': 'batch_rcpt',
-                'issue': 'batch_issue',
-                'transfer': 'batch_xfer',
-            }
-            doc_type = doc_type_map.get(self.voucher_type, 'batch')
-            
-            serial = SerialNumber.objects.get_or_create(
-                document_type=doc_type,
-                year=timezone.now().year,
-                defaults={'prefix': prefix}
-            )[0]
-            next_number = serial.get_next_number()
-            self.voucher_number = f"{serial.prefix}{next_number:04d}"
-        
+            from core.services.sequence_service import SequenceService
+            from core.enums.document_types import DocumentType
+            doc_type = DocumentType.STOCK_RECEIPT if self.voucher_type == 'receipt' else (DocumentType.STOCK_ISSUE if self.voucher_type == 'issue' else DocumentType.STOCK_TRANSFER)
+            self.voucher_number = SequenceService.get_next_number(doc_type, warehouse=self.warehouse, date=getattr(self, 'voucher_date', None))
+
         super().save(*args, **kwargs)
     
     def can_edit(self):

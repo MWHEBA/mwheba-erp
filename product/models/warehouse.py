@@ -111,16 +111,9 @@ class StockTransfer(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.transfer_number:
-            # توليد رقم التحويل تلقائياً
-            from .system_utils import SerialNumber
-
-            serial = SerialNumber.objects.get_or_create(
-                document_type="stock_transfer",
-                year=timezone.now().year,
-                defaults={"prefix": "TRF"},
-            )[0]
-            next_number = serial.get_next_number()
-            self.transfer_number = f"{serial.prefix}{next_number:04d}"
+            from core.services.sequence_service import SequenceService
+            from core.enums.document_types import DocumentType
+            self.transfer_number = SequenceService.get_next_number(DocumentType.STOCK_TRANSFER, date=getattr(self, 'date', None))
 
         super().save(*args, **kwargs)
 

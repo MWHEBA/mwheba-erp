@@ -258,19 +258,10 @@ class InventoryMovement(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.movement_number:
-            # توليد رقم الحركة تلقائياً
-            from .system_utils import SerialNumber
-
-            serial = SerialNumber.objects.get_or_create(
-                document_type="inventory_movement",
-                year=timezone.now().year,
-                defaults={"prefix": "INV"},
-            )[0]
-            next_num_str = str(serial.get_next_number())
-            if next_num_str.startswith(serial.prefix):
-                self.movement_number = next_num_str
-            else:
-                self.movement_number = f"{serial.prefix}{next_num_str}"
+            from core.services.sequence_service import SequenceService
+            from core.enums.document_types import DocumentType
+            doc_type = DocumentType.STOCK_RECEIPT if getattr(self, 'movement_type', '') in ['in', 'receipt'] else DocumentType.STOCK_ISSUE
+            self.movement_number = SequenceService.get_next_number(doc_type, warehouse=getattr(self, 'warehouse', None), date=getattr(self, 'date', None))
 
         # حساب التكلفة الإجمالية
         self.total_cost = self.quantity * self.unit_cost
@@ -486,16 +477,13 @@ class InventoryAdjustment(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.adjustment_number:
-            # توليد رقم التسوية تلقائياً
-            from .system_utils import SerialNumber
-
-            serial = SerialNumber.objects.get_or_create(
-                document_type="inventory_adjustment",
-                year=timezone.now().year,
-                defaults={"prefix": "ADJ"},
-            )[0]
-            next_number = serial.get_next_number()
-            self.adjustment_number = f"{serial.prefix}{next_number:04d}"
+            from core.services.sequence_service import SequenceService
+            from core.enums.document_types import DocumentType
+            self.adjustment_number = SequenceService.get_next_number(
+                DocumentType.INVENTORY_ADJUSTMENT,
+                warehouse=self.warehouse,
+                date=getattr(self, 'adjustment_date', None)
+            )
 
         super().save(*args, **kwargs)
 

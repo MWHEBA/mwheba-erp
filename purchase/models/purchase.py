@@ -234,36 +234,9 @@ class Purchase(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.number:
-            # الحصول على الرقم التسلسلي
-            from product.models import SerialNumber
-
-            # البحث عن آخر رقم مستخدم
-            last_purchase = Purchase.objects.order_by("-number").first()
-            if last_purchase:
-                try:
-                    last_number = int(last_purchase.number.replace("PUR", ""))
-                except ValueError:
-                    last_number = 0
-            else:
-                last_number = 0
-
-            # إنشاء أو تحديث الرقم التسلسلي
-            serial = SerialNumber.objects.get_or_create(
-                document_type="purchase",
-                year=timezone.now().year,
-                defaults={"prefix": "PUR", "last_number": last_number},
-            )[0]
-
-            # تحديث آخر رقم إذا كان أقل من الرقم الحالي
-            if serial.last_number <= last_number:
-                serial.last_number = last_number
-                serial.save()
-
-            next_num_str = str(serial.get_next_number())
-            if next_num_str.startswith(serial.prefix):
-                self.number = next_num_str
-            else:
-                self.number = f"{serial.prefix}{next_num_str}"
+            from core.services.sequence_service import SequenceService
+            from core.enums.document_types import DocumentType
+            self.number = SequenceService.get_next_number(DocumentType.PURCHASE_ORDER, date=getattr(self, 'created_at', None))
 
         # حفظ الفاتورة أولاً
         is_new = self.pk is None

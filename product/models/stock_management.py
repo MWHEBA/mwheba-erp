@@ -425,18 +425,10 @@ class StockMovement(models.Model):
         """
         # توليد رقم الحركة إذا لم يكن موجوداً
         if not self.number:
-            from .system_utils import SerialNumber
-            serial = SerialNumber.objects.get_or_create(
-                document_type="stock_movement",
-                year=timezone.now().year,
-                defaults={"prefix": "MOV"},
-            )[0]
-            next_number = serial.get_next_number()
-            next_num_str = str(next_number)
-            if next_num_str.startswith(serial.prefix):
-                self.number = next_num_str
-            else:
-                self.number = f"{serial.prefix}{next_num_str}"
+            from core.services.sequence_service import SequenceService
+            from core.enums.document_types import DocumentType
+            doc_type = DocumentType.STOCK_RECEIPT if getattr(self, 'movement_type', '') in ['in', 'receipt'] else DocumentType.STOCK_ISSUE
+            self.number = SequenceService.get_next_number(doc_type, warehouse=getattr(self, 'warehouse', None), date=getattr(self, 'date', None))
 
         # حفظ الحركة
         is_new = self.pk is None

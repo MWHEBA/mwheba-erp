@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 نماذج الأدوات النظامية
-يحتوي على: SerialNumber
+يحتوي على: SerialNumber (مغلف متوافق مع الكود القديم يستدعي SequenceService)
 """
 from django.db import models
 from django.utils.translation import gettext_lazy as _
@@ -10,7 +10,7 @@ from django.utils import timezone
 
 class SerialNumber(models.Model):
     """
-    نموذج لتتبع الأرقام التسلسلية للمستندات
+    نموذج لتتبع الأرقام التسلسلية للمستندات (مع المحافظة على التوافق الرجعي)
     """
 
     DOCUMENT_TYPES = (
@@ -36,28 +36,36 @@ class SerialNumber(models.Model):
     @classmethod
     def get_next_sequence(cls, document_type, prefix="", year=None, padding=4):
         """
-        الحصول على الرقم التالي في التسلسل بطريقة ذرية موحدة تمنع الـ Race Condition
-        وتضمن التوافق التام مع قواعد البيانات المتعددة بدون استعلامات نصية مكررة.
+        توجيه الطلبات لمحرك SequenceService الرئيسي الموحد مع التوافق التام
         """
-        from django.db import transaction
-        if year is None:
-            year = timezone.now().year
+        from core.services.sequence_service import SequenceService
+        from core.enums.document_types import DocumentType
 
-        with transaction.atomic():
-            serial, created = cls.objects.select_for_update().get_or_create(
-                document_type=document_type,
-                year=year,
-                defaults={"prefix": prefix, "last_number": 0}
-            )
-            serial.last_number += 1
-            if prefix and serial.prefix != prefix:
-                serial.prefix = prefix
-                serial.save(update_fields=["last_number", "prefix"])
-            else:
-                serial.save(update_fields=["last_number"])
+        # Map legacy document type strings to DocumentType Enum
+        doc_type_map = {
+            "sale": DocumentType.SALES_INVOICE,
+            "sales_invoice": DocumentType.SALES_INVOICE,
+            "sales_order": DocumentType.SALES_ORDER,
+            "delivery_note": DocumentType.DELIVERY_NOTE,
+            "purchase": DocumentType.PURCHASE_INVOICE,
+            "purchase_order": DocumentType.PURCHASE_ORDER,
+            "goods_receipt_note": DocumentType.GOODS_RECEIPT_NOTE,
+            "journal_entry": DocumentType.JOURNAL_ENTRY,
+            "work_order": DocumentType.SALES_ORDER,
+            "stock_movement": DocumentType.STOCK_TRANSFER,
+        }
 
-            number_str = str(serial.last_number).zfill(padding)
-            return f"{serial.prefix}{number_str}"
+        target_doc_type = doc_type_map.get(document_type, document_type)
+
+        # Convert year to date if passed
+        target_date = None
+        if year:
+            target_date = timezone.datetime(year, 1, 1).date()
+
+        return SequenceService.get_next_number(
+            document_type=target_doc_type,
+            date=target_date,
+        )
 
     def get_next_number(self):
         """

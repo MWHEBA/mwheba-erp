@@ -144,6 +144,14 @@ class SequenceEngineTestCase(TestCase):
         entry_number = je.generate_entry_number()
         self.assertTrue(entry_number.startswith("JE-") or entry_number.startswith("GL-"))
 
+    def test_batch_numbers_generation(self):
+        """اختبار التوليد الجماعي لأرقام دفعة واحدة"""
+        numbers = SequenceService.get_batch_numbers(
+            DocumentType.SALES_INVOICE, count=5
+        )
+        self.assertEqual(len(numbers), 5)
+        self.assertEqual(len(set(numbers)), 5)
+
 
 class SequenceConcurrencyTestCase(TransactionTestCase):
     def setUp(self):

@@ -186,8 +186,8 @@ TEMPLATES = [
                 "django.template.context_processors.media",
                 
                 # Custom (3 فقط) - الأساسي - Memory optimization
-                "core.context_processors_optimized.global_settings",
-                "core.context_processors_optimized.payment_accounts",
+                "core.context_processors.global_settings",
+                "core.context_processors.payment_accounts",
                 "utils.context_processors.common_variables",
                 
                 # ❌ REMOVED - مكرر أو غير ضروري - Memory optimization

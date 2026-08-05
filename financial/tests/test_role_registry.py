@@ -13,7 +13,6 @@ from financial.services.role_registry import (
     LEGACY_ROLE_FALLBACKS
 )
 from core.context_processors import payment_accounts as cp_payment_accounts
-from core.context_processors_optimized import payment_accounts as cp_opt_payment_accounts
 from supplier.forms import SupplierAccountChangeForm
 from supplier.models import Supplier
 from supplier.services.supplier_service import SupplierService
@@ -218,12 +217,6 @@ class TestAccountRoleRegistryAndContextProcessors:
 
         context_normal = cp_payment_accounts(request)
         assert context_normal["default_payment_account"] is not None
-        assert context_normal["default_payment_account"].code == "10199_CP"
+        assert context_normal["default_payment_account"]["code"] == "10199_CP"
         assert context_normal["default_bank_account"] is not None
-        assert context_normal["default_bank_account"].code == "10299_CP"
-
-        context_opt = cp_opt_payment_accounts(request)
-        assert context_opt["default_payment_account"] is not None
-        assert context_opt["default_payment_account"]["code"] == "10199_CP"
-        assert context_opt["default_bank_account"] is not None
-        assert context_opt["default_bank_account"]["code"] == "10299_CP"
+        assert context_normal["default_bank_account"]["code"] == "10299_CP"

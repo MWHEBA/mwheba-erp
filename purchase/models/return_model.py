@@ -65,28 +65,9 @@ class PurchaseReturn(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.number:
-            # الحصول على الرقم التسلسلي
-            from product.models import SerialNumber
-
-            # البحث عن آخر رقم مستخدم
-            last_return = PurchaseReturn.objects.order_by("-number").first()
-            if last_return:
-                try:
-                    last_number = int(last_return.number.replace("PRET", ""))
-                except ValueError:
-                    last_number = 0
-            else:
-                last_number = 0
-
-            # إنشاء أو تحديث الرقم التسلسلي
-            serial = SerialNumber.objects.get_or_create(
-                document_type="purchase_return",
-                year=timezone.now().year,
-                defaults={"prefix": "PRET", "last_number": last_number},
-            )[0]
-
-            # توليد الرقم الجديد
-            self.number = serial.get_next_number()
+            from core.services.sequence_service import SequenceService
+            from core.enums.document_types import DocumentType
+            self.number = SequenceService.get_next_number(DocumentType.DEBIT_NOTE, date=self.date)
 
         super().save(*args, **kwargs)
 

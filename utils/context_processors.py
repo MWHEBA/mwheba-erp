@@ -240,3 +240,60 @@ def breadcrumb_context(request):
             )
 
     return {"generated_breadcrumb_items": breadcrumb_items}
+
+
+def get_dashboard_counts():
+    """
+    جلب الإحصائيات للـ Dashboard فقط
+    استخدمها في dashboard view بدلاً من context processor
+    """
+    from django.apps import apps
+    import logging
+    logger = logging.getLogger(__name__)
+
+    cache_key = 'dashboard_counts_v1'
+    counts = cache.get(cache_key)
+
+    if counts is None:
+        counts = {}
+
+        try:
+            from django.db.models import Count
+
+            if apps.is_installed('product'):
+                Product = apps.get_model('product', 'Product')
+                counts['products'] = Product.objects.aggregate(
+                    total=Count('id')
+                )['total']
+
+            if apps.is_installed('client'):
+                Customer = apps.get_model('client', 'Customer')
+                counts['customers'] = Customer.objects.filter(
+                    is_active=True
+                ).aggregate(total=Count('id'))['total']
+
+            if apps.is_installed('supplier'):
+                Supplier = apps.get_model('supplier', 'Supplier')
+                counts['suppliers'] = Supplier.objects.aggregate(
+                    total=Count('id')
+                )['total']
+
+            if apps.is_installed('sale'):
+                Sale = apps.get_model('sale', 'Sale')
+                counts['sales'] = Sale.objects.aggregate(
+                    total=Count('id')
+                )['total']
+
+            if apps.is_installed('purchase'):
+                Purchase = apps.get_model('purchase', 'Purchase')
+                counts['purchases'] = Purchase.objects.aggregate(
+                    total=Count('id')
+                )['total']
+
+        except Exception as e:
+            logger.error(f"Error getting dashboard counts: {e}")
+
+        cache.set(cache_key, counts, 300)
+
+    return counts
+

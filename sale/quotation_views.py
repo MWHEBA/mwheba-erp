@@ -244,21 +244,9 @@ def quotation_create(request, customer_id=None):
     # توليد الرقم القادم للعرض
     next_quotation_number = None
     try:
-        from product.models import SerialNumber
-        serial, created = SerialNumber.objects.get_or_create(
-            document_type="quotation",
-            year=timezone.now().year,
-            defaults={"prefix": "QT", "last_number": 0},
-        )
-        last_quotation = Quotation.objects.order_by("-id").first()
-        last_number = 0
-        if last_quotation and last_quotation.number:
-            try:
-                last_number = int(last_quotation.number.replace("QT", ""))
-            except (ValueError, AttributeError):
-                pass
-        next_number = max(serial.last_number, last_number) + 1
-        next_quotation_number = f"{serial.prefix}{next_number:04d}"
+        from core.services.sequence_service import SequenceService
+        from core.enums.document_types import DocumentType
+        next_quotation_number = SequenceService.get_next_number(DocumentType.SALES_ORDER)
     except Exception as e:
         logger.error(f"Error generating next quotation number: {str(e)}")
 
