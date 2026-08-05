@@ -28,8 +28,13 @@ class TestFINCORE016MultiCurrencyFoundation:
         ar_acc = ChartOfAccounts.objects.create(code="11010_USD", name="Customer AR Foreign", account_type=asset_type, is_active=True)
         sales_acc = ChartOfAccounts.objects.create(code="40100_USD", name="Sales Revenue Foreign", account_type=revenue_type, is_active=True)
 
-        fiscal_year = FiscalYear.objects.create(name="FY2026", start_date="2026-01-01", end_date="2026-12-31")
-        period = AccountingPeriod.objects.create(fiscal_year=fiscal_year, name="AUG2026", period_number=8, start_date="2026-08-01", end_date="2026-08-31", status="OPEN")
+        today = timezone.now().date()
+        AccountingPeriod.objects.get_or_create(
+            name=f"Period_{today.year}_{today.month}",
+            start_date=today.replace(day=1),
+            end_date=today.replace(day=28),
+            defaults={"status": "open"}
+        )
 
         return user, base_curr, usd_curr, ar_acc, sales_acc
 

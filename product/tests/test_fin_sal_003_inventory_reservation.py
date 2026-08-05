@@ -20,6 +20,14 @@ class TestFINSAL003InventoryReservation:
     @pytest.fixture
     def setup_reservation_data(self):
         user = User.objects.create_user(username="res_user1", email="res1@example.com", password="password123")
+        from financial.models import AccountingPeriod
+        today = timezone.now().date()
+        AccountingPeriod.objects.get_or_create(
+            name=f"ResPeriod_{today.year}_{today.month}",
+            start_date=today.replace(day=1),
+            end_date=today.replace(day=28),
+            defaults={"status": "open"}
+        )
         from client.models import Customer
         customer = Customer.objects.create(name="Delta Electronics", code="CUST-RES-001", credit_limit=Decimal("100000.00"))
 

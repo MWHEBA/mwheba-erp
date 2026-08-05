@@ -8,6 +8,30 @@
 from django.core.exceptions import ValidationError
 
 
+class FinancialCoreError(Exception):
+    """الاستثناء الأساسي لنظام المالية المحوكم"""
+    pass
+
+
+class ImmutableLedgerError(FinancialCoreError):
+    """استثناء عند محاولة تعديل أو حذف قيد محوكم غير قابل للتعديل"""
+    pass
+
+
+class UnbalancedJournalEntryError(FinancialCoreError):
+    """استثناء عند محاولة إنتاج قيد غير متوازن (المدين != الدائن)"""
+    pass
+
+UnbalancedEntryError = UnbalancedJournalEntryError
+
+
+class ClosedAccountingPeriodError(FinancialCoreError):
+    """استثناء عند إجراء قيد في فترة محاسبية مغلقة"""
+    pass
+
+PeriodClosedError = ClosedAccountingPeriodError
+
+
 class FinancialValidationError(ValidationError):
     """
     استثناء أساسي لأخطاء التحقق من المعاملات المالية

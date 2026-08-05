@@ -137,11 +137,9 @@ def payment_accounts(request):
             models.Q(is_cash_account=True) | models.Q(is_bank_account=True)
         ).order_by('code')
         
-        # الحساب الافتراضي (الخزينة - 10100)
-        default_account = ChartOfAccounts.objects.filter(
-            code='10100',
-            is_active=True
-        ).first()
+        # الحساب الافتراضي عبر سجل الوظائف المحاسبية Dynamic Role Registry
+        from financial.services.account_role_registry import AccountRoleRegistry
+        default_account = AccountRoleRegistry.get_account_by_role("DEFAULT_CASH_DRAWER")
         
         return {
             'payment_accounts': accounts,

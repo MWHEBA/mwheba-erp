@@ -1,4 +1,4 @@
-﻿from django.db import models
+from django.db import models
 from django.conf import settings
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
@@ -325,50 +325,30 @@ class PartnerTransaction(models.Model):
                 else:
                     entry_type = "partner_withdrawal"
                 
-                # Note: Legacy code - low priority for migration to AccountingGateway
-                # إنشاء القيد
-                journal_entry = JournalEntry.objects.create(
+                if self.transaction_type == "contribution":
+                    lines_data = [
+                        {"account": self.cash_account, "debit": self.amount, "credit": Decimal('0'), "description": description},
+                        {"account": self.partner_account, "debit": Decimal('0'), "credit": self.amount, "description": description}
+                    ]
+                else:
+                    lines_data = [
+                        {"account": self.partner_account, "debit": self.amount, "credit": Decimal('0'), "description": description},
+                        {"account": self.cash_account, "debit": Decimal('0'), "credit": self.amount, "description": description}
+                    ]
+
+                from financial.services.legacy_adapter import LegacyAccountingAdapter
+                journal_entry = LegacyAccountingAdapter.post_journal_entry(
                     date=self.transaction_date,
                     description=description,
                     reference=f"PARTNER-{self.id}",
-                    entry_type=entry_type,  # إضافة نوع القيد
+                    entry_type=entry_type,
                     created_by=self.created_by,
-                    status='posted',  # ترحيل تلقائي
+                    lines_data=lines_data,
+                    status='posted',
                     posted_at=timezone.now(),
-                    posted_by=self.created_by
+                    posted_by=self.created_by,
+                    source_module="partner_transactions"
                 )
-                
-                # إنشاء بنود القيد
-                if self.transaction_type == "contribution":
-                    # مدين: الخزينة (زيادة النقدية)
-                    journal_entry.lines.create(
-                        account=self.cash_account,
-                        debit=self.amount,
-                        credit=Decimal('0'),
-                        description=description
-                    )
-                    # دائن: جاري الشريك (زيادة التزام الشركة)
-                    journal_entry.lines.create(
-                        account=self.partner_account,
-                        debit=Decimal('0'),
-                        credit=self.amount,
-                        description=description
-                    )
-                else:  # withdrawal
-                    # مدين: جاري الشريك (تقليل التزام الشركة)
-                    journal_entry.lines.create(
-                        account=self.partner_account,
-                        debit=self.amount,
-                        credit=Decimal('0'),
-                        description=description
-                    )
-                    # دائن: الخزينة (نقص النقدية)
-                    journal_entry.lines.create(
-                        account=self.cash_account,
-                        debit=Decimal('0'),
-                        credit=self.amount,
-                        description=description
-                    )
                 
                 return journal_entry
                 

@@ -30,6 +30,8 @@ class LegacyAccountingAdapter:
     ADAPTER_VERSION = "1.0"
     FEATURE_FLAG_NAME = "LEGACY_ACCOUNTING_ADAPTER_ENABLED"
 
+    _CALL_COUNTS: Dict[str, int] = {}
+
     @classmethod
     def is_enabled(cls) -> bool:
         """
@@ -38,10 +40,23 @@ class LegacyAccountingAdapter:
         return getattr(settings, cls.FEATURE_FLAG_NAME, True)
 
     @classmethod
+    def get_usage_report(cls) -> Dict[str, Any]:
+        """
+        إعادة تقرير بصمة استخدام الجسر لجميع الموديولات
+        """
+        total = sum(cls._CALL_COUNTS.values())
+        return {
+            "total_invocations": total,
+            "module_counts": dict(cls._CALL_COUNTS)
+        }
+
+    @classmethod
     def _log_audit_event(cls, action: str, correlation_id: str, details: Dict[str, Any]):
         """
         إصدار سجل تدقيق هيكلي بصيغة JSON
         """
+        src = details.get("source_module", "unknown")
+        cls._CALL_COUNTS[src] = cls._CALL_COUNTS.get(src, 0) + 1
         audit_payload = {
             "event": "LEGACY_ACCOUNTING_ADAPTER_AUDIT",
             "action": action,
@@ -55,12 +70,12 @@ class LegacyAccountingAdapter:
     @classmethod
     def post_journal_entry(
         cls,
-        date,
-        description: str,
-        reference: str,
-        entry_type: str,
-        created_by,
-        lines_data: List[Dict[str, Any]],
+        date=None,
+        description: str = "",
+        reference: Optional[str] = None,
+        entry_type: str = "automatic",
+        created_by=None,
+        lines_data: Optional[List[Dict[str, Any]]] = None,
         status: str = "draft",
         correlation_id: Optional[str] = None,
         source_module: str = "legacy_bridge",
@@ -70,6 +85,17 @@ class LegacyAccountingAdapter:
         إنشاء قيد محاسبي كامل وبنوده عبر الجسر المحاسبي مع حماية الذرية والتكرار
         """
         from financial.models.journal_entry import JournalEntry, JournalEntryLine
+        from financial.models.chart_of_accounts import ChartOfAccounts
+
+        # Normalize positional / keyword aliases
+        if lines_data is None:
+            lines_data = kwargs.pop("lines", [])
+        if created_by is None:
+            created_by = kwargs.pop("user", None)
+        if date is None:
+            date = timezone.now().date()
+        if not reference:
+            reference = kwargs.pop("idempotency_key", f"REF-{uuid.uuid4().hex[:8]}")
 
         if not cls.is_enabled():
             logger.error("LegacyAccountingAdapter is disabled via feature flag. Halting financial transaction for safety.")
@@ -94,35 +120,47 @@ class LegacyAccountingAdapter:
                     )
                     return existing_entry
 
-            post_kwargs = {
-                "date": date,
-                "description": description,
-                "reference": reference,
-                "entry_type": entry_type,
-                "created_by": created_by,
-                "status": status,
-            }
-            if status == "posted":
-                post_kwargs["posted_at"] = kwargs.get("posted_at") or timezone.now()
-                post_kwargs["posted_by"] = kwargs.get("posted_by") or created_by
+            from financial.services.ledger_core_service import LedgerCoreService
 
-            journal_entry = JournalEntry.objects.create(**post_kwargs)
-
-            created_lines = []
+            lines_for_core = []
             for item in lines_data:
                 account = item.get("account")
+                if isinstance(account, str):
+                    account_obj = ChartOfAccounts.objects.filter(code=account).first()
+                    if not account_obj and account.isdigit():
+                        account_obj = ChartOfAccounts.objects.filter(id=int(account)).first()
+                    account = account_obj or account
+                elif isinstance(account, int):
+                    account = ChartOfAccounts.objects.filter(id=account).first() or account
+
                 debit = Decimal(str(item.get("debit", 0)))
                 credit = Decimal(str(item.get("credit", 0)))
                 line_desc = item.get("description", description)
+                lines_for_core.append({
+                    "account": account,
+                    "debit": debit,
+                    "credit": credit,
+                    "description": line_desc
+                })
 
-                line = JournalEntryLine.objects.create(
-                    journal_entry=journal_entry,
-                    account=account,
-                    debit=debit,
-                    credit=credit,
-                    description=line_desc
+            draft_entry = LedgerCoreService.create_draft_entry(
+                date=date,
+                description=description,
+                reference=reference or f"REF-{uuid.uuid4().hex[:8]}",
+                entry_type=entry_type,
+                created_by=created_by,
+                lines_data=lines_for_core
+            )
+
+            if status == "posted":
+                journal_entry = LedgerCoreService.post_entry(
+                    entry_id=draft_entry.id,
+                    user=created_by,
+                    posting_source=source_module.upper(),
+                    posting_reference=reference
                 )
-                created_lines.append(line.id)
+            else:
+                journal_entry = draft_entry
 
             cls._log_audit_event(
                 action="POST_JOURNAL_ENTRY",
@@ -132,7 +170,7 @@ class LegacyAccountingAdapter:
                     "journal_number": getattr(journal_entry, "number", None),
                     "entry_type": entry_type,
                     "reference": reference,
-                    "line_count": len(created_lines),
+                    "line_count": len(lines_for_core),
                     "total_debit": str(sum(Decimal(str(l.get("debit", 0))) for l in lines_data)),
                     "total_credit": str(sum(Decimal(str(l.get("credit", 0))) for l in lines_data)),
                     "source_module": source_module

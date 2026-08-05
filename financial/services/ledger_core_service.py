@@ -138,10 +138,18 @@ class LedgerCoreService:
             entry.status = "posted"
             entry.posted_at = timezone.now()
             entry.posted_by = user
-            entry.posting_source = posting_source
-            entry.posting_reference = posting_reference or entry.reference
+            if hasattr(entry, "posting_source"):
+                entry.posting_source = posting_source
+            if hasattr(entry, "posting_reference"):
+                entry.posting_reference = posting_reference or entry.reference
 
-            entry.save(update_fields=["status", "posted_at", "posted_by", "posting_source", "posting_reference"])
+            update_fields = ["status", "posted_at", "posted_by"]
+            if hasattr(entry, "posting_source") and "posting_source" in [f.name for f in entry._meta.fields]:
+                update_fields.append("posting_source")
+            if hasattr(entry, "posting_reference") and "posting_reference" in [f.name for f in entry._meta.fields]:
+                update_fields.append("posting_reference")
+
+            entry.save(update_fields=update_fields)
 
             return entry
 
@@ -161,7 +169,7 @@ class LedgerCoreService:
             if original_entry.status != "posted":
                 raise FinancialCoreError("Can only reverse posted journal entries.")
 
-            if original_entry.reversed_by_entry_id:
+            if getattr(original_entry, "reversed_by_entry_id", None) or original_entry.reversal_entries.exists():
                 raise FinancialCoreError(f"Journal entry ID {original_entry.id} is already reversed.")
 
             # الخطوة 1: تجهيز بنود القيد العاكس (تبادل المدين والدائن)
@@ -195,7 +203,8 @@ class LedgerCoreService:
             )
 
             # الخطوة 3: تحديث القيد الأصلي بمرجع القيد العاكس عبر القائمة البيضاء
-            original_entry.reversed_by_entry = reversal_posted
-            original_entry.save(update_fields=["reversed_by_entry"])
+            if hasattr(original_entry, "reversed_by_entry"):
+                original_entry.reversed_by_entry = reversal_posted
+                original_entry.save(update_fields=['reversed_by_entry'])
 
             return reversal_posted

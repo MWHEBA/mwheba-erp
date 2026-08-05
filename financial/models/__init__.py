@@ -21,7 +21,10 @@ from .payment_sync import (
     PaymentSyncRule,
     PaymentSyncError,
 )
-from .bank_reconciliation import BankReconciliation, BankReconciliationItem
+# try:
+#     from .bank_reconciliation import BankReconciliation, BankReconciliationItem
+# except Exception:
+#     BankReconciliation = BankReconciliationItem = None
 from .categories import FinancialCategory, CategoryBudget, FinancialSubcategory
 from .audit_trail import AuditTrail, PaymentAuditMixin
 from .invoice_audit_log import InvoiceAuditLog
@@ -37,20 +40,42 @@ try:
         TransactionAttachment,
     )
 except Exception:
-    # النماذج غير متوفرة في قاعدة البيانات بعد
     FinancialTransaction = None
     ExpenseTransaction = None
     IncomeTransaction = None
     TransactionAttachment = None
+
+from .fiscal_year import FiscalYear
+from .currency import Currency, ExchangeRate
+from .tax import (
+    TaxJurisdiction,
+    TaxCode,
+    TaxRateHistory,
+    TaxRule,
+    TaxRuleCondition,
+    TaxRuleEvaluationLog,
+    TaxAccountMapping,
+    TaxRegistration,
+    TaxExemptionCertificate,
+    TaxCalculationLine,
+    TaxEvent,
+    TaxDeterminationAudit,
+    TaxReversal,
+)
+from .revenue_recognition import RevenueRecognitionPolicy, RevenueRecognitionSchedule, RevenueRecognitionScheduleLine, RevenueRecognitionEntry, RevenueRecognitionAccountMapping, RevenueRecognitionReversal
+from .approval import EnterpriseApprovalRule, EnterpriseApprovalRequest, EnterpriseApprovalStep, EnterpriseApprovalAuditLog
 
 __all__ = [
     # النماذج الأساسية
     "AccountType",
     "ChartOfAccounts",
     "AccountGroup",
+    "FiscalYear",
     "AccountingPeriod",
     "JournalEntry",
     "JournalEntryLine",
+    "OpeningBalanceBatch",
+    "OpeningBalanceLine",
     "JournalEntryTemplate",
     "JournalEntryTemplateLine",
     # نموذج تدقيق التحقق من المعاملات المالية

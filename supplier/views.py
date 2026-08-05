@@ -1645,8 +1645,9 @@ def supplier_create_account(request, pk):
     
     if request.method == "POST":
         try:
-            # البحث عن حساب الموردين الرئيسي
-            suppliers_account = ChartOfAccounts.objects.filter(code="20100").first()
+            # البحث عن حساب الموردين الرئيسي عبر مسجل الأدوار المحوكم
+            from financial.services.account_role_registry import AccountRoleRegistry
+            suppliers_account = AccountRoleRegistry.get_account_by_role("AP_CONTROL_ACCOUNT")
             
             if not suppliers_account:
                 error_msg = "لا يمكن العثور على حساب الموردين الرئيسي في النظام"

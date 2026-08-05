@@ -27,6 +27,14 @@ class TestFINSAL002SalesReturn:
     @pytest.fixture
     def setup_return_data(self):
         user = User.objects.create_user(username="ret_user1", email="ret1@example.com", password="password123")
+        from financial.models import AccountingPeriod
+        today = timezone.now().date()
+        AccountingPeriod.objects.get_or_create(
+            name=f"Period_{today.year}_{today.month}",
+            start_date=today.replace(day=1),
+            end_date=today.replace(day=28),
+            defaults={"status": "open"}
+        )
         customer = Customer.objects.create(name="Alexandria Trading", code="CUST-RET-001", credit_limit=Decimal("500000.00"))
 
         asset_type, _ = AccountType.objects.get_or_create(code="ASSET", name="Assets", category="ASSET")

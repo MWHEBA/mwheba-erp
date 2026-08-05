@@ -279,21 +279,26 @@ class SupplierService:
                     nature='credit'
                 )
             
-            # الحصول على الحساب الرئيسي للموردين (20100)
-            parent_account = ChartOfAccounts.objects.filter(code='20100').first()
+            # الحصول على الحساب الرئيسي للموردين عبر مسجل الأدوار المحوكم
+            from financial.services.account_role_registry import AccountRoleRegistry
+            parent_account = AccountRoleRegistry.get_account_by_role("AP_CONTROL_ACCOUNT") or AccountRoleRegistry.get_account_by_role("SUPPLIER_PAYABLE_CONTROL")
             if not parent_account:
+                ctrl_code = AccountRoleRegistry.get_account_code("AP_CONTROL_ACCOUNT")
                 parent_account = ChartOfAccounts.objects.create(
-                    code='20100',
+                    code=ctrl_code,
                     name='الموردون',
                     account_type=liability_type,
                     is_active=True
                 )
             
-            # توليد كود فرعي للمورد - النمط: 2010XXXX
+            ctrl_code = parent_account.code
+            prefix = ctrl_code[:4]
+            
+            # توليد كود فرعي للمورد
             last_supplier_account = ChartOfAccounts.objects.filter(
-                code__startswith='2010',
+                code__startswith=prefix,
                 parent=parent_account
-            ).exclude(code='20100').order_by('-code').first()
+            ).exclude(code=ctrl_code).order_by('-code').first()
             
             if last_supplier_account:
                 try:

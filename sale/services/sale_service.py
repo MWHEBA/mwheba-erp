@@ -553,15 +553,19 @@ class SaleService:
             # payment_method هنا ممكن يكون account code (مثل '10100') أو قيمة قديمة (مثل 'cash')
             payment_method = payment.payment_method
             
-            if payment_method == 'cash' or payment_method == '10100':
-                debit_account_code = '10100'  # الخزينة
-            elif payment_method == 'bank_transfer' or payment_method == '10200':
-                debit_account_code = '10200'  # البنك
+            from financial.services.account_role_registry import AccountRoleRegistry
+            cash_code = AccountRoleRegistry.get_account_code("DEFAULT_CASH_DRAWER")
+            bank_code = AccountRoleRegistry.get_account_code("DEFAULT_BANK_ACCOUNT")
+
+            if payment_method == 'cash' or payment_method == cash_code:
+                debit_account_code = cash_code  # الخزينة
+            elif payment_method == 'bank_transfer' or payment_method == bank_code:
+                debit_account_code = bank_code  # البنك
             elif payment_method and payment_method.isdigit():
                 # إذا كان account code مباشرة
                 debit_account_code = payment_method
             else:
-                debit_account_code = '10100'  # افتراضي: الخزينة
+                debit_account_code = cash_code  # افتراضي: الخزينة
             
             # حساب العميل - التأكد من وجود الحساب المحاسبي
             if not payment.sale.customer.financial_account:

@@ -190,6 +190,7 @@ class Product(models.Model):
         validators=[MinValueValidator(0)],
     )
     min_stock = models.PositiveIntegerField(_("الحد الأدنى للمخزون"), default=0)
+    valuation_method = models.CharField(_("طريقة تقييم المخزون"), max_length=20, default="FIFO")
     is_active = models.BooleanField(_("نشط"), default=True)
     is_featured = models.BooleanField(_("مميز"), default=False)
     tax_rate = models.DecimalField(

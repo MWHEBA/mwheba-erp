@@ -30,6 +30,14 @@ class TestFINSAL005SalesReversal:
     def setup_reversal_data(self):
         uid = uuid.uuid4().hex[:6]
         user = User.objects.create_user(username=f"rev_user_{uid}", email=f"rev_{uid}@example.com", password="password123")
+        from financial.models import AccountingPeriod
+        today = timezone.now().date()
+        AccountingPeriod.objects.get_or_create(
+            name=f"Period_{today.year}_{today.month}",
+            start_date=today.replace(day=1),
+            end_date=today.replace(day=28),
+            defaults={"status": "open"}
+        )
         customer = Customer.objects.create(name=f"Cairo Distribution {uid}", code=f"CUST-REV-{uid}", credit_limit=Decimal("500000.00"))
 
         asset_type = AccountType.objects.filter(code="ASSET").first() or AccountType.objects.create(code=f"ASSET_{uid}", name="Assets", category="ASSET")

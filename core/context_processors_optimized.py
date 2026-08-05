@@ -122,9 +122,11 @@ def payment_accounts(request):
                 .order_by('code')
             )
             
-            # الحساب الافتراضي
+            # الحساب الافتراضي عبر سجل الوظائف المحاسبية Dynamic Role Registry
+            from financial.services.account_role_registry import AccountRoleRegistry
+            def_code = AccountRoleRegistry.get_account_code("DEFAULT_CASH_DRAWER")
             default_account_data = ChartOfAccounts.objects.filter(
-                code='10100',
+                code=def_code,
                 is_active=True
             ).values('id', 'code', 'name').first()
             

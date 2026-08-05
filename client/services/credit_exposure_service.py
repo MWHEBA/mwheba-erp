@@ -170,13 +170,16 @@ class CreditExposureService:
             profile.credit_status = new_status
             profile.save()
 
-            CustomerCreditStatusHistory.objects.create(
-                customer_id=customer_id,
-                old_status=old_stat,
-                new_status=new_status,
-                reason=reason,
-                created_by=user
-            )
+            try:
+                CustomerCreditStatusHistory.objects.create(
+                    customer_id=customer_id,
+                    old_status=old_stat,
+                    new_status=new_status,
+                    reason=reason,
+                    created_by=user
+                )
+            except Exception as history_err:
+                logger.warning(f"Could not log CustomerCreditStatusHistory: {history_err}")
 
             CreditAuditLog.objects.create(
                 customer_id=customer_id,

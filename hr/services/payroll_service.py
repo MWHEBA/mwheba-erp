@@ -808,45 +808,37 @@ class PayrollService:
         except:
             financial_category = None
         
-        # إنشاء القيد
-        entry = JournalEntry.objects.create(
+        lines_data = [
+            {
+                "account": salary_expense_account,
+                "debit": correct_gross_ps,
+                "credit": Decimal('0'),
+                "description": f'إجمالي راتب - {payroll.employee.get_full_name_ar()}'
+            }
+        ]
+
+        if payroll.payment_account:
+            lines_data.append({
+                "account": payroll.payment_account,
+                "debit": Decimal('0'),
+                "credit": correct_net_ps,
+                "description": f'صافي راتب {payroll.employee.get_full_name_ar()}'
+            })
+
+        from financial.services.legacy_adapter import LegacyAccountingAdapter
+        entry = LegacyAccountingAdapter.post_journal_entry(
             date=timezone.now().date(),
             description=f'راتب {payroll.employee.get_full_name_ar()} - {payroll.month.strftime("%Y-%m")}',
+            reference=f'PAYROLL-IND-{payroll.id}',
+            entry_type='payroll',
             created_by=created_by,
-            financial_category=financial_category
+            lines_data=lines_data,
+            source_module="hr.payroll"
         )
-        
-        # من حـ/ مصروف الرواتب والأجور (إجمالي الراتب)
-        salary_expense_account = ChartOfAccounts.objects.filter(code='50200').first()
-        if not salary_expense_account:
-            raise ValueError('حساب الرواتب والأجور (50200) غير موجود في دليل الحسابات')
-        
-        # ✅ استخدام gross_salary بدلاً من basic_salary لتجنب المضاعفة
-        # gross_salary يشمل الأجر الأساسي + جميع البدلات والإضافات — مع استبعاد INSURABLE_SALARY
-        correct_gross_ps = payroll.correct_gross_salary
-        correct_net_ps = payroll.correct_net_salary
+        if financial_category:
+            entry.financial_category = financial_category
+            entry.save(update_fields=['financial_category'])
 
-        JournalEntryLine.objects.create(
-            journal_entry=entry,
-            account=salary_expense_account,
-            debit=correct_gross_ps,
-            credit=Decimal('0'),
-            description=f'إجمالي راتب - {payroll.employee.get_full_name_ar()}'
-        )
-        
-        # إلى حـ/ الصندوق/البنك (الصافي)
-        if payroll.payment_account:
-            JournalEntryLine.objects.create(
-                journal_entry=entry,
-                account=payroll.payment_account,
-                debit=Decimal('0'),
-                credit=correct_net_ps,
-                description=f'صافي راتب {payroll.employee.get_full_name_ar()}'
-            )
-        
-        # ✅ معالجة الخصومات الديناميكية من PayrollLine فقط
-        # هذه الخصومات تمثل الفرق بين gross_salary و net_salary
-        # لا نستخدم _process_payroll_deductions لأن الخصومات موجودة بالفعل في PayrollLine
         PayrollService._process_dynamic_deductions(entry, payroll)
         
         return entry
@@ -919,12 +911,17 @@ class PayrollService:
                 )
                 
                 if account:
-                    JournalEntryLine.objects.create(
+                    from financial.services.legacy_adapter import LegacyAccountingAdapter
+                    lines_data = [{
+                        "account": account,
+                        "debit": Decimal('0'),
+                        "credit": deduction_amount,
+                        "description": f"{mapping['description']} - {payroll.employee.get_full_name_ar()}"
+                    }]
+                    LegacyAccountingAdapter.post_journal_lines_only(
                         journal_entry=journal_entry,
-                        account=account,
-                        debit=Decimal('0'),
-                        credit=deduction_amount,
-                        description=f"{mapping['description']} - {payroll.employee.get_full_name_ar()}"
+                        lines_data=lines_data,
+                        source_module="hr.payroll.deductions"
                     )
     
     @staticmethod

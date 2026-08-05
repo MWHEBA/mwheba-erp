@@ -31,6 +31,15 @@ class TestFINTAX001TaxEngineV3:
     @pytest.fixture
     def setup_tax_engine_data(self):
         user = User.objects.create_user(username="tax_v3_user", email="taxv3@example.com", password="password123")
+        from financial.models import AccountingPeriod
+        from django.utils import timezone
+        today = timezone.now().date()
+        AccountingPeriod.objects.get_or_create(
+            name=f"TaxPeriod_{today.year}_{today.month}",
+            start_date=today.replace(day=1),
+            end_date=today.replace(day=28),
+            defaults={"status": "open"}
+        )
         customer = Customer.objects.create(name="Pharos Pharma", code="CUST-TAX-V3-001", credit_limit=Decimal("500000.00"))
 
         asset_type, _ = AccountType.objects.get_or_create(code="ASSET", name="Assets", category="ASSET")

@@ -29,8 +29,13 @@ class TestFINSAL001SalesDocumentLifecycle:
         sales_acc = ChartOfAccounts.objects.create(code="40100", name="Sales Revenue Control", account_type=revenue_type, is_active=True)
         cogs_acc = ChartOfAccounts.objects.create(code="50100", name="COGS Control", account_type=expense_type, is_active=True)
 
-        fiscal_year = FiscalYear.objects.create(name="FY2026", start_date="2026-01-01", end_date="2026-12-31")
-        period = AccountingPeriod.objects.create(fiscal_year=fiscal_year, name="AUG2026", period_number=8, start_date="2026-08-01", end_date="2026-08-31", status="OPEN")
+        today = timezone.now().date()
+        AccountingPeriod.objects.get_or_create(
+            name=f"Period_{today.year}_{today.month}",
+            start_date=today.replace(day=1),
+            end_date=today.replace(day=28),
+            defaults={"status": "open"}
+        )
 
         customer = Customer.objects.create(name="Middle East Trading", code="CUST-SL-001", financial_account=ar_acc, credit_limit=Decimal("100000.00"))
         warehouse = Warehouse.objects.create(code="WH-SALES", name="Sales Central WH", is_active=True)

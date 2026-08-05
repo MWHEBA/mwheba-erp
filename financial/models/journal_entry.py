@@ -21,6 +21,8 @@ class AccountingPeriod(models.Model):
     )
 
     name = models.CharField(_("اسم الفترة"), max_length=100)
+    fiscal_year = models.ForeignKey('financial.FiscalYear', on_delete=models.SET_NULL, null=True, blank=True, related_name='periods', verbose_name=_("السنة المالية"))
+    period_number = models.IntegerField(_("رقم الفترة"), default=1)
     start_date = models.DateField(_("تاريخ البداية"))
     end_date = models.DateField(_("تاريخ النهاية"))
     status = models.CharField(
@@ -270,6 +272,15 @@ class JournalEntry(models.Model):
         related_name="reversal_entries",
         help_text=_("القيد الأصلي الذي يتم عكسه (للقيود العكسية فقط)")
     )
+    reversed_by_entry = models.ForeignKey(
+        'self',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name=_("عُكس بواسطة القيد"),
+        related_name="reversed_entries",
+        help_text=_("القيد العكسي الذي ألغى هذا القيد")
+    )
     is_reversal = models.BooleanField(
         _("قيد عكسي"),
         default=False,
@@ -342,45 +353,49 @@ class JournalEntry(models.Model):
         return reverse('financial:journal_entries_detail', kwargs={'pk': self.pk})
 
     def save(self, *args, **kwargs):
+        # Layer 2 Protection (ORM Whitelist Immutability)
+        from financial.exceptions import ImmutableLedgerError
+        if self.pk:
+            old = JournalEntry.objects.get(pk=self.pk)
+            if old.status == 'posted':
+                update_fields = kwargs.get('update_fields')
+                # Whitelist: Allow updating reversed_by_entry, lock metadata, or posting metadata
+                allowed_fields = {
+                    'reversed_by_entry', 'reversed_by_entry_id',
+                    'is_locked', 'locked_at', 'locked_by',
+                    'status', 'posted_at', 'posted_by', 'posting_source', 'posting_reference'
+                }
+                is_whitelisted_update = update_fields and set(update_fields).issubset(allowed_fields)
+                is_same_reversed_by_change = old.reversed_by_entry_id != self.reversed_by_entry_id and old.status == self.status
+                is_allow_lock_flag = getattr(self, '_allow_lock_operation', False)
+
+                if not (is_whitelisted_update or is_same_reversed_by_change or is_allow_lock_flag):
+                    raise ImmutableLedgerError(_("القيد المحاسبي المرحل حصين ولا يمكن تعديله."))
+
         # تعيين رقم القيد تلقائياً إذا لم يكن موجوداً
         if not self.number:
             self.number = self.generate_entry_number()
 
         # تعيين الفترة المحاسبية تلقائياً
         try:
-            # التحقق من وجود الفترة المحاسبية
             if self.accounting_period_id is None:
                 period = AccountingPeriod.get_period_for_date(self.date)
                 if not period:
                     raise ValidationError(_("لا توجد فترة محاسبية مفتوحة لهذا التاريخ"))
                 self.accounting_period = period
         except AccountingPeriod.DoesNotExist:
-            # إذا لم تكن الفترة موجودة، ابحث عن واحدة
             period = AccountingPeriod.get_period_for_date(self.date)
             if not period:
                 raise ValidationError(_("لا توجد فترة محاسبية مفتوحة لهذا التاريخ"))
             self.accounting_period = period
 
-        # التحقق من قفل الفترة المحاسبية (للقيود غير العكسية)
-        # السماح بعمليات القفل والعكس والترحيل
-        update_fields = kwargs.get('update_fields', None)
-        is_posting = update_fields and {'status', 'posted_at', 'posted_by'}.issubset(set(update_fields))
-        
-        if not self.is_reversal and self.pk and not getattr(self, '_allow_lock_operation', False) and not is_posting:  # تحديث قيد موجود
-            try:
-                self.validate_period_lock()
-            except ValidationError as e:
-                # السماح بالحفظ للقيود العكسية أو إذا كان هناك تجاوز صريح
-                if not getattr(self, '_bypass_period_lock', False):
-                    raise e
-
-        # تحذير تطوير إذا لم يتم إنشاء القيد عبر البوابة المخولة
-        if not getattr(self, '_gateway_approved', False):
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.warning(f"JournalEntry {self.number} created outside AccountingGateway - audit will flag this")
-
         super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        from financial.exceptions import ImmutableLedgerError
+        if self.status == 'posted':
+            raise ImmutableLedgerError(_("لا يمكن حذف قيد محاسبي مرحل."))
+        super().delete(*args, **kwargs)
 
     def generate_entry_number(self):
         """
@@ -640,23 +655,19 @@ class JournalEntry(models.Model):
 
     def delete(self, *args, **kwargs):
         """حماية من الحذف المباشر مع تطبيق قفل الفترة"""
-        # التحقق من قفل الفترة المحاسبية
+        from financial.exceptions import ImmutableLedgerError
+        if self.status == "posted":
+            raise ImmutableLedgerError(_("لا يمكن حذف قيد محاسبي مرحل."))
+
         try:
             self.validate_period_lock()
         except ValidationError as e:
-            # السماح بالحذف إذا كان هناك تجاوز صريح
             if not getattr(self, '_bypass_period_lock', False):
                 raise e
 
-        # السماح بالحذف للمسودات فقط
         if self.status == "draft":
             return super().delete(*args, **kwargs)
 
-        # منع حذف القيود المرحلة
-        if self.status == "posted":
-            raise ValidationError(_("لا يمكن حذف قيد مرحل. استخدم العكس بدلاً من ذلك."))
-
-        # منع حذف القيود الملغاة (للاحتفاظ بسجل)
         if self.status == "cancelled":
             raise ValidationError(_("لا يمكن حذف قيد ملغي. يتم الاحتفاظ به للسجلات."))
 
@@ -996,6 +1007,10 @@ class JournalEntryLine(models.Model):
     )
 
     description = models.TextField(_("البيان"), blank=True, null=True)
+    currency = models.CharField(_("العملة"), max_length=3, default="EGP")
+    exchange_rate = models.DecimalField(_("سعر الصرف"), max_digits=12, decimal_places=6, default=Decimal("1.000000"))
+    foreign_debit = models.DecimalField(_("مدين أجنبي"), max_digits=15, decimal_places=2, default=Decimal("0.00"))
+    foreign_credit = models.DecimalField(_("دائن أجنبي"), max_digits=15, decimal_places=2, default=Decimal("0.00"))
 
     # معلومات إضافية
     cost_center = models.CharField(
@@ -1013,6 +1028,28 @@ class JournalEntryLine(models.Model):
             models.Index(fields=["account", "journal_entry"]),
             models.Index(fields=["journal_entry"]),
         ]
+
+    def save(self, *args, **kwargs):
+        from financial.exceptions import ImmutableLedgerError
+        if self.pk and self.journal_entry_id:
+            try:
+                entry = JournalEntry.objects.get(pk=self.journal_entry_id)
+                if entry.status == 'posted':
+                    raise ImmutableLedgerError(_("سطر القيد تابع لقيد مرحل ولا يمكن تعديله."))
+            except JournalEntry.DoesNotExist:
+                pass
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        from financial.exceptions import ImmutableLedgerError
+        if self.journal_entry_id:
+            try:
+                entry = JournalEntry.objects.get(pk=self.journal_entry_id)
+                if entry.status == 'posted':
+                    raise ImmutableLedgerError(_("سطر القيد تابع لقيد مرحل ولا يمكن حذفه."))
+            except JournalEntry.DoesNotExist:
+                pass
+        super().delete(*args, **kwargs)
 
     def __str__(self):
         amount = self.debit if self.debit > 0 else self.credit

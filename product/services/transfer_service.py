@@ -300,31 +300,31 @@ class TransferService:
             # حساب القيمة الإجمالية
             total_value = movement_out.total_cost
             
-            # إنشاء القيد
-            journal_entry = JournalEntry.objects.create(
+            # إنشاء القيد عبر الجسر المحاسبي المحوكم
+            lines_data = [
+                {
+                    "account": target_inventory_account,
+                    "debit": total_value,
+                    "credit": Decimal('0'),
+                    "description": f"تحويل من {movement_out.warehouse.name} - {movement_out.product.name}"
+                },
+                {
+                    "account": source_inventory_account,
+                    "debit": Decimal('0'),
+                    "credit": total_value,
+                    "description": f"تحويل إلى {movement_in.warehouse.name} - {movement_in.product.name}"
+                }
+            ]
+
+            from financial.services.legacy_adapter import LegacyAccountingAdapter
+            journal_entry = LegacyAccountingAdapter.post_journal_entry(
                 date=timezone.now().date(),
                 description=f"تحويل مخزني - {movement_out.document_number}",
                 reference=movement_out.document_number,
                 entry_type='transfer',
-                created_by=user
-            )
-            
-            # سطر المدين (المخزن الهدف)
-            JournalEntryLine.objects.create(
-                journal_entry=journal_entry,
-                account=target_inventory_account,
-                debit=total_value,
-                credit=Decimal('0'),
-                description=f"تحويل من {movement_out.warehouse.name} - {movement_out.product.name}"
-            )
-            
-            # سطر الدائن (المخزن المصدر)
-            JournalEntryLine.objects.create(
-                journal_entry=journal_entry,
-                account=source_inventory_account,
-                debit=Decimal('0'),
-                credit=total_value,
-                description=f"تحويل إلى {movement_in.warehouse.name} - {movement_in.product.name}"
+                created_by=user,
+                lines_data=lines_data,
+                source_module="product.transfer"
             )
             
             # ربط القيد بالحركتين

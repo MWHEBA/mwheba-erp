@@ -37,6 +37,7 @@ try:
         LocationMovement,
         LocationTask,
     )
+    from .inventory_reservation import InventoryReservation, InventoryReservationAudit
 except ImportError:
     # في حالة عدم توفر النماذج الجديدة، استخدم None
     StockTransfer = StockSnapshot = None

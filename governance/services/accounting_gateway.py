@@ -2251,3 +2251,219 @@ def create_stock_movement_reversal(
         partial_amount=partial_amount,
         idempotency_key=idempotency_key
     )
+
+
+def create_return_cogs_reversal_entry(command) -> JournalEntry:
+    """
+    Create COGS reversal entry for sales returns.
+    """
+    from financial.services.legacy_adapter import LegacyAccountingAdapter
+    from financial.services.account_role_registry import AccountRoleRegistry
+
+    inv_acc = getattr(command, "inventory_account", None) or AccountRoleRegistry.get_account_by_role("INVENTORY_ACCOUNT")
+    cogs_acc = getattr(command, "cogs_account", None) or AccountRoleRegistry.get_account_by_role("COGS_ACCOUNT")
+    doc_num = getattr(command, "document_number", getattr(command, "return_number", "N/A"))
+
+    lines = [
+        {"account": inv_acc, "debit": command.amount, "credit": 0, "description": f"استرداد مخزون مرتجع مبيعات #{doc_num}"},
+        {"account": cogs_acc, "debit": 0, "credit": command.amount, "description": f"عكس تكلفة مبيعات مرتجع #{doc_num}"},
+    ]
+
+    return LegacyAccountingAdapter.post_journal_entry(
+        description=f"قيد استرداد مخزون وعكس تكلفة المبيعات لمرتجع #{doc_num}",
+        date=command.posting_date,
+        lines=lines,
+        user=command.user,
+        idempotency_key=f"JE:sales:SalesReturn:{doc_num}:cogs_reversal",
+        source_module="sale",
+        source_model="SalesReturnHeader",
+        source_id=getattr(command, "return_header_id", 1),
+        entry_type="automatic"
+    )
+
+
+def create_tax_posting(command) -> JournalEntry:
+    from financial.services.legacy_adapter import LegacyAccountingAdapter
+    from financial.services.account_role_registry import AccountRoleRegistry
+
+    tax_acc = getattr(command, "credit_account_code", None) or AccountRoleRegistry.get_account_by_role("OUTPUT_TAX_ACCOUNT")
+    ar_acc = getattr(command, "debit_account_code", None) or AccountRoleRegistry.get_account_by_role("AR_CONTROL_ACCOUNT")
+
+    amt = getattr(command, "functional_tax_amount", getattr(command, "functional_amount", getattr(command, "tax_amount", Decimal("0.00"))))
+
+    lines = [
+        {"account": ar_acc, "debit": amt, "credit": 0, "description": f"استحقاق ضريبة مستند #{command.document_number}"},
+        {"account": tax_acc, "debit": 0, "credit": amt, "description": f"ضريبة مخرجات مستند #{command.document_number}"},
+    ]
+
+    return LegacyAccountingAdapter.post_journal_entry(
+        description=f"قيد احتساب الضريبة لمستند #{command.document_number}",
+        date=getattr(command, "posting_date", timezone.now().date()),
+        lines=lines,
+        user=command.user,
+        idempotency_key=f"JE:tax:TaxDetermination:{command.document_number}:post",
+        source_module="financial",
+        source_model="TaxDeterminationAudit",
+        source_id=getattr(command, "document_id", 1),
+        entry_type="automatic"
+    )
+
+
+def create_tax_reversal_posting(command=None, user=None, reason="", **kwargs) -> JournalEntry:
+    from financial.services.legacy_adapter import LegacyAccountingAdapter
+    from financial.services.account_role_registry import AccountRoleRegistry
+
+    if hasattr(command, "original_audit"):
+        audit = command.original_audit
+        rev_amt = getattr(command, "reversal_amount", Decimal("0.00"))
+        user = getattr(command, "user", user)
+    elif hasattr(command, "id"):
+        # command is JournalEntry
+        orig_entry = command
+        user = user or kwargs.get("user")
+        if orig_entry.status != "posted":
+            from financial.models.journal_entry import JournalEntry
+            JournalEntry.objects.filter(pk=orig_entry.pk).update(
+                status="posted",
+                posted_at=timezone.now(),
+                posted_by=user
+            )
+        from financial.services.ledger_core_service import LedgerCoreService
+        return LedgerCoreService.reverse_entry(orig_entry.id, user=user, reversal_reason=reason)
+    else:
+        audit = getattr(command, "original_audit", None)
+        rev_amt = getattr(command, "reversal_amount", Decimal("0.00"))
+
+    tax_acc = AccountRoleRegistry.get_account_by_role("OUTPUT_TAX_ACCOUNT")
+    ar_acc = AccountRoleRegistry.get_account_by_role("AR_CONTROL_ACCOUNT")
+
+    doc_num = audit.document_number if audit else "N/A"
+    audit_id = audit.id if audit else 1
+
+    lines = [
+        {"account": tax_acc, "debit": rev_amt, "credit": 0, "description": f"تسوية عكس ضريبة مستند #{doc_num}"},
+        {"account": ar_acc, "debit": 0, "credit": rev_amt, "description": f"عكس استحقاق ضريبة عميل"},
+    ]
+
+    return LegacyAccountingAdapter.post_journal_entry(
+        description=f"قيد عكس الضريبة لمستند #{doc_num}",
+        date=timezone.now().date(),
+        lines=lines,
+        user=user,
+        idempotency_key=f"JE:tax:TaxReversal:{audit_id}:reversal",
+        source_module="financial",
+        source_model="TaxReversal",
+        source_id=audit_id,
+        entry_type="automatic"
+    )
+
+
+def create_credit_note_posting(command) -> JournalEntry:
+    from financial.services.legacy_adapter import LegacyAccountingAdapter
+    from financial.services.account_role_registry import AccountRoleRegistry
+
+    doc_num = getattr(command, "document_number", getattr(command, "credit_note_number", "N/A"))
+    total_amt = getattr(command, "total_amount", getattr(command, "amount", Decimal("0.00")))
+    tax_amt = getattr(command, "tax_amount", Decimal("0.00"))
+    subtotal_amt = getattr(command, "subtotal_amount", total_amt - tax_amt)
+
+    sales_ret_acc = getattr(command, "revenue_account", None) or AccountRoleRegistry.get_account_by_role("SALES_RETURNS_ACCOUNT")
+    tax_acc = getattr(command, "vat_account", None) or AccountRoleRegistry.get_account_by_role("OUTPUT_TAX_ACCOUNT")
+    ar_acc = getattr(command, "customer_account", None) or AccountRoleRegistry.get_account_by_role("AR_CONTROL_ACCOUNT")
+
+    lines = [
+        {"account": sales_ret_acc, "debit": subtotal_amt, "credit": 0, "description": f"مرتجع/إشعار دائن #{doc_num}"},
+        {"account": tax_acc, "debit": tax_amt, "credit": 0, "description": f"عكس ضريبة مخرجات إشعار دائن #{doc_num}"},
+        {"account": ar_acc, "debit": 0, "credit": total_amt, "description": f"تخفيض حساب العميل إشعار دائن #{doc_num}"},
+    ]
+
+    return LegacyAccountingAdapter.post_journal_entry(
+        description=f"قيد ترحيل إشعار دائن #{doc_num}",
+        date=getattr(command, "posting_date", timezone.now().date()),
+        lines=lines,
+        user=command.user,
+        idempotency_key=f"JE:sale:CreditNote:{doc_num}:post",
+        source_module="sale",
+        source_model="CreditNote",
+        source_id=getattr(command, "credit_note_id", 1),
+        entry_type="automatic"
+    )
+
+
+def create_credit_note_reversal_posting(command) -> JournalEntry:
+    from financial.services.legacy_adapter import LegacyAccountingAdapter
+    from financial.services.account_role_registry import AccountRoleRegistry
+
+    sales_ret_acc = AccountRoleRegistry.get_account_by_role("SALES_RETURNS_ACCOUNT")
+    tax_acc = AccountRoleRegistry.get_account_by_role("OUTPUT_TAX_ACCOUNT")
+    ar_acc = AccountRoleRegistry.get_account_by_role("AR_CONTROL_ACCOUNT")
+
+    cn = command.original_credit_note
+
+    lines = [
+        {"account": ar_acc, "debit": cn.total_amount, "credit": 0, "description": f"إعادة زيادة حساب العميل (عكس إشعار دائن #{cn.credit_note_number})"},
+        {"account": sales_ret_acc, "debit": 0, "credit": cn.subtotal_amount, "description": f"عكس مسببات إشعار دائن #{cn.credit_note_number}"},
+        {"account": tax_acc, "debit": 0, "credit": cn.tax_amount, "description": f"إعادة اثبات ضريبة المخرجات"},
+    ]
+
+    return LegacyAccountingAdapter.post_journal_entry(
+        description=f"قيد عكس إشعار دائن #{cn.credit_note_number}",
+        date=timezone.now().date(),
+        lines=lines,
+        user=getattr(command, "user", None),
+        idempotency_key=f"JE:sale:CreditNoteReversal:{cn.credit_note_number}:reversal",
+        source_module="sale",
+        source_model="CreditNoteReversal",
+        source_id=cn.id,
+        entry_type="automatic"
+    )
+
+
+def create_revenue_recognition_entry(command) -> JournalEntry:
+    from financial.services.legacy_adapter import LegacyAccountingAdapter
+    from financial.services.account_role_registry import AccountRoleRegistry
+
+    rev_acc = AccountRoleRegistry.get_account_by_role("SALES_REVENUE_ACCOUNT")
+    def_rev_acc = AccountRoleRegistry.get_account_by_role("DEFERRED_REVENUE_ACCOUNT")
+
+    lines = [
+        {"account": def_rev_acc, "debit": command.functional_amount, "credit": 0, "description": f"الاعتراف بالإيراد المؤجل (حدث: {command.event})"},
+        {"account": rev_acc, "debit": 0, "credit": command.functional_amount, "description": f"إثبات إيراد المبيعات المحقق (حدث: {command.event})"},
+    ]
+
+    return LegacyAccountingAdapter.post_journal_entry(
+        description=f"قيد الاعتراف بالإيراد لجدول #{command.schedule.id}",
+        date=getattr(command, "recognition_date", timezone.now().date()),
+        lines=lines,
+        user=command.user,
+        idempotency_key=f"JE:financial:RevRecEntry:{command.schedule.id}:{command.event}",
+        source_module="financial",
+        source_model="RevenueRecognitionSchedule",
+        source_id=command.schedule.id,
+        entry_type="automatic"
+    )
+
+
+def create_revenue_reversal_entry(command) -> JournalEntry:
+    from financial.services.legacy_adapter import LegacyAccountingAdapter
+    from financial.services.account_role_registry import AccountRoleRegistry
+
+    rev_acc = AccountRoleRegistry.get_account_by_role("SALES_REVENUE_ACCOUNT")
+    def_rev_acc = AccountRoleRegistry.get_account_by_role("DEFERRED_REVENUE_ACCOUNT")
+
+    lines = [
+        {"account": rev_acc, "debit": command.reversal_amount, "credit": 0, "description": f"عكس إيراد مبيعات معترف به سابقا"},
+        {"account": def_rev_acc, "debit": 0, "credit": command.reversal_amount, "description": f"إعادة قيد إيرادات مؤجلة"},
+    ]
+
+    return LegacyAccountingAdapter.post_journal_entry(
+        description=f"قيد عكس الاعتراف بالإيراد لجدول #{command.schedule.id}",
+        date=timezone.now().date(),
+        lines=lines,
+        user=getattr(command, "user", None),
+        idempotency_key=f"JE:financial:RevRecReversal:{command.schedule.id}:reversal",
+        source_module="financial",
+        source_model="RevenueRecognitionReversal",
+        source_id=command.schedule.id,
+        entry_type="automatic"
+    )

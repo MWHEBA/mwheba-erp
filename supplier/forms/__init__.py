@@ -193,8 +193,8 @@ class SupplierAccountChangeForm(forms.ModelForm):
             from django.db import models
 
             # الحسابات المؤهلة للموردين - فقط الحسابات الفرعية من حساب الموردين
-            # البحث عن حساب الموردين الرئيسي
-            suppliers_account = ChartOfAccounts.objects.filter(code="20100").first()
+            from financial.services.account_role_registry import AccountRoleRegistry
+            suppliers_account = AccountRoleRegistry.get_account_by_role("SUPPLIER_PAYABLE_CONTROL")
 
             if suppliers_account:
                 # جلب جميع الحسابات الفرعية (مستوى واحد واثنين)
@@ -222,8 +222,8 @@ class SupplierAccountChangeForm(forms.ModelForm):
         """
         account = self.cleaned_data.get("financial_account")
         if account:
-            # التحقق من أن الحساب من حساب الموردين أو فرعي منه
-            suppliers_account = ChartOfAccounts.objects.filter(code="20100").first()
+            from financial.services.account_role_registry import AccountRoleRegistry
+            suppliers_account = AccountRoleRegistry.get_account_by_role("SUPPLIER_PAYABLE_CONTROL")
             is_valid = False
 
             if suppliers_account and account:
