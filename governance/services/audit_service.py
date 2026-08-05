@@ -21,7 +21,8 @@ from django.conf import settings
 from typing import Optional, Dict, Any, Union
 import logging
 import json
-from datetime import datetime
+from decimal import Decimal
+from datetime import datetime, date
 
 from ..models import AuditTrail
 from ..thread_safety import ThreadSafeOperationMixin
@@ -89,9 +90,12 @@ class AuditService(ThreadSafeOperationMixin):
                     'additional_context': cls._sanitize_data(additional_context)
                 }
                 
-                # Add user if provided
-                if user:
-                    audit_data['user'] = user
+                # Add user if provided and exists in DB
+                if user and hasattr(user, 'pk') and user.pk:
+                    from django.contrib.auth import get_user_model
+                    User = get_user_model()
+                    if User.objects.filter(pk=user.pk).exists():
+                        audit_data['user'] = user
                 
                 # Create audit record
                 audit_record = AuditTrail.objects.create(**audit_data)
@@ -379,12 +383,12 @@ class AuditService(ThreadSafeOperationMixin):
         elif isinstance(data, (list, tuple)):
             return [cls._sanitize_data(item) for item in data]
         
+        elif isinstance(data, Decimal):
+            return str(data)
+        elif isinstance(data, (datetime, date)):
+            return data.isoformat()
         elif isinstance(data, (str, int, float, bool)):
             return data
-        
-        elif isinstance(data, datetime):
-            return data.isoformat()
-        
         else:
             # Convert other types to string representation
             return str(data)

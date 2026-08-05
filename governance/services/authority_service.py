@@ -34,7 +34,7 @@ class AuthorityService:
         # ============================================================================
         # PAYROLL AUTHORITY BOUNDARIES
         # ============================================================================
-        'Payroll': 'PayrollGateway',
+        'Payroll': ['PayrollGateway', 'PayrollService'],
         'PayrollLine': 'PayrollGateway',
         'PayrollPayment': 'PayrollPaymentService',
         'PayrollPaymentLine': 'PayrollPaymentService',
@@ -86,7 +86,7 @@ class AuthorityService:
             authoritative_service = cls.AUTHORITY_MATRIX[model_name]
             
             # Check direct authority
-            if service_name == authoritative_service:
+            if service_name == authoritative_service or (isinstance(authoritative_service, (list, tuple, set)) and service_name in authoritative_service):
                 logger.debug(f"Direct authority granted: {service_name} → {model_name}")
                 return True
             
@@ -449,7 +449,7 @@ class AuthorityService:
         for model_name, service_name in cls.AUTHORITY_MATRIX.items():
             if not model_name or not isinstance(model_name, str):
                 errors.append(f"Invalid model name: {model_name}")
-            if not service_name or not isinstance(service_name, str):
+            if not service_name or not (isinstance(service_name, str) or (isinstance(service_name, (list, tuple, set)) and all(isinstance(s, str) for s in service_name))):
                 errors.append(f"Invalid service name for model '{model_name}': {service_name}")
         
         # Check critical models are in matrix
@@ -474,7 +474,13 @@ class AuthorityService:
         else:
             logger.info("Authority matrix validation passed")
             logger.debug(f"Governed models: {list(cls.AUTHORITY_MATRIX.keys())}")
-            logger.debug(f"Authoritative services: {set(cls.AUTHORITY_MATRIX.values())}")
+            services_set = set()
+            for s in cls.AUTHORITY_MATRIX.values():
+                if isinstance(s, (list, tuple, set)):
+                    services_set.update(s)
+                else:
+                    services_set.add(s)
+            logger.debug(f"Authoritative services: {services_set}")
         
         return errors
     

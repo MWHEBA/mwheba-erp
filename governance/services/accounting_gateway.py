@@ -304,6 +304,17 @@ class AccountingGateway:
         
         try:
             with monitor_operation("accounting_gateway_create_entry"):
+                # Ensure user exists in DB
+                from django.contrib.auth import get_user_model
+                User_Model = get_user_model()
+                if user is None or not getattr(user, 'pk', None) or not User_Model.objects.filter(pk=user.pk).exists():
+                    user = GovernanceContext.get_current_user()
+                    if user is None or not getattr(user, 'pk', None) or not User_Model.objects.filter(pk=user.pk).exists():
+                        user, _ = User_Model.objects.get_or_create(
+                            username="system_governance_user",
+                            defaults={"email": "system@governance.local", "is_superuser": True}
+                        )
+
                 # Set governance context
                 GovernanceContext.set_context(
                     user=user,

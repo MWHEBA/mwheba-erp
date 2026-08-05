@@ -71,7 +71,8 @@ class AdvanceSystemIntegrationTest(TransactionTestCase):
         advance = Advance.objects.create(
             employee=self.employee,
             amount=Decimal('2000.00'),
-            request_date=date.today(),
+            installments_count=2,
+            deduction_start_month=date.today(),
             status='approved'
         )
         self.assertEqual(advance.employee, self.employee)
@@ -83,6 +84,6 @@ class AdvanceSystemIntegrationTest(TransactionTestCase):
         leave_type = LeaveType.objects.create(
             name_ar='إجازة سنوية',
             code='ANNUAL_INT',
-            days_per_year=21
+            max_days_per_year=21
         )
         self.assertEqual(leave_type.code, 'ANNUAL_INT')

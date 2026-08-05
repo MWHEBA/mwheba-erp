@@ -37,6 +37,11 @@ class TestConcurrency:
             max_hours_per_request=Decimal('4.00'),
             is_active=True
         )
+        from core.models import SystemSetting
+        SystemSetting.set_setting('hr_permission_max_count_monthly', 4)
+        SystemSetting.set_setting('hr_permission_max_hours_monthly', 4)
+        from django.core.cache import cache
+        cache.clear()
 
     def test_concurrent_requests_with_locking(self):
         """
@@ -46,29 +51,35 @@ class TestConcurrency:
         barrier = Barrier(5)  # Sync 5 threads
         
         def create_permission(thread_id):
-            barrier.wait()  # Wait for all threads to reach this point
-            
+            barrier.wait()  # Wait for all threads
+            from django.db import close_old_connections
+            close_old_connections()
             try:
-                success, result = PermissionQuotaService.create_permission_request(
-                    employee_id=self.employee.id,
-                    permission_data={
-                        'permission_type': self.permission_type,
-                        'date': date.today(),
-                        'start_time': time(9 + thread_id, 0),
-                        'end_time': time(10 + thread_id, 0),
-                        'duration_hours': Decimal('1.00'),
-                        'reason': f'Test {thread_id}',
-                        'status': 'approved'
-                    }
-                )
-                if not success and 'no such table' in str(result):
-                    results.append('sqlite_error')
-                else:
-                    results.append('success' if success else 'failed')
-            except Exception as e:
-                results.append('error')
+                for attempt in range(5):
+                    try:
+                        success, result = PermissionQuotaService.create_permission_request(
+                            employee_id=self.employee.id,
+                            permission_data={
+                                'permission_type': self.permission_type,
+                                'date': date.today(),
+                                'start_time': time(9 + thread_id, 0),
+                                'end_time': time(10 + thread_id, 0),
+                                'duration_hours': Decimal('1.00'),
+                                'reason': f'Test {thread_id}',
+                                'status': 'approved'
+                            }
+                        )
+                        results.append('success' if success else 'failed')
+                        break
+                    except Exception as e:
+                        if ('1213' in str(e) or 'deadlock' in str(e).lower()) and attempt < 4:
+                            import time as t_mod
+                            t_mod.sleep(0.05 * (attempt + 1))
+                            continue
+                        results.append('failed')
+                        break
             finally:
-                connection.close()
+                close_old_connections()
         
         # Create 5 concurrent requests (limit is usually 4 per month)
         threads = [Thread(target=create_permission, args=(i,)) for i in range(5)]

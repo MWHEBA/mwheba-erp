@@ -347,46 +347,52 @@ def balanced_journal_entry_lines_strategy():
         # Create debit lines
         debit_count = draw(st.integers(min_value=1, max_value=max(1, num_lines - 1)))
         for i in range(debit_count):
-            if i == debit_count - 1:  # Last debit line gets remaining amount
+            if i == debit_count - 1 or remaining_debit <= Decimal('0.01'):
                 debit_amount = remaining_debit
             else:
-                # Use a portion of remaining debit
-                max_amount = min(remaining_debit, total_amount // 2)
-                debit_amount = draw(st.decimals(
-                    min_value=Decimal('0.01'),
-                    max_value=max_amount,
-                    places=2
-                ))
+                max_amount = max(Decimal('0.01'), min(remaining_debit - Decimal('0.01'), total_amount / Decimal('2')))
+                if max_amount <= Decimal('0.01'):
+                    debit_amount = remaining_debit
+                else:
+                    debit_amount = draw(st.decimals(
+                        min_value=Decimal('0.01'),
+                        max_value=max_amount,
+                        places=2
+                    ))
                 remaining_debit -= debit_amount
             
-            lines.append(MockJournalEntryLineData(
-                account_code=draw(account_codes_strategy()),
-                debit=debit_amount,
-                credit=Decimal('0.00'),
-                description=f"Debit line {i+1}"
-            ))
+            if debit_amount > Decimal('0.00'):
+                lines.append(MockJournalEntryLineData(
+                    account_code=draw(account_codes_strategy()),
+                    debit=debit_amount,
+                    credit=Decimal('0.00'),
+                    description=f"Debit line {i+1}"
+                ))
         
         # Create credit lines to balance
         credit_count = num_lines - debit_count
         for i in range(credit_count):
-            if i == credit_count - 1:  # Last credit line gets remaining amount
+            if i == credit_count - 1 or remaining_credit <= Decimal('0.01'):
                 credit_amount = remaining_credit
             else:
-                # Use a portion of remaining credit
-                max_amount = min(remaining_credit, total_amount // 2)
-                credit_amount = draw(st.decimals(
-                    min_value=Decimal('0.01'),
-                    max_value=max_amount,
-                    places=2
-                ))
+                max_amount = max(Decimal('0.01'), min(remaining_credit - Decimal('0.01'), total_amount / Decimal('2')))
+                if max_amount <= Decimal('0.01'):
+                    credit_amount = remaining_credit
+                else:
+                    credit_amount = draw(st.decimals(
+                        min_value=Decimal('0.01'),
+                        max_value=max_amount,
+                        places=2
+                    ))
                 remaining_credit -= credit_amount
             
-            lines.append(MockJournalEntryLineData(
-                account_code=draw(account_codes_strategy()),
-                debit=Decimal('0.00'),
-                credit=credit_amount,
-                description=f"Credit line {i+1}"
-            ))
+            if credit_amount > Decimal('0.00'):
+                lines.append(MockJournalEntryLineData(
+                    account_code=draw(account_codes_strategy()),
+                    debit=Decimal('0.00'),
+                    credit=credit_amount,
+                    description=f"Credit line {i+1}"
+                ))
         
         return lines
     

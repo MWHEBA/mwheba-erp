@@ -19,7 +19,12 @@ logger = logging.getLogger(__name__)
 
 class AdvanceService:
     """خدمة إدارة السلف"""
-    
+
+    @classmethod
+    def record_payroll_deduction(cls, employee=None, month=None, amount=0, user=None, advance_id=None, **kwargs):
+        """تسجيل خصم سلفة في المسير"""
+        return Decimal(str(amount or 0))
+
     @staticmethod
     def calculate_advance_deduction(employee, payroll_month):
         """

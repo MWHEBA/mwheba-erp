@@ -516,7 +516,7 @@ class PayrollGovernanceIntegrationTest(TransactionTestCase):
         
         # First operation should succeed
         result_data = {'payroll_id': 456, 'status': 'created'}
-        is_duplicate, record = IdempotencyService.check_and_record_operation(
+        is_duplicate, record, _ = IdempotencyService.check_and_record_operation(
             operation_type='payroll_operation',
             idempotency_key=key,
             result_data=result_data,
@@ -527,7 +527,7 @@ class PayrollGovernanceIntegrationTest(TransactionTestCase):
         self.assertIsNotNone(record)
         
         # Second operation should be detected as duplicate
-        is_duplicate, record = IdempotencyService.check_and_record_operation(
+        is_duplicate, record, _ = IdempotencyService.check_and_record_operation(
             operation_type='payroll_operation',
             idempotency_key=key,
             result_data=result_data,
@@ -557,7 +557,7 @@ class PayrollGovernanceIntegrationTest(TransactionTestCase):
                 user=self.user
             )
     
-    @patch('governance.services.audit_service.AuditService.create_audit_record')
+    @patch('governance.services.audit_service.AuditService.log_payroll_operation')
     def test_payroll_audit_integration(self, mock_create_audit):
         """Test end-to-end payroll audit trail creation."""
         mock_create_audit.return_value = Mock()
@@ -573,12 +573,13 @@ class PayrollGovernanceIntegrationTest(TransactionTestCase):
         mock_payroll.gross_salary = Decimal('6000.00')
         
         # Create audit record
-        audit_record = PayrollGovernanceService.create_payroll_audit_record(
-            payroll_instance=mock_payroll,
-            operation='calculate',
-            user=self.user,
-            source_service='PayrollService'
-        )
+        with patch.object(PayrollGovernanceService, 'is_payroll_feature_enabled', return_value=True):
+            audit_record = PayrollGovernanceService.create_payroll_audit_record(
+                payroll_instance=mock_payroll,
+                operation='calculate',
+                user=self.user,
+                source_service='PayrollService'
+            )
         
         # Verify audit record was created
         mock_create_audit.assert_called_once()

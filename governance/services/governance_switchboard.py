@@ -1189,3 +1189,13 @@ def workflow_disabled(workflow_name: str, reason: str = "Temporary disable"):
         'workflow', workflow_name, False, reason
     ):
         yield
+
+
+def set_switch(switch_name: str, enabled: bool, user=None, reason: str = "") -> bool:
+    """Set component or workflow switch value"""
+    if switch_name in governance_switchboard.COMPONENT_FLAGS:
+        return governance_switchboard.set_component_switch(switch_name, enabled, user, reason)
+    elif switch_name in governance_switchboard.WORKFLOW_FLAGS:
+        return governance_switchboard.set_workflow_switch(switch_name, enabled, user, reason)
+    else:
+        return governance_switchboard.set_component_switch(switch_name, enabled, user, reason)

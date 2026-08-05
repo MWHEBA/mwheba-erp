@@ -146,6 +146,7 @@ def setup_chart_of_accounts(django_db_setup, django_db_blocker):
         ChartOfAccounts.objects.get_or_create(code='40100', defaults={'name': 'إيرادات المبيعات', 'account_type': revenue_type, 'is_active': True})
         ChartOfAccounts.objects.get_or_create(code='40200', defaults={'name': 'إيرادات الخدمات', 'account_type': revenue_type, 'is_active': True})
         ChartOfAccounts.objects.get_or_create(code='50100', defaults={'name': 'تكلفة البضاعة المباعة', 'account_type': expense_type, 'is_active': True})
+        ChartOfAccounts.objects.get_or_create(code='50300', defaults={'name': 'مصروفات حركة المخزون', 'account_type': expense_type, 'is_active': True})
         
         # تحميل الفترات المحاسبية إن وجدت
         current_year = date.today().year

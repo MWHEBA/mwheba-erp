@@ -16,6 +16,7 @@ Key Features:
 """
 
 import logging
+import threading
 from typing import Dict, List, Optional, Tuple, Any, Set
 from decimal import Decimal
 from datetime import timedelta, datetime
@@ -45,6 +46,7 @@ class QuarantineStorage:
     Thread-safe storage manager for quarantine operations.
     Handles concurrent access to quarantine records with proper locking.
     """
+    _lock = threading.Lock()
     
     @staticmethod
     @retry_on_concurrency_error(max_retries=3)
@@ -52,51 +54,35 @@ class QuarantineStorage:
                                reason: str, original_data: dict, user, **context) -> QuarantineRecord:
         """
         Thread-safe storage of quarantine record.
-        
-        Args:
-            model_name: Name of the model containing corrupted data
-            object_id: ID of the corrupted object
-            corruption_type: Type of corruption detected
-            reason: Detailed reason for quarantine
-            original_data: Original data before quarantine
-            user: User or system that initiated quarantine
-            **context: Additional context information
-            
-        Returns:
-            QuarantineRecord: Created quarantine record
         """
         with monitor_operation("store_quarantine_record"):
-            with DatabaseLockManager.atomic_operation():
-                # Check for existing quarantine with proper locking
-                existing_queryset = QuarantineRecord.objects.filter(
-                    model_name=model_name,
-                    object_id=object_id,
-                    corruption_type=corruption_type,
-                    status__in=['QUARANTINED', 'UNDER_REVIEW']
-                )
-                
-                existing_queryset = DatabaseLockManager.select_for_update_if_supported(
-                    existing_queryset
-                )
-                
-                existing = existing_queryset.first()
-                if existing:
-                    logger.info(f"Quarantine record already exists: {existing.id}")
-                    return existing
-                
-                # Create new quarantine record
-                quarantine_record = QuarantineRecord.objects.create(
-                    model_name=model_name,
-                    object_id=object_id,
-                    corruption_type=corruption_type,
-                    original_data=original_data,
-                    quarantine_reason=reason,
-                    quarantined_by=user,
-                    status='QUARANTINED'
-                )
-                
-                logger.info(f"Quarantine record created: {quarantine_record.id}")
-                return quarantine_record
+            with QuarantineStorage._lock:
+                with DatabaseLockManager.atomic_operation():
+                    # Check for existing quarantine with proper locking
+                    existing = QuarantineRecord.objects.filter(
+                        model_name=model_name,
+                        object_id=object_id,
+                        corruption_type=corruption_type,
+                        status__in=['QUARANTINED', 'UNDER_REVIEW']
+                    ).first()
+                    
+                    if existing:
+                        logger.info(f"Quarantine record already exists: {existing.id}")
+                        return existing
+                    
+                    # Create new quarantine record
+                    quarantine_record = QuarantineRecord.objects.create(
+                        model_name=model_name,
+                        object_id=object_id,
+                        corruption_type=corruption_type,
+                        original_data=original_data,
+                        quarantine_reason=reason,
+                        quarantined_by=user,
+                        status='QUARANTINED'
+                    )
+                    
+                    logger.info(f"Quarantine record created: {quarantine_record.id}")
+                    return quarantine_record
     
     @staticmethod
     @retry_on_concurrency_error(max_retries=3)

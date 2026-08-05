@@ -219,6 +219,35 @@ class OrphanedEntryPreventionPropertyTest(HypothesisTestCase):
         self.repair_service = RepairService()
         self.quarantine_service = QuarantineService()
     
+def ensure_test_accounts(username='test_user_orphan'):
+    """Ensure test user, accounting period, account type, and chart of accounts exist for Hypothesis iterations"""
+    user, _ = User.objects.get_or_create(
+        username=username,
+        defaults={'email': f'{username}@example.com', 'is_superuser': True}
+    )
+    GovernanceContext.set_context(user=user, service='TestService')
+    
+    acc_type, _ = AccountType.objects.get_or_create(
+        code='INTTEST',
+        defaults={'name': 'Integration Test Account Type', 'category': 'asset', 'nature': 'debit'}
+    )
+    period = AccountingPeriod.objects.filter(start_date__lte=date(2020, 1, 1), end_date__gte=date(2030, 12, 31)).first()
+    if not period:
+        period, _ = AccountingPeriod.objects.get_or_create(
+            start_date=date(2020, 1, 1),
+            end_date=date(2030, 12, 31),
+            defaults={'name': 'Integration Test Period', 'status': 'open'}
+        )
+    if period.status != 'open':
+        period.status = 'open'
+        period.save()
+    for code in ['1001', '1002', '2001', '2002', '3001', '4001', '5001']:
+        ChartOfAccounts.objects.get_or_create(
+            code=code,
+            defaults={'name': f"Test Account {code}", 'account_type': acc_type, 'is_active': True}
+        )
+    return user
+
     def tearDown(self):
         """Clean up after tests"""
         GovernanceContext.clear_context()
@@ -237,6 +266,7 @@ class OrphanedEntryPreventionPropertyTest(HypothesisTestCase):
         Property: For any Journal_Entry created with a valid source reference that points 
         to an existing record, the entry should NOT be considered orphaned.
         """
+        ensure_test_accounts()
         source_module, source_model = source_data
         note(f"Testing valid source prevention: {source_module}.{source_model}#{source_id}")
         
@@ -371,6 +401,7 @@ class OrphanedEntryPreventionPropertyTest(HypothesisTestCase):
         Property: In a mix of valid and invalid source references,
         the system should correctly identify and handle each case.
         """
+        self._ensure_test_accounts()
         note(f"Testing mixed scenarios: {len(valid_entries)} valid, {len(orphan_entries)} orphan")
         
         created_entries = []
@@ -760,6 +791,7 @@ class OrphanedEntryPreventionIntegrationTest(HypothesisTestCase):
         
         Property: With real database operations, orphan prevention should work consistently.
         """
+        ensure_test_accounts()
         source_module, source_model = source_data
         note(f"Testing real database orphan prevention: {source_module}.{source_model}#{source_id}")
         

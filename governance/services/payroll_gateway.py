@@ -865,33 +865,30 @@ class PayrollGateway:
     def _update_advance_status_atomic(self, advance: Advance, installment_amount: Decimal) -> None:
         """
         Update advance status with thread-safe operations.
-        
-        Args:
-            advance: Advance instance
-            installment_amount: Amount being deducted
         """
-        # Use select_for_update for thread safety where supported
-        if connection.vendor == 'postgresql':
-            advance = Advance.objects.select_for_update().get(id=advance.id)
-        
-        # Update paid installments count
-        advance.paid_installments += 1
-        
-        # Update status based on remaining amount
-        if advance.status == 'paid':
-            advance.status = 'in_progress'
-        
-        # Calculate remaining amount
-        total_paid = advance.paid_installments * advance.installment_amount
-        advance.remaining_amount = advance.amount - total_paid
-        
-        # Check if advance is completed
-        if advance.remaining_amount <= 0:
-            advance.status = 'completed'
-            advance.completed_at = timezone.now()
-            advance.remaining_amount = Decimal('0')  # Ensure it's exactly zero
-        
-        advance.save()
+        with DatabaseLockManager.atomic_operation():
+            # Use select_for_update for thread safety where supported
+            if DatabaseLockManager.supports_row_locking():
+                advance = Advance.objects.select_for_update().get(id=advance.id)
+            
+            # Update paid installments count
+            advance.paid_installments += 1
+            
+            # Update status based on remaining amount
+            if advance.status == 'paid':
+                advance.status = 'in_progress'
+            
+            # Calculate remaining amount
+            total_paid = advance.paid_installments * advance.installment_amount
+            advance.remaining_amount = advance.amount - total_paid
+            
+            # Check if advance is completed
+            if advance.remaining_amount <= 0:
+                advance.status = 'completed'
+                advance.completed_at = timezone.now()
+                advance.remaining_amount = Decimal('0')  # Ensure it's exactly zero
+            
+            advance.save()
         
         logger.info(
             f"Updated advance {advance.id}: paid_installments={advance.paid_installments}, "

@@ -626,8 +626,8 @@ class AuthorityBoundaryEnforcementProperties(HypothesisTestCase):
         for model_name, service_name in self.authority_service.AUTHORITY_MATRIX.items():
             assert isinstance(model_name, str) and model_name.strip(), \
                 f"Model name should be non-empty string: {model_name}"
-            assert isinstance(service_name, str) and service_name.strip(), \
-                f"Service name should be non-empty string: {service_name}"
+            assert (isinstance(service_name, str) and service_name.strip()) or (isinstance(service_name, (list, tuple, set)) and len(service_name) > 0), \
+                f"Service name should be non-empty string or collection: {service_name}"
     
     def test_authority_statistics_accuracy(self):
         """

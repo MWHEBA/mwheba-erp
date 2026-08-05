@@ -122,8 +122,8 @@ class AuditTrailTester:
             # Test Purchase operation audit trail
             purchase_data = {
                 'supplier_id': 1,
-                'total_amount': Decimal('100.00'),
-                'items': [{'product_id': 1, 'quantity': 5, 'unit_price': Decimal('20.00')}]
+                'total_amount': '100.00',
+                'items': [{'product_id': 1, 'quantity': 5, 'unit_price': '20.00'}]
             }
             
             # Create audit record for Purchase creation
@@ -141,8 +141,8 @@ class AuditTrailTester:
             # Test Sale operation audit trail
             sale_data = {
                 'parent_id': 1,
-                'total_amount': Decimal('150.00'),
-                'items': [{'product_id': 1, 'quantity': 3, 'unit_price': Decimal('50.00')}]
+                'total_amount': '150.00',
+                'items': [{'product_id': 1, 'quantity': 3, 'unit_price': '50.00'}]
             }
             
             # Create audit record for Sale creation

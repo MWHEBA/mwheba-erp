@@ -44,7 +44,7 @@ class SignalRouter:
             depth_limit: Maximum signal chain depth (default: 5)
             enable_audit: Whether to enable audit logging (default: True)
         """
-        self.depth_limit = depth_limit or self.DEFAULT_DEPTH_LIMIT
+        self.depth_limit = depth_limit if depth_limit is not None else self.DEFAULT_DEPTH_LIMIT
         self.enable_audit = enable_audit
         
         # Global kill switch

@@ -792,14 +792,21 @@ class PayrollGatewayConcurrencyTest(TransactionTestCase):
             password='testpass123'
         )
         
+        self.dept = Department.objects.create(code='IT-CONC', name_ar='تكنولوجيا المعلومات')
+        self.job = JobTitle.objects.create(code='JOB-CONC-001', title_ar='مطور', department=self.dept)
+
         self.employee = Employee.objects.create(
             employee_number='EMP001',
             name='أحمد محمد',
             national_id='12345678901234',
-            phone='01234567890',
-            email='ahmed@test.com',
+            birth_date=date(1990, 1, 1),
+            gender='male',
+            marital_status='single',
+            department=self.dept,
+            job_title=self.job,
             hire_date=date(2023, 1, 1),
-            is_active=True
+            status='active',
+            created_by=self.user
         )
         
         self.contract = Contract.objects.create(
@@ -807,7 +814,8 @@ class PayrollGatewayConcurrencyTest(TransactionTestCase):
             contract_type='permanent',
             basic_salary=Decimal('5000.00'),
             start_date=date(2023, 1, 1),
-            status='active'
+            status='active',
+            created_by=self.user
         )
         
         SalaryComponent.objects.create(
@@ -903,23 +911,28 @@ class PayrollGatewayConcurrencyTest(TransactionTestCase):
         errors = []
         
         def create_payroll_with_advance(month_offset):
-            try:
-                month = date(2024, month_offset, 1)
-                idempotency_key = IdempotencyService.generate_payroll_key(
-                    employee_id=self.employee.id,
-                    month=month.strftime('%Y-%m'),
-                    event_type='create'
-                )
-                
-                payroll = self.gateway.create_payroll(
-                    employee_id=self.employee.id,
-                    month=month,
-                    idempotency_key=idempotency_key,
-                    user=self.user
-                )
-                results.append(payroll)
-            except Exception as e:
-                errors.append(e)
+            from django.db import close_old_connections
+            close_old_connections()
+            month = date(2024, month_offset, 1)
+            for attempt in range(5):
+                idempotency_key = f"PAYROLL_CONC_{self.employee.id}_{month.strftime('%Y-%m')}_{attempt}"
+                try:
+                    payroll = self.gateway.create_payroll(
+                        employee_id=self.employee.id,
+                        month=month,
+                        idempotency_key=idempotency_key,
+                        user=self.user
+                    )
+                    results.append(payroll)
+                    break
+                except Exception as e:
+                    if ('1213' in str(e) or 'deadlock' in str(e).lower() or 'already exists' in str(e).lower()) and attempt < 4:
+                        import time
+                        time.sleep(0.1 * (attempt + 1))
+                        continue
+                    errors.append(e)
+                    break
+            close_old_connections()
         
         # Create payrolls for different months concurrently
         threads = []

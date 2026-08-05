@@ -1,8 +1,7 @@
-from django.db import models
+from django.db import models, transaction, IntegrityError
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.utils import timezone
-from django.db import transaction
 import threading
 import json
 import logging
@@ -33,7 +32,9 @@ class IdempotencyRecord(models.Model):
     )
     created_by = models.ForeignKey(
         User,
-        on_delete=models.PROTECT,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name='created_idempotency_records',
         help_text="User who initiated the operation"
     )
@@ -66,6 +67,7 @@ class IdempotencyRecord(models.Model):
         Thread-safe method to check for existing operation or record new one.
         Returns (is_duplicate, record)
         """
+        user_obj = user if (user and hasattr(user, 'pk') and user.pk and User.objects.filter(pk=user.pk).exists()) else None
         with transaction.atomic():
             try:
                 # Try to get existing record
@@ -82,7 +84,7 @@ class IdempotencyRecord(models.Model):
                         idempotency_key=idempotency_key,
                         result_data=result_data,
                         expires_at=timezone.now() + timezone.timedelta(hours=expires_in_hours),
-                        created_by=user
+                        created_by=user_obj
                     )
                     return False, record
                 else:
@@ -91,14 +93,32 @@ class IdempotencyRecord(models.Model):
                     
             except cls.DoesNotExist:
                 # No existing record, create new one
-                record = cls.objects.create(
-                    operation_type=operation_type,
-                    idempotency_key=idempotency_key,
-                    result_data=result_data,
-                    expires_at=timezone.now() + timezone.timedelta(hours=expires_in_hours),
-                    created_by=user
-                )
-                return False, record
+                try:
+                    with transaction.atomic(savepoint=True):
+                        record = cls.objects.create(
+                            operation_type=operation_type,
+                            idempotency_key=idempotency_key,
+                            result_data=result_data,
+                            expires_at=timezone.now() + timezone.timedelta(hours=expires_in_hours),
+                            created_by=user_obj
+                        )
+                        return False, record
+                except IntegrityError:
+                    try:
+                        existing = cls.objects.get(
+                            operation_type=operation_type,
+                            idempotency_key=idempotency_key
+                        )
+                        return True, existing
+                    except cls.DoesNotExist:
+                        record = cls.objects.create(
+                            operation_type=operation_type,
+                            idempotency_key=idempotency_key,
+                            result_data=result_data,
+                            expires_at=timezone.now() + timezone.timedelta(hours=expires_in_hours),
+                            created_by=user_obj
+                        )
+                        return False, record
 
 
 class AuditTrail(models.Model):
@@ -225,13 +245,15 @@ class AuditTrail(models.Model):
                 ip_address = cls._get_client_ip(request)
                 user_agent = request.META.get('HTTP_USER_AGENT', '')
             
+            user_obj = user if (user and hasattr(user, 'pk') and user.pk and User.objects.filter(pk=user.pk).exists()) else None
+
             # Create audit record atomically
             with transaction.atomic():
                 audit_record = cls.objects.create(
                     model_name=model_name,
                     object_id=object_id,
                     operation=operation,
-                    user=user,
+                    user=user_obj,
                     source_service=source_service,
                     before_data=before_data,
                     after_data=after_data,

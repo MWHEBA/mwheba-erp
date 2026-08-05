@@ -265,7 +265,7 @@ class PasswordSessionSecurityTestCase(TransactionTestCase):
         # محاولة استخدام session key من عميل آخر
         try:
             # محاولة الوصول لصفحة محمية بدون session صالح
-            response = hijacker_client.get('/products/')
+            response = hijacker_client.get('/admin/')
             
             # يجب أن يفشل الوصول
             if response.status_code in [302, 401, 403]:

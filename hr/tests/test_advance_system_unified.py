@@ -40,8 +40,8 @@ class AdvanceStatusFilteringPropertyTest(TransactionTestCase):
     
     def setUp(self):
         """Set up test data"""
-        from datetime import datetime
-        ts = datetime.now().strftime("%Y%m%d%H%M%S%f")
+        import uuid
+        ts = uuid.uuid4().hex[:6]
         
         self.user = User.objects.create_user(
             username=f'test_user_{ts}',
@@ -50,21 +50,21 @@ class AdvanceStatusFilteringPropertyTest(TransactionTestCase):
         )
         
         self.department = Department.objects.create(
-            code=f'DEPT_{ts}',
+            code=f'D_{ts}',
             name_ar=f'قسم اختبار {ts}'
         )
         
         self.job_title = JobTitle.objects.create(
-            code=f'JOB_{ts}',
+            code=f'J_{ts}',
             title_ar=f'وظيفة اختبار {ts}',
             department=self.department
         )
         
         self.employee = Employee.objects.create(
             user=self.user,
-            employee_number=f'EMP{ts[-8:]}',
+            employee_number=f'EMP{ts}',
             name='أحمد محمد',
-            national_id=f'1234567890{ts[:4]}',
+            national_id='29001011234567',
             birth_date=date(1990, 1, 1),
             gender='male',
             marital_status='single',
@@ -201,8 +201,8 @@ class AdvanceSystemIntegrationTest(TransactionTestCase):
     
     def setUp(self):
         """إعداد البيانات للاختبار"""
-        from datetime import datetime
-        ts = datetime.now().strftime("%Y%m%d%H%M%S%f")
+        import uuid
+        ts = uuid.uuid4().hex[:6]
         
         self.user = User.objects.create_user(
             username=f'test_user_{ts}',
@@ -211,21 +211,21 @@ class AdvanceSystemIntegrationTest(TransactionTestCase):
         )
         
         self.department = Department.objects.create(
-            code=f'DEPT_{ts}',
+            code=f'D_{ts}',
             name_ar=f'قسم اختبار {ts}'
         )
         
         self.job_title = JobTitle.objects.create(
-            code=f'JOB_{ts}',
+            code=f'J_{ts}',
             title_ar=f'وظيفة اختبار {ts}',
             department=self.department
         )
         
         self.employee = Employee.objects.create(
             user=self.user,
-            employee_number=f'EMP{ts[-8:]}',
+            employee_number=f'EMP{ts}',
             name='أحمد محمد',
-            national_id=f'1234567890{ts[:4]}',
+            national_id='29001011234567',
             birth_date=date(1990, 1, 1),
             gender='male',
             marital_status='single',

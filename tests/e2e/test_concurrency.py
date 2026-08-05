@@ -83,6 +83,16 @@ class TestConcurrentSales:
         
         print(f"   المخزون الأولي: {initial_stock} قطعة")
         
+        # Ensure revenue account 40100, COGS account 50100, inventory account 10400, and stock movement expense account 50300 exist
+        from financial.models import ChartOfAccounts, AccountType
+        rev_type, _ = AccountType.objects.get_or_create(code='REV', defaults={'name': 'Revenue', 'category': 'revenue', 'nature': 'credit'})
+        exp_type, _ = AccountType.objects.get_or_create(code='EXP', defaults={'name': 'Expense', 'category': 'expense', 'nature': 'debit'})
+        asset_type, _ = AccountType.objects.get_or_create(code='AST', defaults={'name': 'Asset', 'category': 'asset', 'nature': 'debit'})
+        ChartOfAccounts.objects.get_or_create(code='40100', defaults={'name': 'حساب إيرادات المبيعات', 'account_type': rev_type, 'is_active': True})
+        ChartOfAccounts.objects.get_or_create(code='50100', defaults={'name': 'حساب تكلفة البضاعة المباعة', 'account_type': exp_type, 'is_active': True})
+        ChartOfAccounts.objects.get_or_create(code='50300', defaults={'name': 'حساب مصروفات حركة المخزون', 'account_type': exp_type, 'is_active': True})
+        ChartOfAccounts.objects.get_or_create(code='10400', defaults={'name': 'حساب المخزون', 'account_type': asset_type, 'is_active': True})
+        
         # إنشاء 3 عملاء
         from client.services.customer_service import CustomerService
         customer_service = CustomerService()

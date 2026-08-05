@@ -498,6 +498,8 @@ class QuarantineStorageTestCase(TransactionTestCase):
         
         def quarantine_worker(worker_id):
             """Worker function for concurrent quarantine"""
+            from django.db import close_old_connections
+            close_old_connections()
             try:
                 record = QuarantineStorage.store_quarantine_record(
                     model_name='JournalEntry',
@@ -510,6 +512,8 @@ class QuarantineStorageTestCase(TransactionTestCase):
                 results.append(record.id)
             except Exception as e:
                 errors.append(str(e))
+            finally:
+                close_old_connections()
         
         # Create multiple threads
         threads = []

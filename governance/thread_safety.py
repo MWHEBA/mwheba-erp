@@ -32,20 +32,24 @@ class DatabaseLockManager:
     
     @classmethod
     @contextmanager
-    def atomic_operation(cls, savepoint=True):
+    def atomic_operation(cls, savepoint=True, max_retries=5):
         """
         Context manager for atomic database operations.
-        Uses savepoints for nested transactions when supported.
+        Uses savepoints and automatic deadlock retries when supported.
         """
-        try:
-            with transaction.atomic(savepoint=savepoint):
-                yield
-        except Exception as e:
-            logger.error(f"Atomic operation failed: {e}")
-            raise ConcurrencyError(
-                message=f"Database operation failed: {str(e)}",
-                resource="database_transaction"
-            )
+        for attempt in range(max_retries):
+            yield_occurred = False
+            try:
+                with transaction.atomic(savepoint=savepoint):
+                    yield_occurred = True
+                    yield
+                break
+            except Exception as e:
+                err_msg = str(e).lower()
+                if not yield_occurred and ('deadlock' in err_msg or '1213' in err_msg or 'lock wait timeout' in err_msg) and attempt < max_retries - 1:
+                    time.sleep(0.05 * (attempt + 1))
+                    continue
+                raise
     
     @classmethod
     def select_for_update_if_supported(cls, queryset, nowait=False, skip_locked=False):
@@ -99,6 +103,8 @@ class IdempotencyLock:
         Uses database-appropriate locking mechanism.
         """
         start_time = time.time()
+        record = None
+        acquired = False
         
         while time.time() - start_time < timeout:
             try:
@@ -118,35 +124,31 @@ class IdempotencyLock:
                     
                     try:
                         record = queryset.get()
-                        # Record exists, check if expired
                         if record.is_expired():
                             record.delete()
-                            yield None  # Allow operation to proceed
-                        else:
-                            yield record  # Return existing result
-                        return
+                            record = None
                     except IdempotencyRecord.DoesNotExist:
-                        # No existing record, operation can proceed
-                        yield None
-                        return
-                        
+                        record = None
+                acquired = True
+                break
             except Exception as e:
                 if "locked" in str(e).lower() or "timeout" in str(e).lower():
                     # Lock contention, wait and retry
                     time.sleep(0.1)
                     continue
                 else:
-                    # Other error, re-raise
-                    raise ConcurrencyError(
-                        message=f"Idempotency lock failed: {str(e)}",
-                        resource=self.lock_key
-                    )
-        
-        # Timeout reached
-        raise ConcurrencyError(
-            message=f"Idempotency lock timeout after {timeout}s",
-            resource=self.lock_key
-        )
+                    raise
+
+        if not acquired:
+            raise ConcurrencyError(
+                message=f"Timeout waiting for idempotency lock: {self.lock_key}",
+                resource=self.lock_key
+            )
+
+        try:
+            yield record
+        except BaseException:
+            raise
 
 
 class StockLockManager:
