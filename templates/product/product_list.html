@@ -137,7 +137,7 @@
 
     <!-- فلاتر سريعة حسب التصنيف الرئيسي -->
     {% if categories %}
-    <div class="section-container mb-3">
+    <div class="section-container mb-3 pt-4">
         <div class="d-flex flex-wrap align-items-center gap-2" id="category-quick-filters">
             <span class="text-muted small me-1"><i class="fas fa-tags me-1"></i>تصنيف سريع:</span>
             <button type="button"
@@ -191,17 +191,6 @@
                     {% include "product/partials/product_table.html" %}
                 </div>
 
-                <!-- تصدير -->
-                <div class="d-flex justify-content-end mt-3">
-                    <button type="button" class="btn btn-sm btn-outline-secondary btn-export-table me-2"
-                            data-table="products-table" data-filename="products.csv">
-                        <i class="fas fa-file-csv me-1"></i>تصدير CSV
-                    </button>
-                    <button type="button" class="btn btn-sm btn-outline-success btn-export-excel"
-                            data-table="products-table" data-filename="products.xlsx">
-                        <i class="fas fa-file-excel me-1"></i>تصدير Excel
-                    </button>
-                </div>
             </div>
 
             <!-- Django Pagination -->

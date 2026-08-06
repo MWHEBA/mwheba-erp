@@ -478,6 +478,7 @@ def supplier_detail(request, pk):
         ),
         pk=pk,
     )
+    unallocated_prepaid = supplier.available_prepaid_balance
 
     # جلب دفعات فواتير المشتريات المرتبطة بالمورد
     from purchase.models import PurchasePayment

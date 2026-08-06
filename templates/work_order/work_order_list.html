@@ -140,16 +140,6 @@
         </table>
       </div>
 
-      <!-- إضافة زر تصدير البيانات -->
-      <div class="d-flex justify-content-end mt-3">
-        <button type="button" class="btn btn-sm btn-outline-secondary btn-export-table me-2" data-table="work-orders-table" data-filename="work_orders.csv">
-          <i class="fas fa-file-csv me-1"></i>{% trans "تصدير CSV" %}
-        </button>
-        <button type="button" class="btn btn-sm btn-outline-success btn-export-excel" data-table="work-orders-table" data-filename="work_orders.xlsx">
-          <i class="fas fa-file-excel me-1"></i>{% trans "تصدير Excel" %}
-        </button>
-      </div>
-
       {% else %}
         <div class="empty-table-notice text-center py-5" style="border: 2px dashed #ccc; background-color: #f8f9fa; border-radius: 0.5rem;">
             <div class="empty-state-icon mb-3">

@@ -118,17 +118,7 @@
               </tbody>
             </table>
           </div>
-        
-        <!-- إضافة زر تصدير البيانات -->
-        <div class="d-flex justify-content-end mt-3">
-          <button type="button" class="btn btn-sm btn-outline-secondary btn-export-table me-2" data-table="periods-table" data-filename="accounting_periods.csv">
-            <i class="fas fa-file-csv me-1"></i>{% trans "تصدير CSV" %}
-          </button>
-          <button type="button" class="btn btn-sm btn-outline-success btn-export-excel" data-table="periods-table" data-filename="accounting_periods.xlsx">
-            <i class="fas fa-file-excel me-1"></i>{% trans "تصدير Excel" %}
-          </button>
-        </div>
-        
+
         {% else %}
           {% include 'partials/empty_state.html' with message="لا توجد فترات محاسبية متاحة" icon="calendar-alt" %}
         {% endif %}

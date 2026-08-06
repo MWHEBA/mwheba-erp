@@ -117,15 +117,6 @@
         {% include "components/data_table.html" with table_id="suppliers-table" data=suppliers headers=headers action_buttons=action_buttons primary_key="id" table_class="hover" empty_message="لا يوجد موردين متاحين" show_search=False show_length_menu=False disable_pagination=True show_currency=True %}
         </div>
 
-        <!-- تصدير البيانات -->
-        <div class="d-flex justify-content-end mt-3">
-          <button type="button" class="btn btn-sm btn-outline-secondary btn-export-table me-2" data-table="suppliers-table" data-filename="suppliers.csv">
-            <i class="fas fa-file-csv me-1"></i>{% trans "تصدير CSV" %}
-          </button>
-          <button type="button" class="btn btn-sm btn-outline-success btn-export-excel" data-table="suppliers-table" data-filename="suppliers.xlsx">
-            <i class="fas fa-file-excel me-1"></i>{% trans "تصدير Excel" %}
-          </button>
-        </div>
       </div>
 
       <!-- Django Pagination -->
