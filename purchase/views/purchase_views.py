@@ -665,6 +665,44 @@ def purchase_detail(request, pk):
 
 
 @login_required
+def allocate_supplier_prepaid_balance(request, pk):
+    """
+    تخصيص رصيد مسبق/دفعة مقدمة للمورد على فاتورة مشتريات (آلياً FIFO أو يدوي)
+    """
+    purchase = get_object_or_404(Purchase, pk=pk)
+    if request.method == "POST":
+        amount_str = request.POST.get("amount")
+        is_auto = request.POST.get("auto_fifo") == "true"
+
+        try:
+            from supplier.services.supplier_allocation_service import SupplierAllocationService
+            from decimal import Decimal
+            available = purchase.supplier.available_prepaid_balance if purchase.supplier else Decimal("0.00")
+            open_amount = purchase.total - (purchase.paid_amount or Decimal("0.00"))
+
+            if is_auto:
+                alloc_amount = min(available, open_amount)
+            else:
+                alloc_amount = Decimal(amount_str) if amount_str else Decimal("0.00")
+
+            if alloc_amount <= Decimal("0.00"):
+                messages.error(request, "يرجى إدخال مبلغ تخصيص أكبر من صفر.")
+            elif alloc_amount > available:
+                messages.error(request, f"المبلغ المطلوب ({alloc_amount}) يتجاوز الرصيد المسبق المتاح للمورد ({available}).")
+            else:
+                SupplierAllocationService.allocate_advance_to_purchase_bill(
+                    purchase=purchase,
+                    amount_to_allocate=alloc_amount,
+                    user=request.user
+                )
+                messages.success(request, f"تم تخصيص {alloc_amount} ج.م من الدفعات المقدمة للمورد على الفاتورة بنجاح.")
+        except Exception as e:
+            messages.error(request, f"حدث خطأ أثناء تخصيص الرصيد المسبق: {str(e)}")
+
+    return redirect("purchase:purchase_detail", pk=purchase.pk)
+
+
+@login_required
 def purchase_update(request, pk):
     """
     تعديل فاتورة مشتريات مع دعم القيود التصحيحية للفواتير المرحّلة

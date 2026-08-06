@@ -17,6 +17,7 @@ urlpatterns = [
     path("<int:pk>/print/thermal/", views.sale_print_thermal, name="sale_print_thermal"),
     path("<int:pk>/duplicate/", views.sale_duplicate, name="sale_duplicate"),
     path("<int:pk>/payment/", views.add_payment, name="sale_add_payment"),
+    path("<int:pk>/allocate-prepaid/", views.allocate_prepaid_balance, name="sale_allocate_prepaid"),
     # مدفوعات المبيعات - إعادة توجيه للنظام الموحد
     path("payments/", views.redirect_to_unified_payments, name="sale_payment_list"),
     path("payments/<int:pk>/", views.payment_detail, name="payment_detail"),

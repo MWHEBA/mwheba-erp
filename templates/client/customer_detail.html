@@ -469,6 +469,29 @@
             <i class="fas fa-cog me-2"></i>{% trans "الإجراءات" %}
           </h6>
           <div class="list-group">
+            <!-- دليل الحسابات -->
+            {% if customer.financial_account %}
+            <a href="{% url 'financial:account_detail' customer.financial_account.pk %}" class="list-group-item list-group-item-action d-flex align-items-center">
+              <div class="me-3">
+                <i class="fas fa-link fa-2x text-success"></i>
+              </div>
+              <div>
+                <div class="fw-bold">{% trans "دليل الحسابات" %}</div>
+                <small class="text-muted">{% trans "عرض تفاصيل الحساب المحاسبي للعميل" %}</small>
+              </div>
+            </a>
+            {% else %}
+            <a href="#" onclick="openCreateAccountModal('{{ customer.pk }}'); return false;" data-bs-dismiss="modal" class="list-group-item list-group-item-action d-flex align-items-center">
+              <div class="me-3">
+                <i class="fas fa-plus-circle fa-2x text-info"></i>
+              </div>
+              <div>
+                <div class="fw-bold">{% trans "إنشاء حساب محاسبي" %}</div>
+                <small class="text-muted">{% trans "إنشاء وربط حساب محاسبي جديد للعميل" %}</small>
+              </div>
+            </a>
+            {% endif %}
+
             <!-- تعديل بيانات العميل -->
             <a href="{% url 'client:customer_edit' customer.pk %}" class="list-group-item list-group-item-action d-flex align-items-center">
               <div class="me-3">

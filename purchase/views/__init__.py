@@ -14,6 +14,7 @@ from .purchase_views import (
     purchase_pdf_download,
     purchase_email_pdf,
     purchase_duplicate,
+    allocate_supplier_prepaid_balance,
 )
 
 # Payment Views
@@ -67,6 +68,7 @@ __all__ = [
     'purchase_pdf_download',
     'purchase_email_pdf',
     'purchase_duplicate',
+    'allocate_supplier_prepaid_balance',
     # Payment Views
     'payment_detail',
     'add_payment',

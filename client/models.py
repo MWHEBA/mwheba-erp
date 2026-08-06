@@ -146,6 +146,16 @@ class Customer(models.Model):
         """
         return self.balance
 
+    @property
+    def available_prepaid_balance(self):
+        """
+        حساب إجمالي الرصيد المسبق/الدفعات المقدمة غير المخصصة للعميل
+        """
+        from sale.models import SalePayment
+        total_payments = sum(p.amount for p in self.payments.all())
+        total_allocated = sum(sp.amount for sp in SalePayment.objects.filter(sale__customer=self, source_type="PREPAID_BALANCE"))
+        return max(Decimal("0.00"), total_payments - total_allocated)
+
 
 class CustomerPayment(models.Model):
     """
@@ -173,6 +183,7 @@ class CustomerPayment(models.Model):
         _("رقم المرجع"), max_length=50, blank=True, null=True
     )
     notes = models.TextField(_("ملاحظات"), blank=True, null=True)
+    status = models.CharField(_("الحالة"), max_length=20, default="posted")
     
     # ربط بأمر الشغل
     work_order = models.ForeignKey(
@@ -185,6 +196,7 @@ class CustomerPayment(models.Model):
     )
 
     created_at = models.DateTimeField(_("تاريخ الإنشاء"), auto_now_add=True)
+    updated_at = models.DateTimeField(_("تاريخ التحديث"), auto_now=True)
     created_by = models.ForeignKey(
         "users.User",
         on_delete=models.PROTECT,
@@ -297,8 +309,8 @@ class CustomerAllocationAudit(models.Model):
 
     customer = models.ForeignKey(Customer, on_delete=models.PROTECT, related_name="allocation_audits", verbose_name=_("العميل"))
     allocation_reference = models.CharField(_("مرجع التوزيع الفريد"), max_length=100, unique=True, default=uuid.uuid4)
-    payment_transaction = models.ForeignKey(CustomerTransaction, on_delete=models.PROTECT, related_name="payment_allocations", verbose_name=_("معاملة التحصيل/الإشعار"))
-    invoice_transaction = models.ForeignKey(CustomerTransaction, on_delete=models.PROTECT, related_name="invoice_allocations", verbose_name=_("معاملة الفاتورة المستهدفة"))
+    payment_transaction = models.ForeignKey(CustomerTransaction, on_delete=models.PROTECT, db_column="source_transaction_id", related_name="payment_allocations", verbose_name=_("معاملة التحصيل/الإشعار"))
+    invoice_transaction = models.ForeignKey(CustomerTransaction, on_delete=models.PROTECT, db_column="target_transaction_id", related_name="invoice_allocations", verbose_name=_("معاملة الفاتورة المستهدفة"))
 
     source_document_type = models.CharField(_("نوع المستند المصدر"), max_length=50, blank=True, null=True)
     source_document_number = models.CharField(_("رقم المستند المصدر"), max_length=100, blank=True, null=True)

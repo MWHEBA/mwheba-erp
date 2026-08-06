@@ -131,7 +131,32 @@ If custom_filters is available, it will be used for JSON parsing.
                     {% if header_badges %}
                         <div class="header-badges mt-2">
                             {% for badge in header_badges %}
-                                {% if badge.url and badge.url != "#" %}
+                                {% if badge.action_text %}
+                                    <span class="badge {{ badge.class|default:'bg-secondary' }} me-1" 
+                                          {% if badge.style %}style="{{ badge.style }}"{% endif %}
+                                          {% if badge.title %}title="{{ badge.title }}"{% endif %}>
+                                        {% if badge.icon %}<i class="{{ badge.icon }} me-1" aria-hidden="true"></i>{% endif %}
+                                        {{ badge.text }}
+                                    </span>
+                                    {% if badge.action_url %}
+                                        <a href="{{ badge.action_url }}" 
+                                           class="badge {{ badge.action_class|default:'bg-warning-subtle text-dark border border-warning' }} me-2 text-decoration-none shadow-xs" 
+                                           {% if badge.action_title %}title="{{ badge.action_title }}"{% endif %}
+                                           {% if badge.action_target %}target="{{ badge.action_target }}"{% endif %}>
+                                            {% if badge.action_icon %}<i class="{{ badge.action_icon }} me-1"></i>{% endif %}
+                                            {{ badge.action_text }}
+                                        </a>
+                                    {% elif badge.action_onclick %}
+                                        <button type="button" 
+                                                class="badge {{ badge.action_class|default:'bg-warning-subtle text-dark border border-warning' }} me-2 text-dark shadow-xs" 
+                                                style="cursor: pointer;"
+                                                onclick="{{ badge.action_onclick }}"
+                                                {% if badge.action_title %}title="{{ badge.action_title }}"{% endif %}>
+                                            {% if badge.action_icon %}<i class="{{ badge.action_icon }} me-1"></i>{% endif %}
+                                            {{ badge.action_text }}
+                                        </button>
+                                    {% endif %}
+                                {% elif badge.url and badge.url != "#" %}
                                     <a href="{{ badge.url }}" class="badge {{ badge.class|default:'bg-secondary' }} me-2 text-decoration-none" 
                                        {% if badge.style %}style="{{ badge.style }}"{% endif %}
                                        {% if badge.title %}title="{{ badge.title }}"{% endif %}

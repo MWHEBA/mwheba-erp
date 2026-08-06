@@ -665,11 +665,69 @@
                     {% endif %}
                     <!-- نهاية قسم المرتجعات -->
                     
-                    <!-- بداية قسم المدفوعات -->
+                    <!-- بداية قسم الرصيد المسبق والمدفوعات -->
+                    {% if sale.customer and sale.customer.available_prepaid_balance > 0 and sale.payment_status != 'paid' %}
+                    <div class="card my-4 border-info shadow-sm" style="background-color: var(--bs-body-bg);">
+                        <div class="card-body d-flex align-items-center justify-content-between flex-wrap gap-3">
+                            <div>
+                                <h6 class="mb-1 fw-bold text-info"><i class="fas fa-wallet me-2"></i>{% trans "رصيد مسبق متاح للعميل" %}</h6>
+                                <p class="mb-0 text-muted small">
+                                    {% trans "يتوفر لدى العميل رصيد مسبق بقيمة" %} <strong class="text-success fs-6">{{ sale.customer.available_prepaid_balance|currency }}</strong> {% trans "يمكن تخصيصه على هذه الفاتورة." %}
+                                </p>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <form method="post" action="{% url 'sale:sale_allocate_prepaid' sale.id %}" class="d-inline">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="auto_fifo" value="true">
+                                    <button type="submit" class="btn btn-sm btn-success">
+                                        <i class="fas fa-magic me-1"></i> {% trans "تخصيص آلي (FIFO)" %}
+                                    </button>
+                                </form>
+                                <button type="button" class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#customAllocateModal">
+                                    <i class="fas fa-sliders-h me-1"></i> {% trans "تخصيص مبلغ مخصص..." %}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Modal التخصيص اليدوي -->
+                    <div class="modal fade" id="customAllocateModal" tabindex="-1" aria-labelledby="customAllocateModalLabel" aria-hidden="true">
+                        <div class="modal-dialog modal-dialog-centered">
+                            <div class="modal-content">
+                                <form method="post" action="{% url 'sale:sale_allocate_prepaid' sale.id %}">
+                                    {% csrf_token %}
+                                    <div class="modal-header">
+                                        <h5 class="modal-title" id="customAllocateModalLabel"><i class="fas fa-wallet me-2"></i>{% trans "تخصيص مبلغ من الرصيد المسبق" %}</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <div class="mb-3">
+                                            <label class="form-label text-muted small">{% trans "الرصيد المسبق المتاح للعميل:" %}</label>
+                                            <div class="fw-bold text-success">{{ sale.customer.available_prepaid_balance|currency }}</div>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label text-muted small">{% trans "المبلغ المتبقي من الفاتورة:" %}</label>
+                                            <div class="fw-bold text-danger">{{ sale.amount_due|currency }}</div>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="allocateAmount" class="form-label fw-bold">{% trans "المبلغ المراد تخصيصه:" %}</label>
+                                            <input type="number" step="0.01" class="form-control" id="allocateAmount" name="amount" required max="{{ sale.customer.available_prepaid_balance }}" placeholder="أدخل المبلغ...">
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+                                        <button type="submit" class="btn btn-primary">{% trans "تأكيد التخصيص" %}</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
                     {% if payments %}
                     <div class="mt-5">
                         <div class="section-title">
-                            <i class="fas fa-money-bill-wave"></i> {% trans "سجل المدفوعات" %}
+                            <i class="fas fa-money-bill-wave"></i> {% trans "سجل المدفوعات ومصادر السداد" %}
                             <span class="badge bg-primary ms-2">{{ payments|length }}</span>
                         </div>
                         <div class="table-responsive">
@@ -680,7 +738,7 @@
                                         <th>{% trans "الحالة" %}</th>
                                         <th>{% trans "تاريخ ووقت الدفع" %}</th>
                                         <th>{% trans "المبلغ" %}</th>
-                                        <th>{% trans "طريقة الدفع" %}</th>
+                                        <th>{% trans "مصدر وطريقة الدفع الشفافة" %}</th>
                                         <th>{% trans "القيد المحاسبي" %}</th>
                                         <th>{% trans "ملاحظات" %}</th>
                                         <th>{% trans "إجراءات" %}</th>
@@ -715,14 +773,14 @@
                                         </td>
                                         <td class="fw-bold">{{ payment.amount|currency }}</td>
                                         <td>
-                                            {% if payment.payment_method == 'cash' %}
-                                            <span class="badge bg-success">{% trans "نقدي" %}</span>
-                                            {% elif payment.payment_method == 'bank_transfer' %}
-                                            <span class="badge bg-info">{% trans "تحويل بنكي" %}</span>
-                                            {% elif payment.payment_method == 'check' %}
-                                            <span class="badge bg-warning">{% trans "شيك" %}</span>
+                                            {% if payment.source_type == 'PREPAID_BALANCE' or payment.customer_payment %}
+                                            <span class="badge bg-primary"><i class="fas fa-wallet me-1"></i>{{ payment.source_display_info }}</span>
+                                            {% elif payment.source_type == 'CREDIT_NOTE' %}
+                                            <span class="badge bg-info"><i class="fas fa-file-invoice me-1"></i>{{ payment.source_display_info }}</span>
+                                            {% elif payment.payment_method == 'bank_transfer' or payment.source_type == 'BANK' %}
+                                            <span class="badge bg-secondary"><i class="fas fa-university me-1"></i>{{ payment.source_display_info }}</span>
                                             {% else %}
-                                            <span class="badge bg-secondary">{{ payment.get_payment_method_display }}</span>
+                                            <span class="badge bg-success"><i class="fas fa-money-bill me-1"></i>{{ payment.source_display_info }}</span>
                                             {% endif %}
                                         </td>
                                         <td>

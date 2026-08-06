@@ -232,3 +232,181 @@ class CustomerAllocationAuditService:
         return CustomerAllocationAudit.objects.filter(
             payment_transaction_id=payment_transaction_id
         ).select_related("invoice_transaction", "created_by").order_by("-allocation_date", "-id")
+
+    @classmethod
+    def allocate_customer_prepaid_balance_to_sale(
+        cls,
+        sale,
+        amount_to_allocate: Decimal,
+        user=None
+    ) -> CustomerAllocationAudit:
+        """
+        خصم وتخصيص مبلغ من الرصيد المسبق/الدفعات المقدمة للعميل على فاتورة مبيعات
+        مع استخدام select_for_update() لمنع التكرار وقفل المعاملات آمن
+        """
+        from client.models import CustomerPayment
+        from sale.models import SalePayment
+        from governance.services import AccountingGateway, JournalEntryLineData
+
+        if amount_to_allocate <= Decimal("0.00"):
+            raise ValueError("المبلغ المراد تخصيصه يجب أن يكون أكبر من صفر.")
+
+        customer = sale.customer
+        if not customer:
+            raise ValueError("الفاتورة غير مرتبطة بعميل.")
+
+        open_sale_amount = sale.total - (sale.amount_paid or Decimal("0.00"))
+        if amount_to_allocate > open_sale_amount:
+            raise ValueError(f"المبلغ المراد تخصيصه ({amount_to_allocate}) يتجاوز المتبقي من الفاتورة ({open_sale_amount}).")
+
+        with transaction.atomic():
+            locked_customer = Customer.objects.select_for_update().get(pk=customer.id)
+
+            # جلب الدفعات المقدمة غير المخصصة بالكامل أقدم فأقدم (FIFO)
+            customer_payments = CustomerPayment.objects.select_for_update().filter(
+                customer_id=locked_customer.id
+            ).order_by("payment_date", "created_at")
+
+            remaining_to_allocate = amount_to_allocate
+            last_audit = None
+
+            # الحصول على أو إنشاء معاملة الأستاذ الفرعي للفاتورة
+            inv_txn, _ = CustomerTransaction.objects.select_for_update().get_or_create(
+                customer=locked_customer,
+                transaction_number=sale.number,
+                defaults={
+                    "transaction_type": "INVOICE",
+                    "reference_type": "Sale",
+                    "reference_id": str(sale.id),
+                    "issue_date": sale.date,
+                    "due_date": sale.date,
+                    "functional_amount": sale.total,
+                    "open_amount": open_sale_amount,
+                    "open_amount_functional": open_sale_amount,
+                    "status": "OPEN" if (sale.amount_paid or Decimal("0.00")) == Decimal("0.00") else "PARTIAL"
+                }
+            )
+
+            for cp in customer_payments:
+                if remaining_to_allocate <= Decimal("0.00"):
+                    break
+
+                # حساب المستغل من هذه الدفعة
+                already_allocated = sum(sp.amount for sp in SalePayment.objects.filter(customer_payment=cp))
+                cp_remaining = max(Decimal("0.00"), cp.amount - already_allocated)
+
+                if cp_remaining <= Decimal("0.00"):
+                    continue
+
+                curr_alloc = min(cp_remaining, remaining_to_allocate)
+                remaining_to_allocate -= curr_alloc
+
+                # الحصول على/إنشاء معاملة الدفعة المقدمة في الأستاذ الفرعي
+                pay_txn, _ = CustomerTransaction.objects.select_for_update().get_or_create(
+                    customer=locked_customer,
+                    transaction_number=f"PAY-{cp.id}",
+                    defaults={
+                        "transaction_type": "ADVANCE",
+                        "reference_type": "CustomerPayment",
+                        "reference_id": str(cp.id),
+                        "issue_date": cp.payment_date,
+                        "due_date": cp.payment_date,
+                        "functional_amount": cp.amount,
+                        "open_amount": cp_remaining,
+                        "open_amount_functional": cp_remaining,
+                        "status": "PARTIAL" if cp_remaining > 0 else "CLOSED"
+                    }
+                )
+
+                pay_txn.open_amount = max(Decimal("0.00"), pay_txn.open_amount - curr_alloc)
+                pay_txn.open_amount_functional = pay_txn.open_amount
+                pay_txn.status = "CLOSED" if pay_txn.open_amount == Decimal("0.00") else "PARTIAL"
+                pay_txn.save()
+
+                inv_txn.open_amount = max(Decimal("0.00"), inv_txn.open_amount - curr_alloc)
+                inv_txn.open_amount_functional = inv_txn.open_amount
+                inv_txn.status = "CLOSED" if inv_txn.open_amount == Decimal("0.00") else "PARTIAL"
+                inv_txn.save()
+
+                now = timezone.now()
+                ev_hash = cls.generate_evidence_hash(
+                    customer_id=locked_customer.id,
+                    payment_txn_id=pay_txn.id,
+                    invoice_txn_id=inv_txn.id,
+                    allocated_amount=curr_alloc,
+                    allocation_date=now.date(),
+                    created_at=now
+                )
+
+                last_audit = CustomerAllocationAudit.objects.create(
+                    customer=locked_customer,
+                    allocation_reference=f"ALLOC-{pay_txn.transaction_number}->{inv_txn.transaction_number}",
+                    payment_transaction=pay_txn,
+                    invoice_transaction=inv_txn,
+                    source_document_type="ADVANCE_PAYMENT",
+                    source_document_number=f"PAY-{cp.id}",
+                    target_document_type="SALES_INVOICE",
+                    target_document_number=sale.number,
+                    allocation_type="ADVANCE_TO_INVOICE",
+                    allocated_amount=curr_alloc,
+                    functional_amount=curr_alloc,
+                    allocation_status="APPLIED",
+                    allocation_date=now.date(),
+                    created_by=user,
+                    evidence_hash=ev_hash
+                )
+
+                # إنشاء SalePayment مخصصة
+                SalePayment.objects.create(
+                    sale=sale,
+                    amount=curr_alloc,
+                    payment_date=now.date(),
+                    payment_method="prepaid_balance",
+                    source_type="PREPAID_BALANCE",
+                    customer_payment=cp,
+                    reference_number=f"PAY-{cp.id}",
+                    notes=f"خصم تلقائي من الرصيد المسبق للعميل (دفعة #{cp.id})",
+                    created_by=user or sale.created_by,
+                    status="posted",
+                    financial_status="synced"
+                )
+
+            # تحديث حالة السداد للفاتورة والمبلغ المدفوع
+            sale.update_payment_status()
+
+            # إصدار قيد التسوية إن لزم
+            try:
+                if locked_customer.financial_account:
+                    from financial.models import ChartOfAccounts
+                    advance_acc = ChartOfAccounts.objects.filter(code="20200").first() # حساب دفعات مقدمة عملاء
+                    if advance_acc:
+                        lines = [
+                            JournalEntryLineData(
+                                account_code=advance_acc.code,
+                                debit=amount_to_allocate,
+                                credit=Decimal("0.00"),
+                                description=f"إغلاق دفعات مقدمة للعميل - فاتورة مبيعات {sale.number}"
+                            ),
+                            JournalEntryLineData(
+                                account_code=locked_customer.financial_account.code,
+                                debit=Decimal("0.00"),
+                                credit=amount_to_allocate,
+                                description=f"تسوية فاتورة مبيعات {sale.number} - تخفيض ذمم العميل"
+                            )
+                        ]
+                        gateway = AccountingGateway()
+                        gateway.create_journal_entry(
+                            source_module="sale",
+                            source_model="CustomerAllocationAudit",
+                            source_id=last_audit.id if last_audit else sale.id,
+                            lines=lines,
+                            idempotency_key=f"JE:sale:CustomerAllocationAudit:{last_audit.id if last_audit else sale.id}:reclassify",
+                            user=user or sale.created_by,
+                            entry_type="automatic",
+                            description=f"تسوية رصيد مسبق للعميل {locked_customer.name}",
+                            reference=f"فاتورة مبيعات {sale.number}"
+                        )
+            except Exception as e:
+                logger.warning(f"لم يتم توليد قيد تسوية المبيعات التلقائي: {str(e)}")
+
+            return last_audit

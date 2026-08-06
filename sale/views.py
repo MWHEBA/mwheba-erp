@@ -469,6 +469,44 @@ def add_payment(request, pk):
 
 
 @login_required
+def allocate_prepaid_balance(request, pk):
+    """
+    تخصيص رصيد مسبق للعميل على فاتورة مبيعات (آلياً FIFO أو يدوي)
+    """
+    sale = get_object_or_404(Sale, pk=pk)
+    if request.method == "POST":
+        amount_str = request.POST.get("amount")
+        is_auto = request.POST.get("auto_fifo") == "true"
+
+        try:
+            from client.services.customer_allocation_audit_service import CustomerAllocationAuditService
+            from decimal import Decimal
+            available = sale.customer.available_prepaid_balance if sale.customer else Decimal("0.00")
+            open_amount = sale.total - (sale.paid_amount or Decimal("0.00"))
+
+            if is_auto:
+                alloc_amount = min(available, open_amount)
+            else:
+                alloc_amount = Decimal(amount_str) if amount_str else Decimal("0.00")
+
+            if alloc_amount <= Decimal("0.00"):
+                messages.error(request, "يرجى إدخال مبلغ تخصيص أكبر من صفر.")
+            elif alloc_amount > available:
+                messages.error(request, f"المبلغ المطلوب ({alloc_amount}) يتجاوز الرصيد المسبق المتاح للعميل ({available}).")
+            else:
+                CustomerAllocationAuditService.allocate_customer_prepaid_balance_to_sale(
+                    sale=sale,
+                    amount_to_allocate=alloc_amount,
+                    user=request.user
+                )
+                messages.success(request, f"تم تخصيص {alloc_amount} ج.م من الرصيد المسبق على الفاتورة بنجاح.")
+        except Exception as e:
+            messages.error(request, f"حدث خطأ أثناء تخصيص الرصيد المسبق: {str(e)}")
+
+    return redirect("sale:sale_detail", pk=sale.pk)
+
+
+@login_required
 def sale_return(request, pk):
     """
     إنشاء مرتجع لفاتورة مبيعات

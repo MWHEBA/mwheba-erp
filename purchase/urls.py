@@ -10,6 +10,7 @@ from .views import (
     purchase_pdf_download,
     purchase_email_pdf,
     purchase_duplicate,
+    allocate_supplier_prepaid_balance,
     # Payment Views
     payment_detail,
     add_payment,
@@ -57,6 +58,7 @@ urlpatterns = [
     path("<int:pk>/duplicate/", purchase_duplicate, name="purchase_duplicate"),
     # المدفوعات
     path("<int:pk>/add-payment/", add_payment, name="purchase_add_payment"),
+    path("<int:pk>/allocate-prepaid/", allocate_supplier_prepaid_balance, name="purchase_allocate_prepaid"),
     path("payments/<int:pk>/", payment_detail, name="payment_detail"),
     path("payments/<int:payment_id>/post/", post_payment, name="post_payment"),
     path(

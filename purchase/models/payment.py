@@ -102,12 +102,26 @@ class PurchasePayment(PaymentAuditMixin, models.Model):
     def __str__(self):
         return f"{self.purchase} - {self.amount} - {self.payment_date}"
 
+    SOURCE_TYPE_CHOICES = (
+        ("CASH", _("نقدي")),
+        ("BANK", _("تحويل بنكي / شيك")),
+        ("PREPAID_BALANCE", _("خصم من الرصيد المسبق / دفعة مقدمة للمورد")),
+        ("DEBIT_NOTE", _("تسوية إشعار خصم/مردودات")),
+    )
+    source_type = models.CharField(
+        _("نوع مصدر الدفعة"),
+        max_length=30,
+        choices=SOURCE_TYPE_CHOICES,
+        default="CASH",
+        help_text=_("التصنيف الشفاف لمصدر الدفعة المدفوعة"),
+    )
+
     def clean(self):
         """التحقق من صحة البيانات"""
         super().clean()
 
-        # التحقق من أن الحساب المالي نقدي أو بنكي
-        if self.financial_account:
+        # التحقق من أن الحساب المالي نقدي أو بنكي (إلا لو كانت الدفعة مخصومة من رصيد مسبق للمورد)
+        if self.financial_account and not (self.source_type == "PREPAID_BALANCE"):
             if not (
                 self.financial_account.is_cash_account
                 or self.financial_account.is_bank_account
@@ -119,6 +133,22 @@ class PurchasePayment(PaymentAuditMixin, models.Model):
         # التحقق من أن المبلغ موجب
         if self.amount and self.amount <= 0:
             raise ValidationError({"amount": _("يجب أن يكون المبلغ أكبر من صفر")})
+
+    @property
+    def source_display_info(self) -> str:
+        """الوصف الشفاف المحسن لمصدر الدفعة"""
+        if self.source_type == "PREPAID_BALANCE":
+            return f"خصم من رصيد المورد المسبق"
+        elif self.source_type == "DEBIT_NOTE":
+            ref = f" ({self.reference_number})" if self.reference_number else ""
+            return f"تسوية إشعار خصم{ref}"
+        elif self.source_type == "BANK" or self.payment_method == "bank_transfer":
+            acc_name = f" - {self.financial_account.name}" if self.financial_account else ""
+            ref = f" (مرجع: #{self.reference_number})" if self.reference_number else ""
+            return f"تحويل بنكي{acc_name}{ref}"
+        else:
+            acc_name = f" - {self.financial_account.name}" if self.financial_account else ""
+            return f"نقدي{acc_name}"
 
     @property
     def is_financially_synced(self):

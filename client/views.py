@@ -1,3 +1,4 @@
+from decimal import Decimal
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -8,6 +9,7 @@ from django.urls import reverse
 from django.http import JsonResponse
 from django.template.loader import render_to_string
 
+from utils.templatetags.utils_extras import smart_float
 from .models import Customer, CustomerPayment
 from .forms import CustomerForm, CustomerAccountChangeForm
 from .services import CustomerService
@@ -378,6 +380,33 @@ def customer_detail(request, pk):
     sale_pay_total = sum(sp.amount for sp in sale_payments)
     adv_pay_total = sum(cp.amount for cp in advance_payments)
     total_payments = sale_pay_total + adv_pay_total
+
+    # حساب المبالغ مسبقة الدفع الغير موزعة على الفواتير للعميل
+    from financial.models.allocation import PaymentAllocation
+    from client.models import CustomerTransaction
+    unallocated_prepaid = Decimal("0.00")
+    for cp in advance_payments:
+        if getattr(cp, "sale_id", None):
+            continue
+        allocated_sp = cp.allocations.aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
+        allocated_pa = PaymentAllocation.objects.filter(
+            customer=customer,
+            source_document_id=cp.id,
+            allocation_status="ACTIVE",
+        ).aggregate(total=Sum("allocated_amount"))["total"] or Decimal("0.00")
+
+        allocated = max(allocated_sp, allocated_pa)
+        rem = cp.amount - allocated
+        if rem > Decimal("0.00"):
+            unallocated_prepaid += rem
+
+    subledger_unallocated = CustomerTransaction.objects.filter(
+        customer=customer,
+        transaction_type__in=["ADVANCE", "PAYMENT"],
+        status__in=["OPEN", "PARTIAL"],
+    ).aggregate(total=Sum("open_amount"))["total"] or Decimal("0.00")
+
+    unallocated_prepaid = max(unallocated_prepaid, subledger_unallocated)
 
     # جلب فواتير البيع المرتبطة بالعميل
     from sale.models import Sale
@@ -934,59 +963,68 @@ def customer_detail(request, pk):
         "page_title": f"{customer.name}",
         "page_subtitle": "معلومات وبيانات العميل الكاملة",
         "page_icon": "fas fa-user",
-        # Badges في الهيدر
-        "header_badges": [
-            {
-                "text": f"{customer.code}",
-                "class": "bg-primary",
-                "icon": "fas fa-hashtag",
-            },
-            {
-                "text": f"المديونية: {customer.actual_balance}",
-                "class": "bg-success" if customer.actual_balance <= 0 else "bg-danger",
-                "icon": "fas fa-arrow-down" if customer.actual_balance <= 0 else "fas fa-arrow-up",
-            },
-            {
-                "text": "دليل الحسابات" if customer.financial_account else "إنشاء حساب محاسبي",
-                "class": "bg-success" if customer.financial_account else "bg-info",
-                "icon": "fas fa-link" if customer.financial_account else "fas fa-plus-circle",
-                "url": reverse("financial:account_detail", kwargs={"pk": customer.financial_account.pk}) if customer.financial_account else "#",
-                "onclick": None if customer.financial_account else f"openCreateAccountModal({customer.pk})",
-            },
-        ],
-        # أزرار الهيدر
-        "header_buttons": [
-            {
-                "url": reverse("sale:sale_create_for_customer", kwargs={"customer_id": customer.id}),
-                "icon": "fa-file-invoice-dollar",
-                "text": "فاتورة بيع",
-                "class": "btn-success",
-            },
-            {
-                "url": "#",
-                "icon": "fa-ellipsis-v",
-                "text": "",
-                "class": "btn-outline-secondary",
-                "id": "actions-menu-btn",
-                "toggle": "modal",
-                "target": "#actionsModal",
-            },
-        ],
-        # البريدكرمب
-        "breadcrumb_items": [
-            {
-                "title": "الرئيسية",
-                "url": reverse("core:dashboard"),
-                "icon": "fas fa-home",
-            },
-            {
-                "title": "العملاء",
-                "url": reverse("client:customer_list"),
-                "icon": "fas fa-users",
-            },
-            {"title": customer.name, "active": True},
-        ],
+        "unallocated_prepaid": unallocated_prepaid,
     }
+
+    from core.models import SystemSetting
+    currency_symbol = SystemSetting.get_currency_symbol()
+
+    # Badges في الهيدر
+    header_badges = [
+        {
+            "text": f"{customer.code}",
+            "class": "bg-primary",
+            "icon": "fas fa-hashtag",
+        },
+        {
+            "text": f"المديونية: {smart_float(customer.actual_balance)} {currency_symbol}",
+            "class": "bg-success" if customer.actual_balance <= 0 else "bg-danger",
+            "icon": "fas fa-arrow-down" if customer.actual_balance <= 0 else "fas fa-arrow-up",
+        },
+    ]
+    if unallocated_prepaid > Decimal("0.00"):
+        header_badges.append({
+            "text": f"رصيد مسبق: {smart_float(unallocated_prepaid)} {currency_symbol}",
+            "class": "bg-warning text-dark",
+            "icon": "fas fa-wallet",
+            "title": "إجمالي الرصيد المسبق المتاح للفواتير",
+            "action_text": "توزيع",
+            "action_icon": "fas fa-random",
+            "action_class": "bg-warning-subtle text-dark border border-warning-subtle",
+            "action_onclick": "if(document.getElementById('payments-tab')){ document.getElementById('payments-tab').click(); const el = document.getElementById('payments-tab-pane'); if(el) el.scrollIntoView({behavior: 'smooth'}); }",
+            "action_title": "الانتقال لقائمة المدفوعات لتوزيع الرصيد المسبق",
+        })
+    context["header_badges"] = header_badges
+    context["header_buttons"] = [
+        {
+            "url": reverse("sale:sale_create_for_customer", kwargs={"customer_id": customer.id}),
+            "icon": "fa-file-invoice-dollar",
+            "text": "فاتورة بيع",
+            "class": "btn-success",
+        },
+        {
+            "url": "#",
+            "icon": "fa-ellipsis-v",
+            "text": "",
+            "class": "btn-outline-secondary",
+            "id": "actions-menu-btn",
+            "toggle": "modal",
+            "target": "#actionsModal",
+        },
+    ]
+    context["breadcrumb_items"] = [
+        {
+            "title": "الرئيسية",
+            "url": reverse("core:dashboard"),
+            "icon": "fas fa-home",
+        },
+        {
+            "title": "العملاء",
+            "url": reverse("client:customer_list"),
+            "icon": "fas fa-users",
+        },
+        {"title": customer.name, "active": True},
+    ]
 
     return render(request, "client/customer_detail.html", context)
 
@@ -1201,6 +1239,7 @@ def customer_add_ajax(request):
                 new_number = int(digits) + 1
         except Exception:
             pass
+    code = f'CUST{new_number:04d}'
     return JsonResponse({
         'success': True,
         'code': code

@@ -11,6 +11,7 @@ from django.http import JsonResponse, HttpResponse
 from django.template.loader import render_to_string
 from django.utils.translation import gettext_lazy as _
 
+from utils.templatetags.utils_extras import smart_float
 from .models import (
     Supplier,
     SupplierType,
@@ -498,6 +499,17 @@ def supplier_detail(request, pk):
 
     payments_list.sort(key=lambda x: str(x["payment_date"] or ""), reverse=True)
     total_payments = sum(pp.amount for pp in purchase_payments)
+
+    # حساب المبالغ مسبقة الدفع الغير موزعة على الفواتير للمورد
+    from supplier.models import SupplierTransaction
+    unallocated_prepaid = Decimal("0.00")
+    subledger_unallocated = SupplierTransaction.objects.filter(
+        supplier=supplier,
+        transaction_type__in=["ADVANCE", "PAYMENT"],
+        status__in=["OPEN", "PARTIAL"],
+    ).aggregate(total=Sum("open_amount"))["total"] or Decimal("0.00")
+
+    unallocated_prepaid = max(unallocated_prepaid, subledger_unallocated)
 
     # جلب فواتير الشراء المرتبطة بالمورد
     purchases = Purchase.objects.filter(supplier=supplier).order_by("-date")
@@ -1407,26 +1419,7 @@ def supplier_detail(request, pk):
         "page_title": f"{supplier.name}",
         "page_subtitle": "معلومات وبيانات المورد الكاملة",
         "page_icon": "fas fa-truck",
-        # Badges في الهيدر
-        "header_badges": [
-            {
-                "text": f"{supplier.code}",
-                "class": "bg-primary",
-                "icon": "fas fa-hashtag",
-            },
-            {
-                "text": f"الاستحقاق: {supplier.actual_balance}",
-                "class": "bg-danger" if supplier.actual_balance > 0 else "bg-success",
-                "icon": "fas fa-arrow-up" if supplier.actual_balance > 0 else "fas fa-arrow-down",
-            },
-            {
-                "text": "دليل الحسابات" if financial_account else "إنشاء حساب محاسبي",
-                "class": "bg-success" if financial_account else "bg-info",
-                "icon": "fas fa-link" if financial_account else "fas fa-plus-circle",
-                "url": reverse("financial:account_detail", kwargs={"pk": financial_account.pk}) if financial_account else "#",
-                "onclick": None if financial_account else f"openCreateAccountModal({supplier.pk})",
-            },
-        ],
+        "unallocated_prepaid": unallocated_prepaid,
         # نوع المورد (للعرض على اليسار)
         "supplier_type_badge": {
             "text": supplier.primary_type.settings.name if supplier.primary_type and supplier.primary_type.settings else (supplier.primary_type.name if supplier.primary_type else "غير محدد"),
@@ -1434,6 +1427,37 @@ def supplier_detail(request, pk):
             "color": supplier.primary_type.settings.color if supplier.primary_type and supplier.primary_type.settings else (supplier.primary_type.color if supplier.primary_type else "#6c757d"),
         } if supplier.primary_type else None,
     }
+
+    from core.models import SystemSetting
+    currency_symbol = SystemSetting.get_currency_symbol()
+
+    # Badges في الهيدر
+    header_badges = [
+        {
+            "text": f"{supplier.code}",
+            "class": "bg-primary",
+            "icon": "fas fa-hashtag",
+        },
+        {
+            "text": f"الاستحقاق: {smart_float(supplier.actual_balance)} {currency_symbol}",
+            "class": "bg-danger" if supplier.actual_balance > 0 else "bg-success",
+            "icon": "fas fa-arrow-up" if supplier.actual_balance > 0 else "fas fa-arrow-down",
+        },
+    ]
+
+    if unallocated_prepaid > Decimal("0.00"):
+        header_badges.append({
+            "text": f"رصيد مسبق: {smart_float(unallocated_prepaid)} {currency_symbol}",
+            "class": "bg-warning text-dark",
+            "icon": "fas fa-wallet",
+            "title": "إجمالي الرصيد المسبق المتاح للفواتير",
+            "action_text": "توزيع",
+            "action_icon": "fas fa-random",
+            "action_class": "bg-warning-subtle text-dark border border-warning-subtle",
+            "action_onclick": "if(document.getElementById('payments-tab')){ document.getElementById('payments-tab').click(); const el = document.getElementById('payments-tab-pane'); if(el) el.scrollIntoView({behavior: 'smooth'}); }",
+            "action_title": "الانتقال لقائمة المدفوعات لتوزيع الرصيد المسبق",
+        })
+    context["header_badges"] = header_badges
     
     # أزرار الهيدر
     header_buttons = [
