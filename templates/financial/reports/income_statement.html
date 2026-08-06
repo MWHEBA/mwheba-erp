@@ -1,4 +1,4 @@
-﻿{% extends 'base.html' %}
+{% extends 'base.html' %}
 {% load static %}
 {% load i18n %}
 {% load custom_filters %}
@@ -187,7 +187,6 @@
   
   <!-- قائمة الدخل -->
   <div class="section-container">
-    <div class="card">
       <div class="card-header d-flex justify-content-between align-items-center">
         <h5 class="card-title mb-0"><i class="fas fa-chart-line me-2"></i>{% trans "قائمة الدخل" %}</h5>
         <div class="actions-container">
@@ -262,7 +261,6 @@
           </div>
         </div>
       </div>
-    </div>
   </div>
   
   <!-- التحليل البياني -->
@@ -302,43 +300,40 @@
   function exportIncomeStatement() {
     try {
       let csvContent = '\uFEFF'; // BOM للدعم العربي
-      csvContent += 'قائمة الدخل للفترة من {{ date_from|date:"Y-m-d" }} إلى {{ date_to|date:"Y-m-d" }}\n\n';
+      const dateFrom = document.querySelector('#date_from')?.value || '';
+      const dateTo = document.querySelector('#date_to')?.value || '';
+      csvContent += 'قائمة الدخل ' + (dateFrom ? 'للفترة من ' + dateFrom + ' إلى ' + dateTo : '') + '\n\n';
       
-      // الإيرادات
-      csvContent += 'الإيرادات\n';
-      {% if income_statement_data.revenues %}
-        {% for item in income_statement_data.revenues %}
-          csvContent += '"{{ item.account.name }}","{{ item.amount|currency }}"\n';
-        {% endfor %}
-        csvContent += '"إجمالي الإيرادات","{{ income_statement_data.total_revenue|currency }}"\n\n';
-      {% endif %}
+      document.querySelectorAll('.income-statement-section').forEach(section => {
+        const titleEl = section.querySelector('.income-statement-title');
+        if (titleEl) {
+          csvContent += '"' + titleEl.textContent.trim() + '"\n';
+        }
+        section.querySelectorAll('.account-row').forEach(row => {
+          const spans = row.querySelectorAll('span');
+          if (spans.length >= 2) {
+            const name = spans[0].textContent.trim();
+            const val = spans[1].textContent.trim().replace(/"/g, '""');
+            csvContent += '"' + name + '","' + val + '"\n';
+          }
+        });
+        csvContent += '\n';
+      });
       
-      // المصروفات
-      csvContent += 'المصروفات\n';
-      {% if income_statement_data.expenses %}
-        {% for item in income_statement_data.expenses %}
-          csvContent += '"{{ item.account.name }}","{{ item.amount|currency }}"\n';
-        {% endfor %}
-        csvContent += '"إجمالي المصروفات","{{ income_statement_data.total_expense|currency }}"\n\n';
-      {% endif %}
-      
-      csvContent += '"صافي الربح (الخسارة)","{{ income_statement_data.net_income|currency }}"\n';
-      
-      // تحميل الملف
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const link = document.createElement('a');
       const url = URL.createObjectURL(blob);
       link.setAttribute('href', url);
-      link.setAttribute('download', 'قائمة_الدخل_{{ date_from|date:"Y-m-d" }}_{{ date_to|date:"Y-m-d" }}.csv');
+      link.setAttribute('download', 'قائمة_الدخل.csv');
       link.style.visibility = 'hidden';
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       
-      if (typeof toastr !== 'undefined') { toastr.success('تم تصدير قائمة الدخل إلى CSV بنجاح'); };
+      if (typeof toastr !== 'undefined') { toastr.success('تم تصدير قائمة الدخل إلى CSV بنجاح'); }
     } catch (error) {
       console.error('خطأ في تصدير CSV:', error);
-      if (typeof toastr !== 'undefined') { toastr.error('حدث خطأ أثناء تصدير البيانات'); };
+      if (typeof toastr !== 'undefined') { toastr.error('حدث خطأ أثناء تصدير البيانات'); }
     }
   }
   
@@ -346,61 +341,44 @@
   function exportIncomeStatementExcel() {
     try {
       let data = [];
-      
-      // العنوان
-      data.push(['قائمة الدخل للفترة من {{ date_from|date:"Y-m-d" }} إلى {{ date_to|date:"Y-m-d" }}']);
+      const dateFrom = document.querySelector('#date_from')?.value || '';
+      const dateTo = document.querySelector('#date_to')?.value || '';
+      data.push(['قائمة الدخل ' + (dateFrom ? 'للفترة من ' + dateFrom + ' إلى ' + dateTo : '')]);
       data.push([]);
       
-      // الإيرادات
-      data.push(['الإيرادات']);
-      {% if income_statement_data.revenues %}
-        {% for item in income_statement_data.revenues %}
-          data.push(['{{ item.account.name }}', '{{ item.amount|currency }}']);
-        {% endfor %}
-        data.push(['إجمالي الإيرادات', '{{ income_statement_data.total_revenue|currency }}']);
-      {% endif %}
-      data.push([]);
+      document.querySelectorAll('.income-statement-section').forEach(section => {
+        const titleEl = section.querySelector('.income-statement-title');
+        if (titleEl) {
+          data.push([titleEl.textContent.trim()]);
+        }
+        section.querySelectorAll('.account-row').forEach(row => {
+          const spans = row.querySelectorAll('span');
+          if (spans.length >= 2) {
+            data.push([spans[0].textContent.trim(), spans[1].textContent.trim()]);
+          }
+        });
+        data.push([]);
+      });
       
-      // المصروفات
-      data.push(['المصروفات']);
-      {% if income_statement_data.expenses %}
-        {% for item in income_statement_data.expenses %}
-          data.push(['{{ item.account.name }}', '{{ item.amount|currency }}']);
-        {% endfor %}
-        data.push(['إجمالي المصروفات', '{{ income_statement_data.total_expense|currency }}']);
-      {% endif %}
-      data.push([]);
-      
-      data.push(['صافي الربح (الخسارة)', '{{ income_statement_data.net_income|currency }}']);
-      
-      // إنشاء ملف Excel
       const ws = XLSX.utils.aoa_to_sheet(data);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'قائمة الدخل');
-      XLSX.writeFile(wb, 'قائمة_الدخل_{{ date_from|date:"Y-m-d" }}_{{ date_to|date:"Y-m-d" }}.xlsx');
+      XLSX.writeFile(wb, 'قائمة_الدخل.xlsx');
       
-      if (typeof toastr !== 'undefined') { toastr.success('تم تصدير قائمة الدخل إلى Excel بنجاح'); };
+      if (typeof toastr !== 'undefined') { toastr.success('تم تصدير قائمة الدخل إلى Excel بنجاح'); }
     } catch (error) {
       console.error('خطأ في تصدير Excel:', error);
-      if (typeof toastr !== 'undefined') { toastr.error('حدث خطأ أثناء تصدير البيانات'); };
+      if (typeof toastr !== 'undefined') { toastr.error('حدث خطأ أثناء تصدير البيانات'); }
     }
   }
   
   // دالة إظهار الإشعارات
-  // Removed: Using toastr library directly alert-dismissible fade show position-fixed" 
-             style="top: 20px; right: 20px; z-index: 9999; min-width: 300px;">
-            <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'} me-2"></i>
-            ${message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    `);
-    
-    $('body').append(notification);
-    
-    // إزالة الإشعار تلقائياً بعد 5 ثوان
-    setTimeout(() => {
-        notification.alert('close');
-    }, 5000);
+  function showNotification(message, type = 'info') {
+    if (typeof toastr !== 'undefined') {
+      if (type === 'success') toastr.success(message);
+      else if (type === 'error') toastr.error(message);
+      else toastr.info(message);
+    }
   }
 
   $(document).ready(function() {
@@ -425,33 +403,26 @@
   
   // دالة إعداد الرسوم البيانية
   function initCharts() {
-    // بيانات الإيرادات
-    const incomeData = {
-      labels: [
-        {% for item in income_statement_data.revenues %}
-          '{{ item.account.name|escapejs }}',
-        {% endfor %}
-      ],
-      values: [
-        {% for item in income_statement_data.revenues %}
-          {{ item.amount|default:0 }},
-        {% endfor %}
-      ]
+    const extractData = (sectionIndex) => {
+      const labels = [];
+      const values = [];
+      const sections = document.querySelectorAll('.income-statement-section');
+      if (sections[sectionIndex]) {
+        sections[sectionIndex].querySelectorAll('.account-row:not(.total-row)').forEach(row => {
+          const nameEl = row.querySelector('.account-name');
+          const balanceEl = row.querySelector('.account-balance');
+          if (nameEl && balanceEl) {
+            labels.push(nameEl.textContent.trim());
+            const num = parseFloat(balanceEl.textContent.replace(/[^0-9.-]+/g, '')) || 0;
+            values.push(num);
+          }
+        });
+      }
+      return { labels, values };
     };
-    
-    // بيانات المصروفات
-    const expenseData = {
-      labels: [
-        {% for item in income_statement_data.expenses %}
-          '{{ item.account.name|escapejs }}',
-        {% endfor %}
-      ],
-      values: [
-        {% for item in income_statement_data.expenses %}
-          {{ item.amount|default:0 }},
-        {% endfor %}
-      ]
-    };
+
+    const incomeData = extractData(0);
+    const expenseData = extractData(1);
     
     // إنشاء رسم بياني للإيرادات
     if (incomeData.labels.length > 0) {
@@ -501,9 +472,9 @@
               label: function(context) {
                 const label = context.label || '';
                 const value = context.parsed || 0;
-                const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                const percentage = ((value / total) * 100).toFixed(1);
-                return `${label}: ${value.toLocaleString()} (${percentage}%)`;
+                const total = context.dataset.data.reduce(function(a, b) { return a + b; }, 0);
+                const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : '0';
+                return label + ': ' + value.toLocaleString() + ' (' + percentage + '%)';
               }
             }
           }
@@ -513,7 +484,7 @@
   }
   
   // توليد ألوان متدرجة
-  function generateColors(count, baseColor = '#0d6efd') {
+  function generateColors(count, baseColor) {
     const colors = [];
     const baseColors = [
       '#0d6efd', '#198754', '#dc3545', '#ffc107', '#6f42c1',

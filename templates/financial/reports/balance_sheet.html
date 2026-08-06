@@ -1,4 +1,4 @@
-﻿{% extends 'base.html' %}
+{% extends 'base.html' %}
 {% load static %}
 {% load i18n %}
 {% load custom_filters %}
@@ -182,7 +182,6 @@
   
   <!-- الميزانية العمومية -->
   <div class="section-container">
-    <div class="card">
       <div class="card-header d-flex justify-content-between align-items-center">
         <h5 class="card-title mb-0"><i class="fas fa-balance-scale me-2"></i>{% trans "الميزانية العمومية" %}</h5>
         <div class="actions-container">
@@ -288,7 +287,6 @@
           {% endif %}
         </div>
       </div>
-    </div>
   </div>
 </div>
 {% endblock %}
@@ -303,52 +301,39 @@
   function exportBalanceSheet() {
     try {
       let csvContent = '\uFEFF'; // BOM للدعم العربي
-      csvContent += 'الميزانية العمومية كما في {{ balance_date|date:"Y-m-d" }}\n\n';
+      const dateText = document.querySelector('#date_from')?.value || '';
+      csvContent += 'الميزانية العمومية ' + (dateText ? 'كما في ' + dateText : '') + '\n\n';
       
-      // الأصول
-      csvContent += 'الأصول\n';
-      {% if assets %}
-        {% for asset in assets %}
-          csvContent += '"{{ asset.account.name }}","{{ asset.balance|currency }}"\n';
-        {% endfor %}
-        csvContent += '"إجمالي الأصول","{{ total_assets|currency }}"\n\n';
-      {% endif %}
+      document.querySelectorAll('.balance-sheet-section').forEach(section => {
+        const titleEl = section.querySelector('.balance-sheet-title');
+        if (titleEl) {
+          csvContent += '"' + titleEl.textContent.trim() + '"\n';
+        }
+        section.querySelectorAll('.account-row').forEach(row => {
+          const spans = row.querySelectorAll('span');
+          if (spans.length >= 2) {
+            const name = spans[0].textContent.trim();
+            const val = spans[1].textContent.trim().replace(/"/g, '""');
+            csvContent += '"' + name + '","' + val + '"\n';
+          }
+        });
+        csvContent += '\n';
+      });
       
-      // الخصوم
-      csvContent += 'الخصوم\n';
-      {% if liabilities %}
-        {% for liability in liabilities %}
-          csvContent += '"{{ liability.account.name }}","{{ liability.balance|currency }}"\n';
-        {% endfor %}
-        csvContent += '"إجمالي الخصوم","{{ total_liabilities|currency }}"\n\n';
-      {% endif %}
-      
-      // حقوق الملكية
-      csvContent += 'حقوق الملكية\n';
-      {% if equity %}
-        {% for item in equity %}
-          csvContent += '"{{ item.account.name }}","{{ item.balance|currency }}"\n';
-        {% endfor %}
-        csvContent += '"إجمالي حقوق الملكية","{{ total_equity|currency }}"\n\n';
-      {% endif %}
-      
-      csvContent += '"إجمالي الخصوم وحقوق الملكية","{{ total_liabilities_equity|currency }}"\n';
-      
-      // تحميل الملف
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const link = document.createElement('a');
       const url = URL.createObjectURL(blob);
       link.setAttribute('href', url);
-      link.setAttribute('download', 'الميزانية_العمومية_{{ balance_date|date:"Y-m-d" }}.csv');
+      link.setAttribute('download', 'الميزانية_العمومية.csv');
       link.style.visibility = 'hidden';
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       
-      if (typeof toastr !== 'undefined') { toastr.success('تم تصدير الميزانية العمومية إلى CSV بنجاح'); };
+      if (typeof toastr !== 'undefined') { toastr.success('تم تصدير الميزانية العمومية إلى CSV بنجاح'); }
     } catch (error) {
       console.error('خطأ في تصدير CSV:', error);
-      if (typeof toastr !== 'undefined') { toastr.error('حدث خطأ أثناء تصدير البيانات'); };
+      if (typeof toastr !== 'undefined') { toastr.error('حدث خطأ أثناء تصدير البيانات'); }
     }
   }
   
@@ -356,71 +341,43 @@
   function exportBalanceSheetExcel() {
     try {
       let data = [];
-      
-      // العنوان
-      data.push(['الميزانية العمومية كما في {{ balance_date|date:"Y-m-d" }}']);
+      const dateText = document.querySelector('#date_from')?.value || '';
+      data.push(['الميزانية العمومية ' + (dateText ? 'كما في ' + dateText : '')]);
       data.push([]);
       
-      // الأصول
-      data.push(['الأصول']);
-      {% if assets %}
-        {% for asset in assets %}
-          data.push(['{{ asset.account.name }}', '{{ asset.balance|currency }}']);
-        {% endfor %}
-        data.push(['إجمالي الأصول', '{{ total_assets|currency }}']);
-      {% endif %}
-      data.push([]);
+      document.querySelectorAll('.balance-sheet-section').forEach(section => {
+        const titleEl = section.querySelector('.balance-sheet-title');
+        if (titleEl) {
+          data.push([titleEl.textContent.trim()]);
+        }
+        section.querySelectorAll('.account-row').forEach(row => {
+          const spans = row.querySelectorAll('span');
+          if (spans.length >= 2) {
+            data.push([spans[0].textContent.trim(), spans[1].textContent.trim()]);
+          }
+        });
+        data.push([]);
+      });
       
-      // الخصوم
-      data.push(['الخصوم']);
-      {% if liabilities %}
-        {% for liability in liabilities %}
-          data.push(['{{ liability.account.name }}', '{{ liability.balance|currency }}']);
-        {% endfor %}
-        data.push(['إجمالي الخصوم', '{{ total_liabilities|currency }}']);
-      {% endif %}
-      data.push([]);
-      
-      // حقوق الملكية
-      data.push(['حقوق الملكية']);
-      {% if equity %}
-        {% for item in equity %}
-          data.push(['{{ item.account.name }}', '{{ item.balance|currency }}']);
-        {% endfor %}
-        data.push(['إجمالي حقوق الملكية', '{{ total_equity|currency }}']);
-      {% endif %}
-      data.push([]);
-      
-      data.push(['إجمالي الخصوم وحقوق الملكية', '{{ total_liabilities_equity|currency }}']);
-      
-      // إنشاء ملف Excel
       const ws = XLSX.utils.aoa_to_sheet(data);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'الميزانية العمومية');
-      XLSX.writeFile(wb, 'الميزانية_العمومية_{{ balance_date|date:"Y-m-d" }}.xlsx');
+      XLSX.writeFile(wb, 'الميزانية_العمومية.xlsx');
       
-      if (typeof toastr !== 'undefined') { toastr.success('تم تصدير الميزانية العمومية إلى Excel بنجاح'); };
+      if (typeof toastr !== 'undefined') { toastr.success('تم تصدير الميزانية العمومية إلى Excel بنجاح'); }
     } catch (error) {
       console.error('خطأ في تصدير Excel:', error);
-      if (typeof toastr !== 'undefined') { toastr.error('حدث خطأ أثناء تصدير البيانات'); };
+      if (typeof toastr !== 'undefined') { toastr.error('حدث خطأ أثناء تصدير البيانات'); }
     }
   }
   
   // دالة إظهار الإشعارات
-  // Removed: Using toastr library directly alert-dismissible fade show position-fixed" 
-             style="top: 20px; right: 20px; z-index: 9999; min-width: 300px;">
-            <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'} me-2"></i>
-            ${message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    `);
-    
-    $('body').append(notification);
-    
-    // إزالة الإشعار تلقائياً بعد 5 ثوان
-    setTimeout(() => {
-        notification.alert('close');
-    }, 5000);
+  function showNotification(message, type = 'info') {
+    if (typeof toastr !== 'undefined') {
+      if (type === 'success') toastr.success(message);
+      else if (type === 'error') toastr.error(message);
+      else toastr.info(message);
+    }
   }
 
   $(document).ready(function() {

@@ -145,7 +145,7 @@
               <i class="fas fa-sync-alt"></i>
             </div>
             <div class="stats-card-title">{% trans "متوسط معدل الدوران" %}</div>
-            <div class="stats-card-value">{{ summary.average_turnover|smart_float|default:"0" }}</div>
+            <div class="stats-card-value">{{ summary.avg_turnover|smart_float|default:"0" }}</div>
             <div class="stats-card-unit">{% trans "مرة في السنة" %}</div>
           </div>
         </div>
@@ -158,7 +158,7 @@
               <i class="fas fa-arrow-up"></i>
             </div>
             <div class="stats-card-title">{% trans "دوران سريع" %}</div>
-            <div class="stats-card-value">{{ summary.high_turnover_count|default:"0" }}</div>
+            <div class="stats-card-value">{{ summary.fast_count|default:"0" }}</div>
             <div class="stats-card-unit">{% trans "منتج (6+ مرات/سنة)" %}</div>
           </div>
         </div>
@@ -171,7 +171,7 @@
               <i class="fas fa-minus"></i>
             </div>
             <div class="stats-card-title">{% trans "دوران متوسط" %}</div>
-            <div class="stats-card-value">{{ summary.medium_turnover_count|default:"0" }}</div>
+            <div class="stats-card-value">{{ summary.medium_count|default:"0" }}</div>
             <div class="stats-card-unit">{% trans "منتج (3-6 مرات/سنة)" %}</div>
           </div>
         </div>
@@ -184,7 +184,7 @@
               <i class="fas fa-arrow-down"></i>
             </div>
             <div class="stats-card-title">{% trans "دوران بطيء/راكد" %}</div>
-            <div class="stats-card-value">{{ summary.low_turnover_count|default:"0"|add:summary.zero_turnover_count|default:"0" }}</div>
+            <div class="stats-card-value">{{ summary.slow_count|default:"0"|add:summary.stagnant_count|default:"0" }}</div>
             <div class="stats-card-unit">{% trans "منتج (<3 مرات/سنة)" %}</div>
           </div>
         </div>
@@ -216,7 +216,6 @@
 
   <!-- قائمة تفاصيل دوران المنتجات -->
   <div class="section-container">
-    <div class="card">
       <div class="card-header d-flex justify-content-between align-items-center">
         <h5 class="card-title mb-0"><i class="fas fa-table me-2"></i>{% trans "تفاصيل دوران المنتجات" %}</h5>
         <div class="actions-container">
@@ -273,7 +272,7 @@
                                         {% if item.turnover_ratio >= 6 %}bg-success
                                         {% elif item.turnover_ratio >= 3 %}bg-warning
                                         {% else %}bg-danger{% endif %}" 
-                                        style="width: {% widthratio item.turnover_ratio 1 10 %}%">
+                                        style="--w: {% widthratio item.turnover_ratio 1 10 %}%; width: var(--w);">
                                     </div>
                                 </div>
                             </td>
@@ -289,12 +288,10 @@
                                 {% endif %}
                             </td>
                         </tr>
-                        {% empty %}
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
-            
             {% if not turnover_data %}
             <div class="empty-state">
               <div class="empty-state-icon">
@@ -305,7 +302,6 @@
             </div>
             {% endif %}
         </div>
-      </div>
     </div>
   </div>
 
@@ -390,10 +386,10 @@ const turnoverChart = new Chart(ctx, {
     datasets: [{
       label: 'عدد المنتجات',
       data: [
-        {{ summary.high_turnover_count|default:"0" }},
-        {{ summary.medium_turnover_count|default:"0" }},
-        {{ summary.low_turnover_count|default:"0" }},
-        {{ summary.zero_turnover_count|default:"0" }}
+        Number('{{ summary.fast_count|default:0 }}'),
+        Number('{{ summary.medium_count|default:0 }}'),
+        Number('{{ summary.slow_count|default:0 }}'),
+        Number('{{ summary.stagnant_count|default:0 }}')
       ],
       backgroundColor: [
         '#28a745',

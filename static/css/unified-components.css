@@ -2357,6 +2357,43 @@ html[dir="rtl"] .border-right-danger {
     padding: var(--spacing-5);
 }
 
+/* دعم الأبناء المباشرين (.card-header & .card-body & .card-footer) بداخل .section-container */
+.section-container > .card-header,
+.unified-section-container > .card-header {
+    background-color: var(--bg-light);
+    border-bottom: 1px solid var(--border-color);
+    padding: var(--spacing-4) var(--spacing-5);
+    border-top-left-radius: calc(var(--border-radius) - 1px);
+    border-top-right-radius: calc(var(--border-radius) - 1px);
+}
+
+.section-container > .card-body,
+.unified-section-container > .card-body {
+    padding: var(--spacing-5);
+}
+
+.section-container > .card-body.p-0,
+.unified-section-container > .card-body.p-0 {
+    padding: 0 !important;
+}
+
+.section-container > .card-footer,
+.unified-section-container > .card-footer {
+    background-color: var(--bg-light-subtle, var(--bg-light));
+    border-top: 1px solid var(--border-color);
+    padding: var(--spacing-3) var(--spacing-5);
+}
+
+/* تحييد التكرار البصري والحدود المزدوجة للبطاقات المباشرة داخل الأقسام */
+.section-container > .card,
+.unified-section-container > .card {
+    border: none !important;
+    box-shadow: none !important;
+    background-color: transparent !important;
+    margin-bottom: 0 !important;
+    border-radius: 0 !important;
+}
+
 .section-container.borderless,
 .unified-section-container.borderless {
     border: none;
