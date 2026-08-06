@@ -1,0 +1,406 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{% trans "إدارة العملات وأسعار الصرف" %}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+<style>
+  .custom-table th,
+  .custom-table td {
+    font-size: 0.95rem !important;
+  }
+  .custom-table .badge {
+    font-size: 0.85rem !important;
+    padding: 0.45em 0.75em !important;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Page Header الموحد -->
+  {% include "shared/page_header.html" %}
+
+  <!-- Currencies Table -->
+  <div class="section-container mb-4">
+    <h5 class="section-title">
+      <i class="fas fa-list me-2"></i>{% trans "قائمة العملات المعتمدة" %}
+    </h5>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle custom-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>{% trans "كود العملة" %}</th>
+            <th>{% trans "اسم العملة" %}</th>
+            <th>{% trans "الرمز" %}</th>
+            <th>{% trans "سعر الصرف" %}</th>
+            <th class="text-center">{% trans "تاريخ أحدث سعر" %}</th>
+            <th class="text-center">{% trans "نوع العملة" %}</th>
+            <th class="text-center">{% trans "الحالة" %}</th>
+            <th class="text-end">{% trans "إجراءات" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for currency in currencies %}
+          <tr>
+            <td>{{ forloop.counter }}</td>
+            <td class="fw-bold">{{ currency.code }}</td>
+            <td>{{ currency.name }}</td>
+            <td>{{ currency.symbol|default:"-" }}</td>
+            <td>
+              {% if currency.is_functional %}
+                <span class="text-muted fw-bold">-</span>
+              {% elif currency.current_rate_display %}
+                <span class="fw-bold text-primary">{{ currency.current_rate_display }} {{ base_currency.symbol|default:base_currency.code }}</span>
+              {% else %}
+                <span class="badge bg-warning-subtle text-warning"><i class="fas fa-exclamation-triangle me-1"></i>{% trans "غير مسعر" %}</span>
+              {% endif %}
+            </td>
+            <td class="text-center">
+              {% if currency.is_functional %}
+                <span class="text-muted fw-bold">-</span>
+              {% elif currency.age_status == 'recent' %}
+                <span class="badge bg-success-subtle text-success"><i class="fas fa-clock me-1"></i>{{ currency.latest_rate_date|date:"Y-m-d" }}</span>
+              {% elif currency.age_status == 'medium' %}
+                <span class="badge bg-warning-subtle text-warning"><i class="fas fa-history me-1"></i>{{ currency.latest_rate_date|date:"Y-m-d" }}</span>
+              {% elif currency.latest_rate_date %}
+                <span class="badge bg-danger-subtle text-danger"><i class="fas fa-exclamation-circle me-1"></i>{{ currency.latest_rate_date|date:"Y-m-d" }}</span>
+              {% else %}
+                <span class="badge bg-secondary-subtle text-secondary">-</span>
+              {% endif %}
+            </td>
+            <td class="text-center">
+              {% if currency.is_functional %}
+                <span class="badge bg-success-subtle text-success"><i class="fas fa-check-circle me-1"></i>{% trans "عملة أساسية وظيفية" %}</span>
+              {% else %}
+                <span class="badge bg-info-subtle text-info"><i class="fas fa-globe me-1"></i>{% trans "عملة أجنبية" %}</span>
+              {% endif %}
+            </td>
+            <td class="text-center">
+              {% if currency.is_active %}
+                <span class="badge bg-success-subtle text-success">{% trans "نشطة" %}</span>
+              {% else %}
+                <span class="badge bg-danger-subtle text-danger">{% trans "معطلة" %}</span>
+              {% endif %}
+            </td>
+            <td class="text-end">
+              <div class="btn-group btn-group-sm" role="group">
+                <button type="button" class="btn btn-outline-primary" data-code="{{ currency.code }}" data-name="{{ currency.name }}" data-symbol="{{ currency.symbol }}" data-active="{% if currency.is_active %}1{% else %}0{% endif %}" data-functional="{% if currency.is_functional %}1{% else %}0{% endif %}" onclick="openEditCurrencyModal(this)" title="{% trans 'تعديل بيانات العملة' %}">
+                  <i class="fas fa-edit"></i>
+                </button>
+                {% if not currency.is_functional %}
+                  <a href="{% url 'financial:currency_toggle_active' currency.code %}" class="btn {% if currency.is_active %}btn-outline-danger{% else %}btn-outline-success{% endif %}" title="{% if currency.is_active %}{% trans 'تعطيل العملة' %}{% else %}{% trans 'تفعيل العملة' %}{% endif %}">
+                    <i class="fas {% if currency.is_active %}fa-ban{% else %}fa-check-circle{% endif %}"></i>
+                  </a>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="9" class="text-center py-4 text-muted">
+              {% trans "لا توجد عملات مسجلة حتى الآن" %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Quick Add Currency Modal -->
+<div class="modal fade" id="quickAddCurrencyModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold"><i class="fas fa-coins text-primary me-2"></i>{% trans "إضافة عملة" %}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form action="{% url 'financial:currency_create' %}" method="POST">
+        {% csrf_token %}
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label fw-bold">{% trans "اختر العملة (ISO Code)" %}</label>
+            <select id="add_currency_code" name="code" class="form-select select2-world-currencies" required>
+              <option value="">{% trans "ابحث واختر العملة من القائمة..." %}</option>
+              
+              <optgroup label="⭐ أشهر العملات الدولية والعربية المتاحة">
+                {% if 'EGP' not in existing_codes %}<option value="EGP" data-name="جنيه مصري" data-symbol="ج.م">EGP - جنيه مصري (ج.م)</option>{% endif %}
+                {% if 'USD' not in existing_codes %}<option value="USD" data-name="دولار أمريكي" data-symbol="$">USD - دولار أمريكي ($)</option>{% endif %}
+                {% if 'EUR' not in existing_codes %}<option value="EUR" data-name="يورو" data-symbol="€">EUR - يورو (€)</option>{% endif %}
+                {% if 'SAR' not in existing_codes %}<option value="SAR" data-name="ريال سعودي" data-symbol="ر.س">SAR - ريال سعودي (ر.س)</option>{% endif %}
+                {% if 'AED' not in existing_codes %}<option value="AED" data-name="درهم إماراتي" data-symbol="د.إ">AED - درهم إماراتي (د.إ)</option>{% endif %}
+                {% if 'KWD' not in existing_codes %}<option value="KWD" data-name="دينار كويتي" data-symbol="د.ك">KWD - دينار كويتي (د.ك)</option>{% endif %}
+                {% if 'QAR' not in existing_codes %}<option value="QAR" data-name="ريال قطري" data-symbol="ر.ق">QAR - ريال قطري (ر.ق)</option>{% endif %}
+                {% if 'BHD' not in existing_codes %}<option value="BHD" data-name="دينار بحريني" data-symbol="د.ب">BHD - دينار بحريني (د.ب)</option>{% endif %}
+                {% if 'OMR' not in existing_codes %}<option value="OMR" data-name="ريال عماني" data-symbol="ر.ع">OMR - ريال عماني (ر.ع)</option>{% endif %}
+                {% if 'JOD' not in existing_codes %}<option value="JOD" data-name="دينار أردني" data-symbol="د.أ">JOD - دينار أردني (د.أ)</option>{% endif %}
+                {% if 'GBP' not in existing_codes %}<option value="GBP" data-name="جنيه إسترليني" data-symbol="£">GBP - جنيه إسترليني (£)</option>{% endif %}
+                {% if 'CHF' not in existing_codes %}<option value="CHF" data-name="فرنك سويسري" data-symbol="CHF">CHF - فرنك سويسري (CHF)</option>{% endif %}
+                {% if 'CAD' not in existing_codes %}<option value="CAD" data-name="دولار كندي" data-symbol="C$">CAD - دولار كندي (C$)</option>{% endif %}
+                {% if 'AUD' not in existing_codes %}<option value="AUD" data-name="دولار أسترالي" data-symbol="A$">AUD - دولار أسترالي (A$)</option>{% endif %}
+                {% if 'CNY' not in existing_codes %}<option value="CNY" data-name="يوان صيني" data-symbol="¥">CNY - يوان صيني (¥)</option>{% endif %}
+                {% if 'JPY' not in existing_codes %}<option value="JPY" data-name="ين ياباني" data-symbol="¥">JPY - ين ياباني (¥)</option>{% endif %}
+                {% if 'TRY' not in existing_codes %}<option value="TRY" data-name="ليرة تركية" data-symbol="₺">TRY - ليرة تركية (₺)</option>{% endif %}
+              </optgroup>
+
+              <optgroup label="🌍 باقي عملات العالم المتاحة">
+                {% if 'DZD' not in existing_codes %}<option value="DZD" data-name="دينار جزائري" data-symbol="د.ج">DZD - دينار جزائري (د.ج)</option>{% endif %}
+                {% if 'MAD' not in existing_codes %}<option value="MAD" data-name="درهم مغربي" data-symbol="د.م.">MAD - درهم مغربي (د.م.)</option>{% endif %}
+                {% if 'TND' not in existing_codes %}<option value="TND" data-name="دينار تونسي" data-symbol="د.ت">TND - دينار تونسي (د.ت)</option>{% endif %}
+                {% if 'LYD' not in existing_codes %}<option value="LYD" data-name="دينار ليبي" data-symbol="د.ل">LYD - دينار ليبي (د.ل)</option>{% endif %}
+                {% if 'IQD' not in existing_codes %}<option value="IQD" data-name="دينار عراقي" data-symbol="د.ع">IQD - دينار عراقي (د.ع)</option>{% endif %}
+                {% if 'LBP' not in existing_codes %}<option value="LBP" data-name="ليرة لبنانية" data-symbol="ل.ل">LBP - ليرة لبنانية (ل.ل)</option>{% endif %}
+                {% if 'SYP' not in existing_codes %}<option value="SYP" data-name="ليرة سورية" data-symbol="ل.س">SYP - ليرة سورية (ل.س)</option>{% endif %}
+                {% if 'SDG' not in existing_codes %}<option value="SDG" data-name="جنيه سوداني" data-symbol="ج.س">SDG - جنيه سوداني (ج.س)</option>{% endif %}
+                {% if 'YER' not in existing_codes %}<option value="YER" data-name="ريال يمني" data-symbol="ر.ي">YER - ريال يمني (ر.ي)</option>{% endif %}
+                {% if 'INR' not in existing_codes %}<option value="INR" data-name="روبية هندية" data-symbol="₹">INR - روبية هندية (₹)</option>{% endif %}
+                {% if 'RUB' not in existing_codes %}<option value="RUB" data-name="روبل روسي" data-symbol="₽">RUB - روبل روسي (₽)</option>{% endif %}
+                {% if 'KRW' not in existing_codes %}<option value="KRW" data-name="وون كوري جنوبي" data-symbol="₩">KRW - وون كوري جنوبي (₩)</option>{% endif %}
+                {% if 'SGD' not in existing_codes %}<option value="SGD" data-name="دولار سنغافوري" data-symbol="S$">SGD - دولار سنغافوري (S$)</option>{% endif %}
+                {% if 'HKD' not in existing_codes %}<option value="HKD" data-name="دولار هونغ كونغ" data-symbol="HK$">HKD - دولار هونغ كونغ (HK$)</option>{% endif %}
+                {% if 'NZD' not in existing_codes %}<option value="NZD" data-name="دولار نيوزيلندي" data-symbol="NZ$">NZD - دولار نيوزيلندي (NZ$)</option>{% endif %}
+                {% if 'SEK' not in existing_codes %}<option value="SEK" data-name="كرونة سويدية" data-symbol="kr">SEK - كرونة سويدية (kr)</option>{% endif %}
+                {% if 'NOK' not in existing_codes %}<option value="NOK" data-name="كرونة نرويجية" data-symbol="kr">NOK - كرونة نرويجية (kr)</option>{% endif %}
+                {% if 'DKK' not in existing_codes %}<option value="DKK" data-name="كرونة دنماركية" data-symbol="kr">DKK - كرونة دنماركية (kr)</option>{% endif %}
+                {% if 'PLN' not in existing_codes %}<option value="PLN" data-name="زلوتي بولندي" data-symbol="zł">PLN - زلوتي بولندي (zł)</option>{% endif %}
+                {% if 'HUF' not in existing_codes %}<option value="HUF" data-name="فورينت مجري" data-symbol="Ft">HUF - فورينت مجري (Ft)</option>{% endif %}
+                {% if 'CZK' not in existing_codes %}<option value="CZK" data-name="كرونة تشيكية" data-symbol="Kč">CZK - كرونة تشيكية (Kč)</option>{% endif %}
+                {% if 'BRL' not in existing_codes %}<option value="BRL" data-name="ريال برازيلي" data-symbol="R$">BRL - ريال برازيلي (R$)</option>{% endif %}
+                {% if 'ZAR' not in existing_codes %}<option value="ZAR" data-name="راند جنوب إفريقي" data-symbol="R">ZAR - راند جنوب إفريقي (R)</option>{% endif %}
+                {% if 'MXN' not in existing_codes %}<option value="MXN" data-name="بيزو المكسيك" data-symbol="$">MXN - بيزو المكسيك ($)</option>{% endif %}
+                {% if 'THB' not in existing_codes %}<option value="THB" data-name="بات تايلاندي" data-symbol="฿">THB - بات تايلاندي (฿)</option>{% endif %}
+                {% if 'MYR' not in existing_codes %}<option value="MYR" data-name="رينغيت ماليزي" data-symbol="RM">MYR - رينغيت ماليزي (RM)</option>{% endif %}
+                {% if 'IDR' not in existing_codes %}<option value="IDR" data-name="روبية إندونيسية" data-symbol="Rp">IDR - روبية إندونيسية (Rp)</option>{% endif %}
+                {% if 'PHP' not in existing_codes %}<option value="PHP" data-name="بيزو الفلبين" data-symbol="₱">PHP - بيزو الفلبين (₱)</option>{% endif %}
+                {% if 'PKR' not in existing_codes %}<option value="PKR" data-name="روبية باكستانية" data-symbol="Rs">PKR - روبية باكستانية (Rs)</option>{% endif %}
+                {% if 'ARS' not in existing_codes %}<option value="ARS" data-name="بيزو الأرجنتين" data-symbol="$">ARS - بيزو الأرجنتين ($)</option>{% endif %}
+                {% if 'CLP' not in existing_codes %}<option value="CLP" data-name="بيزو تشيلي" data-symbol="$">CLP - بيزو تشيلي ($)</option>{% endif %}
+                {% if 'COP' not in existing_codes %}<option value="COP" data-name="بيزو كولومبي" data-symbol="$">COP - بيزو كولومبي ($)</option>{% endif %}
+                {% if 'PEN' not in existing_codes %}<option value="PEN" data-name="سول بيروفي" data-symbol="S/">PEN - سول بيروفي (S/)</option>{% endif %}
+              </optgroup>
+
+              <optgroup label="🔒 عملات مضافة حالياً بالنظام (معطلة)">
+                {% if 'EGP' in existing_codes %}<option value="EGP" disabled>EGP - جنيه مصري (ج.م) (مضافة حالياً)</option>{% endif %}
+                {% if 'USD' in existing_codes %}<option value="USD" disabled>USD - دولار أمريكي ($) (مضافة حالياً)</option>{% endif %}
+                {% if 'EUR' in existing_codes %}<option value="EUR" disabled>EUR - يورو (€) (مضافة حالياً)</option>{% endif %}
+                {% if 'SAR' in existing_codes %}<option value="SAR" disabled>SAR - ريال سعودي (ر.س) (مضافة حالياً)</option>{% endif %}
+                {% if 'AED' in existing_codes %}<option value="AED" disabled>AED - درهم إماراتي (د.إ) (مضافة حالياً)</option>{% endif %}
+                {% if 'KWD' in existing_codes %}<option value="KWD" disabled>KWD - دينار كويتي (د.ك) (مضافة حالياً)</option>{% endif %}
+                {% if 'QAR' in existing_codes %}<option value="QAR" disabled>QAR - ريال قطري (ر.ق) (مضافة حالياً)</option>{% endif %}
+                {% if 'BHD' in existing_codes %}<option value="BHD" disabled>BHD - دينار بحريني (د.ب) (مضافة حالياً)</option>{% endif %}
+                {% if 'OMR' in existing_codes %}<option value="OMR" disabled>OMR - ريال عماني (ر.ع) (مضافة حالياً)</option>{% endif %}
+                {% if 'JOD' in existing_codes %}<option value="JOD" disabled>JOD - دينار أردني (د.أ) (مضافة حالياً)</option>{% endif %}
+                {% if 'GBP' in existing_codes %}<option value="GBP" disabled>GBP - جنيه إسترليني (£) (مضافة حالياً)</option>{% endif %}
+                {% if 'CHF' in existing_codes %}<option value="CHF" disabled>CHF - فرنك سويسري (CHF) (مضافة حالياً)</option>{% endif %}
+                {% if 'CAD' in existing_codes %}<option value="CAD" disabled>CAD - دولار كندي (C$) (مضافة حالياً)</option>{% endif %}
+                {% if 'AUD' in existing_codes %}<option value="AUD" disabled>AUD - دولار أسترالي (A$) (مضافة حالياً)</option>{% endif %}
+                {% if 'CNY' in existing_codes %}<option value="CNY" disabled>CNY - يوان صيني (¥) (مضافة حالياً)</option>{% endif %}
+                {% if 'JPY' in existing_codes %}<option value="JPY" disabled>JPY - ين ياباني (¥) (مضافة حالياً)</option>{% endif %}
+                {% if 'TRY' in existing_codes %}<option value="TRY" disabled>TRY - ليرة تركية (₺) (مضافة حالياً)</option>{% endif %}
+                {% if 'DZD' in existing_codes %}<option value="DZD" disabled>DZD - دينار جزائري (د.ج) (مضافة حالياً)</option>{% endif %}
+                {% if 'MAD' in existing_codes %}<option value="MAD" disabled>MAD - درهم مغربي (د.م.) (مضافة حالياً)</option>{% endif %}
+                {% if 'TND' in existing_codes %}<option value="TND" disabled>TND - دينار تونسي (د.ت) (مضافة حالياً)</option>{% endif %}
+                {% if 'LYD' in existing_codes %}<option value="LYD" disabled>LYD - دينار ليبي (د.ل) (مضافة حالياً)</option>{% endif %}
+                {% if 'IQD' in existing_codes %}<option value="IQD" disabled>IQD - دينار عراقي (د.ع) (مضافة حالياً)</option>{% endif %}
+                {% if 'LBP' in existing_codes %}<option value="LBP" disabled>LBP - ليرة لبنانية (ل.ل) (مضافة حالياً)</option>{% endif %}
+                {% if 'SYP' in existing_codes %}<option value="SYP" disabled>SYP - ليرة سورية (ل.س) (مضافة حالياً)</option>{% endif %}
+                {% if 'SDG' in existing_codes %}<option value="SDG" disabled>SDG - جنيه سوداني (ج.س) (مضافة حالياً)</option>{% endif %}
+                {% if 'YER' in existing_codes %}<option value="YER" disabled>YER - ريال يمني (ر.ي) (مضافة حالياً)</option>{% endif %}
+                {% if 'INR' in existing_codes %}<option value="INR" disabled>INR - روبية هندية (₹) (مضافة حالياً)</option>{% endif %}
+                {% if 'RUB' in existing_codes %}<option value="RUB" disabled>RUB - روبل روسي (₽) (مضافة حالياً)</option>{% endif %}
+                {% if 'KRW' in existing_codes %}<option value="KRW" disabled>KRW - وون كوري جنوبي (₩) (مضافة حالياً)</option>{% endif %}
+                {% if 'SGD' in existing_codes %}<option value="SGD" disabled>SGD - دولار سنغافوري (S$) (مضافة حالياً)</option>{% endif %}
+                {% if 'HKD' in existing_codes %}<option value="HKD" disabled>HKD - دولار هونغ كونغ (HK$) (مضافة حالياً)</option>{% endif %}
+                {% if 'NZD' in existing_codes %}<option value="NZD" disabled>NZD - دولار نيوزيلندي (NZ$) (مضافة حالياً)</option>{% endif %}
+                {% if 'SEK' in existing_codes %}<option value="SEK" disabled>SEK - كرونة سويدية (kr) (مضافة حالياً)</option>{% endif %}
+                {% if 'NOK' in existing_codes %}<option value="NOK" disabled>NOK - كرونة نرويجية (kr) (مضافة حالياً)</option>{% endif %}
+                {% if 'DKK' in existing_codes %}<option value="DKK" disabled>DKK - كرونة دنماركية (kr) (مضافة حالياً)</option>{% endif %}
+                {% if 'PLN' in existing_codes %}<option value="PLN" disabled>PLN - زلوتي بولندي (zł) (مضافة حالياً)</option>{% endif %}
+                {% if 'HUF' in existing_codes %}<option value="HUF" disabled>HUF - فورينت مجري (Ft) (مضافة حالياً)</option>{% endif %}
+                {% if 'CZK' in existing_codes %}<option value="CZK" disabled>CZK - كرونة تشيكية (Kč) (مضافة حالياً)</option>{% endif %}
+                {% if 'BRL' in existing_codes %}<option value="BRL" disabled>BRL - ريال برازيلي (R$) (مضافة حالياً)</option>{% endif %}
+                {% if 'ZAR' in existing_codes %}<option value="ZAR" disabled>ZAR - راند جنوب إفريقي (R) (مضافة حالياً)</option>{% endif %}
+                {% if 'MXN' in existing_codes %}<option value="MXN" disabled>MXN - بيزو المكسيك ($) (مضافة حالياً)</option>{% endif %}
+                {% if 'THB' in existing_codes %}<option value="THB" disabled>THB - بات تايلاندي (฿) (مضافة حالياً)</option>{% endif %}
+                {% if 'MYR' in existing_codes %}<option value="MYR" disabled>MYR - رينغيت ماليزي (RM) (مضافة حالياً)</option>{% endif %}
+                {% if 'IDR' in existing_codes %}<option value="IDR" disabled>IDR - روبية إندونيسية (Rp) (مضافة حالياً)</option>{% endif %}
+                {% if 'PHP' in existing_codes %}<option value="PHP" disabled>PHP - بيزو الفلبين (₱) (مضافة حالياً)</option>{% endif %}
+                {% if 'PKR' in existing_codes %}<option value="PKR" disabled>PKR - روبية باكستانية (Rs) (مضافة حالياً)</option>{% endif %}
+                {% if 'ARS' in existing_codes %}<option value="ARS" disabled>ARS - بيزو الأرجنتين ($) (مضافة حالياً)</option>{% endif %}
+                {% if 'CLP' in existing_codes %}<option value="CLP" disabled>CLP - بيزو تشيلي ($) (مضافة حالياً)</option>{% endif %}
+                {% if 'COP' in existing_codes %}<option value="COP" disabled>COP - بيزو كولومبي ($) (مضافة حالياً)</option>{% endif %}
+                {% if 'PEN' in existing_codes %}<option value="PEN" disabled>PEN - سول بيروفي (S/) (مضافة حالياً)</option>{% endif %}
+              </optgroup>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-bold">{% trans "اسم العملة بالعربية" %}</label>
+            <input type="text" id="add_currency_name" name="name" class="form-control" placeholder="يتم التعبئة تلقائياً عند الاختيار..." required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-bold">{% trans "رمز العملة (Symbol)" %}</label>
+            <input type="text" id="add_currency_symbol" name="symbol" class="form-control" placeholder="يتم التعبئة تلقائياً..." required>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+          <button type="submit" class="btn btn-primary">{% trans "حفظ العملة" %}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Currency Modal -->
+<div class="modal fade" id="editCurrencyModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold"><i class="fas fa-edit text-primary me-2"></i>{% trans "تعديل بيانات العملة" %}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="editCurrencyForm" action="" method="POST">
+        {% csrf_token %}
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">{% trans "كود العملة (ISO Code)" %}</label>
+            <input type="text" id="edit_code" class="form-control text-uppercase" readonly disabled>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">{% trans "اسم العملة بالعربية" %}</label>
+            <input type="text" id="edit_name" name="name" class="form-control" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">{% trans "رمز العملة (Symbol)" %}</label>
+            <input type="text" id="edit_symbol" name="symbol" class="form-control" required>
+          </div>
+          <div class="form-check mb-3" id="edit_active_container">
+            <input class="form-check-input" type="checkbox" id="edit_is_active" name="is_active">
+            <label class="form-check-label" for="edit_is_active">{% trans "عملة نشطة" %}</label>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+          <button type="submit" class="btn btn-primary">{% trans "حفظ التعديلات" %}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function() {
+    if (typeof $ !== 'undefined' && $.fn.select2) {
+      var $addCurrencySelect = $('#add_currency_code');
+      if ($addCurrencySelect.length) {
+        $addCurrencySelect.select2({
+          dropdownParent: $('#quickAddCurrencyModal'),
+          width: '100%',
+          dir: 'rtl'
+        });
+
+        $addCurrencySelect.on('select2:select change', function () {
+          var $selectedOpt = $(this).find('option:selected');
+          var name = $selectedOpt.attr('data-name');
+          var symbol = $selectedOpt.attr('data-symbol');
+          if (name && symbol) {
+            $('#add_currency_name').val(name);
+            $('#add_currency_symbol').val(symbol);
+          }
+        });
+      }
+    }
+  });
+
+  function syncLiveExchangeRates() {
+    if (typeof Swal !== 'undefined') {
+      Swal.fire({
+        title: '{% trans "تحديث الأسعار" %}',
+        text: '{% trans "هل ترغب في جلب أحدث أسعار الصرف الرسمية من البنك المركزي الآن؟" %}',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: 'var(--primary-color, #0d6efd)',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: '{% trans "نعم، حدّث الآن" %}',
+        cancelButtonText: '{% trans "إلغاء" %}'
+      }).then((result) => {
+        if (result.isConfirmed) {
+          executeExchangeRateSync();
+        }
+      });
+    } else {
+      if (confirm("{% trans 'هل ترغب في جلب أحدث أسعار الصرف الرسمية من البنك المركزي الآن؟' %}")) {
+        executeExchangeRateSync();
+      }
+    }
+  }
+
+  function executeExchangeRateSync() {
+    fetch("{% url 'financial:api_sync_exchange_rates' %}", {
+      method: "POST",
+      headers: {
+        "X-CSRFToken": "{{ csrf_token }}",
+        "Content-Type": "application/json"
+      }
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (typeof Swal !== 'undefined') {
+          Swal.fire({
+            icon: 'success',
+            title: '{% trans "تمت المزامنة" %}',
+            text: data.message || '{% trans "تم تحديث الأسعار بنجاح" %}',
+            confirmButtonColor: 'var(--primary-color, #0d6efd)'
+          }).then(() => location.reload());
+        } else {
+          alert(data.message || "{% trans 'تم تحديث الأسعار بنجاح' %}");
+          location.reload();
+        }
+      })
+      .catch(err => {
+        if (typeof Swal !== 'undefined') {
+          Swal.fire({
+            icon: 'error',
+            title: '{% trans "خطأ" %}',
+            text: '{% trans "تعذر جلب أسعار الصرف التلقائية. يرجى التأكد من الاتصال بالشبكة." %}',
+            confirmButtonColor: 'var(--primary-color, #0d6efd)'
+          });
+        } else {
+          alert("{% trans 'تعذر جلب أسعار الصرف التلقائية. يرجى التأكد من الاتصال بالشبكة.' %}");
+        }
+      });
+  }
+
+  function openEditCurrencyModal(btn) {
+    let code = btn.getAttribute("data-code");
+    let name = btn.getAttribute("data-name");
+    let symbol = btn.getAttribute("data-symbol");
+    let isActive = btn.getAttribute("data-active") === "1";
+    let isFunctional = btn.getAttribute("data-functional") === "1";
+
+    document.getElementById("edit_code").value = code;
+    document.getElementById("edit_name").value = name;
+    document.getElementById("edit_symbol").value = symbol;
+    document.getElementById("edit_is_active").checked = isActive;
+
+    let form = document.getElementById("editCurrencyForm");
+    form.action = "/financial/currencies/" + code + "/update/";
+
+    let activeContainer = document.getElementById("edit_active_container");
+    if (isFunctional) {
+      activeContainer.style.display = "none";
+    } else {
+      activeContainer.style.display = "block";
+    }
+
+    let modal = new bootstrap.Modal(document.getElementById("editCurrencyModal"));
+    modal.show();
+  }
+</script>
+{% endblock %}

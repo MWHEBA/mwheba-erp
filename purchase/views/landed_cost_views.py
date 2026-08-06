@@ -10,14 +10,47 @@ from product.models.landed_cost import LandedCostDocument, LandedCostAllocation
 from supplier.models import Supplier
 
 
+from django.urls import reverse
+
 @login_required
 def landed_cost_list(request):
     """عرض قائمة مستندات التكاليف الإضافية والشحن والجمارك"""
     docs = LandedCostDocument.objects.select_related('supplier', 'created_by').order_by('-created_at')
+
+    supplier_id = request.GET.get('supplier')
+    if supplier_id:
+        docs = docs.filter(supplier_id=supplier_id)
+
+    status = request.GET.get('status')
+    if status:
+        docs = docs.filter(status=status)
+
+    allocation_method = request.GET.get('allocation_method')
+    if allocation_method:
+        docs = docs.filter(allocation_method=allocation_method)
+
     paginator = Paginator(docs, 25)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
-    return render(request, 'purchase/landed_cost_list.html', {'page_obj': page_obj})
+
+    suppliers = Supplier.objects.filter(is_active=True)
+
+    header_buttons = [
+        {
+            'url': reverse('purchase:landed_cost_create'),
+            'icon': 'fa-plus',
+            'text': _('مستند تكاليف إضافية جديد'),
+            'class': 'btn-primary',
+        }
+    ]
+
+    return render(request, 'purchase/landed_cost_list.html', {
+        'page_obj': page_obj,
+        'suppliers': suppliers,
+        'header_buttons': header_buttons,
+        'title': _('مستندات التكاليف الإضافية (Landed Cost)'),
+    })
+
 
 
 @login_required

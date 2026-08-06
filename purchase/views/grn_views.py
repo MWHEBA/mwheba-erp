@@ -12,14 +12,53 @@ from supplier.models import Supplier
 from product.models import Warehouse, Product
 
 
+from django.urls import reverse
+
 @login_required
 def grn_list(request):
     """عرض أذون استلام الخامات والبضائع GRN"""
     grns = GoodsReceivedNote.objects.select_related('supplier', 'warehouse', 'purchase').order_by('-received_date')
+
+    supplier_id = request.GET.get('supplier')
+    if supplier_id:
+        grns = grns.filter(supplier_id=supplier_id)
+
+    warehouse_id = request.GET.get('warehouse')
+    if warehouse_id:
+        grns = grns.filter(warehouse_id=warehouse_id)
+
+    date_from = request.GET.get('date_from')
+    if date_from:
+        grns = grns.filter(received_date__date__gte=date_from)
+
+    date_to = request.GET.get('date_to')
+    if date_to:
+        grns = grns.filter(received_date__date__lte=date_to)
+
     paginator = Paginator(grns, 25)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
-    return render(request, 'purchase/grn_list.html', {'page_obj': page_obj})
+
+    suppliers = Supplier.objects.filter(is_active=True)
+    warehouses = Warehouse.objects.all()
+
+    header_buttons = [
+        {
+            'url': reverse('purchase:grn_create'),
+            'icon': 'fa-plus',
+            'text': _('إذن استلام جديد'),
+            'class': 'btn-primary',
+        }
+    ]
+
+    return render(request, 'purchase/grn_list.html', {
+        'page_obj': page_obj,
+        'suppliers': suppliers,
+        'warehouses': warehouses,
+        'header_buttons': header_buttons,
+        'title': _('أذون استلام البضائع (GRN)'),
+    })
+
 
 
 @login_required

@@ -1,0 +1,134 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load utils_extras %}
+
+{% block title %}{{ title|default:"مستندات التكاليف الإضافية (Landed Cost)" }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Page Header -->
+  {% include "shared/page_header.html" with title=title|default:"مستندات التكاليف الإضافية (Landed Cost)" subtitle="توزيع مصروفات الشحن والجمارك والخدمات التشغيلية على تكلفة المخزون" icon="fas fa-file-invoice-dollar" header_buttons=header_buttons %}
+
+  <!-- Filter Section -->
+  <div class="section-container mb-4">
+    <h5 class="section-title" data-bs-toggle="collapse" data-bs-target="#filterSection" aria-expanded="true">
+      <i class="fas fa-filter me-2"></i>{% trans "تصفية وبحث" %}
+      <i class="fas fa-chevron-down float-end"></i>
+    </h5>
+    <div class="collapse show" id="filterSection">
+      <form method="GET" action="" class="row g-3">
+        <div class="col-md-3">
+          <label for="supplier" class="form-label">{% trans "المورد / شركة الشحن" %}</label>
+          <select class="form-select" id="supplier" name="supplier">
+            <option value="">{% trans "جميع الموردين" %}</option>
+            {% for supplier in suppliers %}
+            <option value="{{ supplier.id }}" {% if request.GET.supplier == supplier.id|stringformat:"i" %}selected{% endif %}>
+              {{ supplier.name }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label for="allocation_method" class="form-label">{% trans "طريقة التوزيع" %}</label>
+          <select class="form-select" id="allocation_method" name="allocation_method">
+            <option value="">{% trans "الكل" %}</option>
+            <option value="VALUE" {% if request.GET.allocation_method == 'VALUE' %}selected{% endif %}>{% trans "حسب القيمة المالية" %}</option>
+            <option value="QUANTITY" {% if request.GET.allocation_method == 'QUANTITY' %}selected{% endif %}>{% trans "حسب الكمية" %}</option>
+            <option value="WEIGHT" {% if request.GET.allocation_method == 'WEIGHT' %}selected{% endif %}>{% trans "حسب الوزن" %}</option>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label for="status" class="form-label">{% trans "الحالة" %}</label>
+          <select class="form-select" id="status" name="status">
+            <option value="">{% trans "جميع الحالات" %}</option>
+            <option value="DRAFT" {% if request.GET.status == 'DRAFT' %}selected{% endif %}>{% trans "مسودة" %}</option>
+            <option value="POSTED" {% if request.GET.status == 'POSTED' %}selected{% endif %}>{% trans "مرحل وموزع" %}</option>
+            <option value="CANCELLED" {% if request.GET.status == 'CANCELLED' %}selected{% endif %}>{% trans "ملغى" %}</option>
+          </select>
+        </div>
+        <div class="col-md-3 d-flex gap-2 align-items-end">
+          <button type="submit" class="btn btn-primary w-100">
+            <i class="fas fa-search me-1"></i> {% trans "بحث" %}
+          </button>
+          <a href="{% url 'purchase:landed_cost_list' %}" class="btn btn-outline-secondary" title="{% trans 'إعادة ضبط' %}">
+            <i class="fas fa-redo"></i>
+          </a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Table Section -->
+  <div class="section-container">
+    <h5 class="section-title">
+      <i class="fas fa-list me-2"></i>{% trans "سجل مستندات التكاليف الإضافية" %}
+    </h5>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle custom-table">
+        <thead>
+          <tr>
+            <th>{% trans "رقم المستند" %}</th>
+            <th>{% trans "مرجع الشحنة / الاستيراد" %}</th>
+            <th>{% trans "المورد / شركة الشحن" %}</th>
+            <th>{% trans "طريقة التوزيع" %}</th>
+            <th class="text-end">{% trans "إجمالي التكاليف" %}</th>
+            <th class="text-center">{% trans "الحالة" %}</th>
+            <th>{% trans "تاريخ الإنشاء" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for doc in page_obj %}
+          <tr>
+            <td>
+              <span class="fw-bold font-monospace text-primary">{{ doc.voucher_number }}</span>
+            </td>
+            <td>{{ doc.shipment_reference|default:"-" }}</td>
+            <td>{{ doc.supplier.name|default:"-" }}</td>
+            <td>
+              {% if doc.allocation_method == "VALUE" %}
+                {% trans "حسب القيمة المالية" %}
+              {% elif doc.allocation_method == "QUANTITY" %}
+                {% trans "حسب الكمية" %}
+              {% elif doc.allocation_method == "WEIGHT" %}
+                {% trans "حسب الوزن" %}
+              {% else %}
+                {{ doc.allocation_method }}
+              {% endif %}
+            </td>
+            <td class="text-end font-monospace fw-bold">{{ doc.total_landed_cost|floatformat:2 }} EGP</td>
+            <td class="text-center">
+              {% if doc.status == "POSTED" %}
+                <span class="badge bg-success-subtle text-success border border-success-subtle">{% trans "مرحل وموزع" %}</span>
+              {% elif doc.status == "DRAFT" %}
+                <span class="badge bg-warning-subtle text-warning border border-warning-subtle">{% trans "مسودة" %}</span>
+              {% else %}
+                <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">{{ doc.get_status_display }}</span>
+              {% endif %}
+            </td>
+            <td>{{ doc.created_at|date:"Y-m-d H:i" }}</td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="7" class="text-center py-4 text-muted">
+              <i class="fas fa-file-invoice-dollar fa-2x mb-2 d-block text-muted"></i>
+              {% trans "لا توجد مستندات تكاليف إضافية متاحة" %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Django Pagination -->
+    <div id="pagination-wrapper" class="mt-3">
+      {% include "partials/pagination.html" with page_obj=page_obj align="center" %}
+    </div>
+  </div>
+</div>
+{% endblock %}

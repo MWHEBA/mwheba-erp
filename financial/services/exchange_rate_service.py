@@ -21,11 +21,16 @@ class ExchangeRateService:
 
 
     @classmethod
-    def get_rate(cls, from_code: str, to_code: str = "EGP", date=None) -> Decimal:
+    def get_rate(cls, from_code: str, to_code: Optional[str] = None, date=None) -> Decimal:
+        """
+        الحصول على سعر الصرف اللحظي بتاريخ معين وفق سياسة الرفض الصارم (Fail Fast)
+        """
+        if to_code is None:
+            func_curr = cls.get_functional_currency()
+            if not func_curr:
+                raise ValidationError("لم يتم تعيين العملة الأساسية الوظيفية للمؤسسة في قاعدة البيانات. يرجى تعيين العملة الأساسية أولاً.")
+            to_code = func_curr.code
 
-        """
-        الحصول على سعر الصرف اللحظي بتاريخ معين
-        """
         if from_code == to_code:
             return Decimal("1.000000")
 
@@ -51,11 +56,10 @@ class ExchangeRateService:
         if inv_rate_obj and inv_rate_obj.rate > 0:
             return (Decimal("1.000000") / inv_rate_obj.rate).quantize(Decimal("0.000001"))
 
-        # Default fallback for USD if not set
-        if from_code == "USD" and to_code == "EGP":
-            return Decimal("48.500000")
-
-        return Decimal("1.000000")
+        # Fail Fast Policy: Raise ValidationError when no exchange rate is recorded
+        raise ValidationError(
+            f"لا يوجد سعر صرف مسجل بين العملة ({from_code}) والعملة الأساسية ({to_code}) بتاريخ {date}. يرجى تسجيل سعر الصرف رسمياً في النظام أولاً."
+        )
 
     @classmethod
     def set_rate(cls, from_code: str, to_code: str, rate: Decimal, date=None, source: str = "MANUAL", user=None) -> ExchangeRate:
@@ -65,24 +69,38 @@ class ExchangeRateService:
         if date is None:
             date = timezone.now().date()
 
-        from_curr, _ = Currency.objects.get_or_create(code=from_code, defaults={"name": from_code, "is_base": (from_code == "EGP")})
-        to_curr, _ = Currency.objects.get_or_create(code=to_code, defaults={"name": to_code, "is_base": (to_code == "EGP")})
+        from_curr, _ = Currency.objects.get_or_create(code=from_code, defaults={"name": from_code})
+        to_curr, _ = Currency.objects.get_or_create(code=to_code, defaults={"name": to_code})
 
-        ex_rate = ExchangeRate.objects.create(
+        defaults = {
+            "rate": rate,
+            "source": source,
+        }
+        if user is not None:
+            defaults["created_by"] = user
+
+        ex_rate, created = ExchangeRate.objects.update_or_create(
             from_currency=from_curr,
             to_currency=to_curr,
-            rate=rate,
             effective_date=date,
-            source=source,
-            created_by=user
+            defaults=defaults
         )
+        if not created and user is not None and ex_rate.created_by is None:
+            ex_rate.created_by = user
+            ex_rate.save(update_fields=["created_by"])
         return ex_rate
 
     @classmethod
-    def convert_amount(cls, amount: Decimal, from_code: str, to_code: str = "EGP", date=None) -> Dict[str, Any]:
+    def convert_amount(cls, amount: Decimal, from_code: str, to_code: Optional[str] = None, date=None) -> Dict[str, Any]:
         """
         تحويل المبلغ بين العملات وإرجاع الصورة اللحظية
         """
+        if to_code is None:
+            func_curr = cls.get_functional_currency()
+            if not func_curr:
+                raise ValidationError("لم يتم تعيين العملة الأساسية الوظيفية للمؤسسة في قاعدة البيانات. يرجى تعيين العملة الأساسية أولاً.")
+            to_code = func_curr.code
+
         rate = cls.get_rate(from_code, to_code, date)
         functional_amount = (amount * rate).quantize(Decimal("0.01"))
         return {
@@ -91,3 +109,4 @@ class ExchangeRateService:
             "exchange_rate": rate,
             "functional_amount": functional_amount
         }
+

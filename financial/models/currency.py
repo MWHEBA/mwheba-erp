@@ -32,7 +32,18 @@ class Currency(models.Model):
     def __str__(self):
         return f"{self.code} - {self.name}"
 
+    def clean(self):
+        if self.pk:
+            original = Currency.objects.get(pk=self.pk)
+            if original.is_functional != self.is_functional:
+                from financial.models.journal_entry import JournalEntry
+                if JournalEntry.objects.filter(status="posted").exists():
+                    from django.core.exceptions import ValidationError
+                    raise ValidationError(_("محظور حوكمياً: لا يمكن تغيير العملة الأساسية للمؤسسة بعد ترحيل قيود محاسبية. استخدم سكريبت historical_currency_migration للمناقلة."))
+        super().clean()
+
     def save(self, *args, **kwargs):
+        self.full_clean()
         if self.is_functional:
             # Ensure only one base currency exists
             Currency.objects.filter(is_functional=True).exclude(pk=self.pk).update(is_functional=False)

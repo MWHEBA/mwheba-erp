@@ -1,0 +1,169 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load utils_extras %}
+
+{% block title %}{% trans "إذن استلام بضائع جديد (GRN)" %}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Header -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h4 class="mb-1 fw-bold"><i class="fas fa-truck-loading me-2 text-primary"></i>{% trans "إذن استلام بضائع جديد (GRN)" %}</h4>
+      <p class="text-muted mb-0">{% trans "تسجيل استلام شحنة بضائع أو خامات جديدة بالمستودع" %}</p>
+    </div>
+    <a href="{% url 'purchase:grn_list' %}" class="btn btn-outline-secondary">
+      <i class="fas fa-arrow-right me-1"></i> {% trans "إلغاء وعودة" %}
+    </a>
+  </div>
+
+  <form method="POST" action="" id="grnForm">
+    {% csrf_token %}
+
+    <!-- Basic Info Section -->
+    <div class="section-container mb-4">
+      <h5 class="section-title"><i class="fas fa-info-circle me-2"></i>{% trans "البيانات الأساسية" %}</h5>
+      <div class="row g-3">
+        <div class="col-md-4">
+          <label for="supplier" class="form-label required">{% trans "المورد" %}</label>
+          <select class="form-select" id="supplier" name="supplier" required>
+            <option value="">{% trans "-- اختر المورد --" %}</option>
+            {% for sup in suppliers %}
+              <option value="{{ sup.id }}" {% if purchase and purchase.supplier_id == sup.id %}selected{% endif %}>{{ sup.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-md-4">
+          <label for="warehouse" class="form-label required">{% trans "المستودع المستهدف" %}</label>
+          <select class="form-select" id="warehouse" name="warehouse" required>
+            <option value="">{% trans "-- اختر المستودع --" %}</option>
+            {% for wh in warehouses %}
+              <option value="{{ wh.id }}" {% if purchase and purchase.warehouse_id == wh.id %}selected{% endif %}>{{ wh.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-md-4">
+          <label for="supplier_delivery_note_ref" class="form-label">{% trans "رقم إذن تسليم المورد" %}</label>
+          <input type="text" class="form-control" id="supplier_delivery_note_ref" name="supplier_delivery_note_ref" placeholder="مثال: DN-10923">
+        </div>
+
+        {% if purchase %}
+          <input type="hidden" name="purchase" value="{{ purchase.id }}">
+          <div class="col-12">
+            <div class="alert alert-info py-2 mb-0">
+              <i class="fas fa-link me-1"></i> {% trans "مرتبط بفاتورة الشراء رقم" %}: <strong>{{ purchase.number }}</strong>
+            </div>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Products Table Section -->
+    <div class="section-container mb-4">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="section-title mb-0"><i class="fas fa-boxes me-2"></i>{% trans "بنود الشحنة المستلمة" %}</h5>
+        <button type="button" class="btn btn-sm btn-outline-primary" id="addRowBtn">
+          <i class="fas fa-plus me-1"></i> {% trans "إضافة بند" %}
+        </button>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table table-bordered align-middle" id="itemsTable">
+          <thead class="table-light">
+            <tr>
+              <th style="width: 40%;">{% trans "المنتج" %}</th>
+              <th style="width: 20%;">{% trans "الكمية المستلمة" %}</th>
+              <th style="width: 20%;">{% trans "تكلفة الوحدة" %}</th>
+              <th style="width: 15%;">{% trans "الإجمالي" %}</th>
+              <th style="width: 5%;" class="text-center">#</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="item-row">
+              <td>
+                <select name="product[]" class="form-select product-select" required>
+                  <option value="">{% trans "-- اختر المنتج --" %}</option>
+                  {% for prod in products %}
+                    <option value="{{ prod.id }}">{{ prod.name }}</option>
+                  {% endfor %}
+                </select>
+              </td>
+              <td>
+                <input type="number" step="0.0001" min="0.0001" name="quantity[]" class="form-control qty-input" value="1.0000" required>
+              </td>
+              <td>
+                <input type="number" step="0.01" min="0" name="unit_price[]" class="form-control price-input" value="0.00">
+              </td>
+              <td>
+                <span class="row-total fw-bold font-monospace">0.00 EGP</span>
+              </td>
+              <td class="text-center">
+                <button type="button" class="btn btn-sm btn-outline-danger remove-row-btn" title="{% trans 'حذف البند' %}">
+                  <i class="fas fa-trash"></i>
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="d-flex justify-content-end gap-2 mb-4">
+      <a href="{% url 'purchase:grn_list' %}" class="btn btn-secondary px-4">{% trans "إلغاء" %}</a>
+      <button type="submit" class="btn btn-primary px-4">
+        <i class="fas fa-check me-1"></i> {% trans "حفظ وتأكيد الاستلام" %}
+      </button>
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const itemsTable = document.getElementById('itemsTable').querySelector('tbody');
+  const addRowBtn = document.getElementById('addRowBtn');
+
+  function calculateRow(row) {
+    const qty = parseFloat(row.querySelector('.qty-input').value) || 0;
+    const price = parseFloat(row.querySelector('.price-input').value) || 0;
+    const total = qty * price;
+    row.querySelector('.row-total').textContent = total.toFixed(2) + ' EGP';
+  }
+
+  function bindRowEvents(row) {
+    row.querySelectorAll('.qty-input, .price-input').forEach(input => {
+      input.addEventListener('input', () => calculateRow(row));
+    });
+    row.querySelector('.remove-row-btn').addEventListener('click', () => {
+      if (itemsTable.querySelectorAll('.item-row').length > 1) {
+        row.remove();
+      } else {
+        alert('{% trans "يجب الإبقاء على بند واحد على الأقل" %}');
+      }
+    });
+  }
+
+  itemsTable.querySelectorAll('.item-row').forEach(bindRowEvents);
+
+  addRowBtn.addEventListener('click', function() {
+    const firstRow = itemsTable.querySelector('.item-row');
+    const newRow = firstRow.cloneNode(true);
+    newRow.querySelector('.product-select').value = '';
+    newRow.querySelector('.qty-input').value = '1.0000';
+    newRow.querySelector('.price-input').value = '0.00';
+    newRow.querySelector('.row-total').textContent = '0.00 EGP';
+    bindRowEvents(newRow);
+    itemsTable.appendChild(newRow);
+  });
+});
+</script>
+{% endblock %}

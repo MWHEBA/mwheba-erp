@@ -58,6 +58,23 @@ class Purchase(models.Model):
     )
     tax = models.DecimalField(_("الضريبة"), max_digits=12, decimal_places=2, default=0)
     total = models.DecimalField(_("الإجمالي"), max_digits=12, decimal_places=2)
+    currency = models.ForeignKey(
+        "financial.Currency",
+        on_delete=models.PROTECT,
+        verbose_name=_("العملة"),
+        related_name="purchases",
+        null=True,
+        blank=True,
+    )
+    exchange_rate = models.DecimalField(
+        _("سعر الصرف"), max_digits=18, decimal_places=6, default=1.000000
+    )
+    total_foreign = models.DecimalField(
+        _("الإجمالي بالعملة الأجنبية"), max_digits=18, decimal_places=2, default=0
+    )
+    total_functional = models.DecimalField(
+        _("الإجمالي بالعملة الأساسية"), max_digits=18, decimal_places=2, default=0
+    )
     payment_method = models.CharField(
         _("طريقة الدفع (account code)"),
         max_length=50,

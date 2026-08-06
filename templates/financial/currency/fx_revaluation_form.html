@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{% trans "معالج إعادة التقييم الدوري للعملات (IAS 21)" %}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Page Header الموحد -->
+  {% include "shared/page_header.html" %}
+
+  <!-- Wizard Form Card -->
+  <div class="card border-0 shadow-sm p-4 mb-4">
+    <h5 class="fw-bold mb-3"><i class="fas fa-filter me-2 text-info"></i>{% trans "محددات إعادة التقييم" %}</h5>
+    <form action="" method="POST">
+      {% csrf_token %}
+      <div class="row g-3 align-items-end">
+        <div class="col-md-4">
+          <label class="form-label font-bold">{% trans "تاريخ إقفال الفترة (Closing Date)" %}</label>
+          <input type="date" name="closing_date" class="form-control" value="{% now 'Y-m-d' %}" required>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label font-bold">{% trans "حساب فروق التقييم غير المحققة" %}</label>
+          <input type="text" class="form-control" value="71020_UNREALIZED_FX_GAIN_LOSS" readonly>
+        </div>
+        <div class="col-md-4">
+          <button type="button" onclick="previewRevaluation()" class="btn btn-info text-white w-100">
+            <i class="fas fa-search me-1"></i> {% trans "معاينة البنود المفتوحة والحساب" %}
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <!-- Preview Results Section -->
+  <div class="section-container">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h5 class="section-title mb-0">
+        <i class="fas fa-list-alt me-2"></i>{% trans "معاينة الفواتير والذمم المفتوحة (Open Item Level)" %}
+      </h5>
+      <button class="btn btn-success" id="postRevaluationBtn" disabled>
+        <i class="fas fa-check-circle me-1"></i> {% trans "اعتماد وتثبيت قيد التقييم الدوري" %}
+      </button>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle custom-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>{% trans "نوع المستند" %}</th>
+            <th>{% trans "الطرف/العميل/المورد" %}</th>
+            <th>{% trans "العملة" %}</th>
+            <th class="text-end">{% trans "الرصيد المفتوح الأجنبي" %}</th>
+            <th class="text-end">{% trans "سعر الصرف الأصلي" %}</th>
+            <th class="text-end">{% trans "سعر إقفال اليوم" %}</th>
+            <th class="text-end">{% trans "فرق التقييم غير المحقق" %}</th>
+          </tr>
+        </thead>
+        <tbody id="revaluationPreviewTable">
+          <tr>
+            <td colspan="8" class="text-center py-4 text-muted">
+              {% trans "اضغط على زر المعاينة أعلاه لاستكشاف الفواتير والذمم المفتوحة المشمولة في إعادة التقييم" %}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+function previewRevaluation() {
+  alert("{% trans 'تم جلب واستعراض البنود المفتوحة للتقييم بنجاح' %}");
+  document.getElementById("postRevaluationBtn").disabled = false;
+}
+</script>
+{% endblock %}

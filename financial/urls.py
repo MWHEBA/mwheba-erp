@@ -399,4 +399,14 @@ urlpatterns = [
     path("opening-balances/", views.opening_balance_list, name="opening_balance_list"),
     path("opening-balances/create/", views.opening_balance_create, name="opening_balance_create"),
     path("approvals/", views.approval_inbox, name="approval_inbox"),
+
+    # دليل العملات وأسعار الصرف وإعادة التقييم الدوري (IAS 21)
+    path("currencies/", views.currency_list, name="currency_list"),
+    path("currencies/create/", views.currency_create, name="currency_create"),
+    path("currencies/<str:code>/update/", views.currency_update, name="currency_update"),
+    path("currencies/<str:code>/toggle-active/", views.currency_toggle_active, name="currency_toggle_active"),
+    path("exchange-rates/", views.exchange_rate_list, name="exchange_rate_list"),
+    path("exchange-rates/create/", views.exchange_rate_create, name="exchange_rate_create"),
+    path("api/exchange-rates/sync/", views.api_sync_exchange_rates, name="api_sync_exchange_rates"),
+    path("fx-revaluation/", views.fx_revaluation_view, name="fx_revaluation"),
 ]

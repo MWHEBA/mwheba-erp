@@ -548,6 +548,26 @@
                         </li>
                         
                         <div class="nav-divider"></div>
+
+                        <!-- العملات وأسعار الصرف (IAS 21) -->
+                        <li class="submenu-title">العملات وأسعار الصرف (IAS 21)</li>
+                        <li>
+                            <a href="{% url 'financial:currency_list' %}" class="submenu-link">
+                                <i class="fas fa-coins me-2"></i>{% trans "دليل العملات" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'financial:exchange_rate_list' %}" class="submenu-link">
+                                <i class="fas fa-exchange-alt me-2"></i>{% trans "سجل أسعار الصرف" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'financial:fx_revaluation' %}" class="submenu-link">
+                                <i class="fas fa-sync-alt me-2"></i>{% trans "إعادة التقييم الدوري (IAS 21)" %}
+                            </a>
+                        </li>
+                        
+                        <div class="nav-divider"></div>
                         
                         <!-- التحقق من المعاملات المالية -->
                         <li class="submenu-title">التحقق من المعاملات</li>

@@ -43,7 +43,7 @@ class PurchaseOrder(models.Model):
     order_date = models.DateField(_("تاريخ أمر الشراء"))
     delivery_due_date = models.DateField(_("تاريخ التوريد المتوقع"), null=True, blank=True)
 
-    currency = models.CharField(_("العملة"), max_length=10, default="EGP")
+    currency = models.CharField(_("العملة"), max_length=10, blank=True, null=True)
     exchange_rate = models.DecimalField(_("سعر الصرف"), max_digits=10, decimal_places=4, default=Decimal("1.0000"))
     cost_source_policy = models.CharField(_("سياسة سعر التكلفة"), max_length=20, choices=COST_SOURCE_POLICIES, default="PO_PRICE")
 
@@ -110,6 +110,8 @@ class GoodsReceivedNote(models.Model):
     supplier_delivery_note_ref = models.CharField(_("رقم إذن تسليم المورد"), max_length=100, blank=True)
 
     status = models.CharField(_("الحالة"), max_length=20, default="RECEIVED")
+    currency = models.CharField(_("العملة"), max_length=10, blank=True, null=True)
+    exchange_rate = models.DecimalField(_("سعر الصرف"), max_digits=18, decimal_places=6, default=Decimal("1.000000"))
     journal_entry = models.ForeignKey(JournalEntry, on_delete=models.PROTECT, null=True, blank=True)
     idempotency_key = models.CharField(_("مفتاح منع التكرار"), max_length=100, db_index=True, blank=True)
 
@@ -120,6 +122,14 @@ class GoodsReceivedNote(models.Model):
 
     def __str__(self):
         return f"GRN #{self.grn_number} for PO #{self.purchase_order.order_number}"
+
+    def save(self, *args, **kwargs):
+        if not self.currency:
+            from financial.services.exchange_rate_service import ExchangeRateService
+            func_curr = ExchangeRateService.get_functional_currency()
+            if func_curr:
+                self.currency = func_curr.code
+        super().save(*args, **kwargs)
 
 
 class GoodsReceivedNoteItem(models.Model):
@@ -168,7 +178,7 @@ class SupplierBill(models.Model):
     bill_date = models.DateField(_("تاريخ الفاتورة"))
     due_date = models.DateField(_("تاريخ الاستحقاق"))
 
-    currency = models.CharField(_("العملة"), max_length=10, default="EGP")
+    currency = models.CharField(_("العملة"), max_length=10, blank=True, null=True)
     exchange_rate = models.DecimalField(_("سعر الصرف"), max_digits=10, decimal_places=4, default=Decimal("1.0000"))
 
     total_amount = models.DecimalField(_("إجمالي الفاتورة بعملة المورد"), max_digits=15, decimal_places=2)

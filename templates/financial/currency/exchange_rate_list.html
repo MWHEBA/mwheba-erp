@@ -1,0 +1,174 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{% trans "أسعار الصرف" %}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+<style>
+  .custom-table th,
+  .custom-table td {
+    font-size: 0.95rem !important;
+  }
+  .custom-table .badge {
+    font-size: 0.85rem !important;
+    padding: 0.45em 0.75em !important;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Page Header الموحد -->
+  {% include "shared/page_header.html" %}
+
+  <!-- Exchange Rates Table -->
+  <div class="section-container">
+    <h5 class="section-title">
+      <i class="fas fa-exchange-alt me-2"></i>{% trans "سجل أسعار الصرف التاريخية" %}
+    </h5>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle custom-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>{% trans "تاريخ السريان" %}</th>
+            <th>{% trans "من عملة" %}</th>
+            <th>{% trans "إلى عملة" %}</th>
+            <th class="text-end">{% trans "سعر الصرف (Spot Rate)" %}</th>
+            <th class="text-center">{% trans "المصدر" %}</th>
+            <th>{% trans "سُجل بواسطة" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for rate in rates %}
+          <tr>
+            <td>{{ forloop.counter }}</td>
+            <td class="fw-bold">{{ rate.effective_date|date:"Y-m-d" }}</td>
+            <td><span class="badge bg-primary">{{ rate.from_currency.code }}</span> {{ rate.from_currency.name }}</td>
+            <td><span class="badge bg-secondary">{{ rate.to_currency.code }}</span> {{ rate.to_currency.name }}</td>
+            <td class="text-end fw-bold text-success">{{ rate.rate|floatformat:"-4" }}</td>
+            <td class="text-center">
+              {% if rate.source == 'CBE_API' %}
+                <span class="badge bg-info-subtle text-info"><i class="fas fa-university me-1"></i>{% trans "البنك المركزي CBE" %}</span>
+              {% elif rate.source == 'API_SYNC' %}
+                <span class="badge bg-info-subtle text-info"><i class="fas fa-globe me-1"></i>{% trans "مزامنة آليّة" %}</span>
+              {% else %}
+                <span class="badge bg-secondary-subtle text-secondary"><i class="fas fa-user-edit me-1"></i>{% trans "إدخال يدوي" %}</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if rate.created_by %}
+                {{ rate.created_by.get_full_name|default:rate.created_by.username }}
+              {% else %}
+                {% trans "النظام" %}
+              {% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="7" class="text-center py-4 text-muted">
+              {% trans "لا توجد أسعار صرف مسجلة حتى الآن" %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Add Exchange Rate Modal -->
+<div class="modal fade" id="addRateModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold"><i class="fas fa-plus-circle text-primary me-2"></i>{% trans "تسجيل سعر صرف جديد" %}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form action="{% url 'financial:exchange_rate_create' %}" method="POST">
+        {% csrf_token %}
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">{% trans "تاريخ السريان" %}</label>
+            <input type="date" name="effective_date" class="form-control" value="{% now 'Y-m-d' %}" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">{% trans "من عملة (العملة الأجنبية)" %}</label>
+            <select name="from_code" class="form-select select2-currency" required>
+              <option value="">{% trans "اختر العملة الأجنبية..." %}</option>
+              {% for c in currencies %}
+                {% if not c.is_functional %}
+                  <option value="{{ c.code }}">{{ c.code }} - {{ c.name }} ({{ c.symbol }})</option>
+                {% endif %}
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">{% trans "إلى عملة (العملة الأساسية)" %}</label>
+            <select name="to_code" class="form-select select2-currency" required>
+              {% for c in currencies %}
+                <option value="{{ c.code }}" {% if c.is_functional %}selected{% endif %}>{{ c.code }} - {{ c.name }} ({{ c.symbol }})</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-bold">{% trans "سعر الصرف" %}</label>
+            <input type="number" step="0.000001" id="rate_input" name="rate" class="form-control" placeholder="50.00" oninput="updateRateLivePreview()" required>
+            <div class="alert alert-info border-0 shadow-sm mt-2 mb-0 py-2 px-3 d-flex align-items-center">
+              <i class="fas fa-calculator me-2 text-info fs-5"></i>
+              <div>
+                <small class="text-muted d-block">{% trans "معادلة التحويل التفاعلية:" %}</small>
+                <span class="fw-bold text-primary" id="preview_text">1 عملة أجنبية = X عملة أساسية</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+          <button type="submit" class="btn btn-primary">{% trans "حفظ سعر الصرف" %}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+  function updateRateLivePreview() {
+    var fromSelect = document.querySelector('select[name="from_code"]');
+    var toSelect = document.querySelector('select[name="to_code"]');
+    var rateInput = document.getElementById('rate_input');
+
+    var fromText = (fromSelect && fromSelect.selectedIndex >= 0) ? fromSelect.options[fromSelect.selectedIndex].text : '';
+    var toText = (toSelect && toSelect.selectedIndex >= 0) ? toSelect.options[toSelect.selectedIndex].text : '';
+    var rateVal = rateInput ? rateInput.value : '';
+
+    var fromName = fromText ? (fromText.split(' - ')[1] || fromText) : '{% trans "عملة أجنبية" %}';
+    var toName = toText ? (toText.split(' - ')[1] || toText) : '{% trans "عملة أساسية" %}';
+    var rateDisplay = rateVal ? rateVal : 'X';
+
+    var previewEl = document.getElementById('preview_text');
+    if (previewEl) {
+      previewEl.textContent = '1 ' + fromName + ' = ' + rateDisplay + ' ' + toName;
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", function() {
+    var modalEl = document.getElementById('addRateModal');
+    if (modalEl) {
+      modalEl.addEventListener('shown.bs.modal', function () {
+        if (typeof $ !== 'undefined' && $.fn.select2) {
+          $('.select2-currency').select2({
+            dropdownParent: $('#addRateModal'),
+            width: '100%',
+            dir: 'rtl'
+          }).on('change', updateRateLivePreview);
+        }
+        updateRateLivePreview();
+      });
+    }
+  });
+</script>
+{% endblock %}

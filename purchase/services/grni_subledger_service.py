@@ -43,7 +43,8 @@ class GRNISubledgerService:
 
         for item in items:
             unbilled_qty = item.received_qty - item.billed_qty
-            unbilled_val = (unbilled_qty * item.unit_price).quantize(Decimal("0.01"))
+            rate = getattr(item.grn, "exchange_rate", None) or Decimal("1.000000")
+            unbilled_val = (unbilled_qty * item.unit_price * rate).quantize(Decimal("0.01"))
 
             total_open_value += unbilled_val
             open_items_count += 1
@@ -112,7 +113,8 @@ class GRNISubledgerService:
             if unbilled_qty <= Decimal("0.0000"):
                 raise FinancialCoreError("GRN Item is already fully billed or cleared.")
 
-            clearing_val = (unbilled_qty * item.unit_price).quantize(Decimal("0.01"))
+            rate = getattr(item.grn, "exchange_rate", None) or Decimal("1.000000")
+            clearing_val = (unbilled_qty * item.unit_price * rate).quantize(Decimal("0.01"))
 
             # إغلاق السطر كأنه تم فوترته للتسوية
             item.billed_qty = item.received_qty

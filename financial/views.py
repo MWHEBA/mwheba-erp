@@ -85,3 +85,12 @@ from .views.api_views import (
     ledger_report,
     balance_sheet,
 )
+
+from .views.currency_views import (
+    currency_list,
+    currency_create,
+    exchange_rate_list,
+    exchange_rate_create,
+    api_sync_exchange_rates,
+    fx_revaluation_view,
+)

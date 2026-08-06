@@ -209,4 +209,16 @@ from .approval_views import (
     approval_inbox,
 )
 
+# من currency_views.py
+from .currency_views import (
+    currency_list,
+    currency_create,
+    currency_update,
+    currency_toggle_active,
+    exchange_rate_list,
+    exchange_rate_create,
+    api_sync_exchange_rates,
+    fx_revaluation_view,
+)
+
 

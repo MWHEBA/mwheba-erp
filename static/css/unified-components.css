@@ -2309,6 +2309,7 @@ html[dir="rtl"] .border-right-danger {
     margin-bottom: var(--spacing-4);
     overflow: hidden;
     padding: 0 20px 20px;
+    transition: padding-bottom var(--transition-normal);
 }
 
 .section-title,
@@ -2324,8 +2325,8 @@ html[dir="rtl"] .border-right-danger {
     gap: var(--spacing-2);
     cursor: pointer;
     user-select: none;
-    transition: var(--transition-colors);
-    margin: 0 -20px 30px -20px;
+    transition: var(--transition-colors), margin-bottom var(--transition-normal), border-color var(--transition-normal);
+    margin: 0 -20px var(--spacing-4) -20px;
 }
 
 .section-title:hover,
@@ -2352,6 +2353,43 @@ html[dir="rtl"] .border-right-danger {
 
 .collapse {
     transition: height 0.3s ease;
+}
+
+/* حالة الأقسام المطوية المغلقة (Collapsible section when collapsed) */
+.section-container:has(> .collapse:not(.show):not(.collapsing)),
+.section-container:has(> div > .collapse:not(.show):not(.collapsing)),
+.section-container:has(> .section-title.collapsed),
+.section-container:has(> .unified-section-title.collapsed),
+.section-container:has(> .section-title[aria-expanded="false"]),
+.section-container:has(> .unified-section-title[aria-expanded="false"]),
+.unified-section-container:has(> .collapse:not(.show):not(.collapsing)),
+.unified-section-container:has(> div > .collapse:not(.show):not(.collapsing)),
+.unified-section-container:has(> .section-title.collapsed),
+.unified-section-container:has(> .unified-section-title.collapsed),
+.unified-section-container:has(> .section-title[aria-expanded="false"]),
+.unified-section-container:has(> .unified-section-title[aria-expanded="false"]) {
+    padding-bottom: 0 !important;
+}
+
+.section-container:has(> .collapse:not(.show):not(.collapsing)) > .section-title,
+.section-container:has(> .collapse:not(.show):not(.collapsing)) > .unified-section-title,
+.section-container:has(> div > .collapse:not(.show):not(.collapsing)) > .section-title,
+.section-container:has(> div > .collapse:not(.show):not(.collapsing)) > .unified-section-title,
+.unified-section-container:has(> .collapse:not(.show):not(.collapsing)) > .section-title,
+.unified-section-container:has(> .collapse:not(.show):not(.collapsing)) > .unified-section-title,
+.unified-section-container:has(> div > .collapse:not(.show):not(.collapsing)) > .section-title,
+.unified-section-container:has(> div > .collapse:not(.show):not(.collapsing)) > .unified-section-title,
+.section-title.collapsed,
+.unified-section-title.collapsed,
+.section-title[aria-expanded="false"],
+.unified-section-title[aria-expanded="false"] {
+    margin-bottom: 0 !important;
+    border-bottom: none !important;
+}
+
+.section-container > .collapse > .filter-section,
+.unified-section-container > .collapse > .filter-section {
+    margin-bottom: 0 !important;
 }
 
 .section-content,

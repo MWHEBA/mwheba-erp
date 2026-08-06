@@ -61,6 +61,7 @@ from .opening_balance import OpeningBalanceBatch, OpeningBalanceLine
 from .allocation import PaymentAllocation, AllocationStatus
 from .bank_reconciliation import BankStatementBatch, BankStatementLine, BankReconciliationMatch
 from .currency import Currency, ExchangeRate
+from .account_balance_period import AccountBalancePeriod
 from .tax import (
     TaxJurisdiction,
     TaxCode,

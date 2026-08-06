@@ -74,10 +74,27 @@ class PricingService:
         best_rule = rules.order_by("-priority", "-discount_percentage").first()
         disc_pct = best_rule.discount_percentage if best_rule else Decimal("0.00")
 
-        # 3. Currency Conversion (IAS 21 Spot Rate)
+        # 3. Currency Conversion (IAS 21 Spot Rate & Strict Quotation Standard: 1 Foreign = X Base)
+        func_curr = ExchangeRateService.get_functional_currency()
+        if not func_curr:
+            raise ValidationError("لم يتم تعيين العملة الأساسية الوظيفية للمؤسسة في قاعدة البيانات.")
+        func_code = func_curr.code
+
         rate = Decimal("1.000000")
-        if target_currency != "EGP":
-            rate = ExchangeRateService.get_rate(target_currency, "EGP", as_of_date)
+        if target_currency != func_code:
+            rate = ExchangeRateService.get_rate(target_currency, func_code, as_of_date)
+            # If base_price came from functional base catalog (not a dedicated foreign price list), convert to foreign target currency by dividing by rate
+            is_foreign_pricelist = False
+            if price_list_id:
+                try:
+                    pl = PriceList.objects.get(pk=price_list_id)
+                    if pl.currency == target_currency:
+                        is_foreign_pricelist = True
+                except PriceList.DoesNotExist:
+                    pass
+
+            if not is_foreign_pricelist and rate > Decimal("0"):
+                base_price = (base_price / rate).quantize(Decimal("0.0001"))
 
         disc_amount = (base_price * (disc_pct / Decimal("100.00"))).quantize(Decimal("0.01"))
         final_price = (base_price - disc_amount).quantize(Decimal("0.01"))
