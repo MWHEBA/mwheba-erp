@@ -109,40 +109,48 @@ def user_permissions(request):
 
 def payment_accounts(request):
     """
-    إضافة حسابات الدفع (الخزينة/البنك) للقوالب مع Cache
-    ✅ تحسين: cache لمدة 10 دقائق + استخدام values() بدلاً من objects
+    إضافة حسابات الدفع (الخزينة/البنك) المصنفة للقوالب مع Cache
+    ✅ استخدام AccountHelperService للمرجعية الموحدة وتقديم الخزن والبنك والافتراضي بمرونة
     """
     cache_key = 'payment_accounts_data_v2'
     cached_data = cache.get(cache_key)
 
     if cached_data is None:
         try:
-            from financial.models import ChartOfAccounts
+            from financial.services.account_helper import AccountHelperService
 
-            accounts_data = list(
-                ChartOfAccounts.objects.filter(
-                    is_active=True
-                ).filter(
-                    Q(is_cash_account=True) | Q(is_bank_account=True)
-                ).values('id', 'code', 'name', 'is_cash_account', 'is_bank_account')
-                .order_by('code')
+            cash_qs = AccountHelperService.get_cash_accounts()
+            bank_qs = AccountHelperService.get_bank_accounts()
+
+            cash_accounts_data = list(
+                cash_qs.values('id', 'code', 'name', 'is_cash_account', 'is_bank_account')
+            )
+            bank_accounts_data = list(
+                bank_qs.values('id', 'code', 'name', 'is_cash_account', 'is_bank_account')
             )
 
-            from financial.services.role_registry import AccountRoleRegistry
-            def_code = AccountRoleRegistry.resolve_role_code("DEFAULT_CASH_DRAWER")
-            default_account_data = ChartOfAccounts.objects.filter(
-                code=def_code,
-                is_active=True
-            ).values('id', 'code', 'name').first()
+            # الدمج للقوائم العامة
+            all_accounts_data = cash_accounts_data + bank_accounts_data
 
-            def_bank_code = AccountRoleRegistry.resolve_role_code("DEFAULT_BANK_ACCOUNT")
-            default_bank_data = ChartOfAccounts.objects.filter(
-                code=def_bank_code,
-                is_active=True
-            ).values('id', 'code', 'name').first()
+            # الحساب الافتراضي الرئيسي للنقدية بسلسلة السقوط الاحتياطي
+            def_cash_obj = AccountHelperService.get_default_cash_account()
+            default_account_data = None
+            if def_cash_obj:
+                default_account_data = {
+                    'id': def_cash_obj.id,
+                    'code': def_cash_obj.code,
+                    'name': def_cash_obj.name
+                }
+
+            # الحساب الافتراضي للبنك
+            default_bank_data = None
+            if bank_accounts_data:
+                default_bank_data = bank_accounts_data[0]
 
             cached_data = {
-                'accounts': accounts_data,
+                'accounts': all_accounts_data,
+                'cash_accounts': cash_accounts_data,
+                'bank_accounts': bank_accounts_data,
                 'default': default_account_data,
                 'default_bank': default_bank_data
             }
@@ -150,15 +158,19 @@ def payment_accounts(request):
             cache.set(cache_key, cached_data, 600)
 
         except Exception as e:
-            logger.debug(f"Payment accounts context processor: {e}")
+            logger.debug(f"Payment accounts context processor error: {e}")
             cached_data = {
                 'accounts': [],
+                'cash_accounts': [],
+                'bank_accounts': [],
                 'default': None,
                 'default_bank': None
             }
 
     return {
         'payment_accounts': cached_data['accounts'],
+        'cash_payment_accounts': cached_data.get('cash_accounts', []),
+        'bank_payment_accounts': cached_data.get('bank_accounts', []),
         'default_payment_account': cached_data['default'],
         'default_bank_account': cached_data.get('default_bank')
     }

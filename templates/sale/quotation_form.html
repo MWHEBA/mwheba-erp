@@ -181,8 +181,8 @@
                         <i class="fa fa-plus me-1"></i> {% trans "إضافة بند" %}
                     </button>
 
-                    <div class="row total-section mt-4 g-4">
-                        <div class="col-lg-8 col-md-12">
+                    <div class="row total-section mt-4 g-4 align-items-stretch">
+                        <div class="col-lg-8 col-md-12 d-flex flex-column">
                             <!-- التبويبات الموحدة -->
                             <ul class="nav nav-tabs border-bottom-0" id="quoteTotalSectionTabs" role="tablist">
                                 <li class="nav-item" role="presentation">
@@ -204,7 +204,7 @@
                                 {% endif %}
                             </ul>
                             <input type="hidden" name="custom_fields_json" id="custom_fields_json" value="">
-                            <div class="tab-content p-3 bg-light border rounded-bottom" id="quoteTotalSectionTabsContent">
+                            <div class="tab-content p-3 bg-light border rounded-bottom flex-fill d-flex flex-column justify-content-between" id="quoteTotalSectionTabsContent">
                                 <!-- تبويب الخصم والتسوية -->
                                 <div class="tab-pane fade show active" id="quote-tab-discount" role="tabpanel" aria-labelledby="quote-discount-tab">
                                     <div class="row align-items-center g-3">
@@ -227,7 +227,7 @@
                                     </div>
                                 </div>
                                 <!-- تبويب الملاحظات والشروط -->
-                                <div class="tab-pane fade" id="quote-tab-notes" role="tabpanel" aria-labelledby="quote-notes-tab">
+                                <div class="tab-pane fade h-100" id="quote-tab-notes" role="tabpanel" aria-labelledby="quote-notes-tab">
                                     {% include "partials/editor.html" with id="id_notes" name="notes" value=form.notes.value|default:'' placeholder="أضف شروط الدفع، التوصيل، أو أي تفاصيل أخرى..." height=180 toolbar="basic" %}
                                 </div>
                                 <!-- تبويب الحقول الإضافية -->
@@ -247,7 +247,7 @@
                             </div>
                         </div>
 
-                        <div class="col-lg-4 col-md-12">
+                        <div class="col-lg-4 col-md-12 d-flex flex-column">
                             <!-- رأس ملخص الإجماليات المتناسق -->
                             <ul class="nav nav-tabs border-bottom-0" role="tablist">
                                 <li class="nav-item" role="presentation">
@@ -256,7 +256,7 @@
                                     </span>
                                 </li>
                             </ul>
-                            <div class="p-3 bg-light border rounded-bottom">
+                            <div class="p-3 bg-light border rounded-bottom flex-fill d-flex flex-column justify-content-between">
                                 <div class="row mb-2">
                                     <div class="col-6 text-end"><strong>{% trans "المجموع الفرعي:" %}</strong></div>
                                     <div class="col-6 text-end">
@@ -660,7 +660,8 @@
 
         // ===== ربط الأحداث وعمليات الحساب =====
         function bindEventHandlers() {
-            $('.quantity, .unit-price, .item-discount').off('input').on('input', function() {
+            $(document).off('input.itemCalc', '#items-container .quantity, #items-container .unit-price, #items-container .item-discount')
+                       .on('input.itemCalc', '#items-container .quantity, #items-container .unit-price, #items-container .item-discount', function() {
                 var row = $(this).closest('.item-row');
                 calculateRowTotal(row);
 
@@ -673,9 +674,13 @@
                     } else {
                         var stock = parseInt(prodInput.attr('data-stock') || 0);
                         if (quantity > stock && stock > 0) {
-                            row.find('.stock-info').html('<span class="stock-warning">تحذير: الكمية المطلوبة أكبر من المخزون المتاح (' + stock + ')</span>');
+                            row.find('.stock-info').html('<span class="stock-warning">الكمية أكبر من المخزون المتاح (' + stock + ')</span>');
                         } else {
-                            renderStockInfo(row, stock);
+                            if (typeof renderStockInfo === 'function') {
+                                renderStockInfo(row, stock);
+                            } else if (typeof window.renderStockInfo === 'function') {
+                                window.renderStockInfo(row, stock);
+                            }
                         }
                     }
                 }

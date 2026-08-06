@@ -122,11 +122,7 @@
 
     <!-- Django Pagination -->
     <div id="pagination-wrapper">
-    {% if sales and sales.paginator.num_pages > 1 %}
-    <div class="card-footer mt-3">
-      {% include "partials/pagination.html" with page_obj=sales align="center" %}
-    </div>
-    {% endif %}
+      {% include "partials/pagination.html" with page_obj=page_obj|default:sales align="center" %}
     </div>
   </div>
 </div>
@@ -152,9 +148,6 @@
     $('.select2-filter').select2({ width: '100%', language: "ar", dir: "rtl" });
     initTableEvents();
     
-    // تم استبدال حقول التاريخ بالنظام الموحد
-    
-    // ضبط حجم الجدول عند تحميل الصفحة وعند تغيير حجم النافذة
     function adjustTableSize() {
       $('.table-responsive').css('max-height', '100%').css('overflow-y', 'visible');
       $('#sales-table').css('width', '100%');
@@ -163,45 +156,53 @@
     adjustTableSize();
     $(window).resize(adjustTableSize);
     
-    // Ajax search with debounce
+    // Global Ajax search function
     let debounceTimer;
-    function doSearch() {
-      const params = new URLSearchParams({
-        customer: $('#customer').val(),
-        warehouse: $('#warehouse').val(),
-        salesman: $('#salesman').val(),
-        payment_status: $('#payment_status').val(),
-        date_from: $('#date_from').val(),
-        date_to: $('#date_to').val(),
-        page: 1
-      });
+    window.doSearch = function(customQueryStr) {
+      let queryString = '';
+      if (typeof customQueryStr === 'string' && customQueryStr.length > 0) {
+        queryString = customQueryStr;
+      } else {
+        const params = new URLSearchParams({
+          customer: $('#customer').val() || '',
+          warehouse: $('#warehouse').val() || '',
+          salesman: $('#salesman').val() || '',
+          payment_status: $('#payment_status').val() || '',
+          date_from: $('#date_from').val() || '',
+          date_to: $('#date_to').val() || '',
+          page: 1
+        });
+        queryString = params.toString();
+      }
 
       $.ajax({
-        url: '?' + params.toString(),
+        url: '?' + queryString,
         headers: { 'X-Requested-With': 'XMLHttpRequest' },
         success: function(data) {
-          $('#sales-table-container').html(data.table_html);
-          $('#pagination-wrapper').html(
-            data.pagination_html ? '<div class="card-footer mt-3">' + data.pagination_html + '</div>' : ''
-          );
-          history.replaceState(null, '', '?' + params.toString());
+          if (data.table_html !== undefined) {
+            $('#sales-table-container').html(data.table_html);
+          }
+          if (data.pagination_html !== undefined) {
+            $('#pagination-wrapper').html(data.pagination_html);
+          }
+          history.replaceState(null, '', '?' + queryString);
           initTableEvents();
         }
       });
-    }
+    };
 
     $('form').on('submit', function(e) {
       e.preventDefault();
-      doSearch();
+      window.doSearch();
     });
 
     $('#customer, #warehouse, #salesman, #payment_status').on('change', function() {
-      doSearch();
+      window.doSearch();
     });
     
     $('#date_from, #date_to').on('change', function() {
       clearTimeout(debounceTimer);
-      debounceTimer = setTimeout(doSearch, 400);
+      debounceTimer = setTimeout(function() { window.doSearch(); }, 400);
     });
   });
   

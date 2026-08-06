@@ -92,17 +92,14 @@ class PurchaseForm(forms.ModelForm):
             ('credit', 'آجل'),
         ]
         
-        # إضافة حسابات الدفع من النظام المالي (للفواتير النقدية فقط)
+        # إضافة حسابات الدفع من النظام المالي المركزي
+        payment_choices.append(('PREPAID_BALANCE', '💳 خصم من الرصيد المسبق لدى المورد'))
         try:
-            from financial.models import ChartOfAccounts
-            payment_accounts = ChartOfAccounts.objects.filter(
-                account_type__code__in=['cash', 'bank'],
-                is_active=True
-            ).order_by('code')
-            
+            from financial.services.account_helper import AccountHelperService
+            payment_accounts = AccountHelperService.get_cash_and_bank_accounts()
             for account in payment_accounts:
                 payment_choices.append((account.code, f"{account.name} ({account.code})"))
-        except ImportError:
+        except Exception:
             pass
         
         self.fields['payment_method'].choices = payment_choices

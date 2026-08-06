@@ -328,7 +328,7 @@ $(document).ready(function () {
         var stock = parseInt($row.find('.product-id-input').attr('data-stock') || 0);
         var vt = $('#id_voucher_type').val();
         if ((vt === 'issue' || vt === 'transfer') && stock > 0 && qty > stock) {
-            $row.find('.stock-info').html('<span class="stock-warning">تحذير: الكمية المطلوبة أكبر من المخزون المتاح (' + stock + ')</span>');
+            $row.find('.stock-info').html('<span class="stock-warning">الكمية أكبر من المخزون المتاح (' + stock + ')</span>');
         } else {
             renderStockInfo($row, stock);
         }

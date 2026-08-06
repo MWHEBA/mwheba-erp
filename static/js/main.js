@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Main JavaScript File for Corporate ERP
  * 
  * Contains all custom scripts for the ERP system including layout management
@@ -489,32 +489,130 @@ function initDynamicForms() {
 }
 
 /**
- * تهيئة التبويبات المحفوظة
+ * نظام موحد ومضمون لحفظ واستعادة حالة التبويبات بدون أي وميض (Zero Flicker Tab Persistence)
  */
 function initSavedTabs() {
-    // حفظ التبويب النشط في التخزين المحلي
-    $('a[data-bs-toggle="tab"]').on('shown.bs.tab', function (e) {
-        const tabId = $(e.target).attr('href');
-        const tabContainer = $(e.target).closest('.tabs-container');
-        const containerId = tabContainer.attr('id') || 'default-tabs';
-        
-        localStorage.setItem('activeTab-' + containerId, tabId);
-    });
-    
-    // استعادة التبويب النشط
-    $('.tabs-container').each(function() {
-        const containerId = $(this).attr('id') || 'default-tabs';
-        const activeTab = localStorage.getItem('activeTab-' + containerId);
-        
-        if (activeTab) {
-            try {
-                const tab = new bootstrap.Tab($(this).find('a[href="' + activeTab + '"]')[0]);
-                tab.show();
-            } catch (e) {
-                // في حالة حدوث خطأ، لا تفعل شيئًا
+    var currentPath = window.location.pathname;
+    var storageKey = 'activeTab_' + currentPath;
+
+    // دالة مساعدة للبحث عن زر التبويب (Tab Trigger Button/Link)
+    function getTabTriggerElement(targetId) {
+        if (!targetId || targetId === '#') return null;
+        var cleanId = targetId.replace(/^#+/, '');
+        var hashId = '#' + cleanId;
+
+        // 1. البحث عن زر/رابط يملك data-bs-target أو href يطابق المستهدف
+        var trigger = document.querySelector(
+            '[data-bs-toggle="tab"][data-bs-target="' + hashId + '"], ' +
+            '[data-bs-toggle="tab"][href="' + hashId + '"], ' +
+            '[data-bs-toggle="pill"][data-bs-target="' + hashId + '"], ' +
+            '[data-bs-toggle="pill"][href="' + hashId + '"]'
+        );
+        if (trigger) return trigger;
+
+        // 2. البحث عن زر/رابط يملك نفس الـ ID مباشرة
+        var elById = document.getElementById(cleanId);
+        if (elById) {
+            var toggleAttr = elById.getAttribute('data-bs-toggle');
+            if (toggleAttr === 'tab' || toggleAttr === 'pill') {
+                return elById;
+            }
+            var parentTrigger = document.querySelector(
+                '[data-bs-toggle="tab"][data-bs-target="#' + cleanId + '"], ' +
+                '[data-bs-toggle="tab"][href="#' + cleanId + '"], ' +
+                '[data-bs-toggle="pill"][data-bs-target="#' + cleanId + '"], ' +
+                '[data-bs-toggle="pill"][href="#' + cleanId + '"]'
+            );
+            if (parentTrigger) return parentTrigger;
+        }
+
+        return null;
+    }
+
+    // دالة تفعيل فورية بدون وميض عبر تعديل الـ DOM مباشرة
+    function showTabInstant(triggerEl) {
+        if (!triggerEl) return;
+        var targetId = triggerEl.getAttribute('data-bs-target') || triggerEl.getAttribute('href');
+        if (targetId && targetId.startsWith('#')) {
+            var pane = document.querySelector(targetId);
+            if (pane) {
+                var nav = triggerEl.closest('.nav, .nav-tabs, .nav-pills, [role="tablist"]');
+                if (nav) {
+                    nav.querySelectorAll('.nav-link, [data-bs-toggle="tab"], [data-bs-toggle="pill"]').forEach(function(el) {
+                        el.classList.remove('active');
+                        el.setAttribute('aria-selected', 'false');
+                    });
+                }
+                var container = pane.parentElement;
+                if (container) {
+                    container.querySelectorAll('.tab-pane').forEach(function(p) {
+                        p.classList.remove('active', 'show');
+                    });
+                }
+                triggerEl.classList.add('active');
+                triggerEl.setAttribute('aria-selected', 'true');
+                pane.classList.add('active', 'show');
             }
         }
-    });
+        try {
+            if (typeof bootstrap !== 'undefined' && bootstrap.Tab) {
+                bootstrap.Tab.getOrCreateInstance(triggerEl).show();
+            } else if (typeof $ !== 'undefined' && $.fn && $.fn.tab) {
+                $(triggerEl).tab('show');
+            }
+        } catch (e) {}
+    }
+
+    // 1. تحديد التبويب المطلوب (الأولوية لـ URL Hash ثم query param ثم localStorage)
+    var targetTab = null;
+    var hash = window.location.hash;
+    if (hash && hash.length > 1) {
+        targetTab = hash;
+    } else {
+        var urlParams = new URLSearchParams(window.location.search);
+        var paramTab = urlParams.get('tab');
+        if (paramTab) {
+            targetTab = paramTab.startsWith('#') ? paramTab : '#' + paramTab;
+        } else {
+            targetTab = localStorage.getItem(storageKey);
+        }
+    }
+
+    if (targetTab) {
+        var triggerToActivate = getTabTriggerElement(targetTab);
+        if (triggerToActivate) {
+            showTabInstant(triggerToActivate);
+        }
+    }
+
+    // 2. تدوين التبويب المحدد بالـ localStorage وتحديث الـ URL Hash
+    var handleTabChange = function (e) {
+        var trigger = e.target;
+        if (!trigger) return;
+
+        var tabTarget = trigger.getAttribute('data-bs-target') || 
+                        trigger.getAttribute('href') || 
+                        (trigger.id ? '#' + trigger.id : null);
+
+        if (tabTarget && tabTarget !== '#') {
+            try {
+                localStorage.setItem(storageKey, tabTarget);
+                if (window.history && window.history.replaceState) {
+                    var hashVal = tabTarget.startsWith('#') ? tabTarget : '#' + tabTarget;
+                    window.history.replaceState(null, null, hashVal);
+                }
+            } catch (err) {}
+        }
+    };
+
+    document.removeEventListener('shown.bs.tab', handleTabChange);
+    document.addEventListener('shown.bs.tab', handleTabChange);
+
+    if (typeof $ !== 'undefined') {
+        $(document).off('shown.bs.tab.globalTabPersistence').on('shown.bs.tab.globalTabPersistence', '[data-bs-toggle="tab"], [data-bs-toggle="pill"]', function(e) {
+            handleTabChange(e);
+        });
+    }
 }
 
 /**

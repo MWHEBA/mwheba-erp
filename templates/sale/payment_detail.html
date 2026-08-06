@@ -330,8 +330,12 @@
                                         <span class="badge bg-info">تحويل بنكي</span>
                                     {% elif payment.payment_method == 'check' %}
                                         <span class="badge bg-warning">شيك</span>
+                                    {% elif payment.payment_method == 'prepaid_balance' or payment.source_type == 'PREPAID_BALANCE' %}
+                                        <span class="badge bg-dark text-white border border-secondary"><i class="fas fa-minus-circle me-1 text-warning"></i>خصم من الرصيد المسبق</span>
+                                    {% elif payment.payment_method == 'credit_note' or payment.source_type == 'CREDIT_NOTE' %}
+                                        <span class="badge bg-info">تسوية إشعار دائن</span>
                                     {% else %}
-                                        <span class="badge bg-secondary">{{ payment.get_payment_method_display }}</span>
+                                        <span class="badge bg-secondary">{{ payment.source_display_info }}</span>
                                     {% endif %}
                                 </span>
                             </div>

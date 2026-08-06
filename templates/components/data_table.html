@@ -3,6 +3,7 @@
 {% load pricing_filters %}
 {% load utils_extras %}
 {% load custom_filters %}
+{% load app_tags %}
 
 {% comment %}
 مكون جدول بيانات للعرض في صفحات القوائم مع دعم الترتيب والفلترة
@@ -43,7 +44,28 @@
             <tr>
                 {% for header in headers %}
                     <th {% if header.width %}style="width: {{ header.width }};"{% endif %} class="{% if header.class %}{{ header.class }}{% endif %} col-{{ header.key }} text-center">
-                        <span class="d-block text-center">{{ header.label }}</span>
+                        {% if header.sortable|default:False %}
+                            {% if order_by == header.key or current_order_by == header.key %}
+                                {% if order_dir == "asc" or current_order_dir == "asc" %}
+                                    <a href="?{% url_replace request 'order_by' header.key 'order_dir' 'desc' %}" class="table-sort-link active" title="{% trans 'انقر للترتيب' %}">
+                                        <span>{{ header.label }}</span>
+                                        <i class="fas fa-sort-up sort-icon"></i>
+                                    </a>
+                                {% else %}
+                                    <a href="?{% url_replace request 'order_by' header.key 'order_dir' 'asc' %}" class="table-sort-link active" title="{% trans 'انقر للترتيب' %}">
+                                        <span>{{ header.label }}</span>
+                                        <i class="fas fa-sort-down sort-icon"></i>
+                                    </a>
+                                {% endif %}
+                            {% else %}
+                                <a href="?{% url_replace request 'order_by' header.key 'order_dir' 'asc' %}" class="table-sort-link" title="{% trans 'انقر للترتيب' %}">
+                                    <span>{{ header.label }}</span>
+                                    <i class="fas fa-sort sort-icon"></i>
+                                </a>
+                            {% endif %}
+                        {% else %}
+                            <span class="d-block text-center">{{ header.label }}</span>
+                        {% endif %}
                     </th>
                 {% endfor %}
                 {% if action_buttons %}
@@ -425,18 +447,20 @@
 {% endif %}
 
 {% if show_export|default:False and data %}
-<!-- أزرار التصدير المحسنة -->
+<!-- أزرار التصدير المزدوجة المحسنة -->
 <div class="table-export-controls mt-3">
-    <div class="d-flex justify-content-end align-items-center">
+    <div class="d-flex justify-content-end align-items-center gap-2">
+        <a href="?{% url_replace request 'export' 'excel' %}" 
+           class="btn btn-sm btn-success" 
+           title="{% trans 'تصدير كافة السجلات المفلترة كملف Excel' %}">
+            <i class="fas fa-file-excel me-1" aria-hidden="true"></i>{% trans "تصدير الكل (Excel)" %}
+        </a>
         <button type="button" 
-                class="btn btn-sm btn-outline-success btn-export-excel" 
+                class="btn btn-sm btn-outline-secondary btn-export-excel" 
                 data-table="{{ table_id|default:'data-table' }}" 
                 data-filename="{{ export_filename|default:'table_data' }}"
-                data-date-from="{{ export_date_from|default:'' }}"
-                data-date-to="{{ export_date_to|default:'' }}"
-                title="تصدير كملف Excel"
-                aria-label="تصدير البيانات كملف Excel">
-            <i class="fas fa-file-excel me-1" aria-hidden="true"></i>تصدير Excel
+                title="{% trans 'تصدير الصفحة المعروضة حالياً' %}">
+            <i class="fas fa-table me-1" aria-hidden="true"></i>{% trans "تصدير الصفحة الحالية" %}
         </button>
     </div>
 </div>

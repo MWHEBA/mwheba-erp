@@ -190,11 +190,27 @@ class PurchaseService:
             PurchasePayment: الدفعة المنشأة
         """
         try:
+            amount = Decimal(payment_data['amount'])
+            pm = payment_data.get('payment_method', 'cash')
+
+            # معالجة خاصة للخصم المباشر من الرصيد المسبق للمورد
+            if pm == 'PREPAID_BALANCE':
+                from supplier.services.supplier_allocation_service import SupplierAllocationService
+                audit = SupplierAllocationService.allocate_advance_to_purchase_bill(
+                    purchase=purchase,
+                    amount_to_allocate=amount,
+                    user=user
+                )
+                purchase.update_payment_status()
+                prepaid_payment = purchase.payments.filter(source_type='PREPAID_BALANCE').order_by('-created_at').first()
+                if prepaid_payment:
+                    return prepaid_payment
+
             # 1. إنشاء الدفعة
             payment = PurchasePayment.objects.create(
                 purchase=purchase,
-                amount=Decimal(payment_data['amount']),
-                payment_method=payment_data.get('payment_method', 'cash'),
+                amount=amount,
+                payment_method=pm,
                 payment_date=payment_data.get('payment_date', timezone.now().date()),
                 notes=payment_data.get('notes', ''),
                 status='draft',

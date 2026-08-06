@@ -7,6 +7,26 @@
   <span class="badge bg-primary">
     <i class="fas fa-university me-1"></i>{% trans "تحويل بنكي" %}
   </span>
+{% elif 'خصم' in value or 'تسوية' in value %}
+  <span class="badge bg-dark text-white border border-secondary">
+    <i class="fas fa-minus-circle me-1 text-warning"></i>{{ value|default:"خصم من الرصيد المسبق" }}
+  </span>
+{% elif value == 'prepaid_balance' or value == 'PREPAID_BALANCE' or 'رصيد' in value %}
+  <span class="badge bg-info text-dark">
+    <i class="fas fa-wallet me-1"></i>{% if 'المورد' in value %}رصيد المورد المسبق{% else %}رصيد مسبق{% endif %}
+  </span>
+{% elif value == 'credit_note' or value == 'CREDIT_NOTE' or 'إشعار دائن' in value %}
+  <span class="badge bg-secondary">
+    <i class="fas fa-file-invoice me-1"></i>{% trans "إشعار دائن" %}
+  </span>
+{% elif value == 'debit_note' or value == 'DEBIT_NOTE' or 'إشعار خصم' in value %}
+  <span class="badge bg-secondary">
+    <i class="fas fa-file-invoice me-1"></i>{% trans "إشعار خصم" %}
+  </span>
+{% elif value == 'check' or value == 'شيك' %}
+  <span class="badge bg-warning">
+    <i class="fas fa-money-check me-1"></i>{% trans "شيك" %}
+  </span>
 {% else %}
   <span class="badge bg-light text-dark border">
     <i class="fas fa-coins me-1"></i>{{ value|default:"غير محدد" }}

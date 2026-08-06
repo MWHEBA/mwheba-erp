@@ -32,20 +32,30 @@ class SupplierAllocationService:
     def allocate_advance_to_purchase_bill(
         cls,
         purchase,
-        amount_to_allocate: Decimal,
-        user=None
+        amount_to_allocate: Optional[Decimal] = None,
+        user=None,
+        amount: Optional[Decimal] = None
     ) -> SupplierAllocationAudit:
         """
         تخصيص مبلغ من الرصيد المسبق/الدفعات المقدمة للمورد على فاتورة مشتريات
         مع استخدام select_for_update() للوقاية من Race Conditions وتوليد قيد التسوية
         """
+        target_amount = amount_to_allocate if amount_to_allocate is not None else amount
+        if target_amount is None:
+            raise ValidationError("المبلغ المراد تخصيصه مطلوب.")
+        amount_to_allocate = Decimal(str(target_amount))
+
         if amount_to_allocate <= Decimal("0.00"):
             raise ValidationError("المبلغ المراد تخصيصه يجب أن يكون أكبر من صفر.")
+
+        from utils.templatetags.utils_extras import smart_float
+        from core.models import SystemSetting
+        currency_sym = SystemSetting.get_setting('currency_symbol', 'ج.م')
 
         supplier = purchase.supplier
         open_bill_amount = purchase.total - (purchase.amount_paid or Decimal("0.00"))
         if amount_to_allocate > open_bill_amount:
-            raise ValidationError(f"المبلغ المراد تخصيصه ({amount_to_allocate}) يتجاوز المتبقي من الفاتورة ({open_bill_amount}).")
+            raise ValidationError(f"المبلغ المراد تخصيصه ({smart_float(amount_to_allocate)} {currency_sym}) يتجاوز المتبقي من الفاتورة ({smart_float(open_bill_amount)} {currency_sym}).")
 
         with transaction.atomic():
             # قفل المورد ودفعات المقدمة للحفاظ على نزاهة التزامن
@@ -53,7 +63,7 @@ class SupplierAllocationService:
             available_balance = cls.get_available_supplier_prepaid_balance(locked_supplier.id)
 
             if amount_to_allocate > available_balance:
-                raise ValidationError(f"المبلغ المراد تخصيصه ({amount_to_allocate}) يتجاوز الرصيد المسبق المتاح للمورد ({available_balance}).")
+                raise ValidationError(f"رصيد المورد المسبق المتاح ({smart_float(available_balance)} {currency_sym}) غير كافٍ لسداد المبلغ المطلوب ({smart_float(amount_to_allocate)} {currency_sym}).")
 
             # اختيار الدفعات المقدمة أقدم فأقدم (FIFO)
             advances = SupplierAdvancePayment.objects.select_for_update().filter(
@@ -139,7 +149,7 @@ class SupplierAllocationService:
                 PurchasePayment.objects.create(
                     purchase=purchase,
                     amount=curr_alloc,
-                    payment_date=now.date(),
+                    payment_date=adv.payment_date if (adv and getattr(adv, "payment_date", None)) else now.date(),
                     payment_method="prepaid_balance",
                     source_type="PREPAID_BALANCE",
                     reference_number=f"ADV-{adv.id}",
@@ -198,3 +208,57 @@ class SupplierAllocationService:
                 logger.warning(f"لم يتم توليد قيد التسوية المحاسبية التلقائي: {str(e)}")
 
             return last_audit
+
+    @classmethod
+    def reverse_supplier_allocation(cls, audit_id: int, user=None) -> SupplierAllocationAudit:
+        """
+        عكس وإلغاء تخصيص رصيد مسبق للمورد (Reversal Engine)
+        """
+        with transaction.atomic():
+            audit = SupplierAllocationAudit.objects.select_for_update().get(pk=audit_id)
+            if audit.allocation_status == "REVERSED":
+                raise ValueError("سجل التخصيص معكوس بالفعل سابقاً.")
+
+            # رد المبالغ للدفعات المقدمة للمورد
+            adv_id_str = audit.source_document_number.replace("ADV-", "") if audit.source_document_number else None
+            if adv_id_str and adv_id_str.isdigit():
+                adv = SupplierAdvancePayment.objects.select_for_update().filter(pk=int(adv_id_str)).first()
+                if adv:
+                    adv.allocated_amount = max(Decimal("0.00"), adv.allocated_amount - audit.allocated_amount)
+                    adv.save(update_fields=["allocated_amount"])
+
+            # حذف/إلغاء مدفوعات PurchasePayment ذات الصلة
+            from purchase.models.payment import PurchasePayment
+            payments = PurchasePayment.objects.filter(
+                purchase__number=audit.target_document_number,
+                source_type="PREPAID_BALANCE"
+            )
+            for p in payments:
+                purchase = p.purchase
+                p.delete()
+                if hasattr(purchase, "update_payment_status"):
+                    purchase.update_payment_status()
+
+            # إنشاء سجل تدقيق عكسي للمورد
+            now = timezone.now()
+            raw_hash_data = f"REV_SUPP:{audit.id}:{audit.allocated_amount}:{now.isoformat()}"
+            rev_hash = hashlib.sha256(raw_hash_data.encode("utf-8")).hexdigest()
+
+            rev_audit = SupplierAllocationAudit.objects.create(
+                supplier=audit.supplier,
+                payment_transaction=audit.payment_transaction,
+                invoice_transaction=audit.invoice_transaction,
+                source_document_type=audit.source_document_type,
+                source_document_number=audit.source_document_number,
+                target_document_type=audit.target_document_type,
+                target_document_number=audit.target_document_number,
+                allocation_type="REVERSAL",
+                allocated_amount=audit.allocated_amount,
+                functional_amount=audit.functional_amount,
+                allocation_status="REVERSED",
+                reversed_audit=audit,
+                allocation_date=now.date(),
+                created_by=user,
+                evidence_hash=rev_hash
+            )
+            return rev_audit

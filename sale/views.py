@@ -282,18 +282,23 @@ def sale_create(request, customer_id=None):
 
             except Exception as e:
                 logger.error(f"❌ خطأ في إنشاء الفاتورة: {str(e)}")
-                messages.error(request, f"حدث خطأ أثناء إنشاء الفاتورة: {str(e)}")
+                messages.error(request, str(e))
     else:
         # تهيئة بيانات افتراضية
         default_sale_notes = SystemSetting.get_setting('default_sale_invoice_notes', '')
         if not default_sale_notes:
             default_sale_notes = SystemSetting.get_setting('invoice_notes', '')
 
+        from financial.services.account_helper import AccountHelperService
+        default_cash = AccountHelperService.get_default_cash_account()
+
         initial_data = {
             "date": timezone.now().date(),
             "invoice_type": "credit_with_downpayment",
             "notes": default_sale_notes,
         }
+        if default_cash:
+            initial_data["payment_method"] = default_cash.code
         if selected_customer:
             initial_data["customer"] = selected_customer
         if selected_work_order:
@@ -328,6 +333,13 @@ def sale_create(request, customer_id=None):
         
     product_categories = Category.objects.filter(category_filter).distinct().order_by("name")
 
+    customer_prepaid_balance = Decimal('0.00')
+    if selected_customer and hasattr(selected_customer, 'available_prepaid_balance'):
+        try:
+            customer_prepaid_balance = selected_customer.available_prepaid_balance
+        except Exception:
+            pass
+
     import json
     custom_fields_merged = SaleService.smart_merge_custom_fields('sale', [])
     context = {
@@ -339,6 +351,7 @@ def sale_create(request, customer_id=None):
         "customers": customers,
         "warehouses": warehouses,
         "selected_customer": selected_customer,
+        "customer_prepaid_balance": customer_prepaid_balance,
         "default_warehouse": warehouses.first() if warehouses.exists() else None,
         "posted_items_json": json.dumps(posted_items, cls=DjangoJSONEncoder) if posted_items else "null",
         "custom_fields_json": json.dumps(custom_fields_merged),
@@ -482,7 +495,7 @@ def allocate_prepaid_balance(request, pk):
             from client.services.customer_allocation_audit_service import CustomerAllocationAuditService
             from decimal import Decimal
             available = sale.customer.available_prepaid_balance if sale.customer else Decimal("0.00")
-            open_amount = sale.total - (sale.paid_amount or Decimal("0.00"))
+            open_amount = sale.total - (sale.amount_paid or Decimal("0.00"))
 
             if is_auto:
                 alloc_amount = min(available, open_amount)
@@ -747,11 +760,37 @@ def sale_list(request):
     if date_to:
         sales_query = sales_query.filter(date__lte=date_to)
 
-    # الترقيم
-    from django.core.paginator import Paginator
-    paginator = Paginator(sales_query, 25)
-    page_number = request.GET.get("page", 1)
-    sales_page = paginator.get_page(page_number)
+    # التصدير المزدوج: تصدير كافة الفواتير المفلترة من الباك إند
+    if request.GET.get('export') == 'excel':
+        from utils.export import export_queryset_to_excel
+        return export_queryset_to_excel(
+            sales_query,
+            filename="sales_invoices_export.xlsx",
+            fields=["number", "created_at", "customer.name", "total", "amount_paid", "amount_due", "payment_status"],
+            headers=["رقم الفاتورة", "التاريخ", "العميل", "الإجمالي", "المدفوع", "المتبقي", "حالة الدفع"]
+        )
+
+    # Whitelist الفرز الأمني
+    allowed_sort_fields = {
+        'number': 'number',
+        'created_at': 'created_at',
+        'customer': 'customer__name',
+        'salesman': 'created_by__username',
+        'total': 'total',
+        'amount_due': 'amount_due',
+        'payment_status': 'payment_status',
+    }
+
+    # الترقيم والفرز الـ SSR عبر المحرك المركزي
+    from core.utils import paginate_queryset, render_paginated_response
+    pagination_data = paginate_queryset(
+        sales_query,
+        request,
+        default_per_page=25,
+        allowed_sort_fields=allowed_sort_fields
+    )
+
+    sales_page = pagination_data['page_obj']
     
     # تحويل الـ queryset لـ list of dicts للجدول الموحد
     sales_data = []
@@ -801,7 +840,6 @@ def sale_list(request):
             'label': 'نسخ الفاتورة',
             'class': 'action-copy',
         })
-
         
         sales_data.append({
             'id': sale.id,
@@ -866,6 +904,7 @@ def sale_list(request):
     ])
 
     context = {
+        **pagination_data,
         "sales": sales_page,
         "sales_data": sales_data,
         "sale_headers": sale_headers,
@@ -883,6 +922,7 @@ def sale_list(request):
         "selected_payment_status": payment_status,
         "date_from": date_from,
         "date_to": date_to,
+        "show_export": True,
         "title": "فواتير المبيعات",
         "page_title": "فواتير المبيعات",
         "page_subtitle": "عرض وإدارة فواتير المبيعات",
@@ -919,7 +959,7 @@ def sale_list(request):
             'show_length_menu': False,
             'sortable': False
         }, request=request)
-        pagination_html = render_to_string('partials/pagination.html', {'page_obj': sales_page}, request=request) if sales_page.paginator.num_pages > 1 else ''
+        pagination_html = render_to_string('partials/pagination.html', context, request=request)
         return JsonResponse({
             'table_html': table_html,
             'pagination_html': pagination_html

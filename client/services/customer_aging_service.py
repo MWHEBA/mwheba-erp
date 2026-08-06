@@ -2,18 +2,20 @@ import logging
 from decimal import Decimal
 from typing import Dict, Any, List, Optional
 from django.utils import timezone
+from django.db.models import Sum, Q, Value, DecimalField, Subquery, OuterRef
+from django.db.models.functions import Coalesce
 
-from client.models import Customer, CustomerTransaction
-from financial.services.ledger_query_service import LedgerQueryService
+from client.models import Customer, CustomerPayment
+from sale.models import Sale, SalePayment
 
 logger = logging.getLogger("client.customer_aging_service")
 
 
 class CustomerAgingService:
     """
-    محرك تقارير اعمار ديون العملاء المحصن (Sprint 3 Due-Date Aging Engine)
-    يحسب فترات الاستحقاق بناءً على تواريخ استحقاق الفواتير والأرصدة المفتوحة المتبقية والتسويات
-    ويفصل الأرصدة الدائنة (Credit Balances) صراحة
+    محرك تقارير أعمار ديون العملاء المباشر الدقيق (Live Single-Source-of-Truth Aging Engine)
+    يحسب شرائح الديون مباشرة من فواتير المبيعات المكتملة (Sale) والدفعات المقدمة غير المخصصة (CustomerPayment)
+    بدون الاعتماد على جداول وسيطة أو مفاتيح خادعة.
     """
 
     @classmethod
@@ -28,7 +30,7 @@ class CustomerAgingService:
         as_of_date: Optional[Any] = None
     ) -> Dict[str, Any]:
         ref_date = as_of_date or timezone.now().date()
-        customers = Customer.objects.filter(is_active=True).select_related('financial_account')
+        customers = Customer.objects.filter(is_active=True)
         if customer_ids:
             customers = customers.filter(pk__in=customer_ids)
 
@@ -43,28 +45,28 @@ class CustomerAgingService:
             'total_balance': Decimal('0.00')
         }
 
-        # FIN-CORE-015: Single-pass Batch Allocation Aggregation to eliminate N+1 queries
-        from financial.models.allocation import PaymentAllocation
-        from django.db.models import Sum
-
-        alloc_totals = {
-            item['target_document_id']: item['total']
-            for item in PaymentAllocation.objects.filter(
-                allocation_status__in=['ACTIVE', 'APPLIED']
-            ).values('target_document_id').annotate(total=Sum('allocated_amount'))
-        }
+        # 1. Subquery لحساب المبالغ المستخدمة من الدفعات المقدمة
+        used_subq = (
+            SalePayment.objects.filter(
+                customer_payment=OuterRef("pk"), status="posted"
+            )
+            .values("customer_payment")
+            .annotate(s=Sum("amount"))
+            .values("s")
+        )
 
         for customer in customers:
-            if not customer.financial_account:
-                continue
-
-            gl_data = LedgerQueryService.get_account_balance(customer.financial_account, as_of_date=ref_date)
-            net_balance = gl_data['balance']
-
-            open_txns = CustomerTransaction.objects.filter(
+            # 2. جلب جميع الفواتير المؤكدة والمفتوحة للعميل مع حساب المدفوع آلياً (Single Query)
+            open_sales = Sale.objects.filter(
                 customer=customer,
-                status__in=['OPEN', 'PARTIAL'],
-                issue_date__lte=ref_date
+                status='confirmed',
+                payment_status__in=['unpaid', 'partially_paid'],
+                date__lte=ref_date
+            ).annotate(
+                paid_sum=Coalesce(
+                    Sum('payments__amount', filter=Q(payments__status='posted')),
+                    Value(Decimal('0.00'), output_field=DecimalField())
+                )
             )
 
             bucket_current = Decimal('0.00')
@@ -72,28 +74,40 @@ class CustomerAgingService:
             bucket_31_60 = Decimal('0.00')
             bucket_61_90 = Decimal('0.00')
             bucket_90_plus = Decimal('0.00')
-            credit_bal = Decimal('0.00')
 
-            for txn in open_txns:
-                amt = txn.open_amount
-                if txn.transaction_type in ['PAYMENT', 'CREDIT_NOTE', 'ADVANCE']:
-                    credit_bal += amt
+            for sale in open_sales:
+                amount_due = sale.total - sale.paid_sum
+                if amount_due <= Decimal('0.00'):
                     continue
 
-                if txn.due_date > ref_date:
-                    bucket_current += amt
+                days_old = (ref_date - sale.date).days
+                if days_old <= 0:
+                    bucket_current += amount_due
+                elif days_old <= 30:
+                    bucket_0_30 += amount_due
+                elif days_old <= 60:
+                    bucket_31_60 += amount_due
+                elif days_old <= 90:
+                    bucket_61_90 += amount_due
                 else:
-                    overdue_days = (ref_date - txn.due_date).days
-                    if overdue_days <= 30:
-                        bucket_0_30 += amt
-                    elif overdue_days <= 60:
-                        bucket_31_60 += amt
-                    elif overdue_days <= 90:
-                        bucket_61_90 += amt
-                    else:
-                        bucket_90_plus += amt
+                    bucket_90_plus += amount_due
 
-            row_total = bucket_current + bucket_0_30 + bucket_31_60 + bucket_61_90 + bucket_90_plus - credit_bal
+            # 3. حساب الرصيد الدائن المتاح (الدفعات المقدمة غير المخصصة)
+            credit_bal = Decimal('0.00')
+            payments = CustomerPayment.objects.filter(
+                customer=customer,
+                payment_date__lte=ref_date
+            ).exclude(status="cancelled").annotate(
+                used=Coalesce(
+                    Subquery(used_subq, output_field=DecimalField()),
+                    Value(Decimal('0.00'), output_field=DecimalField()),
+                )
+            )
+            for cp in payments:
+                credit_bal += max(Decimal('0.00'), cp.amount - cp.used)
+
+            debit_total = bucket_current + bucket_0_30 + bucket_31_60 + bucket_61_90 + bucket_90_plus
+            net_balance = debit_total - credit_bal
 
             report_rows.append({
                 'customer_id': customer.id,
@@ -105,8 +119,8 @@ class CustomerAgingService:
                 'bucket_61_90': bucket_61_90,
                 'bucket_90_plus': bucket_90_plus,
                 'credit_balance': credit_bal,
-                'net_balance': net_balance or row_total,
-                'total_balance': net_balance or row_total
+                'net_balance': net_balance,
+                'total_balance': net_balance
             })
 
             summary['bucket_current'] += bucket_current
@@ -115,10 +129,24 @@ class CustomerAgingService:
             summary['bucket_61_90'] += bucket_61_90
             summary['bucket_90_plus'] += bucket_90_plus
             summary['credit_balance'] += credit_bal
-            summary['total_balance'] += (net_balance or row_total)
+            summary['total_balance'] += net_balance
 
         return {
             'as_of_date': ref_date,
             'rows': report_rows,
+            'summary': summary
+        }
+
+    @classmethod
+    def get_portfolio_aging_summary(cls, as_of_date: Optional[Any] = None) -> Dict[str, Any]:
+        """
+        توفير ملخص محفظة أعمار ديون العملاء الموحد لدعم التقارير المالية المركزية (FIN-REP-001)
+        """
+        report = cls.get_customer_aging_report(as_of_date=as_of_date)
+        summary = report.get('summary', {})
+        total_outstanding = summary.get('total_balance', Decimal('0.00'))
+        return {
+            'as_of_date': report.get('as_of_date'),
+            'total_outstanding': total_outstanding,
             'summary': summary
         }

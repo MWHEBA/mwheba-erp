@@ -149,12 +149,29 @@ class Customer(models.Model):
     @property
     def available_prepaid_balance(self):
         """
-        حساب إجمالي الرصيد المسبق/الدفعات المقدمة غير المخصصة للعميل
+        حساب إجمالي الرصيد المسبق/الدفعات المقدمة غير المخصصة للعميل بدقة عبر العلاقات المباشرة مع الفلترة على المخصصات المرحّلة فقط
         """
         from sale.models import SalePayment
-        total_payments = sum(p.amount for p in self.payments.all())
-        total_allocated = sum(sp.amount for sp in SalePayment.objects.filter(sale__customer=self, source_type="PREPAID_BALANCE"))
-        return max(Decimal("0.00"), total_payments - total_allocated)
+        from django.db.models import Sum, Subquery, OuterRef, Value, DecimalField
+        from django.db.models.functions import Coalesce
+
+        used_subq = (
+            SalePayment.objects.filter(
+                customer_payment=OuterRef("pk"), status="posted"
+            )
+            .values("customer_payment")
+            .annotate(s=Sum("amount"))
+            .values("s")
+        )
+        total_free = Decimal("0.00")
+        for cp in self.payments.exclude(status="cancelled").annotate(
+            used=Coalesce(
+                Subquery(used_subq, output_field=DecimalField()),
+                Value(Decimal("0.00"), output_field=DecimalField()),
+            )
+        ):
+            total_free += max(Decimal("0.00"), cp.amount - cp.used)
+        return total_free
 
 
 class CustomerPayment(models.Model):

@@ -202,13 +202,7 @@
                         </div>
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label class="form-label">الخزينة *</label>
-                                <select class="form-select" name="cash_account" required>
-                                    <option value="">اختر الخزينة</option>
-                                    {% for account in payment_accounts %}
-                                        <option value="{{ account.id }}">{{ account.name }}</option>
-                                    {% endfor %}
-                                </select>
+                                {% include "components/payment_account_select.html" with field_name="cash_account" field_id="contribution_cash_account" label="الخزينة" required=True value_type="id" %}
                             </div>
                         </div>
                     </div>
@@ -288,13 +282,7 @@
                         </div>
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label class="form-label">الخزينة *</label>
-                                <select class="form-select" name="cash_account" required>
-                                    <option value="">اختر الخزينة</option>
-                                    {% for account in payment_accounts %}
-                                        <option value="{{ account.id }}">{{ account.name }}</option>
-                                    {% endfor %}
-                                </select>
+                                {% include "components/payment_account_select.html" with field_name="cash_account" field_id="withdrawal_cash_account" label="الخزينة" required=True value_type="id" %}
                             </div>
                         </div>
                     </div>

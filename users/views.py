@@ -137,10 +137,35 @@ def user_list(request):
         'is_active', 'last_login', 'role__name', 'role__display_name'
     ).order_by('-id')
 
-    # Pagination - عرض 50 مستخدم في الصفحة
-    paginator = Paginator(users, 50)
-    page_number = request.GET.get('page', 1)
-    page_obj = paginator.get_page(page_number)
+    # التصدير المزدوج: تصدير كافة المستخدمين من الباك إند
+    if request.GET.get('export') == 'excel':
+        from utils.export import export_queryset_to_excel
+        return export_queryset_to_excel(
+            users,
+            filename="users_export.xlsx",
+            fields=["id", "username", "first_name", "last_name", "email", "phone", "is_active"],
+            headers=["#", "اسم المستخدم", "الاسم الأول", "الاسم الأخير", "البريد الإلكتروني", "الهاتف", "نشط"]
+        )
+
+    # Whitelist الفرز الأمني
+    allowed_sort_fields = {
+        'id': 'id',
+        'get_full_name': 'first_name',
+        'username': 'username',
+        'is_active': 'is_active',
+        'last_login': 'last_login',
+    }
+
+    # الترقيم والفرز الـ SSR عبر المحرك المركزي
+    from core.utils import paginate_queryset, render_paginated_response
+    pagination_data = paginate_queryset(
+        users,
+        request,
+        default_per_page=25,
+        allowed_sort_fields=allowed_sort_fields
+    )
+
+    page_obj = pagination_data['page_obj']
     
     # إعداد headers للجدول الموحد
     headers = [
@@ -189,14 +214,15 @@ def user_list(request):
         })
 
     context = {
-        "users": page_obj,  # استخدام page_obj بدل users
-        "page_obj": page_obj,  # للـ pagination controls
+        **pagination_data,
+        "users": page_obj,
         "headers": headers,
         "action_buttons": action_buttons,
         "primary_key": "id",
+        "show_export": True,
         "title": "المستخدمين",
         "page_title": "قائمة المستخدمين",
-        "page_subtitle": f"إدارة مستخدمي النظام ({paginator.count} مستخدم)",
+        "page_subtitle": f"إدارة مستخدمي النظام ({page_obj.paginator.count} مستخدم)",
         "page_icon": "fas fa-users",
         "header_buttons": [
             {
@@ -223,7 +249,12 @@ def user_list(request):
         "is_superuser": request.user.is_superuser,
     }
     
-    return render(request, "users/user_list.html", context)
+    return render_paginated_response(
+        request,
+        "users/user_list.html",
+        context,
+        table_template_name="components/data_table.html"
+    )
 
 
 @login_required

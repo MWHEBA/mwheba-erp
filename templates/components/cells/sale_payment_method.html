@@ -11,6 +11,14 @@
   <span class="badge bg-primary fw-bold">
     <i class="fas fa-university me-1"></i>{% trans "تحويل بنكي" %}
   </span>
+{% elif 'خصم' in value or 'تسوية' in value %}
+  <span class="badge bg-dark text-white border border-secondary fw-bold">
+    <i class="fas fa-minus-circle me-1 text-warning"></i>{{ value|default:"خصم من الرصيد المسبق" }}
+  </span>
+{% elif value == 'prepaid_balance' or value == 'PREPAID_BALANCE' or 'رصيد' in value %}
+  <span class="badge bg-info text-dark fw-bold">
+    <i class="fas fa-wallet me-1"></i>{% trans "رصيد مسبق" %}
+  </span>
 {% elif value == 'installment' or value == 'تقسيط' %}
   <span class="badge bg-secondary fw-bold">
     <i class="fas fa-calendar-alt me-1"></i>{% trans "تقسيط" %}

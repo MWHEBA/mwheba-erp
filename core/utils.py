@@ -505,40 +505,121 @@ def clean_html(html_content):
     return safe_html_clean(html_content)
 
 
-def paginate_queryset(queryset, page_size, page_number):
+def paginate_queryset(queryset, request_or_page_size, page_number=None, default_per_page=25, max_per_page=100, page_param="page", allowed_sort_fields=None):
     """
-        تقسيم استعلام إلى صفحات
-    {{ ... }}
-        المعلمات:
-        queryset (QuerySet): الاستعلام للتقسيم
-        page_size (int): حجم الصفحة
-        page_number (int): رقم الصفحة
+    تقسيم استعلام إلى صفحات مع دعم الفرز والأمان واستخراج المعلمات من الطلب (SSR Engine)
 
-        تُرجع: (قائمة العناصر، إجمالي العناصر، إجمالي الصفحات)
+    دعم النمطين:
+    1. الحديث: paginate_queryset(queryset, request, default_per_page=25, page_param="page", allowed_sort_fields=[...])
+       -> يُرجّع قاموس Context يحتوي على (page_obj, paginator, per_page, is_paginated, order_by, order_dir, elided_page_range, page_param)
+    2. القديم المتوافق: paginate_queryset(queryset, page_size, page_number)
+       -> يُرجّع (page_items, total_items, total_pages)
     """
-    # التحقق من صحة المدخلات
+    from django.core.paginator import Paginator
+
+    # فحص إذا كان المعلم الثاني هو request أم رقم
+    if hasattr(request_or_page_size, 'GET'):
+        request = request_or_page_size
+
+        # 1. معالجة الفرز SSR الأمن (Sorting Whitelist)
+        order_by = request.GET.get('order_by', '').strip()
+        order_dir = request.GET.get('order_dir', 'asc').strip().lower()
+
+        if order_by and allowed_sort_fields:
+            # التحقق من أن الحقل ضمن الـ Whitelist المسموح بها
+            sort_field = allowed_sort_fields.get(order_by) if isinstance(allowed_sort_fields, dict) else (order_by if order_by in allowed_sort_fields else None)
+            if sort_field:
+                field_expression = f"-{sort_field}" if order_dir == 'desc' else sort_field
+                try:
+                    queryset = queryset.order_by(field_expression)
+                except Exception:
+                    pass
+
+        # 2. قراءة واختبار per_page مع تحديد السقف الأقصى (DoS Protection)
+        raw_per_page = request.GET.get('per_page')
+        try:
+            per_page = int(raw_per_page) if raw_per_page else default_per_page
+        except (ValueError, TypeError):
+            per_page = default_per_page
+
+        if per_page not in [10, 25, 50, 100]:
+            per_page = default_per_page
+        per_page = min(per_page, max_per_page)
+
+        # 3. قراءة رقم الصفحة
+        raw_page = request.GET.get(page_param, 1)
+        try:
+            page_num = int(raw_page)
+        except (ValueError, TypeError):
+            page_num = 1
+
+        paginator = Paginator(queryset, per_page)
+
+        # 4. تصحيح الصفحة (Smart Page Bounds)
+        if page_num < 1:
+            page_num = 1
+        elif page_num > paginator.num_pages and paginator.num_pages > 0:
+            page_num = 1  # إعادة ضبط للصفحة الأولى عند تغير per_page أو تجاور الحدود
+
+        page_obj = paginator.get_page(page_num)
+
+        # 5. حساب الصفحات المختصرة لتوفير الـ CPU (Elided Page Range)
+        try:
+            elided_page_range = list(paginator.get_elided_page_range(page_obj.number, on_each_side=2, on_ends=1))
+        except Exception:
+            elided_page_range = list(paginator.page_range)
+
+        return {
+            'page_obj': page_obj,
+            'paginator': paginator,
+            'per_page': per_page,
+            'is_paginated': page_obj.has_other_pages(),
+            'order_by': order_by,
+            'order_dir': order_dir,
+            'elided_page_range': elided_page_range,
+            'page_param': page_param,
+        }
+
+    # التوافق مع النمط القديم: paginate_queryset(queryset, page_size, page_number)
+    page_size = request_or_page_size
     if page_size <= 0:
         page_size = 10
-
-    if page_number <= 0:
+    if not page_number or page_number <= 0:
         page_number = 1
 
-    # حساب العدد الإجمالي والصفحات
     total_items = queryset.count()
-    total_pages = math.ceil(total_items / page_size)
+    total_pages = math.ceil(total_items / page_size) if total_items > 0 else 1
 
-    # تصحيح رقم الصفحة إذا كان أكبر من العدد الإجمالي
     if page_number > total_pages and total_pages > 0:
         page_number = total_pages
 
-    # حساب الفهارس
     start_index = (page_number - 1) * page_size
     end_index = start_index + page_size
-
-    # الحصول على عناصر الصفحة
     page_items = list(queryset[start_index:end_index])
 
     return page_items, total_items, total_pages
+
+
+def render_paginated_response(request, template_name, context, table_template_name=None, pagination_template_name="partials/pagination.html"):
+    """
+    مساعد إرجاع الاستجابات: HTML كامل للطلبات العادية، و JSON للطلبات تفاعلية (AJAX)
+    """
+    from django.shortcuts import render
+    from django.http import JsonResponse
+    from django.template.loader import render_to_string
+
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.GET.get('format') == 'json'
+
+    if is_ajax and table_template_name:
+        table_html = render_to_string(table_template_name, context, request=request)
+        pagination_html = render_to_string(pagination_template_name, context, request=request)
+        return JsonResponse({
+            'table_html': table_html,
+            'pagination_html': pagination_html,
+            'success': True,
+        })
+
+    return render(request, template_name, context)
 
 
 def generate_unique_slug(model, title, slug_field="slug", instance=None):

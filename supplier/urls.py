@@ -21,6 +21,7 @@ urlpatterns = [
     path("<int:pk>/change-account/", views.supplier_change_account, name="supplier_change_account"),
     path("<int:pk>/create-account/", views.supplier_create_account, name="supplier_create_account"),
     path("<int:pk>/aging-api/", views.supplier_aging_api, name="supplier_aging_api"),
+    path("<int:pk>/allocate-prepaid/", views.allocate_supplier_prepaid_action, name="allocate_supplier_prepaid"),
 
     # ── خدمات المورد — المرحلة الثانية ──────────────────────────────
     path("<int:pk>/services/add/",                          views.supplier_service_add,    name="supplier_service_add"),

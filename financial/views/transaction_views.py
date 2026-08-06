@@ -190,11 +190,35 @@ def journal_entries_list(request):
             total_debit = 0
             total_credit = 0
 
-        # Django pagination على مستوى database
-        from django.core.paginator import Paginator
-        paginator = Paginator(journal_entries_list, 50)  # 50 قيد في الصفحة
-        page_number = request.GET.get("page", 1)
-        page_obj = paginator.get_page(page_number)
+        # التصدير المزدوج: تصدير كافة القيود المحاسبية المفلترة من الباك إند
+        if request.GET.get('export') == 'excel':
+            from utils.export import export_queryset_to_excel
+            return export_queryset_to_excel(
+                journal_entries_list,
+                filename="journal_entries_export.xlsx",
+                fields=["number", "date", "description", "status", "created_by.username"],
+                headers=["رقم القيد", "التاريخ", "الوصف", "الحالة", "المستخدم"]
+            )
+
+        # Whitelist الفرز الأمني
+        allowed_sort_fields = {
+            'entry_number': 'number',
+            'date': 'date',
+            'financial_category': 'financial_category__name',
+            'status': 'status',
+            'created_by': 'created_by__username',
+        }
+
+        # الترقيم والفرز الـ SSR عبر المحرك المركزي
+        from core.utils import paginate_queryset, render_paginated_response
+        pagination_data = paginate_queryset(
+            journal_entries_list,
+            request,
+            default_per_page=50,
+            allowed_sort_fields=allowed_sort_fields
+        )
+
+        page_obj = pagination_data['page_obj']
         
         # تحميل القيود للصفحة الحالية فقط مع خطوطها والحسابات والمستخدمين
         journal_entries_raw = page_obj.object_list.prefetch_related(
@@ -491,18 +515,16 @@ def journal_entries_list(request):
     categories = FinancialCategory.objects.filter(is_active=True).order_by('name')
 
     context = {
+        **pagination_data,
         "journal_entries": journal_entries,
         "table_headers": table_headers,
         "table_data": table_data,
-        "headers": table_headers,  # للتوافق مع القالب القديم
+        "headers": table_headers,
         "primary_key": "id",
         "filter_form": filter_form or {},
         "status_choices": status_choices,
         "categories": categories,
-        # Django pagination
-        "page_obj": page_obj if 'page_obj' in locals() else None,
-        "paginator": paginator if 'paginator' in locals() else None,
-        # إحصائيات متقدمة
+        "show_export": True,
         "total_transactions": total_transactions if 'total_transactions' in locals() else 0,
         "total_debit": total_debit if 'total_debit' in locals() else 0,
         "total_credit": total_credit if 'total_credit' in locals() else 0,
@@ -524,7 +546,12 @@ def journal_entries_list(request):
             {"title": "القيود المحاسبية", "active": True},
         ],
     }
-    return render(request, "financial/transactions/journal_entries_list.html", context)
+    return render_paginated_response(
+        request,
+        "financial/transactions/journal_entries_list.html",
+        context,
+        table_template_name="components/data_table.html"
+    )
 
 
 @login_required

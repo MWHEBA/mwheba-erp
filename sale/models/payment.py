@@ -16,6 +16,8 @@ class SalePayment(PaymentAuditMixin, models.Model):
         ("cash", _("نقدي")),
         ("bank_transfer", _("تحويل بنكي")),
         ("check", _("شيك")),
+        ("prepaid_balance", _("رصيد مسبق")),
+        ("credit_note", _("إشعار دائن")),
     )
 
     sale = models.ForeignKey(

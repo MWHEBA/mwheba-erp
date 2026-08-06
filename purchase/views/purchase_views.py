@@ -65,10 +65,37 @@ def purchase_list(request):
     if date_to:
         purchases_query = purchases_query.filter(date__lte=date_to)
 
-    # التصفح والترقيم
-    paginator = Paginator(purchases_query, 25)
-    page_number = request.GET.get("page", 1)
-    purchases = paginator.get_page(page_number)
+    # التصدير المزدوج: تصدير كافة فواتير المشتريات المفلترة من الباك إند
+    if request.GET.get('export') == 'excel':
+        from utils.export import export_queryset_to_excel
+        return export_queryset_to_excel(
+            purchases_query,
+            filename="purchase_invoices_export.xlsx",
+            fields=["number", "created_at", "supplier.name", "total", "amount_paid", "amount_due", "payment_status"],
+            headers=["رقم الفاتورة", "التاريخ", "المورد", "الإجمالي", "المدفوع", "المتبقي", "حالة الدفع"]
+        )
+
+    # Whitelist الفرز الأمني
+    allowed_sort_fields = {
+        'number': 'number',
+        'created_at': 'created_at',
+        'supplier.name': 'supplier__name',
+        'warehouse.name': 'warehouse__name',
+        'total': 'total',
+        'amount_due': 'amount_due',
+        'payment_status': 'payment_status',
+    }
+
+    # الترقيم والفرز الـ SSR عبر المحرك المركزي
+    from core.utils import paginate_queryset, render_paginated_response
+    pagination_data = paginate_queryset(
+        purchases_query,
+        request,
+        default_per_page=25,
+        allowed_sort_fields=allowed_sort_fields
+    )
+
+    purchases = pagination_data['page_obj']
 
     # إحصائيات للعرض في الصفحة
     paid_purchases_count = Purchase.objects.filter(payment_status="paid").count()
@@ -147,52 +174,16 @@ def purchase_list(request):
         },
     ]
 
-    # تعريف أزرار الإجراءات للجدول
-    purchase_actions = [
-        {
-            "url": "purchase:purchase_detail",
-            "icon": "fa-eye",
-            "label": _("عرض"),
-            "class": "action-view",
-        },
-        {
-            "url": "purchase:purchase_edit",
-            "icon": "fa-edit",
-            "label": _("تعديل"),
-            "class": "action-edit",
-            "condition": "not_fully_paid",
-        },
-        {
-            "url": "purchase:purchase_delete",
-            "icon": "fa-trash",
-            "label": _("حذف"),
-            "class": "action-delete",
-            "condition": "no_posted_payments",
-        },
-        {
-            "url": "purchase:purchase_add_payment",
-            "icon": "fa-money-bill",
-            "label": _("إضافة دفعة"),
-            "class": "action-paid",
-            "condition": "not_fully_paid",
-        },
-    ]
-
     # تحضير بيانات الجدول
     table_data = []
     for purchase in purchases:
-        # أزرار الإجراءات لكل فاتورة
         actions = []
-
-        # زر عرض التفاصيل
         actions.append({
             'url': reverse('purchase:purchase_detail', args=[purchase.pk]),
             'icon': 'fa-eye',
             'label': 'عرض التفاصيل',
             'class': 'action-view',
         })
-
-        # زر إضافة دفعة (إذا لم تكن مدفوعة بالكامل)
         if purchase.payment_status != 'paid':
             actions.append({
                 'url': reverse('purchase:purchase_add_payment', args=[purchase.pk]),
@@ -200,8 +191,6 @@ def purchase_list(request):
                 'label': 'إضافة دفعة',
                 'class': 'action-paid',
             })
-
-        # زر الطباعة (للفواتير المدفوعة فقط)
         if purchase.payment_status == 'paid':
             actions.append({
                 'url': reverse('purchase:purchase_print', args=[purchase.pk]),
@@ -210,8 +199,6 @@ def purchase_list(request):
                 'class': 'action-print',
                 'target': '_blank',
             })
-
-        # زر نسخ الفاتورة
         actions.append({
             'url': reverse('purchase:purchase_duplicate', args=[purchase.pk]),
             'icon': 'fa-copy',
@@ -219,57 +206,22 @@ def purchase_list(request):
             'class': 'action-copy',
         })
         
-        # تحضير بيانات الصف
         row_data = {
             'id': purchase.id,
             'number': purchase.number,
             'created_at': purchase.created_at,
-            'supplier.name': purchase.supplier.name,
+            'supplier.name': purchase.supplier.name if purchase.supplier else 'غير محدد',
             'warehouse.name': purchase.warehouse.name if purchase.warehouse else 'غير محدد',
             'total': purchase.total,
             'amount_due': purchase.amount_due,
-
             'payment_status': purchase.payment_status,
             'actions': actions
         }
         table_data.append(row_data)
 
-    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        from django.template.loader import render_to_string
-        from django.http import JsonResponse
-        ctx = {
-            'table_id': 'purchases-table',
-            'headers': purchase_headers,
-            'data': table_data,
-            'empty_message': 'لا توجد فواتير مشتريات متاحة',
-            'primary_key': 'id',
-            'clickable_rows': True,
-            'row_click_url': '/purchases/0/',
-            'show_currency': True,
-            'currency_symbol': getattr(request, 'currency_symbol', 'ج.م'),
-            'disable_pagination': True,
-            'show_search': False,
-            'show_length_menu': False,
-            'sortable': False,
-        }
-        table_html = render_to_string('components/data_table.html', ctx, request=request)
-        pagination_html = ''
-        if paginator.num_pages > 1:
-            pagination_html = render_to_string('partials/pagination.html', {
-                'page_obj': purchases,
-                'align': 'center',
-            }, request=request)
-            
-        return JsonResponse({
-            'table_html': table_html,
-            'pagination_html': pagination_html,
-            'count': paginator.count,
-        })
-
     context = {
+        **pagination_data,
         "purchases": purchases,
-        "page_obj": purchases,
-        "paginator": paginator,
         "table_headers": purchase_headers,
         "table_data": table_data,
         "paid_purchases_count": paid_purchases_count,
@@ -280,11 +232,11 @@ def purchase_list(request):
         "suppliers": suppliers,
         "warehouses": Warehouse.objects.filter(is_active=True).order_by("name"),
         "purchase_headers": purchase_headers,
-        "purchase_actions": purchase_actions,
         "services_count": services_count,
         "products_count": products_count,
         "courses_count": courses_count,
         "service_types": Purchase.SERVICE_TYPES,
+        "show_export": True,
         "page_title": "فواتير المشتريات",
         "page_subtitle": "قائمة بجميع فواتير المشتريات في النظام",
         "page_icon": "fas fa-shopping-cart",
@@ -298,16 +250,20 @@ def purchase_list(request):
         ],
         "breadcrumb_items": [
             {
-                "title": "الرئيسية",
+                "title": _("الرئيسية"),
                 "url": reverse("core:dashboard"),
                 "icon": "fas fa-home",
             },
-            {"title": "المشتريات", "url": "#", "icon": "fas fa-truck"},
-            {"title": "فواتير المشتريات", "active": True},
+            {"title": _("المشتريات"), "active": True},
         ],
     }
 
-    return render(request, "purchase/purchase_list.html", context)
+    return render_paginated_response(
+        request,
+        "purchase/purchase_list.html",
+        context,
+        table_template_name="components/data_table.html"
+    )
 
 
 @login_required
@@ -472,7 +428,7 @@ def purchase_create(request, supplier_id=None):
                     return redirect("purchase:purchase_list")
 
             except Exception as e:
-                messages.error(request, f"حدث خطأ أثناء إنشاء الفاتورة: {str(e)}")
+                messages.error(request, str(e))
         else:
             messages.error(request, "يرجى تصحيح الأخطاء الموجودة في النموذج")
     else:
@@ -678,7 +634,7 @@ def allocate_supplier_prepaid_balance(request, pk):
             from supplier.services.supplier_allocation_service import SupplierAllocationService
             from decimal import Decimal
             available = purchase.supplier.available_prepaid_balance if purchase.supplier else Decimal("0.00")
-            open_amount = purchase.total - (purchase.paid_amount or Decimal("0.00"))
+            open_amount = purchase.total - (purchase.amount_paid or Decimal("0.00"))
 
             if is_auto:
                 alloc_amount = min(available, open_amount)

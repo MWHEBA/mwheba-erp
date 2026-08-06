@@ -120,13 +120,11 @@
         <li class="nav-item" role="presentation">
           <button class="nav-link fw-semibold px-3" id="journal-tab" data-bs-toggle="tab" data-bs-target="#journal-tab-pane" type="button" role="tab" aria-controls="journal-tab-pane" aria-selected="false">
             <i class="fas fa-book me-2"></i>{% trans "القيود المحاسبية" %}
-            <span class="badge rounded-pill bg-light text-secondary border ms-1">{{ journal_entries_count|default:"0" }}</span>
           </button>
         </li>
         <li class="nav-item" role="presentation">
           <button class="nav-link fw-semibold px-3" id="statement-tab" data-bs-toggle="tab" data-bs-target="#statement-tab-pane" type="button" role="tab" aria-controls="statement-tab-pane" aria-selected="false">
             <i class="fas fa-file-alt me-2"></i>{% trans "كشف الحساب" %}
-            <span class="badge rounded-pill bg-light text-secondary border ms-1">{{ transactions|length|default:"0" }}</span>
           </button>
         </li>
         <li class="nav-item" role="presentation">
@@ -282,12 +280,7 @@
         
       <!-- تاب المدفوعات -->
       <div class="tab-pane fade" id="payments-tab-pane" role="tabpanel" aria-labelledby="payments-tab" tabindex="0">
-          <div class="d-flex justify-content-between align-items-center mb-3">
-            <div class="badge bg-primary rounded-pill px-3 py-2 d-flex align-items-center">
-              <i class="fas fa-money-bill-wave me-2"></i>
-              <span>{% trans "الإجمالي:" %} {{ total_payments|currency }}</span>
-            </div>
-                    </div>
+
           
           <!-- استخدام النظام المحسن للجداول -->
           {% with table_id="customer-payments-table" %}
@@ -756,5 +749,105 @@ function createCustomerAccount(customerId) {
         showNotification('حدث خطأ أثناء إنشاء الحساب', 'error');
     });
 }
+</script>
+
+<!-- Modal تخصيص الرصيد المسبق للعميل -->
+<div class="modal fade" id="prepaidAllocationModal" tabindex="-1" aria-labelledby="prepaidAllocationModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-warning-subtle">
+                <h5 class="modal-title fw-bold" id="prepaidAllocationModalLabel">
+                    <i class="fas fa-wallet me-2 text-warning"></i>{% trans "توزيع الرصيد المسبق للعميل" %}
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="p-3 bg-light rounded mb-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div>
+                        <span class="text-muted d-block small">{% trans "الرصيد المسبق المتاح:" %}</span>
+                        <strong class="text-success fs-5">{{ unallocated_prepaid|smart_float }} {% currency_symbol %}</strong>
+                    </div>
+                    <form method="post" action="{% url 'client:allocate_customer_prepaid' customer.id %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="auto_fifo_all" value="true">
+                        <button type="submit" class="btn btn-success btn-sm">
+                            <i class="fas fa-magic me-1"></i>{% trans "تخصيص آلي على جميع الفواتير المفتوحة" %}
+                        </button>
+                    </form>
+                </div>
+                {% with open_invs=sale_invoices|default:invoices %}
+                {% if open_invs %}
+                <h6 class="fw-bold mb-2">{% trans "اختر فاتورة لتخصيص مبلغ محدد:" %}</h6>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>{% trans "تاريخ الفاتورة" %}</th>
+                                <th>{% trans "إجمالي الفاتورة" %}</th>
+                                <th>{% trans "المتبقي" %}</th>
+                                <th>{% trans "التخصيص" %}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for inv in open_invs %}
+                            {% if inv.payment_status != 'paid' %}
+                            <tr>
+                                <td><strong class="text-primary">{{ inv.number }}</strong></td>
+                                <td>{{ inv.date|date:"Y-m-d" }}</td>
+                                <td>{{ inv.total|smart_float }} {% currency_symbol %}</td>
+                                <td class="text-danger fw-bold">{{ inv.amount_due|smart_float }} {% currency_symbol %}</td>
+                                <td>
+                                    <form method="post" action="{% url 'client:allocate_customer_prepaid' customer.id %}" class="d-flex gap-1">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="sale_id" value="{{ inv.id }}">
+                                        <input type="number" step="0.01" name="amount" class="form-control form-control-sm cust-alloc-input" style="width: 120px;" max="{{ unallocated_prepaid }}" data-due="{{ inv.amount_due }}" value="{{ inv.amount_due|smart_float }}" placeholder="{{ inv.amount_due|smart_float }}" required>
+                                        <button type="submit" class="btn btn-sm btn-outline-primary">{% trans "تأكيد" %}</button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endif %}
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="alert alert-info mb-0">
+                    <i class="fas fa-info-circle me-2"></i>{% trans "لا توجد فواتير مبيعات مفتوحة حالياً لهذا العميل لتخصيص الرصيد عليها." %}
+                </div>
+                {% endif %}
+                {% endwith %}
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">{% trans "إغلاق" %}</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function fillCustomerPrepaidAllocationFIFO() {
+    let available = parseFloat("{{ unallocated_prepaid|default:'0' }}") || 0;
+    const inputs = document.querySelectorAll('#prepaidAllocationModal .cust-alloc-input');
+    inputs.forEach(input => {
+        const due = parseFloat(input.getAttribute('data-due') || '0');
+        if (available > 0 && due > 0) {
+            const alloc = Math.min(available, due);
+            input.value = alloc.toFixed(2);
+            available -= alloc;
+        } else {
+            input.value = '';
+        }
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const modalEl = document.getElementById('prepaidAllocationModal');
+    if (modalEl) {
+        modalEl.addEventListener('shown.bs.modal', function() {
+            fillCustomerPrepaidAllocationFIFO();
+        });
+    }
+});
 </script>
 {% endblock %} 

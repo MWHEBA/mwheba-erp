@@ -25,4 +25,9 @@ urlpatterns = [
         views.customer_aging_api,
         name="customer_aging_api",
     ),
+    path(
+        "<int:pk>/allocate-prepaid/",
+        views.allocate_customer_prepaid,
+        name="allocate_customer_prepaid",
+    ),
 ]

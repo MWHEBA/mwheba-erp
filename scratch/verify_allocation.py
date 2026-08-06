@@ -102,12 +102,17 @@ def run_verification():
         amount_to_allocate=Decimal("4500.00"),
         user=user
     )
+    # اختـبار عكس التخصيص للمورد والعميل
+    rev_c = CustomerAllocationAuditService.reverse_customer_allocation(audit_c.id, user=user)
+    sale.refresh_from_db()
+    print(f"[OK] Customer Reversal successful! Status: {sale.payment_status} | Reversal Audit Hash: {rev_c.evidence_hash[:16]}...")
+
+    rev_s = SupplierAllocationService.reverse_supplier_allocation(audit_s.id, user=user)
     purchase.refresh_from_db()
     adv.refresh_from_db()
-    print(f"[OK] Supplier allocation successful! Status: {purchase.payment_status} | Remaining Advance: {adv.remaining_amount} EGP")
-    print(f"[OK] Supplier Audit Hash SHA256: {audit_s.evidence_hash[:16]}...")
+    print(f"[OK] Supplier Reversal successful! Status: {purchase.payment_status} | Restored Advance Balance: {adv.remaining_amount} EGP")
 
-    print("=== اكتمل الفحص والتحقق بنجاح 100% ===")
+    print("=== اكتمل الفحص والتحقق الكامل بما فيه محرك العكس 100% ===")
 
 if __name__ == "__main__":
     run_verification()

@@ -12,6 +12,14 @@ class PurchasePayment(PaymentAuditMixin, models.Model):
     نموذج مدفوعات فواتير المشتريات
     """
 
+    PAYMENT_METHODS = (
+        ("cash", _("نقدي")),
+        ("bank_transfer", _("تحويل بنكي")),
+        ("check", _("شيك")),
+        ("prepaid_balance", _("رصيد مسبق للمورد")),
+        ("debit_note", _("إشعار خصم")),
+    )
+
     purchase = models.ForeignKey(
         "purchase.Purchase",
         on_delete=models.CASCADE,
@@ -138,7 +146,7 @@ class PurchasePayment(PaymentAuditMixin, models.Model):
     def source_display_info(self) -> str:
         """الوصف الشفاف المحسن لمصدر الدفعة"""
         if self.source_type == "PREPAID_BALANCE":
-            return f"خصم من رصيد المورد المسبق"
+            return f"رصيد المورد المسبق"
         elif self.source_type == "DEBIT_NOTE":
             ref = f" ({self.reference_number})" if self.reference_number else ""
             return f"تسوية إشعار خصم{ref}"

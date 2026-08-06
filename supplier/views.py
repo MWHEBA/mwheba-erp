@@ -52,34 +52,55 @@ def supplier_list(request):
     elif has_debt == "0":
         suppliers = suppliers.filter(balance__lte=0)
 
-    # ترتيب النتائج
-    if order_by:
-        order_field = f"-{order_by}" if order_dir == "desc" else order_by
-        suppliers = suppliers.order_by(order_field)
-    else:
-        suppliers = suppliers.order_by("-balance")
-
-    # إضافة عدد الخدمات لكل مورد
-    from supplier.models import SupplierService
-    services_counts = {
-        row['supplier_id']: row['cnt']
-        for row in SupplierService.objects.filter(is_active=True).values('supplier_id').annotate(cnt=models.Count('id'))
-    }
-    for s in suppliers:
-        cnt = services_counts.get(s.pk, 0)
-        s.services_count = f'<span class="badge bg-{"warning text-dark" if cnt > 0 else "secondary"}">{cnt}</span>'
+    # التصدير المزدوج: تصدير كافة البيانات المفلترة من الباك إند
+    if request.GET.get('export') == 'excel':
+        from utils.export import export_queryset_to_excel
+        return export_queryset_to_excel(
+            suppliers,
+            filename="suppliers_export.xlsx",
+            fields=["code", "name", "phone", "address", "balance", "is_preferred", "is_active"],
+            headers=["الكود", "اسم المورد", "رقم الهاتف", "العنوان", "الاستحقاق", "مفضل", "نشط"]
+        )
 
     active_suppliers = suppliers.filter(is_active=True).count()
     preferred_suppliers = suppliers.filter(is_preferred=True).count()
     total_debt = suppliers.aggregate(total=models.Sum('balance'))['total'] or 0
     total_purchases = 0
 
-    # DB-level pagination
-    from django.core.paginator import Paginator
-    paginator = Paginator(suppliers, 25)
-    page_number = request.GET.get('page', 1)
-    page_obj = paginator.get_page(page_number)
-    suppliers = page_obj
+    # Whitelist الفرز الأمني
+    allowed_sort_fields = {
+        'name': 'name',
+        'code': 'code',
+        'is_preferred': 'is_preferred',
+        'actual_balance': 'balance',
+        'is_active': 'is_active',
+    }
+
+    # الترقيم والفرز الـ SSR عبر المحرك المركزي
+    from core.utils import paginate_queryset, render_paginated_response
+    pagination_data = paginate_queryset(
+        suppliers,
+        request,
+        default_per_page=25,
+        allowed_sort_fields=allowed_sort_fields
+    )
+
+    page_obj = pagination_data['page_obj']
+
+    # إضافة عدد الخدمات كعناصر سريعة لصفحة العرض الحالية فقط (تحسين أداء كبير)
+    from supplier.models import SupplierService
+    services_counts = {
+        row['supplier_id']: row['cnt']
+        for row in SupplierService.objects.filter(
+            supplier_id__in=[s.pk for s in page_obj],
+            is_active=True
+        ).values('supplier_id').annotate(cnt=models.Count('id'))
+    }
+    for s in page_obj:
+        cnt = services_counts.get(s.pk, 0)
+        s.services_count = f'<span class="badge bg-{"warning text-dark" if cnt > 0 else "secondary"}">{cnt}</span>'
+
+    suppliers_page = page_obj
 
     # جلب أنواع الموردين للفلتر من الإعدادات الديناميكية
     supplier_types = SupplierType.objects.filter(
@@ -146,23 +167,6 @@ def supplier_list(request):
         },
     ]
 
-    # Ajax response - بعد تعريف headers و action_buttons
-    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
-        table_html = render_to_string('supplier/core/partials/supplier_table.html', {
-            'suppliers': suppliers,
-            'headers': headers,
-            'action_buttons': action_buttons,
-        }, request=request)
-        pagination_html = render_to_string('partials/pagination.html', {
-            'page_obj': page_obj,
-            'align': 'center',
-        }, request=request) if paginator.num_pages > 1 else ''
-        return JsonResponse({
-            'table_html': table_html,
-            'pagination_html': pagination_html,
-            'count': paginator.count,
-        })
-
     from core.models import SystemSetting
     daftra_enabled = SystemSetting.get_setting('daftra_enabled', 'false') == 'true'
     supplier_header_buttons = [
@@ -182,9 +186,8 @@ def supplier_list(request):
         })
 
     context = {
-        "suppliers": suppliers,
-        "page_obj": page_obj,
-        "paginator": paginator,
+        **pagination_data,
+        "suppliers": suppliers_page,
         "headers": headers,
         "action_buttons": action_buttons,
         "active_suppliers": active_suppliers,
@@ -192,8 +195,7 @@ def supplier_list(request):
         "total_debt": total_debt,
         "total_purchases": total_purchases,
         "supplier_types": supplier_types,
-        "current_order_by": order_by,
-        "current_order_dir": order_dir,
+        "show_export": True,
         # بيانات الهيدر
         "page_title": "قائمة الموردين",
         "page_subtitle": "إدارة الموردين وعرض بياناتهم ومعاملاتهم المالية",
@@ -490,26 +492,19 @@ def supplier_detail(request, pk):
             "payment_date": pp.payment_date,
             "created_at": pp.created_at,
             "amount": pp.amount,
-            "payment_method": pp.payment_method,
+            "payment_method": pp.source_display_info if hasattr(pp, "source_display_info") else "رصيد المورد المسبق",
             "reference_number": pp.reference_number or f"PAY-{pp.id}",
             "notes": pp.notes or "-",
             "purchase_number": pp.purchase.number if pp.purchase else "-",
             "type_display": "سداد فاتورة",
         })
 
-    payments_list.sort(key=lambda x: str(x["payment_date"] or ""), reverse=True)
-    total_payments = sum(pp.amount for pp in purchase_payments)
+    total_payments = sum(
+        pp.amount for pp in purchase_payments
+        if pp.payment_method != "prepaid_balance" and getattr(pp, "source_type", None) != "PREPAID_BALANCE"
+    )
 
-    # حساب المبالغ مسبقة الدفع الغير موزعة على الفواتير للمورد
-    from supplier.models import SupplierTransaction
-    unallocated_prepaid = Decimal("0.00")
-    subledger_unallocated = SupplierTransaction.objects.filter(
-        supplier=supplier,
-        transaction_type__in=["ADVANCE", "PAYMENT"],
-        status__in=["OPEN", "PARTIAL"],
-    ).aggregate(total=Sum("open_amount"))["total"] or Decimal("0.00")
 
-    unallocated_prepaid = max(unallocated_prepaid, subledger_unallocated)
 
     # جلب فواتير الشراء المرتبطة بالمورد
     purchases = Purchase.objects.filter(supplier=supplier).order_by("-date")
@@ -779,7 +774,7 @@ def supplier_detail(request, pk):
             payment_method_display = "غير محدد"
         
         # تنسيق رقم الفاتورة كـ HTML
-        purchase_number_html = f'<a href="{reverse("purchase:purchase_detail", args=[payment.purchase.id])}" class="text-decoration-none"><code class="bg-light px-2 py-1 rounded">{payment.purchase.number}</code></a>' if payment.purchase else "لا يوجد"
+        purchase_number_html = f'<a href="{reverse("purchase:purchase_detail", args=[payment.purchase.id])}" class="text-decoration-none text-nowrap"><code class="bg-light px-2 py-1 rounded text-nowrap" style="white-space: nowrap !important;">{payment.purchase.number}</code></a>' if payment.purchase else "لا يوجد"
         
         payments_data.append({
             "id": payment.id,
@@ -811,9 +806,9 @@ def supplier_detail(request, pk):
             "key": "purchase__number",
             "label": "رقم الفاتورة",
             "sortable": True,
-            "class": "text-center",
+            "class": "text-center text-nowrap",
             "format": "html",
-            "width": "130px",
+            "width": "150px",
         },
         {
             "key": "amount",
@@ -1454,8 +1449,8 @@ def supplier_detail(request, pk):
             "action_text": "توزيع",
             "action_icon": "fas fa-random",
             "action_class": "bg-warning-subtle text-dark border border-warning-subtle",
-            "action_onclick": "if(document.getElementById('payments-tab')){ document.getElementById('payments-tab').click(); const el = document.getElementById('payments-tab-pane'); if(el) el.scrollIntoView({behavior: 'smooth'}); }",
-            "action_title": "الانتقال لقائمة المدفوعات لتوزيع الرصيد المسبق",
+            "action_onclick": f"const m = document.getElementById('prepaidAllocationModal'); if(m){{ new bootstrap.Modal(m).show(); }} else {{ const form = document.createElement('form'); form.method = 'POST'; form.action = '{reverse('supplier:allocate_supplier_prepaid', kwargs={'pk': supplier.id})}'; const csrf = document.querySelector('[name=csrfmiddlewaretoken]'); if(csrf) form.appendChild(csrf.cloneNode()); const auto = document.createElement('input'); auto.type='hidden'; auto.name='auto_fifo_all'; auto.value='true'; form.appendChild(auto); document.body.appendChild(form); form.submit(); }}",
+            "action_title": "توزيع الرصيد المسبق على الفواتير المفتوحة",
         })
     context["header_badges"] = header_badges
     
@@ -2260,4 +2255,76 @@ def supplier_aging_api(request, pk):
             'total_balance': float(row.get('total_balance') or 0),
         }
     })
+
+
+@login_required
+def allocate_supplier_prepaid_action(request, pk):
+    """
+    تخصيص الدفعات المقدمة للمورد على الفواتير المفتوحة (تخصيص آلي أو محدد)
+    """
+    supplier = get_object_or_404(Supplier, pk=pk)
+    if request.method == "POST":
+        from purchase.models import Purchase
+        from supplier.services.supplier_allocation_service import SupplierAllocationService
+        from decimal import Decimal
+
+        purchase_id = request.POST.get("purchase_id")
+        auto_fifo_all = request.POST.get("auto_fifo_all") == "true"
+        amount_str = request.POST.get("amount")
+
+        open_purchases = Purchase.objects.filter(
+            supplier=supplier,
+            payment_status__in=["unpaid", "partially_paid"]
+        ).order_by("date", "id")
+
+        if not open_purchases.exists():
+            messages.warning(request, _("لا توجد فواتير مشتريات مفتوحة لهذا المورد لتخصيص الرصيد عليها."))
+            return redirect("supplier:supplier_detail", pk=pk)
+
+        allocated_count = 0
+        total_allocated_sum = Decimal("0.00")
+
+        if auto_fifo_all:
+            for purchase in open_purchases:
+                avail = supplier.available_prepaid_balance
+                if avail <= Decimal("0.00"):
+                    break
+                due = purchase.amount_due
+                if due <= Decimal("0.00"):
+                    continue
+                alloc = min(avail, due)
+                try:
+                    SupplierAllocationService.allocate_advance_to_purchase_bill(
+                        purchase=purchase,
+                        amount_to_allocate=alloc,
+                        user=request.user
+                    )
+                    allocated_count += 1
+                    total_allocated_sum += alloc
+                except Exception as e:
+                    logger.warning(f"Failed to allocate prepaid to purchase #{purchase.id}: {str(e)}")
+            if allocated_count > 0:
+                messages.success(request, f"تم تخصيص إجمالي {total_allocated_sum} ج.م من دفعات المورد المقدمة على {allocated_count} فاتورة مفتوحة بنجاح.")
+            else:
+                messages.info(request, "لم يتم إجراء تخصيصات جديدة.")
+        elif purchase_id:
+            purchase = get_object_or_404(Purchase, pk=purchase_id, supplier=supplier)
+            avail = supplier.available_prepaid_balance
+            alloc = Decimal(amount_str) if amount_str else min(avail, purchase.amount_due)
+            if alloc <= Decimal("0.00"):
+                messages.error(request, "يرجى إدخال مبلغ تخصيص أكبر من صفر.")
+            elif alloc > avail:
+                messages.error(request, f"المبلغ المطلوب ({alloc}) يتجاوز رصيد الدفعات المقدمة المتاح ({avail}).")
+            else:
+                try:
+                    SupplierAllocationService.allocate_advance_to_purchase_bill(
+                        purchase=purchase,
+                        amount_to_allocate=alloc,
+                        user=request.user
+                    )
+                    messages.success(request, f"تم تخصيص {alloc} ج.م من الدفعات المقدمة على الفاتورة #{purchase.number} بنجاح.")
+                except Exception as e:
+                    messages.error(request, f"حدث خطأ أثناء التخصيص: {str(e)}")
+
+    return redirect("supplier:supplier_detail", pk=pk)
 

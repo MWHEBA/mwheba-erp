@@ -6,6 +6,8 @@
 {% load utils_extras %}
 {% block title %}{{ page_title }}{% endblock %}
 
+{% block messages %}{% endblock %}
+
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
 <link rel="stylesheet" href="{% static 'css/forms.css' %}">
@@ -156,12 +158,13 @@
                             </label>
                             {% if sale.id %}
                                 <input type="text" class="form-control bg-light" value="{{ sale.customer.name }}" readonly>
-                                <input type="hidden" name="customer" value="{{ sale.customer.id }}">
+                                <input type="hidden" name="customer" id="id_customer" value="{{ sale.customer.id }}" data-prepaid-balance="{{ sale.customer.available_prepaid_balance|default:'0' }}">
                             {% else %}
                                 <select name="customer" id="id_customer" class="form-control" required>
                                     <option value="">اختر العميل</option>
                                     {% for customer in customers %}
                                         <option value="{{ customer.id }}"
+                                            data-prepaid-balance="{{ customer.available_prepaid_balance|default:'0' }}"
                                             {% if form.customer.value == customer.id|stringformat:'s' or selected_customer.id == customer.id %}selected{% endif %}>
                                             {{ customer.name }}
                                         </option>
@@ -345,8 +348,8 @@
                         <i class="fa fa-plus"></i> إضافة بند
                     </button>
 
-                    <div class="row total-section mt-4 g-4">
-                        <div class="col-lg-8 col-md-12">
+                    <div class="row total-section mt-4 g-4 align-items-stretch">
+                        <div class="col-lg-8 col-md-12 d-flex flex-column">
                             <!-- التبويبات الموحدة -->
                             <ul class="nav nav-tabs border-bottom-0" id="totalSectionTabs" role="tablist">
                                 <li class="nav-item" role="presentation">
@@ -368,7 +371,7 @@
                                 {% endif %}
                             </ul>
                             <input type="hidden" name="custom_fields_json" id="custom_fields_json" value="">
-                            <div class="tab-content p-3 bg-light border rounded-bottom" id="totalSectionTabsContent">
+                            <div class="tab-content p-3 bg-light border rounded-bottom flex-fill d-flex flex-column justify-content-between" id="totalSectionTabsContent">
                                 <!-- تبويب الخصم والتسوية -->
                                 <div class="tab-pane fade show active" id="tab-discount" role="tabpanel" aria-labelledby="discount-tab">
                                     <div class="row g-3">
@@ -405,7 +408,7 @@
                                     </div>
                                 </div>
                                 <!-- تبويب الملاحظات والشروط -->
-                                <div class="tab-pane fade" id="tab-notes" role="tabpanel" aria-labelledby="notes-tab">
+                                <div class="tab-pane fade h-100" id="tab-notes" role="tabpanel" aria-labelledby="notes-tab">
                                     {% include "partials/editor.html" with id="id_notes" name="notes" value=form.notes.value|default:'' placeholder="أضف أي ملاحظات أو شروط إضافية تظهر في الفاتورة..." height=180 toolbar="basic" %}
                                 </div>
                                 <!-- تبويب الحقول الإضافية -->
@@ -425,7 +428,7 @@
                             </div>
                         </div>
 
-                        <div class="col-lg-4 col-md-12">
+                        <div class="col-lg-4 col-md-12 d-flex flex-column">
                             <!-- رأس ملخص الإجماليات المتناسق -->
                             <ul class="nav nav-tabs border-bottom-0" role="tablist">
                                 <li class="nav-item" role="presentation">
@@ -434,7 +437,7 @@
                                     </span>
                                 </li>
                             </ul>
-                            <div class="p-3 bg-light border rounded-bottom">
+                            <div class="p-3 bg-light border rounded-bottom flex-fill d-flex flex-column justify-content-between">
                                 <div class="row mb-2">
                                     <div class="col-6 text-end"><strong style="white-space: nowrap;">المجموع الفرعي:</strong></div>
                                     <div class="col-6 text-end">
@@ -941,7 +944,8 @@
 
         // ===== ربط الأحداث =====
         function bindEventHandlers() {
-            $('.quantity, .unit-price, .item-discount').off('input').on('input', function() {
+            $(document).off('input.itemCalc', '#items-container .quantity, #items-container .unit-price, #items-container .item-discount')
+                       .on('input.itemCalc', '#items-container .quantity, #items-container .unit-price, #items-container .item-discount', function() {
                 var row = $(this).closest('.item-row');
                 calculateRowTotal(row);
 
@@ -954,9 +958,13 @@
                     } else {
                         var stock = parseInt(prodInput.attr('data-stock') || 0);
                         if (quantity > stock && stock > 0) {
-                            row.find('.stock-info').html('<span class="stock-warning">تحذير: الكمية المطلوبة أكبر من المخزون المتاح (' + stock + ')</span>');
+                            row.find('.stock-info').html('<span class="stock-warning">الكمية أكبر من المخزون المتاح (' + stock + ')</span>');
                         } else {
-                            renderStockInfo(row, stock);
+                            if (typeof renderStockInfo === 'function') {
+                                renderStockInfo(row, stock);
+                            } else if (typeof window.renderStockInfo === 'function') {
+                                window.renderStockInfo(row, stock);
+                            }
                         }
                     }
                 }
@@ -1118,6 +1126,22 @@
                 }
             }
 
+            if (paymentMethod === 'PREPAID_BALANCE') {
+                var selectedOpt = $('#id_customer option:selected');
+                var availablePrepaid = parseFloat(selectedOpt.data('prepaid-balance') || $('#id_customer').data('prepaid-balance') || '0');
+                var reqAmount = (invoiceType === 'cash') ? grandTotal : (invoiceType === 'credit_with_downpayment' ? downPaymentAmount : 0);
+
+                if (reqAmount > 0 && availablePrepaid < reqAmount) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'الرصيد المسبق غير كافٍ',
+                        html: 'رصيد العميل المسبق المتاح (<strong>' + smartFloat(availablePrepaid) + ' ' + currencySymbol + '</strong>) غير كافٍ لسداد المبلغ المطلوب (<strong>' + smartFloat(reqAmount) + ' ' + currencySymbol + '</strong>).',
+                        confirmButtonText: 'حسناً'
+                    });
+                    e.preventDefault(); return false;
+                }
+            }
+
             $('.item-row').each(function(index) {
                 var row = $(this);
                 var prodInput = row.find('.product-id-input');
@@ -1269,5 +1293,53 @@
         }
     })();
 </script>
+
+{% if form.errors or messages %}
+<div id="django-server-errors" class="d-none">
+    {% if form.errors %}
+        {% for field, errors in form.errors.items %}
+            {% for error in errors %}
+                <span class="django-error-item">{{ error }}</span>
+            {% endfor %}
+        {% endfor %}
+    {% endif %}
+    {% if messages %}
+        {% for message in messages %}
+            {% if message.tags == 'error' or 'error' in message.tags or 'danger' in message.tags %}
+                <span class="django-error-item">{{ message }}</span>
+            {% endif %}
+        {% endfor %}
+    {% endif %}
+</div>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var errorEls = document.querySelectorAll('#django-server-errors .django-error-item');
+        if (errorEls.length > 0) {
+            var rawMessages = Array.from(errorEls).map(function(el) { return el.textContent.trim(); });
+            var cleanedMessages = rawMessages.map(function(msg) {
+                return msg.replace(/^حدث خطأ أثناء (إنشاء|تحديث|حفظ) الفاتورة:\s*/i, '')
+                          .replace(/^حدث خطأ:\s*/i, '');
+            });
+
+            var fullText = cleanedMessages.join(' ');
+            var modalTitle = 'تعذر حفظ الفاتورة';
+            if (fullText.includes('رصيد') && (fullText.includes('غير كافٍ') || fullText.includes('غير كافي'))) {
+                modalTitle = 'الرصيد المسبق غير كافٍ';
+            } else if (fullText.includes('مخزون') || fullText.includes('الكمية')) {
+                modalTitle = 'تنبيه في المخزون';
+            } else if (fullText.includes('مبلغ') || fullText.includes('يتجاوز')) {
+                modalTitle = 'مبلغ الدفعة غير صحيح';
+            }
+
+            Swal.fire({
+                icon: 'error',
+                title: modalTitle,
+                html: '<div class="text-center fs-6 fw-medium text-dark py-2">' + cleanedMessages.map(function(m){ return '<div>' + m + '</div>'; }).join('') + '</div>',
+                confirmButtonText: 'حسناً'
+            });
+        }
+    });
+</script>
+{% endif %}
 
 {% endblock %}

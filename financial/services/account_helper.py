@@ -23,30 +23,67 @@ class AccountHelperService:
     """خدمة مساعدة للتعامل مع الحسابات"""
 
     @staticmethod
-    def get_cash_and_bank_accounts():
-        """الحصول على الحسابات النقدية والبنكية"""
+    def get_cash_accounts():
+        """الحصول على الحسابات النقدية والصناديق والعهد المالية المفعلة والنهائية فقط"""
         if NEW_SYSTEM_AVAILABLE:
             try:
                 return (
                     ChartOfAccounts.objects.filter(is_active=True, is_leaf=True)
                     .filter(
                         models.Q(is_cash_account=True)
-                        | models.Q(is_bank_account=True)
+                        | models.Q(account_type__code__iexact="cash")
                         | models.Q(account_type__name__icontains="نقدي")
-                        | models.Q(account_type__name__icontains="بنك")
                         | models.Q(account_type__name__icontains="صندوق")
+                        | models.Q(account_type__name__icontains="خزينة")
+                        | models.Q(account_type__name__icontains="عهدة")
                     )
                     .order_by("code")
                 )
             except Exception:
                 pass
+        return ChartOfAccounts.objects.none()
 
-        # التراجع للنظام القديم غير متاح
+    @staticmethod
+    def get_bank_accounts():
+        """الحصول على الحسابات البنكية والمحافظ المفعلة والنهائية فقط"""
+        if NEW_SYSTEM_AVAILABLE:
+            try:
+                return (
+                    ChartOfAccounts.objects.filter(is_active=True, is_leaf=True)
+                    .filter(
+                        models.Q(is_bank_account=True)
+                        | models.Q(account_type__code__iexact="bank")
+                        | models.Q(account_type__name__icontains="بنك")
+                        | models.Q(account_type__name__icontains="مصرف")
+                    )
+                    .order_by("code")
+                )
+            except Exception:
+                pass
+        return ChartOfAccounts.objects.none()
+
+    @staticmethod
+    def get_cash_and_bank_accounts():
+        """الحصول على جميع الحسابات النقدية والبنكية المفعلة والنهائية"""
+        cash_qs = AccountHelperService.get_cash_accounts()
+        bank_qs = AccountHelperService.get_bank_accounts()
+        if NEW_SYSTEM_AVAILABLE:
+            try:
+                return (
+                    ChartOfAccounts.objects.filter(is_active=True, is_leaf=True)
+                    .filter(
+                        models.Q(id__in=cash_qs.values_list('id', flat=True))
+                        | models.Q(id__in=bank_qs.values_list('id', flat=True))
+                    )
+                    .order_by("code")
+                )
+            except Exception:
+                pass
         return ChartOfAccounts.objects.none()
 
     @staticmethod
     def get_all_active_accounts():
-        """الحصول على جميع الحسابات النشطة"""
+        """الحصول على جميع الحسابات النشطة والنهائية"""
         if NEW_SYSTEM_AVAILABLE:
             try:
                 return ChartOfAccounts.objects.filter(
@@ -54,8 +91,6 @@ class AccountHelperService:
                 ).order_by("code")
             except Exception:
                 pass
-
-        # التراجع للنظام القديم غير متاح
         return ChartOfAccounts.objects.none()
 
     @staticmethod
@@ -68,36 +103,6 @@ class AccountHelperService:
                 ).order_by("code")
             except Exception:
                 pass
-
-        # التراجع للنظام القديم غير متاح
-        return ChartOfAccounts.objects.none()
-
-    @staticmethod
-    def get_bank_accounts():
-        """الحصول على الحسابات البنكية فقط"""
-        if NEW_SYSTEM_AVAILABLE:
-            try:
-                return ChartOfAccounts.objects.filter(
-                    is_active=True, is_leaf=True, is_bank_account=True
-                ).order_by("code")
-            except Exception:
-                pass
-
-        # التراجع للنظام القديم غير متاح
-        return ChartOfAccounts.objects.none()
-
-    @staticmethod
-    def get_cash_accounts():
-        """الحصول على الحسابات النقدية فقط"""
-        if NEW_SYSTEM_AVAILABLE:
-            try:
-                return ChartOfAccounts.objects.filter(
-                    is_active=True, is_leaf=True, is_cash_account=True
-                ).order_by("code")
-            except Exception:
-                pass
-
-        # التراجع للنظام القديم غير متاح
         return ChartOfAccounts.objects.none()
 
     @staticmethod
@@ -110,24 +115,41 @@ class AccountHelperService:
                 ).first()
             except Exception:
                 pass
-
-        # التراجع للنظام القديم غير متاح
         return None
 
     @staticmethod
     def get_default_cash_account():
-        """الحصول على الحساب النقدي الافتراضي"""
-        # البحث عن حساب الخزينة أولاً
-        account = AccountHelperService.find_account_by_name("خزينة")
+        """الحصول على الحساب النقدي الافتراضي بسلسلة سقوط احترافي Fallback"""
+        if not NEW_SYSTEM_AVAILABLE:
+            return None
+
+        # 1. محاولة جلب الحساب المربوط بديناميكية الأدوار
+        try:
+            from financial.services.role_registry import AccountRoleRegistry
+            def_code = AccountRoleRegistry.resolve_role_code("DEFAULT_CASH_DRAWER")
+            if def_code:
+                acc = ChartOfAccounts.objects.filter(code=def_code, is_active=True, is_leaf=True).first()
+                if acc:
+                    return acc
+        except Exception:
+            pass
+
+        # 2. كود 10100 الافتراضي
+        acc = ChartOfAccounts.objects.filter(code="10100", is_active=True, is_leaf=True).first()
+        if acc:
+            return acc
+
+        # 3. البحث عن حساب باسم "خزينة" أو "صندوق"
+        account = AccountHelperService.find_account_by_name("خزينة") or AccountHelperService.find_account_by_name("صندوق")
         if account:
             return account
 
-        # البحث عن أي حساب نقدي
+        # 4. أول حساب نقدي فاعل
         cash_accounts = AccountHelperService.get_cash_accounts()
         if cash_accounts.exists():
             return cash_accounts.first()
 
-        # البحث عن أي حساب نقدي أو بنكي
+        # 5. أول حساب بنكي أو نقدي متاح
         cash_bank_accounts = AccountHelperService.get_cash_and_bank_accounts()
         if cash_bank_accounts.exists():
             return cash_bank_accounts.first()

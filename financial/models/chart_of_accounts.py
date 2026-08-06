@@ -220,6 +220,13 @@ class ChartOfAccounts(models.Model):
 
         super().save(*args, **kwargs)
 
+        # مسح كاش الخزن والبنوك لضمان الظهور الفوري عند التعديل
+        try:
+            from django.core.cache import cache
+            cache.delete('payment_accounts_data_v2')
+        except Exception:
+            pass
+
     @property
     def full_code(self):
         """الكود الكامل مع الأب"""

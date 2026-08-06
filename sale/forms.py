@@ -173,22 +173,16 @@ class SaleForm(forms.ModelForm):
         if warehouses.exists() and not self.initial.get("warehouse"):
             self.initial["warehouse"] = warehouses.first().pk
 
-        # إعداد خيارات طريقة الدفع (حسابات الخزائن والبنوك)
+        # إعداد خيارات طريقة الدفع (حسابات الخزائن والبنوك والرصيد المسبق)
         payment_choices = [
             ('', 'اختر حساب الدفع (الخزينة/البنك)'),
+            ('PREPAID_BALANCE', '💳 رصيد مسبق / دفعة مقدمة'),
         ]
         
-        # إضافة حسابات الدفع من النظام المالي
+        # إضافة حسابات الدفع من النظام المالي المركزي
         try:
-            from financial.models import ChartOfAccounts
-            payment_accounts = ChartOfAccounts.objects.filter(
-                models.Q(is_cash_account=True) |
-                models.Q(is_bank_account=True) |
-                models.Q(account_type__code__in=['cash', 'bank', 'AST']) |
-                models.Q(account_type__category='asset'),
-                is_active=True
-            ).order_by('code')
-            
+            from financial.services.account_helper import AccountHelperService
+            payment_accounts = AccountHelperService.get_cash_and_bank_accounts()
             for account in payment_accounts:
                 payment_choices.append((account.code, f"{account.name} ({account.code})"))
         except Exception:

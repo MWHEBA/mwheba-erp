@@ -158,6 +158,10 @@
 
                 $container.append($newRow);
 
+                if (typeof window.bindEventHandlers === 'function') {
+                    window.bindEventHandlers();
+                }
+
                 if (typeof window.calculateTotals === 'function') {
                     window.calculateTotals();
                 }

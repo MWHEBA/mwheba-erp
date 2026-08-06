@@ -23,8 +23,8 @@ if (typeof window.GlobalTableManager === 'undefined') {
      */
     const defaultConfig = {
         responsive: true,
-        pageLength: 20,
-        lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "الكل"]],
+        paging: false,
+        info: false,
         order: [[0, 'asc']],
         language: {
             search: "البحث:",
@@ -43,8 +43,7 @@ if (typeof window.GlobalTableManager === 'undefined') {
             processing: "جاري المعالجة...",
             loadingRecords: "جاري التحميل..."
         },
-        dom: '<"row"<"col-sm-12"tr>>' +
-             '<"row"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>',
+        dom: 't',
         searching: true,
         lengthChange: false,
         ordering: true,
@@ -553,14 +552,6 @@ if (typeof window.exportTableToExcel === 'undefined') {
  * Setup export button event listeners
  * Automatically binds click events to export buttons
  */
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function() {
-        setupExportButtons();
-    });
-} else {
-    setupExportButtons();
-}
-
 function setupExportButtons() {
     // CSV export buttons
     document.addEventListener('click', function(e) {
@@ -577,4 +568,48 @@ function setupExportButtons() {
             window.GlobalTableManager.exportToExcel(tableId, filename);
         }
     });
+}
+
+/**
+ * Setup unified pagination event listeners & popstate handling
+ */
+function setupUnifiedPaginationListeners() {
+    // Event Delegation لتغيير عدد العناصر (per-page-select)
+    document.addEventListener('change', function(e) {
+        if (e.target && e.target.classList.contains('per-page-select')) {
+            const select = e.target;
+            const perPage = select.value;
+            const pageParam = select.getAttribute('data-page-param') || 'page';
+            
+            const url = new URL(window.location.href);
+            url.searchParams.set('per_page', perPage);
+            url.searchParams.set(pageParam, '1'); // Reset to page 1 on per_page change
+            
+            if (typeof window.doSearch === 'function') {
+                window.doSearch(url.searchParams.toString());
+            } else {
+                window.location.href = url.toString();
+            }
+        }
+    });
+
+    // Event Delegation لحدث popstate في المتصفح (زر Back / Forward)
+    window.addEventListener('popstate', function() {
+        if (typeof window.doSearch === 'function') {
+            const url = new URL(window.location.href);
+            window.doSearch(url.searchParams.toString());
+        } else {
+            window.location.reload();
+        }
+    });
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function() {
+        setupExportButtons();
+        setupUnifiedPaginationListeners();
+    });
+} else {
+    setupExportButtons();
+    setupUnifiedPaginationListeners();
 }

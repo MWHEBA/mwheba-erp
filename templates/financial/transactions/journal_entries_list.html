@@ -108,46 +108,9 @@
       </div>
       
       <!-- Django Pagination -->
-      {% if paginator and paginator.num_pages > 1 %}
-      <div class="card-footer">
-        <nav aria-label="Page navigation">
-          <ul class="pagination justify-content-center mb-0">
-            {% if page_obj.has_previous %}
-              <li class="page-item">
-                <a class="page-link" href="?page=1{% if filter_form.status %}&status={{ filter_form.status }}{% endif %}{% if filter_form.search %}&search={{ filter_form.search }}{% endif %}{% if filter_form.date_from %}&date_from={{ filter_form.date_from }}{% endif %}{% if filter_form.date_to %}&date_to={{ filter_form.date_to }}{% endif %}{% if filter_form.category %}&category={{ filter_form.category }}{% endif %}{% if filter_form.reversal_type %}&reversal_type={{ filter_form.reversal_type }}{% endif %}">الأول</a>
-              </li>
-              <li class="page-item">
-                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if filter_form.status %}&status={{ filter_form.status }}{% endif %}{% if filter_form.search %}&search={{ filter_form.search }}{% endif %}{% if filter_form.date_from %}&date_from={{ filter_form.date_from }}{% endif %}{% if filter_form.date_to %}&date_to={{ filter_form.date_to }}{% endif %}{% if filter_form.category %}&category={{ filter_form.category }}{% endif %}">السابق</a>
-              </li>
-            {% endif %}
-            
-            {% for num in page_obj.paginator.page_range %}
-              {% if page_obj.number == num %}
-                <li class="page-item active"><span class="page-link">{{ num }}</span></li>
-              {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
-                <li class="page-item">
-                  <a class="page-link" href="?page={{ num }}{% if filter_form.status %}&status={{ filter_form.status }}{% endif %}{% if filter_form.search %}&search={{ filter_form.search }}{% endif %}{% if filter_form.date_from %}&date_from={{ filter_form.date_from }}{% endif %}{% if filter_form.date_to %}&date_to={{ filter_form.date_to }}{% endif %}{% if filter_form.category %}&category={{ filter_form.category }}{% endif %}">{{ num }}</a>
-                </li>
-              {% endif %}
-            {% endfor %}
-            
-            {% if page_obj.has_next %}
-              <li class="page-item">
-                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if filter_form.status %}&status={{ filter_form.status }}{% endif %}{% if filter_form.search %}&search={{ filter_form.search }}{% endif %}{% if filter_form.date_from %}&date_from={{ filter_form.date_from }}{% endif %}{% if filter_form.date_to %}&date_to={{ filter_form.date_to }}{% endif %}{% if filter_form.category %}&category={{ filter_form.category }}{% endif %}">التالي</a>
-              </li>
-              <li class="page-item">
-                <a class="page-link" href="?page={{ paginator.num_pages }}{% if filter_form.status %}&status={{ filter_form.status }}{% endif %}{% if filter_form.search %}&search={{ filter_form.search }}{% endif %}{% if filter_form.date_from %}&date_from={{ filter_form.date_from }}{% endif %}{% if filter_form.date_to %}&date_to={{ filter_form.date_to }}{% endif %}{% if filter_form.category %}&category={{ filter_form.category }}{% endif %}">الأخير</a>
-              </li>
-            {% endif %}
-          </ul>
-        </nav>
-        <div class="text-center mt-2">
-          <small class="text-muted">
-            عرض {{ page_obj.start_index }} - {{ page_obj.end_index }} من {{ paginator.count }} قيد
-          </small>
-        </div>
+      <div id="pagination-wrapper">
+        {% include "partials/pagination.html" with page_obj=page_obj align="center" %}
       </div>
-      {% endif %}
 
     </div>
   </div>

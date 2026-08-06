@@ -84,11 +84,7 @@
 
       <!-- Django Pagination -->
       <div id="pagination-wrapper">
-      {% if paginator and paginator.num_pages > 1 %}
-      <div class="card-footer">
         {% include "partials/pagination.html" with page_obj=page_obj align="center" %}
-      </div>
-      {% endif %}
       </div>
       </div>
     </div>
@@ -124,45 +120,49 @@
   $(document).ready(function() {
     initTable();
 
-    // Ajax search with debounce
-    let debounceTimer;
-    function doSearch() {
-      const params = new URLSearchParams({
-        search: $('#search').val(),
-        has_debt: $('#has_debt').val(),
-        status: $('#status').val(),
-        page: 1
-      });
+    // Global Ajax search function
+    window.doSearch = function(customQueryStr) {
+      let queryString = '';
+      if (typeof customQueryStr === 'string' && customQueryStr.length > 0) {
+        queryString = customQueryStr;
+      } else {
+        const params = new URLSearchParams({
+          search: $('#search').val() || '',
+          has_debt: $('#has_debt').val() || '',
+          status: $('#status').val() || '',
+          page: 1
+        });
+        queryString = params.toString();
+      }
 
       $.ajax({
-        url: '{% url "client:customer_list" %}?' + params.toString(),
+        url: '{% url "client:customer_list" %}?' + queryString,
         headers: { 'X-Requested-With': 'XMLHttpRequest' },
         success: function(data) {
-          $('#customers-table-container').html(data.table_html);
-          $('#pagination-wrapper').html(
-            data.pagination_html
-              ? '<div class="card-footer">' + data.pagination_html + '</div>'
-              : ''
-          );
-          history.replaceState(null, '', '?' + params.toString());
+          if (data.table_html !== undefined) {
+            $('#customers-table-container').html(data.table_html);
+          }
+          if (data.pagination_html !== undefined) {
+            $('#pagination-wrapper').html(data.pagination_html);
+          }
+          history.replaceState(null, '', '?' + queryString);
           initTable();
         }
       });
-    }
+    };
 
     $('#search').on('input', function() {
       clearTimeout(debounceTimer);
-      debounceTimer = setTimeout(doSearch, 400);
+      debounceTimer = setTimeout(function() { window.doSearch(); }, 400);
     });
 
     $('#has_debt, #status').on('change', function() {
-      doSearch();
+      window.doSearch();
     });
 
-    // منع submit العادي دايماً واستخدام Ajax
     $('form').on('submit', function(e) {
       e.preventDefault();
-      doSearch();
+      window.doSearch();
     });
   });
 

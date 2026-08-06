@@ -237,8 +237,9 @@ class CustomerAllocationAuditService:
     def allocate_customer_prepaid_balance_to_sale(
         cls,
         sale,
-        amount_to_allocate: Decimal,
-        user=None
+        amount_to_allocate: Optional[Decimal] = None,
+        user=None,
+        amount: Optional[Decimal] = None
     ) -> CustomerAllocationAudit:
         """
         خصم وتخصيص مبلغ من الرصيد المسبق/الدفعات المقدمة للعميل على فاتورة مبيعات
@@ -248,6 +249,11 @@ class CustomerAllocationAuditService:
         from sale.models import SalePayment
         from governance.services import AccountingGateway, JournalEntryLineData
 
+        target_amount = amount_to_allocate if amount_to_allocate is not None else amount
+        if target_amount is None:
+            raise ValueError("المبلغ المراد تخصيصه مطلوب.")
+        amount_to_allocate = Decimal(str(target_amount))
+
         if amount_to_allocate <= Decimal("0.00"):
             raise ValueError("المبلغ المراد تخصيصه يجب أن يكون أكبر من صفر.")
 
@@ -255,12 +261,19 @@ class CustomerAllocationAuditService:
         if not customer:
             raise ValueError("الفاتورة غير مرتبطة بعميل.")
 
+        from utils.templatetags.utils_extras import smart_float
+        from core.models import SystemSetting
+        currency_sym = SystemSetting.get_setting('currency_symbol', 'ج.م')
+
         open_sale_amount = sale.total - (sale.amount_paid or Decimal("0.00"))
         if amount_to_allocate > open_sale_amount:
-            raise ValueError(f"المبلغ المراد تخصيصه ({amount_to_allocate}) يتجاوز المتبقي من الفاتورة ({open_sale_amount}).")
+            raise ValueError(f"المبلغ المراد تخصيصه ({smart_float(amount_to_allocate)} {currency_sym}) يتجاوز المتبقي من الفاتورة ({smart_float(open_sale_amount)} {currency_sym}).")
 
         with transaction.atomic():
             locked_customer = Customer.objects.select_for_update().get(pk=customer.id)
+            avail_balance = locked_customer.available_prepaid_balance
+            if amount_to_allocate > avail_balance:
+                raise ValueError(f"رصيد العميل المسبق المتاح ({smart_float(avail_balance)} {currency_sym}) غير كافٍ لسداد المبلغ المطلوب ({smart_float(amount_to_allocate)} {currency_sym}).")
 
             # جلب الدفعات المقدمة غير المخصصة بالكامل أقدم فأقدم (FIFO)
             customer_payments = CustomerPayment.objects.select_for_update().filter(
@@ -360,7 +373,7 @@ class CustomerAllocationAuditService:
                 SalePayment.objects.create(
                     sale=sale,
                     amount=curr_alloc,
-                    payment_date=now.date(),
+                    payment_date=cp.payment_date if (cp and getattr(cp, "payment_date", None)) else now.date(),
                     payment_method="prepaid_balance",
                     source_type="PREPAID_BALANCE",
                     customer_payment=cp,
@@ -407,6 +420,52 @@ class CustomerAllocationAuditService:
                             reference=f"فاتورة مبيعات {sale.number}"
                         )
             except Exception as e:
-                logger.warning(f"لم يتم توليد قيد تسوية المبيعات التلقائي: {str(e)}")
+                logger.warning(f"لم يتم توليد قيد التسوية المحاسبي التلقائي لتخصيص العميل: {str(e)}")
 
-            return last_audit
+        return last_audit
+
+    @classmethod
+    def reverse_customer_allocation(cls, audit_id: int, user=None) -> CustomerAllocationAudit:
+        """
+        عكس وإلغاء تخصيص رصيد مسبق للعميل (Reversal Engine)
+        """
+        with transaction.atomic():
+            audit = CustomerAllocationAudit.objects.select_for_update().get(pk=audit_id)
+            if audit.allocation_status == "REVERSED":
+                raise ValueError("سجل التخصيص معكوس بالفعل سابقاً.")
+
+            # إلغاء مدفوعات SalePayment ذات العلاقة
+            from sale.models import SalePayment
+            payments = SalePayment.objects.filter(
+                customer_payment_id=audit.payment_transaction.reference_id,
+                source_type="PREPAID_BALANCE"
+            )
+            for p in payments:
+                sale = p.sale
+                p.delete()
+                if hasattr(sale, "update_payment_status"):
+                    sale.update_payment_status()
+
+            # إنشاء سجل تدقيق عكسي
+            now = timezone.now()
+            raw_hash_data = f"REV:{audit.id}:{audit.allocated_amount}:{now.isoformat()}"
+            rev_hash = hashlib.sha256(raw_hash_data.encode("utf-8")).hexdigest()
+
+            rev_audit = CustomerAllocationAudit.objects.create(
+                customer=audit.customer,
+                payment_transaction=audit.payment_transaction,
+                invoice_transaction=audit.invoice_transaction,
+                source_document_type=audit.source_document_type,
+                source_document_number=audit.source_document_number,
+                target_document_type=audit.target_document_type,
+                target_document_number=audit.target_document_number,
+                allocation_type="REVERSAL",
+                allocated_amount=audit.allocated_amount,
+                functional_amount=audit.functional_amount,
+                allocation_status="REVERSED",
+                reversed_audit=audit,
+                allocation_date=now.date(),
+                created_by=user,
+                evidence_hash=rev_hash
+            )
+            return rev_audit

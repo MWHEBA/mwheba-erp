@@ -1,28 +1,8 @@
 {% comment %}
 Component: Payment Account Select
-مكون موحد لاختيار حساب الدفع (الخزينة/البنك)
-
-IMPORTANT: payment_accounts و default_payment_account متاحين تلقائياً في جميع الصفحات
-عن طريق context processor (core.context_processors.payment_accounts)
-لا تحتاج إضافة أي كود في الـ view!
-
-Parameters:
-- field_name: اسم الحقل (default: payment_method)
-- field_id: معرف الحقل (default: payment_method)
-- label: التسمية (default: طريقة الدفع (الخزينة/البنك))
-- required: هل الحقل مطلوب (default: False)
-- selected_value: القيمة المحددة مسبقاً (optional)
-- show_empty_option: عرض خيار فارغ (default: True)
-- empty_option_text: نص الخيار الفارغ (default: اختر الحساب)
-
-Usage:
-{% include "components/payment_account_select.html" with field_name="payment_method" required=True %}
-{% include "components/payment_account_select.html" with field_name="payment_account" field_id="expense_payment" label="حساب الدفع" %}
-
-Note: القيمة المرسلة هي account.code (مثل: 10100 للخزينة، 10200 للبنك)
+مكون موحد لاختيار حساب الدفع (الخزينة/البنك/الرصيد المسبق)
+مظهر مؤسسي رقيق وهادئ
 {% endcomment %}
-
-{% load static %}
 
 <label for="{{ field_id|default:'payment_method' }}" class="form-label">
     <i class="fas fa-wallet me-1"></i>{{ label|default:"طريقة الدفع (الخزينة/البنك)" }}
@@ -35,15 +15,70 @@ Note: القيمة المرسلة هي account.code (مثل: 10100 للخزين�
     {% if required %}required{% endif %}
 >
     {% if show_empty_option|default:True %}
-    <option value="">{{ empty_option_text|default:"اختر الحساب" }}</option>
+    <option value="">{{ empty_option_text|default:"اختر الحساب / طريقة الدفع" }}</option>
     {% endif %}
     
-    {% for account in payment_accounts %}
-    <option value="{{ account.code }}" 
-        {% if selected_value and account.code == selected_value %}selected{% endif %}
-        {% if not selected_value and default_payment_account and account.code == default_payment_account.code %}selected{% endif %}
-    >
-        {{ account.name }}
-    </option>
-    {% endfor %}
+    {% if cash_payment_accounts %}
+    <optgroup label="الخزن النقدية">
+        {% for account in cash_payment_accounts %}
+        <option value="{% if value_type == 'id' %}{{ account.id }}{% else %}{{ account.code }}{% endif %}"
+            {% if value_type == 'id' %}
+                {% if selected_value and selected_value|stringformat:'s' == account.id|stringformat:'s' %}selected{% endif %}
+            {% else %}
+                {% if selected_value and selected_value|stringformat:'s' == account.code|stringformat:'s' %}selected{% endif %}
+            {% endif %}
+            {% if not selected_value and default_payment_account and account.code == default_payment_account.code %}selected{% endif %}
+        >
+            {{ account.name }}
+        </option>
+        {% endfor %}
+    </optgroup>
+    {% endif %}
+
+    {% if bank_payment_accounts %}
+    <optgroup label="الحسابات البنكية">
+        {% for account in bank_payment_accounts %}
+        <option value="{% if value_type == 'id' %}{{ account.id }}{% else %}{{ account.code }}{% endif %}"
+            {% if value_type == 'id' %}
+                {% if selected_value and selected_value|stringformat:'s' == account.id|stringformat:'s' %}selected{% endif %}
+            {% else %}
+                {% if selected_value and selected_value|stringformat:'s' == account.code|stringformat:'s' %}selected{% endif %}
+            {% endif %}
+        >
+            {{ account.name }}
+        </option>
+        {% endfor %}
+    </optgroup>
+    {% endif %}
+
+    {% if not cash_payment_accounts and not bank_payment_accounts and payment_accounts %}
+        {% for account in payment_accounts %}
+        <option value="{% if value_type == 'id' %}{{ account.id }}{% else %}{{ account.code }}{% endif %}"
+            {% if value_type == 'id' %}
+                {% if selected_value and selected_value|stringformat:'s' == account.id|stringformat:'s' %}selected{% endif %}
+            {% else %}
+                {% if selected_value and selected_value|stringformat:'s' == account.code|stringformat:'s' %}selected{% endif %}
+            {% endif %}
+            {% if not selected_value and default_payment_account and account.code == default_payment_account.code %}selected{% endif %}
+        >
+            {{ account.name }}
+        </option>
+        {% endfor %}
+    {% endif %}
+
+    {% if customer_prepaid_balance and customer_prepaid_balance > 0 %}
+    <optgroup label="الرصيد المسبق">
+        <option value="PREPAID_BALANCE" {% if selected_value == "PREPAID_BALANCE" %}selected{% endif %}>
+            رصيد مسبق متاح ({{ customer_prepaid_balance|floatformat:"-2" }} ج.م)
+        </option>
+    </optgroup>
+    {% endif %}
+
+    {% if supplier_prepaid_balance and supplier_prepaid_balance > 0 %}
+    <optgroup label="الرصيد المسبق">
+        <option value="PREPAID_BALANCE" {% if selected_value == "PREPAID_BALANCE" %}selected{% endif %}>
+            رصيد مسبق للمورد ({{ supplier_prepaid_balance|floatformat:"-2" }} ج.م)
+        </option>
+    </optgroup>
+    {% endif %}
 </select>

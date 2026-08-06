@@ -264,9 +264,36 @@ def product_list(request):
         if in_stock:
             products = products.filter(stocks__quantity__gt=0).distinct()
 
-        # معالجة تصدير PDF
-        if request.GET.get('export') == 'pdf':
-            return export_products_pdf_weasy(request, products)
+        # التصدير المزدوج: تصدير كافة المنتجات المفلترة من الباك إند
+        if request.GET.get('export') == 'excel':
+            from utils.export import export_queryset_to_excel
+            return export_queryset_to_excel(
+                products,
+                filename="products_export.xlsx",
+                fields=["sku", "name", "category.name", "selling_price", "is_bundle", "is_active"],
+                headers=["الكود SKU", "اسم المنتج", "التصنيف", "سعر البيع", "مجمع", "نشط"]
+            )
+
+        # Whitelist الفرز الأمني
+        allowed_sort_fields = {
+            'name_with_sku': 'name',
+            'product_type': 'is_bundle',
+            'category': 'category__name',
+            'sale_price': 'selling_price',
+            'current_stock': 'total_stock',
+            'is_active': 'is_active',
+        }
+
+        # الترقيم والفرز الـ SSR عبر المحرك المركزي
+        from core.utils import paginate_queryset, render_paginated_response
+        pagination_data = paginate_queryset(
+            products,
+            request,
+            default_per_page=25,
+            allowed_sort_fields=allowed_sort_fields
+        )
+
+        page_obj = pagination_data['page_obj']
 
         # تعريف أعمدة جدول المنتجات
         product_headers = [
@@ -284,11 +311,6 @@ def product_list(request):
             {"url": "product:product_detail", "icon": "fa-eye", "label": "عرض التفاصيل", "class": "action-view", "title": "عرض تفاصيل المنتج"},
             {"url": "product:product_edit", "icon": "fa-edit", "label": "تعديل", "class": "action-edit", "title": "تعديل المنتج"},
         ]
-
-        # DB-level pagination
-        paginator = Paginator(products, 25)
-        page_number = request.GET.get('page', 1)
-        page_obj = paginator.get_page(page_number)
 
         def build_table_data(page):
             rows = []
@@ -382,9 +404,8 @@ def product_list(request):
             category.has_children = category.children.count()
 
         context = {
+            **pagination_data,
             "products": page_obj,
-            "page_obj": page_obj,
-            "paginator": paginator,
             "table_data": table_data,
             "product_headers": product_headers,
             "action_buttons": action_buttons,
@@ -397,6 +418,7 @@ def product_list(request):
             "current_min_price": min_price,
             "current_max_price": max_price,
             "current_in_stock": in_stock,
+            "show_export": True,
             "page_title": "قائمة المنتجات",
             "page_subtitle": "إدارة منتجات النظام وتصنيفاتها وأسعارها",
             "page_icon": "fas fa-boxes",
@@ -412,7 +434,12 @@ def product_list(request):
             ],
         }
 
-        return render(request, "product/product_list.html", context)
+        return render_paginated_response(
+            request,
+            "product/product_list.html",
+            context,
+            table_template_name="product/partials/product_table.html"
+        )
     except Exception as e:
         messages.error(request, f"حدث خطأ أثناء تحميل المنتجات: {str(e)}")
         return render(

@@ -79,13 +79,7 @@
           <p class="mb-3">الموظف: <strong id="payEmployeeName"></strong></p>
           <p class="mb-3">المبلغ: <strong id="payAmount"></strong> {{ currency_symbol }}</p>
           <div class="mb-3">
-            <label class="form-label">حساب الاستلام <span class="text-danger">*</span></label>
-            <select name="payment_account" class="form-select" required>
-              <option value="">اختر الحساب</option>
-              {% for acc in payment_accounts %}
-              <option value="{{ acc.pk }}">{{ acc.name }} ({{ acc.code }})</option>
-              {% endfor %}
-            </select>
+            {% include "components/payment_account_select.html" with field_name="payment_account" field_id="payment_account" label="حساب الاستلام" required=True value_type="id" %}
           </div>
           <div class="mb-3">
             <label class="form-label">تاريخ الدفع</label>

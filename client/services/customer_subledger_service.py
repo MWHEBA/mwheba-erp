@@ -180,7 +180,9 @@ class CustomerSubledgerService:
         foreign_amount: Decimal = Decimal("0.00"),
         exchange_rate: Decimal = Decimal("1.000000"),
         functional_amount: Decimal = Decimal("0.00"),
-        journal_entry=None
+        journal_entry=None,
+        reference_type: str = "",
+        reference_id: Optional[int] = None
     ):
         """
         FIN-AR-003: تسجيل بند معاملة مفتوحة للعميل
@@ -197,6 +199,8 @@ class CustomerSubledgerService:
             customer=customer,
             transaction_type=transaction_type,
             transaction_number=transaction_number,
+            reference_type=reference_type,
+            reference_id=reference_id,
             issue_date=issue_date,
             due_date=due_date,
             currency=currency,

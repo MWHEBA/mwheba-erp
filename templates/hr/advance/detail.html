@@ -199,13 +199,7 @@
       <div class="modal-body">
         <p class="text-muted mb-3">سيتم تغيير حالة السلفة إلى "مدفوعة" وإنشاء القيد المحاسبي تلقائياً.</p>
         <div class="mb-3">
-          <label class="form-label">حساب الصرف (الخزينة/البنك) <span class="text-danger">*</span></label>
-          <select id="modal-payment-account" class="form-select" required>
-            <option value="">اختر الحساب</option>
-            {% for acc in payment_accounts %}
-            <option value="{{ acc.code }}" {% if default_payment_account and acc.code == default_payment_account.code %}selected{% elif not default_payment_account and acc.is_cash_account and forloop.first %}selected{% endif %}>{{ acc.name }} ({{ acc.code }})</option>
-            {% endfor %}
-          </select>
+          {% include "components/payment_account_select.html" with field_name="payment_account" field_id="modal-payment-account" label="حساب الصرف (الخزينة/البنك)" required=True value_type="code" %}
         </div>
         <div class="mb-3">
           <label class="form-label">تاريخ الصرف</label>

@@ -514,12 +514,37 @@ class SaleService:
                 raise ValidationError(f"مبلغ الدفعة ({amount} ج.م) يتجاوز المبلغ المتبقي على الفاتورة ({remaining:.2f} ج.م).")
 
             sale = locked_sale
+            pm = payment_data.get('payment_method', 'cash')
+
+            # معالجة خاصة للخصم المباشر من الرصيد المسبق للعميل
+            if pm == 'PREPAID_BALANCE':
+                from client.services.customer_allocation_audit_service import CustomerAllocationAuditService
+                audit = CustomerAllocationAuditService.allocate_customer_prepaid_balance_to_sale(
+                    sale=sale,
+                    amount_to_allocate=amount,
+                    user=user
+                )
+                sale.update_payment_status()
+                prepaid_payment = sale.payments.filter(source_type='PREPAID_BALANCE').order_by('-created_at').first()
+                if prepaid_payment:
+                    return prepaid_payment
+
+            # البحث عن الحساب المالي كـ ForeignKey
+            fin_acc = None
+            if pm and str(pm).isdigit():
+                from financial.models import ChartOfAccounts
+                fin_acc = ChartOfAccounts.objects.filter(code=str(pm), is_active=True).first()
+
+            if not fin_acc:
+                from financial.services.account_helper import AccountHelperService
+                fin_acc = AccountHelperService.get_default_cash_account()
 
             # 1. إنشاء الدفعة
             payment = SalePayment.objects.create(
                 sale=sale,
                 amount=amount,
-                payment_method=payment_data.get('payment_method', 'cash'),
+                payment_method=pm if pm else (fin_acc.code if fin_acc else 'cash'),
+                financial_account=fin_acc,
                 payment_date=payment_data.get('payment_date', timezone.now().date()),
                 notes=payment_data.get('notes', ''),
                 status='draft',
@@ -557,21 +582,26 @@ class SaleService:
         try:
             from governance.services.accounting_gateway import JournalEntryLineData
             
+            # الدفعات المخصومة من الرصيد المسبق يتم ترحيل قيودها عبر خدمة التخصيص
+            if payment.source_type == 'PREPAID_BALANCE' or payment.payment_method == 'PREPAID_BALANCE':
+                return None
+
             # تحديد حساب المدين حسب طريقة الدفع
-            # payment_method هنا ممكن يكون account code (مثل '10100') أو قيمة قديمة (مثل 'cash')
             payment_method = payment.payment_method
             
             from financial.services.account_role_registry import AccountRoleRegistry
             cash_code = AccountRoleRegistry.get_account_code("DEFAULT_CASH_DRAWER")
             bank_code = AccountRoleRegistry.get_account_code("DEFAULT_BANK_ACCOUNT")
 
-            if payment_method == 'cash' or payment_method == cash_code:
+            if payment.financial_account:
+                debit_account_code = payment.financial_account.code
+            elif payment_method == 'cash' or payment_method == cash_code:
                 debit_account_code = cash_code  # الخزينة
             elif payment_method == 'bank_transfer' or payment_method == bank_code:
                 debit_account_code = bank_code  # البنك
-            elif payment_method and payment_method.isdigit():
+            elif payment_method and str(payment_method).isdigit():
                 # إذا كان account code مباشرة
-                debit_account_code = payment_method
+                debit_account_code = str(payment_method)
             else:
                 debit_account_code = cash_code  # افتراضي: الخزينة
             

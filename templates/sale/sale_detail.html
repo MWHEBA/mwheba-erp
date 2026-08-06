@@ -556,57 +556,68 @@
                         </div>
                     </div>
                     
-                    <div class="invoice-summary">
-                        <div class="summary-row">
-                            <div class="summary-label">{% trans "المجموع الفرعي:" %}</div>
-                            <div class="summary-value">{{ sale.subtotal|currency }}</div>
+                    <div class="row g-4 mt-3 align-items-stretch">
+                        <div class="col-lg-8 col-md-12 d-flex flex-column">
+                            <div class="invoice-notes flex-fill h-100 mt-0">
+                                <div class="notes-title"><i class="fas fa-sticky-note me-2"></i> {% trans "ملاحظات الفاتورة:" %}</div>
+                                <div class="notes-content">
+                                    {% if sale.notes %}
+                                        {{ sale.notes|safe }}
+                                    {% else %}
+                                        <span class="text-muted">{% trans "لا توجد ملاحظات مدونة." %}</span>
+                                    {% endif %}
+                                </div>
+                                {% if sale.has_body_custom_fields %}
+                                <div class="pt-3 mt-3 border-top">
+                                    <div class="notes-title mb-2"><i class="fas fa-list-ul me-2 text-primary"></i> {% trans "الحقول الإضافية المخصصة:" %}</div>
+                                    <div class="row g-3">
+                                        {% for field in sale.merged_custom_fields %}
+                                        {% if not field.show_in_header and field.value %}
+                                        <div class="col-md-6">
+                                            <div class="p-2 border rounded bg-white">
+                                                <small class="text-muted d-block fw-bold">{{ field.name }}</small>
+                                                <span class="text-dark fw-medium">{% if field.value == 'true' %}<i class="fas fa-check text-success me-1"></i>نعم{% elif field.value == 'false' %}<i class="fas fa-times text-danger me-1"></i>لا{% else %}{{ field.value }}{% endif %}</span>
+                                            </div>
+                                        </div>
+                                        {% endif %}
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                {% endif %}
+                            </div>
                         </div>
-                        <div class="summary-row">
-                            <div class="summary-label">{% trans "الخصم:" %}</div>
-                            <div class="summary-value">{% if sale.discount and sale.discount > 0 %}{{ sale.discount|currency }}{% else %}-{% endif %}</div>
-                        </div>
-                        <div class="summary-row">
-                            <div class="summary-label">{% trans "الضريبة:" %}</div>
-                            <div class="summary-value">{% if sale.tax and sale.tax > 0 %}{{ sale.tax|currency }}{% else %}-{% endif %}</div>
-                        </div>
-                        <div class="summary-row">
-                            <div class="summary-label">{% trans "الإجمالي:" %}</div>
-                            <div class="summary-value">{{ sale.total|currency }}</div>
-                        </div>
-                        <div class="summary-row">
-                            <div class="summary-label">{% trans "المدفوع:" %}</div>
-                            <div class="summary-value">{{ sale.amount_paid|currency }}</div>
-                        </div>
-                        <div class="summary-row">
-                            <div class="summary-label">{% trans "المتبقي:" %}</div>
-                            <div class="summary-value">{{ sale.amount_due|currency }}</div>
-                        </div>
-                    </div>
 
-                    {% if sale.notes %}
-                    <div class="invoice-notes mt-4">
-                        <div class="notes-title"><i class="fas fa-sticky-note me-2"></i> {% trans "ملاحظات:" %}</div>
-                        <div class="notes-content">{{ sale.notes|safe }}</div>
-                    </div>
-                    {% endif %}
-
-                    {% if sale.has_body_custom_fields %}
-                    <div class="invoice-notes mt-4">
-                        <div class="notes-title"><i class="fas fa-list-ul me-2 text-primary"></i> {% trans "الحقول الإضافية المخصصة:" %}</div>
-                        <div class="row g-3 mt-1">
-                            {% for field in sale.merged_custom_fields %}
-                            {% if not field.show_in_header and field.value %}
-                            <div class="col-md-6 col-lg-4">
-                                <div class="p-2 border rounded bg-light">
-                                    <small class="text-muted d-block fw-bold">{{ field.name }}</small>
-                                    <span class="text-dark fw-medium">{% if field.value == 'true' %}<i class="fas fa-check text-success me-1"></i>نعم{% elif field.value == 'false' %}<i class="fas fa-times text-danger me-1"></i>لا{% else %}{{ field.value }}{% endif %}</span>
+                        <div class="col-lg-4 col-md-12 d-flex flex-column">
+                            <div class="invoice-summary flex-fill h-100 mt-0 d-flex flex-column justify-content-between">
+                                <div>
+                                    <div class="summary-row">
+                                        <div class="summary-label">{% trans "المجموع الفرعي:" %}</div>
+                                        <div class="summary-value">{{ sale.subtotal|currency }}</div>
+                                    </div>
+                                    <div class="summary-row">
+                                        <div class="summary-label">{% trans "الخصم:" %}</div>
+                                        <div class="summary-value">{% if sale.discount and sale.discount > 0 %}{{ sale.discount|currency }}{% else %}-{% endif %}</div>
+                                    </div>
+                                    <div class="summary-row">
+                                        <div class="summary-label">{% trans "الضريبة:" %}</div>
+                                        <div class="summary-value">{% if sale.tax and sale.tax > 0 %}{{ sale.tax|currency }}{% else %}-{% endif %}</div>
+                                    </div>
+                                    <div class="summary-row">
+                                        <div class="summary-label">{% trans "الإجمالي:" %}</div>
+                                        <div class="summary-value">{{ sale.total|currency }}</div>
+                                    </div>
+                                    <div class="summary-row text-secondary">
+                                        <div class="summary-label">{% trans "المدفوع:" %}</div>
+                                        <div class="summary-value fw-medium">{{ sale.amount_paid|currency }}</div>
+                                    </div>
+                                </div>
+                                <div class="summary-row border-top pt-2 mt-2">
+                                    <div class="summary-label">{% trans "المتبقي:" %}</div>
+                                    <div class="summary-value">{{ sale.amount_due|currency }}</div>
                                 </div>
                             </div>
-                            {% endif %}
-                            {% endfor %}
                         </div>
                     </div>
-                    {% endif %}
                     
                     <!-- بداية قسم المرتجعات -->
                     {% if returns %}
@@ -680,7 +691,7 @@
                                     {% csrf_token %}
                                     <input type="hidden" name="auto_fifo" value="true">
                                     <button type="submit" class="btn btn-sm btn-success">
-                                        <i class="fas fa-magic me-1"></i> {% trans "تخصيص آلي (FIFO)" %}
+                                        <i class="fas fa-magic me-1"></i> {% trans "تخصيص آلي" %}
                                     </button>
                                 </form>
                                 <button type="button" class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#customAllocateModal">
@@ -768,13 +779,18 @@
                                             {% endif %}
                                         </td>
                                         <td>
+                                            {% if payment.customer_payment and payment.customer_payment.payment_date %}
+                                            <div>{{ payment.customer_payment.payment_date|date:"d-m-Y" }}</div>
+                                            <small class="text-muted" title="وقت السداد الأصلي">{{ payment.customer_payment.created_at|date:"h:i A" }}</small>
+                                            {% else %}
                                             <div>{{ payment.payment_date|date:"d-m-Y" }}</div>
                                             <small class="text-muted">{{ payment.created_at|date:"h:i A" }}</small>
+                                            {% endif %}
                                         </td>
                                         <td class="fw-bold">{{ payment.amount|currency }}</td>
                                         <td>
                                             {% if payment.source_type == 'PREPAID_BALANCE' or payment.customer_payment %}
-                                            <span class="badge bg-primary"><i class="fas fa-wallet me-1"></i>{{ payment.source_display_info }}</span>
+                                            <span class="badge bg-dark text-white border border-secondary"><i class="fas fa-minus-circle me-1 text-warning"></i>{{ payment.source_display_info }}</span>
                                             {% elif payment.source_type == 'CREDIT_NOTE' %}
                                             <span class="badge bg-info"><i class="fas fa-file-invoice me-1"></i>{{ payment.source_display_info }}</span>
                                             {% elif payment.payment_method == 'bank_transfer' or payment.source_type == 'BANK' %}

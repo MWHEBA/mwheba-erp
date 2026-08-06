@@ -2374,12 +2374,8 @@ html[dir="rtl"] .border-right-danger {
 }
 
 .filter-section {
-    background-color: var(--bg-card);
-    border-radius: var(--border-radius);
     padding: var(--spacing-4);
     margin-bottom: var(--spacing-4);
-    border: 1px solid var(--border-color);
-    box-shadow: var(--shadow-sm);
 }
 
 .filter-title {
@@ -2830,4 +2826,91 @@ html[dir="rtl"] .border-right-danger {
     .supplier-page .filter-section {
         padding: var(--spacing-2);
     }
+}
+
+/* --- Equal Height Invoice Bottom Layout --- */
+.invoice-notes,
+.quotation-notes {
+    height: 100%;
+    min-height: 100%;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+}
+
+.invoice-notes-container,
+.invoice-summary-container {
+    display: flex;
+    flex-direction: column;
+}
+
+/* --- Unified SSR Pagination Components --- */
+.pagination-container {
+    background-color: var(--bg-light);
+    border-top: 1px solid var(--border-color);
+}
+
+.pagination-container .per-page-select {
+    border-color: var(--border-color);
+    color: var(--text-color);
+    background-color: var(--white);
+    transition: var(--transition-all);
+}
+
+.pagination-container .per-page-select:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem var(--primary-soft);
+}
+
+.pagination-container .page-link {
+    color: var(--text-color);
+    background-color: var(--white);
+    border-color: var(--border-color);
+    transition: var(--transition-all);
+    padding: 0.35rem 0.65rem;
+    font-size: 0.875rem;
+}
+
+.pagination-container .page-link:hover {
+    color: var(--primary-color);
+    background-color: var(--primary-soft);
+    border-color: var(--border-color);
+}
+
+.pagination-container .page-item.active .page-link {
+    color: var(--white);
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.pagination-container .page-item.disabled .page-link {
+    color: var(--text-muted);
+    background-color: var(--bg-light);
+    border-color: var(--border-color);
+    opacity: 0.6;
+}
+
+.table-sort-link {
+    color: inherit;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    cursor: pointer;
+    transition: var(--transition-all);
+}
+
+.table-sort-link:hover {
+    color: var(--primary-color);
+    text-decoration: none;
+}
+
+.table-sort-link .sort-icon {
+    font-size: 0.75rem;
+    opacity: 0.6;
+}
+
+.table-sort-link.active .sort-icon {
+    opacity: 1;
+    color: var(--primary-color);
 }

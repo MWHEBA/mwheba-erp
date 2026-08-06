@@ -49,18 +49,21 @@ def customer_list(request):
     elif has_debt == '0':
         customers_qs = customers_qs.filter(balance__lte=0)
 
+    # التصدير المزدوج: تصدير كافة البيانات المفلترة من الباك إند
+    if request.GET.get('export') == 'excel':
+        from utils.export import export_queryset_to_excel
+        return export_queryset_to_excel(
+            customers_qs,
+            filename="customers_export.xlsx",
+            fields=["code", "name", "phone", "address", "balance", "is_active"],
+            headers=["الكود", "اسم العميل", "رقم الهاتف", "العنوان", "المديونية", "نشط"]
+        )
+
     active_customers = Customer.objects.filter(is_active=True).count()
     inactive_customers = Customer.objects.filter(is_active=False).count()
     total_debt = customers_qs.aggregate(total=Sum('balance'))['total'] or 0
 
-    # DB-level pagination
-    from django.core.paginator import Paginator
-    paginator = Paginator(customers_qs, 25)
-    page_number = request.GET.get('page', 1)
-    page_obj = paginator.get_page(page_number)
-    customers = page_obj
-
-    # تعريف أعمدة الجدول
+    # تعريف أعمدة الجدول مع تفعيل الفرز الـ SSR
     headers = [
         {
             "key": "name",
@@ -99,26 +102,25 @@ def customer_list(request):
         },
     ]
 
-    # Ajax response - بعد تعريف headers و action_buttons
-    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        from django.template.loader import render_to_string
-        ctx = {
-            'customers': customers,
-            'page_obj': page_obj,
-            'paginator': paginator,
-            'headers': headers,
-            'action_buttons': action_buttons,
-        }
-        table_html = render_to_string('client/partials/customer_table.html', ctx, request=request)
-        pagination_html = render_to_string('partials/pagination.html', {
-            'page_obj': page_obj,
-            'align': 'center',
-        }, request=request) if paginator.num_pages > 1 else ''
-        return JsonResponse({
-            'table_html': table_html,
-            'pagination_html': pagination_html,
-            'count': paginator.count,
-        })
+    # Whitelist الفرز الأمني
+    allowed_sort_fields = {
+        'name': 'name',
+        'code': 'code',
+        'actual_balance': 'balance',
+        'is_active': 'is_active',
+    }
+
+    # الترقيم والفرز الـ SSR عبر المحرك المركزي
+    from core.utils import paginate_queryset, render_paginated_response
+    pagination_data = paginate_queryset(
+        customers_qs,
+        request,
+        default_per_page=25,
+        allowed_sort_fields=allowed_sort_fields
+    )
+
+    page_obj = pagination_data['page_obj']
+    customers = page_obj
 
     from core.models import SystemSetting
     daftra_enabled = SystemSetting.get_setting('daftra_enabled', 'false') == 'true'
@@ -139,22 +141,19 @@ def customer_list(request):
         })
 
     context = {
-        "customers": customers,
-        "page_obj": page_obj,
-        "paginator": paginator,
-        "headers": headers,
-        "action_buttons": action_buttons,
-        "active_customers": active_customers,
-        "inactive_customers": inactive_customers,
-        "total_debt": total_debt,
-        # بيانات الهيدر
-        "page_title": "قائمة العملاء",
-        "page_subtitle": "إدارة العملاء وعرض بياناتهم ومعاملاتهم المالية",
-        "page_icon": "fas fa-users",
-        # أزرار الهيدر
-        "header_buttons": header_buttons,
-        # البريدكرمب
-        "breadcrumb_items": [
+        **pagination_data,
+        'customers': customers,
+        'headers': headers,
+        'action_buttons': action_buttons,
+        'active_customers': active_customers,
+        'inactive_customers': inactive_customers,
+        'total_debt': total_debt,
+        'show_export': True,
+        'page_title': "قائمة العملاء",
+        'page_subtitle': "إدارة العملاء وعرض بياناتهم ومعاملاتهم المالية",
+        'page_icon': "fas fa-users",
+        'header_buttons': header_buttons,
+        'breadcrumb_items': [
             {
                 "title": "الرئيسية",
                 "url": reverse("core:dashboard"),
@@ -164,7 +163,12 @@ def customer_list(request):
         ],
     }
 
-    return render(request, "client/customer_list.html", context)
+    return render_paginated_response(
+        request,
+        'client/customer_list.html',
+        context,
+        table_template_name='client/partials/customer_table.html'
+    )
 
 
 @login_required
@@ -355,7 +359,7 @@ def customer_detail(request, pk):
             "payment_date": sp.payment_date,
             "created_at": sp.created_at,
             "amount": sp.amount,
-            "payment_method": sp.get_payment_method_display(),
+            "payment_method": sp.source_display_info if hasattr(sp, "source_display_info") else sp.get_payment_method_display(),
             "reference_number": sp.reference_number or f"PAY-{sp.id}",
             "notes": sp.notes or "-",
             "sale__number": sp.sale.number if sp.sale else "-",
@@ -368,7 +372,7 @@ def customer_detail(request, pk):
             "payment_date": cp.payment_date,
             "created_at": cp.created_at,
             "amount": cp.amount,
-            "payment_method": cp.get_payment_method_display() if hasattr(cp, "get_payment_method_display") else cp.payment_method,
+            "payment_method": cp.source_display_info if hasattr(cp, "source_display_info") else "رصيد مسبق",
             "reference_number": cp.reference_number or f"CP-{cp.id}",
             "notes": cp.notes or "دفعة من تحت الحساب",
             "sale__number": "دفعة مقدمة (تحت الحساب)",
@@ -377,36 +381,14 @@ def customer_detail(request, pk):
 
     payments.sort(key=lambda x: str(x["payment_date"] or ""), reverse=True)
 
-    sale_pay_total = sum(sp.amount for sp in sale_payments)
+    sale_pay_total = sum(
+        sp.amount for sp in sale_payments
+        if sp.payment_method != "prepaid_balance" and getattr(sp, "source_type", None) != "PREPAID_BALANCE"
+    )
     adv_pay_total = sum(cp.amount for cp in advance_payments)
     total_payments = sale_pay_total + adv_pay_total
 
-    # حساب المبالغ مسبقة الدفع الغير موزعة على الفواتير للعميل
-    from financial.models.allocation import PaymentAllocation
-    from client.models import CustomerTransaction
-    unallocated_prepaid = Decimal("0.00")
-    for cp in advance_payments:
-        if getattr(cp, "sale_id", None):
-            continue
-        allocated_sp = cp.allocations.aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
-        allocated_pa = PaymentAllocation.objects.filter(
-            customer=customer,
-            source_document_id=cp.id,
-            allocation_status="ACTIVE",
-        ).aggregate(total=Sum("allocated_amount"))["total"] or Decimal("0.00")
 
-        allocated = max(allocated_sp, allocated_pa)
-        rem = cp.amount - allocated
-        if rem > Decimal("0.00"):
-            unallocated_prepaid += rem
-
-    subledger_unallocated = CustomerTransaction.objects.filter(
-        customer=customer,
-        transaction_type__in=["ADVANCE", "PAYMENT"],
-        status__in=["OPEN", "PARTIAL"],
-    ).aggregate(total=Sum("open_amount"))["total"] or Decimal("0.00")
-
-    unallocated_prepaid = max(unallocated_prepaid, subledger_unallocated)
 
     # جلب فواتير البيع المرتبطة بالعميل
     from sale.models import Sale
@@ -499,6 +481,9 @@ def customer_detail(request, pk):
     from sale.models import SaleItem
     sale_items = SaleItem.objects.filter(sale__customer=customer)
     total_products = sale_items.values("product").distinct().count()
+
+    # حساب إجمالي الرصيد المسبق المتاح للعميل
+    unallocated_prepaid = customer.available_prepaid_balance
 
     # تاريخ آخر معاملة
     last_transaction_date = None
@@ -673,9 +658,9 @@ def customer_detail(request, pk):
             "key": "sale__number",
             "label": "رقم الفاتورة",
             "sortable": True,
-            "class": "text-center",
+            "class": "text-center text-nowrap",
             "template": "components/cells/invoice_reference.html",
-            "width": "130px",
+            "width": "150px",
         },
         {
             "key": "amount",
@@ -925,6 +910,7 @@ def customer_detail(request, pk):
         "quick_action_buttons": quick_action_buttons,
         "payments": payments,
         "invoices": invoices,
+        "sale_invoices": invoices,
         "invoices_count": invoices_count,
         "pricing_orders": pricing_orders,
         "pricing_orders_count": pricing_orders_count,
@@ -991,8 +977,8 @@ def customer_detail(request, pk):
             "action_text": "توزيع",
             "action_icon": "fas fa-random",
             "action_class": "bg-warning-subtle text-dark border border-warning-subtle",
-            "action_onclick": "if(document.getElementById('payments-tab')){ document.getElementById('payments-tab').click(); const el = document.getElementById('payments-tab-pane'); if(el) el.scrollIntoView({behavior: 'smooth'}); }",
-            "action_title": "الانتقال لقائمة المدفوعات لتوزيع الرصيد المسبق",
+            "action_onclick": f"const m = document.getElementById('prepaidAllocationModal'); if(m){{ new bootstrap.Modal(m).show(); }} else {{ const form = document.createElement('form'); form.method = 'POST'; form.action = '{reverse('client:allocate_customer_prepaid', kwargs={'pk': customer.id})}'; const csrf = document.querySelector('[name=csrfmiddlewaretoken]'); if(csrf) form.appendChild(csrf.cloneNode()); const auto = document.createElement('input'); auto.type='hidden'; auto.name='auto_fifo_all'; auto.value='true'; form.appendChild(auto); document.body.appendChild(form); form.submit(); }}",
+            "action_title": "توزيع الرصيد المسبق على الفواتير المفتوحة",
         })
     context["header_badges"] = header_badges
     context["header_buttons"] = [
@@ -1268,4 +1254,77 @@ def customer_aging_api(request, pk):
             'total_balance': float(row.get('total_balance') or 0),
         }
     })
+
+
+@login_required
+def allocate_customer_prepaid(request, pk):
+    """
+    تخصيص الرصيد المسبق للعميل على الفواتير المفتوحة (تخصيص آلي أو محدد)
+    """
+    customer = get_object_or_404(Customer, pk=pk)
+    if request.method == "POST":
+        from sale.models import Sale
+        from client.services.customer_allocation_audit_service import CustomerAllocationAuditService
+        from decimal import Decimal
+
+        sale_id = request.POST.get("sale_id")
+        auto_fifo_all = request.POST.get("auto_fifo_all") == "true"
+        amount_str = request.POST.get("amount")
+
+        open_sales = Sale.objects.filter(
+            customer=customer,
+            payment_status__in=["unpaid", "partially_paid"],
+            status="confirmed"
+        ).order_by("date", "id")
+
+        if not open_sales.exists():
+            messages.warning(request, _("لا توجد فواتير مبيعات مفتوحة لهذا العميل لتخصيص الرصيد عليها."))
+            return redirect("client:customer_detail", pk=pk)
+
+        allocated_count = 0
+        total_allocated_sum = Decimal("0.00")
+
+        if auto_fifo_all:
+            for sale in open_sales:
+                avail = customer.available_prepaid_balance
+                if avail <= Decimal("0.00"):
+                    break
+                due = sale.amount_due
+                if due <= Decimal("0.00"):
+                    continue
+                alloc = min(avail, due)
+                try:
+                    CustomerAllocationAuditService.allocate_customer_prepaid_balance_to_sale(
+                        sale=sale,
+                        amount_to_allocate=alloc,
+                        user=request.user
+                    )
+                    allocated_count += 1
+                    total_allocated_sum += alloc
+                except Exception as e:
+                    logger.warning(f"Failed to allocate prepaid to sale #{sale.id}: {str(e)}")
+            if allocated_count > 0:
+                messages.success(request, f"تم تخصيص إجمالي {total_allocated_sum} ج.م على {allocated_count} فاتورة مفتوحة بنجاح.")
+            else:
+                messages.info(request, "لم يتم إجراء تخصيصات جديدة.")
+        elif sale_id:
+            sale = get_object_or_404(Sale, pk=sale_id, customer=customer)
+            avail = customer.available_prepaid_balance
+            alloc = Decimal(amount_str) if amount_str else min(avail, sale.amount_due)
+            if alloc <= Decimal("0.00"):
+                messages.error(request, "يرجى إدخال مبلغ تخصيص أكبر من صفر.")
+            elif alloc > avail:
+                messages.error(request, f"المبلغ المطلوبة ({alloc}) يتجاوز الرصيد المسبق المتاح ({avail}).")
+            else:
+                try:
+                    CustomerAllocationAuditService.allocate_customer_prepaid_balance_to_sale(
+                        sale=sale,
+                        amount_to_allocate=alloc,
+                        user=request.user
+                    )
+                    messages.success(request, f"تم تخصيص {alloc} ج.م من الرصيد المسبق على الفاتورة #{sale.number} بنجاح.")
+                except Exception as e:
+                    messages.error(request, f"حدث خطأ أثناء التخصيص: {str(e)}")
+
+    return redirect("client:customer_detail", pk=pk)
 

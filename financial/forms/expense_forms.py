@@ -107,18 +107,8 @@ class ExpenseForm(forms.Form):
 
         # الحسابات النقدية والبنكية
         try:
-            payment_accounts = (
-                ChartOfAccounts.objects.filter(is_active=True, is_leaf=True)
-                .filter(
-                    models.Q(is_cash_account=True)
-                    | models.Q(is_bank_account=True)
-                    | models.Q(account_type__name__icontains="نقدي")
-                    | models.Q(account_type__name__icontains="بنك")
-                    | models.Q(account_type__name__icontains="صندوق")
-                )
-                .order_by("code")
-            )
-            self.fields["payment_account"].queryset = payment_accounts
+            from financial.services.account_helper import AccountHelperService
+            self.fields["payment_account"].queryset = AccountHelperService.get_cash_and_bank_accounts()
         except Exception:
             self.fields["payment_account"].queryset = ChartOfAccounts.objects.none()
 
