@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from decimal import Decimal
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -7,6 +8,7 @@ from django.db.models import Q, Sum, Count, F, Prefetch
 from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
 from django.template.loader import render_to_string
 from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
 from django.conf import settings
 from django.db import transaction, models
 from django.core.exceptions import ValidationError
@@ -978,6 +980,28 @@ def product_detail(request, pk):
     except:
         supplier_prices = []
 
+    # أسعار العملات المخصصة الاسترشادية
+    active_currencies = []
+    try:
+        from financial.models import Currency
+        active_currencies = list(Currency.objects.filter(is_active=True).exclude(code="EGP"))
+    except Exception:
+        pass
+
+    currency_prices_list = list(product.currency_prices.select_related("currency").all())
+
+    # سجل تاريخ الأسعار الموحد للمنتج
+    price_history = []
+    try:
+        from product.models import PriceHistory
+        price_history = list(
+            PriceHistory.objects.filter(product=product)
+            .select_related("currency", "changed_by")
+            .order_by("-change_date")[:50]
+        )
+    except Exception:
+        pass
+
     # إحصائيات المبيعات
     sales_stats = get_product_sales_statistics(product)
 
@@ -987,6 +1011,9 @@ def product_detail(request, pk):
         "stock_movements": stock_movements,
         "total_stock": total_stock,
         "supplier_prices": supplier_prices,
+        "active_currencies": active_currencies,
+        "currency_prices_list": currency_prices_list,
+        "price_history": price_history,
         "sales_stats": sales_stats,
         "title": product.name,
         
@@ -1026,6 +1053,52 @@ def product_detail(request, pk):
     }
 
     return render(request, "product/product_detail.html", context)
+
+
+@login_required
+@require_POST
+def update_currency_prices(request, pk):
+    """
+    AJAX endpoint لتحديث أو إضافة السعر الاسترشادي لعملة معينة للمنتج
+    """
+    product = get_object_or_404(Product, pk=pk)
+    try:
+        from financial.models import Currency
+        from product.services.pricing_service import PricingService
+        
+        currency_code = request.POST.get("currency_code")
+        action = request.POST.get("form_action") or request.POST.get("action", "update")
+        selling_price = request.POST.get("selling_price")
+        cost_price = request.POST.get("cost_price")
+        notes = request.POST.get("notes", "")
+
+        if not currency_code:
+            return JsonResponse({"success": False, "message": "رمز العملة مطلوب"}, status=400)
+
+        currency = get_object_or_404(Currency, code=currency_code)
+
+        if action == "delete":
+            from product.models import ProductCurrencyPrice
+            ProductCurrencyPrice.objects.filter(product=product, currency=currency).delete()
+            return JsonResponse({"success": True, "message": f"تم حذف السعر المخصص لعملة {currency.code} بنجاح"})
+        
+        selling_dec = Decimal(selling_price) if selling_price and selling_price.strip() else None
+        cost_dec = Decimal(cost_price) if cost_price and cost_price.strip() else None
+
+        PricingService.update_currency_price(
+            product=product,
+            currency=currency,
+            indicative_selling_price=selling_dec,
+            indicative_cost_price=cost_dec,
+            user=request.user,
+            notes=notes
+        )
+        return JsonResponse({"success": True, "message": "تم تحديث السعر بالعملة بنجاح"})
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"Error updating currency price: {e}", exc_info=True)
+        return JsonResponse({"success": False, "message": f"حدث خطأ أثناء حفظ السعر: {str(e)}"}, status=400)
+
 
 
 @login_required

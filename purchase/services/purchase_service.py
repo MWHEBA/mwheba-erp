@@ -161,7 +161,7 @@ class PurchaseService:
                     source_reference=f"PURCHASE-{purchase.number}-ITEM-{item.id}",
                     idempotency_key=f'purchase_{purchase.id}_item_{item.id}_movement',
                     user=user,
-                    unit_cost=item.unit_price,
+                    unit_cost=item.unit_price if (item.unit_price and item.unit_price > 0) else (item.product.cost_price if (item.product and item.product.cost_price and item.product.cost_price > 0) else Decimal('0.01')),
                     document_number=purchase.number,
                     notes=f'مشتريات - فاتورة رقم {purchase.number}',
                     movement_date=purchase.date,

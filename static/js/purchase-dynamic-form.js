@@ -184,7 +184,7 @@
         // Update page title
         const pageTitle = $('.header-title');
         if (pageTitle.length) {
-            const titleText = isService ? 'إضافة فاتورة خدمات جديدة' : 'إضافة فاتورة مشتريات جديدة';
+            const titleText = isService ? 'إضافة فاتورة خدمات' : 'إضافة فاتورة مشتريات';
             pageTitle.text(titleText);
         }
         
@@ -311,7 +311,7 @@
         // Reset labels
         const pageTitle = $('.header-title');
         if (pageTitle.length) {
-            pageTitle.text('إضافة فاتورة مشتريات جديدة');
+            pageTitle.text('إضافة فاتورة مشتريات');
         }
         
         const sectionTitle = $('#supplier-section-title');

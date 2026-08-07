@@ -503,6 +503,153 @@
                 </div>
             </div>
 
+            <!-- أسعار العملات المخصصة الاسترشادية -->
+            <div class="info-card mb-4">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5><i class="fas fa-coins text-warning me-2"></i>الأسعار بالعملات الأجنبية</h5>
+                    <button class="btn btn-sm btn-outline-primary" onclick="openCurrencyPriceModal('', '', '', '')">
+                        <i class="fas fa-plus me-1"></i>إضافة سعر مخصص بالعملة
+                    </button>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-simple table-hover align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th class="text-center">العملة</th>
+                                <th class="text-center">سعر البيع</th>
+                                <th class="text-center">سعر التكلفة</th>
+                                <th class="text-center">الحالة</th>
+                                <th class="text-center">إجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- العملة الأساسية -->
+                            <tr class="table-light">
+                                <td class="text-center">
+                                    <strong class="text-primary">EGP (العملة الأساسية)</strong>
+                                </td>
+                                <td class="text-center"><strong class="text-success">{{ product.selling_price|smart_float }} ج.م</strong></td>
+                                <td class="text-center"><strong>{{ product.cost_price|smart_float }} ج.م</strong></td>
+                                <td class="text-center"><span class="badge bg-success">أساسي</span></td>
+                                <td class="text-center text-muted small">-</td>
+                            </tr>
+                            {% for cp in currency_prices_list %}
+                            <tr>
+                                <td class="text-center">
+                                    <strong class="text-dark">{{ cp.currency.code }} ({{ cp.currency.name }})</strong>
+                                </td>
+                                <td class="text-center">
+                                    {% if cp.indicative_selling_price %}
+                                    <strong class="text-success">{{ cp.indicative_selling_price|smart_float }} {{ cp.currency.symbol|default:cp.currency.code }}</strong>
+                                    {% else %}
+                                    <span class="text-muted small">تلقائي من سعر الصرف</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    {% if cp.indicative_cost_price %}
+                                    <strong>{{ cp.indicative_cost_price|smart_float }} {{ cp.currency.symbol|default:cp.currency.code }}</strong>
+                                    {% else %}
+                                    <span class="text-muted small">تلقائي من سعر الصرف</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center"><span class="badge bg-primary">مخصص</span></td>
+                                <td class="text-center">
+                                    <div class="btn-group btn-group-sm">
+                                        <button class="btn btn-outline-primary btn-sm btn-edit-currency-price" 
+                                                data-code="{{ cp.currency.code }}" 
+                                                data-selling="{{ cp.indicative_selling_price|default:'' }}" 
+                                                data-cost="{{ cp.indicative_cost_price|default:'' }}" 
+                                                data-notes="{{ cp.notes|default:'' }}" 
+                                                title="تعديل السعر">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button class="btn btn-outline-danger btn-sm btn-delete-currency-price" 
+                                                data-code="{{ cp.currency.code }}" 
+                                                title="حذف السعر المخصص">
+                                            <i class="fas fa-trash-alt"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                {% if not currency_prices_list %}
+                <div class="text-center py-3 border-top mt-2 text-muted">
+                    <small><i class="fas fa-info-circle me-1 text-info"></i>لا توجد أسعار مخصصة بالعملات الأجنبية لهذا المنتج. يتم التحويل تلقائياً حسب سعر الصرف بالفواتير.</small>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- سجل تاريخ تغيرات الأسعار والتكلفة الموحد 100% -->
+            <div class="info-card mb-4">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5><i class="fas fa-history text-info me-2"></i>سجل تاريخ الأسعار والتكلفة الموحد</h5>
+                    <span class="badge bg-secondary">{{ price_history|length }} حركة</span>
+                </div>
+                
+                {% if price_history %}
+                <div class="table-responsive" style="max-height: 350px; overflow-y: auto;">
+                    <table class="table table-simple table-hover align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th class="text-center">التاريخ والوقت</th>
+                                <th class="text-center">المصدر</th>
+                                <th class="text-center">العملة</th>
+                                <th class="text-center">سعر الصرف</th>
+                                <th class="text-center">التغيير (قديم → جديد)</th>
+                                <th class="text-center">المرجع / المستند</th>
+                                <th class="text-center">المستخدم</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for ph in price_history %}
+                            <tr>
+                                <td class="text-center small">{{ ph.change_date|date:"Y-m-d H:i" }}</td>
+                                <td class="text-center">
+                                    {% if ph.source_type == 'CATALOG_BASE' %}
+                                    <span class="badge bg-primary">سعر رئيسي EGP</span>
+                                    {% elif ph.source_type == 'CATALOG_FX' %}
+                                    <span class="badge bg-warning text-dark">سعر عملة أجنبية</span>
+                                    {% elif ph.source_type == 'PURCHASE_INVOICE' %}
+                                    <span class="badge bg-success">فاتورة مشتريات</span>
+                                    {% elif ph.source_type == 'SALE_INVOICE' %}
+                                    <span class="badge bg-info">فاتورة مبيعات</span>
+                                    {% elif ph.source_type == 'SUPPLIER_PRICE' %}
+                                    <span class="badge bg-secondary">سعر مورد</span>
+                                    {% else %}
+                                    <span class="badge bg-light text-dark border">{{ ph.get_change_reason_display }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center"><strong>{{ ph.currency.code|default:"EGP" }}</strong></td>
+                                <td class="text-center small">{{ ph.exchange_rate|default:"1.0" }}</td>
+                                <td class="text-center">
+                                    <span class="text-muted">{{ ph.old_price|smart_float|default:"0" }}</span>
+                                    <i class="fas fa-arrow-left mx-1 text-muted small"></i>
+                                    <strong class="{% if ph.is_price_increase %}text-danger{% elif ph.is_price_decrease %}text-success{% else %}text-dark{% endif %}">
+                                        {{ ph.new_price|smart_float }}
+                                    </strong>
+                                </td>
+                                <td class="text-center small">
+                                    {{ ph.document_reference|default:ph.purchase_reference|default:"-" }}
+                                </td>
+                                <td class="text-center small">{{ ph.changed_by.get_full_name|default:ph.changed_by.username|default:"النظام" }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-3 text-muted">
+                    <i class="fas fa-history fa-2x mb-2"></i>
+                    <p class="small mb-0">لا يوجد سجل حركات أسعار مسجل بعد لهذا المنتج</p>
+                </div>
+                {% endif %}
+            </div>
+
             <!-- أسعار الموردين -->
             <div class="info-card">
                 <div class="d-flex justify-content-between align-items-center mb-3">
@@ -1508,5 +1655,151 @@
         </div>
     </div>
 </div>
+
+<!-- مودال تحديث أسعار العملات الاسترشادية المخصصة -->
+<div class="modal fade" id="currencyPricesModal" tabindex="-1" aria-labelledby="currencyPricesModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-light">
+                <h5 class="modal-title text-dark fw-bold" id="currencyPricesModalLabel">
+                    <i class="fas fa-coins text-warning me-2"></i>تعديل السعر بالعملة
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="currencyPricesForm" action="{% url 'product:update_currency_prices' product.pk %}" method="post">
+                {% csrf_token %}
+                <input type="hidden" name="form_action" id="fx_action" value="update">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-medium">اختر العملة المراد تخصيص سعرها <span class="text-danger">*</span></label>
+                        <select name="currency_code" id="fx_currency_code" class="form-select" required>
+                            <option value="">-- اختر العملة --</option>
+                            {% for curr in active_currencies %}
+                            <option value="{{ curr.code }}">{{ curr.code }} - {{ curr.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-medium">سعر البيع بالعملة</label>
+                        <input type="number" step="0.0001" min="0" name="selling_price" id="fx_selling_price" class="form-control" placeholder="أدخل سعر البيع بالعملة">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-medium">سعر التكلفة بالعملة</label>
+                        <input type="number" step="0.0001" min="0" name="cost_price" id="fx_cost_price" class="form-control" placeholder="أدخل سعر التكلفة بالعملة">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-medium">ملاحظات</label>
+                        <input type="text" name="notes" id="fx_notes" class="form-control" placeholder="سبب تعيين السعر الاسترشادي">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-primary btn-sm">
+                        <i class="fas fa-save me-1"></i>حفظ السعر
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function openCurrencyPriceModal(code, selling, cost, notes) {
+    document.getElementById('fx_action').value = 'update';
+    var select = document.getElementById('fx_currency_code');
+    select.value = code || '';
+    select.disabled = false;
+    document.getElementById('fx_selling_price').value = selling || '';
+    document.getElementById('fx_cost_price').value = cost || '';
+    document.getElementById('fx_notes').value = notes || '';
+    
+    var modal = new bootstrap.Modal(document.getElementById('currencyPricesModal'));
+    modal.show();
+}
+
+function deleteCurrencyPrice(code) {
+    if (!code) return;
+    if (!confirm('هل أنت تأكد من إلغاء السعر المخصص لعملة ' + code + ' والرجوع للتحويل التلقائي بأسعار الصرف؟')) {
+        return;
+    }
+    var formData = new FormData();
+    formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+    formData.append('currency_code', code);
+    formData.append('action', 'delete');
+
+    fetch("{% url 'product:update_currency_prices' product.pk %}", {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            if (typeof toastr !== 'undefined') toastr.success(data.message);
+            location.reload();
+        } else {
+            alert(data.message || 'حدث خطأ أثناء الحذف');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('حدث خطأ بالاتصال أثناء الحذف');
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.btn-edit-currency-price').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var ds = this.dataset;
+            openCurrencyPriceModal(ds.code, ds.selling, ds.cost, ds.notes);
+        });
+    });
+
+    document.querySelectorAll('.btn-delete-currency-price').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            deleteCurrencyPrice(this.dataset.code);
+        });
+    });
+
+    var currencyPricesForm = document.getElementById('currencyPricesForm');
+    if (currencyPricesForm) {
+        currencyPricesForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            var formData = new FormData(this);
+            var actionUrl = this.getAttribute('action');
+            fetch(actionUrl, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    if (typeof toastr !== 'undefined') {
+                        toastr.success(data.message);
+                    } else {
+                        alert(data.message);
+                    }
+                    location.reload();
+                } else {
+                    if (typeof toastr !== 'undefined') {
+                        toastr.error(data.message || 'حدث خطأ أثناء حفظ السعر');
+                    } else {
+                        alert(data.message || 'حدث خطأ أثناء حفظ السعر');
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('حدث خطأ بالاتصال أثناء الحفظ');
+            });
+        });
+    }
+});
+</script>
 {% endblock %}
  

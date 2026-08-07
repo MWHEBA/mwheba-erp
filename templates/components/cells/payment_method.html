@@ -13,7 +13,7 @@
   </span>
 {% elif value == 'prepaid_balance' or value == 'PREPAID_BALANCE' or 'رصيد' in value %}
   <span class="badge bg-info text-dark">
-    <i class="fas fa-wallet me-1"></i>{% if 'المورد' in value %}رصيد المورد المسبق{% else %}رصيد مسبق{% endif %}
+    {% if 'المورد' in value %}رصيد المورد المسبق{% else %}رصيد مسبق{% endif %}
   </span>
 {% elif value == 'credit_note' or value == 'CREDIT_NOTE' or 'إشعار دائن' in value %}
   <span class="badge bg-secondary">

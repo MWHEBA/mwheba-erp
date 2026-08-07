@@ -118,7 +118,7 @@ def purchase_list(request):
     courses_count = Purchase.objects.filter(service_type='course').count()
 
     # الحصول على قائمة الموردين للفلترة
-    suppliers = Supplier.objects.filter(id__in=Purchase.objects.values('supplier_id')).order_by("name")
+    suppliers = Supplier.objects.filter(is_active=True).order_by("name")
 
     # تعريف عناوين أعمدة الجدول
     purchase_headers = [
@@ -211,7 +211,11 @@ def purchase_list(request):
             'number': purchase.number,
             'created_at': purchase.created_at,
             'supplier.name': purchase.supplier.name if purchase.supplier else 'غير محدد',
-            'warehouse.name': purchase.warehouse.name if purchase.warehouse else 'غير محدد',
+            'supplier': purchase.supplier.name if purchase.supplier else 'غير محدد',
+            'supplier_name': purchase.supplier.name if purchase.supplier else 'غير محدد',
+            'warehouse.name': purchase.warehouse.name if purchase.warehouse else ('خدمية' if purchase.is_service else 'غير محدد'),
+            'warehouse': purchase.warehouse.name if purchase.warehouse else ('خدمية' if purchase.is_service else 'غير محدد'),
+            'warehouse_name': purchase.warehouse.name if purchase.warehouse else ('خدمية' if purchase.is_service else 'غير محدد'),
             'total': purchase.total,
             'amount_due': purchase.amount_due,
             'payment_status': purchase.payment_status,
@@ -349,13 +353,25 @@ def purchase_create(request, supplier_id=None):
                     discounts = request.POST.getlist("discount[]")
 
                     for i in range(len(product_ids)):
-                        if product_ids[i]:  # تخطي الصفوف الفارغة
+                        if product_ids[i] and str(product_ids[i]).isdigit():
                             product = get_object_or_404(Product, id=product_ids[i])
-                            quantity = int(float(quantities[i]))
-                            unit_price = Decimal(unit_prices[i])
-                            discount = (
-                                Decimal(discounts[i]) if discounts[i] else Decimal("0")
-                            )
+                            try:
+                                raw_qty = quantities[i] if i < len(quantities) and quantities[i] else "1"
+                                quantity = Decimal(str(raw_qty))
+                            except (ValueError, TypeError):
+                                quantity = Decimal("1")
+
+                            try:
+                                raw_price = unit_prices[i] if i < len(unit_prices) and unit_prices[i] else "0"
+                                unit_price = Decimal(str(raw_price).replace(',', ''))
+                            except (ValueError, TypeError):
+                                unit_price = Decimal("0")
+
+                            try:
+                                raw_disc = discounts[i] if i < len(discounts) and discounts[i] else "0"
+                                discount = Decimal(str(raw_disc).replace(',', ''))
+                            except (ValueError, TypeError):
+                                discount = Decimal("0")
 
                             # إنشاء بند فاتورة
                             # Signal سيتولى إنشاء حركة المخزون تلقائياً
@@ -365,7 +381,7 @@ def purchase_create(request, supplier_id=None):
                                 quantity=quantity,
                                 unit_price=unit_price,
                                 discount=discount,
-                                total=(Decimal(quantity) * unit_price) - discount,
+                                total=(quantity * unit_price) - discount,
                             )
                             item.save()
 
@@ -720,13 +736,27 @@ def purchase_update(request, pk):
 
                     # حفظ البنود
                     for i in range(len(product_ids)):
-                        if not product_ids[i]:  # تخطي البنود الفارغة
+                        if not product_ids[i] or not str(product_ids[i]).isdigit():  # تخطي البنود الفارغة
                             continue
 
                         product = get_object_or_404(Product, id=product_ids[i])
-                        quantity = int(quantities[i])
-                        unit_price = Decimal(unit_prices[i])
-                        discount = Decimal(discounts[i] if discounts[i] else "0")
+                        try:
+                            raw_qty = quantities[i] if i < len(quantities) and quantities[i] else "1"
+                            quantity = Decimal(str(raw_qty))
+                        except (ValueError, TypeError):
+                            quantity = Decimal("1")
+
+                        try:
+                            raw_price = unit_prices[i] if i < len(unit_prices) and unit_prices[i] else "0"
+                            unit_price = Decimal(str(raw_price).replace(',', ''))
+                        except (ValueError, TypeError):
+                            unit_price = Decimal("0")
+
+                        try:
+                            raw_disc = discounts[i] if i < len(discounts) and discounts[i] else "0"
+                            discount = Decimal(str(raw_disc).replace(',', ''))
+                        except (ValueError, TypeError):
+                            discount = Decimal("0")
 
                         # حساب إجمالي البند
                         item_total = (quantity * unit_price) - discount
@@ -745,8 +775,8 @@ def purchase_update(request, pk):
                         )
 
                         saved_item_ids.append(item.id)
-                        # حفظ الكمية الجديدة في القاموس
-                        new_items[product.id] = quantity
+                        # حفظ الكمية وسعر الوحدة الجديدة في القاموس
+                        new_items[product.id] = (quantity, unit_price)
 
                     # حذف البنود الغير موجودة في النموذج
                     PurchaseItem.objects.filter(purchase=purchase).exclude(
@@ -771,7 +801,7 @@ def purchase_update(request, pk):
                     
                     movement_service = MovementService()
                     
-                    for product_id, new_quantity in new_items.items():
+                    for product_id, (new_quantity, item_unit_price) in new_items.items():
                         original_quantity = original_items.get(product_id, 0)
                         quantity_diff = new_quantity - original_quantity
 
@@ -792,7 +822,7 @@ def purchase_update(request, pk):
                                         source_reference=f"PUR-EDIT-{updated_purchase.number}",
                                         idempotency_key=f"purchase_edit_{updated_purchase.id}_{product_id}_increase_{timezone.now().timestamp()}",
                                         user=request.user,
-                                        unit_cost=Decimal(str(unit_prices[list(new_items.keys()).index(product_id)])),
+                                        unit_cost=item_unit_price if (item_unit_price and item_unit_price > 0) else (product.cost_price if (product and product.cost_price and product.cost_price > 0) else Decimal('0.01')),
                                         document_number=updated_purchase.number,
                                         notes=f"زيادة كمية منتج في تعديل فاتورة مشتريات رقم {updated_purchase.number}"
                                     )

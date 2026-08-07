@@ -71,6 +71,18 @@ class ProductImportService:
         'is_service': 'is_service',
         'نوع المنتج': 'item_type',
         'item_type': 'item_type',
+        'سعر البيع دولار': 'price_usd',
+        'price_usd': 'price_usd',
+        'سعر التكلفة دولار': 'cost_usd',
+        'cost_usd': 'cost_usd',
+        'سعر البيع يورو': 'price_eur',
+        'price_eur': 'price_eur',
+        'سعر التكلفة يورو': 'cost_eur',
+        'cost_eur': 'cost_eur',
+        'سعر البيع ريال': 'price_sar',
+        'price_sar': 'price_sar',
+        'سعر التكلفة ريال': 'cost_sar',
+        'cost_sar': 'cost_sar',
     }
 
     ITEM_TYPE_MAP = {
@@ -438,8 +450,32 @@ class ProductImportService:
                 )
                 self.created_count += 1
 
-                if initial_quantity > 0 and not is_service:
-                    self._create_initial_stock(product, initial_quantity, cost_price, warehouse=warehouse)
+            target_product = existing if (existing and update_existing) else product
+            if target_product:
+                try:
+                    from financial.models import Currency
+                    from product.services.pricing_service import PricingService
+                    for curr_code in ["USD", "EUR", "SAR"]:
+                        p_val = row.get(f"price_{curr_code.lower()}")
+                        c_val = row.get(f"cost_{curr_code.lower()}")
+                        if p_val or c_val:
+                            curr = Currency.objects.filter(code=curr_code, is_active=True).first()
+                            if curr:
+                                try:
+                                    s_dec = Decimal(str(p_val).replace(',', '')) if p_val else None
+                                    c_dec = Decimal(str(c_val).replace(',', '')) if c_val else None
+                                    PricingService.update_currency_price(
+                                        product=target_product,
+                                        currency=curr,
+                                        indicative_selling_price=s_dec,
+                                        indicative_cost_price=c_dec,
+                                        user=self.user,
+                                        notes="استيراد من ملف إكسل"
+                                    )
+                                except Exception as fx_err:
+                                    logger.warning(f"Error updating currency price for {target_product.name} ({curr_code}): {fx_err}")
+                except Exception as e:
+                    logger.warning(f"Error processing currency import: {e}")
 
             return {'error': None}
 

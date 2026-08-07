@@ -1,3 +1,4 @@
+from decimal import Decimal
 from django import forms
 from django.utils import timezone
 from django.core.validators import MinValueValidator

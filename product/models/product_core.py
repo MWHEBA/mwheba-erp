@@ -466,6 +466,49 @@ class Product(models.Model):
         """الحصول على جميع أسعار الموردين للمنتج"""
         from .supplier_pricing import SupplierProductPrice
         return SupplierProductPrice.objects.filter(product=self, is_active=True)
+
+    def get_price_for_currency(self, currency_code, exchange_rate=1.0, price_type='selling'):
+        """
+        جلب سعر المنتج بالعملة المحددة (السعر الاسترشادي المثبت إن وجد، وإلا التحويل اللحظي)
+        """
+        if not currency_code or currency_code == "EGP":
+            return self.selling_price if price_type == 'selling' else self.cost_price
+
+        try:
+            from .product_currency_price import ProductCurrencyPrice
+            cp = ProductCurrencyPrice.objects.filter(product=self, currency__code=currency_code).first()
+            if cp:
+                val = cp.indicative_selling_price if price_type == 'selling' else cp.indicative_cost_price
+                if val is not None and Decimal(str(val)) > Decimal("0"):
+                    return val
+        except Exception:
+            pass
+
+        base_val = self.selling_price if price_type == 'selling' else self.cost_price
+        try:
+            rate = Decimal(str(exchange_rate or 1.0))
+            if rate <= Decimal("0"):
+                rate = Decimal("1.0")
+            return (base_val / rate).quantize(Decimal("0.000001"))
+        except Exception:
+            return base_val
+
+    def get_currency_prices_dict(self):
+        """
+        تجميع جميع الأسعار الاسترشادية بالعملات للمنتج في قاموس للـ JS Preload
+        """
+        res = {}
+        try:
+            for cp in self.currency_prices.select_related("currency").all():
+                code = cp.currency.code
+                res[code] = {
+                    "selling": float(cp.indicative_selling_price) if cp.indicative_selling_price else None,
+                    "cost": float(cp.indicative_cost_price) if cp.indicative_cost_price else None,
+                }
+        except Exception:
+            pass
+        return res
+
     
     # دوال خاصة بأنواع المنتجات
     def is_educational_item(self):

@@ -9,25 +9,32 @@ register = template.Library()
 @register.filter
 def get_attr(obj, attr):
     """
-    الحصول على قيمة خاصية من كائن
+    الحصول على قيمة خاصية من كائن أو dictionary
     سواء كانت خاصية عادية أو خاصية متداخلة مفصولة بنقطة
-    مثل: user.profile.avatar
+    مثل: user.profile.avatar أو مفاتيح القواميس مثل supplier.name
     """
     if not obj:
         return None
 
-    # دعم الخصائص المتداخلة (مثل user.profile.name)
-    attrs = attr.split(".")
+    if isinstance(obj, dict):
+        if attr in obj:
+            return obj[attr]
+        alt_key = str(attr).replace('.', '_')
+        if alt_key in obj:
+            return obj[alt_key]
+
+    attrs = str(attr).split(".")
     value = obj
 
     for a in attrs:
-        # دعم الـ attributes والـ methods والـ dict keys
-        if hasattr(value, a):
+        if value is None:
+            return None
+        if isinstance(value, dict):
+            value = value.get(a)
+        elif hasattr(value, a):
             value = getattr(value, a)
             if callable(value):
                 value = value()
-        elif isinstance(value, dict) and a in value:
-            value = value[a]
         else:
             return None
 

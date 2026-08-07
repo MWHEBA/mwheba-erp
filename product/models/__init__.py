@@ -4,6 +4,7 @@
 
 # استيراد النماذج الأساسية
 from .product_core import Category, Unit, Product, ProductImage, ProductVariant, BundleComponent, BundleComponentAlternative
+from .product_currency_price import ProductCurrencyPrice
 from .stock_management import Warehouse, Stock, StockMovement
 from .supplier_pricing import SupplierProductPrice, PriceHistory
 from .system_utils import SerialNumber
@@ -60,6 +61,7 @@ __all__ = [
     "Product",
     "ProductImage",
     "ProductVariant",
+    "ProductCurrencyPrice",
     "BundleComponent",
     "BundleComponentAlternative",
     "Warehouse",

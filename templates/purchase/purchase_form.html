@@ -5,7 +5,7 @@
 {% load custom_filters %}
 {% load utils_extras %}
 
-{% block title %}{% if purchase.id %}تعديل فاتورة مشتريات - {{ purchase.number }}{% else %}إضافة فاتورة مشتريات جديدة{% endif %}{% endblock %}
+{% block title %}{% if purchase.id %}تعديل فاتورة مشتريات - {{ purchase.number }}{% else %}إضافة فاتورة مشتريات{% endif %}{% endblock %}
 
 {% block messages %}{% endblock %}
 
@@ -346,8 +346,90 @@
                 </div>
                 {% endif %}
             </div>
+            
+            <button type="button" id="add-item" class="btn btn-sm btn-primary add-more-btn mt-3">
+                <i class="fa fa-plus me-1"></i> <span id="add-btn-text">إضافة بند</span>
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-success add-more-btn mt-3 ms-2" id="btn-new-product">
+                <i class="fas fa-box-open me-1"></i> منتج جديد
+            </button>
+        </div>
 
-<!-- ===== Product Picker Modal ===== -->
+        <!-- القسم الثالث: الملخص المالي والشروط والأزرار -->
+        <div class="section-container mb-4">
+            <h5 class="section-title"><i class="fas fa-calculator me-2"></i>الملخص المالي والخصومات</h5>
+            <div class="row total-section g-4 align-items-stretch">
+                <div class="col-lg-8 col-md-12 invoice-notes-container d-flex flex-column">
+                    <div class="p-3 bg-light border rounded h-100 d-flex flex-column justify-content-between">
+                        <div class="row g-3">
+                            <div class="col-md-7">
+                                <label class="form-label text-dark fw-medium"><i class="fas fa-sticky-note me-1 text-primary"></i> الملاحظات والشروط</label>
+                                <textarea name="notes" id="id_notes" class="form-control" rows="3" placeholder="أضف ملاحظات إضافية هنا..." style="resize: vertical;">{{ form.notes.value|default:'' }}</textarea>
+                            </div>
+                            <div class="col-md-5">
+                                <label class="form-label text-dark fw-medium"><i class="fas fa-percent me-1 text-primary"></i> الخصم الإجمالي على الفاتورة</label>
+                                <div class="input-group">
+                                    <input type="number" step="0.01" name="discount" id="id_discount" class="form-control text-center" value="{{ form.discount.value|default:'0' }}" min="0" placeholder="0.00">
+                                    <span class="input-group-text">{{ currency_symbol }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-lg-4 col-md-12 invoice-summary-container d-flex flex-column">
+                    <div class="p-3 bg-light border rounded h-100 d-flex flex-column justify-content-between">
+                        <div class="row mb-2">
+                            <div class="col-6 text-end">
+                                <strong style="white-space: nowrap;">المجموع الفرعي:</strong>
+                            </div>
+                            <div class="col-6 text-end">
+                                <span id="subtotal">0.00</span>
+                                <input type="hidden" name="subtotal" id="subtotal-input">
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-2">
+                            <div class="col-6 text-end">
+                                <strong style="white-space: nowrap;">الخصم على الفاتورة:</strong>
+                            </div>
+                            <div class="col-6 text-end">
+                                <span id="discount-total">0.00</span>
+                            </div>
+                        </div>
+                        
+                        <hr class="my-2">
+                        
+                        <div class="row">
+                            <div class="col-6 text-end">
+                                <strong class="fs-6 text-dark">الإجمالي:</strong>
+                            </div>
+                            <div class="col-6 text-end">
+                                <span id="grand-total" class="fs-6 fw-bold text-success">0.00</span>
+                                <input type="hidden" name="total" id="total-input">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- أزرار الحفظ -->
+            <div class="text-center mt-4 pt-3 border-top">
+                <button type="submit" class="btn btn-primary me-2">
+                    <i class="fas fa-save me-1"></i> حفظ الفاتورة
+                </button>
+                {% if selected_supplier %}
+                    <a href="{% url 'supplier:supplier_detail' pk=selected_supplier.pk %}" class="btn btn-secondary">
+                        <i class="fas fa-times me-1"></i> إلغاء
+                    </a>
+                {% else %}
+                    <a href="{% url 'purchase:purchase_list' %}" class="btn btn-secondary">
+                        <i class="fas fa-times me-1"></i> إلغاء
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+    </form>
 {% include 'components/product_picker_modal.html' %}
 
 <!-- ===== مودال إضافة منتج جديد ===== -->

@@ -99,6 +99,9 @@ def invoice_product_lookup(request):
         show_all_param = request.GET.get("show_all", "false") == "true"
         show_all = show_all_param or exact or product_ids or (product_type in ["service", "services", "purchase"])
         
+        # Prefetch currency prices for efficiency
+        qs = qs.prefetch_related('currency_prices__currency')
+
         results = []
         for p in qs.select_related('category', 'unit').order_by("name"):
             stock_qty = stock_map.get(str(p.id), 0.0)
@@ -115,6 +118,7 @@ def invoice_product_lookup(request):
                 "barcode": p.barcode,
                 "selling_price": float(p.selling_price) if p.selling_price else 0.0,
                 "cost_price": float(p.cost_price) if p.cost_price else 0.0,
+                "currency_prices": p.get_currency_prices_dict(),
                 "stock": stock_qty,
                 "is_service": p.is_service,
                 "unit_name": p.unit.name if p.unit else "",

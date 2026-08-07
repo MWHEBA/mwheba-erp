@@ -1,6 +1,7 @@
 from decimal import Decimal
 from typing import Dict, Any, Optional
 from django.db import models
+from django.core.exceptions import ValidationError
 from django.utils import timezone
 from sale.models.pricing import PriceList, PriceListItem, DiscountRule, PricingAuditLog
 from product.models.product_core import Product

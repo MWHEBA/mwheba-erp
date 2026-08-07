@@ -164,19 +164,18 @@ def price_manager_update_api(request):
     setattr(product, field, new_val)
     product.save(update_fields=[field])  # updated_at هو auto_now — Django يتعامل معه تلقائياً
 
-    # تسجيل في PriceHistory لـ cost_price فقط إذا كان للمنتج مورد افتراضي
-    if field == 'cost_price':
-        default_supplier_price = SupplierProductPrice.objects.filter(
-            product=product, is_default=True
-        ).first()
-        if default_supplier_price:
-            PriceHistory.objects.create(
-                supplier_product_price=default_supplier_price,
-                old_price=old_val,
-                new_price=new_val,
-                change_reason='manual_update',
-                changed_by=request.user,
-            )
+    # تسجيل حركة التغير في سجل تاريخ الأسعار الموحد PriceHistory
+    if field in ('cost_price', 'selling_price'):
+        from product.services.pricing_service import PricingService
+        PricingService.log_price_change(
+            product=product,
+            old_price=old_val,
+            new_price=new_val,
+            source_type="CATALOG_BASE",
+            change_reason="manual_update",
+            notes=f"تحديث {field} من مدير الأسعار",
+            user=request.user,
+        )
 
     # حساب هامش الربح المحدّث
     profit_margin = None

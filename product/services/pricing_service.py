@@ -417,3 +417,110 @@ class PricingService:
         except Exception as e:
             logger.error(f"خطأ في مقارنة الأسعار: {e}")
             return {"product": product, "prices": [], "error": str(e)}
+
+    @staticmethod
+    def update_currency_price(
+        product: Product,
+        currency,
+        indicative_selling_price: Optional[Decimal] = None,
+        indicative_cost_price: Optional[Decimal] = None,
+        user: Optional[Any] = None,
+        notes: Optional[str] = None,
+    ):
+        """
+        تحديث أو إنشاء السعر الاسترشادي المخصص لمنتج بـ عملة معينة وتسجيل التاريخ المالي
+        """
+        from product.models import ProductCurrencyPrice, PriceHistory
+        user_obj = user if (user and getattr(user, "is_authenticated", False)) else None
+        try:
+            with transaction.atomic():
+                cp, created = ProductCurrencyPrice.objects.get_or_create(
+                    product=product,
+                    currency=currency,
+                    defaults={
+                        "indicative_selling_price": indicative_selling_price,
+                        "indicative_cost_price": indicative_cost_price,
+                        "created_by": user_obj,
+                        "notes": notes,
+                    },
+                )
+
+                old_selling = cp.indicative_selling_price
+                old_cost = cp.indicative_cost_price
+
+                if not created:
+                    if indicative_selling_price is not None:
+                        cp.indicative_selling_price = indicative_selling_price
+                    if indicative_cost_price is not None:
+                        cp.indicative_cost_price = indicative_cost_price
+                    if user_obj:
+                        cp.updated_by = user_obj
+                    if notes:
+                        cp.notes = notes
+                    cp.save()
+
+                # تسجيل التاريخ لو تم تعديل سعر البيع بالعملة
+                if indicative_selling_price is not None and (created or old_selling != indicative_selling_price):
+                    PriceHistory.objects.create(
+                        product=product,
+                        currency=currency,
+                        source_type="CATALOG_FX",
+                        old_price=old_selling,
+                        new_price=indicative_selling_price,
+                        change_reason="manual_update",
+                        notes=notes or f"تحديث سعر البيع بالعملة {currency.code}",
+                        changed_by=user_obj,
+                    )
+
+                # تسجيل التاريخ لو تم تعديل سعر التكلفة بالعملة
+                if indicative_cost_price is not None and (created or old_cost != indicative_cost_price):
+                    PriceHistory.objects.create(
+                        product=product,
+                        currency=currency,
+                        source_type="CATALOG_FX",
+                        old_price=old_cost,
+                        new_price=indicative_cost_price,
+                        change_reason="manual_update",
+                        notes=notes or f"تحديث سعر التكلفة بالعملة {currency.code}",
+                        changed_by=user_obj,
+                    )
+
+                return cp
+        except Exception as e:
+            logger.error(f"خطأ في تحديث سعر المنتج بالعملة: {e}")
+            raise e
+
+    @staticmethod
+    def log_price_change(
+        product: Product,
+        new_price: Decimal,
+        old_price: Optional[Decimal] = None,
+        currency: Optional[Any] = None,
+        exchange_rate: Optional[Decimal] = None,
+        source_type: str = "CATALOG_BASE",
+        change_reason: str = "manual_update",
+        document_reference: Optional[str] = None,
+        user: Optional[Any] = None,
+        notes: Optional[str] = None,
+    ):
+        """
+        تسجيل حركة تغير سعر في سجل تاريخ الأسعار الموحد PriceHistory
+        """
+        from product.models import PriceHistory
+        try:
+            return PriceHistory.objects.create(
+                product=product,
+                currency=currency,
+                exchange_rate=exchange_rate,
+                source_type=source_type,
+                document_reference=document_reference,
+                old_price=old_price,
+                new_price=new_price,
+                change_reason=change_reason,
+                notes=notes,
+                changed_by=user,
+            )
+        except Exception as e:
+            logger.error(f"خطأ في تسجيل تاريخ حركة السعر: {e}")
+            return None
+

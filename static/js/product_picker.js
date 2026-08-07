@@ -38,9 +38,38 @@
             localStorage.setItem('mwheba_picker_show_all', isChecked ? 'true' : 'false');
         },
 
+        resolveProductPrice: function(p) {
+            if (!p) return 0;
+            var currencyCode = $('#id_currency').val() || 'EGP';
+            var rate = parseFloat($('#id_exchange_rate').val()) || 1.0;
+            var isPurchase = (this.options.type === 'purchase');
+            var priceType = isPurchase ? 'cost' : 'selling';
+
+            var basePrice = isPurchase ? (p.cost_price !== undefined ? p.cost_price : (p.price || 0)) : (p.selling_price !== undefined ? p.selling_price : (p.price || 0));
+
+            if (!currencyCode || currencyCode === 'EGP') {
+                return basePrice;
+            }
+
+            if (p.currency_prices && p.currency_prices[currencyCode]) {
+                var explicitVal = p.currency_prices[currencyCode][priceType];
+                if (explicitVal !== null && explicitVal !== undefined && parseFloat(explicitVal) > 0) {
+                    return parseFloat(explicitVal);
+                }
+            }
+
+            if (rate > 0) {
+                var converted = basePrice / rate;
+                return parseFloat(converted.toFixed(4));
+            }
+
+            return basePrice;
+        },
+
         renderRow: function(itemData, customOptions) {
             itemData = itemData || {};
             var opts = $.extend({}, this.options, customOptions || {});
+            var self = this;
             
             var isSalesRepOnly = $('#django-sales-form-data').data('is-sales-rep-only') === true;
             var priceReadonly = (isSalesRepOnly && opts.type === 'sale') ? 'readonly' : '';
@@ -56,7 +85,6 @@
             var unitPrice = (itemData.price !== undefined && itemData.price !== null) ? itemData.price : (itemData.unit_price || itemData.unit_cost || 0);
             var qty = itemData.quantity || 1;
             var itemDisc = itemData.discount || 0;
-            var itemTotal = itemData.total !== undefined ? itemData.total : ((qty * unitPrice) - itemDisc);
 
             var productName = itemData.name || (productId ? 'منتج #' + productId : 'اختر المنتج / الخدمة');
             var productStock = itemData.stock || 0;
@@ -68,13 +96,19 @@
                 if (found) {
                     productName = found.name;
                     productStock = found.stock;
-                    productPrice = opts.type === 'purchase' ? (found.cost_price || unitPrice) : found.selling_price;
+                    var resolvedP = self.resolveProductPrice(found);
+                    productPrice = resolvedP;
+                    if (!itemData.price && !itemData.unit_price && !itemData.unit_cost) {
+                        unitPrice = resolvedP;
+                    }
                     isService = found.is_service === true || found.is_service === "true";
                     if (!productCode && (found.code || found.sku)) {
                         productCode = found.code || found.sku;
                     }
                 }
             }
+
+            var itemTotal = itemData.total !== undefined ? itemData.total : ((qty * unitPrice) - itemDisc);
 
             var removeBtn = (opts.showRemoveButton !== false)
                 ? '<a href="javascript:void(0)" class="remove-item" title="إزالة البند"><i class="fas fa-times-circle"></i></a>'
@@ -531,7 +565,7 @@
                     });
 
                     if (isExactRequest && exactMatch) {
-                        var price = (self.options.priceField === 'cost_price') ? exactMatch.cost_price : exactMatch.selling_price;
+                        var price = self.resolveProductPrice(exactMatch);
                         var product = {
                             id: exactMatch.id,
                             name: exactMatch.name,
@@ -554,7 +588,7 @@
 
                     var $dropdown = $('<ul class="code-lookup-dropdown"></ul>');
                     products.slice(0, 8).forEach(function(p, idx) {
-                        var price = (self.options.priceField === 'cost_price') ? p.cost_price : p.selling_price;
+                        var price = self.resolveProductPrice(p);
                         var displayPrice = typeof smartFloat === 'function' ? smartFloat(price) : price;
                         var activeClass = (idx === 0) ? ' active' : '';
                         var $item = $('<li class="code-lookup-item' + activeClass + '" ' +
