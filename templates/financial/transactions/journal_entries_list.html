@@ -128,7 +128,7 @@ document.addEventListener('DOMContentLoaded', function() {
         GlobalTableManager.initializeTable('journal-entries-table', {
             paging: false, // تعطيل pagination من DataTables
             lengthChange: false, // إخفاء قائمة تغيير عدد العناصر
-            order: [[1, 'desc']], // ترتيب حسب التاريخ (العمود الثاني)
+            order: [], // الحفاظ التام على ترتيب السيرفر المباشر (-created_at) دون فرز إضافي من المتصفح
             columnDefs: [
                 { targets: 0, width: '120px', className: 'text-center' }, // رقم القيد
                 { targets: 1, width: '120px', className: 'text-center' }, // التاريخ

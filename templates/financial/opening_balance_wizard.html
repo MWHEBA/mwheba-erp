@@ -1,0 +1,260 @@
+{% extends "base.html" %}
+{% load i18n static %}
+
+{% block title %}{{ page_title }} | {% trans "MWHEBA ERP" %}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    {% include "shared/page_header.html" %}
+
+    <!-- سكشن المعلومات الأساسية والمؤشرات -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="stats-card stats-card-info">
+                <div class="stats-card-body">
+                    <div class="stats-card-icon"><i class="fas fa-barcode"></i></div>
+                    <div class="stats-card-title">{% trans "رقم الدفعة" %}</div>
+                    <div class="stats-card-value text-primary" style="font-size: 1.1rem;">{{ batch.batch_number }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card stats-card-info">
+                <div class="stats-card-body">
+                    <div class="stats-card-icon"><i class="fas fa-calendar-alt"></i></div>
+                    <div class="stats-card-title">{% trans "السنة المالية" %}</div>
+                    <div class="stats-card-value" style="font-size: 1.1rem;">{{ batch.fiscal_year.name }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card {% if batch.status == 'posted' %}stats-card-success{% elif batch.status == 'reversed' %}stats-card-danger{% else %}stats-card-warning{% endif %}">
+                <div class="stats-card-body">
+                    <div class="stats-card-icon"><i class="fas fa-shield-alt"></i></div>
+                    <div class="stats-card-title">{% trans "الحالة المحاسبية" %}</div>
+                    <div class="stats-card-value" style="font-size: 1.1rem;">
+                        {% if batch.status == 'posted' %}
+                            🔒 {% trans "مرحلة ومقفلة" %}
+                        {% elif batch.status == 'reversed' %}
+                            ↩️ {% trans "معكوسة" %}
+                        {% else %}
+                            {% trans "مسودة / تحت التدقيق" %}
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card stats-card-success">
+                <div class="stats-card-body">
+                    <div class="stats-card-icon"><i class="fas fa-file-invoice"></i></div>
+                    <div class="stats-card-title">{% trans "قيد اليومية المولد" %}</div>
+                    <div class="stats-card-value" style="font-size: 1.1rem;">
+                        {% if batch.journal_entry %}
+                            <a href="{% url 'financial:journal_entries_detail' batch.journal_entry.pk %}" class="text-decoration-none text-success fw-bold" title="{% trans "عرض تفاصيل قيد اليومية" %}">
+                                <i class="fas fa-external-link-alt me-1 fs-6"></i>{{ batch.journal_entry.number }}
+                            </a>
+                        {% else %}
+                            <span class="text-muted">{% trans "لم يُولد بعد" %}</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- سكشن شريط التوازن المباشر Live Balance Status Bar -->
+    <div class="section-container mb-4">
+        <h5 class="section-title"><i class="fas fa-balance-scale me-2"></i>{% trans "شريط التوازن والترحيل النهائي" %}</h5>
+        <div class="row align-items-center">
+            <div class="col-md-3 text-center border-end">
+                <div class="text-muted small">{% trans "إجمالي المدين (عملة وظيفية)" %}</div>
+                <div class="fs-4 fw-bold text-success" id="summary-debit">{{ total_debit|floatformat:2 }}</div>
+            </div>
+            <div class="col-md-3 text-center border-end">
+                <div class="text-muted small">{% trans "إجمالي الدائن (عملة وظيفية)" %}</div>
+                <div class="fs-4 fw-bold text-primary" id="summary-credit">{{ total_credit|floatformat:2 }}</div>
+            </div>
+            <div class="col-md-3 text-center border-end">
+                <div class="text-muted small">{% trans "الفارق والتوازن" %}</div>
+                <div class="fs-4 fw-bold {% if is_balanced %}text-success{% else %}text-danger{% endif %}" id="summary-diff">
+                    {{ balance_diff|floatformat:2 }}
+                </div>
+            </div>
+            <div class="col-md-3 text-center">
+                {% if batch.status == 'posted' %}
+                    <button type="button" class="btn btn-outline-danger w-100" data-bs-toggle="modal" data-bs-target="#reverseBatchModal">
+                        <i class="fas fa-undo me-1"></i>{% trans "إلغاء وعكس الدفعة" %}
+                    </button>
+                {% elif batch.status == 'reversed' %}
+                    <button type="button" class="btn btn-secondary w-100" disabled>
+                        <i class="fas fa-lock me-1"></i>{% trans "الدفعة معكوسة" %}
+                    </button>
+                {% else %}
+                    <button type="button" class="btn btn-success w-100" id="btn-post-batch" {% if not is_balanced %}disabled{% endif %}>
+                        <i class="fas fa-check-circle me-1"></i>{% trans "ترحيل وتأكيد القيد الافتتاحي" %}
+                    </button>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- سكشن جدول أسطر الأرصدة الافتتاحية -->
+    <div class="section-container">
+        <h5 class="section-title"><i class="fas fa-list me-2"></i>{% trans "أسطر الأرصدة الافتتاحية" %}</h5>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle text-center mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>#</th>
+                        <th>{% trans "نوع السطر" %}</th>
+                        <th>{% trans "الحساب المحاسبي" %}</th>
+                        <th>{% trans "البيان / الكائن الفرعي" %}</th>
+                        <th>{% trans "العملة" %}</th>
+                        <th>{% trans "مدين (أجنبي)" %}</th>
+                        <th>{% trans "دائن (أجنبي)" %}</th>
+                        <th>{% trans "سعر الصرف" %}</th>
+                        <th>{% trans "مدين (وظيفي)" %}</th>
+                        <th>{% trans "دائن (وظيفي)" %}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for line in lines %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td>
+                            <span class="badge bg-secondary px-2 py-1">{{ line.get_line_type_display }}</span>
+                        </td>
+                        <td class="fw-bold">{{ line.account.code }} - {{ line.account.name }}</td>
+                        <td>
+                            {% if line.customer %}
+                                <span class="badge bg-info text-dark"><i class="fas fa-user me-1"></i>{{ line.customer.name }}</span>
+                            {% elif line.supplier %}
+                                <span class="badge bg-warning text-dark"><i class="fas fa-truck me-1"></i>{{ line.supplier.name }}</span>
+                            {% elif line.treasury_account %}
+                                <span class="badge bg-primary"><i class="fas fa-university me-1"></i>{{ line.treasury_account.name }}</span>
+                            {% elif line.inventory_snapshot_id %}
+                                <span class="badge bg-dark"><i class="fas fa-boxes me-1"></i>Snapshot: {{ line.inventory_snapshot_id }}</span>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ line.currency.code|default:"EGP" }}</td>
+                        <td>{{ line.debit_foreign|floatformat:2 }}</td>
+                        <td>{{ line.credit_foreign|floatformat:2 }}</td>
+                        <td>{{ line.exchange_rate|floatformat:4 }}</td>
+                        <td class="fw-bold text-success">{{ line.debit|floatformat:2 }}</td>
+                        <td class="fw-bold text-primary">{{ line.credit|floatformat:2 }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="10" class="text-center py-4 text-muted">
+                            <i class="fas fa-folder-open fa-2x mb-2 d-block"></i>
+                            {% trans "لا توجد أسطر مسجلة في هذه الدفعة بعد." %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal إلغاء وعكس الدفعة -->
+<div class="modal fade" id="reverseBatchModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title"><i class="fas fa-undo me-2"></i>{% trans "تأكيد إلغاء وعكس الدفعة الافتتاحية" %}</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small">
+                    {% trans "سيؤدي هذا الإجراء إلى إنشاء قيد يومية عكسي موثق وإلغاء/عكس بنود الأرصدة الفرعية للعملاء والموردين المرتبطة بهذه الدفعة." %}
+                </p>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">{% trans "سبب الإلغاء والعكس الإجباري" %} <span class="text-danger">*</span></label>
+                    <textarea class="form-control" id="reversal-reason-input" rows="3" required placeholder="{% trans "يرجى توضيح سبب إلغاء الدفعة الافتتاحية..." %}"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+                <button type="button" class="btn btn-danger" id="btn-confirm-reverse">{% trans "تأكيد العكس النهائي" %}</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const btnPost = document.getElementById('btn-post-batch');
+    if (btnPost) {
+        btnPost.addEventListener('click', function() {
+            if (!confirm('{% trans "هل أنت تأكد من ترحيل وتأكيد الدفعة الافتتاحية الآن؟" %}')) return;
+
+            btnPost.disabled = true;
+            fetch('{% url "financial:opening_balance_post_action" batch.pk %}', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert(data.error || '{% trans "حدث خطأ أثناء الترحيل" %}');
+                    btnPost.disabled = false;
+                }
+            })
+            .catch(err => {
+                alert('{% trans "فشل الاتصال بالخادم" %}');
+                btnPost.disabled = false;
+            });
+        });
+    }
+
+    const btnReverse = document.getElementById('btn-confirm-reverse');
+    if (btnReverse) {
+        btnReverse.addEventListener('click', function() {
+            const reason = document.getElementById('reversal-reason-input').value.trim();
+            if (!reason) {
+                alert('{% trans "يرجى تقديم سبب لإلغاء وعكس الدفعة." %}');
+                return;
+            }
+
+            btnReverse.disabled = true;
+            const formData = new FormData();
+            formData.append('reason', reason);
+
+            fetch('{% url "financial:opening_balance_reverse_action" batch.pk %}', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert(data.error || '{% trans "حدث خطأ أثناء العكس" %}');
+                    btnReverse.disabled = false;
+                }
+            })
+            .catch(err => {
+                alert('{% trans "فشل الاتصال بالخادم" %}');
+                btnReverse.disabled = false;
+            });
+        });
+    }
+});
+</script>
+{% endblock %}

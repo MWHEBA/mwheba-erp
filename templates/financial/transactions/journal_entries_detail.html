@@ -180,15 +180,31 @@
                                     </td>
                                     <td class="text-center fs-8 text-muted">{{ line.description|default:"-" }}</td>
                                     <td class="text-center">
-                                        {% if line.cost_center %}
-                                            <a href="{% url 'financial:cost_center_detail' line.cost_center.pk %}" class="badge bg-primary text-white text-decoration-none px-3 py-2">
-                                                <i class="fas fa-sitemap me-1"></i>{{ line.cost_center.code }} - {{ line.cost_center.name }}
-                                            </a>
-                                        {% elif line.cost_center_name_snapshot %}
-                                            <span class="badge bg-secondary px-3 py-2">{{ line.cost_center_code_snapshot }} - {{ line.cost_center_name_snapshot }}</span>
-                                        {% else %}
-                                            <span class="text-muted fs-8">غير محدد</span>
-                                        {% endif %}
+                                         {% if line.cost_center %}
+                                             <a href="{% url 'financial:cost_center_detail' line.cost_center.pk %}" class="badge bg-primary-subtle text-primary border border-primary-subtle text-decoration-none px-2 py-1 fs-7 fw-medium">
+                                                 <i class="fas fa-sitemap me-1"></i>{{ line.cost_center.code }} - {{ line.cost_center.name }}
+                                             </a>
+                                         {% elif line.cost_allocations.exists %}
+                                             <div class="d-inline-flex flex-column align-items-center gap-1">
+                                                 <span class="badge bg-info-subtle text-info border border-info-subtle px-2 py-1 fs-7 fw-medium">
+                                                     <i class="fas fa-chart-pie me-1"></i>توزيع متعدد ({{ line.cost_allocations.count }})
+                                                 </span>
+                                                 <div class="small text-start border rounded-2 p-2 bg-light w-100" style="max-width: 260px;">
+                                                     {% for alloc in line.cost_allocations.all %}
+                                                         <div class="d-flex justify-content-between align-items-center fs-8 border-bottom pb-1 mb-1">
+                                                             <a href="{% url 'financial:cost_center_detail' alloc.cost_center.pk %}" class="fw-semibold text-primary text-decoration-none">
+                                                                 <i class="fas fa-sitemap me-1 fs-9"></i>{{ alloc.cost_center.code }} - {{ alloc.cost_center.name }}
+                                                             </a>
+                                                             <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle ms-1">{{ alloc.percentage }}% ({{ alloc.amount|smart_float }})</span>
+                                                         </div>
+                                                     {% endfor %}
+                                                 </div>
+                                             </div>
+                                         {% elif line.cost_center_name_snapshot %}
+                                             <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1 fs-7 fw-medium">{{ line.cost_center_code_snapshot }} - {{ line.cost_center_name_snapshot }}</span>
+                                         {% else %}
+                                             <span class="text-muted fs-8">غير محدد</span>
+                                         {% endif %}
                                     </td>
                                     <td class="text-center">
                                         {% if line.debit > 0 %}

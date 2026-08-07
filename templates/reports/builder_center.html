@@ -438,7 +438,7 @@ $(document).ready(function() {
     
     if (typeof GlobalTableManager !== 'undefined' && hasData) {
         GlobalTableManager.initializeTable('reportsTable', {
-            order: [[3, 'desc']], // Sort by creation date
+            order: [], // Sort from server
             columnDefs: [
                 { targets: -1, orderable: false }
             ],

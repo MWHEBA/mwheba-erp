@@ -33,7 +33,7 @@ class FinancialEnhanced {
                     processing: true,
                     pageLength: 25,
                     lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "الكل"]],
-                    order: [[0, 'desc']], // ترتيب افتراضي حسب التاريخ
+                    order: [], // الحفاظ التام على ترتيب السيرفر المباشر (-created_at)
                     language: {
                         "search": "البحث:",
                         "lengthMenu": "عرض _MENU_ عنصر",

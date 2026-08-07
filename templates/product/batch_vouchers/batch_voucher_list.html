@@ -188,7 +188,7 @@
 $(document).ready(function() {
     if (typeof GlobalTableManager !== 'undefined' && $('#batch-vouchers-table tbody tr').length > 1) {
         GlobalTableManager.initializeTable('batch-vouchers-table', {
-            order: [[2, 'desc']],
+            order: [],
             columnDefs: [
                 { targets: -1, orderable: false }
             ]

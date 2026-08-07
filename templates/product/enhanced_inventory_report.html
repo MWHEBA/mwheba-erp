@@ -208,7 +208,7 @@ $(document).ready(function() {
     if ($('#inventoryTable').length && typeof initGlobalTable === 'function') {
         initGlobalTable('inventoryTable', {
             ordering: true,
-            order: [[0, 'asc']],
+            order: [],
             columnDefs: [
                 { targets: [2, 3], className: 'text-center' },
                 { targets: [4], className: 'text-center', orderable: false }

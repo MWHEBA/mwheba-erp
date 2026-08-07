@@ -340,7 +340,7 @@ $(document).ready(function() {
     // Initialize DataTable
     if (typeof GlobalTableManager !== 'undefined') {
         GlobalTableManager.initializeTable('signalsTable', {
-            order: [[4, 'desc']], // Sort by last execution
+            order: [], // Sort from server
             columnDefs: [
                 { targets: -1, orderable: false }, // Actions column
                 { targets: [5], orderable: false }  // Progress bars

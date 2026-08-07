@@ -35,6 +35,7 @@ class SequenceService:
         DocumentType.CUSTOMER_RECEIPT: "REC",
         DocumentType.VENDOR_PAYMENT: "VPY",
         DocumentType.FIXED_ASSET_ENTRY: "AST",
+        DocumentType.OPENING_BALANCE: "OPB",
         DocumentType.DELIVERY_NOTE: "DEL",
         DocumentType.GOODS_RECEIPT_NOTE: "GRN",
         DocumentType.PURCHASE_ORDER: "PO",

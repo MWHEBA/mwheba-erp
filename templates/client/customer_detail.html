@@ -612,21 +612,21 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
-    // تهيئة الجداول باستخدام النظام الموحد مع ترتيب من الأحدث للأقدم
+    // تهيئة الجداول باستخدام النظام الموحد للحفاظ على ترتيب السيرفر المباشر
     if (typeof window.GlobalTableManager !== 'undefined') {
         if (document.getElementById('customer-invoices-table')) {
             window.GlobalTableManager.initializeTable('customer-invoices-table', {
-                order: [[1, 'desc']]
+                order: []
             });
         }
         if (document.getElementById('customer-payments-table')) {
             window.GlobalTableManager.initializeTable('customer-payments-table', {
-                order: [[1, 'desc']]
+                order: []
             });
         }
         if (document.getElementById('customer-journal-table')) {
             window.GlobalTableManager.initializeTable('customer-journal-table', {
-                order: [[2, 'desc']]
+                order: []
             });
         }
     } else if (typeof initializeAllTables === 'function') {

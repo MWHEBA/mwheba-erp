@@ -157,7 +157,7 @@ $(document).ready(function() {
     // تهيئة الجدول
     if ($('#transfer-vouchers-table').length && typeof GlobalTableManager !== 'undefined') {
         GlobalTableManager.initializeTable('transfer-vouchers-table', {
-            order: [[1, 'desc']],
+            order: [],
             columnDefs: [{ targets: -1, orderable: false }]
         });
     }

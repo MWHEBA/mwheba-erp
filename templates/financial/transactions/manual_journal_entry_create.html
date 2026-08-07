@@ -3,234 +3,311 @@
 {% load i18n %}
 {% load utils_extras %}
 
-{% block title %}{{ page_title }}{% endblock %}
+{% block title %}{{ page_title }} | {% trans "MWHEBA ERP" %}{% endblock %}
 
 {% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/select2.min.css' %}">
+<link rel="stylesheet" href="{% static 'css/select2-enhancements.css' %}">
 <link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
 <style>
+  .select2-container--default .select2-selection--single {
+    height: 38px;
+    border: 1px solid var(--border-color, #ced4da);
+    border-radius: 0.375rem;
+    padding: 4px 8px;
+  }
+  .select2-container--default .select2-selection--single .select2-selection__arrow {
+    height: 36px;
+  }
   .journal-grid-table th {
     background-color: var(--bs-light, #f8f9fa);
     font-weight: 600;
     font-size: 0.875rem;
   }
-  .btn-icon-action {
-    width: 28px;
-    height: 28px;
-    padding: 0;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-  }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid py-3">
-  <!-- Page Header -->
+<div class="container-fluid">
+  <!-- Page Header الموحد -->
   {% include "shared/page_header.html" %}
 
   <form method="post" action="{% url 'financial:manual_journal_entry_create' %}" id="manualEntryForm">
     {% csrf_token %}
 
-    <!-- Card الرأس والبيانات الأساسية + المرفق -->
-    <div class="card border-0 shadow-sm rounded-3 mb-4">
-      <div class="card-header bg-white border-bottom py-3">
-        <h5 class="card-title mb-0 text-primary fw-bold">
-          <i class="bi bi-journal-plus me-2"></i>بيانات القيد المحاسبي المباشر
-        </h5>
-      </div>
-      <div class="card-body">
-        <div class="row g-3">
-          <!-- العمود الأيمن: البيانات الأساسية -->
-          <div class="col-12 col-md-6">
-            <div class="row g-3">
-              <div class="col-12 col-sm-6">
-                <label for="entry_date" class="form-label fw-semibold text-secondary">
-                  <i class="bi bi-calendar3 me-1"></i>تاريخ القيد <span class="text-danger">*</span>
-                </label>
-                <input type="date" 
-                       class="form-control" 
-                       id="entry_date" 
-                       name="entry_date" 
-                       value="{{ today|date:'Y-m-d' }}"
-                       max="{{ today|date:'Y-m-d' }}"
-                       required>
-              </div>
-              <div class="col-12 col-sm-6">
-                <label for="reference" class="form-label fw-semibold text-secondary">
-                  <i class="bi bi-hash me-1"></i>رقم المستند / المرجع
-                </label>
-                <input type="text" 
-                       class="form-control" 
-                       id="reference" 
-                       name="reference" 
-                       placeholder="مثال: REF-2026-001">
-              </div>
-              <div class="col-12">
-                <label for="description" class="form-label fw-semibold text-secondary">
-                  <i class="bi bi-card-text me-1"></i>البيان العام للقيد <span class="text-danger">*</span>
-                </label>
-                <textarea class="form-control" 
-                          id="description" 
-                          name="description" 
-                          rows="2" 
-                          placeholder="اكتب شرحاً عاماً للقيد المحاسبي..."
-                          required></textarea>
-              </div>
+    <!-- سكشن البيانات الأساسية والمرفق المؤيد -->
+    <div class="section-container mb-4">
+      <h5 class="section-title"><i class="fas fa-file-invoice me-2"></i>بيانات القيد المحاسبي المباشر</h5>
+      <div class="row g-3">
+        <!-- العمود الأيمن (ثلثي المساحة): البيانات الأساسية -->
+        <div class="col-12 col-md-8">
+          <div class="row g-3">
+            <!-- السطر الأول المشترك: التاريخ، الرقم/المرجع، وعملة القيد معاً في سطر واحد -->
+            <div class="col-12 col-sm-4">
+              <label for="entry_date" class="form-label fw-semibold">
+                <i class="fas fa-calendar-alt me-1"></i>تاريخ القيد <span class="text-danger">*</span>
+              </label>
+              <input type="date" 
+                     class="form-control" 
+                     id="entry_date" 
+                     name="entry_date" 
+                     value="{{ today|date:'Y-m-d' }}"
+                     max="{{ today|date:'Y-m-d' }}"
+                     required>
+            </div>
+
+            <div class="col-12 col-sm-4">
+              <label for="reference" class="form-label fw-semibold">
+                <i class="fas fa-hashtag me-1"></i>رقم المستند / المرجع
+              </label>
+              <input type="text" 
+                     class="form-control" 
+                     id="reference" 
+                     name="reference" 
+                     placeholder="مثال: REF-2026-001">
+            </div>
+
+            <div class="col-12 col-sm-4">
+              <label for="entry_currency" class="form-label fw-semibold">
+                <i class="fas fa-coins me-1"></i>عملة القيد
+              </label>
+              <select class="form-select select2-filter" id="entry_currency" name="entry_currency">
+                {% for curr in currencies %}
+                  <option value="{{ curr.code }}" {% if curr.code == func_code %}selected{% endif %}>{{ curr.code }} - {{ curr.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <!-- سعر الصرف السداسي (يظهر ديناميكياً) -->
+            <div class="col-12 col-sm-4 d-none" id="exchange_rate_container">
+              <label for="exchange_rate" class="form-label fw-semibold text-primary">
+                <i class="fas fa-exchange-alt me-1"></i>سعر الصرف مقابل {{ func_code }}
+              </label>
+              <input type="number" step="0.000001" min="0.000001" class="form-control fw-bold" id="exchange_rate" name="exchange_rate" value="1.000000">
+            </div>
+
+            <!-- البيان العام للقيد -->
+            <div class="col-12">
+              <label for="description" class="form-label fw-semibold">
+                <i class="fas fa-align-left me-1"></i>البيان العام للقيد <span class="text-danger">*</span>
+              </label>
+              <textarea class="form-control" 
+                        id="description" 
+                        name="description" 
+                        rows="2" 
+                        placeholder="اكتب شرحاً عاماً للقيد المحاسبي..."
+                        required></textarea>
             </div>
           </div>
+        </div>
 
-          <!-- العمود الأيسر: المرفق المؤيد بالسحب والإفلات -->
-          <div class="col-12 col-md-6">
-            {% include "shared/drag_drop_uploader.html" with uploader_id="journal_attachment" category_code="JOURNAL_ENTRY" label="المرفق المؤيد للقيد" %}
-          </div>
+        <!-- العمود الأيسر (ثلث المساحة): المرفق المؤيد بالسحب والإفلات -->
+        <div class="col-12 col-md-4">
+          {% include "shared/drag_drop_uploader.html" with uploader_id="journal_attachment" category_code="JOURNAL_ENTRY" label="المرفق المؤيد للقيد" %}
         </div>
       </div>
     </div>
 
-    <!-- Card شبكة أسطر القيد المحاسبي -->
-    <div class="card border-0 shadow-sm rounded-3 mb-4">
-      <div class="card-header bg-white border-bottom py-3 d-flex align-items-center justify-content-between">
-        <h6 class="card-title mb-0 fw-bold text-dark">
-          <i class="bi bi-list-columns-reverse me-2"></i>سطور القيد المركّب
-        </h6>
-        <button type="button" class="btn btn-primary btn-sm rounded-pill px-3" id="add_row_btn">
-          <i class="bi bi-plus-circle me-1"></i>إضافة سطر جديد
+    <!-- سكشن شبكة أسطر القيد المحاسبي -->
+    <div class="section-container mb-4">
+      <h5 class="section-title"><i class="fas fa-list-ol me-2"></i>سطور القيد المركّب</h5>
+      
+      <div class="table-responsive">
+        <table class="table table-hover align-middle text-center mb-0 journal-grid-table" id="journal_grid_table">
+          <thead class="table-light">
+            <tr>
+              <th style="width: 45px;" class="text-center">#</th>
+              <th style="width: 28%;">الحساب المحاسبي <span class="text-danger">*</span></th>
+              <th style="width: 22%;">البيان / الوصف التفصيلي</th>
+              <th style="width: 20%;">مركز التكلفة</th>
+              <th style="width: 12%;" class="text-end">مدين ({{ currency_symbol }})</th>
+              <th style="width: 12%;" class="text-end">دائن ({{ currency_symbol }})</th>
+              <th style="width: 90px;" class="text-center">إجراءات</th>
+            </tr>
+          </thead>
+          <tbody id="journal_rows_body">
+            <!-- سطر مدين افتراضي -->
+            <tr class="journal-line-row">
+              <td class="row-index text-center fw-bold text-secondary">1</td>
+              <td>
+                <select name="accounts[]" class="form-select account-select" required>
+                  <option value="">-- اختر الحساب --</option>
+                  {% for type_name, type_accounts in accounts_by_type.items %}
+                    <optgroup label="{{ type_name }}">
+                      {% for account in type_accounts %}
+                        <option value="{{ account.id }}" data-category="{{ account.account_type.category }}">{{ account.code }} - {{ account.name }}</option>
+                      {% endfor %}
+                    </optgroup>
+                  {% endfor %}
+                </select>
+              </td>
+              <td>
+                <input type="text" name="line_descriptions[]" class="form-control form-control-sm" placeholder="بيان السطر...">
+              </td>
+              <td>
+                <div class="cost-center-cell-wrapper">
+                  <select name="cost_centers[]" class="form-select form-select-sm cost-center-select">
+                    <option value="">-- بدون مركز --</option>
+                    {% for cc in cost_centers %}
+                      <option value="{{ cc.id }}">{{ cc.code }} - {{ cc.name }}</option>
+                    {% endfor %}
+                  </select>
+                  <button type="button" class="btn btn-outline-info btn-sm w-100 mt-1 btn-multi-alloc d-none" title="توزيع متعدد لمراكز التكلفة">
+                    <i class="fas fa-chart-pie me-1"></i>توزيع متعدد 📊
+                  </button>
+                  <span class="badge bg-success-subtle text-success fs-8 mt-1 d-none alloc-summary-badge"></span>
+                  <input type="hidden" name="line_allocations_json[]" class="alloc-json-input" value="">
+                </div>
+              </td>
+              <td>
+                <input type="number" step="0.01" min="0" name="debits[]" class="form-control form-control-sm text-end debit-input" placeholder="0.00" value="0.00">
+              </td>
+              <td>
+                <input type="number" step="0.01" min="0" name="credits[]" class="form-control form-control-sm text-end credit-input" placeholder="0.00" value="0.00">
+              </td>
+              <td class="text-center">
+                <button type="button" class="btn btn-sm btn-outline-danger btn-delete-row" title="حذف السطر">
+                  <i class="fas fa-trash-alt"></i>
+                </button>
+              </td>
+            </tr>
+
+            <!-- سطر دائن افتراضي -->
+            <tr class="journal-line-row">
+              <td class="row-index text-center fw-bold text-secondary">2</td>
+              <td>
+                <select name="accounts[]" class="form-select account-select" required>
+                  <option value="">-- اختر الحساب --</option>
+                  {% for type_name, type_accounts in accounts_by_type.items %}
+                    <optgroup label="{{ type_name }}">
+                      {% for account in type_accounts %}
+                        <option value="{{ account.id }}" data-category="{{ account.account_type.category }}">{{ account.code }} - {{ account.name }}</option>
+                      {% endfor %}
+                    </optgroup>
+                  {% endfor %}
+                </select>
+              </td>
+              <td>
+                <input type="text" name="line_descriptions[]" class="form-control form-control-sm" placeholder="بيان السطر...">
+              </td>
+              <td>
+                <div class="cost-center-cell-wrapper">
+                  <select name="cost_centers[]" class="form-select form-select-sm cost-center-select">
+                    <option value="">-- بدون مركز --</option>
+                    {% for cc in cost_centers %}
+                      <option value="{{ cc.id }}">{{ cc.code }} - {{ cc.name }}</option>
+                    {% endfor %}
+                  </select>
+                  <button type="button" class="btn btn-outline-info btn-sm w-100 mt-1 btn-multi-alloc d-none" title="توزيع متعدد لمراكز التكلفة">
+                    <i class="fas fa-chart-pie me-1"></i>توزيع متعدد 📊
+                  </button>
+                  <span class="badge bg-success-subtle text-success fs-8 mt-1 d-none alloc-summary-badge"></span>
+                  <input type="hidden" name="line_allocations_json[]" class="alloc-json-input" value="">
+                </div>
+              </td>
+              <td>
+                <input type="number" step="0.01" min="0" name="debits[]" class="form-control form-control-sm text-end debit-input" placeholder="0.00" value="0.00">
+              </td>
+              <td>
+                <input type="number" step="0.01" min="0" name="credits[]" class="form-control form-control-sm text-end credit-input" placeholder="0.00" value="0.00">
+              </td>
+              <td class="text-center">
+                <button type="button" class="btn btn-sm btn-outline-danger btn-delete-row" title="حذف السطر">
+                  <i class="fas fa-trash-alt"></i>
+                </button>
+              </td>
+            </tr>
+          </tbody>
+
+          <!-- تذييل الجدول للإجماليات المدمجة والمحاذاة -->
+          <tfoot class="table-light border-top border-2 fw-bold">
+            <tr>
+              <td colspan="4" class="text-end py-2">
+                <span id="balance_status_badge" class="badge bg-success-subtle text-success fs-7 me-2">القيد متوازن</span>
+                <span id="difference_display" class="text-muted fs-7">الفارق: 0 {{ currency_symbol }}</span>
+              </td>
+              <td class="text-end text-primary fs-6 py-2" id="total_debit_display">0 {{ currency_symbol }}</td>
+              <td class="text-end text-primary fs-6 py-2" id="total_credit_display">0 {{ currency_symbol }}</td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
+      <div class="pt-3 d-flex justify-content-between align-items-center">
+        <button type="button" class="btn btn-outline-primary btn-sm px-3" id="add_row_btn">
+          <i class="fas fa-plus me-1"></i>إضافة سطر جديد
         </button>
-      </div>
-      <div class="card-body p-0">
-        <div class="table-responsive">
-          <table class="table table-hover align-middle mb-0 journal-grid-table" id="journal_grid_table">
-            <thead>
-              <tr>
-                <th style="width: 45px;" class="text-center">#</th>
-                <th style="width: 28%;">الحساب المحاسبي <span class="text-danger">*</span></th>
-                <th style="width: 22%;">البيان / الوصف التفصيلي</th>
-                <th style="width: 20%;">مركز التكلفة</th>
-                <th style="width: 12%;" class="text-end">مدين ({{ currency_symbol }})</th>
-                <th style="width: 12%;" class="text-end">دائن ({{ currency_symbol }})</th>
-                <th style="width: 80px;" class="text-center">إجراءات</th>
-              </tr>
-            </thead>
-            <tbody id="journal_rows_body">
-              <!-- سطر مدين افتراضي -->
-              <tr class="journal-line-row">
-                <td class="row-index text-center fw-bold text-secondary">1</td>
-                <td>
-                  <select name="accounts[]" class="form-select account-select" required>
-                    <option value="">-- اختر الحساب --</option>
-                    {% for type_name, type_accounts in accounts_by_type.items %}
-                      <optgroup label="{{ type_name }}">
-                        {% for account in type_accounts %}
-                          <option value="{{ account.id }}">{{ account.code }} - {{ account.name }}</option>
-                        {% endfor %}
-                      </optgroup>
-                    {% endfor %}
-                  </select>
-                </td>
-                <td>
-                  <input type="text" name="line_descriptions[]" class="form-control form-control-sm" placeholder="بيان السطر...">
-                </td>
-                <td>
-                  <select name="cost_centers[]" class="form-select form-select-sm">
-                    <option value="">-- بدون مركز --</option>
-                    {% for cc in cost_centers %}
-                      <option value="{{ cc.id }}">{{ cc.code }} - {{ cc.name }}</option>
-                    {% endfor %}
-                  </select>
-                </td>
-                <td>
-                  <input type="number" step="0.01" min="0" name="debits[]" class="form-control form-control-sm text-end debit-input" placeholder="0.00" value="0.00">
-                </td>
-                <td>
-                  <input type="number" step="0.01" min="0" name="credits[]" class="form-control form-control-sm text-end credit-input" placeholder="0.00" value="0.00">
-                </td>
-                <td class="text-center">
-                  <div class="d-flex align-items-center justify-content-center gap-1">
-                    <button type="button" class="btn btn-outline-secondary btn-icon-action btn-move-up" title="تحريك لأعلى">
-                      <i class="bi bi-arrow-up fs-7"></i>
-                    </button>
-                    <button type="button" class="btn btn-outline-secondary btn-icon-action btn-move-down" title="تحريك لأسفل">
-                      <i class="bi bi-arrow-down fs-7"></i>
-                    </button>
-                    <button type="button" class="btn btn-outline-danger btn-icon-action btn-delete-row" title="حذف">
-                      <i class="bi bi-trash fs-7"></i>
-                    </button>
-                  </div>
-                </td>
-              </tr>
-
-              <!-- سطر دائن افتراضي -->
-              <tr class="journal-line-row">
-                <td class="row-index text-center fw-bold text-secondary">2</td>
-                <td>
-                  <select name="accounts[]" class="form-select account-select" required>
-                    <option value="">-- اختر الحساب --</option>
-                    {% for type_name, type_accounts in accounts_by_type.items %}
-                      <optgroup label="{{ type_name }}">
-                        {% for account in type_accounts %}
-                          <option value="{{ account.id }}">{{ account.code }} - {{ account.name }}</option>
-                        {% endfor %}
-                      </optgroup>
-                    {% endfor %}
-                  </select>
-                </td>
-                <td>
-                  <input type="text" name="line_descriptions[]" class="form-control form-control-sm" placeholder="بيان السطر...">
-                </td>
-                <td>
-                  <select name="cost_centers[]" class="form-select form-select-sm">
-                    <option value="">-- بدون مركز --</option>
-                    {% for cc in cost_centers %}
-                      <option value="{{ cc.id }}">{{ cc.code }} - {{ cc.name }}</option>
-                    {% endfor %}
-                  </select>
-                </td>
-                <td>
-                  <input type="number" step="0.01" min="0" name="debits[]" class="form-control form-control-sm text-end debit-input" placeholder="0.00" value="0.00">
-                </td>
-                <td>
-                  <input type="number" step="0.01" min="0" name="credits[]" class="form-control form-control-sm text-end credit-input" placeholder="0.00" value="0.00">
-                </td>
-                <td class="text-center">
-                  <div class="d-flex align-items-center justify-content-center gap-1">
-                    <button type="button" class="btn btn-outline-secondary btn-icon-action btn-move-up" title="تحريك لأعلى">
-                      <i class="bi bi-arrow-up fs-7"></i>
-                    </button>
-                    <button type="button" class="btn btn-outline-secondary btn-icon-action btn-move-down" title="تحريك لأسفل">
-                      <i class="bi bi-arrow-down fs-7"></i>
-                    </button>
-                    <button type="button" class="btn btn-outline-danger btn-icon-action btn-delete-row" title="حذف">
-                      <i class="bi bi-trash fs-7"></i>
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-
-            <!-- تذييل الجدول للإجماليات المدمجة والمحاذاة -->
-            <tfoot class="table-light border-top border-2 fw-bold">
-              <tr>
-                <td colspan="4" class="text-end py-2">
-                  <span id="balance_status_badge" class="badge bg-success-subtle text-success fs-7 me-2">القيد متوازن</span>
-                  <span id="difference_display" class="text-muted fs-7">الفارق: 0 {{ currency_symbol }}</span>
-                </td>
-                <td class="text-end text-primary fs-6 py-2" id="total_debit_display">0 {{ currency_symbol }}</td>
-                <td class="text-end text-primary fs-6 py-2" id="total_credit_display">0 {{ currency_symbol }}</td>
-                <td></td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-      </div>
-      <div class="card-footer bg-white py-3 text-end">
         <button type="submit" class="btn btn-primary px-4 fw-bold" id="submit_btn">
-          <i class="bi bi-check-circle me-1"></i>حفظ وتترحيل القيد
+          <i class="fas fa-check-circle me-1"></i>حفظ وتطبيق القيد
         </button>
       </div>
     </div>
   </form>
+</div>
+
+<!-- Modal تفاعلي لتوزيع التكلفة على عدة مراكز -->
+<div class="modal fade" id="costAllocationModal" tabindex="-1" aria-labelledby="costAllocationModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-light">
+        <h5 class="modal-title fw-bold" id="costAllocationModalLabel">
+          <i class="fas fa-chart-pie me-2 text-info"></i>توزيع سطر المصروف/الإيراد على مراكز التكلفة
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="إغلاق"></button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-info py-2 fs-7 mb-3">
+          <strong>ملاحظة هامة:</strong> يجب أن يكون إجمالي نسب التوزيع مساوياً <strong>100.00%</strong> بالتمام للسطر المحاسبي.
+        </div>
+
+        <div class="row g-2 mb-3 align-items-center">
+          <div class="col-sm-6">
+            <span class="fw-bold">مبلغ السطر المحاسبي:</span>
+            <span class="fw-bold text-primary ms-1" id="modal_line_amount_display">0.00 {{ currency_symbol }}</span>
+          </div>
+          <div class="col-sm-6 text-sm-end">
+            <span class="fw-bold me-1">إجمالي التوزيع الحالي:</span>
+            <span class="badge bg-secondary fs-7" id="modal_total_percentage_badge">0.00%</span>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table table-bordered table-sm align-middle text-center" id="alloc_modal_table">
+            <thead class="table-light">
+              <tr>
+                <th style="width: 50%;">مركز التكلفة</th>
+                <th style="width: 25%;">النسبة المئوية (%)</th>
+                <th style="width: 25%;">المبلغ الموزع ({{ currency_symbol }})</th>
+                <th style="width: 40px;"></th>
+              </tr>
+            </thead>
+            <tbody id="alloc_modal_rows_body">
+              <!-- أسطر التوزيع الفرعي داخل المودال -->
+            </tbody>
+          </table>
+        </div>
+
+        <button type="button" class="btn btn-outline-primary btn-sm mt-1" id="modal_add_alloc_row">
+          <i class="fas fa-plus me-1"></i>إضافة مركز تكلفة آخر
+        </button>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">إلغاء</button>
+        <button type="button" class="btn btn-primary btn-sm fw-bold px-3" id="modal_save_alloc_btn">
+          <i class="fas fa-check me-1"></i>اعتماد التوزيع
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- قوالب الخيارات المتاحة لمراكز التكلفة في Modal التوزيع -->
+<div id="cost_centers_options_template" class="d-none">
+  <option value="">-- اختر مركز التكلفة --</option>
+  {% for cc in cost_centers %}
+    <option value="{{ cc.id }}">{{ cc.code }} - {{ cc.name }}</option>
+  {% endfor %}
 </div>
 
 <script>
@@ -242,12 +319,83 @@ document.addEventListener('DOMContentLoaded', function () {
     const balanceBadge = document.getElementById('balance_status_badge');
     const diffDisplay = document.getElementById('difference_display');
 
-    function formatSmartFloat(val) {
+    let activeAllocationRow = null;
+
+    function initSelect2(context) {
+        if (typeof $ !== 'undefined' && $.fn.select2) {
+            const $target = context ? $(context).find('.account-select, .cost-center-select') : $('.account-select, .cost-center-select');
+            $target.select2({
+                dir: 'rtl',
+                language: 'ar',
+                width: '100%',
+                dropdownAutoWidth: true
+            });
+        }
+    }
+
+    initSelect2();
+
+    function updateRowAllocationVisibility(row) {
+        const accountSelect = row.querySelector('.account-select');
+        const selectedOption = accountSelect ? accountSelect.options[accountSelect.selectedIndex] : null;
+        const category = selectedOption ? selectedOption.getAttribute('data-category') : '';
+        const multiBtn = row.querySelector('.btn-multi-alloc');
+        const costCenterSelect = row.querySelector('.cost-center-select');
+        const allocInput = row.querySelector('.alloc-json-input');
+        const badge = row.querySelector('.alloc-summary-badge');
+
+        if (category === 'expense' || category === 'revenue') {
+            if (multiBtn) multiBtn.classList.remove('d-none');
+        } else {
+            if (multiBtn) multiBtn.classList.add('d-none');
+            if (costCenterSelect) $(costCenterSelect).prop('disabled', false);
+            if (allocInput) allocInput.value = '';
+            if (badge) badge.classList.add('d-none');
+        }
+    }
+
+    tbody.querySelectorAll('.journal-line-row').forEach(row => updateRowAllocationVisibility(row));
+
+    tbody.addEventListener('change', function(e) {
+        if (e.target.classList.contains('account-select')) {
+            const row = e.target.closest('.journal-line-row');
+            if (row) updateRowAllocationVisibility(row);
+        }
+    });
+
+    const ratesMap = JSON.parse('{{ rates_map_json|escapejs }}' || '{}');
+    const funcCode = '{{ func_code|default:"EGP" }}';
+    const entryCurrencySelect = document.getElementById('entry_currency');
+    const exchangeRateInput = document.getElementById('exchange_rate');
+    const exchangeRateContainer = document.getElementById('exchange_rate_container');
+
+    function updateCurrencyState() {
+        if (!entryCurrencySelect || !exchangeRateInput) return;
+        const selectedCurr = entryCurrencySelect.value;
+        if (selectedCurr !== funcCode) {
+            if (exchangeRateContainer) exchangeRateContainer.classList.remove('d-none');
+            const rate = ratesMap[selectedCurr] || "1.000000";
+            exchangeRateInput.value = rate;
+        } else {
+            if (exchangeRateContainer) exchangeRateContainer.classList.add('d-none');
+            exchangeRateInput.value = "1.000000";
+        }
+        calculateTotals();
+    }
+
+    if (entryCurrencySelect) {
+        $(entryCurrencySelect).on('change', updateCurrencyState);
+    }
+    if (exchangeRateInput) {
+        exchangeRateInput.addEventListener('input', calculateTotals);
+    }
+
+    function formatSmartFloat(val, symbol = funcCode) {
         const num = parseFloat(val) || 0;
         if (Math.abs(num % 1) < 0.00001) {
-            return Math.round(num).toLocaleString('en-US') + ' {{ currency_symbol }}';
+            return Math.round(num).toLocaleString('en-US') + ' ' + symbol;
         }
-        return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' {{ currency_symbol }}';
+        return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ' + symbol;
     }
 
     function calculateTotals() {
@@ -262,18 +410,28 @@ document.addEventListener('DOMContentLoaded', function () {
             totalCredit += parseFloat(input.value) || 0;
         });
 
-        totalDebitDisplay.textContent = formatSmartFloat(totalDebit);
-        totalCreditDisplay.textContent = formatSmartFloat(totalCredit);
+        const selectedCurr = entryCurrencySelect ? entryCurrencySelect.value : funcCode;
+        const rate = exchangeRateInput ? (parseFloat(exchangeRateInput.value) || 1.0) : 1.0;
+
+        if (selectedCurr !== funcCode) {
+            const funcDebit = totalDebit * rate;
+            const funcCredit = totalCredit * rate;
+            totalDebitDisplay.innerHTML = `${formatSmartFloat(totalDebit, selectedCurr)} <br><small class="text-muted fs-8">(${formatSmartFloat(funcDebit, funcCode)})</small>`;
+            totalCreditDisplay.innerHTML = `${formatSmartFloat(totalCredit, selectedCurr)} <br><small class="text-muted fs-8">(${formatSmartFloat(funcCredit, funcCode)})</small>`;
+        } else {
+            totalDebitDisplay.textContent = formatSmartFloat(totalDebit, funcCode);
+            totalCreditDisplay.textContent = formatSmartFloat(totalCredit, funcCode);
+        }
 
         const diff = Math.abs(totalDebit - totalCredit);
         if (diff < 0.001 && (totalDebit > 0 || totalCredit > 0)) {
             balanceBadge.className = 'badge bg-success-subtle text-success fs-7 me-2';
             balanceBadge.textContent = 'القيد متوازن';
-            diffDisplay.textContent = 'الفارق: 0 {{ currency_symbol }}';
+            diffDisplay.textContent = 'الفارق: 0 ' + selectedCurr;
         } else {
             balanceBadge.className = 'badge bg-danger-subtle text-danger fs-7 me-2';
             balanceBadge.textContent = 'القيد غير متوازن';
-            diffDisplay.textContent = 'الفارق: ' + formatSmartFloat(diff);
+            diffDisplay.textContent = 'الفارق: ' + formatSmartFloat(diff, selectedCurr);
         }
     }
 
@@ -285,16 +443,116 @@ document.addEventListener('DOMContentLoaded', function () {
         calculateTotals();
     }
 
+    // Modal التوزيع التفاعلي لمراكز التكلفة
+    const costAllocationModalEl = document.getElementById('costAllocationModal');
+    const costAllocationModal = costAllocationModalEl ? new bootstrap.Modal(costAllocationModalEl) : null;
+    const modalRowsBody = document.getElementById('alloc_modal_rows_body');
+    const modalAddAllocBtn = document.getElementById('modal_add_alloc_row');
+    const modalSaveAllocBtn = document.getElementById('modal_save_alloc_btn');
+    const modalTotalPctBadge = document.getElementById('modal_total_percentage_badge');
+    const modalLineAmountDisplay = document.getElementById('modal_line_amount_display');
+    const costCenterOptionsHtml = document.getElementById('cost_centers_options_template').innerHTML;
+
+    function getRowLineAmount(row) {
+        const debit = parseFloat(row.querySelector('.debit-input').value) || 0;
+        const credit = parseFloat(row.querySelector('.credit-input').value) || 0;
+        return debit > 0 ? debit : credit;
+    }
+
+    function createAllocModalRow(ccId = '', percentage = 0, lineAmount = 0) {
+        const tr = document.createElement('tr');
+        tr.className = 'alloc-modal-row';
+        tr.innerHTML = `
+            <td>
+                <select class="form-select form-select-sm modal-cc-select">
+                    ${costCenterOptionsHtml}
+                </select>
+            </td>
+            <td>
+                <input type="number" step="0.01" min="0" max="100" class="form-control form-control-sm text-end modal-pct-input" value="${percentage}">
+            </td>
+            <td>
+                <input type="number" step="0.01" class="form-control form-control-sm text-end modal-amt-input" readonly value="${((lineAmount * percentage) / 100).toFixed(2)}">
+            </td>
+            <td class="text-center">
+                <button type="button" class="btn btn-outline-danger btn-sm btn-remove-alloc-modal" title="حذف"><i class="fas fa-times"></i></button>
+            </td>
+        `;
+        if (ccId) {
+            tr.querySelector('.modal-cc-select').value = ccId;
+        }
+        return tr;
+    }
+
+    function recalculateModalTotals() {
+        if (!activeAllocationRow) return;
+        const lineAmount = getRowLineAmount(activeAllocationRow);
+        let totalPct = 0;
+
+        modalRowsBody.querySelectorAll('.alloc-modal-row').forEach(tr => {
+            const pct = parseFloat(tr.querySelector('.modal-pct-input').value) || 0;
+            totalPct += pct;
+            const amt = (lineAmount * (pct / 100)).toFixed(2);
+            tr.querySelector('.modal-amt-input').value = amt;
+        });
+
+        modalTotalPctBadge.textContent = totalPct.toFixed(2) + '%';
+        if (Math.abs(totalPct - 100) < 0.01) {
+            modalTotalPctBadge.className = 'badge bg-success fs-7';
+        } else {
+            modalTotalPctBadge.className = 'badge bg-danger fs-7';
+        }
+    }
+
     tbody.addEventListener('click', function (e) {
         const upBtn = e.target.closest('.btn-move-up');
         const downBtn = e.target.closest('.btn-move-down');
         const deleteBtn = e.target.closest('.btn-delete-row');
+        const multiAllocBtn = e.target.closest('.btn-multi-alloc');
+
+        if (multiAllocBtn) {
+            activeAllocationRow = multiAllocBtn.closest('.journal-line-row');
+            if (!activeAllocationRow) return;
+
+            const lineAmount = getRowLineAmount(activeAllocationRow);
+            if (lineAmount <= 0) {
+                alert('يرجى كتابة مبلغ مدين أو دائن للسطر أولاً قبل توزيع التكلفة.');
+                return;
+            }
+
+            modalLineAmountDisplay.textContent = formatSmartFloat(lineAmount);
+            modalRowsBody.innerHTML = '';
+
+            const allocInput = activeAllocationRow.querySelector('.alloc-json-input');
+            let currentAllocData = [];
+            if (allocInput && allocInput.value) {
+                try { currentAllocData = JSON.parse(allocInput.value); } catch(err){}
+            }
+
+            if (currentAllocData && currentAllocData.length > 0) {
+                currentAllocData.forEach(item => {
+                    modalRowsBody.appendChild(createAllocModalRow(item.cost_center_id, item.percentage, lineAmount));
+                });
+            } else {
+                modalRowsBody.appendChild(createAllocModalRow('', 50, lineAmount));
+                modalRowsBody.appendChild(createAllocModalRow('', 50, lineAmount));
+            }
+
+            recalculateModalTotals();
+            if (costAllocationModal) costAllocationModal.show();
+        }
 
         if (upBtn) {
             const row = upBtn.closest('tr');
             const prev = row.previousElementSibling;
             if (prev && prev.classList.contains('journal-line-row')) {
+                if (typeof $ !== 'undefined' && $.fn.select2) {
+                    $(row).find('.account-select, .cost-center-select').select2('destroy');
+                    $(prev).find('.account-select, .cost-center-select').select2('destroy');
+                }
                 row.parentNode.insertBefore(row, prev);
+                initSelect2(row);
+                initSelect2(prev);
                 reindexRows();
             }
         }
@@ -303,7 +561,13 @@ document.addEventListener('DOMContentLoaded', function () {
             const row = downBtn.closest('tr');
             const next = row.nextElementSibling;
             if (next && next.classList.contains('journal-line-row')) {
+                if (typeof $ !== 'undefined' && $.fn.select2) {
+                    $(row).find('.account-select, .cost-center-select').select2('destroy');
+                    $(next).find('.account-select, .cost-center-select').select2('destroy');
+                }
                 row.parentNode.insertBefore(next, row);
+                initSelect2(row);
+                initSelect2(next);
                 reindexRows();
             }
         }
@@ -311,7 +575,11 @@ document.addEventListener('DOMContentLoaded', function () {
         if (deleteBtn) {
             const rows = tbody.querySelectorAll('.journal-line-row');
             if (rows.length > 2) {
-                deleteBtn.closest('tr').remove();
+                const targetRow = deleteBtn.closest('tr');
+                if (typeof $ !== 'undefined' && $.fn.select2) {
+                    $(targetRow).find('.account-select, .cost-center-select').select2('destroy');
+                }
+                targetRow.remove();
                 reindexRows();
             } else {
                 alert('يجب أن يحتوي القيد المحاسبي على سطرين على الأقل.');
@@ -319,8 +587,122 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    tbody.addEventListener('input', function (e) {
+    if (modalRowsBody) {
+        modalRowsBody.addEventListener('input', recalculateModalTotals);
+        modalRowsBody.addEventListener('change', recalculateModalTotals);
+        modalRowsBody.addEventListener('click', function(e) {
+            const removeBtn = e.target.closest('.btn-remove-alloc-modal');
+            if (removeBtn) {
+                const rows = modalRowsBody.querySelectorAll('.alloc-modal-row');
+                if (rows.length > 1) {
+                    removeBtn.closest('tr').remove();
+                    recalculateModalTotals();
+                } else {
+                    alert('يجب أن يحتوي التوزيع على مركز تكلفة واحد على الأقل.');
+                }
+            }
+        });
+    }
+
+    if (modalAddAllocBtn) {
+        modalAddAllocBtn.addEventListener('click', function() {
+            if (!activeAllocationRow) return;
+            const lineAmount = getRowLineAmount(activeAllocationRow);
+            modalRowsBody.appendChild(createAllocModalRow('', 0, lineAmount));
+            recalculateModalTotals();
+        });
+    }
+
+    if (modalSaveAllocBtn) {
+        modalSaveAllocBtn.addEventListener('click', function() {
+            if (!activeAllocationRow) return;
+
+            let totalPct = 0;
+            const selectedCCs = new Set();
+            const allocList = [];
+            let duplicateFound = false;
+            let emptyCCFound = false;
+
+            modalRowsBody.querySelectorAll('.alloc-modal-row').forEach(tr => {
+                const ccSelect = tr.querySelector('.modal-cc-select');
+                const ccId = ccSelect ? ccSelect.value : '';
+                const pct = parseFloat(tr.querySelector('.modal-pct-input').value) || 0;
+
+                if (!ccId) { emptyCCFound = true; }
+                if (selectedCCs.has(ccId)) { duplicateFound = true; }
+                selectedCCs.add(ccId);
+
+                totalPct += pct;
+                allocList.push({
+                    cost_center_id: ccId,
+                    percentage: pct
+                });
+            });
+
+            if (emptyCCFound) {
+                alert('يرجى اختيار مركز التكلفة لكافة أسطر التوزيع.');
+                return;
+            }
+
+            if (duplicateFound) {
+                alert('حظر التكرار: لا يمكن اختيار نفس مركز التكلفة أكثر من مرة في نفس السطر المحاسبي.');
+                return;
+            }
+
+            if (Math.abs(totalPct - 100) > 0.01) {
+                alert(`إجمالي النسبة يجب أن يكون 100.00% بالتمام والكمال. النسبة الحالية هي (${totalPct.toFixed(2)}%).`);
+                return;
+            }
+
+            const allocInput = activeAllocationRow.querySelector('.alloc-json-input');
+            const costCenterSelect = activeAllocationRow.querySelector('.cost-center-select');
+            const summaryBadge = activeAllocationRow.querySelector('.alloc-summary-badge');
+
+            if (allocInput) allocInput.value = JSON.stringify(allocList);
+            if (costCenterSelect) {
+                costCenterSelect.selectedIndex = 0;
+                $(costCenterSelect).val('').trigger('change.select2').prop('disabled', true);
+            }
+            if (summaryBadge) {
+                summaryBadge.textContent = `توزيع متعدد (${allocList.length})`;
+                summaryBadge.classList.remove('d-none');
+            }
+
+            if (costAllocationModal) costAllocationModal.hide();
+        });
+    }
+
+    tbody.addEventListener('focus', function(e) {
         if (e.target.classList.contains('debit-input') || e.target.classList.contains('credit-input')) {
+            e.target.select();
+        }
+    }, true);
+
+    tbody.addEventListener('blur', function(e) {
+        if (e.target.classList.contains('debit-input') || e.target.classList.contains('credit-input')) {
+            if (!e.target.value || e.target.value.trim() === '') {
+                e.target.value = '0.00';
+                calculateTotals();
+            }
+        }
+    }, true);
+
+    tbody.addEventListener('input', function (e) {
+        if (e.target.classList.contains('debit-input')) {
+            const val = parseFloat(e.target.value) || 0;
+            if (val > 0) {
+                const row = e.target.closest('tr');
+                const creditInput = row ? row.querySelector('.credit-input') : null;
+                if (creditInput) creditInput.value = '0.00';
+            }
+            calculateTotals();
+        } else if (e.target.classList.contains('credit-input')) {
+            const val = parseFloat(e.target.value) || 0;
+            if (val > 0) {
+                const row = e.target.closest('tr');
+                const debitInput = row ? row.querySelector('.debit-input') : null;
+                if (debitInput) debitInput.value = '0.00';
+            }
             calculateTotals();
         }
     });
@@ -329,19 +711,39 @@ document.addEventListener('DOMContentLoaded', function () {
         const firstRow = tbody.querySelector('.journal-line-row');
         if (!firstRow) return;
 
+        if (typeof $ !== 'undefined' && $.fn.select2) {
+            $(tbody).find('.account-select, .cost-center-select').each(function() {
+                if ($(this).hasClass("select2-hidden-accessible")) {
+                    $(this).select2('destroy');
+                }
+            });
+        }
+
         const newRow = firstRow.cloneNode(true);
         newRow.querySelectorAll('input').forEach(input => {
             if (input.classList.contains('debit-input') || input.classList.contains('credit-input')) {
                 input.value = '0.00';
+            } else if (input.classList.contains('alloc-json-input')) {
+                input.value = '';
             } else {
                 input.value = '';
             }
         });
         newRow.querySelectorAll('select').forEach(select => {
             select.selectedIndex = 0;
+            $(select).prop('disabled', false);
         });
 
+        const badge = newRow.querySelector('.alloc-summary-badge');
+        if (badge) badge.classList.add('d-none');
+
+        $(newRow).find('.select2-container').remove();
+        $(newRow).find('select').removeAttr('data-select2-id').removeClass('select2-hidden-accessible');
+
         tbody.appendChild(newRow);
+
+        initSelect2(tbody);
+        updateRowAllocationVisibility(newRow);
         reindexRows();
     });
 

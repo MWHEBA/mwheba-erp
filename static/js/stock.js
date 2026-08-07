@@ -1,4 +1,4 @@
-﻿/**
+/**
  * ملف JavaScript الخاص بإدارة المخزون في التطبيق
  */
 
@@ -26,7 +26,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const table = document.querySelector('#movements-table');
         if (table) {
             initDataTableArabic(table, {
-                order: [[1, 'desc']] // ترتيب حسب تاريخ الحركة (تنازلي)
+                order: [] // ترتيب السيرفر المباشر
             });
         }
     }

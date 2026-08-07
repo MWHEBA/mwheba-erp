@@ -275,7 +275,7 @@ $(document).ready(function() {
     // تهيئة جدول الإيرادات
     if (typeof GlobalTableManager !== 'undefined' && $('#revenues-table').length) {
         GlobalTableManager.initializeTable('revenues-table', {
-            order: [[0, 'desc']],
+            order: [],
             language: {
                 "search": "البحث:",
                 "lengthMenu": "عرض _MENU_ عنصر"
@@ -286,7 +286,7 @@ $(document).ready(function() {
     // تهيئة جدول الاستردادات
     if (typeof GlobalTableManager !== 'undefined' && $('#refunds-table').length) {
         GlobalTableManager.initializeTable('refunds-table', {
-            order: [[0, 'desc']],
+            order: [],
             language: {
                 "search": "البحث:",
                 "lengthMenu": "عرض _MENU_ عنصر"
@@ -297,7 +297,7 @@ $(document).ready(function() {
     // تهيئة جدول المصروفات
     if (typeof GlobalTableManager !== 'undefined' && $('#expenses-table').length) {
         GlobalTableManager.initializeTable('expenses-table', {
-            order: [[0, 'desc']],
+            order: [],
             language: {
                 "search": "البحث:",
                 "lengthMenu": "عرض _MENU_ عنصر"

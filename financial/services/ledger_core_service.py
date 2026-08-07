@@ -72,11 +72,20 @@ class LedgerCoreService:
                 foreign_debit = Decimal(str(item.get("foreign_debit", 0)))
                 foreign_credit = Decimal(str(item.get("foreign_credit", 0)))
                 cost_center = item.get("cost_center")
+                if cost_center and not hasattr(cost_center, 'pk'):
+                    from financial.models import CostCenter
+                    if isinstance(cost_center, str):
+                        cost_center_obj = CostCenter.objects.filter(code=cost_center).first()
+                        if not cost_center_obj and cost_center.isdigit():
+                            cost_center_obj = CostCenter.objects.filter(id=int(cost_center)).first()
+                        cost_center = cost_center_obj
+                    elif isinstance(cost_center, int):
+                        cost_center = CostCenter.objects.filter(id=cost_center).first()
 
                 tx_debit = foreign_debit if foreign_debit > Decimal('0') else debit
                 tx_credit = foreign_credit if foreign_credit > Decimal('0') else credit
 
-                JournalEntryLine.objects.create(
+                line_obj = JournalEntryLine.objects.create(
                     journal_entry=journal_entry,
                     account=account,
                     debit=debit.quantize(Decimal('0.01')),
@@ -92,6 +101,22 @@ class LedgerCoreService:
                     foreign_credit=foreign_credit.quantize(Decimal('0.01'))
                 )
 
+                cost_allocations = item.get("cost_allocations")
+                if cost_allocations and isinstance(cost_allocations, list):
+                    from financial.models.journal_entry import JournalEntryLineCostAllocation
+                    for alloc_item in cost_allocations:
+                        cc_id = alloc_item.get("cost_center_id") or (alloc_item.get("cost_center").id if hasattr(alloc_item.get("cost_center"), 'id') else alloc_item.get("cost_center"))
+                        pct = Decimal(str(alloc_item.get("percentage", 0)))
+                        amt = Decimal(str(alloc_item.get("amount", 0)))
+                        f_amt = Decimal(str(alloc_item.get("foreign_amount", 0)))
+                        if cc_id and (pct > 0 or amt > 0):
+                            JournalEntryLineCostAllocation.objects.create(
+                                line=line_obj,
+                                cost_center_id=cc_id,
+                                percentage=pct.quantize(Decimal('0.01')),
+                                amount=amt.quantize(Decimal('0.01')),
+                                foreign_amount=f_amt.quantize(Decimal('0.01'))
+                            )
 
             diff = (total_debit - total_credit).quantize(Decimal("0.01"))
             abs_diff = abs(diff)
@@ -128,8 +153,8 @@ class LedgerCoreService:
                         )
                         total_debit += abs_diff
 
-            if total_debit != total_credit:
-                raise FinancialCoreError(f"Unbalanced entry: total debit {total_debit} != total credit {total_credit}")
+            if (total_debit - total_credit).quantize(Decimal("0.01")) != Decimal("0.00"):
+                raise FinancialCoreError(f"Unbalanced entry: Debit ({total_debit}) != Credit ({total_credit})")
 
             return journal_entry
 
@@ -165,14 +190,14 @@ class LedgerCoreService:
         cls,
         entry_id: int,
         user,
-        posting_source: str = "MANUAL_JOURNAL",
-        posting_reference: Optional[str] = None,
-        source_type: Optional[str] = None,
-        source_id: Optional[str] = None,
+        posting_source: str = "",
+        posting_reference: str = "",
+        source_type: str = "",
+        source_id: str = "",
         posting_type: str = "MAIN"
     ) -> JournalEntry:
         """
-        ترحيل قيد مسودة وإقفال تعديله بصفة حازمة وتسجيل مرجع الترحيل
+        ترحيل المسودة مع قفل المعاملة وفحص التوازن المالي
         """
         with transaction.atomic():
             entry = JournalEntry.objects.select_for_update().get(pk=entry_id)
@@ -183,7 +208,7 @@ class LedgerCoreService:
             if not entry.is_balanced:
                 raise FinancialCoreError("Cannot post unbalanced journal entry.")
 
-            # الفحص المزدوج وتجميد لقطات مراكز التكلفة الأربعة والتحقق الوقائي من الموازنة قبل الترحيل
+            # الفحص المزدوج وتجميد لقطات مراكز التكلفة والتحقق الوقائي من الموازنة قبل الترحيل
             from financial.services.budget_control_service import BudgetControlService
             for line in entry.lines.all():
                 line.full_clean()
@@ -205,7 +230,15 @@ class LedgerCoreService:
                         amount=amount,
                         user=user
                     )
-
+                elif line.cost_allocations.exists():
+                    for alloc in line.cost_allocations.all():
+                        BudgetControlService.validate_budget_limit(
+                            cost_center=alloc.cost_center,
+                            account=line.account,
+                            accounting_period=entry.accounting_period,
+                            amount=alloc.amount,
+                            user=user
+                        )
 
             entry.status = "posted"
             entry.posted_at = timezone.now()
@@ -234,12 +267,20 @@ class LedgerCoreService:
             # تحديث كاش لقطات المنفق الفعلي لجميع مراكز التكلفة المرتبطة فور الترحيل
             from financial.services.budget_actual_service import BudgetActualService
             for line in entry.lines.all():
-                if line.cost_center and entry.accounting_period:
-                    BudgetActualService.update_actual_snapshot(
-                        cost_center=line.cost_center,
-                        account=line.account,
-                        accounting_period=entry.accounting_period
-                    )
+                if entry.accounting_period:
+                    if line.cost_center:
+                        BudgetActualService.update_actual_snapshot(
+                            cost_center=line.cost_center,
+                            account=line.account,
+                            accounting_period=entry.accounting_period
+                        )
+                    elif line.cost_allocations.exists():
+                        for alloc in line.cost_allocations.all():
+                            BudgetActualService.update_actual_snapshot(
+                                cost_center=alloc.cost_center,
+                                account=line.account,
+                                accounting_period=entry.accounting_period
+                            )
 
             if source_type and source_id:
                 from financial.models import FinancialPostingReference
@@ -271,13 +312,29 @@ class LedgerCoreService:
             if getattr(original_entry, "reversed_by_entry_id", None) or original_entry.reversal_entries.exists():
                 raise FinancialCoreError(f"Journal entry ID {original_entry.id} is already reversed.")
 
-            # الخطوة 1: تجهيز بنود القيد العاكس (تبادل المدين والدائن)
+            # الخطوة 1: تجهيز بنود القيد العاكس (تبادل المدين والدائن مع الحفاظ على التوزيع الفرعي)
             reversal_lines = []
             for line in original_entry.lines.all():
+                allocations_list = []
+                if line.cost_allocations.exists():
+                    for alloc in line.cost_allocations.all():
+                        allocations_list.append({
+                            "cost_center_id": alloc.cost_center_id,
+                            "percentage": alloc.percentage,
+                            "amount": alloc.amount,
+                            "foreign_amount": alloc.foreign_amount
+                        })
+
                 reversal_lines.append({
                     "account": line.account,
                     "debit": line.credit,
                     "credit": line.debit,
+                    "foreign_debit": line.foreign_credit,
+                    "foreign_credit": line.foreign_debit,
+                    "currency": line.currency,
+                    "exchange_rate": line.exchange_rate,
+                    "cost_center": line.cost_center,
+                    "cost_allocations": allocations_list if allocations_list else None,
                     "description": f"عكس: {line.description or original_entry.description}"
                 })
 

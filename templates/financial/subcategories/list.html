@@ -86,7 +86,7 @@
 $(document).ready(function() {
     if (typeof GlobalTableManager !== 'undefined' && $('#subcategories-table tbody tr').length > 1) {
         GlobalTableManager.initializeTable('subcategories-table', {
-            order: [[2, 'asc']],
+            order: [], // الحفاظ التام على ترتيب السيرفر المباشر دون إعادة فرز من المتصفح
             columnDefs: [
                 { targets: -1, orderable: false }
             ]

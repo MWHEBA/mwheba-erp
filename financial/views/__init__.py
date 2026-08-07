@@ -202,8 +202,11 @@ from .tax_views import (
 # من opening_balance_views.py
 from .opening_balance_views import (
     opening_balance_list,
-    opening_balance_create,
+    opening_balance_wizard,
+    opening_balance_post_action,
+    opening_balance_reverse_action,
 )
+opening_balance_create = opening_balance_wizard
 
 # من approval_views.py
 from .approval_views import (

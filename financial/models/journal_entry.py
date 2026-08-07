@@ -345,7 +345,7 @@ class JournalEntry(models.Model):
 
         verbose_name = _("قيد يومي")
         verbose_name_plural = _("القيود اليومية")
-        ordering = ["-date", "-number"]
+        ordering = ["-created_at", "-date", "-id"]
         indexes = [
             models.Index(fields=["date", "status"]),
             models.Index(fields=["number"]),
@@ -1343,6 +1343,7 @@ class JournalEntryLineCostAllocation(models.Model):
     )
     percentage = models.DecimalField(_("النسبة المئوية"), max_digits=5, decimal_places=2, default=Decimal("0.00"))
     amount = models.DecimalField(_("المبلغ الموزع (ج.م)"), max_digits=15, decimal_places=2, default=Decimal("0.00"))
+    foreign_amount = models.DecimalField(_("المبلغ الموزع بالعملة الأجنبية"), max_digits=15, decimal_places=2, default=Decimal("0.00"))
 
     class Meta:
         verbose_name = _("حصة توزيع سطر")
@@ -1355,8 +1356,8 @@ class JournalEntryLineCostAllocation(models.Model):
         if self.pk:
             old = JournalEntryLineCostAllocation.objects.get(pk=self.pk)
             if old.line and old.line.journal_entry and old.line.journal_entry.status == 'posted':
-                if (old.amount != self.amount or old.percentage != self.percentage or 
-                    old.cost_center_id != self.cost_center_id or old.line_id != self.line_id):
+                if (old.amount != self.amount or old.foreign_amount != self.foreign_amount or 
+                    old.percentage != self.percentage or old.cost_center_id != self.cost_center_id or old.line_id != self.line_id):
                     raise ValidationError(_("لا يمكن تعديل حصص التوزيع لقيد مرحل بالفعل."))
         super().save(*args, **kwargs)
 

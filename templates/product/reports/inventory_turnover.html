@@ -336,7 +336,7 @@ $(document).ready(function() {
   // تهيئة جدول دوران المخزون
   initGlobalTable('dataTable', {
     ordering: true,
-    order: [[7, 'desc']], // ترتيب حسب معدل الدوران (العمود الثامن)
+    order: [], // ترتيب من السيرفر المباشر
     columnDefs: [
       { targets: [2, 3, 4, 5, 6, 7], className: 'text-end' }, // الأعمدة الرقمية
       { targets: [0, 1, 8], className: 'text-center' }

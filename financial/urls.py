@@ -397,7 +397,10 @@ urlpatterns = [
     path("revenue-schedules/", views.revenue_schedule_list, name="revenue_schedule_list"),
     path("tax-codes/", views.tax_code_list, name="tax_code_list"),
     path("opening-balances/", views.opening_balance_list, name="opening_balance_list"),
-    path("opening-balances/create/", views.opening_balance_create, name="opening_balance_create"),
+    path("opening-balances/create/", views.opening_balance_wizard, name="opening_balance_create"),
+    path("opening-balances/<int:pk>/", views.opening_balance_wizard, name="opening_balance_wizard_detail"),
+    path("opening-balances/<int:pk>/post/", views.opening_balance_post_action, name="opening_balance_post_action"),
+    path("opening-balances/<int:pk>/reverse/", views.opening_balance_reverse_action, name="opening_balance_reverse_action"),
     path("approvals/", views.approval_inbox, name="approval_inbox"),
 
     # دليل العملات وأسعار الصرف وإعادة التقييم الدوري (IAS 21)

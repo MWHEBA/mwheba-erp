@@ -259,7 +259,7 @@ $(document).ready(function() {
   if ($('#pr-table').length && typeof initGlobalTable === 'function') {
     initGlobalTable('pr-table', {
       ordering: true,
-      order: [[3, 'desc']],
+      order: [],
       columnDefs: [{ targets: [6, 7], orderable: false }]
     });
     $('#pr-table tbody').on('click', 'tr', function(e) {

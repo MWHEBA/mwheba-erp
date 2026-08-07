@@ -120,8 +120,8 @@ def journal_entries_list(request):
         page_obj = None
         filter_form = None
     else:
-        # جلب جميع القيود مرتبة من الأحدث
-        journal_entries_list = JournalEntry.objects.select_related('financial_category').all().order_by("-date", "-id")
+        # جلب جميع القيود مرتبة من الأحدث لحظياً
+        journal_entries_list = JournalEntry.objects.select_related('financial_category').all().order_by("-created_at", "-date", "-id")
 
         # معلمات الفلترة
         status = request.GET.get("status", "")
@@ -1871,6 +1871,11 @@ def manual_journal_entry_create(request):
         try:
             from governance.services import AccountingGateway, JournalEntryLineData
             from governance.exceptions import IdempotencyError, AuthorityViolationError
+            from financial.services.exchange_rate_service import ExchangeRateService
+            entry_currency_code = request.POST.get('entry_currency', 'EGP').strip()
+            exchange_rate_val = Decimal(request.POST.get('exchange_rate', '1.000000'))
+            func_currency = ExchangeRateService.get_functional_currency()
+            func_code = func_currency.code if func_currency else 'EGP'
 
             entry_date = request.POST.get('entry_date')
             description = request.POST.get('description', '').strip()
@@ -1885,6 +1890,7 @@ def manual_journal_entry_create(request):
                 credits_list = request.POST.getlist('credits[]')
                 line_descriptions = request.POST.getlist('line_descriptions[]')
                 cost_centers_list = request.POST.getlist('cost_centers[]')
+                allocations_json_list = request.POST.getlist('line_allocations_json[]')
 
                 total_debit = Decimal('0.00')
                 total_credit = Decimal('0.00')
@@ -1894,15 +1900,85 @@ def manual_journal_entry_create(request):
                         continue
 
                     account = get_object_or_404(ChartOfAccounts, id=account_id, is_active=True)
-                    debit_val = Decimal(debits_list[idx]) if idx < len(debits_list) and debits_list[idx] else Decimal('0.00')
-                    credit_val = Decimal(credits_list[idx]) if idx < len(credits_list) and credits_list[idx] else Decimal('0.00')
-                    line_desc = line_descriptions[idx].strip() if idx < len(line_descriptions) and line_descriptions[idx] else description
                     
+                    # فحص حظر تضارب العملات على الحسابات المقيدة (Account Currency Matching Guard)
+                    if hasattr(account, 'currency') and account.currency and account.currency.code != func_code:
+                        if entry_currency_code != func_code and entry_currency_code != account.currency.code:
+                            messages.error(request, f"تضارب العملة: الحساب ({account.name}) مقيد بعملة ({account.currency.code}). لا يمكن إدراج قيد عليه بعملة أجنبية مختلفة ({entry_currency_code}).")
+                            return redirect('financial:manual_journal_entry_create')
+
+                    raw_debit = Decimal(debits_list[idx]) if idx < len(debits_list) and debits_list[idx] else Decimal('0.00')
+                    raw_credit = Decimal(credits_list[idx]) if idx < len(credits_list) and credits_list[idx] else Decimal('0.00')
+                    line_desc = line_descriptions[idx].strip() if idx < len(line_descriptions) and line_descriptions[idx] else description
+
+                    if entry_currency_code != func_code:
+                        foreign_debit_val = raw_debit
+                        foreign_credit_val = raw_credit
+                        debit_val = (foreign_debit_val * exchange_rate_val).quantize(Decimal('0.01'))
+                        credit_val = (foreign_credit_val * exchange_rate_val).quantize(Decimal('0.01'))
+                    else:
+                        debit_val = raw_debit
+                        credit_val = raw_credit
+                        foreign_debit_val = Decimal('0.00')
+                        foreign_credit_val = Decimal('0.00')
+                        exchange_rate_val = Decimal('1.000000')
+
                     cc_code = None
                     if idx < len(cost_centers_list) and cost_centers_list[idx]:
                         cc_obj = CostCenter.objects.filter(id=cost_centers_list[idx]).first()
                         if cc_obj:
                             cc_code = cc_obj.code
+
+                    # معالجة التوزيع المتعدد للسطر الواحدة (Multi-Cost-Center Sub-Allocations)
+                    allocations_data = None
+                    if idx < len(allocations_json_list) and allocations_json_list[idx]:
+                        try:
+                            import json
+                            raw_alloc = json.loads(allocations_json_list[idx])
+                            if isinstance(raw_alloc, list) and len(raw_alloc) > 0:
+                                # قاعدة P&L Accounts Only Rule (المصروفات والإيرادات فقط)
+                                account_category = account.account_type.category if (account.account_type and hasattr(account.account_type, 'category')) else ''
+                                if account_category not in ['expense', 'revenue']:
+                                    messages.error(request, f"عذراً، التوزيع المتعدد متاح فقط لحسابات المصروفات والإيرادات. الحساب ({account.name}) ينتمي للميزانية العمومية.")
+                                    return redirect('financial:manual_journal_entry_create')
+
+                                allocations_data = []
+                                line_amount_func = debit_val if debit_val > Decimal('0.00') else credit_val
+                                line_amount_foreign = raw_debit if raw_debit > Decimal('0.00') else raw_credit
+                                
+                                total_pct = Decimal('0.00')
+                                calc_alloc_func_sum = Decimal('0.00')
+                                calc_alloc_foreign_sum = Decimal('0.00')
+
+                                for item in raw_alloc:
+                                    c_id = item.get('cost_center_id')
+                                    pct = Decimal(str(item.get('percentage', 0)))
+                                    total_pct += pct
+                                    
+                                    amt = (line_amount * (pct / Decimal('100'))).quantize(Decimal('0.01'))
+                                    calc_alloc_sum += amt
+
+                                    allocations_data.append({
+                                        'cost_center_id': c_id,
+                                        'percentage': pct,
+                                        'amount': amt,
+                                        'foreign_amount': Decimal('0.00')
+                                    })
+
+                                if abs(total_pct - Decimal('100.00')) > Decimal('0.01'):
+                                    messages.error(request, f"إجمالي نسبة التوزيع المحاسبي للسطر رقم ({idx+1}) يجب أن يساوي 100% بالتمام (النسبة الحالية: {total_pct}%).")
+                                    return redirect('financial:manual_journal_entry_create')
+
+                                # تسوية فروق التقريب (Penny Difference Adjustment)
+                                penny_diff = line_amount - calc_alloc_sum
+                                if penny_diff != Decimal('0.00') and len(allocations_data) > 0:
+                                    allocations_data[-1]['amount'] += penny_diff
+
+                                # Exclusivity Rule: إلغاء cc_code المباشر في حالة وجود توزيع فرعي متعدد
+                                cc_code = None
+                        except Exception as parse_err:
+                            import logging
+                            logging.getLogger(__name__).error(f"Error parsing allocations JSON for line {idx}: {parse_err}")
 
                     total_debit += debit_val
                     total_credit += credit_val
@@ -1913,7 +1989,8 @@ def manual_journal_entry_create(request):
                             debit=debit_val,
                             credit=credit_val,
                             description=line_desc,
-                            cost_center_code=cc_code
+                            cost_center=cc_code,
+                            cost_allocations=allocations_data
                         )
                     )
 
@@ -1969,7 +2046,7 @@ def manual_journal_entry_create(request):
             )
 
             # ربط المسودات المرفوعة إن وجدت
-            draft_tokens = request.POST.getlist('draft_tokens[]')
+            draft_tokens = [t.strip() for t in request.POST.getlist('draft_tokens[]') if t and t.strip()]
             if draft_tokens:
                 AttachmentBindingService.bind_draft_attachments(draft_tokens, journal_entry, request.user)
 
@@ -1983,9 +2060,24 @@ def manual_journal_entry_create(request):
             messages.error(request, f"حدث خطأ أثناء إنشاء القيد: {str(e)}")
             return redirect('financial:manual_journal_entry_create')
 
-    # GET request - إعداد البيانات
-    accounts = ChartOfAccounts.objects.filter(is_active=True).select_related('account_type').order_by('code')
+    # GET request - إعداد البيانات (الحسابات الفرعية القابلة للترحيل فقط is_leaf=True)
+    import json
+    from financial.models.currency import Currency
+    from financial.services.exchange_rate_service import ExchangeRateService
+
+    accounts = ChartOfAccounts.objects.filter(is_active=True, is_leaf=True).select_related('account_type', 'currency').order_by('code')
     cost_centers = CostCenter.objects.filter(is_active=True).order_by('code')
+    currencies = Currency.objects.filter(is_active=True).order_by('code')
+    func_currency = ExchangeRateService.get_functional_currency()
+    func_code = func_currency.code if func_currency else 'EGP'
+
+    rates_map = {}
+    for c in currencies:
+        try:
+            r = ExchangeRateService.get_rate(c.code)
+            rates_map[c.code] = str(r)
+        except Exception:
+            rates_map[c.code] = "1.000000"
 
     accounts_by_type = {}
     for account in accounts:
@@ -1998,6 +2090,10 @@ def manual_journal_entry_create(request):
         'accounts': accounts,
         'accounts_by_type': accounts_by_type,
         'cost_centers': cost_centers,
+        'currencies': currencies,
+        'func_currency': func_currency,
+        'func_code': func_code,
+        'rates_map_json': json.dumps(rates_map),
         'today': timezone.now().date(),
         'page_title': 'إضافة قيد يدوي مركّب',
         'page_subtitle': 'إدخال قيود محاسبية مركبة ومرفقات ومراكز تكلفة',

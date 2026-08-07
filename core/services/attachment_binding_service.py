@@ -17,7 +17,8 @@ class AttachmentBindingService:
         """
         ربط قائمة المسودات المؤقتة برمز draft_tokens مع الكائن النهائي بـ Generic Foreign Key
         """
-        if not draft_tokens or not target_object:
+        clean_tokens = [str(t).strip() for t in draft_tokens if t and str(t).strip()]
+        if not clean_tokens or not target_object:
             return []
 
         content_type = ContentType.objects.get_for_model(target_object)
@@ -25,7 +26,7 @@ class AttachmentBindingService:
         bound_attachments = []
 
         with transaction.atomic():
-            drafts = DraftAttachment.objects.filter(draft_token__in=draft_tokens)
+            drafts = DraftAttachment.objects.filter(draft_token__in=clean_tokens)
             for draft in drafts:
                 # العزل الأمني للشركات
                 company_id = getattr(target_object, 'company_id', 1) or 1

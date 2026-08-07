@@ -27,7 +27,9 @@
 - **Verification**: Always verify changes by running tests (`pytest` / Django checks) before declaring tasks completed.
 
 ## 6. Standardized ListView Architecture & Components Pattern
-- **Central Page Header**: All module list views MUST use `{% include "shared/page_header.html" %}`.
+- **Central Page Header & Breadcrumbs**:
+  - All module list, form, and detail views MUST use `{% include "shared/page_header.html" %}`.
+  - Views MUST explicitly pass a structured `breadcrumb_items` array in the template context starting with Home (`reverse('core:dashboard')`), Section, and ending with Active item (`'active': True`). Example: `[{'title': _('الرئيسية'), 'url': reverse('core:dashboard'), 'icon': 'fa-home'}, {'title': _('الإدارة المالية'), 'url': reverse('financial:chart_of_accounts_list'), 'icon': 'fa-calculator'}, {'title': _('الأرصدة الافتتاحية'), 'active': True}]`.
 - **Collapsible Filter Section**:
   - Enclosed inside `.section-container.mb-4`.
   - Section header MUST use `data-bs-toggle="collapse" data-bs-target="#filterSection"`.
@@ -43,3 +45,17 @@
   - SSR Pagination MUST be wrapped inside `#pagination-wrapper` using `{% include "partials/pagination.html" %}`.
 - **Safe Destructive Action Confirmations**:
   - Deletion and destructive actions MUST use dynamic POST form creation with CSRF tokens (`confirmDelete`).
+
+## 7. Strict UI Section & Card Formatting Rules
+- **Statistical KPI Cards (`.stats-card`)**:
+  - MUST NEVER be wrapped inside a `.section-container` or `.section-title`.
+  - MUST be rendered directly in a grid row: `<div class="row g-3 mb-4">` containing `.stats-card` elements.
+  - MUST use standard classes: `.stats-card` (`.stats-card-info`, `.stats-card-warning`, `.stats-card-success`, `.stats-card-danger`), `.stats-card-body`, `.stats-card-icon`, `.stats-card-title`, `.stats-card-value`.
+- **Section Headers & Tables (`.section-container`)**:
+  - Table and content sections MUST be enclosed inside `.section-container`.
+  - Section headers MUST use standard `<h5 class="section-title"><i class="fas fa-... me-2"></i>Title</h5>` directly without wrapper `d-flex` divs or buttons inside the section title header.
+  - Action buttons MUST NEVER be placed inside table section title headers; action buttons belong exclusively in `page_header.html` (`header_buttons`).
+- **Clickable Table Rows & Actions Column**:
+  - Prefer making data table rows clickable (`.clickable-row` with `data-href`) for direct detail navigation, omitting redundant "Actions" columns when primary view is single.
+- **Standardized In-Table Button Groups**:
+  - Row-level interactive controls MUST use standard `.btn-group.btn-group-sm` with standard outline classes (`btn-outline-secondary`, `btn-outline-danger`) and FontAwesome icons, avoiding custom circular CSS overrides.

@@ -276,7 +276,7 @@ $(document).ready(function() {
             language: {
                 url: '{% static "js/datatables/ar.json" %}'
             },
-            order: [[4, 'desc']], // Sort by sales value descending
+            order: [], // Sort from server
             columnDefs: [
                 {
                     targets: [3, 4, 5], // Numeric columns

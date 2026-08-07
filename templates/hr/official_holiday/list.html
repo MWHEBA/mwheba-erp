@@ -215,7 +215,7 @@ $(document).ready(function() {
     // تهيئة الجدول
     if (typeof GlobalTableManager !== 'undefined' && $('#holidays-table tbody tr td').length > 1) {
         GlobalTableManager.initializeTable('holidays-table', {
-            order: [[2, 'asc']],
+            order: [],
             columnDefs: [{ targets: [0, 7], orderable: false }]
         });
     }

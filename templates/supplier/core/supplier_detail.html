@@ -638,40 +638,35 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
-    // تهيئة الجداول باستخدام النظام الموحد مع ترتيب من الأحدث للأقدم
+    // تهيئة الجداول باستخدام النظام الموحد للحفاظ على ترتيب السيرفر المباشر
     if (typeof window.GlobalTableManager !== 'undefined') {
-        // جدول الفواتير - ترتيب حسب التاريخ (عمود 1) تنازلياً
         if (document.getElementById('supplier-purchases-table')) {
             window.GlobalTableManager.initializeTable('supplier-purchases-table', {
-                order: [[1, 'desc']]  // عمود created_at
+                order: []
             });
         }
         
-        // جدول المدفوعات - ترتيب حسب التاريخ (عمود 1) تنازلياً
         if (document.getElementById('supplier-payments-table')) {
             window.GlobalTableManager.initializeTable('supplier-payments-table', {
-                order: [[1, 'desc']]  // عمود created_at
+                order: []
             });
         }
         
-        // جدول المنتجات - ترتيب حسب آخر شراء (عمود 5) تنازلياً
         if (document.getElementById('supplier-products-table')) {
             window.GlobalTableManager.initializeTable('supplier-products-table', {
-                order: [[5, 'desc']]  // عمود last_purchase_date
+                order: []
             });
         }
         
-        // جدول المعاملات (لو موجود)
         if (document.getElementById('supplier-transactions-table')) {
             window.GlobalTableManager.initializeTable('supplier-transactions-table', {
-                order: [[0, 'desc']]  // عمود التاريخ
+                order: []
             });
         }
         
-        // جدول القيود المحاسبية (لو موجود)
         if (document.getElementById('supplier-journal-table')) {
             window.GlobalTableManager.initializeTable('supplier-journal-table', {
-                order: [[2, 'desc']]  // عمود created_at (التاريخ والوقت)
+                order: []
             });
         }
     }

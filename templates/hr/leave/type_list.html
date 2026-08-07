@@ -175,7 +175,7 @@ const CSRF = '{{ csrf_token }}';
 
 $(document).ready(function() {
     if ($('#leave-types-table').length && typeof initGlobalTable === 'function') {
-        initGlobalTable('leave-types-table', { order: [[0, 'asc']] });
+        initGlobalTable('leave-types-table', { order: [] });
     }
 });
 

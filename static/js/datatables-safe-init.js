@@ -11,7 +11,7 @@ function safeDataTableInit(tableId, options = {}) {
         },
         pageLength: 25,
         responsive: true,
-        order: [[0, 'asc']],
+        order: [],
         columnDefs: []
     };
     

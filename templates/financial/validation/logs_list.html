@@ -131,7 +131,7 @@ $(document).ready(function() {
     // تهيئة الجدول
     if (typeof GlobalTableManager !== 'undefined') {
         GlobalTableManager.initializeTable('validation-logs-table', {
-            order: [[0, 'desc']], // ترتيب حسب التاريخ (الأحدث أولاً)
+            order: [], // الحفاظ التام على ترتيب السيرفر المباشر دون إعادة فرز من المتصفح
             columnDefs: [
                 { targets: 0, width: '12%' },
                 { targets: 1, width: '10%' },

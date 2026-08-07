@@ -10,7 +10,7 @@
 <div class="mb-3 dms-uploader-container" id="container_{{ uploader_id|default:'default_uploader' }}">
     {% if label %}
         <label class="form-label fw-semibold text-secondary mb-1">
-            <i class="bi bi-paperclip me-1"></i>{{ label }}
+            <i class="fas fa-paperclip me-1"></i>{{ label }}
         </label>
     {% endif %}
 
@@ -31,7 +31,7 @@
         <!-- واجهة الإفلات البدائية -->
         <div class="dropzone-prompt d-flex flex-column align-items-center justify-content-center h-100 cursor-pointer"
              id="prompt_{{ uploader_id|default:'default_uploader' }}">
-            <i class="bi bi-cloud-arrow-up text-primary display-6 mb-2"></i>
+            <i class="fas fa-cloud-upload-alt text-primary fs-1 mb-2"></i>
             <span class="fs-7 text-dark fw-medium">اسحب وأسقط الملف هنا، أو <span class="text-primary text-decoration-underline">استعرض الجهاز</span></span>
             <small class="text-muted fs-8 mt-1">الامتدادات المسموح بها: PDF, PNG, JPG, DOCX, XLSX (الحد الأقصى: 10MB)</small>
         </div>
@@ -41,7 +41,7 @@
              id="preview_{{ uploader_id|default:'default_uploader' }}">
             <div class="d-flex align-items-center gap-2 overflow-hidden flex-grow-1">
                 <div class="file-icon-badge bg-primary-subtle text-primary rounded-2 p-2 d-flex align-items-center justify-content-center" style="width: 38px; height: 38px;">
-                    <i class="bi bi-file-earmark-text fs-5" id="icon_{{ uploader_id|default:'default_uploader' }}"></i>
+                    <i class="fas fa-file-alt fs-5" id="icon_{{ uploader_id|default:'default_uploader' }}"></i>
                 </div>
                 <div class="file-details overflow-hidden" style="max-width: 80%;">
                     <div class="file-name text-truncate fw-semibold text-dark fs-7" dir="ltr" id="name_{{ uploader_id|default:'default_uploader' }}">filename.pdf</div>
@@ -49,11 +49,10 @@
                 </div>
             </div>
             <button type="button" 
-                    class="btn btn-outline-danger btn-sm rounded-circle p-1 d-flex align-items-center justify-content-center ms-2 flex-shrink-0"
-                    style="width: 28px; height: 28px;"
+                    class="btn btn-sm btn-outline-danger ms-2 flex-shrink-0"
                     id="remove_btn_{{ uploader_id|default:'default_uploader' }}"
                     title="إزالة المرفق">
-                <i class="bi bi-x-lg fs-8"></i>
+                <i class="fas fa-times me-1"></i>حذف المرفق
             </button>
         </div>
     </div>

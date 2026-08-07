@@ -887,7 +887,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const documentsTable = document.getElementById('documents-table');
     if (documentsTable && typeof initializeTable === 'function') {
         initializeTable('documents-table', {
-            order: [[4, 'desc']], // ترتيب حسب تاريخ الرفع
+            order: [], // ترتيب حسب تاريخ الرفع
             searching: true,
             lengthChange: true
         });

@@ -541,11 +541,6 @@
                                 <i class="fas fa-percent me-2"></i>{% trans "أكواد وضرائب المخرجات" %}
                             </a>
                         </li>
-                        <li>
-                            <a href="{% url 'financial:opening_balance_list' %}" class="submenu-link">
-                                <i class="fas fa-balance-scale me-2"></i>{% trans "الأرصدة الافتتاحية" %}
-                            </a>
-                        </li>
                         
                         <div class="nav-divider"></div>
 
@@ -786,6 +781,11 @@
                         <li>
                             <a href="{% url 'core:company_settings' %}" class="submenu-link">
                                 <i class="fas fa-building me-2"></i>{% trans "إعدادات الشركة" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'financial:opening_balance_list' %}" class="submenu-link">
+                                <i class="fas fa-balance-scale me-2"></i>{% trans "الأرصدة الافتتاحية" %}
                             </a>
                         </li>
                         <li>

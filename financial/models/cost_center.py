@@ -81,8 +81,9 @@ class CostCenter(models.Model):
                 descendant_ids = self.get_descendant_ids()
                 from financial.models.journal_entry import JournalEntryLine
                 has_posted = JournalEntryLine.objects.filter(
-                    cost_center_id__in=descendant_ids,
                     journal_entry__status='posted'
+                ).filter(
+                    models.Q(cost_center_id__in=descendant_ids) | models.Q(cost_allocations__cost_center_id__in=descendant_ids)
                 ).exists()
 
                 if has_posted:

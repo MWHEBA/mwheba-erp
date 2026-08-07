@@ -69,6 +69,7 @@ class JournalEntryLineData:
     exchange_rate: Decimal = Decimal("1.000000")
     foreign_debit: Decimal = Decimal("0.00")
     foreign_credit: Decimal = Decimal("0.00")
+    cost_allocations: Optional[List[Dict[str, Any]]] = None
     
     def __post_init__(self):
         """Validate line data after initialization"""
@@ -116,6 +117,7 @@ class AccountingGateway:
         'financial.FinancialTransaction',
         'financial.BankReconciliation',
         'financial.JournalEntry',
+        'financial.ManualJournalEntry',
         'courses.CourseEnrollment',
         'qr_applications.QRApplication',
         'activities.ActivityExpense',
@@ -574,6 +576,10 @@ class AccountingGateway:
                 }
             )
         
+        # Skip DB record existence check for direct manual entries
+        if source_key in ['financial.ManualJournalEntry', 'financial.JournalEntry', 'finance.ManualAdjustment']:
+            return
+
         # Validate linkage exists
         if not self.source_linkage_service.validate_linkage(
             source_info.module,
@@ -677,7 +683,12 @@ class AccountingGateway:
                     'credit': line_data.credit,
                     'description': line_data.description or f"Line {i+1}",
                     'cost_center': line_data.cost_center,
-                    'project': line_data.project
+                    'cost_allocations': getattr(line_data, 'cost_allocations', None),
+                    'project': line_data.project,
+                    'currency': line_data.currency,
+                    'exchange_rate': line_data.exchange_rate,
+                    'foreign_debit': line_data.foreign_debit,
+                    'foreign_credit': line_data.foreign_credit,
                 }
                 
                 validated_lines.append(prepared_line)
@@ -700,7 +711,30 @@ class AccountingGateway:
                     'difference': str(total_debit - total_credit)
                 }
             )
-        
+
+        # الحظر الحوكمي الصارم: حظر القيود المباشرة بين حسابين خزينة/بنك بعملات مختلفة (IAS 21 Guard)
+        treasury_lines = [
+            l for l in validated_lines
+            if (getattr(l['account'], 'is_cash_account', False) or 
+                getattr(l['account'], 'is_bank_account', False) or 
+                (l['account'].account_type and l['account'].account_type.category in ['cash', 'bank', 'treasury']))
+        ]
+
+        if len(treasury_lines) >= 2:
+            currencies = set()
+            for t_line in treasury_lines:
+                curr = t_line.get('currency') or (t_line['account'].currency.code if getattr(t_line['account'], 'currency', None) else 'EGP')
+                currencies.add(curr)
+            
+            if len(currencies) > 1:
+                raise GovValidationError(
+                    message="[INVALID_CROSS_CURRENCY_TREASURY_ENTRY] محظور محاسبياً إجراء قيد مباشر بين حسابين خزينة/بنك بعملات مختلفة. يرجى استخدام خدمة تحويلات الخزينة (CashTransferService) لمعالجة فروق أرباح/خسائر العملة المحققة (IAS 21).",
+                    context={
+                        'treasury_currencies': list(currencies),
+                        'treasury_accounts': [t['account'].name for t in treasury_lines]
+                    }
+                )
+
         return validated_lines
     
     def _get_accounting_period(self, date: datetime) -> AccountingPeriod:

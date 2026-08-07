@@ -361,7 +361,7 @@ $(document).ready(function() {
         // Quarantine table
         if ($('#quarantineTable tbody tr').length > 0 && !$('#quarantineTable tbody tr td[colspan]').length) {
             GlobalTableManager.initializeTable('quarantineTable', {
-                order: [[0, 'desc']],
+                order: [],
                 columnDefs: [{ targets: -1, orderable: false }]
             });
         }
@@ -369,7 +369,7 @@ $(document).ready(function() {
         // System logs table
         if ($('#systemLogsTable tbody tr').length > 0 && !$('#systemLogsTable tbody tr td[colspan]').length) {
             GlobalTableManager.initializeTable('systemLogsTable', {
-                order: [[0, 'desc']],
+                order: [],
                 columnDefs: [{ targets: -1, orderable: false }]
             });
         }

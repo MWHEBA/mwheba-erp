@@ -25,7 +25,7 @@ if (typeof window.GlobalTableManager === 'undefined') {
         responsive: true,
         paging: false,
         info: false,
-        order: [[0, 'asc']],
+        order: [], // الحفاظ التام على ترتيب السيرفر المباشر دون فرز افتراضي بالعميل
         language: {
             search: "البحث:",
             lengthMenu: "عرض _MENU_ عنصر",
@@ -82,7 +82,7 @@ if (typeof window.GlobalTableManager === 'undefined') {
      * 
      * @example
      * GlobalTableManager.initializeTable('data-table', {
-     *     order: [[1, 'asc']],
+     *     order: [],
      *     columnDefs: [
      *         { targets: 0, width: '5%', orderable: false },
      *         { targets: -1, orderable: false }
