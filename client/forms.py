@@ -22,6 +22,7 @@ class CustomerForm(forms.ModelForm):
             "email",
             "code",
             "credit_limit",
+            "default_currency",
             "tax_number",
             "is_active",
             "notes",
@@ -33,6 +34,7 @@ class CustomerForm(forms.ModelForm):
             "email": forms.EmailInput(attrs={"class": "form-control", "dir": "ltr"}),
             "code": forms.TextInput(attrs={"class": "form-control", "readonly": "readonly"}),
             "credit_limit": forms.NumberInput(attrs={"class": "form-control"}),
+            "default_currency": forms.Select(attrs={"class": "form-select select2 select2-filter", "dir": "rtl"}),
             "tax_number": forms.TextInput(attrs={"class": "form-control"}),
             "is_active": forms.CheckboxInput(attrs={"class": "form-check-input"}),
             "notes": forms.Textarea(attrs={"class": "form-control", "rows": 3}),
@@ -61,6 +63,15 @@ class CustomerForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         
+        if not self.instance.pk and not self.initial.get("default_currency"):
+            try:
+                from financial.services.exchange_rate_service import ExchangeRateService
+                func_curr = ExchangeRateService.get_functional_currency()
+                if func_curr:
+                    self.initial["default_currency"] = func_curr.id
+            except Exception:
+                pass
+
         # توليد كود تلقائي للعميل الجديد
         if not self.instance.pk:
             # الحصول على آخر كود

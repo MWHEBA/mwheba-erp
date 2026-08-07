@@ -139,6 +139,15 @@ class Supplier(models.Model):
     balance = models.DecimalField(
         _("الرصيد الحالي"), max_digits=12, decimal_places=2, default=0
     )
+    default_currency = models.ForeignKey(
+        'financial.Currency',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name=_("العملة الافتراضية"),
+        related_name="suppliers_default_currency",
+        help_text=_("العملة الافتراضية المعتمدة لفتح فواتير ومعاملات هذا المورد تلقائياً")
+    )
     is_active = models.BooleanField(_("نشط"), default=True)
     tax_number = models.CharField(
         _("الرقم الضريبي"), max_length=50, blank=True, null=True
@@ -240,10 +249,19 @@ class Supplier(models.Model):
         return SupplierAllocationService.get_available_supplier_prepaid_balance(self.id)
 
     def __str__(self):
-        return self.name
+        return str(self.name or f"Supplier {self.pk or ''}")
     
     def save(self, *args, **kwargs):
-        """Generate automatic supplier code and set default primary_type if not provided"""
+        """Generate automatic supplier code and set default primary_type and default_currency if not provided"""
+        if not self.default_currency_id:
+            try:
+                from financial.services.exchange_rate_service import ExchangeRateService
+                func_curr = ExchangeRateService.get_functional_currency()
+                if func_curr:
+                    self.default_currency = func_curr
+            except Exception:
+                pass
+
         if not hasattr(self, 'primary_type') or self.primary_type_id is None:
             default_type, _ = SupplierType.objects.get_or_create(
                 code='GENERAL',

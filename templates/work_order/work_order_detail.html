@@ -14,91 +14,92 @@
 
   <!-- لوحة مركز التكلفة والربحية (Cost Center & Metrics) -->
   <div class="section-container mb-4">
-    <h5 class="section-title" data-bs-toggle="collapse" data-bs-target="#costCenterMetricsCollapse" aria-expanded="false" style="cursor: pointer;">
+    <h5 class="section-title" data-bs-toggle="collapse" data-bs-target="#costCenterMetricsCollapse"
+      aria-expanded="false" style="cursor: pointer;">
       <i class="fas fa-chart-bar me-2"></i>{% trans "لوحة مركز التكلفة والربحية" %}
       <i class="fas fa-chevron-down float-end"></i>
     </h5>
     <div class="collapse" id="costCenterMetricsCollapse">
       <div class="row p-4 g-3">
-      <!-- إجمالي الإيرادات -->
-      <div class="col-md-3 col-sm-6">
-        <div class="stats-card stats-card-primary">
-          <div class="stats-card-header"></div>
-          <div class="stats-card-body">
-            <div class="stats-card-icon">
-              <i class="fas fa-file-invoice-dollar"></i>
-            </div>
-            <div class="stats-card-title">{% trans "إجمالي الإيرادات" %}</div>
-            <div class="stats-card-value">{{ total_revenue|smart_float:2 }}</div>
-            <div class="stats-card-unit">{% currency_symbol %}</div>
-            <div class="text-muted small mt-2">
-              <span>{% trans "الفواتير:" %} {{ sales_total|smart_float:2 }}</span> |
-              <span>{% trans "مباشر:" %} {{ incomes_direct_total|smart_float:2 }}</span>
+        <!-- إجمالي الإيرادات -->
+        <div class="col-md-3 col-sm-6">
+          <div class="stats-card stats-card-primary">
+            <div class="stats-card-header"></div>
+            <div class="stats-card-body">
+              <div class="stats-card-icon">
+                <i class="fas fa-file-invoice-dollar"></i>
+              </div>
+              <div class="stats-card-title">{% trans "إجمالي الإيرادات" %}</div>
+              <div class="stats-card-value">{{ total_revenue|smart_float:2 }}</div>
+              <div class="stats-card-unit">{% currency_symbol %}</div>
+              <div class="text-muted small mt-2">
+                <span>{% trans "الفواتير:" %} {{ sales_total|smart_float:2 }}</span> |
+                <span>{% trans "مباشر:" %} {{ incomes_direct_total|smart_float:2 }}</span>
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <!-- إجمالي التكاليف -->
-      <div class="col-md-3 col-sm-6">
-        <div class="stats-card stats-card-danger">
-          <div class="stats-card-header"></div>
-          <div class="stats-card-body">
-            <div class="stats-card-icon">
-              <i class="fas fa-calculator"></i>
-            </div>
-            <div class="stats-card-title">{% trans "إجمالي التكاليف" %}</div>
-            <div class="stats-card-value">{{ total_cost|smart_float:2 }}</div>
-            <div class="stats-card-unit">{% currency_symbol %}</div>
-            <div class="text-muted small mt-2">
-              <span>{% trans "المشتريات:" %} {{ purchases_total|smart_float:2 }}</span> |
-              <span>{% trans "مباشر:" %} {{ expenses_direct_total|smart_float:2 }}</span>
+        <!-- إجمالي التكاليف -->
+        <div class="col-md-3 col-sm-6">
+          <div class="stats-card stats-card-danger">
+            <div class="stats-card-header"></div>
+            <div class="stats-card-body">
+              <div class="stats-card-icon">
+                <i class="fas fa-calculator"></i>
+              </div>
+              <div class="stats-card-title">{% trans "إجمالي التكاليف" %}</div>
+              <div class="stats-card-value">{{ total_cost|smart_float:2 }}</div>
+              <div class="stats-card-unit">{% currency_symbol %}</div>
+              <div class="text-muted small mt-2">
+                <span>{% trans "المشتريات:" %} {{ purchases_total|smart_float:2 }}</span> |
+                <span>{% trans "مباشر:" %} {{ expenses_direct_total|smart_float:2 }}</span>
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <!-- صافي الأرباح وهامش الربح -->
-      <div class="col-md-3 col-sm-6">
-        <div class="stats-card {% if net_profit >= 0 %}stats-card-success{% else %}stats-card-danger{% endif %}">
-          <div class="stats-card-header"></div>
-          <div class="stats-card-body">
-            <div class="stats-card-icon">
-              <i class="fas fa-chart-line"></i>
-            </div>
-            <div class="stats-card-title">{% trans "صافي الأرباح" %}</div>
-            <div class="stats-card-value">{{ net_profit|smart_float:2 }}</div>
-            <div class="stats-card-unit">{% currency_symbol %}</div>
-            <div class="stats-card-trend {% if net_profit >= 0 %}up{% else %}down{% endif %} mt-2">
-              {% if net_profit >= 0 %}
-              <i class="fas fa-arrow-up me-1"></i>{% trans "ربح إيجابي" %} ({{ profit_margin|floatformat:1 }}%)
-              {% else %}
-              <i class="fas fa-arrow-down me-1"></i>{% trans "خسارة" %} ({{ profit_margin|floatformat:1 }}%)
-              {% endif %}
+        <!-- صافي الأرباح وهامش الربح -->
+        <div class="col-md-3 col-sm-6">
+          <div class="stats-card {% if net_profit >= 0 %}stats-card-success{% else %}stats-card-danger{% endif %}">
+            <div class="stats-card-header"></div>
+            <div class="stats-card-body">
+              <div class="stats-card-icon">
+                <i class="fas fa-chart-line"></i>
+              </div>
+              <div class="stats-card-title">{% trans "صافي الأرباح" %}</div>
+              <div class="stats-card-value">{{ net_profit|smart_float:2 }}</div>
+              <div class="stats-card-unit">{% currency_symbol %}</div>
+              <div class="stats-card-trend {% if net_profit >= 0 %}up{% else %}down{% endif %} mt-2">
+                {% if net_profit >= 0 %}
+                <i class="fas fa-arrow-up me-1"></i>{% trans "ربح إيجابي" %} ({{ profit_margin|floatformat:1 }}%)
+                {% else %}
+                <i class="fas fa-arrow-down me-1"></i>{% trans "خسارة" %} ({{ profit_margin|floatformat:1 }}%)
+                {% endif %}
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <!-- الدفعات المقدمة (الحصالة المدمجة) -->
-      <div class="col-md-3 col-sm-6">
-        <div class="stats-card stats-card-warning">
-          <div class="stats-card-header"></div>
-          <div class="stats-card-body">
-            <div class="stats-card-icon">
-              <i class="fas fa-piggy-bank"></i>
-            </div>
-            <div class="stats-card-title">{% trans "الدفعات المقدمة" %}</div>
-            <div class="stats-card-value">{{ remaining_deposit|smart_float:2 }}</div>
-            <div class="stats-card-unit">{% currency_symbol %}</div>
-            <div class="text-muted small mt-2">
-              <span>{% trans "المقبوض:" %} {{ total_deposits|smart_float:2 }}</span> |
-              <span>{% trans "المستهلك:" %} {{ total_allocated|smart_float:2 }}</span>
+        <!-- الدفعات المقدمة (الحصالة المدمجة) -->
+        <div class="col-md-3 col-sm-6">
+          <div class="stats-card stats-card-warning">
+            <div class="stats-card-header"></div>
+            <div class="stats-card-body">
+              <div class="stats-card-icon">
+                <i class="fas fa-piggy-bank"></i>
+              </div>
+              <div class="stats-card-title">{% trans "الدفعات المقدمة" %}</div>
+              <div class="stats-card-value">{{ remaining_deposit|smart_float:2 }}</div>
+              <div class="stats-card-unit">{% currency_symbol %}</div>
+              <div class="text-muted small mt-2">
+                <span>{% trans "المقبوض:" %} {{ total_deposits|smart_float:2 }}</span> |
+                <span>{% trans "المستهلك:" %} {{ total_allocated|smart_float:2 }}</span>
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
     </div>
   </div>
 
@@ -107,32 +108,37 @@
     <div class="card-header bg-white border-0 pt-3 px-3 pb-0">
       <ul class="nav nav-tabs card-header-tabs border-bottom" id="workOrderTabs" role="tablist">
         <li class="nav-item" role="presentation">
-          <button class="nav-link active fw-semibold px-3" id="quotations-tab" data-bs-toggle="tab" data-bs-target="#quotations" type="button" role="tab" aria-controls="quotations" aria-selected="true">
+          <button class="nav-link active fw-semibold px-3" id="quotations-tab" data-bs-toggle="tab"
+            data-bs-target="#quotations" type="button" role="tab" aria-controls="quotations" aria-selected="true">
             <i class="fas fa-file-signature me-2"></i>{% trans "عروض الأسعار" %}
             <span class="badge rounded-pill bg-light text-secondary border ms-1">{{ quotations.count }}</span>
           </button>
         </li>
         <li class="nav-item" role="presentation">
-          <button class="nav-link fw-semibold px-3" id="sales-tab" data-bs-toggle="tab" data-bs-target="#sales" type="button" role="tab" aria-controls="sales" aria-selected="false">
+          <button class="nav-link fw-semibold px-3" id="sales-tab" data-bs-toggle="tab" data-bs-target="#sales"
+            type="button" role="tab" aria-controls="sales" aria-selected="false">
             <i class="fas fa-file-invoice-dollar me-2"></i>{% trans "فواتير المبيعات" %}
             <span class="badge rounded-pill bg-light text-secondary border ms-1">{{ sales.count }}</span>
           </button>
         </li>
         <li class="nav-item" role="presentation">
-          <button class="nav-link fw-semibold px-3" id="purchases-tab" data-bs-toggle="tab" data-bs-target="#purchases" type="button" role="tab" aria-controls="purchases" aria-selected="false">
+          <button class="nav-link fw-semibold px-3" id="purchases-tab" data-bs-toggle="tab" data-bs-target="#purchases"
+            type="button" role="tab" aria-controls="purchases" aria-selected="false">
             <i class="fas fa-file-invoice me-2"></i>{% trans "فواتير المشتريات" %}
             <span class="badge rounded-pill bg-light text-secondary border ms-1">{{ purchases.count }}</span>
           </button>
         </li>
         <li class="nav-item" role="presentation">
-          <button class="nav-link fw-semibold px-3" id="transactions-tab" data-bs-toggle="tab" data-bs-target="#transactions" type="button" role="tab" aria-controls="transactions" aria-selected="false">
+          <button class="nav-link fw-semibold px-3" id="transactions-tab" data-bs-toggle="tab"
+            data-bs-target="#transactions" type="button" role="tab" aria-controls="transactions" aria-selected="false">
             <i class="fas fa-exchange-alt me-2"></i>{% trans "المعاملات المالية المباشرة" %}
-            <span class="badge rounded-pill bg-light text-secondary border ms-1">{{ financial_transactions.count }}</span>
+            <span class="badge rounded-pill bg-light text-secondary border ms-1">{{ financial_transactions.count
+              }}</span>
           </button>
         </li>
       </ul>
     </div>
-    
+
     <div class="card-body p-3">
       <div class="tab-content" id="workOrderTabsContent">
         <!-- عروض الأسعار -->
@@ -163,7 +169,8 @@
                   <td>{{ q.valid_until|date:"Y-m-d"|default:"-" }}</td>
                   <td>{{ q.total|smart_float:2 }} {% currency_symbol %}</td>
                   <td>
-                    <span class="badge rounded-pill {% if q.status == 'accepted' %}bg-success{% elif q.status == 'sent' %}bg-info{% elif q.status == 'draft' %}bg-secondary{% else %}bg-danger{% endif %}">
+                    <span
+                      class="badge rounded-pill {% if q.status == 'accepted' %}bg-success{% elif q.status == 'sent' %}bg-info{% elif q.status == 'draft' %}bg-secondary{% else %}bg-danger{% endif %}">
                       {{ q.get_status_display }}
                     </span>
                   </td>
@@ -213,7 +220,8 @@
                   <td>{{ s.total|smart_float:2 }} {% currency_symbol %}</td>
                   <td>{{ s.amount_due|smart_float:2 }} {% currency_symbol %}</td>
                   <td>
-                    <span class="badge rounded-pill {% if s.payment_status == 'paid' %}bg-success{% elif s.payment_status == 'partial' %}bg-warning text-dark{% else %}bg-danger{% endif %}">
+                    <span
+                      class="badge rounded-pill {% if s.payment_status == 'paid' %}bg-success{% elif s.payment_status == 'partial' %}bg-warning text-dark{% else %}bg-danger{% endif %}">
                       {{ s.get_payment_status_display }}
                     </span>
                   </td>
@@ -237,7 +245,8 @@
         <div class="tab-pane fade" id="purchases" role="tabpanel" aria-labelledby="purchases-tab">
           <div class="d-flex justify-content-between align-items-center mb-3">
             <h6 class="fw-bold mb-0">{% trans "فواتير المشتريات المرتبطة" %}</h6>
-            <a href="{% url 'purchase:purchase_create' %}?work_order={{ work_order.id }}" class="btn btn-sm btn-primary">
+            <a href="{% url 'purchase:purchase_create' %}?work_order={{ work_order.id }}"
+              class="btn btn-sm btn-primary">
               <i class="fas fa-plus me-1"></i>{% trans "إنشاء فاتورة مشتريات" %}
             </a>
           </div>
@@ -256,14 +265,16 @@
               </thead>
               <tbody>
                 {% for p in purchases %}
-                <tr class="clickable-row" data-href="{% url 'purchase:purchase_detail' p.id %}" style="cursor: pointer;">
+                <tr class="clickable-row" data-href="{% url 'purchase:purchase_detail' p.id %}"
+                  style="cursor: pointer;">
                   <td class="fw-bold">{{ p.number }}</td>
                   <td>{{ p.supplier.name }}</td>
                   <td>{{ p.date|date:"Y-m-d" }}</td>
                   <td>{{ p.total|smart_float:2 }} {% currency_symbol %}</td>
                   <td>{{ p.amount_due|smart_float:2 }} {% currency_symbol %}</td>
                   <td>
-                    <span class="badge rounded-pill {% if p.payment_status == 'paid' %}bg-success{% elif p.payment_status == 'partial' %}bg-warning text-dark{% else %}bg-danger{% endif %}">
+                    <span
+                      class="badge rounded-pill {% if p.payment_status == 'paid' %}bg-success{% elif p.payment_status == 'partial' %}bg-warning text-dark{% else %}bg-danger{% endif %}">
                       {{ p.get_payment_status_display }}
                     </span>
                   </td>
@@ -348,7 +359,8 @@
 </div>
 
 <!-- مودال تسجيل دفعة مقدمة -->
-<div class="modal fade" id="recordDepositModal" tabindex="-1" aria-labelledby="recordDepositModalLabel" aria-hidden="true">
+<div class="modal fade" id="recordDepositModal" tabindex="-1" aria-labelledby="recordDepositModalLabel"
+  aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-centered">
     <div class="modal-content">
       <form method="post" action="{% url 'work_order:work_order_record_deposit' work_order.id %}">
@@ -361,22 +373,26 @@
           <div class="row g-3">
             <!-- مبلغ الدفعة -->
             <div class="col-md-6">
-              <label for="amount" class="form-label small fw-bold">{% trans "مبلغ الدفعة" %} <span class="text-danger">*</span></label>
+              <label for="amount" class="form-label small fw-bold">{% trans "مبلغ الدفعة" %} <span
+                  class="text-danger">*</span></label>
               <input type="number" step="0.01" min="0.01" class="form-control" id="amount" name="amount" required>
             </div>
             <!-- حساب الدفع -->
             <div class="col-md-6">
-              <label for="payment_method" class="form-label small fw-bold">{% trans "حساب الدفع (الخزينة/البنك)" %} <span class="text-danger">*</span></label>
+              <label for="payment_method" class="form-label small fw-bold">{% trans "حساب الدفع" %} <span
+                  class="text-danger">*</span></label>
               <select class="form-select" id="payment_method" name="payment_method" required>
                 {% for account in cash_accounts %}
-                <option value="{{ account.code }}" {% if forloop.first %}selected{% endif %}>{{ account.name }} ({{ account.code }})</option>
+                <option value="{{ account.code }}" {% if forloop.first %}selected{% endif %}>{{ account.name }} ({{
+                  account.code }})</option>
                 {% endfor %}
               </select>
             </div>
             <!-- تاريخ الدفع -->
             <div class="col-md-6">
               <label for="payment_date" class="form-label small fw-bold">{% trans "تاريخ الدفع" %}</label>
-              <input type="text" class="form-control" id="payment_date" name="payment_date" data-date-picker placeholder="YYYY-MM-DD" value="{% now 'Y-m-d' %}">
+              <input type="text" class="form-control" id="payment_date" name="payment_date" data-date-picker
+                placeholder="YYYY-MM-DD" value="{% now 'Y-m-d' %}">
             </div>
             <!-- رقم المرجع -->
             <div class="col-md-6">
@@ -412,7 +428,8 @@
       <div class="modal-body">
         <div class="list-group">
           <!-- تعديل أمر الشغل -->
-          <a href="{% url 'work_order:work_order_edit' work_order.id %}" class="list-group-item list-group-item-action d-flex align-items-center">
+          <a href="{% url 'work_order:work_order_edit' work_order.id %}"
+            class="list-group-item list-group-item-action d-flex align-items-center">
             <div class="me-3">
               <i class="fas fa-edit fa-2x text-warning"></i>
             </div>
@@ -421,9 +438,10 @@
               <small class="text-muted">{% trans "تعديل التواريخ والملاحظات والتكلفة التقديرية" %}</small>
             </div>
           </a>
-          
+
           <!-- حذف أمر الشغل -->
-          <a href="{% url 'work_order:work_order_delete' work_order.id %}" class="list-group-item list-group-item-action d-flex align-items-center">
+          <a href="{% url 'work_order:work_order_delete' work_order.id %}"
+            class="list-group-item list-group-item-action d-flex align-items-center">
             <div class="me-3">
               <i class="fas fa-trash fa-2x text-danger"></i>
             </div>
@@ -442,16 +460,16 @@
 {% block extra_js %}
 {{ block.super }}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
+  document.addEventListener('DOMContentLoaded', function () {
     document.querySelectorAll('.clickable-row').forEach(row => {
-        row.addEventListener('click', function(e) {
-            if (e.target.closest('a, button, input, select')) return;
-            const href = this.getAttribute('data-href');
-            if (href) {
-                window.location.href = href;
-            }
-        });
+      row.addEventListener('click', function (e) {
+        if (e.target.closest('a, button, input, select')) return;
+        const href = this.getAttribute('data-href');
+        if (href) {
+          window.location.href = href;
+        }
+      });
     });
-});
+  });
 </script>
 {% endblock %}

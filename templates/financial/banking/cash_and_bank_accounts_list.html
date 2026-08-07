@@ -7,9 +7,10 @@
 {% block title %}{{ page_title }}{% endblock %}
 
 {% block extra_css %}
-<!-- جميع الستايلات موجودة في unified-components.css و components.css -->
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
+<!-- جميع الستايلات تلتزم بالـ CSS Variables الخاصة بالنظام فقط -->
 <style>
-    
     /* كروت الحسابات */
     .cash-account-card {
         transition: all 0.3s ease;
@@ -17,7 +18,7 @@
     }
     
     .cash-account-card:hover {
-        box-shadow: 0 6px 12px rgba(0,0,0,0.2);
+        box-shadow: 0 6px 12px rgba(0,0,0,0.15);
         transform: translateY(-3px);
         border-color: var(--primary-color);
     }
@@ -37,14 +38,14 @@
     .account-title {
         font-size: 1.1rem;
         font-weight: 600;
-        color: #495057;
+        color: var(--text-dark, #495057);
         margin-bottom: 5px;
     }
     
     .account-code {
         font-size: 0.85rem;
-        color: #6c757d;
-        background: #f8f9fa;
+        color: var(--text-muted, #6c757d);
+        background: var(--light-bg, #f8f9fa);
         padding: 2px 6px;
         border-radius: 4px;
     }
@@ -70,27 +71,32 @@
     .balance-amount {
         font-size: 1.5rem;
         font-weight: 700;
-        color: var(--success-color);
-        margin-bottom: 5px;
+        color: var(--success-color, #28a745);
+        margin-bottom: 2px;
     }
-    
-    .balance-currency {
-        font-size: 0.85rem;
-        color: var(--text-muted);
-    }
-    
 
+    .balance-base-equivalent {
+        font-size: 0.825rem;
+        color: var(--text-muted);
+        margin-top: 4px;
+        font-weight: 500;
+    }
     
     /* معلومات إضافية */
     .account-info-grid {
         display: grid;
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: 1fr;
         gap: 10px;
         margin: 15px 0;
+        text-align: center;
     }
     
     .info-item {
-        text-align: center;
+        text-align: center !important;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
         padding: 10px;
         background: var(--light-bg);
         border-radius: 6px;
@@ -102,45 +108,22 @@
         color: var(--text-muted);
         margin-bottom: 4px;
         font-weight: 500;
+        text-align: center !important;
+        width: 100%;
     }
     
     .info-value {
         font-size: 0.9rem;
         font-weight: 600;
         color: var(--text-dark);
-    }
-    
-    .account-code {
-        font-size: 0.85rem;
-        color: var(--text-muted);
-        background: var(--light-bg);
-        padding: 2px 6px;
-        border-radius: 4px;
+        text-align: center !important;
+        width: 100%;
     }
     
     /* تحسينات الاستجابة */
     @media (max-width: 768px) {
-        .page-header {
-            padding: 20px;
-            text-align: center;
-        }
-        
-        .page-header h1 {
-            font-size: 1.5rem;
-        }
-        
         .balance-amount {
             font-size: 1.25rem;
-        }
-        
-        .account-info-grid {
-            grid-template-columns: 1fr;
-            gap: 8px;
-        }
-        
-        .stat-item:not(:last-child) {
-            border-left: none;
-            border-bottom: 1px solid #dee2e6;
         }
     }
 </style>
@@ -165,25 +148,26 @@
                                     <span class="account-code">{{ account.code }}</span>
                                 </div>
                                 
-                                <!-- نوع الحساب -->
-                                <div>
+                                <!-- نوع الحساب والعملة -->
+                                <div class="text-end">
                                     {% if account.is_cash_account %}
-                                        <span class="account-type-badge cash-badge">
+                                        <span class="account-type-badge cash-badge bg-light border text-primary me-1">
                                             <i class="fas fa-money-bill-wave me-1"></i>نقدي
                                         </span>
                                     {% elif account.is_bank_account %}
-                                        <span class="account-type-badge bank-badge">
+                                        <span class="account-type-badge bank-badge bg-light border text-info me-1">
                                             <i class="fas fa-university me-1"></i>بنكي
                                         </span>
                                     {% else %}
-                                        <span class="account-type-badge wallet-badge">
+                                        <span class="account-type-badge wallet-badge bg-light border text-secondary me-1">
                                             <i class="fas fa-wallet me-1"></i>خزينة
                                         </span>
                                     {% endif %}
+                                    <span class="badge bg-secondary border" style="font-size: 0.75rem;">{{ account.currency_symbol }}</span>
                                 </div>
                             </div>
                             
-                            <!-- عرض الرصيد -->
+                            <!-- عرض الرصيد المزدوج -->
                             <div class="balance-display">
                                 <div class="balance-amount">
                                     {% if account.calculated_balance is not None %}
@@ -191,15 +175,27 @@
                                     {% else %}
                                         {{ account.opening_balance|default:0|smart_float }}
                                     {% endif %}
+                                    <span class="fs-6 ms-1">{{ account.currency_symbol }}</span>
                                 </div>
-                                <div class="balance-currency">{{ currency_symbol }}</div>
+                                
+                                <!-- القيمة المعادلة بالعملة الرئيسية بخط صغير تحت القيمة الأجنبية -->
+                                {% if account.is_foreign_currency %}
+                                    <div class="balance-base-equivalent">
+                                        ≈ {{ account.calculated_base_balance|smart_float }} {{ base_currency_symbol }}
+                                        {% if account.rate_error %}
+                                            <span class="badge bg-danger text-white ms-1" title="يرجى تسجيل سعر الصرف للعملة {{ account.currency_code }}"><i class="fas fa-exclamation-triangle me-1"></i>سعر الصرف غير مسجل</span>
+                                        {% else %}
+                                            <span class="badge border ms-1" style="background-color: var(--light-bg); color: var(--text-dark);">سعر الصرف: {{ account.current_spot_rate|floatformat:2 }}</span>
+                                        {% endif %}
+                                    </div>
+                                {% endif %}
                             </div>
                             
                             <!-- معلومات إضافية -->
-                            <div class="account-info-grid" style="grid-template-columns: 1fr;">
-                                <div class="info-item">
-                                    <div class="info-label">آخر تحديث</div>
-                                    <div class="info-value">
+                            <div class="account-info-grid text-center">
+                                <div class="info-item text-center d-flex flex-column align-items-center justify-content-center">
+                                    <div class="info-label text-center w-100">آخر تحديث</div>
+                                    <div class="info-value text-center w-100">
                                         {% if account.last_movement_date %}
                                             {% if account.updated_at %}
                                                 {{ account.updated_at|date:"Y-m-d" }} {{ account.updated_at|date:"g:i" }} {% if account.updated_at.hour < 12 %}ص{% else %}م{% endif %}
@@ -236,57 +232,109 @@
         </div>
     {% endif %}
     
-    <!-- Modal إضافة خزنة/بنك سريع -->
+    <!-- Modal إضافة خزنة/بنك سريع المحسن بـ 2 عامود وتفاعلي -->
     <div class="modal fade" id="quickAddModal" tabindex="-1" aria-labelledby="quickAddModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title" id="quickAddModalLabel">
-                        <i class="fas fa-plus-circle me-2"></i>إضافة خزنة أو بنك
+                        <i class="fas fa-plus-circle me-2 text-success" id="quickAddIcon"></i><span id="quickAddTitleText">إضافة خزنة نقدية أو حساب بنكي</span>
                     </h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <form id="quickAddForm">
                     {% csrf_token %}
                     <div class="modal-body">
-                        <!-- نوع الحساب -->
-                        <div class="mb-3">
-                            <label class="form-label">النوع <span class="text-danger">*</span></label>
+                        <!-- نوع الحساب المحسن -->
+                        <div class="mb-4 text-center">
+                            <label class="form-label fw-bold mb-2">اختر نوع الحساب <span class="text-danger">*</span></label>
                             <div class="btn-group w-100" role="group">
-                                <input type="radio" class="btn-check" name="account_type" id="type_cash" value="cash" checked>
-                                <label class="btn btn-outline-primary" for="type_cash">
+                                <input type="radio" class="btn-check" name="account_type" id="type_cash" value="cash" checked autocomplete="off">
+                                <label class="btn btn-outline-primary py-2 fw-bold" for="type_cash">
                                     <i class="fas fa-money-bill-wave me-2"></i>خزنة نقدية
                                 </label>
                                 
-                                <input type="radio" class="btn-check" name="account_type" id="type_bank" value="bank">
-                                <label class="btn btn-outline-primary" for="type_bank">
+                                <input type="radio" class="btn-check" name="account_type" id="type_bank" value="bank" autocomplete="off">
+                                <label class="btn btn-outline-primary py-2 fw-bold" for="type_bank">
                                     <i class="fas fa-university me-2"></i>حساب بنكي
                                 </label>
                             </div>
                         </div>
-                        
-                        <!-- اسم الحساب -->
-                        <div class="mb-3">
-                            <label for="account_name" class="form-label">الاسم <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" id="account_name" name="name" required placeholder="مثال: الخزنة الرئيسية">
-                        </div>
-                        
-                        <!-- الرصيد الافتتاحي -->
-                        <div class="mb-3">
-                            <label for="opening_balance" class="form-label">الرصيد الافتتاحي</label>
-                            <input type="number" class="form-control" id="opening_balance" name="opening_balance" value="0" min="0" step="0.01">
-                        </div>
-                        
-                        <!-- تاريخ الرصيد -->
-                        <div class="mb-3">
-                            <label for="opening_balance_date" class="form-label">تاريخ الرصيد</label>
-                            <input type="date" class="form-control" id="opening_balance_date" name="opening_balance_date">
-                        </div>
-                        
-                        <!-- الوصف -->
-                        <div class="mb-3">
-                            <label for="description" class="form-label">الوصف</label>
-                            <textarea class="form-control" id="description" name="description" rows="2" placeholder="وصف اختياري للحساب"></textarea>
+
+                        <div class="row">
+                            <!-- العمود الأول: البيانات الأساسية -->
+                            <div class="col-md-6 border-end-md">
+                                <h6 class="text-muted fw-bold mb-3 border-bottom pb-2">
+                                    <i class="fas fa-info-circle me-1 text-primary"></i>البيانات الأساسية
+                                </h6>
+                                
+                                <!-- اسم الحساب -->
+                                <div class="mb-3">
+                                    <label for="account_name" class="form-label">الاسم <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="account_name" name="name" required placeholder="مثال: الخزنة الرئيسية">
+                                </div>
+
+                                <!-- العملة -->
+                                <div class="mb-3">
+                                    <label for="currency_id" class="form-label">عملة الحساب <span class="text-danger">*</span></label>
+                                    <select class="form-select" id="currency_id" name="currency_id">
+                                        {% for curr in currencies %}
+                                            <option value="{{ curr.id }}" data-code="{{ curr.code }}" {% if curr.is_functional %}selected{% endif %}>
+                                                {{ curr.code }} - {{ curr.name }} {% if curr.is_functional %}(العملة الأساسية){% endif %}
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                
+                                <!-- الرصيد الافتتاحي -->
+                                <div class="mb-3">
+                                    <label for="opening_balance" class="form-label">الرصيد الافتتاحي</label>
+                                    <input type="number" class="form-control" id="opening_balance" name="opening_balance" value="0" min="0" step="0.01" placeholder="0.00">
+                                </div>
+                                
+                                <!-- تاريخ الرصيد -->
+                                <div class="mb-3">
+                                    <label for="opening_balance_date" class="form-label">تاريخ الرصيد الافتتاحي</label>
+                                    <input type="date" class="form-control" id="opening_balance_date" name="opening_balance_date" value="{% now 'Y-m-d' %}">
+                                </div>
+                            </div>
+
+                            <!-- العمود الثاني: البيانات التفاعلية والتفاصيل -->
+                            <div class="col-md-6 d-flex flex-column">
+                                <h6 class="text-muted fw-bold mb-3 border-bottom pb-2">
+                                    <i class="fas fa-sliders-h me-1 text-primary"></i>التفاصيل والتخصيص
+                                </h6>
+
+                                <!-- حقول الخزنة النقدية -->
+                                <div id="cash_fields_container">
+                                    <div class="mb-3">
+                                        <label for="custodian" class="form-label">أمين الخزنة / المسؤول (اختياري)</label>
+                                        <input type="text" class="form-control" id="custodian" name="custodian" placeholder="مثال: أحمد محمود">
+                                    </div>
+                                </div>
+
+                                <!-- حقول الحساب البنكي (مخفية افتراضياً وتظهر عند اختيار بنك) -->
+                                <div id="bank_fields_container" style="display: none;">
+                                    <div class="mb-3">
+                                        <label for="bank_name" class="form-label">اسم البنك (اختياري)</label>
+                                        <input type="text" class="form-control" id="bank_name" name="bank_name" placeholder="مثال: البنك الأهلي المصري">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="account_number" class="form-label">رقم الحساب البنكي (اختياري)</label>
+                                        <input type="text" class="form-control" id="account_number" name="account_number" placeholder="مثال: 1234567890">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="iban" class="form-label">رقم الآيبان IBAN / SWIFT (اختياري)</label>
+                                        <input type="text" class="form-control" id="iban" name="iban" placeholder="مثال: EG12345678901234567890">
+                                    </div>
+                                </div>
+                                
+                                <!-- الوصف الممتد للارتفاع المتبقي -->
+                                <div class="mb-3 flex-grow-1 d-flex flex-column">
+                                    <label for="description" class="form-label">الوصف / ملاحظات</label>
+                                    <textarea class="form-control flex-grow-1" id="description" name="description" style="resize: vertical;" placeholder="ملاحظات أو وصف اختياري للحساب"></textarea>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -294,45 +342,220 @@
                             <i class="fas fa-times me-2"></i>إلغاء
                         </button>
                         <button type="submit" class="btn btn-success">
-                            <i class="fas fa-save me-2"></i>حفظ
+                            <i class="fas fa-save me-2"></i>حفظ الحساب
                         </button>
                     </div>
                 </form>
             </div>
         </div>
     </div>
+
+    <!-- Modal التحويل بين الخزائن -->
+    <div class="modal fade" id="transferModal" tabindex="-1" aria-labelledby="transferModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="transferModalLabel">
+                        <i class="fas fa-exchange-alt me-2 text-primary"></i>تحويل مالي بين الخزائن والحسابات
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form id="transferForm">
+                    {% csrf_token %}
+                    <div class="modal-body">
+                        <div class="row">
+                            <!-- الحساب المصدر -->
+                            <div class="col-md-6 mb-3">
+                                <label for="from_account" class="form-label">من خزنة / حساب <span class="text-danger">*</span></label>
+                                <select class="form-select" id="from_account" name="from_account" required>
+                                    <option value="">-- اختر الحساب المصدر --</option>
+                                    {% for acc in accounts %}
+                                        {% if acc.calculated_balance and acc.calculated_balance > 0 %}
+                                            <option value="{{ acc.id }}" data-currency="{{ acc.currency_code }}" data-symbol="{{ acc.currency_symbol }}" data-balance="{{ acc.calculated_balance }}">
+                                                {{ acc.code }} - {{ acc.name }} (الرصيد المتاح: {{ acc.calculated_balance|smart_float }} {{ acc.currency_symbol }})
+                                            </option>
+                                        {% endif %}
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <!-- الحساب المستهدف -->
+                            <div class="col-md-6 mb-3">
+                                <label for="to_account" class="form-label">إلى خزنة / حساب <span class="text-danger">*</span></label>
+                                <select class="form-select" id="to_account" name="to_account" required>
+                                    <option value="">-- اختر الحساب المستهدف --</option>
+                                    {% for acc in accounts %}
+                                        <option value="{{ acc.id }}" data-currency="{{ acc.currency_code }}" data-symbol="{{ acc.currency_symbol }}">
+                                            {{ acc.code }} - {{ acc.name }} ({{ acc.currency_code }})
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <!-- المبلغ المسحوب -->
+                            <div class="col-md-6 mb-3">
+                                <label for="transfer_amount" class="form-label">المبلغ المسحوب من المصدر <span class="text-danger">*</span></label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="transfer_amount" name="amount" required min="0.01" step="0.01" placeholder="0.00">
+                                    <span class="input-group-text" id="source_symbol_addon">المصدر</span>
+                                </div>
+                            </div>
+                            <!-- المبلغ المودع / الوارد -->
+                            <div class="col-md-6 mb-3">
+                                <label for="destination_amount" class="form-label">المبلغ المودع المقابل (اختياري)</label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="destination_amount" name="destination_amount" min="0.01" step="0.01" placeholder="تلقائي بحسب سعر الصرف">
+                                    <span class="input-group-text" id="dest_symbol_addon">المستهدف</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <!-- تاريخ التحويل -->
+                            <div class="col-md-6 mb-3">
+                                <label for="transfer_date" class="form-label">تاريخ التحويل</label>
+                                <input type="date" class="form-control" id="transfer_date" name="transfer_date">
+                            </div>
+                            <!-- مركز التكلفة / الفرع -->
+                            <div class="col-md-6 mb-3">
+                                <label for="cost_center_id" class="form-label">مركز التكلفة / الفرع (اختياري)</label>
+                                <select class="form-select" id="cost_center_id" name="cost_center_id">
+                                    <option value="">-- بدون تحديد --</option>
+                                    {% for cc in cost_centers %}
+                                        <option value="{{ cc.id }}">{{ cc.code }} - {{ cc.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <!-- رسوم التحويل -->
+                            <div class="col-md-6 mb-3">
+                                <label for="transfer_fee" class="form-label">رسوم/عمولة التحويل (اختياري)</label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="transfer_fee" name="transfer_fee" value="0" min="0" step="0.01">
+                                    <span class="input-group-text">{{ base_currency_symbol }}</span>
+                                </div>
+                            </div>
+                            <!-- البيان / السبب -->
+                            <div class="col-md-6 mb-3">
+                                <label for="transfer_description" class="form-label">البيان / الوصف</label>
+                                <input type="text" class="form-control" id="transfer_description" name="description" placeholder="سبب أو ملاحظات التحويل">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            <i class="fas fa-times me-2"></i>إلغاء
+                        </button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-check-circle me-2"></i>تأكيد التحويل
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
 </div>
 {% endblock %}
 
 {% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
-// فتح المودال
+// تفعيل Select2 لعملة الحساب
+function initCurrencySelect2() {
+    if ($('#currency_id').length > 0) {
+        $('#currency_id').select2({
+            theme: 'bootstrap-5',
+            dropdownParent: $('#quickAddModal'),
+            width: '100%',
+            dir: 'rtl'
+        });
+    }
+}
+
+// فتح مودال إضافة خزنة
 function openQuickAddModal() {
     $('#quickAddModal').modal('show');
-    // تعيين التاريخ الحالي كافتراضي
     var today = new Date().toISOString().split('T')[0];
     $('#opening_balance_date').val(today);
 }
 
+// فتح مودال التحويل بين الخزائن
+function openTransferModal() {
+    $('#transferModal').modal('show');
+    var today = new Date().toISOString().split('T')[0];
+    $('#transfer_date').val(today);
+}
+
 $(document).ready(function() {
-    // تأثيرات بسيطة للكروت
-    $('.cash-account-card').hover(
-        function() {
-            $(this).find('.account-actions').addClass('show');
-        },
-        function() {
-            $(this).find('.account-actions').removeClass('show');
+    // تعيين تاريخ اليوم تلقائياً
+    var today = new Date().toISOString().split('T')[0];
+    $('#transfer_date').val(today);
+    $('#opening_balance_date').val(today);
+
+    // التبديل التفاعلي بين الخزنة النقدية والحساب البنكي
+    $('input[name="account_type"]').on('change', function() {
+        var selectedType = $(this).val();
+        if (selectedType === 'bank') {
+            $('#bank_fields_container').slideDown(200);
+            $('#cash_fields_container').slideUp(200);
+            $('#account_name').attr('placeholder', 'مثال: حساب البنك الأهلي - جاري');
+            $('#quickAddIcon').removeClass('fa-money-bill-wave text-success').addClass('fa-university text-primary');
+            $('#quickAddTitleText').text('إضافة حساب بنكي جديد');
+        } else {
+            $('#bank_fields_container').slideUp(200);
+            $('#cash_fields_container').slideDown(200);
+            $('#account_name').attr('placeholder', 'مثال: الخزنة الرئيسية');
+            $('#quickAddIcon').removeClass('fa-university text-primary').addClass('fa-money-bill-wave text-success');
+            $('#quickAddTitleText').text('إضافة خزنة نقدية جديدة');
         }
-    );
-    
-    // معالجة إرسال الفورم
+    });
+
+    // إعادة تعيين المودال عند الإغلاق
+    $('#quickAddModal').on('hidden.bs.modal', function() {
+        $('#quickAddForm')[0].reset();
+        $('#type_cash').prop('checked', true).trigger('change');
+    });
+
+    $('#quickAddModal').on('shown.bs.modal', function() {
+        initCurrencySelect2();
+    });
+
+    // التعديل التفاعلي لرموز العملة واستبعاد الخزنة المختارة من قائمة المستهدف
+    $('#from_account').on('change', function() {
+        var selectedFromId = $(this).val();
+        var symbol = $(this).find(':selected').data('symbol') || 'المصدر';
+        $('#source_symbol_addon').text(symbol);
+
+        // إخفاء الخزنة المختارة كـ "من" من قائمة "إلى"
+        $('#to_account option').each(function() {
+            var val = $(this).val();
+            if (val && val === selectedFromId) {
+                $(this).hide().prop('disabled', true);
+                if ($('#to_account').val() === selectedFromId) {
+                    $('#to_account').val('');
+                    $('#dest_symbol_addon').text('المستهدف');
+                }
+            } else {
+                $(this).show().prop('disabled', false);
+            }
+        });
+    });
+
+    $('#to_account').on('change', function() {
+        var symbol = $(this).find(':selected').data('symbol') || 'المستهدف';
+        $('#dest_symbol_addon').text(symbol);
+    });
+
+    // إرسال فورم إضافة خزنة جديدة
     $('#quickAddForm').on('submit', function(e) {
         e.preventDefault();
-        
         var submitBtn = $(this).find('button[type="submit"]');
         var originalText = submitBtn.html();
         
-        // تعطيل الزر وعرض loading
         submitBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i>جاري الحفظ...');
         
         $.ajax({
@@ -341,16 +564,22 @@ $(document).ready(function() {
             data: $(this).serialize(),
             success: function(response) {
                 if (response.success) {
-                    // إغلاق المودال
                     $('#quickAddModal').modal('hide');
-                    
-                    // عرض رسالة نجاح
-                    alert(response.message);
-                    
-                    // إعادة تحميل الصفحة
-                    location.reload();
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'تم الحفظ بنجاح',
+                        text: response.message,
+                        confirmButtonText: 'حسناً'
+                    }).then(function() {
+                        location.reload();
+                    });
                 } else {
-                    alert('خطأ: ' + response.error);
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'خطأ في الحفظ',
+                        text: response.error,
+                        confirmButtonText: 'حسناً'
+                    });
                     submitBtn.prop('disabled', false).html(originalText);
                 }
             },
@@ -359,16 +588,64 @@ $(document).ready(function() {
                 if (xhr.responseJSON && xhr.responseJSON.error) {
                     errorMsg = xhr.responseJSON.error;
                 }
-                alert(errorMsg);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'خطأ',
+                    text: errorMsg,
+                    confirmButtonText: 'حسناً'
+                });
                 submitBtn.prop('disabled', false).html(originalText);
             }
         });
     });
-    
-    // إعادة تعيين الفورم عند إغلاق المودال
-    $('#quickAddModal').on('hidden.bs.modal', function() {
-        $('#quickAddForm')[0].reset();
-        $('#type_cash').prop('checked', true);
+
+    // إرسال فورم التحويل بين الخزائن
+    $('#transferForm').on('submit', function(e) {
+        e.preventDefault();
+        var submitBtn = $(this).find('button[type="submit"]');
+        var originalText = submitBtn.html();
+
+        submitBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i>جاري تنفيذ التحويل...');
+
+        $.ajax({
+            url: '{% url "financial:transfer_between_accounts" %}',
+            method: 'POST',
+            data: $(this).serialize(),
+            success: function(response) {
+                if (response.success) {
+                    $('#transferModal').modal('hide');
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'تم التحويل بنجاح',
+                        text: response.message,
+                        confirmButtonText: 'حسناً'
+                    }).then(function() {
+                        location.reload();
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'فشل التحويل',
+                        text: response.error,
+                        confirmButtonText: 'حسناً'
+                    });
+                    submitBtn.prop('disabled', false).html(originalText);
+                }
+            },
+            error: function(xhr) {
+                var errorMsg = 'حدث خطأ أثناء التحويل';
+                if (xhr.responseJSON && xhr.responseJSON.error) {
+                    errorMsg = xhr.responseJSON.error;
+                }
+                Swal.fire({
+                    icon: 'error',
+                    title: 'خطأ',
+                    text: errorMsg,
+                    confirmButtonText: 'حسناً'
+                });
+                submitBtn.prop('disabled', false).html(originalText);
+            }
+        });
     });
 });
 </script>

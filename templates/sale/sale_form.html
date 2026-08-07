@@ -80,186 +80,214 @@
                 </div>
                 {% endif %}
 
-                <!-- بيانات الفاتورة الأساسية -->
-                <div class="mb-4">
-                    <h6 class="text-muted mb-3 fw-medium">بيانات الفاتورة</h6>
-                    <div class="row g-4">
-                        <div class="col-6 col-lg-3 col-md-6">
-                            <label class="form-label text-dark">رقم الفاتورة <span class="text-danger">*</span></label>
-                            {% if sale.id %}
-                                <input type="text" id="id_number" value="{{ sale.number }}" class="form-control" readonly>
-                                <input type="hidden" name="number" value="{{ sale.number }}">
-                            {% else %}
-                                <input type="text" id="id_number" value="{{ next_sale_number|default:'' }}" class="form-control bg-light" readonly>
-                                <input type="hidden" name="number" value="{{ next_sale_number|default:'' }}">
-                            {% endif %}
-                        </div>
+                <!-- القسم الأول: بيانات الفاتورة والعميل والعملة -->
+                <div class="section-container mb-4">
+                    <h5 class="section-title"><i class="fas fa-file-invoice me-2"></i>بيانات الفاتورة والعميل والعملة</h5>
+                    <div class="invoice-header-wrapper">
+                        <div class="row g-3 align-items-stretch">
+                            <!-- العمود الأيمن: بيانات العميل والعمليات -->
+                            <div class="col-12 col-lg-6">
+                                <div class="header-subcard">
+                                    <div class="header-subcard-header">
+                                        <h6 class="header-subcard-title">
+                                            <i class="fas fa-user-tie"></i> بيانات العميل والعمليات
+                                        </h6>
+                                    </div>
+                                    <div class="header-subcard-body">
+                                        <div class="row g-3">
+                                            <!-- العميل -->
+                                            <div class="col-12 col-md-6">
+                                                <label class="form-label d-flex justify-content-between align-items-center w-100">
+                                                    <span>العميل <span class="text-danger">*</span></span>
+                                                    {% if not sale.id %}
+                                                    <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none" id="btn-add-customer-modal" style="color: var(--primary-color); font-size: 0.8rem;">
+                                                        <i class="fas fa-plus-circle me-1"></i>عميل جديد
+                                                    </button>
+                                                    {% endif %}
+                                                </label>
+                                                {% if sale.id %}
+                                                    <input type="text" class="form-control bg-light" value="{{ sale.customer.name }}" readonly>
+                                                    <input type="hidden" name="customer" id="id_customer" value="{{ sale.customer.id }}" data-prepaid-balance="{{ sale.customer.available_prepaid_balance|default:'0' }}">
+                                                {% else %}
+                                                    <select name="customer" id="id_customer" class="form-control" required>
+                                                        <option value="">اختر العميل</option>
+                                                        {% for customer in customers %}
+                                                            <option value="{{ customer.id }}" data-prepaid-balance="{{ customer.available_prepaid_balance|default:'0' }}" data-default-currency="{{ customer.default_currency_id|default:'' }}" {% if form.customer.value == customer.id|stringformat:'s' or selected_customer.id == customer.id %}selected{% endif %}>
+                                                                {{ customer.name }}
+                                                            </option>
+                                                        {% endfor %}
+                                                    </select>
+                                                {% endif %}
+                                            </div>
 
-                        <div class="col-6 col-lg-3 col-md-6">
-                            <label class="form-label text-dark">تاريخ الفاتورة <span class="text-danger">*</span></label>
-                            <input type="text" name="date" id="id_date" class="form-control" data-date-picker placeholder="اختر تاريخ الفاتورة" value="{{ form.date.value|date:'Y-m-d'|default:'' }}" required>
-                        </div>
+                                            <!-- المخزن -->
+                                            <div class="col-12 col-md-6" id="warehouse-container">
+                                                <label class="form-label">المخزن <span class="text-danger">*</span></label>
+                                                {% if sale.id %}
+                                                    <input type="text" class="form-control bg-light" value="{{ sale.warehouse.name }}" readonly>
+                                                    <input type="hidden" name="warehouse" value="{{ sale.warehouse.id }}">
+                                                {% else %}
+                                                    <select name="warehouse" id="id_warehouse" class="form-control" required>
+                                                        <option value="">اختر المخزن</option>
+                                                        {% for warehouse in warehouses %}
+                                                            <option value="{{ warehouse.id }}" {% if form.warehouse.value == warehouse.id|stringformat:'s' or default_warehouse.id == warehouse.id %}selected{% endif %}>
+                                                                {{ warehouse.name }}
+                                                            </option>
+                                                        {% endfor %}
+                                                    </select>
+                                                {% endif %}
+                                            </div>
 
-                        <div class="col-6 col-lg-3 col-md-6">
-                            <label class="form-label text-dark">
-                                <i class="fas fa-file-invoice-dollar me-1"></i>نوع الفاتورة <span class="text-danger">*</span>
-                            </label>
-                            <select name="invoice_type" id="id_invoice_type" class="form-control" {% if is_edit or sale.id %}disabled{% else %}required{% endif %}>
-                                <option value="credit_with_downpayment" {% if form.invoice_type.value == 'credit_with_downpayment' or not form.invoice_type.value %}selected{% endif %}>أجل مع دفعة مقدمة</option>
-                                <option value="credit" {% if form.invoice_type.value == 'credit' %}selected{% endif %}>آجل بالكامل</option>
-                                <option value="cash" {% if form.invoice_type.value == 'cash' %}selected{% endif %}>نقدي بالكامل</option>
-                            </select>
-                            {% if is_edit or sale.id %}
-                                <input type="hidden" name="invoice_type" value="{{ form.invoice_type.value|default:'credit' }}">
-                            {% endif %}
-                        </div>
+                                            <!-- مسؤول المبيعات -->
+                                            <div class="col-12 col-md-6">
+                                                <label class="form-label">مسؤول المبيعات</label>
+                                                {% if form.can_change_salesman %}
+                                                    {{ form.salesman }}
+                                                {% else %}
+                                                    <div class="form-control bg-light d-flex align-items-center gap-2">
+                                                        <span class="fw-medium text-dark">{{ sale.salesman_display_name|default:request.user.get_full_name|default:request.user.username }}</span>
+                                                    </div>
+                                                    <input type="hidden" name="salesman" value="{{ form.salesman.value|default:request.user.id }}">
+                                                {% endif %}
+                                            </div>
 
-                        <div class="col-6 col-lg-3 col-md-6">
-                            <label class="form-label text-dark">
-                                <i class="bi bi-diagram-3 me-1"></i>مركز التكلفة الرئيسي
-                            </label>
-                            <select name="cost_center" id="id_cost_center" class="form-control">
-                                <option value="">-- بدون مركز تكلفة --</option>
-                                {% for cc in cost_centers %}
-                                    <option value="{{ cc.id }}" {% if form.cost_center.value == cc.id|stringformat:'s' or sale.cost_center_id == cc.id %}selected{% endif %}>
-                                        {{ cc.code }} - {{ cc.name }}
-                                    </option>
-                                {% endfor %}
-                            </select>
-                        </div>
+                                            <!-- مركز التكلفة الرئيسي -->
+                                            <div class="col-12 col-md-6">
+                                                <label class="form-label">
+                                                    مركز التكلفة الرئيسي
+                                                </label>
+                                                <select name="cost_center" id="id_cost_center" class="form-control">
+                                                    <option value="">-- بدون مركز تكلفة --</option>
+                                                    {% for cc in cost_centers %}
+                                                        <option value="{{ cc.id }}" {% if form.cost_center.value == cc.id|stringformat:'s' or sale.cost_center_id == cc.id %}selected{% endif %}>
+                                                            {{ cc.code }} - {{ cc.name }}
+                                                        </option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
 
-                        <div class="col-6 col-lg-3 col-md-6" id="payment-method-field" style="display: none;">
-                            {% include "components/payment_account_select.html" with field_name="payment_method" field_id="id_payment_method" label="حساب الدفع (الخزينة/البنك)" required=False selected_value=form.payment_method.value %}
-                        </div>
+                                            <!-- التصنيف المالي -->
+                                            <div class="col-12 col-md-6">
+                                                <!-- الوضع الأوتوماتيكي -->
+                                                <div id="financial-category-auto" {% if is_duplicate and duplicate_financial_category_id %}style="display:none;"{% endif %}>
+                                                    <label class="form-label">
+                                                        التصنيف المالي
+                                                    </label>
+                                                    <div class="d-flex align-items-center gap-2">
+                                                        <span id="auto-category-badge" class="badge bg-light text-dark border px-2 py-2 fs-6 w-100 text-truncate">
+                                                            <span id="auto-category-text">سيتم تحديده تلقائياً</span>
+                                                        </span>
+                                                        <button type="button" id="toggle-category-btn" class="btn btn-sm btn-outline-secondary" title="تخصيص التصنيف المالي">
+                                                            <i class="fas fa-sliders-h"></i>
+                                                        </button>
+                                                    </div>
+                                                    <input type="hidden" name="financial_category" id="financial_category_auto_value" value="" {% if is_duplicate and duplicate_financial_category_id %}disabled{% endif %}>
+                                                </div>
 
-                        <div class="col-6 col-lg-3 col-md-6" id="down-payment-field" style="display: none;">
-                            <label class="form-label text-dark">
-                                <i class="fas fa-hand-holding-usd me-1"></i>مبلغ الدفعة المقدمة <span class="text-danger">*</span>
-                            </label>
-                            <input type="number" step="0.01" name="down_payment_amount" id="id_down_payment_amount" class="form-control" value="{{ form.down_payment_amount.value|default:'0' }}" min="0">
-                        </div>
-                    </div>
-                    <!-- حقول مخصصة معروضة بالرأس العلوي -->
-                    <div id="header-custom-fields-container" class="row g-4 mt-1"></div>
-                </div>
-
-                <!-- بيانات العميل والمخزن ومسؤول المبيعات -->
-                <div class="mb-4">
-                    <h6 class="text-muted mb-3 fw-medium">العميل والمخزن ومسؤول المبيعات</h6>
-                    <div class="row g-4">
-                        <div class="col-12 col-lg-4">
-                            <label class="form-label text-dark d-flex justify-content-between align-items-center w-100">
-                                <span>العميل <span class="text-danger">*</span></span>
-                                {% if not sale.id %}
-                                <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none" id="btn-add-customer-modal" style="color: var(--bs-primary); font-size: 0.85rem;">
-                                    <i class="fas fa-plus-circle me-1"></i>عميل جديد
-                                </button>
-                                {% endif %}
-                            </label>
-                            {% if sale.id %}
-                                <input type="text" class="form-control bg-light" value="{{ sale.customer.name }}" readonly>
-                                <input type="hidden" name="customer" id="id_customer" value="{{ sale.customer.id }}" data-prepaid-balance="{{ sale.customer.available_prepaid_balance|default:'0' }}">
-                            {% else %}
-                                <select name="customer" id="id_customer" class="form-control" required>
-                                    <option value="">اختر العميل</option>
-                                    {% for customer in customers %}
-                                        <option value="{{ customer.id }}"
-                                            data-prepaid-balance="{{ customer.available_prepaid_balance|default:'0' }}"
-                                            {% if form.customer.value == customer.id|stringformat:'s' or selected_customer.id == customer.id %}selected{% endif %}>
-                                            {{ customer.name }}
-                                        </option>
-                                    {% endfor %}
-                                </select>
-                            {% endif %}
-                        </div>
-
-                        <div class="col-12 col-lg-4" id="warehouse-container">
-                            <label class="form-label text-dark">المخزن <span class="text-danger">*</span></label>
-                            {% if sale.id %}
-                                <input type="text" class="form-control bg-light" value="{{ sale.warehouse.name }}" readonly>
-                                <input type="hidden" name="warehouse" value="{{ sale.warehouse.id }}">
-                            {% else %}
-                                <select name="warehouse" id="id_warehouse" class="form-control" required>
-                                    <option value="">اختر المخزن</option>
-                                    {% for warehouse in warehouses %}
-                                        <option value="{{ warehouse.id }}"
-                                            {% if form.warehouse.value == warehouse.id|stringformat:'s' or default_warehouse.id == warehouse.id %}selected{% endif %}>
-                                            {{ warehouse.name }}
-                                        </option>
-                                    {% endfor %}
-                                </select>
-                            {% endif %}
-                        </div>
-
-                        <div class="col-12 col-lg-4">
-                            <label class="form-label text-dark">مسؤول المبيعات</label>
-                            {% if form.can_change_salesman %}
-                                {{ form.salesman }}
-                            {% else %}
-                                <div class="form-control bg-light d-flex align-items-center gap-2">
-                                    <i class="fas fa-user-tie text-primary"></i>
-                                    <span class="fw-medium text-dark">{{ sale.salesman_display_name|default:request.user.get_full_name|default:request.user.username }}</span>
+                                                <!-- الوضع اليدوي -->
+                                                <div id="financial-category-manual" {% if not is_duplicate or not duplicate_financial_category_id %}style="display:none;"{% endif %}>
+                                                    <label for="{{ form.financial_category.id_for_label }}" class="form-label">
+                                                        التصنيف المالي
+                                                        {% if form.financial_category.field.required %}<span class="text-danger">*</span>{% endif %}
+                                                    </label>
+                                                    <div class="d-flex align-items-center gap-2">
+                                                        <select {% if is_duplicate and duplicate_financial_category_id %}name="financial_category" {% if form.financial_category.field.required %}required{% endif %}{% else %}name="financial_category_manual"{% endif %} id="{{ form.financial_category.id_for_label }}" class="form-control flex-grow-1">
+                                                            {% for value, label in form.financial_category.field.choices %}
+                                                                <option value="{{ value }}"
+                                                                    {% if form.financial_category.value == value %}selected
+                                                                    {% elif is_duplicate and duplicate_financial_category_id == value|stringformat:"s" %}selected
+                                                                    {% endif %}>{{ label }}</option>
+                                                            {% endfor %}
+                                                        </select>
+                                                        <button type="button" id="reset-category-btn" class="btn btn-sm btn-outline-danger" title="إعادة للتلقائي">
+                                                            <i class="fas fa-undo"></i>
+                                                        </button>
+                                                    </div>
+                                                    {% if form.financial_category.errors %}
+                                                        <div class="invalid-feedback d-block">{{ form.financial_category.errors.0 }}</div>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
-                                <input type="hidden" name="salesman" value="{{ form.salesman.value|default:request.user.id }}">
-                            {% endif %}
-                        </div>
-                    </div>
-
-                    <!-- حقل التصنيف المالي -->
-                    <div class="row g-4 mt-3">
-                        <div class="col-12 col-lg-6">
-                            <!-- الوضع الأوتوماتيكي -->
-                            <div id="financial-category-auto" {% if is_duplicate and duplicate_financial_category_id %}style="display:none;"{% endif %}>
-                                <label class="form-label text-dark">
-                                    <i class="fas fa-tags me-1 text-primary"></i>
-                                    التصنيف المالي
-                                </label>
-                                <div class="d-flex align-items-center gap-2">
-                                    <span id="auto-category-badge" class="badge bg-light text-dark border px-3 py-2 fs-6">
-                                        <i class="fas fa-magic me-1 text-primary"></i>
-                                        <span id="auto-category-text">سيتم تحديده تلقائياً</span>
-                                    </span>
-                                    <button type="button" id="toggle-category-btn" class="btn btn-sm btn-outline-secondary" title="تخصيص التصنيف المالي">
-                                        <i class="fas fa-sliders-h me-1"></i> تخصيص
-                                    </button>
-                                </div>
-                                <input type="hidden" name="financial_category" id="financial_category_auto_value" value="" {% if is_duplicate and duplicate_financial_category_id %}disabled{% endif %}>
                             </div>
 
-                            <!-- الوضع اليدوي -->
-                            <div id="financial-category-manual" {% if not is_duplicate or not duplicate_financial_category_id %}style="display:none;"{% endif %}>
-                                <label for="{{ form.financial_category.id_for_label }}" class="form-label text-dark">
-                                    <i class="fas fa-tags me-1 text-primary"></i>
-                                    التصنيف المالي
-                                </label>
-                                <div class="d-flex align-items-center gap-2">
-                                    <select {% if is_duplicate and duplicate_financial_category_id %}name="financial_category" {% if form.financial_category.field.required %}required{% endif %}{% else %}name="financial_category_manual"{% endif %} id="{{ form.financial_category.id_for_label }}" class="form-control flex-grow-1">
-                                        {% for value, label in form.financial_category.field.choices %}
-                                            <option value="{{ value }}"
-                                                {% if form.financial_category.value == value %}selected
-                                                {% elif is_duplicate and duplicate_financial_category_id == value %}selected
-                                                {% endif %}>{{ label }}</option>
-                                        {% endfor %}
-                                    </select>
-                                    <button type="button" id="reset-category-btn" class="btn btn-sm btn-outline-danger" title="إعادة للتلقائي">
-                                        <i class="fas fa-undo"></i>
-                                    </button>
+                            <!-- العمود الأيسر: بيانات المستند والمالية -->
+                            <div class="col-12 col-lg-6">
+                                <div class="header-subcard">
+                                    <div class="header-subcard-header">
+                                        <h6 class="header-subcard-title">
+                                            <i class="fas fa-file-invoice-dollar"></i> بيانات المستند والمالية
+                                        </h6>
+                                    </div>
+                                    <div class="header-subcard-body">
+                                        <div class="row g-3">
+                                            <!-- رقم الفاتورة -->
+                                            <div class="col-12 col-md-6">
+                                                <label class="form-label">رقم الفاتورة <span class="text-danger">*</span></label>
+                                                {% if sale.id %}
+                                                    <input type="text" id="id_number" value="{{ sale.number }}" class="form-control" readonly>
+                                                    <input type="hidden" name="number" value="{{ sale.number }}">
+                                                {% else %}
+                                                    <input type="text" id="id_number" value="{{ next_sale_number|default:'' }}" class="form-control bg-light" readonly>
+                                                    <input type="hidden" name="number" value="{{ next_sale_number|default:'' }}">
+                                                {% endif %}
+                                            </div>
+
+                                            <!-- تاريخ الفاتورة -->
+                                            <div class="col-12 col-md-6">
+                                                <label class="form-label">تاريخ الفاتورة <span class="text-danger">*</span></label>
+                                                <input type="text" name="date" id="id_date" class="form-control" data-date-picker placeholder="اختر تاريخ الفاتورة" value="{{ form.date.value|date:'Y-m-d'|default:'' }}" required>
+                                            </div>
+
+                                            <!-- نوع الفاتورة -->
+                                            <div class="col-12 col-md-6">
+                                                <label class="form-label">
+                                                    نوع الفاتورة <span class="text-danger">*</span>
+                                                </label>
+                                                <select name="invoice_type" id="id_invoice_type" class="form-control" {% if is_edit or sale.id %}disabled{% else %}required{% endif %}>
+                                                    <option value="credit_with_downpayment" {% if form.invoice_type.value == 'credit_with_downpayment' or not form.invoice_type.value %}selected{% endif %}>أجل مع دفعة مقدمة</option>
+                                                    <option value="credit" {% if form.invoice_type.value == 'credit' %}selected{% endif %}>آجل بالكامل</option>
+                                                    <option value="cash" {% if form.invoice_type.value == 'cash' %}selected{% endif %}>نقدي بالكامل</option>
+                                                </select>
+                                                {% if is_edit or sale.id %}
+                                                    <input type="hidden" name="invoice_type" value="{{ form.invoice_type.value|default:'credit' }}">
+                                                {% endif %}
+                                            </div>
+
+                                            <!-- العملة وسعر الصرف -->
+                                            {% include "components/currency_header.html" %}
+
+                                            <!-- حساب الدفع -->
+                                            <div class="col-12 col-md-6" id="payment-method-field" style="display: none;">
+                                                {% include "components/payment_account_select.html" with field_name="payment_method" field_id="id_payment_method" label="حساب الدفع" required=False selected_value=form.payment_method.value %}
+                                            </div>
+
+                                            <!-- مبلغ الدفعة المقدمة -->
+                                            <div class="col-12 col-md-6" id="down-payment-field" style="display: none;">
+                                                <label class="form-label">
+                                                    مبلغ الدفعة المقدمة <span class="text-danger">*</span>
+                                                </label>
+                                                <input type="number" step="0.01" name="down_payment_amount" id="id_down_payment_amount" class="form-control" value="{{ form.down_payment_amount.value|default:'0' }}" min="0">
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
-                                {% if form.financial_category.errors %}
-                                    <div class="invalid-feedback d-block">{{ form.financial_category.errors.0 }}</div>
-                                {% endif %}
                             </div>
                         </div>
+                        <!-- حقول مخصصة معروضة بالرأس العلوي -->
+                        <div id="header-custom-fields-container" class="row g-3 mt-2"></div>
                     </div>
                 </div>
 
-                <!-- بنود الفاتورة -->
-                <div class="mb-4">
-                    <div class="d-flex align-items-center justify-content-between mb-3">
-                        <h6 class="text-muted fw-medium mb-0 text-truncate" style="max-width: 50%;">بنود الفاتورة</h6>
+                <!-- القسم الثاني: بنود الفاتورة والمنتجات -->
+                <div class="section-container mb-4">
+                    <div class="section-title d-flex align-items-center justify-content-between">
+                        <div><i class="fas fa-list me-2"></i>بنود الفاتورة</div>
                         <div class="form-check form-switch mb-0" title="إظهار المنتجات التي ليس لها مخزون في المخزن المحدد">
                             <input class="form-check-input show-all-products-toggle" type="checkbox" id="page-show-all-products" role="switch">
-                            <label class="form-check-label small text-muted show-all-label" style="margin-bottom: unset; white-space: nowrap;" for="page-show-all-products">إظهار المنتجات بدون مخزون</label>
+                            <label class="form-check-label small text-muted show-all-label mb-0" style="white-space: nowrap;" for="page-show-all-products">إظهار المنتجات بدون مخزون</label>
                         </div>
                     </div>
 
@@ -344,11 +372,15 @@
                         {% endif %}
                     </div>
 
-                    <button type="button" id="add-item" class="btn btn-sm btn-primary add-more-btn">
-                        <i class="fa fa-plus"></i> إضافة بند
+                    <button type="button" id="add-item" class="btn btn-sm btn-primary add-more-btn mt-3">
+                        <i class="fa fa-plus me-1"></i> إضافة بند
                     </button>
+                </div>
 
-                    <div class="row total-section mt-4 g-4 align-items-stretch">
+                <!-- القسم الثالث: الملخص المالي والخصومات -->
+                <div class="section-container mb-4">
+                    <h5 class="section-title"><i class="fas fa-calculator me-2"></i>الملخص المالي والخصومات</h5>
+                    <div class="row total-section g-4 align-items-stretch">
                         <div class="col-lg-8 col-md-12 d-flex flex-column">
                             <!-- التبويبات الموحدة -->
                             <ul class="nav nav-tabs border-bottom-0" id="totalSectionTabs" role="tablist">

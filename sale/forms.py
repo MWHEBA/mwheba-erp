@@ -46,7 +46,7 @@ class SaleForm(forms.ModelForm):
 
     # حقل طريقة الدفع - ديناميكي يدعم account codes
     payment_method = forms.ChoiceField(
-        label="حساب الدفع (الخزينة/البنك)",
+        label="حساب الدفع",
         help_text="اختر حساب الخزينة أو البنك للمعاملة النقدية أو الدفعة المقدمة",
         required=False,  # سيتم التحقق منه في clean() حسب نوع الفاتورة
         widget=forms.Select(
@@ -175,7 +175,7 @@ class SaleForm(forms.ModelForm):
 
         # إعداد خيارات طريقة الدفع (حسابات الخزائن والبنوك والرصيد المسبق)
         payment_choices = [
-            ('', 'اختر حساب الدفع (الخزينة/البنك)'),
+            ('', 'اختر حساب الدفع'),
             ('PREPAID_BALANCE', '💳 رصيد مسبق / دفعة مقدمة'),
         ]
         

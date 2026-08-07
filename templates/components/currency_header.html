@@ -1,0 +1,55 @@
+{% comment %}
+Component: templates/components/currency_header.html
+Reusable Multi-Currency Header Card Component (IAS 21 & JIT Componentization Standard)
+{% endcomment %}
+<div class="col-12 col-md-6 mb-3">
+    <label for="id_currency" class="form-label text-dark fw-medium">
+    العملة <span class="text-danger">*</span>
+    </label>
+    <select name="currency" id="id_currency" class="form-select select2 select2-filter" data-previous-val="{{ selected_currency_id|default:'' }}" dir="rtl" required>
+        {% for curr in active_currencies %}
+            <option value="{{ curr.id }}" 
+                    data-code="{{ curr.code }}" 
+                    data-symbol="{{ curr.symbol|default:curr.code }}" 
+                    data-is-functional="{% if curr.is_functional %}true{% else %}false{% endif %}"
+                    {% if selected_currency_id %}{% if selected_currency_id == curr.id %}selected{% endif %}{% else %}{% if curr.is_functional %}selected{% endif %}{% endif %}>
+                {{ curr.code }} - {{ curr.name }} ({% if curr.symbol %}{{ curr.symbol }}{% else %}{{ curr.code }}{% endif %})
+            </option>
+        {% empty %}
+            <option value="" selected>EGP - الجنيه المصري (ج.م)</option>
+        {% endfor %}
+    </select>
+</div>
+
+<div class="col-12 col-md-6 mb-3 {% if not selected_currency_is_foreign %}d-none{% endif %}" id="exchange_rate_container">
+    <label for="id_exchange_rate" class="form-label text-dark fw-medium">
+        سعر الصرف (مقابل {{ functional_currency.code|default:"EGP" }}) <span class="text-danger">*</span>
+    </label>
+    <div class="input-group">
+        <input type="number" 
+               name="exchange_rate" 
+               id="id_exchange_rate" 
+               class="form-control font-monospace" 
+               step="0.000001" 
+               min="0.000001" 
+               value="{{ current_exchange_rate|default:'1.000000' }}" 
+               placeholder="1.000000">
+        <span class="input-group-text bg-light text-muted small" id="exchange_rate_unit">
+            {{ functional_currency.symbol|default:"ج.م" }}
+        </span>
+    </div>
+    <div class="form-text text-muted small">
+        <i class="fas fa-info-circle me-1"></i>سعر التحويل للعملة الوظيفية الأساسية.
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        if (typeof jQuery !== 'undefined' && typeof jQuery.fn.select2 !== 'undefined') {
+            var $curr = $('#id_currency');
+            if ($curr.length && !$curr.hasClass('select2-hidden-accessible')) {
+                $curr.select2({ placeholder: "اختر العملة", width: '100%', dir: 'rtl' });
+            }
+        }
+    });
+</script>

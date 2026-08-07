@@ -74,7 +74,7 @@ def delete_customer_account_signal(sender, instance, **kwargs):
 @receiver(post_save, sender="sale.Sale")
 def sync_sale_subledger_signal(sender, instance, created, **kwargs):
     """
-    مزامنة فاتورة المبيعات مع أستاذ العملاء الفرعي CustomerTransaction
+    مزامنة فاتورة المبيعات مع أستاذ العملاء الفرعي CustomerTransaction بدعم العملات المتعددة (IAS 21)
     """
     try:
         from decimal import Decimal
@@ -82,9 +82,20 @@ def sync_sale_subledger_signal(sender, instance, created, **kwargs):
         from client.models import CustomerTransaction
         from sale.models import SalePayment
         
-        paid = SalePayment.objects.filter(sale=instance).aggregate(t=Sum('amount'))['t'] or Decimal('0.00')
-        due = instance.total - paid
-        status = 'PAID' if due <= 0 else ('PARTIAL' if paid > 0 else 'OPEN')
+        paid_foreign = SalePayment.objects.filter(sale=instance).aggregate(t=Sum('amount'))['t'] or Decimal('0.00')
+        due_foreign = instance.total - paid_foreign
+
+        curr_code = instance.currency.code if (hasattr(instance, 'currency') and instance.currency) else (getattr(instance, 'currency', None) or 'EGP')
+        rate = getattr(instance, 'exchange_rate', Decimal('1.000000')) or Decimal('1.000000')
+
+        func_total = getattr(instance, 'total_functional', None)
+        if not func_total or func_total == Decimal('0.00'):
+            func_total = (instance.total * rate).quantize(Decimal('0.01'))
+
+        paid_functional = (paid_foreign * rate).quantize(Decimal('0.01'))
+        due_functional = func_total - paid_functional
+
+        status = 'PAID' if due_foreign <= 0 else ('PARTIAL' if paid_foreign > 0 else 'OPEN')
         
         txn, is_new = CustomerTransaction.objects.get_or_create(
             customer=instance.customer,
@@ -94,20 +105,24 @@ def sync_sale_subledger_signal(sender, instance, created, **kwargs):
                 'transaction_number': instance.number,
                 'issue_date': instance.date,
                 'due_date': instance.date,
-                'currency': 'EGP',
+                'currency': curr_code,
                 'foreign_amount': instance.total,
-                'exchange_rate': Decimal('1.000000'),
-                'functional_amount': instance.total,
-                'open_amount': due,
-                'open_amount_functional': due,
-                'open_amount_foreign': due,
+                'exchange_rate': rate,
+                'functional_amount': func_total,
+                'open_amount': due_functional,
+                'open_amount_functional': due_functional,
+                'open_amount_foreign': due_foreign,
                 'status': status
             }
         )
         if not is_new:
-            txn.open_amount = due
-            txn.open_amount_functional = due
-            txn.open_amount_foreign = due
+            txn.currency = curr_code
+            txn.exchange_rate = rate
+            txn.foreign_amount = instance.total
+            txn.functional_amount = func_total
+            txn.open_amount = due_functional
+            txn.open_amount_functional = due_functional
+            txn.open_amount_foreign = due_foreign
             txn.status = status
             txn.save()
     except Exception as e:

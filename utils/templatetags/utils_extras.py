@@ -454,6 +454,25 @@ def smart_float(value, decimal_places=2):
 
 
 @register.filter
+def clean_rate(value):
+    """
+    تنسيق سعر الصرف بإزالة الأصفار غير الضرورية على يمين العلامة العشرية
+    مثال: 50.000000 -> 50 | 54.200000 -> 54.2 | 13.330000 -> 13.33
+    """
+    if value is None or value == "":
+        return ""
+    try:
+        dec = Decimal(str(value))
+        norm = dec.normalize()
+        val_str = f"{norm:f}"
+        if "." in val_str:
+            val_str = val_str.rstrip("0").rstrip(".")
+        return val_str
+    except Exception:
+        return str(value)
+
+
+@register.filter
 def format_age(age_in_months):
     """
     تحويل العمر من شهور إلى سنين وشهور

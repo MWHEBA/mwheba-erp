@@ -5,7 +5,7 @@ Component: Payment Account Select
 {% endcomment %}
 
 <label for="{{ field_id|default:'payment_method' }}" class="form-label">
-    <i class="fas fa-wallet me-1"></i>{{ label|default:"طريقة الدفع (الخزينة/البنك)" }}
+    {{ label|default:"طريقة الدفع (الخزينة/البنك)" }}
     {% if required %}<span class="text-danger">*</span>{% endif %}
 </label>
 <select 

@@ -28,283 +28,335 @@
 
     {% include "shared/page_header.html" %}
 
-    <div class="card border-0 shadow-sm mb-4">
-        <div class="card-body p-4">
-            <form method="post" id="quotation-form" novalidate>
-                {% csrf_token %}
-                
-                <!-- بيانات عرض السعر -->
-                <div class="mb-4">
-                    <h6 class="text-muted mb-3 fw-medium">{% trans "بيانات عرض السعر" %}</h6>
-                    <div class="row g-3">
-                        <div class="col-12 col-lg-4">
-                            <label class="form-label text-dark d-flex justify-content-between align-items-center w-100">
-                                <span>{% trans "العميل" %} <span class="text-danger">*</span></span>
-                                {% if not quotation.id %}
-                                <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none" id="btn-add-customer-modal" style="color: var(--bs-primary); font-size: 0.85rem;">
-                                    <i class="fas fa-plus-circle me-1"></i>{% trans "عميل جديد" %}
-                                </button>
-                                {% endif %}
-                            </label>
-                            {% if quotation.id %}
-                                <input type="text" class="form-control bg-light" value="{{ quotation.customer.name }}" readonly>
-                                <input type="hidden" name="customer" value="{{ quotation.customer.id }}">
-                            {% else %}
-                                <select name="customer" id="id_customer" class="form-control select2-init" required>
-                                    <option value="">{% trans "اختر العميل" %}</option>
-                                    {% for customer in customers %}
-                                        <option value="{{ customer.id }}" {% if form.customer.value == customer.id|stringformat:'s' or selected_customer.id == customer.id %}selected{% endif %}>
-                                            {{ customer.name }}
-                                        </option>
-                                    {% endfor %}
-                                </select>
-                            {% endif %}
-                        </div>
+    <form method="post" id="quotation-form" novalidate>
+        {% csrf_token %}
+        
+        <!-- القسم الأول: بيانات عرض السعر والعميل والعملة -->
+        <div class="section-container mb-4">
+            <h5 class="section-title"><i class="fas fa-file-invoice me-2"></i>بيانات عرض السعر والعميل والعملة</h5>
+            <div class="invoice-header-wrapper">
+                <div class="row g-3 align-items-stretch">
+                    <!-- العمود الأيمن: بيانات العميل والعمليات -->
+                    <div class="col-12 col-lg-6">
+                        <div class="header-subcard">
+                            <div class="header-subcard-header">
+                                <h6 class="header-subcard-title">
+                                    <i class="fas fa-user-tie"></i> بيانات العميل والعمليات
+                                </h6>
+                            </div>
+                            <div class="header-subcard-body">
+                                <div class="row g-3">
+                                    <!-- العميل -->
+                                    <div class="col-12 col-md-6">
+                                        <label class="form-label d-flex justify-content-between align-items-center w-100">
+                                            <span>{% trans "العميل" %} <span class="text-danger">*</span></span>
+                                            {% if not quotation.id %}
+                                            <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none" id="btn-add-customer-modal" style="color: var(--primary-color); font-size: 0.8rem;">
+                                                <i class="fas fa-plus-circle me-1"></i>{% trans "عميل جديد" %}
+                                            </button>
+                                            {% endif %}
+                                        </label>
+                                        {% if quotation.id %}
+                                            <input type="text" class="form-control bg-light" value="{{ quotation.customer.name }}" readonly>
+                                            <input type="hidden" name="customer" value="{{ quotation.customer.id }}">
+                                        {% else %}
+                                            <select name="customer" id="id_customer" class="form-control select2-init" required>
+                                                <option value="">{% trans "اختر العميل" %}</option>
+                                                {% for customer in customers %}
+                                                    <option value="{{ customer.id }}" {% if form.customer.value == customer.id|stringformat:'s' or selected_customer.id == customer.id %}selected{% endif %}>
+                                                        {{ customer.name }}
+                                                    </option>
+                                                {% endfor %}
+                                            </select>
+                                        {% endif %}
+                                    </div>
 
-                        <div class="col-12 col-lg-3">
-                            <label class="form-label text-dark">{% trans "مسؤول المبيعات" %}</label>
-                            {% if form.can_change_salesman %}
-                                {{ form.salesman }}
-                            {% else %}
-                                <div class="form-control bg-light d-flex align-items-center gap-2">
-                                    <i class="fas fa-user-tie text-primary"></i>
-                                    <span class="fw-medium text-dark">{{ quotation.salesman_display_name|default:request.user.get_full_name|default:request.user.username }}</span>
-                                </div>
-                                <input type="hidden" name="salesman" value="{{ form.salesman.value|default:request.user.id }}">
-                            {% endif %}
-                        </div>
-                        
-                        <div class="col-12 col-md-6 col-lg-2">
-                            {{ form.date|as_crispy_field }}
-                        </div>
-                        
-                        <div class="col-12 col-md-6 col-lg-3">
-                            {{ form.valid_until|as_crispy_field }}
-                        </div>
-                    </div>
-                    <!-- حقول مخصصة معروضة بالرأس العلوي -->
-                    <div id="header-custom-fields-container" class="row g-3 mt-1 mb-3"></div>
-                </div>
+                                    <!-- مسؤول المبيعات -->
+                                    <div class="col-12 col-md-6">
+                                        <label class="form-label">{% trans "مسؤول المبيعات" %}</label>
+                                        {% if form.can_change_salesman %}
+                                            {{ form.salesman }}
+                                        {% else %}
+                                            <div class="form-control bg-light d-flex align-items-center gap-2">
+                                                <i class="fas fa-user-tie text-primary"></i>
+                                                <span class="fw-medium text-dark">{{ quotation.salesman_display_name|default:request.user.get_full_name|default:request.user.username }}</span>
+                                            </div>
+                                            <input type="hidden" name="salesman" value="{{ form.salesman.value|default:request.user.id }}">
+                                        {% endif %}
+                                    </div>
 
-                <!-- بنود عرض السعر -->
-                <div class="mb-4 border-top pt-4">
-                    <div class="d-flex align-items-center justify-content-between mb-3">
-                        <h6 class="text-muted fw-medium mb-0 text-truncate" style="max-width: 50%;">{% trans "بنود عرض السعر" %}</h6>
-                        <div class="form-check form-switch mb-0" title="إظهار المنتجات التي ليس لها مخزون في المخزن المحدد">
-                            <input class="form-check-input show-all-products-toggle" type="checkbox" id="page-show-all-products" role="switch">
-                            <label class="form-check-label small text-muted show-all-label" style="margin-bottom: unset; white-space: nowrap;" for="page-show-all-products">{% trans "إظهار المنتجات بدون مخزون" %}</label>
-                        </div>
-                    </div>
-                    
-                    <div id="items-container">
-                        {% if quotation.id and quotation.items.exists %}
-                            {% for item in quotation.items.all %}
-                            <div class="item-row row g-2 align-items-center">
-                                <div class="col-12 col-md-2">
-                                    <label class="form-label form-label-sm">الكود / الباركود</label>
-                                    <input type="text" class="form-control form-control-sm product-code-input" placeholder="الكود / الباركود" value="{{ item.product.sku|default:'' }}">
-                                </div>
-                                <div class="col-12 col-md-3" style="position:relative;">
-                                    <label class="form-label form-label-sm required-field">{% if allowed_item_types == 'services' %}الخدمة{% elif allowed_item_types == 'products' %}المنتج{% else %}المنتج / الخدمة{% endif %}</label>
-                                    <button type="button" class="product-picker-btn" data-row-index="{{ forloop.counter0 }}">
-                                        <span class="selected-text">{{ item.product.name }}</span>
-                                        <i class="fas fa-th-large text-muted small"></i>
-                                    </button>
-                                    <input type="hidden" name="product[]" class="product-id-input" value="{{ item.product.id }}" data-price="{{ item.product.selling_price }}" data-stock="{{ item.product.stock }}" required>
-                                    <div class="stock-info"></div>
-                                </div>
-                                <div class="col-6 col-md-1">
-                                    <label class="form-label form-label-sm required-field">الكمية</label>
-                                    <input type="number" name="quantity[]" class="form-control form-control-sm quantity" min="0.01" step="0.01" value="{{ item.quantity|smart_float }}" required>
-                                </div>
-                                <div class="col-6 col-md-2">
-                                    <label class="form-label form-label-sm required-field">سعر الوحدة</label>
-                                    <input type="text" inputmode="decimal" name="unit_price[]" class="form-control form-control-sm unit-price" value="{{ item.unit_price|smart_float }}" required {% if user.user_type == 'sales_rep' and not user.is_superuser and not user.is_admin %}readonly{% endif %}>
-                                </div>
-                                <div class="col-6 col-md-2">
-                                    <label class="form-label form-label-sm">الخصم</label>
-                                    <input type="number" name="discount[]" class="form-control form-control-sm item-discount" min="0" step="0.01" value="{{ item.discount|default:0 }}">
-                                </div>
-                                <div class="col-6 col-md-2">
-                                    <label class="form-label form-label-sm">الإجمالي</label>
-                                    <div class="input-group input-group-sm">
-                                        <input type="text" class="form-control form-control-sm item-total" value="{{ item.total|smart_float }}" readonly>
-                                        <span class="input-group-text px-1">{{ currency_symbol }}</span>
+                                    <!-- مركز التكلفة الرئيسي -->
+                                    <div class="col-12 col-md-6">
+                                        <label class="form-label">
+                                            <i class="bi bi-diagram-3 me-1"></i>مركز التكلفة الرئيسي
+                                        </label>
+                                        <select name="cost_center" id="id_cost_center" class="form-control">
+                                            <option value="">-- بدون مركز تكلفة --</option>
+                                            {% for cc in cost_centers %}
+                                                <option value="{{ cc.id }}" {% if form.cost_center.value == cc.id|stringformat:'s' or quotation.cost_center_id == cc.id %}selected{% endif %}>
+                                                    {{ cc.code }} - {{ cc.name }}
+                                                </option>
+                                            {% endfor %}
+                                        </select>
                                     </div>
                                 </div>
-                                {% if not forloop.first %}
-                                <a href="javascript:void(0)" class="remove-item" title="إزالة البند">
-                                    <i class="fas fa-times-circle"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- العمود الأيسر: بيانات المستند والمالية -->
+                    <div class="col-12 col-lg-6">
+                        <div class="header-subcard">
+                            <div class="header-subcard-header">
+                                <h6 class="header-subcard-title">
+                                    <i class="fas fa-file-invoice-dollar"></i> بيانات المستند والمالية
+                                </h6>
+                            </div>
+                            <div class="header-subcard-body">
+                                <div class="row g-3">
+                                    <!-- تاريخ عرض السعر -->
+                                    <div class="col-12 col-md-6">
+                                        {{ form.date|as_crispy_field }}
+                                    </div>
+
+                                    <!-- صالح حتى -->
+                                    <div class="col-12 col-md-6">
+                                        {{ form.valid_until|as_crispy_field }}
+                                    </div>
+
+                                    <!-- العملة وسعر الصرف -->
+                                    {% include "components/currency_header.html" %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- حقول مخصصة معروضة بالرأس العلوي -->
+                <div id="header-custom-fields-container" class="row g-3 mt-2"></div>
+            </div>
+        </div>
+
+        <!-- القسم الثاني: بنود عرض السعر والمنتجات -->
+        <div class="section-container mb-4">
+            <div class="section-title d-flex align-items-center justify-content-between">
+                <div><i class="fas fa-list me-2"></i>{% trans "بنود عرض السعر" %}</div>
+                <div class="form-check form-switch mb-0" title="إظهار المنتجات التي ليس لها مخزون في المخزن المحدد">
+                    <input class="form-check-input show-all-products-toggle" type="checkbox" id="page-show-all-products" role="switch">
+                    <label class="form-check-label small text-muted show-all-label mb-0" style="white-space: nowrap;" for="page-show-all-products">{% trans "إظهار المنتجات بدون مخزون" %}</label>
+                </div>
+            </div>
+            
+            <div id="items-container">
+                {% if quotation.id and quotation.items.exists %}
+                    {% for item in quotation.items.all %}
+                    <div class="item-row row g-2 align-items-center">
+                        <div class="col-12 col-md-2">
+                            <label class="form-label form-label-sm">الكود / الباركود</label>
+                            <input type="text" class="form-control form-control-sm product-code-input" placeholder="الكود / الباركود" value="{{ item.product.sku|default:'' }}">
+                        </div>
+                        <div class="col-12 col-md-3" style="position:relative;">
+                            <label class="form-label form-label-sm required-field">{% if allowed_item_types == 'services' %}الخدمة{% elif allowed_item_types == 'products' %}المنتج{% else %}المنتج / الخدمة{% endif %}</label>
+                            <button type="button" class="product-picker-btn" data-row-index="{{ forloop.counter0 }}">
+                                <span class="selected-text">{{ item.product.name }}</span>
+                                <i class="fas fa-th-large text-muted small"></i>
+                            </button>
+                            <input type="hidden" name="product[]" class="product-id-input" value="{{ item.product.id }}" data-price="{{ item.product.selling_price }}" data-stock="{{ item.product.stock }}" required>
+                            <div class="stock-info"></div>
+                        </div>
+                        <div class="col-6 col-md-1">
+                            <label class="form-label form-label-sm required-field">الكمية</label>
+                            <input type="number" name="quantity[]" class="form-control form-control-sm quantity" min="0.01" step="0.01" value="{{ item.quantity|smart_float }}" required>
+                        </div>
+                        <div class="col-6 col-md-2">
+                            <label class="form-label form-label-sm required-field">سعر الوحدة</label>
+                            <input type="text" inputmode="decimal" name="unit_price[]" class="form-control form-control-sm unit-price" value="{{ item.unit_price|smart_float }}" required {% if user.user_type == 'sales_rep' and not user.is_superuser and not user.is_admin %}readonly{% endif %}>
+                        </div>
+                        <div class="col-6 col-md-2">
+                            <label class="form-label form-label-sm">الخصم</label>
+                            <input type="number" name="discount[]" class="form-control form-control-sm item-discount" min="0" step="0.01" value="{{ item.discount|default:0 }}">
+                        </div>
+                        <div class="col-6 col-md-2">
+                            <label class="form-label form-label-sm">الإجمالي</label>
+                            <div class="input-group input-group-sm">
+                                <input type="text" class="form-control form-control-sm item-total" value="{{ item.total|smart_float }}" readonly>
+                                <span class="input-group-text px-1">{{ currency_symbol }}</span>
+                            </div>
+                        </div>
+                        {% if not forloop.first %}
+                        <a href="javascript:void(0)" class="remove-item" title="إزالة البند">
+                            <i class="fas fa-times-circle"></i>
+                        </a>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                {% else %}
+                <div class="item-row row g-2 align-items-center">
+                    <div class="col-12 col-md-2">
+                        <label class="form-label form-label-sm">الكود / الباركود</label>
+                        <input type="text" class="form-control form-control-sm product-code-input" placeholder="الكود / الباركود">
+                    </div>
+                    <div class="col-12 col-md-3" style="position:relative;">
+                        <label class="form-label form-label-sm required-field">{% if allowed_item_types == 'services' %}الخدمة{% elif allowed_item_types == 'products' %}المنتج{% else %}المنتج / الخدمة{% endif %}</label>
+                        <button type="button" class="product-picker-btn" data-row-index="0">
+                            <span class="placeholder-text">{% if allowed_item_types == 'services' %}اختر الخدمة{% elif allowed_item_types == 'products' %}اختر المنتج{% else %}اختر المنتج / الخدمة{% endif %}</span>
+                            <i class="fas fa-th-large text-muted small"></i>
+                        </button>
+                        <input type="hidden" name="product[]" class="product-id-input" required>
+                        <div class="stock-info"></div>
+                    </div>
+                    <div class="col-6 col-md-1">
+                        <label class="form-label form-label-sm required-field">الكمية</label>
+                        <input type="number" name="quantity[]" class="form-control form-control-sm quantity" min="0.01" step="0.01" value="1" required>
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <label class="form-label form-label-sm required-field">سعر الوحدة</label>
+                        <input type="text" inputmode="decimal" name="unit_price[]" class="form-control form-control-sm unit-price" required {% if user.user_type == 'sales_rep' and not user.is_superuser and not user.is_admin %}readonly{% endif %}>
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <label class="form-label form-label-sm">الخصم</label>
+                        <input type="number" name="discount[]" class="form-control form-control-sm item-discount" min="0" step="0.01" value="0">
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <label class="form-label form-label-sm">الإجمالي</label>
+                        <div class="input-group input-group-sm">
+                            <input type="text" class="form-control form-control-sm item-total" readonly>
+                            <span class="input-group-text px-1">{{ currency_symbol }}</span>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+
+            <button type="button" id="add-item" class="btn btn-sm btn-primary add-more-btn mt-3">
+                <i class="fa fa-plus me-1"></i> {% trans "إضافة بند" %}
+            </button>
+        </div>
+
+        <!-- القسم الثالث: الملخص المالي والخصومات -->
+        <div class="section-container mb-4">
+            <h5 class="section-title"><i class="fas fa-calculator me-2"></i>الملخص المالي والخصومات</h5>
+            <div class="row total-section g-4 align-items-stretch">
+                <div class="col-lg-8 col-md-12 d-flex flex-column">
+                    <!-- التبويبات الموحدة -->
+                    <ul class="nav nav-tabs border-bottom-0" id="quoteTotalSectionTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active fw-medium" id="quote-discount-tab" data-bs-toggle="tab" data-bs-target="#quote-tab-discount" type="button" role="tab" aria-controls="quote-tab-discount" aria-selected="true">
+                                <i class="fas fa-percent me-1 text-primary"></i> {% trans "الخصم والتسوية" %}
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link fw-medium" id="quote-notes-tab" data-bs-toggle="tab" data-bs-target="#quote-tab-notes" type="button" role="tab" aria-controls="quote-tab-notes" aria-selected="false">
+                                <i class="fas fa-sticky-note me-1 text-primary"></i> {% trans "الملاحظات والشروط" %}
+                            </button>
+                        </li>
+                        {% if enable_custom_fields != 'false' and custom_fields_display_mode != 'hidden' %}
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link fw-medium" id="custom-fields-tab" data-bs-toggle="tab" data-bs-target="#quote-tab-custom-fields" type="button" role="tab" aria-controls="quote-tab-custom-fields" aria-selected="false">
+                                <i class="fas fa-list-ul me-1 text-primary"></i> الحقول الإضافية
+                            </button>
+                        </li>
+                        {% endif %}
+                    </ul>
+                    <input type="hidden" name="custom_fields_json" id="custom_fields_json" value="">
+                    <div class="tab-content p-3 bg-light border rounded-bottom flex-fill d-flex flex-column justify-content-between" id="quoteTotalSectionTabsContent">
+                        <!-- تبويب الخصم والتسوية -->
+                        <div class="tab-pane fade show active" id="quote-tab-discount" role="tabpanel" aria-labelledby="quote-discount-tab">
+                            <div class="row align-items-center g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label text-dark fw-medium">{% trans "خصم على كامل عرض السعر" %}</label>
+                                    <div class="input-group">
+                                        <input type="number" step="0.01" name="discount" id="id_discount" class="form-control text-center" value="{{ form.discount.value|default:'0' }}" min="0" placeholder="0.00">
+                                        <select name="discount_type" id="id_discount_type" class="form-select px-2 text-center" style="max-width: 85px;">
+                                            <option value="fixed" {% if form.discount_type.value == 'fixed' or not form.discount_type.value %}selected{% endif %}>{{ currency_symbol }}</option>
+                                            <option value="percentage" {% if form.discount_type.value == 'percentage' %}selected{% endif %}>%</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6 pt-md-4">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" name="tax_active" id="id_tax_active" role="switch" {% if form.instance.tax_active or form.instance.tax_active is None %}checked{% endif %}>
+                                        <label class="form-check-label text-dark fw-medium small" for="id_tax_active">{% trans "تفعيل ضريبة القيمة المضافة (14%)" %}</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- تبويب الملاحظات والشروط -->
+                        <div class="tab-pane fade h-100" id="quote-tab-notes" role="tabpanel" aria-labelledby="quote-notes-tab">
+                            {% include "partials/editor.html" with id="id_notes" name="notes" value=form.notes.value|default:'' placeholder="أضف شروط الدفع، التوصيل، أو أي تفاصيل أخرى..." height=180 toolbar="basic" %}
+                        </div>
+                        <!-- تبويب الحقول الإضافية -->
+                        <div class="tab-pane fade" id="quote-tab-custom-fields" role="tabpanel" aria-labelledby="custom-fields-tab">
+                            <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
+                                <h6 class="small text-muted fw-bold mb-0"><i class="fas fa-sliders-h me-1 text-primary"></i>الحقول المخصصة لعرض السعر</h6>
+                                {% if user.is_superuser or user.is_admin or 'sale.manage_custom_fields' in user.get_all_permissions %}
+                                <a href="{% url 'sale:custom_field_list' %}" target="_blank" class="btn btn-link btn-sm p-0 text-decoration-none" style="font-size: 0.825rem;">
+                                    <i class="fas fa-cog me-1"></i>إدارة تعاريف الحقول
                                 </a>
                                 {% endif %}
                             </div>
-                            {% endfor %}
-                        {% else %}
-                        <div class="item-row row g-2 align-items-center">
-                            <div class="col-12 col-md-2">
-                                <label class="form-label form-label-sm">الكود / الباركود</label>
-                                <input type="text" class="form-control form-control-sm product-code-input" placeholder="الكود / الباركود">
-                            </div>
-                            <div class="col-12 col-md-3" style="position:relative;">
-                                <label class="form-label form-label-sm required-field">{% if allowed_item_types == 'services' %}الخدمة{% elif allowed_item_types == 'products' %}المنتج{% else %}المنتج / الخدمة{% endif %}</label>
-                                <button type="button" class="product-picker-btn" data-row-index="0">
-                                    <span class="placeholder-text">{% if allowed_item_types == 'services' %}اختر الخدمة{% elif allowed_item_types == 'products' %}اختر المنتج{% else %}اختر المنتج / الخدمة{% endif %}</span>
-                                    <i class="fas fa-th-large text-muted small"></i>
-                                </button>
-                                <input type="hidden" name="product[]" class="product-id-input" required>
-                                <div class="stock-info"></div>
-                            </div>
-                            <div class="col-6 col-md-1">
-                                <label class="form-label form-label-sm required-field">الكمية</label>
-                                <input type="number" name="quantity[]" class="form-control form-control-sm quantity" min="0.01" step="0.01" value="1" required>
-                            </div>
-                            <div class="col-6 col-md-2">
-                                <label class="form-label form-label-sm required-field">سعر الوحدة</label>
-                                <input type="text" inputmode="decimal" name="unit_price[]" class="form-control form-control-sm unit-price" required {% if user.user_type == 'sales_rep' and not user.is_superuser and not user.is_admin %}readonly{% endif %}>
-                            </div>
-                            <div class="col-6 col-md-2">
-                                <label class="form-label form-label-sm">الخصم</label>
-                                <input type="number" name="discount[]" class="form-control form-control-sm item-discount" min="0" step="0.01" value="0">
-                            </div>
-                            <div class="col-6 col-md-2">
-                                <label class="form-label form-label-sm">الإجمالي</label>
-                                <div class="input-group input-group-sm">
-                                    <input type="text" class="form-control form-control-sm item-total" readonly>
-                                    <span class="input-group-text px-1">{{ currency_symbol }}</span>
-                                </div>
-                            </div>
-                        </div>
-                        {% endif %}
-                    </div>
-
-                    <button type="button" id="add-item" class="btn btn-sm btn-primary add-more-btn">
-                        <i class="fa fa-plus me-1"></i> {% trans "إضافة بند" %}
-                    </button>
-
-                    <div class="row total-section mt-4 g-4 align-items-stretch">
-                        <div class="col-lg-8 col-md-12 d-flex flex-column">
-                            <!-- التبويبات الموحدة -->
-                            <ul class="nav nav-tabs border-bottom-0" id="quoteTotalSectionTabs" role="tablist">
-                                <li class="nav-item" role="presentation">
-                                    <button class="nav-link active fw-medium" id="quote-discount-tab" data-bs-toggle="tab" data-bs-target="#quote-tab-discount" type="button" role="tab" aria-controls="quote-tab-discount" aria-selected="true">
-                                        <i class="fas fa-percent me-1 text-primary"></i> {% trans "الخصم والتسوية" %}
-                                    </button>
-                                </li>
-                                <li class="nav-item" role="presentation">
-                                    <button class="nav-link fw-medium" id="quote-notes-tab" data-bs-toggle="tab" data-bs-target="#quote-tab-notes" type="button" role="tab" aria-controls="quote-tab-notes" aria-selected="false">
-                                        <i class="fas fa-sticky-note me-1 text-primary"></i> {% trans "الملاحظات والشروط" %}
-                                    </button>
-                                </li>
-                                {% if enable_custom_fields != 'false' and custom_fields_display_mode != 'hidden' %}
-                                <li class="nav-item" role="presentation">
-                                    <button class="nav-link fw-medium" id="custom-fields-tab" data-bs-toggle="tab" data-bs-target="#quote-tab-custom-fields" type="button" role="tab" aria-controls="quote-tab-custom-fields" aria-selected="false">
-                                        <i class="fas fa-list-ul me-1 text-primary"></i> الحقول الإضافية
-                                    </button>
-                                </li>
-                                {% endif %}
-                            </ul>
-                            <input type="hidden" name="custom_fields_json" id="custom_fields_json" value="">
-                            <div class="tab-content p-3 bg-light border rounded-bottom flex-fill d-flex flex-column justify-content-between" id="quoteTotalSectionTabsContent">
-                                <!-- تبويب الخصم والتسوية -->
-                                <div class="tab-pane fade show active" id="quote-tab-discount" role="tabpanel" aria-labelledby="quote-discount-tab">
-                                    <div class="row align-items-center g-3">
-                                        <div class="col-md-6">
-                                            <label class="form-label text-dark fw-medium">{% trans "خصم على كامل عرض السعر" %}</label>
-                                            <div class="input-group">
-                                                <input type="number" step="0.01" name="discount" id="id_discount" class="form-control text-center" value="{{ form.discount.value|default:'0' }}" min="0" placeholder="0.00">
-                                                <select name="discount_type" id="id_discount_type" class="form-select px-2 text-center" style="max-width: 85px;">
-                                                    <option value="fixed" {% if form.discount_type.value == 'fixed' or not form.discount_type.value %}selected{% endif %}>{{ currency_symbol }}</option>
-                                                    <option value="percentage" {% if form.discount_type.value == 'percentage' %}selected{% endif %}>%</option>
-                                                </select>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-6 pt-md-4">
-                                            <div class="form-check form-switch">
-                                                <input class="form-check-input" type="checkbox" name="tax_active" id="id_tax_active" role="switch" {% if form.instance.tax_active or form.instance.tax_active is None %}checked{% endif %}>
-                                                <label class="form-check-label text-dark fw-medium small" for="id_tax_active">{% trans "تفعيل ضريبة القيمة المضافة (14%)" %}</label>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <!-- تبويب الملاحظات والشروط -->
-                                <div class="tab-pane fade h-100" id="quote-tab-notes" role="tabpanel" aria-labelledby="quote-notes-tab">
-                                    {% include "partials/editor.html" with id="id_notes" name="notes" value=form.notes.value|default:'' placeholder="أضف شروط الدفع، التوصيل، أو أي تفاصيل أخرى..." height=180 toolbar="basic" %}
-                                </div>
-                                <!-- تبويب الحقول الإضافية -->
-                                <div class="tab-pane fade" id="quote-tab-custom-fields" role="tabpanel" aria-labelledby="custom-fields-tab">
-                                    <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
-                                        <h6 class="small text-muted fw-bold mb-0"><i class="fas fa-sliders-h me-1 text-primary"></i>الحقول المخصصة لعرض السعر</h6>
-                                        {% if user.is_superuser or user.is_admin or 'sale.manage_custom_fields' in user.get_all_permissions %}
-                                        <a href="{% url 'sale:custom_field_list' %}" target="_blank" class="btn btn-link btn-sm p-0 text-decoration-none" style="font-size: 0.825rem;">
-                                            <i class="fas fa-cog me-1"></i>إدارة تعاريف الحقول
-                                        </a>
-                                        {% endif %}
-                                    </div>
-                                    <div id="custom-fields-render-container" class="row g-3">
-                                        <!-- توليد العناصر هنا ديناميكياً بـ JavaScript -->
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="col-lg-4 col-md-12 d-flex flex-column">
-                            <!-- رأس ملخص الإجماليات المتناسق -->
-                            <ul class="nav nav-tabs border-bottom-0" role="tablist">
-                                <li class="nav-item" role="presentation">
-                                    <span class="nav-link active fw-medium" style="cursor: default;">
-                                        <i class="fas fa-calculator me-1 text-primary"></i> {% trans "الملخص المالي" %}
-                                    </span>
-                                </li>
-                            </ul>
-                            <div class="p-3 bg-light border rounded-bottom flex-fill d-flex flex-column justify-content-between">
-                                <div class="row mb-2">
-                                    <div class="col-6 text-end"><strong>{% trans "المجموع الفرعي:" %}</strong></div>
-                                    <div class="col-6 text-end">
-                                        <span id="subtotal">0</span>
-                                    </div>
-                                </div>
-                                <div class="row mb-2">
-                                    <div class="col-6 text-end"><strong>{% trans "الخصم الإجمالي:" %}</strong></div>
-                                    <div class="col-6 text-end text-danger">
-                                        <span id="discount-total">0</span>
-                                    </div>
-                                </div>
-                                <div class="row mb-2">
-                                    <div class="col-6 text-end"><strong>{% trans "الضريبة (14%):" %}</strong></div>
-                                    <div class="col-6 text-end">
-                                        <span id="tax-total">0</span>
-                                    </div>
-                                </div>
-                                <hr class="my-2">
-                                <div class="row">
-                                    <div class="col-6 text-end"><strong class="fs-6 text-dark">{% trans "الإجمالي الكلي:" %}</strong></div>
-                                    <div class="col-6 text-end">
-                                        <span id="grand-total" class="fs-6 fw-bold text-success">0</span>
-                                    </div>
-                                </div>
+                            <div id="custom-fields-render-container" class="row g-3">
+                                <!-- توليد العناصر هنا ديناميكياً بـ JavaScript -->
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- أزرار الحفظ -->
-                <div class="text-center mt-4 pt-3 border-top">
-                    <button type="submit" class="btn btn-primary me-2">
-                        <i class="fas fa-save me-1"></i> {% trans "حفظ عرض السعر" %}
-                    </button>
-                    {% if selected_customer %}
-                        <a href="{% url 'client:customer_detail' pk=selected_customer.pk %}" class="btn btn-secondary">
-                            {% trans "إلغاء" %}
-                        </a>
-                    {% else %}
-                        <a href="{% url 'sale:quotation_list' %}" class="btn btn-secondary">
-                            {% trans "إلغاء" %}
-                        </a>
-                    {% endif %}
+                <div class="col-lg-4 col-md-12 d-flex flex-column">
+                    <!-- رأس ملخص الإجماليات المتناسق -->
+                    <ul class="nav nav-tabs border-bottom-0" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <span class="nav-link active fw-medium" style="cursor: default;">
+                                <i class="fas fa-calculator me-1 text-primary"></i> {% trans "الملخص المالي" %}
+                            </span>
+                        </li>
+                    </ul>
+                    <div class="p-3 bg-light border rounded-bottom flex-fill d-flex flex-column justify-content-between">
+                        <div class="row mb-2">
+                            <div class="col-6 text-end"><strong>{% trans "المجموع الفرعي:" %}</strong></div>
+                            <div class="col-6 text-end">
+                                <span id="subtotal">0</span>
+                            </div>
+                        </div>
+                        <div class="row mb-2">
+                            <div class="col-6 text-end"><strong>{% trans "الخصم الإجمالي:" %}</strong></div>
+                            <div class="col-6 text-end text-danger">
+                                <span id="discount-total">0</span>
+                            </div>
+                        </div>
+                        <div class="row mb-2">
+                            <div class="col-6 text-end"><strong>{% trans "الضريبة (14%):" %}</strong></div>
+                            <div class="col-6 text-end">
+                                <span id="tax-total">0</span>
+                            </div>
+                        </div>
+                        <hr class="my-2">
+                        <div class="row">
+                            <div class="col-6 text-end"><strong class="fs-6 text-dark">{% trans "الإجمالي الكلي:" %}</strong></div>
+                            <div class="col-6 text-end">
+                                <span id="grand-total" class="fs-6 fw-bold text-success">0</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-            </form>
+            </div>
+
+            <!-- أزرار الحفظ -->
+            <div class="text-center mt-4 pt-3 border-top">
+                <button type="submit" class="btn btn-primary me-2">
+                    <i class="fas fa-save me-1"></i> {% trans "حفظ عرض السعر" %}
+                </button>
+                {% if selected_customer %}
+                    <a href="{% url 'client:customer_detail' pk=selected_customer.pk %}" class="btn btn-secondary">
+                        {% trans "إلغاء" %}
+                    </a>
+                {% else %}
+                    <a href="{% url 'sale:quotation_list' %}" class="btn btn-secondary">
+                        {% trans "إلغاء" %}
+                    </a>
+                {% endif %}
+            </div>
         </div>
-    </div>
+    </form>
 </div>
 
 <!-- ===== Product Picker Modal ===== -->

@@ -21,6 +21,7 @@ class SupplierForm(forms.ModelForm):
             "name",
             "code",
             "primary_type",
+            "default_currency",
             "phone",
             "email",
             "whatsapp",
@@ -44,6 +45,9 @@ class SupplierForm(forms.ModelForm):
             ),
             "primary_type": forms.Select(
                 attrs={"class": "form-control select2"}
+            ),
+            "default_currency": forms.Select(
+                attrs={"class": "form-select select2 select2-filter", "dir": "rtl"}
             ),
             "phone": forms.TextInput(
                 attrs={
@@ -116,6 +120,15 @@ class SupplierForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+        if not self.instance.pk and not self.initial.get("default_currency"):
+            try:
+                from financial.services.exchange_rate_service import ExchangeRateService
+                func_curr = ExchangeRateService.get_functional_currency()
+                if func_curr:
+                    self.initial["default_currency"] = func_curr.id
+            except Exception:
+                pass
 
         # توليد كود تلقائي للمورد الجديد
         if not self.instance.pk:

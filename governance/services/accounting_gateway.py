@@ -1079,16 +1079,36 @@ class AccountingGateway:
     
     def validate_entry_balance(self, lines: List[JournalEntryLineData]) -> bool:
         """
-        Validate that journal entry lines are balanced (debits = credits).
-        
-        Args:
-            lines: List of journal entry lines to validate
-            
-        Returns:
-            bool: True if balanced, False otherwise
+        Validate that journal entry lines are balanced (debits = credits)
+        with automated penny difference handling (<= 0.05 EGP).
         """
+        from decimal import Decimal
         total_debit = sum(line.debit for line in lines)
         total_credit = sum(line.credit for line in lines)
+        diff = (total_debit - total_credit).quantize(Decimal("0.01"))
+        abs_diff = abs(diff)
+
+        if Decimal("0.00") < abs_diff <= Decimal("0.05"):
+            # Auto penny balancing to Rounding Differences Account
+            from financial.models import ChartOfAccounts
+            rounding_acc = ChartOfAccounts.objects.filter(code__in=["50900", "40900", "50900_ROUNDING"], is_active=True).first()
+            acc_code = rounding_acc.code if rounding_acc else "50900"
+
+            if diff > Decimal("0.00"):
+                lines.append(JournalEntryLineData(
+                    account_code=acc_code,
+                    debit=Decimal("0.00"),
+                    credit=abs_diff,
+                    description="تسوية فروق تقريب كسور العملات البسيطة"
+                ))
+            else:
+                lines.append(JournalEntryLineData(
+                    account_code=acc_code,
+                    debit=abs_diff,
+                    credit=Decimal("0.00"),
+                    description="تسوية فروق تقريب كسور العملات البسيطة"
+                ))
+            return True
         return total_debit == total_credit
     
     def link_to_source(self, entry: JournalEntry, source_info: SourceInfo) -> None:

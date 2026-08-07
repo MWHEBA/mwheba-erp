@@ -166,6 +166,22 @@
                                     </div>
                                 </div>
                             </div>
+                            <div class="row mt-3">
+                                <div class="col-md-6">
+                                    <div class="form-row">
+                                        <label for="currency" class="form-label">عملة الحساب</label>
+                                        <select class="form-control" id="currency" name="currency">
+                                            <option value="">تلقائي (العملة الأساسية للنظام)</option>
+                                            {% for curr in currencies %}
+                                                <option value="{{ curr.id }}" {% if account.currency_id == curr.id %}selected{% endif %}>
+                                                    {{ curr.code }} - {{ curr.name }}
+                                                </option>
+                                            {% endfor %}
+                                        </select>
+                                        <div class="help-text">اختر عملة الحساب إذا كانت غير العملة الأساسية</div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                         
                         <!-- خصائص الحساب -->

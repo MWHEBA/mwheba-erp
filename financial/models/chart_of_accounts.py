@@ -1,3 +1,4 @@
+from decimal import Decimal
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from django.core.validators import RegexValidator
@@ -124,14 +125,37 @@ class ChartOfAccounts(models.Model):
     is_cash_account = models.BooleanField(_("حساب نقدي"), default=False)
     is_reconcilable = models.BooleanField(_("يخضع للتسوية"), default=False)
     is_control_account = models.BooleanField(_("حساب رقابي"), default=False)
+    currency = models.ForeignKey(
+        'financial.Currency',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name=_("عملة الحساب"),
+        related_name="accounts",
+        help_text=_("العملة الخاصة بالخزنة أو الحساب البنكي (إذا تُركت فارغة تعتمد العملة الأساسية للنظام)")
+    )
 
     # الرصيد الافتتاحي
     opening_balance = models.DecimalField(
         _("الرصيد الافتتاحي"),
         max_digits=15,
         decimal_places=2,
-        default=0.00,
-        help_text=_("الرصيد الافتتاحي للحساب"),
+        default=Decimal("0.00"),
+        help_text=_("الرصيد الافتتاحي للحساب بالعملة الوظيفية (EGP)"),
+    )
+    opening_balance_foreign = models.DecimalField(
+        _("الرصيد الافتتاحي بالعملة الأجنبية"),
+        max_digits=15,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        help_text=_("الرصيد الافتتاحي بالعملة الأجنبية للحساب عند إنشائه"),
+    )
+    opening_balance_rate = models.DecimalField(
+        _("سعر صرف الرصيد الافتتاحي"),
+        max_digits=12,
+        decimal_places=6,
+        default=Decimal("1.000000"),
+        help_text=_("سعر الصرف المعتمد للرصيد الافتتاحي الأجنبي"),
     )
     opening_balance_date = models.DateField(
         _("تاريخ الرصيد الافتتاحي"),
@@ -209,6 +233,11 @@ class ChartOfAccounts(models.Model):
         return f"{self.code} - {self.name}"
 
     def save(self, *args, **kwargs):
+        # حساب الرصيد الافتتاحي بالعملة المحلية تلقائياً عند إدخال رصيد أجنبي
+        if self.opening_balance_foreign and self.opening_balance_foreign != Decimal("0.00"):
+            rate = self.opening_balance_rate or Decimal("1.000000")
+            self.opening_balance = (self.opening_balance_foreign * rate).quantize(Decimal("0.01"))
+
         # حساب المستوى تلقائياً
         if self.parent:
             self.level = self.parent.level + 1
@@ -250,6 +279,39 @@ class ChartOfAccounts(models.Model):
     def category(self):
         """فئة الحساب من نوع الحساب"""
         return self.account_type.category
+
+    @property
+    def account_currency(self):
+        """كائن العملة التابع للحساب أو العملة الوظيفية الأساسية"""
+        if self.currency:
+            return self.currency
+        from financial.services.exchange_rate_service import ExchangeRateService
+        return ExchangeRateService.get_functional_currency()
+
+    @property
+    def currency_code(self):
+        """رمز عملة الحساب"""
+        if self.currency and self.currency.code:
+            return self.currency.code
+        from financial.services.exchange_rate_service import ExchangeRateService
+        func = ExchangeRateService.get_functional_currency()
+        return func.code if func else "EGP"
+
+    @property
+    def currency_symbol(self):
+        """رمز العملة الجرافيكي أو كود العملة"""
+        if self.currency:
+            return self.currency.symbol or self.currency.code
+        from financial.services.exchange_rate_service import ExchangeRateService
+        func = ExchangeRateService.get_functional_currency()
+        return (func.symbol or func.code) if func else "ج.م"
+
+    @property
+    def is_foreign_currency(self):
+        """هل الحساب بالعملة الأجنبية"""
+        if not self.currency:
+            return False
+        return not self.currency.is_functional
 
     @property
     def current_balance(self):

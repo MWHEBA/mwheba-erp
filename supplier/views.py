@@ -472,6 +472,9 @@ def supplier_detail(request, pk):
     """
     عرض تفاصيل المورد ودفعات الفواتير
     """
+    from django.db.models import Sum, Count, Q, Max
+    from decimal import Decimal
+
     supplier = get_object_or_404(
         Supplier.objects.select_related(
             "primary_type__settings"
@@ -1475,6 +1478,18 @@ def supplier_detail(request, pk):
         "target": "#actionsModal",
     })
     
+    from supplier.models import SupplierTransaction
+    supplier_balances = (
+        SupplierTransaction.objects.filter(supplier=supplier)
+        .values("currency")
+        .annotate(
+            total_open_foreign=Sum("open_amount_foreign"),
+            total_open_functional=Sum("open_amount_functional")
+        )
+        .filter(total_open_foreign__gt=Decimal("0.00"))
+    )
+    context["balances_by_currency"] = list(supplier_balances)
+
     context["header_buttons"] = header_buttons
     
     # البريدكرمب

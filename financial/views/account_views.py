@@ -314,89 +314,86 @@ def get_parent_accounts_by_type(request):
 @require_http_methods(["POST"])
 def quick_add_cash_bank_account(request):
     """
-    API endpoint لإضافة خزنة أو بنك بشكل سريع ومبسط
+    API endpoint لإضافة خزنة أو بنك بشكل سريع ومبسط مع دعم العملات والقيد الافتتاحي
     """
     try:
-        # استقبال البيانات
+        from decimal import Decimal
+        from datetime import datetime
+        from financial.models.currency import Currency
+        from financial.services.exchange_rate_service import ExchangeRateService
+        from financial.services.exchange_rate_sync_service import ExchangeRateSyncService
+        from financial.services.ledger_core_service import LedgerCoreService
+
         account_type = request.POST.get("account_type")  # cash أو bank
         name = request.POST.get("name", "").strip()
-        opening_balance = request.POST.get("opening_balance", "0")
-        opening_balance_date = request.POST.get("opening_balance_date")
+        opening_balance_raw = request.POST.get("opening_balance", "0")
+        opening_balance_date_str = request.POST.get("opening_balance_date")
         description = request.POST.get("description", "").strip()
-        
-        # التحقق من البيانات المطلوبة
+        currency_id = request.POST.get("currency_id")
+        custom_exchange_rate = request.POST.get("exchange_rate")
+
         if not account_type or account_type not in ["cash", "bank"]:
-            return JsonResponse({
-                "success": False,
-                "error": "نوع الحساب مطلوب (خزنة أو بنك)"
-            }, status=400)
-        
+            return JsonResponse({"success": False, "error": "نوع الحساب مطلوب (خزنة أو بنك)"}, status=400)
         if not name:
-            return JsonResponse({
-                "success": False,
-                "error": "اسم الحساب مطلوب"
-            }, status=400)
-        
-        # البحث عن حساب مرجعي (الخزنة 10100 أو البنك 10200) لأخذ البيانات منه
+            return JsonResponse({"success": False, "error": "اسم الحساب مطلوب"}, status=400)
+
+        # Currency resolution
+        currency_obj = None
+        if currency_id:
+            try:
+                currency_obj = Currency.objects.get(pk=currency_id)
+            except Currency.DoesNotExist:
+                pass
+
+        func_curr = ExchangeRateService.get_functional_currency()
+        base_code = func_curr.code if func_curr else "EGP"
+
         if account_type == "cash":
             reference_account = ChartOfAccounts.objects.filter(
-                Q(code="10100") | Q(is_cash_account=True),
-                is_active=True
+                Q(code="10100") | Q(is_cash_account=True), is_active=True
             ).order_by('code').first()
-        else:  # bank
+        else:
             reference_account = ChartOfAccounts.objects.filter(
-                Q(code="10200") | Q(is_bank_account=True),
-                is_active=True
+                Q(code="10200") | Q(is_bank_account=True), is_active=True
             ).order_by('code').first()
-        
+
         if not reference_account:
             return JsonResponse({
                 "success": False,
                 "error": f"لم يتم العثور على حساب مرجعي لـ {'الخزينة' if account_type == 'cash' else 'البنك'}"
             }, status=400)
-        
-        # استخدام نفس الأب ونفس نوع الحساب من الحساب المرجعي
+
         parent_account = reference_account.parent
         account_type_obj = reference_account.account_type
-        
-        # توليد الكود تلقائياً بنمط 10100, 10200, 10300...
-        # نبحث عن جميع الحسابات التي تبدأ بـ 10 وتحت نفس الأب
+
+        # Generate code
         if parent_account:
             siblings = ChartOfAccounts.objects.filter(
-                parent=parent_account,
-                code__startswith='10',
-                is_active=True
+                parent=parent_account, code__startswith='10', is_active=True
             ).values_list('code', flat=True).order_by('code')
-            
-            # تحويل الأكواد لأرقام والبحث عن أول كود متاح
             existing_codes = set()
             for code in siblings:
                 try:
                     existing_codes.add(int(code))
-                except:
+                except Exception:
                     pass
-            
-            # البحث عن أول كود متاح بنمط 10100, 10200, 10300...
             suggested_code = None
-            for i in range(1, 100):  # من 10100 إلى 19900
+            for i in range(1, 100):
                 code_num = 10000 + (i * 100)
                 if code_num not in existing_codes:
                     suggested_code = str(code_num)
                     break
-            
             if not suggested_code:
-                # fallback
-                suggested_code = get_next_available_code(
-                    account_type_obj.id,
-                    parent_account.id
-                )
+                suggested_code = get_next_available_code(account_type_obj.id, parent_account.id)
         else:
-            suggested_code = get_next_available_code(
-                account_type_obj.id,
-                None
-            )
-        
-        # إنشاء الحساب
+            suggested_code = get_next_available_code(account_type_obj.id, None)
+
+        try:
+            op_balance = Decimal(str(opening_balance_raw)) if opening_balance_raw else Decimal("0.00")
+        except (ValueError, TypeError):
+            op_balance = Decimal("0.00")
+
+        # Create ChartOfAccounts record
         account = ChartOfAccounts()
         account.code = suggested_code
         account.name = name
@@ -406,27 +403,100 @@ def quick_add_cash_bank_account(request):
         account.is_active = True
         account.is_cash_account = (account_type == "cash")
         account.is_bank_account = (account_type == "bank")
-        account.description = description
+        account.currency = currency_obj
+
+        bank_name = request.POST.get("bank_name", "").strip()
+        account_number = request.POST.get("account_number", "").strip()
+        iban = request.POST.get("iban", "").strip()
+        custodian = request.POST.get("custodian", "").strip()
+
+        extra_info = []
+        if account_type == "bank":
+            if bank_name: extra_info.append(f"البنك: {bank_name}")
+            if account_number: extra_info.append(f"رقم الحساب: {account_number}")
+            if iban: extra_info.append(f"IBAN: {iban}")
+        else:
+            if custodian: extra_info.append(f"المسؤول/أمين الخزنة: {custodian}")
+
+        if extra_info:
+            full_desc = " | ".join(extra_info)
+            if description:
+                full_desc += f" - {description}"
+            account.description = full_desc
+        else:
+            account.description = description
+
         account.created_by = request.user
-        
-        # الرصيد الافتتاحي
-        try:
-            account.opening_balance = float(opening_balance) if opening_balance else 0.00
-        except (ValueError, TypeError):
-            account.opening_balance = 0.00
-        
-        # تاريخ الرصيد الافتتاحي
-        if opening_balance_date:
-            from datetime import datetime
+        account.opening_balance = op_balance
+
+        if opening_balance_date_str:
             try:
-                account.opening_balance_date = datetime.strptime(
-                    opening_balance_date, "%Y-%m-%d"
-                ).date()
+                account.opening_balance_date = datetime.strptime(opening_balance_date_str, "%Y-%m-%d").date()
             except ValueError:
-                pass
-        
+                account.opening_balance_date = timezone.now().date()
+        else:
+            account.opening_balance_date = timezone.now().date()
+
         account.save()
-        
+
+        # Generate Opening Journal Entry if opening balance > 0
+        if op_balance > 0:
+            curr_code = account.currency_code
+            if custom_exchange_rate:
+                try:
+                    rate = Decimal(str(custom_exchange_rate))
+                except Exception:
+                    rate = Decimal("1.000000")
+            else:
+                try:
+                    rate = ExchangeRateService.get_rate(curr_code, base_code, date=account.opening_balance_date)
+                except Exception:
+                    rate = Decimal("1.000000")
+
+            base_op_amount = (op_balance * rate).quantize(Decimal("0.01"))
+
+            opening_equity_account = ChartOfAccounts.objects.filter(
+                Q(code="30100") | Q(code="30000") | Q(account_type__category="equity"),
+                is_active=True, is_leaf=True
+            ).first()
+
+            if opening_equity_account:
+                lines_data = [
+                    {
+                        "account": account,
+                        "debit": base_op_amount,
+                        "credit": Decimal("0.00"),
+                        "foreign_debit": op_balance,
+                        "foreign_credit": Decimal("0.00"),
+                        "currency": curr_code,
+                        "exchange_rate": rate,
+                        "description": f"رصيد افتتاحي لـ {account.name}"
+                    },
+                    {
+                        "account": opening_equity_account,
+                        "debit": Decimal("0.00"),
+                        "credit": base_op_amount,
+                        "foreign_debit": Decimal("0.00"),
+                        "foreign_credit": base_op_amount,
+                        "currency": base_code,
+                        "exchange_rate": Decimal("1.000000"),
+                        "description": f"مقابل رصيد افتتاحي لـ {account.name}"
+                    }
+                ]
+
+                draft_entry = LedgerCoreService.create_draft_entry(
+                    date=account.opening_balance_date,
+                    description=f"قيد رصيد افتتاحي تلقائي لـ {account.name}",
+                    reference=f"OPEN-{account.code}",
+                    entry_type="opening",
+                    created_by=request.user,
+                    lines_data=lines_data
+                )
+                draft_entry.status = "posted"
+                draft_entry.posted_at = timezone.now()
+                draft_entry.posted_by = request.user
+                draft_entry.save()
+
         return JsonResponse({
             "success": True,
             "message": f'تم إضافة {account.name} بنجاح (كود: {account.code})',
@@ -434,15 +504,12 @@ def quick_add_cash_bank_account(request):
                 "id": account.id,
                 "code": account.code,
                 "name": account.name,
-                "balance": float(account.opening_balance)
+                "balance": float(account.opening_balance),
+                "currency": account.currency_code
             }
         })
-        
     except Exception as e:
-        return JsonResponse({
-            "success": False,
-            "error": f"حدث خطأ: {str(e)}"
-        }, status=500)
+        return JsonResponse({"success": False, "error": str(e)}, status=500)
 
 
 
@@ -451,30 +518,39 @@ def quick_add_cash_bank_account(request):
 @login_required
 @permission_required('ادارة_الخزن_والحسابات', raise_exception=True)
 def cash_and_bank_accounts_list(request):
-    """عرض قائمة الحسابات النقدية والبنكية فقط (الخزن)"""
+    """عرض قائمة الحسابات النقدية والبنكية فقط (الخزن) متوافقة 100% مع العملات المتعددة"""
     from decimal import Decimal
     from django.db.models import Sum, Max, Q
+    from financial.models.currency import Currency
+    from financial.models.cost_center import CostCenter
+    from financial.services.exchange_rate_service import ExchangeRateService
+    from financial.services.exchange_rate_sync_service import ExchangeRateSyncService
+
+    func_currency = ExchangeRateService.get_functional_currency()
+    base_currency_code = func_currency.code if func_currency else "EGP"
+    base_currency_symbol = (func_currency.symbol or func_currency.code) if func_currency else "ج.م"
+
     try:
-        # محاولة استخدام الحقول المحسنة
         accounts = (
-            ChartOfAccounts.objects.filter(
-                is_active=True, is_leaf=True  # الحسابات الفرعية فقط
-            )
+            ChartOfAccounts.objects.filter(is_active=True)
             .filter(
                 Q(is_cash_account=True)
                 | Q(is_bank_account=True)
-                | Q(account_type__name__icontains="نقدي")
-                | Q(account_type__name__icontains="بنك")
-                | Q(account_type__name__icontains="صندوق")
+                | (
+                    Q(is_leaf=True)
+                    & (
+                        Q(account_type__name__icontains="نقدي")
+                        | Q(account_type__name__icontains="بنك")
+                        | Q(account_type__name__icontains="صندوق")
+                        | Q(account_type__name__icontains="خزن")
+                    )
+                )
             )
+            .select_related("account_type", "currency")
             .order_by("code")
         )
-
-        # اختبار الاستعلام
-        list(accounts[:1])  # تنفيذ الاستعلام للتأكد من عدم وجود أخطاء
-
-    except Exception as e:
-        # في حالة وجود مشكلة في قاعدة البيانات، استخدم فلترة أساسية
+        list(accounts[:1])
+    except Exception:
         accounts = (
             ChartOfAccounts.objects.filter(is_active=True, is_leaf=True)
             .filter(
@@ -483,43 +559,43 @@ def cash_and_bank_accounts_list(request):
                 | Q(account_type__name__icontains="صندوق")
                 | Q(account_type__name__icontains="خزن")
             )
+            .select_related("account_type", "currency")
             .order_by("code")
         )
 
-    # حساب الإحصائيات
     try:
         cash_accounts_count = accounts.filter(is_cash_account=True).count()
         bank_accounts_count = accounts.filter(is_bank_account=True).count()
     except Exception:
-        # في حالة عدم وجود الحقول، استخدم فلترة بديلة
-        cash_accounts_count = accounts.filter(
-            account_type__name__icontains="نقدي"
-        ).count()
-        bank_accounts_count = accounts.filter(
-            account_type__name__icontains="بنك"
-        ).count()
+        cash_accounts_count = accounts.filter(account_type__name__icontains="نقدي").count()
+        bank_accounts_count = accounts.filter(account_type__name__icontains="بنك").count()
 
-    # حساب إجمالي الأرصدة من القيود المحاسبية - query واحدة لكل الحسابات
-    accounts_list = list(accounts.select_related("account_type"))
-
-    # جلب كل الأرصدة في query واحدة
+    accounts_list = list(accounts)
     account_ids = [a.id for a in accounts_list]
+
     balances_qs = (
         JournalEntryLine.objects
         .filter(journal_entry__status="posted", account_id__in=account_ids)
         .values("account_id")
-        .annotate(total_debit=Sum("debit"), total_credit=Sum("credit"))
+        .annotate(
+            total_debit=Sum("debit"),
+            total_credit=Sum("credit"),
+            total_foreign_debit=Sum("foreign_debit"),
+            total_foreign_credit=Sum("foreign_credit"),
+            total_tx_debit=Sum("transaction_debit"),
+            total_tx_credit=Sum("transaction_credit"),
+        )
     )
     balances_map = {
-        row["account_id"]: (
-            row["total_debit"] or Decimal("0"),
-            row["total_credit"] or Decimal("0"),
-        )
+        row["account_id"]: {
+            "debit": row["total_debit"] or Decimal("0"),
+            "credit": row["total_credit"] or Decimal("0"),
+            "foreign_debit": row["total_foreign_debit"] or row["total_tx_debit"] or Decimal("0"),
+            "foreign_credit": row["total_foreign_credit"] or row["total_tx_credit"] or Decimal("0"),
+        }
         for row in balances_qs
     }
 
-    # جلب آخر حركة لكل حساب في query واحدة
-    from django.db.models import Max
     last_movement_qs = (
         JournalEntryLine.objects
         .filter(account_id__in=account_ids)
@@ -528,26 +604,74 @@ def cash_and_bank_accounts_list(request):
     )
     last_movement_map = {row["account_id"]: row["last_date"] for row in last_movement_qs}
 
-    total_balance = Decimal("0")
-    for account in accounts_list:
-        debit, credit = balances_map.get(account.id, (Decimal("0"), Decimal("0")))
-        opening = account.opening_balance or Decimal("0")
-        nature = account.account_type.nature if account.account_type else "debit"
-        if nature == "debit":
-            balance = opening + debit - credit
-        else:
-            balance = opening + credit - debit
+    total_balance_base = Decimal("0")
 
-        account.calculated_balance = balance
-        total_balance += balance
+    for account in accounts_list:
+        b_data = balances_map.get(account.id, {
+            "debit": Decimal("0"),
+            "credit": Decimal("0"),
+            "foreign_debit": Decimal("0"),
+            "foreign_credit": Decimal("0"),
+        })
+        debit = b_data["debit"]
+        credit = b_data["credit"]
+        f_debit = b_data["foreign_debit"]
+        f_credit = b_data["foreign_credit"]
+
+        opening_base = account.opening_balance or Decimal("0")
+        opening_foreign = account.opening_balance_foreign if (account.opening_balance_foreign and account.opening_balance_foreign != Decimal("0.00")) else opening_base
+        nature = account.account_type.nature if account.account_type else "debit"
+
+        if account.is_foreign_currency and account.currency:
+            curr_code = account.currency.code
+            if nature == "debit":
+                calc_foreign = opening_foreign + f_debit - f_credit
+            else:
+                calc_foreign = opening_foreign + f_credit - f_debit
+
+            rate_error = False
+            try:
+                spot_rate = ExchangeRateService.get_rate(curr_code, base_currency_code)
+            except Exception:
+                spot_rate = Decimal("1.000000")
+                rate_error = True
+
+            calc_base = (calc_foreign * spot_rate).quantize(Decimal("0.01"))
+
+            account.calculated_balance = calc_foreign
+            account.calculated_foreign_balance = calc_foreign
+            account.calculated_base_balance = calc_base
+            account.current_spot_rate = spot_rate
+            account.rate_error = rate_error
+            total_balance_base += calc_base
+        else:
+            if nature == "debit":
+                calc_base = opening_base + debit - credit
+            else:
+                calc_base = opening_base + credit - debit
+
+            account.calculated_balance = calc_base
+            account.calculated_foreign_balance = calc_base
+            account.calculated_base_balance = calc_base
+            account.current_spot_rate = Decimal("1.000000")
+            account.rate_error = False
+            total_balance_base += calc_base
+
         account.last_movement_date = last_movement_map.get(account.id)
+
+    currencies = list(Currency.objects.filter(is_active=True).order_by("-is_functional", "code"))
+    cost_centers = list(CostCenter.objects.filter(is_active=True).order_by("code"))
 
     context = {
         "accounts": accounts_list,
         "accounts_count": len(accounts_list),
         "cash_accounts_count": cash_accounts_count,
         "bank_accounts_count": bank_accounts_count,
-        "total_balance": total_balance,
+        "total_balance": total_balance_base,
+        "base_currency_code": base_currency_code,
+        "base_currency_symbol": base_currency_symbol,
+        "currencies": currencies,
+        "cost_centers": cost_centers,
         "page_title": "قائمة الخزن والحسابات النقدية",
         "page_subtitle": "الحسابات النقدية والبنكية التي يمكن الصرف منها والإيداع فيها",
         "page_icon": "fas fa-money-bill-wave",
@@ -561,6 +685,12 @@ def cash_and_bank_accounts_list(request):
             {"title": "قائمة الخزن", "active": True},
         ],
         "header_buttons": [
+            {
+                "onclick": "openTransferModal()",
+                "icon": "fa-exchange-alt",
+                "text": "تحويل بين الخزائن",
+                "class": "btn-primary me-2",
+            },
             {
                 "onclick": "openQuickAddModal()",
                 "icon": "fa-plus",
@@ -1069,6 +1199,14 @@ def chart_of_accounts_create(request):
             account.is_control_account = "is_control_account" in request.POST
             account.is_active = "is_active" in request.POST
 
+            currency_id = request.POST.get("currency") or request.POST.get("currency_id")
+            if currency_id:
+                from financial.models.currency import Currency
+                try:
+                    account.currency = Currency.objects.get(pk=currency_id)
+                except Exception:
+                    pass
+
             # تحديث المعلومات الإضافية
             account.description = request.POST.get("description", "").strip()
             account.notes = request.POST.get("notes", "").strip()
@@ -1138,12 +1276,17 @@ def chart_of_accounts_create(request):
             "code"
         )
 
+    # تحميل العملات
+    from financial.models.currency import Currency
+    currencies = list(Currency.objects.filter(is_active=True).order_by("code"))
+
     # اقتراح كود متاح
     suggested_code = get_next_available_code()
 
     context = {
         "account_types": account_types,
         "parent_accounts": parent_accounts,
+        "currencies": currencies,
         "suggested_code": suggested_code,
         "page_title": "إضافة حساب جديد",
         "page_subtitle": "إنشاء حساب جديد في دليل الحسابات",
@@ -2146,48 +2289,90 @@ def cash_account_movements(request, pk):
         opening_credit = opening_movements.aggregate(Sum("credit"))["credit__sum"] or 0
         opening_balance = opening_debit - opening_credit
 
+    from financial.services.exchange_rate_service import ExchangeRateService
+    if account.is_foreign_currency:
+        try:
+            spot_rate = ExchangeRateService.get_rate(account.currency_code, "EGP")
+        except Exception:
+            spot_rate = Decimal("1.000000")
+    else:
+        spot_rate = Decimal("1.000000")
+
     # حساب الرصيد التراكمي لكل حركة (من الأقدم للأحدث)
     running_balance = opening_balance
+    running_foreign_balance = account.opening_balance or 0
     movements_with_balance = []
 
     for movement in movements:
-        # حساب تأثير الحركة على الرصيد
         movement_effect = (movement.debit or 0) - (movement.credit or 0)
         running_balance += movement_effect
-
-        # إضافة الرصيد التراكمي للحركة
         movement.running_balance = running_balance
+
+        f_deb = movement.foreign_debit or movement.transaction_debit or 0
+        f_crd = movement.foreign_credit or movement.transaction_credit or 0
+        movement_f_effect = f_deb - f_crd
+        running_foreign_balance += movement_f_effect
+        movement.running_foreign_balance = running_foreign_balance
+
+        if account.is_foreign_currency:
+            if f_deb > 0:
+                if movement.debit and movement.debit != f_deb:
+                    movement.base_debit_eq = movement.debit
+                else:
+                    movement.base_debit_eq = (Decimal(str(f_deb)) * spot_rate).quantize(Decimal("0.01"))
+            else:
+                movement.base_debit_eq = Decimal("0.00")
+
+            if f_crd > 0:
+                if movement.credit and movement.credit != f_crd:
+                    movement.base_credit_eq = movement.credit
+                else:
+                    movement.base_credit_eq = (Decimal(str(f_crd)) * spot_rate).quantize(Decimal("0.01"))
+            else:
+                movement.base_credit_eq = Decimal("0.00")
+
         movements_with_balance.append(movement)
     
-    # عكس الترتيب للعرض (من الأحدث للأقدم) لكن الرصيد محسوب صح
     movements_with_balance.reverse()
 
-    # الترقيم
     paginator = Paginator(movements_with_balance, 25)
     page_number = request.GET.get("page")
     page_obj = paginator.get_page(page_number)
 
-    # حساب الرصيد الصافي الإجمالي الثابت للحساب (غير متأثر بالفلترة)
     from django.db.models import Sum
 
     all_account_lines = JournalEntryLine.objects.filter(account=account)
     all_debit = all_account_lines.aggregate(Sum("debit"))["debit__sum"] or 0
     all_credit = all_account_lines.aggregate(Sum("credit"))["credit__sum"] or 0
-    current_balance = all_debit - all_credit
+    all_f_debit = all_account_lines.aggregate(Sum("foreign_debit"))["foreign_debit__sum"] or 0
+    all_f_credit = all_account_lines.aggregate(Sum("foreign_credit"))["foreign_credit__sum"] or 0
 
-    # حساب إجمالي المقبوضات والمدفوعات المتأثر بالفلترة الحالية
-    total_debit = movements.aggregate(Sum("debit"))["debit__sum"] or 0
-    total_credit = movements.aggregate(Sum("credit"))["credit__sum"] or 0
+    current_base_balance = all_debit - all_credit
+    if account.is_foreign_currency:
+        current_foreign_balance = (account.opening_balance or 0) + all_f_debit - all_f_credit
+        calculated_base_eq = (current_foreign_balance * spot_rate).quantize(Decimal("0.01"))
+    else:
+        current_foreign_balance = current_base_balance
+        calculated_base_eq = current_base_balance
 
-    # جلب التصنيفات المالية للفلتر
+    if account.is_foreign_currency:
+        f_debit_sum = movements.aggregate(Sum("foreign_debit"))["foreign_debit__sum"] or 0
+        f_tx_debit_sum = movements.aggregate(Sum("transaction_debit"))["transaction_debit__sum"] or 0
+        total_debit = f_debit_sum or f_tx_debit_sum or 0
+
+        f_credit_sum = movements.aggregate(Sum("foreign_credit"))["foreign_credit__sum"] or 0
+        f_tx_credit_sum = movements.aggregate(Sum("transaction_credit"))["transaction_credit__sum"] or 0
+        total_credit = f_credit_sum or f_tx_credit_sum or 0
+    else:
+        total_debit = movements.aggregate(Sum("debit"))["debit__sum"] or 0
+        total_credit = movements.aggregate(Sum("credit"))["credit__sum"] or 0
+
     from financial.models import FinancialCategory
     categories = FinancialCategory.objects.filter(is_active=True).order_by('display_order', 'name')
     
-    # جلب رمز العملة
     from core.utils import get_default_currency
     currency_symbol = get_default_currency()
     
-    # تحديد الأيقونة والعنوان الفرعي حسب نوع الحساب
     if account.is_cash_account:
         account_icon = "fas fa-money-bill-wave"
         account_type = "حساب نقدي"
@@ -2205,7 +2390,12 @@ def cash_account_movements(request, pk):
         "movements": page_obj,
         "total_debit": total_debit,
         "total_credit": total_credit,
-        "current_balance": current_balance,
+        "current_balance": current_foreign_balance if account.is_foreign_currency else current_base_balance,
+        "current_base_balance": current_base_balance,
+        "calculated_base_eq": calculated_base_eq,
+        "spot_rate": spot_rate,
+        "account_currency_symbol": account.currency_symbol,
+        "account_currency_code": account.currency_code,
         "opening_balance": opening_balance,
         "date_from": date_from,
         "date_to": date_to,
@@ -3642,134 +3832,222 @@ def get_cash_bank_accounts_api(request):
 
 @login_required
 @require_http_methods(["POST"])
+@login_required
+@require_http_methods(["POST"])
 def transfer_between_accounts(request):
     """
-    API endpoint لتحويل مبلغ بين حسابين
+    API endpoint لتحويل مالي بين الخزائن والحسابات البنكية لدعم العملات المتعددة وفروق العملة (IAS 21)
     """
     try:
         from datetime import datetime
-        from ..models import JournalEntry, JournalEntryLine, AccountingPeriod
-        
-        # استقبال البيانات
+        from decimal import Decimal
+        from financial.models.currency import Currency
+        from financial.models.cost_center import CostCenter
+        from financial.services.exchange_rate_service import ExchangeRateService
+        from financial.services.exchange_rate_sync_service import ExchangeRateSyncService
+        from financial.services.ledger_core_service import LedgerCoreService
+
         from_account_id = request.POST.get("from_account")
         to_account_id = request.POST.get("to_account")
-        amount = request.POST.get("amount")
-        transfer_date = request.POST.get("transfer_date")
+        source_amount_raw = request.POST.get("amount")
+        destination_amount_raw = request.POST.get("destination_amount")
+        custom_rate_raw = request.POST.get("exchange_rate")
+        transfer_date_str = request.POST.get("transfer_date")
+        cost_center_id = request.POST.get("cost_center_id")
+        transfer_fee_raw = request.POST.get("transfer_fee", "0")
+        fee_account_id = request.POST.get("fee_account_id")
         description = request.POST.get("description", "").strip()
-        
-        # التحقق من البيانات
+
         if not from_account_id or not to_account_id:
-            return JsonResponse({
-                "success": False,
-                "error": "يجب تحديد الحساب المصدر والحساب المستهدف"
-            }, status=400)
-        
-        if not amount:
-            return JsonResponse({
-                "success": False,
-                "error": "يجب تحديد المبلغ"
-            }, status=400)
-        
+            return JsonResponse({"success": False, "error": "يجب تحديد الحساب المصدر والحساب المستهدف"}, status=400)
+        if str(from_account_id) == str(to_account_id):
+            return JsonResponse({"success": False, "error": "لا يمكن التحويل لنفس الحساب"}, status=400)
+        if not source_amount_raw:
+            return JsonResponse({"success": False, "error": "يجب تحديد المبلغ المسحوب"}, status=400)
+
         try:
-            amount = float(amount)
-            if amount <= 0:
-                return JsonResponse({
-                    "success": False,
-                    "error": "المبلغ يجب أن يكون أكبر من صفر"
-                }, status=400)
+            source_amount = Decimal(str(source_amount_raw))
+            if source_amount <= 0:
+                return JsonResponse({"success": False, "error": "المبلغ يجب أن يكون أكبر من صفر"}, status=400)
         except (ValueError, TypeError):
+            return JsonResponse({"success": False, "error": "المبلغ غير صحيح"}, status=400)
+
+        from_account = ChartOfAccounts.objects.get(pk=from_account_id)
+        to_account = ChartOfAccounts.objects.get(pk=to_account_id)
+
+        current_balance = from_account.get_balance() or Decimal("0")
+        if source_amount > current_balance:
             return JsonResponse({
                 "success": False,
-                "error": "المبلغ غير صحيح"
+                "error": f"الرصيد المتاح في {from_account.name} ({current_balance} {from_account.currency_symbol}) غير كافٍ"
             }, status=400)
-        
-        # الحصول على الحسابات
-        try:
-            from_account = ChartOfAccounts.objects.get(id=from_account_id)
-            to_account = ChartOfAccounts.objects.get(id=to_account_id)
-        except ChartOfAccounts.DoesNotExist:
-            return JsonResponse({
-                "success": False,
-                "error": "الحساب المحدد غير موجود"
-            }, status=404)
-        
-        # التحقق من الرصيد
-        current_balance = from_account.get_balance() or 0
-        if amount > current_balance:
-            return JsonResponse({
-                "success": False,
-                "error": f"الرصيد المتاح ({current_balance}) غير كافٍ للتحويل"
-            }, status=400)
-        
-        # تحويل التاريخ
-        if transfer_date:
+
+        if transfer_date_str:
             try:
-                transfer_date = datetime.strptime(transfer_date, "%Y-%m-%d").date()
+                transfer_date = datetime.strptime(transfer_date_str, "%Y-%m-%d").date()
             except ValueError:
-                transfer_date = datetime.now().date()
+                transfer_date = timezone.now().date()
         else:
-            transfer_date = datetime.now().date()
-        
-        # البحث عن الفترة المحاسبية
-        period = AccountingPeriod.objects.filter(
-            start_date__lte=transfer_date,
-            end_date__gte=transfer_date,
-            status='open'
-        ).first()
-        
-        if not period:
-            return JsonResponse({
-                "success": False,
-                "error": "لا توجد فترة محاسبية مفتوحة لهذا التاريخ"
-            }, status=400)
-        
-        # إنشاء القيد المحاسبي
-        with transaction.atomic():
-            journal_entry = JournalEntry()
-            journal_entry.date = transfer_date
-            journal_entry.period = period
-            journal_entry.description = description or f"تحويل من {from_account.name} إلى {to_account.name}"
-            journal_entry.reference = f"TRANS-{datetime.now().strftime('%Y%m%d%H%M%S')}"
-            journal_entry.status = 'posted'
-            journal_entry.created_by = request.user
-            journal_entry.save()
-            
-            # استخدام AccountingGateway pattern لإنشاء البنود
-            from governance.services import JournalEntryLineData
-            
-            lines = [
-                JournalEntryLineData(
-                    account_code=from_account.code,
-                    debit=Decimal('0'),
-                    credit=amount,
-                    description=f"تحويل إلى {to_account.name}"
-                ),
-                JournalEntryLineData(
-                    account_code=to_account.code,
-                    debit=amount,
-                    credit=Decimal('0'),
-                    description=f"تحويل من {from_account.name}"
-                )
-            ]
-            
-            # إنشاء البنود
-            for line_data in lines:
-                JournalEntryLine.objects.create(
-                    journal_entry=journal_entry,
-                    account=ChartOfAccounts.objects.get(code=line_data.account_code),
-                    debit=line_data.debit,
-                    credit=line_data.credit,
-                    description=line_data.description
-                )
-        
+            transfer_date = timezone.now().date()
+
+        cost_center_obj = None
+        if cost_center_id:
+            try:
+                cost_center_obj = CostCenter.objects.get(pk=cost_center_id)
+            except CostCenter.DoesNotExist:
+                pass
+
+        func_curr = ExchangeRateService.get_functional_currency()
+        base_code = func_curr.code if func_curr else "EGP"
+
+        from_code = from_account.currency_code
+        to_code = to_account.currency_code
+
+        # Rates lookup
+        try:
+            from_rate = ExchangeRateService.get_rate(from_code, base_code, date=transfer_date)
+        except Exception:
+            if from_code != base_code:
+                raise ValidationError(f"سعر الصرف للعملة ({from_code}) غير مسجل بتاريخ {transfer_date}. يرجى إضافة سعر الصرف أولاً.")
+            from_rate = Decimal("1.000000")
+
+        try:
+            to_rate = ExchangeRateService.get_rate(to_code, base_code, date=transfer_date)
+        except Exception:
+            if to_code != base_code:
+                raise ValidationError(f"سعر الصرف للعملة ({to_code}) غير مسجل بتاريخ {transfer_date}. يرجى إضافة سعر الصرف أولاً.")
+            to_rate = Decimal("1.000000")
+
+        # Base value withdrawn
+        source_base_value = (source_amount * from_rate).quantize(Decimal("0.01"))
+
+        # Destination amount calculation
+        if destination_amount_raw and Decimal(str(destination_amount_raw)) > 0:
+            dest_amount = Decimal(str(destination_amount_raw))
+        elif custom_rate_raw and Decimal(str(custom_rate_raw)) > 0:
+            custom_rate = Decimal(str(custom_rate_raw))
+            dest_amount = (source_amount * custom_rate).quantize(Decimal("0.01"))
+        else:
+            if from_code == to_code:
+                dest_amount = source_amount
+            else:
+                dest_amount = (source_base_value / to_rate).quantize(Decimal("0.01"))
+
+        dest_base_value = (dest_amount * to_rate).quantize(Decimal("0.01"))
+
+        # Check for Realized FX Gain/Loss
+        fx_diff_base = dest_base_value - source_base_value
+
+        # Fees
+        try:
+            fee_amount = Decimal(str(transfer_fee_raw)) if transfer_fee_raw else Decimal("0.00")
+        except Exception:
+            fee_amount = Decimal("0.00")
+
+        fee_account = None
+        if fee_amount > 0 and fee_account_id:
+            try:
+                fee_account = ChartOfAccounts.objects.get(pk=fee_account_id)
+            except ChartOfAccounts.DoesNotExist:
+                pass
+        if fee_amount > 0 and not fee_account:
+            fee_account = ChartOfAccounts.objects.filter(
+                Q(code="50200") | Q(account_type__category="expense"), is_active=True, is_leaf=True
+            ).first()
+
+        lines_data = []
+
+        # Line 1: Credit Source Account (Withdrawn)
+        lines_data.append({
+            "account": from_account,
+            "debit": Decimal("0.00"),
+            "credit": source_base_value,
+            "foreign_debit": Decimal("0.00"),
+            "foreign_credit": source_amount,
+            "currency": from_code,
+            "exchange_rate": from_rate,
+            "cost_center": cost_center_obj,
+            "description": description or f"تحويل مالي إلى {to_account.name}"
+        })
+
+        # Line 2: Debit Destination Account (Deposited)
+        lines_data.append({
+            "account": to_account,
+            "debit": dest_base_value,
+            "credit": Decimal("0.00"),
+            "foreign_debit": dest_amount,
+            "foreign_credit": Decimal("0.00"),
+            "currency": to_code,
+            "exchange_rate": to_rate,
+            "cost_center": cost_center_obj,
+            "description": description or f"تحويل مالي من {from_account.name}"
+        })
+
+        # Realized FX Gain / Loss adjustment line if needed
+        if fx_diff_base != Decimal("0.00"):
+            if fx_diff_base > Decimal("0.00"):
+                fx_gain_account = ChartOfAccounts.objects.filter(
+                    Q(code="71010") | Q(account_type__category="revenue"), is_active=True, is_leaf=True
+                ).first()
+                if fx_gain_account:
+                    lines_data.append({
+                        "account": fx_gain_account,
+                        "debit": Decimal("0.00"),
+                        "credit": fx_diff_base,
+                        "foreign_debit": Decimal("0.00"),
+                        "foreign_credit": fx_diff_base,
+                        "currency": base_code,
+                        "exchange_rate": Decimal("1.000000"),
+                        "description": f"أرباح فروق عملة محققة عن تحويل {from_account.name} إلى {to_account.name}"
+                    })
+            else:
+                fx_loss_account = ChartOfAccounts.objects.filter(
+                    Q(code="71020") | Q(account_type__category="expense"), is_active=True, is_leaf=True
+                ).first()
+                if fx_loss_account:
+                    lines_data.append({
+                        "account": fx_loss_account,
+                        "debit": abs(fx_diff_base),
+                        "credit": Decimal("0.00"),
+                        "foreign_debit": abs(fx_diff_base),
+                        "foreign_credit": Decimal("0.00"),
+                        "currency": base_code,
+                        "exchange_rate": Decimal("1.000000"),
+                        "description": f"خسائر فروق عملة محققة عن تحويل {from_account.name} إلى {to_account.name}"
+                    })
+
+        # Transfer Fee Line
+        if fee_amount > 0 and fee_account:
+            lines_data.append({
+                "account": fee_account,
+                "debit": fee_amount,
+                "credit": Decimal("0.00"),
+                "foreign_debit": fee_amount,
+                "foreign_credit": Decimal("0.00"),
+                "currency": base_code,
+                "exchange_rate": Decimal("1.000000"),
+                "description": f"رسوم وعمولات تحويل مالي بين الخزائن"
+            })
+            lines_data[0]["credit"] += fee_amount
+
+        entry_desc = description or f"تحويل مالي بين {from_account.name} و {to_account.name}"
+        draft_entry = LedgerCoreService.create_draft_entry(
+            date=transfer_date,
+            description=entry_desc,
+            reference=f"TRANS-{datetime.now().strftime('%Y%m%d%H%M%S')}",
+            entry_type="transfer",
+            created_by=request.user,
+            lines_data=lines_data
+        )
+        draft_entry.status = "posted"
+        draft_entry.posted_at = timezone.now()
+        draft_entry.posted_by = request.user
+        draft_entry.save()
+
         return JsonResponse({
             "success": True,
-            "message": f"تم تحويل {amount} من {from_account.name} إلى {to_account.name} بنجاح",
-            "journal_entry_id": journal_entry.id
+            "message": f"تم تحويل {source_amount} {from_account.currency_symbol} من {from_account.name} إلى {to_account.name} بنجاح",
+            "journal_entry_id": draft_entry.id
         })
-        
     except Exception as e:
-        return JsonResponse({
-            "success": False,
-            "error": f"حدث خطأ: {str(e)}"
-        }, status=500)
+        return JsonResponse({"success": False, "error": str(e)}, status=500)

@@ -86,6 +86,7 @@ from .api_views import (
     api_financial_categories,
     api_payment_accounts,
     api_income_accounts,
+    api_get_exchange_rate,
     export_transactions,
     ledger_report,
     balance_sheet,

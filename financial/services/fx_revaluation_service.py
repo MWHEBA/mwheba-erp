@@ -92,11 +92,67 @@ class FXRevaluationService:
             })
             total_unrealized_gain_loss += diff
 
+        # 3. Foreign Monetary Cash & Bank Accounts
+        from financial.models.chart_of_accounts import ChartOfAccounts
+        cash_items = []
+        foreign_accounts = ChartOfAccounts.objects.filter(
+            is_active=True,
+            currency__isnull=False
+        ).exclude(currency__code=func_code)
+
+        for acc in foreign_accounts:
+            if not (acc.is_cash_account or acc.is_bank_account):
+                continue
+            curr_code = acc.currency.code
+            curr_rate = ExchangeRateService.get_rate(curr_code, func_code, as_of_date)
+            
+            # calculate foreign balance
+            open_foreign = acc.opening_balance_foreign if (acc.opening_balance_foreign and acc.opening_balance_foreign != Decimal("0.00")) else (acc.opening_balance or Decimal("0.00"))
+            
+            # Get ledger debit/credit movements
+            lines_aggr = acc.journal_lines.filter(journal_entry__status="posted", journal_entry__date__lte=as_of_date).aggregate(
+                f_debit=models.Sum("transaction_debit"),
+                f_credit=models.Sum("transaction_credit"),
+                b_debit=models.Sum("debit"),
+                b_credit=models.Sum("credit")
+            )
+            f_deb = lines_aggr["f_debit"] or Decimal("0.00")
+            f_cred = lines_aggr["f_credit"] or Decimal("0.00")
+            b_deb = lines_aggr["b_debit"] or Decimal("0.00")
+            b_cred = lines_aggr["b_credit"] or Decimal("0.00")
+
+            nature = acc.account_type.nature if acc.account_type else "debit"
+            if nature == "debit":
+                foreign_bal = open_foreign + f_deb - f_cred
+                current_gl_base = acc.opening_balance + b_deb - b_cred
+            else:
+                foreign_bal = open_foreign + f_cred - f_deb
+                current_gl_base = acc.opening_balance + b_cred - b_deb
+
+            if foreign_bal != Decimal("0.00"):
+                closing_func_val = (foreign_bal * curr_rate).quantize(Decimal("0.01"))
+                diff = closing_func_val - current_gl_base
+                if diff != Decimal("0.00"):
+                    cash_items.append({
+                        "account_id": acc.id,
+                        "account_code": acc.code,
+                        "account_name": acc.name,
+                        "type": "CASH",
+                        "currency": curr_code,
+                        "open_foreign": foreign_bal,
+                        "closing_rate": curr_rate,
+                        "current_gl_base": current_gl_base,
+                        "closing_functional": closing_func_val,
+                        "unrealized_diff": diff
+                    })
+                    total_unrealized_gain_loss += diff
+
         return {
             "as_of_date": as_of_date,
             "functional_currency": func_code,
             "customer_items": customer_items,
             "supplier_items": supplier_items,
+            "cash_items": cash_items,
             "total_unrealized_gain_loss": total_unrealized_gain_loss
         }
 

@@ -3000,5 +3000,61 @@ def journal_entry_summary_api(request, journal_entry_id):
         }, status=500)
 
 
+@login_required
+def api_get_exchange_rate(request):
+    """
+    API لاستعلام سعر الصرف اللحظي والعملة الوظيفية الأساسية
+    """
+    try:
+        currency_id = request.GET.get('currency_id')
+        currency_code = request.GET.get('code')
+        date_str = request.GET.get('date')
+
+        from financial.models.currency import Currency
+        from financial.services.exchange_rate_service import ExchangeRateService
+
+        target_curr = None
+        if currency_id:
+            target_curr = Currency.objects.filter(pk=currency_id, is_active=True).first()
+        elif currency_code:
+            target_curr = Currency.objects.filter(code=currency_code, is_active=True).first()
+
+        func_curr = ExchangeRateService.get_functional_currency()
+        if not func_curr:
+            return JsonResponse({'success': False, 'error': 'لم يتم تعيين العملة الأساسية للمؤسسة.'}, status=400)
+
+        if not target_curr:
+            target_curr = func_curr
+
+        as_of_date = None
+        if date_str:
+            try:
+                as_of_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+            except ValueError:
+                pass
+
+        rate = Decimal('1.000000')
+        if target_curr.code != func_curr.code:
+            try:
+                rate = ExchangeRateService.get_rate(target_curr.code, func_curr.code, as_of_date)
+            except Exception as e:
+                logger.warning(f"Exchange rate lookup notice: {e}")
+                rate = Decimal('1.000000')
+
+        return JsonResponse({
+            'success': True,
+            'rate': str(rate),
+            'currency_id': target_curr.id,
+            'currency_code': target_curr.code,
+            'currency_symbol': target_curr.symbol or target_curr.code,
+            'is_functional': target_curr.is_functional,
+            'functional_code': func_curr.code,
+            'functional_symbol': func_curr.symbol or func_curr.code,
+        })
+    except Exception as e:
+        logger.error(f"Error in api_get_exchange_rate: {str(e)}", exc_info=True)
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
 # ============== اكتمل ملف api_views.py بالكامل ==============
 # تم نقل جميع دوال APIs والتصدير والتقارير بنجاح

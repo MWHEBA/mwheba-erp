@@ -73,14 +73,16 @@ class LedgerCoreService:
                 foreign_credit = Decimal(str(item.get("foreign_credit", 0)))
                 cost_center = item.get("cost_center")
 
-                JournalEntryLine.objects.create(
+                tx_debit = foreign_debit if foreign_debit > Decimal('0') else debit
+                tx_credit = foreign_credit if foreign_credit > Decimal('0') else credit
 
+                JournalEntryLine.objects.create(
                     journal_entry=journal_entry,
                     account=account,
                     debit=debit.quantize(Decimal('0.01')),
                     credit=credit.quantize(Decimal('0.01')),
-                    transaction_debit=debit.quantize(Decimal('0.01')),
-                    transaction_credit=credit.quantize(Decimal('0.01')),
+                    transaction_debit=tx_debit.quantize(Decimal('0.01')),
+                    transaction_credit=tx_credit.quantize(Decimal('0.01')),
                     exchange_rate_snapshot=exchange_rate.quantize(Decimal('0.000001')),
                     cost_center=cost_center,
                     description=line_desc,
@@ -90,6 +92,41 @@ class LedgerCoreService:
                     foreign_credit=foreign_credit.quantize(Decimal('0.01'))
                 )
 
+
+            diff = (total_debit - total_credit).quantize(Decimal("0.01"))
+            abs_diff = abs(diff)
+
+            if Decimal("0.00") < abs_diff <= Decimal("0.05"):
+                rounding_acc = ChartOfAccounts.objects.filter(code__in=["50900", "40900", "50900_ROUNDING"], is_active=True).first()
+                if rounding_acc:
+                    if diff > Decimal("0.00"):
+                        JournalEntryLine.objects.create(
+                            journal_entry=journal_entry,
+                            account=rounding_acc,
+                            debit=Decimal("0.00"),
+                            credit=abs_diff,
+                            transaction_debit=Decimal("0.00"),
+                            transaction_credit=abs_diff,
+                            exchange_rate_snapshot=Decimal("1.000000"),
+                            description="تسوية فروق تقريب كسور العملات البسيطة",
+                            currency="EGP",
+                            exchange_rate=Decimal("1.000000")
+                        )
+                        total_credit += abs_diff
+                    else:
+                        JournalEntryLine.objects.create(
+                            journal_entry=journal_entry,
+                            account=rounding_acc,
+                            debit=abs_diff,
+                            credit=Decimal("0.00"),
+                            transaction_debit=abs_diff,
+                            transaction_credit=Decimal("0.00"),
+                            exchange_rate_snapshot=Decimal("1.000000"),
+                            description="تسوية فروق تقريب كسور العملات البسيطة",
+                            currency="EGP",
+                            exchange_rate=Decimal("1.000000")
+                        )
+                        total_debit += abs_diff
 
             if total_debit != total_credit:
                 raise FinancialCoreError(f"Unbalanced entry: total debit {total_debit} != total credit {total_credit}")

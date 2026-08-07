@@ -88,6 +88,37 @@
     </div>
   </div>
 
+  {% if balances_by_currency %}
+  <!-- تفاصيل المديونية حسب العملة -->
+  <div class="section-container mb-4">
+    <h6 class="fw-bold p-3 mb-0 border-bottom">
+      <i class="fas fa-coins me-2 text-primary"></i>{% trans "تفاصيل المديونية حسب العملة (IAS 21 Balances per Currency)" %}
+    </h6>
+    <div class="table-responsive p-3">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>#</th>
+            <th>{% trans "العملة" %}</th>
+            <th class="text-end">{% trans "الرصيد المفتوح بالعملة الأجنبية" %}</th>
+            <th class="text-end">{% trans "المعادل بالعملة الأساسية (EGP)" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for b in balances_by_currency %}
+          <tr>
+            <td>{{ forloop.counter }}</td>
+            <td><span class="badge bg-primary">{{ b.currency }}</span></td>
+            <td class="text-end font-monospace fw-bold">{{ b.total_open_foreign|smart_float:2 }}</td>
+            <td class="text-end font-monospace text-muted">{{ b.total_open_functional|smart_float:2 }} ج.م</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
   <!-- نظام التابات -->
   <div class="section-container mb-4">
     <div class="card-header bg-white border-0 pt-3 px-3 pb-0">

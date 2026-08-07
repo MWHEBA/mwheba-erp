@@ -72,6 +72,16 @@ class Customer(models.Model):
     tax_number = models.CharField(
         _("الرقم الضريبي"), max_length=50, blank=True, null=True
     )
+    # العملة الافتراضية المعتمدة
+    default_currency = models.ForeignKey(
+        'financial.Currency',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name=_("العملة الافتراضية"),
+        related_name="customers_default_currency",
+        help_text=_("العملة الافتراضية المعتمدة لفتح فواتير ومعاملات هذا العميل تلقائياً")
+    )
 
     # تصنيف العميل (من النظام المرجعي)
     client_type = models.CharField(
@@ -128,9 +138,20 @@ class Customer(models.Model):
 
     def __str__(self):
         # تجنب التكرار في العرض
-        if self.company_name and self.company_name != self.name:
-            return f"{self.name} ({self.company_name})"
-        return self.name
+        if getattr(self, "company_name", None) and self.company_name != self.name:
+            return f"{self.name or ''} ({self.company_name})"
+        return str(self.name or f"Customer {self.pk or ''}")
+
+    def save(self, *args, **kwargs):
+        if not self.default_currency_id:
+            try:
+                from financial.services.exchange_rate_service import ExchangeRateService
+                func_curr = ExchangeRateService.get_functional_currency()
+                if func_curr:
+                    self.default_currency = func_curr
+            except Exception:
+                pass
+        super().save(*args, **kwargs)
 
     @property
     def available_credit(self):

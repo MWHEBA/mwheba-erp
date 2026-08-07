@@ -2997,3 +2997,109 @@ html[dir="rtl"] .border-right-danger {
     opacity: 1;
     color: var(--primary-color);
 }
+
+/* =================================================================
+   SECTION 12: UNIFIED TWO-COLUMN DOCUMENT FORM HEADER SYSTEM
+   ================================================================= */
+.invoice-header-wrapper {
+    margin-bottom: 1.25rem;
+}
+
+.header-subcard {
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-lg, 8px);
+    padding: 1rem 1.15rem;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    box-shadow: var(--shadow-xs);
+    transition: border-color var(--transition-base, 0.2s ease);
+}
+
+.header-subcard:hover {
+    border-color: var(--primary-border, var(--border-color));
+}
+
+.header-subcard-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 0.65rem;
+    margin-bottom: 0.85rem;
+    border-bottom: 1px dashed var(--border-color);
+}
+
+.header-subcard-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-primary, #212529);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+}
+
+.header-subcard-title i {
+    color: var(--primary-color);
+    font-size: 0.95rem;
+}
+
+.header-subcard-body {
+    flex: 1;
+}
+
+.header-subcard .form-label {
+    font-size: 0.825rem;
+    font-weight: 5rem;
+    font-weight: 500;
+    color: var(--text-secondary, #495057);
+    margin-bottom: 0.35rem;
+}
+
+.header-subcard .form-control,
+.header-subcard .form-select {
+    font-size: 0.85rem;
+    padding: 0.375rem 0.65rem;
+    border-radius: var(--border-radius-sm, 6px);
+    border-color: var(--border-color);
+    transition: var(--transition-all, all 0.15s ease-in-out);
+}
+
+.header-subcard .form-control:focus,
+.header-subcard .form-select:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.15rem rgba(var(--primary-rgb, 13, 110, 253), 0.15);
+}
+
+/* Select2 RTL Height & Style Normalization */
+.header-subcard .select2-container--default .select2-selection--single,
+.header-subcard .select2-container--bootstrap-5 .select2-selection {
+    min-height: 38px !important;
+    height: 38px !important;
+    border-color: var(--border-color) !important;
+    border-radius: var(--border-radius-sm, 6px) !important;
+    font-size: 0.85rem !important;
+    display: flex !important;
+    align-items: center !important;
+}
+
+.header-subcard .select2-container--default .select2-selection--single .select2-selection__rendered {
+    line-height: 36px !important;
+    padding-right: 0.65rem !important;
+    padding-left: 1.5rem !important;
+    color: var(--text-primary, #212529) !important;
+}
+
+.header-subcard .select2-container--default .select2-selection--single .select2-selection__arrow {
+    height: 36px !important;
+    left: 8px !important;
+    right: auto !important;
+}
+
+@media (max-width: 991.98px) {
+    .header-subcard {
+        padding: 0.85rem 1rem;
+        margin-bottom: 0.75rem;
+    }
+}

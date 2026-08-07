@@ -67,12 +67,27 @@ def common_variables(request):
         # Cache لمدة ساعة
         cache.set(cache_key, company_info, 3600)
 
+    from financial.services.exchange_rate_service import ExchangeRateService
+    try:
+        func_curr_obj = ExchangeRateService.get_functional_currency()
+        func_curr_id = func_curr_obj.id if func_curr_obj else None
+    except Exception:
+        func_curr_id = None
+
+    try:
+        from financial.models.currency import Currency
+        active_currencies = list(Currency.objects.filter(is_active=True).order_by("-is_functional", "code"))
+    except Exception:
+        active_currencies = []
+
     return {
         "current_date": current_date,
         "current_year": current_date.year,
         "currency_symbol": currency_symbol,
         "currency_symbol_en": currency_symbol_en,
+        "active_currencies": active_currencies,
         "functional_currency": {
+            "id": func_curr_id,
             "symbol": currency_symbol,
             "code": currency_symbol_en,
             "name": "العملة المحلية",

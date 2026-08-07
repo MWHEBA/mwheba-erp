@@ -952,6 +952,9 @@ def customer_detail(request, pk):
         "unallocated_prepaid": unallocated_prepaid,
     }
 
+    from client.services.customer_subledger_service import CustomerSubledgerService
+    context["balances_by_currency"] = CustomerSubledgerService.get_customer_balances_by_currency(customer.id)
+
     from core.models import SystemSetting
     currency_symbol = SystemSetting.get_currency_symbol()
 

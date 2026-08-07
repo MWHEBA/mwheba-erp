@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
 {% load i18n %}
+{% load utils_extras %}
 
 {% block title %}{% trans "أسعار الصرف" %}{% endblock %}
 
@@ -49,7 +50,7 @@
             <td class="fw-bold">{{ rate.effective_date|date:"Y-m-d" }}</td>
             <td><span class="badge bg-primary">{{ rate.from_currency.code }}</span> {{ rate.from_currency.name }}</td>
             <td><span class="badge bg-secondary">{{ rate.to_currency.code }}</span> {{ rate.to_currency.name }}</td>
-            <td class="text-end fw-bold text-success">{{ rate.rate|floatformat:"-4" }}</td>
+            <td class="text-end fw-bold text-success">{{ rate.rate|clean_rate }}</td>
             <td class="text-center">
               {% if rate.source == 'CBE_API' %}
                 <span class="badge bg-info-subtle text-info"><i class="fas fa-university me-1"></i>{% trans "البنك المركزي CBE" %}</span>
@@ -153,6 +154,57 @@
     if (previewEl) {
       previewEl.textContent = '1 ' + fromName + ' = ' + rateDisplay + ' ' + toName;
     }
+  }
+
+  function syncLiveExchangeRates() {
+    Swal.fire({
+      title: '{% trans "مزامنة أسعار الصرف" %}',
+      text: '{% trans "هل ترغب في مزامنة وتحديث أسعار الصرف الرسمية المعتمدة لجميع العملات؟" %}',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: '{% trans "نعم، ابدأ المزامنة" %}',
+      cancelButtonText: '{% trans "إلغاء" %}',
+      confirmButtonColor: 'var(--primary-color)'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        Swal.fire({
+          title: '{% trans "جاري المزامنة..." %}',
+          text: '{% trans "يرجى الانتظار لحظات" %}',
+          allowOutsideClick: false,
+          didOpen: () => { Swal.showLoading(); }
+        });
+        $.ajax({
+          url: '{% url "financial:api_sync_exchange_rates" %}',
+          method: 'POST',
+          headers: { 'X-CSRFToken': '{{ csrf_token }}' },
+          success: function(response) {
+            if (response.status === 'SUCCESS') {
+              Swal.fire({
+                icon: 'success',
+                title: '{% trans "تمت المزامنة بنجاح" %}',
+                text: response.message,
+                confirmButtonText: '{% trans "حسناً" %}'
+              }).then(() => { location.reload(); });
+            } else {
+              Swal.fire({
+                icon: 'error',
+                title: '{% trans "خطأ" %}',
+                text: response.message || '{% trans "حدث خطأ أثناء المزامنة" %}',
+                confirmButtonText: '{% trans "حسناً" %}'
+              });
+            }
+          },
+          error: function(xhr) {
+            Swal.fire({
+              icon: 'error',
+              title: '{% trans "خطأ في الاتصال" %}',
+              text: '{% trans "تعذر الاتصال بخدمة المزامنة الرسمية." %}',
+              confirmButtonText: '{% trans "حسناً" %}'
+            });
+          }
+        });
+      }
+    });
   }
 
   document.addEventListener("DOMContentLoaded", function() {

@@ -408,5 +408,6 @@ urlpatterns = [
     path("exchange-rates/", views.exchange_rate_list, name="exchange_rate_list"),
     path("exchange-rates/create/", views.exchange_rate_create, name="exchange_rate_create"),
     path("api/exchange-rates/sync/", views.api_sync_exchange_rates, name="api_sync_exchange_rates"),
+    path("api/exchange-rate/get/", views.api_get_exchange_rate, name="api_get_exchange_rate"),
     path("fx-revaluation/", views.fx_revaluation_view, name="fx_revaluation"),
 ]

@@ -226,7 +226,9 @@ def update_supplier_balance_on_purchase(sender, instance, created, **kwargs):
     if created and instance.payment_method == "credit":
         supplier = instance.supplier
         if supplier:
-            supplier.balance += instance.total
+            rate = getattr(instance, 'exchange_rate', Decimal('1.000000')) or Decimal('1.000000')
+            func_total = getattr(instance, 'total_functional', None) or (instance.total * rate).quantize(Decimal('0.01'))
+            supplier.balance += func_total
             supplier.save(update_fields=["balance"])
 
 

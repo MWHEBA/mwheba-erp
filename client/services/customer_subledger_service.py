@@ -45,7 +45,23 @@ class CustomerSubledgerService:
         balance_data['customer_id'] = customer.id
         balance_data['customer_code'] = customer.code
         balance_data['customer_name'] = customer.name
-        return balance_data
+    @classmethod
+    def get_customer_balances_by_currency(cls, customer_id: int) -> List[Dict[str, Any]]:
+        """
+        جلب مديونية العميل مفصلة بكل عملة (IAS 21 Multi-Currency Subledger)
+        """
+        from client.models import CustomerTransaction
+        from django.db.models import Sum
+        qs = (
+            CustomerTransaction.objects.filter(customer_id=customer_id)
+            .values("currency")
+            .annotate(
+                total_open_foreign=Sum("open_amount_foreign"),
+                total_open_functional=Sum("open_amount_functional")
+            )
+            .filter(total_open_foreign__gt=Decimal("0.00"))
+        )
+        return list(qs)
 
     @classmethod
     def get_customer_statement(

@@ -85,7 +85,7 @@ def currency_list(request):
             "class": "btn-outline-info"
         },
         {
-            "text": _("تحديث الأسعار"),
+            "text": _("تحديث أسعار الصرف"),
             "icon": "fa-sync-alt",
             "onclick": "syncLiveExchangeRates()",
             "class": "btn-outline-primary"
@@ -188,6 +188,12 @@ def exchange_rate_list(request):
             "icon": "fa-arrow-right",
             "url": reverse("financial:currency_list"),
             "class": "btn-outline-secondary"
+        },
+        {
+            "text": _("تحديث أسعار الصرف"),
+            "icon": "fa-sync-alt",
+            "onclick": "syncLiveExchangeRates()",
+            "class": "btn-outline-primary"
         },
         {
             "text": _("تسجيل سعر صرف جديد"),
