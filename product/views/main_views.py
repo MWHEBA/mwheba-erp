@@ -301,7 +301,7 @@ def product_list(request):
         product_headers = [
             {"key": "bulk_checkbox", "label": "☑", "sortable": False, "class": "text-center bulk-checkbox-col", "format": "html", "width": "40px"},
             {"key": "image", "label": "الصورة", "sortable": False, "class": "text-center", "format": "html", "width": "80px"},
-            {"key": "name_with_sku", "label": "اسم المنتج", "sortable": True, "class": "text-start", "format": "html"},
+            {"key": "name_with_sku", "label": "اسم المنتج", "sortable": True, "class": "text-center", "format": "html"},
             {"key": "product_type", "label": "النوع", "sortable": True, "class": "text-center", "format": "html", "width": "100px"},
             {"key": "category", "label": "التصنيف", "sortable": True, "class": "text-center", "format": "html", "width": "120px"},
             {"key": "sale_price", "label": "سعر البيع", "sortable": True, "class": "text-center", "format": "html", "width": "120px"},
@@ -630,7 +630,7 @@ def service_list(request):
         # استرجاع الخدمات فقط
         services = (
             Product.objects.select_related("category", "unit")
-            .prefetch_related("stocks")
+            .prefetch_related("stocks", "images")
             .filter(is_service=True)
             .all()
         )
@@ -678,7 +678,7 @@ def service_list(request):
                 "key": "name_with_sku",
                 "label": "اسم الخدمة",
                 "sortable": True,
-                "class": "text-start",
+                "class": "text-center",
                 "template": "components/cells/product_name_with_sku.html",
             },
             {

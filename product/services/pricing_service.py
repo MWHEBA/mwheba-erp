@@ -432,23 +432,23 @@ class PricingService:
         """
         from product.models import ProductCurrencyPrice, PriceHistory
         user_obj = user if (user and getattr(user, "is_authenticated", False)) else None
+        rate = getattr(currency, "exchange_rate", None) or getattr(currency, "rate", Decimal("1.0"))
         try:
             with transaction.atomic():
-                cp, created = ProductCurrencyPrice.objects.get_or_create(
-                    product=product,
-                    currency=currency,
-                    defaults={
-                        "indicative_selling_price": indicative_selling_price,
-                        "indicative_cost_price": indicative_cost_price,
-                        "created_by": user_obj,
-                        "notes": notes,
-                    },
-                )
+                cp = ProductCurrencyPrice.objects.filter(product=product, currency=currency).first()
+                old_selling = cp.indicative_selling_price if cp else None
+                old_cost = cp.indicative_cost_price if cp else None
 
-                old_selling = cp.indicative_selling_price
-                old_cost = cp.indicative_cost_price
-
-                if not created:
+                if not cp:
+                    cp = ProductCurrencyPrice.objects.create(
+                        product=product,
+                        currency=currency,
+                        indicative_selling_price=indicative_selling_price,
+                        indicative_cost_price=indicative_cost_price,
+                        created_by=user_obj,
+                        notes=notes,
+                    )
+                else:
                     if indicative_selling_price is not None:
                         cp.indicative_selling_price = indicative_selling_price
                     if indicative_cost_price is not None:
@@ -459,29 +459,31 @@ class PricingService:
                         cp.notes = notes
                     cp.save()
 
-                # تسجيل التاريخ لو تم تعديل سعر البيع بالعملة
-                if indicative_selling_price is not None and (created or old_selling != indicative_selling_price):
+                # تسجيل الحركة لسعر البيع بالعملة عند التعديل أو الإنشاء
+                if indicative_selling_price is not None and old_selling != indicative_selling_price:
                     PriceHistory.objects.create(
                         product=product,
                         currency=currency,
+                        exchange_rate=rate,
                         source_type="CATALOG_FX",
                         old_price=old_selling,
                         new_price=indicative_selling_price,
                         change_reason="manual_update",
-                        notes=notes or f"تحديث سعر البيع بالعملة {currency.code}",
+                        notes=f"سعر البيع ({currency.code}): {notes}" if notes else f"تحديث سعر البيع بالـ {currency.code}",
                         changed_by=user_obj,
                     )
 
-                # تسجيل التاريخ لو تم تعديل سعر التكلفة بالعملة
-                if indicative_cost_price is not None and (created or old_cost != indicative_cost_price):
+                # تسجيل الحركة لسعر التكلفة بالعملة عند التعديل أو الإنشاء
+                if indicative_cost_price is not None and old_cost != indicative_cost_price:
                     PriceHistory.objects.create(
                         product=product,
                         currency=currency,
+                        exchange_rate=rate,
                         source_type="CATALOG_FX",
                         old_price=old_cost,
                         new_price=indicative_cost_price,
                         change_reason="manual_update",
-                        notes=notes or f"تحديث سعر التكلفة بالعملة {currency.code}",
+                        notes=f"سعر التكلفة ({currency.code}): {notes}" if notes else f"تحديث سعر التكلفة بالـ {currency.code}",
                         changed_by=user_obj,
                     )
 

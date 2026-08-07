@@ -43,28 +43,28 @@
         <thead>
             <tr>
                 {% for header in headers %}
-                    <th {% if header.width %}style="width: {{ header.width }};"{% endif %} class="{% if header.class %}{{ header.class }}{% endif %} col-{{ header.key }} text-center">
+                    <th {% if header.width %}style="width: {{ header.width }};"{% endif %} class="{{ header.class|default:'text-center' }} col-{{ header.key }}">
                         {% if header.sortable|default:False %}
                             {% if order_by == header.key or current_order_by == header.key %}
                                 {% if order_dir == "asc" or current_order_dir == "asc" %}
-                                    <a href="?{% url_replace request 'order_by' header.key 'order_dir' 'desc' %}" class="table-sort-link active" title="{% trans 'انقر للترتيب' %}">
+                                    <a href="?{% url_replace request 'order_by' header.key 'order_dir' 'desc' %}" class="table-sort-link active {{ header.class|default:'text-center' }}" title="{% trans 'انقر للترتيب' %}">
                                         <span>{{ header.label }}</span>
                                         <i class="fas fa-sort-up sort-icon"></i>
                                     </a>
                                 {% else %}
-                                    <a href="?{% url_replace request 'order_by' header.key 'order_dir' 'asc' %}" class="table-sort-link active" title="{% trans 'انقر للترتيب' %}">
+                                    <a href="?{% url_replace request 'order_by' header.key 'order_dir' 'asc' %}" class="table-sort-link active {{ header.class|default:'text-center' }}" title="{% trans 'انقر للترتيب' %}">
                                         <span>{{ header.label }}</span>
                                         <i class="fas fa-sort-down sort-icon"></i>
                                     </a>
                                 {% endif %}
                             {% else %}
-                                <a href="?{% url_replace request 'order_by' header.key 'order_dir' 'asc' %}" class="table-sort-link" title="{% trans 'انقر للترتيب' %}">
+                                <a href="?{% url_replace request 'order_by' header.key 'order_dir' 'asc' %}" class="table-sort-link {{ header.class|default:'text-center' }}" title="{% trans 'انقر للترتيب' %}">
                                     <span>{{ header.label }}</span>
                                     <i class="fas fa-sort sort-icon"></i>
                                 </a>
                             {% endif %}
                         {% else %}
-                            <span class="d-block text-center">{{ header.label }}</span>
+                            <span class="d-block {{ header.class|default:'text-center' }}">{{ header.label }}</span>
                         {% endif %}
                     </th>
                 {% endfor %}
@@ -750,6 +750,23 @@ function toggleTableColumn(tableId, columnIndex, show) {
 
 <!-- Enhanced Table Styles -->
 <style>
+/* Table Sort Link Alignment */
+.table-sort-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    color: inherit;
+    text-decoration: none;
+}
+th.text-end .table-sort-link,
+.table-sort-link.text-end {
+    justify-content: flex-start;
+}
+th.text-center .table-sort-link,
+.table-sort-link.text-center {
+    justify-content: center;
+}
+
 /* Export Controls */
 .table-export-controls {
     padding: 1rem;

@@ -6,327 +6,383 @@
 {% block title %}{{ page_title|default:"إضافة منتج جديد" }}{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/products-payment-enhancements.css' %}">
 <style>
-.form-check-label small {
-    font-size: 0.875rem;
-    margin-top: 2px;
-}
+    /* ==========================================================================
+       تنسيقات نموذج إضافة وتعديل المنتجات والخدمات (Product / Service Form)
+       ========================================================================== */
 
-.card-header h6 {
-    color: var(--bs-primary);
-}
+    .product-form-container {
+        padding-bottom: 2rem;
+    }
 
-#parent-price-field {
-    transition: all 0.3s ease;
-}
+    .form-section-card {
+        background: var(--white, #ffffff);
+        border: 1px solid var(--border-color, #e5e7eb);
+        border-radius: var(--border-radius, 8px);
+        margin-bottom: 1.25rem;
+    }
 
-.form-switch .form-check-input:checked {
-    background-color: var(--bs-success);
-    border-color: var(--bs-success);
-}
+    .form-section-header {
+        background-color: var(--gray-50, #f9fafb);
+        border-bottom: 1px solid var(--border-color, #e5e7eb);
+        padding: 0.875rem 1.25rem;
+        border-top-left-radius: 8px;
+        border-top-right-radius: 8px;
+    }
+
+    .form-section-title {
+        font-size: 0.9375rem;
+        font-weight: 600;
+        color: var(--gray-800, #1f2937);
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .form-section-body {
+        padding: 1.25rem;
+    }
+
+    .form-check-label small {
+        font-size: 0.8125rem;
+        margin-top: 2px;
+    }
+
+    /* أزرار الإجراءات السفلية */
+    .form-actions-bar {
+        background-color: var(--white, #ffffff);
+        border: 1px solid var(--border-color, #e5e7eb);
+        border-radius: var(--border-radius, 8px);
+        padding: 1rem 1.25rem;
+        display: flex;
+        gap: 0.75rem;
+        align-items: center;
+    }
+
+    .image-preview-card {
+        border: 1px solid var(--border-color, #e5e7eb);
+        border-radius: 6px;
+        overflow: hidden;
+        background: var(--white, #ffffff);
+    }
+
+    .image-preview-card img {
+        height: 120px;
+        width: 100%;
+        object-fit: cover;
+    }
+
+    .image-preview-actions {
+        padding: 0.375rem;
+        background-color: var(--gray-50, #f9fafb);
+        border-top: 1px solid var(--gray-200, #e5e7eb);
+        display: flex;
+        justify-content: center;
+        gap: 0.5rem;
+    }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <!-- CSRF Token -->
-    {% csrf_token %}
-    
+<div class="container-fluid product-form-container">
     <!-- Page Header المركزي -->
     {% include "shared/page_header.html" %}
 
-    <!-- مؤشر نوع العنصر -->
-    {% if form.instance.pk %}
-    <div class="alert {% if form.instance.is_service %}alert-info{% else %}alert-primary{% endif %} mb-3">
-        <div class="d-flex align-items-center">
-            <i class="fas {% if form.instance.is_service %}fa-concierge-bell{% else %}fa-box{% endif %} fa-2x me-3"></i>
-            <div>
-                <h6 class="mb-0">
-                    {% if form.instance.is_service %}
-                        <i class="fas fa-info-circle me-1"></i>تقوم بتعديل خدمة
-                    {% else %}
-                        <i class="fas fa-info-circle me-1"></i>تقوم بتعديل منتج
-                    {% endif %}
-                </h6>
-                <small class="text-muted">
-                    {% if form.instance.is_service %}
-                        الخدمات لا تحتاج إلى إدارة مخزون
-                    {% else %}
-                        المنتجات تتطلب إدارة مخزون
-                    {% endif %}
-                </small>
-            </div>
+    <!-- تنبيه نوع العنصر (منتج أم خدمة) -->
+    <div class="alert {% if form.instance.is_service or is_service %}alert-info{% else %}alert-primary{% endif %} d-flex align-items-center mb-3" role="alert">
+        <i class="fas {% if form.instance.is_service or is_service %}fa-concierge-bell{% else %}fa-box{% endif %} fa-2x me-3"></i>
+        <div>
+            <h6 class="mb-1 fw-bold">
+                {% if form.instance.pk %}
+                    {% if form.instance.is_service %}تعديل خدمة: {{ form.instance.name }}{% else %}تعديل منتج: {{ form.instance.name }}{% endif %}
+                {% else %}
+                    {% if is_service %}إضافة خدمة جديدة{% else %}إضافة منتج جديد{% endif %}
+                {% endif %}
+            </h6>
+            <small class="mb-0">
+                {% if form.instance.is_service or is_service %}
+                    الخدمات لا تتطلب إدارة مخزون أو حدود أمان للكميات.
+                {% else %}
+                    المنتجات تتطلب تتبع المخزون وتحديد كميات الأمان والوحدات.
+                {% endif %}
+            </small>
         </div>
     </div>
-    {% endif %}
 
-    <div class="section-container">
+    <!-- نموذج البيانات الرئيسي -->
+    <form method="post" enctype="multipart/form-data" id="product-form" data-is-edit="{% if form.instance.pk %}true{% else %}false{% endif %}" novalidate>
+        {% csrf_token %}
+
         <div class="row">
-            <div class="col-md-12">
-                <div class="card shadow-sm">
-                    <div class="card-header bg-light">
-                        <h5 class="card-title mb-0">
-                            <i class="fas fa-info-circle me-2"></i>
-                            {% trans "المعلومات الأساسية" %}
-                        </h5>
+            <!-- العمود الأيسر: المعلومات الرئيسية والتسعير -->
+            <div class="col-lg-8 col-md-12">
+                <!-- 1. المعلومات الأساسية -->
+                <div class="form-section-card">
+                    <div class="form-section-header">
+                        <h6 class="form-section-title">
+                            <i class="fas fa-info-circle text-primary"></i>المعلومات الأساسية
+                        </h6>
                     </div>
-                    <div class="card-body">
-                        <form method="post" enctype="multipart/form-data" id="product-form" data-is-edit="{% if form.instance.pk %}true{% else %}false{% endif %}" novalidate>
-                            {% csrf_token %}
-
-                            <div class="row">
-                                <div class="col-lg-8">
-                                    <!-- المعلومات الأساسية -->
-                                    <div class="card shadow-sm mb-3">
-                                        <div class="card-header bg-light">
-                                            <h6 class="mb-0"><i class="fas fa-info-circle me-2"></i>المعلومات الأساسية</h6>
-                                        </div>
-                                        <div class="card-body">
-                                            <div class="row">
-                                                <div class="col-md-6 mb-3">
-                                                    {{ form.name|as_crispy_field }}
-                                                </div>
-                                                <div class="col-md-6 mb-3">
-                                                    {{ form.name_en|as_crispy_field }}
-                                                </div>
-                                                <div class="col-md-6 mb-3">
-                                                    {{ form.description|as_crispy_field }}
-                                                </div>
-                                                <div class="col-md-6 mb-3">
-                                                    {{ form.description_en|as_crispy_field }}
-                                                </div>
-                                                <div class="col-12 mb-3">
-                                                    <div class="position-relative">
-                                                        {{ form.sku|as_crispy_field }}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <!-- التصنيف والوحدة -->
-                                    <div class="card shadow-sm mb-3">
-                                        <div class="card-header bg-light">
-                                            <h6 class="mb-0"><i class="fas fa-tags me-2"></i>التصنيف والوحدة</h6>
-                                        </div>
-                                        <div class="card-body">
-                                            <div class="row">
-                                                <div class="col-md-6 mb-3">
-                                                    <label class="form-label" for="{{ form.category.id_for_label }}">
-                                                        التصنيف{% if form.category.field.required %} <span class="text-danger">*</span>{% endif %}
-                                                    </label>
-                                                    <div class="input-group">
-                                                        <select name="{{ form.category.html_name }}"
-                                                                id="{{ form.category.id_for_label }}"
-                                                                class="form-select{% if form.category.errors %} is-invalid{% endif %}">
-                                                            <option value="">--- اختر التصنيف ---</option>
-                                                            {% for parent, children in form.grouped_category_choices.groups %}
-                                                            <optgroup label="📁 {{ parent.name }}">
-                                                                {% for child in children %}
-                                                                <option value="{{ child.pk }}"
-                                                                    {% if form.category.value|stringformat:"s" == child.pk|stringformat:"s" %}selected{% endif %}>
-                                                                    ↳ {{ child.name }}{% if child.code %} ({{ child.code }}){% endif %}
-                                                                </option>
-                                                                {% endfor %}
-                                                            </optgroup>
-                                                            {% endfor %}
-                                                            {% if form.grouped_category_choices.orphans %}
-                                                            <optgroup label="── تصنيفات رئيسية ──">
-                                                                {% for cat in form.grouped_category_choices.orphans %}
-                                                                <option value="{{ cat.pk }}"
-                                                                    {% if form.category.value|stringformat:"s" == cat.pk|stringformat:"s" %}selected{% endif %}>
-                                                                    📁 {{ cat.name }}{% if cat.code %} ({{ cat.code }}){% endif %}
-                                                                </option>
-                                                                {% endfor %}
-                                                            </optgroup>
-                                                            {% endif %}
-                                                            {% if form.grouped_category_choices.standalone %}
-                                                            <optgroup label="── أخرى ──">
-                                                                {% for cat in form.grouped_category_choices.standalone %}
-                                                                <option value="{{ cat.pk }}"
-                                                                    {% if form.category.value|stringformat:"s" == cat.pk|stringformat:"s" %}selected{% endif %}>
-                                                                    {{ cat.name }}{% if cat.code %} ({{ cat.code }}){% endif %}
-                                                                </option>
-                                                                {% endfor %}
-                                                            </optgroup>
-                                                            {% endif %}
-                                                        </select>
-                                                        <button type="button" class="btn btn-outline-primary" id="btn-add-category-quick" title="إضافة تصنيف جديد">
-                                                            <i class="fas fa-plus"></i>
-                                                        </button>
-                                                    </div>
-                                                    {% if form.category.errors %}
-                                                    <div class="invalid-feedback d-block">{{ form.category.errors.0 }}</div>
-                                                    {% endif %}
-                                                </div>
-                                                <div class="col-md-6 mb-3" id="unit-field">
-                                                    <label class="form-label" for="{{ form.unit.id_for_label }}">
-                                                        وحدة القياس{% if form.unit.field.required %} <span class="text-danger">*</span>{% endif %}
-                                                    </label>
-                                                    <div class="input-group">
-                                                        <select name="{{ form.unit.html_name }}"
-                                                                id="{{ form.unit.id_for_label }}"
-                                                                class="form-select{% if form.unit.errors %} is-invalid{% endif %}">
-                                                            <option value="">--- اختر وحدة القياس ---</option>
-                                                            {% for choice in form.unit.field.choices %}
-                                                                {% if choice.0 %}
-                                                                    <option value="{{ choice.0 }}" {% if form.unit.value|stringformat:"s" == choice.0|stringformat:"s" %}selected{% endif %}>
-                                                                        {{ choice.1 }}
-                                                                    </option>
-                                                                {% endif %}
-                                                            {% endfor %}
-                                                        </select>
-                                                        <button type="button" class="btn btn-outline-primary" id="btn-add-unit-quick" title="إضافة وحدة قياس جديدة">
-                                                            <i class="fas fa-plus"></i>
-                                                        </button>
-                                                    </div>
-                                                    {% if form.unit.errors %}
-                                                    <div class="invalid-feedback d-block">{{ form.unit.errors.0 }}</div>
-                                                    {% endif %}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <!-- الأسعار والمخزون -->
-                                    <div class="card shadow-sm mb-3" id="pricing-stock-card">
-                                        <div class="card-header bg-light">
-                                            <h6 class="mb-0">
-                                                <i class="fas fa-dollar-sign me-2"></i>
-                                                <span id="pricing-title">الأسعار والمخزون</span>
-                                            </h6>
-                                        </div>
-                                        <div class="card-body">
-                                            <div class="row">
-                                                <div class="col-md-4 mb-3">
-                                                    {{ form.cost_price|as_crispy_field }}
-                                                </div>
-                                                <div class="col-md-4 mb-3">
-                                                    {{ form.selling_price|as_crispy_field }}
-                                                </div>
-                                                <div class="col-md-4 mb-3" id="min-stock-field">
-                                                    {{ form.min_stock|as_crispy_field }}
-                                                </div>
-                                                <div class="col-md-12 mb-3">
-                                                    {{ form.barcode|as_crispy_field }}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="col-lg-4">
-                                    <!-- الخيارات العامة -->
-                                    <div class="card shadow-sm mb-4">
-                                        <div class="card-header bg-light">
-                                            <h6 class="card-title mb-0"><i class="fas fa-cog me-2"></i>الخيارات العامة</h6>
-                                        </div>
-                                        <div class="card-body">
-                                            <input type="hidden" name="is_service" value="{% if form.instance.is_service or is_service %}True{% else %}False{% endif %}">
-                                            <div class="form-check mb-3">
-                                                {{ form.is_active }}
-                                                <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
-                                                    <strong>نشط</strong>
-                                                    <small class="d-block text-muted">هل متاح للبيع؟</small>
-                                                </label>
-                                            </div>
-                                            <div class="form-check mb-3">
-                                                {{ form.is_featured }}
-                                                <label class="form-check-label" for="{{ form.is_featured.id_for_label }}">
-                                                    <strong>مميز</strong>
-                                                    <small class="d-block text-muted">هل مميز في العرض؟</small>
-                                                </label>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <!-- البيع للأهالي محذوف -->
-
-                                    {% if form.instance.pk %}
-                                    <div class="card shadow-sm mb-4">
-                                        <div class="card-header bg-light d-flex justify-content-between">
-                                            <h6 class="card-title mb-0">{% trans "الصور" %}</h6>
-                                            <button type="button" class="btn btn-sm btn-outline-primary" id="add-image-btn">
-                                                <i class="fas fa-plus"></i>
-                                            </button>
-                                        </div>
-                                        <div class="card-body">
-                                            <div id="product-images">
-                                                {% if form.instance.images.exists %}
-                                                <div class="row">
-                                                    {% for image in form.instance.images.all %}
-                                                    <div class="col-6 mb-3">
-                                                        <div class="card">
-                                                            <img src="{{ image.image.url }}" class="card-img-top" alt="{{ image.alt_text }}">
-                                                            <div class="card-body p-2 text-center">
-                                                                <a href="#" class="btn btn-sm btn-outline-danger delete-image" data-id="{{ image.id }}">
-                                                                    <i class="fas fa-trash"></i>
-                                                                </a>
-                                                                <a href="#" class="btn btn-sm btn-outline-info {% if image.is_primary %}active{% endif %}" data-id="{{ image.id }}">
-                                                                    <i class="fas fa-star"></i>
-                                                                </a>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    {% endfor %}
-                                                </div>
-                                                {% else %}
-                                                <p class="text-center text-muted">{% trans "لا توجد صور" %}</p>
-                                                {% endif %}
-                                            </div>
-                                        </div>
-                                    </div>
-                                    {% endif %}
+                    <div class="form-section-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                {{ form.name|as_crispy_field }}
+                            </div>
+                            <div class="col-md-6">
+                                {{ form.name_en|as_crispy_field }}
+                            </div>
+                            <div class="col-12">
+                                <div class="position-relative">
+                                    {{ form.sku|as_crispy_field }}
                                 </div>
                             </div>
-
-                            <div class="form-actions mt-3">
-                                <button type="submit" class="btn btn-primary">
-                                    <i class="fas fa-save me-2"></i>{% trans "حفظ" %}
-                                </button>
-                                <a href="{% url 'product:product_list' %}" class="btn btn-secondary">
-                                    <i class="fas fa-times me-2"></i>{% trans "إلغاء" %}
-                                </a>
+                            <div class="col-md-6">
+                                {{ form.description|as_crispy_field }}
                             </div>
-                        </form>
+                            <div class="col-md-6">
+                                {{ form.description_en|as_crispy_field }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. التصنيف ووحدة القياس -->
+                <div class="form-section-card">
+                    <div class="form-section-header">
+                        <h6 class="form-section-title">
+                            <i class="fas fa-tags text-primary"></i>التصنيف ووحدة القياس
+                        </h6>
+                    </div>
+                    <div class="form-section-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-medium" for="{{ form.category.id_for_label }}">
+                                    التصنيف{% if form.category.field.required %} <span class="text-danger">*</span>{% endif %}
+                                </label>
+                                <div class="input-group">
+                                    <select name="{{ form.category.html_name }}"
+                                            id="{{ form.category.id_for_label }}"
+                                            class="form-select{% if form.category.errors %} is-invalid{% endif %}">
+                                        <option value="">--- اختر التصنيف ---</option>
+                                        {% for parent, children in form.grouped_category_choices.groups %}
+                                        <optgroup label="📁 {{ parent.name }}">
+                                            {% for child in children %}
+                                            <option value="{{ child.pk }}"
+                                                {% if form.category.value|stringformat:"s" == child.pk|stringformat:"s" %}selected{% endif %}>
+                                                ↳ {{ child.name }}{% if child.code %} ({{ child.code }}){% endif %}
+                                            </option>
+                                            {% endfor %}
+                                        </optgroup>
+                                        {% endfor %}
+                                        {% if form.grouped_category_choices.orphans %}
+                                        <optgroup label="── تصنيفات رئيسية ──">
+                                            {% for cat in form.grouped_category_choices.orphans %}
+                                            <option value="{{ cat.pk }}"
+                                                {% if form.category.value|stringformat:"s" == cat.pk|stringformat:"s" %}selected{% endif %}>
+                                                📁 {{ cat.name }}{% if cat.code %} ({{ cat.code }}){% endif %}
+                                            </option>
+                                            {% endfor %}
+                                        </optgroup>
+                                        {% endif %}
+                                        {% if form.grouped_category_choices.standalone %}
+                                        <optgroup label="── أخرى ──">
+                                            {% for cat in form.grouped_category_choices.standalone %}
+                                            <option value="{{ cat.pk }}"
+                                                {% if form.category.value|stringformat:"s" == cat.pk|stringformat:"s" %}selected{% endif %}>
+                                                {{ cat.name }}{% if cat.code %} ({{ cat.code }}){% endif %}
+                                            </option>
+                                            {% endfor %}
+                                        </optgroup>
+                                        {% endif %}
+                                    </select>
+                                    <button type="button" class="btn btn-outline-primary" id="btn-add-category-quick" title="إضافة تصنيف جديد">
+                                        <i class="fas fa-plus"></i>
+                                    </button>
+                                </div>
+                                {% if form.category.errors %}
+                                <div class="invalid-feedback d-block">{{ form.category.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+
+                            <div class="col-md-6" id="unit-field">
+                                <label class="form-label fw-medium" for="{{ form.unit.id_for_label }}">
+                                    وحدة القياس{% if form.unit.field.required %} <span class="text-danger">*</span>{% endif %}
+                                </label>
+                                <div class="input-group">
+                                    <select name="{{ form.unit.html_name }}"
+                                            id="{{ form.unit.id_for_label }}"
+                                            class="form-select{% if form.unit.errors %} is-invalid{% endif %}">
+                                        <option value="">--- اختر وحدة القياس ---</option>
+                                        {% for choice in form.unit.field.choices %}
+                                            {% if choice.0 %}
+                                                <option value="{{ choice.0 }}" {% if form.unit.value|stringformat:"s" == choice.0|stringformat:"s" %}selected{% endif %}>
+                                                    {{ choice.1 }}
+                                                </option>
+                                            {% endif %}
+                                        {% endfor %}
+                                    </select>
+                                    <button type="button" class="btn btn-outline-primary" id="btn-add-unit-quick" title="إضافة وحدة قياس جديدة">
+                                        <i class="fas fa-plus"></i>
+                                    </button>
+                                </div>
+                                {% if form.unit.errors %}
+                                <div class="invalid-feedback d-block">{{ form.unit.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. الأسعار والمخزون والباركود -->
+                <div class="form-section-card" id="pricing-stock-card">
+                    <div class="form-section-header">
+                        <h6 class="form-section-title">
+                            <i class="fas fa-dollar-sign text-primary"></i>
+                            <span id="pricing-title">الأسعار والمخزون</span>
+                        </h6>
+                    </div>
+                    <div class="form-section-body">
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                {{ form.cost_price|as_crispy_field }}
+                            </div>
+                            <div class="col-md-4">
+                                {{ form.selling_price|as_crispy_field }}
+                            </div>
+                            <div class="col-md-4" id="min-stock-field">
+                                {{ form.min_stock|as_crispy_field }}
+                            </div>
+                            <div class="col-12">
+                                {{ form.barcode|as_crispy_field }}
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
+
+            <!-- العمود الأيمن: الخيارات العامة والصور -->
+            <div class="col-lg-4 col-md-12">
+                <!-- الخيارات العامة وحالة التفعيل -->
+                <div class="form-section-card">
+                    <div class="form-section-header">
+                        <h6 class="form-section-title"><i class="fas fa-cog text-secondary"></i>الخيارات والتفعيل</h6>
+                    </div>
+                    <div class="form-section-body">
+                        <input type="hidden" name="is_service" value="{% if form.instance.is_service or is_service %}True{% else %}False{% endif %}">
+                        
+                        <div class="form-check mb-3">
+                            {{ form.is_active }}
+                            <label class="form-check-label ms-1" for="{{ form.is_active.id_for_label }}">
+                                <strong>حالة التفعيل (نشط)</strong>
+                                <small class="d-block text-muted">هل العنصر متاح للعمليات التجارية والبيع؟</small>
+                            </label>
+                        </div>
+
+                        <div class="form-check mb-2">
+                            {{ form.is_featured }}
+                            <label class="form-check-label ms-1" for="{{ form.is_featured.id_for_label }}">
+                                <strong>عنصر مميز</strong>
+                                <small class="d-block text-muted">هل يتم تمييزه في الشاشات والقوائم السريعة؟</small>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- إدارة الصور (في حالة التعديل) -->
+                {% if form.instance.pk %}
+                <div class="form-section-card">
+                    <div class="form-section-header d-flex justify-content-between align-items-center">
+                        <h6 class="form-section-title"><i class="fas fa-images text-primary"></i>معرض الصور</h6>
+                        <button type="button" class="btn btn-xs btn-outline-primary" id="add-image-btn">
+                            <i class="fas fa-plus me-1"></i>إضافة صورة
+                        </button>
+                    </div>
+                    <div class="form-section-body">
+                        <div id="product-images">
+                            {% if form.instance.images.exists %}
+                            <div class="row g-2">
+                                {% for image in form.instance.images.all %}
+                                <div class="col-6">
+                                    <div class="image-preview-card">
+                                        <img src="{{ image.image.url }}" alt="{{ image.alt_text|default:form.instance.name }}">
+                                        <div class="image-preview-actions">
+                                            <button type="button" class="btn btn-xs btn-outline-danger delete-image" data-id="{{ image.id }}" title="حذف الصورة">
+                                                <i class="fas fa-trash-alt"></i>
+                                            </button>
+                                            <button type="button" class="btn btn-xs btn-outline-warning {% if image.is_primary %}active{% endif %}" data-id="{{ image.id }}" title="صورة رئيسية">
+                                                <i class="fas fa-star"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% else %}
+                            <div class="text-center text-muted py-3">
+                                <i class="fas fa-image fa-2x mb-2 opacity-50"></i>
+                                <p class="small mb-0">لا توجد صور مرفوعة لهذا المنتج</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
         </div>
-    </div>
+
+        <!-- أزرار الإجراءات السفلية -->
+        <div class="form-actions-bar mt-2">
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-save me-1"></i>حفظ البيانات
+            </button>
+            {% if form.instance.pk %}
+            <a href="{% url 'product:product_detail' form.instance.pk %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-right me-1"></i>العودة للتفاصيل
+            </a>
+            {% else %}
+            <a href="{% url 'product:product_list' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-times me-1"></i>إلغاء
+            </a>
+            {% endif %}
+        </div>
+    </form>
 </div>
+
+<!-- ==========================================================================
+   المودالات التفاعلية المنسدلة (Modals)
+   ========================================================================== -->
 
 <!-- نافذة منبثقة لإضافة صورة -->
 <div class="modal fade" id="imageModal" tabindex="-1" aria-labelledby="imageModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="imageModalLabel">{% trans "إضافة صورة" %}</h5>
+                <h5 class="modal-title fw-bold" id="imageModalLabel"><i class="fas fa-upload me-2 text-primary"></i>إضافة صورة</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
                 <form id="image-form" enctype="multipart/form-data">
                     {% csrf_token %}
                     <div class="mb-3">
-                        <label for="image-file" class="form-label">{% trans "الصورة" %}</label>
+                        <label for="image-file" class="form-label fw-medium">الصورة <span class="text-danger">*</span></label>
                         <input type="file" class="form-control" id="image-file" name="image" accept="image/*" required>
                     </div>
                     <div class="mb-3">
-                        <label for="image-alt" class="form-label">{% trans "نص بديل" %}</label>
-                        <input type="text" class="form-control" id="image-alt" name="alt_text">
+                        <label for="image-alt" class="form-label fw-medium">نص بديل (اختياري)</label>
+                        <input type="text" class="form-control" id="image-alt" name="alt_text" placeholder="وصف الصورة">
                     </div>
                     <div class="form-check mb-3">
                         <input class="form-check-input" type="checkbox" id="image-primary" name="is_primary">
-                        <label class="form-check-label" for="image-primary">
-                            {% trans "صورة رئيسية" %}
+                        <label class="form-check-label ms-1" for="image-primary">
+                            جعلها الصورة الرئيسية
                         </label>
                     </div>
                 </form>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
-                <button type="button" class="btn btn-primary" id="save-image-btn">{% trans "حفظ" %}</button>
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">إلغاء</button>
+                <button type="button" class="btn btn-primary btn-sm" id="save-image-btn"><i class="fas fa-save me-1"></i>رفع وحفظ</button>
             </div>
         </div>
     </div>
@@ -337,45 +393,45 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="categoryModalLabel">إضافة تصنيف جديد</h5>
+                <h5 class="modal-title fw-bold" id="categoryModalLabel"><i class="fas fa-folder-plus me-2 text-primary"></i>إضافة تصنيف جديد</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
                 <form id="category-form-modal">
                     {% csrf_token %}
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label for="modal-cat-name" class="form-label">اسم التصنيف (عربي) <span class="text-danger">*</span></label>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="modal-cat-name" class="form-label fw-medium">اسم التصنيف (عربي) <span class="text-danger">*</span></label>
                             <input type="text" class="form-control" id="modal-cat-name" name="name" required placeholder="اسم التصنيف (عربي)">
                         </div>
-                        <div class="col-md-6 mb-3">
-                            <label for="modal-cat-name-en" class="form-label">اسم التصنيف (English)</label>
+                        <div class="col-md-6">
+                            <label for="modal-cat-name-en" class="form-label fw-medium">اسم التصنيف (English)</label>
                             <input type="text" class="form-control" id="modal-cat-name-en" name="name_en" placeholder="Category Name (English)">
                         </div>
-                    </div>
-                    <div class="mb-3">
-                        <label for="modal-cat-code" class="form-label">رمز التصنيف (اختياري)</label>
-                        <input type="text" class="form-control" id="modal-cat-code" name="code">
-                        <small class="text-muted">رمز مختصر للتصنيف (مثل: SUP)</small>
-                    </div>
-                    <div class="mb-3">
-                        <label for="modal-cat-parent" class="form-label">التصنيف الأم (اختياري)</label>
-                        <select class="form-select" id="modal-cat-parent" name="parent">
-                            <option value="">--- تصنيف رئيسي ---</option>
-                            {% for cat in form.fields.category.queryset %}
-                                <option value="{{ cat.pk }}">{{ cat.name }}{% if cat.name_en %} / {{ cat.name_en }}{% endif %}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label for="modal-cat-description" class="form-label">الوصف (اختياري)</label>
-                        <textarea class="form-control" id="modal-cat-description" name="description" rows="2"></textarea>
+                        <div class="col-12">
+                            <label for="modal-cat-code" class="form-label fw-medium">رمز التصنيف (اختياري)</label>
+                            <input type="text" class="form-control" id="modal-cat-code" name="code" placeholder="مثل: SUP">
+                            <small class="text-muted">رمز مختصر للتصنيف (مثل: SUP للمواد والأنشطة)</small>
+                        </div>
+                        <div class="col-12">
+                            <label for="modal-cat-parent" class="form-label fw-medium">التصنيف الأم (اختياري)</label>
+                            <select class="form-select" id="modal-cat-parent" name="parent">
+                                <option value="">--- تصنيف رئيسي ---</option>
+                                {% for cat in form.fields.category.queryset %}
+                                    <option value="{{ cat.pk }}">{{ cat.name }}{% if cat.name_en %} / {{ cat.name_en }}{% endif %}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label for="modal-cat-description" class="form-label fw-medium">الوصف (اختياري)</label>
+                            <textarea class="form-control" id="modal-cat-description" name="description" rows="2"></textarea>
+                        </div>
                     </div>
                 </form>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
-                <button type="button" class="btn btn-primary" id="save-category-modal-btn">حفظ</button>
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">إلغاء</button>
+                <button type="button" class="btn btn-primary btn-sm" id="save-category-modal-btn"><i class="fas fa-save me-1"></i>حفظ التصنيف</button>
             </div>
         </div>
     </div>
@@ -386,32 +442,32 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="unitModalLabel">إضافة وحدة قياس جديدة</h5>
+                <h5 class="modal-title fw-bold" id="unitModalLabel"><i class="fas fa-ruler me-2 text-primary"></i>إضافة وحدة قياس جديدة</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
                 <form id="unit-form-modal">
                     {% csrf_token %}
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label for="modal-unit-name" class="form-label">اسم الوحدة (عربي) <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" id="modal-unit-name" name="name" required placeholder="اسم الوحدة (عربي)">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="modal-unit-name" class="form-label fw-medium">اسم الوحدة (عربي) <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="modal-unit-name" name="name" required placeholder="مثل: قطعة، كيلو">
                         </div>
-                        <div class="col-md-6 mb-3">
-                            <label for="modal-unit-name-en" class="form-label">اسم الوحدة (English)</label>
+                        <div class="col-md-6">
+                            <label for="modal-unit-name-en" class="form-label fw-medium">اسم الوحدة (English)</label>
                             <input type="text" class="form-control" id="modal-unit-name-en" name="name_en" placeholder="Unit Name (English)">
                         </div>
-                    </div>
-                    <div class="mb-3">
-                        <label for="modal-unit-symbol" class="form-label">الرمز <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="modal-unit-symbol" name="symbol" required placeholder="مثال: Pcs">
-                        <small class="text-muted">الرمز المختصر للوحدة (مثل: كجم، متر، حبة)</small>
+                        <div class="col-12">
+                            <label for="modal-unit-symbol" class="form-label fw-medium">الرمز <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="modal-unit-symbol" name="symbol" required placeholder="مثل: Pcs, Kg">
+                            <small class="text-muted">الرمز المختصر للوحدة المستخدم بالفواتير</small>
+                        </div>
                     </div>
                 </form>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
-                <button type="button" class="btn btn-primary" id="save-unit-modal-btn">حفظ</button>
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">إلغاء</button>
+                <button type="button" class="btn btn-primary btn-sm" id="save-unit-modal-btn"><i class="fas fa-save me-1"></i>حفظ الوحدة</button>
             </div>
         </div>
     </div>
@@ -421,10 +477,8 @@
 {% block extra_js %}
 <script>
     $(document).ready(function() {
-        
         // التحكم في إظهار/إخفاء حقول المخزون للخدمات
         function toggleStockFields() {
-            // التحقق من وجود checkbox أو hidden field
             const isServiceCheckbox = $('#id_is_service');
             const isServiceHidden = $('input[name="is_service"][type="hidden"]');
             
@@ -441,51 +495,36 @@
             const pricingTitle = $('#pricing-title');
             
             if (isService) {
-                // إخفاء حقول المخزون
-                minStockField.slideUp(300);
+                minStockField.slideUp(200);
                 $('#id_min_stock').val(0).prop('required', false);
-                
-                // جعل وحدة القياس اختيارية
                 unitField.find('label').html('وحدة القياس <small class="text-muted">(اختياري)</small>');
                 $('#id_unit').prop('required', false);
-                
-                // جعل سعر التكلفة اختياري
                 costPriceField.find('label').html('سعر التكلفة <small class="text-muted">(اختياري)</small>');
                 $('#id_cost_price').prop('required', false);
-                
                 pricingTitle.html('<i class="fas fa-dollar-sign me-2"></i>الأسعار');
             } else {
-                // إظهار حقول المخزون
-                minStockField.slideDown(300);
+                minStockField.slideDown(200);
                 $('#id_min_stock').prop('required', false);
-                
-                // جعل وحدة القياس إجبارية
                 unitField.find('label').html('وحدة القياس <span class="text-danger">*</span>');
                 $('#id_unit').prop('required', true);
-                
-                // جعل سعر التكلفة إجباري
                 costPriceField.find('label').html('سعر التكلفة <span class="text-danger">*</span>');
                 $('#id_cost_price').prop('required', true);
-                
                 pricingTitle.html('<i class="fas fa-dollar-sign me-2"></i>الأسعار والمخزون');
             }
         }
         
-        // تشغيل عند تحميل الصفحة
         toggleStockFields();
         
-        // تشغيل عند تغيير الحالة (فقط إذا كان الـ checkbox موجود)
         $('#id_is_service').change(function() {
             toggleStockFields();
         });
         
-        // التحكم في توليد الكود التلقائي
+        // توليد كود SKU تلقائي
         function generateSKU() {
             const categorySelect = $('#id_category');
             const skuField = $('#id_sku');
             
             if (categorySelect.val() && !skuField.val()) {
-                // إرسال طلب AJAX لتوليد الكود
                 $.ajax({
                     url: '{% url "product:generate_sku" %}',
                     type: 'POST',
@@ -495,30 +534,22 @@
                     },
                     success: function(response) {
                         if (response.success) {
-                            skuField.val(response.sku);
-                            skuField.addClass('auto-generated');
-                            // إضافة تأثير بصري للإشارة للتوليد التلقائي
-                            skuField.animate({backgroundColor: '#d4edda'}, 300)
-                                   .delay(1000)
-                                   .animate({backgroundColor: '#fff'}, 300);
+                            skuField.val(response.sku).addClass('auto-generated');
                         }
                     },
-                    error: function() {
-                        console.log('خطأ في توليد الكود');
-                    }
+                    error: function() { console.log('خطأ في توليد الكود'); }
                 });
             }
         }
         
-        // توليد الكود عند تغيير التصنيف
         $('#id_category').change(function() {
             const skuField = $('#id_sku');
-            // توليد كود جديد فقط إذا كان الحقل فارغ أو تم توليده تلقائياً
             if (!skuField.val() || skuField.hasClass('auto-generated')) {
                 skuField.val('').removeClass('auto-generated');
                 generateSKU();
             }
         });
+
         function validatePrices() {
             const costPrice = parseFloat($('#id_cost_price').val()) || 0;
             const sellingPrice = parseFloat($('#id_selling_price').val()) || 0;
@@ -527,11 +558,9 @@
                 alert('سعر البيع يجب أن يكون أكبر من سعر التكلفة');
                 return false;
             }
-            
             return true;
         }
         
-        // التحقق عند إرسال النموذج
         $('#product-form').submit(function(e) {
             if (!validatePrices()) {
                 e.preventDefault();
@@ -539,7 +568,6 @@
             }
         });
         
-        // زر إضافة صورة جديدة
         $('#add-image-btn').click(function() {
             $('#image-form')[0].reset();
             $('#imageModal').modal('show');
@@ -547,7 +575,6 @@
         
         const isEditMode = $('#product-form').data('is-edit') === true;
         if (isEditMode) {
-            // حفظ الصورة الجديدة
             $('#save-image-btn').click(function() {
                 const formData = new FormData($('#image-form')[0]);
                 formData.append('product_id', '{{ form.instance.pk|default:"" }}');
@@ -561,24 +588,22 @@
                     success: function(response) {
                         if (response.success) {
                             $('#imageModal').modal('hide');
-                            // تحديث صفحة الصور
                             location.reload();
                         } else {
                             alert(response.error);
                         }
                     },
-                    error: function(xhr, textStatus, errorThrown) {
-                        alert('{% trans "حدث خطأ أثناء رفع الصورة" %}');
+                    error: function() {
+                        alert('حدث خطأ أثناء رفع الصورة');
                     }
                 });
             });
             
-            // حذف صورة
             $('.delete-image').click(function(e) {
                 e.preventDefault();
                 const imageId = $(this).data('id');
                 
-                if (confirm('{% trans "هل أنت متأكد من حذف هذه الصورة؟" %}')) {
+                if (confirm('هل أنت متأكد من حذف هذه الصورة؟')) {
                     $.ajax({
                         url: `/products/images/${imageId}/delete/`,
                         type: 'POST',
@@ -590,32 +615,27 @@
                         },
                         success: function(response) {
                             if (response.success) {
-                                alert(response.message || 'تم حذف الصورة بنجاح');
+                                if (typeof toastr !== 'undefined') toastr.success(response.message || 'تم حذف الصورة بنجاح');
                                 location.reload();
                             } else {
                                 alert(response.error || 'حدث خطأ أثناء حذف الصورة');
                             }
                         },
                         error: function(xhr, status, error) {
-                            console.error('Error details:', xhr.responseText);
-                            alert('{% trans "حدث خطأ أثناء حذف الصورة" %}: ' + error);
+                            alert('حدث خطأ أثناء حذف الصورة: ' + error);
                         }
                     });
                 }
             });
         }
 
-        // ==========================================
-        // إضافة سريعة للتصنيفات والوحدات عبر الأجاكس
-        // ==========================================
-        // فتح مودال إضافة التصنيف
+        // إضافة سريعة للتصنيفات والوحدات عبر AJAX
         $('#btn-add-category-quick').click(function(e) {
             e.preventDefault();
             $('#category-form-modal')[0].reset();
             $('#categoryModal').modal('show');
         });
 
-        // حفظ التصنيف الجديد عبر الأجاكس
         $('#save-category-modal-btn').click(function(e) {
             e.preventDefault();
             var $btn = $(this);
@@ -626,30 +646,21 @@
             }
 
             $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i> جاري الحفظ...');
-
             var formData = $('#category-form-modal').serialize();
 
             $.ajax({
                 url: '{% url "product:category_create" %}',
                 type: 'POST',
                 data: formData,
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                },
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
                 success: function(response) {
                     if (response.success) {
                         $('#categoryModal').modal('hide');
-                        if (typeof toastr !== 'undefined') {
-                            toastr.success(response.message);
-                        } else {
-                            alert(response.message);
-                        }
+                        if (typeof toastr !== 'undefined') toastr.success(response.message);
 
-                        // إضافة التصنيف الجديد للقائمة واختياره
                         var categorySelect = $('#id_category');
                         var newOption = $('<option>').val(response.category_id).text(response.category_name);
                         
-                        // إضافته أيضاً لقائمة التصنيفات الأب في المودال
                         var modalParentSelect = $('#modal-cat-parent');
                         modalParentSelect.append($('<option>').val(response.category_id).text(response.category_name));
 
@@ -664,23 +675,17 @@
                         alert(errorMsg || 'حدث خطأ أثناء حفظ التصنيف');
                     }
                 },
-                error: function() {
-                    alert('حدث خطأ في الاتصال بالخادم');
-                },
-                complete: function() {
-                    $btn.prop('disabled', false).text('حفظ');
-                }
+                error: function() { alert('حدث خطأ في الاتصال بالخادم'); },
+                complete: function() { $btn.prop('disabled', false).text('حفظ'); }
             });
         });
 
-        // فتح مودال إضافة الوحدة
         $('#btn-add-unit-quick').click(function(e) {
             e.preventDefault();
             $('#unit-form-modal')[0].reset();
             $('#unitModal').modal('show');
         });
 
-        // حفظ وحدة القياس الجديدة عبر الأجاكس
         $('#save-unit-modal-btn').click(function(e) {
             e.preventDefault();
             var $btn = $(this);
@@ -692,26 +697,18 @@
             }
 
             $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i> جاري الحفظ...');
-
             var formData = $('#unit-form-modal').serialize();
 
             $.ajax({
                 url: '{% url "product:unit_create" %}',
                 type: 'POST',
                 data: formData,
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                },
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
                 success: function(response) {
                     if (response.success) {
                         $('#unitModal').modal('hide');
-                        if (typeof toastr !== 'undefined') {
-                            toastr.success(response.message);
-                        } else {
-                            alert(response.message);
-                        }
+                        if (typeof toastr !== 'undefined') toastr.success(response.message);
 
-                        // إضافة الوحدة الجديدة للقائمة واختيارها
                         var unitSelect = $('#id_unit');
                         var newOption = $('<option>').val(response.unit_id).text(response.unit_name + ' (' + symbol + ')');
                         unitSelect.append(newOption).val(response.unit_id).trigger('change');
@@ -725,14 +722,10 @@
                         alert(errorMsg || 'حدث خطأ أثناء حفظ وحدة القياس');
                     }
                 },
-                error: function() {
-                    alert('حدث خطأ في الاتصال بالخادم');
-                },
-                complete: function() {
-                    $btn.prop('disabled', false).text('حفظ');
-                }
+                error: function() { alert('حدث خطأ في الاتصال بالخادم'); },
+                complete: function() { $btn.prop('disabled', false).text('حفظ'); }
             });
         });
     });
 </script>
-{% endblock %} 
+{% endblock %}

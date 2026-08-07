@@ -1,16 +1,33 @@
 {% load static %}
 <div style="display: flex; justify-content: center; align-items: center;">
-    {% if object.has_images %}
-        {% with primary_image=object.get_primary_image %}
+    {% with prod=value|default:object %}
+    {% if prod and prod.has_images %}
+        {% with primary_image=prod.get_primary_image %}
+        {% if primary_image and primary_image.image %}
         <img src="{{ primary_image.image.url }}" 
-             alt="{{ object.name }}" 
+             alt="{{ prod.name }}" 
              class="product-thumbnail"
              style="width: 50px; height: 50px; object-fit: cover; border-radius: 8px; border: 1px solid #dee2e6;">
+        {% else %}
+        <div class="product-thumbnail-placeholder" 
+             style="width: 50px; height: 50px; background: #f8f9fa; border-radius: 8px; border: 1px solid #dee2e6; display: flex; align-items: center; justify-content: center;">
+            {% if prod.is_service %}
+            <i class="fas fa-concierge-bell text-muted" style="font-size: 1.2rem;"></i>
+            {% else %}
+            <i class="fas fa-image text-muted" style="font-size: 1.2rem;"></i>
+            {% endif %}
+        </div>
+        {% endif %}
         {% endwith %}
     {% else %}
         <div class="product-thumbnail-placeholder" 
              style="width: 50px; height: 50px; background: #f8f9fa; border-radius: 8px; border: 1px solid #dee2e6; display: flex; align-items: center; justify-content: center;">
+            {% if prod.is_service %}
+            <i class="fas fa-concierge-bell text-muted" style="font-size: 1.2rem;"></i>
+            {% else %}
             <i class="fas fa-image text-muted" style="font-size: 1.2rem;"></i>
+            {% endif %}
         </div>
     {% endif %}
+    {% endwith %}
 </div>

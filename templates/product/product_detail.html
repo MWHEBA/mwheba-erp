@@ -17,254 +17,196 @@
 </script>
 
 <style>
-    
-    .info-card {
-        background: white;
-        border: 1px solid #dee2e6;
-        border-radius: 8px;
-        padding: 1.5rem;
+    /* ==========================================================================
+       تنسيقات صفحة تفاصيل المنتج والخدمات - موحدة باستخدام متغيرات النظام فقط (:root)
+       ========================================================================== */
+
+    .product-detail-container {
+        padding-bottom: 2rem;
+    }
+
+    /* Hero Master Banner */
+    .hero-master-card {
+        background-color: var(--white, #ffffff);
+        border: 1px solid var(--border-color, #e5e7eb);
+        border-radius: var(--border-radius, 8px);
+        padding: 1.25rem;
         margin-bottom: 1.5rem;
     }
-    
-    .info-card h5 {
-        color: #495057;
-        margin-bottom: 1rem;
-        font-weight: 600;
-        border-bottom: 1px solid #e9ecef;
-        padding-bottom: 0.5rem;
+
+    .product-main-img-box {
+        position: relative;
+        text-align: center;
+        background-color: var(--gray-50, #f9fafb);
+        border: 1px solid var(--border-color, #e5e7eb);
+        border-radius: var(--border-radius, 6px);
+        padding: 0.75rem;
     }
-    
+
+    .product-main-img-box img {
+        max-height: 220px;
+        width: 100%;
+        object-fit: contain;
+        border-radius: 4px;
+        transition: opacity 0.2s ease-in-out;
+    }
+
+    .thumb-img {
+        width: 54px;
+        height: 54px;
+        object-fit: cover;
+        border: 1px solid var(--border-color, #e5e7eb);
+        border-radius: 4px;
+        cursor: pointer;
+        transition: border-color 0.2s ease;
+    }
+
+    .thumb-img:hover {
+        border-color: var(--primary-color, #04578d);
+    }
+
+    /* KPI Summary Cards */
+    .kpi-stat-card {
+        background-color: var(--white, #ffffff);
+        border: 1px solid var(--border-color, #e5e7eb);
+        border-radius: var(--border-radius, 8px);
+        padding: 1rem;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+    }
+
+    .kpi-title {
+        font-size: 0.8125rem;
+        font-weight: 500;
+        color: var(--gray-500, #6b7280);
+        margin-bottom: 0.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .kpi-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--gray-800, #1f2937);
+        margin-bottom: 0.25rem;
+    }
+
+    .kpi-sub {
+        font-size: 0.775rem;
+        color: var(--gray-500, #6b7280);
+    }
+
+    /* Tabbed Navigation Styling */
+    .nav-tabs-custom {
+        border-bottom: 2px solid var(--border-color, #e5e7eb);
+        margin-bottom: 1.5rem;
+    }
+
+    .nav-tabs-custom .nav-link {
+        color: var(--gray-600, #4b5563);
+        font-weight: 600;
+        font-size: 0.9375rem;
+        border: none;
+        border-bottom: 3px solid transparent;
+        padding: 0.75rem 1.25rem;
+        background: transparent;
+        transition: all 0.2s ease;
+    }
+
+    .nav-tabs-custom .nav-link:hover {
+        color: var(--primary-color, #04578d);
+        border-bottom-color: var(--gray-300, #d1d5db);
+    }
+
+    .nav-tabs-custom .nav-link.active {
+        color: var(--primary-color, #04578d);
+        background: transparent;
+        border-bottom-color: var(--primary-color, #04578d);
+    }
+
+    /* Info Cards & Tables */
+    .info-card {
+        background: var(--white, #ffffff);
+        border: 1px solid var(--border-color, #e5e7eb);
+        border-radius: var(--border-radius, 8px);
+        padding: 1.25rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .info-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid var(--gray-200, #e5e7eb);
+    }
+
+    .info-card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--gray-800, #1f2937);
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
     .info-row {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 0.5rem 0;
-        border-bottom: 1px solid #f8f9fa;
+        padding: 0.625rem 0;
+        border-bottom: 1px solid var(--gray-100, #f3f4f6);
     }
-    
+
     .info-row:last-child {
         border-bottom: none;
     }
-    
+
     .info-label {
-        color: #6c757d;
+        color: var(--gray-500, #6b7280);
         font-weight: 500;
+        font-size: 0.875rem;
     }
-    
+
     .info-value {
-        color: #212529;
+        color: var(--gray-800, #1f2937);
         font-weight: 600;
+        font-size: 0.875rem;
     }
-    
-    .price-highlight {
-        background: #e3f2fd;
-        padding: 0.25rem 0.5rem;
-        border-radius: 4px;
-        color: #1976d2;
-    }
-    
+
     .stock-badge {
         padding: 0.25rem 0.5rem;
         border-radius: 4px;
-        font-size: 0.875rem;
+        font-size: 0.8125rem;
         font-weight: 500;
     }
-    
-    .stock-good { background: #d4edda; color: #155724; }
-    .stock-low { background: #fff3cd; color: #856404; }
-    .stock-out { background: #f8d7da; color: #721c24; }
-    
-    .table-simple {
-        margin-bottom: 0;
+
+    .stock-good { background: var(--success-soft, rgba(34, 197, 94, 0.1)); color: var(--success-dark, #059669); }
+    .stock-low { background: var(--warning-soft, rgba(245, 158, 11, 0.1)); color: var(--warning-dark, #d97706); }
+    .stock-out { background: var(--danger-soft, rgba(239, 68, 68, 0.1)); color: var(--danger-dark, #dc2626); }
+
+    .supplier-default-row {
+        background-color: var(--warning-soft, rgba(245, 158, 11, 0.08));
     }
-    
-    .table-simple th {
-        background: #f8f9fa;
-        border-top: none;
-        color: #495057;
-        font-weight: 600;
-        padding: 0.75rem;
-    }
-    
-    .table-simple td {
-        padding: 0.75rem;
-        vertical-align: middle;
-    }
-    
-    .btn-simple {
-        padding: 0.375rem 0.75rem;
-        font-size: 0.875rem;
-        border-radius: 4px;
-        border: 1px solid #dee2e6;
-        background: white;
-        color: #495057;
-    }
-    
-    .btn-simple:hover {
-        background: #f8f9fa;
-        border-color: #adb5bd;
-    }
-    
-    .supplier-default {
-        background: #fff3cd;
-        border-left: 3px solid #ffc107;
-    }
-    
-    .highlight-card {
-        background: #f8fbff;
-        color: #2c5282;
-        border: 1px solid #e2e8f0;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-        transition: all 0.3s ease;
-    }
-    
-    .highlight-card:hover {
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-        transform: translateY(-2px);
-    }
-    
-    .highlight-price {
-        font-size: 1.75rem;
-        font-weight: 600;
-        color: #2c5282;
-        margin: 0.75rem 0;
-    }
-    
-    .highlight-stock {
-        background: #f6fdf8;
-        color: #2d5f3f;
-        border: 1px solid #e2e8f0;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-        transition: all 0.3s ease;
-    }
-    
-    .highlight-stock:hover {
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-        transform: translateY(-2px);
-    }
-    
-    .highlight-stock .highlight-price {
-        color: #2d5f3f;
-    }
-    
-    .product-image {
-        max-width: 100%;
-        height: 300px;
-        object-fit: cover;
-        border-radius: 8px;
-        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-    }
-    
-    .warehouse-link {
-        color: #0d6efd;
-        text-decoration: none;
-        font-weight: 500;
-    }
-    
-    .warehouse-link:hover {
-        color: #0a58ca;
-        text-decoration: underline;
-    }
-    
-    .main-image {
-        transition: all 0.3s ease;
-        border: 2px solid #dee2e6;
-    }
-    
-    .main-image:hover {
-        transform: scale(1.02);
-        border-color: #0d6efd;
-    }
-    
-    .secondary-image {
-        transition: all 0.3s ease;
-        opacity: 0.8;
-    }
-    
-    .secondary-image:hover {
-        opacity: 1;
-        transform: scale(1.05);
-        border-color: #0d6efd;
-    }
-    
-    .primary-badge {
-        margin-top: 0.5rem;
-        color: #ffc107;
-        font-size: 0.875rem;
-    }
-    
-    .image-gallery {
-        max-height: 400px;
-        overflow-y: auto;
-    }
-    
-    /* إحصائيات المبيعات */
-    .sales-stat-card {
-        min-height: 200px;
-        background: #f8f9fa;
-        border: 1px solid #e9ecef;
-        border-radius: 8px;
-        padding: 1.5rem 1rem;
-        margin-bottom: 1rem;
-        transition: all 0.3s ease;
-    }
-    
-    .sales-stat-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-        border-color: #0d6efd;
-    }
-    
-    .stat-icon {
-        font-size: 2rem;
-        margin-bottom: 0.5rem;
-    }
-    
-    .stat-value {
-        font-size: 1.5rem;
-        font-weight: bold;
-        color: #212529;
-        margin-bottom: 0.25rem;
-    }
-    
-    .stat-label {
-        font-size: 0.875rem;
-        color: #6c757d;
-        font-weight: 500;
-    }
-    
-    /* بطاقات العملاء */
-    .customer-card {
-        background: #f8f9fa;
-        border: 1px solid #e9ecef;
-        border-radius: 6px;
-        padding: 1rem;
-        transition: all 0.3s ease;
-    }
-    
-    .customer-card:hover {
-        background: #e3f2fd;
-        border-color: #bbdefb;
-    }
-    
-    .customer-quantity {
-        font-size: 1.25rem;
-        font-weight: bold;
-        color: #1976d2;
-    }
-    
-    /* الرسم البياني الشهري */
+
+    /* Chart Component */
     .monthly-sales-chart {
         display: flex;
         justify-content: space-between;
-        align-items: end;
+        align-items: flex-end;
         height: 200px;
-        background: #f8f9fa;
+        background: var(--gray-50, #f9fafb);
+        border: 1px solid var(--gray-200, #e5e7eb);
         border-radius: 8px;
         padding: 1rem;
         margin-bottom: 1rem;
     }
-    
+
     .month-bar {
         flex: 1;
         display: flex;
@@ -272,583 +214,1025 @@
         align-items: center;
         margin: 0 0.25rem;
     }
-    
+
     .bar-container {
         height: 120px;
         width: 100%;
         display: flex;
-        align-items: end;
+        align-items: flex-end;
         justify-content: center;
         margin-bottom: 0.5rem;
     }
-    
+
     .bar {
-        width: 80%;
-        background: #1976d2;
+        width: 75%;
+        background: var(--primary-color, #04578d);
         border-radius: 4px 4px 0 0;
-        min-height: 5px;
-        transition: all 0.3s ease;
+        min-height: 4px;
+        transition: height 0.3s ease, background-color 0.2s ease;
     }
-    
+
     .bar:hover {
-        background: #1565c0;
-        transform: scaleY(1.1);
+        background: var(--primary-dark, #033d64);
     }
-    
+
     .month-info {
         text-align: center;
         font-size: 0.75rem;
     }
-    
+
     .month-name {
-        font-weight: bold;
-        color: #495057;
-        margin-bottom: 0.25rem;
+        font-weight: 600;
+        color: var(--gray-700, #374151);
+        margin-bottom: 0.125rem;
     }
-    
+
     .month-quantity {
-        color: #1976d2;
+        color: var(--primary-color, #04578d);
         font-weight: 600;
     }
-    
+
     .month-value {
-        color: #6c757d;
+        color: var(--gray-500, #6b7280);
     }
-    
-    /* تحسينات إضافية */
-    .badge.bg-success {
-        background-color: #28a745 !important;
+
+    /* دعم الطباعة التقريرية المباشرة @media print */
+    @media print {
+        .nav-tabs-custom,
+        .btn,
+        .image-controls,
+        #pagination-wrapper {
+            display: none !important;
+        }
+
+        .tab-pane {
+            display: block !important;
+            opacity: 1 !important;
+            visibility: visible !important;
+        }
+
+        .info-card,
+        .hero-master-card {
+            border: 1px solid #ccc !important;
+            box-shadow: none !important;
+            page-break-inside: avoid;
+        }
     }
-    
-    .text-primary { color: #1976d2 !important; }
-    .text-success { color: #28a745 !important; }
-    .text-info { color: #17a2b8 !important; }
-    .text-warning { color: #ffc107 !important; }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid">
+<div class="container-fluid product-detail-container">
     <!-- Page Header المركزي -->
     {% include "shared/page_header.html" %}
 
-    <!-- البطاقات المميزة للسعر والمخزون والمبيعات -->
+    <!-- تنبيه الفترة المالية -->
     {% if sales_stats.period_name %}
-    <div class="alert alert-info mb-3" style="background: #f0f9ff; border: 1px solid #bae6fd; color: #0c4a6e; padding: 0.75rem 1rem;">
+    <div class="alert alert-info d-flex align-items-center mb-3" role="alert">
         <i class="fas fa-calendar-alt me-2"></i>
-        <strong>الإحصائيات للفترة المالية:</strong> {{ sales_stats.period_name }}
-        {% if sales_stats.period_dates %}
-        <small class="me-2">({{ sales_stats.period_dates }})</small>
-        {% endif %}
+        <div>
+            <strong>الإحصائيات للفترة المالية:</strong> {{ sales_stats.period_name }}
+            {% if sales_stats.period_dates %}
+            <small class="ms-2">({{ sales_stats.period_dates }})</small>
+            {% endif %}
+        </div>
     </div>
     {% endif %}
-    <div class="row mb-4">
-        <div class="col-md-3 d-flex">
-            <div class="info-card highlight-card text-center flex-fill">
-                <h5 style="color: #64748b; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.5rem;">
-                    <i class="fas fa-tag me-2" style="color: #94a3b8;"></i>سعر البيع
-                </h5>
-                <div class="highlight-price">{{ product.selling_price|currency }}</div>
-                <small style="color: #94a3b8;">هامش الربح: {{ product.profit_margin|smart_float }}%</small>
+
+    <!-- ==========================================================================
+       Master Hero Banner - الكارت المرجعي الشامل وأشرطة المؤشرات
+       ========================================================================== -->
+    <div class="hero-master-card">
+        <div class="row align-items-center g-3">
+            <!-- قسم الصورة والمعلومات التعريفية السريعة -->
+            <div class="col-lg-5 col-md-12">
+                <div class="d-flex align-items-center gap-3">
+                    <div style="width: 110px; flex-shrink: 0;">
+                        {% if product.has_images %}
+                        {% with primary_image=product.get_primary_image %}
+                        <div class="product-main-img-box">
+                            <img src="{{ primary_image.image.url }}" 
+                                 alt="{{ primary_image.alt_text|default:product.name }}" 
+                                 id="mainProductImage"
+                                 data-original-src="{{ primary_image.image.url }}"
+                                 data-original-alt="{{ primary_image.alt_text|default:product.name }}">
+                        </div>
+                        {% endwith %}
+                        {% else %}
+                        <div class="product-main-img-box d-flex flex-column align-items-center justify-content-center py-3 text-muted">
+                            <i class="fas fa-image fa-2x mb-1"></i>
+                            <span class="small">لا توجد صورة</span>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="flex-grow-1">
+                        {% if product.name_en %}
+                        <div class="fw-bold text-dark mb-1" dir="ltr">{{ product.name_en }}</div>
+                        {% endif %}
+
+                        <div class="d-flex flex-wrap gap-1 align-items-center mb-2">
+                            {% if product.barcode %}
+                            <span class="badge bg-light text-dark border"><i class="fas fa-qrcode me-1"></i>الباركود: {{ product.barcode }}</span>
+                            {% endif %}
+                            
+                            {% if product.is_service %}
+                            <span class="badge bg-success"><i class="fas fa-concierge-bell me-1"></i>خدمة</span>
+                            {% elif product.is_bundle %}
+                            <span class="badge bg-info text-dark"><i class="fas fa-boxes me-1"></i>منتج مجمع</span>
+                            {% else %}
+                            <span class="badge bg-dark"><i class="fas fa-box me-1"></i>منتج عادي</span>
+                            {% endif %}
+
+                            {% if product.is_active %}
+                            <span class="stock-badge stock-good">نشط</span>
+                            {% else %}
+                            <span class="stock-badge stock-out">معطل</span>
+                            {% endif %}
+
+                            {% if product.is_featured %}
+                            <span class="badge bg-warning text-dark"><i class="fas fa-star me-1"></i>مميز</span>
+                            {% endif %}
+                        </div>
+
+                        <div class="image-controls">
+                            {% if product.has_images %}
+                            <button class="btn btn-xs btn-outline-primary" onclick="resetToMainImage()" id="resetImageBtn" style="display: none;">
+                                <i class="fas fa-undo me-1"></i>الصورة الرئيسية
+                            </button>
+                            {% endif %}
+                            <button class="btn btn-xs btn-outline-secondary ms-1" onclick="uploadImage()">
+                                <i class="fas fa-upload me-1"></i>رفع صورة
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- الصور الثانوية المصغرة -->
+                {% with secondary_images=product.get_secondary_images %}
+                {% if secondary_images %}
+                <div class="d-flex gap-1 mt-2 pt-2 border-top overflow-auto">
+                    {% for image in secondary_images %}
+                    <img src="{{ image.image.url }}" 
+                         alt="{{ image.alt_text|default:product.name }}" 
+                         class="thumb-img"
+                         onclick="changeMainImage('{{ image.image.url }}', '{{ image.alt_text|default:product.name }}')">
+                    {% endfor %}
+                </div>
+                {% endif %}
+                {% endwith %}
             </div>
-        </div>
-        {% if not product.is_service %}
-        <div class="col-md-3 d-flex">
-            <div class="info-card highlight-stock text-center flex-fill">
-                <h5 style="color: #64748b; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.5rem;">
-                    <i class="fas fa-boxes me-2" style="color: #86a889;"></i>المخزون
-                </h5>
-                <div class="highlight-price">{{ product.current_stock|smart_float }}</div>
-                <small style="color: #86a889;">الحد الأدنى: {{ product.min_stock|smart_float }}</small>
-            </div>
-        </div>
-        {% endif %}
-        <div class="col-md-3 d-flex">
-            <div class="info-card text-center flex-fill" style="background: #fafcfe; color: #475569; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05); transition: all 0.3s ease;">
-                <h5 style="color: #64748b; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.5rem;">
-                    <i class="fas fa-chart-line me-2" style="color: #94a3b8;"></i>إجمالي المبيعات
-                </h5>
-                <div class="highlight-price" style="color: #475569;">{{ sales_stats.total_sales_value|currency }}</div>
-                <small style="color: #94a3b8;">{{ sales_stats.total_sales_count|default:"0" }} عملية</small>
-            </div>
-        </div>
-        <div class="col-md-3 d-flex">
-            <div class="info-card text-center flex-fill" style="background: #fafcfe; color: #475569; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05); transition: all 0.3s ease;">
-                <h5 style="color: #64748b; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.5rem;">
-                    <i class="fas fa-shopping-cart me-2" style="color: #94a3b8;"></i>الكمية المباعة
-                </h5>
-                <div class="highlight-price" style="color: #475569;">{{ sales_stats.total_sold_quantity|smart_float|default:"0" }}</div>
-                <small style="color: #94a3b8;">متوسط السعر: {{ sales_stats.average_sale_price|default:0|currency }}</small>
+
+            <!-- شريط مؤشرات الأداء الحيوية (4 KPI Metrics Cards) -->
+            <div class="col-lg-7 col-md-12">
+                <div class="row g-2">
+                    <!-- 1. سعر البيع -->
+                    <div class="col-sm-3 col-6">
+                        <div class="kpi-stat-card">
+                            <div class="kpi-title"><i class="fas fa-tag text-primary"></i>سعر البيع</div>
+                            <div class="kpi-value text-primary">{{ product.selling_price|currency }}</div>
+                            <div class="kpi-sub">هامش الربح: {{ product.profit_margin|smart_float }}%</div>
+                        </div>
+                    </div>
+
+                    <!-- 2. المخزون المتاح (تكيّف ديناميكي) -->
+                    <div class="col-sm-3 col-6">
+                        <div class="kpi-stat-card">
+                            {% if product.is_service %}
+                            <div class="kpi-title"><i class="fas fa-concierge-bell text-success"></i>طبيعة العنصر</div>
+                            <div class="kpi-value text-success fs-6">خدمة مقدمة</div>
+                            <div class="kpi-sub">لا تتطلب مخزون</div>
+                            {% else %}
+                            <div class="kpi-title"><i class="fas fa-boxes text-success"></i>المخزون المتاح</div>
+                            <div class="kpi-value text-success">
+                                {% if product.is_bundle %}
+                                {{ product.calculated_stock|smart_float }}
+                                {% else %}
+                                {{ product.current_stock|smart_float }}
+                                {% endif %}
+                            </div>
+                            <div class="kpi-sub">الحد الأدنى: {{ product.min_stock|smart_float }} {{ product.unit.name }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- 3. إجمالي المبيعات -->
+                    <div class="col-sm-3 col-6">
+                        <div class="kpi-stat-card">
+                            <div class="kpi-title"><i class="fas fa-chart-line text-info"></i>إجمالي المبيعات</div>
+                            <div class="kpi-value text-dark">{{ sales_stats.total_sales_value|currency }}</div>
+                            <div class="kpi-sub">{{ sales_stats.total_sales_count|default:"0" }} عملية بيع</div>
+                        </div>
+                    </div>
+
+                    <!-- 4. الكمية المباعة -->
+                    <div class="col-sm-3 col-6">
+                        <div class="kpi-stat-card">
+                            <div class="kpi-title"><i class="fas fa-shopping-cart text-warning"></i>الكمية المباعة</div>
+                            <div class="kpi-value text-dark">{{ sales_stats.total_sold_quantity|smart_float|default:"0" }}</div>
+                            <div class="kpi-sub">متوسط السعر: {{ sales_stats.average_sale_price|default:0|currency }}</div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
-    <div class="row">
-        <!-- العمود الأيسر -->
-        <div class="col-md-8">
-            <!-- صور العنصر -->
-            <div class="info-card">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5><i class="fas fa-images me-2"></i>الصور</h5>
-                    <span class="badge bg-primary">{{ product.images_count|smart_float }} صورة</span>
-                </div>
-                
-                {% if product.has_images %}
-                <!-- الصورة الرئيسية -->
-                {% with primary_image=product.get_primary_image %}
-                <div class="text-center mb-3">
-                    <img src="{{ primary_image.image.url }}" 
-                         alt="{{ primary_image.alt_text|default:product.name }}" 
-                         class="product-image main-image"
-                         id="mainProductImage"
-                         data-original-src="{{ primary_image.image.url }}"
-                         data-original-alt="{{ primary_image.alt_text|default:product.name }}">
-                    <div class="image-controls mt-2">
-                        <button class="btn btn-sm btn-outline-primary" onclick="resetToMainImage()" id="resetImageBtn" style="display: none;">
-                            <i class="fas fa-undo me-1"></i>الرجوع للصورة الرئيسية
-                        </button>
-                        <div class="primary-badge mt-1">
-                            <i class="fas fa-star text-warning"></i>
-                            <small id="imageStatus">الصورة الرئيسية</small>
+    <!-- ==========================================================================
+       التبويبات المتقدمة والواجهة التكيفية (Adaptive Operational Tabs)
+       ========================================================================== -->
+    <ul class="nav nav-tabs nav-tabs-custom" id="productDetailTabs" role="tablist">
+        {% if product.is_service %}
+        <!-- التكيف التلقائي للخدمات (Service 2-Tab Layout) -->
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="tab-service-core-link" data-bs-toggle="tab" data-bs-target="#tab-service-core" type="button" role="tab">
+                <i class="fas fa-concierge-bell me-2"></i>تفاصيل الخدمة والتسعير والموردين
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="tab-sales-link" data-bs-toggle="tab" data-bs-target="#tab-sales" type="button" role="tab">
+                <i class="fas fa-chart-pie me-2"></i>تحليلات ومبيعات الخدمة
+            </button>
+        </li>
+        {% else %}
+        <!-- التكيف التلقائي للمنتجات (Product 3-Tab Layout) -->
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="tab-core-link" data-bs-toggle="tab" data-bs-target="#tab-core" type="button" role="tab">
+                <i class="fas fa-box-open me-2"></i>البيانات الأساسية والمخزون
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="tab-pricing-link" data-bs-toggle="tab" data-bs-target="#tab-pricing" type="button" role="tab">
+                <i class="fas fa-tags me-2"></i>التسعير والعملات والموردين
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="tab-sales-link" data-bs-toggle="tab" data-bs-target="#tab-sales" type="button" role="tab">
+                <i class="fas fa-chart-pie me-2"></i>تحليلات المبيعات والعملاء
+            </button>
+        </li>
+        {% endif %}
+    </ul>
+
+    <div class="tab-content" id="productDetailTabsContent">
+        {% if product.is_service %}
+        <!-- ==========================================================================
+           TAB 1 (FOR SERVICE): تفاصيل الخدمة والتسعير والموردين (Rich Balanced 2-Col)
+           ========================================================================== -->
+        <div class="tab-pane fade show active" id="tab-service-core" role="tabpanel">
+            <div class="row">
+                <!-- العمود الأيسر: مواصفات الخدمة والوصف -->
+                <div class="col-lg-6 col-md-12">
+                    <div class="info-card">
+                        <div class="info-card-header">
+                            <h5 class="info-card-title"><i class="fas fa-info-circle text-primary"></i>مواصفات الخدمة</h5>
+                        </div>
+                        
+                        <div class="info-row">
+                            <span class="info-label">الاسم بالإنجليزية</span>
+                            <span class="info-value" dir="ltr">{{ product.name_en|default:"-" }}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">الكود (SKU)</span>
+                            <span class="info-value fw-bold">{{ product.sku }}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">الباركود</span>
+                            <span class="info-value">{{ product.barcode|default:"-" }}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">التصنيف</span>
+                            <span class="info-value">{{ product.category.name }}{% if product.category.name_en %} / {{ product.category.name_en }}{% endif %}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">وحدة القياس</span>
+                            <span class="info-value">{{ product.unit.name|default:"-" }}{% if product.unit.name_en %} / {{ product.unit.name_en }}{% endif %}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">تصنيف الاستخدام</span>
+                            <span class="info-value">{{ product.get_item_type_display|default:product.item_type }}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">نسبة الضريبة / الخصم</span>
+                            <span class="info-value">ضريبة: {{ product.tax_rate|smart_float }}% | خصم: {{ product.discount_rate|smart_float }}%</span>
+                        </div>
+                        {% if product.default_supplier %}
+                        <div class="info-row">
+                            <span class="info-label">المورد / مقدم الخدمة الافتراضي</span>
+                            <span class="info-value text-primary fw-bold">{{ product.default_supplier.name }}</span>
+                        </div>
+                        {% endif %}
+                        <div class="info-row">
+                            <span class="info-label">تاريخ الإنشاء / التحديث</span>
+                            <span class="info-value small text-muted">{{ product.created_at|date:"Y-m-d" }} / {{ product.updated_at|date:"Y-m-d" }}</span>
                         </div>
                     </div>
-                </div>
-                {% endwith %}
-                
-                <!-- الصور الثانوية -->
-                {% with secondary_images=product.get_secondary_images %}
-                {% if secondary_images %}
-                <div class="secondary-images">
-                    <h6 class="mb-2">الصور الإضافية:</h6>
-                    <div class="row g-2">
-                        {% for image in secondary_images %}
-                        <div class="col-3">
-                            <img src="{{ image.image.url }}" 
-                                 alt="{{ image.alt_text|default:product.name }}" 
-                                 class="img-thumbnail secondary-image"
-                                 onclick="changeMainImage('{{ image.image.url }}', '{{ image.alt_text|default:product.name }}')"
-                                 style="cursor: pointer; height: 80px; object-fit: cover;">
+
+                    {% if product.description %}
+                    <div class="info-card">
+                        <div class="info-card-header">
+                            <h5 class="info-card-title"><i class="fas fa-align-left text-secondary"></i>الوصف والبيانات الإضافية</h5>
                         </div>
-                        {% endfor %}
+                        <p class="mb-0 text-dark" style="white-space: pre-line;">{{ product.description }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- العمود الأيمن: التسعير والعملات ومقدمو الخدمة وسجل الأسعار -->
+                <div class="col-lg-6 col-md-12">
+                    <!-- أسعار الخدمة بالعملات الأجنبية -->
+                    <div class="info-card mb-4">
+                        <div class="info-card-header">
+                            <h5 class="info-card-title"><i class="fas fa-coins text-warning"></i>أسعار الخدمة بالعملات الأجنبية</h5>
+                            <button class="btn btn-sm btn-outline-primary" onclick="openCurrencyPriceModal('', '', '', '')">
+                                <i class="fas fa-plus me-1"></i>إضافة سعر مخصص
+                            </button>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="table table-simple table-hover align-middle mb-0">
+                                <thead>
+                                    <tr>
+                                        <th class="text-center">العملة</th>
+                                        <th class="text-center">سعر البيع</th>
+                                        <th class="text-center">سعر التكلفة</th>
+                                        <th class="text-center">الحالة</th>
+                                        <th class="text-center">إجراءات</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr class="table-light">
+                                        <td class="text-center">
+                                            <strong class="text-primary">EGP (العملة الأساسية)</strong>
+                                        </td>
+                                        <td class="text-center"><strong class="text-success">{{ product.selling_price|smart_float }} ج.م</strong></td>
+                                        <td class="text-center"><strong>{{ product.cost_price|smart_float }} ج.م</strong></td>
+                                        <td class="text-center"><span class="badge bg-success">أساسي</span></td>
+                                        <td class="text-center text-muted small">-</td>
+                                    </tr>
+                                    {% for cp in currency_prices_list %}
+                                    <tr>
+                                        <td class="text-center">
+                                            <strong class="text-dark">{{ cp.currency.code }} ({{ cp.currency.name }})</strong>
+                                        </td>
+                                        <td class="text-center">
+                                            {% if cp.indicative_selling_price %}
+                                            <strong class="text-success">{{ cp.indicative_selling_price|smart_float }} {{ cp.currency.symbol|default:cp.currency.code }}</strong>
+                                            {% else %}
+                                            <span class="text-muted small">تلقائي حسب الصرف</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-center">
+                                            {% if cp.indicative_cost_price %}
+                                            <strong>{{ cp.indicative_cost_price|smart_float }} {{ cp.currency.symbol|default:cp.currency.code }}</strong>
+                                            {% else %}
+                                            <span class="text-muted small">تلقائي حسب الصرف</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-center"><span class="badge bg-primary">مخصص</span></td>
+                                        <td class="text-center">
+                                            <div class="btn-group btn-group-sm">
+                                                <button class="btn btn-outline-primary btn-sm btn-edit-currency-price" 
+                                                        data-code="{{ cp.currency.code }}" 
+                                                        data-selling="{{ cp.indicative_selling_price|default:'' }}" 
+                                                        data-cost="{{ cp.indicative_cost_price|default:'' }}" 
+                                                        data-notes="{{ cp.notes|default:'' }}" 
+                                                        title="تعديل السعر">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                                <button class="btn btn-outline-danger btn-sm btn-delete-currency-price" 
+                                                        data-code="{{ cp.currency.code }}" 
+                                                        title="حذف السعر المخصص">
+                                                    <i class="fas fa-trash-alt"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {% if not currency_prices_list %}
+                        <div class="text-center py-3 border-top mt-2 text-muted">
+                            <small><i class="fas fa-info-circle me-1 text-info"></i>لا توجد أسعار مخصصة بالعملات الأجنبية لهذه الخدمة. يتم التحويل تلقائياً حسب سعر الصرف بالفواتير.</small>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- مقدمو الخدمة وأسعار الموردين -->
+                    <div class="info-card mb-4">
+                        <div class="info-card-header">
+                            <h5 class="info-card-title"><i class="fas fa-truck text-primary"></i>مقدمو الخدمة وسعر التكلفة</h5>
+                            <button class="btn btn-sm btn-primary" onclick="addSupplierPrice()">
+                                <i class="fas fa-plus me-1"></i>إضافة مورد
+                            </button>
+                        </div>
+
+                        {% if supplier_prices %}
+                        <div class="table-responsive">
+                            <table class="table table-simple table-hover align-middle mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>المورد</th>
+                                        <th class="text-center">سعر التكلفة</th>
+                                        <th class="text-center">الحالة</th>
+                                        <th class="text-center">إجراءات</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for sp in supplier_prices %}
+                                    <tr {% if sp.is_default %}class="supplier-default-row"{% endif %}>
+                                        <td>
+                                            <strong class="text-dark">{{ sp.supplier.name }}</strong>
+                                            {% if sp.is_default %}
+                                            <span class="badge bg-warning text-dark ms-1">افتراضي</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-center"><strong class="text-success">{{ sp.cost_price|currency }}</strong></td>
+                                        <td class="text-center">
+                                            {% if sp.is_active %}
+                                            <span class="stock-badge stock-good">نشط</span>
+                                            {% else %}
+                                            <span class="stock-badge stock-out">معطل</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-center">
+                                            <div class="btn-group btn-group-sm">
+                                                <button class="btn btn-outline-primary btn-sm" onclick="editSupplierPrice('{{ sp.id }}')" title="تعديل">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                                {% if not sp.is_default %}
+                                                <button class="btn btn-outline-warning btn-sm" onclick="setDefaultSupplier('{{ sp.id }}')" title="تعيين كافتراضي">
+                                                    <i class="fas fa-star"></i>
+                                                </button>
+                                                {% endif %}
+                                                <button class="btn btn-outline-info btn-sm" onclick="viewPriceHistory('{{ sp.id }}')" title="تاريخ الأسعار">
+                                                    <i class="fas fa-history"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="text-center py-3 text-muted">
+                            <p class="small mb-2">لا يوجد مقدمو خدمة مسجلون لهذه الخدمة حتى الآن</p>
+                            <button class="btn btn-sm btn-outline-primary" onclick="addSupplierPrice()">
+                                <i class="fas fa-plus me-1"></i>إضافة أول مورد
+                            </button>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- سجل تاريخ أسعار الخدمة الموحد -->
+                    <div class="info-card">
+                        <div class="info-card-header">
+                            <h5 class="info-card-title"><i class="fas fa-history text-info"></i>سجل تاريخ تغيير أسعار الخدمة</h5>
+                            <span class="badge bg-secondary">{{ price_history|length }} حركة</span>
+                        </div>
+
+                        {% if price_history %}
+                        <div {% if price_history|length > 6 %}style="max-height: 350px; overflow-y: auto;"{% endif %}>
+                            <table class="table table-simple table-sm table-hover align-middle mb-0" style="font-size: 0.85rem;">
+                                <thead class="table-light sticky-top" style="position: sticky; top: 0; z-index: 2;">
+                                    <tr>
+                                        <th class="text-center">التاريخ</th>
+                                        <th class="text-center">المصدر</th>
+                                        <th class="text-center">العملة</th>
+                                        <th class="text-center">التعديل (القديم → الجديد)</th>
+                                        <th class="text-center">المستخدم</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for ph in price_history %}
+                                    <tr>
+                                        <td class="text-center small py-2">{{ ph.change_date|date:"Y-m-d H:i" }}</td>
+                                        <td class="text-center py-2">
+                                            {% if ph.source_type == 'CATALOG_BASE' %}
+                                            <span class="badge bg-primary">سعر رئيسي</span>
+                                            {% elif ph.source_type == 'CATALOG_FX' %}
+                                            <span class="badge bg-warning text-dark">سعر عملة أجنبية</span>
+                                            {% elif ph.source_type == 'PURCHASE_INVOICE' %}
+                                            <span class="badge bg-success">فاتورة مشتريات</span>
+                                            {% elif ph.source_type == 'SALE_INVOICE' %}
+                                            <span class="badge bg-info text-dark">فاتورة مبيعات</span>
+                                            {% else %}
+                                            <span class="badge bg-light text-dark border">{{ ph.get_change_reason_display }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-center py-2 fw-bold">
+                                            {% if ph.currency %}{{ ph.currency.code }}{% else %}EGP{% endif %}
+                                        </td>
+                                        <td class="text-center py-2" dir="ltr">
+                                            <span class="text-secondary">
+                                                {% if ph.old_price != None and ph.old_price > 0 %}{{ ph.old_price|smart_float }}{% else %}-{% endif %}
+                                            </span>
+                                            <span class="text-muted mx-1">→</span>
+                                            <strong class="{% if ph.is_price_increase %}text-danger{% elif ph.is_price_decrease %}text-success{% else %}text-dark{% endif %}">
+                                                {{ ph.new_price|smart_float }}
+                                            </strong>
+                                        </td>
+                                        <td class="text-center small py-2 text-muted">{{ ph.changed_by.get_full_name|default:ph.changed_by.username|default:"النظام" }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="text-center py-4 text-muted">
+                            <i class="fas fa-history fa-2x mb-2 opacity-50"></i>
+                            <p class="small mb-0">لا يوجد سجل حركات أسعار مسجل بعد لهذه الخدمة</p>
+                        </div>
+                        {% endif %}
                     </div>
                 </div>
-                {% endif %}
-                {% endwith %}
-                
-                {% else %}
-                <!-- حالة عدم وجود صور -->
-                <div class="product-image d-flex align-items-center justify-content-center bg-light">
-                    <div class="text-center text-muted">
-                        <i class="fas fa-image fa-3x mb-2"></i>
-                        <p>لا توجد صور</p>
-                        <button class="btn btn-sm btn-outline-primary" onclick="uploadImage()">
-                            <i class="fas fa-upload me-1"></i>رفع صورة
-                        </button>
+            </div>
+        </div>
+
+        {% else %}
+        <!-- ==========================================================================
+           TAB 1 (FOR PRODUCT): البيانات الأساسية والمخزون وحركاته (Product Core & Live Inventory)
+           ========================================================================== -->
+        <div class="tab-pane fade show active" id="tab-core" role="tabpanel">
+            <div class="row">
+                <!-- العمود الأيسر: بطاقات المواصفات والوصف -->
+                <div class="col-lg-6 col-md-12">
+                    <div class="info-card">
+                        <div class="info-card-header">
+                            <h5 class="info-card-title"><i class="fas fa-info-circle text-primary"></i>المواصفات الشاملة</h5>
+                        </div>
+                        
+                        <div class="info-row">
+                            <span class="info-label">الاسم بالإنجليزية</span>
+                            <span class="info-value" dir="ltr">{{ product.name_en|default:"-" }}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">الكود (SKU)</span>
+                            <span class="info-value fw-bold">{{ product.sku }}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">الباركود</span>
+                            <span class="info-value">{{ product.barcode|default:"-" }}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">التصنيف</span>
+                            <span class="info-value">{{ product.category.name }}{% if product.category.name_en %} / {{ product.category.name_en }}{% endif %}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">وحدة القياس</span>
+                            <span class="info-value">{{ product.unit.name }}{% if product.unit.name_en %} / {{ product.unit.name_en }}{% endif %}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">تصنيف الاستخدام</span>
+                            <span class="info-value">{{ product.get_item_type_display|default:product.item_type }}</span>
+                        </div>
+                        {% if product.uniform_size %}
+                        <div class="info-row">
+                            <span class="info-label">مقاس الزي / الجنس</span>
+                            <span class="info-value">{{ product.uniform_size }} ({{ product.get_uniform_gender_display|default:product.uniform_gender }})</span>
+                        </div>
+                        {% endif %}
+                        {% if product.suitable_for_grades %}
+                        <div class="info-row">
+                            <span class="info-label">الفئة المستهدفة</span>
+                            <span class="info-value">{{ product.suitable_for_grades }}</span>
+                        </div>
+                        {% endif %}
+                        <div class="info-row">
+                            <span class="info-label">طريقة تقييم المخزون</span>
+                            <span class="info-value">
+                                {% if product.get_effective_valuation_method == 'FIFO' %}
+                                الوارد أولاً يصدر أولاً (FIFO)
+                                {% elif product.get_effective_valuation_method == 'MOVING_AVERAGE' %}
+                                المتوسط المتحرك (Moving Average)
+                                {% else %}
+                                {{ product.get_effective_valuation_method|default:"الوارد أولاً يصدر أولاً" }}
+                                {% endif %}
+                            </span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">نسبة الضريبة / الخصم</span>
+                            <span class="info-value">ضريبة: {{ product.tax_rate|smart_float }}% | خصم: {{ product.discount_rate|smart_float }}%</span>
+                        </div>
+                        {% if product.default_supplier %}
+                        <div class="info-row">
+                            <span class="info-label">المورد الافتراضي</span>
+                            <span class="info-value text-primary fw-bold">{{ product.default_supplier.name }}</span>
+                        </div>
+                        {% endif %}
+                        <div class="info-row">
+                            <span class="info-label">تاريخ الإنشاء / التحديث</span>
+                            <span class="info-value small text-muted">{{ product.created_at|date:"Y-m-d" }} / {{ product.updated_at|date:"Y-m-d" }}</span>
+                        </div>
+                    </div>
+
+                    {% if product.description %}
+                    <div class="info-card">
+                        <div class="info-card-header">
+                            <h5 class="info-card-title"><i class="fas fa-align-left text-secondary"></i>الوصف والبيانات الإضافية</h5>
+                        </div>
+                        <p class="mb-0 text-dark" style="white-space: pre-line;">{{ product.description }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- العمود الأيمن: تجميع المخزون، تفكيك الـ Bundles، وسجل حركات المخزون -->
+                <div class="col-lg-6 col-md-12">
+                    {% if product.is_bundle %}
+                    <!-- بطاقة تفكيك مكونات المنتج المجمع -->
+                    <div class="info-card mb-4 border-info">
+                        <div class="info-card-header">
+                            <h5 class="info-card-title text-info"><i class="fas fa-layer-group me-2"></i>مكونات المنتج المجمع (Bundle Structure)</h5>
+                            <span class="badge bg-info text-dark">مخزون محسب: {{ product.calculated_stock|smart_float }}</span>
+                        </div>
+                        {% with bundle_breakdown=product.get_bundle_stock_breakdown %}
+                        {% if bundle_breakdown and bundle_breakdown.components %}
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover align-middle mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>المكون</th>
+                                        <th class="text-center">الكمية المطلوبة</th>
+                                        <th class="text-center">المخزون المتاح</th>
+                                        <th class="text-center">مجموعات ممكنة</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in bundle_breakdown.components %}
+                                    <tr>
+                                        <td>
+                                            <strong class="text-dark">{{ item.component_name }}</strong>
+                                        </td>
+                                        <td class="text-center">{{ item.required_quantity|smart_float }}</td>
+                                        <td class="text-center">
+                                            {% if item.available_stock <= 0 %}
+                                            <span class="text-danger fw-bold">0 (نفد)</span>
+                                            {% else %}
+                                            <span class="text-success fw-bold">{{ item.available_stock|smart_float }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-center fw-bold text-primary">{{ item.possible_bundles|smart_float }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="text-muted small py-2 text-center">لا توجد مكونات فرعية معرفة لهذا المنتج المجمع.</div>
+                        {% endif %}
+                        {% endwith %}
+                    </div>
+                    {% endif %}
+
+                    <!-- جدول أرصدة المخازن التفصيلية -->
+                    <div class="info-card">
+                        <div class="info-card-header">
+                            <h5 class="info-card-title"><i class="fas fa-warehouse text-primary"></i>المخزون في المخازن</h5>
+                            <span class="badge bg-secondary">{{ stock_items|length }} مخزن</span>
+                        </div>
+
+                        {% if stock_items %}
+                        <div class="table-responsive">
+                            <table class="table table-simple table-hover align-middle mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>المخزن</th>
+                                        <th class="text-center">الكمية المتاحة</th>
+                                        <th class="text-center">آخر تحديث</th>
+                                        <th class="text-center">الحالة</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for stock in stock_items %}
+                                    <tr>
+                                        <td>
+                                            <a href="{% url 'product:warehouse_detail' stock.warehouse.pk %}" class="fw-bold text-decoration-none text-primary">
+                                                <i class="fas fa-warehouse me-1 text-muted"></i>{{ stock.warehouse.name }}
+                                            </a>
+                                        </td>
+                                        <td class="text-center">
+                                            <strong class="fs-6">{{ stock.quantity|smart_float }}</strong>
+                                            {% if stock.quantity <= 0 %}
+                                            <span class="stock-badge stock-out ms-1">نفد</span>
+                                            {% elif stock.quantity < product.min_stock %}
+                                            <span class="stock-badge stock-low ms-1">منخفض</span>
+                                            {% else %}
+                                            <span class="stock-badge stock-good ms-1">متاح</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-center small text-muted">{{ stock.updated_at|date:"Y-m-d H:i" }}</td>
+                                        <td class="text-center">
+                                            {% if stock.warehouse.is_active %}
+                                            <span class="stock-badge stock-good">نشط</span>
+                                            {% else %}
+                                            <span class="stock-badge stock-out">معطل</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="text-center py-3 text-muted">
+                            <i class="fas fa-box-open fa-2x mb-2 opacity-50"></i>
+                            <p class="small mb-0">لا يوجد مخزون مسجل في أي مخزن حالياً</p>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- جدول حركات المخزون الـ 10 الأخيرة (stock_movements) -->
+                    <div class="info-card">
+                        <div class="info-card-header">
+                            <h5 class="info-card-title"><i class="fas fa-exchange-alt text-info"></i>آخر حركات المخزون</h5>
+                            <span class="badge bg-light text-dark border">أحدث {{ stock_movements|length }} حركات</span>
+                        </div>
+
+                        {% if stock_movements %}
+                        <div class="table-responsive">
+                            <table class="table table-simple table-sm table-hover align-middle mb-0" style="font-size: 0.85rem;">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th class="text-center">التاريخ والوقت</th>
+                                        <th class="text-center">نوع الحركة</th>
+                                        <th class="text-center">المخزن / الوجهة</th>
+                                        <th class="text-center">الكمية</th>
+                                        <th class="text-center">المسؤول</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for movement in stock_movements %}
+                                    <tr>
+                                        <td class="text-center small py-2">{{ movement.timestamp|date:"Y-m-d H:i" }}</td>
+                                        <td class="text-center py-2">
+                                            <span class="badge bg-primary">{{ movement.get_movement_type_display }}</span>
+                                        </td>
+                                        <td class="text-center py-2 small">
+                                            {{ movement.warehouse.name }}
+                                            {% if movement.destination_warehouse %}
+                                            <i class="fas fa-arrow-left mx-1 text-muted"></i>{{ movement.destination_warehouse.name }}
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-center py-2 fw-bold text-dark">{{ movement.quantity|smart_float }}</td>
+                                        <td class="text-center py-2 small text-muted">{{ movement.created_by.get_full_name|default:movement.created_by.username|default:"-" }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="text-center py-3 text-muted">
+                            <p class="small mb-0">لا توجد حركات مخزنية مسجلة حديثاً لهذا المنتج</p>
+                        </div>
+                        {% endif %}
                     </div>
                 </div>
-                {% endif %}
             </div>
+        </div>
 
-            <!-- المعلومات الأساسية -->
-            <div class="info-card">
-                <h5><i class="fas fa-info-circle me-2"></i>المعلومات الأساسية</h5>
-                
-                <div class="info-row">
-                    <span class="info-label">{% if product.is_service %}اسم الخدمة (English){% else %}اسم المنتج (English){% endif %}</span>
-                    <span class="info-value" dir="ltr">{{ product.name_en|default:"-" }}</span>
-                </div>
+        <!-- ==========================================================================
+           TAB 2 (FOR PRODUCT): التسعير والعملات والموردين (Pricing, FX & Suppliers)
+           ========================================================================== -->
+        <div class="tab-pane fade" id="tab-pricing" role="tabpanel">
+            <div class="row">
+                <div class="col-lg-6 col-md-12">
+                    <!-- أسعار العملات المخصصة الاسترشادية -->
+                    <div class="info-card mb-4">
+                        <div class="info-card-header">
+                            <h5 class="info-card-title"><i class="fas fa-coins text-warning"></i>الأسعار بالعملات الأجنبية الاسترشادية</h5>
+                            <button class="btn btn-sm btn-outline-primary" onclick="openCurrencyPriceModal('', '', '', '')">
+                                <i class="fas fa-plus me-1"></i>إضافة سعر مخصص
+                            </button>
+                        </div>
 
-                <div class="info-row">
-                    <span class="info-label">الكود</span>
-                    <span class="info-value">{{ product.sku }}</span>
-                </div>
-                
-                <div class="info-row">
-                    <span class="info-label">الباركود</span>
-                    <span class="info-value">{{ product.barcode|default:"غير محدد" }}</span>
-                </div>
-                
-                <div class="info-row">
-                    <span class="info-label">التصنيف</span>
-                    <span class="info-value">{{ product.category.name }}{% if product.category.name_en %} / {{ product.category.name_en }}{% endif %}</span>
-                </div>
-                
-                <div class="info-row">
-                    <span class="info-label">النوع</span>
-                    <span class="info-value">
-                        {% if product.is_service %}
-                        <span class="badge bg-success"><i class="fas fa-concierge-bell me-1"></i>خدمة</span>
-                        {% elif product.is_bundle %}
-                        <span class="badge bg-info"><i class="fas fa-boxes me-1"></i>منتج مجمع</span>
-                        {% else %}
-                        <span class="badge bg-secondary"><i class="fas fa-box me-1"></i>منتج عادي</span>
+                        <div class="table-responsive">
+                            <table class="table table-simple table-hover align-middle mb-0">
+                                <thead>
+                                    <tr>
+                                        <th class="text-center">العملة</th>
+                                        <th class="text-center">سعر البيع</th>
+                                        <th class="text-center">سعر التكلفة</th>
+                                        <th class="text-center">الحالة</th>
+                                        <th class="text-center">إجراءات</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr class="table-light">
+                                        <td class="text-center">
+                                            <strong class="text-primary">EGP (العملة الأساسية)</strong>
+                                        </td>
+                                        <td class="text-center"><strong class="text-success">{{ product.selling_price|smart_float }} ج.م</strong></td>
+                                        <td class="text-center"><strong>{{ product.cost_price|smart_float }} ج.م</strong></td>
+                                        <td class="text-center"><span class="badge bg-success">أساسي</span></td>
+                                        <td class="text-center text-muted small">-</td>
+                                    </tr>
+                                    {% for cp in currency_prices_list %}
+                                    <tr>
+                                        <td class="text-center">
+                                            <strong class="text-dark">{{ cp.currency.code }} ({{ cp.currency.name }})</strong>
+                                        </td>
+                                        <td class="text-center">
+                                            {% if cp.indicative_selling_price %}
+                                            <strong class="text-success">{{ cp.indicative_selling_price|smart_float }} {{ cp.currency.symbol|default:cp.currency.code }}</strong>
+                                            {% else %}
+                                            <span class="text-muted small">تلقائي حسب الصرف</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-center">
+                                            {% if cp.indicative_cost_price %}
+                                            <strong>{{ cp.indicative_cost_price|smart_float }} {{ cp.currency.symbol|default:cp.currency.code }}</strong>
+                                            {% else %}
+                                            <span class="text-muted small">تلقائي حسب الصرف</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-center"><span class="badge bg-primary">مخصص</span></td>
+                                        <td class="text-center">
+                                            <div class="btn-group btn-group-sm">
+                                                <button class="btn btn-outline-primary btn-sm btn-edit-currency-price" 
+                                                        data-code="{{ cp.currency.code }}" 
+                                                        data-selling="{{ cp.indicative_selling_price|default:'' }}" 
+                                                        data-cost="{{ cp.indicative_cost_price|default:'' }}" 
+                                                        data-notes="{{ cp.notes|default:'' }}" 
+                                                        title="تعديل السعر">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                                <button class="btn btn-outline-danger btn-sm btn-delete-currency-price" 
+                                                        data-code="{{ cp.currency.code }}" 
+                                                        title="حذف السعر المخصص">
+                                                    <i class="fas fa-trash-alt"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {% if not currency_prices_list %}
+                        <div class="text-center py-3 border-top mt-2 text-muted">
+                            <small><i class="fas fa-info-circle me-1 text-info"></i>لا توجد أسعار مخصصة بالعملات الأجنبية لهذا المنتج. يتم التحويل تلقائياً حسب سعر الصرف بالفواتير.</small>
+                        </div>
                         {% endif %}
-                    </span>
-                </div>
-                
-                <div class="info-row">
-                    <span class="info-label">وحدة القياس</span>
-                    <span class="info-value">{{ product.unit.name }}{% if product.unit.name_en %} / {{ product.unit.name_en }}{% endif %}</span>
-                </div>
-                
-                <div class="info-row">
-                    <span class="info-label">الحالة</span>
-                    <span class="info-value">
-                        {% if product.is_active %}
-                        <span class="stock-badge stock-good">نشط</span>
+                    </div>
+
+                    <!-- أسعار الموردين وسجل الشراء -->
+                    <div class="info-card">
+                        <div class="info-card-header">
+                            <h5 class="info-card-title"><i class="fas fa-truck text-primary"></i>أسعار الموردين وسجل الشراء</h5>
+                            <button class="btn btn-sm btn-primary" onclick="addSupplierPrice()">
+                                <i class="fas fa-plus me-1"></i>إضافة مورد
+                            </button>
+                        </div>
+
+                        {% if supplier_prices %}
+                        <div class="table-responsive">
+                            <table class="table table-simple table-hover align-middle mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>المورد</th>
+                                        <th class="text-center">سعر التكلفة</th>
+                                        <th class="text-center">آخر شراء</th>
+                                        <th class="text-center">الكمية</th>
+                                        <th class="text-center">الحالة</th>
+                                        <th class="text-center">إجراءات</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for sp in supplier_prices %}
+                                    <tr {% if sp.is_default %}class="supplier-default-row"{% endif %}>
+                                        <td>
+                                            <strong class="text-dark">{{ sp.supplier.name }}</strong>
+                                            {% if sp.is_default %}
+                                            <span class="badge bg-warning text-dark ms-1">افتراضي</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-center"><strong class="text-success">{{ sp.cost_price|currency }}</strong></td>
+                                        <td class="text-center small text-muted">{{ sp.last_purchase_date|date:"Y-m-d"|default:"-" }}</td>
+                                        <td class="text-center small">{{ sp.last_purchase_quantity|smart_float|default:"-" }}</td>
+                                        <td class="text-center">
+                                            {% if sp.is_active %}
+                                            <span class="stock-badge stock-good">نشط</span>
+                                            {% else %}
+                                            <span class="stock-badge stock-out">معطل</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-center">
+                                            <div class="btn-group btn-group-sm">
+                                                <button class="btn btn-outline-primary btn-sm" onclick="editSupplierPrice('{{ sp.id }}')" title="تعديل">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                                {% if not sp.is_default %}
+                                                <button class="btn btn-outline-warning btn-sm" onclick="setDefaultSupplier('{{ sp.id }}')" title="تعيين كافتراضي">
+                                                    <i class="fas fa-star"></i>
+                                                </button>
+                                                {% endif %}
+                                                <button class="btn btn-outline-info btn-sm" onclick="viewPriceHistory('{{ sp.id }}')" title="تاريخ الأسعار">
+                                                    <i class="fas fa-history"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
                         {% else %}
-                        <span class="stock-badge stock-out">غير نشط</span>
+                        <div class="text-center py-3 text-muted">
+                            <p class="small mb-2">لا يوجد موردين مسجلين لهذا المنتج حتى الآن</p>
+                            <button class="btn btn-sm btn-outline-primary" onclick="addSupplierPrice()">
+                                <i class="fas fa-plus me-1"></i>إضافة أول مورد
+                            </button>
+                        </div>
                         {% endif %}
-                    </span>
+                    </div>
+                </div>
+
+                <div class="col-lg-6 col-md-12">
+                    <!-- سجل تاريخ الأسعار والتكلفة الموحد (price_history) -->
+                    <div class="info-card mb-4">
+                        <div class="info-card-header">
+                            <h5 class="info-card-title"><i class="fas fa-history text-info"></i>سجل تاريخ الأسعار والتكلفة الموحد</h5>
+                            <span class="badge bg-secondary">{{ price_history|length }} حركة</span>
+                        </div>
+
+                        {% if price_history %}
+                        <div {% if price_history|length > 7 %}style="max-height: 400px; overflow-y: auto;"{% endif %}>
+                            <table class="table table-simple table-sm table-hover align-middle mb-0" style="font-size: 0.85rem;">
+                                <thead class="table-light sticky-top" style="position: sticky; top: 0; z-index: 2;">
+                                    <tr>
+                                        <th class="text-center">التاريخ</th>
+                                        <th class="text-center">المصدر</th>
+                                        <th class="text-center">العملة</th>
+                                        <th class="text-center">التعديل (القديم → الجديد)</th>
+                                        <th class="text-center">المستخدم</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for ph in price_history %}
+                                    <tr>
+                                        <td class="text-center small py-2">{{ ph.change_date|date:"Y-m-d H:i" }}</td>
+                                        <td class="text-center py-2">
+                                            {% if ph.source_type == 'CATALOG_BASE' %}
+                                            <span class="badge bg-primary">سعر رئيسي</span>
+                                            {% elif ph.source_type == 'CATALOG_FX' %}
+                                            <span class="badge bg-warning text-dark">سعر عملة أجنبية</span>
+                                            {% elif ph.source_type == 'PURCHASE_INVOICE' %}
+                                            <span class="badge bg-success">فاتورة مشتريات</span>
+                                            {% elif ph.source_type == 'SALE_INVOICE' %}
+                                            <span class="badge bg-info text-dark">فاتورة مبيعات</span>
+                                            {% else %}
+                                            <span class="badge bg-light text-dark border">{{ ph.get_change_reason_display }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-center py-2 fw-bold">
+                                            {% if ph.currency %}{{ ph.currency.code }}{% else %}EGP{% endif %}
+                                        </td>
+                                        <td class="text-center py-2" dir="ltr">
+                                            <span class="text-secondary">
+                                                {% if ph.old_price != None and ph.old_price > 0 %}{{ ph.old_price|smart_float }}{% else %}-{% endif %}
+                                            </span>
+                                            <span class="text-muted mx-1">→</span>
+                                            <strong class="{% if ph.is_price_increase %}text-danger{% elif ph.is_price_decrease %}text-success{% else %}text-dark{% endif %}">
+                                                {{ ph.new_price|smart_float }}
+                                            </strong>
+                                        </td>
+                                        <td class="text-center small py-2 text-muted">{{ ph.changed_by.get_full_name|default:ph.changed_by.username|default:"النظام" }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="text-center py-4 text-muted">
+                            <i class="fas fa-history fa-2x mb-2 opacity-50"></i>
+                            <p class="small mb-0">لا يوجد سجل حركات أسعار مسجل بعد لهذا المنتج</p>
+                        </div>
+                        {% endif %}
+                    </div>
                 </div>
             </div>
+        </div>
+        {% endif %}
 
-            <!-- أسعار العملات المخصصة الاسترشادية -->
-            <div class="info-card mb-4">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5><i class="fas fa-coins text-warning me-2"></i>الأسعار بالعملات الأجنبية</h5>
-                    <button class="btn btn-sm btn-outline-primary" onclick="openCurrencyPriceModal('', '', '', '')">
-                        <i class="fas fa-plus me-1"></i>إضافة سعر مخصص بالعملة
-                    </button>
-                </div>
-
-                <div class="table-responsive">
-                    <table class="table table-simple table-hover align-middle mb-0">
-                        <thead>
-                            <tr>
-                                <th class="text-center">العملة</th>
-                                <th class="text-center">سعر البيع</th>
-                                <th class="text-center">سعر التكلفة</th>
-                                <th class="text-center">الحالة</th>
-                                <th class="text-center">إجراءات</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <!-- العملة الأساسية -->
-                            <tr class="table-light">
-                                <td class="text-center">
-                                    <strong class="text-primary">EGP (العملة الأساسية)</strong>
-                                </td>
-                                <td class="text-center"><strong class="text-success">{{ product.selling_price|smart_float }} ج.م</strong></td>
-                                <td class="text-center"><strong>{{ product.cost_price|smart_float }} ج.م</strong></td>
-                                <td class="text-center"><span class="badge bg-success">أساسي</span></td>
-                                <td class="text-center text-muted small">-</td>
-                            </tr>
-                            {% for cp in currency_prices_list %}
-                            <tr>
-                                <td class="text-center">
-                                    <strong class="text-dark">{{ cp.currency.code }} ({{ cp.currency.name }})</strong>
-                                </td>
-                                <td class="text-center">
-                                    {% if cp.indicative_selling_price %}
-                                    <strong class="text-success">{{ cp.indicative_selling_price|smart_float }} {{ cp.currency.symbol|default:cp.currency.code }}</strong>
-                                    {% else %}
-                                    <span class="text-muted small">تلقائي من سعر الصرف</span>
-                                    {% endif %}
-                                </td>
-                                <td class="text-center">
-                                    {% if cp.indicative_cost_price %}
-                                    <strong>{{ cp.indicative_cost_price|smart_float }} {{ cp.currency.symbol|default:cp.currency.code }}</strong>
-                                    {% else %}
-                                    <span class="text-muted small">تلقائي من سعر الصرف</span>
-                                    {% endif %}
-                                </td>
-                                <td class="text-center"><span class="badge bg-primary">مخصص</span></td>
-                                <td class="text-center">
-                                    <div class="btn-group btn-group-sm">
-                                        <button class="btn btn-outline-primary btn-sm btn-edit-currency-price" 
-                                                data-code="{{ cp.currency.code }}" 
-                                                data-selling="{{ cp.indicative_selling_price|default:'' }}" 
-                                                data-cost="{{ cp.indicative_cost_price|default:'' }}" 
-                                                data-notes="{{ cp.notes|default:'' }}" 
-                                                title="تعديل السعر">
-                                            <i class="fas fa-edit"></i>
-                                        </button>
-                                        <button class="btn btn-outline-danger btn-sm btn-delete-currency-price" 
-                                                data-code="{{ cp.currency.code }}" 
-                                                title="حذف السعر المخصص">
-                                            <i class="fas fa-trash-alt"></i>
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-
-                {% if not currency_prices_list %}
-                <div class="text-center py-3 border-top mt-2 text-muted">
-                    <small><i class="fas fa-info-circle me-1 text-info"></i>لا توجد أسعار مخصصة بالعملات الأجنبية لهذا المنتج. يتم التحويل تلقائياً حسب سعر الصرف بالفواتير.</small>
-                </div>
-                {% endif %}
-            </div>
-
-            <!-- سجل تاريخ تغيرات الأسعار والتكلفة الموحد 100% -->
-            <div class="info-card mb-4">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5><i class="fas fa-history text-info me-2"></i>سجل تاريخ الأسعار والتكلفة الموحد</h5>
-                    <span class="badge bg-secondary">{{ price_history|length }} حركة</span>
-                </div>
-                
-                {% if price_history %}
-                <div class="table-responsive" style="max-height: 350px; overflow-y: auto;">
-                    <table class="table table-simple table-hover align-middle mb-0">
-                        <thead>
-                            <tr>
-                                <th class="text-center">التاريخ والوقت</th>
-                                <th class="text-center">المصدر</th>
-                                <th class="text-center">العملة</th>
-                                <th class="text-center">سعر الصرف</th>
-                                <th class="text-center">التغيير (قديم → جديد)</th>
-                                <th class="text-center">المرجع / المستند</th>
-                                <th class="text-center">المستخدم</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for ph in price_history %}
-                            <tr>
-                                <td class="text-center small">{{ ph.change_date|date:"Y-m-d H:i" }}</td>
-                                <td class="text-center">
-                                    {% if ph.source_type == 'CATALOG_BASE' %}
-                                    <span class="badge bg-primary">سعر رئيسي EGP</span>
-                                    {% elif ph.source_type == 'CATALOG_FX' %}
-                                    <span class="badge bg-warning text-dark">سعر عملة أجنبية</span>
-                                    {% elif ph.source_type == 'PURCHASE_INVOICE' %}
-                                    <span class="badge bg-success">فاتورة مشتريات</span>
-                                    {% elif ph.source_type == 'SALE_INVOICE' %}
-                                    <span class="badge bg-info">فاتورة مبيعات</span>
-                                    {% elif ph.source_type == 'SUPPLIER_PRICE' %}
-                                    <span class="badge bg-secondary">سعر مورد</span>
-                                    {% else %}
-                                    <span class="badge bg-light text-dark border">{{ ph.get_change_reason_display }}</span>
-                                    {% endif %}
-                                </td>
-                                <td class="text-center"><strong>{{ ph.currency.code|default:"EGP" }}</strong></td>
-                                <td class="text-center small">{{ ph.exchange_rate|default:"1.0" }}</td>
-                                <td class="text-center">
-                                    <span class="text-muted">{{ ph.old_price|smart_float|default:"0" }}</span>
-                                    <i class="fas fa-arrow-left mx-1 text-muted small"></i>
-                                    <strong class="{% if ph.is_price_increase %}text-danger{% elif ph.is_price_decrease %}text-success{% else %}text-dark{% endif %}">
-                                        {{ ph.new_price|smart_float }}
-                                    </strong>
-                                </td>
-                                <td class="text-center small">
-                                    {{ ph.document_reference|default:ph.purchase_reference|default:"-" }}
-                                </td>
-                                <td class="text-center small">{{ ph.changed_by.get_full_name|default:ph.changed_by.username|default:"النظام" }}</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                {% else %}
-                <div class="text-center py-3 text-muted">
-                    <i class="fas fa-history fa-2x mb-2"></i>
-                    <p class="small mb-0">لا يوجد سجل حركات أسعار مسجل بعد لهذا المنتج</p>
-                </div>
-                {% endif %}
-            </div>
-
-            <!-- أسعار الموردين -->
+        <!-- ==========================================================================
+           COMMON TAB (FOR BOTH PRODUCT & SERVICE): تحليلات المبيعات والعملاء
+           ========================================================================== -->
+        <div class="tab-pane fade" id="tab-sales" role="tabpanel">
             <div class="info-card">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5><i class="fas fa-truck me-2"></i>أسعار الموردين</h5>
-                    <button class="btn btn-sm btn-primary" onclick="addSupplierPrice()">
-                        <i class="fas fa-plus me-1"></i>إضافة سعر
-                    </button>
+                <div class="info-card-header">
+                    <h5 class="info-card-title"><i class="fas fa-chart-bar text-primary"></i>تحليلات وأداء المبيعات</h5>
+                    <span class="badge bg-info text-dark">{{ sales_stats.total_sales_count|smart_float }} عملية بيع</span>
                 </div>
-                
-                {% if supplier_prices %}
-                <div class="table-responsive">
-                    <table class="table table-simple">
-                        <thead>
-                            <tr>
-                                <th class="text-center">المورد</th>
-                                <th class="text-center">التكلفة</th>
-                                <th class="text-center">آخر شراء</th>
-                                <th class="text-center">الكمية</th>
-                                <th class="text-center">الحالة</th>
-                                <th class="text-center">إجراءات</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for sp in supplier_prices %}
-                            <tr {% if sp.is_default %}class="supplier-default"{% endif %}>
-                                <td class="text-center">
-                                    <strong>{{ sp.supplier.name }}</strong>
-                                    {% if sp.is_default %}
-                                    <span class="badge bg-warning ms-2">افتراضي</span>
-                                    {% endif %}
-                                </td>
-                                <td class="text-center"><strong>{{ sp.cost_price|currency }}</strong></td>
-                                <td class="text-center">
-                                    {% if sp.last_purchase_date %}
-                                    {{ sp.last_purchase_date|date:"Y-m-d" }}
-                                    {% else %}
-                                    -
-                                    {% endif %}
-                                </td>
-                                <td class="text-center">
-                                    {% if sp.last_purchase_quantity %}
-                                    {{ sp.last_purchase_quantity|smart_float }}
-                                    {% else %}
-                                    -
-                                    {% endif %}
-                                </td>
-                                <td class="text-center">
-                                    {% if sp.is_active %}
-                                    <span class="stock-badge stock-good">نشط</span>
-                                    {% else %}
-                                    <span class="stock-badge stock-out">معطل</span>
-                                    {% endif %}
-                                </td>
-                                <td class="text-center">
-                                     <div class="btn-group btn-group-sm">
-                                         <button class="btn btn-outline-primary btn-sm" onclick="editSupplierPrice('{{ sp.id }}')" title="تعديل">
-                                             <i class="fas fa-edit"></i>
-                                         </button>
-                                         {% if not sp.is_default %}
-                                         <button class="btn btn-outline-warning btn-sm" onclick="setDefaultSupplier('{{ sp.id }}')" title="تعيين كافتراضي">
-                                             <i class="fas fa-star"></i>
-                                         </button>
-                                         {% endif %}
-                                         <button class="btn btn-outline-info btn-sm" onclick="viewPriceHistory('{{ sp.id }}')" title="تاريخ الأسعار">
-                                             <i class="fas fa-history"></i>
-                                         </button>
-                                     </div>
-                                 </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                {% else %}
-                <div class="text-center py-4">
-                    <i class="fas fa-truck fa-3x text-muted mb-3"></i>
-                    <p class="text-muted">لا يوجد موردين مسجلين</p>
-                    <button class="btn btn-primary" onclick="addSupplierPrice()">
-                        <i class="fas fa-plus me-2"></i>إضافة أول مورد
-                    </button>
-                </div>
-                {% endif %}
-            </div>
 
-            <!-- إحصائيات المبيعات -->
-            <div class="info-card">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5><i class="fas fa-chart-line me-2"></i>إحصائيات المبيعات</h5>
-                    <span class="badge bg-info">{{ sales_stats.total_sales_count|smart_float }} عملية</span>
-                </div>
-                
                 {% if sales_stats.total_sales_count > 0 %}
-                <!-- الإحصائيات الأساسية -->
-                <div class="row mb-4">
-                    <div class="col-md-3 d-flex">
-                        <div class="sales-stat-card text-center w-100">
-                            <div class="stat-icon">
-                                <i class="fas fa-boxes text-primary"></i>
-                            </div>
-                            <div class="stat-value">{{ sales_stats.total_sold_quantity|smart_float }}</div>
-                            <div class="stat-label">إجمالي الكمية المباعة</div>
-                        </div>
-                    </div>
-                    <div class="col-md-3 d-flex">
-                        <div class="sales-stat-card text-center w-100">
-                            <div class="stat-icon">
-                                <i class="fas fa-money-bill-wave text-success"></i>
-                            </div>
-                            <div class="stat-value">{{ sales_stats.total_sales_value|smart_float }}</div>
-                            <div class="stat-label">إجمالي قيمة المبيعات</div>
-                        </div>
-                    </div>
-                    <div class="col-md-3 d-flex">
-                        <div class="sales-stat-card text-center w-100">
-                            <div class="stat-icon">
-                                <i class="fas fa-receipt text-info"></i>
-                            </div>
-                            <div class="stat-value">{{ sales_stats.total_sales_count|smart_float }}</div>
-                            <div class="stat-label">عدد العمليات</div>
-                        </div>
-                    </div>
-                    <div class="col-md-3 d-flex">
-                        <div class="sales-stat-card text-center w-100">
-                            <div class="stat-icon">
-                                <i class="fas fa-calculator text-warning"></i>
-                            </div>
-                            <div class="stat-value">{{ sales_stats.average_sale_price|smart_float }}</div>
-                            <div class="stat-label">متوسط سعر البيع</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- آخر المبيعات -->
-                {% if sales_stats.last_sales %}
-                <div class="mb-4">
-                    <h6 class="mb-3"><i class="fas fa-clock me-2"></i>آخر العمليات</h6>
-                    <div class="table-responsive">
-                        <table class="table table-simple table-sm">
-                            <thead>
-                                <tr>
-                                    <th class="text-center">رقم العملية</th>
-                                    <th class="text-center">العميل</th>
-                                    <th class="text-center">التاريخ</th>
-                                    <th class="text-center">الكمية</th>
-                                    <th class="text-center">السعر</th>
-                                    <th class="text-center">الإجمالي</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for sale_item in sales_stats.last_sales %}
-                                <tr>
-                                    <td class="text-center">
-                                        <span class="text-decoration-none">
-                                            {{ sale_item.sale.number }}
-                                        </span>
-                                    </td>
-                                    <td class="text-center">{{ sale_item.sale.customer.name }}</td>
-                                    <td class="text-center">{{ sale_item.sale.date|date:"Y-m-d" }}</td>
-                                    <td class="text-center">{{ sale_item.quantity|smart_float }}</td>
-                                    <td class="text-center">{{ sale_item.unit_price|currency }}</td>
-                                    <td class="text-center"><strong>{{ sale_item.total|currency }}</strong></td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-                {% endif %}
-
-                <!-- أفضل العملاء -->
-                {% if sales_stats.top_customers %}
-                <div class="mb-4">
-                    <h6 class="mb-3"><i class="fas fa-users me-2"></i>أفضل العملاء</h6>
-                    <div class="row">
-                        {% for customer in sales_stats.top_customers %}
-                        <div class="col-md-6 mb-2">
-                            <div class="customer-card">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <div>
-                                        <strong>{{ customer.sale__customer__name }}</strong>
-                                        <br>
-                                        <small class="text-muted">{{ customer.sales_count|smart_float }} عملية</small>
-                                    </div>
-                                    <div class="text-end">
-                                        <div class="customer-quantity">{{ customer.total_quantity|smart_float }}</div>
-                                        <small class="text-muted">{{ customer.total_value|currency }}</small>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        {% endfor %}
-                    </div>
-                </div>
-                {% endif %}
-
-                <!-- المبيعات الشهرية -->
+                <!-- الرسم البياني للمبيعات الشهرية (آخر 6 شهور) -->
                 {% if sales_stats.monthly_sales %}
-                <div class="mb-3">
-                    <h6 class="mb-3"><i class="fas fa-chart-bar me-2"></i>المبيعات الشهرية (آخر 6 شهور)</h6>
+                <div class="mb-4">
+                    <h6 class="fw-bold mb-3"><i class="fas fa-chart-line me-2 text-primary"></i>المبيعات الشهرية (آخر 6 شهور)</h6>
                     <div class="monthly-sales-chart">
                         {% for month in sales_stats.monthly_sales %}
                         <div class="month-bar">
@@ -857,13 +1241,13 @@
                                     {% widthratio month.quantity sales_stats.max_monthly_quantity 100 as bar_height %}
                                     <div class="bar" style="--bar-h: {{ bar_height }}%; height: var(--bar-h, 0%);"></div>
                                 {% else %}
-                                    <div class="bar" style="height: 0%;"></div>
+                                    <div class="bar" style="--bar-h: 0%; height: var(--bar-h, 0%);"></div>
                                 {% endif %}
                             </div>
                             <div class="month-info">
                                 <div class="month-name">{{ month.month }}</div>
                                 <div class="month-quantity">{{ month.quantity|smart_float }}</div>
-                                <div class="month-value">{{ month.value|smart_float }}</div>
+                                <div class="month-value small">{{ month.value|smart_float }}</div>
                             </div>
                         </div>
                         {% endfor %}
@@ -871,195 +1255,82 @@
                 </div>
                 {% endif %}
 
-                <!-- معلومات إضافية -->
-                <div class="row">
-                    {% if sales_stats.last_sale_date %}
-                    <div class="col-md-6">
-                        <div class="info-row">
-                            <span class="info-label">آخر عملية بيع</span>
-                            <span class="info-value">{{ sales_stats.last_sale_date|date:"Y-m-d" }}</span>
+                <div class="row g-4">
+                    <!-- أحدث عمليات البيع -->
+                    {% if sales_stats.last_sales %}
+                    <div class="col-lg-7 col-md-12">
+                        <h6 class="fw-bold mb-3"><i class="fas fa-clock me-2 text-secondary"></i>آخر عمليات البيع</h6>
+                        <div class="table-responsive">
+                            <table class="table table-simple table-sm table-hover align-middle">
+                                <thead>
+                                    <tr>
+                                        <th>رقم الفاتورة</th>
+                                        <th>العميل</th>
+                                        <th class="text-center">التاريخ</th>
+                                        <th class="text-center">الكمية</th>
+                                        <th class="text-center">السعر</th>
+                                        <th class="text-center">الإجمالي</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for sale_item in sales_stats.last_sales %}
+                                    <tr>
+                                        <td class="fw-bold text-primary">{{ sale_item.sale.number }}</td>
+                                        <td>{{ sale_item.sale.customer.name }}</td>
+                                        <td class="text-center small text-muted">{{ sale_item.sale.date|date:"Y-m-d" }}</td>
+                                        <td class="text-center fw-bold">{{ sale_item.quantity|smart_float }}</td>
+                                        <td class="text-center">{{ sale_item.unit_price|currency }}</td>
+                                        <td class="text-center"><strong class="text-success">{{ sale_item.total|currency }}</strong></td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                     {% endif %}
-                    {% if sales_stats.best_selling_month %}
-                    <div class="col-md-6">
-                        <div class="info-row">
-                            <span class="info-label">أفضل شهر</span>
-                            <span class="info-value">{{ sales_stats.best_selling_month.month_name }}</span>
-                        </div>
-                    </div>
-                    {% endif %}
-                </div>
 
-                {% else %}
-                <!-- حالة عدم وجود مبيعات -->
-                <div class="text-center py-4">
-                    <i class="fas fa-chart-line fa-3x text-muted mb-3"></i>
-                    <p class="text-muted">لا توجد مبيعات بعد</p>
-                    <small class="text-muted">سيتم عرض الإحصائيات عند تسجيل أول عملية بيع</small>
-                </div>
-                {% endif %}
-            </div>
-
-            <!-- المخزون في المخازن -->
-            {% if not product.is_service %}
-            <div class="info-card">
-                <h5><i class="fas fa-warehouse me-2"></i>المخزون في المخازن</h5>
-                
-                {% if product.stocks.exists %}
-                <div class="table-responsive">
-                    <table class="table table-simple">
-                        <thead>
-                            <tr>
-                                <th class="text-center">المخزن</th>
-                                <th class="text-center">الكمية المتاحة</th>
-                                <th class="text-center">آخر تحديث</th>
-                                <th class="text-center">الحالة</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for stock in product.stocks.all %}
-                            <tr>
-                                <td class="text-center">
-                                    <a href="{% url 'product:warehouse_detail' stock.warehouse.pk %}" class="warehouse-link">
-                                        <i class="fas fa-warehouse me-1"></i>{{ stock.warehouse.name }}
-                                    </a>
-                                </td>
-                                <td class="text-center">
-                                    <strong>{{ stock.quantity|smart_float }}</strong>
-                                    {% if stock.quantity <= 0 %}
-                                    <span class="stock-badge stock-out ms-2">نفد</span>
-                                    {% elif stock.quantity < product.min_stock %}
-                                    <span class="stock-badge stock-low ms-2">منخفض</span>
-                                    {% else %}
-                                    <span class="stock-badge stock-good ms-2">متاح</span>
-                                    {% endif %}
-                                </td>
-                                <td class="text-center">{{ stock.updated_at|date:"Y-m-d H:i" }}</td>
-                                <td class="text-center">
-                                    {% if stock.warehouse.is_active %}
-                                    <span class="stock-badge stock-good">نشط</span>
-                                    {% else %}
-                                    <span class="stock-badge stock-out">معطل</span>
-                                    {% endif %}
-                                </td>
-                            </tr>
+                    <!-- أفضل العملاء والمؤشرات المضافة -->
+                    <div class="col-lg-5 col-md-12">
+                        {% if sales_stats.top_customers %}
+                        <h6 class="fw-bold mb-3"><i class="fas fa-users me-2 text-primary"></i>أفضل العملاء شراءً</h6>
+                        <div class="d-flex flex-column gap-2 mb-3">
+                            {% for customer in sales_stats.top_customers %}
+                            <div class="p-2 border rounded bg-light d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong class="text-dark">{{ customer.sale__customer__name }}</strong>
+                                    <div class="small text-muted">{{ customer.sales_count|smart_float }} عملية بيع</div>
+                                </div>
+                                <div class="text-end">
+                                    <div class="fw-bold text-primary">{{ customer.total_quantity|smart_float }} {{ product.unit.name }}</div>
+                                    <small class="text-success fw-bold">{{ customer.total_value|currency }}</small>
+                                </div>
+                            </div>
                             {% endfor %}
-                        </tbody>
-                    </table>
+                        </div>
+                        {% endif %}
+
+                        <div class="border-top pt-3 mt-2">
+                            {% if sales_stats.last_sale_date %}
+                            <div class="info-row">
+                                <span class="info-label">آخر عملية بيع</span>
+                                <span class="info-value">{{ sales_stats.last_sale_date|date:"Y-m-d" }}</span>
+                            </div>
+                            {% endif %}
+                            {% if sales_stats.best_selling_month %}
+                            <div class="info-row">
+                                <span class="info-label">أفضل شهر مبيعات</span>
+                                <span class="info-value text-primary fw-bold">{{ sales_stats.best_selling_month.month_name }}</span>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
                 </div>
+
                 {% else %}
-                <div class="text-center py-4">
-                    <i class="fas fa-warehouse fa-3x text-muted mb-3"></i>
-                    <p class="text-muted">لا يوجد مخزون متاح في أي مخزن</p>
-                </div>
-                {% endif %}
-            </div>
-            {% endif %}
-        </div>
-
-        <!-- الشريط الجانبي -->
-        <div class="col-md-4">
-            <!-- ملخص سريع -->
-            <div class="info-card">
-                <h5><i class="fas fa-chart-bar me-2"></i>ملخص سريع</h5>
-                
-                <div class="info-row">
-                    <span class="info-label">سعر التكلفة</span>
-                    <span class="info-value">{{ product.cost_price|currency }}</span>
-                </div>
-                
-                
-                
-                {% if supplier_prices %}
-                <div class="info-row">
-                    <span class="info-label">عدد الموردين</span>
-                    <span class="info-value">{{ supplier_prices|length|smart_float }}</span>
-                </div>
-                
-                <div class="info-row">
-                    <span class="info-label">أقل سعر</span>
-                    <span class="info-value">{{ supplier_prices.0.cost_price|currency }}</span>
-                </div>
-                {% endif %}
-                
-                {% if product.stocks.exists %}
-                <div class="info-row">
-                    <span class="info-label">عدد المخازن</span>
-                    <span class="info-value">{{ product.stocks.count|smart_float }}</span>
-                </div>
-                {% endif %}
-            </div>
-
-            <!-- ملخص المبيعات -->
-            {% if sales_stats.total_sales_count > 0 %}
-            <div class="info-card">
-                <h5><i class="fas fa-chart-pie me-2"></i>ملخص المبيعات</h5>
-                
-                <div class="info-row">
-                    <span class="info-label">إجمالي المبيعات</span>
-                    <span class="info-value text-success">{{ sales_stats.total_sales_value|currency }}</span>
-                </div>
-                
-                <div class="info-row">
-                    <span class="info-label">الكمية المباعة</span>
-                    <span class="info-value">{{ sales_stats.total_sold_quantity|smart_float }}</span>
-                </div>
-                
-                <div class="info-row">
-                    <span class="info-label">عدد العمليات</span>
-                    <span class="info-value">{{ sales_stats.total_sales_count|smart_float }}</span>
-                </div>
-                
-                <div class="info-row">
-                    <span class="info-label">متوسط السعر</span>
-                    <span class="info-value">{{ sales_stats.average_sale_price|currency }}</span>
-                </div>
-                
-                {% if sales_stats.last_sale_date %}
-                <div class="info-row">
-                    <span class="info-label">آخر عملية بيع</span>
-                    <span class="info-value">{{ sales_stats.last_sale_date|date:"Y-m-d" }}</span>
-                </div>
-                {% endif %}
-                
-                {% if sales_stats.top_customers %}
-                <div class="info-row">
-                    <span class="info-label">أفضل عميل</span>
-                    <span class="info-value">{{ sales_stats.top_customers.0.sale__customer__name }}</span>
-                </div>
-                {% endif %}
-            </div>
-            {% endif %}
-
-            <!-- الوصف -->
-            {% if product.description %}
-            <div class="info-card">
-                <h5><i class="fas fa-align-left me-2"></i>الوصف</h5>
-                <p class="mb-0">{{ product.description|linebreaks }}</p>
-            </div>
-            {% endif %}
-
-            <!-- معلومات إضافية -->
-            <div class="info-card">
-                <h5><i class="fas fa-calendar me-2"></i>معلومات إضافية</h5>
-                
-                <div class="info-row">
-                    <span class="info-label">تاريخ الإنشاء</span>
-                    <span class="info-value">{{ product.created_at|date:"Y-m-d" }}</span>
-                </div>
-                
-                <div class="info-row">
-                    <span class="info-label">آخر تحديث</span>
-                    <span class="info-value">{{ product.updated_at|date:"Y-m-d" }}</span>
-                </div>
-                
-                {% if product.is_featured %}
-                <div class="info-row">
-                    <span class="info-label">مميز</span>
-                    <span class="info-value">
-                        <span class="stock-badge stock-good">نعم</span>
-                    </span>
+                <div class="text-center py-5 text-muted">
+                    <i class="fas fa-chart-line fa-3x mb-3 opacity-50"></i>
+                    <h5>لا توجد مبيعات مسجلة حتى الآن</h5>
+                    <p class="small mb-0">سيتم تجميع وعرض البيانات الإحصائية فور إجراء أول عملية بيع للمنتج أو الخدمة</p>
                 </div>
                 {% endif %}
             </div>
@@ -1067,552 +1338,9 @@
     </div>
 </div>
 
-<script>
-    // استخدام المتغير المُمرر من Django
-    const productId = PRODUCT_ID;
-    
-    // دالة إضافة مورد جديد
-    function addSupplierPrice() {
-        showSupplierPriceModal();
-    }
-
-    // دالة تعديل سعر مورد
-    function editSupplierPrice(id) {
-        showSupplierPriceModal(id);
-    }
-    
-    // دالة تعيين مورد افتراضي
-    function setDefaultSupplier(id) {
-        if (confirm('هل تريد تعيين هذا المورد كافتراضي؟')) {
-            fetch(`/products/api/supplier-prices/${id}/set-default/`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': getCookie('csrftoken'),
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    if (typeof toastr !== 'undefined') { toastr.success(data.message); };
-                    setTimeout(() => location.reload(), 1500);
-                } else {
-                    if (typeof toastr !== 'undefined') { toastr.error(data.message); };
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                if (typeof toastr !== 'undefined') { toastr.error('حدث خطأ في النظام'); };
-            });
-        }
-    }
-    
-    // دالة عرض تاريخ الأسعار
-    function viewPriceHistory(id) {
-        fetch(`/products/api/supplier-prices/${id}/history/`)
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                showPriceHistoryModal(data.data);
-            } else {
-                if (typeof toastr !== 'undefined') { toastr.error(data.message); };
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            if (typeof toastr !== 'undefined') { toastr.error('حدث خطأ في تحميل تاريخ الأسعار'); };
-        });
-    }
-    
-    // دالة عرض مودال إضافة/تعديل سعر المورد
-    function showSupplierPriceModal(supplierPriceId = null) {
-        const isEdit = supplierPriceId !== null;
-        const modalTitle = isEdit ? 'تعديل سعر المورد' : 'إضافة مورد جديد';
-        
-        const modalHtml = `
-            <div class="modal fade" id="supplierPriceModal" tabindex="-1">
-                <div class="modal-dialog">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h5 class="modal-title">${modalTitle}</h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                        </div>
-                        <div class="modal-body">
-                            <form id="supplierPriceForm">
-                                ${!isEdit ? `
-                                <div class="mb-3">
-                                    <label class="form-label">المورد</label>
-                                    <select class="form-select" id="supplierId" required>
-                                        <option value="">اختر المورد</option>
-                                    </select>
-                                </div>
-                                ` : ''}
-                                <div class="mb-3">
-                                    <label class="form-label">سعر التكلفة</label>
-                                    <input type="number" class="form-control" id="costPrice" min="0.01" required>
-                                </div>
-                                <div class="mb-3">
-                                    <label class="form-label">ملاحظات</label>
-                                    <textarea class="form-control" id="notes" rows="3"></textarea>
-                                </div>
-                            </form>
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
-                            <button type="button" class="btn btn-primary" onclick="saveSupplierPrice(${supplierPriceId})">
-                                ${isEdit ? 'تحديث' : 'إضافة'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-        
-        // إزالة المودال السابق إن وجد
-        const existingModal = document.getElementById('supplierPriceModal');
-        if (existingModal) {
-            existingModal.remove();
-        }
-        
-        // إضافة المودال الجديد
-        document.body.insertAdjacentHTML('beforeend', modalHtml);
-        
-        // تحميل قائمة الموردين إذا كان إضافة جديدة
-        if (!isEdit) {
-            loadSuppliers();
-        }
-        
-        // إظهار المودال
-        const modal = new bootstrap.Modal(document.getElementById('supplierPriceModal'));
-        modal.show();
-    }
-    
-    // دالة تحميل قائمة الموردين
-    function loadSuppliers() {
-        // هنا يمكن إضافة API لتحميل الموردين
-        // مؤقتاً سنضع قائمة ثابتة
-        const supplierSelect = document.getElementById('supplierId');
-        supplierSelect.innerHTML = '<option value="">اختر المورد</option>';
-        
-        // يمكن استبدال هذا بـ API call حقيقي
-        fetch('/supplier/api/list/')
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                data.suppliers.forEach(supplier => {
-                    supplierSelect.innerHTML += `<option value="${supplier.id}">${supplier.name}</option>`;
-                });
-            }
-        })
-        .catch(error => {
-            console.log('تعذر تحميل قائمة الموردين');
-        });
-    }
-    
-    // دالة حفظ سعر المورد
-    function saveSupplierPrice(supplierPriceId = null) {
-        const isEdit = supplierPriceId !== null;
-        const costPrice = document.getElementById('costPrice').value;
-        const notes = document.getElementById('notes').value;
-        
-        if (!costPrice || parseFloat(costPrice) <= 0) {
-            if (typeof toastr !== 'undefined') { toastr.error('يرجى إدخال سعر صحيح'); };
-            return;
-        }
-        
-        const requestData = {
-            cost_price: parseFloat(costPrice),
-            notes: notes
-        };
-        
-        if (!isEdit) {
-            const supplierId = document.getElementById('supplierId').value;
-            if (!supplierId) {
-                if (typeof toastr !== 'undefined') { toastr.error('يرجى اختيار المورد'); };
-                return;
-            }
-            requestData.product_id = productId;
-            requestData.supplier_id = parseInt(supplierId);
-        }
-        
-        const url = isEdit 
-            ? `/products/api/supplier-prices/${supplierPriceId}/edit/`
-            : '/products/api/supplier-prices/add/';
-        
-        fetch(url, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': getCookie('csrftoken'),
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-            body: JSON.stringify(requestData)
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                if (typeof toastr !== 'undefined') { toastr.success(data.message); };
-                bootstrap.Modal.getInstance(document.getElementById('supplierPriceModal')).hide();
-                setTimeout(() => location.reload(), 1500);
-            } else {
-                if (typeof toastr !== 'undefined') { toastr.error(data.message); };
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            if (typeof toastr !== 'undefined') { toastr.error('حدث خطأ في النظام'); };
-        });
-    }
-    
-    // دالة عرض مودال تاريخ الأسعار
-    function showPriceHistoryModal(data) {
-        let historyHtml = '';
-        
-        if (data.history.length === 0) {
-            historyHtml = '<p class="text-muted text-center">لا يوجد تاريخ تغيير أسعار</p>';
-        } else {
-            historyHtml = `
-                <div class="table-responsive">
-                    <table class="table table-sm">
-                        <thead>
-                            <tr>
-                                <th class="text-center">التاريخ</th>
-                                <th class="text-center">السعر القديم</th>
-                                <th class="text-center">السعر الجديد</th>
-                                <th class="text-center">التغيير</th>
-                                <th class="text-center">السبب</th>
-                                <th class="text-center">المستخدم</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-            `;
-            
-            data.history.forEach(history => {
-                const changeClass = history.is_increase ? 'text-danger' : history.is_decrease ? 'text-success' : 'text-muted';
-                const changeIcon = history.is_increase ? '↑' : history.is_decrease ? '↓' : '=';
-                
-                historyHtml += `
-                    <tr>
-                        <td class="text-center">${history.change_date}</td>
-                        <td class="text-center">${history.old_price ? history.old_price.toFixed(2) : '-'}</td>
-                        <td class="text-center">${history.new_price.toFixed(2)}</td>
-                        <td class="${changeClass} text-center">
-                            ${changeIcon} ${Math.abs(history.change_amount).toFixed(2)}
-                            ${history.change_percentage ? `(${history.change_percentage.toFixed(1)}%)` : ''}
-                        </td>
-                        <td class="text-center">${history.change_reason}</td>
-                        <td class="text-center">${history.changed_by}</td>
-                    </tr>
-                `;
-            });
-            
-            historyHtml += '</tbody></table></div>';
-        }
-        
-        const modalHtml = `
-            <div class="modal fade" id="priceHistoryModal" tabindex="-1">
-                <div class="modal-dialog modal-lg">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h5 class="modal-title">تاريخ أسعار ${data.supplier_name}</h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                        </div>
-                        <div class="modal-body">
-                            <div class="mb-3">
-                                <strong>العنصر:</strong> ${data.product_name}<br>
-                                <strong>السعر الحالي:</strong> ${data.current_price.toFixed(2)} {{ currency_symbol }}
-                            </div>
-                            ${historyHtml}
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إغلاق</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-        
-        // إزالة المودال السابق إن وجد
-        const existingModal = document.getElementById('priceHistoryModal');
-        if (existingModal) {
-            existingModal.remove();
-        }
-        
-        // إضافة المودال الجديد
-        document.body.insertAdjacentHTML('beforeend', modalHtml);
-        
-        // إظهار المودال
-        const modal = new bootstrap.Modal(document.getElementById('priceHistoryModal'));
-        modal.show();
-    }
-    
-    // دالة عرض التنبيهات
-    function showAlert(message, type = 'info') {
-        const alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
-        const alertHtml = `
-            <div class="alert ${alertClass} alert-dismissible fade show position-fixed" 
-                 style="top: 20px; right: 20px; z-index: 9999; min-width: 300px;">
-                ${message}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-        `;
-        
-        document.body.insertAdjacentHTML('beforeend', alertHtml);
-        
-        // إزالة التنبيه تلقائياً بعد 5 ثوان
-        setTimeout(() => {
-            const alerts = document.querySelectorAll('.alert');
-            alerts.forEach(alert => {
-                if (alert.textContent.includes(message)) {
-                    alert.remove();
-                }
-            });
-        }, 5000);
-    }
-    
-    // دالة الحصول على CSRF token
-    function getCookie(name) {
-        // محاولة الحصول على CSRF token من meta tag أولاً
-        if (name === 'csrftoken') {
-            const metaToken = document.querySelector('meta[name="csrf-token"]');
-            if (metaToken) {
-                return metaToken.getAttribute('content');
-            }
-        }
-        
-        // fallback للطريقة التقليدية من الكوكيز
-        let cookieValue = null;
-        if (document.cookie && document.cookie !== '') {
-            const cookies = document.cookie.split(';');
-            for (let i = 0; i < cookies.length; i++) {
-                const cookie = cookies[i].trim();
-                if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                    break;
-                }
-            }
-        }
-        return cookieValue;
-    }
-    
-    function changeMainImage(imageUrl, altText) {
-        const mainImage = document.getElementById('mainProductImage');
-        const resetBtn = document.getElementById('resetImageBtn');
-        const imageStatus = document.getElementById('imageStatus');
-        
-        if (mainImage) {
-            mainImage.src = imageUrl;
-            mainImage.alt = altText;
-            
-            // إظهار زر الرجوع وتغيير الحالة
-            if (resetBtn) resetBtn.style.display = 'inline-block';
-            if (imageStatus) imageStatus.textContent = 'صورة إضافية';
-            
-            // إضافة تأثير انتقال
-            mainImage.style.opacity = '0.5';
-            setTimeout(() => {
-                mainImage.style.opacity = '1';
-            }, 150);
-        }
-    }
-    
-    function resetToMainImage() {
-        const mainImage = document.getElementById('mainProductImage');
-        const resetBtn = document.getElementById('resetImageBtn');
-        const imageStatus = document.getElementById('imageStatus');
-        
-        if (mainImage) {
-            const originalSrc = mainImage.getAttribute('data-original-src');
-            const originalAlt = mainImage.getAttribute('data-original-alt');
-            
-            mainImage.src = originalSrc;
-            mainImage.alt = originalAlt;
-            
-            // إخفاء زر الرجوع وإعادة الحالة
-            if (resetBtn) resetBtn.style.display = 'none';
-            if (imageStatus) imageStatus.textContent = 'الصورة الرئيسية';
-            
-            // إضافة تأثير انتقال
-            mainImage.style.opacity = '0.5';
-            setTimeout(() => {
-                mainImage.style.opacity = '1';
-            }, 150);
-        }
-    }
-    
-    function uploadImage() {
-        // فتح مودال رفع الصور
-        const modal = new bootstrap.Modal(document.getElementById('uploadImageModal'));
-        modal.show();
-    }
-    
-    function submitImageUpload() {
-        const form = document.getElementById('uploadImageForm');
-        const formData = new FormData(form);
-        const submitBtn = document.getElementById('uploadImageBtn');
-        const originalText = submitBtn.innerHTML;
-        
-        // تعطيل الزر وإظهار مؤشر التحميل
-        submitBtn.disabled = true;
-        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>جاري الرفع...';
-        
-        fetch(form.action, {
-            method: 'POST',
-            body: formData,
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest'
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                // إغلاق المودال
-                const modal = bootstrap.Modal.getInstance(document.getElementById('uploadImageModal'));
-                modal.hide();
-                
-                // إعادة تحميل الصفحة لعرض الصورة الجديدة
-                location.reload();
-            } else {
-                alert(data.message || 'حدث خطأ أثناء رفع الصورة');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('حدث خطأ أثناء رفع الصورة');
-        })
-        .finally(() => {
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = originalText;
-        });
-    }
-    
-    // تفاعل مع الرسم البياني للمبيعات الشهرية
-    document.addEventListener('DOMContentLoaded', function() {
-        // إضافة تفاعل مع أعمدة الرسم البياني
-        const bars = document.querySelectorAll('.bar');
-        bars.forEach(bar => {
-            bar.addEventListener('mouseenter', function() {
-                const monthBar = this.closest('.month-bar');
-                const monthInfo = monthBar.querySelector('.month-info');
-                
-                // إضافة تأثير بصري
-                this.style.transform = 'scaleY(1.1)';
-                monthInfo.style.fontWeight = 'bold';
-                monthInfo.style.color = '#1976d2';
-            });
-            
-            bar.addEventListener('mouseleave', function() {
-                const monthBar = this.closest('.month-bar');
-                const monthInfo = monthBar.querySelector('.month-info');
-                
-                // إزالة التأثير
-                this.style.transform = 'scaleY(1)';
-                monthInfo.style.fontWeight = 'normal';
-                monthInfo.style.color = '';
-            });
-        });
-        
-        // تحريك بطاقات الإحصائيات عند التحميل
-        const statCards = document.querySelectorAll('.sales-stat-card');
-        statCards.forEach((card, index) => {
-            setTimeout(() => {
-                card.style.opacity = '0';
-                card.style.transform = 'translateY(20px)';
-                card.style.transition = 'all 0.5s ease';
-                
-                setTimeout(() => {
-                    card.style.opacity = '1';
-                    card.style.transform = 'translateY(0)';
-                }, 100);
-            }, index * 100);
-        });
-        
-        // تحريك بطاقات العملاء
-        const customerCards = document.querySelectorAll('.customer-card');
-        customerCards.forEach((card, index) => {
-            setTimeout(() => {
-                card.style.opacity = '0';
-                card.style.transform = 'translateX(-20px)';
-                card.style.transition = 'all 0.5s ease';
-                
-                setTimeout(() => {
-                    card.style.opacity = '1';
-                    card.style.transform = 'translateX(0)';
-                }, 100);
-            }, (index * 150) + 500);
-        });
-        
-        // تحريك أعمدة الرسم البياني
-        const monthBars = document.querySelectorAll('.month-bar .bar');
-        monthBars.forEach((bar, index) => {
-            const originalHeight = bar.style.height;
-            bar.style.height = '0%';
-            bar.style.transition = 'height 0.8s ease';
-            
-            setTimeout(() => {
-                bar.style.height = originalHeight;
-            }, (index * 100) + 1000);
-        });
-    });
-    
-    // دالة لعرض تفاصيل الشهر عند النقر
-    function showMonthDetails(monthData) {
-        const modalHtml = `
-            <div class="modal fade" id="monthDetailsModal" tabindex="-1">
-                <div class="modal-dialog">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h5 class="modal-title">تفاصيل مبيعات ${monthData.month_name}</h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                        </div>
-                        <div class="modal-body">
-                            <div class="row">
-                                <div class="col-md-4 text-center">
-                                    <div class="stat-icon">
-                                        <i class="fas fa-boxes text-primary"></i>
-                                    </div>
-                                    <div class="stat-value">${monthData.quantity}</div>
-                                    <div class="stat-label">الكمية المباعة</div>
-                                </div>
-                                <div class="col-md-4 text-center">
-                                    <div class="stat-icon">
-                                        <i class="fas fa-money-bill-wave text-success"></i>
-                                    </div>
-                                    <div class="stat-value">${monthData.value.toLocaleString()} {{ currency_symbol }}</div>
-                                    <div class="stat-label">قيمة المبيعات</div>
-                                </div>
-                                <div class="col-md-4 text-center">
-                                    <div class="stat-icon">
-                                        <i class="fas fa-receipt text-info"></i>
-                                    </div>
-                                    <div class="stat-value">${monthData.count}</div>
-                                    <div class="stat-label">عدد الفواتير</div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إغلاق</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-        
-        // إزالة المودال السابق إن وجد
-        const existingModal = document.getElementById('monthDetailsModal');
-        if (existingModal) {
-            existingModal.remove();
-        }
-        
-        // إضافة المودال الجديد
-        document.body.insertAdjacentHTML('beforeend', modalHtml);
-        
-        // إظهار المودال
-        const modal = new bootstrap.Modal(document.getElementById('monthDetailsModal'));
-        modal.show();
-    }
-</script>
+<!-- ==========================================================================
+   المودالات التفاعلية والنوافذ المنسدلة (Modals)
+   ========================================================================== -->
 
 <!-- مودال رفع الصور -->
 <div class="modal fade" id="uploadImageModal" tabindex="-1" aria-labelledby="uploadImageModalLabel" aria-hidden="true">
@@ -1620,7 +1348,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="uploadImageModalLabel">
-                    <i class="fas fa-upload me-2"></i>رفع صورة
+                    <i class="fas fa-upload me-2 text-primary"></i>رفع صورة للمنتج
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
@@ -1634,21 +1362,19 @@
                     </div>
                     <div class="mb-3">
                         <label for="altText" class="form-label">وصف الصورة (اختياري)</label>
-                        <input type="text" class="form-control" id="altText" name="alt_text" placeholder="مثال: صورة من الأمام">
+                        <input type="text" class="form-control" id="altText" name="alt_text" placeholder="مثال: صورة واجهة المنتج">
                     </div>
                     <div class="form-check">
                         <input type="checkbox" class="form-check-input" id="isPrimary" name="is_primary" checked>
                         <label class="form-check-label" for="isPrimary">
-                            جعلها الصورة الرئيسية
+                            جعلها الصورة الرئيسية للمنتج
                         </label>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                        <i class="fas fa-times me-2"></i>إلغاء
-                    </button>
-                    <button type="button" class="btn btn-primary" id="uploadImageBtn" onclick="submitImageUpload()">
-                        <i class="fas fa-upload me-2"></i>رفع الصورة
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="button" class="btn btn-primary btn-sm" id="uploadImageBtn" onclick="submitImageUpload()">
+                        <i class="fas fa-upload me-1"></i>رفع الصورة
                     </button>
                 </div>
             </form>
@@ -1660,9 +1386,9 @@
 <div class="modal fade" id="currencyPricesModal" tabindex="-1" aria-labelledby="currencyPricesModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
-            <div class="modal-header bg-light">
-                <h5 class="modal-title text-dark fw-bold" id="currencyPricesModalLabel">
-                    <i class="fas fa-coins text-warning me-2"></i>تعديل السعر بالعملة
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold" id="currencyPricesModalLabel">
+                    <i class="fas fa-coins text-warning me-2"></i>تخصيص السعر بالعملة الأجنبية
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
@@ -1703,103 +1429,433 @@
     </div>
 </div>
 
+<!-- ==========================================================================
+   JavaScript Handlers & AJAX Logic (محتفظ به كاملاً 100%)
+   ========================================================================== -->
 <script>
-function openCurrencyPriceModal(code, selling, cost, notes) {
-    document.getElementById('fx_action').value = 'update';
-    var select = document.getElementById('fx_currency_code');
-    select.value = code || '';
-    select.disabled = false;
-    document.getElementById('fx_selling_price').value = selling || '';
-    document.getElementById('fx_cost_price').value = cost || '';
-    document.getElementById('fx_notes').value = notes || '';
-    
-    var modal = new bootstrap.Modal(document.getElementById('currencyPricesModal'));
-    modal.show();
-}
+    const productId = PRODUCT_ID;
 
-function deleteCurrencyPrice(code) {
-    if (!code) return;
-    if (!confirm('هل أنت تأكد من إلغاء السعر المخصص لعملة ' + code + ' والرجوع للتحويل التلقائي بأسعار الصرف؟')) {
-        return;
+    // دالة التغيير بين الصورة الرئيسية والفرعية
+    function changeMainImage(imageUrl, altText) {
+        const mainImage = document.getElementById('mainProductImage');
+        const resetBtn = document.getElementById('resetImageBtn');
+        
+        if (mainImage) {
+            mainImage.src = imageUrl;
+            mainImage.alt = altText;
+            if (resetBtn) resetBtn.style.display = 'inline-block';
+            
+            mainImage.style.opacity = '0.5';
+            setTimeout(() => { mainImage.style.opacity = '1'; }, 150);
+        }
     }
-    var formData = new FormData();
-    formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
-    formData.append('currency_code', code);
-    formData.append('action', 'delete');
-
-    fetch("{% url 'product:update_currency_prices' product.pk %}", {
-        method: 'POST',
-        body: formData,
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest'
+    
+    function resetToMainImage() {
+        const mainImage = document.getElementById('mainProductImage');
+        const resetBtn = document.getElementById('resetImageBtn');
+        
+        if (mainImage) {
+            const originalSrc = mainImage.getAttribute('data-original-src');
+            const originalAlt = mainImage.getAttribute('data-original-alt');
+            
+            mainImage.src = originalSrc;
+            mainImage.alt = originalAlt;
+            if (resetBtn) resetBtn.style.display = 'none';
+            
+            mainImage.style.opacity = '0.5';
+            setTimeout(() => { mainImage.style.opacity = '1'; }, 150);
         }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            if (typeof toastr !== 'undefined') toastr.success(data.message);
-            location.reload();
-        } else {
-            alert(data.message || 'حدث خطأ أثناء الحذف');
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('حدث خطأ بالاتصال أثناء الحذف');
-    });
-}
-
-document.addEventListener('DOMContentLoaded', function() {
-    document.querySelectorAll('.btn-edit-currency-price').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-            var ds = this.dataset;
-            openCurrencyPriceModal(ds.code, ds.selling, ds.cost, ds.notes);
+    }
+    
+    function uploadImage() {
+        const modal = new bootstrap.Modal(document.getElementById('uploadImageModal'));
+        modal.show();
+    }
+    
+    function submitImageUpload() {
+        const form = document.getElementById('uploadImageForm');
+        const formData = new FormData(form);
+        const submitBtn = document.getElementById('uploadImageBtn');
+        const originalText = submitBtn.innerHTML;
+        
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>جاري الرفع...';
+        
+        fetch(form.action, {
+            method: 'POST',
+            body: formData,
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                bootstrap.Modal.getInstance(document.getElementById('uploadImageModal')).hide();
+                location.reload();
+            } else {
+                alert(data.message || 'حدث خطأ أثناء رفع الصورة');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('حدث خطأ أثناء رفع الصورة');
+        })
+        .finally(() => {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalText;
         });
-    });
+    }
 
-    document.querySelectorAll('.btn-delete-currency-price').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-            deleteCurrencyPrice(this.dataset.code);
-        });
-    });
+    // أسعار الموردين
+    function addSupplierPrice() { showSupplierPriceModal(); }
+    function editSupplierPrice(id) { showSupplierPriceModal(id); }
 
-    var currencyPricesForm = document.getElementById('currencyPricesForm');
-    if (currencyPricesForm) {
-        currencyPricesForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            var formData = new FormData(this);
-            var actionUrl = this.getAttribute('action');
-            fetch(actionUrl, {
+    function setDefaultSupplier(id) {
+        if (confirm('هل تريد تعيين هذا المورد كافتراضي لهذا المنتج؟')) {
+            fetch(`/products/api/supplier-prices/${id}/set-default/`, {
                 method: 'POST',
-                body: formData,
                 headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken'),
                     'X-Requested-With': 'XMLHttpRequest'
                 }
             })
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    if (typeof toastr !== 'undefined') {
-                        toastr.success(data.message);
-                    } else {
-                        alert(data.message);
-                    }
-                    location.reload();
+                    if (typeof toastr !== 'undefined') { toastr.success(data.message); }
+                    setTimeout(() => location.reload(), 1200);
                 } else {
-                    if (typeof toastr !== 'undefined') {
-                        toastr.error(data.message || 'حدث خطأ أثناء حفظ السعر');
-                    } else {
-                        alert(data.message || 'حدث خطأ أثناء حفظ السعر');
-                    }
+                    if (typeof toastr !== 'undefined') { toastr.error(data.message); }
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
-                alert('حدث خطأ بالاتصال أثناء الحفظ');
+                if (typeof toastr !== 'undefined') { toastr.error('حدث خطأ في النظام'); }
             });
+        }
+    }
+
+    function viewPriceHistory(id) {
+        fetch(`/products/api/supplier-prices/${id}/history/`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showPriceHistoryModal(data.data);
+            } else {
+                if (typeof toastr !== 'undefined') { toastr.error(data.message); }
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            if (typeof toastr !== 'undefined') { toastr.error('حدث خطأ في تحميل تاريخ الأسعار'); }
         });
     }
-});
+
+    function showSupplierPriceModal(supplierPriceId = null) {
+        const isEdit = supplierPriceId !== null;
+        const modalTitle = isEdit ? 'تعديل سعر المورد' : 'إضافة مورد جديد للمنتج';
+        
+        const modalHtml = `
+            <div class="modal fade" id="supplierPriceModal" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">${modalTitle}</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <form id="supplierPriceForm">
+                                ${!isEdit ? `
+                                <div class="mb-3">
+                                    <label class="form-label">اختر المورد</label>
+                                    <select class="form-select" id="supplierId" required>
+                                        <option value="">-- اختر المورد --</option>
+                                    </select>
+                                </div>
+                                ` : ''}
+                                <div class="mb-3">
+                                    <label class="form-label">سعر التكلفة</label>
+                                    <input type="number" class="form-control" id="costPrice" min="0.01" step="0.01" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">ملاحظات</label>
+                                    <textarea class="form-control" id="notes" rows="3"></textarea>
+                                </div>
+                            </form>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">إلغاء</button>
+                            <button type="button" class="btn btn-primary btn-sm" onclick="saveSupplierPrice(${supplierPriceId})">
+                                ${isEdit ? 'تحديث السعر' : 'إضافة المورد'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        const existingModal = document.getElementById('supplierPriceModal');
+        if (existingModal) existingModal.remove();
+        
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        if (!isEdit) loadSuppliers();
+        
+        const modal = new bootstrap.Modal(document.getElementById('supplierPriceModal'));
+        modal.show();
+    }
+
+    function loadSuppliers() {
+        const supplierSelect = document.getElementById('supplierId');
+        if (!supplierSelect) return;
+        
+        fetch('/supplier/api/list/')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.suppliers) {
+                supplierSelect.innerHTML = '<option value="">-- اختر المورد --</option>';
+                data.suppliers.forEach(supplier => {
+                    supplierSelect.innerHTML += `<option value="${supplier.id}">${supplier.name}</option>`;
+                });
+            }
+        })
+        .catch(error => { console.log('تعذر تحميل قائمة الموردين'); });
+    }
+
+    function saveSupplierPrice(supplierPriceId = null) {
+        const isEdit = supplierPriceId !== null;
+        const costPrice = document.getElementById('costPrice').value;
+        const notes = document.getElementById('notes').value;
+        
+        if (!costPrice || parseFloat(costPrice) <= 0) {
+            if (typeof toastr !== 'undefined') { toastr.error('يرجى إدخال سعر صحيح'); }
+            return;
+        }
+        
+        const requestData = {
+            cost_price: parseFloat(costPrice),
+            notes: notes
+        };
+        
+        if (!isEdit) {
+            const supplierId = document.getElementById('supplierId').value;
+            if (!supplierId) {
+                if (typeof toastr !== 'undefined') { toastr.error('يرجى اختيار المورد'); }
+                return;
+            }
+            requestData.product_id = productId;
+            requestData.supplier_id = parseInt(supplierId);
+        }
+        
+        const url = isEdit 
+            ? `/products/api/supplier-prices/${supplierPriceId}/edit/`
+            : '/products/api/supplier-prices/add/';
+        
+        fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken'),
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify(requestData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                if (typeof toastr !== 'undefined') { toastr.success(data.message); }
+                bootstrap.Modal.getInstance(document.getElementById('supplierPriceModal')).hide();
+                setTimeout(() => location.reload(), 1200);
+            } else {
+                if (typeof toastr !== 'undefined') { toastr.error(data.message); }
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            if (typeof toastr !== 'undefined') { toastr.error('حدث خطأ في النظام'); }
+        });
+    }
+
+    function showPriceHistoryModal(data) {
+        let historyHtml = '';
+        if (!data.history || data.history.length === 0) {
+            historyHtml = '<p class="text-muted text-center py-3">لا يوجد سجل تاريخ تغيير أسعار لهذا المورد</p>';
+        } else {
+            historyHtml = `
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th class="text-center">التاريخ</th>
+                                <th class="text-center">السعر القديم</th>
+                                <th class="text-center">السعر الجديد</th>
+                                <th class="text-center">التغيير</th>
+                                <th class="text-center">السبب</th>
+                                <th class="text-center">المستخدم</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+            data.history.forEach(history => {
+                const changeClass = history.is_increase ? 'text-danger' : history.is_decrease ? 'text-success' : 'text-muted';
+                const changeIcon = history.is_increase ? '↑' : history.is_decrease ? '↓' : '=';
+                
+                historyHtml += `
+                    <tr>
+                        <td class="text-center">${history.change_date}</td>
+                        <td class="text-center">${history.old_price ? history.old_price.toFixed(2) : '-'}</td>
+                        <td class="text-center fw-bold">${history.new_price.toFixed(2)}</td>
+                        <td class="${changeClass} text-center">
+                            ${changeIcon} ${Math.abs(history.change_amount).toFixed(2)}
+                            ${history.change_percentage ? `(${history.change_percentage.toFixed(1)}%)` : ''}
+                        </td>
+                        <td class="text-center">${history.change_reason || '-'}</td>
+                        <td class="text-center">${history.changed_by}</td>
+                    </tr>
+                `;
+            });
+            historyHtml += '</tbody></table></div>';
+        }
+        
+        const modalHtml = `
+            <div class="modal fade" id="priceHistoryModal" tabindex="-1">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">تاريخ أسعار المورد: ${data.supplier_name}</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="mb-3 pb-2 border-bottom">
+                                <strong>المنتج:</strong> ${data.product_name}<br>
+                                <strong>السعر الحالي:</strong> <span class="text-success fw-bold">${data.current_price.toFixed(2)}</span>
+                            </div>
+                            ${historyHtml}
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">إغلاق</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        const existingModal = document.getElementById('priceHistoryModal');
+        if (existingModal) existingModal.remove();
+        
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        const modal = new bootstrap.Modal(document.getElementById('priceHistoryModal'));
+        modal.show();
+    }
+
+    // أسعار العملات
+    function openCurrencyPriceModal(code, selling, cost, notes) {
+        document.getElementById('fx_action').value = 'update';
+        var select = document.getElementById('fx_currency_code');
+        if (select) {
+            select.value = code || '';
+            select.disabled = false;
+        }
+        document.getElementById('fx_selling_price').value = selling || '';
+        document.getElementById('fx_cost_price').value = cost || '';
+        document.getElementById('fx_notes').value = notes || '';
+        
+        var modal = new bootstrap.Modal(document.getElementById('currencyPricesModal'));
+        modal.show();
+    }
+
+    function deleteCurrencyPrice(code) {
+        if (!code) return;
+        if (!confirm('هل أنت تأكد من إلغاء السعر المخصص لعملة ' + code + ' والرجوع للتحويل التلقائي بأسعار الصرف؟')) {
+            return;
+        }
+        var formData = new FormData();
+        formData.append('csrfmiddlewaretoken', getCookie('csrftoken'));
+        formData.append('currency_code', code);
+        formData.append('action', 'delete');
+
+        fetch("{% url 'product:update_currency_prices' product.pk %}", {
+            method: 'POST',
+            body: formData,
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                if (typeof toastr !== 'undefined') toastr.success(data.message);
+                location.reload();
+            } else {
+                alert(data.message || 'حدث خطأ أثناء الحذف');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('حدث خطأ بالاتصال أثناء الحذف');
+        });
+    }
+
+    // CSRF Cookie Utility
+    function getCookie(name) {
+        if (name === 'csrftoken') {
+            const metaToken = document.querySelector('meta[name="csrf-token"]');
+            if (metaToken) return metaToken.getAttribute('content');
+        }
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    // Event Listeners Initialization
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('.btn-edit-currency-price').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var ds = this.dataset;
+                openCurrencyPriceModal(ds.code, ds.selling, ds.cost, ds.notes);
+            });
+        });
+
+        document.querySelectorAll('.btn-delete-currency-price').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                deleteCurrencyPrice(this.dataset.code);
+            });
+        });
+
+        var currencyPricesForm = document.getElementById('currencyPricesForm');
+        if (currencyPricesForm) {
+            currencyPricesForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                var formData = new FormData(this);
+                var actionUrl = this.getAttribute('action');
+                fetch(actionUrl, {
+                    method: 'POST',
+                    body: formData,
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        if (typeof toastr !== 'undefined') toastr.success(data.message);
+                        else alert(data.message);
+                        location.reload();
+                    } else {
+                        if (typeof toastr !== 'undefined') toastr.error(data.message || 'حدث خطأ أثناء حفظ السعر');
+                        else alert(data.message || 'حدث خطأ أثناء حفظ السعر');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('حدث خطأ بالاتصال أثناء الحفظ');
+                });
+            });
+        }
+    });
 </script>
 {% endblock %}
- 
