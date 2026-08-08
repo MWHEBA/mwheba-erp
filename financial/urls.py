@@ -23,6 +23,9 @@ urlpatterns = [
         views.cash_account_movements,
         name="cash_account_movements",
     ),
+    # التسويات البنكية
+    path("bank-reconciliations/", views.bank_reconciliation_list, name="bank_reconciliation_list"),
+    path("bank-reconciliations/<int:pk>/", views.bank_reconciliation_detail, name="bank_reconciliation_detail"),
     # مراكز التكلفة المحاسبية (Cost Centers)
     path("cost-centers/", views.cost_centers_list_view, name="cost_centers_list"),
     path("cost-centers/create/", views.cost_center_create_view, name="cost_center_create"),

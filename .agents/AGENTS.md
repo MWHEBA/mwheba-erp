@@ -59,3 +59,20 @@
   - Prefer making data table rows clickable (`.clickable-row` with `data-href`) for direct detail navigation, omitting redundant "Actions" columns when primary view is single.
 - **Standardized In-Table Button Groups**:
   - Row-level interactive controls MUST use standard `.btn-group.btn-group-sm` with standard outline classes (`btn-outline-secondary`, `btn-outline-danger`) and FontAwesome icons, avoiding custom circular CSS overrides.
+
+## 8. Corporate ERP Unified Modal Architecture Standards
+- **Modal Dialog & Positioning**:
+  - All modals MUST use centered alignment and standard depth: `<div class="modal-dialog modal-dialog-centered">` (or `modal-lg modal-dialog-centered`).
+  - Modal container MUST use borderless clean card styling with large shadow: `<div class="modal-content border-0 shadow-lg">`.
+- **Standard Header Styling (`.modal-header`)**:
+  - MUST use standard corporate light background and bottom border: `<div class="modal-header bg-light border-bottom px-4 py-3">`.
+  - MUST NEVER use solid colored headers like `bg-primary`, `bg-dark`, `bg-success` or `btn-close-white`.
+  - Title MUST use `<h5 class="modal-title fw-bold text-dark mb-0">` with a colored FontAwesome icon (e.g. `<i class="fas fa-... text-primary me-2"></i>Title</h5>`).
+  - Standard dark close button MUST be used: `<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>`.
+- **Standard Body & Footer (`.modal-body` & `.modal-footer`)**:
+  - Body MUST use `<div class="modal-body p-4">`.
+  - Footer MUST use `<div class="modal-footer bg-light border-top px-4 py-3">`.
+  - Action buttons MUST use standard ERP classes (`btn-secondary px-3` for Cancel, `btn-primary px-4 fw-bold` for Submit).
+- **Select2 Dropdown Integration Inside Modals**:
+  - Select2 dropdowns placed inside Bootstrap modals MUST be initialized with `dropdownParent: $('#modal_id')` to prevent the dropdown menu from opening behind the modal backdrop overlay.
+

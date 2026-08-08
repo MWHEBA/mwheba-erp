@@ -1,0 +1,61 @@
+{% load i18n utils_extras %}
+
+<div class="table-responsive">
+    <table class="table table-hover align-middle text-center mb-0" id="bank-reconciliations-table">
+        <thead class="table-light">
+            <tr>
+                <th>#</th>
+                <th>{% trans "رقم الكشف / التسوية" %}</th>
+                <th>{% trans "الحساب البنكي المحاسبي" %}</th>
+                <th>{% trans "تاريخ الكشف" %}</th>
+                <th>{% trans "رصيد البداية" %}</th>
+                <th>{% trans "رصيد النهاية" %}</th>
+                <th>{% trans "حركة الكشف" %}</th>
+                <th>{% trans "الحالة" %}</th>
+                <th>{% trans "خيارات" %}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for batch in page_obj %}
+            <tr class="clickable-row" data-href="{% url 'financial:bank_reconciliation_detail' batch.id %}">
+                <td>{{ forloop.counter }}</td>
+                <td class="fw-bold text-primary">{{ batch.batch_number }}</td>
+                <td class="fw-bold text-start ps-3">{{ batch.bank_account.name }}</td>
+                <td class="small">{{ batch.statement_date|date:"Y-m-d" }}</td>
+                <td class="text-nowrap">{{ batch.opening_balance|smart_float }}</td>
+                <td class="text-nowrap fw-bold">{{ batch.closing_balance|smart_float }}</td>
+                <td class="fw-bold text-nowrap {% if batch.difference > 0 %}text-success{% elif batch.difference < 0 %}text-danger{% else %}text-muted{% endif %}">
+                    {% if batch.difference > 0 %}+{% endif %}{{ batch.difference|smart_float }}
+                </td>
+                <td>
+                    {% if batch.status == 'completed' %}
+                        <span class="badge bg-success"><i class="fas fa-check-circle me-1"></i>{% trans "مكتمل والمعالجة معتمدة" %}</span>
+                    {% elif batch.status == 'reconciling' %}
+                        <span class="badge bg-warning text-dark"><i class="fas fa-sync me-1"></i>{% trans "قيد المطابقة والتسوية" %}</span>
+                    {% else %}
+                        <span class="badge bg-info text-dark"><i class="fas fa-file-import me-1"></i>{% trans "مستورد / مسودة" %}</span>
+                    {% endif %}
+                </td>
+                <td class="col-actions">
+                    <div class="btn-group btn-group-sm">
+                        <a href="{% url 'financial:bank_reconciliation_detail' batch.id %}" class="btn btn-outline-primary" title="{% trans "فتح وتدقيق المطابقة" %}">
+                            <i class="fas fa-eye me-1"></i>{% trans "عرض" %}
+                        </a>
+                    </div>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="9" class="text-center py-5 text-muted">
+                    <i class="fas fa-building-columns fa-3x mb-3 d-block text-secondary"></i>
+                    <h5 class="fw-bold">{% trans "لا توجد تسويات بنكية أو كشوف حسابات مسجلة" %}</h5>
+                    <p class="small text-muted mb-3">{% trans "يمكنك البدء بإنشاء تسوية جديدة أو رفع كشف حساب بنكي للمطابقة الآلية." %}</p>
+                    <button type="button" class="btn btn-sm btn-primary px-3" data-bs-toggle="modal" data-bs-target="#createReconciliationModal">
+                        <i class="fas fa-plus me-1"></i>{% trans "إضافة تسوية جديدة" %}
+                    </button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>

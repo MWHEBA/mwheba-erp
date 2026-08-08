@@ -1,217 +1,308 @@
-{% extends 'base.html' %}
-{% load static %}
-{% load i18n %}
-{% load crispy_forms_tags %}
+{% extends "base.html" %}
+{% load i18n static %}
 
-{% block title %}{% trans "التسويات البنكية" %}{% endblock %}
+{% block title %}{{ page_title }} | {% trans "MWHEBA ERP" %}{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/components.css' %}">
-<link rel="stylesheet" href="{% static 'css/tables.css' %}">
-<style>
-    .reconciliation-row {
-        transition: all 0.2s ease;
-    }
-    .reconciliation-row:hover {
-        background-color: rgba(0,0,0,0.03);
-    }
-    .reconciliation-status {
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: white;
-    }
-    .reconciliation-status.reconciled {
-        background-color: #28a745;
-    }
-    .reconciliation-status.unreconciled {
-        background-color: #dc3545;
-    }
-</style>
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
 {% endblock %}
 
 {% block content %}
 <div class="container-fluid">
-    <div class="row mb-4">
-        <div class="col">
-            <nav aria-label="breadcrumb">
-                <ol class="breadcrumb">
-                    <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}">{% trans "الرئيسية" %}</a></li>
-                    <li class="breadcrumb-item"><a href="{% url 'financial:account_list' %}">{% trans "الإدارة المالية" %}</a></li>
-                    <li class="breadcrumb-item active" aria-current="page">{% trans "التسويات البنكية" %}</li>
-                </ol>
-            </nav>
-            <div class="d-flex justify-content-between align-items-center">
-                <h1 class="page-title">{% trans "التسويات البنكية" %}</h1>
-                <a href="{% url 'financial:bank_reconciliation_create' %}" class="btn btn-primary">
-                    <i class="fas fa-plus me-2"></i>{% trans "إضافة تسوية جديدة" %}
-                </a>
-            </div>
-        </div>
-    </div>
-    
-    <!-- قسم الفلترة -->
-    <div class="filter-section shadow-sm">
-        <form method="GET" action="" class="row g-3">
-            <div class="col-md-4">
-                <label for="account" class="form-label">{% trans "الحساب" %}</label>
-                <select class="form-select" id="account" name="account">
-                    <option value="">{% trans "جميع الحسابات" %}</option>
-                    {% for account in accounts %}
-                    <option value="{{ account.id }}" {% if request.GET.account == account.id|stringformat:"i" %}selected{% endif %}>
-                        {{ account.name }}
-                    </option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="col-md-3">
-                <label for="date_from" class="form-label">{% trans "من تاريخ" %}</label>
-                <input type="text" class="form-control" id="date_from" name="date_from" data-date-picker placeholder="من تاريخ" value="{{ request.GET.date_from }}">
-            </div>
-            <div class="col-md-2">
-                <label for="date_to" class="form-label">{% trans "إلى تاريخ" %}</label>
-                <input type="text" class="form-control" id="date_to" name="date_to" data-date-picker placeholder="إلى تاريخ" value="{{ request.GET.date_to }}">
-            </div>
-            <div class="col-md-2 d-flex align-items-end">
-                <button type="submit" class="btn btn-primary w-100">
-                    <i class="fas fa-filter me-2"></i>{% trans "تصفية" %}
-                </button>
-            </div>
-        </form>
-    </div>
-    
-    <!-- قائمة التسويات البنكية -->
-    <div class="card shadow-sm">
-        <div class="card-header bg-light d-flex justify-content-between align-items-center">
-            <h5 class="card-title mb-0">{% trans "التسويات البنكية" %}</h5>
-            <div>
-                <button type="button" class="btn btn-sm btn-outline-primary" id="export-reconciliations">
-                    <i class="fas fa-file-export me-1"></i>{% trans "تصدير" %}
-                </button>
-            </div>
-        </div>
-        <div class="card-body">
-            {% if reconciliations %}
-            <div class="table-responsive">
-                <table class="table table-hover" id="reconciliations-table">
-                    <thead>
-                        <tr>
-                            <th class="text-center">{% trans "الحالة" %}</th>
-                            <th class="text-center">{% trans "تاريخ التسوية" %}</th>
-                            <th class="text-center">{% trans "الحساب" %}</th>
-                            <th class="text-center">{% trans "رصيد النظام" %}</th>
-                            <th class="text-center">{% trans "رصيد البنك" %}</th>
-                            <th class="text-center">{% trans "الفرق" %}</th>
-                            <th class="text-center">{% trans "خيارات" %}</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for reconciliation in reconciliations %}
-                        <tr class="reconciliation-row">
-                            <td class="text-center">
-                                <div class="reconciliation-status {% if reconciliation.difference == 0 %}reconciled{% else %}unreconciled{% endif %}">
-                                    {% if reconciliation.difference == 0 %}
-                                    <i class="fas fa-check"></i>
-                                    {% else %}
-                                    <i class="fas fa-exclamation"></i>
-                                    {% endif %}
-                                </div>
-                            </td>
-                            <td class="text-center">{{ reconciliation.reconciliation_date|date:"Y-m-d" }}</td>
-                            <td class="text-center">{{ reconciliation.account.name }}</td>
-                            <td class="text-center">{{ reconciliation.system_balance }}</td>
-                            <td class="text-center">{{ reconciliation.bank_balance }}</td>
-                            <td class="{% if reconciliation.difference != 0 %}text-danger{% else %}text-success{% endif %} text-center">
-                                {{ reconciliation.difference }}
-                            </td>
-                            <td class="text-center">
-                                <div class="btn-group btn-group-sm">
-                                    <a href="#" class="btn btn-outline-primary view-details" data-id="{{ reconciliation.id }}">
-                                        <i class="fas fa-eye"></i>
-                                    </a>
-                                    <a href="#" class="btn btn-outline-secondary">
-                                        <i class="fas fa-print"></i>
-                                    </a>
-                                </div>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-            {% else %}
-            <div class="empty-state text-center py-5">
-                <div class="empty-state-icon mb-4">
-                    <i class="fas fa-balance-scale fa-5x text-muted"></i>
-                </div>
-                <h4>{% trans "لا توجد تسويات بنكية" %}</h4>
-                <p class="text-muted">{% trans "لم يتم تسجيل أي تسويات بنكية حتى الآن" %}</p>
-                <a href="{% url 'financial:bank_reconciliation_create' %}" class="btn btn-primary mt-3">
-                    <i class="fas fa-plus me-2"></i>{% trans "إضافة تسوية جديدة" %}
-                </a>
-            </div>
-            {% endif %}
-        </div>
-    </div>
-</div>
+    {% include "shared/page_header.html" %}
 
-<!-- Modal عرض التفاصيل -->
-<div class="modal fade" id="reconciliationDetailsModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">{% trans "تفاصيل التسوية البنكية" %}</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+    <!-- 1. Statistical KPI Cards Grid (AGENTS.md Rule 7: Direct Grid Row, Never wrapped in section-container) -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="stats-card stats-card-info">
+                <div class="stats-card-body">
+                    <div class="stats-card-icon"><i class="fas fa-building-columns"></i></div>
+                    <div class="stats-card-title">{% trans "إجمالي كشوف الحسابات" %}</div>
+                    <div class="stats-card-value text-primary">{{ total_count }}</div>
+                </div>
             </div>
-            <div class="modal-body" id="reconciliationDetailsContent">
-                <!-- سيتم تحميل المحتوى هنا عبر AJAX -->
-                <div class="text-center py-5">
-                    <div class="spinner-border text-primary" role="status">
-                        <span class="visually-hidden">Loading...</span>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card stats-card-warning">
+                <div class="stats-card-body">
+                    <div class="stats-card-icon"><i class="fas fa-file-import"></i></div>
+                    <div class="stats-card-title">{% trans "كشوف مستوردة / مسودة" %}</div>
+                    <div class="stats-card-value text-warning">{{ imported_count }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card stats-card-info">
+                <div class="stats-card-body">
+                    <div class="stats-card-icon"><i class="fas fa-sync"></i></div>
+                    <div class="stats-card-title">{% trans "قيد المطابقة والتسوية" %}</div>
+                    <div class="stats-card-value text-info">{{ reconciling_count }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card stats-card-success">
+                <div class="stats-card-body">
+                    <div class="stats-card-icon"><i class="fas fa-check-double"></i></div>
+                    <div class="stats-card-title">{% trans "تسويات مكتملة ومطابقة" %}</div>
+                    <div class="stats-card-value text-success">{{ completed_count }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. Collapsible Filter Section (AGENTS.md Rule 6 & 7) -->
+    <div class="section-container mb-4">
+        <h5 class="section-title cursor-pointer" data-bs-toggle="collapse" data-bs-target="#filterSection">
+            <i class="fas fa-filter me-2"></i>{% trans "تصفية كشوف الحسابات والتسويات البنكية" %}
+        </h5>
+        <div class="collapse show mt-3" id="filterSection">
+            <form id="filter-form" method="GET" class="row g-3" onsubmit="event.preventDefault(); window.doSearch();">
+                <div class="col-md-4">
+                    <label class="form-label fw-bold">{% trans "البحث برقم الكشف / اسم البنك" %}</label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="fas fa-search"></i></span>
+                        <input type="text" name="search" id="search-input" class="form-control" placeholder="{% trans "أدخل كود الكشف أو اسم البنك..." %}" value="{{ search_query }}">
                     </div>
                 </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% trans "إغلاق" %}</button>
-                <button type="button" class="btn btn-primary" id="printReconciliationBtn">
-                    <i class="fas fa-print me-2"></i>{% trans "طباعة" %}
-                </button>
-            </div>
+                <div class="col-md-4">
+                    <label class="form-label fw-bold">{% trans "الحساب البنكي المحاسبي" %}</label>
+                    <select name="bank_account" id="bank_account-select" class="form-select select2-filter" dir="rtl">
+                        <option value="">{% trans "جميع الحسابات البنكية" %}</option>
+                        {% for acc in accounts %}
+                        <option value="{{ acc.id }}" {% if selected_account == acc.id|stringformat:"s" %}selected{% endif %}>{{ acc.code }} - {{ acc.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label fw-bold">{% trans "حالة التسوية" %}</label>
+                    <select name="status" id="status-select" class="form-select select2-filter" dir="rtl">
+                        <option value="">{% trans "جميع الحالات" %}</option>
+                        <option value="imported" {% if selected_status == 'imported' %}selected{% endif %}>{% trans "مستورد / مسودة" %}</option>
+                        <option value="reconciling" {% if selected_status == 'reconciling' %}selected{% endif %}>{% trans "قيد المطابقة والتسوية" %}</option>
+                        <option value="completed" {% if selected_status == 'completed' %}selected{% endif %}>{% trans "مكتمل ومعتمد" %}</option>
+                    </select>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 3. Table Container Section (AGENTS.md Rule 6 & 7) -->
+    <div class="section-container">
+        <h5 class="section-title"><i class="fas fa-list me-2"></i>{% trans "سجل كشوف الحسابات والتسويات البنكية" %}</h5>
+        <div id="bank_reconciliation-table-container">
+            {% include "financial/banking/partials/bank_reconciliation_table_partial.html" %}
+        </div>
+        <div id="pagination-wrapper" class="mt-3">
+            {% include "partials/pagination.html" %}
         </div>
     </div>
 </div>
-{% endblock %}
 
-{% block extra_js %}
+<!-- Modal إنشاء تسوية بنكية جديدة - Corporate ERP Modal Standard -->
+<div class="modal fade" id="createReconciliationModal" tabindex="-1" aria-labelledby="createReconciliationModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-light border-bottom px-4 py-3">
+                <h5 class="modal-title fw-bold text-dark mb-0" id="createReconciliationModalLabel">
+                    <i class="fas fa-plus-circle text-primary me-2"></i>{% trans "إنشاء تسوية / كشف حساب بنكي جديد" %}
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="form-create-reconciliation" method="POST" action="{% url 'financial:bank_reconciliation_list' %}" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="modal-body p-4">
+                    <!-- القسم الأول: البيانات الأساسية -->
+                    <div class="mb-4">
+                        <h6 class="fw-bold text-primary mb-3 pb-2 border-bottom">
+                            <i class="fas fa-building-columns me-2"></i>{% trans "بيانات كشف الحساب البنكي" %}
+                        </h6>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">{% trans "الحساب البنكي المحاسبي" %} <span class="text-danger">*</span></label>
+                                <select name="bank_account" id="modal-bank-account-select" class="form-select select2-modal" dir="rtl" required>
+                                    <option value="">{% trans "اختر الحساب البنكي..." %}</option>
+                                    {% for acc in accounts %}
+                                    <option value="{{ acc.id }}" data-last-balance="{{ acc.last_closing_balance|floatformat:2 }}">{{ acc.code }} - {{ acc.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">{% trans "تاريخ كشف الحساب" %} <span class="text-danger">*</span></label>
+                                <input type="date" name="statement_date" class="form-control" value="{% now 'Y-m-d' %}" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">
+                                    {% trans "رصيد البداية (من واقع البنك)" %}
+                                    <span class="badge bg-secondary-subtle text-secondary small ms-1">{% trans "تلقائي" %}</span>
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="fas fa-wallet"></i></span>
+                                    <input type="number" step="0.01" name="opening_balance" id="modal-opening-balance" class="form-control" value="0.00" placeholder="0.00">
+                                </div>
+                                <div class="form-text small text-muted">{% trans "يتم جلبه تلقائياً من رصيد نهاية الكشف السابق لهذا البنك." %}</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">
+                                    {% trans "رصيد النهاية (من واقع البنك)" %}
+                                    <span class="badge bg-info-subtle text-info small ms-1">{% trans "اختياري عند رفع ملف" %}</span>
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="fas fa-money-check-alt text-success"></i></span>
+                                    <input type="number" step="0.01" name="closing_balance" id="modal-closing-balance" class="form-control" placeholder="0.00">
+                                </div>
+                                <div class="form-text small text-muted">{% trans "إما إدخاله يدوياً، أو يُحسب تلقائياً من صافي حركة الملف المرفق." %}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- القسم الثاني: مرفق ملف كشف الحساب البنكي -->
+                    <div>
+                        <h6 class="fw-bold text-primary mb-3 pb-2 border-bottom">
+                            <i class="fas fa-file-csv me-2"></i>{% trans "مرفق كشف الحساب البنكي (اختياري للمطابقة الآلية)" %}
+                        </h6>
+                        <div class="row g-3">
+                            <div class="col-md-12">
+                                <label class="form-label fw-bold">{% trans "ملف المعاملات (CSV / Excel)" %}</label>
+                                <input type="file" name="statement_file" accept=".csv, .txt, .xlsx, .xls" class="form-control">
+                                <div class="form-text small text-muted mt-2 p-2 bg-light rounded border">
+                                    <i class="fas fa-magic me-1 text-primary"></i>{% trans "النظام يلتقط أسماء الأعمدة آلياً لجميع البنوك (NBE, CIB, QNB, HSBC, إلخ). يمكنك اختيار الملف مباشرة." %}
+                                </div>
+                            </div>
+                            <div class="col-md-12">
+                                <a class="btn btn-sm btn-link text-decoration-none p-0 fw-bold" data-bs-toggle="collapse" href="#customColumnMappingCollapse" role="button" aria-expanded="false">
+                                    <i class="fas fa-sliders me-1"></i>{% trans "تخصيص مطابقة أسماء الأعمدة يدوياً (اختياري)" %}
+                                </a>
+                                <div class="collapse mt-2" id="customColumnMappingCollapse">
+                                    <div class="card card-body bg-light border p-3">
+                                        <p class="small text-muted mb-2"><i class="fas fa-info-circle me-1"></i>{% trans "اترك الحقول فارغة للالتقاط التلقائي الذكي، أو اكتب اسم العمود الدقيق في ملفك:" %}</p>
+                                        <div class="row g-2">
+                                            <div class="col-md-6">
+                                                <label class="form-label small fw-bold mb-1">{% trans "اسم عمود التاريخ" %}</label>
+                                                <input type="text" name="col_date" class="form-control form-control-sm" placeholder="مثال: Posting Date / تاريخ الحركة">
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label small fw-bold mb-1">{% trans "اسم عمود المرجع" %}</label>
+                                                <input type="text" name="col_ref" class="form-control form-control-sm" placeholder="مثال: Ref No / الرقم المرجعي">
+                                            </div>
+                                            <div class="col-md-12">
+                                                <label class="form-label small fw-bold mb-1">{% trans "اسم عمود البيان / الوصف" %}</label>
+                                                <input type="text" name="col_desc" class="form-control form-control-sm" placeholder="مثال: Description / البيان">
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label small fw-bold mb-1">{% trans "اسم عمود المدين / الإيداع" %}</label>
+                                                <input type="text" name="col_debit" class="form-control form-control-sm" placeholder="مثال: Deposit / مدين">
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label small fw-bold mb-1">{% trans "اسم عمود الدائن / السحب" %}</label>
+                                                <input type="text" name="col_credit" class="form-control form-control-sm" placeholder="مثال: Withdrawal / دائن">
+                                            </div>
+                                            <div class="col-md-12 mt-2">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" name="invert_directions" value="1" id="invertDirectionsCheck">
+                                                    <label class="form-check-label small fw-bold text-dark" for="invertDirectionsCheck">
+                                                        <i class="fas fa-arrow-right-left me-1 text-primary"></i>{% trans "عكس الاتجاه المحاسبي (اعتبار المسحوبات مدين والإيداعات دائن حسب تنسيق البنك المرفق)" %}
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-top px-4 py-3">
+                    <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+                    <button type="submit" class="btn btn-primary px-4 fw-bold"><i class="fas fa-file-import me-1"></i>{% trans "استيراد وبدء المطابقة" %}</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // تفعيل الفلترة عند تغيير القائمة المنسدلة
-        document.getElementById('account')?.addEventListener('change', function() {
-            this.form.submit();
-        });
-        
-        // عرض تفاصيل التسوية في نافذة منبثقة
-        document.querySelectorAll('.view-details').forEach(function(button) {
-            button.addEventListener('click', function(e) {
-                e.preventDefault();
-                const reconciliationId = this.getAttribute('data-id');
-                
-                // في التطبيق الفعلي، استخدم AJAX لاسترجاع التفاصيل
-                // أو قم بتضمين التفاصيل في الصفحة وعرضها في النافذة المنبثقة
-                
-                // فتح النافذة المنبثقة
-                const modal = new bootstrap.Modal(document.getElementById('reconciliationDetailsModal'));
-                modal.show();
+document.addEventListener('DOMContentLoaded', function() {
+    // AJAX Dynamic Search (doSearch) & URL State Sync (AGENTS.md Rule 6)
+    window.doSearch = function(pageUrl) {
+        const form = document.getElementById('filter-form');
+        const formData = new FormData(form);
+        const params = new URLSearchParams(formData);
+        if (pageUrl) {
+            const urlObj = new URL(pageUrl, window.location.origin);
+            urlObj.searchParams.forEach((v, k) => params.set(k, v));
+        }
+
+        const fetchUrl = `${window.location.pathname}?${params.toString()}`;
+        fetch(fetchUrl, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.table_html) {
+                document.getElementById('bank_reconciliation-table-container').innerHTML = data.table_html;
+            }
+            if (data.pagination_html) {
+                document.getElementById('pagination-wrapper').innerHTML = data.pagination_html;
+            }
+            history.replaceState(null, '', fetchUrl);
+            initTableEvents();
+        })
+        .catch(err => console.error('Error fetching search results:', err));
+    };
+
+    function initTableEvents() {
+        document.querySelectorAll('.clickable-row').forEach(row => {
+            row.addEventListener('click', function(e) {
+                if (e.target.closest('.col-actions, a, button')) return;
+                const href = this.getAttribute('data-href');
+                if (href) window.location.href = href;
             });
         });
-        
-        // طباعة التسوية
-        document.getElementById('printReconciliationBtn')?.addEventListener('click', function() {
-            window.print();
+    }
+
+    const searchInput = document.getElementById('search-input');
+    if (searchInput) {
+        let timeout = null;
+        searchInput.addEventListener('input', function() {
+            clearTimeout(timeout);
+            timeout = setTimeout(() => window.doSearch(), 300);
+        });
+    }
+
+    // Auto-search on select dropdown changes
+    const filterSelects = document.querySelectorAll('#filter-form select');
+    filterSelects.forEach(select => {
+        select.addEventListener('change', function() {
+            window.doSearch();
         });
     });
+
+    const createModalEl = document.getElementById('createReconciliationModal');
+    if (createModalEl && typeof $ !== 'undefined') {
+        $(createModalEl).on('shown.bs.modal', function () {
+            $('#modal-bank-account-select').select2({
+                dropdownParent: $('#createReconciliationModal'),
+                dir: 'rtl',
+                language: 'ar'
+            });
+
+            $('#modal-bank-account-select').on('change', function() {
+                var selectedOpt = this.options[this.selectedIndex];
+                if (selectedOpt) {
+                    var lastBal = selectedOpt.getAttribute('data-last-balance');
+                    if (lastBal) {
+                        var openInput = document.getElementById('modal-opening-balance');
+                        if (openInput) openInput.value = lastBal;
+                    }
+                }
+            });
+        });
+    }
+
+    initTableEvents();
+});
 </script>
-{% endblock %} 
+{% endblock %}

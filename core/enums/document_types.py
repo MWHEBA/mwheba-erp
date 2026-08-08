@@ -20,6 +20,7 @@ class DocumentType(models.TextChoices):
     VENDOR_PAYMENT = "VENDOR_PAYMENT", _("سند مدفوعات مورد")
     FIXED_ASSET_ENTRY = "FIXED_ASSET_ENTRY", _("قيد أصول ثابتة")
     OPENING_BALANCE = "OPENING_BALANCE", _("دفعة أرصدة افتتاحية")
+    BANK_RECONCILIATION = "BANK_RECONCILIATION", _("دفعة تسوية بنكية")
 
     # Inventory & Operations Documents
     DELIVERY_NOTE = "DELIVERY_NOTE", _("إذن تسليم وشحن")

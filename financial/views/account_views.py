@@ -2079,61 +2079,398 @@ def account_edit(request, pk):
 @login_required
 def bank_reconciliation_list(request):
     """
-    عرض قائمة التسويات البنكية
+    عرض وحوكمة قائمة التسويات البنكية وكشوف الحسابات (Bank Statement Batches)
     """
-    reconciliations = BankReconciliation.objects.all().order_by("-reconciliation_date")
-    accounts = get_bank_accounts()
+    from financial.models.bank_reconciliation import BankStatementBatch
+
+    if request.method == "POST":
+        bank_account_id = request.POST.get('bank_account') or request.POST.get('bank_account_id')
+        statement_date = request.POST.get('statement_date')
+        opening_balance = Decimal(str(request.POST.get('opening_balance', '0.00') or '0.00'))
+        closing_balance = Decimal(str(request.POST.get('closing_balance') or request.POST.get('bank_balance') or '0.00'))
+
+        if not bank_account_id or not statement_date:
+            messages.error(request, _("يرجى اختيار الحساب البنكي وتاريخ كشف الحساب."))
+            return redirect("financial:bank_reconciliation_list")
+
+        bank_account = get_object_or_404(ChartOfAccounts, pk=bank_account_id)
+
+        # 1. رصيد البداية: استدعاؤه تلقائياً من آخر كشف أو إدخاله
+        opening_balance_input = request.POST.get('opening_balance')
+        if opening_balance_input and opening_balance_input.strip() != '':
+            opening_balance = Decimal(str(opening_balance_input))
+        else:
+            last_batch = BankStatementBatch.objects.filter(bank_account=bank_account).order_by('-statement_date', '-id').first()
+            opening_balance = last_batch.closing_balance if last_batch else Decimal('0.00')
+
+        closing_balance_input = request.POST.get('closing_balance') or request.POST.get('bank_balance')
+        closing_balance = Decimal(str(closing_balance_input or '0.00'))
+
+        from core.services.sequence_service import SequenceService
+        from core.enums.document_types import DocumentType
+        batch_num = SequenceService.get_next_number(DocumentType.BANK_RECONCILIATION, date=statement_date)
+
+        batch = BankStatementBatch.objects.create(
+            batch_number=batch_num,
+            bank_account=bank_account,
+            statement_date=statement_date,
+            opening_balance=opening_balance,
+            closing_balance=closing_balance,
+            status='imported',
+            created_by=request.user
+        )
+
+        statement_file = request.FILES.get("statement_file")
+        if statement_file:
+            try:
+                file_content = statement_file.read()
+                from financial.services.bank_reconciliation_service import SmartBankStatementParser, BankReconciliationService
+                from financial.models.bank_reconciliation import BankStatementLine
+                import hashlib
+
+                col_map = {
+                    'date_col': request.POST.get('col_date'),
+                    'ref_col': request.POST.get('col_ref'),
+                    'desc_col': request.POST.get('col_desc'),
+                    'debit_col': request.POST.get('col_debit'),
+                    'credit_col': request.POST.get('col_credit'),
+                    'invert_directions': bool(request.POST.get('invert_directions')),
+                }
+
+                raw_lines = SmartBankStatementParser.parse(file_content, column_mapping=col_map)
+
+                # حساب أعداد البنود المطابقة المحفوظة مسبقاً بالتبويب الثاني
+                preserved_matched_count = batch.lines.filter(is_matched=True).count()
+
+                # حماية البنود المطابقة بالتبويب الثاني ومسح البنود المعلقة بالتبويب الأول فقط لإعادة تحديثها
+                batch.lines.filter(is_matched=False).delete()
+
+                added_count = 0
+                net_movement = Decimal('0.00')
+                for idx, line_data in enumerate(raw_lines, start=1):
+                    deb = Decimal(str(line_data.get('debit', '0.00')))
+                    cred = Decimal(str(line_data.get('credit', '0.00')))
+                    raw_hash = f"{batch.id}_{batch.bank_account_id}_{idx}_{line_data.get('transaction_date', batch.statement_date)}_{line_data.get('reference_number', '')}_{deb}_{cred}_{line_data.get('description', '')[:30]}"
+                    l_hash = hashlib.sha256(raw_hash.encode('utf-8')).hexdigest()
+                    BankStatementLine.objects.create(
+                        batch=batch,
+                        transaction_date=line_data.get('transaction_date', batch.statement_date),
+                        reference_number=line_data.get('reference_number', ''),
+                        description=line_data.get('description', ''),
+                        debit=deb,
+                        credit=cred,
+                        line_hash=l_hash,
+                        is_matched=False
+                    )
+                    added_count += 1
+                    net_movement += (deb - cred)
+
+                # احتساب رصيد النهاية تلقائياً إن لم يقم المستخدم بإدخاله يدويًا وكانت هناك بنود مستوردة
+                if closing_balance == Decimal('0.00') and added_count > 0:
+                    batch.closing_balance = batch.opening_balance + net_movement
+                    batch.save(update_fields=['closing_balance'])
+
+                if added_count > 0:
+                    if preserved_matched_count > 0:
+                        messages.success(
+                            request,
+                            _("تم تحديث كشف الحساب رقم {} بنجاح: تم استيراد وتحديث {} بنداً معلقاً بالتبويب الأول، وحفظ وتأمين {} بنداً مطابقاً بالتبويب الثاني.").format(
+                                batch.batch_number, added_count, preserved_matched_count
+                            )
+                        )
+                    else:
+                        messages.success(
+                            request,
+                            _("تم استيراد وتحديث {} بنداً بنكياً معلقاً بنجاح بالتبويب الأول.").format(added_count)
+                        )
+                else:
+                    messages.success(request, _("تم تحديث التسوية البنكية رقم {} بنجاح.").format(batch.batch_number))
+            except Exception as e:
+                messages.warning(request, _("تم إنشاء التسوية ولكن حدث خطأ في معالجة الملف: {}").format(str(e)))
+        else:
+            messages.success(request, _("تم إنشاء دفعة كشف الحساب البنكي رقم {} بنجاح.").format(batch.batch_number))
+
+        return redirect("financial:bank_reconciliation_detail", pk=batch.id)
+
+    # GET Query & Filtering
+    qs = BankStatementBatch.objects.select_related('bank_account', 'created_by').order_by('-statement_date', '-id')
+
+    search_query = request.GET.get('search', '').strip()
+    selected_account = request.GET.get('bank_account', '').strip()
+    selected_status = request.GET.get('status', '').strip()
+
+    if search_query:
+        qs = qs.filter(
+            Q(batch_number__icontains=search_query) |
+            Q(bank_account__name__icontains=search_query) |
+            Q(bank_account__code__icontains=search_query)
+        )
+
+    if selected_account:
+        qs = qs.filter(bank_account_id=selected_account)
+
+    if selected_status:
+        qs = qs.filter(status=selected_status)
+
+    # KPI Statistics
+    total_count = qs.count()
+    imported_count = qs.filter(status='imported').count()
+    reconciling_count = qs.filter(status='reconciling').count()
+    completed_count = qs.filter(status='completed').count()
+
+    # SSR Pagination
+    paginator = Paginator(qs, 15)
+    page_number = request.GET.get('page', 1)
+    page_obj = paginator.get_page(page_number)
+
+    accounts = list(ChartOfAccounts.objects.filter(is_active=True, is_leaf=True))
+    for acc in accounts:
+        last_b = BankStatementBatch.objects.filter(bank_account=acc).order_by('-statement_date', '-id').first()
+        acc.last_closing_balance = last_b.closing_balance if last_b else Decimal('0.00')
+
+    breadcrumb_items = [
+        {'title': _('الرئيسية'), 'url': reverse('core:dashboard'), 'icon': 'fa-home'},
+        {'title': _('الإدارة المالية'), 'url': reverse('financial:chart_of_accounts_list'), 'icon': 'fa-calculator'},
+        {'title': _('التسويات البنكية'), 'active': True}
+    ]
+
+    header_buttons = [
+        {
+            'text': _('إضافة تسوية جديدة'),
+            'icon': 'fa-plus',
+            'class': 'btn-primary',
+            'toggle': 'modal',
+            'target': '#createReconciliationModal'
+        }
+    ]
 
     context = {
-        "reconciliations": reconciliations,
+        "page_title": _("التسويات البنكية وكشوف الحسابات"),
+        "title": _("التسويات البنكية"),
+        "breadcrumb_items": breadcrumb_items,
+        "header_buttons": header_buttons,
+        "page_obj": page_obj,
         "accounts": accounts,
-        "title": "التسويات البنكية",
+        "total_count": total_count,
+        "imported_count": imported_count,
+        "reconciling_count": reconciling_count,
+        "completed_count": completed_count,
+        "search_query": search_query,
+        "selected_account": selected_account,
+        "selected_status": selected_status,
     }
+
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.GET.get('ajax') == '1':
+        from django.template.loader import render_to_string
+        table_html = render_to_string("financial/banking/partials/bank_reconciliation_table_partial.html", context, request=request)
+        pagination_html = render_to_string("partials/pagination.html", context, request=request)
+        return JsonResponse({
+            "table_html": table_html,
+            "pagination_html": pagination_html,
+            "status": "success"
+        })
 
     return render(request, "financial/banking/bank_reconciliation_list.html", context)
 
 
 @login_required
-def bank_reconciliation_create(request):
+def bank_reconciliation_detail(request, pk):
     """
-    إنشاء تسوية بنكية جديدة
+    عرض تفاصيل الدفعة البنكية والمطابقات والمؤشرات المزدوجة (Phase 1 Split Workspace)
     """
+    from financial.models.bank_reconciliation import BankStatementBatch, BankStatementLine
+    from financial.services.bank_reconciliation_service import BankReconciliationService, BankCandidateEngine
+    from financial.models.chart_of_accounts import ChartOfAccounts
+    from financial.models.cost_center import CostCenter
+
+    batch = get_object_or_404(BankStatementBatch.objects.select_related('bank_account', 'created_by'), pk=pk)
+
+    # تشغيل المطابقة الآلية أو رفع بنود كشف الحساب أو التخصيص عبر POST
     if request.method == "POST":
-        form = BankReconciliationForm(request.POST)
-        if form.is_valid():
-            reconciliation = form.save(commit=False)
-            reconciliation.created_by = request.user
+        action = request.POST.get("action")
 
-            # حساب القيم التلقائية
-            account = form.cleaned_data.get("account")
-            reconciliation.system_balance = account.balance
-            reconciliation.difference = (
-                form.cleaned_data.get("bank_balance") - account.balance
-            )
+        if action == "match_selected":
+            stmt_line_id = request.POST.get("statement_line_id")
+            journal_line_id = request.POST.get("journal_line_id")
+            allocated_amount = request.POST.get("allocated_amount")
+            try:
+                alloc = BankReconciliationService.create_allocation(
+                    stmt_line_id=int(stmt_line_id),
+                    journal_line_id=int(journal_line_id),
+                    allocated_amount=Decimal(allocated_amount) if allocated_amount else None,
+                    user=request.user
+                )
+                if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                    return JsonResponse({'status': 'success', 'message': _("تم تخصيص المطابقة بنجاح."), 'allocation_id': alloc.id})
+                messages.success(request, _("تم تخصيص المطابقة بنجاح."))
+            except Exception as e:
+                if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                    return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+                messages.error(request, str(e))
+            return redirect("financial:bank_reconciliation_detail", pk=batch.id)
 
-            reconciliation.save()
+        elif action == "remove_allocation":
+            allocation_id = request.POST.get("allocation_id")
+            try:
+                BankReconciliationService.remove_allocation(int(allocation_id), user=request.user)
+                if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                    return JsonResponse({'status': 'success', 'message': _("تم فك التخصيص وإعادة البند بنجاح.")})
+                messages.success(request, _("تم فك التخصيص وإعادة البند بنجاح."))
+            except Exception as e:
+                if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                    return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+                messages.error(request, str(e))
+            return redirect("financial:bank_reconciliation_detail", pk=batch.id)
 
-            # إجراء التسوية على الحساب
-            success, message, difference = account.reconcile(
-                form.cleaned_data.get("bank_balance"),
-                form.cleaned_data.get("reconciliation_date"),
-            )
+        elif action == "create_direct_entry":
+            stmt_line_id = request.POST.get("statement_line_id")
+            expense_acc_id = request.POST.get("expense_account_id")
+            amount = request.POST.get("amount")
+            desc = request.POST.get("description")
+            cc_id = request.POST.get("cost_center_id")
+            try:
+                alloc = BankReconciliationService.create_direct_bank_adjustment(
+                    batch_id=batch.id,
+                    stmt_line_id=int(stmt_line_id),
+                    expense_account_id=int(expense_acc_id),
+                    amount=Decimal(amount),
+                    description=desc,
+                    user=request.user,
+                    cost_center_id=int(cc_id) if cc_id else None
+                )
+                if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                    return JsonResponse({'status': 'success', 'message': _("تم إنشاء قيد المصروفات وتأكيد المطابقة الفورية بنجاح."), 'allocation_id': alloc.id})
+                messages.success(request, _("تم إنشاء قيد المصروفات وتأكيد المطابقة الفورية بنجاح."))
+            except Exception as e:
+                if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                    return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+                messages.error(request, str(e))
+            return redirect("financial:bank_reconciliation_detail", pk=batch.id)
 
-            if success:
-                messages.success(request, f"تم إجراء التسوية البنكية بنجاح. {message}")
-            else:
-                messages.error(request, f"حدث خطأ أثناء إجراء التسوية: {message}")
+        elif action == "upload_lines":
+            statement_file = request.FILES.get("statement_file")
+            if statement_file:
+                file_content = statement_file.read()
+                from financial.services.bank_reconciliation_service import SmartBankStatementParser
+                import hashlib
 
-            return redirect("financial:bank_reconciliation_list")
-    else:
-        form = BankReconciliationForm()
+                col_map = {
+                    'date_col': request.POST.get('col_date'),
+                    'ref_col': request.POST.get('col_ref'),
+                    'desc_col': request.POST.get('col_desc'),
+                    'debit_col': request.POST.get('col_debit'),
+                    'credit_col': request.POST.get('col_credit'),
+                    'invert_directions': bool(request.POST.get('invert_directions')),
+                }
+
+                raw_lines = SmartBankStatementParser.parse(file_content, column_mapping=col_map)
+                
+                # مسح البنود غير المطابقة القديمة لعدم تكرار البنود عند إعادة رفع كشف الحساب
+                batch.lines.filter(is_matched=False).delete()
+
+                added_count = 0
+                for idx, line_data in enumerate(raw_lines, start=1):
+                    deb = Decimal(str(line_data.get('debit', '0.00')))
+                    cred = Decimal(str(line_data.get('credit', '0.00')))
+                    raw_hash = f"{batch.id}_{batch.bank_account_id}_{idx}_{line_data.get('transaction_date', batch.statement_date)}_{line_data.get('reference_number', '')}_{deb}_{cred}_{line_data.get('description', '')[:30]}"
+                    l_hash = hashlib.sha256(raw_hash.encode('utf-8')).hexdigest()
+                    BankStatementLine.objects.create(
+                        batch=batch,
+                        transaction_date=line_data.get('transaction_date', batch.statement_date),
+                        reference_number=line_data.get('reference_number', ''),
+                        description=line_data.get('description', ''),
+                        debit=deb,
+                        credit=cred,
+                        line_hash=l_hash,
+                        is_matched=False
+                    )
+                    added_count += 1
+                if added_count > 0:
+                    messages.success(request, _("تم استخراج وتحديث {} بنود كشف حساب بنجاح.").format(added_count))
+                else:
+                    messages.warning(request, _("لم يتم استخراج بنود جديدة من الملف المرفوع. تأكد من احتواء الملف على معاملات بنكية."))
+            return redirect("financial:bank_reconciliation_detail", pk=batch.id)
+
+    # حساب ملخص معادلة التسوية البنكية الرسمية IAS 7
+    reconcil_summary = BankReconciliationService.calculate_reconciliation_summary(batch.id)
+
+    # جلب سطور البنك المرفوعة
+    lines_qs = list(batch.lines.prefetch_related('allocations__journal_line__journal_entry').all())
+
+    # فحص واكتشاف اشتباه المعاملات المسواة مسبقاً بنفس الرقم المرجعي والمبلغ (Smart Audit Duplicate Suspicion Guard)
+    for line in lines_qs:
+        line.is_duplicate_suspicion = False
+        line.suspicion_batch_number = None
+        if not line.is_matched and line.reference_number and line.reference_number.strip():
+            ref = line.reference_number.strip()
+            amt = line.debit if line.debit > 0 else line.credit
+            prev_match = BankStatementLine.objects.filter(
+                batch__bank_account=batch.bank_account,
+                is_matched=True,
+                reference_number__iexact=ref
+            ).filter(
+                Q(debit=amt) | Q(credit=amt)
+            ).exclude(id=line.id).select_related('batch').first()
+
+            if prev_match:
+                line.is_duplicate_suspicion = True
+                line.suspicion_batch_number = prev_match.batch.batch_number
+
+    # جلب كافة حركات الشركة المعلقة الخاصة بهذا الحساب البنكي (مدين ودائن غير مطابقة)
+    company_uncleared_lines = BankCandidateEngine.get_all_uncleared_candidates(batch.bank_account, limit=300)
+
+    # تصفية وتحجيم الحسابات المقابلة المتاحة للتسويات المباشرة (مصروفات، إيرادات، عمولات، وفوائد)
+    expense_accounts = ChartOfAccounts.objects.filter(
+        is_active=True,
+        is_leaf=True
+    ).filter(
+        Q(account_type__category__in=['expense', 'revenue']) |
+        Q(account_type__name__icontains='مصروف') |
+        Q(account_type__name__icontains='إيراد') |
+        Q(account_type__name__icontains='Expense') |
+        Q(account_type__name__icontains='Revenue') |
+        Q(code__startswith='5') |
+        Q(code__startswith='4') |
+        Q(name__icontains='مصاريف') |
+        Q(name__icontains='مصروف') |
+        Q(name__icontains='عمول') |
+        Q(name__icontains='فائدة') |
+        Q(name__icontains='فوائد') |
+        Q(name__icontains='فروق') |
+        Q(name__icontains='رسوم') |
+        Q(name__icontains='خدمات')
+    ).order_by('code').distinct()[:300]
+
+    cost_centers = CostCenter.objects.filter(is_active=True).order_by('code') if hasattr(CostCenter, 'is_active') else CostCenter.objects.all()[:50]
 
     context = {
-        "form": form,
-        "title": "إنشاء تسوية بنكية",
+        'batch': batch,
+        'lines': lines_qs,
+        'company_lines': company_uncleared_lines,
+        'summary': reconcil_summary,
+        'expense_accounts': expense_accounts,
+        'cost_centers': cost_centers,
+        'page_title': _("تفاصيل التسوية البنكية - {}").format(batch.batch_number),
+        'page_subtitle': _("مراجعة ومطابقة سطور كشف البنك مع حركات الدفتر العام"),
+        'page_icon': "fas fa-file-invoice-dollar",
+        'breadcrumb_items': [
+            {'title': _("الرئيسية"), 'url': reverse('core:dashboard'), 'icon': 'fa-home'},
+            {'title': _("الإدارة المالية"), 'url': reverse('financial:chart_of_accounts_list'), 'icon': 'fa-calculator'},
+            {'title': _("التسويات البنكية"), 'url': reverse('financial:bank_reconciliation_list'), 'icon': 'fa-building-columns'},
+            {'title': batch.batch_number, 'active': True}
+        ],
+        'header_buttons': [
+            {
+                'toggle': 'modal',
+                'target': '#uploadLinesModal',
+                'icon': 'fa-file-upload',
+                'text': _("رفع كشف حساب (CSV/Excel)"),
+                'class': 'btn-primary',
+            }
+        ]
     }
+    return render(request, 'financial/banking/bank_reconciliation_detail.html', context)
 
-    return render(request, "financial/banking/bank_reconciliation_form.html", context)
 
 
 @login_required
@@ -2414,8 +2751,51 @@ def cash_account_movements(request, pk):
         account_icon = "fas fa-landmark"
         account_type = "حساب آخر"
     
+    # جلب أحدث دفعة تسوية بنكية للحساب إن وجدت
+    latest_reconciliation = None
+    if account.is_bank_account:
+        from financial.models.bank_reconciliation import BankStatementBatch
+        latest_reconciliation = BankStatementBatch.objects.filter(bank_account=account).order_by('-statement_date', '-id').first()
+
+    header_buttons = []
+    if account.is_bank_account:
+        if latest_reconciliation:
+            header_buttons.append({
+                "url": reverse("financial:bank_reconciliation_detail", args=[latest_reconciliation.id]),
+                "icon": "fa-sliders",
+                "text": "التسوية البنكية الحالية",
+                "class": "btn-primary me-2"
+            })
+        header_buttons.append({
+            "url": f"{reverse('financial:bank_reconciliation_list')}?bank_account={account.id}",
+            "icon": "fa-building-columns",
+            "text": "التسويات البنكية",
+            "class": "btn-outline-primary me-2"
+        })
+
+    header_buttons.extend([
+        {
+            "onclick": "openIncomeModal()",
+            "icon": "fa-plus-circle",
+            "text": "إيراد",
+            "class": "btn-success me-2"
+        },
+        {
+            "onclick": "openExpenseModal()",
+            "icon": "fa-minus-circle",
+            "text": "مصروف",
+            "class": "btn-danger me-2"
+        },
+        {
+            "onclick": "openTransferModal()",
+            "icon": "fa-exchange-alt",
+            "text": "تحويل مبلغ",
+            "class": "btn-info"
+        }
+    ])
+
     is_filtered = bool(date_from or date_to or search or category_filter)
-    
+
     context = {
         "account": account,
         "movements": page_obj,
@@ -2439,32 +2819,8 @@ def cash_account_movements(request, pk):
         "title": f"حركات {account.name}",
         "subtitle": account_type,
         "icon": account_icon,
-        "header_buttons": [
-            {
-                "onclick": "openIncomeModal()",
-                "icon": "fa-plus-circle",
-                "text": "إيراد",
-                "class": "btn-success"
-            },
-            {
-                "onclick": "openExpenseModal()",
-                "icon": "fa-minus-circle",
-                "text": "مصروف",
-                "class": "btn-danger"
-            },
-            {
-                "onclick": "openTransferModal()",
-                "icon": "fa-exchange-alt",
-                "text": "تحويل مبلغ",
-                "class": "btn-info"
-            },
-            {
-                "url": reverse("financial:account_detail", args=[account.id]),
-                "icon": "fa-info-circle",
-                "text": "تفاصيل الحساب",
-                "class": "btn-outline-secondary"
-            }
-        ],
+        "latest_reconciliation": latest_reconciliation,
+        "header_buttons": header_buttons,
         "breadcrumb_items": [
             {
                 "title": "الرئيسية",

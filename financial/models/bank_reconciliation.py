@@ -15,7 +15,10 @@ class BankStatementBatch(models.Model):
     STATUS_CHOICES = [
         ('imported', _('مستورد')),
         ('reconciling', _('قيد التسوية')),
+        ('partially_matched', _('مطابق جزئياً')),
         ('completed', _('مكتمل والتسوية معتمدة')),
+        ('reopened', _('أعيد فتحه')),
+        ('failed', _('فشل التسوية')),
     ]
 
     batch_number = models.CharField(_("رقم الدفعة"), max_length=64, unique=True)
@@ -40,6 +43,26 @@ class BankStatementBatch(models.Model):
     class Meta:
         verbose_name = _("دفعة كشف حساب بنكي")
         verbose_name_plural = _("دفوعات كشوف الحسابات البنكية")
+
+    @property
+    def reconciliation_date(self):
+        return self.statement_date
+
+    @property
+    def account(self):
+        return self.bank_account
+
+    @property
+    def system_balance(self):
+        return self.opening_balance
+
+    @property
+    def bank_balance(self):
+        return self.closing_balance
+
+    @property
+    def difference(self):
+        return Decimal(str(self.closing_balance)) - Decimal(str(self.opening_balance))
 
     def __str__(self):
         return f"Statement Batch {self.batch_number} ({self.bank_account.name})"
@@ -143,3 +166,60 @@ class BankReconciliationMatch(models.Model):
 
     def __str__(self):
         return f"Match {self.statement_line_id} <-> {self.journal_line_id} ({self.matched_amount})"
+
+
+class BankMatchAllocation(models.Model):
+    """
+    نموذج تخصيص ومطابقة بنود كشف البنك مع حركات الأستاذ العام (Phase 1 Allocation Model)
+    """
+    ALLOCATION_STATUSES = [
+        ('ACTIVE', _('نشط ومطابق')),
+        ('REVIEW_REQUIRED', _('تحت المراجعة')),
+        ('REVERSED', _('ملغى / مكسور')),
+    ]
+
+    statement_line = models.ForeignKey(
+        BankStatementLine,
+        on_delete=models.CASCADE,
+        related_name='allocations',
+        verbose_name=_("سطر كشف البنك")
+    )
+    journal_line = models.ForeignKey(
+        JournalEntryLine,
+        on_delete=models.PROTECT,
+        related_name='bank_allocations',
+        verbose_name=_("قيد الأستاذ العام المطابق"),
+        null=True,
+        blank=True
+    )
+    allocated_amount = models.DecimalField(
+        _("المبلغ المخصص للمطابقة"),
+        max_digits=15,
+        decimal_places=2
+    )
+    status = models.CharField(
+        _("حالة التخصيص"),
+        max_length=20,
+        choices=ALLOCATION_STATUSES,
+        default='ACTIVE'
+    )
+    created_at = models.DateTimeField(_("تاريخ التخصيص"), auto_now_add=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name=_("خصص بواسطة")
+    )
+
+    class Meta:
+        verbose_name = _("تخصيص مطابقة بنكية")
+        verbose_name_plural = _("تخصيصات المطابقات البنكية")
+        indexes = [
+            models.Index(fields=["statement_line", "status"]),
+            models.Index(fields=["journal_line", "status"]),
+        ]
+
+    def __str__(self):
+        return f"Allocation {self.statement_line_id} <-> {self.journal_line_id} ({self.allocated_amount})"
+

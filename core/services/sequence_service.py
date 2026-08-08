@@ -36,6 +36,7 @@ class SequenceService:
         DocumentType.VENDOR_PAYMENT: "VPY",
         DocumentType.FIXED_ASSET_ENTRY: "AST",
         DocumentType.OPENING_BALANCE: "OPB",
+        DocumentType.BANK_RECONCILIATION: "BR",
         DocumentType.DELIVERY_NOTE: "DEL",
         DocumentType.GOODS_RECEIPT_NOTE: "GRN",
         DocumentType.PURCHASE_ORDER: "PO",

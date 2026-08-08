@@ -35,7 +35,6 @@ from .views.account_views import (
     # account_transactions,  # تم حذفه - غير مستخدم
     # account_delete,  # تم حذفه - مكرر مع chart_of_accounts_delete
     bank_reconciliation_list,
-    bank_reconciliation_create,
 )
 
 # تم نقل جميع دوال القيود والمعاملات إلى financial/views/transaction_views.py

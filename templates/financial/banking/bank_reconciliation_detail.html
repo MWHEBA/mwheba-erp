@@ -1,0 +1,961 @@
+{% extends "base.html" %}
+{% load i18n static utils_extras app_tags %}
+
+{% block title %}{{ page_title }} | {% trans "MWHEBA ERP" %}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+<style>
+    /* Strictly adhering to CSS variables from :root */
+    .workspace-scroll-container {
+        max-height: 580px;
+        overflow-y: auto;
+    }
+    .line-row-selected {
+        background-color: var(--primary-soft) !important;
+        border-right: 4px solid var(--primary-color) !important;
+    }
+    .smart-match-highlight {
+        background-color: var(--success-soft) !important;
+        border-right: 4px solid var(--success-color) !important;
+    }
+    .match-banner {
+        background-color: var(--primary-soft-2);
+        border: 1px solid var(--primary-soft);
+        border-right: 4px solid var(--primary-color);
+        border-radius: var(--border-radius);
+    }
+    .ias7-card {
+        background-color: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: var(--border-radius);
+    }
+    .nav-pills .nav-link {
+        color: var(--text-primary);
+        font-weight: 600;
+        border-radius: var(--border-radius);
+        padding: 0.6rem 1.25rem;
+        background-color: var(--bg-card);
+        border: 1px solid var(--border-color);
+        transition: all 0.2s ease;
+    }
+    .nav-pills .nav-link.active {
+        background-color: var(--primary-color);
+        color: var(--white);
+        border-color: var(--primary-color);
+    }
+    .progress-thin {
+        height: 6px;
+        border-radius: 3px;
+        background-color: var(--gray-200);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    {% include "shared/page_header.html" with header_buttons=header_buttons header_badges=header_badges %}
+
+    <!-- 1. Unified Operational KPI Summary Grid (AGENTS.md Rule 7: Direct Grid Row, Standard Card Structure) -->
+    <div class="row g-3 mb-4">
+        <!-- Card 1: Reconciliation Progress % -->
+        <div class="col-md-6 col-lg-3">
+            <div class="stats-card stats-card-info">
+                <div class="stats-card-header"></div>
+                <div class="stats-card-body">
+                    <div class="stats-card-icon">
+                        <i class="fas fa-chart-pie"></i>
+                    </div>
+                    <div class="stats-card-title">{% trans "نسبة إنجاز المطابقة" %}</div>
+                    <div class="stats-card-value">{{ summary.progress_percentage }}%</div>
+                    <div class="stats-card-unit">{{ summary.matched_bank_lines_count }} {% trans "من أصل" %} {{ summary.total_bank_lines_count }} {% trans "بند مطابق" %}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 2: Pending Bank Lines -->
+        <div class="col-md-6 col-lg-3">
+            <div class="stats-card stats-card-warning">
+                <div class="stats-card-header"></div>
+                <div class="stats-card-body">
+                    <div class="stats-card-icon">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                    <div class="stats-card-title">{% trans "البنود البنكية المعلقة" %}</div>
+                    <div class="stats-card-value">{{ summary.pending_bank_lines_count }}</div>
+                    <div class="stats-card-unit">{% trans "إجمالي" %} {{ summary.pending_bank_lines_amount|smart_float }} {% trans "ج.م" %}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 3: Pending GL Entries -->
+        <div class="col-md-6 col-lg-3">
+            <div class="stats-card stats-card-info">
+                <div class="stats-card-header"></div>
+                <div class="stats-card-body">
+                    <div class="stats-card-icon">
+                        <i class="fas fa-book-bookmark"></i>
+                    </div>
+                    <div class="stats-card-title">{% trans "حركات الدفتر المعلقة" %}</div>
+                    <div class="stats-card-value">{{ summary.pending_gl_lines_count }}</div>
+                    <div class="stats-card-unit">{% trans "إجمالي" %} {{ summary.pending_gl_lines_amount|smart_float }} {% trans "ج.م" %}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card 4: Unreconciled Difference -->
+        <div class="col-md-6 col-lg-3">
+            <div class="stats-card {% if summary.is_balanced %}stats-card-success{% else %}stats-card-danger{% endif %}">
+                <div class="stats-card-header"></div>
+                <div class="stats-card-body">
+                    <div class="stats-card-icon">
+                        <i class="fas {% if summary.is_balanced %}fa-check-circle{% else %}fa-scale-unbalanced{% endif %}"></i>
+                    </div>
+                    <div class="stats-card-title">{% trans "صافي فارق التسوية" %}</div>
+                    <div class="stats-card-value">{{ summary.difference|smart_float }}</div>
+                    <div class="stats-card-unit">{% if summary.is_balanced %}{% trans "متوازن بالكامل" %}{% else %}{% trans "غير متوازن" %}{% endif %}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. Main Navigation Tabs (Workplace Architecture Cockpit) -->
+    <ul class="nav nav-pills mb-4 gap-2" id="reconciliationCockpitTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="workspace-tab" data-bs-toggle="pill" data-bs-target="#tab-workspace" type="button" role="tab" aria-controls="tab-workspace" aria-selected="true">
+                <i class="fas fa-sliders me-2"></i>{% trans "المطابقة والتسوية التفاعلية" %}
+                <span class="badge bg-secondary-subtle text-dark ms-2">{{ lines|length }}</span>
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="matched-tab" data-bs-toggle="pill" data-bs-target="#tab-matched-log" type="button" role="tab" aria-controls="tab-matched-log" aria-selected="false">
+                <i class="fas fa-check-double me-2"></i>{% trans "سجل البنود المطابقة والمعتمدة" %}
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="ias7-tab" data-bs-toggle="pill" data-bs-target="#tab-ias7-report" type="button" role="tab" aria-controls="tab-ias7-report" aria-selected="false">
+                <i class="fas fa-file-contract me-2"></i>{% trans "تقرير معادلة التسوية المعياري (IAS 7)" %}
+            </button>
+        </li>
+    </ul>
+
+    <!-- Tab Contents -->
+    <div class="tab-content" id="reconciliationCockpitTabContent">
+        
+        <!-- TAB 1: Split Matching Interactive Workspace -->
+        <div class="tab-pane fade show active" id="tab-workspace" role="tabpanel" aria-labelledby="workspace-tab">
+            <!-- Active Match Selection Floating Status Bar -->
+            <div id="active-match-banner" class="match-banner p-3 mb-4 d-none">
+                <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+                    <div class="d-flex align-items-center gap-3">
+                        <span class="badge bg-primary px-3 py-2 fs-6">
+                            <i class="fas fa-crosshairs me-1"></i>{% trans "بند البنك المحدد للمطابقة" %}
+                        </span>
+                        <div>
+                            <span class="fw-bold text-dark me-2">{% trans "مرجع:" %} <span id="banner-stmt-ref" class="text-primary">--</span></span>
+                            <span class="fw-bold text-dark me-2">| {% trans "المبلغ:" %} <span id="banner-stmt-amount" class="fs-6">0.00</span></span>
+                            <span class="text-muted small ms-2" id="banner-stmt-desc"></span>
+                        </div>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="clear-selection-btn">
+                            <i class="fas fa-xmark me-1"></i>{% trans "إلغاء التحديد" %}
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row g-3">
+                <!-- Left Column: Bank Statement Imported Lines -->
+                <div class="col-lg-6">
+                    <div class="section-container h-100">
+                        <h5 class="section-title"><i class="fas fa-university me-2 text-primary"></i>{% trans "بنود كشف الحساب البنكي المستورد" %}</h5>
+
+                        <!-- Search & Pending Filter Toolbar -->
+                        <div class="row g-2 mb-3 align-items-center">
+                            <div class="col-md-8">
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text"><i class="fas fa-search"></i></span>
+                                    <input type="text" id="bank-lines-search" class="form-control" placeholder="{% trans "بحث بالمرجع أو الوصف أو المبلغ..." %}">
+                                </div>
+                            </div>
+                            <div class="col-md-4 text-end">
+                                <span class="badge bg-warning-subtle text-dark small">
+                                    <i class="fas fa-clock me-1"></i>{% trans "البنود البنكية المعلقة" %}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="table-responsive workspace-scroll-container">
+                            <table class="table table-sm table-hover align-middle text-center mb-0" id="bank-lines-table">
+                                <thead class="table-light sticky-top">
+                                    <tr>
+                                        <th>#</th>
+                                        <th>{% trans "التاريخ" %}</th>
+                                        <th>{% trans "المرجع والبيان" %}</th>
+                                        <th>{% trans "المبلغ" %}</th>
+                                        <th>{% trans "الحالة" %}</th>
+                                        <th>{% trans "إجراءات" %}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for line in lines %}
+                                    {% if not line.is_matched %}
+                                    <tr class="stmt-row" id="stmt-line-row-{{ line.id }}" data-line-id="{{ line.id }}" data-debit="{{ line.debit }}" data-credit="{{ line.credit }}" data-ref="{{ line.reference_number|default:'' }}" data-desc="{{ line.description|default:'' }}">
+                                        <td>{{ forloop.counter }}</td>
+                                        <td class="small text-nowrap">{{ line.transaction_date|date:"Y-m-d" }}</td>
+                                        <td class="text-center">
+                                            <span class="fw-bold text-primary d-block small">{{ line.reference_number|default:"--" }}</span>
+                                            {% if line.description %}
+                                                <span class="text-muted small d-block text-truncate mx-auto" style="max-width: 180px;" title="{{ line.description }}">{{ line.description }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-nowrap">
+                                            {% if line.debit > 0 %}
+                                                <span class="text-success fw-bold">+{{ line.debit|smart_float }}</span>
+                                            {% else %}
+                                                <span class="text-danger fw-bold">-{{ line.credit|smart_float }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if line.is_duplicate_suspicion %}
+                                                <span class="badge border px-2 py-1 text-center d-inline-block shadow-sm" style="background-color: #fff8e6; border-color: #f59e0b !important; color: #92400e; line-height: 1.45;" title="{% trans "تنبيه محاسبي: تم رصد حركة مطابقة مسبقاً بنفس المرجع والمبلغ في دفعة رقم" %} {{ line.suspicion_batch_number }}">
+                                                    <div class="fw-bold" style="white-space: nowrap; color: #92400e; font-size: 0.82rem;"><i class="fas fa-exclamation-triangle me-1 text-warning"></i>{% trans "اشتباه تكرار" %}</div>
+                                                    <div class="fw-semibold" dir="ltr" style="font-size: 0.78rem; color: #b45309; white-space: nowrap;">({{ line.suspicion_batch_number }})</div>
+                                                </span>
+                                            {% else %}
+                                                <span class="badge bg-warning text-dark"><i class="fas fa-clock me-1"></i>{% trans "معلق" %}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm">
+                                                <button type="button" class="btn btn-outline-primary select-stmt-btn" data-line-id="{{ line.id }}" data-debit="{{ line.debit }}" data-credit="{{ line.credit }}" data-ref="{{ line.reference_number|default:'' }}" data-desc="{{ line.description|default:'' }}" title="{% trans "تحديد البند للمطابقة" %}">
+                                                    <i class="fas fa-crosshairs me-1"></i>{% trans "مطابقة" %}
+                                                </button>
+                                                <button type="button" class="btn btn-outline-success direct-adj-btn" data-line-id="{{ line.id }}" data-debit="{{ line.debit }}" data-credit="{{ line.credit }}" data-ref="{{ line.reference_number|default:'' }}" data-desc="{{ line.description|default:'' }}" title="{% trans "إنشاء قيد مصروفات مباشر" %}">
+                                                    <i class="fas fa-bolt me-1"></i>{% trans "قيد مباشر" %}
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endif %}
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="6" class="py-4 text-center text-muted">
+                                            <i class="fas fa-check-double fa-2x mb-2 d-block text-success"></i>
+                                            {% trans "جميع بنود كشف الحساب البنكي مطابقة بالكامل!" %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Column: Company Ledger Pending Lines -->
+                <div class="col-lg-6">
+                    <div class="section-container h-100">
+                        <h5 class="section-title"><i class="fas fa-book-journal-whills me-2 text-primary"></i>{% trans "حركات الشركة المعلقة بالدفتر العام" %}</h5>
+
+                        <!-- Search & Smart Filter Toolbar -->
+                        <div class="row g-2 mb-3 align-items-center">
+                            <div class="col-md-8">
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text"><i class="fas fa-search"></i></span>
+                                    <input type="text" id="company-lines-search" class="form-control" placeholder="{% trans "بحث برقم القيد أو المرجع أو المبلغ..." %}">
+                                </div>
+                            </div>
+                            <div class="col-md-4 text-end">
+                                <span class="badge bg-secondary-subtle text-secondary small" id="company-lines-count">
+                                    {{ company_lines|length }} {% trans "حركة معلقة" %}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="table-responsive workspace-scroll-container">
+                            <table class="table table-sm table-hover align-middle text-center mb-0" id="company-lines-table">
+                                <thead class="table-light sticky-top">
+                                    <tr>
+                                        <th>#</th>
+                                        <th>{% trans "التاريخ" %}</th>
+                                        <th>{% trans "المرجع / القيد" %}</th>
+                                        <th>{% trans "المبلغ" %}</th>
+                                        <th>{% trans "تأكيد المطابقة" %}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for jl in company_lines %}
+                                    <tr class="jl-row" id="jl-row-{{ jl.id }}" data-jl-id="{{ jl.id }}" data-debit="{{ jl.debit }}" data-credit="{{ jl.credit }}" data-entry-no="{{ jl.journal_entry.entry_number }}" data-ref="{{ jl.journal_entry.reference|default:'' }}" data-desc="{{ jl.description|default:jl.journal_entry.description|default:'' }}">
+                                        <td>{{ forloop.counter }}</td>
+                                        <td class="small text-nowrap">{{ jl.journal_entry.date|date:"Y-m-d" }}</td>
+                                        <td class="text-center">
+                                            <span class="fw-bold text-dark d-block small">{{ jl.journal_entry.entry_number }}</span>
+                                            {% if jl.journal_entry.reference %}
+                                                <span class="text-primary small d-block fw-semibold">{{ jl.journal_entry.reference }}</span>
+                                            {% endif %}
+                                            {% with desc=jl.description|default:jl.journal_entry.description %}
+                                                {% if desc %}
+                                                    <span class="text-muted small d-block text-truncate mx-auto" style="max-width: 180px;" title="{{ desc }}">{{ desc }}</span>
+                                                {% endif %}
+                                            {% endwith %}
+                                        </td>
+                                        <td class="text-nowrap">
+                                            {% if jl.debit > 0 %}
+                                                <span class="text-success fw-bold">+{{ jl.debit|smart_float }}</span>
+                                            {% else %}
+                                                <span class="text-danger fw-bold">-{{ jl.credit|smart_float }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <form method="POST" action="" class="match-form">
+                                                {% csrf_token %}
+                                                <input type="hidden" name="action" value="match_selected">
+                                                <input type="hidden" name="statement_line_id" class="selected-stmt-id-input" value="">
+                                                <input type="hidden" name="journal_line_id" value="{{ jl.id }}">
+                                                <button type="submit" class="btn btn-sm btn-primary match-action-btn disabled">
+                                                    <i class="fas fa-check me-1"></i>{% trans "تأكيد" %}
+                                                </button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="5" class="py-4 text-center text-muted">
+                                            <i class="fas fa-check-double fa-2x mb-2 d-block text-success"></i>
+                                            {% trans "جميع حركات الشركة البنكية مطابقة ومسواة بالكامل" %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 2: Matched Allocations Log -->
+        <div class="tab-pane fade" id="tab-matched-log" role="tabpanel" aria-labelledby="matched-tab">
+            <div class="section-container">
+                <h5 class="section-title"><i class="fas fa-check-double me-2 text-success"></i>{% trans "سجل البنود المطابقة والمعتمدة بالدفتر العام" %}</h5>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle text-center mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>#</th>
+                                <th>{% trans "تاريخ البنك" %}</th>
+                                <th>{% trans "مرجع وبيان البنك" %}</th>
+                                <th>{% trans "مبلغ البنك" %}</th>
+                                <th>{% trans "القيد والبيان المحاسبي المطابق" %}</th>
+                                <th>{% trans "مبلغ حركة الدفتر" %}</th>
+                                <th>{% trans "وقت التطابق" %}</th>
+                                <th>{% trans "إجراءات التحكم" %}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for line in lines %}
+                                {% if line.is_matched %}
+                                    {% for alloc in line.allocations.all %}
+                                    <tr>
+                                        <td>{{ forloop.parentloop.counter }}</td>
+                                        <td class="small text-nowrap">{{ line.transaction_date|date:"Y-m-d" }}</td>
+                                        <td class="text-center">
+                                            <span class="fw-bold text-primary d-block small">{{ line.reference_number|default:"--" }}</span>
+                                            {% if line.description %}
+                                                <span class="text-muted small d-block text-truncate mx-auto" style="max-width: 200px;" title="{{ line.description }}">{{ line.description }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-nowrap">
+                                            {% if line.debit > 0 %}<span class="text-success fw-bold">+{{ line.debit|smart_float }}</span>{% else %}<span class="text-danger fw-bold">-{{ line.credit|smart_float }}</span>{% endif %}
+                                        </td>
+                                        <td class="text-center">
+                                            <div class="d-flex align-items-center justify-content-center gap-1 mb-1">
+                                                <span class="fw-bold text-dark small">{{ alloc.journal_line.journal_entry.entry_number }}</span>
+                                                <span class="badge bg-light text-secondary border small">{{ alloc.journal_line.journal_entry.date|date:"Y-m-d" }}</span>
+                                            </div>
+                                            {% if alloc.journal_line.account %}
+                                                <span class="text-primary small d-block fw-semibold">{{ alloc.journal_line.account.code }} - {{ alloc.journal_line.account.name }}</span>
+                                            {% endif %}
+                                            {% with desc=alloc.journal_line.description|default:alloc.journal_line.journal_entry.description %}
+                                                {% if desc %}
+                                                    <span class="text-muted small d-block text-truncate mx-auto" style="max-width: 220px;" title="{{ desc }}">{{ desc }}</span>
+                                                {% endif %}
+                                            {% endwith %}
+                                        </td>
+                                        <td class="text-nowrap">
+                                            {% if alloc.journal_line.debit > 0 %}<span class="text-success fw-bold">+{{ alloc.journal_line.debit|smart_float }}</span>{% else %}<span class="text-danger fw-bold">-{{ alloc.journal_line.credit|smart_float }}</span>{% endif %}
+                                        </td>
+                                        <td class="small text-muted text-nowrap">{{ alloc.created_at|date:"Y-m-d H:i" }}</td>
+                                        <td>
+                                            <form method="POST" action="" class="d-inline unmatch-form">
+                                                {% csrf_token %}
+                                                <input type="hidden" name="action" value="remove_allocation">
+                                                <input type="hidden" name="allocation_id" value="{{ alloc.id }}">
+                                                <button type="button" class="btn btn-outline-danger btn-sm confirm-unmatch-btn" title="{% trans "فك تخصيص المطابقة" %}">
+                                                    <i class="fas fa-link-slash me-1"></i>{% trans "فك التخصيص" %}
+                                                </button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                {% endif %}
+                            {% empty %}
+                            <tr>
+                                <td colspan="8" class="text-center py-4 text-muted">{% trans "لا توجد حركات مطابقة معتمدة حتى الآن." %}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 3: IAS 7 Formal Cash Control Report -->
+        <div class="tab-pane fade" id="tab-ias7-report" role="tabpanel" aria-labelledby="ias7-tab">
+            <div class="section-container">
+                <div class="mb-3">
+                    <h5 class="section-title mb-0">
+                        <i class="fas fa-receipt me-2 text-primary"></i>{% trans "تقرير معادلة التسوية البنكية الرسمية (IAS 7 Cash Control Framework)" %}
+                    </h5>
+                </div>
+
+                <div class="row g-3 mb-4">
+                    <div class="col-md-4">
+                        <div class="ias7-card p-3 h-100">
+                            <div class="d-flex align-items-center mb-2 text-primary">
+                                <i class="fas fa-university me-2 fs-5"></i>
+                                <h6 class="fw-bold mb-0">{% trans "كشف حساب البنك" %}</h6>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="small text-muted">{% trans "رصيد كشف البنك النهائي:" %}</span>
+                                <span class="fw-bold fs-6">{{ summary.ending_bank_balance|smart_float }}</span>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center mb-2 text-success">
+                                <span class="small"><i class="fas fa-plus me-1"></i>{% trans "إيداعات تحت التحصيل:" %}</span>
+                                <span class="fw-bold">+{{ summary.deposits_in_transit|smart_float }}</span>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center mb-2 text-danger">
+                                <span class="small"><i class="fas fa-minus me-1"></i>{% trans "شيكات وسحوبات معلقة:" %}</span>
+                                <span class="fw-bold">-{{ summary.outstanding_checks|smart_float }}</span>
+                            </div>
+                            <hr class="my-2 border-secondary-subtle">
+                            <div class="d-flex justify-content-between align-items-center text-primary">
+                                <span class="small fw-bold">{% trans "الرصيد البنكي المعدل:" %}</span>
+                                <span class="fw-bold fs-6">{{ summary.adjusted_bank_balance|smart_float }}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-4">
+                        <div class="ias7-card p-3 h-100">
+                            <div class="d-flex align-items-center mb-2 text-dark">
+                                <i class="fas fa-book me-2 fs-5"></i>
+                                <h6 class="fw-bold mb-0">{% trans "دفتر الاستاد العام (GL)" %}</h6>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="small text-muted">{% trans "رصيد الحساب البنكي بالدفتر:" %}</span>
+                                <span class="fw-bold fs-6 text-dark">{{ summary.gl_balance|smart_float }}</span>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center mb-2 text-muted">
+                                <span class="small">{% trans "تاريخ المطابقة المحدد:" %}</span>
+                                <span class="fw-bold">{{ batch.statement_date|date:"Y-m-d" }}</span>
+                            </div>
+                            <hr class="my-2 border-secondary-subtle">
+                            <div class="d-flex justify-content-between align-items-center text-primary">
+                                <span class="small fw-bold">{% trans "القيمة المتوقعة للتطابق:" %}</span>
+                                <span class="fw-bold fs-6">{{ summary.adjusted_bank_balance|smart_float }}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-4">
+                        <div class="ias7-card p-3 h-100">
+                            <div class="d-flex align-items-center mb-2 {% if summary.is_balanced %}text-success{% else %}text-danger{% endif %}">
+                                <i class="fas fa-scale-balanced me-2 fs-5"></i>
+                                <h6 class="fw-bold mb-0">{% trans "حالة التسوية والتوازن" %}</h6>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="small text-muted">{% trans "صافي فارق التسوية:" %}</span>
+                                <span class="fw-bold fs-5 {% if summary.is_balanced %}text-success{% else %}text-danger{% endif %}">
+                                    {{ summary.difference|smart_float }}
+                                </span>
+                            </div>
+                            <p class="small text-muted mt-2 mb-0">
+                                {% if summary.is_balanced %}
+                                    <i class="fas fa-check-circle text-success me-1"></i>{% trans "رصيد الدفتر العام متوافق تماماً مع الرصيد البنكي المعدل وفق معيار IAS 7." %}
+                                {% else %}
+                                    <i class="fas fa-info-circle text-warning me-1"></i>{% trans "قم بمطابقة البنود المعلقة أو إنشاء قيود المصاريف المباشرة لتصفير الفارق." %}
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Corporate Audit Sign-off Box -->
+                <div class="p-3 border rounded bg-light mt-4">
+                    <div class="row text-center">
+                        <div class="col-md-4">
+                            <span class="small text-muted d-block">{% trans "إعداد المحاسب المسؤول:" %}</span>
+                            <span class="fw-bold text-dark">{{ batch.created_by.get_full_name|default:batch.created_by.username|default:"مدير النظام" }}</span>
+                        </div>
+                        <div class="col-md-4">
+                            <span class="small text-muted d-block">{% trans "تاريخ الاعتماد:" %}</span>
+                            <span class="fw-bold text-dark">{{ batch.statement_date|date:"Y-m-d" }}</span>
+                        </div>
+                        <div class="col-md-4">
+                            <span class="small text-muted d-block">{% trans "اعتماد المراجعة المالية:" %}</span>
+                            <span class="fw-bold text-success">{% if summary.is_balanced %}<i class="fas fa-shield-check me-1"></i>{% trans "معتمد ومكتمل" %}{% else %}<i class="fas fa-clock me-1"></i>{% trans "قيد التدقيق" %}{% endif %}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal رفع كشف حساب بنكي - Corporate ERP Modal Standard -->
+<div class="modal fade" id="uploadLinesModal" tabindex="-1" aria-labelledby="uploadLinesModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-light border-bottom px-4 py-3">
+                <h5 class="modal-title fw-bold text-dark mb-0" id="uploadLinesModalLabel">
+                    <i class="fas fa-file-upload text-primary me-2"></i>{% trans "رفع كشف حساب بنكي (CSV / Excel)" %}
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST" action="" enctype="multipart/form-data">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="upload_lines">
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">{% trans "اختر الملف (CSV أو Excel)" %} <span class="text-danger">*</span></label>
+                        <input type="file" name="statement_file" accept=".csv, .txt, .xlsx, .xls" class="form-control" required>
+                    </div>
+                    <div class="alert alert-info py-2 px-3 small mb-3">
+                        <i class="fas fa-magic me-1 text-primary"></i>{% trans "النظام يلتقط أسماء الأعمدة آلياً لجميع صيغ البنوك (NBE, CIB, QNB, HSBC, إلخ)." %}
+                    </div>
+
+                    <a class="btn btn-sm btn-link text-decoration-none p-0 fw-bold" data-bs-toggle="collapse" href="#detailCustomColumnCollapse" role="button" aria-expanded="false">
+                        <i class="fas fa-sliders me-1"></i>{% trans "تخصيص مطابقة أسماء الأعمدة يدوياً (اختياري)" %}
+                    </a>
+                    <div class="collapse mt-2" id="detailCustomColumnCollapse">
+                        <div class="card card-body bg-light border p-3">
+                            <p class="small text-muted mb-2"><i class="fas fa-info-circle me-1"></i>{% trans "اترك الحقول فارغة للالتقاط التلقائي الذكي، أو اكتب اسم العمود الدقيق في ملفك:" %}</p>
+                            <div class="row g-2">
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-bold mb-1">{% trans "اسم عمود التاريخ" %}</label>
+                                    <input type="text" name="col_date" class="form-control form-control-sm" placeholder="مثال: Posting Date">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-bold mb-1">{% trans "اسم عمود المرجع" %}</label>
+                                    <input type="text" name="col_ref" class="form-control form-control-sm" placeholder="مثال: Ref No">
+                                </div>
+                                <div class="col-md-12">
+                                    <label class="form-label small fw-bold mb-1">{% trans "اسم عمود البيان / الوصف" %}</label>
+                                    <input type="text" name="col_desc" class="form-control form-control-sm" placeholder="مثال: Description">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-bold mb-1">{% trans "اسم عمود المدين / الإيداع" %}</label>
+                                    <input type="text" name="col_debit" class="form-control form-control-sm" placeholder="مثال: Deposit">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-bold mb-1">{% trans "اسم عمود الدائن / السحب" %}</label>
+                                    <input type="text" name="col_credit" class="form-control form-control-sm" placeholder="مثال: Withdrawal">
+                                </div>
+                                <div class="col-md-12 mt-2">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="invert_directions" value="1" id="detailInvertDirectionsCheck">
+                                        <label class="form-check-label small fw-bold text-dark" for="detailInvertDirectionsCheck">
+                                            <i class="fas fa-arrow-right-left me-1 text-primary"></i>{% trans "عكس الاتجاه المحاسبي (اعتبار المسحوبات مدين والإيداعات دائن حسب تنسيق البنك المرفق)" %}
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-top px-4 py-3">
+                    <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+                    <button type="submit" class="btn btn-primary px-4 fw-bold"><i class="fas fa-cloud-arrow-up me-1"></i>{% trans "استيراد السطور" %}</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal قيد العمولات والمصاريف المباشر (Accounting Gateway Direct Adjustment Modal) -->
+<div class="modal fade" id="directAdjustmentModal" tabindex="-1" aria-labelledby="directAdjustmentModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-light border-bottom px-4 py-3">
+                <h5 class="modal-title fw-bold text-dark mb-0" id="directAdjustmentModalLabel">
+                    <i class="fas fa-bolt text-success me-2"></i>{% trans "إنشاء قيد مصروفات/عمولة بنكية مباشر" %}
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST" action="">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="create_direct_entry">
+                <input type="hidden" name="statement_line_id" id="modal_adj_stmt_line_id" value="">
+                <div class="modal-body p-4">
+                    <div class="alert alert-light border p-2 mb-3 small d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-building-columns text-primary me-1"></i>{% trans "طرف الحساب البنكي (ثابت تلقائياً):" %} <strong>{{ batch.bank_account.code }} - {{ batch.bank_account.name }}</strong></span>
+                        <span class="badge bg-primary-subtle text-primary">{% trans "طرف ثابت" %}</span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">{% trans "حساب المصروفات / العمولة المقابل" %} <span class="text-danger">*</span></label>
+                        <select name="expense_account_id" id="modal_adj_expense_account" class="form-select select2-filter" required style="width: 100%;">
+                            <option value="">{% trans "-- اختر الحساب المقابل (مصروفات / عمولات / فوائد) --" %}</option>
+                            {% for acc in expense_accounts %}
+                                <option value="{{ acc.id }}">{{ acc.code }} - {{ acc.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text small text-muted">{% trans "تم تحجيم القائمة وتصفيتها لتضم فقط حسابات المصروفات والإيرادات والعمولات والفوائد المقابلة." %}</div>
+                    </div>
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">{% trans "المبلغ الثابت بالبنك" %} <i class="fas fa-lock text-warning ms-1" title="{% trans "مبلغ مقفل ومرتبط بسطر البنك" %}"></i></label>
+                            <input type="number" step="0.01" name="amount" id="modal_adj_amount" class="form-control fw-bold text-primary bg-light" readonly tabindex="-1" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">{% trans "مركز التكلفة (اختياري)" %}</label>
+                            <select name="cost_center_id" class="form-select">
+                                <option value="">{% trans "-- بدون مركز تكلفة --" %}</option>
+                                {% for cc in cost_centers %}
+                                    <option value="{{ cc.id }}">{{ cc.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">{% trans "بيان ووصف القيد" %}</label>
+                        <input type="text" name="description" id="modal_adj_description" class="form-control" placeholder="مثال: عمولات بنكية عن شهر أغسطس">
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-top px-4 py-3">
+                    <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+                    <button type="submit" class="btn btn-success px-4 fw-bold"><i class="fas fa-check-circle me-1"></i>{% trans "إنشاء القيد والمطابقة" %}</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var selectedStmtLineId = null;
+    var selectedStmtAmount = 0;
+
+    // Direct Adjustment Modal Select2 Setup
+    var adjModalEl = document.getElementById('directAdjustmentModal');
+    if (adjModalEl && typeof $ !== 'undefined') {
+        $(adjModalEl).on('shown.bs.modal', function () {
+            $('#modal_adj_expense_account').select2({
+                dropdownParent: $('#directAdjustmentModal'),
+                dir: 'rtl',
+                language: 'ar'
+            });
+        });
+    }
+
+    // Select Statement Line for Matching
+    var selectBtns = document.querySelectorAll('.select-stmt-btn');
+    for (var i = 0; i < selectBtns.length; i++) {
+        selectBtns[i].addEventListener('click', function () {
+            var lineId = this.getAttribute('data-line-id');
+            var debit = parseFloat(this.getAttribute('data-debit') || 0);
+            var credit = parseFloat(this.getAttribute('data-credit') || 0);
+            var ref = this.getAttribute('data-ref');
+            var desc = this.getAttribute('data-desc');
+
+            selectedStmtLineId = lineId;
+            selectedStmtAmount = debit > 0 ? debit : credit;
+
+            // Highlight selected bank statement line row
+            var rows = document.querySelectorAll('.stmt-row');
+            for (var j = 0; j < rows.length; j++) {
+                rows[j].classList.remove('line-row-selected');
+            }
+            var activeRow = document.getElementById('stmt-line-row-' + lineId);
+            if (activeRow) {
+                activeRow.classList.add('line-row-selected');
+            }
+
+            // Update hidden inputs in company ledger form action
+            var inputs = document.querySelectorAll('.selected-stmt-id-input');
+            for (var k = 0; k < inputs.length; k++) {
+                inputs[k].value = lineId;
+            }
+
+            // Enable confirm match buttons
+            var matchBtns = document.querySelectorAll('.match-action-btn');
+            for (var m = 0; m < matchBtns.length; m++) {
+                matchBtns[m].classList.remove('disabled');
+            }
+
+            // Show active match banner
+            var banner = document.getElementById('active-match-banner');
+            if (banner) {
+                banner.classList.remove('d-none');
+                document.getElementById('banner-stmt-ref').textContent = ref || lineId;
+                document.getElementById('banner-stmt-amount').textContent = selectedStmtAmount.toFixed(2);
+                document.getElementById('banner-stmt-desc').textContent = desc ? ('(' + desc + ')') : '';
+            }
+
+            // Smart highlight matching amount lines in company ledger table
+            var isDebit = parseFloat(this.getAttribute('data-debit') || 0) > 0;
+            highlightCompanyMatches(selectedStmtAmount, isDebit);
+        });
+    }
+
+    // Store original order of company lines
+    document.querySelectorAll('#company-lines-table tbody tr.jl-row').forEach(function(row, idx) {
+        row.setAttribute('data-orig-idx', idx);
+    });
+
+    // Clear Selection
+    var clearBtn = document.getElementById('clear-selection-btn');
+    if (clearBtn) {
+        clearBtn.addEventListener('click', function () {
+            selectedStmtLineId = null;
+            selectedStmtAmount = 0;
+
+            document.querySelectorAll('.stmt-row').forEach(function(r) { r.classList.remove('line-row-selected'); });
+            document.querySelectorAll('.selected-stmt-id-input').forEach(function(inp) { inp.value = ''; });
+            document.querySelectorAll('.match-action-btn').forEach(function(b) { b.classList.add('disabled'); });
+            
+            // Restore original row order & remove highlight
+            var tbody = document.querySelector('#company-lines-table tbody');
+            if (tbody) {
+                var rows = Array.from(tbody.querySelectorAll('.jl-row'));
+                rows.sort(function(a, b) {
+                    return parseInt(a.getAttribute('data-orig-idx') || 0) - parseInt(b.getAttribute('data-orig-idx') || 0);
+                });
+                rows.forEach(function(row) {
+                    row.classList.remove('smart-match-highlight');
+                    tbody.appendChild(row);
+                });
+            }
+
+            var banner = document.getElementById('active-match-banner');
+            if (banner) banner.classList.add('d-none');
+        });
+    }
+
+    // Smart Highlight & Reorder Matching Amount Lines in Company Ledger
+    function highlightCompanyMatches(targetAmount, isDebit) {
+        var tbody = document.querySelector('#company-lines-table tbody');
+        if (!tbody) return;
+
+        var jlRows = Array.from(tbody.querySelectorAll('.jl-row'));
+        var matches = [];
+        var nonMatches = [];
+
+        jlRows.forEach(function(row) {
+            var d = parseFloat(row.getAttribute('data-debit') || 0);
+            var c = parseFloat(row.getAttribute('data-credit') || 0);
+            var matchesDirection = (isDebit !== undefined) ? (isDebit ? (d > 0) : (c > 0)) : true;
+            var amt = (isDebit !== undefined) ? (isDebit ? d : c) : (d > 0 ? d : c);
+
+            if (matchesDirection && Math.abs(amt - targetAmount) < 0.01) {
+                row.classList.add('smart-match-highlight');
+                matches.push(row);
+            } else {
+                row.classList.remove('smart-match-highlight');
+                nonMatches.push(row);
+            }
+        });
+
+        // Prepend matching rows to top of table
+        matches.forEach(function(row) {
+            tbody.appendChild(row);
+        });
+        nonMatches.forEach(function(row) {
+            tbody.appendChild(row);
+        });
+
+        // Auto scroll to top of company lines container
+        var container = tbody.closest('.workspace-scroll-container');
+        if (container) {
+            container.scrollTop = 0;
+        }
+    }
+
+    // Direct Adjustment Modal triggers
+    var adjBtns = document.querySelectorAll('.direct-adj-btn');
+    for (var n = 0; n < adjBtns.length; n++) {
+        adjBtns[n].addEventListener('click', function () {
+            var lineId = this.getAttribute('data-line-id');
+            var debit = this.getAttribute('data-debit');
+            var credit = this.getAttribute('data-credit');
+            var ref = this.getAttribute('data-ref');
+            var desc = this.getAttribute('data-desc');
+
+            document.getElementById('modal_adj_stmt_line_id').value = lineId;
+            var amt = parseFloat(debit) > 0 ? debit : credit;
+            document.getElementById('modal_adj_amount').value = amt;
+            document.getElementById('modal_adj_description').value = desc || ('تسوية عمولة بنكية مرجع ' + ref);
+
+            var adjModal = new bootstrap.Modal(document.getElementById('directAdjustmentModal'));
+            adjModal.show();
+        });
+    }
+
+    // Client-side Live Filtering for Bank Lines Table
+    var bankSearchInput = document.getElementById('bank-lines-search');
+    function filterBankLines() {
+        var term = (bankSearchInput ? bankSearchInput.value : '').toLowerCase().trim();
+        var rows = document.querySelectorAll('#bank-lines-table tbody tr.stmt-row');
+
+        rows.forEach(function(row) {
+            var ref = (row.getAttribute('data-ref') || '').toLowerCase();
+            var desc = (row.getAttribute('data-desc') || '').toLowerCase();
+            var text = row.textContent.toLowerCase();
+
+            if (!term || ref.includes(term) || desc.includes(term) || text.includes(term)) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    }
+
+    if (bankSearchInput) {
+        bankSearchInput.addEventListener('input', filterBankLines);
+    }
+
+    // Client-side Live Filtering for Company Ledger Lines Table
+    var companySearchInput = document.getElementById('company-lines-search');
+    if (companySearchInput) {
+        companySearchInput.addEventListener('input', function() {
+            var term = this.value.toLowerCase().trim();
+            var rows = document.querySelectorAll('#company-lines-table tbody tr.jl-row');
+
+            rows.forEach(function(row) {
+                var entryNo = (row.getAttribute('data-entry-no') || '').toLowerCase();
+                var ref = (row.getAttribute('data-ref') || '').toLowerCase();
+                var desc = (row.getAttribute('data-desc') || '').toLowerCase();
+                var text = row.textContent.toLowerCase();
+
+                if (!term || entryNo.includes(term) || ref.includes(term) || desc.includes(term) || text.includes(term)) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        });
+    }
+
+    // Intercept match-form submit for pre-validation and SweetAlert2 error handling
+    document.addEventListener('submit', function(e) {
+        var form = e.target.closest('.match-form');
+        if (form) {
+            var stmtInput = form.querySelector('.selected-stmt-id-input');
+            if (!stmtInput || !stmtInput.value) {
+                e.preventDefault();
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        title: '{% trans "تنبيه" %}',
+                        text: '{% trans "يرجى تحديد بند من كشف البنك أولاً قبل إجراء المطابقة." %}',
+                        icon: 'warning',
+                        confirmButtonText: '{% trans "حسناً" %}',
+                        confirmButtonColor: 'var(--primary-color)',
+                        customClass: { popup: 'swal2-rtl' }
+                    });
+                }
+                return false;
+            }
+
+            var jlRow = form.closest('tr.jl-row');
+            if (jlRow) {
+                var d = parseFloat(jlRow.getAttribute('data-debit') || 0);
+                var c = parseFloat(jlRow.getAttribute('data-credit') || 0);
+                var jlAmt = d > 0 ? d : c;
+                var stmtAmt = selectedStmtAmount || 0;
+
+                if (Math.abs(stmtAmt - jlAmt) > 0.05) {
+                    e.preventDefault();
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            title: '{% trans "خطأ في المطابقة المحاسبية" %}',
+                            text: '{% trans "مبلغ سطر كشف البنك" %} (' + stmtAmt.toFixed(2) + ' {% trans "ج.م" %}) {% trans "لا يتطابق مع مبلغ حركة الدفتر العام" %} (' + jlAmt.toFixed(2) + ' {% trans "ج.م" %}). {% trans "يجب اختيار حركة بنفس المبلغ." %}',
+                            icon: 'error',
+                            confirmButtonText: '{% trans "حسناً" %}',
+                            confirmButtonColor: 'var(--primary-color)',
+                            customClass: { popup: 'swal2-rtl' }
+                        });
+                    } else {
+                        alert('{% trans "خطأ في المطابقة المحاسبية: المبالغ غير متطابقة." %}');
+                    }
+                    return false;
+                }
+            }
+        }
+    });
+
+    // SweetAlert2 Confirmation for Unmatch Action
+    document.addEventListener('click', function(e) {
+        var btn = e.target.closest('.confirm-unmatch-btn');
+        if (btn) {
+            e.preventDefault();
+            var form = btn.closest('form');
+            if (form) {
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        title: '{% trans "تأكيد فك التخصيص" %}',
+                        text: '{% trans "هل أنت متأكد من فك هذا التخصيص وإعادة السطر للحركات المعلقة؟" %}',
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonColor: 'var(--primary-color)',
+                        cancelButtonColor: '#6c757d',
+                        confirmButtonText: '{% trans "نعم، فك التخصيص" %}',
+                        cancelButtonText: '{% trans "إلغاء" %}'
+                    }).then(function(result) {
+                        if (result.isConfirmed) {
+                            form.submit();
+                        }
+                    });
+                } else {
+                    if (confirm('{% trans "هل أنت متأكد من فك هذا التخصيص وإعادة السطر للحركات المعلقة؟" %}')) {
+                        form.submit();
+                    }
+                }
+            }
+        }
+    });
+});
+</script>
+
+{% if messages %}
+<div id="django-messages-data" class="d-none">
+    {% for message in messages %}
+        <div class="django-msg-item" data-tag="{{ message.tags }}" data-text="{{ message|escapejs }}"></div>
+    {% endfor %}
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var msgItems = document.querySelectorAll('#django-messages-data .django-msg-item');
+    msgItems.forEach(function(item) {
+        var tag = item.getAttribute('data-tag');
+        var text = item.getAttribute('data-text');
+        if (typeof Swal !== 'undefined') {
+            var title = (tag === 'error' || tag === 'danger') ? '{% trans "خطأ في المطابقة المحاسبية" %}' : (tag === 'success' ? '{% trans "تمت العملية بنجاح" %}' : '{% trans "تنبيه" %}');
+            var icon = (tag === 'error' || tag === 'danger') ? 'error' : (tag === 'success' ? 'success' : 'warning');
+            Swal.fire({
+                title: title,
+                text: text,
+                icon: icon,
+                confirmButtonText: '{% trans "حسناً" %}',
+                confirmButtonColor: 'var(--primary-color)',
+                customClass: { popup: 'swal2-rtl' }
+            });
+        }
+    });
+});
+</script>
+{% endif %}
+{% endblock %}

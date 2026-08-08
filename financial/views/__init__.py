@@ -42,7 +42,7 @@ from .account_views import (
     # account_transactions,  # تم حذفه - غير مستخدم (مستبدل بتبويب في chart_of_accounts_detail)
     # account_delete,  # تم حذفه - مكرر مع chart_of_accounts_delete
     bank_reconciliation_list,
-    bank_reconciliation_create,
+    bank_reconciliation_detail,
     cash_account_movements,
     enhanced_balances_list,
     enhanced_balances_refresh,
