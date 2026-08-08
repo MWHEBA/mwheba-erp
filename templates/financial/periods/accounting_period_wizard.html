@@ -1,0 +1,115 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{{ page_title|default:"معالج إغلاق الفترة المحاسبية" }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Page Header المركزي -->
+  {% include "shared/page_header.html" %}
+
+  <div class="row">
+    <div class="col-md-9 mx-auto">
+      <div class="section-container mb-4">
+        <div class="text-center py-3">
+          <div class="display-6 text-primary mb-3">
+            <i class="fas fa-magic"></i>
+          </div>
+          <h4>{% trans "معالج إغلاق الفترة المحاسبية" %} ({{ period.name }})</h4>
+          <p class="text-muted small">
+            {% trans "إدارة حظر الموديولات التفصيلي وفحص الجاهزية قبل الإغلاق التام للفترة." %}
+          </p>
+        </div>
+
+        <!-- تفاصيل الفترة -->
+        <div class="card mb-4 border-0 bg-light">
+          <div class="card-body">
+            <div class="row g-3 text-center">
+              <div class="col-md-3">
+                <div class="text-muted small">{% trans "السنة المالية" %}</div>
+                <div class="fw-bold fs-6">{{ period.fiscal_year.name|default:"-" }}</div>
+              </div>
+              <div class="col-md-3">
+                <div class="text-muted small">{% trans "تاريخ البداية" %}</div>
+                <div class="fw-bold fs-6">{{ period.start_date|date:'Y-m-d' }}</div>
+              </div>
+              <div class="col-md-3">
+                <div class="text-muted small">{% trans "تاريخ النهاية" %}</div>
+                <div class="fw-bold fs-6">{{ period.end_date|date:'Y-m-d' }}</div>
+              </div>
+              <div class="col-md-3">
+                <div class="text-muted small">{% trans "الحالة الحالية" %}</div>
+                <div>
+                  {% if period.status == 'closed' %}
+                    <span class="badge bg-danger">{% trans "مغلقة" %}</span>
+                  {% elif period.status == 'soft_closed' %}
+                    <span class="badge bg-warning text-dark">{% trans "مغلقة مؤقتاً" %}</span>
+                  {% else %}
+                    <span class="badge bg-success">{% trans "مفتوحة" %}</span>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- جدول حظر الموديولات المجزأ -->
+        <div class="mb-4">
+          <h6 class="fw-bold mb-3"><i class="fas fa-user-shield me-2"></i>{% trans "حالة حظر الموديولات المجزأة (Granular Subledger Locks)" %}</h6>
+          
+          <div class="table-responsive">
+            <table class="table table-bordered align-middle text-center mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>{% trans "الموديول" %}</th>
+                  <th>{% trans "نوع الموديول" %}</th>
+                  <th>{% trans "حالة الحظر" %}</th>
+                  <th>{% trans "درجة الحظر" %}</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="fw-bold">{% trans "المبيعات والعملاء" %}</td>
+                  <td><span class="badge bg-outline-primary text-dark">AR</span></td>
+                  <td><span class="badge bg-success">{% trans "مفتوح" %}</span></td>
+                  <td><span class="badge bg-light text-dark">{% trans "عادي" %}</span></td>
+                </tr>
+                <tr>
+                  <td class="fw-bold">{% trans "المشتريات والموردين" %}</td>
+                  <td><span class="badge bg-outline-primary text-dark">AP</span></td>
+                  <td><span class="badge bg-success">{% trans "مفتوح" %}</span></td>
+                  <td><span class="badge bg-light text-dark">{% trans "عادي" %}</span></td>
+                </tr>
+                <tr>
+                  <td class="fw-bold">{% trans "المخزون والمستودعات" %}</td>
+                  <td><span class="badge bg-outline-primary text-dark">INVENTORY</span></td>
+                  <td><span class="badge bg-success">{% trans "مفتوح" %}</span></td>
+                  <td><span class="badge bg-light text-dark">{% trans "عادي" %}</span></td>
+                </tr>
+                <tr>
+                  <td class="fw-bold">{% trans "الخزائن والبنوك" %}</td>
+                  <td><span class="badge bg-outline-primary text-dark">TREASURY</span></td>
+                  <td><span class="badge bg-success">{% trans "مفتوح" %}</span></td>
+                  <td><span class="badge bg-light text-dark">{% trans "عادي" %}</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="d-flex justify-content-between">
+          <a href="{% url 'financial:accounting_periods_list' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-right me-2"></i>{% trans "العودة للفترات المحاسبية" %}
+          </a>
+          {% if period.status == 'open' %}
+          <a href="{% url 'financial:accounting_periods_close' period.pk %}" class="btn btn-danger">
+            <i class="fas fa-lock me-2"></i>{% trans "الانتقال لتأكيد الإغلاق النهائي" %}
+          </a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

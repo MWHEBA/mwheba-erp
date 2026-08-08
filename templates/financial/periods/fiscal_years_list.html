@@ -1,0 +1,147 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{{ page_title|default:"السنوات المالية" }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Page Header المركزي الموحد -->
+  {% include "shared/page_header.html" %}
+
+  <!-- صف كروت الإحصائيات القياسية (.stats-card) - غير مغلفة داخل section-container -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-3">
+      <div class="stats-card stats-card-info">
+        <div class="stats-card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <div class="stats-card-title">{% trans "إجمالي السنوات المالية" %}</div>
+              <div class="stats-card-value">{{ total_years_count|default:0 }}</div>
+            </div>
+            <div class="stats-card-icon">
+              <i class="fas fa-calendar-alt"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-3">
+      <div class="stats-card stats-card-success">
+        <div class="stats-card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <div class="stats-card-title">{% trans "السنوات المفتوحة" %}</div>
+              <div class="stats-card-value" id="stat-open-count">{{ open_years_count|default:0 }}</div>
+            </div>
+            <div class="stats-card-icon">
+              <i class="fas fa-unlock-alt"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-3">
+      <div class="stats-card stats-card-danger">
+        <div class="stats-card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <div class="stats-card-title">{% trans "السنوات المغلقة" %}</div>
+              <div class="stats-card-value" id="stat-closed-count">{{ closed_years_count|default:0 }}</div>
+            </div>
+            <div class="stats-card-icon">
+              <i class="fas fa-lock"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-3">
+      <div class="stats-card stats-card-warning">
+        <div class="stats-card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <div class="stats-card-title">{% trans "السنة النشطة الحالية" %}</div>
+              <div class="stats-card-value fs-6 text-truncate">{{ active_year_code|default:"لا يوجد" }}</div>
+            </div>
+            <div class="stats-card-icon">
+              <i class="fas fa-calendar-check"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+
+  <!-- حاوي القائمة والجدول -->
+  <div class="section-container">
+    <h5 class="section-title"><i class="fas fa-calendar-check me-2"></i>{% trans "قائمة السنوات المالية" %}</h5>
+
+    <div id="fiscal-years-table-container">
+      {% include "financial/periods/partials/fiscal_years_table_partial.html" %}
+    </div>
+
+    <!-- SSR Pagination -->
+    <div id="pagination-wrapper" class="mt-3">
+      {% include "partials/pagination.html" with page_obj=page_obj %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  window.doSearch = function() {
+    const form = $('#filterForm');
+    const url = form.attr('action');
+    const formData = form.serialize();
+
+    $.ajax({
+      url: url,
+      data: formData,
+      headers: { 'X-Requested-With': 'XMLHttpRequest' },
+      success: function(response) {
+        if (response.table_html) {
+          $('#fiscal-years-table-container').html(response.table_html);
+        }
+        if (response.pagination_html) {
+          $('#pagination-wrapper').html(response.pagination_html);
+        }
+        if (response.open_count !== undefined) {
+          $('#stat-open-count').text(response.open_count);
+          $('#stat-closed-count').text(response.closed_count);
+        }
+        window.history.replaceState(null, '', url + '?' + formData);
+        initTableEvents();
+      }
+    });
+  };
+
+  function initTableEvents() {
+    $('.clickable-row').css('cursor', 'pointer').off('click').on('click', function(e) {
+      if ($(e.target).closest('.col-actions, a, button').length === 0) {
+        window.location.href = $(this).data('href');
+      }
+    });
+  }
+
+  $(document).ready(function() {
+    initTableEvents();
+
+    let searchTimer;
+    $('#searchInput').on('keyup', function() {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(window.doSearch, 300);
+    });
+
+    $('.select2-filter').on('change', function() {
+      window.doSearch();
+    });
+  });
+</script>
+{% endblock %}

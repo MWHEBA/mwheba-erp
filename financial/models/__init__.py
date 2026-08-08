@@ -57,6 +57,7 @@ except Exception:
     TransactionAttachment = None
 
 from .fiscal_year import FiscalYear
+from .closing_engine_models import FiscalYearClosingRun, PeriodModuleLock, ClosingRule
 from .opening_balance import OpeningBalanceBatch, OpeningBalanceLine
 from .allocation import PaymentAllocation, AllocationStatus
 from .bank_reconciliation import BankStatementBatch, BankStatementLine, BankReconciliationMatch
@@ -89,6 +90,9 @@ __all__ = [
     "ChartOfAccounts",
     "AccountGroup",
     "FiscalYear",
+    "FiscalYearClosingRun",
+    "PeriodModuleLock",
+    "ClosingRule",
     "AccountingPeriod",
     "JournalEntry",
     "JournalEntryLine",

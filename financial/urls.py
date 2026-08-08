@@ -220,6 +220,27 @@ urlpatterns = [
         views.accounting_periods_close,
         name="accounting_periods_close",
     ),
+    path(
+        "accounting-periods/<int:pk>/wizard/",
+        views.accounting_period_wizard,
+        name="accounting_period_wizard",
+    ),
+    # السنوات المالية
+    path(
+        "fiscal-years/",
+        views.fiscal_years_list,
+        name="fiscal_years_list",
+    ),
+    path(
+        "fiscal-years/create/",
+        views.fiscal_years_create,
+        name="fiscal_years_create",
+    ),
+    path(
+        "fiscal-years/<int:pk>/wizard/",
+        views.fiscal_year_wizard,
+        name="fiscal_year_wizard",
+    ),
     # المصروفات والإيرادات
     path("expenses/", views.expense_list, name="expense_list"),
     path("expenses/create/", views.expense_create, name="expense_create"),  # AJAX only

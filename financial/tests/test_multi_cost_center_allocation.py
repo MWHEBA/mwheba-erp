@@ -146,3 +146,81 @@ class TestMultiCostCenterAllocation:
         reversed_rent_line = reversal_entry.lines.get(account=self.rent_account)
         assert reversed_rent_line.credit == Decimal("5000.00")
         assert reversed_rent_line.cost_allocations.count() == 2
+
+    def test_manual_journal_entry_create_view_with_multi_allocation(self, client):
+        """اختبار تقديم طلب POST لشاشة القيد اليدوي بأسطر ذات توزيع فرعي بـ JSON"""
+        import json
+        from django.urls import reverse
+
+        client.force_login(self.user)
+
+        alloc_data = [
+            {"cost_center_id": self.cc_hq.id, "percentage": 70, "amount": 7000},
+            {"cost_center_id": self.cc_alex.id, "percentage": 30, "amount": 3000}
+        ]
+
+        post_data = {
+            'entry_date': timezone.now().strftime('%Y-%m-%d'),
+            'description': 'قيد مصاريف عامة موزع',
+            'entry_currency': 'EGP',
+            'exchange_rate': '1.000000',
+            'accounts[]': [str(self.rent_account.id), str(self.cash_account.id)],
+            'debits[]': ['10000.00', '0.00'],
+            'credits[]': ['0.00', '10000.00'],
+            'line_descriptions[]': ['إيجار المقرات', 'سداد نقدي'],
+            'cost_centers[]': ['MULTI', ''],
+            'line_allocations_json[]': [json.dumps(alloc_data), '']
+        }
+
+        response = client.post(reverse('financial:manual_journal_entry_create'), post_data)
+        assert response.status_code == 302  # Redirect on success
+
+        created_entry = JournalEntry.objects.filter(description='قيد مصاريف عامة موزع').first()
+        assert created_entry is not None
+
+        rent_line = created_entry.lines.get(account=self.rent_account)
+        assert rent_line.cost_center is None  # Exclusivity rule
+        assert rent_line.cost_allocations.count() == 2
+
+        alloc_hq = rent_line.cost_allocations.get(cost_center=self.cc_hq)
+        assert alloc_hq.percentage == Decimal("70.00")
+        assert alloc_hq.amount == Decimal("7000.00")
+
+        alloc_alex = rent_line.cost_allocations.get(cost_center=self.cc_alex)
+        assert alloc_alex.percentage == Decimal("30.00")
+        assert alloc_alex.amount == Decimal("3000.00")
+
+    def test_manual_journal_entry_create_view_guards(self, client):
+        """اختبار منع التوزيع على حساب الميزانية العمومية ورسائل الخطأ"""
+        import json
+        from django.urls import reverse
+
+        client.force_login(self.user)
+
+        alloc_data = [
+            {"cost_center_id": self.cc_hq.id, "percentage": 50, "amount": 2500},
+            {"cost_center_id": self.cc_alex.id, "percentage": 50, "amount": 2500}
+        ]
+
+        # محاولة التوزيع على حساب أصول (cash_account)
+        post_data = {
+            'entry_date': timezone.now().strftime('%Y-%m-%d'),
+            'description': 'محاولة توزيع خاطئة',
+            'entry_currency': 'EGP',
+            'exchange_rate': '1.000000',
+            'accounts[]': [str(self.cash_account.id), str(self.rent_account.id)],
+            'debits[]': ['5000.00', '0.00'],
+            'credits[]': ['0.00', '5000.00'],
+            'line_descriptions[]': ['نقدية خزانة', 'إيجار'],
+            'cost_centers[]': ['MULTI', ''],
+            'line_allocations_json[]': [json.dumps(alloc_data), '']
+        }
+
+        response = client.post(reverse('financial:manual_journal_entry_create'), post_data)
+        assert response.status_code == 302
+        
+        # التأكد من عدم إنشاء القيد بسبب حوكمة منع توزيع حسابات الميزانية
+        created_entry = JournalEntry.objects.filter(description='محاولة توزيع خاطئة').first()
+        assert created_entry is None
+
+

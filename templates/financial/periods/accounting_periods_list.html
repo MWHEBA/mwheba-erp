@@ -2,191 +2,182 @@
 {% load static %}
 {% load i18n %}
 {% load crispy_forms_tags %}
-{% load custom_filters %}
-{% load app_tags %}
 
 {% block title %}{{ page_title|default:"الفترات المحاسبية" }}{% endblock %}
 
-{% block extra_css %}
-<!-- جميع الستايلات موجودة في unified-components.css و components.css -->
-<style>
-  
-  /* حالات الفترات */
-  .period-status {
-    padding: 0.375rem 0.75rem;
-    border-radius: 6px;
-    font-size: 0.875rem;
-    font-weight: 500;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.375rem;
-  }
-  
-  .period-status.open {
-    background: rgba(40, 167, 69, 0.1);
-    color: #28a745;
-    border: 1px solid rgba(40, 167, 69, 0.3);
-  }
-  
-  .period-status.closed {
-    background: rgba(220, 53, 69, 0.1);
-    color: #dc3545;
-    border: 1px solid rgba(220, 53, 69, 0.3);
-  }
-</style>
-{% endblock %}
-
 {% block content %}
 <div class="container-fluid">
-    <!-- Page Header المركزي -->
-    {% include "shared/page_header.html" %}
-  
-  <!-- قائمة الفترات المحاسبية -->
-  <div class="section-container">
-      <div class="card-header d-flex justify-content-between align-items-center">
-        <h5 class="card-title mb-0"><i class="fas fa-list me-2"></i>{% trans "قائمة الفترات المحاسبية" %}</h5>
-        <div class="actions-container">
-          <a href="{% url 'financial:accounting_periods_create' %}" class="btn btn-sm btn-primary">
-            <i class="fas fa-plus me-1"></i>{% trans "إضافة فترة" %}
-          </a>
+  <!-- Page Header المركزي -->
+  {% include "shared/page_header.html" %}
+
+  <!-- صف كروت الإحصائيات القياسية (.stats-card) - غير مغلفة داخل section-container -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-3">
+      <div class="stats-card stats-card-success">
+        <div class="stats-card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <div class="stats-card-title">{% trans "الفترات المفتوحة" %}</div>
+              <div class="stats-card-value" id="stat-open-count">{{ open_periods_count|default:0 }}</div>
+            </div>
+            <div class="stats-card-icon">
+              <i class="fas fa-unlock-alt"></i>
+            </div>
+          </div>
         </div>
       </div>
-      <div class="card-body">
-        {% if periods %}
-        <!-- استخدام قالب الجدول الموحد -->
-          <div class="table-responsive">
-            <table class="table table-hover" id="periods-table">
-              <thead class="table-light">
-                <tr>
-                  <th class="text-center">{% trans "اسم الفترة" %}</th>
-                  <th class="text-center">{% trans "تاريخ البداية" %}</th>
-                  <th class="text-center">{% trans "تاريخ النهاية" %}</th>
-                  <th class="text-center">{% trans "المدة" %}</th>
-                  <th class="text-center">{% trans "الحالة" %}</th>
-                  <th class="text-center">{% trans "الإجراءات" %}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for period in periods %}
-                <tr>
-                  <td class="text-center">
-                    <strong>{{ period.name }}</strong>
-                    {% if period.description %}
-                      <br><small class="text-muted">{{ period.description }}</small>
-                    {% endif %}
-                  </td>
-                  <td class="text-center">
-                    <strong>{{ period.start_date|date:'d-m-Y' }}</strong>
-                  </td>
-                  <td class="text-center">
-                    <strong>{{ period.end_date|date:'d-m-Y' }}</strong>
-                  </td>
-                  <td class="text-center">
-                    <span class="text-muted">
-                      {% widthratio period.end_date|timeuntil:period.start_date 1 30 %} {% trans "يوم" %}
-                    </span>
-                  </td>
-                  <td class="text-center">
-                    {% if period.is_closed %}
-                      <span class="period-status closed">
-                        <i class="fas fa-lock"></i>
-                        {% trans "مغلقة" %}
-                      </span>
-                    {% else %}
-                      <span class="period-status open">
-                        <i class="fas fa-unlock"></i>
-                        {% trans "مفتوحة" %}
-                      </span>
-                    {% endif %}
-                  </td>
-                  <td class="col-actions text-center">
-                    <div class="btn-group" role="group">
-                      <a href="{% url 'financial:accounting_periods_edit' period.pk %}" 
-                         class="btn btn-sm btn-outline-warning action-view" title="{% trans 'تعديل' %}">
-                        <i class="fas fa-edit"></i>
-                      </a>
-                      {% if not period.is_closed %}
-                      <a href="{% url 'financial:accounting_periods_close' period.pk %}" 
-                         class="btn btn-sm btn-outline-danger" title="{% trans 'إغلاق الفترة' %}">
-                        <i class="fas fa-lock"></i>
-                      </a>
-                      {% endif %}
-                    </div>
-                  </td>
-                </tr>
-                {% endfor %}
-              </tbody>
-            </table>
-          </div>
+    </div>
 
-        {% else %}
-          {% include 'partials/empty_state.html' with message="لا توجد فترات محاسبية متاحة" icon="calendar-alt" %}
-        {% endif %}
+    <div class="col-md-3">
+      <div class="stats-card stats-card-warning">
+        <div class="stats-card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <div class="stats-card-title">{% trans "مغلقة مؤقتاً (مراجعة)" %}</div>
+              <div class="stats-card-value" id="stat-soft-count">{{ soft_closed_count|default:0 }}</div>
+            </div>
+            <div class="stats-card-icon">
+              <i class="fas fa-user-shield"></i>
+            </div>
+          </div>
+        </div>
       </div>
+    </div>
+
+    <div class="col-md-3">
+      <div class="stats-card stats-card-danger">
+        <div class="stats-card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <div class="stats-card-title">{% trans "الفترات المغلقة" %}</div>
+              <div class="stats-card-value" id="stat-closed-count">{{ closed_periods_count|default:0 }}</div>
+            </div>
+            <div class="stats-card-icon">
+              <i class="fas fa-lock"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-3">
+      <div class="stats-card stats-card-info">
+        <div class="stats-card-body">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <div class="stats-card-title">{% trans "السنة المالية النشطة" %}</div>
+              <div class="stats-card-value fs-6 text-truncate">{{ active_fiscal_year.year_code|default:"لا يوجد" }}</div>
+            </div>
+            <div class="stats-card-icon">
+              <i class="fas fa-calendar-check"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- قسم الفلاتر المنسدلة الموحد -->
+  <div class="section-container mb-4">
+    <h5 class="section-title" data-bs-toggle="collapse" data-bs-target="#filterSection" aria-expanded="true" style="cursor: pointer;">
+      <i class="fas fa-filter me-2"></i>{% trans "تصفية الفترات المحاسبية" %}<i class="fas fa-chevron-down float-end"></i>
+    </h5>
+    <div class="collapse show" id="filterSection">
+      <form id="filterForm" method="get" action="{% url 'financial:accounting_periods_list' %}" class="row g-3 mt-2">
+        <div class="col-md-4">
+          <label for="searchInput" class="form-label fw-bold">{% trans "البحث" %}</label>
+          <input type="text" name="search" id="searchInput" class="form-control" placeholder="{% trans 'اسم الفترة...' %}" value="{{ request.GET.search }}">
+        </div>
+
+        <div class="col-md-4">
+          <label for="fiscalYearFilter" class="form-label fw-bold">{% trans "السنة المالية" %}</label>
+          <select name="fiscal_year" id="fiscalYearFilter" class="form-select select2-filter">
+            <option value="">{% trans "جميع السنوات المالية" %}</option>
+            {% for fy in fiscal_years %}
+            <option value="{{ fy.id }}" {% if request.GET.fiscal_year == fy.id|stringformat:"s" %}selected{% endif %}>{{ fy.name }} ({{ fy.year_code }})</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="col-md-4">
+          <label for="statusFilter" class="form-label fw-bold">{% trans "الحالة" %}</label>
+          <select name="status" id="statusFilter" class="form-select select2-filter">
+            <option value="">{% trans "جميع الحالات" %}</option>
+            <option value="open" {% if request.GET.status == 'open' %}selected{% endif %}>{% trans "مفتوحة" %}</option>
+            <option value="soft_closed" {% if request.GET.status == 'soft_closed' %}selected{% endif %}>{% trans "مغلقة مؤقتاً" %}</option>
+            <option value="closed" {% if request.GET.status == 'closed' %}selected{% endif %}>{% trans "مغلقة" %}</option>
+          </select>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- حاوي القائمة والجدول -->
+  <div class="section-container">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h5 class="section-title mb-0"><i class="fas fa-list me-2"></i>{% trans "قائمة الفترات المحاسبية" %}</h5>
+    </div>
+
+    <div id="periods-table-container">
+      {% include "financial/periods/partials/periods_table_partial.html" %}
+    </div>
+
+    <!-- SSR Pagination -->
+    <div id="pagination-wrapper" class="mt-3">
+      {% include "partials/pagination.html" with page_obj=page_obj %}
+    </div>
   </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
-<!-- مكتبة SheetJS لتصدير البيانات إلى Excel بدعم كامل للغة العربية -->
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<!-- استخدام مكتبة DataTables من ملف datatables.min.js الموجود -->
-<script src="{% static 'js/global-table.js' %}"></script>
 <script>
-  $(document).ready(function() {
-    // تهيئة جدول الفترات المحاسبية بدون ترتيب (استخدام الترتيب من الخادم)
-    initGlobalTable('periods-table', {
-      ordering: false, // تعطيل الترتيب في الواجهة
-      columnDefs: [
-        { targets: 5, orderable: false, width: '140px' }, // عمود الإجراءات
-        { targets: [0, 1, 2, 3, 4, 5], className: 'text-center' }
-      ],
-      autoWidth: true,
-      responsive: true
-    });
-    
-    // ضبط حجم الجدول عند تحميل الصفحة وعند تغيير حجم النافذة
-    function adjustTableSize() {
-      $('.table-responsive').css('max-height', '100%').css('overflow-y', 'visible');
-      $('#periods-table').css('width', '100%');
-    }
-    
-    adjustTableSize();
-    $(window).resize(adjustTableSize);
-    
-    // جعل الصف كامل قابل للنقر للانتقال للتفاصيل
-    $('#periods-table tbody').on('click', 'tr', function(e) {
-      // تجاهل النقر على أزرار الإجراءات
-      if ($(e.target).closest('.col-actions').length > 0) {
-        return;
-      }
-      
-      // الحصول على رابط زر العرض
-      var viewButton = $(this).find('.action-view');
-      if (viewButton.length > 0) {
-        var url = viewButton.attr('href');
-        if (url) {
-          window.location.href = url;
+  window.doSearch = function() {
+    const form = $('#filterForm');
+    const url = form.attr('action');
+    const formData = form.serialize();
+
+    $.ajax({
+      url: url,
+      data: formData,
+      headers: { 'X-Requested-With': 'XMLHttpRequest' },
+      success: function(response) {
+        if (response.table_html) {
+          $('#periods-table-container').html(response.table_html);
         }
+        if (response.pagination_html) {
+          $('#pagination-wrapper').html(response.pagination_html);
+        }
+        if (response.open_count !== undefined) {
+          $('#stat-open-count').text(response.open_count);
+          $('#stat-closed-count').text(response.closed_count);
+        }
+        window.history.replaceState(null, '', url + '?' + formData);
+        initTableEvents();
       }
     });
-    
-    // إضافة مؤشر اليد عند المرور على الصف
-    $('#periods-table tbody tr').css('cursor', 'pointer');
-  });
-  
-  // تصدير الجدول إلى CSV
-  $('.btn-export-table').on('click', function() {
-    const tableId = $(this).data('table');
-    const filename = $(this).data('filename');
-    exportTableToCSV(tableId, filename);
-  });
-  
-  // تصدير الجدول إلى Excel
-  $('.btn-export-excel').on('click', function() {
-    const tableId = $(this).data('table');
-    const filename = $(this).data('filename');
-    exportTableToExcel(tableId, filename);
+  };
+
+  function initTableEvents() {
+    $('.clickable-row').css('cursor', 'pointer').off('click').on('click', function(e) {
+      if ($(e.target).closest('.col-actions, a, button, input').length === 0) {
+        window.location.href = $(this).data('href');
+      }
+    });
+  }
+
+  $(document).ready(function() {
+    initTableEvents();
+
+    let searchTimer;
+    $('#searchInput').on('keyup', function() {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(window.doSearch, 300);
+    });
+
+    $('.select2-filter').on('change', function() {
+      window.doSearch();
+    });
   });
 </script>
 {% endblock %}

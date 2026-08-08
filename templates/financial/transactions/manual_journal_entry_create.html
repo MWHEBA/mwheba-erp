@@ -148,6 +148,7 @@
                 <div class="cost-center-cell-wrapper">
                   <select name="cost_centers[]" class="form-select form-select-sm cost-center-select">
                     <option value="">-- بدون مركز --</option>
+                    <option value="MULTI">-- توزيع متعدد --</option>
                     {% for cc in cost_centers %}
                       <option value="{{ cc.id }}">{{ cc.code }} - {{ cc.name }}</option>
                     {% endfor %}
@@ -194,6 +195,7 @@
                 <div class="cost-center-cell-wrapper">
                   <select name="cost_centers[]" class="form-select form-select-sm cost-center-select">
                     <option value="">-- بدون مركز --</option>
+                    <option value="MULTI">-- توزيع متعدد --</option>
                     {% for cc in cost_centers %}
                       <option value="{{ cc.id }}">{{ cc.code }} - {{ cc.name }}</option>
                     {% endfor %}
@@ -252,13 +254,13 @@
     <div class="modal-content">
       <div class="modal-header bg-light">
         <h5 class="modal-title fw-bold" id="costAllocationModalLabel">
-          <i class="fas fa-chart-pie me-2 text-info"></i>توزيع سطر المصروف/الإيراد على مراكز التكلفة
+          <i class="fas fa-chart-pie me-2 text-primary"></i>جدول التوزيع الفرعي لمراكز التكلفة (Cost Center Allocation)
         </h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="إغلاق"></button>
       </div>
       <div class="modal-body">
         <div class="alert alert-info py-2 fs-7 mb-3">
-          <strong>ملاحظة هامة:</strong> يجب أن يكون إجمالي نسب التوزيع مساوياً <strong>100.00%</strong> بالتمام للسطر المحاسبي.
+          <strong>إرشادات التوزيع:</strong> يرجى تحديد حصص التوزيع المالي لمراكز التكلفة إما بالنسب المئوية (إجمالي 100.00%) أو بالمبالغ المالية المباشرة.
         </div>
 
         <div class="row g-2 mb-3 align-items-center">
@@ -344,11 +346,11 @@ document.addEventListener('DOMContentLoaded', function () {
         const allocInput = row.querySelector('.alloc-json-input');
         const badge = row.querySelector('.alloc-summary-badge');
 
-        if (category === 'expense' || category === 'revenue') {
-            if (multiBtn) multiBtn.classList.remove('d-none');
-        } else {
-            if (multiBtn) multiBtn.classList.add('d-none');
-            if (costCenterSelect) $(costCenterSelect).prop('disabled', false);
+        if (accountSelect && accountSelect.value !== '' && category !== 'expense' && category !== 'revenue') {
+            if (costCenterSelect && $(costCenterSelect).val() === 'MULTI') {
+                $(costCenterSelect).val('').trigger('change.select2');
+                showAlert('تنبيه الحوكمة المحاسبية', 'تم إلغاء التوزيع المتعدد لأن الحساب المختار ينتمي للميزانية العمومية وليس لقائمة الدخل.', 'warning');
+            }
             if (allocInput) allocInput.value = '';
             if (badge) badge.classList.add('d-none');
         }
@@ -356,11 +358,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
     tbody.querySelectorAll('.journal-line-row').forEach(row => updateRowAllocationVisibility(row));
 
-    tbody.addEventListener('change', function(e) {
-        if (e.target.classList.contains('account-select')) {
-            const row = e.target.closest('.journal-line-row');
-            if (row) updateRowAllocationVisibility(row);
-        }
+    $(tbody).on('change select2:select', '.account-select', function() {
+        const row = this.closest('.journal-line-row');
+        if (row) updateRowAllocationVisibility(row);
     });
 
     const ratesMap = JSON.parse('{{ rates_map_json|escapejs }}' || '{}');
@@ -459,9 +459,130 @@ document.addEventListener('DOMContentLoaded', function () {
         return debit > 0 ? debit : credit;
     }
 
-    function createAllocModalRow(ccId = '', percentage = 0, lineAmount = 0) {
+    function showAlert(title, text, icon = 'warning') {
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                title: title,
+                text: text,
+                icon: icon,
+                confirmButtonText: 'حسناً',
+                customClass: { confirmButton: 'btn btn-primary px-4' },
+                buttonsStyling: false
+            });
+        } else {
+            alert(`${title}: ${text}`);
+        }
+    }
+
+    function syncRowAllocationsWithLineAmount(row) {
+        const allocInput = row.querySelector('.alloc-json-input');
+        if (!allocInput || !allocInput.value) return;
+        try {
+            const allocList = JSON.parse(allocInput.value);
+            const lineAmount = getRowLineAmount(row);
+            if (Array.isArray(allocList) && allocList.length > 0 && lineAmount > 0) {
+                allocList.forEach(item => {
+                    const pct = parseFloat(item.percentage) || 0;
+                    item.amount = parseFloat(((lineAmount * pct) / 100).toFixed(2));
+                });
+                allocInput.value = JSON.stringify(allocList);
+            }
+        } catch(err){}
+    }
+
+    function handleCostCenterSelection(selectEl) {
+        const row = selectEl.closest('.journal-line-row');
+        if (!row) return;
+
+        if (selectEl.value === 'MULTI') {
+            const accountSelect = row.querySelector('.account-select');
+            const selectedOption = accountSelect ? accountSelect.options[accountSelect.selectedIndex] : null;
+            const category = selectedOption ? selectedOption.getAttribute('data-category') : '';
+
+            // 1. فحص فئة الحساب (مصروفات وإيرادات فقط)
+            if (accountSelect && accountSelect.value !== '' && category !== 'expense' && category !== 'revenue') {
+                showAlert('تنبيه الحوكمة المحاسبية', 'عذراً، التوزيع المتعدد لمراكز التكلفة متاح فقط لحسابات المصروفات والإيرادات (قائمة الدخل). الحساب المختار ينتمي للميزانية العمومية.', 'warning');
+                $(selectEl).val('').trigger('change.select2');
+                return;
+            }
+
+            // 2. فحص وجود مبلغ السطر المحاسبي (مدين أو دائن)
+            const lineAmount = getRowLineAmount(row);
+            if (lineAmount <= 0) {
+                showAlert('مبلغ السطر المحاسبي مطلوب', 'يرجى كتابة مبلغ السطر (مدين أو دائن) أولاً في جدول القيود لتحديد القيمة المراد توزيعها على مراكز التكلفة.', 'info');
+                $(selectEl).val('').trigger('change.select2');
+                const debitInput = row.querySelector('.debit-input');
+                if (debitInput) { debitInput.focus(); debitInput.select(); }
+                return;
+            }
+
+            openMultiAllocModal(row);
+        }
+    }
+
+    $(tbody).on('change select2:select', '.cost-center-select', function() {
+        handleCostCenterSelection(this);
+    });
+
+    function initModalSelect2(container) {
+        if (typeof $ !== 'undefined' && $.fn.select2) {
+            $(container).find('.modal-cc-select').select2({
+                dir: 'rtl',
+                language: 'ar',
+                width: '100%',
+                dropdownParent: $('#costAllocationModal')
+            });
+        }
+    }
+
+    function openMultiAllocModal(row) {
+        activeAllocationRow = row;
+        if (!activeAllocationRow) return;
+
+        const lineAmount = getRowLineAmount(activeAllocationRow);
+        if (lineAmount <= 0) {
+            showAlert('مبلغ السطر المحاسبي مطلوب', 'يرجى كتابة مبلغ السطر (مدين أو دائن) أولاً في جدول القيود لتحديد القيمة المراد توزيعها على مراكز التكلفة.', 'info');
+            const costCenterSelect = row.querySelector('.cost-center-select');
+            if (costCenterSelect) $(costCenterSelect).val('').trigger('change.select2');
+            const debitInput = row.querySelector('.debit-input');
+            if (debitInput) { debitInput.focus(); debitInput.select(); }
+            return;
+        }
+
+        const debitVal = parseFloat(row.querySelector('.debit-input')?.value || 0) || 0;
+        const lineNatureText = debitVal > 0 ? '(مدين)' : '(دائن)';
+        modalLineAmountDisplay.textContent = `${formatSmartFloat(lineAmount)} ${lineNatureText}`;
+        
+        if (typeof $ !== 'undefined' && $.fn.select2) {
+            $(modalRowsBody).find('.modal-cc-select').select2('destroy');
+        }
+        modalRowsBody.innerHTML = '';
+
+        const allocInput = activeAllocationRow.querySelector('.alloc-json-input');
+        let currentAllocData = [];
+        if (allocInput && allocInput.value) {
+            try { currentAllocData = JSON.parse(allocInput.value); } catch(err){}
+        }
+
+        if (currentAllocData && currentAllocData.length > 0) {
+            currentAllocData.forEach(item => {
+                const computedAmt = item.amount > 0 ? item.amount : ((lineAmount * item.percentage) / 100);
+                modalRowsBody.appendChild(createAllocModalRow(item.cost_center_id, item.percentage, lineAmount, computedAmt));
+            });
+        } else {
+            modalRowsBody.appendChild(createAllocModalRow('', 50, lineAmount));
+            modalRowsBody.appendChild(createAllocModalRow('', 50, lineAmount));
+        }
+
+        initModalSelect2(modalRowsBody);
+        recalculateModalTotals();
+        if (costAllocationModal) costAllocationModal.show();
+    }
+
+    function createAllocModalRow(ccId = '', percentage = 0, lineAmount = 0, amount = 0) {
         const tr = document.createElement('tr');
         tr.className = 'alloc-modal-row';
+        const computedAmt = amount > 0 ? amount : ((lineAmount * percentage) / 100);
         tr.innerHTML = `
             <td>
                 <select class="form-select form-select-sm modal-cc-select">
@@ -472,7 +593,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 <input type="number" step="0.01" min="0" max="100" class="form-control form-control-sm text-end modal-pct-input" value="${percentage}">
             </td>
             <td>
-                <input type="number" step="0.01" class="form-control form-control-sm text-end modal-amt-input" readonly value="${((lineAmount * percentage) / 100).toFixed(2)}">
+                <input type="number" step="0.01" min="0" class="form-control form-control-sm text-end modal-amt-input" value="${computedAmt.toFixed(2)}">
             </td>
             <td class="text-center">
                 <button type="button" class="btn btn-outline-danger btn-sm btn-remove-alloc-modal" title="حذف"><i class="fas fa-times"></i></button>
@@ -488,19 +609,23 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!activeAllocationRow) return;
         const lineAmount = getRowLineAmount(activeAllocationRow);
         let totalPct = 0;
+        let totalAmt = 0;
 
         modalRowsBody.querySelectorAll('.alloc-modal-row').forEach(tr => {
             const pct = parseFloat(tr.querySelector('.modal-pct-input').value) || 0;
+            const amt = parseFloat(tr.querySelector('.modal-amt-input').value) || 0;
             totalPct += pct;
-            const amt = (lineAmount * (pct / 100)).toFixed(2);
-            tr.querySelector('.modal-amt-input').value = amt;
+            totalAmt += amt;
         });
 
-        modalTotalPctBadge.textContent = totalPct.toFixed(2) + '%';
-        if (Math.abs(totalPct - 100) < 0.01) {
-            modalTotalPctBadge.className = 'badge bg-success fs-7';
+        const diffPct = Math.abs(totalPct - 100.00);
+        const diffAmt = Math.abs(totalAmt - lineAmount);
+
+        modalTotalPctBadge.textContent = `${totalPct.toFixed(2)}% (${formatSmartFloat(totalAmt)})`;
+        if (diffPct < 0.05 || diffAmt < 0.05) {
+            modalTotalPctBadge.className = 'badge bg-success fs-7 px-3 py-2';
         } else {
-            modalTotalPctBadge.className = 'badge bg-danger fs-7';
+            modalTotalPctBadge.className = 'badge bg-danger fs-7 px-3 py-2';
         }
     }
 
@@ -509,37 +634,19 @@ document.addEventListener('DOMContentLoaded', function () {
         const downBtn = e.target.closest('.btn-move-down');
         const deleteBtn = e.target.closest('.btn-delete-row');
         const multiAllocBtn = e.target.closest('.btn-multi-alloc');
+        const summaryBadge = e.target.closest('.alloc-summary-badge');
+
+        if (summaryBadge) {
+            const row = summaryBadge.closest('.journal-line-row');
+            if (row) openMultiAllocModal(row);
+        }
 
         if (multiAllocBtn) {
-            activeAllocationRow = multiAllocBtn.closest('.journal-line-row');
-            if (!activeAllocationRow) return;
-
-            const lineAmount = getRowLineAmount(activeAllocationRow);
-            if (lineAmount <= 0) {
-                alert('يرجى كتابة مبلغ مدين أو دائن للسطر أولاً قبل توزيع التكلفة.');
-                return;
+            const row = multiAllocBtn.closest('.journal-line-row');
+            if (row) {
+                const costCenterSelect = row.querySelector('.cost-center-select');
+                if (costCenterSelect) $(costCenterSelect).val('MULTI').trigger('change.select2');
             }
-
-            modalLineAmountDisplay.textContent = formatSmartFloat(lineAmount);
-            modalRowsBody.innerHTML = '';
-
-            const allocInput = activeAllocationRow.querySelector('.alloc-json-input');
-            let currentAllocData = [];
-            if (allocInput && allocInput.value) {
-                try { currentAllocData = JSON.parse(allocInput.value); } catch(err){}
-            }
-
-            if (currentAllocData && currentAllocData.length > 0) {
-                currentAllocData.forEach(item => {
-                    modalRowsBody.appendChild(createAllocModalRow(item.cost_center_id, item.percentage, lineAmount));
-                });
-            } else {
-                modalRowsBody.appendChild(createAllocModalRow('', 50, lineAmount));
-                modalRowsBody.appendChild(createAllocModalRow('', 50, lineAmount));
-            }
-
-            recalculateModalTotals();
-            if (costAllocationModal) costAllocationModal.show();
         }
 
         if (upBtn) {
@@ -582,23 +689,48 @@ document.addEventListener('DOMContentLoaded', function () {
                 targetRow.remove();
                 reindexRows();
             } else {
-                alert('يجب أن يحتوي القيد المحاسبي على سطرين على الأقل.');
+                showAlert('حد الأسطر الأدنى', 'يجب أن يحتوي القيد المحاسبي على سطرين على الأقل.', 'warning');
             }
         }
     });
 
     if (modalRowsBody) {
-        modalRowsBody.addEventListener('input', recalculateModalTotals);
+        modalRowsBody.addEventListener('input', function(e) {
+            if (!activeAllocationRow) return;
+            const lineAmount = getRowLineAmount(activeAllocationRow);
+            const tr = e.target.closest('.alloc-modal-row');
+            if (!tr) return;
+
+            if (e.target.classList.contains('modal-pct-input')) {
+                const pct = parseFloat(e.target.value) || 0;
+                const amtInput = tr.querySelector('.modal-amt-input');
+                if (amtInput && lineAmount > 0) {
+                    amtInput.value = ((lineAmount * pct) / 100).toFixed(2);
+                }
+            } else if (e.target.classList.contains('modal-amt-input')) {
+                const amt = parseFloat(e.target.value) || 0;
+                const pctInput = tr.querySelector('.modal-pct-input');
+                if (pctInput && lineAmount > 0) {
+                    pctInput.value = ((amt / lineAmount) * 100).toFixed(2);
+                }
+            }
+            recalculateModalTotals();
+        });
+
         modalRowsBody.addEventListener('change', recalculateModalTotals);
         modalRowsBody.addEventListener('click', function(e) {
             const removeBtn = e.target.closest('.btn-remove-alloc-modal');
             if (removeBtn) {
                 const rows = modalRowsBody.querySelectorAll('.alloc-modal-row');
                 if (rows.length > 1) {
-                    removeBtn.closest('tr').remove();
+                    const targetTr = removeBtn.closest('tr');
+                    if (typeof $ !== 'undefined' && $.fn.select2) {
+                        $(targetTr).find('.modal-cc-select').select2('destroy');
+                    }
+                    targetTr.remove();
                     recalculateModalTotals();
                 } else {
-                    alert('يجب أن يحتوي التوزيع على مركز تكلفة واحد على الأقل.');
+                    showAlert('توزيع التكلفة مطلوب', 'يجب أن يحتوي التوزيع على مركز تكلفة واحد على الأقل.', 'warning');
                 }
             }
         });
@@ -608,7 +740,9 @@ document.addEventListener('DOMContentLoaded', function () {
         modalAddAllocBtn.addEventListener('click', function() {
             if (!activeAllocationRow) return;
             const lineAmount = getRowLineAmount(activeAllocationRow);
-            modalRowsBody.appendChild(createAllocModalRow('', 0, lineAmount));
+            const newRow = createAllocModalRow('', 0, lineAmount);
+            modalRowsBody.appendChild(newRow);
+            initModalSelect2(newRow);
             recalculateModalTotals();
         });
     }
@@ -616,8 +750,10 @@ document.addEventListener('DOMContentLoaded', function () {
     if (modalSaveAllocBtn) {
         modalSaveAllocBtn.addEventListener('click', function() {
             if (!activeAllocationRow) return;
+            const lineAmount = getRowLineAmount(activeAllocationRow);
 
             let totalPct = 0;
+            let totalAmt = 0;
             const selectedCCs = new Set();
             const allocList = [];
             let duplicateFound = false;
@@ -627,31 +763,64 @@ document.addEventListener('DOMContentLoaded', function () {
                 const ccSelect = tr.querySelector('.modal-cc-select');
                 const ccId = ccSelect ? ccSelect.value : '';
                 const pct = parseFloat(tr.querySelector('.modal-pct-input').value) || 0;
+                const amt = parseFloat(tr.querySelector('.modal-amt-input').value) || 0;
 
                 if (!ccId) { emptyCCFound = true; }
                 if (selectedCCs.has(ccId)) { duplicateFound = true; }
                 selectedCCs.add(ccId);
 
                 totalPct += pct;
+                totalAmt += amt;
                 allocList.push({
                     cost_center_id: ccId,
-                    percentage: pct
+                    percentage: pct,
+                    amount: amt
                 });
             });
 
             if (emptyCCFound) {
-                alert('يرجى اختيار مركز التكلفة لكافة أسطر التوزيع.');
+                showAlert('مركز التكلفة مطلوب', 'يرجى اختيار مركز التكلفة لكافة أسطر التوزيع.', 'warning');
                 return;
             }
 
             if (duplicateFound) {
-                alert('حظر التكرار: لا يمكن اختيار نفس مركز التكلفة أكثر من مرة في نفس السطر المحاسبي.');
+                showAlert('حظر التكرار', 'لا يمكن اختيار نفس مركز التكلفة أكثر من مرة في نفس السطر المحاسبي.', 'error');
                 return;
             }
 
-            if (Math.abs(totalPct - 100) > 0.01) {
-                alert(`إجمالي النسبة يجب أن يكون 100.00% بالتمام والكمال. النسبة الحالية هي (${totalPct.toFixed(2)}%).`);
+            if (lineAmount > 0 && Math.abs(totalPct - 100) > 0.05 && Math.abs(totalAmt - lineAmount) > 0.05) {
+                showAlert('عدم توازن التوزيع', `إجمالي النسبة يجب أن يكون 100.00% أو تطابق المبالغ الموزعة (${lineAmount.toFixed(2)}) بالكامل. التوزيع الحالي: (${totalPct.toFixed(2)}% - ${totalAmt.toFixed(2)}).`, 'warning');
                 return;
+            }
+
+            if (lineAmount <= 0 && totalAmt <= 0) {
+                showAlert('مبلغ التوزيع مطلوب', 'يرجى تحديد مبالغ أو نسب التوزيع لمراكز التكلفة.', 'warning');
+                return;
+            }
+
+            // إذا كان مبلغ السطر الرئيسي صفراً، نقوم بحساب النسب ومزامنة المبلغ الرئيسي فوراً
+            if (lineAmount <= 0 && totalAmt > 0) {
+                allocList.forEach(item => {
+                    item.percentage = parseFloat(((item.amount / totalAmt) * 100).toFixed(2));
+                });
+                const debitInput = activeAllocationRow.querySelector('.debit-input');
+                const creditInput = activeAllocationRow.querySelector('.credit-input');
+                if (debitInput) {
+                    debitInput.value = totalAmt.toFixed(2);
+                } else if (creditInput) {
+                    creditInput.value = totalAmt.toFixed(2);
+                }
+                calculateTotals();
+            } else if (lineAmount > 0 && totalAmt > 0 && Math.abs(totalAmt - lineAmount) > 0.01) {
+                // إذا تغير إجمالي الموزع عن مبلغ السطر، نحدث حقل المدين/الدائن الرئيسي بالقيم الجديدة
+                const debitInput = activeAllocationRow.querySelector('.debit-input');
+                const creditInput = activeAllocationRow.querySelector('.credit-input');
+                if (debitInput && parseFloat(debitInput.value) > 0) {
+                    debitInput.value = totalAmt.toFixed(2);
+                } else if (creditInput && parseFloat(creditInput.value) > 0) {
+                    creditInput.value = totalAmt.toFixed(2);
+                }
+                calculateTotals();
             }
 
             const allocInput = activeAllocationRow.querySelector('.alloc-json-input');
@@ -660,12 +829,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
             if (allocInput) allocInput.value = JSON.stringify(allocList);
             if (costCenterSelect) {
-                costCenterSelect.selectedIndex = 0;
-                $(costCenterSelect).val('').trigger('change.select2').prop('disabled', true);
+                $(costCenterSelect).val('MULTI').trigger('change.select2');
             }
             if (summaryBadge) {
-                summaryBadge.textContent = `توزيع متعدد (${allocList.length})`;
-                summaryBadge.classList.remove('d-none');
+                summaryBadge.innerHTML = `<i class="fas fa-edit me-1"></i>توزيع متعدد (${allocList.length} مراكز)`;
+                summaryBadge.className = 'badge bg-primary-subtle text-primary border border-primary-subtle rounded-pill fs-8 mt-1 alloc-summary-badge';
+                summaryBadge.style.cursor = 'pointer';
+                summaryBadge.title = 'انقر لتعديل التوزيع المحاسبي لمراكز التكلفة';
             }
 
             if (costAllocationModal) costAllocationModal.hide();
@@ -688,22 +858,41 @@ document.addEventListener('DOMContentLoaded', function () {
     }, true);
 
     tbody.addEventListener('input', function (e) {
-        if (e.target.classList.contains('debit-input')) {
-            const val = parseFloat(e.target.value) || 0;
-            if (val > 0) {
-                const row = e.target.closest('tr');
-                const creditInput = row ? row.querySelector('.credit-input') : null;
-                if (creditInput) creditInput.value = '0.00';
+        if (e.target.classList.contains('debit-input') || e.target.classList.contains('credit-input')) {
+            const row = e.target.closest('tr');
+            if (e.target.classList.contains('debit-input')) {
+                const val = parseFloat(e.target.value) || 0;
+                if (val > 0) {
+                    const creditInput = row ? row.querySelector('.credit-input') : null;
+                    if (creditInput) creditInput.value = '0.00';
+                }
+            } else if (e.target.classList.contains('credit-input')) {
+                const val = parseFloat(e.target.value) || 0;
+                if (val > 0) {
+                    const debitInput = row ? row.querySelector('.debit-input') : null;
+                    if (debitInput) debitInput.value = '0.00';
+                }
             }
             calculateTotals();
-        } else if (e.target.classList.contains('credit-input')) {
-            const val = parseFloat(e.target.value) || 0;
-            if (val > 0) {
-                const row = e.target.closest('tr');
-                const debitInput = row ? row.querySelector('.debit-input') : null;
-                if (debitInput) debitInput.value = '0.00';
+
+            // إعادة الاحتساب الديناميكي لأسطر التوزيع المخزنة
+            if (row) {
+                const allocInput = row.querySelector('.alloc-json-input');
+                if (allocInput && allocInput.value) {
+                    try {
+                        const lineAmount = getRowLineAmount(row);
+                        let allocs = JSON.parse(allocInput.value);
+                        if (Array.isArray(allocs) && lineAmount > 0) {
+                            allocs = allocs.map(item => {
+                                const pct = parseFloat(item.percentage) || 0;
+                                item.amount = parseFloat(((lineAmount * pct) / 100).toFixed(2));
+                                return item;
+                            });
+                            allocInput.value = JSON.stringify(allocs);
+                        }
+                    } catch(err){}
+                }
             }
-            calculateTotals();
         }
     });
 
@@ -735,7 +924,10 @@ document.addEventListener('DOMContentLoaded', function () {
         });
 
         const badge = newRow.querySelector('.alloc-summary-badge');
-        if (badge) badge.classList.add('d-none');
+        if (badge) {
+            badge.textContent = '';
+            badge.classList.add('d-none');
+        }
 
         $(newRow).find('.select2-container').remove();
         $(newRow).find('select').removeAttr('data-select2-id').removeClass('select2-hidden-accessible');
@@ -746,6 +938,45 @@ document.addEventListener('DOMContentLoaded', function () {
         updateRowAllocationVisibility(newRow);
         reindexRows();
     });
+
+    // الفحص المسبق للحوكمة ومنع الإرسال المزدوج
+    const manualForm = document.getElementById('manualEntryForm');
+    if (manualForm) {
+        manualForm.addEventListener('submit', function(e) {
+            let invalidRowFound = false;
+            let invalidAccountName = '';
+
+            tbody.querySelectorAll('.journal-line-row').forEach(row => {
+                const allocInput = row.querySelector('.alloc-json-input');
+                const costCenterSelect = row.querySelector('.cost-center-select');
+                const accountSelect = row.querySelector('.account-select');
+                const selectedOption = accountSelect ? accountSelect.options[accountSelect.selectedIndex] : null;
+                const category = selectedOption ? selectedOption.getAttribute('data-category') : '';
+
+                if (( (allocInput && allocInput.value) || (costCenterSelect && costCenterSelect.value === 'MULTI') ) && category !== 'expense' && category !== 'revenue') {
+                    invalidRowFound = true;
+                    invalidAccountName = selectedOption ? selectedOption.text : 'المختار';
+                }
+            });
+
+            if (invalidRowFound) {
+                e.preventDefault();
+                showAlert('حظر الحوكمة المحاسبية', `عذراً، التوزيع المتعدد متاح فقط لحسابات المصروفات والإيرادات. الحساب (${invalidAccountName}) ينتمي للميزانية العمومية.`, 'error');
+                const submitBtn = document.getElementById('submit_btn');
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '<i class="fas fa-check me-1"></i>حفظ القيد المحاسبي';
+                }
+                return false;
+            }
+
+            const submitBtn = document.getElementById('submit_btn');
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>جاري الحفظ والترحيل...';
+            }
+        });
+    }
 
     calculateTotals();
 });

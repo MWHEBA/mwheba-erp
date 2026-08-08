@@ -1,0 +1,57 @@
+{% load i18n static %}
+
+<div class="table-responsive">
+  <table class="table table-hover align-middle mb-0" id="fiscal-years-table">
+    <thead class="table-light">
+      <tr>
+        <th class="text-center">{% trans "كود السنة" %}</th>
+        <th class="text-center">{% trans "اسم السنة المالية" %}</th>
+        <th class="text-center">{% trans "تاريخ البداية" %}</th>
+        <th class="text-center">{% trans "تاريخ النهاية" %}</th>
+        <th class="text-center">{% trans "صافي الربح/الخسارة" %}</th>
+        <th class="text-center">{% trans "الحالة" %}</th>
+        <th class="text-center">{% trans "الإجراءات" %}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for fy in fiscal_years %}
+      <tr class="clickable-row" data-href="{% url 'financial:fiscal_year_wizard' fy.pk %}">
+        <td class="text-center fw-bold">{{ fy.year_code }}</td>
+        <td class="text-center">{{ fy.name }}</td>
+        <td class="text-center"><strong>{{ fy.start_date|date:'Y-m-d' }}</strong></td>
+        <td class="text-center"><strong>{{ fy.end_date|date:'Y-m-d' }}</strong></td>
+        <td class="text-center dir-ltr">
+          {% if fy.net_profit_loss > 0 %}
+            <span class="text-success fw-bold">+{{ fy.net_profit_loss }} EGP</span>
+          {% elif fy.net_profit_loss < 0 %}
+            <span class="text-danger fw-bold">{{ fy.net_profit_loss }} EGP</span>
+          {% else %}
+            <span class="text-muted">0.00 EGP</span>
+          {% endif %}
+        </td>
+        <td class="text-center">
+          {% if fy.status == 'closed' %}
+            <span class="badge bg-danger"><i class="fas fa-lock me-1"></i>{% trans "مغلقة" %}</span>
+          {% else %}
+            <span class="badge bg-success"><i class="fas fa-unlock me-1"></i>{% trans "مفتوحة" %}</span>
+          {% endif %}
+        </td>
+        <td class="col-actions text-center">
+          <div class="btn-group btn-group-sm" role="group">
+            <a href="{% url 'financial:fiscal_year_wizard' fy.pk %}" 
+               class="btn btn-outline-info" title="{% trans 'معالج الإغلاق السنوي' %}">
+              <i class="fas fa-file-invoice-dollar"></i>
+            </a>
+          </div>
+        </td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="7" class="text-center py-4 text-muted">
+          <i class="fas fa-info-circle me-2"></i>{% trans "لا توجد سنوات مالية مسجلة" %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

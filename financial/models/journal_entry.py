@@ -17,7 +17,9 @@ class AccountingPeriod(models.Model):
 
     STATUS_CHOICES = (
         ("open", _("مفتوحة")),
+        ("soft_closed", _("مغلقة مؤقتاً للمراجعة")),
         ("closed", _("مغلقة")),
+        ("hard_closed", _("مقفلة إقفالاً نهائياً")),
     )
 
     name = models.CharField(_("اسم الفترة"), max_length=100)
@@ -26,7 +28,7 @@ class AccountingPeriod(models.Model):
     start_date = models.DateField(_("تاريخ البداية"))
     end_date = models.DateField(_("تاريخ النهاية"))
     status = models.CharField(
-        _("الحالة"), max_length=10, choices=STATUS_CHOICES, default="open"
+        _("الحالة"), max_length=20, choices=STATUS_CHOICES, default="open"
     )
 
     # معلومات الإغلاق
@@ -39,6 +41,27 @@ class AccountingPeriod(models.Model):
         verbose_name=_("أغلق بواسطة"),
         related_name="periods_closed",
     )
+    force_closed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name=_("أغلق بالتجاوّز بواسطة"),
+        related_name="periods_force_closed",
+    )
+    force_close_reason = models.TextField(_("سبب التجاوّز والإغلاق الفوري"), blank=True)
+
+    # معلومات إعادة الفتح
+    reopened_at = models.DateTimeField(_("تاريخ إعادة الفتح"), null=True, blank=True)
+    reopened_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name=_("أُعيد فتحها بواسطة"),
+        related_name="periods_reopened",
+    )
+    reopen_reason = models.TextField(_("سبب إعادة الفتح"), blank=True)
 
     # معلومات التتبع
     created_at = models.DateTimeField(_("تاريخ الإنشاء"), auto_now_add=True)
@@ -325,6 +348,21 @@ class JournalEntry(models.Model):
     )
     currency_source = models.CharField(max_length=50, default='SYSTEM', blank=True, null=True)
     default_exchange_rate_snapshot = models.DecimalField(max_digits=12, decimal_places=6, default=Decimal('1.000000'), blank=True, null=True)
+
+    @property
+    def is_period_locked(self):
+        """
+        فحص هل القيد محمي ومقفل بسبب إغلاق الفترة المحاسبية أو السنة المالية أو كونه قيد إغلاق/افتتاحي نظامي
+        """
+        if self.is_locked:
+            return True
+        if self.entry_type in ['closing', 'opening']:
+            return True
+        if self.accounting_period_id and self.accounting_period.status in ['closed', 'hard_closed']:
+            return True
+        if self.accounting_period_id and self.accounting_period.fiscal_year and self.accounting_period.fiscal_year.is_closed:
+            return True
+        return False
 
     @property
     def posting_source(self):

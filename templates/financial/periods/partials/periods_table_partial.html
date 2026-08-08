@@ -1,0 +1,67 @@
+{% load i18n static %}
+
+<div class="table-responsive">
+  <table class="table table-hover align-middle mb-0" id="periods-table">
+    <thead class="table-light">
+      <tr>
+        <th class="text-center">{% trans "اسم الفترة" %}</th>
+        <th class="text-center">{% trans "السنة المالية" %}</th>
+        <th class="text-center">{% trans "تاريخ البداية" %}</th>
+        <th class="text-center">{% trans "تاريخ النهاية" %}</th>
+        <th class="text-center">{% trans "الحالة" %}</th>
+        <th class="text-center">{% trans "الإجراءات" %}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for period in periods %}
+      <tr class="clickable-row" data-href="{% url 'financial:accounting_period_wizard' period.pk %}">
+        <td class="text-center fw-bold">
+          {{ period.name }}
+        </td>
+        <td class="text-center">
+          <span class="badge bg-secondary">{{ period.fiscal_year.name|default:"-" }}</span>
+        </td>
+        <td class="text-center">
+          <strong>{{ period.start_date|date:'Y-m-d' }}</strong>
+        </td>
+        <td class="text-center">
+          <strong>{{ period.end_date|date:'Y-m-d' }}</strong>
+        </td>
+        <td class="text-center">
+          {% if period.status == 'closed' or period.status == 'hard_closed' %}
+            <span class="badge bg-danger"><i class="fas fa-lock me-1"></i>{% trans "مغلقة" %}</span>
+          {% elif period.status == 'soft_closed' %}
+            <span class="badge bg-warning text-dark"><i class="fas fa-user-shield me-1"></i>{% trans "مغلقة مؤقتاً" %}</span>
+          {% else %}
+            <span class="badge bg-success"><i class="fas fa-unlock me-1"></i>{% trans "مفتوحة" %}</span>
+          {% endif %}
+        </td>
+        <td class="col-actions text-center">
+          <div class="btn-group btn-group-sm" role="group">
+            <a href="{% url 'financial:accounting_period_wizard' period.pk %}" 
+               class="btn btn-outline-info action-view" title="{% trans 'معالج الإغلاق' %}">
+              <i class="fas fa-magic"></i>
+            </a>
+            <a href="{% url 'financial:accounting_periods_edit' period.pk %}" 
+               class="btn btn-outline-secondary" title="{% trans 'تعديل' %}">
+              <i class="fas fa-edit"></i>
+            </a>
+            {% if period.status == 'open' %}
+            <a href="{% url 'financial:accounting_periods_close' period.pk %}" 
+               class="btn btn-outline-danger" title="{% trans 'إغلاق' %}">
+              <i class="fas fa-lock"></i>
+            </a>
+            {% endif %}
+          </div>
+        </td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="6" class="text-center py-4 text-muted">
+          <i class="fas fa-info-circle me-2"></i>{% trans "لا توجد فترات محاسبية مطابقة للبحث" %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

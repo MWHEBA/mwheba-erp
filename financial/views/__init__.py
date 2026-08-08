@@ -131,6 +131,10 @@ from .period_views import (
     accounting_periods_create,
     accounting_periods_edit,
     accounting_periods_close,
+    accounting_period_wizard,
+    fiscal_years_list,
+    fiscal_years_create,
+    fiscal_year_wizard,
 )
 
 # من validation_dashboard.py

@@ -148,17 +148,21 @@ def journal_entries_list(request):
         if category_filter:
             journal_entries_list = journal_entries_list.filter(financial_category_id=category_filter)
 
-        # فلتر نوع القيد (عكسي / معكوس / عادي)
+        # فلتر نوع القيد (عكسي / معكوس / إغلاق سنوي / افتتاحي / عادي)
         reversal_filter = request.GET.get("reversal_type", "")
         if reversal_filter == "reversal":
             journal_entries_list = journal_entries_list.filter(is_reversal=True)
         elif reversal_filter == "reversed":
             journal_entries_list = journal_entries_list.filter(reversal_entries__isnull=False).distinct()
+        elif reversal_filter == "closing":
+            journal_entries_list = journal_entries_list.filter(entry_type='closing')
+        elif reversal_filter == "opening":
+            journal_entries_list = journal_entries_list.filter(entry_type='opening')
         elif reversal_filter == "normal":
             journal_entries_list = journal_entries_list.filter(
                 is_reversal=False,
                 reversal_entries__isnull=True
-            ).distinct()
+            ).exclude(entry_type__in=['closing', 'opening']).distinct()
 
         # إعداد نموذج الفلترة
         filter_form = {
@@ -226,6 +230,22 @@ def journal_entries_list(request):
             'reversal_entries',  # تحميل القيود العكسية مسبقاً
         ).select_related('created_by', 'accounting_period')
         
+        # حصر المرفقات المربوطة بـ JournalEntry للصفحة الحالية بفرز سريع
+        from django.contrib.contenttypes.models import ContentType
+        from core.models import Attachment
+        try:
+            je_ct = ContentType.objects.get_for_model(JournalEntry)
+            raw_ids = [e.id for e in journal_entries_raw]
+            attached_entry_ids = set(
+                Attachment.objects.filter(
+                    content_type=je_ct,
+                    object_id__in=raw_ids,
+                    deleted_at__isnull=True
+                ).values_list('object_id', flat=True)
+            )
+        except Exception:
+            attached_entry_ids = set()
+
         # تحضير البيانات للجدول مع المعلومات الإضافية
         journal_entries = []
         for entry in journal_entries_raw:
@@ -390,6 +410,7 @@ def journal_entries_list(request):
                 'is_reversal': getattr(entry, 'is_reversal', False),
                 'has_reversal': entry.reversal_entries.exists() if hasattr(entry, 'reversal_entries') else False,
                 'is_locked': getattr(entry, 'is_locked', False),
+                'has_attachments': entry.id in attached_entry_ids,
             }
             
             enhanced_entry = EnhancedEntry(entry, enhanced_data)
@@ -405,9 +426,8 @@ def journal_entries_list(request):
 
     # إعداد headers للجدول الموحد
     table_headers = [
-        {"key": "entry_number", "label": "رقم القيد", "sortable": True, "width": "140px", "format": "html"},
-        {"key": "date", "label": "التاريخ", "sortable": True, "format": "date", "width": "120px"},
-        {"key": "entry_type", "label": "النوع", "sortable": False, "width": "150px", "format": "html"},
+        {"key": "entry_number", "label": "القيد", "sortable": True, "width": "150px", "format": "html"},
+        {"key": "entry_type", "label": "النوع", "sortable": False, "width": "130px", "format": "html"},
         {"key": "financial_category", "label": "التصنيف المالي", "sortable": True, "width": "150px", "format": "html"},
         {"key": "description", "label": "الوصف", "sortable": False},
         {"key": "amount", "label": "المبلغ", "sortable": True, "format": "currency", "width": "120px"},
@@ -441,40 +461,64 @@ def journal_entries_list(request):
                 category_display = f'<span class="badge bg-primary">{cat.name}</span>'
         
         # تحضير badge النوع مع الأيقونة - استخدام entry_type_display للحصول على الترجمة الصحيحة
-        # entry.entry_type يحتوي على entry_type_display من enhanced_data
-        # لكن للتأكد، نستخدم القيمة مباشرة من الكائن الأصلي
         display_text = entry._original.get_entry_type_display() if hasattr(entry._original, 'get_entry_type_display') else entry.entry_type
         entry_type_badge = f'<span class="badge bg-{entry.entry_type_color}"><i class="fas {entry.entry_type_icon} me-1"></i>{display_text}</span>'
 
-        # تمييز رقم القيد بناءً على حالته
+        # أيقونة المرفقات إن وجد مرفق للقيد
+        attachment_badge = ' <i class="fas fa-paperclip text-primary ms-1" title="يوجد مرفقات" style="font-size: 0.85rem;"></i>' if getattr(entry, 'has_attachments', False) else ''
+
+        # نسق التاريخ الصغير المصاحب لرقم القيد
+        formatted_date = entry.date.strftime("%Y-%m-%d") if hasattr(entry.date, 'strftime') else str(entry.date)
+        date_badge = f'<small class="text-muted d-block my-1" style="font-size: 0.8rem;"><i class="far fa-calendar-alt me-1"></i>{formatted_date}</small>'
+
+        # تمييز رقم القيد بناءً على حالته وحظر الفترة الإقفالية
         if entry.is_reversal:
             # قيد عكسي - أيقونة تبادل
             reference_html = (
-                f'<span class="fw-bold text-dark">{entry.reference}</span>'
-                f'<br><span class="badge bg-dark mt-1" title="قيد عكسي">'
+                f'<span class="fw-bold text-dark">{entry.reference}</span>{attachment_badge}'
+                f'{date_badge}'
+                f'<span class="badge bg-dark mt-1" title="قيد عكسي">'
                 f'<i class="fas fa-exchange-alt me-1"></i>عكسي</span>'
             )
         elif entry.has_reversal:
             # قيد تم عكسه - خط في المنتصف + badge
             reference_html = (
-                f'<span class="fw-bold text-muted" style="text-decoration:line-through">{entry.reference}</span>'
-                f'<br><span class="badge bg-secondary mt-1" title="تم عكس هذا القيد">'
+                f'<span class="fw-bold text-muted" style="text-decoration:line-through">{entry.reference}</span>{attachment_badge}'
+                f'{date_badge}'
+                f'<span class="badge bg-secondary mt-1" title="تم عكس هذا القيد">'
                 f'<i class="fas fa-ban me-1"></i>معكوس</span>'
             )
-        elif entry.is_locked:
-            # قيد مقفل
+        elif entry._original.entry_type == 'closing':
             reference_html = (
-                f'<span class="fw-bold">{entry.reference}</span>'
-                f'<br><span class="badge bg-warning text-dark mt-1" title="القيد مقفل">'
-                f'<i class="fas fa-lock me-1"></i>مقفل</span>'
+                f'<span class="fw-bold text-dark">{entry.reference}</span>{attachment_badge}'
+                f'{date_badge}'
+                f'<span class="badge bg-danger mt-1" title="قيد إغلاق سنوي محمي">'
+                f'<i class="fas fa-lock me-1"></i>إغلاق سنوي</span>'
+            )
+        elif entry._original.entry_type == 'opening':
+            reference_html = (
+                f'<span class="fw-bold text-dark">{entry.reference}</span>{attachment_badge}'
+                f'{date_badge}'
+                f'<span class="badge bg-success mt-1" title="قيد افتتاحي">'
+                f'<i class="fas fa-door-open me-1"></i>افتتاحي</span>'
+            )
+        elif entry._original.is_period_locked or entry.is_locked:
+            # قيد محظر/مقفل بسبب الفترة/السنة المغلقة
+            reference_html = (
+                f'<span class="fw-bold">{entry.reference}</span>{attachment_badge}'
+                f'{date_badge}'
+                f'<span class="badge bg-secondary text-dark mt-1" title="القيد يقع في فترة/سنة مغلقة">'
+                f'<i class="fas fa-lock me-1"></i>فترة مغلقة</span>'
             )
         else:
-            reference_html = f'<span class="fw-bold">{entry.reference}</span>'
+            reference_html = (
+                f'<span class="fw-bold">{entry.reference}</span>{attachment_badge}'
+                f'{date_badge}'
+            )
 
         row_data = {
             'id': entry.id,
             'entry_number': reference_html,
-            'date': entry.date,
             'entry_type': entry_type_badge,
             'financial_category': category_display,
             'description': entry.description,
@@ -682,21 +726,22 @@ def journal_entries_detail(request, pk):
         }
     ]
     if journal_entry.status == 'draft':
-        header_buttons.append({
-            "url": reverse("financial:journal_entries_edit", kwargs={"pk": journal_entry.pk}),
-            "icon": "fa-edit",
-            "text": "تعديل المسودة",
-            "class": "btn-warning",
-        })
-        if total_debits == total_credits and journal_entry.lines.exists():
+        if not journal_entry.is_period_locked:
             header_buttons.append({
-                "url": reverse("financial:journal_entries_post", kwargs={"pk": journal_entry.pk}),
-                "icon": "fa-check",
-                "text": "ترحيل القيد",
-                "class": "btn-success",
+                "url": reverse("financial:journal_entries_edit", kwargs={"pk": journal_entry.pk}),
+                "icon": "fa-edit",
+                "text": "تعديل المسودة",
+                "class": "btn-warning",
             })
+            if total_debits == total_credits and journal_entry.lines.exists():
+                header_buttons.append({
+                    "url": reverse("financial:journal_entries_post", kwargs={"pk": journal_entry.pk}),
+                    "icon": "fa-check",
+                    "text": "ترحيل القيد",
+                    "class": "btn-success",
+                })
     elif journal_entry.status == 'posted':
-        if not journal_entry.is_locked:
+        if not journal_entry.is_period_locked:
             header_buttons.append({
                 "onclick": f"unpostJournalEntry({journal_entry.pk})",
                 "id": "unpost_entry_btn",
@@ -704,17 +749,23 @@ def journal_entries_detail(request, pk):
                 "text": "إلغاء الترحيل",
                 "class": "btn-warning",
             })
-        if not journal_entry.is_reversal and not journal_entry.reversed_entry:
-            header_buttons.append({
-                "onclick": f"reverseJournalEntry({journal_entry.pk})",
-                "id": "reverse_entry_btn",
-                "icon": "fa-exchange-alt",
-                "text": "إنشاء قيد عكسي",
-                "class": "btn-danger",
-            })
+            if not journal_entry.is_reversal and not journal_entry.reversed_entry:
+                header_buttons.append({
+                    "onclick": f"reverseJournalEntry({journal_entry.pk})",
+                    "id": "reverse_entry_btn",
+                    "icon": "fa-exchange-alt",
+                    "text": "إنشاء قيد عكسي",
+                    "class": "btn-danger",
+                })
 
     header_badges = []
-    if journal_entry.status == 'posted':
+    if journal_entry.is_period_locked:
+        header_badges.append({
+            "text": "قيد محمي ومحظر في فترة/سنة مغلقة أو قيد إغلاق نظامي",
+            "class": "bg-danger text-white",
+            "icon": "fa-lock"
+        })
+    elif journal_entry.status == 'posted':
         header_badges.append({
             "text": "القيد مرحل محمي في السجلات",
             "class": "bg-success",
@@ -757,6 +808,10 @@ def journal_entries_edit(request, pk):
     """تعديل قيد"""
     journal_entry = get_object_or_404(JournalEntry, pk=pk)
 
+    if journal_entry.is_period_locked:
+        messages.error(request, "لا يمكن تعديل قيد محمي في فترة/سنة مغلقة أو قيد نظامي.")
+        return redirect("financial:journal_entries_detail", pk=pk)
+
     # تحميل الحسابات من النظام الجديد
     accounts = []
     if ChartOfAccounts:
@@ -798,6 +853,11 @@ def journal_entries_edit(request, pk):
 def journal_entries_delete(request, pk):
     """حذف قيد"""
     journal_entry = get_object_or_404(JournalEntry, pk=pk)
+
+    if journal_entry.is_period_locked:
+        messages.error(request, "لا يمكن حذف قيد محمي في فترة/سنة مغلقة أو قيد نظامي.")
+        return redirect("financial:journal_entries_detail", pk=pk)
+
     if request.method == "POST":
         journal_entry.delete()
         messages.success(request, f'تم حذف القيد "{journal_entry.reference}" بنجاح.')
@@ -848,9 +908,9 @@ def journal_entries_unpost(request, pk):
             if journal_entry.status != 'posted':
                 return JsonResponse({"success": False, "message": "القيد غير مرحل"})
 
-            # التحقق من أن القيد غير مقفل
-            if journal_entry.is_locked:
-                return JsonResponse({"success": False, "message": "القيد مقفل ولا يمكن إلغاء ترحيله"})
+            # التحقق من أن القيد غير مقفل وغير محمي في فترة/سنة مغلقة أو قيد نظامي
+            if journal_entry.is_period_locked:
+                return JsonResponse({"success": False, "message": "لا يمكن إلغاء ترحيل قيد محمي في فترة/سنة مغلقة أو قيد إغلاق/افتتاحي نظامي."})
             
             # إلغاء الترحيل باستخدام update_fields لتجاوز validate_period_lock
             journal_entry.status = 'draft'
@@ -893,9 +953,12 @@ def journal_entries_reverse(request, pk):
                     "message": f"تم عكس هذا القيد مسبقاً - القيد العكسي: {journal_entry.reversed_entry.number}"
                 })
 
-            # التحقق من أنه ليس قيداً عكسياً
+            # التحقق من أنه ليس قيداً عكسياً أو قيد إغلاق/افتتاحي نظامي
             if journal_entry.is_reversal:
                 return JsonResponse({"success": False, "message": "لا يمكن عكس قيد عكسي"})
+
+            if journal_entry.entry_type in ['closing', 'opening']:
+                return JsonResponse({"success": False, "message": "لا يمكن عكس قيود الإغلاق أو القيود الافتتاحية النظامية."})
 
             # استخراج سبب العكس من الطلب
             try:
@@ -1924,10 +1987,11 @@ def manual_journal_entry_create(request):
                         exchange_rate_val = Decimal('1.000000')
 
                     cc_code = None
-                    if idx < len(cost_centers_list) and cost_centers_list[idx]:
-                        cc_obj = CostCenter.objects.filter(id=cost_centers_list[idx]).first()
-                        if cc_obj:
-                            cc_code = cc_obj.code
+                    if idx < len(cost_centers_list) and cost_centers_list[idx] and cost_centers_list[idx] != 'MULTI':
+                        if str(cost_centers_list[idx]).isdigit():
+                            cc_obj = CostCenter.objects.filter(id=cost_centers_list[idx]).first()
+                            if cc_obj:
+                                cc_code = cc_obj.code
 
                     # معالجة التوزيع المتعدد للسطر الواحدة (Multi-Cost-Center Sub-Allocations)
                     allocations_data = None
@@ -1936,16 +2000,38 @@ def manual_journal_entry_create(request):
                             import json
                             raw_alloc = json.loads(allocations_json_list[idx])
                             if isinstance(raw_alloc, list) and len(raw_alloc) > 0:
-                                # قاعدة P&L Accounts Only Rule (المصروفات والإيرادات فقط)
+                                # 1. قاعدة P&L Accounts Only Rule (المصروفات والإيرادات فقط)
                                 account_category = account.account_type.category if (account.account_type and hasattr(account.account_type, 'category')) else ''
                                 if account_category not in ['expense', 'revenue']:
                                     messages.error(request, f"عذراً، التوزيع المتعدد متاح فقط لحسابات المصروفات والإيرادات. الحساب ({account.name}) ينتمي للميزانية العمومية.")
                                     return redirect('financial:manual_journal_entry_create')
 
-                                allocations_data = []
                                 line_amount_func = debit_val if debit_val > Decimal('0.00') else credit_val
                                 line_amount_foreign = raw_debit if raw_debit > Decimal('0.00') else raw_credit
-                                
+
+                                if line_amount_func <= Decimal('0.00'):
+                                    messages.error(request, f"خطأ الحوكمة: السطر رقم ({idx+1}) يجب أن يحتوي على مبلغ مدين أو دائن أكبر من صفر للتوزيع.")
+                                    return redirect('financial:manual_journal_entry_create')
+
+                                # 2. فحص نشاط مراكز التكلفة وحظر المراكز الأب وتكرار المركز
+                                requested_cc_ids = [item.get('cost_center_id') for item in raw_alloc if item.get('cost_center_id')]
+                                if len(requested_cc_ids) != len(set(requested_cc_ids)):
+                                    messages.error(request, f"حظر التكرار: السطر رقم ({idx+1}) يحتوي على مركز تكلفة مكرر أكثر من مرة.")
+                                    return redirect('financial:manual_journal_entry_create')
+
+                                active_ccs = CostCenter.objects.filter(id__in=requested_cc_ids, is_active=True).prefetch_related('children')
+                                active_cc_map = {cc.id: cc for cc in active_ccs}
+
+                                for c_id in requested_cc_ids:
+                                    if c_id not in active_cc_map:
+                                        messages.error(request, f"حظر الحوكمة: مركز التكلفة رقم ({c_id}) غير موجود أو تم إيقاف نشاطه.")
+                                        return redirect('financial:manual_journal_entry_create')
+                                    cc_obj = active_cc_map[c_id]
+                                    if cc_obj.children.exists():
+                                        messages.error(request, f"حظر التوجيه: لا يمكن اختيار مركز تكلفة تجميعي/أب ({cc_obj.name}) للتعاملات المالية المباشرة.")
+                                        return redirect('financial:manual_journal_entry_create')
+
+                                allocations_data = []
                                 total_pct = Decimal('0.00')
                                 calc_alloc_func_sum = Decimal('0.00')
                                 calc_alloc_foreign_sum = Decimal('0.00')
@@ -1953,26 +2039,51 @@ def manual_journal_entry_create(request):
                                 for item in raw_alloc:
                                     c_id = item.get('cost_center_id')
                                     pct = Decimal(str(item.get('percentage', 0)))
+                                    raw_amt = Decimal(str(item.get('amount', 0)))
+
+                                    if pct < Decimal('0.00') or raw_amt < Decimal('0.00'):
+                                        messages.error(request, f"حظر القيم السالبة: السطر رقم ({idx+1}) يحتوي على نسبة مئوية أو مبلغ سالب.")
+                                        return redirect('financial:manual_journal_entry_create')
+
+                                    # المرونة المزدوجة (% أو مبلغ)
+                                    if pct > Decimal('0.00') and raw_amt == Decimal('0.00'):
+                                        amt_func = (line_amount_func * (pct / Decimal('100'))).quantize(Decimal('0.01'))
+                                    elif raw_amt > Decimal('0.00') and pct == Decimal('0.00'):
+                                        pct = ((raw_amt / line_amount_func) * Decimal('100')).quantize(Decimal('0.01'))
+                                        amt_func = raw_amt.quantize(Decimal('0.01'))
+                                    else:
+                                        amt_func = (line_amount_func * (pct / Decimal('100'))).quantize(Decimal('0.01'))
+
                                     total_pct += pct
-                                    
-                                    amt = (line_amount * (pct / Decimal('100'))).quantize(Decimal('0.01'))
-                                    calc_alloc_sum += amt
+
+                                    if entry_currency_code != func_code:
+                                        amt_foreign = (line_amount_foreign * (pct / Decimal('100'))).quantize(Decimal('0.01'))
+                                    else:
+                                        amt_foreign = Decimal('0.00')
+
+                                    calc_alloc_func_sum += amt_func
+                                    calc_alloc_foreign_sum += amt_foreign
 
                                     allocations_data.append({
                                         'cost_center_id': c_id,
                                         'percentage': pct,
-                                        'amount': amt,
-                                        'foreign_amount': Decimal('0.00')
+                                        'amount': amt_func,
+                                        'foreign_amount': amt_foreign
                                     })
 
-                                if abs(total_pct - Decimal('100.00')) > Decimal('0.01'):
+                                if abs(total_pct - Decimal('100.00')) > Decimal('0.05') and abs(calc_alloc_func_sum - line_amount_func) > Decimal('0.05'):
                                     messages.error(request, f"إجمالي نسبة التوزيع المحاسبي للسطر رقم ({idx+1}) يجب أن يساوي 100% بالتمام (النسبة الحالية: {total_pct}%).")
                                     return redirect('financial:manual_journal_entry_create')
 
                                 # تسوية فروق التقريب (Penny Difference Adjustment)
-                                penny_diff = line_amount - calc_alloc_sum
-                                if penny_diff != Decimal('0.00') and len(allocations_data) > 0:
-                                    allocations_data[-1]['amount'] += penny_diff
+                                penny_diff_func = line_amount_func - calc_alloc_func_sum
+                                if penny_diff_func != Decimal('0.00') and len(allocations_data) > 0:
+                                    allocations_data[-1]['amount'] += penny_diff_func
+
+                                if entry_currency_code != func_code:
+                                    penny_diff_foreign = line_amount_foreign - calc_alloc_foreign_sum
+                                    if penny_diff_foreign != Decimal('0.00') and len(allocations_data) > 0:
+                                        allocations_data[-1]['foreign_amount'] += penny_diff_foreign
 
                                 # Exclusivity Rule: إلغاء cc_code المباشر في حالة وجود توزيع فرعي متعدد
                                 cc_code = None
@@ -2066,7 +2177,7 @@ def manual_journal_entry_create(request):
     from financial.services.exchange_rate_service import ExchangeRateService
 
     accounts = ChartOfAccounts.objects.filter(is_active=True, is_leaf=True).select_related('account_type', 'currency').order_by('code')
-    cost_centers = CostCenter.objects.filter(is_active=True).order_by('code')
+    cost_centers = CostCenter.objects.filter(is_active=True, children__isnull=True).order_by('code')
     currencies = Currency.objects.filter(is_active=True).order_by('code')
     func_currency = ExchangeRateService.get_functional_currency()
     func_code = func_currency.code if func_currency else 'EGP'
