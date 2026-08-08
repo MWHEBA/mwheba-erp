@@ -16,6 +16,7 @@ class Currency(models.Model):
     name = models.CharField(_("اسم العملة"), max_length=50)
     symbol = models.CharField(_("رمز الرمزية"), max_length=10, blank=True, null=True)
     decimal_places = models.PositiveSmallIntegerField(_("الكسور العشريّة"), default=2)
+    rounding_tolerance = models.DecimalField(_("حد تحمل فروق التقريب"), max_digits=8, decimal_places=4, default=Decimal('0.05'))
     is_active = models.BooleanField(_("نشط"), default=True)
     is_functional = models.BooleanField(_("العملة المحلية الأساسية؟"), default=False)
 

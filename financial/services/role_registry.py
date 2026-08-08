@@ -35,6 +35,7 @@ class AccountRoleNames(str, Enum):
     SALARY_PAYABLES = "salary_payables"
     EMPLOYEE_ADVANCE = "employee_advance"
     INVENTORY_GENERAL = "inventory_general"
+    ROUNDING_DIFFERENCE_ACCOUNT = "rounding_difference_account"
 
 
 LEGACY_ROLE_FALLBACKS: Dict[str, str] = {
@@ -52,6 +53,8 @@ LEGACY_ROLE_FALLBACKS: Dict[str, str] = {
     "SALARY_PAYABLES": "20200",
     AccountRoleNames.EMPLOYEE_ADVANCE.value: "10350",
     AccountRoleNames.INVENTORY_GENERAL.value: "10400",
+    AccountRoleNames.ROUNDING_DIFFERENCE_ACCOUNT.value: "50900",
+    "ROUNDING_DIFFERENCE_ACCOUNT": "50900",
 }
 
 

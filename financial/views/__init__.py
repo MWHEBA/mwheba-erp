@@ -209,6 +209,11 @@ from .opening_balance_views import (
     opening_balance_wizard,
     opening_balance_post_action,
     opening_balance_reverse_action,
+    opening_balance_add_line_action,
+    opening_balance_delete_line_action,
+    opening_balance_import_excel_action,
+    opening_balance_download_template,
+    opening_balance_retry_inventory_sync_action,
 )
 opening_balance_create = opening_balance_wizard
 

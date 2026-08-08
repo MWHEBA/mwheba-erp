@@ -207,6 +207,8 @@
             </h5>
             {% if is_filtered %}
               <small class="text-info fs-8 d-block mt-1"><i class="fas fa-filter me-1"></i>نتائج الفلترة الحالية</small>
+            {% elif card_fy_name %}
+              <small class="text-primary fs-8 d-block mt-1"><i class="fas fa-calendar-check me-1"></i>{{ card_fy_name }}</small>
             {% else %}
               <small class="text-muted fs-8 d-block mt-1"><i class="fas fa-chart-bar me-1"></i>إجمالي كافة الفترات</small>
             {% endif %}
@@ -228,6 +230,8 @@
             </h5>
             {% if is_filtered %}
               <small class="text-info fs-8 d-block mt-1"><i class="fas fa-filter me-1"></i>نتائج الفلترة الحالية</small>
+            {% elif card_fy_name %}
+              <small class="text-primary fs-8 d-block mt-1"><i class="fas fa-calendar-check me-1"></i>{{ card_fy_name }}</small>
             {% else %}
               <small class="text-muted fs-8 d-block mt-1"><i class="fas fa-chart-bar me-1"></i>إجمالي كافة الفترات</small>
             {% endif %}
@@ -336,6 +340,13 @@
                   <td class="text-center">{{ movement.journal_entry.date|date:"Y-m-d" }}</td>
                   <td class="text-center">
                     <span class="badge" style="background-color: var(--gray-600); color: var(--white);">{{ movement.journal_entry.reference|default:movement.journal_entry.number }}</span>
+                    {% if movement.journal_entry.entry_type == 'opening' %}
+                      <br><span class="badge bg-success mt-1" title="رصيد افتتاحي مدور"><i class="fas fa-door-open me-1"></i>رصيد افتتاحي 🚪</span>
+                    {% elif movement.journal_entry.entry_type == 'closing' %}
+                      <br><span class="badge bg-danger mt-1" title="إغلاق سنوي محمي"><i class="fas fa-lock me-1"></i>إغلاق سنوي 🔒</span>
+                    {% elif movement.journal_entry.is_period_locked %}
+                      <br><span class="badge bg-secondary text-dark mt-1" title="فترة مغلقة"><i class="fas fa-lock me-1"></i>فترة مغلقة</span>
+                    {% endif %}
                   </td>
                   <td class="text-center">
                     <div>

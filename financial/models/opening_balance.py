@@ -66,6 +66,21 @@ class OpeningBalanceBatch(models.Model):
 
     reversal_reason = models.TextField(_("سبب العكس"), blank=True)
 
+    INVENTORY_SYNC_STATUS_CHOICES = [
+        ('NONE', _('لا يوجد')),
+        ('PENDING', _('قيد الانتظار')),
+        ('PROCESSING', _('قيد المعالجة')),
+        ('COMPLETED', _('مكتملة')),
+        ('FAILED', _('فشلت')),
+    ]
+
+    inventory_sync_status = models.CharField(_("حالة مزامنة المخزون"), max_length=20, choices=INVENTORY_SYNC_STATUS_CHOICES, default='NONE')
+    retry_count = models.PositiveIntegerField(_("عدد محاولات المزامنة"), default=0)
+    last_error = models.TextField(_("تفاصيل آخر خطأ للمزامنة"), blank=True, null=True)
+    last_attempt_at = models.DateTimeField(_("تاريخ آخر محاولة"), null=True, blank=True)
+    last_attempt_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name='inventory_sync_attempts', verbose_name=_("آخر محاول بواسطة"))
+    inventory_sync_key = models.CharField(_("مفتاح فرادة المزامنة"), max_length=100, unique=True, null=True, blank=True)
+
     class Meta:
         verbose_name = _("دفعة أرصدة افتتاحية")
         verbose_name_plural = _("دفعات الأرصدة الافتتاحية")
@@ -98,6 +113,58 @@ class OpeningBalanceBatch(models.Model):
         if self.status in ['posted', 'reversed']:
             raise ImmutableLedgerError(_("لا يمكن حذف دفعة أرصدة افتتاحية مرحلة أو معكوسة."))
         super().delete(*args, **kwargs)
+
+
+class ControlAccountOverrideRequest(models.Model):
+    """
+    طلب موافقة واستثناء محاسبي للإدخال المباشر على الحسابات الحاكمة (CFO Approval Override)
+    """
+    STATUS_CHOICES = [
+        ('requested', _('مطلوبة')),
+        ('approved', _('معتمدة')),
+        ('rejected', _('مرفوضة')),
+    ]
+    opening_batch = models.ForeignKey(OpeningBalanceBatch, on_delete=models.CASCADE, related_name='override_requests', verbose_name=_("الدفعة الافتتاحية"))
+    account = models.ForeignKey('financial.ChartOfAccounts', on_delete=models.CASCADE, verbose_name=_("الحساب الحاكم"))
+    requested_by = models.ForeignKey(User, on_delete=models.PROTECT, related_name='control_overrides_requested', verbose_name=_("طالب الاستثناء"))
+    approved_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.PROTECT, related_name='control_overrides_approved', verbose_name=_("المعتمد (CFO)"))
+    reason = models.TextField(_("سبب الاستثناء المحاسبي"))
+    approved_at = models.DateTimeField(_("تاريخ الاعتماد"), null=True, blank=True)
+    status = models.CharField(_("الحالة"), max_length=20, choices=STATUS_CHOICES, default='requested')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = _("طلب استثناء حساب حاكم")
+        verbose_name_plural = _("طلبات استثناء الحسابات الحاكمة")
+
+    def __str__(self):
+        return f"Override {self.account.code} for Batch {self.opening_batch.batch_number} ({self.get_status_display()})"
+
+    def is_valid_for(self, batch, account):
+        batch_id = batch.id if hasattr(batch, 'id') else batch
+        account_id = account.id if hasattr(account, 'id') else account
+        return (
+            self.status == 'approved' and
+            self.opening_batch_id == batch_id and
+            self.account_id == account_id
+        )
+
+
+class OpeningBalanceImportBatch(models.Model):
+    """
+    سجل تدقيق استيراد ملفات الأرصدة الافتتاحية مجمعة
+    """
+    file_name = models.CharField(_("اسم الملف"), max_length=255)
+    template_version = models.CharField(_("نسخة القالب"), max_length=20, default='v1.0')
+    uploaded_by = models.ForeignKey(User, on_delete=models.PROTECT, verbose_name=_("مرفوع بواسطة"))
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+    total_rows = models.PositiveIntegerField(_("إجمالي الصفوف"), default=0)
+    valid_rows = models.PositiveIntegerField(_("الصفوف الصحيحة"), default=0)
+    invalid_rows = models.PositiveIntegerField(_("الصفوف الفاسدة"), default=0)
+
+    class Meta:
+        verbose_name = _("دفعة استيراد أرصدة افتتاحية")
+        verbose_name_plural = _("دفعات استيراد الأرصدة الافتتاحية")
 
 
 class OpeningBalanceLine(models.Model):
@@ -148,6 +215,30 @@ class OpeningBalanceLine(models.Model):
         if self.line_type == 'GL':
             if self.customer_id or self.supplier_id or self.treasury_account_id:
                 raise ValidationError(_("أسطر الحسابات العامة (GL) لا ترتبط بكائنات فرعية مباشرة."))
+            # Control Account check for GL lines
+            if self.account_id and hasattr(self.account, 'code'):
+                from financial.services.role_registry import AccountRoleRegistry
+                try:
+                    control_codes = {
+                        AccountRoleRegistry.resolve_role_code("AR_CONTROL_ACCOUNT"),
+                        AccountRoleRegistry.resolve_role_code("AP_CONTROL_ACCOUNT"),
+                        AccountRoleRegistry.resolve_role_code("DEFAULT_CASH_DRAWER"),
+                        AccountRoleRegistry.resolve_role_code("DEFAULT_BANK_ACCOUNT"),
+                        AccountRoleRegistry.resolve_role_code("INVENTORY_GENERAL"),
+                    }
+                    if self.account.code in control_codes:
+                        # Check override
+                        has_override = ControlAccountOverrideRequest.objects.filter(
+                            opening_batch_id=self.batch_id,
+                            account_id=self.account_id,
+                            status='approved'
+                        ).exists()
+                        if not has_override:
+                            raise ValidationError(_("لا يمكن الإدخال المباشر بنوع GL على الحساب الحاكم ({}) بدون موافقة استثناء معتمدة من CFO.").format(self.account.name))
+                except ValidationError:
+                    raise
+                except Exception:
+                    pass
 
         # 2. Validation for Foreign Currency
         if self.currency_id:
@@ -176,3 +267,4 @@ class OpeningBalanceLine(models.Model):
             if batch_status in ['posted', 'reversed']:
                 raise ImmutableLedgerError(_("لا يمكن حذف أسطر دفعة أرصدة افتتاحية مرحلة أو معكوسة."))
         super().delete(*args, **kwargs)
+

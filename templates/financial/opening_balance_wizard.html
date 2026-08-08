@@ -52,14 +52,21 @@
             <div class="stats-card stats-card-success">
                 <div class="stats-card-body">
                     <div class="stats-card-icon"><i class="fas fa-file-invoice"></i></div>
-                    <div class="stats-card-title">{% trans "قيد اليومية المولد" %}</div>
+                    <div class="stats-card-title">{% trans "قيد اليومية / المزامنة" %}</div>
                     <div class="stats-card-value" style="font-size: 1.1rem;">
                         {% if batch.journal_entry %}
-                            <a href="{% url 'financial:journal_entries_detail' batch.journal_entry.pk %}" class="text-decoration-none text-success fw-bold" title="{% trans "عرض تفاصيل قيد اليومية" %}">
+                            <a href="{% url 'financial:journal_entries_detail' batch.journal_entry.pk %}" class="text-decoration-none text-success fw-bold me-2" title="{% trans "عرض تفاصيل قيد اليومية" %}">
                                 <i class="fas fa-external-link-alt me-1 fs-6"></i>{{ batch.journal_entry.number }}
                             </a>
                         {% else %}
                             <span class="text-muted">{% trans "لم يُولد بعد" %}</span>
+                        {% endif %}
+                        {% if batch.inventory_sync_status == 'FAILED' %}
+                            <button type="button" class="btn btn-sm btn-outline-danger ms-2" id="btn-retry-inv-sync" title="{% trans "إعادة محاولة مزامنة المخزون" %}">
+                                <i class="fas fa-sync me-1"></i>{% trans "إعادة مزامنة المخزون" %}
+                            </button>
+                        {% elif batch.inventory_sync_status == 'COMPLETED' %}
+                            <span class="badge bg-success ms-1"><i class="fas fa-boxes me-1"></i>{% trans "المخزون مزامن" %}</span>
                         {% endif %}
                     </div>
                 </div>
@@ -105,7 +112,19 @@
 
     <!-- سكشن جدول أسطر الأرصدة الافتتاحية -->
     <div class="section-container">
-        <h5 class="section-title"><i class="fas fa-list me-2"></i>{% trans "أسطر الأرصدة الافتتاحية" %}</h5>
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="section-title mb-0"><i class="fas fa-list me-2"></i>{% trans "أسطر الأرصدة الافتتاحية" %}</h5>
+            {% if batch.status == 'draft' %}
+            <div>
+                <button type="button" class="btn btn-sm btn-primary me-2" data-bs-toggle="modal" data-bs-target="#addLineModal">
+                    <i class="fas fa-plus me-1"></i>{% trans "إضافة سطر جديد" %}
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-success" data-bs-toggle="modal" data-bs-target="#importExcelModal">
+                    <i class="fas fa-file-excel me-1"></i>{% trans "استيراد من Excel" %}
+                </button>
+            </div>
+            {% endif %}
+        </div>
         <div class="table-responsive">
             <table class="table table-hover align-middle text-center mb-0">
                 <thead class="table-light">
@@ -120,6 +139,9 @@
                         <th>{% trans "سعر الصرف" %}</th>
                         <th>{% trans "مدين (وظيفي)" %}</th>
                         <th>{% trans "دائن (وظيفي)" %}</th>
+                        {% if batch.status == 'draft' %}
+                        <th>{% trans "خيارات" %}</th>
+                        {% endif %}
                     </tr>
                 </thead>
                 <tbody>
@@ -149,17 +171,157 @@
                         <td>{{ line.exchange_rate|floatformat:4 }}</td>
                         <td class="fw-bold text-success">{{ line.debit|floatformat:2 }}</td>
                         <td class="fw-bold text-primary">{{ line.credit|floatformat:2 }}</td>
+                        {% if batch.status == 'draft' %}
+                        <td>
+                            <button type="button" class="btn btn-sm btn-outline-danger btn-delete-line" data-id="{{ line.id }}">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
+                        </td>
+                        {% endif %}
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="10" class="text-center py-4 text-muted">
+                        <td colspan="11" class="text-center py-4 text-muted">
                             <i class="fas fa-folder-open fa-2x mb-2 d-block"></i>
-                            {% trans "لا توجد أسطر مسجلة في هذه الدفعة بعد." %}
+                            {% trans "لا توجد أسطر مسجلة في هذه الدفعة بعد. استخدم زر إضافة سطر أو استيراد من Excel للإدخال." %}
                         </td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal إضافة سطر جديد -->
+<div class="modal fade" id="addLineModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title"><i class="fas fa-plus-circle me-2"></i>{% trans "إضافة سطر رصيد افتتاحي" %}</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="form-add-line" method="POST" action="{% url 'financial:opening_balance_add_line_action' batch.pk %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">{% trans "نوع السطر" %} <span class="text-danger">*</span></label>
+                            <select class="form-select" id="line_type" name="line_type" required>
+                                <option value="GL">{% trans "حساب عام (GL)" %}</option>
+                                <option value="AR">{% trans "رصيد عميل (AR)" %}</option>
+                                <option value="AP">{% trans "رصيد مورد (AP)" %}</option>
+                                <option value="TREASURY">{% trans "خزينة / بنك (TREASURY)" %}</option>
+                                <option value="INVENTORY">{% trans "مخزون أول المدة (INVENTORY)" %}</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">{% trans "الحساب المحاسبي" %} <span class="text-danger">*</span></label>
+                            <select class="form-select select2-filter" id="account_id" name="account_id" required>
+                                <option value="">{% trans "اختر الحساب المحاسبي..." %}</option>
+                                {% for acc in accounts %}
+                                <option value="{{ acc.id }}">{{ acc.code }} - {{ acc.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- الحقول الديناميكية للأستاذ الفرعي -->
+                        <div class="col-md-6 d-none" id="group-customer">
+                            <label class="form-label fw-bold">{% trans "العميل" %} <span class="text-danger">*</span></label>
+                            <select class="form-select" name="customer_id">
+                                <option value="">{% trans "اختر العميل..." %}</option>
+                                {% for cust in customers %}
+                                <option value="{{ cust.id }}">{{ cust.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-md-6 d-none" id="group-supplier">
+                            <label class="form-label fw-bold">{% trans "المورد" %} <span class="text-danger">*</span></label>
+                            <select class="form-select" name="supplier_id">
+                                <option value="">{% trans "اختر المورد..." %}</option>
+                                {% for supp in suppliers %}
+                                <option value="{{ supp.id }}">{{ supp.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-md-6 d-none" id="group-treasury">
+                            <label class="form-label fw-bold">{% trans "حساب الخزينة / البنك الفرعي" %} <span class="text-danger">*</span></label>
+                            <select class="form-select" name="treasury_account_id">
+                                <option value="">{% trans "اختر حساب الخزينة/البنك..." %}</option>
+                                {% for acc in accounts %}
+                                <option value="{{ acc.id }}">{{ acc.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">{% trans "مدين (عملة وظيفية - EGP)" %}</label>
+                            <input type="number" step="0.01" class="form-control" name="debit" value="0.00" min="0">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">{% trans "دائن (عملة وظيفية - EGP)" %}</label>
+                            <input type="number" step="0.01" class="form-control" name="credit" value="0.00" min="0">
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label">{% trans "العملة الأجنبية (اختياري)" %}</label>
+                            <select class="form-select" name="currency_id">
+                                <option value="">EGP ({% trans "عملة محليّة" %})</option>
+                                {% for curr in currencies %}
+                                <option value="{{ curr.id }}">{{ curr.code }} - {{ curr.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">{% trans "المبلغ الأجنبي (مدين/دائن)" %}</label>
+                            <input type="number" step="0.01" class="form-control" name="debit_foreign" value="0.00" min="0">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">{% trans "سعر الصرف" %}</label>
+                            <input type="number" step="0.000001" class="form-control" name="exchange_rate" value="1.000000">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+                    <button type="submit" class="btn btn-primary">{% trans "حفظ السطر" %}</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal استيراد من Excel -->
+<div class="modal fade" id="importExcelModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title"><i class="fas fa-file-excel me-2"></i>{% trans "استيراد الأرصدة الافتتاحية من Excel" %}</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="form-import-excel" method="POST" action="{% url 'financial:opening_balance_import_excel_action' batch.pk %}" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <p class="text-muted small mb-3">
+                        {% trans "يرجى رفع ملف Excel أو CSV يحتوي على أسطر الأرصدة الافتتاحية. يمكنك تنزيل النموذج المعتمد المنسق للتعرف على الأعمدة." %}
+                    </p>
+                    <div class="mb-3">
+                        <a href="{% url 'financial:opening_balance_download_template' %}" class="btn btn-sm btn-outline-primary w-100">
+                            <i class="fas fa-download me-1"></i>{% trans "تنزيل نموذج ملف Excel المعتمد v1.0" %}
+                        </a>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">{% trans "اختر ملف Excel / CSV" %} <span class="text-danger">*</span></label>
+                        <input type="file" class="form-control" name="excel_file" accept=".xlsx, .xls, .csv" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+                    <button type="submit" class="btn btn-success">{% trans "بدء الاستيراد" %}</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
@@ -191,6 +353,94 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    const lineTypeSelect = document.getElementById('line_type');
+    if (lineTypeSelect) {
+        lineTypeSelect.addEventListener('change', function() {
+            const val = this.value;
+            document.getElementById('group-customer').classList.toggle('d-none', val !== 'AR');
+            document.getElementById('group-supplier').classList.toggle('d-none', val !== 'AP');
+            document.getElementById('group-treasury').classList.toggle('d-none', val !== 'TREASURY');
+        });
+    }
+
+    const formAddLine = document.getElementById('form-add-line');
+    if (formAddLine) {
+        formAddLine.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            fetch(this.action, {
+                method: 'POST',
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert(data.error || '{% trans "حدث خطأ أثناء إضافة السطر" %}');
+                }
+            })
+            .catch(err => alert('{% trans "فشل الاتصال بالخادم" %}'));
+        });
+    }
+
+    const formImportExcel = document.getElementById('form-import-excel');
+    if (formImportExcel) {
+        formImportExcel.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            fetch(this.action, {
+                method: 'POST',
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert(data.error || '{% trans "حدث خطأ أثناء الاستيراد" %}');
+                }
+            })
+            .catch(err => alert('{% trans "فشل الاتصال بالخادم" %}'));
+        });
+    }
+
+    document.querySelectorAll('.btn-delete-line').forEach(btn => {
+        btn.addEventListener('click', function() {
+            if (!confirm('{% trans "هل أنت تأكد من حذف هذا السطر؟" %}')) return;
+            const lineId = this.getAttribute('data-id');
+            const url = '{% url "financial:opening_balance_delete_line_action" batch.pk 0 %}'.replace('0', lineId);
+            fetch(url, {
+                method: 'POST',
+                headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) location.reload();
+                else alert(data.error || '{% trans "حدث خطأ أثناء الحذف" %}');
+            });
+        });
+    });
+
+    const btnRetryInvSync = document.getElementById('btn-retry-inv-sync');
+    if (btnRetryInvSync) {
+        btnRetryInvSync.addEventListener('click', function() {
+            btnRetryInvSync.disabled = true;
+            fetch('{% url "financial:opening_balance_retry_inventory_sync_action" batch.pk %}', {
+                method: 'POST',
+                headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) location.reload();
+                else {
+                    alert(data.error || '{% trans "فشلت إعادة محاولة مزامنة المخزون" %}');
+                    btnRetryInvSync.disabled = false;
+                }
+            });
+        });
+    }
+
     const btnPost = document.getElementById('btn-post-batch');
     if (btnPost) {
         btnPost.addEventListener('click', function() {

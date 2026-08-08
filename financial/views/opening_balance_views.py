@@ -71,11 +71,9 @@ def opening_balance_wizard(request, pk=None):
     if pk:
         batch = get_object_or_404(OpeningBalanceBatch.objects.select_related('fiscal_year', 'journal_entry', 'reversal_journal_entry'), pk=pk)
     else:
-        # إنشاء دفعة جديدة تلقائياً
-        active_year = FiscalYear.objects.filter(status='open').first() or FiscalYear.objects.exclude(status='closed').first()
-        if not active_year:
-            messages.error(request, _("لا توجد سنة مالية مفتوحة مسجلة بالنظام."))
-            return redirect("financial:opening_balance_list")
+        # الحصول على السنة المالية النشطة أو إنشاؤها وتفعيلها تلقائياً
+        from financial.services.period_control_service import PeriodControlService
+        active_year = PeriodControlService.get_or_create_active_fiscal_year()
         
         from core.services.sequence_service import SequenceService
         batch_number = SequenceService.get_next_number('OPENING_BALANCE', date=active_year.start_date)
@@ -93,10 +91,23 @@ def opening_balance_wizard(request, pk=None):
     total_debit = sum((l.debit for l in lines), Decimal('0.00'))
     total_credit = sum((l.credit for l in lines), Decimal('0.00'))
     balance_diff = total_debit - total_credit
-    is_balanced = (balance_diff == Decimal('0.00'))
+    # Empty batch cannot be balanced
+    is_balanced = (lines.exists() and balance_diff == Decimal('0.00'))
 
     accounts = ChartOfAccounts.objects.filter(is_active=True, is_leaf=True).order_by('code')
     currencies = Currency.objects.filter(is_active=True)
+
+    try:
+        from client.models import Customer
+        customers = Customer.objects.filter(is_active=True)
+    except Exception:
+        customers = []
+
+    try:
+        from supplier.models import Supplier
+        suppliers = Supplier.objects.filter(is_active=True)
+    except Exception:
+        suppliers = []
 
     return render(request, 'financial/opening_balance_wizard.html', {
         'batch': batch,
@@ -107,6 +118,8 @@ def opening_balance_wizard(request, pk=None):
         'is_balanced': is_balanced,
         'accounts': accounts,
         'currencies': currencies,
+        'customers': customers,
+        'suppliers': suppliers,
         'page_title': f"دفعة الأرصدة الافتتاحية: {batch.batch_number}",
         'page_subtitle': _("تدقيق وتأكيد التوازن ومطابقة الدفاتر"),
         'page_icon': "fas fa-calculator",
@@ -117,6 +130,127 @@ def opening_balance_wizard(request, pk=None):
             {'title': batch.batch_number, 'active': True}
         ],
     })
+
+
+@login_required
+@require_POST
+def opening_balance_add_line_action(request, pk):
+    """إضافة سطر رصيد افتتاحي تفاعلياً للدفعة المسودة"""
+    batch = get_object_or_404(OpeningBalanceBatch, pk=pk)
+    if batch.status in ['posted', 'reversed']:
+        return JsonResponse({'success': False, 'error': _("لا يمكن تعديل أسطر دفعة مرحلة أو معكوسة.")}, status=400)
+
+    try:
+        line_type = request.POST.get('line_type', 'GL')
+        account_id = request.POST.get('account_id')
+        debit = Decimal(request.POST.get('debit', '0.00'))
+        credit = Decimal(request.POST.get('credit', '0.00'))
+
+        currency_id = request.POST.get('currency_id') or None
+        debit_foreign = Decimal(request.POST.get('debit_foreign', '0.00'))
+        credit_foreign = Decimal(request.POST.get('credit_foreign', '0.00'))
+        exchange_rate = Decimal(request.POST.get('exchange_rate', '1.000000'))
+
+        customer_id = request.POST.get('customer_id') or None
+        supplier_id = request.POST.get('supplier_id') or None
+        treasury_account_id = request.POST.get('treasury_account_id') or None
+
+        line = OpeningBalanceLine(
+            batch=batch,
+            line_type=line_type,
+            account_id=account_id,
+            debit=debit,
+            credit=credit,
+            currency_id=currency_id,
+            debit_foreign=debit_foreign,
+            credit_foreign=credit_foreign,
+            exchange_rate=exchange_rate,
+            customer_id=customer_id,
+            supplier_id=supplier_id,
+            treasury_account_id=treasury_account_id
+        )
+        line.full_clean()
+        line.save()
+
+        messages.success(request, _("تمت إضافة سطر الرصيد الافتتاحي بنجاح."))
+        return JsonResponse({'success': True, 'message': _("تمت إضافة السطر بنجاح")})
+    except ValidationError as e:
+        msg = e.message_dict if hasattr(e, 'message_dict') else (e.message if hasattr(e, 'message') else str(e))
+        return JsonResponse({'success': False, 'error': str(msg)}, status=400)
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@login_required
+@require_POST
+def opening_balance_delete_line_action(request, pk, line_pk):
+    """حذف سطر رصيد افتتاحي من الدفعة المسودة"""
+    batch = get_object_or_404(OpeningBalanceBatch, pk=pk)
+    if batch.status in ['posted', 'reversed']:
+        return JsonResponse({'success': False, 'error': _("لا يمكن حذف أسطر دفعة مرحلة أو معكوسة.")}, status=400)
+
+    line = get_object_or_404(OpeningBalanceLine, pk=line_pk, batch=batch)
+    line.delete()
+    messages.success(request, _("تم حذف سطر الرصيد الافتتاحي."))
+    return JsonResponse({'success': True, 'message': _("تم الحذف بنجاح")})
+
+
+@login_required
+@require_POST
+def opening_balance_import_excel_action(request, pk):
+    """رفع واستيراد شيت الأرصدة الافتتاحية من Excel/CSV"""
+    batch = get_object_or_404(OpeningBalanceBatch, pk=pk)
+    if batch.status in ['posted', 'reversed']:
+        return JsonResponse({'success': False, 'error': _("لا يمكن الاستيراد على دفعة مرحلة أو معكوسة.")}, status=400)
+
+    file_obj = request.FILES.get('excel_file')
+    if not file_obj:
+        return JsonResponse({'success': False, 'error': _("يرجى اختيار ملف Excel أو CSV للرفع.")}, status=400)
+
+    try:
+        from financial.services.excel_import_service import ExcelImportService
+        raw_rows = ExcelImportService.parse(file_obj)
+        valid_rows, invalid_rows = ExcelImportService.validate_rows(raw_rows)
+
+        if not valid_rows:
+            return JsonResponse({'success': False, 'error': _("لم يتم العثور على صفوف صحيحة للاستيراد. يرجى مراجعة أكواد الحسابات والمبالغ.")}, status=400)
+
+        import_record = ExcelImportService.commit(batch, valid_rows, request.user, filename=file_obj.name)
+        messages.success(request, _("تم استيراد {} سطر صحيح بنجاح من الشيت.").format(import_record.valid_rows))
+        return JsonResponse({'success': True, 'valid_count': import_record.valid_rows, 'invalid_count': len(invalid_rows)})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@login_required
+def opening_balance_download_template(request):
+    """تحميل قالب Excel المعياري للأرصدة الافتتاحية"""
+    import csv
+    from django.http import HttpResponse
+    response = HttpResponse(content_type='text/csv; charset=utf-8-sig')
+    response['Content-Disposition'] = 'attachment; filename="opening_balances_template_v1.0.csv"'
+    
+    writer = csv.writer(response)
+    writer.writerow(['kood_alhesab', 'account_code', 'line_type', 'debit', 'credit', 'currency_code', 'exchange_rate', 'customer_id', 'supplier_id', 'description'])
+    writer.writerow(['10100', '10100', 'GL', '50000.00', '0.00', 'EGP', '1.0', '', '', 'رصيد افتتاحي الخزينة الرئيسية'])
+    writer.writerow(['11010', '11010', 'AR', '12000.00', '0.00', 'USD', '50.0', '1', '', 'رصيد افتتاحي للعميل'])
+    return response
+
+
+@login_required
+@require_POST
+def opening_balance_retry_inventory_sync_action(request, pk):
+    """إعادة محاولة مزامنة المخزون للدفعة المرحلة"""
+    batch = get_object_or_404(OpeningBalanceBatch, pk=pk)
+    try:
+        updated_batch = OpeningBalancePostingService.retry_inventory_sync(batch.pk, request.user)
+        if updated_batch.inventory_sync_status == 'COMPLETED':
+            messages.success(request, _("تمت مزامنة كميات وتكلفة المخزون بنجاح."))
+            return JsonResponse({'success': True, 'status': 'COMPLETED'})
+        else:
+            return JsonResponse({'success': False, 'error': updated_batch.last_error or _("فشلت إعادة محاولة المزامنة.")}, status=400)
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
 
 
 @login_required
@@ -153,3 +287,4 @@ def opening_balance_reverse_action(request, pk):
         return JsonResponse({'success': False, 'error': msg}, status=400)
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
+

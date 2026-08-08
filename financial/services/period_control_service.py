@@ -84,6 +84,48 @@ class PeriodControlService:
 
     @classmethod
     @transaction.atomic
+    def get_or_create_active_fiscal_year(cls) -> FiscalYear:
+        """
+        الحصول على السنة المالية النشطة المفتوحة أو إنشاؤها وتفعيل فتراتها تلقائياً للسنة التالية
+        """
+        active_fy = FiscalYear.objects.filter(status='open').first()
+        if active_fy:
+            return active_fy
+
+        latest_fy = FiscalYear.objects.order_by('-end_date').first()
+        if latest_fy:
+            if latest_fy.status != 'closed':
+                latest_fy.status = 'open'
+                latest_fy.save()
+                latest_fy.periods.filter(status='closed').update(status='open')
+                return latest_fy
+
+            next_start = latest_fy.end_date + timedelta(days=1)
+            next_end = date(next_start.year, 12, 31)
+            y_code = str(next_start.year)
+            if FiscalYear.objects.filter(year_code=y_code).exists():
+                import uuid
+                y_code = f"FY{next_start.year}-{uuid.uuid4().hex[:4]}"
+
+            return cls.create_fiscal_year_with_periods(
+                year_code=y_code,
+                name=f"السنة المالية {next_start.year}",
+                start_date=next_start,
+                end_date=next_end
+            )
+
+        today = timezone.now().date()
+        start_d = date(today.year, 1, 1)
+        end_d = date(today.year, 12, 31)
+        return cls.create_fiscal_year_with_periods(
+            year_code=str(today.year),
+            name=f"السنة المالية {today.year}",
+            start_date=start_d,
+            end_date=end_d
+        )
+
+    @classmethod
+    @transaction.atomic
     def close_period(cls, period_id: int, user=None, force: bool = False) -> AccountingPeriod:
         """
         إغلاق فترة محاسبية مع حماية القيود المسودة (Draft Guard)

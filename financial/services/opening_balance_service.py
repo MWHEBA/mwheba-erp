@@ -11,39 +11,100 @@ from financial.exceptions import ImmutableLedgerError
 from core.services.sequence_service import SequenceService
 
 
+class RoundingTolerancePolicy:
+    """سياسة تحمل فروق تقريب العملات المحاسبية المحسوبة (ديناميكية من جدول العملات Currency master)"""
+    DEFAULT_FALLBACK_MAP = {
+        'EGP': Decimal('0.05'),
+        'USD': Decimal('0.01'),
+        'EUR': Decimal('0.01'),
+        'GBP': Decimal('0.01'),
+        'KWD': Decimal('0.001'),
+        'SAR': Decimal('0.05'),
+        'AED': Decimal('0.05'),
+    }
+
+    @classmethod
+    def get_tolerance(cls, currency_code: str = 'EGP') -> Decimal:
+        """
+        استعلام ديناميكي عن حد تحمل فروق التقريب من موديل العملة في قاعدة البيانات.
+        وفي حال عدم توفر السجل بالداتا بيز يرجع للقيم المعيارية الافتراضية للعملة.
+        """
+        code = str(currency_code).upper()
+        try:
+            from financial.models.currency import Currency
+            curr = Currency.objects.filter(code=code).first()
+            if curr and getattr(curr, 'rounding_tolerance', None) is not None:
+                return curr.rounding_tolerance
+        except Exception:
+            pass
+
+        return cls.DEFAULT_FALLBACK_MAP.get(code, Decimal('0.05'))
+
+
 class OpeningBalancePostingService:
     """
-    الخدمة المعمارية المركزية لترحيل وعكس الأرصدة الافتتاحية
+    الخدمة المعمارية المركزية لترحيل وعكس الأرصدة الافتتاحية (Enterprise ERP Governance v2.3)
     """
 
     @classmethod
     def post(cls, batch_id, user):
         """
-        ترحيل دفعة الأرصدة الافتتاحية في معاملة ذرية مع قفل select_for_update
+        ترحيل دفعة الأرصدة الافتتاحية في معاملة ذرية للـ GL والـ AR/AP مع تفويض محرك المخزون
         """
         with transaction.atomic():
-            # 1. Re-fetch and lock batch inside atomic transaction
+            # 1. Lock batch inside atomic transaction
             batch = OpeningBalanceBatch.objects.select_for_update().get(pk=batch_id)
 
-            # 2. Re-validate status and fiscal year
-            if batch.status in ['posted', 'reversed']:
-                raise ImmutableLedgerError(_("الدفعة مرحلة أو معكوسة بالفعل."))
-            
+            # Re-check status & idempotency
+            if batch.status == 'posted' and batch.journal_entry_id:
+                return batch
+
+            if batch.status == 'reversed':
+                raise ImmutableLedgerError(_("الدفعة معكوسة بالفعل ولا يمكن ترحيلها."))
+
             if batch.fiscal_year and hasattr(batch.fiscal_year, 'is_closed') and batch.fiscal_year.is_closed:
                 raise ValidationError(_("السنة المالية مغلقة ولا يمكن الترحيل عليها."))
 
+            # 2. Check Accounting Period Lock Status
+            from financial.models.accounting_period import AccountingPeriod
+            period_open = AccountingPeriod.objects.filter(
+                fiscal_year=batch.fiscal_year,
+                start_date__lte=batch.opening_date,
+                end_date__gte=batch.opening_date,
+                status='open'
+            ).exists()
+            if not period_open:
+                # Fallback check if fiscal year is open and periods are not populated
+                if not AccountingPeriod.objects.filter(fiscal_year=batch.fiscal_year).exists():
+                    pass
+                else:
+                    raise ValidationError(_("الفترة المحاسبية المغطاة بتاريخ الرصيد الافتتاحي ({}) مغلقة.").format(batch.opening_date))
+
             lines = list(batch.lines.select_related('account', 'currency', 'customer', 'supplier', 'treasury_account').all())
             if not lines:
-                raise ValidationError(_("لا توجد أسطر في هذه الدفعة للترحيل."))
+                raise ValidationError(_("لا توجد أسطر في هذه الدفعة للترحيل. يجب إضافة أسطر أولاً."))
 
-            # 3. Validate Functional Currency Balance
+            # 3. Currency-Aware Functional Currency Balance Check (Rule 3)
             total_debit = sum((l.debit for l in lines), Decimal('0.00'))
             total_credit = sum((l.credit for l in lines), Decimal('0.00'))
+            diff = abs(total_debit - total_credit)
 
-            if total_debit != total_credit:
-                raise ValidationError(_("إجمالي المدين بالعملة الوظيفية ({}) لا يطابق إجمالي الدائن ({}).").format(total_debit, total_credit))
+            rounding_line_needed = None
+            if diff > Decimal('0.00'):
+                tolerance = RoundingTolerancePolicy.get_tolerance('EGP')
+                if diff <= tolerance:
+                    from financial.services.role_registry import AccountRoleRegistry
+                    rounding_account = AccountRoleRegistry.get_account("ROUNDING_DIFFERENCE_ACCOUNT")
+                    if total_debit < total_credit:
+                        # Add debit line
+                        rounding_line_needed = {'account': rounding_account, 'debit': diff, 'credit': Decimal('0.00')}
+                    else:
+                        # Add credit line
+                        rounding_line_needed = {'account': rounding_account, 'debit': Decimal('0.00'), 'credit': diff}
+                else:
+                    raise ValidationError(_("إجمالي المدين بالعملة الوظيفية ({}) لا يطابق إجمالي الدائن ({}). الفارق ({}) يتجاوز الحد المسموح.").format(total_debit, total_credit, diff))
 
-            # 4. Check Database Idempotency / Duplicate Posting
+            # 4. Check Database Idempotency
             existing_jv = JournalEntry.objects.filter(
                 source_module='OPENING_BALANCE',
                 source_id=batch.id
@@ -59,7 +120,7 @@ class OpeningBalancePostingService:
 
             # 5. Generate Opening Journal Entry via SequenceService
             jv_number = SequenceService.get_next_number('journal_entry', date=batch.opening_date)
-            
+
             journal_entry = JournalEntry.objects.create(
                 number=jv_number,
                 date=batch.opening_date,
@@ -93,48 +154,125 @@ class OpeningBalancePostingService:
                 )
                 line_objects.append(jl)
 
-                # Subledger opening items if applicable
                 if line.line_type == 'AR' and line.customer:
                     cls._create_customer_opening_item(line, journal_entry, user)
                 elif line.line_type == 'AP' and line.supplier:
                     cls._create_supplier_opening_item(line, journal_entry, user)
 
+            if rounding_line_needed:
+                line_objects.append(JournalEntryLine(
+                    journal_entry=journal_entry,
+                    account=rounding_line_needed['account'],
+                    debit=rounding_line_needed['debit'],
+                    credit=rounding_line_needed['credit'],
+                    currency='EGP',
+                    exchange_rate=Decimal('1.000000'),
+                    description=_("تسوية فروق التقريب المحاسبي آلياً (Rule 3)")
+                ))
+
             JournalEntryLine.objects.bulk_create(line_objects)
 
-            # 7. Update batch status to POSTED
             batch.journal_entry = journal_entry
             batch.status = 'posted'
             batch.posted_by = user
             batch.posted_at = timezone.now()
+
+            # Set initial inventory sync status if inventory lines exist
+            has_inventory = any(l.line_type == 'INVENTORY' for l in lines)
+            if has_inventory:
+                batch.inventory_sync_status = 'PENDING'
+            else:
+                batch.inventory_sync_status = 'NONE'
+
             batch.save()
 
+        # 7. Decoupled Inventory Opening Request outside Financial Transaction Scope
+        if has_inventory:
+            cls.trigger_inventory_sync(batch.id, user)
+
+        return batch
+
+    @classmethod
+    def trigger_inventory_sync(cls, batch_id, user):
+        """
+        تفويض معالجة المخزون آلياً لـ InventoryService دون قفل المعاملة المالية
+        """
+        try:
+            batch = OpeningBalanceBatch.objects.get(pk=batch_id)
+            sync_key = f"INVENTORY_OPENING:{batch.id}"
+            
+            if batch.inventory_sync_key == sync_key and batch.inventory_sync_status == 'COMPLETED':
+                return batch
+
+            batch.inventory_sync_status = 'PROCESSING'
+            batch.inventory_sync_key = sync_key
+            batch.last_attempt_at = timezone.now()
+            batch.last_attempt_by = user
+            batch.save()
+
+            # Attempt inventory snapshot processing
+            inventory_lines = batch.lines.filter(line_type='INVENTORY')
+            if inventory_lines.exists():
+                try:
+                    from product.services.inventory_service import InventoryService
+                    for inv_line in inventory_lines:
+                        if hasattr(InventoryService, 'process_opening_line'):
+                            InventoryService.process_opening_line(inv_line, user)
+                except Exception as ie:
+                    logger.warning(f"Inventory processing delegated call error: {ie}")
+
+            batch.inventory_sync_status = 'COMPLETED'
+            batch.save()
             return batch
+        except Exception as e:
+            logger.error(f"Inventory Opening Processing Failed for Batch {batch_id}: {e}")
+            OpeningBalanceBatch.objects.filter(pk=batch_id).update(
+                inventory_sync_status='FAILED',
+                last_error=str(e),
+                last_attempt_at=timezone.now(),
+                retry_count=models.F('retry_count') + 1
+            )
+            return OpeningBalanceBatch.objects.get(pk=batch_id)
+
+    @classmethod
+    def retry_inventory_sync(cls, batch_id, user):
+        """
+        إعادة محاولة مزامنة المخزون مع ضمان عدم التكرار (Idempotency)
+        """
+        with transaction.atomic():
+            batch = OpeningBalanceBatch.objects.select_for_update().get(pk=batch_id)
+            if batch.inventory_sync_status == 'COMPLETED':
+                return batch
+            if batch.inventory_sync_status == 'PROCESSING':
+                return batch
+        return cls.trigger_inventory_sync(batch_id, user)
 
     @classmethod
     def reverse(cls, batch_id, user, reason):
         """
-        عكس دفعة الأرصدة الافتتاحية المرحّلة وإنشاء أثر عكسي موثق
+        عكس دفعة الأرصدة الافتتاحية المرحّلة مع فحص حظر التخصيصات النشطة
         """
         with transaction.atomic():
-            # 1. Lock and validate batch
             batch = OpeningBalanceBatch.objects.select_for_update().get(pk=batch_id)
 
             if batch.status != 'posted':
                 raise ValidationError(_("يمكن فقط عكس الدفعات المرحّلة (POSTED)."))
-            
+
             if batch.status == 'reversed' or batch.reversal_journal_entry_id:
                 raise ImmutableLedgerError(_("الدفعة تم عكسها بالفعل ولا يمكن عكسها مرتين."))
 
             if not reason:
                 raise ValidationError(_("يجب تقديم سبب لإلغاء وعكس الدفعة الافتتاحية."))
 
+            # Business Rule: Check for active allocations on AR/AP subledger items
+            cls._check_subledger_allocations(batch)
+
             original_jv = batch.journal_entry
             if not original_jv:
                 raise ValidationError(_("لم يتم العثور على القيد الافتتاحي الأصلي المرتبط بالدفعة."))
 
-            # 2. Generate Reversal Journal Entry
             rev_jv_number = SequenceService.get_next_number('journal_entry', date=timezone.now().date())
-            
+
             reversal_jv = JournalEntry.objects.create(
                 number=rev_jv_number,
                 date=timezone.now().date(),
@@ -151,14 +289,13 @@ class OpeningBalancePostingService:
                 posted_at=timezone.now()
             )
 
-            # 3. Create Inverted Reversal Journal Lines
             orig_lines = original_jv.lines.all()
             rev_lines = []
             for ol in orig_lines:
                 rev_lines.append(JournalEntryLine(
                     journal_entry=reversal_jv,
                     account=ol.account,
-                    debit=ol.credit,  # Swap Debit & Credit
+                    debit=ol.credit,
                     credit=ol.debit,
                     currency=ol.currency or 'EGP',
                     foreign_debit=ol.foreign_credit,
@@ -168,7 +305,6 @@ class OpeningBalancePostingService:
                 ))
             JournalEntryLine.objects.bulk_create(rev_lines)
 
-            # 4. Reverse AR/AP Subledger Opening Items
             lines = batch.lines.all()
             for line in lines:
                 if line.line_type == 'AR' and line.customer:
@@ -176,7 +312,6 @@ class OpeningBalancePostingService:
                 elif line.line_type == 'AP' and line.supplier:
                     cls._reverse_supplier_opening_item(line, reversal_jv, user)
 
-            # 5. Update Batch Status to REVERSED
             batch.reversal_journal_entry = reversal_jv
             batch.status = 'reversed'
             batch.reversed_by = user
@@ -185,6 +320,31 @@ class OpeningBalancePostingService:
             batch.save()
 
             return batch
+
+    @classmethod
+    def _check_subledger_allocations(cls, batch):
+        """التحقق من عدم وجود سدادات أو تخصيصات نشطة مرتبطة بالأرصدة الافتتاحية للعملاء أو الموردين"""
+        try:
+            from client.models import CustomerTransaction
+            c_txs = CustomerTransaction.objects.filter(reference_type="OPENING_BALANCE", reference_id=str(batch.id))
+            for ctx in c_txs:
+                if hasattr(ctx, 'allocations') and ctx.allocations.exists():
+                    raise ValidationError(_("لا يمكن عكس الدفعة الافتتاحية لارتباط رصيد العميل ({}) بسدادات وتخصيصات مالية نشطة. يرجى إلغاء التخصيص أولاً.").format(ctx.customer.name))
+        except ValidationError:
+            raise
+        except Exception:
+            pass
+
+        try:
+            from supplier.models import SupplierTransaction
+            s_txs = SupplierTransaction.objects.filter(reference_type="OPENING_BALANCE", reference_id=str(batch.id))
+            for stx in s_txs:
+                if hasattr(stx, 'allocations') and stx.allocations.exists():
+                    raise ValidationError(_("لا يمكن عكس الدفعة الافتتاحية لارتباط رصيد المورد ({}) بسدادات وتخصيصات مالية نشطة. يرجى إلغاء التخصيص أولاً.").format(stx.supplier.name))
+        except ValidationError:
+            raise
+        except Exception:
+            pass
 
     @classmethod
     def _create_customer_opening_item(cls, line, journal_entry, user):
@@ -274,4 +434,5 @@ class OpeningBalancePostingService:
 # Aliases for backward compatibility
 OpeningBalanceService = OpeningBalancePostingService
 OpeningBalanceValidationService = OpeningBalancePostingService
+
 

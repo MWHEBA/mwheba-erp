@@ -419,9 +419,14 @@ urlpatterns = [
     path("tax-codes/", views.tax_code_list, name="tax_code_list"),
     path("opening-balances/", views.opening_balance_list, name="opening_balance_list"),
     path("opening-balances/create/", views.opening_balance_wizard, name="opening_balance_create"),
+    path("opening-balances/download-template/", views.opening_balance_download_template, name="opening_balance_download_template"),
     path("opening-balances/<int:pk>/", views.opening_balance_wizard, name="opening_balance_wizard_detail"),
     path("opening-balances/<int:pk>/post/", views.opening_balance_post_action, name="opening_balance_post_action"),
     path("opening-balances/<int:pk>/reverse/", views.opening_balance_reverse_action, name="opening_balance_reverse_action"),
+    path("opening-balances/<int:pk>/lines/add/", views.opening_balance_add_line_action, name="opening_balance_add_line_action"),
+    path("opening-balances/<int:pk>/lines/<int:line_pk>/delete/", views.opening_balance_delete_line_action, name="opening_balance_delete_line_action"),
+    path("opening-balances/<int:pk>/import-excel/", views.opening_balance_import_excel_action, name="opening_balance_import_excel_action"),
+    path("opening-balances/<int:pk>/retry-inventory-sync/", views.opening_balance_retry_inventory_sync_action, name="opening_balance_retry_inventory_sync_action"),
     path("approvals/", views.approval_inbox, name="approval_inbox"),
 
     # دليل العملات وأسعار الصرف وإعادة التقييم الدوري (IAS 21)

@@ -2243,9 +2243,9 @@ def cash_account_movements(request, pk):
         messages.error(request, "هذا الحساب ليس حساباً نقدياً أو بنكياً")
         return redirect("financial:cash_and_bank_accounts_list")
 
-    # جلب حركات الحساب من القيود المحاسبية (من الأقدم للأحدث لحساب الرصيد)
+    # جلب حركات الحساب من القيود المحاسبية المرحلة فقط (من الأقدم للأحدث لحساب الرصيد)
     movements = (
-        JournalEntryLine.objects.filter(account=account)
+        JournalEntryLine.objects.filter(account=account, journal_entry__status='posted')
         .select_related(
             "journal_entry", 
             "journal_entry__financial_category",
@@ -2283,6 +2283,7 @@ def cash_account_movements(request, pk):
         from django.db.models import Sum
         opening_movements = JournalEntryLine.objects.filter(
             account=account,
+            journal_entry__status='posted',
             journal_entry__date__lt=date_from
         )
         opening_debit = opening_movements.aggregate(Sum("debit"))["debit__sum"] or 0
@@ -2341,31 +2342,61 @@ def cash_account_movements(request, pk):
 
     from django.db.models import Sum
 
-    all_account_lines = JournalEntryLine.objects.filter(account=account)
-    all_debit = all_account_lines.aggregate(Sum("debit"))["debit__sum"] or 0
-    all_credit = all_account_lines.aggregate(Sum("credit"))["credit__sum"] or 0
-    all_f_debit = all_account_lines.aggregate(Sum("foreign_debit"))["foreign_debit__sum"] or 0
-    all_f_credit = all_account_lines.aggregate(Sum("foreign_credit"))["foreign_credit__sum"] or 0
+    all_account_lines = JournalEntryLine.objects.filter(account=account, journal_entry__status='posted')
+    all_debit = all_account_lines.aggregate(Sum("debit"))["debit__sum"] or Decimal("0.00")
+    all_credit = all_account_lines.aggregate(Sum("credit"))["credit__sum"] or Decimal("0.00")
+
+    all_f_debit = all_account_lines.aggregate(Sum("foreign_debit"))["foreign_debit__sum"] or Decimal("0.00")
+    all_tx_debit = all_account_lines.aggregate(Sum("transaction_debit"))["transaction_debit__sum"] or Decimal("0.00")
+    effective_f_debit = all_f_debit if all_f_debit != Decimal("0.00") else all_tx_debit
+
+    all_f_credit = all_account_lines.aggregate(Sum("foreign_credit"))["foreign_credit__sum"] or Decimal("0.00")
+    all_tx_credit = all_account_lines.aggregate(Sum("transaction_credit"))["transaction_credit__sum"] or Decimal("0.00")
+    effective_f_credit = all_f_credit if all_f_credit != Decimal("0.00") else all_tx_credit
 
     current_base_balance = all_debit - all_credit
     if account.is_foreign_currency:
-        current_foreign_balance = (account.opening_balance or 0) + all_f_debit - all_f_credit
+        current_foreign_balance = (account.opening_balance or Decimal("0.00")) + effective_f_debit - effective_f_credit
         calculated_base_eq = (current_foreign_balance * spot_rate).quantize(Decimal("0.01"))
     else:
         current_foreign_balance = current_base_balance
         calculated_base_eq = current_base_balance
 
+    import datetime
+    from financial.models.fiscal_year import FiscalYear
+
+    current_fy = FiscalYear.objects.filter(status='open').order_by('-start_date').first()
+    if not current_fy:
+        current_fy = FiscalYear.objects.order_by('-start_date').first()
+
+    # إذا لم يحدد المستخدم فلتراً للتاريخ، نقوم بحساب مقبوضات ومدفوعات السنة المالية الحالية افتراضياً للكروت
+    if not date_from:
+        if current_fy:
+            card_movements = movements.filter(
+                journal_entry__date__gte=current_fy.start_date,
+                journal_entry__date__lte=current_fy.end_date
+            )
+            card_fy_name = current_fy.name or current_fy.year_code
+        else:
+            today = datetime.date.today()
+            year_start = datetime.date(today.year, 1, 1)
+            card_movements = movements.filter(journal_entry__date__gte=year_start)
+            card_fy_name = f"سنة {today.year}"
+    else:
+        card_movements = movements
+        card_fy_name = None
+
     if account.is_foreign_currency:
-        f_debit_sum = movements.aggregate(Sum("foreign_debit"))["foreign_debit__sum"] or 0
-        f_tx_debit_sum = movements.aggregate(Sum("transaction_debit"))["transaction_debit__sum"] or 0
+        f_debit_sum = card_movements.aggregate(Sum("foreign_debit"))["foreign_debit__sum"] or 0
+        f_tx_debit_sum = card_movements.aggregate(Sum("transaction_debit"))["transaction_debit__sum"] or 0
         total_debit = f_debit_sum or f_tx_debit_sum or 0
 
-        f_credit_sum = movements.aggregate(Sum("foreign_credit"))["foreign_credit__sum"] or 0
-        f_tx_credit_sum = movements.aggregate(Sum("transaction_credit"))["transaction_credit__sum"] or 0
+        f_credit_sum = card_movements.aggregate(Sum("foreign_credit"))["foreign_credit__sum"] or 0
+        f_tx_credit_sum = card_movements.aggregate(Sum("transaction_credit"))["transaction_credit__sum"] or 0
         total_credit = f_credit_sum or f_tx_credit_sum or 0
     else:
-        total_debit = movements.aggregate(Sum("debit"))["debit__sum"] or 0
-        total_credit = movements.aggregate(Sum("credit"))["credit__sum"] or 0
+        total_debit = card_movements.aggregate(Sum("debit"))["debit__sum"] or 0
+        total_credit = card_movements.aggregate(Sum("credit"))["credit__sum"] or 0
 
     from financial.models import FinancialCategory
     categories = FinancialCategory.objects.filter(is_active=True).order_by('display_order', 'name')
@@ -2402,6 +2433,7 @@ def cash_account_movements(request, pk):
         "search": search,
         "category_filter": category_filter,
         "is_filtered": is_filtered,
+        "card_fy_name": card_fy_name,
         "categories": categories,
         "currency_symbol": currency_symbol,
         "title": f"حركات {account.name}",
