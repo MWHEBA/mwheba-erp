@@ -66,7 +66,7 @@ class OpeningBalancePostingService:
                 raise ValidationError(_("السنة المالية مغلقة ولا يمكن الترحيل عليها."))
 
             # 2. Check Accounting Period Lock Status
-            from financial.models.accounting_period import AccountingPeriod
+            from financial.models.journal_entry import AccountingPeriod
             period_open = AccountingPeriod.objects.filter(
                 fiscal_year=batch.fiscal_year,
                 start_date__lte=batch.opening_date,

@@ -167,3 +167,82 @@ class PrepaidAllocationSystemTest(TestCase):
         purchase.refresh_from_db()
         self.assertEqual(purchase.amount_paid, Decimal("3500.00"))
         self.assertEqual(purchase.payment_status, "paid")
+
+    def test_supplier_advance_creation_and_bulk_allocation(self):
+        """اختبار إنشاء دفعة مقدمة للمورد والتوزيع الجماعي التلقائي عبر الفواتير"""
+        adv = SupplierAllocationService.create_supplier_advance_payment(
+            supplier_id=self.supplier.id,
+            amount=Decimal("10000.00"),
+            payment_date=timezone.now().date(),
+            payment_method="cash",
+            notes="دفعة مقدمة لاختبار التوزيع الجماعي",
+            user=self.user
+        )
+        self.assertEqual(adv.amount, Decimal("10000.00"))
+        self.assertEqual(self.supplier.available_prepaid_balance, Decimal("10000.00"))
+
+        p1 = Purchase.objects.create(
+            supplier=self.supplier, warehouse=self.warehouse, number="BILL-BULK-001",
+            date=timezone.now().date(), status="posted", subtotal=Decimal("4000.00"), total=Decimal("4000.00"), created_by=self.user
+        )
+        p2 = Purchase.objects.create(
+            supplier=self.supplier, warehouse=self.warehouse, number="BILL-BULK-002",
+            date=timezone.now().date(), status="posted", subtotal=Decimal("3000.00"), total=Decimal("3000.00"), created_by=self.user
+        )
+
+        allocations = {p1.id: Decimal("4000.00"), p2.id: Decimal("3000.00")}
+        audits = SupplierAllocationService.allocate_prepaid_bulk(
+            supplier_id=self.supplier.id,
+            allocations_dict=allocations,
+            user=self.user
+        )
+
+        self.assertEqual(len(audits), 2)
+        total_allocated = sum(a.allocated_amount for a in audits)
+        self.assertEqual(total_allocated, Decimal("7000.00"))
+
+        p1.refresh_from_db()
+        p2.refresh_from_db()
+        self.assertEqual(p1.payment_status, "paid")
+        self.assertEqual(p2.payment_status, "paid")
+        self.assertEqual(self.supplier.available_prepaid_balance, Decimal("3000.00"))
+
+    def test_customer_advance_creation_and_bulk_allocation(self):
+        """اختبار تحصيل رصيد مسبق للعميل والتوزيع الجماعي التلقائي عبر الفواتير"""
+        pay = CustomerAllocationAuditService.create_customer_advance_payment(
+            customer_id=self.customer.id,
+            amount=Decimal("15000.00"),
+            payment_date=timezone.now().date(),
+            payment_method="bank_transfer",
+            notes="دفعة مقدمة للعميل لاختبار التوزيع الجماعي",
+            user=self.user
+        )
+        self.assertEqual(pay.amount, Decimal("15000.00"))
+        self.assertEqual(self.customer.available_prepaid_balance, Decimal("15000.00"))
+
+        s1 = Sale.objects.create(
+            customer=self.customer, warehouse=self.warehouse, number="INV-BULK-001",
+            date=timezone.now().date(), status="posted", subtotal=Decimal("6000.00"), total=Decimal("6000.00"), created_by=self.user
+        )
+        s2 = Sale.objects.create(
+            customer=self.customer, warehouse=self.warehouse, number="INV-BULK-002",
+            date=timezone.now().date(), status="posted", subtotal=Decimal("5000.00"), total=Decimal("5000.00"), created_by=self.user
+        )
+
+        allocations = {s1.id: Decimal("6000.00"), s2.id: Decimal("5000.00")}
+        audits = CustomerAllocationAuditService.allocate_prepaid_bulk(
+            customer_id=self.customer.id,
+            allocations_dict=allocations,
+            user=self.user
+        )
+
+        self.assertEqual(len(audits), 2)
+        total_allocated = sum(a.allocated_amount for a in audits)
+        self.assertEqual(total_allocated, Decimal("11000.00"))
+
+        s1.refresh_from_db()
+        s2.refresh_from_db()
+        self.assertEqual(s1.payment_status, "paid")
+        self.assertEqual(s2.payment_status, "paid")
+        self.assertEqual(self.customer.available_prepaid_balance, Decimal("4000.00"))
+

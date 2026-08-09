@@ -2230,7 +2230,7 @@ def bank_reconciliation_list(request):
 
     breadcrumb_items = [
         {'title': _('الرئيسية'), 'url': reverse('core:dashboard'), 'icon': 'fa-home'},
-        {'title': _('الإدارة المالية'), 'url': reverse('financial:chart_of_accounts_list'), 'icon': 'fa-calculator'},
+        {'title': _('الخزينة والمالية'), 'url': reverse('financial:cash_accounts_list'), 'icon': 'fa-landmark'},
         {'title': _('التسويات البنكية'), 'active': True}
     ]
 
@@ -2455,8 +2455,9 @@ def bank_reconciliation_detail(request, pk):
         'page_icon': "fas fa-file-invoice-dollar",
         'breadcrumb_items': [
             {'title': _("الرئيسية"), 'url': reverse('core:dashboard'), 'icon': 'fa-home'},
-            {'title': _("الإدارة المالية"), 'url': reverse('financial:chart_of_accounts_list'), 'icon': 'fa-calculator'},
-            {'title': _("التسويات البنكية"), 'url': reverse('financial:bank_reconciliation_list'), 'icon': 'fa-building-columns'},
+            {'title': _("الخزينة والمالية"), 'url': reverse('financial:cash_accounts_list'), 'icon': 'fa-landmark'},
+            {'title': _("التسويات البنكية"), 'url': reverse('financial:bank_reconciliation_list'), 'icon': 'fa-university'},
+            {'title': batch.bank_account.name, 'url': f"{reverse('financial:bank_reconciliation_list')}?bank_account={batch.bank_account.id}", 'icon': 'fa-building-columns'},
             {'title': batch.batch_number, 'active': True}
         ],
         'header_buttons': [

@@ -469,3 +469,330 @@ class CustomerAllocationAuditService:
                 evidence_hash=rev_hash
             )
             return rev_audit
+
+    @classmethod
+    def create_customer_advance_payment(
+        cls,
+        customer_id: int,
+        amount: Decimal,
+        payment_date=None,
+        payment_method: str = "cash",
+        financial_account_id: Optional[int] = None,
+        reference_number: Optional[str] = None,
+        notes: Optional[str] = None,
+        user=None
+    ):
+        """
+        إضافة رصيد مسبق/دفعة مقدمة جديدة للعميل وتوليد القيد المحاسبي التلقائي
+        """
+        amount = Decimal(str(amount))
+        if amount <= Decimal("0.00"):
+            raise ValueError("المبلغ يجب أن يكون أكبر من صفر.")
+
+        if not payment_date:
+            payment_date = timezone.now().date()
+
+        try:
+            from financial.services.period_control_service import PeriodControlService
+            PeriodControlService.validate_period_open(payment_date)
+        except Exception as e:
+            logger.warning(f"Period validation note: {str(e)}")
+
+        with transaction.atomic():
+            customer = Customer.objects.select_for_update().get(pk=customer_id)
+            
+            from financial.models import ChartOfAccounts
+            fin_account = None
+            if financial_account_id:
+                fin_account = ChartOfAccounts.objects.filter(pk=financial_account_id).first()
+
+            from client.models import CustomerPayment
+            payment = CustomerPayment.objects.create(
+                customer=customer,
+                amount=amount,
+                payment_date=payment_date,
+                payment_method=payment_method,
+                reference_number=reference_number,
+                notes=notes,
+                created_by=user,
+                status="posted"
+            )
+
+            pay_txn, _ = CustomerTransaction.objects.get_or_create(
+                customer=customer,
+                transaction_number=f"PAY-{payment.id}",
+                defaults={
+                    "transaction_type": "ADVANCE",
+                    "reference_type": "CustomerPayment",
+                    "reference_id": str(payment.id),
+                    "issue_date": payment_date,
+                    "due_date": payment_date,
+                    "functional_amount": amount,
+                    "open_amount": amount,
+                    "open_amount_functional": amount,
+                    "status": "OPEN"
+                }
+            )
+
+            try:
+                advance_acc = ChartOfAccounts.objects.filter(code="20200").first()
+                debit_acc_code = fin_account.code if fin_account else (customer.financial_account.code if customer.financial_account else "10101")
+                if advance_acc:
+                    lines = [
+                        JournalEntryLineData(
+                            account_code=debit_acc_code,
+                            debit=amount,
+                            credit=Decimal("0.00"),
+                            description=f"تحصيل رصيد مسبق من العميل {customer.name}"
+                        ),
+                        JournalEntryLineData(
+                            account_code=advance_acc.code,
+                            debit=Decimal("0.00"),
+                            credit=amount,
+                            description=f"دفعة مقدمة للعميل {customer.name} - مرجع #{payment.id}"
+                        )
+                    ]
+                    gateway = AccountingGateway()
+                    gateway.create_journal_entry(
+                        source_module="client",
+                        source_model="CustomerPayment",
+                        source_id=payment.id,
+                        lines=lines,
+                        idempotency_key=f"JE:client:CustomerPayment:{payment.id}",
+                        user=user,
+                        entry_type="automatic",
+                        description=f"إثبات رصيد مسبق للعميل {customer.name}",
+                        reference=f"دفعة مقدمة #{payment.id}"
+                    )
+            except Exception as e:
+                logger.warning(f"لم يتم توليد قيد الدفعة المقدمة للعميل تلقائياً: {str(e)}")
+
+            return payment
+
+    @classmethod
+    def allocate_prepaid_bulk(
+        cls,
+        customer_id: int,
+        allocations_dict: Dict[int, Decimal],
+        user=None,
+        allocation_date=None
+    ) -> List[CustomerAllocationAudit]:
+        """
+        تخصيص جماعي لرصيد العميل المسبق على أكثر من فاتورة مبيعات بأسلوب محصن ذرية
+        مع إنشاء قيد تسوية تجميعي واحد بمرجعية تجميعية فريدة batch_reference
+        """
+        if not allocations_dict:
+            raise ValueError("لم يتم تحديد أي فواتير للتخصيص.")
+
+        if not allocation_date:
+            allocation_date = timezone.now().date()
+
+        try:
+            from financial.services.period_control_service import PeriodControlService
+            PeriodControlService.validate_period_open(allocation_date)
+        except Exception as e:
+            logger.warning(f"Period validation note: {str(e)}")
+
+        from sale.models import Sale, SalePayment
+        from client.models import CustomerPayment
+        from utils.templatetags.utils_extras import smart_float
+        from core.models import SystemSetting
+        currency_sym = SystemSetting.get_setting('currency_symbol', 'ج.م')
+
+        valid_allocations = {}
+        total_requested = Decimal("0.00")
+
+        for sale_id, amt in allocations_dict.items():
+            if amt is None:
+                continue
+            dec_amt = Decimal(str(amt)).quantize(Decimal("0.01"))
+            if dec_amt > Decimal("0.00"):
+                valid_allocations[int(sale_id)] = dec_amt
+                total_requested += dec_amt
+
+        if not valid_allocations or total_requested <= Decimal("0.00"):
+            raise ValueError("يرجى إدخال مبالغ تخصيص أكبر من صفر.")
+
+        import uuid
+        batch_reference = f"BATCH-CUST-{timezone.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:8].upper()}"
+
+        with transaction.atomic():
+            locked_customer = Customer.objects.select_for_update().get(pk=customer_id)
+            available_balance = locked_customer.available_prepaid_balance
+
+            if total_requested > available_balance:
+                raise ValueError(
+                    f"إجمالي مبالغ التخصيص المطلوبة ({smart_float(total_requested)} {currency_sym}) "
+                    f"يتجاوز رصيد العميل المسبق المتاح ({smart_float(available_balance)} {currency_sym})."
+                )
+
+            sales = list(
+                Sale.objects.select_for_update().filter(
+                    id__in=valid_allocations.keys(),
+                    customer=locked_customer,
+                    status="posted"
+                ).order_by("id")
+            )
+
+            customer_payments = list(
+                CustomerPayment.objects.select_for_update().filter(
+                    customer_id=locked_customer.id,
+                    status="posted"
+                ).order_by("payment_date", "created_at")
+            )
+
+            audits_created = []
+            total_actually_allocated = Decimal("0.00")
+            now = timezone.now()
+
+            for sale in sales:
+                req_amt = valid_allocations.get(sale.id, Decimal("0.00"))
+                if req_amt <= Decimal("0.00"):
+                    continue
+
+                open_sale_amount = sale.total - (sale.amount_paid or Decimal("0.00"))
+                if req_amt > open_sale_amount:
+                    raise ValueError(
+                        f"المبلغ المراد تخصيصه ({smart_float(req_amt)} {currency_sym}) "
+                        f"يتجاوز المتبقي من الفاتورة #{sale.number} ({smart_float(open_sale_amount)} {currency_sym})."
+                    )
+
+                remaining_for_sale = req_amt
+
+                inv_txn, _ = CustomerTransaction.objects.select_for_update().get_or_create(
+                    customer=locked_customer,
+                    transaction_number=sale.number,
+                    defaults={
+                        "transaction_type": "INVOICE",
+                        "reference_type": "Sale",
+                        "reference_id": str(sale.id),
+                        "issue_date": sale.date,
+                        "due_date": sale.date,
+                        "functional_amount": sale.total,
+                        "open_amount": open_sale_amount,
+                        "open_amount_functional": open_sale_amount,
+                        "status": "OPEN" if (sale.amount_paid or Decimal("0.00")) == Decimal("0.00") else "PARTIAL"
+                    }
+                )
+
+                for cp in customer_payments:
+                    if remaining_for_sale <= Decimal("0.00"):
+                        break
+
+                    already_allocated = sum(sp.amount for sp in SalePayment.objects.filter(customer_payment=cp))
+                    cp_remaining = max(Decimal("0.00"), cp.amount - already_allocated)
+
+                    if cp_remaining <= Decimal("0.00"):
+                        continue
+
+                    curr_alloc = min(cp_remaining, remaining_for_sale)
+                    remaining_for_sale -= curr_alloc
+                    total_actually_allocated += curr_alloc
+
+                    pay_txn, _ = CustomerTransaction.objects.select_for_update().get_or_create(
+                        customer=locked_customer,
+                        transaction_number=f"PAY-{cp.id}",
+                        defaults={
+                            "transaction_type": "ADVANCE",
+                            "reference_type": "CustomerPayment",
+                            "reference_id": str(cp.id),
+                            "issue_date": cp.payment_date,
+                            "due_date": cp.payment_date,
+                            "functional_amount": cp.amount,
+                            "open_amount": cp_remaining,
+                            "open_amount_functional": cp_remaining,
+                            "status": "PARTIAL" if cp_remaining > 0 else "CLOSED"
+                        }
+                    )
+
+                    pay_txn.open_amount = max(Decimal("0.00"), pay_txn.open_amount - curr_alloc)
+                    pay_txn.open_amount_functional = pay_txn.open_amount
+                    pay_txn.status = "CLOSED" if pay_txn.open_amount == Decimal("0.00") else "PARTIAL"
+                    pay_txn.save()
+
+                    inv_txn.open_amount = max(Decimal("0.00"), inv_txn.open_amount - curr_alloc)
+                    inv_txn.open_amount_functional = inv_txn.open_amount
+                    inv_txn.status = "CLOSED" if inv_txn.open_amount == Decimal("0.00") else "PARTIAL"
+                    inv_txn.save()
+
+                    ev_hash = cls.generate_evidence_hash(
+                        customer_id=locked_customer.id,
+                        payment_txn_id=pay_txn.id,
+                        invoice_txn_id=inv_txn.id,
+                        allocated_amount=curr_alloc,
+                        allocation_date=allocation_date,
+                        created_at=now
+                    )
+
+                    audit = CustomerAllocationAudit.objects.create(
+                        customer=locked_customer,
+                        allocation_reference=f"{batch_reference}-{len(audits_created)+1}",
+                        payment_transaction=pay_txn,
+                        invoice_transaction=inv_txn,
+                        source_document_type="ADVANCE_PAYMENT",
+                        source_document_number=f"PAY-{cp.id}",
+                        target_document_type="SALES_INVOICE",
+                        target_document_number=sale.number,
+                        allocation_type="ADVANCE_TO_INVOICE",
+                        allocated_amount=curr_alloc,
+                        functional_amount=curr_alloc,
+                        allocation_status="APPLIED",
+                        allocation_date=allocation_date,
+                        created_by=user,
+                        evidence_hash=ev_hash
+                    )
+                    audits_created.append(audit)
+
+                    SalePayment.objects.create(
+                        sale=sale,
+                        amount=curr_alloc,
+                        payment_date=cp.payment_date if (cp and getattr(cp, "payment_date", None)) else allocation_date,
+                        payment_method="prepaid_balance",
+                        source_type="PREPAID_BALANCE",
+                        customer_payment=cp,
+                        reference_number=batch_reference,
+                        notes=f"تخصيص جماعي من الرصيد المسبق للعميل (دفعة #{cp.id} - دفعة {batch_reference})",
+                        created_by=user or sale.created_by,
+                        status="posted",
+                        financial_status="synced"
+                    )
+
+                if hasattr(sale, "update_payment_status"):
+                    sale.update_payment_status()
+
+            if total_actually_allocated > Decimal("0.00") and locked_customer.financial_account:
+                try:
+                    from financial.models import ChartOfAccounts
+                    advance_acc = ChartOfAccounts.objects.filter(code="20200").first()
+                    if advance_acc:
+                        lines = [
+                            JournalEntryLineData(
+                                account_code=advance_acc.code,
+                                debit=total_actually_allocated,
+                                credit=Decimal("0.00"),
+                                description=f"إغلاق دفعات مقدمة للعميل {locked_customer.name} - دفعة {batch_reference}"
+                            ),
+                            JournalEntryLineData(
+                                account_code=locked_customer.financial_account.code,
+                                debit=Decimal("0.00"),
+                                credit=total_actually_allocated,
+                                description=f"تخصيص جماعي رصيد مسبق للعميل - دفعة {batch_reference}"
+                            )
+                        ]
+                        gateway = AccountingGateway()
+                        gateway.create_journal_entry(
+                            source_module="sale",
+                            source_model="CustomerAllocationAudit",
+                            source_id=audits_created[0].id if audits_created else locked_customer.id,
+                            lines=lines,
+                            idempotency_key=f"JE:bulk_alloc:{batch_reference}",
+                            user=user,
+                            entry_type="automatic",
+                            description=f"قيد تسوية تجميعي رصيد مسبق للعميل {locked_customer.name}",
+                            reference=batch_reference
+                        )
+                except Exception as e:
+                    logger.warning(f"لم يتم توليد قيد التسوية المحاسبي التلقائي لتخصيص العميل الجماعي: {str(e)}")
+
+            return audits_created
+

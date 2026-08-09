@@ -76,3 +76,15 @@
 - **Select2 Dropdown Integration Inside Modals**:
   - Select2 dropdowns placed inside Bootstrap modals MUST be initialized with `dropdownParent: $('#modal_id')` to prevent the dropdown menu from opening behind the modal backdrop overlay.
 
+## 9. Enterprise IAS 21 Multi-Currency Governance Architecture
+- **FX Revaluation Engine**: Revaluation must use modular DDD services in `financial/fx/services/` (`FXCalculationService`, `FXValidationService`, `FXPostingService`, `FXReversalService`) and domain models in `financial/fx/models/` (`FXRevaluationRun`, `FXRevaluationLine`, `FXRateSnapshot`, `FXApprovalWorkflow`).
+- **Period Close Automation**: Automated revaluation and posting MUST be integrated inside `PeriodControlService.close_period` and dated strictly at `period.end_date`.
+- **Period Re-open Audit Trail**: Reopening a closed period MUST trigger an audit-compliant reversal entry (`FXReversalService.reverse_run`) to preserve audit trail without hard-deleting posted entries.
+- **Idempotency & Concurrency Lock**: Active runs must be guarded by condition-based unique constraints (`VALIDATED`/`POSTED`) and source hashes (`source_hash`) to prevent double-posting or race condition edits.
+- **Rate Age Guard**: If an exchange rate age > 7 days, mandatory CFO approval (`RATE_OVERRIDE_APPROVAL`) is required before validation and posting.
+
+## 10. System Unified Toastr & UI Notification Standard
+- **System Toast Notification Helper**: For AJAX notifications and dynamic feedback, views MUST use the system unified helper `window.showNotification(message, type, title)` (or `window.showToastr(message, type)`).
+- **Toast Delay & Animation Completion**: When initiating a page reload after a Toast notification, `setTimeout` MUST wait at least `3100ms` (3.1 seconds) to allow Toastr's 3-second progress bar animation to complete 100% to the end smoothly before reloading.
+
+

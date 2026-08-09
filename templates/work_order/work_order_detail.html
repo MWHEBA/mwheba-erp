@@ -132,8 +132,7 @@
           <button class="nav-link fw-semibold px-3" id="transactions-tab" data-bs-toggle="tab"
             data-bs-target="#transactions" type="button" role="tab" aria-controls="transactions" aria-selected="false">
             <i class="fas fa-exchange-alt me-2"></i>{% trans "المعاملات المالية المباشرة" %}
-            <span class="badge rounded-pill bg-light text-secondary border ms-1">{{ financial_transactions.count
-              }}</span>
+            <span class="badge rounded-pill bg-light text-secondary border ms-1">{{ financial_transactions.count }}</span>
           </button>
         </li>
       </ul>
@@ -383,8 +382,7 @@
                   class="text-danger">*</span></label>
               <select class="form-select" id="payment_method" name="payment_method" required>
                 {% for account in cash_accounts %}
-                <option value="{{ account.code }}" {% if forloop.first %}selected{% endif %}>{{ account.name }} ({{
-                  account.code }})</option>
+                <option value="{{ account.code }}" {% if forloop.first %}selected{% endif %}>{{ account.name }} ({{ account.code }})</option>
                 {% endfor %}
               </select>
             </div>

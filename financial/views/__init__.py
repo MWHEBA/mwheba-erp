@@ -193,10 +193,7 @@ from .budget_views import (
     budget_performance_report,
 )
 
-# من revenue_recognition_views.py
-from .revenue_recognition_views import (
-    revenue_schedule_list,
-)
+
 
 # من tax_views.py
 from .tax_views import (

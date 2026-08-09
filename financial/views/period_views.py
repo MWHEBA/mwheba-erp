@@ -178,14 +178,15 @@ def accounting_period_wizard(request, pk):
 
 @login_required
 def accounting_periods_close(request, pk):
-    """إغلاق فترة محاسبية"""
+    """إغلاق فترة محاسبية مع الأتمتة التلقائية لتقييم العملات وحماية المسودات"""
     period = get_object_or_404(AccountingPeriod, pk=pk)
     if request.method == "POST":
-        period.status = "closed"
-        period.closed_at = timezone.now()
-        period.closed_by = request.user
-        period.save()
-        messages.success(request, f'تم إغلاق الفترة "{period.name}" بنجاح.')
+        from financial.services.period_control_service import PeriodControlService
+        try:
+            PeriodControlService.close_period(period.id, user=request.user)
+            messages.success(request, f'تم إغلاق الفترة "{period.name}" بنجاح مع أتمتة ترحيل فروق تقييم العملة (IAS 21).')
+        except Exception as e:
+            messages.error(request, f'تعذر إغلاق الفترة: {str(e)}')
         return redirect("financial:accounting_periods_list")
 
     context = {

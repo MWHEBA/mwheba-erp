@@ -256,39 +256,71 @@ def api_sync_exchange_rates(request):
 
 @login_required
 def fx_revaluation_view(request):
-    """معالج إعادة التقييم الدوري لفروق أسعار الصرف غير المحققة (IAS 21)"""
-    if request.method == "POST":
-        closing_date = request.POST.get("closing_date") or timezone.now().date()
-        res = FXRevaluationService.post_period_end_revaluation(as_of_date=closing_date, user=request.user)
-        if res.get("status") == "POSTED":
-            messages.success(request, f"{_('تم ترحيل قيد التقييم الدوري بنجاح. القيد رقم')} #{res['journal_entry_id']}")
-        else:
-            messages.info(request, res.get("message", _("لا توجد فروق تقييم مرحلة.")))
-        return redirect("financial:fx_revaluation")
+    """لوحة تدقيق ومحاكاة تقييم أسعار الصرف غير المحققة (IAS 21 Audit & Simulation Center)"""
+    from django.urls import reverse
+    from django.http import JsonResponse
+    from financial.models import AccountingPeriod
+    from financial.fx.models import FXRevaluationRun
+    from financial.fx.services import FXCalculationService
+    from financial.services.exchange_rate_sync_service import ExchangeRateSyncService
+
+    # 1. إمكانية تشغيل المزامنة الحية بأسعار البنك المركزي بطلب AJAX
+    if request.GET.get('action') == 'sync_cbe':
+        try:
+            res = ExchangeRateSyncService.sync_official_cbe_rates(user=request.user)
+            return JsonResponse({'status': 'success', 'message': _('تمت مزامنة أسعار الصرف الحية من البنك المركزي بنجاح.')})
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+
+    # 2. تحديد تاريخ المعاينة والفترة المحاسبية المستهدفة
+    as_of_str = request.GET.get('as_of_date')
+    if as_of_str:
+        try:
+            from datetime import datetime
+            as_of_date = datetime.strptime(as_of_str, "%Y-%m-%d").date()
+        except ValueError:
+            as_of_date = timezone.now().date()
+    else:
+        as_of_date = timezone.now().date()
+
+    period = AccountingPeriod.objects.filter(start_date__lte=as_of_date, end_date__gte=as_of_date).first()
+    if not period:
+        period = AccountingPeriod.objects.order_by('-end_date').first()
+
+    # 3. حساب وتوليد كائن الـ Run البنود للتأطير والـ Audit
+    run = None
+    if period:
+        try:
+            run = FXCalculationService.calculate_and_create_run(period=period, user=request.user)
+        except Exception as err:
+            messages.warning(request, f"{_('ملاحظة أثناء حساب معاينة التقييم')}: {err}")
 
     preview_data = FXRevaluationService.calculate_open_items_revaluation()
-    from django.urls import reverse
+    latest_runs = FXRevaluationRun.objects.all().order_by('-created_at')[:5]
+
     header_buttons = [
         {
             "text": _("دليل العملات"),
-            "icon": "fa-arrow-right",
+            "icon": "fa-coins",
             "url": reverse("financial:currency_list"),
             "class": "btn-outline-secondary"
         }
     ]
 
     breadcrumb_items = [
-        {"title": _("الرئيسية"), "url": "/", "icon": "fa-home"},
-        {"title": _("الإدارة المالية"), "url": "#", "icon": "fa-landmark"},
-        {"title": _("دليل العملات"), "url": reverse("financial:currency_list")},
-        {"title": _("إعادة التقييم الدوري (IAS 21)"), "active": True}
+        {"title": _("الرئيسية"), "url": reverse("core:dashboard"), "icon": "fa-home"},
+        {"title": _("الحسابات العامة"), "url": reverse("financial:chart_of_accounts_list"), "icon": "fa-book-open"},
+        {"title": _("معاينة تقييم العملات"), "active": True}
     ]
 
     return render(request, "financial/currency/fx_revaluation_form.html", {
-        "page_title": _("معالج تقييم العملة غير المحقق الدوري (IAS 21)"),
-        "page_subtitle": _("إعادة تقييم الفواتير والذمم والبنود المفتوحة بسعر إقفال نهاية الفترة وتوليد قيود التسوية"),
+        "page_title": _("معاينة تقييم العملات"),
+        "page_subtitle": _("مركز المحاكاة والتدقيق المحاسبي الحي لتقييم الفواتير والذمم المفتوحة وحسابات النقدية الأجنبية"),
         "page_icon": "fas fa-calculator",
         "header_buttons": header_buttons,
         "breadcrumb_items": breadcrumb_items,
-        "preview": preview_data
+        "preview": preview_data,
+        "run": run,
+        "latest_runs": latest_runs,
+        "selected_date": as_of_date
     })

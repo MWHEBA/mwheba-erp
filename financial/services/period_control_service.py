@@ -148,6 +148,22 @@ class PeriodControlService:
                 f"لا يمكن إغلاق الفترة المحاسبية {period.name}: يوجد {draft_count} قيد مسودة غير مرحل."
             )
 
+        # 1. أتمتة مزامنة أسعار الصرف الرسمية
+        try:
+            from financial.services.exchange_rate_sync_service import ExchangeRateSyncService
+            ExchangeRateSyncService.sync_official_cbe_rates(user=user)
+        except Exception as sync_err:
+            logger.warning(f"ملاحظة أثناء مزامنة أسعار الصرف عند إغلاق الفترة {period.name}: {sync_err}")
+
+        # 2. تشغيل واعتماد وترحيل تقييم أسعار الصرف غير المحققة (IAS 21) تلقائياً بالمسار المحوكم
+        try:
+            from financial.fx.services import FXCalculationService, FXValidationService, FXPostingService
+            fx_run = FXCalculationService.calculate_and_create_run(period=period, user=user)
+            FXValidationService.validate_run(fx_run, user=user)
+            FXPostingService.post_run(fx_run, user=user)
+        except Exception as fx_err:
+            logger.warning(f"ملاحظة أثناء أتمتة تقييم العملات IAS 21 عند إغلاق الفترة {period.name}: {fx_err}")
+
         period.status = 'closed'
         period.closed_at = timezone.now()
         period.closed_by = user
@@ -160,13 +176,27 @@ class PeriodControlService:
     @transaction.atomic
     def reopen_period(cls, period_id: int, user=None) -> AccountingPeriod:
         """
-        إعادة فتح فترة محاسبية مغلقة (مخولة للمدير المالي)
+        إعادة فتح فترة محاسبية مغلقة (مخولة للمدير المالي) مع ترحيل قيد التقييم العكسي
         """
         period = AccountingPeriod.objects.select_for_update().get(pk=period_id)
-        if period.status == 'hard_closed':
-            raise PeriodClosedError(_("لا يمكن إعادة فتح فترة محاسبية مقفلة إقفالاً نهائياً."))
+
+        if period.status != 'closed':
+            logger.info(f"الفترة المحاسبية {period.name} ليست مغلقة.")
+            return period
+
+        # ترحيل القيد العكسي للتشغيلات المـرحلة سابقاً لتوثيق الحركة بسلامة في سجل التدقيق
+        try:
+            from financial.fx.models import FXRevaluationRun
+            from financial.fx.services import FXReversalService
+            posted_runs = FXRevaluationRun.objects.filter(period=period, status='POSTED')
+            for run in posted_runs:
+                FXReversalService.reverse_run(run, user=user, reason=f"إعادة فتح الفترة المحاسبية {period.name}")
+        except Exception as rev_err:
+            logger.warning(f"ملاحظة أثناء ترحيل القيد العكسي لتقييم العملات عند إعادة فتح الفترة: {rev_err}")
 
         period.status = 'open'
+        period.closed_at = None
+        period.closed_by = None
         period.save()
 
         logger.info(f"🔓 تم إعادة فتح الفترة المحاسبية: {period.name}")

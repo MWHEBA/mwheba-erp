@@ -77,11 +77,11 @@ def customer_list(request):
         {"key": "phone", "label": "رقم الهاتف", "sortable": False},
         {"key": "address", "label": "العنوان", "sortable": False},
         {
-            "key": "actual_balance",
+            "key": "actual_balance_display",
             "label": "المديونية",
             "sortable": True,
-            "format": "currency",
-            "decimals": 2,
+            "format": "html",
+            "class": "text-center",
         },
         {"key": "is_active", "label": "الحالة", "sortable": True, "format": "boolean"},
     ]
@@ -106,7 +106,7 @@ def customer_list(request):
     allowed_sort_fields = {
         'name': 'name',
         'code': 'code',
-        'actual_balance': 'balance',
+        'actual_balance_display': 'balance',
         'is_active': 'is_active',
     }
 
@@ -120,6 +120,17 @@ def customer_list(request):
     )
 
     page_obj = pagination_data['page_obj']
+    
+    from financial.services.partner_exposure_service import BusinessPartnerExposureService
+    from core.presenters.currency_exposure_presenter import CurrencyExposurePresenter
+
+    page_customer_ids = [c.pk for c in page_obj]
+    exposure_map = BusinessPartnerExposureService.get_open_balances("customer", page_customer_ids)
+
+    for c in page_obj:
+        customer_dtos = exposure_map.get(c.pk, [])
+        c.actual_balance_display = CurrencyExposurePresenter.render_html_badges(customer_dtos)
+
     customers = page_obj
 
     from core.models import SystemSetting
@@ -952,8 +963,14 @@ def customer_detail(request, pk):
         "unallocated_prepaid": unallocated_prepaid,
     }
 
-    from client.services.customer_subledger_service import CustomerSubledgerService
-    context["balances_by_currency"] = CustomerSubledgerService.get_customer_balances_by_currency(customer.id)
+    from financial.models import ChartOfAccounts
+    from django.db.models import Q
+    context["financial_accounts"] = list(
+        ChartOfAccounts.objects.filter(
+            Q(is_cash_account=True) | Q(is_bank_account=True) | Q(code__startswith="101"),
+            is_active=True
+        ).order_by("code")
+    )
 
     from core.models import SystemSetting
     currency_symbol = SystemSetting.get_currency_symbol()
@@ -965,12 +982,26 @@ def customer_detail(request, pk):
             "class": "bg-primary",
             "icon": "fas fa-hashtag",
         },
-        {
+    ]
+
+    from financial.services.partner_exposure_service import BusinessPartnerExposureService
+    from core.presenters.currency_exposure_presenter import CurrencyExposurePresenter
+
+    customer_dtos = BusinessPartnerExposureService.get_open_balances("customer", [customer.id]).get(customer.id, [])
+    for vm in CurrencyExposurePresenter.build_view_models(customer_dtos):
+        header_badges.append({
+            "is_badge": True,
+            "icon": vm.icon,
+            "text": f"{vm.label}: {vm.formatted_amount} {vm.currency_symbol}",
+            "class": vm.variant
+        })
+
+    if not customer_dtos and customer.actual_balance != Decimal("0.00"):
+        header_badges.append({
             "text": f"المديونية: {smart_float(customer.actual_balance)} {currency_symbol}",
             "class": "bg-success" if customer.actual_balance <= 0 else "bg-danger",
             "icon": "fas fa-arrow-down" if customer.actual_balance <= 0 else "fas fa-arrow-up",
-        },
-    ]
+        })
     if unallocated_prepaid > Decimal("0.00"):
         header_badges.append({
             "text": f"رصيد مسبق: {smart_float(unallocated_prepaid)} {currency_symbol}",
@@ -980,11 +1011,20 @@ def customer_detail(request, pk):
             "action_text": "توزيع",
             "action_icon": "fas fa-random",
             "action_class": "bg-warning-subtle text-dark border border-warning-subtle",
-            "action_onclick": f"const m = document.getElementById('prepaidAllocationModal'); if(m){{ new bootstrap.Modal(m).show(); }} else {{ const form = document.createElement('form'); form.method = 'POST'; form.action = '{reverse('client:allocate_customer_prepaid', kwargs={'pk': customer.id})}'; const csrf = document.querySelector('[name=csrfmiddlewaretoken]'); if(csrf) form.appendChild(csrf.cloneNode()); const auto = document.createElement('input'); auto.type='hidden'; auto.name='auto_fifo_all'; auto.value='true'; form.appendChild(auto); document.body.appendChild(form); form.submit(); }}",
+            "action_onclick": "const m = document.getElementById('prepaidAllocationModal'); if(m){ new bootstrap.Modal(m).show(); }",
             "action_title": "توزيع الرصيد المسبق على الفواتير المفتوحة",
         })
     context["header_badges"] = header_badges
     context["header_buttons"] = [
+        {
+            "url": "#",
+            "icon": "fa-plus-circle",
+            "text": "تحصيل رصيد مسبق",
+            "class": "btn-primary",
+            "toggle": "modal",
+            "target": "#addCustomerAdvanceModal",
+            "title": "تحصيل رصيد مسبق / دفعة مقدمة من العميل",
+        },
         {
             "url": reverse("sale:sale_create_for_customer", kwargs={"customer_id": customer.id}),
             "icon": "fa-file-invoice-dollar",
@@ -1260,74 +1300,105 @@ def customer_aging_api(request, pk):
 
 
 @login_required
-def allocate_customer_prepaid(request, pk):
+def add_customer_advance_action(request, pk):
     """
-    تخصيص الرصيد المسبق للعميل على الفواتير المفتوحة (تخصيص آلي أو محدد)
+    إضافة رصيد مسبق / مقبوضات مقدمة جديدة للعميل
     """
     customer = get_object_or_404(Customer, pk=pk)
     if request.method == "POST":
-        from sale.models import Sale
         from client.services.customer_allocation_audit_service import CustomerAllocationAuditService
         from decimal import Decimal
 
-        sale_id = request.POST.get("sale_id")
-        auto_fifo_all = request.POST.get("auto_fifo_all") == "true"
         amount_str = request.POST.get("amount")
+        payment_date_str = request.POST.get("payment_date")
+        payment_method = request.POST.get("payment_method", "cash")
+        financial_account_id = request.POST.get("financial_account")
+        reference_number = request.POST.get("reference_number")
+        notes = request.POST.get("notes")
 
-        open_sales = Sale.objects.filter(
-            customer=customer,
-            payment_status__in=["unpaid", "partially_paid"],
-            status="confirmed"
-        ).order_by("date", "id")
-
-        if not open_sales.exists():
-            messages.warning(request, _("لا توجد فواتير مبيعات مفتوحة لهذا العميل لتخصيص الرصيد عليها."))
-            return redirect("client:customer_detail", pk=pk)
-
-        allocated_count = 0
-        total_allocated_sum = Decimal("0.00")
-
-        if auto_fifo_all:
-            for sale in open_sales:
-                avail = customer.available_prepaid_balance
-                if avail <= Decimal("0.00"):
-                    break
-                due = sale.amount_due
-                if due <= Decimal("0.00"):
-                    continue
-                alloc = min(avail, due)
-                try:
-                    CustomerAllocationAuditService.allocate_customer_prepaid_balance_to_sale(
-                        sale=sale,
-                        amount_to_allocate=alloc,
-                        user=request.user
-                    )
-                    allocated_count += 1
-                    total_allocated_sum += alloc
-                except Exception as e:
-                    logger.warning(f"Failed to allocate prepaid to sale #{sale.id}: {str(e)}")
-            if allocated_count > 0:
-                messages.success(request, f"تم تخصيص إجمالي {total_allocated_sum} ج.م على {allocated_count} فاتورة مفتوحة بنجاح.")
-            else:
-                messages.info(request, "لم يتم إجراء تخصيصات جديدة.")
-        elif sale_id:
-            sale = get_object_or_404(Sale, pk=sale_id, customer=customer)
-            avail = customer.available_prepaid_balance
-            alloc = Decimal(amount_str) if amount_str else min(avail, sale.amount_due)
-            if alloc <= Decimal("0.00"):
-                messages.error(request, "يرجى إدخال مبلغ تخصيص أكبر من صفر.")
-            elif alloc > avail:
-                messages.error(request, f"المبلغ المطلوبة ({alloc}) يتجاوز الرصيد المسبق المتاح ({avail}).")
-            else:
-                try:
-                    CustomerAllocationAuditService.allocate_customer_prepaid_balance_to_sale(
-                        sale=sale,
-                        amount_to_allocate=alloc,
-                        user=request.user
-                    )
-                    messages.success(request, f"تم تخصيص {alloc} ج.م من الرصيد المسبق على الفاتورة #{sale.number} بنجاح.")
-                except Exception as e:
-                    messages.error(request, f"حدث خطأ أثناء التخصيص: {str(e)}")
+        if amount_str:
+            try:
+                amt = Decimal(amount_str)
+                fin_acc_id = int(financial_account_id) if (financial_account_id and str(financial_account_id).isdigit()) else None
+                
+                payment = CustomerAllocationAuditService.create_customer_advance_payment(
+                    customer_id=customer.id,
+                    amount=amt,
+                    payment_date=payment_date_str if payment_date_str else None,
+                    payment_method=payment_method,
+                    financial_account_id=fin_acc_id,
+                    reference_number=reference_number,
+                    notes=notes,
+                    user=request.user
+                )
+                messages.success(request, f"تم تحصيل رصيد مسبق بقيمة {amt} ج.م من العميل بنجاح (مرجع #{payment.id}).")
+            except Exception as e:
+                messages.error(request, f"حدث خطأ أثناء تحصيل الرصيد المسبق: {str(e)}")
+        else:
+            messages.error(request, "يرجى إدخال مبلغ الرصيد المسبق بشكل صحيح.")
 
     return redirect("client:customer_detail", pk=pk)
+
+
+@login_required
+def allocate_customer_prepaid(request, pk):
+    """
+    تخصيص الرصيد المسبق للعميل على الفواتير المفتوحة (تخصيص جماعي أو فردي)
+    """
+    customer = get_object_or_404(Customer, pk=pk)
+    if request.method == "POST":
+        from client.services.customer_allocation_audit_service import CustomerAllocationAuditService
+        from decimal import Decimal
+
+        sale_ids = request.POST.getlist("sale_ids[]") or request.POST.getlist("sale_ids")
+        amounts = request.POST.getlist("amounts[]") or request.POST.getlist("amounts")
+
+        allocations_dict = {}
+        if sale_ids and amounts and len(sale_ids) == len(amounts):
+            for sid, amt_s in zip(sale_ids, amounts):
+                if sid and amt_s:
+                    try:
+                        d_amt = Decimal(str(amt_s))
+                        if d_amt > Decimal("0.00"):
+                            allocations_dict[int(sid)] = d_amt
+                    except Exception:
+                        pass
+
+        if allocations_dict:
+            try:
+                audits = CustomerAllocationAuditService.allocate_prepaid_bulk(
+                    customer_id=customer.id,
+                    allocations_dict=allocations_dict,
+                    user=request.user
+                )
+                total_alloc = sum(a.allocated_amount for a in audits)
+                messages.success(request, f"تم التوزيع الجماعي بقيمة إجمالية {total_alloc} ج.م على {len(audits)} معاملة بنجاح.")
+            except Exception as e:
+                messages.error(request, f"حدث خطأ أثناء التوزيع الجماعي: {str(e)}")
+        else:
+            sale_id = request.POST.get("sale_id")
+            amount_str = request.POST.get("amount")
+
+            if sale_id:
+                from sale.models import Sale
+                sale = get_object_or_404(Sale, pk=sale_id, customer=customer)
+                avail = customer.available_prepaid_balance
+                alloc = Decimal(amount_str) if amount_str else min(avail, sale.amount_due)
+                if alloc <= Decimal("0.00"):
+                    messages.error(request, "يرجى إدخال مبلغ تخصيص أكبر من صفر.")
+                elif alloc > avail:
+                    messages.error(request, f"المبلغ المطلوب ({alloc}) يتجاوز الرصيد المسبق المتاح ({avail}).")
+                else:
+                    try:
+                        CustomerAllocationAuditService.allocate_customer_prepaid_balance_to_sale(
+                            sale=sale,
+                            amount_to_allocate=alloc,
+                            user=request.user
+                        )
+                        messages.success(request, f"تم تخصيص {alloc} ج.م من الرصيد المسبق على الفاتورة #{sale.number} بنجاح.")
+                    except Exception as e:
+                        messages.error(request, f"حدث خطأ أثناء التخصيص: {str(e)}")
+
+    return redirect("client:customer_detail", pk=pk)
+
 

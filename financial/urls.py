@@ -417,8 +417,7 @@ urlpatterns = [
     path("reports/profitability/export/excel/", views.export_profitability_excel, name="profitability_export_excel"),
     path("reports/profitability/<str:code>/export/excel/", views.export_category_detail_excel, name="category_detail_export_excel"),
 
-    # الإيرادات المؤجلة والضرائب والأرصدة الافتتاحية وصندوق الموافقات
-    path("revenue-schedules/", views.revenue_schedule_list, name="revenue_schedule_list"),
+    # الضرائب والأرصدة الافتتاحية وصندوق الموافقات
     path("tax-codes/", views.tax_code_list, name="tax_code_list"),
     path("opening-balances/", views.opening_balance_list, name="opening_balance_list"),
     path("opening-balances/create/", views.opening_balance_wizard, name="opening_balance_create"),

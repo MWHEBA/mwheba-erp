@@ -40,6 +40,14 @@ def custom_number_format(value, decimals=2):
 
 
 @register.filter
+def smart_float(value, decimal_places=2):
+    """
+    فلتر ذكي للأرقام - يخفي العلامة العشرية للأرقام الصحيحة ويضيف فواصل الآلاف
+    """
+    return custom_number_format(value, decimal_places)
+
+
+@register.filter
 def custom_load_json(json_string):
     """
     تحويل سلسلة JSON إلى كائن بايثون

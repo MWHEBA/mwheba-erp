@@ -9,7 +9,7 @@ import logging
 from decimal import Decimal
 from typing import Dict, Any, List
 from django.utils import timezone
-from django.db import transaction
+from django.db import transaction, models
 
 from financial.services.exchange_rate_service import ExchangeRateService
 from financial.services.ledger_core_service import LedgerCoreService
@@ -29,7 +29,14 @@ class FXRevaluationService:
         """
         حساب فروق التقييم غير المحققة لكافة الفواتير والذمم المفتوحة حتى تاريخ معين
         """
-        as_of_date = as_of_date or timezone.now().date()
+        if isinstance(as_of_date, str):
+            from datetime import datetime
+            try:
+                as_of_date = datetime.strptime(as_of_date, "%Y-%m-%d").date()
+            except ValueError:
+                as_of_date = timezone.now().date()
+        else:
+            as_of_date = as_of_date or timezone.now().date()
         func_curr = ExchangeRateService.get_functional_currency()
         if not func_curr:
             from django.core.exceptions import ValidationError
@@ -157,6 +164,50 @@ class FXRevaluationService:
         }
 
     @classmethod
+    def _get_or_create_fx_unrealized_account(cls):
+        from financial.models.chart_of_accounts import ChartOfAccounts, AccountType
+        acc = ChartOfAccounts.objects.filter(
+            is_leaf=True,
+            is_active=True
+        ).filter(
+            models.Q(code__in=["71020", "71020_UNREALIZED_FX_GAIN_LOSS", "420101", "520101"]) |
+            models.Q(name__icontains="فروق تقييم") |
+            models.Q(name__icontains="فروق عملة")
+        ).first()
+        if not acc:
+            acc_type = AccountType.objects.filter(category__in=["revenue", "expense", "other_income"]).first() or AccountType.objects.first()
+            acc = ChartOfAccounts.objects.create(
+                code="71020_UNREALIZED_FX_GAIN_LOSS",
+                name="حساب فروق تقييم أسعار الصرف غير المحققة (IAS 21)",
+                account_type=acc_type,
+                is_active=True,
+                is_leaf=True
+            )
+        return acc
+
+    @classmethod
+    def _get_or_create_ar_revaluation_account(cls):
+        from financial.models.chart_of_accounts import ChartOfAccounts, AccountType
+        acc = ChartOfAccounts.objects.filter(
+            is_leaf=True,
+            is_active=True
+        ).filter(
+            models.Q(code__in=["1101001", "1103001", "11010_AR", "120100"]) |
+            models.Q(name__icontains="عملاء") |
+            models.Q(name__icontains="مدينون")
+        ).first()
+        if not acc:
+            acc_type = AccountType.objects.filter(category="asset").first() or AccountType.objects.first()
+            acc = ChartOfAccounts.objects.create(
+                code="11010_AR",
+                name="حساب ذمم العملاء والتقييم المحاسبي",
+                account_type=acc_type,
+                is_active=True,
+                is_leaf=True
+            )
+        return acc
+
+    @classmethod
     def post_period_end_revaluation(cls, as_of_date=None, user=None) -> Dict[str, Any]:
         """
         إنشاء وترحيل قيد التقييم الدوري لفروق أسعار الصرف غير المحققة
@@ -169,18 +220,19 @@ class FXRevaluationService:
 
         with transaction.atomic():
             lines = []
-            func_code = data["functional_currency"]
+            ar_account = cls._get_or_create_ar_revaluation_account()
+            fx_account = cls._get_or_create_fx_unrealized_account()
 
             if total_diff > Decimal("0.00"):
                 # Debit AR Revaluation Adjustment / Credit Unrealized Gain
                 lines.append({
-                    "account_code": "11010_AR",
+                    "account": ar_account,
                     "debit": total_diff,
                     "credit": Decimal("0.00"),
                     "description": f"تسوية تقييم ذمم عملاء غير محققة - فترة {data['as_of_date']}"
                 })
                 lines.append({
-                    "account_code": "71020_UNREALIZED_FX_GAIN_LOSS",
+                    "account": fx_account,
                     "debit": Decimal("0.00"),
                     "credit": total_diff,
                     "description": f"أرباح فروق تقييم غير محققة (IAS 21) - فترة {data['as_of_date']}"
@@ -189,13 +241,13 @@ class FXRevaluationService:
                 abs_diff = abs(total_diff)
                 # Debit Unrealized Loss / Credit AR Revaluation Adjustment
                 lines.append({
-                    "account_code": "71020_UNREALIZED_FX_GAIN_LOSS",
+                    "account": fx_account,
                     "debit": abs_diff,
                     "credit": Decimal("0.00"),
                     "description": f"خسائر فروق تقييم غير محققة (IAS 21) - فترة {data['as_of_date']}"
                 })
                 lines.append({
-                    "account_code": "11010_AR",
+                    "account": ar_account,
                     "debit": Decimal("0.00"),
                     "credit": abs_diff,
                     "description": f"تسوية تقييم ذمم عملاء غير محققة - فترة {data['as_of_date']}"
@@ -210,7 +262,7 @@ class FXRevaluationService:
                 lines_data=lines,
                 source_module="FINANCIAL",
                 source_model="FXRevaluation",
-                source_id=int(data["as_of_date"].strftime("%Y%m%d"))
+                source_id=int(data["as_of_date"].strftime("%Y%m%d")) if hasattr(data["as_of_date"], "strftime") else int(str(data["as_of_date"]).replace("-", ""))
             )
             posted_entry = LedgerCoreService.post_entry(draft_entry.id, user=user)
 

@@ -59,7 +59,10 @@ class LedgerCoreService:
             for item in lines_data:
                 account = item.get("account")
                 if not account and item.get("account_code"):
-                    account = ChartOfAccounts.objects.get(code=item["account_code"])
+                    account = ChartOfAccounts.objects.filter(code=item["account_code"]).first()
+                    if not account:
+                        from django.core.exceptions import ValidationError
+                        raise ValidationError(f"الحساب المحاسبي بالكود '{item['account_code']}' غير موجود في دليل الحسابات.")
                 debit = Decimal(str(item.get("debit", 0)))
                 credit = Decimal(str(item.get("credit", 0)))
                 line_desc = item.get("description", description)

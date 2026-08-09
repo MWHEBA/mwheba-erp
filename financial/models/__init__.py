@@ -40,6 +40,7 @@ from .categories import FinancialCategory, CategoryBudget, FinancialSubcategory
 from .audit_trail import AuditTrail, PaymentAuditMixin
 from .invoice_audit_log import InvoiceAuditLog
 from .partner_transactions import PartnerTransaction, PartnerBalance
+from .partner_currency_balance_snapshot import PartnerCurrencyBalanceSnapshot
 from .partner_settings import PartnerSettings, PartnerPermission, PartnerAuditLog
 
 # استيراد آمن للنماذج الاختيارية
@@ -82,6 +83,12 @@ from .tax import (
     TaxAdjustment,
 )
 from .revenue_recognition import RevenueRecognitionPolicy, RevenueRecognitionSchedule, RevenueRecognitionScheduleLine, RevenueRecognitionEntry, RevenueRecognitionAccountMapping, RevenueRecognitionReversal
+from financial.fx.models import (
+    FXRevaluationRun,
+    FXRevaluationLine,
+    FXRateSnapshot,
+    FXApprovalWorkflow,
+)
 from .approval import EnterpriseApprovalRule, EnterpriseApprovalRequest, EnterpriseApprovalStep, EnterpriseApprovalAuditLog
 
 __all__ = [
@@ -134,4 +141,9 @@ __all__ = [
     "ExpenseTransaction",
     "IncomeTransaction",
     "TransactionAttachment",
+    # نماذج تقييم العملات المحوكمة (IAS 21)
+    "FXRevaluationRun",
+    "FXRevaluationLine",
+    "FXRateSnapshot",
+    "FXApprovalWorkflow",
 ]

@@ -1,0 +1,17 @@
+{% comment %}
+مكون مستقل لاستعراض شارات التاجات متعددة العملات لشركاء الأعمال
+الاستخدام:
+{% include "components/currency_balance_badge.html" with badges=currency_badges %}
+{% endcomment %}
+
+{% if badges %}
+  <div class="d-inline-flex flex-wrap gap-1 align-items-center">
+    {% for b in badges %}
+      <span class="badge {{ b.variant }} font-monospace p-2 shadow-sm" title="{{ b.label }}: {{ b.formatted_amount }} {{ b.currency }}">
+        <i class="{{ b.icon }} me-1"></i>{{ b.formatted_amount }} {{ b.currency }}
+      </span>
+    {% endfor %}
+  </div>
+{% else %}
+  <span class="text-muted font-monospace">-</span>
+{% endif %}

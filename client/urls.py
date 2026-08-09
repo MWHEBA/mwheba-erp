@@ -30,4 +30,9 @@ urlpatterns = [
         views.allocate_customer_prepaid,
         name="allocate_customer_prepaid",
     ),
+    path(
+        "<int:pk>/add-advance/",
+        views.add_customer_advance_action,
+        name="add_customer_advance",
+    ),
 ]

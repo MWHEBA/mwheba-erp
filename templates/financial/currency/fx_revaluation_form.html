@@ -1,8 +1,9 @@
 {% extends 'base.html' %}
 {% load static %}
 {% load i18n %}
+{% load custom_filters %}
 
-{% block title %}{% trans "معالج إعادة التقييم الدوري للعملات (IAS 21)" %}{% endblock %}
+{% block title %}{% trans "معاينة تقييم العملات" %} | {% trans "MWHEBA ERP" %}{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
@@ -10,113 +11,253 @@
 
 {% block content %}
 <div class="container-fluid">
-  <!-- Page Header الموحد -->
-  {% include "shared/page_header.html" %}
+    <!-- 1. Central Page Header -->
+    {% include "shared/page_header.html" %}
 
-  <!-- Wizard Form Card -->
-  <div class="card border-0 shadow-sm p-4 mb-4">
-    <h5 class="fw-bold mb-3"><i class="fas fa-filter me-2 text-primary"></i>{% trans "محددات إعادة التقييم الدوري (IAS 21)" %}</h5>
-    <form action="" method="POST" id="revaluationForm">
-      {% csrf_token %}
-      <div class="row g-3 align-items-end">
-        <div class="col-md-4">
-          <label class="form-label font-bold">{% trans "تاريخ إقفال الفترة (Closing Date)" %}</label>
-          <input type="date" name="closing_date" class="form-control" value="{% now 'Y-m-d' %}" required>
+    <!-- 2. Operational KPI Summary Grid (AGENTS.md Rule 7: Direct Grid Row) -->
+    <div class="row g-3 mb-4">
+        <!-- KPI 1: Net Unrealized FX Difference -->
+        <div class="col-md-6 col-lg-3">
+            <div class="stats-card {% if run.total_unrealized_gain_loss >= 0 or preview.total_unrealized_gain_loss >= 0 %}stats-card-success{% else %}stats-card-danger{% endif %}">
+                <div class="stats-card-header"></div>
+                <div class="stats-card-body">
+                    <div class="stats-card-icon">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <div class="stats-card-title">{% trans "صافي فروق التقييم" %}</div>
+                    <div class="stats-card-value font-monospace">
+                        {% if run %}{{ run.total_unrealized_gain_loss }}{% else %}{{ preview.total_unrealized_gain_loss|default:"0.00" }}{% endif %}
+                        <small class="fs-6 text-muted">EGP</small>
+                    </div>
+                </div>
+            </div>
         </div>
-        <div class="col-md-4">
-          <label class="form-label font-bold">{% trans "حساب فروق التقييم غير المحققة" %}</label>
-          <input type="text" class="form-control font-monospace" value="71020_UNREALIZED_FX_GAIN_LOSS" readonly>
-        </div>
-        <div class="col-md-4">
-          <button type="submit" class="btn btn-success text-white w-100 fw-bold">
-            <i class="fas fa-check-circle me-1"></i> {% trans "اعتماد وتثبيت قيد التقييم الدوري" %}
-          </button>
-        </div>
-      </div>
-    </form>
-  </div>
 
-  <!-- Preview Results Section -->
-  <div class="section-container">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-      <h5 class="section-title mb-0">
-        <i class="fas fa-list-alt me-2"></i>{% trans "معاينة البنود المفتوحة والخزن الأجنبية (IAS 21 Preview)" %}
-      </h5>
-      <span class="badge bg-primary fs-6">
-        {% trans "صافي فروق الصرف غير المحققة" %}: {{ preview.total_unrealized_gain_loss|default:"0.00" }} {{ preview.functional_currency|default:"EGP" }}
-      </span>
+        <!-- KPI 2: Open Customer Items (AR) -->
+        <div class="col-md-6 col-lg-3">
+            <div class="stats-card stats-card-info">
+                <div class="stats-card-header"></div>
+                <div class="stats-card-body">
+                    <div class="stats-card-icon">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <div class="stats-card-title">{% trans "ذمم العملاء (AR)" %}</div>
+                    <div class="stats-card-value">{{ preview.customer_items|length }}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- KPI 3: Open Supplier Items (AP) -->
+        <div class="col-md-6 col-lg-3">
+            <div class="stats-card stats-card-warning">
+                <div class="stats-card-header"></div>
+                <div class="stats-card-body">
+                    <div class="stats-card-icon">
+                        <i class="fas fa-truck"></i>
+                    </div>
+                    <div class="stats-card-title">{% trans "ذمم الموردين (AP)" %}</div>
+                    <div class="stats-card-value">{{ preview.supplier_items|length }}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- KPI 4: Foreign Cash & Bank Accounts -->
+        <div class="col-md-6 col-lg-3">
+            <div class="stats-card stats-card-info">
+                <div class="stats-card-header"></div>
+                <div class="stats-card-body">
+                    <div class="stats-card-icon">
+                        <i class="fas fa-landmark"></i>
+                    </div>
+                    <div class="stats-card-title">{% trans "خزن وبنوك أجنبية" %}</div>
+                    <div class="stats-card-value">{{ preview.cash_items|length }}</div>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <div class="table-responsive">
-      <table class="table table-hover align-middle custom-table">
-        <thead class="table-light">
-          <tr>
-            <th>#</th>
-            <th>{% trans "النوع" %}</th>
-            <th>{% trans "الحساب / المستند / العميل" %}</th>
-            <th>{% trans "العملة" %}</th>
-            <th class="text-end">{% trans "الرصيد الأجنبي" %}</th>
-            <th class="text-end">{% trans "سعر الإقفال" %}</th>
-            <th class="text-end">{% trans "المعادل الحالي بالجنيه" %}</th>
-            <th class="text-end">{% trans "فرق التقييم غير المحقق" %}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for item in preview.customer_items %}
-          <tr>
-            <td>{{ forloop.counter }}</td>
-            <td><span class="badge bg-info">AR (عملاء)</span></td>
-            <td>{{ item.customer }} (عقد #{{ item.transaction_id }})</td>
-            <td><strong>{{ item.currency }}</strong></td>
-            <td class="text-end font-monospace">{{ item.open_foreign }}</td>
-            <td class="text-end font-monospace">{{ item.closing_rate }}</td>
-            <td class="text-end font-monospace">{{ item.closing_functional }}</td>
-            <td class="text-end font-monospace {% if item.unrealized_diff >= 0 %}text-success{% else %}text-danger{% endif %} fw-bold">
-              {{ item.unrealized_diff }}
-            </td>
-          </tr>
-          {% endfor %}
-
-          {% for item in preview.supplier_items %}
-          <tr>
-            <td>{{ forloop.counter }}</td>
-            <td><span class="badge bg-warning text-dark">AP (موردين)</span></td>
-            <td>{{ item.supplier }} (فاتورة #{{ item.transaction_id }})</td>
-            <td><strong>{{ item.currency }}</strong></td>
-            <td class="text-end font-monospace">{{ item.open_foreign }}</td>
-            <td class="text-end font-monospace">{{ item.closing_rate }}</td>
-            <td class="text-end font-monospace">{{ item.closing_functional }}</td>
-            <td class="text-end font-monospace {% if item.unrealized_diff >= 0 %}text-success{% else %}text-danger{% endif %} fw-bold">
-              {{ item.unrealized_diff }}
-            </td>
-          </tr>
-          {% endfor %}
-
-          {% for item in preview.cash_items %}
-          <tr>
-            <td>{{ forloop.counter }}</td>
-            <td><span class="badge bg-success">CASH / BANK</span></td>
-            <td>{{ item.account_code }} - {{ item.account_name }}</td>
-            <td><strong>{{ item.currency }}</strong></td>
-            <td class="text-end font-monospace">{{ item.open_foreign }}</td>
-            <td class="text-end font-monospace">{{ item.closing_rate }}</td>
-            <td class="text-end font-monospace">{{ item.closing_functional }}</td>
-            <td class="text-end font-monospace {% if item.unrealized_diff >= 0 %}text-success{% else %}text-danger{% endif %} fw-bold">
-              {{ item.unrealized_diff }}
-            </td>
-          </tr>
-          {% empty %}
-          {% if not preview.customer_items and not preview.supplier_items %}
-          <tr>
-            <td colspan="8" class="text-center py-4 text-muted">
-              {% trans "لا توجد فروق تقييم غير محققة للفترة المحددة." %}
-            </td>
-          </tr>
-          {% endif %}
-          {% endfor %}
-        </tbody>
-      </table>
+    <!-- 3. Audit Filter Bar (AGENTS.md Rule 7: Section Container) -->
+    <div class="section-container mb-4">
+        <h5 class="section-title"><i class="fas fa-sliders-h me-2"></i>{% trans "محددات المحاكاة والمزامنة الحية" %}</h5>
+        <form method="GET" action="" id="simulationFilterForm">
+            <div class="row g-3 align-items-end">
+                <div class="col-md-5">
+                    <label class="form-label fw-bold text-dark">{% trans "تاريخ المحاكاة والمعاينة المستهدفة" %}</label>
+                    <input type="date" name="as_of_date" class="form-control" value="{{ selected_date|date:'Y-m-d' }}" onchange="this.form.submit()">
+                </div>
+                <div class="col-md-7 d-flex gap-2">
+                    <button type="button" class="btn btn-outline-primary fw-bold" id="btnSyncCBE">
+                        <i class="fas fa-sync me-1"></i> {% trans "مزامنة أسعار البنك المركزي الآن" %}
+                    </button>
+                    <a href="{% url 'financial:fx_revaluation' %}" class="btn btn-outline-secondary fw-bold">
+                        <i class="fas fa-undo me-1"></i> {% trans "تحديث المعاينة" %}
+                    </a>
+                </div>
+            </div>
+        </form>
     </div>
-  </div>
+
+    <!-- 4. Detailed Drill-Down Lines Table (AGENTS.md Rule 7: Section Container) -->
+    <div class="section-container">
+        <h5 class="section-title"><i class="fas fa-list-check me-2"></i>{% trans "كشف البنود المفتوحة وتفاصيل التدقيق (IAS 21 Drill-Down)" %}</h5>
+
+        <div class="table-responsive">
+            <table class="table table-hover align-middle custom-table mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 50px;">#</th>
+                        <th style="width: 140px;">{% trans "نوع البند" %}</th>
+                        <th>{% trans "الحساب / المستند / الجهة" %}</th>
+                        <th style="width: 100px;">{% trans "العملة" %}</th>
+                        <th class="text-end">{% trans "الرصيد الأجنبي" %}</th>
+                        <th class="text-end">{% trans "سعر الإقفال" %}</th>
+                        <th class="text-end">{% trans "المعادل بالجنيه" %}</th>
+                        <th class="text-end">{% trans "فرق التقييم غير المحقق" %}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if run and run.lines.all %}
+                        {% for line in run.lines.all %}
+                        <tr>
+                            <td>{{ forloop.counter }}</td>
+                            <td>
+                                {% if line.source_type == 'AR_INVOICE' %}
+                                <span class="badge bg-info">AR (ذمم عملاء)</span>
+                                {% elif line.source_type == 'AP_INVOICE' %}
+                                <span class="badge bg-warning text-dark">AP (ذمم موردين)</span>
+                                {% else %}
+                                <span class="badge bg-success">خزينة / بنك</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="fw-bold text-dark">{{ line.partner_name }}</span> 
+                                <small class="text-muted ms-1">({{ line.source_id }})</small>
+                            </td>
+                            <td><span class="badge bg-light text-dark border">{{ line.currency.code }}</span></td>
+                            <td class="text-end font-monospace fw-bold">{{ line.open_foreign_amount }}</td>
+                            <td class="text-end font-monospace">{{ line.new_rate }}</td>
+                            <td class="text-end font-monospace">{{ line.new_functional_value }}</td>
+                            <td class="text-end font-monospace {% if line.unrealized_difference >= 0 %}text-success{% else %}text-danger{% endif %} fw-bold">
+                                {% if line.unrealized_difference > 0 %}+{% endif %}{{ line.unrealized_difference }}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        {% for item in preview.customer_items %}
+                        <tr>
+                            <td>{{ forloop.counter }}</td>
+                            <td><span class="badge bg-info">AR (ذمم عملاء)</span></td>
+                            <td>
+                                <span class="fw-bold text-dark">{{ item.customer }}</span> 
+                                <small class="text-muted ms-1">(عقد #{{ item.transaction_id }})</small>
+                            </td>
+                            <td><span class="badge bg-light text-dark border">{{ item.currency }}</span></td>
+                            <td class="text-end font-monospace fw-bold">{{ item.open_foreign }}</td>
+                            <td class="text-end font-monospace">{{ item.closing_rate }}</td>
+                            <td class="text-end font-monospace">{{ item.closing_functional }}</td>
+                            <td class="text-end font-monospace {% if item.unrealized_diff >= 0 %}text-success{% else %}text-danger{% endif %} fw-bold">
+                                {% if item.unrealized_diff > 0 %}+{% endif %}{{ item.unrealized_diff }}
+                            </td>
+                        </tr>
+                        {% endfor %}
+
+                        {% for item in preview.supplier_items %}
+                        <tr>
+                            <td>{{ forloop.counter }}</td>
+                            <td><span class="badge bg-warning text-dark">AP (ذمم موردين)</span></td>
+                            <td>
+                                <span class="fw-bold text-dark">{{ item.supplier }}</span> 
+                                <small class="text-muted ms-1">(فاتورة #{{ item.transaction_id }})</small>
+                            </td>
+                            <td><span class="badge bg-light text-dark border">{{ item.currency }}</span></td>
+                            <td class="text-end font-monospace fw-bold">{{ item.open_foreign }}</td>
+                            <td class="text-end font-monospace">{{ item.closing_rate }}</td>
+                            <td class="text-end font-monospace">{{ item.closing_functional }}</td>
+                            <td class="text-end font-monospace {% if item.unrealized_diff >= 0 %}text-success{% else %}text-danger{% endif %} fw-bold">
+                                {% if item.unrealized_diff > 0 %}+{% endif %}{{ item.unrealized_diff }}
+                            </td>
+                        </tr>
+                        {% endfor %}
+
+                        {% for item in preview.cash_items %}
+                        <tr>
+                            <td>{{ forloop.counter }}</td>
+                            <td><span class="badge bg-success">خزينة / بنك</span></td>
+                            <td>
+                                <span class="fw-bold text-dark">{{ item.account_name }}</span> 
+                                <small class="text-muted font-monospace ms-1">({{ item.account_code }})</small>
+                            </td>
+                            <td><span class="badge bg-light text-dark border">{{ item.currency }}</span></td>
+                            <td class="text-end font-monospace fw-bold">{{ item.open_foreign }}</td>
+                            <td class="text-end font-monospace">{{ item.closing_rate }}</td>
+                            <td class="text-end font-monospace">{{ item.closing_functional }}</td>
+                            <td class="text-end font-monospace {% if item.unrealized_diff >= 0 %}text-success{% else %}text-danger{% endif %} fw-bold">
+                                {% if item.unrealized_diff > 0 %}+{% endif %}{{ item.unrealized_diff }}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        {% if not preview.customer_items and not preview.supplier_items %}
+                        <tr>
+                            <td colspan="8" class="text-center py-4 text-muted">
+                                <i class="fas fa-info-circle me-2"></i>{% trans "لا توجد فروق تقييم غير محققة للفترة المحددة." %}
+                            </td>
+                        </tr>
+                        {% endif %}
+                        {% endfor %}
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
 </div>
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const btnSync = document.getElementById('btnSyncCBE');
+    if (btnSync) {
+        btnSync.addEventListener('click', function() {
+            btnSync.disabled = true;
+            btnSync.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> جاري المزامنة...';
+            
+            fetch('?action=sync_cbe')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        if (typeof window.showNotification === 'function') {
+                            window.showNotification(data.message, 'success', '{% trans "مزامنة العملات" %}');
+                        } else if (typeof window.showToastr === 'function') {
+                            window.showToastr(data.message, 'success');
+                        } else if (typeof showToastNotification === 'function') {
+                            showToastNotification(data.message);
+                        }
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 3100);
+                    } else {
+                        if (typeof window.showNotification === 'function') {
+                            window.showNotification(data.message, 'error', '{% trans "تنبيه المزامنة" %}');
+                        } else if (typeof window.showToastr === 'function') {
+                            window.showToastr(data.message, 'error');
+                        } else if (typeof showToastNotification === 'function') {
+                            showToastNotification(data.message);
+                        }
+                        btnSync.disabled = false;
+                        btnSync.innerHTML = '<i class="fas fa-sync me-1"></i> {% trans "مزامنة أسعار البنك المركزي الآن" %}';
+                    }
+                })
+                .catch(err => {
+                    if (typeof window.showNotification === 'function') {
+                        window.showNotification('{% trans "تعذر الاتصال بالمؤشر المالي للمزامنة اللحظية." %}', 'error');
+                    } else if (typeof window.showToastr === 'function') {
+                        window.showToastr('{% trans "تعذر الاتصال بالمؤشر المالي للمزامنة اللحظية." %}', 'error');
+                    }
+                    btnSync.disabled = false;
+                    btnSync.innerHTML = '<i class="fas fa-sync me-1"></i> {% trans "مزامنة أسعار البنك المركزي الآن" %}';
+                });
+        });
+    }
+});
+</script>
+{% endblock %}
 {% endblock %}

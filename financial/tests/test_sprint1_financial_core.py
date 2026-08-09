@@ -155,20 +155,29 @@ class FinancialCoreSprint1TestSuite(TestCase):
 
     def test_06_opening_balance_batch_pipeline_and_immutability(self):
         """التحقق من إنشاء ونشر وقفل دفعة الأرصدة الافتتاحية"""
-        lines_data = [
-            {"account": self.cash_account, "debit": Decimal("5000.00"), "credit": Decimal("0.00")},
-            {"account": self.capital_account, "debit": Decimal("0.00"), "credit": Decimal("5000.00")},
-        ]
-        batch = OpeningBalanceService.create_batch(
+        batch = OpeningBalanceBatch.objects.create(
             fiscal_year=self.fiscal_year,
             batch_number="OB-2026-TEST",
             description="الأرصدة الافتتاحية لسنة 2026",
-            lines_data=lines_data
+            status="draft",
+            created_by=self.user
+        )
+        OpeningBalanceLine.objects.create(
+            batch=batch,
+            account=self.cash_account,
+            debit=Decimal("5000.00"),
+            credit=Decimal("0.00")
+        )
+        OpeningBalanceLine.objects.create(
+            batch=batch,
+            account=self.capital_account,
+            debit=Decimal("0.00"),
+            credit=Decimal("5000.00")
         )
 
         self.assertEqual(batch.status, "draft")
 
-        posted_batch = OpeningBalanceService.post_batch(batch.id, self.user)
+        posted_batch = OpeningBalanceService.post(batch.id, self.user)
         self.assertEqual(posted_batch.status, "posted")
         self.assertIsNotNone(posted_batch.journal_entry)
         self.assertEqual(posted_batch.journal_entry.status, "posted")

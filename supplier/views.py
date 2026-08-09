@@ -87,18 +87,26 @@ def supplier_list(request):
 
     page_obj = pagination_data['page_obj']
 
+    from financial.services.partner_exposure_service import BusinessPartnerExposureService
+    from core.presenters.currency_exposure_presenter import CurrencyExposurePresenter
+
+    page_supplier_ids = [s.pk for s in page_obj]
+    exposure_map = BusinessPartnerExposureService.get_open_balances("supplier", page_supplier_ids)
+
     # إضافة عدد الخدمات كعناصر سريعة لصفحة العرض الحالية فقط (تحسين أداء كبير)
     from supplier.models import SupplierService
     services_counts = {
         row['supplier_id']: row['cnt']
         for row in SupplierService.objects.filter(
-            supplier_id__in=[s.pk for s in page_obj],
+            supplier_id__in=page_supplier_ids,
             is_active=True
         ).values('supplier_id').annotate(cnt=models.Count('id'))
     }
     for s in page_obj:
         cnt = services_counts.get(s.pk, 0)
         s.services_count = f'<span class="badge bg-{"warning text-dark" if cnt > 0 else "secondary"}">{cnt}</span>'
+        supplier_dtos = exposure_map.get(s.pk, [])
+        s.actual_balance_display = CurrencyExposurePresenter.render_html_badges(supplier_dtos)
 
     suppliers_page = page_obj
 
@@ -132,12 +140,11 @@ def supplier_list(request):
             "format": "boolean_badge",
         },
         {
-            "key": "actual_balance",
+            "key": "actual_balance_display",
             "label": "الاستحقاق",
             "sortable": True,
-            "format": "currency",
-            "decimals": 2,
-            "variant": "text-danger",
+            "format": "html",
+            "class": "text-center",
         },
         {"key": "is_active", "label": "الحالة", "sortable": True, "format": "boolean"},
     ]
@@ -1282,21 +1289,33 @@ def supplier_detail(request, pk):
         },
     ]
 
-    # أزرار الإجراءات السريعة للمورد
-    quick_action_buttons = [
+    # أزرار الإجراءات السريعة للمورد في الهيدر
+    header_buttons = [
         {
-            "url": reverse("purchase:purchase_create_for_supplier", kwargs={"supplier_id": supplier.id}),
-            "icon": "fas fa-plus-circle",
-            "label": "إنشاء فاتورة مشتريات",
-            "class": "btn btn-success",
-            "title": "إنشاء فاتورة مشتريات جديدة من هذا المورد"
+            "url": "#",
+            "icon": "fa-plus-circle",
+            "text": "إضافة رصيد مسبق",
+            "class": "btn-primary",
+            "toggle": "modal",
+            "target": "#addSupplierAdvanceModal",
+            "title": "إضافة رصيد مسبق / دفعة مقدمة للمورد",
         },
         {
-            "url": reverse("supplier:supplier_edit", kwargs={"pk": supplier.pk}),
-            "icon": "fas fa-edit",
-            "label": "تعديل بيانات المورد",
-            "class": "btn btn-primary",
-            "title": "تعديل بيانات المورد"
+            "url": reverse("purchase:purchase_create_for_supplier", kwargs={"supplier_id": supplier.id}),
+            "icon": "fa-plus",
+            "text": "فاتورة مشتريات",
+            "class": "btn-success",
+            "title": "إنشاء فاتورة مشتريات جديدة من هذا المورد",
+        },
+        {
+            "url": "#",
+            "icon": "fa-ellipsis-v",
+            "text": "",
+            "class": "btn-outline-secondary",
+            "id": "actions-menu-btn",
+            "toggle": "modal",
+            "target": "#actionsModal",
+            "title": "خيارات وإجراءات إضافية",
         },
     ]
 
@@ -1365,10 +1384,21 @@ def supplier_detail(request, pk):
     credit_limit = getattr(supplier, 'credit_limit', Decimal('0.00')) or Decimal('0.00')
     available_credit = credit_limit - total_purchases + total_payments
 
+    from financial.models import ChartOfAccounts
+    from django.db.models import Q
+    financial_accounts_list = list(
+        ChartOfAccounts.objects.filter(
+            Q(is_cash_account=True) | Q(is_bank_account=True) | Q(code__startswith="101"),
+            is_active=True
+        ).order_by("code")
+    )
+
     context = {
         "supplier": supplier,
+        "financial_accounts": financial_accounts_list,
         "available_credit": available_credit,
-        "quick_action_buttons": quick_action_buttons,
+        "header_buttons": header_buttons,
+        "quick_action_buttons": header_buttons,
         "payments": payments_data,  # استخدام البيانات المحولة
         "purchases": purchases,
         "purchases_count": purchases_count,
@@ -1430,6 +1460,9 @@ def supplier_detail(request, pk):
     from core.models import SystemSetting
     currency_symbol = SystemSetting.get_currency_symbol()
 
+    from financial.services.partner_exposure_service import BusinessPartnerExposureService
+    from core.presenters.currency_exposure_presenter import CurrencyExposurePresenter
+
     # Badges في الهيدر
     header_badges = [
         {
@@ -1437,12 +1470,23 @@ def supplier_detail(request, pk):
             "class": "bg-primary",
             "icon": "fas fa-hashtag",
         },
-        {
+    ]
+
+    dtos = BusinessPartnerExposureService.get_open_balances("supplier", [supplier.id]).get(supplier.id, [])
+    for vm in CurrencyExposurePresenter.build_view_models(dtos):
+        header_badges.append({
+            "is_badge": True,
+            "icon": vm.icon,
+            "text": f"{vm.label}: {vm.formatted_amount} {vm.currency_symbol}",
+            "class": vm.variant
+        })
+
+    if not dtos and supplier.actual_balance != Decimal("0.00"):
+        header_badges.append({
             "text": f"الاستحقاق: {smart_float(supplier.actual_balance)} {currency_symbol}",
             "class": "bg-danger" if supplier.actual_balance > 0 else "bg-success",
             "icon": "fas fa-arrow-up" if supplier.actual_balance > 0 else "fas fa-arrow-down",
-        },
-    ]
+        })
 
     if unallocated_prepaid > Decimal("0.00"):
         header_badges.append({
@@ -1453,43 +1497,11 @@ def supplier_detail(request, pk):
             "action_text": "توزيع",
             "action_icon": "fas fa-random",
             "action_class": "bg-warning-subtle text-dark border border-warning-subtle",
-            "action_onclick": f"const m = document.getElementById('prepaidAllocationModal'); if(m){{ new bootstrap.Modal(m).show(); }} else {{ const form = document.createElement('form'); form.method = 'POST'; form.action = '{reverse('supplier:allocate_supplier_prepaid', kwargs={'pk': supplier.id})}'; const csrf = document.querySelector('[name=csrfmiddlewaretoken]'); if(csrf) form.appendChild(csrf.cloneNode()); const auto = document.createElement('input'); auto.type='hidden'; auto.name='auto_fifo_all'; auto.value='true'; form.appendChild(auto); document.body.appendChild(form); form.submit(); }}",
+            "action_onclick": "const m = document.getElementById('prepaidAllocationModal'); if(m){ new bootstrap.Modal(m).show(); }",
             "action_title": "توزيع الرصيد المسبق على الفواتير المفتوحة",
         })
-    context["header_badges"] = header_badges
-    
-    # أزرار الهيدر
-    header_buttons = [
-        {
-            "url": reverse("purchase:purchase_create_for_supplier", kwargs={"supplier_id": supplier.id}),
-            "icon": "fa-shopping-cart",
-            "text": "فاتورة شراء",
-            "class": "btn-success",
-        }
-    ]
-    
-    header_buttons.append({
-        "url": "#",
-        "icon": "fa-ellipsis-v",
-        "text": "",
-        "class": "btn-outline-secondary",
-        "id": "actions-menu-btn",
-        "toggle": "modal",
-        "target": "#actionsModal",
-    })
-    
-    from supplier.models import SupplierTransaction
-    supplier_balances = (
-        SupplierTransaction.objects.filter(supplier=supplier)
-        .values("currency")
-        .annotate(
-            total_open_foreign=Sum("open_amount_foreign"),
-            total_open_functional=Sum("open_amount_functional")
-        )
-        .filter(total_open_foreign__gt=Decimal("0.00"))
-    )
-    context["balances_by_currency"] = list(supplier_balances)
 
+    context["header_badges"] = header_badges
     context["header_buttons"] = header_buttons
     
     # البريدكرمب
@@ -2274,73 +2286,105 @@ def supplier_aging_api(request, pk):
 
 
 @login_required
-def allocate_supplier_prepaid_action(request, pk):
+def add_supplier_advance_action(request, pk):
     """
-    تخصيص الدفعات المقدمة للمورد على الفواتير المفتوحة (تخصيص آلي أو محدد)
+    إضافة رصيد مسبق / دفعة مقدمة جديدة للمورد
     """
     supplier = get_object_or_404(Supplier, pk=pk)
     if request.method == "POST":
-        from purchase.models import Purchase
         from supplier.services.supplier_allocation_service import SupplierAllocationService
         from decimal import Decimal
 
-        purchase_id = request.POST.get("purchase_id")
-        auto_fifo_all = request.POST.get("auto_fifo_all") == "true"
         amount_str = request.POST.get("amount")
+        payment_date_str = request.POST.get("payment_date")
+        payment_method = request.POST.get("payment_method", "cash")
+        financial_account_id = request.POST.get("financial_account")
+        reference_number = request.POST.get("reference_number")
+        notes = request.POST.get("notes")
 
-        open_purchases = Purchase.objects.filter(
-            supplier=supplier,
-            payment_status__in=["unpaid", "partially_paid"]
-        ).order_by("date", "id")
-
-        if not open_purchases.exists():
-            messages.warning(request, _("لا توجد فواتير مشتريات مفتوحة لهذا المورد لتخصيص الرصيد عليها."))
-            return redirect("supplier:supplier_detail", pk=pk)
-
-        allocated_count = 0
-        total_allocated_sum = Decimal("0.00")
-
-        if auto_fifo_all:
-            for purchase in open_purchases:
-                avail = supplier.available_prepaid_balance
-                if avail <= Decimal("0.00"):
-                    break
-                due = purchase.amount_due
-                if due <= Decimal("0.00"):
-                    continue
-                alloc = min(avail, due)
-                try:
-                    SupplierAllocationService.allocate_advance_to_purchase_bill(
-                        purchase=purchase,
-                        amount_to_allocate=alloc,
-                        user=request.user
-                    )
-                    allocated_count += 1
-                    total_allocated_sum += alloc
-                except Exception as e:
-                    logger.warning(f"Failed to allocate prepaid to purchase #{purchase.id}: {str(e)}")
-            if allocated_count > 0:
-                messages.success(request, f"تم تخصيص إجمالي {total_allocated_sum} ج.م من دفعات المورد المقدمة على {allocated_count} فاتورة مفتوحة بنجاح.")
-            else:
-                messages.info(request, "لم يتم إجراء تخصيصات جديدة.")
-        elif purchase_id:
-            purchase = get_object_or_404(Purchase, pk=purchase_id, supplier=supplier)
-            avail = supplier.available_prepaid_balance
-            alloc = Decimal(amount_str) if amount_str else min(avail, purchase.amount_due)
-            if alloc <= Decimal("0.00"):
-                messages.error(request, "يرجى إدخال مبلغ تخصيص أكبر من صفر.")
-            elif alloc > avail:
-                messages.error(request, f"المبلغ المطلوب ({alloc}) يتجاوز رصيد الدفعات المقدمة المتاح ({avail}).")
-            else:
-                try:
-                    SupplierAllocationService.allocate_advance_to_purchase_bill(
-                        purchase=purchase,
-                        amount_to_allocate=alloc,
-                        user=request.user
-                    )
-                    messages.success(request, f"تم تخصيص {alloc} ج.م من الدفعات المقدمة على الفاتورة #{purchase.number} بنجاح.")
-                except Exception as e:
-                    messages.error(request, f"حدث خطأ أثناء التخصيص: {str(e)}")
+        if amount_str:
+            try:
+                amt = Decimal(amount_str)
+                fin_acc_id = int(financial_account_id) if (financial_account_id and str(financial_account_id).isdigit()) else None
+                
+                advance = SupplierAllocationService.create_supplier_advance_payment(
+                    supplier_id=supplier.id,
+                    amount=amt,
+                    payment_date=payment_date_str if payment_date_str else None,
+                    payment_method=payment_method,
+                    financial_account_id=fin_acc_id,
+                    reference_number=reference_number,
+                    notes=notes,
+                    user=request.user
+                )
+                messages.success(request, f"تم تسجيل دفعة مقدمة بقيمة {amt} ج.م للمورد بنجاح (مرجع #{advance.id}).")
+            except Exception as e:
+                messages.error(request, f"حدث خطأ أثناء إضافة الدفعة المقدمة: {str(e)}")
+        else:
+            messages.error(request, "يرجى إدخال مبلغ الدفعة المقدمة بشكل صحيح.")
 
     return redirect("supplier:supplier_detail", pk=pk)
+
+
+@login_required
+def allocate_supplier_prepaid_action(request, pk):
+    """
+    تخصيص الدفعات المقدمة للمورد على الفواتير المفتوحة (تخصيص جماعي أو فردي)
+    """
+    supplier = get_object_or_404(Supplier, pk=pk)
+    if request.method == "POST":
+        from supplier.services.supplier_allocation_service import SupplierAllocationService
+        from decimal import Decimal
+
+        purchase_ids = request.POST.getlist("purchase_ids[]") or request.POST.getlist("purchase_ids")
+        amounts = request.POST.getlist("amounts[]") or request.POST.getlist("amounts")
+
+        allocations_dict = {}
+        if purchase_ids and amounts and len(purchase_ids) == len(amounts):
+            for pid, amt_s in zip(purchase_ids, amounts):
+                if pid and amt_s:
+                    try:
+                        d_amt = Decimal(str(amt_s))
+                        if d_amt > Decimal("0.00"):
+                            allocations_dict[int(pid)] = d_amt
+                    except Exception:
+                        pass
+
+        if allocations_dict:
+            try:
+                audits = SupplierAllocationService.allocate_prepaid_bulk(
+                    supplier_id=supplier.id,
+                    allocations_dict=allocations_dict,
+                    user=request.user
+                )
+                total_alloc = sum(a.allocated_amount for a in audits)
+                messages.success(request, f"تم التوزيع الجماعي بقيمة إجمالية {total_alloc} ج.م على {len(audits)} معاملة بنجاح.")
+            except Exception as e:
+                messages.error(request, f"حدث خطأ أثناء التوزيع الجماعي: {str(e)}")
+        else:
+            purchase_id = request.POST.get("purchase_id")
+            amount_str = request.POST.get("amount")
+
+            if purchase_id:
+                from purchase.models import Purchase
+                purchase = get_object_or_404(Purchase, pk=purchase_id, supplier=supplier)
+                avail = supplier.available_prepaid_balance
+                alloc = Decimal(amount_str) if amount_str else min(avail, purchase.amount_due)
+                if alloc <= Decimal("0.00"):
+                    messages.error(request, "يرجى إدخال مبلغ تخصيص أكبر من صفر.")
+                elif alloc > avail:
+                    messages.error(request, f"المبلغ المطلوب ({alloc}) يتجاوز رصيد الدفعات المقدمة المتاح ({avail}).")
+                else:
+                    try:
+                        SupplierAllocationService.allocate_advance_to_purchase_bill(
+                            purchase=purchase,
+                            amount_to_allocate=alloc,
+                            user=request.user
+                        )
+                        messages.success(request, f"تم تخصيص {alloc} ج.م من الدفعات المقدمة على الفاتورة #{purchase.number} بنجاح.")
+                    except Exception as e:
+                        messages.error(request, f"حدث خطأ أثناء التخصيص: {str(e)}")
+
+    return redirect("supplier:supplier_detail", pk=pk)
+
 
