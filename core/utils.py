@@ -285,17 +285,12 @@ def generate_invoice_number(prefix="INV", length=6):
 
 def get_default_currency():
     """
-    استرجاع رمز العملة الافتراضية من إعدادات الشركة
-
-    تُرجع: رمز العملة (مثل: ج.م، ر.س، $)
+    استرجاع رمز العملة الافتراضية المعتمدة محاسبياً للنظام
     """
     try:
         from .models import SystemSetting
-        # قراءة رمز العملة من إعدادات الشركة
-        currency_symbol = SystemSetting.get_setting('default_currency', 'ج.م')
-        return currency_symbol
-    except:
-        # fallback للقيمة الافتراضية
+        return SystemSetting.get_currency_symbol()
+    except Exception:
         return 'ج.م'
 
 

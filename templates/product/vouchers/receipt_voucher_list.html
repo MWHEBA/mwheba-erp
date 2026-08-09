@@ -15,6 +15,18 @@
     {% csrf_token %}
     {% include "shared/page_header.html" %}
 
+    <div class="alert alert-info border-0 shadow-sm d-flex align-items-center mb-4 p-3" role="alert">
+        <i class="fas fa-info-circle fa-2x me-3 text-info"></i>
+        <div>
+            <h6 class="alert-heading fw-bold mb-1">أذون الاستلام الداخلية والتسويات (Non-Procurement Receipts)</h6>
+            <p class="mb-0 small text-muted">
+                هذه الشاشة مخصصة لإدخال حركات الاستلام الإدارية والداخلية (مثل الهدايا، السبلايز، وزيادة الجرد). 
+                لاستلام البضائع والمواد الواردة من <strong>الموردين والتجار (المشتريات)</strong> ولتفعيل قيد $GRNI$ والمطابقة الثلاثية، 
+                يرجى الانتقال لـ <a href="{% url 'purchase:grn_list' %}" class="fw-bold alert-link"><i class="fas fa-truck-loading me-1"></i>أذون استلام المشتريات (GRN)</a>.
+            </p>
+        </div>
+    </div>
+
     <div class="section-container">
         <div class="row mb-4">
             <div class="col-md-3">

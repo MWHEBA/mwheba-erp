@@ -145,16 +145,30 @@ class SystemSetting(models.Model):
     @classmethod
     def get_currency_symbol(cls):
         """
-        الحصول على رمز العملة من الإعدادات
+        الحصول على رمز العملة الأساسية رسمياً من موديل العملات المحاسبي
         """
-        return cls.get_setting('default_currency', 'ج.م')
+        try:
+            from financial.services.exchange_rate_service import ExchangeRateService
+            func_curr = ExchangeRateService.get_functional_currency()
+            if func_curr:
+                return getattr(func_curr, "symbol", None) or getattr(func_curr, "code", None) or "ج.م"
+        except Exception:
+            pass
+        return "ج.م"
 
     @classmethod
     def get_currency_symbol_en(cls):
         """
-        الحصول على رمز العملة بالإنجليزية من الإعدادات
+        الحصول على كود العملة بالإنجليزية رسمياً من موديل العملات المحاسبي
         """
-        return cls.get_setting('currency_symbol_en', 'EGP')
+        try:
+            from financial.services.exchange_rate_service import ExchangeRateService
+            func_curr = ExchangeRateService.get_functional_currency()
+            if func_curr:
+                return getattr(func_curr, "code", None) or "EGP"
+        except Exception:
+            pass
+        return "EGP"
 
     @classmethod
     def get_default_print_language(cls):

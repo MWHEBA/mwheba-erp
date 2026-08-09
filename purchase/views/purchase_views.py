@@ -18,6 +18,7 @@ from purchase.models import Purchase, PurchasePayment, PurchaseItem
 from purchase.forms import PurchaseForm
 from product.models import Product, Warehouse
 from supplier.models import Supplier
+from core.models import SystemSetting
 
 logger = logging.getLogger(__name__)
 
@@ -1185,7 +1186,6 @@ def purchase_delete(request, pk):
 def get_purchase_print_context(request, pk):
     purchase = get_object_or_404(Purchase, pk=pk)
     items = purchase.items.all().select_related('product', 'product__unit', 'product__category')
-    from core.models import SystemSetting
 
     default_lang = SystemSetting.get_default_print_language()
     print_lang = request.GET.get('lang', default_lang).lower()

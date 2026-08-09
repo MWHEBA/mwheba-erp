@@ -249,6 +249,8 @@ def quotation_create(request, customer_id=None):
             initial_data["work_order"] = selected_work_order
         form = QuotationForm(initial=initial_data, user=request.user)
 
+    from financial.models import Currency
+    currencies = Currency.objects.filter(is_active=True).order_by("code")
     customers = Customer.objects.filter(is_active=True).order_by('name')
     warehouses = Warehouse.objects.filter(is_active=True).order_by('name')
     products = Product.objects.filter(is_active=True).order_by('name')
@@ -280,6 +282,7 @@ def quotation_create(request, customer_id=None):
         "customers": customers,
         "warehouses": warehouses,
         "products": products,
+        "currencies": currencies,
         "selected_customer": selected_customer,
         "default_warehouse": warehouses.first() if warehouses.exists() else None,
         "next_quotation_number": next_quotation_number,

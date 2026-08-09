@@ -82,7 +82,7 @@
                         </li>
                         
                         <!-- عروض الأسعار -->
-                        {% if settings.enable_quotations %}
+                        {% if enable_quotations %}
                         <div class="nav-divider"></div>
                         <li class="submenu-title">عروض الأسعار</li>
                         <li>
@@ -200,7 +200,7 @@
                         <li class="submenu-title">الاستلام والتكاليف</li>
                         <li>
                             <a href="{% url 'purchase:grn_list' %}" class="submenu-link">
-                                <i class="fas fa-truck-loading me-2"></i>{% trans "أذون الاستلام GRN" %}
+                                <i class="fas fa-truck-loading me-2"></i>{% trans "إذونات استلام المشتريات (GRN)" %}
                             </a>
                         </li>
                         <li>
@@ -291,8 +291,13 @@
                         
                         <li class="submenu-title">أذون المخزن</li>
                         <li>
+                            <a href="{% url 'purchase:grn_list' %}" class="submenu-link text-success fw-bold">
+                                <i class="fas fa-truck-loading me-2"></i>استلام بضائع مشتريات (GRN)
+                            </a>
+                        </li>
+                        <li>
                             <a href="{% url 'product:receipt_voucher_list' %}" class="submenu-link">
-                                <i class="fas fa-file-import me-2"></i>أذون الاستلام
+                                <i class="fas fa-file-import me-2"></i>أذون الاستلام الداخلية والتسويات
                             </a>
                         </li>
                         <li>

@@ -15,8 +15,20 @@ class ExchangeRateService:
 
     @classmethod
     def get_functional_currency(cls) -> Optional[Currency]:
-        """الحصول على العملة الوظيفية/الأساسية للمؤسسة"""
-        return Currency.objects.filter(is_functional=True).first() or Currency.objects.first()
+        """الحصول على العملة الوظيفية/الأساسية للمؤسسة مع غطاء حماية عند تفريغ قاعدة البيانات"""
+        curr = Currency.objects.filter(is_functional=True).first() or Currency.objects.first()
+        if not curr:
+            from types import SimpleNamespace
+            return SimpleNamespace(
+                id=None,
+                code="EGP",
+                name="جنيه مصري",
+                symbol="ج.م",
+                decimal_places=2,
+                is_functional=True,
+                is_active=True
+            )
+        return curr
 
     @classmethod
     def get_exchange_rate(cls, currency_or_code, date=None) -> Decimal:

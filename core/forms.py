@@ -372,20 +372,25 @@ class SystemSettingsForm(forms.Form):
         widget=forms.Select(attrs={'class': 'form-select'})
     )
     
-    # إعدادات المالية (بدون بادئة الفواتير)
-    default_currency = forms.CharField(
-        label='العملة الافتراضية',
-        max_length=10,
-        initial='ج.م',
-        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'ج.م'})
+    # إعدادات المالية
+    default_currency = forms.ModelChoiceField(
+        queryset=None,
+        label=_('العملة الوظيفية الأساسية للنظام (Functional Currency)'),
+        required=True,
+        widget=forms.Select(attrs={'class': 'form-select select2-filter', 'dir': 'rtl'})
     )
-    default_currency_en = forms.CharField(
-        label='رمز العملة بالإنجليزية (English Currency Code)',
-        max_length=10,
-        initial='EGP',
-        required=False,
-        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'EGP'})
-    )
+
+    def __init__(self, *args, **kwargs):
+        is_locked = kwargs.pop('is_locked', False)
+        super().__init__(*args, **kwargs)
+        try:
+            from financial.models import Currency
+            self.fields['default_currency'].queryset = Currency.objects.filter(is_active=True)
+        except Exception:
+            pass
+        if is_locked:
+            self.fields['default_currency'].widget.attrs['disabled'] = 'disabled'
+            self.fields['default_currency'].required = False
     default_tax_rate = forms.DecimalField(
         label='نسبة الضريبة الافتراضية (%)',
         min_value=0,

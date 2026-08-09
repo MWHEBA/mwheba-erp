@@ -2,109 +2,221 @@
 {% load static %}
 {% load i18n %}
 {% load custom_filters %}
+{% load utils_extras %}
 
-{% block title %}{% trans "الإشعارات الدائنة والخصومات" %}{% endblock %}
+{% block title %}{{ page_title|default:"الإشعارات الدائنة والخصومات" }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/select2.min.css' %}">
+<style>
+  .select2-container--default .select2-selection--single {
+    height: calc(1.5em + .75rem + 2px);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+  }
+  .select2-container--default .select2-selection--single .select2-selection__arrow {
+    height: calc(1.5em + .75rem + 2px);
+  }
+</style>
+{% endblock %}
 
 {% block content %}
 <div class="container-fluid">
+  <!-- Page Header المركزي -->
   {% include "shared/page_header.html" %}
 
-  <div class="card border-0 shadow-sm rounded-3 mb-4">
-    <div class="card-body p-3">
-      <form method="get" class="row g-2 align-items-center">
-        <div class="col-md-6 col-lg-4">
-          <div class="input-group input-group-sm">
-            <span class="input-group-text bg-white text-muted"><i class="fas fa-search"></i></span>
-            <input type="text" name="q" value="{{ query }}" class="form-select-sm form-control" placeholder="{% trans 'بحث برقم الإشعار أو اسم العميل...' %}">
-          </div>
-        </div>
-        <div class="col-md-4 col-lg-3">
-          <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
-            <option value="">{% trans "جميع الحالات" %}</option>
-            <option value="DRAFT" {% if status_filter == 'DRAFT' %}selected{% endif %}>{% trans "مسودة" %}</option>
-            <option value="APPROVED" {% if status_filter == 'APPROVED' %}selected{% endif %}>{% trans "معتمد" %}</option>
-            <option value="POSTED" {% if status_filter == 'POSTED' %}selected{% endif %}>{% trans "رحل مالياً" %}</option>
-          </select>
-        </div>
-        <div class="col-md-2">
-          <button type="submit" class="btn btn-sm btn-secondary w-100">
-            <i class="fas fa-filter me-1"></i>{% trans "تصفية" %}
-          </button>
-        </div>
-      </form>
+  {% if messages %}
+  <div class="row mb-4">
+    <div class="col-12">
+      {% for message in messages %}
+      <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+      {% endfor %}
     </div>
   </div>
+  {% endif %}
 
-  <div class="card border-0 shadow-sm rounded-3">
-    <div class="card-body p-0">
-      <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
-          <thead class="table-light">
-            <tr>
-              <th>{% trans "رقم الإشعار" %}</th>
-              <th>{% trans "العميل" %}</th>
-              <th>{% trans "الفاتورة الأصلية" %}</th>
-              <th>{% trans "المبلغ قبل الضريبة" %}</th>
-              <th>{% trans "الضريبة" %}</th>
-              <th>{% trans "الإجمالي" %}</th>
-              <th>{% trans "الحالة" %}</th>
-              <th>{% trans "التاريخ" %}</th>
-              <th class="text-center">{% trans "الإجراءات" %}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for cn in credit_notes %}
-            <tr>
-              <td class="fw-bold text-primary">
-                <a href="{% url 'sale:credit_note_detail' cn.id %}" class="text-decoration-none">
-                  {{ cn.credit_note_number }}
-                </a>
-              </td>
-              <td>
-                <a href="{% url 'client:customer_detail' cn.customer.id %}" class="text-dark fw-medium text-decoration-none">
-                  {{ cn.customer.name }}
-                </a>
-              </td>
-              <td>
-                {% if cn.sale %}
-                <a href="{% url 'sale:sale_detail' cn.sale.id %}" class="badge bg-light text-primary border text-decoration-none">
-                  {{ cn.sale.number }}
-                </a>
-                {% else %}
-                <span class="text-muted">-</span>
-                {% endif %}
-              </td>
-              <td>{{ cn.subtotal_amount|smart_float }} {% currency_symbol %}</td>
-              <td>{{ cn.tax_amount|smart_float }} {% currency_symbol %}</td>
-              <td class="fw-bold text-success">{{ cn.total_amount|smart_float }} {% currency_symbol %}</td>
-              <td>
-                {% if cn.status == 'POSTED' %}
-                <span class="badge bg-success"><i class="fas fa-check-circle me-1"></i>{% trans "مُرحل للدفاتر" %}</span>
-                {% elif cn.status == 'APPROVED' %}
-                <span class="badge bg-primary"><i class="fas fa-thumbs-up me-1"></i>{% trans "معتمد" %}</span>
-                {% else %}
-                <span class="badge bg-secondary">{% trans "مسودة" %}</span>
-                {% endif %}
-              </td>
-              <td class="text-muted small">{{ cn.created_at|date:"d-m-Y" }}</td>
-              <td class="text-center">
-                <a href="{% url 'sale:credit_note_detail' cn.id %}" class="btn btn-sm btn-outline-info" title="{% trans 'عرض التفاصيل' %}">
-                  <i class="fas fa-eye"></i>
-                </a>
-              </td>
-            </tr>
-            {% empty %}
-            <tr>
-              <td colspan="9" class="text-center py-4 text-muted">
-                <i class="fas fa-folder-open fa-2x mb-2 d-block text-secondary"></i>
-                {% trans "لا توجد إشعارات دائنة مسجلة حتى الآن." %}
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
+  <!-- كروت الإحصائيات السريعة -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-3">
+      <div class="stats-card stats-card-primary">
+        <div class="stats-card-header"></div>
+        <div class="stats-card-body">
+          <div class="stats-card-icon">
+            <i class="fas fa-file-invoice-dollar"></i>
+          </div>
+          <div class="stats-card-title">إجمالي الإشعارات</div>
+          <div class="stats-card-value">{{ total_credit_notes_count|default:0 }}</div>
+          <div class="stats-card-unit">إشعار دائن</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="stats-card stats-card-info">
+        <div class="stats-card-header"></div>
+        <div class="stats-card-body">
+          <div class="stats-card-icon">
+            <i class="fas fa-money-bill-wave"></i>
+          </div>
+          <div class="stats-card-title">إجمالي الخصومات</div>
+          <div class="stats-card-value">{{ total_credit_notes_amount|default:0|smart_float }} <span class="fs-6 fw-normal ms-1">{{ currency_symbol }}</span></div>
+          <div class="stats-card-unit">المبالغ الدائنة</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="stats-card stats-card-success">
+        <div class="stats-card-header"></div>
+        <div class="stats-card-body">
+          <div class="stats-card-icon">
+            <i class="fas fa-check-circle"></i>
+          </div>
+          <div class="stats-card-title">مُرحل مالياً</div>
+          <div class="stats-card-value">{{ posted_credit_notes_count|default:0 }}</div>
+          <div class="stats-card-unit">إشعار مُرحل</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="stats-card stats-card-warning">
+        <div class="stats-card-header"></div>
+        <div class="stats-card-body">
+          <div class="stats-card-icon">
+            <i class="fas fa-clock"></i>
+          </div>
+          <div class="stats-card-title">مسودات معلقة</div>
+          <div class="stats-card-value">{{ draft_credit_notes_count|default:0 }}</div>
+          <div class="stats-card-unit">قيد المراجعة</div>
+        </div>
       </div>
     </div>
   </div>
+
+  <!-- تصفية وبحث -->
+  <div class="section-container mb-4">
+    <h5 class="section-title" data-bs-toggle="collapse" data-bs-target="#filterSection" aria-expanded="false">
+      <i class="fas fa-filter me-2"></i>{% trans "تصفية وبحث" %}
+      <i class="fas fa-chevron-down float-end"></i>
+    </h5>
+    <div class="collapse" id="filterSection">
+      <div class="filter-section mb-4">
+        <form method="GET" action="" class="row g-3">
+          <div class="col-md-4">
+            <label for="customer" class="form-label">{% trans "العميل" %}</label>
+            <select class="form-select select2-filter" id="customer" name="customer">
+              <option value="">{% trans "جميع العملاء" %}</option>
+              {% for customer in customers %}
+              <option value="{{ customer.id }}" {% if request.GET.customer == customer.id|stringformat:"i" %}selected{% endif %}>
+                {{ customer.name }}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label for="status" class="form-label">{% trans "الحالة" %}</label>
+            <select class="form-select" id="status" name="status">
+              <option value="">{% trans "جميع الحالات" %}</option>
+              <option value="POSTED" {% if request.GET.status == 'POSTED' %}selected{% endif %}>{% trans "مُرحل مالياً" %}</option>
+              <option value="APPROVED" {% if request.GET.status == 'APPROVED' %}selected{% endif %}>{% trans "معتمد" %}</option>
+              <option value="DRAFT" {% if request.GET.status == 'DRAFT' %}selected{% endif %}>{% trans "مسودة" %}</option>
+            </select>
+          </div>
+          <div class="col-md-2">
+            <label for="date_from" class="form-label">{% trans "من تاريخ" %}</label>
+            <input type="text" class="form-control" id="date_from" name="date_from" data-date-picker placeholder="من تاريخ" value="{{ request.GET.date_from }}">
+          </div>
+          <div class="col-md-2">
+            <label for="date_to" class="form-label">{% trans "إلى تاريخ" %}</label>
+            <input type="text" class="form-control" id="date_to" name="date_to" data-date-picker placeholder="إلى تاريخ" value="{{ request.GET.date_to }}">
+          </div>
+          <div class="col-md-1 d-flex gap-2 align-items-end">
+            <button type="submit" class="btn btn-primary w-100 px-0">
+              <i class="fas fa-search"></i>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- جدول قائمة الإشعارات الدائنة الموحد -->
+  <div class="section-container">
+    <h5 class="section-title"><i class="fas fa-file-invoice-dollar me-2 text-primary"></i>{% trans "قائمة الإشعارات الدائنة والخصومات" %}</h5>
+    <div id="credit-notes-table-container">
+      {% include "components/data_table.html" with table_id="credit-notes-table" headers=cn_headers data=credit_notes_data primary_key="id" table_class="hover" empty_message="لا توجد إشعارات دائنة مسجلة حتى الآن." show_search=False show_length_menu=False disable_pagination=True show_currency=True clickable_rows=True row_click_url="/sales/credit-notes/0/" sortable=False %}
+    </div>
+
+    <!-- Django SSR Pagination -->
+    <div id="pagination-wrapper">
+      {% include "partials/pagination.html" with page_obj=page_obj align="center" %}
+    </div>
+  </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/global-table.js' %}"></script>
+<script src="{% static 'js/select2.min.js' %}"></script>
+<script>
+  function initTableEvents() {
+    $('#credit-notes-table tbody').off('click', 'tr').on('click', 'tr', function(e) {
+      if ($(e.target).closest('.col-actions, .btn, a, button').length > 0) return;
+      var itemId = $(this).data('id');
+      if (itemId && itemId !== '0') window.location.href = '/sales/credit-notes/' + itemId + '/';
+    }).css('cursor', 'pointer');
+  }
+
+  $(document).ready(function() {
+    $('.select2-filter').select2({ width: '100%', language: "ar", dir: "rtl" });
+    initTableEvents();
+    
+    let debounceTimer;
+    window.doSearch = function(customQueryStr) {
+      let queryString = '';
+      if (typeof customQueryStr === 'string' && customQueryStr.length > 0) {
+        queryString = customQueryStr;
+      } else {
+        const params = new URLSearchParams({
+          customer: $('#customer').val() || '',
+          status: $('#status').val() || '',
+          date_from: $('#date_from').val() || '',
+          date_to: $('#date_to').val() || '',
+          page: 1
+        });
+        queryString = params.toString();
+      }
+
+      $.ajax({
+        url: '?' + queryString,
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        success: function(data) {
+          if (data.table_html !== undefined) {
+            $('#credit-notes-table-container').html(data.table_html);
+          }
+          if (data.pagination_html !== undefined) {
+            $('#pagination-wrapper').html(data.pagination_html);
+          }
+          history.replaceState(null, '', '?' + queryString);
+          initTableEvents();
+        }
+      });
+    };
+
+    $('form').on('submit', function(e) {
+      e.preventDefault();
+      window.doSearch();
+    });
+
+    $('#customer, #status').on('change', function() {
+      window.doSearch();
+    });
+    
+    $('#date_from, #date_to').on('change', function() {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(function() { window.doSearch(); }, 400);
+    });
+  });
+</script>
 {% endblock %}

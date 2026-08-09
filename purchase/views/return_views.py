@@ -6,13 +6,18 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.db import transaction
+from django.db.models import Sum
 from django.utils import timezone
 from django.urls import reverse
 from decimal import Decimal
 import logging
 
+from django.core.paginator import Paginator
+from datetime import datetime
+from supplier.models import Supplier
 from purchase.models import Purchase, PurchaseItem, PurchaseReturn, PurchaseReturnItem
 from purchase.forms import PurchaseReturnForm
+from core.models import SystemSetting
 
 logger = logging.getLogger(__name__)
 
@@ -218,79 +223,95 @@ def purchase_return(request, pk):
 @login_required
 def purchase_return_list(request):
     """
-    عرض قائمة مرتجعات المشتريات
+    عرض وإدارة مرتجعات المشتريات وفق النظام الموحد ERP
     """
-    returns = (
-        PurchaseReturn.objects.all()
-        .select_related("purchase", "purchase__supplier")
-        .order_by("-date", "-id")
-    )
+    queryset = PurchaseReturn.objects.select_related("purchase", "purchase__supplier").order_by("-date", "-id")
 
-    # تعريف أعمدة جدول مرتجعات المشتريات
+    # الفلترة
+    supplier_id = request.GET.get("supplier")
+    status_filter = request.GET.get("status")
+    date_from = request.GET.get("date_from")
+    date_to = request.GET.get("date_to")
+
+    if supplier_id:
+        queryset = queryset.filter(purchase__supplier_id=supplier_id)
+    if status_filter:
+        queryset = queryset.filter(status=status_filter)
+    if date_from:
+        try:
+            d_from = datetime.strptime(date_from, "%Y-%m-%d").date()
+            queryset = queryset.filter(date__gte=d_from)
+        except ValueError:
+            pass
+    if date_to:
+        try:
+            d_to = datetime.strptime(date_to, "%Y-%m-%d").date()
+            queryset = queryset.filter(date__lte=d_to)
+        except ValueError:
+            pass
+
+    # الكروت الإحصائية
+    total_returns_count = PurchaseReturn.objects.count()
+    total_returns_amount = PurchaseReturn.objects.aggregate(total=Sum("total"))["total"] or 0
+    confirmed_returns_count = PurchaseReturn.objects.filter(status="confirmed").count()
+    draft_returns_count = PurchaseReturn.objects.filter(status="draft").count()
+
+    # Pagination
+    paginator = Paginator(queryset, 20)
+    page_number = request.GET.get("page")
+    page_obj = paginator.get_page(page_number)
+
+    curr_sym = SystemSetting.get_currency_symbol()
+
+    # تجهيز بيانات الجدول الموحد
     return_headers = [
-        {
-            "key": "id",
-            "label": "#",
-            "sortable": True,
-            "class": "text-center",
-            "width": "50px",
-        },
-        {
-            "key": "purchase.number",
-            "label": "رقم الفاتورة",
-            "sortable": True,
-            "class": "text-center",
-            "width": "120px",
-        },
-        {
-            "key": "purchase.supplier.name",
-            "label": "المورد",
-            "sortable": True,
-            "class": "text-start",
-        },
-        {
-            "key": "date",
-            "label": "تاريخ المرتجع",
-            "sortable": True,
-            "class": "text-center",
-            "format": "date",
-            "width": "120px",
-        },
-        {
-            "key": "total_amount",
-            "label": "إجمالي المرتجع",
-            "sortable": True,
-            "class": "text-center",
-            "format": "currency",
-            "width": "120px",
-        },
-        {
-            "key": "status",
-            "label": "الحالة",
-            "sortable": True,
-            "class": "text-center",
-            "template": "components/cells/return_status.html",
-            "width": "100px",
-        },
+        {"key": "id", "label": "#", "width": "5%", "class": "text-center"},
+        {"key": "purchase_number", "label": "الفاتورة الأصلية", "width": "15%", "format": "html"},
+        {"key": "supplier_name", "label": "المورد", "width": "25%"},
+        {"key": "date", "label": "تاريخ المرتجع", "width": "15%", "class": "text-center"},
+        {"key": "total_amount", "label": "إجمالي المرتجع", "width": "15%", "class": "text-end fw-bold"},
+        {"key": "status", "label": "الحالة", "width": "10%", "class": "text-center", "format": "html"},
+        {"key": "actions", "label": "الإجراءات", "width": "15%", "class": "text-center text-nowrap"}
     ]
 
-    # أزرار الإجراءات
-    return_actions = [
-        {
-            "url": "purchase:purchase_return_detail",
-            "icon": "fa-eye",
-            "label": "عرض",
-            "class": "action-view",
-        },
-    ]
+    purchase_returns_data = []
+    for ret in page_obj:
+        if ret.status == 'confirmed':
+            status_badge = '<span class="badge bg-success">مؤكد</span>'
+        elif ret.status == 'cancelled':
+            status_badge = '<span class="badge bg-danger">ملغي</span>'
+        else:
+            status_badge = '<span class="badge bg-secondary">مسودة</span>'
+
+        purchase_num_html = f'<a href="/purchase/{ret.purchase.id}/" class="text-primary font-monospace fw-bold">{ret.purchase.number}</a>' if ret.purchase else '-'
+        actions_html = f'<a href="/purchases/returns/{ret.id}/" class="btn btn-sm btn-outline-primary" title="عرض"><i class="fas fa-eye"></i></a>'
+
+        purchase_returns_data.append({
+            'id': ret.id,
+            'purchase_number': purchase_num_html,
+            'supplier_name': ret.purchase.supplier.name if (ret.purchase and ret.purchase.supplier) else '-',
+            'date': ret.date.strftime('%Y-%m-%d') if ret.date else '-',
+            'total_amount': f'{ret.total:,.2f} {curr_sym}',
+            'status': status_badge,
+            'actions': actions_html,
+        })
+
+    suppliers = Supplier.objects.filter(is_active=True).order_by("name")
 
     context = {
-        "returns": returns,
+        "returns": page_obj,
+        "purchase_returns_data": purchase_returns_data,
         "return_headers": return_headers,
-        "return_actions": return_actions,
-        "primary_key": "id",
+        "total_returns_count": total_returns_count,
+        "total_returns_amount": total_returns_amount,
+        "confirmed_returns_count": confirmed_returns_count,
+        "draft_returns_count": draft_returns_count,
+        "suppliers": suppliers,
+        "currency_symbol": curr_sym,
+        "active_menu": "purchases",
+        "title": "مرتجعات المشتريات",
         "page_title": "مرتجعات المشتريات",
-        "page_subtitle": "إدارة ومتابعة جميع مرتجعات المشتريات",
+        "page_subtitle": "عرض وإدارة جميع مرتجعات المشتريات",
         "page_icon": "fas fa-undo-alt",
         "header_buttons": [
             {

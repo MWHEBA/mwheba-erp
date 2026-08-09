@@ -13,3 +13,6 @@ from purchase.models.procurement_models import (
     ApprovalRule,
     ApprovalRequest,
 )
+from purchase.models.grn_audit_log import GRNAuditLog
+from purchase.models.grn_posting_log import GRNPostingLog
+

@@ -29,6 +29,10 @@ from .views import (
     grn_list,
     grn_create,
     grn_detail,
+    grn_submit,
+    grn_approve,
+    grn_post,
+    grn_reverse,
     # Landed Cost Views
     landed_cost_list,
     landed_cost_create,
@@ -92,6 +96,10 @@ urlpatterns = [
     path("grn/create/", grn_create, name="grn_create"),
     path("grn/create/<int:purchase_id>/", grn_create, name="grn_create_for_purchase"),
     path("grn/<int:pk>/", grn_detail, name="grn_detail"),
+    path("grn/<int:pk>/submit/", grn_submit, name="grn_submit"),
+    path("grn/<int:pk>/approve/", grn_approve, name="grn_approve"),
+    path("grn/<int:pk>/post/", grn_post, name="grn_post"),
+    path("grn/<int:pk>/reverse/", grn_reverse, name="grn_reverse"),
     # التكاليف الإضافية والجمارك (Landed Cost)
     path("landed-cost/", landed_cost_list, name="landed_cost_list"),
     path("landed-cost/create/", landed_cost_create, name="landed_cost_create"),

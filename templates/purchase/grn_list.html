@@ -3,7 +3,7 @@
 {% load i18n %}
 {% load utils_extras %}
 
-{% block title %}{{ title|default:"أذون استلام البضائع (GRN)" }}{% endblock %}
+{% block title %}{{ title|default:"إذونات استلام المشتريات (GRN)" }}{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
@@ -12,7 +12,49 @@
 {% block content %}
 <div class="container-fluid">
   <!-- Page Header -->
-  {% include "shared/page_header.html" with title=title|default:"أذون استلام البضائع (GRN)" subtitle="إدارة ومتابعة أذون استلام الخامات والبضائع بالمستودعات" icon="fas fa-boxes" header_buttons=header_buttons %}
+  {% include "shared/page_header.html" with title=title|default:"إذونات استلام المشتريات (GRN)" subtitle="إدارة ومتابعة استلام خامات ومواد المشتريات بالمستودعات والمطابقة المالية" icon="fas fa-truck-loading" header_buttons=header_buttons %}
+
+  <!-- KPI Stats Row -->
+  {% if grni_summary %}
+  <div class="row g-3 mb-4">
+    <div class="col-md-3">
+      <div class="stats-card stats-card-info">
+        <div class="stats-card-body">
+          <div class="stats-card-icon"><i class="fas fa-file-invoice-dollar"></i></div>
+          <div class="stats-card-title">إجمالي المبالغ غير المفوترة (GRNI)</div>
+          <div class="stats-card-value">{{ grni_summary.total_open_grni_value|default:"0.00"|floatformat:2 }} {{ currency_symbol|default:"EGP" }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="stats-card stats-card-success">
+        <div class="stats-card-body">
+          <div class="stats-card-icon"><i class="fas fa-clock"></i></div>
+          <div class="stats-card-title">تعتيق حديث (أقل من 30 يوم)</div>
+          <div class="stats-card-value">{{ grni_summary.aging_under_30_days|default:"0.00"|floatformat:2 }} {{ currency_symbol|default:"EGP" }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="stats-card stats-card-warning">
+        <div class="stats-card-body">
+          <div class="stats-card-icon"><i class="fas fa-exclamation-circle"></i></div>
+          <div class="stats-card-title">تعتيق متوسط (30 - 60 يوم)</div>
+          <div class="stats-card-value">{{ grni_summary.aging_30_to_60_days|default:"0.00"|floatformat:2 }} {{ currency_symbol|default:"EGP" }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="stats-card stats-card-danger">
+        <div class="stats-card-body">
+          <div class="stats-card-icon"><i class="fas fa-exclamation-triangle"></i></div>
+          <div class="stats-card-title">تعتيق متأخر (أكثر من 60 يوم)</div>
+          <div class="stats-card-value">{{ grni_summary.aging_over_60_days|default:"0.00"|floatformat:2 }} {{ currency_symbol|default:"EGP" }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
 
   <!-- Search and Filter Section -->
   <div class="section-container mb-4">
@@ -33,7 +75,7 @@
             {% endfor %}
           </select>
         </div>
-        <div class="col-md-3">
+        <div class="col-md-2">
           <label for="warehouse" class="form-label">{% trans "المستودع" %}</label>
           <select class="form-select" id="warehouse" name="warehouse">
             <option value="">{% trans "جميع المستودعات" %}</option>
@@ -45,6 +87,17 @@
           </select>
         </div>
         <div class="col-md-2">
+          <label for="status" class="form-label">{% trans "الحالة" %}</label>
+          <select class="form-select" id="status" name="status">
+            <option value="">{% trans "جميع الحالات" %}</option>
+            <option value="DRAFT" {% if request.GET.status == 'DRAFT' %}selected{% endif %}>مسودة</option>
+            <option value="SUBMITTED" {% if request.GET.status == 'SUBMITTED' %}selected{% endif %}>مقدم للاعتماد</option>
+            <option value="APPROVED" {% if request.GET.status == 'APPROVED' %}selected{% endif %}>معتمد</option>
+            <option value="POSTED" {% if request.GET.status == 'POSTED' %}selected{% endif %}>مرحل</option>
+            <option value="REVERSED" {% if request.GET.status == 'REVERSED' %}selected{% endif %}>معكوس</option>
+          </select>
+        </div>
+        <div class="col-md-2">
           <label for="date_from" class="form-label">{% trans "من تاريخ" %}</label>
           <input type="date" class="form-control" id="date_from" name="date_from" value="{{ request.GET.date_from }}">
         </div>
@@ -52,9 +105,9 @@
           <label for="date_to" class="form-label">{% trans "إلى تاريخ" %}</label>
           <input type="date" class="form-control" id="date_to" name="date_to" value="{{ request.GET.date_to }}">
         </div>
-        <div class="col-md-2 d-flex gap-2 align-items-end">
+        <div class="col-md-1 d-flex gap-1 align-items-end">
           <button type="submit" class="btn btn-primary w-100">
-            <i class="fas fa-search me-1"></i> {% trans "بحث" %}
+            <i class="fas fa-search me-1"></i>
           </button>
           <a href="{% url 'purchase:grn_list' %}" class="btn btn-outline-secondary" title="{% trans 'إعادة ضبط' %}">
             <i class="fas fa-redo"></i>
@@ -67,7 +120,7 @@
   <!-- GRN Table Section -->
   <div class="section-container">
     <h5 class="section-title">
-      <i class="fas fa-list me-2"></i>{% trans "سجل أذون الاستلام" %}
+      <i class="fas fa-list me-2"></i>{% trans "سجل إذونات استلام المشتريات" %}
     </h5>
 
     <div class="table-responsive">
@@ -75,10 +128,11 @@
         <thead>
           <tr>
             <th>{% trans "رقم إذن الاستلام" %}</th>
-            <th>{% trans "الفاتورة المرتبطة" %}</th>
+            <th>{% trans "أمر الشراء / الفاتورة" %}</th>
             <th>{% trans "المورد" %}</th>
             <th>{% trans "المستودع" %}</th>
             <th>{% trans "تاريخ الاستلام" %}</th>
+            <th class="text-center">{% trans "القيد المحاسبي" %}</th>
             <th class="text-center">{% trans "الحالة" %}</th>
             <th class="text-center">{% trans "الإجراءات" %}</th>
           </tr>
@@ -92,35 +146,76 @@
               </a>
             </td>
             <td>
+              {% if grn.purchase_order %}
+                <span class="badge bg-light text-dark border me-1">PO #{{ grn.purchase_order.order_number }}</span>
+              {% endif %}
               {% if grn.purchase %}
-                <a href="{% url 'purchase:purchase_detail' grn.purchase.pk %}" class="text-decoration-none">
-                  {{ grn.purchase.number }}
-                </a>
-              {% else %}
-                <span class="text-muted">-</span>
+                <span class="badge bg-light text-dark border">BILL #{{ grn.purchase.number }}</span>
+              {% endif %}
+              {% if not grn.purchase_order and not grn.purchase %}
+                <span class="badge bg-warning-subtle text-dark border border-warning-subtle">استلام مباشر</span>
               {% endif %}
             </td>
             <td>{{ grn.supplier.name }}</td>
             <td>{{ grn.warehouse.name }}</td>
             <td>{{ grn.received_date|date:"Y-m-d H:i" }}</td>
             <td class="text-center">
-              {% if grn.status == "RECEIVED" %}
-                <span class="badge bg-success-subtle text-success border border-success-subtle">{% trans "تم الاستلام" %}</span>
+              {% if grn.journal_entry %}
+                <span class="badge bg-info-subtle text-info border border-info-subtle">#{{ grn.journal_entry.id }}</span>
               {% else %}
-                <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">{{ grn.status }}</span>
+                <span class="text-muted small">-</span>
               {% endif %}
             </td>
             <td class="text-center">
-              <a href="{% url 'purchase:grn_detail' grn.pk %}" class="btn btn-sm btn-outline-primary" title="{% trans 'عرض التفاصيل' %}">
-                <i class="fas fa-eye me-1"></i> {% trans "عرض" %}
-              </a>
+              {% if grn.status == "POSTED" %}
+                <span class="badge bg-success-subtle text-success border border-success-subtle"><i class="fas fa-check-circle me-1"></i>مرحل مخزنياً ومالياً</span>
+              {% elif grn.status == "APPROVED" %}
+                <span class="badge bg-primary-subtle text-primary border border-primary-subtle"><i class="fas fa-user-check me-1"></i>معتمد (جاهز للترحيل)</span>
+              {% elif grn.status == "SUBMITTED" %}
+                <span class="badge bg-warning-subtle text-warning border border-warning-subtle"><i class="fas fa-clock me-1"></i>مقدم للاعتماد</span>
+              {% elif grn.status == "REVERSED" %}
+                <span class="badge bg-danger-subtle text-danger border border-danger-subtle"><i class="fas fa-undo me-1"></i>معكوس</span>
+              {% else %}
+                <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle"><i class="fas fa-edit me-1"></i>مسودة</span>
+              {% endif %}
+            </td>
+            <td class="text-center">
+              <div class="btn-group btn-group-sm">
+                <a href="{% url 'purchase:grn_detail' grn.pk %}" class="btn btn-outline-secondary" title="{% trans 'عرض التفاصيل' %}">
+                  <i class="fas fa-eye"></i>
+                </a>
+                {% if grn.status == "DRAFT" %}
+                  <form method="POST" action="{% url 'purchase:grn_submit' grn.pk %}" class="d-inline">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-outline-warning" title="{% trans 'تقديم للمراجعة' %}">
+                      <i class="fas fa-paper-plane"></i>
+                    </button>
+                  </form>
+                {% endif %}
+                {% if grn.status == "SUBMITTED" %}
+                  <form method="POST" action="{% url 'purchase:grn_approve' grn.pk %}" class="d-inline">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-outline-primary" title="{% trans 'اعتماد الإذن' %}">
+                      <i class="fas fa-user-check"></i>
+                    </button>
+                  </form>
+                {% endif %}
+                {% if grn.status == "APPROVED" or grn.status == "DRAFT" %}
+                  <form method="POST" action="{% url 'purchase:grn_post' grn.pk %}" class="d-inline">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-outline-success" title="{% trans 'ترحيل القيد والمخزون' %}">
+                      <i class="fas fa-check-double"></i>
+                    </button>
+                  </form>
+                {% endif %}
+              </div>
             </td>
           </tr>
           {% empty %}
           <tr>
-            <td colspan="7" class="text-center py-4 text-muted">
+            <td colspan="8" class="text-center py-4 text-muted">
               <i class="fas fa-boxes fa-2x mb-2 d-block text-muted"></i>
-              {% trans "لا توجد أذون استلام مخزنية متاحة" %}
+              {% trans "لا توجد إذونات استلام مشتريات متاحة" %}
             </td>
           </tr>
           {% endfor %}

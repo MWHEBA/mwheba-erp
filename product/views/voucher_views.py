@@ -125,12 +125,18 @@ class ReceiptVoucherListView(LoginRequiredMixin, PermissionRequiredMixin, ListVi
         context = super().get_context_data(**kwargs)
         context.update({
             'active_menu': 'product',
-            'title': 'أذون الاستلام',
+            'title': 'أذون الاستلام الداخلية والتسويات',
             'header_buttons': [
+                {
+                    'url': reverse('purchase:grn_create'),
+                    'icon': 'fa-truck-loading',
+                    'text': 'إذن استلام مشتريات (GRN)',
+                    'class': 'btn-success me-2',
+                },
                 {
                     'onclick': 'openReceiptVoucherModal()',
                     'icon': 'fa-plus',
-                    'text': 'إذن استلام جديد',
+                    'text': 'إذن استلام داخلي جديد',
                     'class': 'btn-primary',
                     'id': 'create-receipt-btn'
                 }
@@ -138,7 +144,7 @@ class ReceiptVoucherListView(LoginRequiredMixin, PermissionRequiredMixin, ListVi
             'breadcrumb_items': [
                 {'title': 'الرئيسية', 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},
                 {'title': 'المخزون', 'url': reverse('product:product_list'), 'icon': 'fas fa-boxes'},
-                {'title': 'أذون الاستلام', 'active': True}
+                {'title': 'أذون الاستلام الداخلية والتسويات', 'active': True}
             ],
             'warehouses': Warehouse.objects.filter(is_active=True),
             'table_headers': self._get_table_headers(),

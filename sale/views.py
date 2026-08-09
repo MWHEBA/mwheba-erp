@@ -90,7 +90,6 @@ def sale_create(request, customer_id=None):
     ✅ محدث: يستخدم SaleService مع الحوكمة الكاملة
     """
     # جلب نوع البنود المسموح بها من الإعدادات
-    from core.models import SystemSetting
     allowed_item_types = SystemSetting.get_setting('sale_invoice_item_types', 'both')
 
     # جلب المخزن الافتراضي
@@ -869,7 +868,6 @@ def sale_list(request):
     returned_sales_count = Sale.objects.filter(returns__status="confirmed").distinct().count()
     total_amount = Sale.objects.aggregate(Sum("total"))["total__sum"] or 0
 
-    from core.models import SystemSetting
     allowed_types = SystemSetting.get_setting('sale_invoice_item_types', 'both')
 
     customers = Customer.objects.filter(id__in=Sale.objects.values('customer_id')).order_by("name")
@@ -978,7 +976,6 @@ def sale_list(request):
 def get_sale_print_context(request, pk):
     sale = get_object_or_404(Sale, pk=pk)
     items = sale.items.all().select_related('product', 'product__unit', 'product__category')
-    from core.models import SystemSetting
     
     default_lang = SystemSetting.get_default_print_language()
     print_lang = request.GET.get('lang', default_lang).lower()
@@ -1126,7 +1123,6 @@ def sale_print_thermal(request, pk):
     import qrcode
     import io
     import base64
-    from core.models import SystemSetting
     
     enable_thermal = SystemSetting.get_setting('enable_thermal_printing', 'false') == 'true'
     if not enable_thermal:
@@ -1496,21 +1492,137 @@ def edit_payment(request, payment_id):
 @login_required
 def sale_return_list(request):
     """
-    قائمة مرتجعات المبيعات
+    عرض وإدارة مرتجعات المبيعات وفق النظام الموحد ERP
     """
-    returns = SaleReturn.objects.select_related("sale", "sale__customer").order_by("-date")
-    
+    queryset = SaleReturn.objects.select_related("sale", "sale__customer").order_by("-date", "-id")
+
+    # الفلترة
+    customer_id = request.GET.get("customer")
+    status_filter = request.GET.get("status")
+    date_from = request.GET.get("date_from")
+    date_to = request.GET.get("date_to")
+
+    if customer_id:
+        queryset = queryset.filter(sale__customer_id=customer_id)
+    if status_filter:
+        queryset = queryset.filter(status=status_filter)
+    if date_from:
+        try:
+            d_from = datetime.strptime(date_from, "%Y-%m-%d").date()
+            queryset = queryset.filter(date__gte=d_from)
+        except ValueError:
+            pass
+    if date_to:
+        try:
+            d_to = datetime.strptime(date_to, "%Y-%m-%d").date()
+            queryset = queryset.filter(date__lte=d_to)
+        except ValueError:
+            pass
+
+    # الكروت الإحصائية
+    total_returns_count = SaleReturn.objects.count()
+    total_returns_amount = SaleReturn.objects.aggregate(total=Sum("total"))["total"] or 0
+    confirmed_returns_count = SaleReturn.objects.filter(status="confirmed").count()
+    draft_returns_count = SaleReturn.objects.filter(status="draft").count()
+
     # Pagination
-    paginator = Paginator(returns, 20)
+    paginator = Paginator(queryset, 20)
     page_number = request.GET.get("page")
     page_obj = paginator.get_page(page_number)
-    
+
+    curr_sym = SystemSetting.get_currency_symbol()
+
+    # تجهيز بيانات الجدول الموحد
+    return_headers = [
+        {"key": "id", "label": "#", "width": "5%", "class": "text-center"},
+        {"key": "sale_number", "label": "الفاتورة الأصلية", "width": "15%", "format": "html"},
+        {"key": "customer_name", "label": "العميل", "width": "25%"},
+        {"key": "date", "label": "تاريخ المرتجع", "width": "15%", "class": "text-center"},
+        {"key": "total_amount", "label": "إجمالي المرتجع", "width": "15%", "class": "text-end fw-bold"},
+        {"key": "status", "label": "الحالة", "width": "10%", "class": "text-center", "format": "html"},
+        {"key": "actions", "label": "الإجراءات", "width": "15%", "class": "text-center text-nowrap"}
+    ]
+
+    sale_returns_data = []
+    for ret in page_obj:
+        if ret.status == 'confirmed':
+            status_badge = '<span class="badge bg-success">مؤكد</span>'
+        elif ret.status == 'cancelled':
+            status_badge = '<span class="badge bg-danger">ملغي</span>'
+        else:
+            status_badge = '<span class="badge bg-secondary">مسودة</span>'
+
+        sale_num_html = f'<a href="/sales/{ret.sale.id}/" class="text-primary font-monospace fw-bold">{ret.sale.number}</a>' if ret.sale else '-'
+        actions_html = f'<a href="/sales/returns/{ret.id}/" class="btn btn-sm btn-outline-primary" title="عرض"><i class="fas fa-eye"></i></a>'
+
+        sale_returns_data.append({
+            'id': ret.id,
+            'sale_number': sale_num_html,
+            'customer_name': ret.sale.customer.name if (ret.sale and ret.sale.customer) else '-',
+            'date': ret.date.strftime('%Y-%m-%d') if ret.date else '-',
+            'total_amount': f'{ret.total:,.2f} {curr_sym}',
+            'status': status_badge,
+            'actions': actions_html,
+        })
+
+    customers = Customer.objects.filter(is_active=True).order_by("name")
+
     context = {
         "returns": page_obj,
+        "sale_returns_data": sale_returns_data,
+        "return_headers": return_headers,
+        "total_returns_count": total_returns_count,
+        "total_returns_amount": total_returns_amount,
+        "confirmed_returns_count": confirmed_returns_count,
+        "draft_returns_count": draft_returns_count,
+        "customers": customers,
+        "currency_symbol": curr_sym,
         "active_menu": "sales",
         "title": "مرتجعات المبيعات",
+        "page_title": "مرتجعات المبيعات",
+        "page_subtitle": "عرض وإدارة جميع مرتجعات المبيعات",
+        "page_icon": "fas fa-undo-alt",
+        "header_buttons": [
+            {
+                "url": reverse("sale:sale_list"),
+                "icon": "fa-file-invoice",
+                "text": "فواتير المبيعات",
+                "class": "btn-outline-primary",
+            }
+        ],
+        "breadcrumb_items": [
+            {"title": "الرئيسية", "url": reverse("core:dashboard"), "icon": "fas fa-home"},
+            {"title": "المبيعات", "url": reverse("sale:sale_list"), "icon": "fas fa-shopping-cart"},
+            {"title": "مرتجعات المبيعات", "active": True},
+        ],
     }
-    
+
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        from django.template.loader import render_to_string
+        from django.http import JsonResponse
+        table_html = render_to_string('components/data_table.html', {
+            'table_id': 'sale-returns-table',
+            'headers': return_headers,
+            'data': sale_returns_data,
+            'empty_message': 'لا توجد مرتجعات مبيعات متاحة',
+            'table_class': 'hover',
+            'primary_key': 'id',
+            'clickable_rows': True,
+            'row_click_url': '/sales/returns/0/',
+            'show_currency': True,
+            'disable_pagination': True,
+            'show_search': False,
+            'show_length_menu': False,
+            'sortable': False
+        }, request=request)
+        pagination_html = render_to_string('partials/pagination.html', {
+            'page_obj': page_obj
+        }, request=request)
+        return JsonResponse({
+            'table_html': table_html,
+            'pagination_html': pagination_html
+        })
+
     return render(request, "sale/sale_return_list.html", context)
 
 
@@ -1587,7 +1699,6 @@ def sale_duplicate(request, pk):
     original = get_object_or_404(Sale, pk=pk)
 
     # جلب نوع البنود المسموح بها من الإعدادات
-    from core.models import SystemSetting
     allowed_item_types = SystemSetting.get_setting('sale_invoice_item_types', 'both')
 
     # جلب المنتجات المسجلة في الفاتورة الأصلية مضافاً إليها المنتجات ذات المخزون المتاح

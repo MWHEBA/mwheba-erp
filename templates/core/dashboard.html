@@ -403,9 +403,9 @@
                             <div class="stats-card-icon">
                                 <i class="fas fa-shopping-cart"></i>
                             </div>
-                            <div class="stats-card-title">المبيعات</div>
-                            <div class="stats-card-value">{{ sales_month_count|default:0 }}</div>
-                            <div class="stats-card-unit">فاتورة هذا الشهر</div>
+                            <div class="stats-card-title">إجمالي المبيعات</div>
+                            <div class="stats-card-value">{{ sales_month_total|default:0|smart_float }} <span class="fs-6 fw-normal ms-1">{{ currency_symbol }}</span></div>
+                            <div class="stats-card-unit">{{ sales_month_count|default:0 }} فاتورة هذا الشهر</div>
                         </div>
                     </div>
                 </div>
@@ -421,9 +421,9 @@
                             <div class="stats-card-icon">
                                 <i class="fas fa-truck"></i>
                             </div>
-                            <div class="stats-card-title">المشتريات</div>
-                            <div class="stats-card-value">{{ purchases_month.count|default:0 }}</div>
-                            <div class="stats-card-unit">فاتورة هذا الشهر</div>
+                            <div class="stats-card-title">إجمالي المشتريات</div>
+                            <div class="stats-card-value">{{ purchases_month_total|default:0|smart_float }} <span class="fs-6 fw-normal ms-1">{{ currency_symbol }}</span></div>
+                            <div class="stats-card-unit">{{ purchases_month.count|default:0 }} فاتورة هذا الشهر</div>
                         </div>
                     </div>
                 </div>
@@ -491,8 +491,10 @@
                                     <div class="text-muted">مستحقات العملاء</div>
                                     <i class="fas fa-arrow-down text-success"></i>
                                 </div>
-                                <div class="h4 mb-0 text-success">{{ customer_dues|default:0|smart_float }}</div>
-                                <div class="text-muted small">{{ currency_symbol }}</div>
+                                <div class="h4 mb-0 text-success fw-bold">
+                                    {{ customer_dues|default:0|smart_float }}
+                                    <span class="fs-6 fw-normal text-muted ms-1">{{ currency_symbol }}</span>
+                                </div>
                             </div>
                         </div>
                         <div class="col-md-3">
@@ -501,8 +503,10 @@
                                     <div class="text-muted">إيرادات الشهر</div>
                                     <i class="fas fa-chart-line text-primary"></i>
                                 </div>
-                                <div class="h4 mb-0 text-primary">{{ sales_month_total|default:0|smart_float }}</div>
-                                <div class="text-muted small">{{ currency_symbol }}</div>
+                                <div class="h4 mb-0 text-primary fw-bold">
+                                    {{ sales_month_total|default:0|smart_float }}
+                                    <span class="fs-6 fw-normal text-muted ms-1">{{ currency_symbol }}</span>
+                                </div>
                             </div>
                         </div>
                         {% endif %}
@@ -515,8 +519,10 @@
                                     <div class="text-muted">مستحقات الموردين</div>
                                     <i class="fas fa-arrow-up text-danger"></i>
                                 </div>
-                                <div class="h4 mb-0 text-danger">{{ supplier_dues|default:0|smart_float }}</div>
-                                <div class="text-muted small">{{ currency_symbol }}</div>
+                                <div class="h4 mb-0 text-danger fw-bold">
+                                    {{ supplier_dues|default:0|smart_float }}
+                                    <span class="fs-6 fw-normal text-muted ms-1">{{ currency_symbol }}</span>
+                                </div>
                             </div>
                         </div>
                         <div class="col-md-3">
@@ -525,8 +531,10 @@
                                     <div class="text-muted">مصروفات الشهر</div>
                                     <i class="fas fa-chart-line text-warning"></i>
                                 </div>
-                                <div class="h4 mb-0 text-warning">{{ purchases_month_total|default:0|smart_float }}</div>
-                                <div class="text-muted small">{{ currency_symbol }}</div>
+                                <div class="h4 mb-0 text-warning fw-bold">
+                                    {{ purchases_month_total|default:0|smart_float }}
+                                    <span class="fs-6 fw-normal text-muted ms-1">{{ currency_symbol }}</span>
+                                </div>
                             </div>
                         </div>
                         {% endif %}

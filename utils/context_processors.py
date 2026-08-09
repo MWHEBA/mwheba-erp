@@ -2,6 +2,7 @@ from django.conf import settings
 from django.utils import timezone
 from django.core.cache import cache
 import datetime
+from core.models import SystemSetting
 
 
 def common_variables(request):
@@ -14,7 +15,6 @@ def common_variables(request):
     currency_symbol = cache.get('default_currency_symbol')
     currency_symbol_en = cache.get('default_currency_symbol_en')
     if currency_symbol is None or currency_symbol_en is None:
-        from core.models import SystemSetting
         from core.utils import get_default_currency
         currency_symbol = get_default_currency()
         currency_symbol_en = SystemSetting.get_currency_symbol_en()
@@ -34,7 +34,6 @@ def common_variables(request):
     
     if company_info is None:
         try:
-            from core.models import SystemSetting
             company_info = {
                 'name': SystemSetting.get_setting('company_name', "موهبة ERP"),
                 'slogan': SystemSetting.get_setting('company_slogan', "نظام إدارة المبيعات والمخزون"),
@@ -102,6 +101,7 @@ def common_variables(request):
         "company_logo": company_info['logo'],
         "company_stamp": company_info.get('stamp', ''),
         "enable_company_stamp": company_info.get('enable_stamp', True),
+        "enable_quotations": SystemSetting.get_setting('enable_quotations', 'true') == 'true',
         "company_address": company_info['address'],
         "company_phone": company_info['phone'],
         "company_email": company_info['email'],

@@ -250,25 +250,36 @@
                                             </h5>
                                             
                                             <div class="mb-3">
-                                                {{ form.default_currency.label_tag }}
+                                                <div class="d-flex align-items-center justify-content-between mb-1">
+                                                    {{ form.default_currency.label_tag }}
+                                                    {% if func_curr %}
+                                                        <span class="badge bg-soft-primary text-primary border border-primary px-2 py-1">
+                                                            <i class="fas fa-check-circle me-1"></i>الحالية: {{ func_curr.code }} ({{ func_curr.symbol }})
+                                                        </span>
+                                                    {% endif %}
+                                                </div>
+                                                
                                                 {{ form.default_currency }}
+                                                {% if is_locked %}
+                                                    <input type="hidden" name="default_currency" value="{{ form.default_currency.value|default:func_curr.id }}">
+                                                    <div class="alert alert-warning border-0 small mt-2 py-2 px-3 rounded-2">
+                                                        <i class="fas fa-lock text-warning me-2"></i>
+                                                        <strong>العملة الأساسية مقفلة محاسبياً (IAS 21):</strong> تم تسجيل حركة مالية أو تجارية بالنظام، وتغيير العملة الوظيفية متاح فقط أثناء مرحلة التأسيس.
+                                                    </div>
+                                                {% else %}
+                                                    <small class="form-text text-muted d-block mt-1">
+                                                        <i class="fas fa-info-circle me-1"></i>العملة الوظيفية الأساسية المعتمدة للدفاتر والقيود والعمولات (متاحة للتعديل خلال مرحلة التأسيس وقبل تسجيل العمليات).
+                                                    </small>
+                                                {% endif %}
                                                 {% if form.default_currency.errors %}
                                                     <div class="text-danger small mt-1">{{ form.default_currency.errors }}</div>
                                                 {% endif %}
-                                                <small class="form-text text-muted">
-                                                    <i class="fas fa-info-circle"></i> رمز العملة بالعربي المستخدم في النظام (مثال: {{ currency_symbol }}، ر.س)
-                                                </small>
-                                            </div>
-
-                                            <div class="mb-3">
-                                                {{ form.default_currency_en.label_tag }}
-                                                {{ form.default_currency_en }}
-                                                {% if form.default_currency_en.errors %}
-                                                    <div class="text-danger small mt-1">{{ form.default_currency_en.errors }}</div>
-                                                {% endif %}
-                                                <small class="form-text text-muted">
-                                                    <i class="fas fa-info-circle"></i> رمز العملة بالإنجليزية المستخدم في القوالب الإنجليزية (مثال: EGP, SAR, USD)
-                                                </small>
+                                                
+                                                <div class="mt-2 text-end">
+                                                    <a href="{% url 'financial:currency_list' %}" class="btn btn-sm btn-outline-primary" target="_blank">
+                                                        <i class="fas fa-plus-circle me-1"></i>إدارة العملات وأسعار الصرف
+                                                    </a>
+                                                </div>
                                             </div>
                                             
                                             <div class="mb-0">

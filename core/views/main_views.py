@@ -12,6 +12,7 @@ logger = logging.getLogger(__name__)
 
 from supplier.models import Supplier
 from purchase.models import Purchase
+from core.models import SystemSetting
 
 
 @login_required
@@ -107,6 +108,8 @@ def dashboard(request):
         ]
         
         customer_invoices_data = []
+        curr_sym = SystemSetting.get_currency_symbol()
+
         for invoice in overdue_customer_invoices:
             days_overdue = (today - invoice.date).days
             
@@ -126,7 +129,7 @@ def dashboard(request):
                 'customer': invoice.customer.name if invoice.customer else '-',
                 'date': invoice.date.strftime('%d-%m-%Y'),
                 'days_overdue': f'<span class="badge {badge_class}">{days_overdue} يوم</span>',
-                'amount': f'{remaining:,.2f} ج.م'
+                'amount': f'{remaining:,.2f} {curr_sym}'
             })
     except Exception:
         # في حالة عدم وجود موديول المبيعات
@@ -170,7 +173,7 @@ def dashboard(request):
             'supplier': invoice.supplier.name if invoice.supplier else '-',
             'date': invoice.date.strftime('%d-%m-%Y'),
             'days_overdue': f'<span class="badge {badge_class}">{days_overdue} يوم</span>',
-            'amount': f'{remaining:,.2f} ج.م'
+            'amount': f'{remaining:,.2f} {curr_sym}'
         })
 
     # إجمالي المستحقات
@@ -186,7 +189,7 @@ def dashboard(request):
             recent_activities.append({
                 'icon': 'fa-shopping-cart',
                 'title': f'فاتورة مبيعات {sale.number}',
-                'description': f'العميل: {sale.customer.name if sale.customer else "-"} - المبلغ: {sale.total:,.2f} ج.م',
+                'description': f'العميل: {sale.customer.name if sale.customer else "-"} - المبلغ: {sale.total:,.2f} {curr_sym}',
                 'time': sale.created_at.strftime('%d-%m-%Y %I:%M %p')
             })
     except:
@@ -197,7 +200,7 @@ def dashboard(request):
         recent_activities.append({
             'icon': 'fa-truck',
             'title': f'فاتورة مشتريات {purchase.number}',
-            'description': f'المورد: {purchase.supplier.name if purchase.supplier else "-"} - المبلغ: {purchase.total:,.2f} ج.م',
+            'description': f'المورد: {purchase.supplier.name if purchase.supplier else "-"} - المبلغ: {purchase.total:,.2f} {curr_sym}',
             'time': purchase.created_at.strftime('%d-%m-%Y %I:%M %p')
         })
     
@@ -410,6 +413,29 @@ def system_settings(request):
             {"title": "غير مصرح", "message": "ليس لديك صلاحية للوصول إلى هذه الصفحة"},
         )
 
+    # التثبت من وجود أي عمليات مالية أو تجارية بالنظام للقفل المحاسبي
+    from financial.models import JournalEntry, Currency
+    from sale.models.sale import Sale
+    from sale.models.quotation import Quotation
+    from purchase.models.purchase import Purchase
+
+    has_transactions = False
+    try:
+        has_transactions = (
+            JournalEntry.objects.exists() or
+            Sale.objects.exists() or
+            Purchase.objects.exists() or
+            Quotation.objects.exists()
+        )
+    except Exception:
+        pass
+
+    func_curr = None
+    try:
+        func_curr = Currency.objects.filter(is_functional=True).first() or Currency.objects.first()
+    except Exception:
+        pass
+
     # جلب الإعدادات الحالية
     settings_dict = {}
     for setting in SystemSetting.objects.all():
@@ -420,8 +446,8 @@ def system_settings(request):
         'language': settings_dict.get('language', 'ar'),
         'timezone': settings_dict.get('system_timezone', 'Africa/Cairo'),
         'date_format': settings_dict.get('date_format', 'd/m/Y'),
-        'default_currency': settings_dict.get('currency_symbol', 'ج.م'),
-        'default_currency_en': settings_dict.get('currency_symbol_en', 'EGP'),
+        'default_currency': func_curr.id if func_curr else None,
+        'default_currency_en': func_curr.code if func_curr else 'EGP',
         'default_tax_rate': settings_dict.get('default_tax_rate', '14'),
         'default_print_language': settings_dict.get('default_print_language', 'ar'),
         'company_address_en': settings_dict.get('company_address_en', ''),
@@ -455,7 +481,7 @@ def system_settings(request):
 
     # معالجة حفظ الإعدادات عند POST
     if request.method == "POST":
-        form = SystemSettingsForm(request.POST)
+        form = SystemSettingsForm(request.POST, is_locked=has_transactions)
         if form.is_valid():
             # تجميع الحقول والبيانات لحفظها بشكل محسن
             target_settings = {}
@@ -464,9 +490,18 @@ def system_settings(request):
                 if key == 'timezone':
                     db_key = 'system_timezone'
                 elif key == 'default_currency':
-                    db_key = 'currency_symbol'
+                    if not has_transactions and value:
+                        try:
+                            if hasattr(value, 'is_functional'):
+                                value.is_functional = True
+                                value.save()
+                                from financial.services.partner_advance_service import PartnerAdvanceService
+                                PartnerAdvanceService.rebuild_all_snapshots()
+                        except Exception as e:
+                            logger.error(f"Error promoting functional currency: {e}")
+                    continue
                 elif key == 'default_currency_en':
-                    db_key = 'currency_symbol_en'
+                    continue
                 
                 # تحويل القيم المنطقية وغيرها إلى نصوص مناسبة لقاعدة البيانات
                 if isinstance(value, bool):
@@ -554,7 +589,7 @@ def system_settings(request):
         else:
             messages.error(request, "حدث خطأ أثناء حفظ الإعدادات، يرجى التحقق من الحقول")
     else:
-        form = SystemSettingsForm(initial=initial_data)
+        form = SystemSettingsForm(initial=initial_data, is_locked=has_transactions)
 
     # إعداد الهيدر
     header_buttons = [
@@ -581,6 +616,8 @@ def system_settings(request):
         "breadcrumb_items": breadcrumb_items,
         "settings": settings_dict,
         "form": form,
+        "is_locked": has_transactions,
+        "func_curr": func_curr,
     }
 
     return render(request, "core/system_settings.html", context)

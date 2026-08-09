@@ -3,7 +3,7 @@
 {% load i18n %}
 {% load utils_extras %}
 
-{% block title %}{% trans "تفاصيل إذن الاستلام" %} {{ grn.grn_number }}{% endblock %}
+{% block title %}{% trans "تفاصيل إذن استلام المشتريات" %} #{{ grn.grn_number }}{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
@@ -12,16 +12,66 @@
 {% block content %}
 <div class="container-fluid">
   <!-- Page Header -->
-  <div class="d-flex justify-content-between align-items-center mb-4">
+  {% include "shared/page_header.html" with title=title|default:"تفاصيل إذن استلام المشتريات" subtitle=grn.grn_number icon="fas fa-truck-loading" %}
+
+  <!-- Actions Bar -->
+  <div class="d-flex justify-content-between align-items-center mb-4 p-3 bg-light border rounded shadow-sm">
     <div>
-      <h4 class="mb-1 fw-bold"><i class="fas fa-clipboard-check me-2 text-primary"></i>{% trans "إذن استلام مخزني" %} #{{ grn.grn_number }}</h4>
-      <p class="text-muted mb-0">{% trans "تاريخ الاستلام" %}: {{ grn.received_date|date:"Y-m-d H:i" }}</p>
+      <span class="text-muted me-2">حالة المستند:</span>
+      {% if grn.status == "POSTED" %}
+        <span class="badge bg-success fs-6"><i class="fas fa-check-circle me-1"></i>مرحل مخزنياً ومالياً</span>
+      {% elif grn.status == "APPROVED" %}
+        <span class="badge bg-primary fs-6"><i class="fas fa-user-check me-1"></i>معتمد (جاهز للترحيل)</span>
+      {% elif grn.status == "SUBMITTED" %}
+        <span class="badge bg-warning text-dark fs-6"><i class="fas fa-clock me-1"></i>مقدم للاعتماد</span>
+      {% elif grn.status == "REVERSED" %}
+        <span class="badge bg-danger fs-6"><i class="fas fa-undo me-1"></i>معكوس</span>
+      {% else %}
+        <span class="badge bg-secondary fs-6"><i class="fas fa-edit me-1"></i>مسودة</span>
+      {% endif %}
+
+      {% if grn.journal_entry %}
+        <span class="badge bg-info text-dark fs-6 ms-2">
+          <i class="fas fa-file-invoice me-1"></i>القيد المحاسبي المرتبط: #{{ grn.journal_entry.id }}
+        </span>
+      {% endif %}
     </div>
+
     <div class="d-flex gap-2">
-      <a href="{% url 'purchase:grn_list' %}" class="btn btn-outline-secondary">
-        <i class="fas fa-arrow-right me-1"></i> {% trans "العودة للقائمة" %}
-      </a>
-      <button onclick="window.print()" class="btn btn-outline-primary">
+      {% if grn.status == "DRAFT" %}
+        <form method="POST" action="{% url 'purchase:grn_submit' grn.pk %}" class="d-inline">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-warning">
+            <i class="fas fa-paper-plane me-1"></i> {% trans "تقديم للمراجعة" %}
+          </button>
+        </form>
+      {% endif %}
+
+      {% if grn.status == "SUBMITTED" %}
+        <form method="POST" action="{% url 'purchase:grn_approve' grn.pk %}" class="d-inline">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-user-check me-1"></i> {% trans "اعتماد الإذن" %}
+          </button>
+        </form>
+      {% endif %}
+
+      {% if grn.status == "APPROVED" or grn.status == "DRAFT" %}
+        <form method="POST" action="{% url 'purchase:grn_post' grn.pk %}" class="d-inline">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-success fw-bold">
+            <i class="fas fa-check-double me-1"></i> {% trans "ترحيل المخزون والقيد (POST)" %}
+          </button>
+        </form>
+      {% endif %}
+
+      {% if grn.status == "POSTED" %}
+        <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#reverseModal">
+          <i class="fas fa-undo me-1"></i> {% trans "عكس الإذن والقيد (Reversal)" %}
+        </button>
+      {% endif %}
+
+      <button onclick="window.print()" class="btn btn-outline-secondary">
         <i class="fas fa-print me-1"></i> {% trans "طباعة" %}
       </button>
     </div>
@@ -43,30 +93,20 @@
     </div>
     <div class="col-md-3">
       <div class="card h-100 border-0 shadow-sm p-3">
-        <span class="text-muted small">{% trans "الفاتورة المرتبطة" %}</span>
+        <span class="text-muted small">{% trans "أمر الشراء المرتبط (PO)" %}</span>
         <h6 class="fw-bold mt-1 mb-0">
-          {% if grn.purchase %}
-            <a href="{% url 'purchase:purchase_detail' grn.purchase.pk %}" class="text-decoration-none">
-              {{ grn.purchase.number }}
-            </a>
-            {% if grn.purchase.exchange_rate and grn.exchange_rate and grn.purchase.exchange_rate != grn.exchange_rate %}
-              <span class="badge bg-warning text-dark ms-1" title="فروق أسعار الصرف بين الاستلام والفاتورة مسواة في PPV">
-                <i class="fas fa-balance-scale me-1"></i>{% trans "فرق صرف 3-Way" %}
-              </span>
-            {% endif %}
+          {% if grn.purchase_order %}
+            <span class="badge bg-light text-dark border">PO #{{ grn.purchase_order.order_number }}</span>
           {% else %}
-            <span class="text-muted">{% trans "غير مرتبطة بفاتورة" %}</span>
+            <span class="text-muted">{% trans "استلام مباشر" %}</span>
           {% endif %}
         </h6>
       </div>
     </div>
     <div class="col-md-3">
       <div class="card h-100 border-0 shadow-sm p-3">
-        <span class="text-muted small">{% trans "عملة الاستلام وسعر الصرف" %}</span>
-        <h6 class="fw-bold mt-1 mb-0">
-          <span class="badge bg-primary me-1">{{ grn.currency.code|default:grn.currency|default:currency_symbol }}</span>
-          <span class="font-monospace text-muted">@ {{ grn.exchange_rate|default:"1.0000" }}</span>
-        </h6>
+        <span class="text-muted small">{% trans "إذن تسليم المورد" %}</span>
+        <h6 class="fw-bold mt-1 mb-0">{{ grn.supplier_delivery_note_ref|default:"-" }}</h6>
       </div>
     </div>
   </div>
@@ -94,11 +134,11 @@
             <td>{{ forloop.counter }}</td>
             <td>
               <span class="fw-bold">{{ item.product.name }}</span>
-              {% if item.product.sku %}
-                <small class="text-muted d-block">SKU: {{ item.product.sku }}</small>
+              {% if item.product.code %}
+                <small class="text-muted d-block">كود: {{ item.product.code }}</small>
               {% endif %}
             </td>
-            <td class="text-center font-monospace">{{ item.received_qty }}</td>
+            <td class="text-center font-monospace fw-bold fs-6">{{ item.received_qty }}</td>
             <td class="text-end font-monospace">
               {{ item.unit_price|floatformat:2 }} {{ grn.currency.code|default:grn.currency|default:currency_symbol }}
             </td>
@@ -118,37 +158,67 @@
     </div>
   </div>
 
-  <!-- Landed Cost Breakdown Card (FOB Unit Cost + Landed Share = Final Landed Unit Cost) -->
-  <div class="section-container">
+  <!-- Audit Logs Section -->
+  {% if grn.audit_logs.exists %}
+  <div class="section-container mb-4">
     <h5 class="section-title">
-      <i class="fas fa-truck-loading me-2 text-info"></i>{% trans "تفنيط التكلفة المضافة والمخزون النهائي (Landed Cost Breakdown)" %}
+      <i class="fas fa-history me-2"></i>{% trans "سجل التدقيق والتغييرات (Audit Trail)" %}
     </h5>
-    <div class="row g-3">
-      <div class="col-md-4">
-        <div class="p-3 border rounded bg-light">
-          <span class="text-muted small d-block mb-1">{% trans "تكلفة الاستلام الأصلية (FOB Base)" %}</span>
-          <span class="fw-bold font-monospace fs-5 text-dark">
-            {{ grn.items.all|length }} {% trans "بنود مستلمة" %}
-          </span>
-        </div>
+    <div class="table-responsive">
+      <table class="table table-sm table-striped">
+        <thead>
+          <tr>
+            <th>التاريخ والوقت</th>
+            <th>المستخدم</th>
+            <th>الانتقال</th>
+            <th>السبب</th>
+            <th>التفاصيل</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for log in grn.audit_logs.all %}
+          <tr>
+            <td>{{ log.created_at|date:"Y-m-d H:i:s" }}</td>
+            <td>{{ log.action_by.username|default:"System" }}</td>
+            <td><span class="badge bg-secondary">{{ log.old_status|default:"NEW" }}</span> &rarr; <span class="badge bg-primary">{{ log.new_status }}</span></td>
+            <td>{{ log.reason|default:"-" }}</td>
+            <td>{{ log.comment|default:"-" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Reversal Modal -->
+{% if grn.status == "POSTED" %}
+<div class="modal fade" id="reverseModal" tabindex="-1" aria-labelledby="reverseModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header bg-light border-bottom px-4 py-3">
+        <h5 class="modal-title fw-bold text-dark mb-0" id="reverseModalLabel">
+          <i class="fas fa-undo text-danger me-2"></i>عكس إذن الاستلام #{{ grn.grn_number }}
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
-      <div class="col-md-4">
-        <div class="p-3 border rounded bg-light">
-          <span class="text-muted small d-block mb-1">{% trans "نصيب المصاريف المضافة (Landed Share)" %}</span>
-          <span class="fw-bold font-monospace fs-5 text-info">
-            <i class="fas fa-ship me-1"></i>{% trans "شحن / جمارك / تفريغ" %}
-          </span>
+      <form method="POST" action="{% url 'purchase:grn_reverse' grn.pk %}">
+        {% csrf_token %}
+        <div class="modal-body p-4">
+          <p class="text-danger fw-bold">تحذير: سيقوم النظام بتخفيض الكمية من المستودع وإنشاء قيد محاسبي عكسي للقيد الأصلي.</p>
+          <div class="mb-3">
+            <label for="reversal_reason" class="form-label required fw-bold">سبب العكس الإجباري</label>
+            <textarea class="form-control" id="reversal_reason" name="reason" rows="3" placeholder="أدخل سبب التراجع أو العكس الموثق..." required></textarea>
+          </div>
         </div>
-      </div>
-      <div class="col-md-4">
-        <div class="p-3 border rounded bg-light">
-          <span class="text-muted small d-block mb-1">{% trans "التكلفة النهائية بالمخزن (FIFO Valuation)" %}</span>
-          <span class="fw-bold font-monospace fs-5 text-success">
-            <i class="fas fa-check-circle me-1"></i>{% trans "مثبتة بتاريخ الاستلام (IAS 2)" %}
-          </span>
+        <div class="modal-footer bg-light border-top px-4 py-3">
+          <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">إلغاء</button>
+          <button type="submit" class="btn btn-danger px-4 fw-bold">تأكيد وعكس الإذن والقيد</button>
         </div>
-      </div>
+      </form>
     </div>
   </div>
 </div>
+{% endif %}
 {% endblock %}

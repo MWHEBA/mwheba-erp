@@ -5,3 +5,4 @@ from .validation_signals import (
     trigger_validation,
     connect_model_validation
 )
+from . import currency_signals

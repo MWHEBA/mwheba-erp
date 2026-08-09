@@ -42,6 +42,10 @@ from .grn_views import (
     grn_list,
     grn_create,
     grn_detail,
+    grn_submit,
+    grn_approve,
+    grn_post,
+    grn_reverse,
 )
 
 # Landed Cost Views
@@ -87,6 +91,10 @@ __all__ = [
     'grn_list',
     'grn_create',
     'grn_detail',
+    'grn_submit',
+    'grn_approve',
+    'grn_post',
+    'grn_reverse',
     # Landed Cost Views
     'landed_cost_list',
     'landed_cost_create',

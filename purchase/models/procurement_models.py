@@ -100,6 +100,21 @@ class GoodsReceivedNote(models.Model):
     إذن الاستلام الفعلي بالمخزن (Goods Received Note - GRN - FIN-PUR-002)
     ينتج حركة أستاذ المخزون وقيد الاستلام المحاسبي 11040/20150 GRNI
     """
+    STATUS_CHOICES = (
+        ("DRAFT", _("مسودة")),
+        ("SUBMITTED", _("مقدم للاعتماد")),
+        ("APPROVED", _("معتمد")),
+        ("POSTED", _("مرحل مخزنياً ومالياً")),
+        ("REVERSED", _("معكوس")),
+    )
+    VALID_TRANSITIONS = {
+        "DRAFT": ["SUBMITTED", "POSTED"],
+        "SUBMITTED": ["APPROVED", "DRAFT"],
+        "APPROVED": ["POSTED", "DRAFT"],
+        "POSTED": ["REVERSED"],
+        "REVERSED": [],
+    }
+
     grn_number = models.CharField(_("رقم إذن الاستلام GRN"), max_length=50, unique=True)
     purchase = models.ForeignKey("purchase.Purchase", on_delete=models.SET_NULL, null=True, blank=True, related_name="grns", verbose_name=_("فاتورة المشتريات"))
     purchase_order = models.ForeignKey(PurchaseOrder, on_delete=models.SET_NULL, null=True, blank=True, related_name="grns")
@@ -109,7 +124,7 @@ class GoodsReceivedNote(models.Model):
     received_date = models.DateTimeField(_("تاريخ الاستلام الفعلي"), auto_now_add=True)
     supplier_delivery_note_ref = models.CharField(_("رقم إذن تسليم المورد"), max_length=100, blank=True)
 
-    status = models.CharField(_("الحالة"), max_length=20, default="RECEIVED")
+    status = models.CharField(_("الحالة"), max_length=20, choices=STATUS_CHOICES, default="DRAFT")
     currency = models.CharField(_("العملة"), max_length=10, blank=True, null=True)
     exchange_rate = models.DecimalField(_("سعر الصرف"), max_digits=18, decimal_places=6, default=Decimal("1.000000"))
     journal_entry = models.ForeignKey(JournalEntry, on_delete=models.PROTECT, null=True, blank=True)
@@ -121,7 +136,23 @@ class GoodsReceivedNote(models.Model):
         ordering = ["-received_date", "-id"]
 
     def __str__(self):
-        return f"GRN #{self.grn_number} for PO #{self.purchase_order.order_number}"
+        po_info = f" for PO #{self.purchase_order.order_number}" if self.purchase_order else ""
+        return f"GRN #{self.grn_number}{po_info} ({self.get_status_display()})"
+
+    def clean(self):
+        super().clean()
+        if self.pk:
+            old_inst = GoodsReceivedNote.objects.filter(pk=self.pk).values("status").first()
+            if old_inst:
+                old_status = old_inst["status"]
+                if old_status in ["POSTED", "REVERSED"] and self.status == old_status:
+                    from django.core.exceptions import ValidationError
+                    raise ValidationError(_("لا يمكن تعديل إذن استلام مرحل أو معكوس."))
+                if old_status != self.status:
+                    allowed = self.VALID_TRANSITIONS.get(old_status, [])
+                    if self.status not in allowed:
+                        from django.core.exceptions import ValidationError
+                        raise ValidationError(_(f"انتقال غير مسموح من {old_status} إلى {self.status}."))
 
     def save(self, *args, **kwargs):
         if not self.currency:
@@ -129,12 +160,17 @@ class GoodsReceivedNote(models.Model):
             func_curr = ExchangeRateService.get_functional_currency()
             if func_curr:
                 self.currency = func_curr.code
+        if self.pk:
+            old_status = GoodsReceivedNote.objects.filter(pk=self.pk).values_list("status", flat=True).first()
+            if old_status in ["POSTED", "REVERSED"] and self.status == old_status and not kwargs.get("update_fields"):
+                from django.core.exceptions import ValidationError
+                raise ValidationError(_("لا يمكن تعديل إذن استلام مرحل أو معكوس."))
         super().save(*args, **kwargs)
 
 
 class GoodsReceivedNoteItem(models.Model):
     grn = models.ForeignKey(GoodsReceivedNote, on_delete=models.CASCADE, related_name="items")
-    po_item = models.ForeignKey(PurchaseOrderItem, on_delete=models.PROTECT, related_name="grn_items")
+    po_item = models.ForeignKey(PurchaseOrderItem, on_delete=models.PROTECT, null=True, blank=True, related_name="grn_items")
     product = models.ForeignKey(Product, on_delete=models.PROTECT)
 
     received_qty = models.DecimalField(_("الكمية المستلمة"), max_digits=15, decimal_places=4)
