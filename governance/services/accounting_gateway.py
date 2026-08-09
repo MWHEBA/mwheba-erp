@@ -106,6 +106,10 @@ class AccountingGateway:
     
     # Supported source models for journal entries (allowlist)
     ALLOWED_SOURCES = {
+        'client.CustomerAllocationAudit',
+        'supplier.SupplierAllocationAudit',
+        'sale.CustomerAllocationAudit',
+        'purchase.SupplierAllocationAudit',
         'client.CustomerPayment',
         'product.StockMovement',
         'purchase.PurchasePayment',

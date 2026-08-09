@@ -46,9 +46,41 @@ class PartnerCurrencyBalanceSnapshot(models.Model):
         return f"Snapshot [{self.get_partner_type_display()} #{self.partner_id}] {self.advance_balance} {self.currency.code if self.currency else ''}"
 
 
+
+class ReconciliationIssue(models.Model):
+    """
+    جدول قضايا وملاحظات انحراف المطابقة المالية بين اللقطة المخزنة وسجلات الـ Audit
+    يتم إنشاؤه تلقائياً عند اكتشاف فروق بواسطة الـ Daily Reconciliation Job
+    """
+    STATUS_CHOICES = (
+        ("OPEN", _("مفتوح")),
+        ("RESOLVED", _("معالج")),
+        ("IGNORED", _("تجاهل")),
+    )
+
+    partner_type = models.CharField(_("نوع الشريك"), max_length=20, choices=PartnerCurrencyBalanceSnapshot.PARTNER_TYPE_CHOICES)
+    partner_id = models.PositiveIntegerField(_("معرف الشريك"))
+    currency_code = models.CharField(_("كود العملة"), max_length=10, default="EGP")
+    expected_balance = models.DecimalField(_("الرصيد المحسوب من الـ Audit"), max_digits=15, decimal_places=2)
+    actual_balance = models.DecimalField(_("الرصيد الفعلي المخزن باللقطة"), max_digits=15, decimal_places=2)
+    difference = models.DecimalField(_("قيمة الانحراف"), max_digits=15, decimal_places=2)
+    status = models.CharField(_("حالة القضية"), max_length=20, choices=STATUS_CHOICES, default="OPEN")
+    detected_at = models.DateTimeField(_("تاريخ اكتشاف الانحراف"), auto_now_add=True)
+    resolved_at = models.DateTimeField(_("تاريخ المعالجة"), null=True, blank=True)
+    notes = models.TextField(_("ملاحظات / تفاصيل المعالجة"), null=True, blank=True)
+
+    class Meta:
+        verbose_name = _("ملاحظة انحراف مطابقة أرصدة")
+        verbose_name_plural = _("ملاحظات انحرافات مطابقة الأرصدة")
+        ordering = ["-detected_at"]
+
+    def __str__(self):
+        return f"ReconciliationIssue [{self.partner_type} #{self.partner_id}] Diff: {self.difference} ({self.status})"
+
+
 class PartnerAdvanceSettlement(models.Model):
     """
-    جدول تسويات وتخصيص الدفعات المسبقة على الفواتير
+    جدول تسويات وتخصيص الدفعات المسبقة على الفواتير (Deprecated - تم نقل الاعتماد كلياً إلى AllocationAudit)
     """
     STATUS_CHOICES = (
         ("APPLIED", _("مطبق")),
@@ -148,4 +180,5 @@ class PartnerAdvanceSettlement(models.Model):
     def __str__(self):
         target = self.sale or self.purchase
         return f"Settlement #{self.id} - {self.allocated_amount} {self.currency.code if self.currency else ''} -> {target}"
+
 

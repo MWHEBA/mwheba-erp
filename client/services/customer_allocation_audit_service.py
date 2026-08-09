@@ -25,12 +25,16 @@ class CustomerAllocationAuditService:
         invoice_txn_id: int,
         allocated_amount: Decimal,
         allocation_date,
-        created_at
+        created_at,
+        currency_code: str = "EGP",
+        exchange_rate: Decimal = Decimal("1.000000"),
+        user_id: Optional[int] = None
     ) -> str:
         """
-        إنشاء التوقيع المشفر SHA256 لإثبات عدم التلاعب بسجل التوزيع
+        إنشاء التوقيع المشفر SHA256 لإثبات عدم التلاعب بسجل التوزيع بشكل دائم ومستقر
         """
-        raw_data = f"{customer_id}:{payment_txn_id}:{invoice_txn_id}:{allocated_amount}:{allocation_date}:{created_at.isoformat() if hasattr(created_at, 'isoformat') else created_at}"
+        timestamp_str = created_at.strftime("%Y-%m-%dT%H:%M:%S") if hasattr(created_at, "strftime") else str(created_at)[:19]
+        raw_data = f"{customer_id}:{payment_txn_id}:{invoice_txn_id}:{allocated_amount}:{currency_code}:{exchange_rate}:{user_id or 0}:{allocation_date}:{timestamp_str}"
         return hashlib.sha256(raw_data.encode("utf-8")).hexdigest()
 
     @classmethod
@@ -225,15 +229,6 @@ class CustomerAllocationAuditService:
         ).select_related("payment_transaction", "created_by").order_by("-allocation_date", "-id")
 
     @classmethod
-    def get_payment_utilization_report(cls, payment_transaction_id: int) -> models.QuerySet:
-        """
-        استعلام توزيعات واستخدام دفعة أو إشعار محدد بين الفواتير المختلفة
-        """
-        return CustomerAllocationAudit.objects.filter(
-            payment_transaction_id=payment_transaction_id
-        ).select_related("invoice_transaction", "created_by").order_by("-allocation_date", "-id")
-
-    @classmethod
     def allocate_customer_prepaid_balance_to_sale(
         cls,
         sale,
@@ -243,16 +238,24 @@ class CustomerAllocationAuditService:
     ) -> CustomerAllocationAudit:
         """
         خصم وتخصيص مبلغ من الرصيد المسبق/الدفعات المقدمة للعميل على فاتورة مبيعات
-        مع استخدام select_for_update() لمنع التكرار وقفل المعاملات آمن
+        مع محرك الحوكمة والـ IAS 21 والـ CQRS Read Model Event Trigger
         """
         from client.models import CustomerPayment
         from sale.models import SalePayment
         from governance.services import AccountingGateway, JournalEntryLineData
+        from financial.services.period_control_service import PeriodControlService
+        from financial.services.fx_settlement_strategy import CustomerFXStrategy
+        from financial.services.partner_currency_snapshot_updater import PartnerCurrencySnapshotUpdater
+
+        # 1. التحقق من حالة الفاتورة (يُمنع التخصيص للمسودات DRAFT)
+        sale_status = str(getattr(sale, "status", "")).lower()
+        if sale_status not in ["confirmed", "posted"]:
+            raise ValueError("لا يمكن تخصيص رصيد مسبق إلا على الفواتير المعتمدة والمرحلة فقط.")
 
         target_amount = amount_to_allocate if amount_to_allocate is not None else amount
         if target_amount is None:
             raise ValueError("المبلغ المراد تخصيصه مطلوب.")
-        amount_to_allocate = Decimal(str(target_amount))
+        amount_to_allocate = Decimal(str(target_amount)).quantize(Decimal("0.01"))
 
         if amount_to_allocate <= Decimal("0.00"):
             raise ValueError("المبلغ المراد تخصيصه يجب أن يكون أكبر من صفر.")
@@ -261,27 +264,47 @@ class CustomerAllocationAuditService:
         if not customer:
             raise ValueError("الفاتورة غير مرتبطة بعميل.")
 
+        allocation_date = timezone.now().date()
+        PeriodControlService.validate_period_open(allocation_date)
+
         from utils.templatetags.utils_extras import smart_float
         from core.models import SystemSetting
-        currency_sym = SystemSetting.get_setting('currency_symbol', 'ج.م')
+        currency_sym = sale.currency.symbol if sale.currency else SystemSetting.get_setting('currency_symbol', 'ج.م')
 
-        open_sale_amount = sale.total - (sale.amount_paid or Decimal("0.00"))
+        open_sale_amount = (sale.total - (sale.amount_paid or Decimal("0.00"))).quantize(Decimal("0.01"))
         if amount_to_allocate > open_sale_amount:
             raise ValueError(f"المبلغ المراد تخصيصه ({smart_float(amount_to_allocate)} {currency_sym}) يتجاوز المتبقي من الفاتورة ({smart_float(open_sale_amount)} {currency_sym}).")
 
         with transaction.atomic():
+            # قفل محكم بترتيب محدد لمنع الـ Deadlocks
             locked_customer = Customer.objects.select_for_update().get(pk=customer.id)
-            avail_balance = locked_customer.available_prepaid_balance
-            if amount_to_allocate > avail_balance:
-                raise ValueError(f"رصيد العميل المسبق المتاح ({smart_float(avail_balance)} {currency_sym}) غير كافٍ لسداد المبلغ المطلوب ({smart_float(amount_to_allocate)} {currency_sym}).")
 
-            # جلب الدفعات المقدمة غير المخصصة بالكامل أقدم فأقدم (FIFO)
-            customer_payments = CustomerPayment.objects.select_for_update().filter(
+            # جلب الدفعات المطابقة بالعملة أقدم فأقدم (FIFO)
+            from django.db.models import Q
+            sale_curr_id = sale.currency_id or (locked_customer.default_currency_id if locked_customer else None)
+            payments_qs = CustomerPayment.objects.select_for_update().filter(
                 customer_id=locked_customer.id
-            ).order_by("payment_date", "created_at")
+            ).exclude(status="cancelled")
+
+            if sale_curr_id:
+                payments_qs = payments_qs.filter(Q(currency_id=sale_curr_id) | Q(currency__isnull=True))
+            else:
+                payments_qs = payments_qs.filter(currency__isnull=True)
+
+            customer_payments = list(payments_qs.order_by("payment_date", "created_at"))
+
+            # حساب الرصيد المتاح الفعلي لهذه العملة تحديداً
+            avail_balance = Decimal("0.00")
+            for cp in customer_payments:
+                used = sum(sp.amount for sp in SalePayment.objects.filter(customer_payment=cp))
+                avail_balance += max(Decimal("0.00"), cp.amount - used)
+
+            if amount_to_allocate > avail_balance:
+                raise ValueError(f"رصيد العميل المسبق المتاح لعملة {currency_sym} ({smart_float(avail_balance)}) غير كافٍ لسداد المبلغ المطلوب ({smart_float(amount_to_allocate)}).")
 
             remaining_to_allocate = amount_to_allocate
             last_audit = None
+            total_fx_diff = Decimal("0.00")
 
             # الحصول على أو إنشاء معاملة الأستاذ الفرعي للفاتورة
             inv_txn, _ = CustomerTransaction.objects.select_for_update().get_or_create(
@@ -300,6 +323,8 @@ class CustomerAllocationAuditService:
                 }
             )
 
+            fx_strategy = CustomerFXStrategy()
+
             for cp in customer_payments:
                 if remaining_to_allocate <= Decimal("0.00"):
                     break
@@ -313,6 +338,16 @@ class CustomerAllocationAuditService:
 
                 curr_alloc = min(cp_remaining, remaining_to_allocate)
                 remaining_to_allocate -= curr_alloc
+
+                # تحديث الحقل المخزن المخبأ بالدفعة
+                cp.allocated_currency_amount_cached += curr_alloc
+                cp.save(update_fields=["allocated_currency_amount_cached", "updated_at"])
+
+                # حساب فروق العملة المحققة إن وجدت أسعار صرف مختلفة
+                cp_rate = cp.exchange_rate if hasattr(cp, "exchange_rate") and cp.exchange_rate else Decimal("1.0")
+                sale_rate = sale.exchange_rate if hasattr(sale, "exchange_rate") and sale.exchange_rate else Decimal("1.0")
+                fx_diff = fx_strategy.calculate_difference(cp_rate, sale_rate, curr_alloc)
+                total_fx_diff += fx_diff
 
                 # الحصول على/إنشاء معاملة الدفعة المقدمة في الأستاذ الفرعي
                 pay_txn, _ = CustomerTransaction.objects.select_for_update().get_or_create(
@@ -387,40 +422,74 @@ class CustomerAllocationAuditService:
             # تحديث حالة السداد للفاتورة والمبلغ المدفوع
             sale.update_payment_status()
 
-            # إصدار قيد التسوية إن لزم
-            try:
-                if locked_customer.financial_account:
-                    from financial.models import ChartOfAccounts
-                    advance_acc = ChartOfAccounts.objects.filter(code="20200").first() # حساب دفعات مقدمة عملاء
-                    if advance_acc:
-                        lines = [
-                            JournalEntryLineData(
-                                account_code=advance_acc.code,
-                                debit=amount_to_allocate,
-                                credit=Decimal("0.00"),
-                                description=f"إغلاق دفعات مقدمة للعميل - فاتورة مبيعات {sale.number}"
-                            ),
-                            JournalEntryLineData(
-                                account_code=locked_customer.financial_account.code,
-                                debit=Decimal("0.00"),
-                                credit=amount_to_allocate,
-                                description=f"تسوية فاتورة مبيعات {sale.number} - تخفيض ذمم العميل"
-                            )
-                        ]
-                        gateway = AccountingGateway()
-                        gateway.create_journal_entry(
-                            source_module="sale",
-                            source_model="CustomerAllocationAudit",
-                            source_id=last_audit.id if last_audit else sale.id,
-                            lines=lines,
-                            idempotency_key=f"JE:sale:CustomerAllocationAudit:{last_audit.id if last_audit else sale.id}:reclassify",
-                            user=user or sale.created_by,
-                            entry_type="automatic",
-                            description=f"تسوية رصيد مسبق للعميل {locked_customer.name}",
-                            reference=f"فاتورة مبيعات {sale.number}"
-                        )
-            except Exception as e:
-                logger.warning(f"لم يتم توليد قيد التسوية المحاسبي التلقائي لتخصيص العميل: {str(e)}")
+            # إصدار قيد التسوية المحسب المتزن
+            if locked_customer.financial_account:
+                from financial.services.role_registry import AccountRoleRegistry, AccountRoleNames
+                advance_acc = AccountRoleRegistry.get_account(AccountRoleNames.CUSTOMER_ADVANCE_LIABILITY)
+                partner_acc_code = locked_customer.financial_account.code
+                
+                # حساب قيم المعادل بالعملة الوظيفية
+                cp_rate = Decimal(str(getattr(customer_payments[0], "exchange_rate", 1.0) or 1.0)) if customer_payments else Decimal("1.0")
+                sale_rate = Decimal(str(getattr(sale, "exchange_rate", 1.0) or 1.0))
+
+                adv_func = (amount_to_allocate * cp_rate).quantize(Decimal("0.01"))
+                sale_func = (amount_to_allocate * sale_rate).quantize(Decimal("0.01"))
+
+                lines = [
+                    JournalEntryLineData(
+                        account_code=advance_acc.code,
+                        debit=adv_func,
+                        credit=Decimal("0.00"),
+                        description=f"إغلاق دفعات مقدمة للعميل - فاتورة مبيعات {sale.number}"
+                    ),
+                    JournalEntryLineData(
+                        account_code=partner_acc_code,
+                        debit=Decimal("0.00"),
+                        credit=sale_func,
+                        description=f"تسوية فاتورة مبيعات {sale.number} - تخفيض ذمم العميل"
+                    )
+                ]
+
+                if total_fx_diff != Decimal("0.00"):
+                    fx_lines = fx_strategy.generate_entries(
+                        difference=total_fx_diff,
+                        advance_account_code=advance_acc.code,
+                        partner_account_code=partner_acc_code,
+                        reference_note=f"فاتورة {sale.number}"
+                    )
+                    lines.extend(fx_lines)
+
+                # معالجة فروق التقريب الكسري البسيطة (<= 0.05 ج.م)
+                tot_deb = sum(l.debit for l in lines)
+                tot_crd = sum(l.credit for l in lines)
+                if tot_deb != tot_crd:
+                    round_diff = (tot_deb - tot_crd).quantize(Decimal("0.01"))
+                    if abs(round_diff) <= Decimal("0.05"):
+                        round_acc = AccountRoleRegistry.get_account(AccountRoleNames.ROUNDING_DIFFERENCE_ACCOUNT)
+                        if round_diff < Decimal("0.00"):
+                            lines.append(JournalEntryLineData(account_code=round_acc.code, debit=abs(round_diff), credit=Decimal("0.00"), description="تسوية فارق تقويم كسر بنيات"))
+                        else:
+                            lines.append(JournalEntryLineData(account_code=round_acc.code, debit=Decimal("0.00"), credit=abs(round_diff), description="تسوية فارق تقويم كسر بنيات"))
+
+                gateway = AccountingGateway()
+                gateway.create_journal_entry(
+                    source_module="sale",
+                    source_model="CustomerAllocationAudit",
+                    source_id=last_audit.id if last_audit else sale.id,
+                    lines=lines,
+                    idempotency_key=f"JE:sale:CustomerAllocationAudit:{last_audit.id if last_audit else sale.id}:reclassify",
+                    user=user or sale.created_by,
+                    entry_type="automatic",
+                    description=f"تسوية رصيد مسبق للعميل {locked_customer.name}",
+                    reference=f"فاتورة مبيعات {sale.number}"
+                )
+
+            PartnerCurrencySnapshotUpdater.trigger_on_commit(
+                partner_type="customer",
+                partner_id=locked_customer.id,
+                currency_code=sale.currency.code if sale.currency else "EGP",
+                event_type="ALLOCATION_APPLIED"
+            )
 
         return last_audit
 
@@ -433,6 +502,17 @@ class CustomerAllocationAuditService:
             audit = CustomerAllocationAudit.objects.select_for_update().get(pk=audit_id)
             if audit.allocation_status == "REVERSED":
                 raise ValueError("سجل التخصيص معكوس بالفعل سابقاً.")
+
+            # تحديث الحقل المخزن المخبأ في الدفعة
+            if audit.payment_transaction and audit.payment_transaction.reference_id:
+                try:
+                    from client.models import CustomerPayment
+                    cp = CustomerPayment.objects.select_for_update().filter(pk=int(audit.payment_transaction.reference_id)).first()
+                    if cp:
+                        cp.allocated_currency_amount_cached = max(Decimal("0.00"), cp.allocated_currency_amount_cached - audit.allocated_amount)
+                        cp.save(update_fields=["allocated_currency_amount_cached", "updated_at"])
+                except Exception:
+                    pass
 
             # إلغاء مدفوعات SalePayment ذات العلاقة
             from sale.models import SalePayment
@@ -468,6 +548,62 @@ class CustomerAllocationAuditService:
                 created_by=user,
                 evidence_hash=rev_hash
             )
+
+            # ترحيل قيد عكسي في الدفتر العام
+            if audit.customer and audit.customer.financial_account:
+                try:
+                    from governance.services import AccountingGateway, JournalEntryLineData
+                    from financial.services.role_registry import AccountRoleRegistry, AccountRoleNames
+                    advance_acc = AccountRoleRegistry.get_account(AccountRoleNames.CUSTOMER_ADVANCE_LIABILITY)
+                    
+                    rev_lines = [
+                        JournalEntryLineData(
+                            account_code=audit.customer.financial_account.code,
+                            debit=audit.functional_amount,
+                            credit=Decimal("0.00"),
+                            description=f"عكس تسوية فاتورة - إعادة ذمة العميل (إلغاء تخصيص #{audit.id})"
+                        ),
+                        JournalEntryLineData(
+                            account_code=advance_acc.code,
+                            debit=Decimal("0.00"),
+                            credit=audit.functional_amount,
+                            description=f"عكس تسوية دفعة مقدمة للعميل (إلغاء تخصيص #{audit.id})"
+                        )
+                    ]
+
+                    # عكس فروق العملة المحققة IAS 21 بالكامل بنفس القيمة التاريخية
+                    if audit.realized_fx_difference and audit.realized_fx_difference != Decimal("0.00"):
+                        fx_strategy = CustomerFXStrategy()
+                        fx_rev_lines = fx_strategy.generate_entries(
+                            difference=-audit.realized_fx_difference,
+                            advance_account_code=advance_acc.code,
+                            partner_account_code=audit.customer.financial_account.code,
+                            reference_note=f"عكس فروق عملة تخصيص #{audit.id}"
+                        )
+                        rev_lines.extend(fx_rev_lines)
+
+                    gateway = AccountingGateway()
+                    gateway.create_journal_entry(
+                        source_module="sale",
+                        source_model="CustomerAllocationAudit",
+                        source_id=rev_audit.id,
+                        lines=rev_lines,
+                        idempotency_key=f"JE:sale:CustomerAllocationAudit:REV:{audit.id}",
+                        user=user,
+                        entry_type="automatic",
+                        description=f"قيد عكسي لتسوية رصيد مسبق للعميل {audit.customer.name}",
+                        reference=f"عكس تخصيص #{audit.id}"
+                    )
+                except Exception as e:
+                    logger.warning(f"لم يتم توليد قيد العكس المحاسبي: {str(e)}")
+
+            PartnerCurrencySnapshotUpdater.trigger_on_commit(
+                partner_type="customer",
+                partner_id=audit.customer.id,
+                currency_code=audit.allocation_currency or "EGP",
+                event_type="ALLOCATION_REVERSED"
+            )
+
             return rev_audit
 
     @classmethod
@@ -480,6 +616,7 @@ class CustomerAllocationAuditService:
         financial_account_id: Optional[int] = None,
         reference_number: Optional[str] = None,
         notes: Optional[str] = None,
+        currency=None,
         user=None
     ):
         """
@@ -510,6 +647,7 @@ class CustomerAllocationAuditService:
             payment = CustomerPayment.objects.create(
                 customer=customer,
                 amount=amount,
+                currency=currency or customer.default_currency,
                 payment_date=payment_date,
                 payment_method=payment_method,
                 reference_number=reference_number,

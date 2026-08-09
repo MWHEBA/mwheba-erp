@@ -40,40 +40,58 @@ class SupplierAllocationService:
         تخصيص مبلغ من الرصيد المسبق/الدفعات المقدمة للمورد على فاتورة مشتريات
         مع استخدام select_for_update() للوقاية من Race Conditions وتوليد قيد التسوية
         """
+        # 1. التحقق من حالة الفاتورة (يُمنع التخصيص للمسودات DRAFT)
+        purch_status = str(getattr(purchase, "status", "")).lower()
+        if purch_status not in ["confirmed", "posted"]:
+            raise ValidationError("لا يمكن تخصيص رصيد مسبق إلا على فواتير المشتريات المعتمدة والمرحلة فقط.")
+
         target_amount = amount_to_allocate if amount_to_allocate is not None else amount
         if target_amount is None:
             raise ValidationError("المبلغ المراد تخصيصه مطلوب.")
-        amount_to_allocate = Decimal(str(target_amount))
+        amount_to_allocate = Decimal(str(target_amount)).quantize(Decimal("0.01"))
 
         if amount_to_allocate <= Decimal("0.00"):
             raise ValidationError("المبلغ المراد تخصيصه يجب أن يكون أكبر من صفر.")
 
+        allocation_date = timezone.now().date()
+        from financial.services.period_control_service import PeriodControlService
+        from financial.services.fx_settlement_strategy import SupplierFXStrategy
+        from financial.services.partner_currency_snapshot_updater import PartnerCurrencySnapshotUpdater
+
+        PeriodControlService.validate_period_open(allocation_date)
+
         from utils.templatetags.utils_extras import smart_float
         from core.models import SystemSetting
-        currency_sym = SystemSetting.get_setting('currency_symbol', 'ج.م')
+        currency_sym = purchase.currency.symbol if purchase.currency else SystemSetting.get_setting('currency_symbol', 'ج.م')
 
         supplier = purchase.supplier
-        open_bill_amount = purchase.total - (purchase.amount_paid or Decimal("0.00"))
+        open_bill_amount = (purchase.total - (purchase.amount_paid or Decimal("0.00"))).quantize(Decimal("0.01"))
         if amount_to_allocate > open_bill_amount:
             raise ValidationError(f"المبلغ المراد تخصيصه ({smart_float(amount_to_allocate)} {currency_sym}) يتجاوز المتبقي من الفاتورة ({smart_float(open_bill_amount)} {currency_sym}).")
 
         with transaction.atomic():
-            # قفل المورد ودفعات المقدمة للحفاظ على نزاهة التزامن
             locked_supplier = Supplier.objects.select_for_update().get(pk=supplier.id)
-            available_balance = cls.get_available_supplier_prepaid_balance(locked_supplier.id)
 
-            if amount_to_allocate > available_balance:
-                raise ValidationError(f"رصيد المورد المسبق المتاح ({smart_float(available_balance)} {currency_sym}) غير كافٍ لسداد المبلغ المطلوب ({smart_float(amount_to_allocate)} {currency_sym}).")
-
-            # اختيار الدفعات المقدمة أقدم فأقدم (FIFO)
-            advances = SupplierAdvancePayment.objects.select_for_update().filter(
+            from django.db.models import Q
+            purch_curr_id = purchase.currency_id or (locked_supplier.default_currency_id if locked_supplier else None)
+            advances_qs = SupplierAdvancePayment.objects.select_for_update().filter(
                 supplier_id=locked_supplier.id
-            ).order_by("payment_date", "created_at")
+            )
+            if purch_curr_id:
+                advances_qs = advances_qs.filter(Q(currency_id=purch_curr_id) | Q(currency__isnull=True))
+            else:
+                advances_qs = advances_qs.filter(currency__isnull=True)
+
+            advances = list(advances_qs.order_by("payment_date", "created_at"))
+
+            available_balance = sum(adv.remaining_amount for adv in advances)
+            if amount_to_allocate > available_balance:
+                raise ValidationError(f"رصيد المورد المسبق المتاح لعملة {currency_sym} ({smart_float(available_balance)}) غير كافٍ لسداد المبلغ المطلوب ({smart_float(amount_to_allocate)}).")
 
             remaining_to_allocate = amount_to_allocate
             last_audit = None
+            total_fx_diff = Decimal("0.00")
 
-            # الحصول على أو إنشاء معاملات الأستاذ الفرعي للفاتورة
             bill_txn, _ = SupplierTransaction.objects.select_for_update().get_or_create(
                 supplier=locked_supplier,
                 transaction_number=purchase.number,
@@ -82,10 +100,12 @@ class SupplierAllocationService:
                     "issue_date": purchase.date,
                     "due_date": purchase.date,
                     "functional_amount": purchase.total,
-                    "open_amount": purchase.total - (purchase.amount_paid or Decimal("0.00")),
+                    "open_amount": open_bill_amount,
                     "status": "OPEN" if (purchase.amount_paid or Decimal("0.00")) == Decimal("0.00") else "PARTIAL"
                 }
             )
+
+            fx_strategy = SupplierFXStrategy()
 
             for adv in advances:
                 if remaining_to_allocate <= Decimal("0.00"):
@@ -100,7 +120,11 @@ class SupplierAllocationService:
 
                 remaining_to_allocate -= curr_alloc
 
-                # إنشاء/جلب معاملة الأستاذ الفرعي للدفعة المقدمة
+                adv_rate = adv.exchange_rate if hasattr(adv, "exchange_rate") and adv.exchange_rate else Decimal("1.0")
+                purch_rate = purchase.exchange_rate if hasattr(purchase, "exchange_rate") and purchase.exchange_rate else Decimal("1.0")
+                fx_diff = fx_strategy.calculate_difference(adv_rate, purch_rate, curr_alloc)
+                total_fx_diff += fx_diff
+
                 adv_txn, _ = SupplierTransaction.objects.select_for_update().get_or_create(
                     supplier=locked_supplier,
                     transaction_number=f"ADV-{adv.id}",
@@ -117,12 +141,10 @@ class SupplierAllocationService:
                 adv_txn.status = "CLOSED" if adv_txn.open_amount == 0 else "PARTIAL"
                 adv_txn.save()
 
-                # تحديث معاملة الفاتورة
                 bill_txn.open_amount = max(Decimal("0.00"), bill_txn.open_amount - curr_alloc)
                 bill_txn.status = "CLOSED" if bill_txn.open_amount == 0 else "PARTIAL"
                 bill_txn.save()
 
-                # إنشاء توقيع SHA-256
                 now = timezone.now()
                 raw_hash_data = f"{locked_supplier.id}:{adv_txn.id}:{bill_txn.id}:{curr_alloc}:{now.isoformat()}"
                 ev_hash = hashlib.sha256(raw_hash_data.encode("utf-8")).hexdigest()
@@ -144,7 +166,6 @@ class SupplierAllocationService:
                     evidence_hash=ev_hash
                 )
 
-                # تسجيل PurchasePayment مخصصة على الفاتورة لتعديل paid_amount وحالة السداد
                 from purchase.models.payment import PurchasePayment
                 PurchasePayment.objects.create(
                     purchase=purchase,
@@ -159,53 +180,76 @@ class SupplierAllocationService:
                     financial_status="synced"
                 )
 
-            # تحديث حالة الدفع للفاتورة
             if hasattr(purchase, "update_payment_status"):
                 purchase.update_payment_status()
-            else:
-                total_paid = sum(p.amount for p in purchase.payments.all())
-                if total_paid >= purchase.total:
-                    purchase.payment_status = "paid"
-                elif total_paid > 0:
-                    purchase.payment_status = "partial"
-                else:
-                    purchase.payment_status = "unpaid"
-                purchase.save(update_fields=["payment_status"])
 
-            # قيد التسوية المحاسبية إذا كان حساب الدفعات المقدمة مستقل
-            try:
-                if supplier.financial_account:
-                    from financial.models import ChartOfAccounts
-                    advance_acc = ChartOfAccounts.objects.filter(code="10500").first() # حساب دفعات مقدمة للموردين
-                    if advance_acc:
-                        lines = [
-                            JournalEntryLineData(
-                                account_code=supplier.financial_account.code,
-                                debit=amount_to_allocate,
-                                credit=Decimal("0.00"),
-                                description=f"تسوية فاتورة مشتريات {purchase.number} - تخفيض دائنية المورد"
-                            ),
-                            JournalEntryLineData(
-                                account_code=advance_acc.code,
-                                debit=Decimal("0.00"),
-                                credit=amount_to_allocate,
-                                description=f"إغلاق دفعات مقدمة للمورد - فاتورة {purchase.number}"
-                            )
-                        ]
-                        gateway = AccountingGateway()
-                        gateway.create_journal_entry(
-                            source_module="purchase",
-                            source_model="SupplierAllocationAudit",
-                            source_id=last_audit.id if last_audit else purchase.id,
-                            lines=lines,
-                            idempotency_key=f"JE:purchase:SupplierAllocationAudit:{last_audit.id if last_audit else purchase.id}:reclassify",
-                            user=user or purchase.created_by,
-                            entry_type="automatic",
-                            description=f"تسوية رصيد مسبق للمورد {supplier.name}",
-                            reference=f"فاتورة مشتريات {purchase.number}"
-                        )
-            except Exception as e:
-                logger.warning(f"لم يتم توليد قيد التسوية المحاسبية التلقائي: {str(e)}")
+            # إصدار قيد التسوية المحسب المتزن للمورد
+            if locked_supplier.financial_account:
+                from financial.services.role_registry import AccountRoleRegistry, AccountRoleNames
+                advance_acc = AccountRoleRegistry.get_account(AccountRoleNames.SUPPLIER_ADVANCE_ASSET)
+                partner_acc_code = locked_supplier.financial_account.code
+
+                adv_rate = Decimal(str(getattr(advances[0], "exchange_rate", 1.0) or 1.0)) if advances else Decimal("1.0")
+                purch_rate = Decimal(str(getattr(purchase, "exchange_rate", 1.0) or 1.0))
+
+                adv_func = (amount_to_allocate * adv_rate).quantize(Decimal("0.01"))
+                purch_func = (amount_to_allocate * purch_rate).quantize(Decimal("0.01"))
+
+                lines = [
+                    JournalEntryLineData(
+                        account_code=partner_acc_code,
+                        debit=purch_func,
+                        credit=Decimal("0.00"),
+                        description=f"تسوية فاتورة مشتريات {purchase.number} - تخفيض دائنية المورد"
+                    ),
+                    JournalEntryLineData(
+                        account_code=advance_acc.code,
+                        debit=Decimal("0.00"),
+                        credit=adv_func,
+                        description=f"إغلاق دفعات مقدمة للمورد - فاتورة {purchase.number}"
+                    )
+                ]
+
+                if total_fx_diff != Decimal("0.00"):
+                    fx_lines = fx_strategy.generate_entries(
+                        difference=total_fx_diff,
+                        advance_account_code=advance_acc.code,
+                        partner_account_code=partner_acc_code,
+                        reference_note=f"فاتورة مشتريات {purchase.number}"
+                    )
+                    lines.extend(fx_lines)
+
+                # معالجة فروق التقريب الكسري البسيطة (<= 0.05 ج.م)
+                tot_deb = sum(l.debit for l in lines)
+                tot_crd = sum(l.credit for l in lines)
+                if tot_deb != tot_crd:
+                    round_diff = (tot_deb - tot_crd).quantize(Decimal("0.01"))
+                    if abs(round_diff) <= Decimal("0.05"):
+                        round_acc = AccountRoleRegistry.get_account(AccountRoleNames.ROUNDING_DIFFERENCE_ACCOUNT)
+                        if round_diff < Decimal("0.00"):
+                            lines.append(JournalEntryLineData(account_code=round_acc.code, debit=abs(round_diff), credit=Decimal("0.00"), description="تسوية فارق تقويم كسر بنيات"))
+                        else:
+                            lines.append(JournalEntryLineData(account_code=round_acc.code, debit=Decimal("0.00"), credit=abs(round_diff), description="تسوية فارق تقويم كسر بنيات"))
+
+                gateway = AccountingGateway()
+                gateway.create_journal_entry(
+                    source_module="purchase",
+                    source_model="SupplierAllocationAudit",
+                    source_id=last_audit.id if last_audit else purchase.id,
+                    lines=lines,
+                    idempotency_key=f"JE:purchase:SupplierAllocationAudit:{last_audit.id if last_audit else purchase.id}:reclassify",
+                    user=user or purchase.created_by,
+                    entry_type="automatic",
+                    description=f"تسوية رصيد مسبق للمورد {supplier.name}",
+                    reference=f"فاتورة مشتريات {purchase.number}"
+                )
+
+            PartnerCurrencySnapshotUpdater.trigger_on_commit(
+                partner_type="supplier",
+                partner_id=locked_supplier.id,
+                currency_code=purchase.currency.code if purchase.currency else "EGP",
+                event_type="ALLOCATION_APPLIED"
+            )
 
             return last_audit
 
@@ -590,5 +634,63 @@ class SupplierAllocationService:
                 created_by=user,
                 evidence_hash=rev_hash
             )
+
+            # تترحيل قيد عكسي للمورد في الدفتر العام
+            if audit.supplier and audit.supplier.financial_account:
+                try:
+                    from governance.services import AccountingGateway, JournalEntryLineData
+                    from financial.services.role_registry import AccountRoleRegistry, AccountRoleNames
+                    from financial.services.fx_settlement_strategy import SupplierFXStrategy
+                    advance_acc = AccountRoleRegistry.get_account(AccountRoleNames.SUPPLIER_ADVANCE_ASSET)
+                    
+                    rev_lines = [
+                        JournalEntryLineData(
+                            account_code=advance_acc.code,
+                            debit=audit.functional_amount,
+                            credit=Decimal("0.00"),
+                            description=f"عكس تسوية دفعة مقدمة للمورد (إلغاء تخصيص #{audit.id})"
+                        ),
+                        JournalEntryLineData(
+                            account_code=audit.supplier.financial_account.code,
+                            debit=Decimal("0.00"),
+                            credit=audit.functional_amount,
+                            description=f"عكس تسوية فاتورة مشتريات - إعادة دائنية المورد (إلغاء تخصيص #{audit.id})"
+                        )
+                    ]
+
+                    # عكس فروق العملة المحققة IAS 21 بالكامل بنفس القيمة التاريخية
+                    if audit.realized_fx_difference and audit.realized_fx_difference != Decimal("0.00"):
+                        fx_strategy = SupplierFXStrategy()
+                        fx_rev_lines = fx_strategy.generate_entries(
+                            difference=-audit.realized_fx_difference,
+                            advance_account_code=advance_acc.code,
+                            partner_account_code=audit.supplier.financial_account.code,
+                            reference_note=f"عكس فروق عملة تخصيص مشتريات #{audit.id}"
+                        )
+                        rev_lines.extend(fx_rev_lines)
+
+                    gateway = AccountingGateway()
+                    gateway.create_journal_entry(
+                        source_module="purchase",
+                        source_model="SupplierAllocationAudit",
+                        source_id=rev_audit.id,
+                        lines=rev_lines,
+                        idempotency_key=f"JE:purchase:SupplierAllocationAudit:REV:{audit.id}",
+                        user=user,
+                        entry_type="automatic",
+                        description=f"قيد عكسي لتسوية رصيد مسبق للمورد {audit.supplier.name}",
+                        reference=f"عكس تخصيص #{audit.id}"
+                    )
+                except Exception as e:
+                    logger.warning(f"لم يتم توليد قيد العكس المحاسبي للمورد: {str(e)}")
+
+            from financial.services.partner_currency_snapshot_updater import PartnerCurrencySnapshotUpdater
+            PartnerCurrencySnapshotUpdater.trigger_on_commit(
+                partner_type="supplier",
+                partner_id=audit.supplier.id,
+                currency_code="EGP",
+                event_type="ALLOCATION_REVERSED"
+            )
+
             return rev_audit
 

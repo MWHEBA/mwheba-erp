@@ -1,7 +1,9 @@
+from decimal import Decimal
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from django.core.validators import RegexValidator
 from financial.mixins import MonetaryTransactionMixin
+
 
 
 class Customer(models.Model):
@@ -169,29 +171,33 @@ class Customer(models.Model):
     @property
     def available_prepaid_balance(self):
         """
-        حساب إجمالي الرصيد المسبق/الدفعات المقدمة غير المخصصة للعميل بدقة عبر العلاقات المباشرة مع الفلترة على المخصصات المرحّلة فقط
+        Legacy Compatibility Wrapper: حساب الرصيد المسبق المتاح للعميل بالعملة الوظيفية (أو الافتراضية)
         """
-        from sale.models import SalePayment
-        from django.db.models import Sum, Subquery, OuterRef, Value, DecimalField
-        from django.db.models.functions import Coalesce
+        try:
+            from financial.services.partner_advance_service import PartnerAdvanceService
+            return PartnerAdvanceService.get_available_balance(self, currency=self.default_currency)
+        except Exception:
+            from sale.models import SalePayment
+            from django.db.models import Sum, Subquery, OuterRef, Value, DecimalField
+            from django.db.models.functions import Coalesce
 
-        used_subq = (
-            SalePayment.objects.filter(
-                customer_payment=OuterRef("pk"), status="posted"
+            used_subq = (
+                SalePayment.objects.filter(
+                    customer_payment=OuterRef("pk"), status="posted"
+                )
+                .values("customer_payment")
+                .annotate(s=Sum("amount"))
+                .values("s")
             )
-            .values("customer_payment")
-            .annotate(s=Sum("amount"))
-            .values("s")
-        )
-        total_free = Decimal("0.00")
-        for cp in self.payments.exclude(status="cancelled").annotate(
-            used=Coalesce(
-                Subquery(used_subq, output_field=DecimalField()),
-                Value(Decimal("0.00"), output_field=DecimalField()),
-            )
-        ):
-            total_free += max(Decimal("0.00"), cp.amount - cp.used)
-        return total_free
+            total_free = Decimal("0.00")
+            for cp in self.payments.exclude(status="cancelled").annotate(
+                used=Coalesce(
+                    Subquery(used_subq, output_field=DecimalField()),
+                    Value(Decimal("0.00"), output_field=DecimalField()),
+                )
+            ):
+                total_free += max(Decimal("0.00"), cp.amount - cp.used)
+            return total_free
 
 
 class CustomerPayment(MonetaryTransactionMixin, models.Model):
@@ -249,17 +255,42 @@ class CustomerPayment(MonetaryTransactionMixin, models.Model):
         null=True,
     )
 
+    allocated_currency_amount_cached = models.DecimalField(
+        _("المبلغ المخصص المخبأ بعملة الدفعة"),
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        null=False,
+    )
+
     class Meta:
         verbose_name = _("مدفوعات العميل")
         verbose_name_plural = _("مدفوعات العملاء")
         ordering = ["-payment_date"]
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(allocated_currency_amount_cached__lte=models.F("amount")) & models.Q(allocated_currency_amount_cached__gte=Decimal("0.00")),
+                name="chk_customer_payment_alloc_valid_range"
+            )
+        ]
 
     def save(self, *args, **kwargs):
         self.populate_monetary_fields()
         super().save(*args, **kwargs)
 
+    @property
+    def remaining_amount(self) -> Decimal:
+        """المبلغ المتبقي المتاح للتخصيص من هذه الدفعة بعملة الدفعة"""
+        return max(Decimal("0.00"), self.amount - self.allocated_currency_amount_cached)
+
+    @property
+    def allocated_amount(self) -> Decimal:
+        """Alias for backward compatibility"""
+        return self.allocated_currency_amount_cached
+
     def __str__(self):
         return f"{self.customer} - {self.amount} - {self.payment_date}"
+
 
 
 import uuid
@@ -351,8 +382,11 @@ class CustomerAllocationAudit(models.Model):
     )
 
     STATUS_CHOICES = (
+        ("DRAFT", _("مسودة")),
+        ("RESERVED", _("محتجز")),
         ("APPLIED", _("مطبق")),
         ("REVERSED", _("معكوس")),
+        ("FAILED", _("تعثر")),
     )
 
     customer = models.ForeignKey(Customer, on_delete=models.PROTECT, related_name="allocation_audits", verbose_name=_("العميل"))

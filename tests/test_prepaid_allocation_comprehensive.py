@@ -29,10 +29,18 @@ class PrepaidAllocationSystemTest(TestCase):
             created_by=self.user
         )
 
+        from financial.models import ChartOfAccounts, AccountType
+        acc_type_ast, _ = AccountType.objects.get_or_create(code="AST_TEST", defaults={"name": "أصول", "category": "asset", "nature": "debit"})
+        acc_type_liab, _ = AccountType.objects.get_or_create(code="LIAB_TEST", defaults={"name": "خصوم", "category": "liability", "nature": "credit"})
+
+        cust_acc, _ = ChartOfAccounts.objects.get_or_create(code="11010", defaults={"name": "ذمم العملاء", "account_type": acc_type_ast, "is_active": True, "is_leaf": True})
+        supp_acc, _ = ChartOfAccounts.objects.get_or_create(code="20100", defaults={"name": "دائنو الموردين", "account_type": acc_type_liab, "is_active": True, "is_leaf": True})
+
         # إنشاء عميل ومورد
         self.customer = Customer.objects.create(
             name="عميل التخصيص الاختباري",
             code="CUST-ALLOC-001",
+            financial_account=cust_acc,
             created_by=self.user
         )
 
@@ -41,6 +49,7 @@ class PrepaidAllocationSystemTest(TestCase):
             name="مورد التخصيص الاختباري",
             code="SUPP-ALLOC-001",
             primary_type=supplier_type,
+            financial_account=supp_acc,
             created_by=self.user
         )
         from product.models import Warehouse
@@ -245,4 +254,75 @@ class PrepaidAllocationSystemTest(TestCase):
         self.assertEqual(s1.payment_status, "paid")
         self.assertEqual(s2.payment_status, "paid")
         self.assertEqual(self.customer.available_prepaid_balance, Decimal("4000.00"))
+
+    def test_draft_invoice_allocation_blocked(self):
+        """حظر تخصيص الرصيد المسبق على مسودة فاتورة غير معتمدة (DRAFT)"""
+        CustomerAllocationAuditService.create_customer_advance_payment(
+            customer_id=self.customer.id,
+            amount=Decimal("1000.00"),
+            payment_date=timezone.now().date(),
+            user=self.user
+        )
+        draft_sale = Sale.objects.create(
+            customer=self.customer, warehouse=self.warehouse, number="INV-DRAFT-999",
+            date=timezone.now().date(), status="draft", subtotal=Decimal("500.00"), total=Decimal("500.00"), created_by=self.user
+        )
+        with self.assertRaises(ValueError):
+            CustomerAllocationAuditService.allocate_customer_prepaid_balance_to_sale(
+                sale=draft_sale,
+                amount_to_allocate=Decimal("500.00"),
+                user=self.user
+            )
+
+    def test_partial_allocation_and_snapshot_accuracy(self):
+        """اختبار التخصيص الجزئي وتحديث لقطة الأرصدة بدقة"""
+        CustomerAllocationAuditService.create_customer_advance_payment(
+            customer_id=self.customer.id,
+            amount=Decimal("1000.00"),
+            payment_date=timezone.now().date(),
+            user=self.user
+        )
+        sale = Sale.objects.create(
+            customer=self.customer, warehouse=self.warehouse, number="INV-PARTIAL-001",
+            date=timezone.now().date(), status="posted", subtotal=Decimal("1000.00"), total=Decimal("1000.00"), created_by=self.user
+        )
+        audit = CustomerAllocationAuditService.allocate_customer_prepaid_balance_to_sale(
+            sale=sale,
+            amount_to_allocate=Decimal("600.00"),
+            user=self.user
+        )
+        self.assertEqual(audit.allocated_amount, Decimal("600.00"))
+        sale.refresh_from_db()
+        self.assertEqual(sale.amount_paid, Decimal("600.00"))
+        self.assertEqual(sale.payment_status, "partially_paid")
+        self.assertEqual(self.customer.available_prepaid_balance, Decimal("400.00"))
+
+    def test_realized_fx_strategy_calculations(self):
+        """اختبار استراتيجيات أرباح وخسائر فروق العملة المحققة للعملاء والموردين"""
+        from financial.services.fx_settlement_strategy import CustomerAdvanceLiabilityStrategy, SupplierAdvanceAssetStrategy
+        cust_fx = CustomerAdvanceLiabilityStrategy()
+        # Loss: Advance rate 45, Sale rate 50 -> Amount 100 -> Invoice EGP 5000 - Advance EGP 4500 = +500 Diff -> Realized FX Loss for seller (Debit 50400)
+        diff_loss = cust_fx.calculate_difference(Decimal("45.0"), Decimal("50.0"), Decimal("100.0"))
+        self.assertEqual(diff_loss, Decimal("500.00"))
+        entries_loss = cust_fx.generate_entries(diff_loss, "20200", "10200", reference_note="Test Sale")
+        self.assertEqual(len(entries_loss), 1)
+        self.assertEqual(entries_loss[0].account_code, "50400") # FX Loss
+
+        # Gain: Advance rate 50, Sale rate 45 -> Amount 100 -> Invoice EGP 4500 - Advance EGP 5000 = -500 Diff -> Realized FX Gain for seller (Credit 40400)
+        diff_gain = cust_fx.calculate_difference(Decimal("50.0"), Decimal("45.0"), Decimal("100.0"))
+        self.assertEqual(diff_gain, Decimal("-500.00"))
+        entries_gain = cust_fx.generate_entries(diff_gain, "20200", "10200", reference_note="Test Sale")
+        self.assertEqual(len(entries_gain), 1)
+        self.assertEqual(entries_gain[0].account_code, "40400") # FX Gain
+
+        # Supplier Strategy:
+        supp_fx = SupplierAdvanceAssetStrategy()
+        # Gain: Advance 40, Bill 50 -> Amount 100 -> Bill 5000 - Advance 4000 = +500 Diff -> Realized FX Gain for buyer (Credit 40400)
+        supp_diff_gain = supp_fx.calculate_difference(Decimal("40.0"), Decimal("50.0"), Decimal("100.0"))
+        self.assertEqual(supp_diff_gain, Decimal("1000.00"))
+        supp_entries_gain = supp_fx.generate_entries(supp_diff_gain, "10500", "20100", reference_note="Test Bill")
+        self.assertEqual(len(supp_entries_gain), 1)
+        self.assertEqual(supp_entries_gain[0].account_code, "40400") # FX Gain
+
+
 

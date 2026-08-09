@@ -56,9 +56,10 @@ class CustomerPaymentAdmin(admin.ModelAdmin):
     list_filter = ("payment_date", "payment_method")
     search_fields = ("customer__name", "reference_number", "notes")
     raw_id_fields = ("customer",)
-    readonly_fields = ("created_at", "created_by")
+    readonly_fields = ("allocated_currency_amount_cached", "created_at", "created_by")
     fieldsets = (
         (None, {"fields": ("customer", "amount", "payment_date", "payment_method")}),
+        (_("التخصيص المخبأ"), {"fields": ("allocated_currency_amount_cached",)}),
         (_("معلومات إضافية"), {"fields": ("reference_number", "notes")}),
         (_("معلومات النظام"), {"fields": ("created_at", "created_by")}),
     )

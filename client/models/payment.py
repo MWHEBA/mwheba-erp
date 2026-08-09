@@ -77,9 +77,24 @@ class CustomerPayment(models.Model):
         verbose_name="القيد المحاسبي",
     )
 
+    currency = models.ForeignKey(
+        "financial.Currency",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        verbose_name="عملة الدفعة",
+    )
+
+    allocated_currency_amount_cached = models.DecimalField(
+        max_digits=15,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        verbose_name="المبلغ المخصص المخبأ بعملة الدفعة",
+    )
+
     # معلومات التتبع
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="تاريخ الإنشاء")
-    updated_at = models.DateTimeField(auto_now=True, verbose_name="تاريخ التحديث")
+    updated_at = models.DateTimeField(auto_auto_now=False, auto_now=True, verbose_name="تاريخ التحديث")
     created_by = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,
@@ -112,6 +127,16 @@ class CustomerPayment(models.Model):
         return statuses.get(self.status, self.status)
 
     @property
+    def allocated_amount(self) -> Decimal:
+        """المبلغ المخصص المخبأ لضمان الملاءمة الموحدة مع الواجهات"""
+        return self.allocated_currency_amount_cached or Decimal("0.00")
+
+    @property
+    def remaining_amount(self) -> Decimal:
+        """المبلغ المتبقي المتاح للتخصيص من هذه الدفعة"""
+        return max(Decimal("0.00"), self.amount - (self.allocated_currency_amount_cached or Decimal("0.00")))
+
+    @property
     def is_completed(self):
         """هل الدفعة مكتملة؟"""
         return self.status == "completed"
@@ -120,3 +145,4 @@ class CustomerPayment(models.Model):
     def is_synced_to_financial(self):
         """هل تم ربط الدفعة بالنظام المالي؟"""
         return self.financial_transaction is not None
+

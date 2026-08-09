@@ -32,8 +32,11 @@ class SupplierAllocationAudit(models.Model):
     )
 
     STATUS_CHOICES = (
+        ("DRAFT", _("مسودة")),
+        ("RESERVED", _("محتجز")),
         ("APPLIED", _("مطبق")),
         ("REVERSED", _("معكوس")),
+        ("FAILED", _("تعثر")),
     )
 
     supplier = models.ForeignKey(Supplier, on_delete=models.PROTECT, related_name="allocation_audits", verbose_name=_("المورد"))

@@ -238,10 +238,14 @@ class Supplier(models.Model):
     @property
     def available_prepaid_balance(self):
         """
-        حساب إجمالي الرصيد المسبق/الدفعات المقدمة غير المخصصة للمورد
+        Legacy Compatibility Wrapper: حساب الرصيد المسبق المتاح للمورد بالعملة المحددة أو الأحادية
         """
-        from supplier.services.supplier_allocation_service import SupplierAllocationService
-        return SupplierAllocationService.get_available_supplier_prepaid_balance(self.id)
+        try:
+            from financial.services.partner_advance_service import PartnerAdvanceService
+            return PartnerAdvanceService.get_available_balance(self, currency=self.default_currency)
+        except Exception:
+            from supplier.services.supplier_allocation_service import SupplierAllocationService
+            return SupplierAllocationService.get_available_supplier_prepaid_balance(self.id)
 
     def __str__(self):
         return str(self.name or f"Supplier {self.pk or ''}")

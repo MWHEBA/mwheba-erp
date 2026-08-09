@@ -155,11 +155,16 @@ class AccountingPeriodValidationError(FinancialValidationError):
             period (AccountingPeriod, optional): الفترة المحاسبية المرتبطة بالخطأ
             transaction_date (date, optional): تاريخ المعاملة المالية
         """
-        self.period = period
-        self.transaction_date = transaction_date
         super().__init__(
             message=message,
             code=code,
             entity=entity,
             validation_type='accounting_period'
         )
+
+
+class CurrencyMismatchError(FinancialCoreError):
+    """استثناء عند اختيار تخصيص بين عملات غير متطابقة ودون حوكمة التحويل"""
+    pass
+
+

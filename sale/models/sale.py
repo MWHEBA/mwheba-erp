@@ -238,14 +238,16 @@ class Sale(models.Model):
     @property
     def amount_paid(self):
         """
-        حساب المبلغ المدفوع - فقط الدفعات المرحّلة
+        حساب إجمالي المبلغ المدفوع: النقدية المباشرة + التوزيعات المطبقة من سجل التدقيق
         """
-        return (
-            self.payments.filter(status="posted").aggregate(models.Sum("amount"))[
-                "amount__sum"
-            ]
-            or 0
-        )
+        from client.models import CustomerAllocationAudit
+        from decimal import Decimal
+        direct_paid = self.payments.filter(status="posted").aggregate(models.Sum("amount"))["amount__sum"] or Decimal("0.00")
+        allocated_paid = CustomerAllocationAudit.objects.filter(
+            target_document_number=self.number,
+            allocation_status="APPLIED"
+        ).aggregate(models.Sum("allocated_amount"))["allocated_amount__sum"] or Decimal("0.00")
+        return direct_paid + allocated_paid
 
     @property
     def amount_due(self):

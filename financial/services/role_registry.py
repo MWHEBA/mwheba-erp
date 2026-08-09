@@ -29,6 +29,9 @@ class AccountRoleNames(str, Enum):
     DEFAULT_BANK_ACCOUNT = "default_bank_account"
     GENERAL_SALES_REVENUE = "general_sales_revenue"
     SUPPLIER_PAYABLE_CONTROL = "supplier_payable_control"
+    CUSTOMER_RECEIVABLE_CONTROL = "customer_receivable_control"
+    CUSTOMER_ADVANCE_LIABILITY = "customer_advance_liability"
+    SUPPLIER_ADVANCE_ASSET = "supplier_advance_asset"
     SALARY_EXPENSE = "salary_expense"
     SOCIAL_INSURANCE = "social_insurance"
     INCOME_TAX = "income_tax"
@@ -43,6 +46,11 @@ LEGACY_ROLE_FALLBACKS: Dict[str, str] = {
     AccountRoleNames.DEFAULT_BANK_ACCOUNT.value: "10200",
     AccountRoleNames.GENERAL_SALES_REVENUE.value: "40100",
     AccountRoleNames.SUPPLIER_PAYABLE_CONTROL.value: "20100",
+    AccountRoleNames.CUSTOMER_RECEIVABLE_CONTROL.value: "11010",
+    AccountRoleNames.CUSTOMER_ADVANCE_LIABILITY.value: "20200",
+    AccountRoleNames.SUPPLIER_ADVANCE_ASSET.value: "10500",
+    "CUSTOMER_ADVANCE_LIABILITY": "20200",
+    "SUPPLIER_ADVANCE_ASSET": "10500",
     "AP_CONTROL_ACCOUNT": "20100",
     "AR_CONTROL_ACCOUNT": "11010",
     AccountRoleNames.SALARY_EXPENSE.value: "50200",
@@ -115,14 +123,42 @@ class AccountRoleRegistry:
         جلب وتوثيق كائن ChartOfAccounts النشط المقابل للدور
         """
         ChartOfAccounts = apps.get_model('financial', 'ChartOfAccounts')
+        AccountType = apps.get_model('financial', 'AccountType')
         account_code = cls.resolve_role_code(role_input)
 
         account = ChartOfAccounts.objects.filter(code=account_code).first()
 
         if not account:
-            raise RoleConfigurationError(
-                f"Resolved account code '{account_code}' for role '{role_input}' does not exist in Chart of Accounts."
-            )
+            account_defaults = {
+                "20200": ("دفعات مقدمة من العملاء", "liability", "credit"),
+                "10500": ("دفعات مقدمة للموردين", "asset", "debit"),
+                "11010": ("حساب العملاء الرئيسي", "asset", "debit"),
+                "20100": ("حساب الموردين الرئيسي", "liability", "credit"),
+                "50900": ("حساب فروق التقريب", "expense", "debit"),
+                "50400": ("خسائر فروق عملة محققة", "expense", "debit"),
+                "40400": ("أرباح فروق عملة محققة", "revenue", "credit"),
+                "10100": ("الصندوق الرئيسي", "asset", "debit"),
+                "10200": ("حساب البنك الرئيسي", "asset", "debit"),
+            }
+            if account_code in account_defaults:
+                name, category, nature = account_defaults[account_code]
+                acc_type, _ = AccountType.objects.get_or_create(
+                    code=f"TYPE_{category.upper()}",
+                    defaults={"name": f"نوع {category}", "category": category, "nature": nature}
+                )
+                account, _ = ChartOfAccounts.objects.get_or_create(
+                    code=account_code,
+                    defaults={
+                        "name": name,
+                        "account_type": acc_type,
+                        "is_active": True,
+                        "is_leaf": True
+                    }
+                )
+            else:
+                raise RoleConfigurationError(
+                    f"Resolved account code '{account_code}' for role '{role_input}' does not exist in Chart of Accounts."
+                )
 
         if hasattr(account, 'is_active') and not account.is_active:
             raise RoleConfigurationError(

@@ -32,6 +32,13 @@ class SupplierAdvancePayment(models.Model):
     reference_number = models.CharField(
         _("رقم المرجع / الشيك"), max_length=50, blank=True, null=True
     )
+    currency = models.ForeignKey(
+        "financial.Currency",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        verbose_name=_("العملة"),
+    )
     financial_account = models.ForeignKey(
         "financial.ChartOfAccounts",
         on_delete=models.SET_NULL,

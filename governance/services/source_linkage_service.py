@@ -23,6 +23,10 @@ class SourceLinkageService:
     
     # Allowlist of valid source models for journal entries
     ALLOWED_SOURCES = {
+        'client.CustomerAllocationAudit',
+        'supplier.SupplierAllocationAudit',
+        'sale.CustomerAllocationAudit',
+        'purchase.SupplierAllocationAudit',
         'client.CustomerPayment',
         'purchase.PurchasePayment',
         'hr.PayrollPayment',
@@ -43,7 +47,6 @@ class SourceLinkageService:
         'product.BatchVoucher',  # Added for batch vouchers
         'product.BundleSale',  # Added for bundle sale transactions
         'product.Product',  # Added for product master transactions
-        # Note: 'financial.ManualAdjustment' will be added when the model is implemented
     }
     
     @classmethod
