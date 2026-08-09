@@ -1,5 +1,17 @@
+{% load custom_filters %}
 {% load pricing_filters %}
+{% load utils_extras %}
 {% load i18n %}
 <span class="payment-amount fw-bold text-success">
-  <strong>{{ value|currency }}</strong>
+  <strong>
+    {% if object %}
+      {{ value|smart_float }} {{ object|get_currency_symbol:currency_symbol }}
+    {% elif item %}
+      {{ value|smart_float }} {{ item|get_currency_symbol:currency_symbol }}
+    {% elif row %}
+      {{ value|smart_float }} {{ row|get_currency_symbol:currency_symbol }}
+    {% else %}
+      {{ value|currency }}
+    {% endif %}
+  </strong>
 </span>

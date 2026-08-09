@@ -449,7 +449,10 @@
                                                 <i class="fas fa-money-bill-wave text-success me-2"></i>
                                                 <div>
                                                     <small class="text-muted d-block">الإجمالي</small>
-                                                    <span class="fw-medium text-primary">{{ purchase.total|smart_float }} {% currency_symbol %}</span>
+                                                    <span class="fw-medium text-primary">{{ purchase.total|smart_float }} {{ purchase|get_currency_symbol:currency_symbol }}</span>
+                                                    {% if purchase.currency and not purchase.currency.is_functional %}
+                                                        <small class="text-muted d-block mt-1" style="font-size: 0.75rem;">(ما يعادل {{ purchase.total_functional|smart_float }} {{ currency_symbol }})</small>
+                                                    {% endif %}
                                                 </div>
                                             </div>
                                         </div>
@@ -471,8 +474,8 @@
                                 <div class="party-value">
                                     <a href="{% url 'supplier:supplier_detail' purchase.supplier.id %}" class="text-primary">
                                         <i class="fas fa-user-circle me-1"></i> {{ purchase.supplier.name }}
-    </a>
-</div>
+                                    </a>
+                                </div>
                             </div>
                             <div class="party-info">
                                 <div class="party-label">{% trans "العنوان:" %}</div>
@@ -514,7 +517,7 @@
                             </div>
                             <div class="party-info">
                                 <div class="party-label">{% trans "العملة:" %}</div>
-                                <div class="party-value">{{ purchase.currency|default:currency_symbol }}</div>
+                                <div class="party-value">{{ purchase.currency.name|default:purchase.currency_symbol }}</div>
                             </div>
                         </div>
                     </div>
@@ -579,9 +582,9 @@
                                             <span class="text-muted fw-normal small">({{ item.product.unit.name }})</span>
                                             {% endif %}
                                         </td>
-                                        <td class="text-center">{{ item.unit_price|currency }}</td>
-                                        <td class="text-center">{% if item.discount and item.discount > 0 %}{{ item.discount|currency }}{% else %}-{% endif %}</td>
-                                        <td class="fw-bold text-center">{{ item.total|currency }}</td>
+                                        <td class="text-center">{{ item.unit_price|smart_float:2 }} {{ purchase|get_currency_symbol:currency_symbol }}</td>
+                                        <td class="text-center">{% if item.discount and item.discount > 0 %}{{ item.discount|smart_float:2 }} {{ purchase|get_currency_symbol:currency_symbol }}{% else %}-{% endif %}</td>
+                                        <td class="fw-bold text-center">{{ item.total|smart_float:2 }} {{ purchase|get_currency_symbol:currency_symbol }}</td>
                                     </tr>
                                     {% endfor %}
                                 </tbody>
@@ -608,28 +611,28 @@
                                 <div>
                                     <div class="summary-row">
                                         <div class="summary-label">{% trans "المجموع الفرعي:" %}</div>
-                                        <div class="summary-value">{{ purchase.subtotal|currency }}</div>
+                                        <div class="summary-value">{{ purchase.subtotal|smart_float:2 }} {{ purchase|get_currency_symbol:currency_symbol }}</div>
                                     </div>
                                     <div class="summary-row">
                                         <div class="summary-label">{% trans "الخصم:" %}</div>
-                                        <div class="summary-value">{% if purchase.discount and purchase.discount > 0 %}{{ purchase.discount|currency }}{% else %}-{% endif %}</div>
+                                        <div class="summary-value">{% if purchase.discount and purchase.discount > 0 %}{{ purchase.discount|smart_float:2 }} {{ purchase|get_currency_symbol:currency_symbol }}{% else %}-{% endif %}</div>
                                     </div>
                                     <div class="summary-row">
                                         <div class="summary-label">{% trans "الضريبة:" %}</div>
-                                        <div class="summary-value">{% if purchase.tax and purchase.tax > 0 %}{{ purchase.tax|currency }}{% else %}-{% endif %}</div>
+                                        <div class="summary-value">{% if purchase.tax and purchase.tax > 0 %}{{ purchase.tax|smart_float:2 }} {{ purchase|get_currency_symbol:currency_symbol }}{% else %}-{% endif %}</div>
                                     </div>
                                     <div class="summary-row">
                                         <div class="summary-label">{% trans "الإجمالي:" %}</div>
-                                        <div class="summary-value">{{ purchase.total|currency }}</div>
+                                        <div class="summary-value">{{ purchase.total|smart_float:2 }} {{ purchase|get_currency_symbol:currency_symbol }}</div>
                                     </div>
                                     <div class="summary-row text-secondary">
                                         <div class="summary-label">{% trans "المدفوع:" %}</div>
-                                        <div class="summary-value fw-medium">{{ purchase.amount_paid|currency }}</div>
+                                        <div class="summary-value fw-medium">{{ purchase.amount_paid|smart_float:2 }} {{ purchase|get_currency_symbol:currency_symbol }}</div>
                                     </div>
                                 </div>
                                 <div class="summary-row border-top pt-2 mt-2">
                                     <div class="summary-label">{% trans "المتبقي:" %}</div>
-                                    <div class="summary-value">{{ purchase.amount_due|currency }}</div>
+                                    <div class="summary-value">{{ purchase.amount_due|smart_float:2 }} {{ purchase|get_currency_symbol:currency_symbol }}</div>
                                 </div>
                             </div>
                         </div>

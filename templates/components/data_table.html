@@ -106,7 +106,7 @@
                                             {% elif field_value == 0 and header.key in 'balance,amount_due' %}
                                                 <span class="text-muted">-</span>
                                             {% else %}
-                                                <span class="currency-symbol">{{ currency_symbol }}</span> {{ field_value|remove_trailing_zeros|default:"0" }}
+                                                <span class="currency-symbol">{{ item|get_currency_symbol:currency_symbol }}</span> {{ field_value|remove_trailing_zeros|default:"0" }}
                                             {% endif %}
                                         </span>
                                     {% elif header.format == 'boolean' %}

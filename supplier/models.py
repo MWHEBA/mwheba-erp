@@ -7,14 +7,9 @@ from django.utils import timezone
 from decimal import Decimal
 import logging
 
-logger = logging.getLogger(__name__)
+from financial.mixins import MonetaryTransactionMixin
 
-# استيراد نماذج الدفعات
-try:
-    from .models.payment import SupplierPayment
-except ImportError:
-    # في حالة عدم وجود الملف، إنشاء نموذج بسيط
-    SupplierPayment = None
+logger = logging.getLogger(__name__)
 
 # إضافة النموذج الجديد في نفس الملف لتجنب مشاكل الاستيراد
 
@@ -950,7 +945,7 @@ import uuid
 import hashlib
 
 
-class SupplierAdvancePayment(models.Model):
+class SupplierAdvancePayment(MonetaryTransactionMixin, models.Model):
     """
     نموذج الدفعات المقدمة للموردين (عربون/سداد تحت الحساب قبل صدور الفواتير)
     """
@@ -1004,6 +999,10 @@ class SupplierAdvancePayment(models.Model):
         verbose_name_plural = _("الدفعات المقدمة للموردين")
         ordering = ["-payment_date", "-created_at"]
 
+    def save(self, *args, **kwargs):
+        self.populate_monetary_fields()
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return f"Supplier Advance #{self.id} - {self.supplier.name} ({self.amount} EGP)"
 
@@ -1011,6 +1010,9 @@ class SupplierAdvancePayment(models.Model):
     def remaining_amount(self) -> Decimal:
         """المبلغ المتبقي المتاح للتخصيص من هذه الدفعة"""
         return max(Decimal("0.00"), self.amount - self.allocated_amount)
+
+
+SupplierPayment = SupplierAdvancePayment
 
 
 class ImmutableSupplierAllocationAuditManager(models.Manager):

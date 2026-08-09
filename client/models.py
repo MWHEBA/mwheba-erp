@@ -1,8 +1,7 @@
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from django.core.validators import RegexValidator
-
-
+from financial.mixins import MonetaryTransactionMixin
 
 
 class Customer(models.Model):
@@ -195,7 +194,7 @@ class Customer(models.Model):
         return total_free
 
 
-class CustomerPayment(models.Model):
+class CustomerPayment(MonetaryTransactionMixin, models.Model):
     """
     نموذج لتسجيل المدفوعات المستلمة من العملاء
     """
@@ -222,6 +221,13 @@ class CustomerPayment(models.Model):
     )
     notes = models.TextField(_("ملاحظات"), blank=True, null=True)
     status = models.CharField(_("الحالة"), max_length=20, default="posted")
+    financial_account = models.ForeignKey(
+        "financial.ChartOfAccounts",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name=_("الخزينة / البنك المصدر"),
+    )
     
     # ربط بأمر الشغل
     work_order = models.ForeignKey(
@@ -247,6 +253,10 @@ class CustomerPayment(models.Model):
         verbose_name = _("مدفوعات العميل")
         verbose_name_plural = _("مدفوعات العملاء")
         ordering = ["-payment_date"]
+
+    def save(self, *args, **kwargs):
+        self.populate_monetary_fields()
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.customer} - {self.amount} - {self.payment_date}"

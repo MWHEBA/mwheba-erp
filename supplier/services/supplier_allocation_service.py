@@ -367,7 +367,7 @@ class SupplierAllocationService:
                 Purchase.objects.select_for_update().filter(
                     id__in=valid_allocations.keys(),
                     supplier=locked_supplier,
-                    status="posted"
+                    status__in=["confirmed", "posted"]
                 ).order_by("id")
             )
 
@@ -410,9 +410,19 @@ class SupplierAllocationService:
                     }
                 )
 
+                pur_curr_id = purchase.currency_id
                 for adv in advances:
                     if remaining_for_bill <= Decimal("0.00"):
                         break
+
+                    adv_curr_id = adv.currency_id
+                    if pur_curr_id != adv_curr_id:
+                        is_egp_match = (
+                            (pur_curr_id is None and adv.currency and adv.currency.code == "EGP") or
+                            (adv_curr_id is None and purchase.currency and purchase.currency.code == "EGP")
+                        )
+                        if not is_egp_match:
+                            continue
 
                     rem_adv = adv.remaining_amount
                     if rem_adv <= Decimal("0.00"):

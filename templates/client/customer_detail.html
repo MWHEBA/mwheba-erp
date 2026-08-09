@@ -827,8 +827,16 @@
                 <div class="input-group">
                   <input type="number" step="0.01" min="0.01" class="form-control" id="custAdvAmount" name="amount"
                     placeholder="0.00" required>
-                  <span class="input-group-text">{% currency_symbol %}</span>
+                  <span class="input-group-text" id="custAdvCurrSymbol">{% currency_symbol %}</span>
                 </div>
+              </div>
+              <div class="col-md-6">
+                <label for="custAdvCurrency" class="form-label fw-bold">{% trans "عملة الدفعة:" %} <span class="text-danger">*</span></label>
+                <select class="form-select" id="custAdvCurrency" name="currency" onchange="const opt = this.options[this.selectedIndex]; const sym = opt.getAttribute('data-symbol') || opt.getAttribute('data-code'); if(sym) document.getElementById('custAdvCurrSymbol').textContent = sym; filterFinAccsByCurrency(this, 'custAdvFinAcc');" required>
+                  {% for c in currencies %}
+                    <option value="{{ c.id }}" data-symbol="{{ c.symbol|default:c.code }}" data-code="{{ c.code }}" {% if c.is_default %}selected{% endif %}>{{ c.name }} ({{ c.code }})</option>
+                  {% endfor %}
+                </select>
               </div>
               <div class="col-md-6">
                 <label for="custAdvDate" class="form-label fw-bold">{% trans "تاريخ القبض:" %} <span
@@ -849,7 +857,9 @@
                 <select class="form-select" id="custAdvFinAcc" name="financial_account">
                   <option value="">{% trans "-- اختر الخزينة أو البنك --" %}</option>
                   {% for acc in financial_accounts %}
-                  <option value="{{ acc.id }}">{{ acc.code }} - {{ acc.name }}</option>
+                  <option value="{{ acc.id }}" data-currency-id="{{ acc.currency_id|default:'' }}" data-currency-code="{% if acc.currency %}{{ acc.currency.code }}{% else %}EGP{% endif %}">
+                    {{ acc.code }} - {{ acc.name }} {% if acc.currency %}({{ acc.currency.code }}){% endif %}
+                  </option>
                   {% endfor %}
                 </select>
               </div>
@@ -888,19 +898,32 @@
         <form method="post" action="{% url 'client:allocate_customer_prepaid' customer.id %}" id="custBulkAllocForm">
           {% csrf_token %}
           <div class="modal-body p-4">
+            <div class="mb-3">
+              <label for="custBulkCurrency" class="form-label fw-bold"><i class="fas fa-coins me-1 text-primary"></i>{% trans "اختر عملة الرصيد المسبق للتوزيع:" %}</label>
+              <select class="form-select fw-bold border-primary" id="custBulkCurrency" onchange="onCustBulkCurrencyChange()">
+                {% for curr_code, item in prepaid_balances.items %}
+                  <option value="{{ curr_code }}" data-avail="{% if item.balance %}{{ item.balance }}{% else %}{{ item }}{% endif %}" data-symbol="{% if item.symbol %}{{ item.symbol }}{% else %}{{ curr_code }}{% endif %}">
+                    {% if item.name %}{{ item.name }} ({{ item.symbol }}){% else %}{{ curr_code }}{% endif %} - ({% trans "الرصيد المتاح:" %} {% if item.balance %}{{ item.balance|smart_float }}{% else %}{{ item|smart_float }}{% endif %} {% if item.symbol %}{{ item.symbol }}{% else %}{{ curr_code }}{% endif %})
+                  </option>
+                {% empty %}
+                  <option value="EGP" data-avail="{{ unallocated_prepaid }}" data-symbol="{% currency_symbol %}">{% trans "جنيه مصري" %} ({% currency_symbol %}) - ({% trans "الرصيد المتاح:" %} {{ unallocated_prepaid|smart_float }} {% currency_symbol %})</option>
+                {% endfor %}
+              </select>
+            </div>
+
             <div class="p-3 bg-light rounded mb-3 border">
               <div class="row text-center g-2">
                 <div class="col-4 border-end">
                   <span class="text-muted d-block small">{% trans "الرصيد المتاح" %}</span>
-                  <strong class="text-success fs-5" id="custModalAvailBal">{{ unallocated_prepaid|smart_float }}</strong> <small class="text-muted">{% currency_symbol %}</small>
+                  <strong class="text-success fs-5" id="custModalAvailBal">{{ unallocated_prepaid|smart_float }}</strong> <small class="text-muted custModalCurrencySym">EGP</small>
                 </div>
                 <div class="col-4 border-end">
                   <span class="text-muted d-block small">{% trans "إجمالي المحدد للتوزيع" %}</span>
-                  <strong class="text-primary fs-5" id="custModalSelectedTotal">0.00</strong> <small class="text-muted">{% currency_symbol %}</small>
+                  <strong class="text-primary fs-5" id="custModalSelectedTotal">0.00</strong> <small class="text-muted custModalCurrencySym">EGP</small>
                 </div>
                 <div class="col-4">
                   <span class="text-muted d-block small">{% trans "المتبقي غير المخصص" %}</span>
-                  <strong class="text-dark fs-5" id="custModalRemainingBal">{{ unallocated_prepaid|smart_float }}</strong> <small class="text-muted">{% currency_symbol %}</small>
+                  <strong class="text-dark fs-5" id="custModalRemainingBal">{{ unallocated_prepaid|smart_float }}</strong> <small class="text-muted custModalCurrencySym">EGP</small>
                 </div>
               </div>
             </div>
@@ -939,11 +962,11 @@
                 <tbody>
                   {% for inv in open_invs %}
                   {% if inv.payment_status != 'paid' %}
-                  <tr>
+                  <tr class="cust-inv-row" data-currency-code="{% if inv.currency %}{{ inv.currency.code }}{% else %}EGP{% endif %}">
                     <td><strong class="text-primary">{{ inv.number }}</strong></td>
                     <td>{{ inv.date|date:"Y-m-d" }}</td>
-                    <td>{{ inv.total|smart_float }} {% currency_symbol %}</td>
-                    <td class="text-danger fw-bold">{{ inv.amount_due|smart_float }} {% currency_symbol %}</td>
+                    <td>{{ inv.total|smart_float }} {% if inv.currency %}{{ inv.currency.symbol|default:inv.currency.code }}{% else %}{% currency_symbol %}{% endif %}</td>
+                    <td class="text-danger fw-bold">{{ inv.amount_due|smart_float }} {% if inv.currency %}{{ inv.currency.symbol|default:inv.currency.code }}{% else %}{% currency_symbol %}{% endif %}</td>
                     <td>
                       <input type="hidden" name="sale_ids[]" value="{{ inv.id }}">
                       <input type="number" step="0.01" min="0" name="amounts[]"
@@ -976,7 +999,8 @@
 
   <script>
     function calcCustomerBulkAllocTotal() {
-      const totalAvail = parseFloat("{{ unallocated_prepaid|default:'0' }}") || 0;
+      const availEl = document.getElementById('custModalAvailBal');
+      const totalAvail = availEl ? (parseFloat(availEl.innerText || '0') || 0) : 0;
       const inputs = document.querySelectorAll('#prepaidAllocationModal .cust-alloc-input');
       let sum = 0;
       inputs.forEach(input => {
@@ -1004,10 +1028,47 @@
       }
     }
 
+    function onCustBulkCurrencyChange() {
+      const selectEl = document.getElementById('custBulkCurrency');
+      if (!selectEl || selectEl.selectedIndex < 0) return;
+      const opt = selectEl.options[selectEl.selectedIndex];
+      const currCode = selectEl.value;
+      const availBal = parseFloat(opt.getAttribute('data-avail') || '0') || 0;
+
+      const currSym = opt.getAttribute('data-symbol') || currCode;
+
+      const availEl = document.getElementById('custModalAvailBal');
+      if (availEl) availEl.innerText = availBal.toFixed(2);
+      document.querySelectorAll('.custModalCurrencySym').forEach(el => el.innerText = currSym);
+
+      const rows = document.querySelectorAll('.cust-inv-row');
+      rows.forEach(row => {
+        const rowCurr = row.getAttribute('data-currency-code') || 'EGP';
+        const match = (rowCurr === currCode);
+        row.style.display = match ? '' : 'none';
+        row.querySelectorAll('input').forEach(inp => {
+          inp.disabled = !match;
+          if (!match && inp.classList.contains('cust-alloc-input')) {
+            inp.value = '';
+          }
+        });
+      });
+
+      calcCustomerBulkAllocTotal();
+    }
+
     function fillCustomerPrepaidAllocationFIFO() {
-      let available = parseFloat("{{ unallocated_prepaid|default:'0' }}") || 0;
-      const inputs = document.querySelectorAll('#prepaidAllocationModal .cust-alloc-input');
-      inputs.forEach(input => {
+      const selectEl = document.getElementById('custBulkCurrency');
+      const opt = (selectEl && selectEl.selectedIndex >= 0) ? selectEl.options[selectEl.selectedIndex] : null;
+      let available = opt ? (parseFloat(opt.getAttribute('data-avail') || '0') || 0) : (parseFloat("{{ unallocated_prepaid|default:'0' }}") || 0);
+
+      const currCode = selectEl ? selectEl.value : 'EGP';
+      const rows = document.querySelectorAll('.cust-inv-row');
+      rows.forEach(row => {
+        const rowCurr = row.getAttribute('data-currency-code') || 'EGP';
+        if (rowCurr !== currCode) return;
+        const input = row.querySelector('.cust-alloc-input');
+        if (!input) return;
         const due = parseFloat(input.getAttribute('data-due') || '0');
         if (available > 0 && due > 0) {
           const alloc = Math.min(available, due);
@@ -1026,11 +1087,48 @@
       calcCustomerBulkAllocTotal();
     }
 
+    function filterFinAccsByCurrency(selectCurrencyEl, finAccElId) {
+      if (!selectCurrencyEl) return;
+      const selectedOption = selectCurrencyEl.options[selectCurrencyEl.selectedIndex];
+      if (!selectedOption) return;
+      const selectedCurrencyId = selectCurrencyEl.value;
+      const selectedCurrencyCode = selectedOption.getAttribute('data-code') || '';
+      const finAccSelect = document.getElementById(finAccElId);
+      if (!finAccSelect) return;
+
+      Array.from(finAccSelect.options).forEach(opt => {
+        if (!opt.value) {
+          opt.hidden = false;
+          return;
+        }
+        const accCurrId = opt.getAttribute('data-currency-id');
+        const accCurrCode = opt.getAttribute('data-currency-code') || 'EGP';
+
+        const matches = (accCurrId && accCurrId === selectedCurrencyId) || 
+                        (!accCurrId && selectedCurrencyCode === 'EGP') ||
+                        (accCurrCode === selectedCurrencyCode);
+
+        opt.hidden = !matches;
+      });
+
+      if (finAccSelect.selectedIndex > 0 && finAccSelect.options[finAccSelect.selectedIndex].hidden) {
+        finAccSelect.value = '';
+      }
+    }
+
     document.addEventListener('DOMContentLoaded', function () {
       const modalEl = document.getElementById('prepaidAllocationModal');
       if (modalEl) {
         modalEl.addEventListener('shown.bs.modal', function () {
-          fillCustomerPrepaidAllocationFIFO();
+          onCustBulkCurrencyChange();
+        });
+      }
+
+      const advModalEl = document.getElementById('addCustomerAdvanceModal');
+      if (advModalEl) {
+        advModalEl.addEventListener('shown.bs.modal', function () {
+          const currSelect = document.getElementById('custAdvCurrency');
+          if (currSelect) filterFinAccsByCurrency(currSelect, 'custAdvFinAcc');
         });
       }
     });

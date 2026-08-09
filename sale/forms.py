@@ -117,6 +117,12 @@ class SaleForm(forms.ModelForm):
             "discount_type",
             "adjustment_name",
             "adjustment_amount",
+            "tax_active",
+            "vat_active",
+            "vat_rate",
+            "wht_active",
+            "wht_rate",
+            "wht_amount",
             "payment_method",
             "financial_category",
             "notes",
@@ -265,6 +271,11 @@ class SaleForm(forms.ModelForm):
             if self.instance and self.instance.pk and self.instance.salesman:
                 return self.instance.salesman
             return user
+
+        for field_name in ["discount", "tax_active", "vat_active", "vat_rate", "wht_active", "wht_rate", "wht_amount", "adjustment_name", "adjustment_amount"]:
+            if field_name in self.fields:
+                self.fields[field_name].required = False
+
         return salesman or user
 
     def clean(self):
@@ -750,7 +761,18 @@ class QuotationForm(forms.ModelForm):
             "date",
             "valid_until",
             "discount",
+            "adjustment_name",
+            "adjustment_amount",
             "tax_active",
+            "vat_active",
+            "vat_rate",
+            "wht_active",
+            "wht_rate",
+            "wht_amount",
+            "currency",
+            "exchange_rate",
+            "total_foreign",
+            "total_functional",
             "notes",
             "work_order",
         ]
@@ -810,6 +832,10 @@ class QuotationForm(forms.ModelForm):
         warehouses = Warehouse.objects.filter(is_active=True)
         if warehouses.exists() and not self.initial.get("warehouse"):
             self.initial["warehouse"] = warehouses.first().pk
+
+        for field_name in ["discount", "tax_active", "vat_active", "vat_rate", "wht_active", "wht_rate", "wht_amount", "adjustment_name", "adjustment_amount", "currency", "exchange_rate", "total_foreign", "total_functional"]:
+            if field_name in self.fields:
+                self.fields[field_name].required = False
 
     def clean_salesman(self):
         salesman = self.cleaned_data.get('salesman')

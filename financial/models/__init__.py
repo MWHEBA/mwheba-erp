@@ -40,7 +40,8 @@ from .categories import FinancialCategory, CategoryBudget, FinancialSubcategory
 from .audit_trail import AuditTrail, PaymentAuditMixin
 from .invoice_audit_log import InvoiceAuditLog
 from .partner_transactions import PartnerTransaction, PartnerBalance
-from .partner_currency_balance_snapshot import PartnerCurrencyBalanceSnapshot
+from .partner_advance import PartnerCurrencyBalanceSnapshot, PartnerAdvanceSettlement
+from .migration_run import DataMigrationRun
 from .partner_settings import PartnerSettings, PartnerPermission, PartnerAuditLog
 
 # استيراد آمن للنماذج الاختيارية
@@ -141,6 +142,7 @@ __all__ = [
     "ExpenseTransaction",
     "IncomeTransaction",
     "TransactionAttachment",
+    "PartnerCurrencyBalanceSnapshot",
     # نماذج تقييم العملات المحوكمة (IAS 21)
     "FXRevaluationRun",
     "FXRevaluationLine",

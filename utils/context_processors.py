@@ -77,6 +77,11 @@ def common_variables(request):
     try:
         from financial.models.currency import Currency
         active_currencies = list(Currency.objects.filter(is_active=True).order_by("-is_functional", "code"))
+        for curr in active_currencies:
+            try:
+                curr.current_rate = ExchangeRateService.get_exchange_rate(curr)
+            except Exception:
+                curr.current_rate = 1.0
     except Exception:
         active_currencies = []
 

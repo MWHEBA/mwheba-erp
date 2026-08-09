@@ -386,7 +386,12 @@
                             <ul class="nav nav-tabs border-bottom-0" id="totalSectionTabs" role="tablist">
                                 <li class="nav-item" role="presentation">
                                     <button class="nav-link active fw-medium" id="discount-tab" data-bs-toggle="tab" data-bs-target="#tab-discount" type="button" role="tab" aria-controls="tab-discount" aria-selected="true">
-                                        <i class="fas fa-percent me-1 text-primary"></i> الخصم والتسوية
+                                        <i class="fas fa-tag me-1 text-primary"></i> الخصم والتسوية
+                                    </button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link fw-medium" id="tax-tab" data-bs-toggle="tab" data-bs-target="#tab-tax" type="button" role="tab" aria-controls="tab-tax" aria-selected="false">
+                                        <i class="fas fa-file-invoice-dollar me-1 text-primary"></i> الضرائب والخصومات
                                     </button>
                                 </li>
                                 <li class="nav-item" role="presentation">
@@ -436,6 +441,37 @@
                                                 <input type="number" step="0.01" name="adjustment_amount" id="id_adjustment_amount" class="form-control text-center" value="{{ form.adjustment_amount.value|default:'0' }}" min="0" placeholder="0.00" style="max-width: 120px;">
                                             </div>
                                             <small class="form-text text-muted">اكتب اسم التسوية وقيمتها للإضافة أو الخصم المباشر من الإجمالي.</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                <!-- تبويب الضرائب والخصومات -->
+                                <div class="tab-pane fade" id="tab-tax" role="tabpanel" aria-labelledby="tax-tab">
+                                    <div class="row g-3">
+                                        <div class="col-md-6">
+                                            <div class="card border-0 shadow-sm bg-white p-3 h-100">
+                                                <h6 class="fw-bold text-dark mb-2"><i class="fas fa-percent text-primary me-2"></i>ضريبة القيمة المضافة (VAT)</h6>
+                                                <div class="form-check form-switch pt-1">
+                                                    <input class="form-check-input" type="checkbox" name="tax_active" id="id_tax_active" role="switch" {% if form.instance.tax_active or form.instance.tax_active is None %}checked{% endif %}>
+                                                    <label class="form-check-label text-dark fw-medium small" for="id_tax_active">تفعيل ضريبة القيمة المضافة (14%)</label>
+                                                </div>
+                                                <small class="form-text text-muted mt-2">تُحسب بنسبة 14% على الصافي التجاري للمستند.</small>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="card border-0 shadow-sm bg-white p-3 h-100">
+                                                <h6 class="fw-bold text-dark mb-2"><i class="fas fa-hand-holding-usd text-warning me-2"></i>ضريبة الخصم والإضافة (WHT)</h6>
+                                                <div class="d-flex align-items-center mb-2">
+                                                    <div class="form-check form-switch me-2 pt-1">
+                                                        <input class="form-check-input" type="checkbox" name="wht_active" id="id_wht_active" role="switch" {% if form.instance.wht_active %}checked{% endif %}>
+                                                        <label class="form-check-label text-dark fw-medium small" for="id_wht_active">ضريبة الخصم والإضافة (WHT)</label>
+                                                    </div>
+                                                    <select name="wht_rate" id="id_wht_rate" class="form-select form-select-sm ms-auto text-center" style="width: fit-content;">
+                                                        <option value="1.00" {% if form.instance.wht_rate == 1 or not form.instance.wht_rate %}selected{% endif %}>1% (سلع)</option>
+                                                        <option value="3.00" {% if form.instance.wht_rate == 3 %}selected{% endif %}>3% (خدمات)</option>
+                                                    </select>
+                                                </div>
+                                                <small class="form-text text-muted">تُخصم من الصافي المستحق وتورد لمصلحة الضرائب.</small>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -1002,7 +1038,7 @@
                 }
             });
 
-            $('#id_discount, #id_discount_type, #id_adjustment_name, #id_adjustment_type, #id_adjustment_amount').off('input change').on('input change', calculateTotals);
+            $('#id_discount, #id_discount_type, #id_adjustment_name, #id_adjustment_type, #id_adjustment_amount, #id_tax_active, #id_wht_active, #id_wht_rate').off('input change').on('input change', calculateTotals);
         }
 
         // ===== حساب الإجماليات =====
@@ -1048,10 +1084,35 @@
             var adjInput = parseFloat($('#id_adjustment_amount').val()) || 0;
             var adjTotal = (adjType === 'subtract') ? -Math.abs(adjInput) : Math.abs(adjInput);
 
-            // 3. الإجمالي النهائي
-            var grandTotal = Math.max(0, subtotal - discountTotal + adjTotal);
+            var netSubtotal = Math.max(0, subtotal - discountTotal + adjTotal);
 
-            const currencySymbol = $('#django-sales-form-data').data('currency-symbol') || '{{ currency_symbol }}';
+            // 3. حساب ضريبة القيمة المضافة (VAT 14%)
+            var isTaxActive = $('#id_tax_active').is(':checked');
+            var vatTotal = 0;
+            if (isTaxActive) {
+                vatTotal = netSubtotal * 0.14;
+                $('#tax-total-row').removeClass('text-muted opacity-50');
+            } else {
+                vatTotal = 0;
+                $('#tax-total-row').addClass('text-muted opacity-50');
+            }
+
+            // 4. حساب ضريبة الخصم والإضافة (WHT 1% / 3%)
+            var isWhtActive = $('#id_wht_active').is(':checked');
+            var whtRate = parseFloat($('#id_wht_rate').val()) || 1.0;
+            var whtTotal = 0;
+            if (isWhtActive) {
+                whtTotal = (netSubtotal * whtRate) / 100.0;
+                $('#wht-total-row').show();
+            } else {
+                whtTotal = 0;
+                $('#wht-total-row').hide();
+            }
+
+            var grossTotal = netSubtotal + vatTotal;
+            var grandTotal = Math.max(0, grossTotal - whtTotal);
+
+            var currencySymbol = (window.ProductPicker && window.ProductPicker.options && window.ProductPicker.options.currencySymbol) || $('#id_currency option:selected').data('symbol') || $('#id_currency option:selected').data('code') || '{{ currency_symbol }}';
             $('#subtotal').text(smartFloat(subtotal) + ' ' + currencySymbol);
 
             // عرض الخصم
@@ -1077,6 +1138,8 @@
                 $('#adjustment-summary-row').hide();
             }
 
+            $('#tax-total').text(smartFloat(vatTotal) + ' ' + currencySymbol);
+            $('#wht-total').text(smartFloat(whtTotal) + ' ' + currencySymbol + ' (' + whtRate + '%)');
             $('#grand-total').text(smartFloat(grandTotal) + ' ' + currencySymbol);
             $('#subtotal-input').val(subtotal.toFixed(2));
             $('#total-input').val(grandTotal.toFixed(2));

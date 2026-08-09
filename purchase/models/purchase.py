@@ -57,6 +57,12 @@ class Purchase(models.Model):
         _("الخصم"), max_digits=12, decimal_places=2, default=0
     )
     tax = models.DecimalField(_("الضريبة"), max_digits=12, decimal_places=2, default=0)
+    tax_active = models.BooleanField(_("الضريبة نشطة"), default=False)
+    vat_active = models.BooleanField(_("ضريبة القيمة المضافة نشطة"), default=False)
+    vat_rate = models.DecimalField(_("نسبة القيمة المضافة %"), max_digits=5, decimal_places=2, default=Decimal("14.00"))
+    wht_active = models.BooleanField(_("ضريبة الخصم والإضافة نشطة"), default=False)
+    wht_rate = models.DecimalField(_("نسبة الخصم والإضافة %"), max_digits=5, decimal_places=2, default=Decimal("1.00"))
+    wht_amount = models.DecimalField(_("مبلغ الخصم والإضافة"), max_digits=12, decimal_places=2, default=Decimal("0.00"))
     total = models.DecimalField(_("الإجمالي"), max_digits=12, decimal_places=2)
     currency = models.ForeignKey(
         "financial.Currency",
@@ -172,6 +178,13 @@ class Purchase(models.Model):
     def __str__(self):
         prefix = "خدمة" if self.is_service else "فاتورة"
         return f"{prefix} {self.number} - {self.supplier} - {self.date}"
+
+    @property
+    def currency_symbol(self):
+        """إرجاع رمز العملة المعتمدة للفاتورة"""
+        if self.currency:
+            return self.currency.symbol or self.currency.code or "ج.م"
+        return "ج.م"
     
     @property
     def service_type_display(self):

@@ -241,7 +241,12 @@
                     <ul class="nav nav-tabs border-bottom-0" id="quoteTotalSectionTabs" role="tablist">
                         <li class="nav-item" role="presentation">
                             <button class="nav-link active fw-medium" id="quote-discount-tab" data-bs-toggle="tab" data-bs-target="#quote-tab-discount" type="button" role="tab" aria-controls="quote-tab-discount" aria-selected="true">
-                                <i class="fas fa-percent me-1 text-primary"></i> {% trans "الخصم والتسوية" %}
+                                <i class="fas fa-tag me-1 text-primary"></i> {% trans "الخصم والتسوية" %}
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link fw-medium" id="quote-tax-tab" data-bs-toggle="tab" data-bs-target="#quote-tab-tax" type="button" role="tab" aria-controls="quote-tab-tax" aria-selected="false">
+                                <i class="fas fa-file-invoice-dollar me-1 text-primary"></i> {% trans "الضرائب والخصومات" %}
                             </button>
                         </li>
                         <li class="nav-item" role="presentation">
@@ -261,7 +266,7 @@
                     <div class="tab-content p-3 bg-light border rounded-bottom flex-fill d-flex flex-column justify-content-between" id="quoteTotalSectionTabsContent">
                         <!-- تبويب الخصم والتسوية -->
                         <div class="tab-pane fade show active" id="quote-tab-discount" role="tabpanel" aria-labelledby="quote-discount-tab">
-                            <div class="row align-items-center g-3">
+                            <div class="row g-3">
                                 <div class="col-md-6">
                                     <label class="form-label text-dark fw-medium">{% trans "خصم على كامل عرض السعر" %}</label>
                                     <div class="input-group">
@@ -272,10 +277,46 @@
                                         </select>
                                     </div>
                                 </div>
-                                <div class="col-md-6 pt-md-4">
-                                    <div class="form-check form-switch">
-                                        <input class="form-check-input" type="checkbox" name="tax_active" id="id_tax_active" role="switch" {% if form.instance.tax_active or form.instance.tax_active is None %}checked{% endif %}>
-                                        <label class="form-check-label text-dark fw-medium small" for="id_tax_active">{% trans "تفعيل ضريبة القيمة المضافة (14%)" %}</label>
+                                <div class="col-md-6">
+                                    <label class="form-label text-dark fw-medium">{% trans "تسوية ماليّة إضافية (شحن/مصاريف)" %}</label>
+                                    <div class="input-group">
+                                        <input type="text" name="adjustment_name" id="id_adjustment_name" class="form-control" value="{{ form.adjustment_name.value|default:'' }}" placeholder="سبب التسوية (مثل: مصاريف شحن)...">
+                                        <select name="adjustment_type" id="id_adjustment_type" class="form-select px-1 text-center" style="max-width: 70px;">
+                                            <option value="add" {% if not form.adjustment_amount.value or form.adjustment_amount.value >= 0 %}selected{% endif %}>+</option>
+                                            <option value="subtract" {% if form.adjustment_amount.value < 0 %}selected{% endif %}>-</option>
+                                        </select>
+                                        <input type="number" step="0.01" name="adjustment_amount" id="id_adjustment_amount" class="form-control text-center" value="{{ form.adjustment_amount.value|default:'0' }}" style="max-width: 110px;" placeholder="0.00">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- تبويب الضرائب والخصومات -->
+                        <div class="tab-pane fade" id="quote-tab-tax" role="tabpanel" aria-labelledby="quote-tax-tab">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <div class="card border-0 shadow-sm bg-white p-3 h-100">
+                                        <h6 class="fw-bold text-dark mb-2"><i class="fas fa-percent text-primary me-2"></i>ضريبة القيمة المضافة (VAT)</h6>
+                                        <div class="form-check form-switch pt-1">
+                                            <input class="form-check-input" type="checkbox" name="tax_active" id="id_tax_active" role="switch" {% if form.instance.tax_active or form.instance.tax_active is None %}checked{% endif %}>
+                                            <label class="form-check-label text-dark fw-medium small" for="id_tax_active">{% trans "تفعيل ضريبة القيمة المضافة (14%)" %}</label>
+                                        </div>
+                                        <small class="form-text text-muted mt-2">تُحسب بنسبة 14% على الصافي التجاري للمستند.</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="card border-0 shadow-sm bg-white p-3 h-100">
+                                        <h6 class="fw-bold text-dark mb-2"><i class="fas fa-hand-holding-usd text-warning me-2"></i>ضريبة الخصم والإضافة (WHT)</h6>
+                                        <div class="d-flex align-items-center mb-2">
+                                            <div class="form-check form-switch me-2 pt-1">
+                                                <input class="form-check-input" type="checkbox" name="wht_active" id="id_wht_active" role="switch" {% if form.instance.wht_active %}checked{% endif %}>
+                                                <label class="form-check-label text-dark fw-medium small" for="id_wht_active">{% trans "خصم أرباح تجارية" %}</label>
+                                            </div>
+                                            <select name="wht_rate" id="id_wht_rate" class="form-select form-select-sm ms-auto text-center" style="width: fit-content;">
+                                                <option value="1.00" {% if form.instance.wht_rate == 1 or not form.instance.wht_rate %}selected{% endif %}>1% (سلع)</option>
+                                                <option value="3.00" {% if form.instance.wht_rate == 3 %}selected{% endif %}>3% (خدمات)</option>
+                                            </select>
+                                        </div>
+                                        <small class="form-text text-muted">تُخصم من الصافي المستحق وتورد لمصلحة الضرائب.</small>
                                     </div>
                                 </div>
                             </div>
@@ -323,15 +364,27 @@
                                 <span id="discount-total">0</span>
                             </div>
                         </div>
-                        <div class="row mb-2">
-                            <div class="col-6 text-end"><strong>{% trans "الضريبة (14%):" %}</strong></div>
+                        <div class="row mb-2" id="adjustment-total-row">
+                            <div class="col-6 text-end"><strong id="adjustment-label">{% trans "التسوية:" %}</strong></div>
                             <div class="col-6 text-end">
+                                <span id="adjustment-total">0</span>
+                            </div>
+                        </div>
+                        <div class="row mb-2" id="tax-total-row">
+                            <div class="col-6 text-end"><strong>{% trans "القيمة المضافة (14%):" %}</strong></div>
+                            <div class="col-6 text-end text-primary">
                                 <span id="tax-total">0</span>
+                            </div>
+                        </div>
+                        <div class="row mb-2" id="wht-total-row" style="display: none;">
+                            <div class="col-6 text-end"><strong id="wht-label">{% trans "خصم أرباح تجارية:" %}</strong></div>
+                            <div class="col-6 text-end text-warning">
+                                <span id="wht-total">0</span>
                             </div>
                         </div>
                         <hr class="my-2">
                         <div class="row">
-                            <div class="col-6 text-end"><strong class="fs-6 text-dark">{% trans "الإجمالي الكلي:" %}</strong></div>
+                            <div class="col-6 text-end"><strong class="fs-6 text-dark">{% trans "الصافي المستحق:" %}</strong></div>
                             <div class="col-6 text-end">
                                 <span id="grand-total" class="fs-6 fw-bold text-success">0</span>
                             </div>
@@ -738,8 +791,10 @@
                 }
             });
 
-            $('#id_discount, #id_discount_type').off('input change').on('input change', calculateTotals);
-            $('#id_tax_active').off('change').on('change', calculateTotals);
+            $(document).off('input.calc change.calc', '#id_discount, #id_discount_type, #id_adjustment_name, #id_adjustment_type, #id_adjustment_amount, #id_tax_active, #id_wht_active, #id_wht_rate')
+                       .on('input.calc change.calc', '#id_discount, #id_discount_type, #id_adjustment_name, #id_adjustment_type, #id_adjustment_amount, #id_tax_active, #id_wht_active, #id_wht_rate', function() {
+                calculateTotals();
+            });
         }
 
         function calculateRowTotal(row) {
@@ -777,15 +832,37 @@
                 discountTotal = discountInput;
             }
 
-            var netSubtotal = Math.max(0, subtotal - discountTotal);
-            
-            var tax = 0;
-            if ($('#id_tax_active').is(':checked')) {
-                tax = netSubtotal * 0.14; // ضريبة 14%
-            }
-            var grandTotal = netSubtotal + tax;
+            var adjAmountRaw = parseFloat($('#id_adjustment_amount').val()) || 0;
+            var adjType = $('#id_adjustment_type').val() || 'add';
+            var adjTotal = (adjType === 'subtract') ? -Math.abs(adjAmountRaw) : Math.abs(adjAmountRaw);
 
-            const currencySymbol = $('#django-sales-form-data').data('currency-symbol') || '{{ currency_symbol }}';
+            var netSubtotal = Math.max(0, subtotal - discountTotal + adjTotal);
+            
+            var isTaxActive = $('#id_tax_active').is(':checked');
+            var vat = 0;
+            if (isTaxActive) {
+                vat = netSubtotal * 0.14; // ضريبة 14%
+                $('#tax-total-row').removeClass('text-muted opacity-50');
+            } else {
+                vat = 0;
+                $('#tax-total-row').addClass('text-muted opacity-50');
+            }
+
+            var isWhtActive = $('#id_wht_active').is(':checked');
+            var whtRate = parseFloat($('#id_wht_rate').val()) || 1.0;
+            var whtTotal = 0;
+            if (isWhtActive) {
+                whtTotal = (netSubtotal * whtRate) / 100.0;
+                $('#wht-total-row').show();
+            } else {
+                whtTotal = 0;
+                $('#wht-total-row').hide();
+            }
+
+            var grossTotal = netSubtotal + vat;
+            var grandTotal = Math.max(0, grossTotal - whtTotal);
+
+            var currencySymbol = (window.ProductPicker && window.ProductPicker.options && window.ProductPicker.options.currencySymbol) || $('#id_currency option:selected').data('symbol') || $('#id_currency option:selected').data('code') || '{{ currency_symbol }}';
             $('#subtotal').text(smartFloat(subtotal) + ' ' + currencySymbol);
 
             var discountText = smartFloat(discountTotal) + ' ' + currencySymbol;
@@ -793,7 +870,11 @@
                 discountText += ' (' + discountInput + '%)';
             }
             $('#discount-total').text(discountText);
-            $('#tax-total').text(smartFloat(tax) + ' ' + currencySymbol);
+
+            var adjText = (adjTotal >= 0 ? '+' : '') + smartFloat(adjTotal) + ' ' + currencySymbol;
+            $('#adjustment-total').text(adjText);
+            $('#tax-total').text(smartFloat(vat) + ' ' + currencySymbol);
+            $('#wht-total').text(smartFloat(whtTotal) + ' ' + currencySymbol + ' (' + whtRate + '%)');
             $('#grand-total').text(smartFloat(grandTotal) + ' ' + currencySymbol);
         }
 

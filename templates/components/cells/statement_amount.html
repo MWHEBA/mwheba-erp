@@ -1,8 +1,17 @@
 {% load custom_filters %}
+{% load utils_extras %}
 {% load i18n %}
 <span class="transaction-amount {% if value > 0 %}{% if object.type == 'debit' %}negative{% else %}positive{% endif %}{% endif %}">
   {% if value > 0 %}
-    <strong>{{ value|currency }}</strong>
+    <strong>
+      {% if object %}
+        {{ value|smart_float }} {{ object|get_currency_symbol:currency_symbol }}
+      {% elif item %}
+        {{ value|smart_float }} {{ item|get_currency_symbol:currency_symbol }}
+      {% else %}
+        {{ value|currency }}
+      {% endif %}
+    </strong>
   {% else %}
     <span class="text-muted">-</span>
   {% endif %}

@@ -197,7 +197,7 @@
               <td>{{ quote.valid_until|date:"Y-m-d"|default:"-" }}</td>
               <td>
                 <span class="transaction-amount text-center d-block fw-bold">
-                  <span class="currency-symbol">{% currency_symbol %}</span> {{ quote.total|smart_float:2 }}
+                  <span class="currency-symbol">{{ quote|get_currency_symbol:currency_symbol }}</span> {{ quote.total|smart_float:2 }}
                 </span>
               </td>
               <td>

@@ -218,6 +218,7 @@ def purchase_list(request):
             'warehouse_name': purchase.warehouse.name if purchase.warehouse else ('خدمية' if purchase.is_service else 'غير محدد'),
             'total': purchase.total,
             'amount_due': purchase.amount_due,
+            'currency_symbol': purchase.currency_symbol,
             'payment_status': purchase.payment_status,
             'actions': actions
         }
@@ -344,6 +345,25 @@ def purchase_create(request, supplier_id=None):
                     if selected_work_order:
                         purchase.work_order = selected_work_order
                     
+                    # معالجة العملة وسعر الصرف مع الحوكمة المالية
+                    currency_id = request.POST.get("currency")
+                    if currency_id:
+                        from financial.models import Currency
+                        curr_obj = Currency.objects.filter(id=currency_id).first() if str(currency_id).isdigit() else Currency.objects.filter(code=currency_id).first()
+                        if curr_obj:
+                            purchase.currency = curr_obj
+
+                    if purchase.currency and not purchase.currency.is_functional:
+                        from financial.services.exchange_rate_service import ExchangeRateService
+                        sys_rate = Decimal(str(ExchangeRateService.get_exchange_rate(purchase.currency) or 1.0))
+                        purchase.exchange_rate = sys_rate
+                        purchase.total_foreign = purchase.total
+                        purchase.total_functional = (purchase.total * sys_rate).quantize(Decimal("0.01"))
+                    else:
+                        purchase.exchange_rate = Decimal("1.000000")
+                        purchase.total_foreign = Decimal("0.00")
+                        purchase.total_functional = purchase.total
+
                     purchase.save()
 
                     # إضافة بنود الفاتورة
@@ -374,7 +394,6 @@ def purchase_create(request, supplier_id=None):
                                 discount = Decimal("0")
 
                             # إنشاء بند فاتورة
-                            # Signal سيتولى إنشاء حركة المخزون تلقائياً
                             item = PurchaseItem(
                                 purchase=purchase,
                                 product=product,
@@ -384,6 +403,56 @@ def purchase_create(request, supplier_id=None):
                                 total=(quantity * unit_price) - discount,
                             )
                             item.save()
+
+                            # إنشاء السعر الاسترشادي المبدئي إذا لم يكن مسجلاً
+                            if purchase.currency and not purchase.currency.is_functional and unit_price > Decimal("0"):
+                                from product.services.indicative_price_service import IndicativePriceService
+                                IndicativePriceService.create_if_missing(
+                                    product=product,
+                                    currency=purchase.currency,
+                                    price=unit_price,
+                                    price_type="cost",
+                                    user=request.user
+                                )
+
+                    # إعادة حساب إجماليات الفاتورة والضرائب المتعددة
+                    subtotal = sum(item.total for item in purchase.items.all())
+                    purchase.subtotal = subtotal
+                    net_taxable_base = max(Decimal('0'), subtotal - purchase.discount)
+
+                    tax_active = request.POST.get('tax_active') in ['on', 'true', True]
+                    vat_active = request.POST.get('vat_active') in ['on', 'true', True] or tax_active
+                    vat_rate = Decimal(str(request.POST.get('vat_rate', '14.00') or '14.00'))
+                    wht_active = request.POST.get('wht_active') in ['on', 'true', True]
+                    wht_rate = Decimal(str(request.POST.get('wht_rate', '1.00') or '1.00'))
+
+                    purchase.tax_active = tax_active
+                    purchase.vat_active = vat_active
+                    purchase.vat_rate = vat_rate
+                    purchase.wht_active = wht_active
+                    purchase.wht_rate = wht_rate
+
+                    if vat_active and tax_active:
+                        purchase.tax = (net_taxable_base * vat_rate / Decimal("100.00")).quantize(Decimal("0.01"))
+                    else:
+                        purchase.tax = Decimal("0.00")
+
+                    if wht_active:
+                        purchase.wht_amount = (net_taxable_base * wht_rate / Decimal("100.00")).quantize(Decimal("0.01"))
+                    else:
+                        purchase.wht_amount = Decimal("0.00")
+
+                    gross_total = net_taxable_base + purchase.tax
+                    purchase.total = max(Decimal('0'), gross_total - purchase.wht_amount)
+
+                    if purchase.currency and not purchase.currency.is_functional:
+                        purchase.total_foreign = purchase.total
+                        purchase.total_functional = (purchase.total * purchase.exchange_rate).quantize(Decimal("0.01"))
+                    else:
+                        purchase.total_foreign = Decimal("0.00")
+                        purchase.total_functional = purchase.total
+
+                    purchase.save()
 
                     # إنشاء حركات المخزون للفواتير غير الخدمية
                     if not purchase.is_service:
@@ -459,6 +528,8 @@ def purchase_create(request, supplier_id=None):
         # إضافة المورد المحدد إلى البيانات الافتراضية
         if selected_supplier:
             initial_data["supplier"] = selected_supplier
+            if hasattr(selected_supplier, 'default_currency') and selected_supplier.default_currency:
+                initial_data["currency"] = selected_supplier.default_currency
         if selected_work_order:
             initial_data["work_order"] = selected_work_order
             
@@ -487,13 +558,14 @@ def purchase_create(request, supplier_id=None):
     last_purchase = Purchase.objects.order_by("-id").first()
     next_purchase_number = f"PUR{(last_purchase.id + 1 if last_purchase else 1):04d}"
 
-    # إضافة متغيرات عنوان الصفحة
+    from financial.models import Currency
     context = {
         "form": form,
         "products": products,
         "product_categories": product_categories,
         "suppliers": suppliers,
         "warehouses": warehouses,
+        "currencies": Currency.objects.filter(is_active=True).order_by("code"),
         "next_purchase_number": next_purchase_number,
         "selected_supplier": selected_supplier,
         "is_service_invoice": is_service_invoice,
@@ -639,18 +711,36 @@ def purchase_detail(request, pk):
 @login_required
 def allocate_supplier_prepaid_balance(request, pk):
     """
-    تخصيص رصيد مسبق/دفعة مقدمة للمورد على فاتورة مشتريات (آلياً FIFO أو يدوي)
+    تخصيص وتسوية رصيد مسبق/دفعة مقدمة للمورد على فاتورة مشتريات بنسبة 1:1 للعملات المتطابقة
     """
     purchase = get_object_or_404(Purchase, pk=pk)
+    if not purchase.supplier:
+        messages.error(request, _("لا يوجد مورد مرتبط بهذه الفاتورة."))
+        return redirect("purchase:purchase_detail", pk=purchase.pk)
+
     if request.method == "POST":
         amount_str = request.POST.get("amount")
         is_auto = request.POST.get("auto_fifo") == "true"
 
         try:
-            from supplier.services.supplier_allocation_service import SupplierAllocationService
+            from financial.services.partner_advance_service import PartnerAdvanceService
             from decimal import Decimal
-            available = purchase.supplier.available_prepaid_balance if purchase.supplier else Decimal("0.00")
-            open_amount = purchase.total - (purchase.amount_paid or Decimal("0.00"))
+
+            target_currency = purchase.currency
+            if not target_currency:
+                from financial.services.exchange_rate_service import ExchangeRateService
+                target_currency = ExchangeRateService.get_functional_currency()
+
+            payment = purchase.supplier.advance_payments.filter(currency=target_currency).order_by("payment_date").first()
+            if not payment:
+                payment = purchase.supplier.advance_payments.order_by("payment_date").first()
+
+            if not payment:
+                messages.error(request, "لا تتوفر أي دفعات مقدمة مسجلة ومتاحة للمورد.")
+                return redirect("purchase:purchase_detail", pk=purchase.pk)
+
+            available = PartnerAdvanceService.get_available_balance(purchase.supplier, currency=target_currency)
+            open_amount = purchase.amount_due
 
             if is_auto:
                 alloc_amount = min(available, open_amount)
@@ -662,12 +752,14 @@ def allocate_supplier_prepaid_balance(request, pk):
             elif alloc_amount > available:
                 messages.error(request, f"المبلغ المطلوب ({alloc_amount}) يتجاوز الرصيد المسبق المتاح للمورد ({available}).")
             else:
-                SupplierAllocationService.allocate_advance_to_purchase_bill(
-                    purchase=purchase,
-                    amount_to_allocate=alloc_amount,
-                    user=request.user
+                settlement = PartnerAdvanceService.allocate(
+                    partner=purchase.supplier,
+                    payment=payment,
+                    invoice=purchase,
+                    amount=alloc_amount,
+                    user=request.user,
                 )
-                messages.success(request, f"تم تخصيص {alloc_amount} ج.م من الدفعات المقدمة للمورد على الفاتورة بنجاح.")
+                messages.success(request, f"تم تخصيص تسوية رصيد مسبق بمبلغ {alloc_amount} بنجاح.")
         except Exception as e:
             messages.error(request, f"حدث خطأ أثناء تخصيص الرصيد المسبق: {str(e)}")
 

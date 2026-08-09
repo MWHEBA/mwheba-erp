@@ -379,7 +379,10 @@
                         <i class="fas fa-money-bill-wave text-success me-2"></i>
                         <div>
                           <small class="text-muted d-block">{% trans "الإجمالي الكلي" %}</small>
-                          <span class="fw-medium text-primary">{{ quotation.total|smart_float:2 }} {% currency_symbol %}</span>
+                          <span class="fw-medium text-primary">{{ quotation.total|smart_float:2 }} {{ quotation|get_currency_symbol:currency_symbol }}</span>
+                          {% if quotation.currency and not quotation.currency.is_functional %}
+                              <small class="text-muted d-block mt-1" style="font-size: 0.75rem;">(ما يعادل {{ quotation.total_functional|smart_float }} {{ currency_symbol }})</small>
+                          {% endif %}
                         </div>
                       </div>
                     </div>
@@ -422,7 +425,7 @@
                 </div>
                 <div class="party-info">
                   <div class="party-label">{% trans "العملة:" %}</div>
-                  <div class="party-value fw-medium">{{ quotation.currency|default:currency_symbol }}</div>
+                  <div class="party-value fw-medium">{{ quotation.currency.name|default:quotation.currency_symbol }}</div>
                 </div>
               </div>
             </div>
@@ -521,15 +524,15 @@
                     <td class="text-start">
                       <div class="fw-bold">{{ item.product.name }}</div>
                     </td>
-                    <td>{{ item.unit_price|smart_float:2 }} {% currency_symbol %}</td>
+                    <td>{{ item.unit_price|smart_float:2 }} {{ quotation|get_currency_symbol:currency_symbol }}</td>
                     <td class="fw-bold">
                       {{ item.quantity|smart_float }}
                       {% if item.product.unit %}
                       <span class="text-muted fw-normal small">({{ item.product.unit.name }})</span>
                       {% endif %}
                     </td>
-                    <td>{% if item.discount and item.discount > 0 %}{{ item.discount|currency }}{% else %}-{% endif %}</td>
-                    <td class="fw-bold text-success">{{ item.total|currency }}</td>
+                    <td>{% if item.discount and item.discount > 0 %}{{ item.discount|smart_float:2 }} {{ quotation|get_currency_symbol:currency_symbol }}{% else %}-{% endif %}</td>
+                    <td class="fw-bold text-success">{{ item.total|smart_float:2 }} {{ quotation|get_currency_symbol:currency_symbol }}</td>
                   </tr>
                   {% endfor %}
                 </tbody>
@@ -574,20 +577,20 @@
                 <div>
                   <div class="summary-row">
                     <div class="summary-label">{% trans "المجموع الفرعي:" %}</div>
-                    <div class="summary-value">{{ quotation.subtotal|currency }}</div>
+                    <div class="summary-value">{{ quotation.subtotal|smart_float:2 }} {{ quotation|get_currency_symbol:currency_symbol }}</div>
                   </div>
                   <div class="summary-row">
                     <div class="summary-label">{% trans "الخصم الإجمالي:" %}</div>
-                    <div class="summary-value text-danger">{% if quotation.discount and quotation.discount > 0 %}{{ quotation.discount|currency }}{% else %}-{% endif %}</div>
+                    <div class="summary-value text-danger">{% if quotation.discount and quotation.discount > 0 %}{{ quotation.discount|smart_float:2 }} {{ quotation|get_currency_symbol:currency_symbol }}{% else %}-{% endif %}</div>
                   </div>
                   <div class="summary-row">
                     <div class="summary-label">{% trans "الضريبة:" %}</div>
-                    <div class="summary-value">{% if quotation.tax and quotation.tax > 0 %}{{ quotation.tax|currency }}{% else %}-{% endif %}</div>
+                    <div class="summary-value">{% if quotation.tax and quotation.tax > 0 %}{{ quotation.tax|smart_float:2 }} {{ quotation|get_currency_symbol:currency_symbol }}{% else %}-{% endif %}</div>
                   </div>
                 </div>
                 <div class="summary-row border-top pt-2 mt-2">
                   <div class="summary-label">{% trans "الإجمالي الكلي:" %}</div>
-                  <div class="summary-value font-weight-bold">{{ quotation.total|currency }}</div>
+                  <div class="summary-value font-weight-bold">{{ quotation.total|smart_float:2 }} {{ quotation|get_currency_symbol:currency_symbol }}</div>
                 </div>
               </div>
             </div>

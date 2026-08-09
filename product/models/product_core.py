@@ -218,6 +218,14 @@ class Product(models.Model):
         default=0,
         validators=[MinValueValidator(0)],
     )
+    tax_code = models.ForeignKey(
+        "financial.TaxCode",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="products",
+        verbose_name=_("كود الضريبة المعياري")
+    )
     discount_rate = models.DecimalField(
         _("نسبة الخصم"),
         max_digits=5,

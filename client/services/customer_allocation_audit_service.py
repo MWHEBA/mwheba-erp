@@ -630,7 +630,7 @@ class CustomerAllocationAuditService:
                 Sale.objects.select_for_update().filter(
                     id__in=valid_allocations.keys(),
                     customer=locked_customer,
-                    status="posted"
+                    status__in=["confirmed", "posted"]
                 ).order_by("id")
             )
 
@@ -675,9 +675,19 @@ class CustomerAllocationAuditService:
                     }
                 )
 
+                sale_curr_id = sale.currency_id
                 for cp in customer_payments:
                     if remaining_for_sale <= Decimal("0.00"):
                         break
+
+                    cp_curr_id = cp.currency_id
+                    if sale_curr_id != cp_curr_id:
+                        is_egp_match = (
+                            (sale_curr_id is None and cp.currency and cp.currency.code == "EGP") or
+                            (cp_curr_id is None and sale.currency and sale.currency.code == "EGP")
+                        )
+                        if not is_egp_match:
+                            continue
 
                     already_allocated = sum(sp.amount for sp in SalePayment.objects.filter(customer_payment=cp))
                     cp_remaining = max(Decimal("0.00"), cp.amount - already_allocated)

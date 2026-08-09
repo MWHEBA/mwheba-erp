@@ -27,10 +27,30 @@
             if (savedShowAll !== null) {
                 this.syncShowAllState(savedShowAll === 'true');
             }
+            this.syncCurrencyLock();
             this.bindEvents();
             this.bindItemsContainer();
             this.bindPreSubmitSanitation();
             this.loadInitialStock();
+        },
+
+        syncCurrencyLock: function() {
+            var hasRowsWithProducts = false;
+            $('#items-container .product-id-input').each(function() {
+                if ($(this).val()) {
+                    hasRowsWithProducts = true;
+                    return false;
+                }
+            });
+            
+            var $currSelect = $('#id_currency');
+            if ($currSelect.length) {
+                if (hasRowsWithProducts) {
+                    $currSelect.data('is-locked-by-items', true);
+                } else {
+                    $currSelect.data('is-locked-by-items', false);
+                }
+            }
         },
 
         syncShowAllState: function(isChecked) {
@@ -204,6 +224,8 @@
                     self.options.onRowAdded($newRow);
                 }
 
+                self.syncCurrencyLock();
+
                 setTimeout(function() {
                     $newRow.find('.product-code-input').focus();
                 }, 100);
@@ -226,6 +248,8 @@
                     if (typeof window.calculateTotals === 'function') {
                         window.calculateTotals();
                     }
+
+                    self.syncCurrencyLock();
 
                     if (typeof self.options.onRowRemoved === 'function') {
                         self.options.onRowRemoved();
@@ -270,13 +294,15 @@
         bindPreSubmitSanitation: function() {
             var self = this;
 
-            // تنفيذ التنظيف فوراً عند النقر على أي زر حفظ في النموذج قبل بدء التحقق
+            // تنفيذ التنظيف وتأكيد إرسال قيمة العملة حتى لو كانت معطلة بالواجهة
             $(document).off('click.productPickerSanitizeSubmit', 'button[type="submit"], input[type="submit"]').on('click.productPickerSanitizeSubmit', 'button[type="submit"], input[type="submit"]', function() {
                 self.sanitizeTrailingEmptyRows();
+                $('#id_currency').prop('disabled', false);
             });
 
             $(document).off('submit.productPickerSanitizeForm', 'form:has(#items-container)').on('submit.productPickerSanitizeForm', 'form:has(#items-container)', function() {
                 self.sanitizeTrailingEmptyRows();
+                $('#id_currency').prop('disabled', false);
             });
         },
 
@@ -507,6 +533,7 @@
                 var firstRow = $('#items-container .item-row:first');
                 $('#items-container .item-row:not(:first)').remove();
                 self.clearRowProductData(firstRow);
+                self.syncCurrencyLock();
                 if (typeof window.calculateTotals === 'function') {
                     window.calculateTotals();
                 }
@@ -518,6 +545,51 @@
                     $('.code-lookup-dropdown').remove();
                 }
             });
+
+            // 12. الاستماع لتغيير العملة وإدارة القفل والتحديث الديناميكي
+            $(document).off('change.productPickerCurrency', '#id_currency').on('change.productPickerCurrency', '#id_currency', function() {
+                var $curr = $(this);
+                var newCurrencyId = $curr.val();
+                
+                var hasRowsWithProducts = false;
+                $('#items-container .product-id-input').each(function() {
+                    if ($(this).val()) {
+                        hasRowsWithProducts = true;
+                        return false;
+                    }
+                });
+
+                if (hasRowsWithProducts) {
+                    var msg = 'لا يمكن تغيير العملة أثناء وجود بنود في الجدول. يرجى مسح كافة البنود أولاً لتمكين تغيير العملة.';
+                    if (typeof toastr !== 'undefined') {
+                        toastr.warning(msg);
+                    } else {
+                        alert(msg);
+                    }
+                    var prevVal = $curr.data('previous-val') || '';
+                    if (prevVal) {
+                        $curr.val(prevVal).trigger('change.select2');
+                    }
+                    return false;
+                }
+
+                $curr.data('previous-val', newCurrencyId);
+
+                var $opt = $curr.find('option:selected');
+                var symbol = $opt.data('symbol') || $opt.data('code') || 'ج.م';
+                var isFunctional = $opt.data('is-functional') === true || $opt.data('is-functional') === "true";
+                var rate = parseFloat($opt.data('rate')) || 1.0;
+
+                self.options.currencySymbol = symbol;
+                $('.item-total').next('.input-group-text').text(symbol);
+                $('#id_discount_type option[value="fixed"], select[name="discount_type"] option[value="fixed"]').text(symbol);
+                $('#exchange_rate_container').toggleClass('d-none', isFunctional);
+                $('#id_exchange_rate').val(rate.toFixed(6));
+
+                if (typeof window.calculateTotals === 'function') {
+                    window.calculateTotals();
+                }
+            });
         },
 
         // تنفيذ طلب البحث المباشر والقائمة السريعة بالكود / الباركود
@@ -525,6 +597,7 @@
             var self = this;
             var warehouseId = self.options.getWarehouseId();
             var invoiceId = self.options.getInvoiceId();
+            var currencyId = $('#id_currency').val() || '';
             var lookupType = (self.options.type === 'purchase') ? 'purchase' : 'sale';
 
             // إغلاق أي قائمة سريعة سابقة
@@ -543,6 +616,7 @@
                     show_all: 'true',
                     warehouse_id: warehouseId,
                     invoice_id: invoiceId,
+                    currency_id: currencyId,
                     type: lookupType
                 },
                 success: function(response) {
@@ -710,6 +784,8 @@
                     lookupType = (self.options.type === 'purchase') ? 'purchase' : 'sale';
                 }
 
+                var currencyId = $('#id_currency').val() || '';
+
                 $.ajax({
                     url: '/products/api/invoice-product-lookup/',
                     method: 'GET',
@@ -718,11 +794,13 @@
                         exact: 'false',
                         warehouse_id: warehouseId,
                         invoice_id: invoiceId,
+                        currency_id: currencyId,
                         type: lookupType,
                         show_all: showAll
                     },
                     success: function(response) {
                         var rawProducts = response.products || [];
+                        var isForeign = response.is_foreign === true;
                         self.updateCategoryTabs(rawProducts);
 
                         var products = rawProducts;
@@ -754,14 +832,22 @@
                                         : '<span class="product-stock">مخزون: ' + p.stock + '</span>');
                             }
 
-                            var displayPrice = typeof smartFloat === 'function' ? smartFloat(price) : price;
+                            var priceDisplayHtml = '';
+                            if (p.price_source === 'NEW_PRICE' || (price <= 0 && p.price_source !== 'PRODUCT_CURRENCY_PRICE')) {
+                                priceDisplayHtml = '<span class="product-price text-warning fw-normal" style="font-size: 0.85rem;">غير معرّف <span class="badge bg-secondary ms-1" style="font-size: 0.65rem;">NEW PRICE</span></span>';
+                            } else {
+                                var displayPrice = typeof smartFloat === 'function' ? smartFloat(price) : price;
+                                var badgeHtml = (isForeign && p.price_source === 'PRODUCT_CURRENCY_PRICE') ? '<span class="badge bg-success ms-1" style="font-size: 0.65rem;">سعر معتمد</span>' : '';
+                                priceDisplayHtml = '<span class="product-price">' + displayPrice + ' ' + self.options.currencySymbol + badgeHtml + '</span>';
+                            }
+
                             var codeBadge = p.code ? '<div class="product-code text-muted small font-monospace mb-1" style="font-size: 0.75rem;"><i class="fas fa-barcode me-1 opacity-75"></i>' + p.code + '</div>' : '<div class="product-code text-muted small mb-1" style="font-size: 0.75rem;">&nbsp;</div>';
                             var $card = $('<div class="col-md-3 col-sm-4 col-6">' +
                                 '<div class="product-card ' + stockClass + '" data-id="' + p.id + '" data-price="' + price + '" data-stock="' + p.stock + '" data-name="' + p.name + '" data-is-service="' + isService + '" data-code="' + (p.code || '') + '">' +
                                     '<div class="product-name">' + p.name + '</div>' +
                                     codeBadge +
                                     '<div class="product-footer">' +
-                                        '<span class="product-price">' + displayPrice + ' ' + self.options.currencySymbol + '</span>' +
+                                        priceDisplayHtml +
                                         stockLabel +
                                     '</div>' +
                                 '</div>' +

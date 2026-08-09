@@ -48,6 +48,48 @@ def smart_float(value, decimal_places=2):
 
 
 @register.filter
+def get_currency_symbol(item, default_symbol="ج.م"):
+    """
+    يقوم باستخراج رمز أو كود عملة الكائن (فاتورة، عرض سعر، أو قاموس بيانات)
+    إذا كانت العملة غير محددة أو محلية نستخدم الرمز الافتراضي
+    """
+    if item is None:
+        return default_symbol
+    
+    if isinstance(item, dict):
+        if item.get("currency_symbol"):
+            return item.get("currency_symbol")
+        if item.get("currency_code"):
+            return item.get("currency_code")
+        if item.get("currency"):
+            curr = item.get("currency")
+            if hasattr(curr, "symbol") and curr.symbol:
+                return curr.symbol
+            if hasattr(curr, "code") and curr.code:
+                return curr.code
+        return default_symbol
+
+    try:
+        if hasattr(item, "currency_symbol"):
+            val = getattr(item, "currency_symbol")
+            if callable(val):
+                val = val()
+            if val:
+                return val
+    except Exception:
+        pass
+
+    try:
+        curr = getattr(item, "currency", None)
+        if curr:
+            return getattr(curr, "symbol", None) or getattr(curr, "code", default_symbol)
+    except Exception:
+        pass
+
+    return default_symbol
+
+
+@register.filter
 def custom_load_json(json_string):
     """
     تحويل سلسلة JSON إلى كائن بايثون

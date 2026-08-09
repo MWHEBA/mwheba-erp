@@ -66,10 +66,23 @@ class SaleService:
                 list(Customer.objects.filter(id=data['customer_id']).select_for_update())
 
             # 1. إنشاء الفاتورة
+            currency_id = data.get('currency_id') or data.get('currency')
+            currency_obj = None
+            if currency_id:
+                from financial.models import Currency
+                currency_obj = Currency.objects.filter(id=currency_id).first() if str(currency_id).isdigit() else Currency.objects.filter(code=currency_id).first()
+
+            sys_rate = Decimal("1.000000")
+            if currency_obj and not currency_obj.is_functional:
+                from financial.services.exchange_rate_service import ExchangeRateService
+                sys_rate = Decimal(str(ExchangeRateService.get_exchange_rate(currency_obj) or 1.0))
+
             sale = Sale.objects.create(
                 date=data.get('date', timezone.now().date()),
                 customer_id=data['customer_id'],
                 warehouse_id=data['warehouse_id'],
+                currency=currency_obj,
+                exchange_rate=sys_rate,
                 payment_method=data.get('payment_method', 'credit'),
                 subtotal=Decimal('0'),
                 discount=Decimal(data.get('discount', 0)),
@@ -77,6 +90,12 @@ class SaleService:
                 adjustment_name=data.get('adjustment_name'),
                 adjustment_amount=Decimal(data.get('adjustment_amount', 0)),
                 tax=Decimal(data.get('tax', 0)),
+                tax_active=data.get('tax_active', True),
+                vat_active=data.get('vat_active', True),
+                vat_rate=Decimal(str(data.get('vat_rate', 14.00))),
+                wht_active=data.get('wht_active', False),
+                wht_rate=Decimal(str(data.get('wht_rate', 1.00))),
+                wht_amount=Decimal(str(data.get('wht_amount', 0))),
                 total=Decimal('0'),
                 notes=data.get('notes', ''),
                 status='confirmed',
@@ -93,6 +112,19 @@ class SaleService:
             items_data = data.get('items', [])
             for item_data in items_data:
                 SaleService._add_sale_item(sale, item_data, user)
+            
+            # إنشاء السعر الاسترشادي المبدئي للمنتجات بالعملة الأجنبية
+            if sale.currency and not sale.currency.is_functional:
+                from product.services.indicative_price_service import IndicativePriceService
+                for item in sale.items.all():
+                    if item.unit_price > Decimal("0"):
+                        IndicativePriceService.create_if_missing(
+                            product=item.product,
+                            currency=sale.currency,
+                            price=item.unit_price,
+                            price_type='selling',
+                            user=user
+                        )
             
             # 3. حساب الإجماليات
             sale.refresh_from_db()
@@ -140,8 +172,31 @@ class SaleService:
         subtotal = sum(item.total for item in items)
         
         sale.subtotal = subtotal
-        sale.total = max(Decimal('0'), subtotal - sale.discount + sale.tax + sale.adjustment_amount)
-        sale.save(update_fields=['subtotal', 'total'])
+        net_taxable_base = max(Decimal('0'), subtotal - sale.discount + sale.adjustment_amount)
+        
+        if getattr(sale, 'vat_active', True) and getattr(sale, 'tax_active', True):
+            vat_rate = getattr(sale, 'vat_rate', Decimal("14.00")) or Decimal("14.00")
+            sale.tax = (net_taxable_base * vat_rate / Decimal("100.00")).quantize(Decimal("0.01"))
+        else:
+            sale.tax = Decimal("0.00")
+            
+        if getattr(sale, 'wht_active', False):
+            wht_rate = getattr(sale, 'wht_rate', Decimal("1.00")) or Decimal("1.00")
+            sale.wht_amount = (net_taxable_base * wht_rate / Decimal("100.00")).quantize(Decimal("0.01"))
+        else:
+            sale.wht_amount = Decimal("0.00")
+
+        gross_total = net_taxable_base + sale.tax
+        sale.total = max(Decimal('0'), gross_total - sale.wht_amount)
+        
+        if sale.currency and not sale.currency.is_functional:
+            sale.total_foreign = sale.total
+            sale.total_functional = (sale.total * sale.exchange_rate).quantize(Decimal("0.01"))
+        else:
+            sale.total_foreign = Decimal("0.00")
+            sale.total_functional = sale.total
+
+        sale.save(update_fields=['subtotal', 'tax', 'wht_amount', 'total', 'total_foreign', 'total_functional'])
         
         logger.info(f"✅ تم حساب إجماليات الفاتورة: {sale.number} - الإجمالي: {sale.total}")
 

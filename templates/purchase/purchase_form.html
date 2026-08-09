@@ -360,25 +360,86 @@
             <h5 class="section-title"><i class="fas fa-calculator me-2"></i>الملخص المالي والخصومات</h5>
             <div class="row total-section g-4 align-items-stretch">
                 <div class="col-lg-8 col-md-12 invoice-notes-container d-flex flex-column">
-                    <div class="p-3 bg-light border rounded h-100 d-flex flex-column justify-content-between">
-                        <div class="row g-3">
-                            <div class="col-md-7">
-                                <label class="form-label text-dark fw-medium"><i class="fas fa-sticky-note me-1 text-primary"></i> الملاحظات والشروط</label>
-                                <textarea name="notes" id="id_notes" class="form-control" rows="3" placeholder="أضف ملاحظات إضافية هنا..." style="resize: vertical;">{{ form.notes.value|default:'' }}</textarea>
-                            </div>
-                            <div class="col-md-5">
-                                <label class="form-label text-dark fw-medium"><i class="fas fa-percent me-1 text-primary"></i> الخصم الإجمالي على الفاتورة</label>
-                                <div class="input-group">
-                                    <input type="number" step="0.01" name="discount" id="id_discount" class="form-control text-center" value="{{ form.discount.value|default:'0' }}" min="0" placeholder="0.00">
-                                    <span class="input-group-text">{{ currency_symbol }}</span>
+                    <!-- التبويبات الموحدة -->
+                    <ul class="nav nav-tabs border-bottom-0" id="purchaseTotalSectionTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active fw-medium" id="purchase-discount-tab" data-bs-toggle="tab" data-bs-target="#purchase-tab-discount" type="button" role="tab" aria-controls="purchase-tab-discount" aria-selected="true">
+                                <i class="fas fa-tag me-1 text-primary"></i> الخصم والتسوية
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link fw-medium" id="purchase-tax-tab" data-bs-toggle="tab" data-bs-target="#purchase-tab-tax" type="button" role="tab" aria-controls="purchase-tab-tax" aria-selected="false">
+                                <i class="fas fa-file-invoice-dollar me-1 text-primary"></i> الضرائب والخصومات
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link fw-medium" id="purchase-notes-tab" data-bs-toggle="tab" data-bs-target="#purchase-tab-notes" type="button" role="tab" aria-controls="purchase-tab-notes" aria-selected="false">
+                                <i class="fas fa-sticky-note me-1 text-primary"></i> الملاحظات والشروط
+                            </button>
+                        </li>
+                    </ul>
+                    <div class="tab-content p-3 bg-light border rounded-bottom flex-fill d-flex flex-column justify-content-between" id="purchaseTotalSectionTabsContent">
+                        <!-- تبويب الخصم والتسوية -->
+                        <div class="tab-pane fade show active" id="purchase-tab-discount" role="tabpanel" aria-labelledby="purchase-discount-tab">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label text-dark fw-medium"><i class="fas fa-percent me-1 text-primary"></i> الخصم الإجمالي على الفاتورة</label>
+                                    <div class="input-group">
+                                        <input type="number" step="0.01" name="discount" id="id_discount" class="form-control text-center" value="{{ form.discount.value|default:'0' }}" min="0" placeholder="0.00">
+                                        <span class="input-group-text">{{ currency_symbol }}</span>
+                                    </div>
+                                    <small class="form-text text-muted">خصم مالي مباشر على الفاتورة.</small>
                                 </div>
                             </div>
+                        </div>
+                        <!-- تبويب الضرائب والخصومات -->
+                        <div class="tab-pane fade" id="purchase-tab-tax" role="tabpanel" aria-labelledby="purchase-tax-tab">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <div class="card border-0 shadow-sm bg-white p-3 h-100">
+                                        <h6 class="fw-bold text-dark mb-2"><i class="fas fa-percent text-primary me-2"></i>ضريبة القيمة المضافة (VAT)</h6>
+                                        <div class="form-check form-switch pt-1">
+                                            <input class="form-check-input" type="checkbox" name="tax_active" id="id_tax_active" role="switch" {% if form.instance.tax_active %}checked{% endif %}>
+                                            <label class="form-check-label text-dark fw-medium small" for="id_tax_active">تفعيل ضريبة القيمة المضافة (14%)</label>
+                                        </div>
+                                        <small class="form-text text-muted mt-2">تُحسب بنسبة 14% على الصافي التجاري للفاتورة.</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="card border-0 shadow-sm bg-white p-3 h-100">
+                                        <h6 class="fw-bold text-dark mb-2"><i class="fas fa-hand-holding-usd text-warning me-2"></i>ضريبة الخصم والإضافة (WHT)</h6>
+                                        <div class="d-flex align-items-center mb-2">
+                                            <div class="form-check form-switch me-2 pt-1">
+                                                <input class="form-check-input" type="checkbox" name="wht_active" id="id_wht_active" role="switch" {% if form.instance.wht_active %}checked{% endif %}>
+                                                <label class="form-check-label text-dark fw-medium small" for="id_wht_active">خصم أرباح تجارية</label>
+                                            </div>
+                                            <select name="wht_rate" id="id_wht_rate" class="form-select form-select-sm ms-auto text-center" style="width: fit-content;">
+                                                <option value="1.00" {% if form.instance.wht_rate == 1 or not form.instance.wht_rate %}selected{% endif %}>1% (سلع)</option>
+                                                <option value="3.00" {% if form.instance.wht_rate == 3 %}selected{% endif %}>3% (خدمات)</option>
+                                            </select>
+                                        </div>
+                                        <small class="form-text text-muted">تُخصم من مستحقات المورد وتورد لمصلحة الضرائب.</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- تبويب الملاحظات والشروط -->
+                        <div class="tab-pane fade h-100" id="purchase-tab-notes" role="tabpanel" aria-labelledby="purchase-notes-tab">
+                            {% include "partials/editor.html" with id="id_notes" name="notes" value=form.notes.value|default:'' placeholder="أضف أي ملاحظات أو شروط إضافية تظهر في الفاتورة..." height=180 toolbar="basic" %}
                         </div>
                     </div>
                 </div>
                 
                 <div class="col-lg-4 col-md-12 invoice-summary-container d-flex flex-column">
-                    <div class="p-3 bg-light border rounded h-100 d-flex flex-column justify-content-between">
+                    <!-- رأس ملخص الإجماليات المتناسق -->
+                    <ul class="nav nav-tabs border-bottom-0" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <span class="nav-link active fw-medium" style="cursor: default;">
+                                <i class="fas fa-calculator me-1 text-primary"></i> الملخص المالي
+                            </span>
+                        </li>
+                    </ul>
+                    <div class="p-3 bg-light border rounded-bottom flex-fill d-flex flex-column justify-content-between">
                         <div class="row mb-2">
                             <div class="col-6 text-end">
                                 <strong style="white-space: nowrap;">المجموع الفرعي:</strong>
@@ -397,12 +458,30 @@
                                 <span id="discount-total">0.00</span>
                             </div>
                         </div>
+
+                        <div class="row mb-2" id="tax-total-row">
+                            <div class="col-6 text-end">
+                                <strong style="white-space: nowrap;">القيمة المضافة (14%):</strong>
+                            </div>
+                            <div class="col-6 text-end text-primary">
+                                <span id="tax-total">0.00</span>
+                            </div>
+                        </div>
+
+                        <div class="row mb-2" id="wht-total-row" style="display: none;">
+                            <div class="col-6 text-end">
+                                <strong style="white-space: nowrap;">خصم أرباح تجارية:</strong>
+                            </div>
+                            <div class="col-6 text-end text-warning">
+                                <span id="wht-total">0.00</span>
+                            </div>
+                        </div>
                         
                         <hr class="my-2">
                         
                         <div class="row">
                             <div class="col-6 text-end">
-                                <strong class="fs-6 text-dark">الإجمالي:</strong>
+                                <strong class="fs-6 text-dark">الصافي المستحق:</strong>
                             </div>
                             <div class="col-6 text-end">
                                 <span id="grand-total" class="fs-6 fw-bold text-success">0.00</span>
@@ -685,7 +764,7 @@
                     }
                 }
             });
-            $('#id_discount').off('input').on('input', calculateTotals);
+            $('#id_discount, #id_tax_active, #id_wht_active, #id_wht_rate').off('input change').on('input change', calculateTotals);
         }
 
         // ===== حساب الإجماليات =====
@@ -704,10 +783,38 @@
                 subtotal += parseFloat($(this).val().replace(/,/g, '')) || 0;
             });
             var discount = parseFloat($('#id_discount').val()) || 0;
-            var grandTotal = Math.max(0, subtotal - discount);
-            $('#subtotal').text(smartFloat(subtotal) + ' {{ currency_symbol }}');
-            $('#discount-total').text(smartFloat(discount) + ' {{ currency_symbol }}');
-            $('#grand-total').text(smartFloat(grandTotal) + ' {{ currency_symbol }}');
+            var netSubtotal = Math.max(0, subtotal - discount);
+
+            var isTaxActive = $('#id_tax_active').is(':checked');
+            var vatTotal = 0;
+            if (isTaxActive) {
+                vatTotal = netSubtotal * 0.14;
+                $('#tax-total-row').removeClass('text-muted opacity-50');
+            } else {
+                vatTotal = 0;
+                $('#tax-total-row').addClass('text-muted opacity-50');
+            }
+
+            var isWhtActive = $('#id_wht_active').is(':checked');
+            var whtRate = parseFloat($('#id_wht_rate').val()) || 1.0;
+            var whtTotal = 0;
+            if (isWhtActive) {
+                whtTotal = (netSubtotal * whtRate) / 100.0;
+                $('#wht-total-row').show();
+            } else {
+                whtTotal = 0;
+                $('#wht-total-row').hide();
+            }
+
+            var grossTotal = netSubtotal + vatTotal;
+            var grandTotal = Math.max(0, grossTotal - whtTotal);
+
+            var currencySymbol = (window.ProductPicker && window.ProductPicker.options && window.ProductPicker.options.currencySymbol) || $('#id_currency option:selected').data('symbol') || $('#id_currency option:selected').data('code') || '{{ currency_symbol }}';
+            $('#subtotal').text(smartFloat(subtotal) + ' ' + currencySymbol);
+            $('#discount-total').text(smartFloat(discount) + ' ' + currencySymbol);
+            $('#tax-total').text(smartFloat(vatTotal) + ' ' + currencySymbol);
+            $('#wht-total').text(smartFloat(whtTotal) + ' ' + currencySymbol + ' (' + whtRate + '%)');
+            $('#grand-total').text(smartFloat(grandTotal) + ' ' + currencySymbol);
             $('#subtotal-input').val(subtotal.toFixed(2));
             $('#total-input').val(grandTotal.toFixed(2));
         }

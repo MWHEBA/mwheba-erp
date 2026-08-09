@@ -65,6 +65,7 @@ def get_supplier_type_api(request, supplier_id):
             'is_service_provider': is_service,
             'requires_warehouse': not is_service,
             'supplier_type_code': supplier.get_primary_type_code() or 'general',
+            'default_currency_id': supplier.default_currency_id if hasattr(supplier, 'default_currency_id') and supplier.default_currency_id else None,
             'products': list(products),
             'financial_categories': financial_categories,
         })

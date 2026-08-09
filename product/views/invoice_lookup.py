@@ -2,15 +2,24 @@
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.db.models import Q, Sum
+from django.db import models
 from ..models import Product, Stock
 import logging
 
 logger = logging.getLogger(__name__)
 
+
+class ProductPriceSource(models.TextChoices):
+    PRODUCT_CURRENCY_PRICE = "PRODUCT_CURRENCY_PRICE", "سعر استرشادي معتمد بالعملة"
+    NEW_PRICE = "NEW_PRICE", "سعر جديد غير معرّف"
+    BASE_CONVERTED = "BASE_CONVERTED", "سعر استرشادي محول"
+
+
 @login_required
 def invoice_product_lookup(request):
     """
     API للبحث الفوري عن المنتجات باستخدام الكود أو الباركود أو الاسم
+    محدث لدعم فلترة وترتيب وتحديد مصدر الأسعار بالعملات المخصصة
     """
     query = request.GET.get("q", "").strip()
     warehouse_id = request.GET.get("warehouse_id") or request.GET.get("warehouse")
@@ -18,11 +27,24 @@ def invoice_product_lookup(request):
     exact = request.GET.get("exact", "false") == "true"
     invoice_id = request.GET.get("invoice_id")
     product_ids = request.GET.get("product_ids")
+    currency_id = request.GET.get("currency_id") or request.GET.get("currency")
 
     if exact and not query and not product_ids:
         return JsonResponse({"products": []})
 
     try:
+        # تحديد العملة وإن كانت عملة محلية أم أجنبية
+        currency_obj = None
+        if currency_id:
+            try:
+                from financial.models import Currency
+                if str(currency_id).isdigit():
+                    currency_obj = Currency.objects.filter(id=currency_id).first()
+                else:
+                    currency_obj = Currency.objects.filter(code=currency_id).first()
+            except Exception:
+                currency_obj = None
+
         # 1. فلترة المنتجات الأساسية
         if product_type in ["service", "services"]:
             qs = Product.objects.filter(is_service=True)
@@ -102,13 +124,33 @@ def invoice_product_lookup(request):
         # Prefetch currency prices for efficiency
         qs = qs.prefetch_related('currency_prices__currency')
 
-        results = []
+        raw_results = []
+        is_foreign = (currency_obj and not currency_obj.is_functional)
+        curr_code = currency_obj.code if currency_obj else None
+
         for p in qs.select_related('category', 'unit').order_by("name"):
             stock_qty = stock_map.get(str(p.id), 0.0)
             if not show_all and stock_qty <= 0:
                 continue
-                
-            results.append({
+
+            curr_prices = p.get_currency_prices_dict()
+            selling_p = float(p.selling_price) if p.selling_price else 0.0
+            cost_p = float(p.cost_price) if p.cost_price else 0.0
+            price_source = ProductPriceSource.PRODUCT_CURRENCY_PRICE.value
+            display_price = selling_p if product_type != "purchase" else cost_p
+
+            if is_foreign and curr_code:
+                cp_data = curr_prices.get(curr_code)
+                price_key = "selling" if product_type != "purchase" else "cost"
+                explicit_val = cp_data.get(price_key) if cp_data else None
+                if explicit_val is not None and float(explicit_val) > 0:
+                    display_price = float(explicit_val)
+                    price_source = ProductPriceSource.PRODUCT_CURRENCY_PRICE.value
+                else:
+                    display_price = 0.0
+                    price_source = ProductPriceSource.NEW_PRICE.value
+
+            raw_results.append({
                 "id": p.id,
                 "name": p.name,
                 "name_en": p.name_en or "",
@@ -116,9 +158,9 @@ def invoice_product_lookup(request):
                 "description_en": p.description_en or "",
                 "code": p.sku,
                 "barcode": p.barcode,
-                "selling_price": float(p.selling_price) if p.selling_price else 0.0,
-                "cost_price": float(p.cost_price) if p.cost_price else 0.0,
-                "currency_prices": p.get_currency_prices_dict(),
+                "selling_price": display_price if product_type != "purchase" else selling_p,
+                "cost_price": display_price if product_type == "purchase" else cost_p,
+                "currency_prices": curr_prices,
                 "stock": stock_qty,
                 "is_service": p.is_service,
                 "unit_name": p.unit.name if p.unit else "",
@@ -126,11 +168,16 @@ def invoice_product_lookup(request):
                 "category_id": p.category_id,
                 "category_name": p.category.name if p.category else "",
                 "category_name_en": p.category.name_en if p.category and p.category.name_en else "",
+                "price_source": price_source,
+                "has_currency_price": (price_source == ProductPriceSource.PRODUCT_CURRENCY_PRICE.value),
             })
-            if len(results) >= 50:
-                break
 
-        return JsonResponse({"products": results})
+        # ترتيب النتائج: المنتجات المسعرة بالعملة أولاً، ثم المنتجات غير المسعرة ثانياً
+        if is_foreign:
+            raw_results.sort(key=lambda x: (0 if x["has_currency_price"] else 1, x["name"]))
+
+        results = raw_results[:50]
+        return JsonResponse({"products": results, "is_foreign": is_foreign})
 
     except Exception as e:
         logger.error(f"Error in invoice product lookup API: {str(e)}")

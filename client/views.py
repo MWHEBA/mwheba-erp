@@ -8,6 +8,9 @@ from django.db.models import Sum, Q
 from django.urls import reverse
 from django.http import JsonResponse
 from django.template.loader import render_to_string
+import logging
+
+logger = logging.getLogger(__name__)
 
 from utils.templatetags.utils_extras import smart_float
 from .models import Customer, CustomerPayment
@@ -359,17 +362,20 @@ def customer_detail(request, pk):
     from sale.models import SalePayment
     from client.models import CustomerPayment
 
-    sale_payments = list(SalePayment.objects.filter(sale__customer=customer).select_related("sale", "created_by").order_by("-payment_date"))
-    advance_payments = list(CustomerPayment.objects.filter(customer=customer).select_related("created_by").order_by("-payment_date"))
+    sale_payments = list(SalePayment.objects.filter(sale__customer=customer).select_related("sale", "currency", "sale__currency", "created_by").order_by("-payment_date"))
+    advance_payments = list(CustomerPayment.objects.filter(customer=customer).select_related("currency", "created_by").order_by("-payment_date"))
 
     # توحيد قائمة المدفوعات لعرضها في التاب والتصدير
     payments = []
     for sp in sale_payments:
+        curr = sp.currency or (sp.sale.currency if sp.sale else None)
         payments.append({
             "id": sp.id,
             "payment_date": sp.payment_date,
             "created_at": sp.created_at,
             "amount": sp.amount,
+            "currency": curr,
+            "currency_symbol": curr.symbol if curr else "ج.م",
             "payment_method": sp.source_display_info if hasattr(sp, "source_display_info") else sp.get_payment_method_display(),
             "reference_number": sp.reference_number or f"PAY-{sp.id}",
             "notes": sp.notes or "-",
@@ -378,11 +384,14 @@ def customer_detail(request, pk):
         })
 
     for cp in advance_payments:
+        curr = cp.currency
         payments.append({
             "id": cp.id,
             "payment_date": cp.payment_date,
             "created_at": cp.created_at,
             "amount": cp.amount,
+            "currency": curr,
+            "currency_symbol": curr.symbol if curr else "ج.م",
             "payment_method": cp.source_display_info if hasattr(cp, "source_display_info") else "رصيد مسبق",
             "reference_number": cp.reference_number or f"CP-{cp.id}",
             "notes": cp.notes or "دفعة من تحت الحساب",
@@ -514,6 +523,7 @@ def customer_detail(request, pk):
 
     # جلب القيود المحاسبية المرتبطة بالعميل
     from financial.models import JournalEntry
+    from django.db.models import Q
     journal_entries = []
     journal_entries_count = 0
 
@@ -988,32 +998,53 @@ def customer_detail(request, pk):
     from core.presenters.currency_exposure_presenter import CurrencyExposurePresenter
 
     customer_dtos = BusinessPartnerExposureService.get_open_balances("customer", [customer.id]).get(customer.id, [])
-    for vm in CurrencyExposurePresenter.build_view_models(customer_dtos):
+    from django.utils.safestring import mark_safe
+    vms = CurrencyExposurePresenter.build_view_models(customer_dtos)
+    if vms:
+        vms_sorted = sorted(vms, key=lambda vm: 0 if (getattr(vm, 'currency_symbol', '') == 'ج.م' or getattr(vm, 'currency_code', '') == 'EGP' or getattr(vm, 'currency', '') == 'EGP') else 1)
+        debt_parts = [f'<span class="badge-amount-pill">{vm.formatted_amount} {vm.currency_symbol}</span>' for vm in vms_sorted]
         header_badges.append({
             "is_badge": True,
-            "icon": vm.icon,
-            "text": f"{vm.label}: {vm.formatted_amount} {vm.currency_symbol}",
-            "class": vm.variant
+            "icon": "fas fa-hand-holding-usd",
+            "text": mark_safe(f"مطلوب: {' '.join(debt_parts)}"),
+            "class": "bg-danger text-white",
+            "title": "إجمالي الفواتير المستحقة على العميل حسب العملات",
         })
-
-    if not customer_dtos and customer.actual_balance != Decimal("0.00"):
+    elif customer.actual_balance != Decimal("0.00"):
         header_badges.append({
-            "text": f"المديونية: {smart_float(customer.actual_balance)} {currency_symbol}",
+            "text": mark_safe(f"المديونية: <span class=\"badge-amount-pill\">{smart_float(customer.actual_balance)} {currency_symbol}</span>"),
             "class": "bg-success" if customer.actual_balance <= 0 else "bg-danger",
             "icon": "fas fa-arrow-down" if customer.actual_balance <= 0 else "fas fa-arrow-up",
         })
-    if unallocated_prepaid > Decimal("0.00"):
+
+    from financial.services.partner_advance_service import PartnerAdvanceService
+    prepaid_bals = PartnerAdvanceService.get_all_balances(customer)
+
+    prepaid_parts = []
+    sorted_prepaid = sorted(
+        prepaid_bals.items(),
+        key=lambda item: 0 if item[0] == "EGP" else 1
+    )
+    for curr_code, item in sorted_prepaid:
+        bal = item["balance"] if isinstance(item, dict) else item
+        sym = item.get("symbol", curr_code) if isinstance(item, dict) else curr_code
+        if bal > Decimal("0.00"):
+            prepaid_parts.append(f'<span class="badge-amount-pill">{smart_float(bal)} {sym}</span>')
+
+    if prepaid_parts:
         header_badges.append({
-            "text": f"رصيد مسبق: {smart_float(unallocated_prepaid)} {currency_symbol}",
-            "class": "bg-warning text-dark",
+            "text": mark_safe(f"رصيد مسبق: {' '.join(prepaid_parts)}"),
+            "class": "bg-success text-white",
             "icon": "fas fa-wallet",
-            "title": "إجمالي الرصيد المسبق المتاح للفواتير",
+            "title": "إجمالي الأرصدة المسبقة المتاحة حسب العملات",
             "action_text": "توزيع",
             "action_icon": "fas fa-random",
-            "action_class": "bg-warning-subtle text-dark border border-warning-subtle",
+            "action_class": "bg-success-subtle text-success border border-success-subtle",
             "action_onclick": "const m = document.getElementById('prepaidAllocationModal'); if(m){ new bootstrap.Modal(m).show(); }",
             "action_title": "توزيع الرصيد المسبق على الفواتير المفتوحة",
         })
+
+    context["prepaid_balances"] = prepaid_bals
     context["header_badges"] = header_badges
     context["header_buttons"] = [
         {
@@ -1054,6 +1085,11 @@ def customer_detail(request, pk):
         },
         {"title": customer.name, "active": True},
     ]
+
+    from financial.services.partner_advance_service import PartnerAdvanceService
+    from financial.models import Currency
+    context["prepaid_balances"] = PartnerAdvanceService.get_all_balances(customer)
+    context["currencies"] = Currency.objects.filter(is_active=True)
 
     return render(request, "client/customer_detail.html", context)
 
@@ -1302,14 +1338,17 @@ def customer_aging_api(request, pk):
 @login_required
 def add_customer_advance_action(request, pk):
     """
-    إضافة رصيد مسبق / مقبوضات مقدمة جديدة للعميل
+    إضافة رصيد مسبق / مقبوضات مقدمة جديدة للعميل باختيار العملة وسعر الصرف
     """
     customer = get_object_or_404(Customer, pk=pk)
     if request.method == "POST":
-        from client.services.customer_allocation_audit_service import CustomerAllocationAuditService
         from decimal import Decimal
+        from financial.models import Currency
+        from financial.services.partner_advance_service import PartnerAdvanceService
 
         amount_str = request.POST.get("amount")
+        currency_id = request.POST.get("currency")
+        rate_str = request.POST.get("exchange_rate_snapshot")
         payment_date_str = request.POST.get("payment_date")
         payment_method = request.POST.get("payment_method", "cash")
         financial_account_id = request.POST.get("financial_account")
@@ -1320,19 +1359,30 @@ def add_customer_advance_action(request, pk):
             try:
                 amt = Decimal(amount_str)
                 fin_acc_id = int(financial_account_id) if (financial_account_id and str(financial_account_id).isdigit()) else None
-                
-                payment = CustomerAllocationAuditService.create_customer_advance_payment(
-                    customer_id=customer.id,
+                from financial.services.exchange_rate_service import ExchangeRateService
+                curr = Currency.objects.filter(pk=currency_id).first() if currency_id else None
+                if not curr:
+                    curr = ExchangeRateService.get_functional_currency()
+                rate = ExchangeRateService.get_exchange_rate(curr) if curr else Decimal("1.000000")
+
+                payment = CustomerPayment.objects.create(
+                    customer=customer,
                     amount=amt,
-                    payment_date=payment_date_str if payment_date_str else None,
+                    transaction_amount=amt,
+                    currency=curr,
+                    exchange_rate_snapshot=rate,
+                    payment_date=payment_date_str if payment_date_str else timezone.now().date(),
                     payment_method=payment_method,
                     financial_account_id=fin_acc_id,
                     reference_number=reference_number,
                     notes=notes,
-                    user=request.user
+                    status="posted",
+                    created_by=request.user,
                 )
-                messages.success(request, f"تم تحصيل رصيد مسبق بقيمة {amt} ج.م من العميل بنجاح (مرجع #{payment.id}).")
+                PartnerAdvanceService.rebuild_snapshot(customer, currency=curr)
+                messages.success(request, f"تم تحصيل رصيد مسبق بقيمة {amt} {curr.code if curr else ''} من العميل بنجاح (مرجع #{payment.id}).")
             except Exception as e:
+                logger.error(f"❌ خطأ أثناء تحصيل الرصيد المسبق: {str(e)}")
                 messages.error(request, f"حدث خطأ أثناء تحصيل الرصيد المسبق: {str(e)}")
         else:
             messages.error(request, "يرجى إدخال مبلغ الرصيد المسبق بشكل صحيح.")
@@ -1348,6 +1398,7 @@ def allocate_customer_prepaid(request, pk):
     customer = get_object_or_404(Customer, pk=pk)
     if request.method == "POST":
         from client.services.customer_allocation_audit_service import CustomerAllocationAuditService
+        from financial.services.partner_advance_service import PartnerAdvanceService
         from decimal import Decimal
 
         sale_ids = request.POST.getlist("sale_ids[]") or request.POST.getlist("sale_ids")
@@ -1372,7 +1423,8 @@ def allocate_customer_prepaid(request, pk):
                     user=request.user
                 )
                 total_alloc = sum(a.allocated_amount for a in audits)
-                messages.success(request, f"تم التوزيع الجماعي بقيمة إجمالية {total_alloc} ج.م على {len(audits)} معاملة بنجاح.")
+                PartnerAdvanceService.rebuild_all_snapshots(customer)
+                messages.success(request, f"تم التوزيع الجماعي بقيمة إجمالية {total_alloc} على {len(audits)} معاملة بنجاح.")
             except Exception as e:
                 messages.error(request, f"حدث خطأ أثناء التوزيع الجماعي: {str(e)}")
         else:
@@ -1395,7 +1447,8 @@ def allocate_customer_prepaid(request, pk):
                             amount_to_allocate=alloc,
                             user=request.user
                         )
-                        messages.success(request, f"تم تخصيص {alloc} ج.م من الرصيد المسبق على الفاتورة #{sale.number} بنجاح.")
+                        PartnerAdvanceService.rebuild_all_snapshots(customer)
+                        messages.success(request, f"تم تخصيص {alloc} من الرصيد المسبق على الفاتورة #{sale.number} بنجاح.")
                     except Exception as e:
                         messages.error(request, f"حدث خطأ أثناء التخصيص: {str(e)}")
 

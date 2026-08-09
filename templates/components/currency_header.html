@@ -1,17 +1,18 @@
 {% comment %}
 Component: templates/components/currency_header.html
-Reusable Multi-Currency Header Card Component (IAS 21 & JIT Componentization Standard)
+Reusable Multi-Currency Header Card Component (IAS 21 Governance Standard)
 {% endcomment %}
 <div class="col-12 col-md-6 mb-3">
     <label for="id_currency" class="form-label text-dark fw-medium">
     العملة <span class="text-danger">*</span>
     </label>
     <select name="currency" id="id_currency" class="form-select select2 select2-filter" data-previous-val="{{ selected_currency_id|default:'' }}" dir="rtl" required>
-        {% for curr in active_currencies %}
+        {% for curr in active_currencies|default:currencies %}
             <option value="{{ curr.id }}" 
                     data-code="{{ curr.code }}" 
                     data-symbol="{{ curr.symbol|default:curr.code }}" 
                     data-is-functional="{% if curr.is_functional %}true{% else %}false{% endif %}"
+                    data-rate="{{ curr.current_rate|stringformat:'.6f' }}"
                     {% if selected_currency_id %}{% if selected_currency_id == curr.id %}selected{% endif %}{% else %}{% if curr.is_functional %}selected{% endif %}{% endif %}>
                 {{ curr.code }} - {{ curr.name }} ({% if curr.symbol %}{{ curr.symbol }}{% else %}{{ curr.code }}{% endif %})
             </option>
@@ -23,27 +24,60 @@ Reusable Multi-Currency Header Card Component (IAS 21 & JIT Componentization Sta
 
 <div class="col-12 col-md-6 mb-3 {% if not selected_currency_is_foreign %}d-none{% endif %}" id="exchange_rate_container">
     <label for="id_exchange_rate" class="form-label text-dark fw-medium">
-        سعر الصرف (مقابل {{ functional_currency.code|default:"EGP" }}) <span class="text-danger">*</span>
+        سعر الصرف (مقابل {{ functional_currency.code }}) <span class="text-danger">*</span>
     </label>
     <div class="input-group">
         <input type="number" 
                name="exchange_rate" 
                id="id_exchange_rate" 
-               class="form-control font-monospace" 
+               class="form-control font-monospace bg-light" 
                step="0.000001" 
                min="0.000001" 
                value="{{ current_exchange_rate|default:'1.000000' }}" 
+               readonly
                placeholder="1.000000">
         <span class="input-group-text bg-light text-muted small" id="exchange_rate_unit">
             {{ functional_currency.symbol|default:"ج.م" }}
         </span>
     </div>
-    <div class="form-text text-muted small">
-        <i class="fas fa-info-circle me-1"></i>سعر التحويل للعملة الوظيفية الأساسية.
-    </div>
 </div>
 
 <script>
+    function updateExchangeRateFromSelect() {
+        var $select = $('#id_currency');
+        if (!$select.length) return;
+        var $opt = $select.find('option:selected');
+        if (!$opt.length) return;
+
+        var isFunctional = $opt.data('is-functional') === true || $opt.data('is-functional') === "true";
+        var rawRate = $opt.attr('data-rate') || $opt.data('rate') || '1.000000';
+        var rate = parseFloat(rawRate) || 1.0;
+        var symbol = $opt.data('symbol') || $opt.data('code') || 'ج.م';
+
+        var $container = $('#exchange_rate_container');
+        if (isFunctional) {
+            $container.addClass('d-none');
+        } else {
+            $container.removeClass('d-none');
+        }
+        
+        $('#id_exchange_rate').val(rate.toFixed(6));
+
+        // تحديث رمز الخصم الثابت في الخيارات
+        $('#id_discount_type option[value="fixed"], select[name="discount_type"] option[value="fixed"]').text(symbol);
+
+        // تحديث شارات الرموز بالنظام
+        if (window.ProductPicker) {
+            window.ProductPicker.options.currencySymbol = symbol;
+        }
+        $('.item-total').next('.input-group-text').text(symbol);
+
+        // إعادة حساب وعرض الملخص المالي بالعملة الجديدة
+        if (typeof window.calculateTotals === 'function') {
+            window.calculateTotals();
+        }
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
         if (typeof jQuery !== 'undefined' && typeof jQuery.fn.select2 !== 'undefined') {
             var $curr = $('#id_currency');
@@ -51,5 +85,12 @@ Reusable Multi-Currency Header Card Component (IAS 21 & JIT Componentization Sta
                 $curr.select2({ placeholder: "اختر العملة", width: '100%', dir: 'rtl' });
             }
         }
+
+        // تحديث سعر الصرف والرموز والملخص المالي فورياً
+        updateExchangeRateFromSelect();
+        $(document).off('change.syncRate select2:select.syncRate', '#id_currency')
+                   .on('change.syncRate select2:select.syncRate', '#id_currency', function() {
+            updateExchangeRateFromSelect();
+        });
     });
 </script>

@@ -427,7 +427,10 @@
                                                 <i class="fas fa-money-bill-wave text-success me-2"></i>
                                                 <div>
                                                     <small class="text-muted d-block">الإجمالي</small>
-                                                    <span class="fw-medium text-primary">{{ sale.total|currency }}</span>
+                                                    <span class="fw-medium text-primary">{{ sale.total|smart_float }} {{ sale|get_currency_symbol:currency_symbol }}</span>
+                                                    {% if sale.currency and not sale.currency.is_functional %}
+                                                        <small class="text-muted d-block mt-1" style="font-size: 0.75rem;">(ما يعادل {{ sale.total_functional|smart_float }} {{ currency_symbol }})</small>
+                                                    {% endif %}
                                                 </div>
                                             </div>
                                         </div>
@@ -462,7 +465,7 @@
                             </div>
                             <div class="party-info">
                                 <div class="party-label">{% trans "العملة:" %}</div>
-                                <div class="party-value">{{ sale.currency|default:currency_symbol }}</div>
+                                <div class="party-value">{{ sale.currency.name|default:sale.currency_symbol }}</div>
                             </div>
                         </div>
                         
@@ -546,9 +549,9 @@
                                             <span class="text-muted fw-normal small">({{ item.product.unit.name }})</span>
                                             {% endif %}
                                         </td>
-                                        <td>{{ item.unit_price|currency }}</td>
-                                        <td>{% if item.discount and item.discount > 0 %}{{ item.discount|currency }}{% else %}-{% endif %}</td>
-                                        <td class="fw-bold">{{ item.total|currency }}</td>
+                                        <td>{{ item.unit_price|smart_float:2 }} {{ sale|get_currency_symbol:currency_symbol }}</td>
+                                        <td>{% if item.discount and item.discount > 0 %}{{ item.discount|smart_float:2 }} {{ sale|get_currency_symbol:currency_symbol }}{% else %}-{% endif %}</td>
+                                        <td class="fw-bold">{{ item.total|smart_float:2 }} {{ sale|get_currency_symbol:currency_symbol }}</td>
                                     </tr>
                                     {% endfor %}
                                 </tbody>
@@ -592,28 +595,28 @@
                                 <div>
                                     <div class="summary-row">
                                         <div class="summary-label">{% trans "المجموع الفرعي:" %}</div>
-                                        <div class="summary-value">{{ sale.subtotal|currency }}</div>
+                                        <div class="summary-value">{{ sale.subtotal|smart_float:2 }} {{ sale|get_currency_symbol:currency_symbol }}</div>
                                     </div>
                                     <div class="summary-row">
                                         <div class="summary-label">{% trans "الخصم:" %}</div>
-                                        <div class="summary-value">{% if sale.discount and sale.discount > 0 %}{{ sale.discount|currency }}{% else %}-{% endif %}</div>
+                                        <div class="summary-value">{% if sale.discount and sale.discount > 0 %}{{ sale.discount|smart_float:2 }} {{ sale|get_currency_symbol:currency_symbol }}{% else %}-{% endif %}</div>
                                     </div>
                                     <div class="summary-row">
                                         <div class="summary-label">{% trans "الضريبة:" %}</div>
-                                        <div class="summary-value">{% if sale.tax and sale.tax > 0 %}{{ sale.tax|currency }}{% else %}-{% endif %}</div>
+                                        <div class="summary-value">{% if sale.tax and sale.tax > 0 %}{{ sale.tax|smart_float:2 }} {{ sale|get_currency_symbol:currency_symbol }}{% else %}-{% endif %}</div>
                                     </div>
                                     <div class="summary-row">
                                         <div class="summary-label">{% trans "الإجمالي:" %}</div>
-                                        <div class="summary-value">{{ sale.total|currency }}</div>
+                                        <div class="summary-value">{{ sale.total|smart_float:2 }} {{ sale|get_currency_symbol:currency_symbol }}</div>
                                     </div>
                                     <div class="summary-row text-secondary">
                                         <div class="summary-label">{% trans "المدفوع:" %}</div>
-                                        <div class="summary-value fw-medium">{{ sale.amount_paid|currency }}</div>
+                                        <div class="summary-value fw-medium">{{ sale.amount_paid|smart_float:2 }} {{ sale|get_currency_symbol:currency_symbol }}</div>
                                     </div>
                                 </div>
                                 <div class="summary-row border-top pt-2 mt-2">
                                     <div class="summary-label">{% trans "المتبقي:" %}</div>
-                                    <div class="summary-value">{{ sale.amount_due|currency }}</div>
+                                    <div class="summary-value">{{ sale.amount_due|smart_float:2 }} {{ sale|get_currency_symbol:currency_symbol }}</div>
                                 </div>
                             </div>
                         </div>
@@ -683,7 +686,13 @@
                             <div>
                                 <h6 class="mb-1 fw-bold text-info"><i class="fas fa-wallet me-2"></i>{% trans "رصيد مسبق متاح للعميل" %}</h6>
                                 <p class="mb-0 text-muted small">
-                                    {% trans "يتوفر لدى العميل رصيد مسبق بقيمة" %} <strong class="text-success fs-6">{{ sale.customer.available_prepaid_balance|currency }}</strong> {% trans "يمكن تخصيصه على هذه الفاتورة." %}
+                                    {% trans "يتوفر لدى العميل رصيد مسبق بقيمة" %} <strong class="text-success fs-6">{{ sale.customer.available_prepaid_balance|smart_float:2 }} {{ currency_symbol }}</strong>
+                                    {% if sale.currency and not sale.currency.is_functional and sale.exchange_rate %}
+                                        {% with foreign_prepaid=sale.customer.available_prepaid_balance|divide:sale.exchange_rate %}
+                                            <span class="badge bg-light text-dark border ms-1">(ما يعادل {{ foreign_prepaid|smart_float:2 }} {{ sale|get_currency_symbol:currency_symbol }} بسعر صرف {{ sale.exchange_rate|smart_float:4 }})</span>
+                                        {% endwith %}
+                                    {% endif %}
+                                    {% trans "يمكن تخصيصه على هذه الفاتورة." %}
                                 </p>
                             </div>
                             <div class="d-flex gap-2">
@@ -704,30 +713,42 @@
                     <!-- Modal التخصيص اليدوي -->
                     <div class="modal fade" id="customAllocateModal" tabindex="-1" aria-labelledby="customAllocateModalLabel" aria-hidden="true">
                         <div class="modal-dialog modal-dialog-centered">
-                            <div class="modal-content">
+                            <div class="modal-content border-0 shadow-lg">
                                 <form method="post" action="{% url 'sale:sale_allocate_prepaid' sale.id %}">
                                     {% csrf_token %}
-                                    <div class="modal-header">
-                                        <h5 class="modal-title" id="customAllocateModalLabel"><i class="fas fa-wallet me-2"></i>{% trans "تخصيص مبلغ من الرصيد المسبق" %}</h5>
+                                    <div class="modal-header bg-light border-bottom px-4 py-3">
+                                        <h5 class="modal-title fw-bold text-dark mb-0" id="customAllocateModalLabel"><i class="fas fa-wallet text-primary me-2"></i>{% trans "تخصيص مبلغ من الرصيد المسبق" %}</h5>
                                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                                     </div>
-                                    <div class="modal-body">
+                                    <div class="modal-body p-4">
                                         <div class="mb-3">
-                                            <label class="form-label text-muted small">{% trans "الرصيد المسبق المتاح للعميل:" %}</label>
-                                            <div class="fw-bold text-success">{{ sale.customer.available_prepaid_balance|currency }}</div>
+                                            <label class="form-label text-muted small mb-1">{% trans "الرصيد المسبق المتاح للعميل:" %}</label>
+                                            <div class="fw-bold text-success fs-5">
+                                                {{ sale.customer.available_prepaid_balance|smart_float:2 }} {{ currency_symbol }}
+                                                {% if sale.currency and not sale.currency.is_functional and sale.exchange_rate %}
+                                                    {% with foreign_prepaid=sale.customer.available_prepaid_balance|divide:sale.exchange_rate %}
+                                                        <small class="text-muted font-normal fs-6">({{ foreign_prepaid|smart_float:2 }} {{ sale|get_currency_symbol:currency_symbol }})</small>
+                                                    {% endwith %}
+                                                {% endif %}
+                                            </div>
                                         </div>
                                         <div class="mb-3">
-                                            <label class="form-label text-muted small">{% trans "المبلغ المتبقي من الفاتورة:" %}</label>
-                                            <div class="fw-bold text-danger">{{ sale.amount_due|currency }}</div>
+                                            <label class="form-label text-muted small mb-1">{% trans "المبلغ المتبقي من الفاتورة:" %}</label>
+                                            <div class="fw-bold text-danger fs-5">
+                                                {{ sale.amount_due|smart_float:2 }} {{ sale|get_currency_symbol:currency_symbol }}
+                                                {% if sale.currency and not sale.currency.is_functional %}
+                                                    <small class="text-muted font-normal fs-6">(ما يعادل {{ sale.amount_due_functional|default:sale.amount_due|smart_float:2 }} {{ currency_symbol }})</small>
+                                                {% endif %}
+                                            </div>
                                         </div>
                                         <div class="mb-3">
-                                            <label for="allocateAmount" class="form-label fw-bold">{% trans "المبلغ المراد تخصيصه:" %}</label>
-                                            <input type="number" step="0.01" class="form-control" id="allocateAmount" name="amount" required max="{{ sale.customer.available_prepaid_balance }}" placeholder="أدخل المبلغ...">
+                                            <label for="allocateAmount" class="form-label fw-bold">{% trans "المبلغ المراد تخصيصه (بالعملة المحلية ج.م):" %}</label>
+                                            <input type="number" step="0.01" class="form-control" id="allocateAmount" name="amount" required max="{{ sale.customer.available_prepaid_balance }}" placeholder="أدخل المبلغ بالجنيه...">
                                         </div>
                                     </div>
-                                    <div class="modal-footer">
-                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
-                                        <button type="submit" class="btn btn-primary">{% trans "تأكيد التخصيص" %}</button>
+                                    <div class="modal-footer bg-light border-top px-4 py-3">
+                                        <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+                                        <button type="submit" class="btn btn-primary px-4 fw-bold">{% trans "تأكيد التخصيص" %}</button>
                                     </div>
                                 </form>
                             </div>

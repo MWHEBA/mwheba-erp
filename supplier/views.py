@@ -490,30 +490,59 @@ def supplier_detail(request, pk):
     )
     unallocated_prepaid = supplier.available_prepaid_balance
 
-    # جلب دفعات فواتير المشتريات المرتبطة بالمورد
+    # جلب دفعات فواتير المشتريات والدفعات المباشرة/تحت الحساب المرتبطة بالمورد
     from purchase.models import PurchasePayment
+    from supplier.models import SupplierAdvancePayment
 
-    purchase_payments = list(PurchasePayment.objects.filter(purchase__supplier=supplier).select_related("purchase", "created_by").order_by("-payment_date"))
+    purchase_payments = list(PurchasePayment.objects.filter(purchase__supplier=supplier).select_related("purchase", "currency", "purchase__currency", "created_by").order_by("-payment_date"))
+    advance_payments = list(SupplierAdvancePayment.objects.filter(supplier=supplier).select_related("currency", "created_by").order_by("-payment_date"))
 
     # توحيد قائمة المدفوعات لعرضها في التاب والتصدير
     payments_list = []
     for pp in purchase_payments:
+        curr = pp.currency or (pp.purchase.currency if pp.purchase else None)
         payments_list.append({
             "id": pp.id,
             "payment_date": pp.payment_date,
             "created_at": pp.created_at,
             "amount": pp.amount,
-            "payment_method": pp.source_display_info if hasattr(pp, "source_display_info") else "رصيد المورد المسبق",
+            "currency": curr,
+            "currency_symbol": curr.symbol if curr else "ج.م",
+            "payment_method": pp.source_display_info if hasattr(pp, "source_display_info") else "سداد فاتورة",
             "reference_number": pp.reference_number or f"PAY-{pp.id}",
             "notes": pp.notes or "-",
+            "purchase_id": pp.purchase.id if pp.purchase else None,
             "purchase_number": pp.purchase.number if pp.purchase else "-",
             "type_display": "سداد فاتورة",
+            "raw_object": pp,
         })
 
-    total_payments = sum(
+    for sap in advance_payments:
+        curr = sap.currency
+        payments_list.append({
+            "id": sap.id,
+            "payment_date": sap.payment_date,
+            "created_at": sap.created_at,
+            "amount": sap.amount,
+            "currency": curr,
+            "currency_symbol": curr.symbol if curr else "ج.م",
+            "payment_method": "رصيد مسبق / دفعة مقدمة",
+            "reference_number": sap.reference_number or f"ADV-{sap.id}",
+            "notes": sap.notes or "دفعة من تحت الحساب للمورد",
+            "purchase_id": None,
+            "purchase_number": "دفعة مقدمة (تحت الحساب)",
+            "type_display": "دفعة مقدمة",
+            "raw_object": sap,
+        })
+
+    payments_list.sort(key=lambda x: str(x["payment_date"] or ""), reverse=True)
+
+    pur_pay_total = sum(
         pp.amount for pp in purchase_payments
         if pp.payment_method != "prepaid_balance" and getattr(pp, "source_type", None) != "PREPAID_BALANCE"
     )
+    adv_pay_total = sum(sap.amount for sap in advance_payments)
+    total_payments = pur_pay_total + adv_pay_total
 
 
 
@@ -531,7 +560,7 @@ def supplier_detail(request, pk):
     # جلب المنتجات مع تفاصيل الشراء
     from django.db.models import Max, Min, Avg, Count
 
-    supplier_products = (
+    supplier_products = list(
         purchase_items.values(
             "product__id", "product__name", "product__sku", "product__category__name"
         )
@@ -547,6 +576,16 @@ def supplier_detail(request, pk):
         )
         .order_by("-last_purchase_date")[:20]
     )
+
+    # تحديد عملة الشراء الفعلية لكل منتج من فواتير المورد
+    item_currencies = {}
+    for pi in purchase_items.select_related('purchase__currency').order_by('purchase__created_at'):
+        if pi.purchase and pi.purchase.currency:
+            item_currencies[pi.product_id] = pi.purchase.currency.symbol or pi.purchase.currency.code
+
+    for prod in supplier_products:
+        p_id = prod.get("product__id")
+        prod["currency_symbol"] = item_currencies.get(p_id) or (supplier.default_currency.symbol if supplier.default_currency else "ج.م")
 
     # تاريخ آخر معاملة
     last_transaction_date = None
@@ -749,13 +788,6 @@ def supplier_detail(request, pk):
             "format": "datetime_12h",
         },
         {
-            "key": "avg_price",
-            "label": "متوسط السعر",
-            "sortable": True,
-            "class": "text-center",
-            "format": "currency",
-        },
-        {
             "key": "last_price",
             "label": "آخر سعر",
             "sortable": True,
@@ -769,31 +801,39 @@ def supplier_detail(request, pk):
 
     # تحويل المدفوعات لـ list of dicts للعرض في الجدول
     payments_data = []
-    for payment in purchase_payments:
-        # تحديد طريقة الدفع من الحساب المالي أو من payment_method
-        if payment.financial_account:
-            payment_method_display = payment.financial_account.name
-        elif payment.payment_method:
-            # محاولة الحصول على اسم الحساب من الكود
+    for pay_item in payments_list:
+        purchase_num = pay_item.get("purchase_number", "-")
+        if pay_item.get("purchase_id"):
+            purchase_number_html = f'<a href="{reverse("purchase:purchase_detail", args=[pay_item["purchase_id"]])}" class="text-decoration-none text-nowrap"><code class="bg-light px-2 py-1 rounded text-nowrap" style="white-space: nowrap !important;">{purchase_num}</code></a>'
+        elif purchase_num != "-":
+            purchase_number_html = f'<span class="badge bg-secondary-subtle text-secondary">{purchase_num}</span>'
+        else:
+            purchase_number_html = "لا يوجد"
+
+        raw_obj = pay_item.get("raw_object")
+        payment_method_display = pay_item.get("payment_method", "غير محدد")
+        if raw_obj and getattr(raw_obj, "financial_account", None):
+            payment_method_display = raw_obj.financial_account.name
+        elif raw_obj and getattr(raw_obj, "payment_method", None):
             try:
                 from financial.models import ChartOfAccounts
-                account = ChartOfAccounts.objects.filter(code=payment.payment_method).first()
-                payment_method_display = account.name if account else payment.payment_method
-            except:
-                payment_method_display = payment.payment_method
-        else:
-            payment_method_display = "غير محدد"
-        
-        # تنسيق رقم الفاتورة كـ HTML
-        purchase_number_html = f'<a href="{reverse("purchase:purchase_detail", args=[payment.purchase.id])}" class="text-decoration-none text-nowrap"><code class="bg-light px-2 py-1 rounded text-nowrap" style="white-space: nowrap !important;">{payment.purchase.number}</code></a>' if payment.purchase else "لا يوجد"
-        
+                account = ChartOfAccounts.objects.filter(code=raw_obj.payment_method).first()
+                if account:
+                    payment_method_display = account.name
+            except Exception:
+                pass
+
+        method_html = f'<span class="badge bg-info">{payment_method_display}</span>' if not str(payment_method_display).startswith('<span') else payment_method_display
+
         payments_data.append({
-            "id": payment.id,
-            "created_at": payment.created_at,
+            "id": pay_item["id"],
+            "created_at": pay_item["created_at"] or pay_item["payment_date"],
             "purchase__number": purchase_number_html,
-            "amount": payment.amount,
-            "payment_method": f'<span class="badge bg-info">{payment_method_display}</span>',
-            "notes": payment.notes or "لا توجد ملاحظات",
+            "amount": pay_item["amount"],
+            "currency": pay_item.get("currency"),
+            "currency_symbol": pay_item.get("currency_symbol", "ج.م"),
+            "payment_method": method_html,
+            "notes": pay_item.get("notes") or "لا توجد ملاحظات",
         })
     
     # تعريف أعمدة جدول المدفوعات للنظام المحسن
@@ -826,7 +866,7 @@ def supplier_detail(request, pk):
             "label": "المبلغ",
             "sortable": True,
             "class": "text-center",
-            "format": "currency",
+            "template": "components/cells/payment_amount.html",
             "width": "120px",
         },
         {
@@ -1472,35 +1512,54 @@ def supplier_detail(request, pk):
         },
     ]
 
+    from django.utils.safestring import mark_safe
     dtos = BusinessPartnerExposureService.get_open_balances("supplier", [supplier.id]).get(supplier.id, [])
-    for vm in CurrencyExposurePresenter.build_view_models(dtos):
+    vms = CurrencyExposurePresenter.build_view_models(dtos)
+    if vms:
+        vms_sorted = sorted(vms, key=lambda vm: 0 if (getattr(vm, 'currency_symbol', '') == 'ج.م' or getattr(vm, 'currency_code', '') == 'EGP' or getattr(vm, 'currency', '') == 'EGP') else 1)
+        due_parts = [f'<span class="badge-amount-pill">{vm.formatted_amount} {vm.currency_symbol}</span>' for vm in vms_sorted]
         header_badges.append({
             "is_badge": True,
-            "icon": vm.icon,
-            "text": f"{vm.label}: {vm.formatted_amount} {vm.currency_symbol}",
-            "class": vm.variant
+            "icon": "fas fa-hand-holding-usd",
+            "text": mark_safe(f"مستحق للمورد: {' '.join(due_parts)}"),
+            "class": "bg-danger text-white",
+            "title": "إجمالي الفواتير المستحقة للمورد حسب العملات",
         })
-
-    if not dtos and supplier.actual_balance != Decimal("0.00"):
+    elif supplier.actual_balance != Decimal("0.00"):
         header_badges.append({
-            "text": f"الاستحقاق: {smart_float(supplier.actual_balance)} {currency_symbol}",
+            "text": mark_safe(f"الاستحقاق: <span class=\"badge-amount-pill\">{smart_float(supplier.actual_balance)} {currency_symbol}</span>"),
             "class": "bg-danger" if supplier.actual_balance > 0 else "bg-success",
             "icon": "fas fa-arrow-up" if supplier.actual_balance > 0 else "fas fa-arrow-down",
         })
 
-    if unallocated_prepaid > Decimal("0.00"):
+    from financial.services.partner_advance_service import PartnerAdvanceService
+    prepaid_bals = PartnerAdvanceService.get_all_balances(supplier)
+
+    prepaid_parts = []
+    sorted_prepaid = sorted(
+        prepaid_bals.items(),
+        key=lambda item: 0 if item[0] == "EGP" else 1
+    )
+    for curr_code, item in sorted_prepaid:
+        bal = item["balance"] if isinstance(item, dict) else item
+        sym = item.get("symbol", curr_code) if isinstance(item, dict) else curr_code
+        if bal > Decimal("0.00"):
+            prepaid_parts.append(f'<span class="badge-amount-pill">{smart_float(bal)} {sym}</span>')
+
+    if prepaid_parts:
         header_badges.append({
-            "text": f"رصيد مسبق: {smart_float(unallocated_prepaid)} {currency_symbol}",
-            "class": "bg-warning text-dark",
+            "text": mark_safe(f"رصيد مسبق: {' '.join(prepaid_parts)}"),
+            "class": "bg-success text-white",
             "icon": "fas fa-wallet",
-            "title": "إجمالي الرصيد المسبق المتاح للفواتير",
+            "title": "إجمالي الأرصدة المسبقة المتاحة حسب العملات",
             "action_text": "توزيع",
             "action_icon": "fas fa-random",
-            "action_class": "bg-warning-subtle text-dark border border-warning-subtle",
+            "action_class": "bg-success-subtle text-success border border-success-subtle",
             "action_onclick": "const m = document.getElementById('prepaidAllocationModal'); if(m){ new bootstrap.Modal(m).show(); }",
             "action_title": "توزيع الرصيد المسبق على الفواتير المفتوحة",
         })
 
+    context["prepaid_balances"] = prepaid_bals
     context["header_badges"] = header_badges
     context["header_buttons"] = header_buttons
     
@@ -1518,6 +1577,11 @@ def supplier_detail(request, pk):
         },
         {"title": supplier.name, "active": True},
     ]
+
+    from financial.services.partner_advance_service import PartnerAdvanceService
+    from financial.models import Currency
+    context["prepaid_balances"] = PartnerAdvanceService.get_all_balances(supplier)
+    context["currencies"] = Currency.objects.filter(is_active=True)
 
     return render(request, "supplier/core/supplier_detail.html", context)
 
@@ -2288,14 +2352,18 @@ def supplier_aging_api(request, pk):
 @login_required
 def add_supplier_advance_action(request, pk):
     """
-    إضافة رصيد مسبق / دفعة مقدمة جديدة للمورد
+    إضافة رصيد مسبق / دفعة مقدمة جديدة للمورد باختيار العملة وسعر الصرف
     """
     supplier = get_object_or_404(Supplier, pk=pk)
     if request.method == "POST":
-        from supplier.services.supplier_allocation_service import SupplierAllocationService
         from decimal import Decimal
+        from financial.models import Currency
+        from supplier.models import SupplierAdvancePayment
+        from financial.services.partner_advance_service import PartnerAdvanceService
 
         amount_str = request.POST.get("amount")
+        currency_id = request.POST.get("currency")
+        rate_str = request.POST.get("exchange_rate_snapshot")
         payment_date_str = request.POST.get("payment_date")
         payment_method = request.POST.get("payment_method", "cash")
         financial_account_id = request.POST.get("financial_account")
@@ -2306,19 +2374,29 @@ def add_supplier_advance_action(request, pk):
             try:
                 amt = Decimal(amount_str)
                 fin_acc_id = int(financial_account_id) if (financial_account_id and str(financial_account_id).isdigit()) else None
-                
-                advance = SupplierAllocationService.create_supplier_advance_payment(
-                    supplier_id=supplier.id,
+                from financial.services.exchange_rate_service import ExchangeRateService
+                curr = Currency.objects.filter(pk=currency_id).first() if currency_id else None
+                if not curr:
+                    curr = ExchangeRateService.get_functional_currency()
+                rate = ExchangeRateService.get_exchange_rate(curr) if curr else Decimal("1.000000")
+
+                advance = SupplierAdvancePayment.objects.create(
+                    supplier=supplier,
                     amount=amt,
-                    payment_date=payment_date_str if payment_date_str else None,
+                    transaction_amount=amt,
+                    currency=curr,
+                    exchange_rate_snapshot=rate,
+                    payment_date=payment_date_str if payment_date_str else timezone.now().date(),
                     payment_method=payment_method,
                     financial_account_id=fin_acc_id,
                     reference_number=reference_number,
                     notes=notes,
-                    user=request.user
+                    created_by=request.user,
                 )
-                messages.success(request, f"تم تسجيل دفعة مقدمة بقيمة {amt} ج.م للمورد بنجاح (مرجع #{advance.id}).")
+                PartnerAdvanceService.rebuild_snapshot(supplier, currency=curr)
+                messages.success(request, f"تم تسجيل دفعة مقدمة بقيمة {amt} {curr.code if curr else ''} للمورد بنجاح (مرجع #{advance.id}).")
             except Exception as e:
+                logger.error(f"❌ خطأ أثناء إضافة الدفعة المقدمة: {str(e)}")
                 messages.error(request, f"حدث خطأ أثناء إضافة الدفعة المقدمة: {str(e)}")
         else:
             messages.error(request, "يرجى إدخال مبلغ الدفعة المقدمة بشكل صحيح.")
@@ -2334,6 +2412,7 @@ def allocate_supplier_prepaid_action(request, pk):
     supplier = get_object_or_404(Supplier, pk=pk)
     if request.method == "POST":
         from supplier.services.supplier_allocation_service import SupplierAllocationService
+        from financial.services.partner_advance_service import PartnerAdvanceService
         from decimal import Decimal
 
         purchase_ids = request.POST.getlist("purchase_ids[]") or request.POST.getlist("purchase_ids")
@@ -2358,7 +2437,8 @@ def allocate_supplier_prepaid_action(request, pk):
                     user=request.user
                 )
                 total_alloc = sum(a.allocated_amount for a in audits)
-                messages.success(request, f"تم التوزيع الجماعي بقيمة إجمالية {total_alloc} ج.م على {len(audits)} معاملة بنجاح.")
+                PartnerAdvanceService.rebuild_all_snapshots(supplier)
+                messages.success(request, f"تم التوزيع الجماعي بقيمة إجمالية {total_alloc} على {len(audits)} معاملة بنجاح.")
             except Exception as e:
                 messages.error(request, f"حدث خطأ أثناء التوزيع الجماعي: {str(e)}")
         else:
@@ -2381,7 +2461,8 @@ def allocate_supplier_prepaid_action(request, pk):
                             amount_to_allocate=alloc,
                             user=request.user
                         )
-                        messages.success(request, f"تم تخصيص {alloc} ج.م من الدفعات المقدمة على الفاتورة #{purchase.number} بنجاح.")
+                        PartnerAdvanceService.rebuild_all_snapshots(supplier)
+                        messages.success(request, f"تم تخصيص {alloc} من الدفعات المقدمة على الفاتورة #{purchase.number} بنجاح.")
                     except Exception as e:
                         messages.error(request, f"حدث خطأ أثناء التخصيص: {str(e)}")
 

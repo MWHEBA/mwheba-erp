@@ -4,10 +4,10 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 from decimal import Decimal
-from financial.mixins import PaymentAuditMixin
+from financial.mixins import PaymentAuditMixin, MonetaryTransactionMixin
 
 
-class SalePayment(PaymentAuditMixin, models.Model):
+class SalePayment(MonetaryTransactionMixin, PaymentAuditMixin, models.Model):
     """
     نموذج مدفوعات الفواتير
     """
@@ -120,6 +120,10 @@ class SalePayment(PaymentAuditMixin, models.Model):
         verbose_name = _("دفعة الفاتورة")
         verbose_name_plural = _("دفعات الفواتير")
         ordering = ["-payment_date"]
+
+    def save(self, *args, **kwargs):
+        self.populate_monetary_fields()
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.sale} - {self.amount} - {self.payment_date}"

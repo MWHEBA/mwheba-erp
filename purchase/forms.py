@@ -59,6 +59,12 @@ class PurchaseForm(forms.ModelForm):
             "date",
             "number",
             "discount",
+            "tax_active",
+            "vat_active",
+            "vat_rate",
+            "wht_active",
+            "wht_rate",
+            "wht_amount",
             "payment_method",
             "financial_category",
             "notes",
@@ -149,6 +155,10 @@ class PurchaseForm(forms.ModelForm):
         except ImportError:
             self.fields["financial_category"].choices = [('', 'اختر التصنيف المالي')]
             self.fields["financial_category"].required = False
+
+        for field_name in ["discount", "tax_active", "vat_active", "vat_rate", "wht_active", "wht_rate", "wht_amount"]:
+            if field_name in self.fields:
+                self.fields[field_name].required = False
 
     def clean_financial_category(self):
         """معالجة التصنيف المالي - تحويل من ID إلى كائن"""

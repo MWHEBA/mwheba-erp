@@ -195,7 +195,7 @@ def quotation_create(request, customer_id=None):
                                     )
                                 )
 
-                    # تحديث قيم الإجماليات
+                    # تحديث قيم الإجماليات والعملة
                     quotation.subtotal = subtotal
                     quotation.discount = total_discount
                     if quotation.tax_active:
@@ -204,6 +204,28 @@ def quotation_create(request, customer_id=None):
                     else:
                         quotation.tax = Decimal("0")
                     quotation.total = subtotal - total_discount + quotation.tax
+
+                    currency_id = request.POST.get("currency")
+                    if currency_id:
+                        from financial.models import Currency
+                        curr_obj = Currency.objects.filter(id=currency_id).first() if str(currency_id).isdigit() else Currency.objects.filter(code=currency_id).first()
+                        if curr_obj:
+                            quotation.currency = curr_obj
+                    elif quotation.customer and quotation.customer.default_currency:
+                        quotation.currency = quotation.customer.default_currency
+
+                    if quotation.currency and not quotation.currency.is_functional:
+                        from financial.services.exchange_rate_service import ExchangeRateService
+                        posted_rate = request.POST.get("exchange_rate")
+                        sys_rate = Decimal(str(posted_rate or ExchangeRateService.get_exchange_rate(quotation.currency) or 1.0))
+                        quotation.exchange_rate = sys_rate
+                        quotation.total_foreign = quotation.total
+                        quotation.total_functional = (quotation.total * sys_rate).quantize(Decimal("0.01"))
+                    else:
+                        quotation.exchange_rate = Decimal("1.000000")
+                        quotation.total_foreign = Decimal("0.00")
+                        quotation.total_functional = quotation.total
+
                     quotation.save()
 
                 messages.success(request, _("تم إنشاء عرض السعر بنجاح"))
@@ -221,6 +243,8 @@ def quotation_create(request, customer_id=None):
         }
         if selected_customer:
             initial_data["customer"] = selected_customer
+            if selected_customer.default_currency:
+                initial_data["currency"] = selected_customer.default_currency.pk
         if selected_work_order:
             initial_data["work_order"] = selected_work_order
         form = QuotationForm(initial=initial_data, user=request.user)
@@ -355,7 +379,7 @@ def quotation_edit(request, pk):
                                     )
                                 )
 
-                    # تحديث القيم
+                    # تحديث القيم والعملة
                     quotation.subtotal = subtotal
                     quotation.discount = total_discount
                     if quotation.tax_active:
@@ -364,6 +388,28 @@ def quotation_edit(request, pk):
                     else:
                         quotation.tax = Decimal("0")
                     quotation.total = subtotal - total_discount + quotation.tax
+
+                    currency_id = request.POST.get("currency")
+                    if currency_id:
+                        from financial.models import Currency
+                        curr_obj = Currency.objects.filter(id=currency_id).first() if str(currency_id).isdigit() else Currency.objects.filter(code=currency_id).first()
+                        if curr_obj:
+                            quotation.currency = curr_obj
+                    elif quotation.customer and quotation.customer.default_currency:
+                        quotation.currency = quotation.customer.default_currency
+
+                    if quotation.currency and not quotation.currency.is_functional:
+                        from financial.services.exchange_rate_service import ExchangeRateService
+                        posted_rate = request.POST.get("exchange_rate")
+                        sys_rate = Decimal(str(posted_rate or ExchangeRateService.get_exchange_rate(quotation.currency) or 1.0))
+                        quotation.exchange_rate = sys_rate
+                        quotation.total_foreign = quotation.total
+                        quotation.total_functional = (quotation.total * sys_rate).quantize(Decimal("0.01"))
+                    else:
+                        quotation.exchange_rate = Decimal("1.000000")
+                        quotation.total_foreign = Decimal("0.00")
+                        quotation.total_functional = quotation.total
+
                     quotation.save()
 
                 messages.success(request, _("تم تعديل عرض السعر بنجاح"))
@@ -375,6 +421,8 @@ def quotation_edit(request, pk):
     else:
         form = QuotationForm(instance=quotation, user=request.user)
 
+    from financial.models import Currency
+    currencies = Currency.objects.filter(is_active=True).order_by("code")
     customers = Customer.objects.filter(is_active=True).order_by('name')
     warehouses = Warehouse.objects.filter(is_active=True).order_by('name')
     products = Product.objects.filter(is_active=True).order_by('name')
@@ -413,6 +461,7 @@ def quotation_edit(request, pk):
         "customers": customers,
         "warehouses": warehouses,
         "products": products,
+        "currencies": currencies,
         "current_items_json": current_items_json,
         "custom_fields_json": json.dumps(custom_fields_merged),
         "custom_fields_display_mode": SystemSetting.get_setting('custom_fields_display_mode', 'expanded'),
@@ -775,14 +824,29 @@ def quotation_convert_to_sale(request, pk):
                 messages.error(request, msg_body)
                 return redirect("sale:quotation_detail", pk=quotation.pk)
 
+            from financial.services.exchange_rate_service import ExchangeRateService
+            current_rate = Decimal("1.000000")
+            if quotation.currency and not quotation.currency.is_functional:
+                current_rate = Decimal(str(ExchangeRateService.get_exchange_rate(quotation.currency) or quotation.exchange_rate or 1.0))
+
             sale_data = {
                 'date': timezone.now().date(),
                 'customer_id': quotation.customer.id,
                 'warehouse_id': int(warehouse_id),
                 'salesman': quotation.salesman or quotation.created_by,
                 'discount': quotation.discount,
+                'adjustment_name': getattr(quotation, 'adjustment_name', ''),
+                'adjustment_amount': getattr(quotation, 'adjustment_amount', Decimal("0.00")),
                 'tax': quotation.tax,
+                'tax_active': getattr(quotation, 'tax_active', True),
+                'vat_active': getattr(quotation, 'vat_active', True),
+                'vat_rate': getattr(quotation, 'vat_rate', Decimal("14.00")),
+                'wht_active': getattr(quotation, 'wht_active', False),
+                'wht_rate': getattr(quotation, 'wht_rate', Decimal("1.00")),
+                'wht_amount': getattr(quotation, 'wht_amount', Decimal("0.00")),
                 'notes': quotation.notes or '',
+                'currency_id': quotation.currency_id if hasattr(quotation, 'currency_id') and quotation.currency_id else None,
+                'exchange_rate': current_rate,
                 'payment_method': 'credit',  # آجل كافتراضي
                 'custom_fields': SaleService.smart_merge_custom_fields('sale', quotation.custom_fields),
                 'items': []
@@ -799,9 +863,26 @@ def quotation_convert_to_sale(request, pk):
             # إنشاء الفاتورة من خلال SaleService
             sale = SaleService.create_sale(data=sale_data, user=request.user)
 
-            # ربط المستندات متبادلاً
+            # ربط المستندات متبادلاً مع حفظ لقطات المقارنة المالية
             sale.quotation = quotation
+            if hasattr(sale, 'source_quotation_rate'):
+                sale.source_quotation_rate = quotation.exchange_rate
+            if hasattr(sale, 'source_quotation_base_snapshot'):
+                sale.source_quotation_base_snapshot = quotation.total
             sale.save()
+
+            # إنشاء السعر الاسترشادي المبدئي للمنتجات بالعملة الأجنبية عند الاعتماد والتحويل الفعلي فقط
+            if quotation.currency and not quotation.currency.is_functional:
+                from product.services.indicative_price_service import IndicativePriceService
+                for item in quotation.items.all():
+                    if item.unit_price > Decimal("0"):
+                        IndicativePriceService.create_if_missing(
+                            product=item.product,
+                            currency=quotation.currency,
+                            price=item.unit_price,
+                            price_type='selling',
+                            user=request.user
+                        )
 
             quotation.converted_to_sale = sale
             quotation.status = 'accepted'

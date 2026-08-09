@@ -4,6 +4,7 @@ Sale Views - Updated with SaleService
 """
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_POST
 from django.contrib import messages
 from django.utils import timezone
 from django.utils.translation import gettext as _
@@ -193,6 +194,9 @@ def sale_create(request, customer_id=None):
                     'adjustment_amount': adj_amount,
                     'tax': Decimal(request.POST.get("tax", "0")),
                     'notes': form.cleaned_data.get('notes', ''),
+                    'currency_id': request.POST.get("currency"),
+                    'exchange_rate': request.POST.get("exchange_rate", "1.0"),
+                    'exchange_rate_override_reason': request.POST.get("exchange_rate_override_reason", ""),
                     'work_order_id': form.cleaned_data['work_order'].id if form.cleaned_data.get('work_order') else None,
                     'custom_fields': SaleService.parse_custom_fields(request.POST.get('custom_fields_json', '[]')),
                     'items': []
@@ -342,6 +346,7 @@ def sale_create(request, customer_id=None):
 
     import json
     custom_fields_merged = SaleService.smart_merge_custom_fields('sale', [])
+    from financial.models import Currency
     context = {
         "products": products,
         "product_categories": product_categories,
@@ -350,6 +355,7 @@ def sale_create(request, customer_id=None):
         "next_sale_number": next_sale_number,
         "customers": customers,
         "warehouses": warehouses,
+        "currencies": Currency.objects.filter(is_active=True).order_by("code"),
         "selected_customer": selected_customer,
         "customer_prepaid_balance": customer_prepaid_balance,
         "default_warehouse": warehouses.first() if warehouses.exists() else None,
@@ -851,6 +857,7 @@ def sale_list(request):
             'total': sale.total,
             'amount_paid': sale.amount_paid,
             'amount_due': sale.amount_due,
+            'currency_symbol': sale.currency_symbol,
             'payment_status': payment_status_html,
             'actions': actions
         })
@@ -1921,3 +1928,56 @@ from .credit_note_views import (
     credit_note_detail,
     credit_note_post,
 )
+
+
+@login_required
+@require_POST
+def allocate_prepaid_balance(request, pk):
+    """
+    تخصيص وتسوية مبلغ من الرصيد المسبق للعميل على الفاتورة بنسبة 1:1 للعملات المتطابقة
+    """
+    sale = get_object_or_404(Sale, pk=pk)
+    if not sale.customer:
+        messages.error(request, _("لا يوجد عميل مرتبط بهذه الفاتورة."))
+        return redirect("sale:sale_detail", pk=sale.pk)
+
+    try:
+        from financial.services.partner_advance_service import PartnerAdvanceService
+        target_currency = sale.currency
+        if not target_currency:
+            from financial.services.exchange_rate_service import ExchangeRateService
+            target_currency = ExchangeRateService.get_functional_currency()
+
+        payment = sale.customer.payments.filter(currency=target_currency, status="posted").order_by("payment_date").first()
+        if not payment:
+            payment = sale.customer.payments.filter(status="posted").order_by("payment_date").first()
+
+        if not payment:
+            messages.error(request, _("لا تتوفر أي دفعات مقدمة مسجلة ومتاحة للعميل."))
+            return redirect("sale:sale_detail", pk=sale.pk)
+
+        requested_amount_str = request.POST.get("amount")
+        if requested_amount_str:
+            amount = Decimal(requested_amount_str)
+        else:
+            avail = PartnerAdvanceService.get_available_balance(sale.customer, currency=target_currency)
+            amount = min(avail, sale.amount_due)
+
+        if amount <= Decimal("0.00"):
+            messages.warning(request, _("لا يوجد مبلغ قابل للتخصيص."))
+            return redirect("sale:sale_detail", pk=sale.pk)
+
+        settlement = PartnerAdvanceService.allocate(
+            partner=sale.customer,
+            payment=payment,
+            invoice=sale,
+            amount=amount,
+            user=request.user
+        )
+        messages.success(request, f"تم تخصيص تسوية رصيد مسبق بمبلغ {amount} بنجاح.")
+    except Exception as e:
+        logger.error(f"❌ خطأ أثناء تخصيص الرصيد المسبق: {str(e)}")
+        messages.error(request, f"خطأ أثناء التخصيص: {str(e)}")
+
+    return redirect("sale:sale_detail", pk=sale.pk)
+

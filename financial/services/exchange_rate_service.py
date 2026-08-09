@@ -18,6 +18,21 @@ class ExchangeRateService:
         """الحصول على العملة الوظيفية/الأساسية للمؤسسة"""
         return Currency.objects.filter(is_functional=True).first() or Currency.objects.first()
 
+    @classmethod
+    def get_exchange_rate(cls, currency_or_code, date=None) -> Decimal:
+        """
+        الحصول الآمن على سعر الصرف للعملة مقابل العملة الوظيفية
+        """
+        if not currency_or_code:
+            return Decimal("1.000000")
+        if hasattr(currency_or_code, "is_functional") and currency_or_code.is_functional:
+            return Decimal("1.000000")
+        code = currency_or_code.code if hasattr(currency_or_code, "code") else str(currency_or_code)
+        try:
+            return cls.get_rate(from_code=code, date=date)
+        except Exception:
+            return Decimal("1.000000")
+
 
 
     @classmethod

@@ -1,3 +1,4 @@
+from decimal import Decimal
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from django.conf import settings
@@ -42,9 +43,33 @@ class Quotation(models.Model):
     )
     subtotal = models.DecimalField(_("المجموع الفرعي"), max_digits=12, decimal_places=2, default=0)
     discount = models.DecimalField(_("الخصم"), max_digits=12, decimal_places=2, default=0)
+    adjustment_name = models.CharField(_("اسم التسوية"), max_length=100, blank=True, null=True)
+    adjustment_amount = models.DecimalField(_("مبلغ التسوية"), max_digits=12, decimal_places=2, default=Decimal("0.00"))
     tax = models.DecimalField(_("الضريبة"), max_digits=12, decimal_places=2, default=0)
     tax_active = models.BooleanField(_("الضريبة نشطة"), default=True)
+    vat_active = models.BooleanField(_("ضريبة القيمة المضافة نشطة"), default=True)
+    vat_rate = models.DecimalField(_("نسبة القيمة المضافة %"), max_digits=5, decimal_places=2, default=Decimal("14.00"))
+    wht_active = models.BooleanField(_("ضريبة الخصم والإضافة نشطة"), default=False)
+    wht_rate = models.DecimalField(_("نسبة الخصم والإضافة %"), max_digits=5, decimal_places=2, default=Decimal("1.00"))
+    wht_amount = models.DecimalField(_("مبلغ الخصم والإضافة"), max_digits=12, decimal_places=2, default=Decimal("0.00"))
     total = models.DecimalField(_("الإجمالي"), max_digits=12, decimal_places=2, default=0)
+    currency = models.ForeignKey(
+        "financial.Currency",
+        on_delete=models.PROTECT,
+        verbose_name=_("العملة"),
+        related_name="quotations",
+        null=True,
+        blank=True,
+    )
+    exchange_rate = models.DecimalField(
+        _("سعر الصرف"), max_digits=18, decimal_places=6, default=Decimal("1.000000")
+    )
+    total_foreign = models.DecimalField(
+        _("الإجمالي بالعملة الأجنبية"), max_digits=18, decimal_places=2, default=Decimal("0.00")
+    )
+    total_functional = models.DecimalField(
+        _("الإجمالي بالعملة الأساسية"), max_digits=18, decimal_places=2, default=Decimal("0.00")
+    )
     notes = models.TextField(_("ملاحظات وشروط"), blank=True, null=True)
     custom_fields = models.JSONField(_("الحقول الإضافية"), default=list, blank=True, help_text=_("مصفوفة الحقول الإضافية المخصصة"))
     
@@ -141,3 +166,11 @@ class Quotation(models.Model):
     def has_body_custom_fields(self):
         """هل توجد حقول مخصصة في التفاصيل تحتوي على قيم حقيقية؟"""
         return any(not f.get('show_in_header') and f.get('value') for f in (self.merged_custom_fields or []))
+
+    @property
+    def currency_symbol(self):
+        """إرجاع رمز العملة المعتمدة لعرض السعر"""
+        curr = getattr(self, 'currency', None)
+        if curr:
+            return getattr(curr, 'symbol', None) or getattr(curr, 'code', 'ج.م')
+        return "ج.م"

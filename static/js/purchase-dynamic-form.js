@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Purchase Dynamic Form Handler
  * Handles dynamic product/service filtering based on supplier type
  */
@@ -100,6 +100,11 @@
         
         // Update financial category based on supplier type
         updateFinancialCategory(data.financial_categories || [], data.is_service_provider);
+
+        // Update currency if supplier has default currency
+        if (data.default_currency_id && $('#id_currency').length) {
+            $('#id_currency').val(data.default_currency_id).trigger('change');
+        }
         
     }
 
