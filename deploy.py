@@ -1720,19 +1720,30 @@ def main():
             mc = MultiClientDeployment()
             if mc.clients:
                 print("\n📋 اختر جهة النشر (Choose Deployment Target):")
+                
+                # إعداد قائمة العملاء مع وضع test برقم 0 دائماً
+                test_info = mc.clients.get('test')
+                other_clients = [(cid, info) for cid, info in mc.clients.items() if cid != 'test']
+                
+                if test_info:
+                    print(f"0️⃣  عميل: {test_info.get('name', 'test')} (test)")
+                else:
+                    print("0️⃣  عميل: test (test)")
+
                 print("1️⃣  المنصة الرئيسية (موهبة) - MWHEBA ERP")
                 
-                client_list = list(mc.clients.items())
-                for index, (client_id, info) in enumerate(client_list, start=2):
+                for index, (client_id, info) in enumerate(other_clients, start=2):
                     num_str = f"{index}️⃣" if index <= 9 else f"{index}"
                     print(f"{num_str}  عميل: {info.get('name', client_id)} ({client_id})")
                 print("❌ أي رقم آخر للإلغاء")
                 
-                choice = input("\n❓ اختيارك (1/...): ").strip()
-                if choice == "1":
+                choice = input("\n❓ اختيارك (0/1/...): ").strip()
+                if choice == "0":
+                    target_client = "test"
+                elif choice == "1":
                     target_client = None
-                elif choice.isdigit() and 2 <= int(choice) <= len(client_list) + 1:
-                    target_client = client_list[int(choice) - 2][0]
+                elif choice.isdigit() and 2 <= int(choice) <= len(other_clients) + 1:
+                    target_client = other_clients[int(choice) - 2][0]
                 else:
                     print("❌ تم الإلغاء")
                     return

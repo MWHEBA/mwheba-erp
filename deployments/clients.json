@@ -1,5 +1,17 @@
 {
   "clients": {
+    "test": {
+      "name": "test",
+      "domain": "test.mwheba.co.uk",
+      "ssh_host": "84.247.179.163",
+      "ssh_port": "2951",
+      "ssh_user": "mwhebaco",
+      "remote_path": "/home/mwhebaco/test_erp",
+      "description": "Test environment for MWHEBA ERP",
+      "active": true,
+      "created_date": "2026-08-17",
+      "notes": "بيئة اختبار وتجربة"
+    },
     "elbaraka": {
       "name": "El Baraka Trading",
       "domain": "baraka.mwheba.co.uk",
