@@ -220,10 +220,13 @@
 
     <div class="col-lg-4">
       <div class="card mb-4">
-        <div class="card-header border-bottom py-3">
+        <div class="card-header border-bottom py-3 d-flex justify-content-between align-items-center">
           <h6 class="card-title mb-0 fw-bold">
             <i class="fas fa-sitemap me-2 text-info"></i>المراكز التابعة (Children)
           </h6>
+          <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addChildCostCenterModal">
+            <i class="fas fa-plus me-1"></i>إضافة مركز فرعي
+          </button>
         </div>
         <div class="card-body p-0">
           {% if children %}
@@ -249,32 +252,92 @@
   </div>
 </div>
 
+<!-- Modal إضافة مركز فرعي تابع (الموحد) -->
+<div class="modal fade" id="addChildCostCenterModal" tabindex="-1" aria-labelledby="addChildCostCenterModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header bg-light border-bottom px-4 py-3">
+        <h5 class="modal-title fw-bold text-dark mb-0" id="addChildCostCenterModalLabel">
+          <i class="fas fa-plus-circle text-primary me-2"></i>إضافة مركز فرعي تابع لـ: {{ cost_center.name }}
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="إغلاق"></button>
+      </div>
+      <form method="post" action="{% url 'financial:cost_center_create' %}">
+        {% csrf_token %}
+        <input type="hidden" name="parent" value="{{ cost_center.id }}">
+        <div class="modal-body p-4">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label for="child_code_preview" class="form-label fw-bold text-dark d-flex justify-content-between align-items-center mb-1">
+                <span>كود المركز الفرعي</span>
+                <span class="badge bg-light text-primary border fs-9"><i class="fas fa-magic me-1"></i>توليد آلي متسلسل</span>
+              </label>
+              <div class="input-group">
+                <span class="input-group-text bg-light text-muted"><i class="fas fa-lock text-secondary"></i></span>
+                <input type="text" class="form-control bg-light font-monospace fw-bold" id="child_code_preview" name="code" value="{{ suggested_child_code }}" readonly>
+              </div>
+              <small class="text-muted fs-9">مشتق تسلسلياً وتلقائياً من كود المركز الأب ({{ cost_center.code }})</small>
+            </div>
+
+            <div class="col-md-6">
+              <label for="child_name" class="form-label fw-bold text-dark mb-1">اسم المركز الفرعي <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" id="child_name" name="name" placeholder="مثال: قسم التشغيل الميداني" required>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label fw-bold text-dark mb-1">المركز الأب</label>
+              <input type="text" class="form-control bg-light" value="{{ cost_center.code }} - {{ cost_center.name }}" readonly>
+            </div>
+
+            <div class="col-md-6">
+              <label for="child_policy" class="form-label fw-bold text-dark mb-1">سياسة الفرض الحوكمية</label>
+              <select class="form-select" id="child_policy" name="cost_center_policy">
+                <option value="OPTIONAL" {% if cost_center.cost_center_policy == 'OPTIONAL' %}selected{% endif %}>اختياري (OPTIONAL)</option>
+                <option value="REQUIRED" {% if cost_center.cost_center_policy == 'REQUIRED' %}selected{% endif %}>إجباري (REQUIRED)</option>
+                <option value="FORBIDDEN" {% if cost_center.cost_center_policy == 'FORBIDDEN' %}selected{% endif %}>محظور (FORBIDDEN)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer bg-light border-top px-4 py-3">
+          <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">إلغاء</button>
+          <button type="submit" class="btn btn-primary px-4 fw-bold">حفظ المركز الفرعي</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
 <!-- Modal تعديل مركز التكلفة الموحد -->
 <div class="modal fade" id="editCostCenterModal" tabindex="-1" aria-labelledby="editCostCenterModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title fw-bold" id="editCostCenterModalLabel">
-          <i class="fas fa-edit me-2"></i>تعديل مركز التكلفة: {{ cost_center.code }}
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header bg-light border-bottom px-4 py-3">
+        <h5 class="modal-title fw-bold text-dark mb-0" id="editCostCenterModalLabel">
+          <i class="fas fa-edit text-primary me-2"></i>تعديل مركز التكلفة: {{ cost_center.code }}
         </h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="إغلاق"></button>
       </div>
       <form method="post" action="{% url 'financial:cost_center_edit' cost_center.pk %}">
         {% csrf_token %}
-        <div class="modal-body">
+        <div class="modal-body p-4">
           <div class="row g-3">
             <div class="col-md-6">
-              <label for="edit_code" class="form-label fw-bold text-dark">كود مركز التكلفة</label>
-              <input type="text" class="form-control bg-light" id="edit_code" value="{{ cost_center.code }}" readonly>
+              <label for="edit_code" class="form-label fw-bold text-dark mb-1">كود مركز التكلفة</label>
+              <div class="input-group">
+                <span class="input-group-text bg-light text-muted"><i class="fas fa-lock text-secondary"></i></span>
+                <input type="text" class="form-control bg-light font-monospace fw-bold" id="edit_code" value="{{ cost_center.code }}" readonly>
+              </div>
+              <small class="text-muted fs-9">الكود ثابت ومحمي لمنع الإخلال بالسلامة المرجعية</small>
             </div>
 
             <div class="col-md-6">
-              <label for="edit_name" class="form-label fw-bold text-dark">اسم مركز التكلفة <span class="text-danger">*</span></label>
+              <label for="edit_name" class="form-label fw-bold text-dark mb-1">اسم مركز التكلفة <span class="text-danger">*</span></label>
               <input type="text" class="form-control" id="edit_name" name="name" value="{{ cost_center.name }}" required>
             </div>
 
             <div class="col-md-6">
-              <label for="edit_cost_center_policy" class="form-label fw-bold text-dark">سياسة الفرض الحوكمية</label>
+              <label for="edit_cost_center_policy" class="form-label fw-bold text-dark mb-1">سياسة الفرض الحوكمية</label>
               <select class="form-select" id="edit_cost_center_policy" name="cost_center_policy">
                 <option value="OPTIONAL" {% if cost_center.cost_center_policy == 'OPTIONAL' %}selected{% endif %}>اختياري (OPTIONAL)</option>
                 <option value="REQUIRED" {% if cost_center.cost_center_policy == 'REQUIRED' %}selected{% endif %}>إجباري (REQUIRED)</option>
@@ -283,8 +346,8 @@
             </div>
           </div>
         </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+        <div class="modal-footer bg-light border-top px-4 py-3">
+          <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">إلغاء</button>
           <button type="submit" class="btn btn-primary px-4 fw-bold">حفظ التعديلات</button>
         </div>
       </form>
@@ -299,7 +362,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const rows = document.querySelectorAll('.clickable-row');
     rows.forEach(row => {
         row.addEventListener('click', function(e) {
-            if (!e.target.closest('a, button, input, select, textarea, .btn-group')) {
+            if (!e.target.closest('a, button, input, select, textarea, .btn-group, .modal')) {
                 const href = this.getAttribute('data-href');
                 if (href) window.location.href = href;
             }

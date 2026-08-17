@@ -145,30 +145,37 @@
 <!-- Modal إضافة مركز تكلفة جديد (الموحد) -->
 <div class="modal fade" id="createCostCenterModal" tabindex="-1" aria-labelledby="createCostCenterModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title fw-bold" id="createCostCenterModalLabel">
-          <i class="fas fa-network-wired me-2"></i>إضافة مركز تكلفة جديد
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header bg-light border-bottom px-4 py-3">
+        <h5 class="modal-title fw-bold text-dark mb-0" id="createCostCenterModalLabel">
+          <i class="fas fa-network-wired text-primary me-2"></i>إضافة مركز تكلفة جديد
         </h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="إغلاق"></button>
       </div>
-      <form method="post" action="{% url 'financial:cost_center_create' %}">
+      <form method="post" action="{% url 'financial:cost_center_create' %}" id="createCostCenterForm">
         {% csrf_token %}
-        <div class="modal-body">
+        <div class="modal-body p-4">
           <div class="row g-3">
             <div class="col-md-6">
-              <label for="code" class="form-label fw-bold text-dark">كود مركز التكلفة <span class="text-danger">*</span></label>
-              <input type="text" class="form-control" id="code" name="code" placeholder="مثال: CC-ENG-01" required>
+              <label for="code_preview" class="form-label fw-bold text-dark d-flex justify-content-between align-items-center mb-1">
+                <span>كود مركز التكلفة</span>
+                <span class="badge bg-light text-primary border fs-9"><i class="fas fa-magic me-1"></i>توليد آلي متسلسل</span>
+              </label>
+              <div class="input-group">
+                <span class="input-group-text bg-light text-muted"><i class="fas fa-lock text-secondary"></i></span>
+                <input type="text" class="form-control bg-light font-monospace fw-bold" id="code_preview" name="code" value="{{ suggested_code|default:'10' }}" readonly>
+              </div>
+              <small class="text-muted fs-9">يتم احتساب الكود تلقائياً وفقاً للترتيب الشجري للأب المختار</small>
             </div>
 
             <div class="col-md-6">
-              <label for="name" class="form-label fw-bold text-dark">اسم مركز التكلفة <span class="text-danger">*</span></label>
+              <label for="name" class="form-label fw-bold text-dark mb-1">اسم مركز التكلفة <span class="text-danger">*</span></label>
               <input type="text" class="form-control" id="name" name="name" placeholder="مثال: قسم المشروعات الهندسية" required>
             </div>
 
             <div class="col-md-6">
-              <label for="parent" class="form-label fw-bold text-dark">المركز الأب (Parent Cost Center)</label>
-              <select class="form-select" id="parent" name="parent">
+              <label for="parent" class="form-label fw-bold text-dark mb-1">المركز الأب (Parent Cost Center)</label>
+              <select class="form-select select2-parent-select" id="parent" name="parent" style="width: 100%;">
                 <option value="">-- بدون أب (مركز رئيسي) --</option>
                 {% for p in cost_centers %}
                   <option value="{{ p.id }}">{{ p.code }} - {{ p.name }}</option>
@@ -177,7 +184,7 @@
             </div>
 
             <div class="col-md-6">
-              <label for="cost_center_policy" class="form-label fw-bold text-dark">سياسة الفرض الحوكمية</label>
+              <label for="cost_center_policy" class="form-label fw-bold text-dark mb-1">سياسة الفرض الحوكمية</label>
               <select class="form-select" id="cost_center_policy" name="cost_center_policy">
                 <option value="OPTIONAL" selected>اختياري (OPTIONAL)</option>
                 <option value="REQUIRED">إجباري (REQUIRED)</option>
@@ -186,8 +193,8 @@
             </div>
           </div>
         </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+        <div class="modal-footer bg-light border-top px-4 py-3">
+          <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">إلغاء</button>
           <button type="submit" class="btn btn-primary px-4 fw-bold">حفظ مركز التكلفة</button>
         </div>
       </form>
@@ -199,14 +206,60 @@
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // 1. التنقل بالصفوف القابلة للنقر
     const rows = document.querySelectorAll('.clickable-row');
     rows.forEach(row => {
         row.addEventListener('click', function(e) {
-            if (!e.target.closest('a, button, input, select, textarea, .btn-group')) {
+            if (!e.target.closest('a, button, input, select, textarea, .btn-group, .select2-container')) {
                 const href = this.getAttribute('data-href');
                 if (href) window.location.href = href;
             }
         });
+    });
+
+    // 2. تهيئة Select2 للمركز الأب داخل المودال (Project Rule 8)
+    const $parentSelect = $('#parent');
+    const $modal = $('#createCostCenterModal');
+    const $codeField = $('#code_preview');
+
+    if ($.fn.select2) {
+        $parentSelect.select2({
+            dropdownParent: $modal,
+            width: '100%',
+            dir: 'rtl',
+            language: 'ar',
+            placeholder: '-- بدون أب (مركز رئيسي) --',
+            allowClear: true
+        });
+    }
+
+    // 3. دالة جلب الكود المقترح ديناميكياً
+    function fetchSuggestedCode(parentId) {
+        const url = "{% url 'financial:cost_center_suggest_code' %}" + (parentId ? "?parent_id=" + parentId : "");
+        
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.suggested_code) {
+                    $codeField.val(data.suggested_code);
+                }
+            })
+            .catch(error => {
+                console.error("خطأ في جلب الكود المقترح:", error);
+            });
+    }
+
+    // 4. ربط تغيير المركز الأب بتحديث الكود فورياً
+    $parentSelect.on('change', function() {
+        const parentId = $(this).val();
+        fetchSuggestedCode(parentId);
+    });
+
+    // 5. عند فتح المودال، التأكد من الكود المبدئي لو كان الحقل فارغاً
+    $modal.on('shown.bs.modal', function() {
+        if (!$codeField.val()) {
+            fetchSuggestedCode($parentSelect.val());
+        }
     });
 });
 </script>

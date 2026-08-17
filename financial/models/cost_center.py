@@ -14,7 +14,7 @@ class CostCenter(models.Model):
         ('FORBIDDEN', _('محظور')),
     )
 
-    code = models.CharField(_("كود مركز التكلفة"), max_length=50, unique=True, db_index=True)
+    code = models.CharField(_("كود مركز التكلفة"), max_length=50, unique=True, db_index=True, blank=True)
     name = models.CharField(_("اسم مركز التكلفة"), max_length=150)
 
     parent = models.ForeignKey(
@@ -63,20 +63,29 @@ class CostCenter(models.Model):
 
     def clean(self):
         super().clean()
-        # 1. حظر جعل المركز أباً لنفسه
+        from financial.services.cost_center_code_service import CostCenterCodeService
+
+        # 1. تطهير الكود إذا كان موجوداً
+        if self.code:
+            self.code = CostCenterCodeService.sanitize_code(self.code)
+
+        # 2. حظر جعل المركز أباً لنفسه
         if self.pk and self.parent_id == self.pk:
             raise ValidationError(_("لا يمكن جعل مركز التكلفة أباً لنفسه."))
 
-        # 2. حماية كائنات النظام من تعديل الأب أو الكود
+        # 3. حماية كائنات النظام من تعديل الأب أو الكود
         if self.pk and self.is_system:
             old = CostCenter.objects.get(pk=self.pk)
             if old.code != self.code:
                 raise ValidationError(_("حماية النظام: لا يمكن تغيير كود مركز تكلفة تابع للنظام."))
 
-        # 3. حظر النقل الهيكلي للمراكز التي تملك قيوداً مرحّلة (Tree Structural Mutation Guard)
+        # 4. حظر النقل الهيكلي أو تغيير الكود للمراكز التي تملك قيوداً مرحّلة (Tree & Code Immutability Guard)
         if self.pk:
             old = CostCenter.objects.get(pk=self.pk)
-            if old.parent_id != self.parent_id:
+            code_changed = (old.code != self.code)
+            parent_changed = (old.parent_id != self.parent_id)
+
+            if code_changed or parent_changed:
                 # التحقق هل هذا المركز أو أي من أبنائه له بنود قيود مرحلة
                 descendant_ids = self.get_descendant_ids()
                 from financial.models.journal_entry import JournalEntryLine
@@ -87,9 +96,14 @@ class CostCenter(models.Model):
                 ).exists()
 
                 if has_posted:
-                    raise ValidationError(
-                        _("حظر الحوكمة: لا يمكن تغيير موقع مركز التكلفة في الشجرة لوجود معاملات مالية مرحّلة مرتبطة به أو بأبنائه.")
-                    )
+                    if code_changed:
+                        raise ValidationError(
+                            _("حظر الحوكمة: لا يمكن تعديل كود مركز التكلفة لوجود معاملات مالية مرحّلة مرتبطة به.")
+                        )
+                    if parent_changed:
+                        raise ValidationError(
+                            _("حظر الحوكمة: لا يمكن تغيير موقع مركز التكلفة في الشجرة لوجود معاملات مالية مرحّلة مرتبطة به أو بأبنائه.")
+                        )
 
     def get_descendant_ids(self):
         """جلب جميع معرفات الأبناء والأحفاد الممتدين تحت هذا المركز"""
@@ -98,10 +112,16 @@ class CostCenter(models.Model):
         return list(CostCenter.objects.filter(tree_path__startswith=self.tree_path).values_list('id', flat=True))
 
     def save(self, *args, **kwargs):
+        from financial.services.cost_center_code_service import CostCenterCodeService
+
+        # توليد الكود تلقائياً قبل الـ full_clean إذا لم يكن مدخلاً
+        if not self.code:
+            self.code = CostCenterCodeService.generate_next_code(self.parent)
+
         self.full_clean()
         super().save(*args, **kwargs)
 
-        # تحديث المسار الشجري تلقائياً بعد الحفظ الحصول على الـ Primary Key
+        # تحديث المسار الشجري تلقائياً بعد الحفظ للحصول على الـ Primary Key
         new_path = f"{self.parent.tree_path}{self.id}/" if self.parent and self.parent.tree_path else f"/{self.id}/"
         if self.tree_path != new_path:
             self.tree_path = new_path

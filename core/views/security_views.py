@@ -241,3 +241,71 @@ def security_incident_report(request):
     except Exception as e:
         logger.error(f"خطأ في تسجيل الحادث الأمني: {str(e)}")
         return JsonResponse({'error': 'Incident logging failed'}, status=500)
+
+
+def csrf_failure(request, reason=""):
+    """
+    ✅ معالج أخطاء CSRF المخصص للنظام - الاسترداد الجذري من أخطاء الرموز الأمنية
+    - يمنع ظهور صفحة الخطأ 403 الخام للمستخدمين نهائياً
+    - يوجه المستخدمين المسجلين تلقائياً إلى الصفحة السابقة أو لوحة التحكم مع تجديد الرمز
+    - يعيد توجيه طلبات صفحة الدخول المكررة أو منتهية الصلاحية بأمان
+    - يزود طلبات AJAX بأحدث CSRF Token للمزامنة التلقائية
+    """
+    from django.shortcuts import redirect, render
+    from django.conf import settings
+    from django.contrib import messages
+    from django.middleware.csrf import get_token
+
+    # توليد رمز CSRF جديد وتثبيته في الطلب الحالي
+    new_token = get_token(request)
+    login_url = getattr(settings, 'LOGIN_URL', '/login/')
+
+    # 1. إذا كان الطلب AJAX أو API
+    if (
+        request.headers.get('x-requested-with') == 'XMLHttpRequest'
+        or 'application/json' in request.headers.get('Accept', '')
+        or request.content_type == 'application/json'
+    ):
+        response = JsonResponse({
+            'error': 'انتهت صلاحية رمز الأمان (CSRF)',
+            'code': 'CSRF_FAILURE',
+            'csrf_token': new_token,
+            'reload_required': False,
+            'message': 'تم تحديث رمز الأمان، يرجى إعادة المحاولة.'
+        }, status=403)
+        response.set_cookie('csrftoken', new_token, samesite='Lax')
+        return response
+
+    # 2. إذا كان المستخدم مسجل دخوله بالفعل (أثناء تصفح النظام أو محاولة دخول مكررة)
+    if hasattr(request, 'user') and request.user.is_authenticated:
+        referer = request.META.get('HTTP_REFERER')
+        host = request.get_host()
+        if referer and host in referer:
+            try:
+                messages.info(request, "تم تجديد جلسة الأمان الخاصة بك تلقائياً، يرجى إعادة المحاولة.")
+            except Exception:
+                pass
+            response = redirect(referer)
+        else:
+            response = redirect(getattr(settings, 'LOGIN_REDIRECT_URL', '/'))
+        response.set_cookie('csrftoken', new_token, samesite='Lax')
+        return response
+
+    # 3. إذا كان الطلب من صفحة تسجيل الدخول
+    if request.path == login_url or request.path.rstrip('/') == login_url.rstrip('/'):
+        try:
+            messages.info(request, "تم تجديد جلسة الأمان، يرجى تسجيل الدخول.")
+        except Exception:
+            pass
+        response = redirect(login_url)
+        response.set_cookie('csrftoken', new_token, samesite='Lax')
+        return response
+
+    # 4. إذا كان مستخدم غير مسجل يحاول إرسال نموذج في صفحة محمية
+    try:
+        messages.warning(request, "انتهت صلاحية الجلسة، يرجى تسجيل الدخول للمتابعة.")
+    except Exception:
+        pass
+    response = redirect(f"{login_url}?next={request.path}")
+    response.set_cookie('csrftoken', new_token, samesite='Lax')
+    return response

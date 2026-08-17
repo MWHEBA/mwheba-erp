@@ -1,13 +1,41 @@
-"""
-Custom Authentication Backend
-يخلي has_perm() تشوف Role permissions تلقائياً في كل مكان في المشروع
-"""
+from django.contrib.auth.backends import ModelBackend
+from django.contrib.auth import get_user_model
+from django.db.models import Q
+
+
+class EmailOrUsernameModelBackend(ModelBackend):
+    """
+    Backend لمصادقة المستخدم سواء باستخدام اسم المستخدم أو البريد الإلكتروني (غير حساس لحالة الأحرف).
+    Authenticates against settings.AUTH_USER_MODEL using either username or email.
+    """
+
+    def authenticate(self, request, username=None, password=None, **kwargs):
+        UserModel = get_user_model()
+        if username is None:
+            username = kwargs.get(UserModel.USERNAME_FIELD)
+        if not username or not password:
+            return None
+
+        username_clean = str(username).strip()
+        users = UserModel._default_manager.filter(
+            Q(username__iexact=username_clean) | Q(email__iexact=username_clean)
+        )
+
+        for user in users:
+            if user.check_password(password) and self.user_can_authenticate(user):
+                return user
+
+        if not users.exists():
+            # Run the default password hasher once to reduce timing differences
+            UserModel().set_password(password)
+
+        return None
 
 
 class RolePermissionBackend:
     """
     Backend يضيف Role-based permissions لـ Django's has_perm() system.
-    بيشتغل جنب ModelBackend الأصلي.
+    بيشتغل جنب EmailOrUsernameModelBackend.
     """
 
     def authenticate(self, request, **kwargs):

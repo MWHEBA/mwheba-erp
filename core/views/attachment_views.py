@@ -50,3 +50,48 @@ def secure_attachment_download_view(request, pk):
         filename=attachment.original_name
     )
     return response
+
+
+@login_required
+def secure_attachment_delete_view(request, pk):
+    """
+    بوابة حذف المرفقات الآمنة مع التحقق من سياسة الاستبقاء وسجلات التدقيق
+    /core/attachments/<pk>/delete/
+    """
+    if request.method != 'POST':
+        from django.http import JsonResponse
+        return JsonResponse({'success': False, 'message': 'طريقة الطلب غير مسموح بها'}, status=405)
+
+    from django.http import JsonResponse
+    from django.utils import timezone
+    from django.core.exceptions import ValidationError
+    from core.services.attachment_retention_service import AttachmentRetentionService
+    from core.services.file_blob_reference_service import FileBlobReferenceService
+
+    attachment = get_object_or_404(Attachment, pk=pk, deleted_at__isnull=True)
+
+    # 1. فحص سياسة الاستبقاء القانوني
+    try:
+        AttachmentRetentionService.can_delete_attachment(attachment)
+    except ValidationError as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=400)
+
+    # 2. الحذف الناعم وتحديث العداد الذري
+    attachment.deleted_at = timezone.now()
+    attachment.is_latest = False
+    attachment.save(update_fields=['deleted_at', 'is_latest'])
+
+    FileBlobReferenceService.decrement(attachment.file_blob_id)
+
+    # 3. توثيق حركة الحذف في سجلات التدقيق
+    AttachmentAuditLog.objects.create(
+        attachment=attachment,
+        action='DELETED',
+        performed_by=request.user,
+        user_name_snapshot=request.user.username,
+        user_email_snapshot=getattr(request.user, 'email', ''),
+        ip_address=request.META.get('REMOTE_ADDR')
+    )
+
+    return JsonResponse({'success': True, 'message': _("تم حذف المرفق بنجاح.")})
+

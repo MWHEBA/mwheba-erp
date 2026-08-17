@@ -83,16 +83,25 @@ if 'testserver' not in ALLOWED_HOSTS:
 # Used for generating absolute URLs (e.g., QR codes, emails)
 SITE_URL = env("SITE_URL", default="http://127.0.0.1:8000")
 
-# CSRF Settings for Production
-# بناء CSRF_TRUSTED_ORIGINS تلقائياً من ALLOWED_HOSTS
-CSRF_TRUSTED_ORIGINS = []
-for host in ALLOWED_HOSTS:
-    if host not in ["localhost", "127.0.0.1", "*"]:
-        CSRF_TRUSTED_ORIGINS.append(f"https://{host}")
-        CSRF_TRUSTED_ORIGINS.append(f"http://{host}")
-    else:
-        CSRF_TRUSTED_ORIGINS.append(f"http://{host}:8000")
-        CSRF_TRUSTED_ORIGINS.append(f"http://{host}")
+# CSRF Settings
+CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[])
+if not CSRF_TRUSTED_ORIGINS:
+    for host in ALLOWED_HOSTS:
+        if host not in ["localhost", "127.0.0.1", "*", "testserver"]:
+            CSRF_TRUSTED_ORIGINS.extend([f"https://{host}", f"http://{host}"])
+        elif host in ["localhost", "127.0.0.1"]:
+            CSRF_TRUSTED_ORIGINS.extend([
+                f"http://{host}:8000",
+                f"http://{host}:8001",
+                f"http://{host}:3000",
+                f"http://{host}:5000",
+                f"http://{host}",
+                f"https://{host}",
+            ])
+# Always ensure standard local development origins are trusted
+for local_origin in ["http://localhost:8000", "http://127.0.0.1:8000", "http://localhost", "http://127.0.0.1"]:
+    if local_origin not in CSRF_TRUSTED_ORIGINS:
+        CSRF_TRUSTED_ORIGINS.append(local_origin)
 
 # Application definition
 
@@ -338,9 +347,9 @@ CRISPY_TEMPLATE_PACK = "bootstrap5"
 # User model
 AUTH_USER_MODEL = "users.User"
 
-# Authentication Backends - يدعم Role-based permissions
+# Authentication Backends - يدعم تسجيل الدخول باسم المستخدم أو الإيميل مع Role-based permissions
 AUTHENTICATION_BACKENDS = [
-    'django.contrib.auth.backends.ModelBackend',
+    'users.backends.EmailOrUsernameModelBackend',
     'users.backends.RolePermissionBackend',
 ]
 
@@ -362,6 +371,7 @@ SESSION_COOKIE_SAMESITE = env("SESSION_COOKIE_SAMESITE", default="Lax")
 CSRF_COOKIE_SECURE = env.bool("CSRF_COOKIE_SECURE", default=not DEBUG)
 CSRF_COOKIE_HTTPONLY = False  # Must be False — Django requires JS access to CSRF token for AJAX
 CSRF_COOKIE_SAMESITE = "Lax"
+CSRF_FAILURE_VIEW = "core.views.security_views.csrf_failure"
 
 # ✅ SECURITY: Session timeout — 8 hours, persists across browser restarts
 SESSION_COOKIE_AGE = env.int("SESSION_COOKIE_AGE", default=28800)  # 8 hours

@@ -32,7 +32,7 @@
   <!-- Page Header الموحد -->
   {% include "shared/page_header.html" %}
 
-  <form method="post" action="{% url 'financial:manual_journal_entry_create' %}" id="manualEntryForm">
+  <form method="post" action="{% url 'financial:manual_journal_entry_create' %}" id="manualEntryForm" enctype="multipart/form-data">
     {% csrf_token %}
 
     <!-- سكشن البيانات الأساسية والمرفق المؤيد -->

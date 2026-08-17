@@ -196,16 +196,16 @@
             {% if form.errors %}
             <div class="alert alert-danger alert-dismissible fade show" role="alert">
                 <i class="fas fa-exclamation-circle me-2"></i>
-                <strong>خطأ!</strong> اسم المستخدم أو كلمة المرور غير صحيحة.
+                <strong>خطأ!</strong> اسم المستخدم / البريد الإلكتروني أو كلمة المرور غير صحيحة.
                 <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="إغلاق"></button>
             </div>
             {% endif %}
             
             <div class="form-group">
-                <label for="id_username" class="form-label">اسم المستخدم</label>
+                <label for="id_username" class="form-label">اسم المستخدم أو البريد الإلكتروني</label>
                 <div class="position-relative">
                     <i class="fas fa-user"></i>
-                    <input type="text" name="username" id="id_username" class="form-control input-with-icon" placeholder="أدخل اسم المستخدم" required autofocus autocomplete="username">
+                    <input type="text" name="username" id="id_username" class="form-control input-with-icon" placeholder="أدخل اسم المستخدم أو البريد الإلكتروني" required autofocus autocomplete="username">
                 </div>
             </div>
             

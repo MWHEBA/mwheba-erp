@@ -24,7 +24,7 @@
                     </h5>
                 </div>
                 <div class="card-body">
-                    <form method="post" novalidate>
+                    <form method="post" novalidate enctype="multipart/form-data">
                         {% csrf_token %}
                         
                         <!-- المعلومات الأساسية -->
@@ -92,14 +92,14 @@
                             </div>
                         </div>
                         
-                        <!-- الوصف والملاحظات -->
+                        <!-- الوصف والملاحظات والمرفقات المؤيدة -->
                         <div class="form-section mb-4">
                             <h6 class="section-title">
-                                <i class="fas fa-comment me-2"></i>الوصف والملاحظات
+                                <i class="fas fa-comment me-2"></i>الوصف والمرفقات المؤيدة
                             </h6>
                             
                             <div class="row">
-                                <div class="col-12">
+                                <div class="col-12 col-md-7">
                                     <div class="mb-3">
                                         <label for="description" class="form-label">الوصف</label>
                                         <textarea class="form-control" 
@@ -109,11 +109,7 @@
                                                   placeholder="وصف مختصر للقيد المحاسبي">{% if journal_entry %}{{ journal_entry.description }}{% endif %}</textarea>
                                         <div class="form-text">وصف مختصر لطبيعة القيد</div>
                                     </div>
-                                </div>
-                            </div>
-                            
-                            <div class="row">
-                                <div class="col-12">
+
                                     <div class="mb-3">
                                         <label for="notes" class="form-label">ملاحظات</label>
                                         <textarea class="form-control" 
@@ -123,6 +119,10 @@
                                                   placeholder="ملاحظات إضافية (اختياري)">{% if journal_entry %}{{ journal_entry.notes }}{% endif %}</textarea>
                                         <div class="form-text">ملاحظات إضافية للمرجع المستقبلي</div>
                                     </div>
+                                </div>
+
+                                <div class="col-12 col-md-5">
+                                    {% include "shared/drag_drop_uploader.html" with uploader_id="journal_form_uploader" category_code="JOURNAL_ENTRY" label="المرفقات والمستندات المؤيدة" existing_attachments=existing_attachments can_delete=True %}
                                 </div>
                             </div>
                         </div>
@@ -253,7 +253,7 @@
                                         <i class="fas fa-save"></i>
                                         حفظ القيد
                                     </button>
-                                    <a href="#" onclick="window.history.back(); return false;"financial:journal_entries_list' %}" class="btn btn-cancel">
+                                    <a href="{% url 'financial:journal_entries_list' %}" class="btn btn-cancel">
                                         <i class="fas fa-times"></i>
                                         إلغاء
                                     </a>
@@ -297,7 +297,7 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    let lineIndex = {{ journal_entry.lines.count|default:1 }};
+    let lineIndex = parseInt('{{ journal_entry.lines.count|default:1 }}', 10) || 1;
     
     // إضافة بند جديد
     document.getElementById('addLineBtn').addEventListener('click', function() {

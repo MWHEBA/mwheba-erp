@@ -1412,13 +1412,6 @@ class Attachment(models.Model):
             models.Index(fields=['content_type', 'object_id', 'is_latest']),
             models.Index(fields=['deleted_at']),
         ]
-        constraints = [
-            UniqueConstraint(
-                fields=['content_type', 'object_id', 'category'],
-                condition=Q(is_latest=True, deleted_at__isnull=True),
-                name='one_latest_attachment_per_category'
-            )
-        ]
 
     def __str__(self):
         return f"{self.original_name} (V{self.version}) -> {self.category.name}"

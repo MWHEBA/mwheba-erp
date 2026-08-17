@@ -6,8 +6,30 @@ from django.utils.translation import gettext_lazy as _
 from django.urls import reverse
 from django.db.models import Sum
 from django.utils import timezone
+from django.http import JsonResponse
+from django.views.decorators.http import require_http_methods
 
 from financial.models import CostCenter, CostCenterBudget, CostCenterBalanceSnapshot, CostCenterAuditLog, JournalEntryLine
+from financial.services.cost_center_code_service import CostCenterCodeService
+
+
+@login_required
+@require_http_methods(["GET"])
+def suggest_cost_center_code(request):
+    """
+    API endpoint للحصول على كود مقترح لمركز التكلفة بناءً على المركز الأب
+    """
+    parent_id = request.GET.get('parent_id')
+    try:
+        parent_id = int(parent_id) if parent_id else None
+    except (ValueError, TypeError):
+        parent_id = None
+
+    suggested_code = CostCenterCodeService.get_next_code(parent_id=parent_id)
+    return JsonResponse({
+        'success': True,
+        'suggested_code': suggested_code
+    })
 
 
 @login_required
@@ -57,11 +79,14 @@ def cost_centers_list_view(request):
         }
     ]
 
+    suggested_code = CostCenterCodeService.get_next_root_code()
+
     context = {
         'cost_centers': queryset,
         'search_query': search_query,
         'policy_filter': policy_filter,
         'header_buttons': header_buttons,
+        'suggested_code': suggested_code,
         'page_title': 'إدارة مراكز التكلفة',
         'page_subtitle': 'الهيكلية الشجرية والميزانيات المعتمدة لمراكز التكلفة',
         'page_icon': 'fas fa-network-wired',
@@ -77,22 +102,20 @@ def cost_centers_list_view(request):
 @login_required
 def cost_center_create_view(request):
     """
-    إنشاء مركز تكلفة جديد
+    إنشاء مركز تكلفة جديد مع التوليد التلقائي للكود
     """
     if request.method == 'POST':
-        code = request.POST.get('code', '').strip()
         name = request.POST.get('name', '').strip()
         parent_id = request.POST.get('parent')
         policy = request.POST.get('cost_center_policy', 'OPTIONAL')
 
-        if not code or not name:
-            messages.error(request, "كود واسم مركز التكلفة حقول مطلوبة.")
+        if not name:
+            messages.error(request, "اسم مركز التكلفة حقل مطلوب.")
             return redirect('financial:cost_centers_list')
 
         parent_obj = CostCenter.objects.filter(id=parent_id).first() if parent_id else None
 
         cc = CostCenter.objects.create(
-            code=code,
             name=name,
             parent=parent_obj,
             cost_center_policy=policy
@@ -103,7 +126,7 @@ def cost_center_create_view(request):
             action='CREATED',
             performed_by=request.user,
             user_name_snapshot=request.user.username,
-            changes_json=f'{{"code": "{code}", "name": "{name}"}}'
+            changes_json=f'{{"code": "{cc.code}", "name": "{name}"}}'
         )
 
         messages.success(request, f"تم إنشاء مركز التكلفة بنجاح: {cc.code} - {cc.name}")
@@ -176,6 +199,7 @@ def cost_center_detail_view(request, pk):
         'active_budget': active_budget,
         'budget_summary': budget_summary,
         'header_buttons': header_buttons,
+        'suggested_child_code': CostCenterCodeService.get_next_child_code(cost_center),
         'page_title': f'تفاصيل مركز التكلفة: {cost_center.name}',
         'page_subtitle': f'كود مركز التكلفة: {cost_center.code}',
         'page_icon': 'fas fa-network-wired',

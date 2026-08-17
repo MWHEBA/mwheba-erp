@@ -297,6 +297,77 @@ class LedgerCoreService:
             return entry
 
     @classmethod
+    def unpost_entry(
+        cls,
+        entry_id: int,
+        user,
+        reason: str = ""
+    ) -> JournalEntry:
+        """
+        إلغاء ترحيل قيد اليومية وإعادته إلى مسودة (Draft)
+        مع تطبيق الفحوصات الرقابية، مسح المراجع، وتحديث كاش الموازنة وسجل التدقيق.
+        """
+        with transaction.atomic():
+            entry = JournalEntry.objects.select_for_update().get(pk=entry_id)
+
+            if entry.status != "posted":
+                raise FinancialCoreError("القيد غير مرحل بالفعل.")
+
+            if entry.is_period_locked:
+                raise FinancialCoreError("لا يمكن إلغاء ترحيل قيد محمي في فترة/سنة مغلقة أو قيد نظامي.")
+
+            if getattr(entry, "reversed_by_entry_id", None) or entry.reversal_entries.exists() or getattr(entry, 'is_reversal', False):
+                raise FinancialCoreError("لا يمكن إلغاء ترحيل قيد تم عكسه أو قيد عكسي.")
+
+            if entry.entry_type in ['closing', 'opening']:
+                raise FinancialCoreError("لا يمكن إلغاء ترحيل قيود الإغلاق أو القيود الافتتاحية النظامية.")
+
+            # مسح مراجع الترحيل المالي المرتبطة بالقيد
+            from financial.models import FinancialPostingReference
+            FinancialPostingReference.objects.filter(journal_entry_id=entry.id).delete()
+
+            # تغيير حالة القيد إلى مسودة وإزالة بيانات الترحيل
+            entry.status = "draft"
+            entry.posted_at = None
+            entry.posted_by = None
+            entry._allow_unpost = True
+            entry._bypass_period_lock = True
+            entry.save(update_fields=['status', 'posted_at', 'posted_by'])
+
+            # تحديث كاش لقطات المنفق الفعلي لجميع مراكز التكلفة المرتبطة
+            from financial.services.budget_actual_service import BudgetActualService
+            for line in entry.lines.all():
+                if entry.accounting_period:
+                    if line.cost_center:
+                        BudgetActualService.update_actual_snapshot(
+                            cost_center=line.cost_center,
+                            account=line.account,
+                            accounting_period=entry.accounting_period
+                        )
+                    elif line.cost_allocations.exists():
+                        for alloc in line.cost_allocations.all():
+                            BudgetActualService.update_actual_snapshot(
+                                cost_center=alloc.cost_center,
+                                account=line.account,
+                                accounting_period=entry.accounting_period
+                            )
+
+            # تسجيل الحركة في سجل التدقيق AuditTrail
+            try:
+                from financial.models.audit_trail import AuditTrail
+                AuditTrail.objects.create(
+                    action='unpost',
+                    model_name='JournalEntry',
+                    object_id=str(entry.id),
+                    user=user if user and getattr(user, 'is_authenticated', False) else None,
+                    details=f"تم إلغاء ترحيل القيد {entry.number or entry.reference}. السبب: {reason or 'إلغاء ترحيل يدوي'}"
+                )
+            except Exception as audit_err:
+                logger.warning(f"AuditTrail logging failed during unpost: {audit_err}")
+
+            return entry
+
+    @classmethod
     def reverse_entry(
         cls,
         entry_id: int,

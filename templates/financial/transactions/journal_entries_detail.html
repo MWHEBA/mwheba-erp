@@ -317,23 +317,50 @@
             <div class="card mb-4">
                 <div class="card-header border-bottom py-3">
                     <h6 class="card-title mb-0 fw-bold">
-                        <i class="fas fa-paperclip me-2 text-primary"></i>المرفقات المؤيدة للقيد
+                        <i class="fas fa-paperclip me-2 text-primary"></i>المرفقات المؤيدة للقيد ({{ attachments|length }})
                     </h6>
                 </div>
-                <div class="card-body p-0">
+                <div class="card-body p-2">
                     {% if attachments %}
-                        <div class="list-group list-group-flush">
+                        <div class="d-flex flex-column gap-2" id="detail_attachments_list">
                             {% for att in attachments %}
-                                <a href="{% url 'core:secure_attachment_download' att.pk %}" class="list-group-item list-group-item-action d-flex align-items-center justify-content-between py-2 px-3">
+                                <div class="d-flex align-items-center justify-content-between bg-light border rounded-2 p-2" id="attachment_row_{{ att.pk }}">
                                     <div class="d-flex align-items-center overflow-hidden me-2">
-                                        <i class="fas fa-file-download text-primary me-2 fs-6"></i>
-                                        <div class="text-truncate">
-                                            <span class="fw-semibold text-dark fs-8 d-block" dir="ltr">{{ att.original_name }}</span>
-                                            <small class="text-muted fs-8">{{ att.category.name }} (V{{ att.version }})</small>
+                                        <div class="file-icon-badge bg-white rounded-2 p-2 me-2 d-flex align-items-center justify-content-center border" style="width: 36px; height: 36px;">
+                                            {% if ".pdf" in att.original_name|lower %}
+                                                <i class="fas fa-file-pdf text-danger fs-5"></i>
+                                            {% elif ".png" in att.original_name|lower or ".jpg" in att.original_name|lower or ".jpeg" in att.original_name|lower %}
+                                                <i class="fas fa-file-image text-info fs-5"></i>
+                                            {% elif ".xls" in att.original_name|lower or ".csv" in att.original_name|lower %}
+                                                <i class="fas fa-file-excel text-success fs-5"></i>
+                                            {% elif ".doc" in att.original_name|lower %}
+                                                <i class="fas fa-file-word text-primary fs-5"></i>
+                                            {% else %}
+                                                <i class="fas fa-file-alt text-secondary fs-5"></i>
+                                            {% endif %}
+                                        </div>
+                                        <div class="overflow-hidden">
+                                            <span class="fw-semibold text-dark fs-7 d-block text-truncate" dir="ltr" title="{{ att.original_name }}">{{ att.original_name }}</span>
+                                            <small class="text-muted fs-8">{{ att.file_blob.file_size|filesizeformat }} &bull; {{ att.created_at|date:"Y-m-d H:i" }}</small>
                                         </div>
                                     </div>
-                                    <i class="fas fa-download text-muted"></i>
-                                </a>
+                                    <div class="d-flex align-items-center gap-1 flex-shrink-0">
+                                        <a href="{% url 'core:secure_attachment_download' att.pk %}" 
+                                           class="btn btn-sm btn-outline-primary px-2 py-1 fs-8" 
+                                           title="تنزيل المرفق" 
+                                           target="_blank">
+                                            <i class="fas fa-download"></i>
+                                        </a>
+                                        {% if journal_entry.status == 'draft' and not journal_entry.is_period_locked %}
+                                        <button type="button" 
+                                                class="btn btn-sm btn-outline-danger px-2 py-1 fs-8" 
+                                                onclick="deleteAttachmentFromDetail('{{ att.pk }}')"
+                                                title="حذف المرفق">
+                                            <i class="fas fa-trash-alt"></i>
+                                        </button>
+                                        {% endif %}
+                                    </div>
+                                </div>
                             {% endfor %}
                         </div>
                     {% else %}
@@ -378,19 +405,137 @@
 </div>
 
 <script>
+function getCsrfToken() {
+    const tokenInput = document.querySelector('[name=csrfmiddlewaretoken]');
+    if (tokenInput && tokenInput.value) {
+        return tokenInput.value;
+    }
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, 10) === 'csrftoken=') {
+                return decodeURIComponent(cookie.substring(10));
+            }
+        }
+    }
+    return '';
+}
+
+function editJournalEntry(pk) {
+    Swal.fire({
+        title: 'تعديل القيد المحاسبي',
+        text: 'هذا القيد مرحل حالياً. سيتم إلغاء ترحيله وإعادته لحالة المسودة لفتحه للتعديل، هل تريد المتابعة؟',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#ffc107',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: '<i class="fas fa-edit me-1 text-dark"></i>نعم، إلغاء الترحيل وتعديل',
+        cancelButtonText: 'إلغاء',
+        customClass: {
+            confirmButton: 'text-dark fw-bold'
+        }
+    }).then((result) => {
+        if (result.isConfirmed) {
+            window.location.href = `/financial/journal-entries/${pk}/edit/`;
+        }
+    });
+}
+
+function deleteJournalEntry(pk, status) {
+    const isPosted = status === 'posted';
+    const title = isPosted ? 'إلغاء ترحيل وحذف القيد' : 'حذف القيد المسودة';
+    const text = isPosted 
+        ? 'تحذير: هذا القيد مرحل حالياً. سيتم إلغاء أثره المالي وحذفه نهائياً من سجلات النظام. هل أنت متأكد؟'
+        : 'هل أنت متأكد من رغبتك في حذف هذا القيد نهائياً؟';
+
+    Swal.fire({
+        title: title,
+        text: text,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#dc3545',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: '<i class="fas fa-trash-alt me-1"></i>نعم، حذف القيد',
+        cancelButtonText: 'إلغاء'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            const csrfToken = getCsrfToken();
+            fetch(`/financial/journal-entries/${pk}/delete/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrfToken,
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    toastr.success(data.message || 'تم حذف القيد بنجاح');
+                    setTimeout(() => {
+                        window.location.href = data.redirect_url || '/financial/journal-entries/';
+                    }, 1500);
+                } else {
+                    toastr.error(data.message || 'حدث خطأ أثناء حذف القيد');
+                }
+            })
+            .catch(() => {
+                toastr.error('حدث خطأ في الاتصال بالخادم');
+            });
+        }
+    });
+}
+
+function postJournalEntry(pk) {
+    Swal.fire({
+        title: 'ترحيل القيد المحاسبي',
+        text: 'هل أنت متأكد من ترحيل هذا القيد؟ سيتم قفل بنوده واعتماد أثره المالي.',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#28a745',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: '<i class="fas fa-check me-1"></i>نعم، ترحيل القيد',
+        cancelButtonText: 'إلغاء'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            const csrfToken = getCsrfToken();
+            fetch(`/financial/journal-entries/${pk}/post/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrfToken,
+                    'Content-Type': 'application/json',
+                },
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    toastr.success(data.message || 'تم ترحيل القيد بنجاح');
+                    setTimeout(() => location.reload(), 3100);
+                } else {
+                    toastr.error(data.message || 'حدث خطأ أثناء ترحيل القيد');
+                }
+            })
+            .catch(() => {
+                toastr.error('حدث خطأ في الاتصال بالخادم');
+            });
+        }
+    });
+}
+
 function unpostJournalEntry(pk) {
     Swal.fire({
         title: 'إلغاء ترحيل القيد',
-        text: 'هل أنت متأكد من إلغاء ترحيل هذا القيد؟ سيتم إعادته لحالة المسودة.',
+        text: 'هل أنت متأكد من إلغاء ترحيل هذا القيد؟ سيتم إعادته لحالة المسودة لتتمكن من تعديله أو حذفه.',
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#f0ad4e',
         cancelButtonColor: '#6c757d',
-        confirmButtonText: 'نعم، إلغاء الترحيل',
+        confirmButtonText: '<i class="fas fa-undo me-1"></i>نعم، إلغاء الترحيل',
         cancelButtonText: 'إلغاء'
     }).then((result) => {
         if (result.isConfirmed) {
-            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+            const csrfToken = getCsrfToken();
             fetch(`/financial/journal-entries/${pk}/unpost/`, {
                 method: 'POST',
                 headers: {
@@ -402,7 +547,7 @@ function unpostJournalEntry(pk) {
             .then(data => {
                 if (data.success) {
                     toastr.success(data.message || 'تم إلغاء الترحيل بنجاح');
-                    setTimeout(() => location.reload(), 1000);
+                    setTimeout(() => location.reload(), 3100);
                 } else {
                     toastr.error(data.message || 'حدث خطأ أثناء إلغاء الترحيل');
                 }
@@ -441,7 +586,7 @@ function reverseJournalEntry(pk) {
         }
     }).then((result) => {
         if (result.isConfirmed) {
-            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+            const csrfToken = getCsrfToken();
             fetch(`/financial/journal-entries/${pk}/reverse/`, {
                 method: 'POST',
                 headers: {
@@ -469,6 +614,46 @@ function reverseJournalEntry(pk) {
                     });
                 } else {
                     toastr.error(data.message || 'حدث خطأ أثناء إنشاء القيد العكسي');
+                }
+            })
+            .catch(() => {
+                toastr.error('حدث خطأ في الاتصال بالخادم');
+            });
+        }
+    });
+}
+
+function deleteAttachmentFromDetail(attId) {
+    Swal.fire({
+        title: 'حذف المرفق',
+        text: 'هل أنت متأكد من رغبتك في حذف هذا المرفق نهائياً؟',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#dc3545',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: '<i class="fas fa-trash-alt me-1"></i>نعم، حذف',
+        cancelButtonText: 'إلغاء'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            const csrfToken = getCsrfToken();
+            fetch(`/core/attachments/${attId}/delete/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrfToken,
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    const row = document.getElementById('attachment_row_' + attId);
+                    if (row) {
+                        row.remove();
+                    }
+                    toastr.success(data.message || 'تم حذف المرفق بنجاح');
+                } else {
+                    toastr.error(data.message || 'حدث خطأ أثناء حذف المرفق');
                 }
             })
             .catch(() => {

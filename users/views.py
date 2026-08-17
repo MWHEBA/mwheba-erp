@@ -13,14 +13,26 @@ from django.contrib.contenttypes.models import ContentType
 from django.db.models import Q, Count
 
 
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import never_cache
+
+
 # دالة تسجيل دخول مخصصة
+@method_decorator(never_cache, name="dispatch")
 class CustomLoginView(LoginView):
     """
     عرض مخصص لتسجيل الدخول يضمن أن form دائمًا موجود في السياق
     ويحترم الـ next parameter للـ redirect بعد اللوجن
+    ويقوم بإعادة توجيه المستخدم تلقائيًا إذا كان مسجلاً دخوله بالفعل لمنع مشاكل الـ CSRF
     """
 
     template_name = "users/login.html"
+    redirect_authenticated_user = True
+
+    def dispatch(self, request, *args, **kwargs):
+        if request.user.is_authenticated:
+            return redirect(self.get_success_url())
+        return super().dispatch(request, *args, **kwargs)
 
     def get_success_url(self):
         """
@@ -461,7 +473,7 @@ def login_as_user(request, user_id):
     original_user_id = request.session.get('original_user_id') or request.user.id
 
     # تسجيل الدخول كالمستخدم المستهدف
-    target_user.backend = 'django.contrib.auth.backends.ModelBackend'
+    target_user.backend = 'users.backends.EmailOrUsernameModelBackend'
     auth_login(request, target_user)
 
     # حفظ معرف المستخدم الأصلي للرجوع لاحقاً
@@ -487,7 +499,7 @@ def stop_impersonation(request):
     try:
         original_user = User.objects.get(id=original_user_id)
         from django.contrib.auth import login as auth_login
-        original_user.backend = 'django.contrib.auth.backends.ModelBackend'
+        original_user.backend = 'users.backends.EmailOrUsernameModelBackend'
         auth_login(request, original_user)
 
         # تنظيف الـ session

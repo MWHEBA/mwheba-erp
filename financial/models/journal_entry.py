@@ -414,7 +414,8 @@ class JournalEntry(models.Model):
         if self.pk:
             old = JournalEntry.objects.get(pk=self.pk)
             if old.status == 'posted':
-                if self.status != 'posted':
+                is_allow_unpost = getattr(self, '_allow_unpost', False)
+                if self.status != 'posted' and not is_allow_unpost:
                     raise ImmutableLedgerError(_("لا يمكن تغيير حالة قيد مرحل."))
                 update_fields = kwargs.get('update_fields')
                 # Whitelist: Allow updating reversed_by_entry, lock metadata, or posting metadata
@@ -427,7 +428,7 @@ class JournalEntry(models.Model):
                 is_same_reversed_by_change = old.reversed_by_entry_id != self.reversed_by_entry_id and old.status == self.status
                 is_allow_lock_flag = getattr(self, '_allow_lock_operation', False)
 
-                if not (is_whitelisted_update or is_same_reversed_by_change or is_allow_lock_flag):
+                if not (is_whitelisted_update or is_same_reversed_by_change or is_allow_lock_flag or is_allow_unpost):
                     raise ImmutableLedgerError(_("القيد المحاسبي المرحل حصين ولا يمكن تعديله."))
 
         # تعيين رقم القيد تلقائياً إذا لم يكن موجوداً
@@ -719,6 +720,13 @@ class JournalEntry(models.Model):
         self.save(update_fields=['status', 'posted_at', 'posted_by'])
 
         return True
+
+    def unpost(self, user=None, reason=""):
+        """
+        إلغاء ترحيل القيد وإعادته إلى مسودة (Draft)
+        """
+        from financial.services.ledger_core_service import LedgerCoreService
+        return LedgerCoreService.unpost_entry(self.pk, user=user, reason=reason)
 
     def cancel(self, user=None):
         """إلغاء القيد"""

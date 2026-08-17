@@ -29,6 +29,7 @@ urlpatterns = [
     # مراكز التكلفة المحاسبية (Cost Centers)
     path("cost-centers/", views.cost_centers_list_view, name="cost_centers_list"),
     path("cost-centers/create/", views.cost_center_create_view, name="cost_center_create"),
+    path("cost-centers/suggest-code/", views.suggest_cost_center_code, name="cost_center_suggest_code"),
     path("cost-centers/<int:pk>/", views.cost_center_detail_view, name="cost_center_detail"),
     path("cost-centers/<int:pk>/edit/", views.cost_center_edit_view, name="cost_center_edit"),
     path("cost-centers/tree-api/", views.cost_center_tree_api, name="cost_center_tree_api"),
@@ -173,7 +174,12 @@ urlpatterns = [
     ),
     path(
         "journal-entries/<int:pk>/delete/",
-        views.journal_entry_delete,
+        views.journal_entries_delete,
+        name="journal_entries_delete",
+    ),
+    path(
+        "journal-entry/<int:pk>/delete/",
+        views.journal_entries_delete,
         name="journal_entry_delete",
     ),
     path(

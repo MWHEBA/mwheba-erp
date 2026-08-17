@@ -584,10 +584,10 @@ def journal_entries_list(request):
             },
             {
                 "title": "الإدارة المالية",
-                "url": "#",
-                "icon": "fas fa-money-bill-wave",
+                "url": reverse("financial:chart_of_accounts_list"),
+                "icon": "fas fa-calculator",
             },
-            {"title": "القيود المحاسبية", "active": True},
+            {"title": "القيود اليومية", "active": True},
         ],
     }
     return render_paginated_response(
@@ -601,6 +601,102 @@ def journal_entries_list(request):
 @login_required
 def journal_entries_create(request):
     """إنشاء قيد جديد"""
+    if request.method == "POST":
+        try:
+            with transaction.atomic():
+                import re
+                from datetime import datetime
+                from core.services.attachment_binding_service import AttachmentBindingService
+
+                date_str = request.POST.get('date')
+                entry_date = datetime.strptime(date_str, '%Y-%m-%d').date() if date_str else timezone.now().date()
+                reference = request.POST.get('reference', '').strip()
+                if not reference:
+                    reference = f"MANUAL-{timezone.now().strftime('%Y%m%d%H%M%S')}"
+
+                description = request.POST.get('description', '').strip()
+                notes = request.POST.get('notes', '').strip()
+                period_id = request.POST.get('accounting_period')
+
+                period = None
+                if period_id:
+                    period = AccountingPeriod.objects.filter(pk=period_id, status='open').first()
+                if not period:
+                    period = AccountingPeriod.get_period_for_date(entry_date)
+
+                journal_entry = JournalEntry.objects.create(
+                    date=entry_date,
+                    reference=reference,
+                    description=description,
+                    notes=notes,
+                    accounting_period=period,
+                    status='draft',
+                    entry_type='manual',
+                    created_by=request.user
+                )
+
+                # استخراج ومعالجة بنود القيد
+                line_data = {}
+                for key, val in request.POST.items():
+                    m = re.match(r'lines\[(\d+)\]\[(\w+)\]', key)
+                    if m:
+                        idx, field = int(m.group(1)), m.group(2)
+                        if idx not in line_data:
+                            line_data[idx] = {}
+                        line_data[idx][field] = val
+
+                total_debit = Decimal('0.00')
+                total_credit = Decimal('0.00')
+
+                for idx in sorted(line_data.keys()):
+                    item = line_data[idx]
+                    acc_id = item.get('account')
+                    if not acc_id:
+                        continue
+                    account = get_object_or_404(ChartOfAccounts, id=acc_id)
+                    debit = Decimal(str(item.get('debit') or 0))
+                    credit = Decimal(str(item.get('credit') or 0))
+                    desc = item.get('description') or journal_entry.description
+
+                    if debit > 0 or credit > 0:
+                        JournalEntryLine.objects.create(
+                            journal_entry=journal_entry,
+                            account=account,
+                            debit=debit.quantize(Decimal('0.01')),
+                            credit=credit.quantize(Decimal('0.01')),
+                            transaction_debit=debit.quantize(Decimal('0.01')),
+                            transaction_credit=credit.quantize(Decimal('0.01')),
+                            description=desc
+                        )
+                        total_debit += debit
+                        total_credit += credit
+
+                # حفظ المرفقات المتعددة
+                uploaded_files = request.FILES.getlist('attachments') or request.FILES.getlist('attachment_file') or [f for f in request.FILES.values()]
+                if uploaded_files:
+                    AttachmentBindingService.save_attachments_for_object(
+                        uploaded_files,
+                        journal_entry,
+                        request.user,
+                        category_code='JOURNAL_ENTRY',
+                        category_name='مرفقات القيود اليومية'
+                    )
+
+                if request.POST.get('status') == 'posted':
+                    from financial.services.ledger_core_service import LedgerCoreService
+                    LedgerCoreService.post_entry(journal_entry.pk, user=request.user)
+                    messages.success(request, f"تم إنشاء وترحيل القيد {journal_entry.reference} بنجاح.")
+                else:
+                    if abs(total_debit - total_credit) > Decimal('0.01'):
+                        messages.warning(request, f"تم حفظ المسودة بنجاح (تنبيه: القيد غير متوازن: مدين {total_debit} / دائن {total_credit})")
+                    else:
+                        messages.success(request, f"تم إنشاء مسودة القيد {journal_entry.reference} بنجاح.")
+
+                return redirect("financial:journal_entries_detail", pk=journal_entry.pk)
+
+        except Exception as e:
+            logger.error(f"Error creating journal entry: {str(e)}", exc_info=True)
+            messages.error(request, f"حدث خطأ أثناء إنشاء القيد: {str(e)}")
 
     # تحميل الحسابات من النظام الجديد
     accounts = []
@@ -622,14 +718,6 @@ def journal_entries_create(request):
         "page_title": "إنشاء قيد جديد",
         "page_subtitle": "إدارة القيود المحاسبية",
         "page_icon": "fas fa-plus-square",
-        "header_buttons": [
-            {
-                "url": reverse("financial:journal_entries_list"),
-                "icon": "fa-arrow-left",
-                "text": "العودة للقائمة",
-                "class": "btn-secondary",
-            },
-        ],
         "breadcrumb_items": [
             {
                 "title": "الرئيسية",
@@ -637,7 +725,12 @@ def journal_entries_create(request):
                 "icon": "fas fa-home",
             },
             {
-                "title": "القيود المحاسبية",
+                "title": "الإدارة المالية",
+                "url": reverse("financial:chart_of_accounts_list"),
+                "icon": "fas fa-calculator",
+            },
+            {
+                "title": "القيود اليومية",
                 "url": reverse("financial:journal_entries_list"),
                 "icon": "fas fa-book",
             },
@@ -673,19 +766,11 @@ def journal_entries_detail(request, pk):
         from purchase.models import PurchasePayment
         from django.urls import reverse
 
-        # البحث في دفعات المشتريات - استخدام العلاقة العكسية
-        purchase_payment = journal_entry.purchasepayment_set.select_related(
-            "purchase", "purchase__supplier"
-        ).first()
-        if purchase_payment:
-            source_payment = purchase_payment
-            source_payment_url = reverse(
-                "purchase:payment_detail", args=[purchase_payment.pk]
-            )
-            source_invoice = purchase_payment.purchase
-            source_party = purchase_payment.purchase.supplier
-            invoice_type = "purchase"
-    except (ImportError, AttributeError):
+        if hasattr(journal_entry, 'purchase_payment'):
+            source_payment = journal_entry.purchase_payment
+            source_payment_url = reverse("purchase:payment_detail", kwargs={"pk": source_payment.pk})
+            source_party = source_payment.supplier.name if source_payment.supplier else None
+    except Exception:
         pass
 
     # Sale module removed - skip sale payment lookup
@@ -717,46 +802,53 @@ def journal_entries_detail(request, pk):
         deleted_at__isnull=True
     ).select_related('category', 'file_blob')
 
-    header_buttons = [
-        {
-            "url": reverse("financial:journal_entries_list"),
-            "icon": "fa-arrow-right",
-            "text": "العودة للقيود",
-            "class": "btn-outline-secondary",
-        }
-    ]
+    header_buttons = []
     if journal_entry.status == 'draft':
         if not journal_entry.is_period_locked:
             header_buttons.append({
                 "url": reverse("financial:journal_entries_edit", kwargs={"pk": journal_entry.pk}),
                 "icon": "fa-edit",
-                "text": "تعديل المسودة",
+                "text": "تعديل القيد",
                 "class": "btn-warning",
             })
             if total_debits == total_credits and journal_entry.lines.exists():
                 header_buttons.append({
-                    "url": reverse("financial:journal_entries_post", kwargs={"pk": journal_entry.pk}),
+                    "onclick": f"postJournalEntry({journal_entry.pk})",
+                    "id": "post_entry_btn",
                     "icon": "fa-check",
                     "text": "ترحيل القيد",
                     "class": "btn-success",
                 })
-    elif journal_entry.status == 'posted':
-        if not journal_entry.is_period_locked:
             header_buttons.append({
-                "onclick": f"unpostJournalEntry({journal_entry.pk})",
-                "id": "unpost_entry_btn",
-                "icon": "fa-undo",
-                "text": "إلغاء الترحيل",
+                "onclick": f"deleteJournalEntry({journal_entry.pk}, 'draft')",
+                "id": "delete_entry_btn",
+                "icon": "fa-trash-alt",
+                "text": "حذف القيد",
+                "class": "btn-outline-danger",
+            })
+    elif journal_entry.status == 'posted':
+        if not journal_entry.is_period_locked and not journal_entry.is_reversal and not journal_entry.reversed_entry:
+            header_buttons.append({
+                "onclick": f"editJournalEntry({journal_entry.pk})",
+                "id": "edit_entry_btn",
+                "icon": "fa-edit",
+                "text": "تعديل القيد",
                 "class": "btn-warning",
             })
-            if not journal_entry.is_reversal and not journal_entry.reversed_entry:
-                header_buttons.append({
-                    "onclick": f"reverseJournalEntry({journal_entry.pk})",
-                    "id": "reverse_entry_btn",
-                    "icon": "fa-exchange-alt",
-                    "text": "إنشاء قيد عكسي",
-                    "class": "btn-danger",
-                })
+            header_buttons.append({
+                "onclick": f"deleteJournalEntry({journal_entry.pk}, 'posted')",
+                "id": "delete_entry_btn",
+                "icon": "fa-trash-alt",
+                "text": "حذف القيد",
+                "class": "btn-outline-danger",
+            })
+            header_buttons.append({
+                "onclick": f"reverseJournalEntry({journal_entry.pk})",
+                "id": "reverse_entry_btn",
+                "icon": "fa-exchange-alt",
+                "text": "إنشاء قيد عكسي",
+                "class": "btn-outline-secondary",
+            })
 
     header_badges = []
     if journal_entry.is_period_locked:
@@ -796,8 +888,9 @@ def journal_entries_detail(request, pk):
         "page_icon": "fas fa-file-invoice",
         "breadcrumb_items": [
             {"title": "الرئيسية", "url": reverse("core:dashboard"), "icon": "fas fa-home"},
-            {"title": "الإدارة المالية", "url": reverse("financial:journal_entries_list"), "icon": "fas fa-calculator"},
-            {"title": f"قيد {journal_entry.number}", "active": True},
+            {"title": "الإدارة المالية", "url": reverse("financial:chart_of_accounts_list"), "icon": "fas fa-calculator"},
+            {"title": "القيود اليومية", "url": reverse("financial:journal_entries_list"), "icon": "fas fa-book"},
+            {"title": f"قيد {journal_entry.number or journal_entry.reference}", "active": True},
         ],
     }
     return render(request, "financial/transactions/journal_entries_detail.html", context)
@@ -805,12 +898,125 @@ def journal_entries_detail(request, pk):
 
 @login_required
 def journal_entries_edit(request, pk):
-    """تعديل قيد"""
+    """تعديل قيد مسودة - يدعم إلغاء الترحيل التلقائي عند فتح قيد مرحل"""
     journal_entry = get_object_or_404(JournalEntry, pk=pk)
 
     if journal_entry.is_period_locked:
         messages.error(request, "لا يمكن تعديل قيد محمي في فترة/سنة مغلقة أو قيد نظامي.")
         return redirect("financial:journal_entries_detail", pk=pk)
+
+    if journal_entry.is_reversal or journal_entry.reversed_entry:
+        messages.error(request, "لا يمكن تعديل قيد تم عكسه أو قيد عكسي.")
+        return redirect("financial:journal_entries_detail", pk=pk)
+
+    # إذا كان القيد مرحلاً، نقوم بإلغاء ترحيله أولاً لإتاحته للتعديل
+    if journal_entry.status == 'posted':
+        try:
+            from financial.services.ledger_core_service import LedgerCoreService
+            journal_entry = LedgerCoreService.unpost_entry(
+                entry_id=journal_entry.pk,
+                user=request.user,
+                reason="إلغاء الترحيل لفتح القيد للتعديل"
+            )
+            messages.info(request, f"تم إلغاء ترحيل القيد {journal_entry.reference} بنجاح وإعادته للمسودة لتعديله.")
+        except Exception as e:
+            logger.error(f"Error unposting journal entry before edit: {str(e)}", exc_info=True)
+            messages.error(request, f"تعذر إلغاء ترحيل القيد للتعديل: {str(e)}")
+            return redirect("financial:journal_entries_detail", pk=pk)
+
+    if request.method == "POST":
+        try:
+            with transaction.atomic():
+                import re
+                from datetime import datetime
+
+                date_str = request.POST.get('date')
+                if date_str:
+                    journal_entry.date = datetime.strptime(date_str, '%Y-%m-%d').date()
+
+                reference = request.POST.get('reference', '').strip()
+                if reference:
+                    journal_entry.reference = reference
+
+                journal_entry.description = request.POST.get('description', '').strip()
+                journal_entry.notes = request.POST.get('notes', '').strip()
+
+                period_id = request.POST.get('accounting_period')
+                if period_id:
+                    journal_entry.accounting_period_id = period_id
+                else:
+                    journal_entry.accounting_period = AccountingPeriod.get_period_for_date(journal_entry.date)
+
+                journal_entry.save()
+
+                # استخراج ومعالجة بنود القيد
+                line_data = {}
+                for key, val in request.POST.items():
+                    m = re.match(r'lines\[(\d+)\]\[(\w+)\]', key)
+                    if m:
+                        idx, field = int(m.group(1)), m.group(2)
+                        if idx not in line_data:
+                            line_data[idx] = {}
+                        line_data[idx][field] = val
+
+                if line_data:
+                    # حذف البنود القديمة للمسودة
+                    journal_entry.lines.all().delete()
+
+                    total_debit = Decimal('0.00')
+                    total_credit = Decimal('0.00')
+
+                    for idx in sorted(line_data.keys()):
+                        item = line_data[idx]
+                        acc_id = item.get('account')
+                        if not acc_id:
+                            continue
+                        account = get_object_or_404(ChartOfAccounts, id=acc_id)
+                        debit = Decimal(str(item.get('debit') or 0))
+                        credit = Decimal(str(item.get('credit') or 0))
+                        desc = item.get('description') or journal_entry.description
+
+                        if debit > 0 or credit > 0:
+                            JournalEntryLine.objects.create(
+                                journal_entry=journal_entry,
+                                account=account,
+                                debit=debit.quantize(Decimal('0.01')),
+                                credit=credit.quantize(Decimal('0.01')),
+                                transaction_debit=debit.quantize(Decimal('0.01')),
+                                transaction_credit=credit.quantize(Decimal('0.01')),
+                                description=desc
+                            )
+                            total_debit += debit
+                            total_credit += credit
+
+                # حفظ المرفقات المتعددة الجديدة إن وجدت
+                uploaded_files = request.FILES.getlist('attachments') or request.FILES.getlist('attachment_file') or [f for f in request.FILES.values()]
+                if uploaded_files:
+                    from core.services.attachment_binding_service import AttachmentBindingService
+                    AttachmentBindingService.save_attachments_for_object(
+                        uploaded_files,
+                        journal_entry,
+                        request.user,
+                        category_code='JOURNAL_ENTRY',
+                        category_name='مرفقات القيود اليومية'
+                    )
+
+                if abs(total_debit - total_credit) > Decimal('0.01'):
+                    messages.warning(request, f"تم حفظ المسودة (تنبيه: القيد غير متوازن: مدين {total_debit} / دائن {total_credit})")
+                else:
+                    messages.success(request, f"تم حفظ تعديلات القيد {journal_entry.reference} بنجاح.")
+
+                # إذا طلب المستخدم الترحيل المباشر
+                if request.POST.get('status') == 'posted':
+                    from financial.services.ledger_core_service import LedgerCoreService
+                    LedgerCoreService.post_entry(journal_entry.pk, user=request.user)
+                    messages.success(request, f"تم حفظ وترحيل القيد {journal_entry.reference} بنجاح.")
+
+                return redirect("financial:journal_entries_detail", pk=journal_entry.pk)
+
+        except Exception as e:
+            logger.error(f"Error updating journal entry: {str(e)}", exc_info=True)
+            messages.error(request, f"حدث خطأ أثناء تعديل القيد: {str(e)}")
 
     # تحميل الحسابات من النظام الجديد
     accounts = []
@@ -826,10 +1032,21 @@ def journal_entries_edit(request, pk):
             "-start_date"
         )
 
+    # استخراج المرفقات الحالية للقيد
+    from django.contrib.contenttypes.models import ContentType
+    from core.models import Attachment
+    ct = ContentType.objects.get_for_model(journal_entry)
+    existing_attachments = Attachment.objects.filter(
+        content_type=ct,
+        object_id=journal_entry.pk,
+        deleted_at__isnull=True
+    ).select_related('file_blob', 'category')
+
     context = {
         "journal_entry": journal_entry,
         "accounts": accounts,
         "accounting_periods": accounting_periods,
+        "existing_attachments": existing_attachments,
         "page_title": f"تعديل قيد: {journal_entry.reference}",
         "page_icon": "fas fa-edit",
         "breadcrumb_items": [
@@ -839,7 +1056,12 @@ def journal_entries_edit(request, pk):
                 "icon": "fas fa-home",
             },
             {
-                "title": "القيود المحاسبية",
+                "title": "الإدارة المالية",
+                "url": reverse("financial:chart_of_accounts_list"),
+                "icon": "fas fa-calculator",
+            },
+            {
+                "title": "القيود اليومية",
                 "url": reverse("financial:journal_entries_list"),
                 "icon": "fas fa-book",
             },
@@ -851,17 +1073,56 @@ def journal_entries_edit(request, pk):
 
 @login_required
 def journal_entries_delete(request, pk):
-    """حذف قيد"""
+    """حذف قيد - يدعم إلغاء الترحيل التلقائي قبل الحذف ويدعم AJAX"""
     journal_entry = get_object_or_404(JournalEntry, pk=pk)
 
+    is_ajax = request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.content_type == 'application/json'
+
     if journal_entry.is_period_locked:
-        messages.error(request, "لا يمكن حذف قيد محمي في فترة/سنة مغلقة أو قيد نظامي.")
+        msg = "لا يمكن حذف قيد محمي في فترة/سنة مغلقة أو قيد نظامي."
+        if is_ajax:
+            return JsonResponse({"success": False, "message": msg}, status=400)
+        messages.error(request, msg)
+        return redirect("financial:journal_entries_detail", pk=pk)
+
+    if journal_entry.is_reversal or journal_entry.reversed_entry:
+        msg = "لا يمكن حذف قيد تم عكسه أو قيد عكسي."
+        if is_ajax:
+            return JsonResponse({"success": False, "message": msg}, status=400)
+        messages.error(request, msg)
         return redirect("financial:journal_entries_detail", pk=pk)
 
     if request.method == "POST":
-        journal_entry.delete()
-        messages.success(request, f'تم حذف القيد "{journal_entry.reference}" بنجاح.')
-        return redirect("financial:journal_entries_list")
+        try:
+            with transaction.atomic():
+                # إذا كان القيد مرحلاً، نقوم بإلغاء ترحيله أولاً لتحديث الأرصدة والموازنة ومسح مراجع الترحيل
+                if journal_entry.status == 'posted':
+                    from financial.services.ledger_core_service import LedgerCoreService
+                    journal_entry = LedgerCoreService.unpost_entry(
+                        entry_id=journal_entry.pk,
+                        user=request.user,
+                        reason="إلغاء الترحيل تمهيداً لحذف القيد"
+                    )
+
+                ref = journal_entry.reference or str(journal_entry.number)
+                journal_entry.delete()
+
+                success_msg = f'تم حذف القيد "{ref}" بنجاح.'
+                if is_ajax:
+                    return JsonResponse({
+                        "success": True,
+                        "message": success_msg,
+                        "redirect_url": reverse("financial:journal_entries_list")
+                    })
+                messages.success(request, success_msg)
+                return redirect("financial:journal_entries_list")
+        except Exception as e:
+            logger.error(f"Error deleting journal entry: {str(e)}", exc_info=True)
+            err_msg = f"حدث خطأ أثناء حذف القيد: {str(e)}"
+            if is_ajax:
+                return JsonResponse({"success": False, "message": err_msg}, status=500)
+            messages.error(request, err_msg)
+            return redirect("financial:journal_entries_detail", pk=pk)
 
     context = {
         "journal_entry": journal_entry,
@@ -878,23 +1139,32 @@ def journal_entries_post(request, pk):
 
     if request.method == "POST":
         try:
-            # استخدام الـ method المخصص للترحيل
-            journal_entry.post(user=request.user)
+            from financial.services.ledger_core_service import LedgerCoreService
+            from financial.exceptions import FinancialCoreError, ImmutableLedgerError
+            from django.core.exceptions import ValidationError
 
-            # إرجاع JSON response
+            entry = LedgerCoreService.post_entry(
+                entry_id=journal_entry.pk,
+                user=request.user,
+                posting_source=journal_entry.posting_source or "MANUAL_JOURNAL",
+                posting_reference=journal_entry.reference
+            )
+
             return JsonResponse(
                 {
                     "success": True,
-                    "message": f'تم ترحيل القيد "{journal_entry.number or journal_entry.reference}" بنجاح.',
+                    "message": f'تم ترحيل القيد "{entry.number or entry.reference}" بنجاح.',
                 }
             )
 
+        except (FinancialCoreError, ImmutableLedgerError, ValidationError) as e:
+            msg = e.messages[0] if hasattr(e, 'messages') and e.messages else str(e)
+            return JsonResponse({"success": False, "message": msg})
         except Exception as e:
-            logger.error(f"Error in views.py: {str(e)}", exc_info=True)
-            return JsonResponse({"success": False, "message": "حدث خطأ غير متوقع"})
-    
-    # GET request - إرجاع خطأ (يجب استخدام المودال)
-    return JsonResponse({"success": False, "message": "يجب استخدام المودال للترحيل"}, status=405)
+            logger.error(f"Error in post: {str(e)}", exc_info=True)
+            return JsonResponse({"success": False, "message": f"حدث خطأ أثناء الترحيل: {str(e)}"})
+
+    return JsonResponse({"success": False, "message": "يجب استخدام POST للترحيل"}, status=405)
 
 
 @login_required
@@ -904,35 +1174,40 @@ def journal_entries_unpost(request, pk):
 
     if request.method == "POST":
         try:
-            # التحقق من أن القيد مرحل
-            if journal_entry.status != 'posted':
-                return JsonResponse({"success": False, "message": "القيد غير مرحل"})
+            from financial.services.ledger_core_service import LedgerCoreService
+            from financial.exceptions import FinancialCoreError, ImmutableLedgerError
+            from django.core.exceptions import ValidationError
 
-            # التحقق من أن القيد غير مقفل وغير محمي في فترة/سنة مغلقة أو قيد نظامي
-            if journal_entry.is_period_locked:
-                return JsonResponse({"success": False, "message": "لا يمكن إلغاء ترحيل قيد محمي في فترة/سنة مغلقة أو قيد إغلاق/افتتاحي نظامي."})
-            
-            # إلغاء الترحيل باستخدام update_fields لتجاوز validate_period_lock
-            journal_entry.status = 'draft'
-            journal_entry.posted_at = None
-            journal_entry.posted_by = None
-            journal_entry._bypass_period_lock = True
-            journal_entry.save(update_fields=['status', 'posted_at', 'posted_by'])
+            reason = ""
+            try:
+                import json
+                if request.body:
+                    body = json.loads(request.body)
+                    reason = body.get('reason', '')
+            except Exception:
+                reason = request.POST.get('reason', '')
 
-            # إرجاع JSON response
+            entry = LedgerCoreService.unpost_entry(
+                entry_id=journal_entry.pk,
+                user=request.user,
+                reason=reason
+            )
+
             return JsonResponse(
                 {
                     "success": True,
-                    "message": f'تم إلغاء ترحيل القيد "{journal_entry.number or journal_entry.reference}" بنجاح.',
+                    "message": f'تم إلغاء ترحيل القيد "{entry.number or entry.reference}" بنجاح وإعادته لحالة المسودة.',
                 }
             )
 
+        except (FinancialCoreError, ImmutableLedgerError, ValidationError) as e:
+            msg = e.messages[0] if hasattr(e, 'messages') and e.messages else str(e)
+            return JsonResponse({"success": False, "message": msg})
         except Exception as e:
             logger.error(f"Error in unpost: {str(e)}", exc_info=True)
-            return JsonResponse({"success": False, "message": "حدث خطأ غير متوقع"})
-    
-    # GET request - إرجاع خطأ
-    return JsonResponse({"success": False, "message": "يجب استخدام المودال لإلغاء الترحيل"}, status=405)
+            return JsonResponse({"success": False, "message": f"حدث خطأ أثناء إلغاء الترحيل: {str(e)}"})
+
+    return JsonResponse({"success": False, "message": "يجب استخدام POST لإلغاء الترحيل"}, status=405)
 
 
 @login_required
@@ -2156,6 +2431,17 @@ def manual_journal_entry_create(request):
                 date=entry_date_obj
             )
 
+            # حفظ المرفقات المرفوعة المتعددة
+            uploaded_files = request.FILES.getlist('attachments') or request.FILES.getlist('attachment_file') or [f for f in request.FILES.values()]
+            if uploaded_files:
+                AttachmentBindingService.save_attachments_for_object(
+                    uploaded_files,
+                    journal_entry,
+                    request.user,
+                    category_code='JOURNAL_ENTRY',
+                    category_name='مرفقات القيود اليومية'
+                )
+
             # ربط المسودات المرفوعة إن وجدت
             draft_tokens = [t.strip() for t in request.POST.getlist('draft_tokens[]') if t and t.strip()]
             if draft_tokens:
@@ -2211,7 +2497,8 @@ def manual_journal_entry_create(request):
         'page_icon': 'fas fa-edit',
         'breadcrumb_items': [
             {'title': 'الرئيسية', 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},
-            {'title': 'القيود المحاسبية', 'url': reverse('financial:journal_entries_list'), 'icon': 'fas fa-book'},
+            {'title': 'الإدارة المالية', 'url': reverse('financial:chart_of_accounts_list'), 'icon': 'fas fa-calculator'},
+            {'title': 'القيود اليومية', 'url': reverse('financial:journal_entries_list'), 'icon': 'fas fa-book'},
             {'title': 'إضافة قيد يدوي', 'active': True}
         ]
     }
