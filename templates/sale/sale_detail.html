@@ -808,7 +808,7 @@
                                             <small class="text-muted">{{ payment.created_at|date:"h:i A" }}</small>
                                             {% endif %}
                                         </td>
-                                        <td class="fw-bold">{{ payment.amount|currency }}</td>
+                                        <td class="fw-bold">{{ payment.amount|smart_float }} {% if sale.currency %}{{ sale.currency.symbol|default:sale.currency.code }}{% else %}{{ currency_symbol }}{% endif %}</td>
                                         <td>
                                             {% if payment.source_type == 'PREPAID_BALANCE' or payment.customer_payment %}
                                             <span class="badge bg-dark text-white border border-secondary"><i class="fas fa-minus-circle me-1 text-warning"></i>{{ payment.source_display_info }}</span>

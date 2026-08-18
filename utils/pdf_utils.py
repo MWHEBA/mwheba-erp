@@ -209,122 +209,304 @@ def generate_pdf_via_reportlab(doc_type, context, filename="document.pdf"):
         story.append(Spacer(1, 10))
 
         # 2. Document Title & Details
-        doc_obj = context.get('sale') or context.get('quotation') or context.get('purchase')
-        doc_title = context.get('document_title') or ('فاتورة مبيعات' if doc_type == 'sale' else 'عرض سعر' if doc_type == 'quotation' else 'فاتورة مشتريات')
-        doc_num = getattr(doc_obj, 'number', '')
-        doc_date = str(getattr(doc_obj, 'date', ''))
-        status_txt = context.get('translated_status', '')
-
-        title_p = Paragraph(f"<b>{reshape_ar(doc_title)} #{doc_num}</b>", style_title)
-        story.append(title_p)
-        story.append(Spacer(1, 10))
-
-        # 3. Party Info (Customer / Supplier)
-        party = getattr(doc_obj, 'customer', None) or getattr(doc_obj, 'supplier', None)
-        party_name = getattr(party, 'name', '') if party else ''
-        party_phone = getattr(party, 'phone', '') if party else ''
-        party_label = 'فاتورة إلى (العميل):' if doc_type != 'purchase' else 'المورد / فاتورة من:'
-
-        info_data = [
-            [Paragraph(f"<b>{reshape_ar(party_label)}</b> {reshape_ar(party_name)}", style_ar_right),
-             Paragraph(f"<b>{reshape_ar('التاريخ:')}</b> {doc_date}", style_ar_right)],
-            [Paragraph(f"<b>{reshape_ar('الهاتف:')}</b> {party_phone}", style_ar_right),
-             Paragraph(f"<b>{reshape_ar('الحالة:')}</b> {reshape_ar(status_txt)}", style_ar_right)]
-        ]
-        info_table = Table(info_data, colWidths=[300, 245])
-        info_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#f8fafc')),
-            ('BOX', (0, 0), (-1, -1), 0.5, colors.HexColor('#cbd5e1')),
-            ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#e2e8f0')),
-            ('PADDING', (0, 0), (-1, -1), 6),
-        ]))
-        story.append(info_table)
-        story.append(Spacer(1, 12))
-
-        # 4. Items Table
-        items = context.get('items', [])
-        curr_symbol = context.get('currency_symbol_active', 'ج.م')
-        
-        items_data = [
-            [Paragraph(reshape_ar('#'), style_ar_center),
-             Paragraph(reshape_ar('المنتج / الوصف'), style_ar_right),
-             Paragraph(reshape_ar('الكمية'), style_ar_center),
-             Paragraph(reshape_ar('السعر'), style_ar_center),
-             Paragraph(reshape_ar('الإجمالي'), style_ar_center)]
-        ]
-
-        for idx, item in enumerate(items, 1):
-            product_obj = getattr(item, 'product', None)
-            p_name = (getattr(product_obj, 'name', '') if product_obj else None) or getattr(item, 'item_name', '') or getattr(item, 'description', '') or 'منتج'
-            qty = str(getattr(item, 'quantity', 1))
-            price = f"{getattr(item, 'unit_price', 0)} {curr_symbol}"
-            total = f"{getattr(item, 'total', 0)} {curr_symbol}"
+        if doc_type in ['statement', 'account_statement']:
+            # معالجة كشف الحساب المحاسبي في ReportLab
+            account_obj = context.get('account')
+            acc_name = getattr(account_obj, 'name', '') if account_obj else context.get('account_name', '')
+            acc_code = getattr(account_obj, 'code', '') if account_obj else context.get('account_code', '')
+            period_label = context.get('period_label') or 'كافة الحركات المالية'
+            curr_symbol = context.get('currency_symbol_active', 'ج.م')
             
-            items_data.append([
-                Paragraph(str(idx), style_ar_center),
-                Paragraph(reshape_ar(p_name), style_ar_right),
-                Paragraph(qty, style_ar_center),
-                Paragraph(price, style_ar_center),
-                Paragraph(total, style_ar_center)
-            ])
+            title_p = Paragraph(f"<b>{reshape_ar('كشف حساب')}: {reshape_ar(acc_name)} ({acc_code})</b>", style_title)
+            story.append(title_p)
+            story.append(Spacer(1, 6))
+            
+            # كارت بيانات الحساب والفترة
+            info_data = [
+                [Paragraph(f"<b>{reshape_ar('الحساب:')}</b> {reshape_ar(acc_name)} ({acc_code})", style_ar_right),
+                 Paragraph(f"<b>{reshape_ar('الفترة:')}</b> {reshape_ar(period_label)}", style_ar_right)],
+                [Paragraph(f"<b>{reshape_ar('تاريخ الاستخراج:')}</b> {context.get('generated_at', '')}", style_ar_right),
+                 Paragraph(f"<b>{reshape_ar('المستخدم:')}</b> {reshape_ar(context.get('generated_by', ''))}", style_ar_right)]
+            ]
+            info_table = Table(info_data, colWidths=[275, 270])
+            info_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#f8fafc')),
+                ('BOX', (0, 0), (-1, -1), 0.5, colors.HexColor('#cbd5e1')),
+                ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#e2e8f0')),
+                ('PADDING', (0, 0), (-1, -1), 5),
+            ]))
+            story.append(info_table)
+            story.append(Spacer(1, 8))
+            
+            # كروت المؤشرات المالية
+            summary_info = context.get('summary', {})
+            op_bal = summary_info.get('opening_balance', 0)
+            tot_deb = summary_info.get('total_debit', 0)
+            tot_crd = summary_info.get('total_credit', 0)
+            cl_bal = summary_info.get('closing_balance', 0)
+            
+            kpi_data = [
+                [
+                    Paragraph(f"<font size=8>{reshape_ar('الرصيد الافتتاحي')}</font><br/><b>{op_bal:,.2f}</b>", style_ar_center),
+                    Paragraph(f"<font size=8>{reshape_ar('إجمالي المدين (+)')}</font><br/><b>{tot_deb:,.2f}</b>", style_ar_center),
+                    Paragraph(f"<font size=8>{reshape_ar('إجمالي الدائن (-)')}</font><br/><b>{tot_crd:,.2f}</b>", style_ar_center),
+                    Paragraph(f"<font size=8>{reshape_ar('الرصيد الختامي')}</font><br/><b>{cl_bal:,.2f}</b>", style_ar_center),
+                ]
+            ]
+            kpi_table = Table(kpi_data, colWidths=[136, 136, 136, 137])
+            kpi_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#f1f5f9')),
+                ('BOX', (0, 0), (-1, -1), 0.5, colors.HexColor('#94a3b8')),
+                ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#cbd5e1')),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('PADDING', (0, 0), (-1, -1), 5),
+            ]))
+            story.append(kpi_table)
+            story.append(Spacer(1, 10))
+            
+            # جدول حركات كشف الحساب
+            trans = context.get('transactions', [])
+            tx_data = [
+                [Paragraph(reshape_ar('#'), style_ar_center),
+                 Paragraph(reshape_ar('التاريخ'), style_ar_center),
+                 Paragraph(reshape_ar('النوع'), style_ar_center),
+                 Paragraph(reshape_ar('البيان والتفاصيل'), style_ar_right),
+                 Paragraph(reshape_ar('المرجع'), style_ar_center),
+                 Paragraph(reshape_ar('مدين'), style_ar_center),
+                 Paragraph(reshape_ar('دائن'), style_ar_center),
+                 Paragraph(reshape_ar('الرصيد'), style_ar_center)]
+            ]
+            
+            for idx, t in enumerate(trans, 1):
+                dt_str = str(t.get('date', ''))
+                type_str = f"{t.get('entry_type_display') or t.get('journal_entry_number', '')}"
+                ref_str = f"{t.get('reference', '-')}"
+                desc_str = t.get('description', '') or '-'
+                if t.get('cost_center_name'):
+                    desc_str += f" [{t.get('cost_center_name')}]"
+                deb_val = f"{t.get('debit', 0):,.2f}" if t.get('debit') else "-"
+                crd_val = f"{t.get('credit', 0):,.2f}" if t.get('credit') else "-"
+                bal_val = f"{t.get('running_balance', t.get('balance', 0)):,.2f}"
+                
+                tx_data.append([
+                    Paragraph(str(idx), style_ar_center),
+                    Paragraph(dt_str, style_ar_center),
+                    Paragraph(reshape_ar(type_str), style_ar_center),
+                    Paragraph(reshape_ar(desc_str), style_ar_right),
+                    Paragraph(reshape_ar(ref_str), style_ar_center),
+                    Paragraph(deb_val, style_ar_center),
+                    Paragraph(crd_val, style_ar_center),
+                    Paragraph(bal_val, style_ar_center),
+                ])
+                
+            tx_table = Table(tx_data, colWidths=[20, 50, 60, 160, 55, 65, 65, 70])
+            tx_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#04578d')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), font_bold),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+                ('TOPPADDING', (0, 0), (-1, -1), 4),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#cbd5e1')),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f8fafc')]),
+            ]))
+            story.append(tx_table)
+            story.append(Spacer(1, 15))
+            
+            # مربعات التوقيعات الثلاثية الرسمية
+            sig_data = [
+                [Paragraph(f"<b>{reshape_ar('إعداد / المحاسب المسؤول')}</b><br/><br/>...........................<br/>", style_ar_center),
+                 Paragraph(f"<b>{reshape_ar('مراجعة / التدقيق الداخلي')}</b><br/><br/>...........................<br/>", style_ar_center),
+                 Paragraph(f"<b>{reshape_ar('اعتماد / المدير المالي')}</b><br/><br/>...........................<br/>", style_ar_center)]
+            ]
+            sig_table = Table(sig_data, colWidths=[180, 180, 185])
+            sig_table.setStyle(TableStyle([
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('BOX', (0, 0), (-1, -1), 0.5, colors.HexColor('#cbd5e1')),
+                ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#e2e8f0')),
+                ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#f8fafc')),
+                ('PADDING', (0, 0), (-1, -1), 8),
+            ]))
+            story.append(sig_table)
 
-        items_table = Table(items_data, colWidths=[30, 235, 80, 100, 100])
-        items_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#04578d')),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-            ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
-            ('FONTNAME', (0, 0), (-1, 0), font_bold),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
-            ('TOPPADDING', (0, 0), (-1, 0), 6),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#cbd5e1')),
-            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f8fafc')]),
-        ]))
-        story.append(items_table)
-        story.append(Spacer(1, 10))
+        elif doc_type == 'accounts_summary':
+            # ملخص حركة وأرصدة كافة الحسابات
+            title_p = Paragraph(f"<b>{reshape_ar('ملخص حركة وأرصدة الحسابات المالية')}</b>", style_title)
+            story.append(title_p)
+            story.append(Spacer(1, 10))
+            
+            accounts_summary_list = context.get('accounts_summary', [])
+            sm_data = [
+                [Paragraph(reshape_ar('كود الحساب'), style_ar_center),
+                 Paragraph(reshape_ar('اسم الحساب'), style_ar_right),
+                 Paragraph(reshape_ar('نوع الحساب'), style_ar_center),
+                 Paragraph(reshape_ar('إجمالي مدين'), style_ar_center),
+                 Paragraph(reshape_ar('إجمالي دائن'), style_ar_center),
+                 Paragraph(reshape_ar('الرصيد الحالي'), style_ar_center)]
+            ]
+            for item in accounts_summary_list:
+                acc = item.get('account')
+                code_str = getattr(acc, 'code', '')
+                name_str = getattr(acc, 'name', '')
+                type_name = getattr(getattr(acc, 'account_type', None), 'name', '')
+                deb_str = f"{item.get('total_debit', 0):,.2f}"
+                crd_str = f"{item.get('total_credit', 0):,.2f}"
+                bal_str = f"{item.get('current_balance', 0):,.2f}"
+                sm_data.append([
+                    Paragraph(code_str, style_ar_center),
+                    Paragraph(reshape_ar(name_str), style_ar_right),
+                    Paragraph(reshape_ar(type_name), style_ar_center),
+                    Paragraph(deb_str, style_ar_center),
+                    Paragraph(crd_str, style_ar_center),
+                    Paragraph(bal_str, style_ar_center),
+                ])
+            sm_table = Table(sm_data, colWidths=[65, 160, 80, 80, 80, 80])
+            sm_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#04578d')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), font_bold),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+                ('TOPPADDING', (0, 0), (-1, -1), 4),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#cbd5e1')),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f8fafc')]),
+            ]))
+            story.append(sm_table)
+        else:
+            # 2. Document Title & Details for Invoices & Orders
+            doc_obj = context.get('sale') or context.get('quotation') or context.get('purchase')
+            doc_title = context.get('document_title') or ('فاتورة مبيعات' if doc_type == 'sale' else 'عرض سعر' if doc_type == 'quotation' else 'فاتورة مشتريات')
+            doc_num = getattr(doc_obj, 'number', '')
+            doc_date = str(getattr(doc_obj, 'date', ''))
+            status_txt = context.get('translated_status', '')
 
-        # 5. Summary Totals
-        subtotal = f"{getattr(doc_obj, 'subtotal', 0)} {curr_symbol}"
-        discount = f"{getattr(doc_obj, 'discount', 0)} {curr_symbol}"
-        tax = f"{getattr(doc_obj, 'tax', 0)} {curr_symbol}"
-        total_val = f"{getattr(doc_obj, 'total', 0)} {curr_symbol}"
-        
-        try:
-            due_amount = getattr(doc_obj, 'amount_due', getattr(doc_obj, 'total', 0))
-        except Exception:
-            due_amount = getattr(doc_obj, 'total', 0)
-        due_val = f"{due_amount} {curr_symbol}"
+            title_p = Paragraph(f"<b>{reshape_ar(doc_title)} #{doc_num}</b>", style_title)
+            story.append(title_p)
+            story.append(Spacer(1, 10))
 
-        summary_data = [
-            [Paragraph(reshape_ar('المجموع الفرعي:'), style_ar_right), Paragraph(subtotal, style_ar_right)],
-            [Paragraph(reshape_ar('الخصم:'), style_ar_right), Paragraph(discount, style_ar_right)],
-            [Paragraph(reshape_ar('الضريبة:'), style_ar_right), Paragraph(tax, style_ar_right)],
-            [Paragraph(f"<b>{reshape_ar('الإجمالي الكلي:')}</b>", style_ar_right), Paragraph(f"<b>{total_val}</b>", style_ar_right)],
-            [Paragraph(f"<b>{reshape_ar('المبلغ المستحق:')}</b>", style_ar_right), Paragraph(f"<b>{due_val}</b>", style_ar_right)]
-        ]
-        
-        summary_table = Table(summary_data, colWidths=[150, 120])
-        summary_table.setStyle(TableStyle([
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#cbd5e1')),
-            ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#04578d')),
-            ('TEXTCOLOR', (0, -1), (-1, -1), colors.white),
-            ('PADDING', (0, 0), (-1, -1), 5),
-        ]))
-        
-        # Position summary to the left
-        wrapper_table = Table([[Paragraph('', style_ar_right), summary_table]], colWidths=[275, 270])
-        wrapper_table.setStyle(TableStyle([('VALIGN', (0, 0), (-1, -1), 'TOP')]))
-        story.append(wrapper_table)
+            # 3. Party Info (Customer / Supplier)
+            party = getattr(doc_obj, 'customer', None) or getattr(doc_obj, 'supplier', None)
+            party_name = getattr(party, 'name', '') if party else ''
+            party_phone = getattr(party, 'phone', '') if party else ''
+            party_label = 'فاتورة إلى (العميل):' if doc_type != 'purchase' else 'المورد / فاتورة من:'
+
+            info_data = [
+                [Paragraph(f"<b>{reshape_ar(party_label)}</b> {reshape_ar(party_name)}", style_ar_right),
+                 Paragraph(f"<b>{reshape_ar('التاريخ:')}</b> {doc_date}", style_ar_right)],
+                [Paragraph(f"<b>{reshape_ar('الهاتف:')}</b> {party_phone}", style_ar_right),
+                 Paragraph(f"<b>{reshape_ar('الحالة:')}</b> {reshape_ar(status_txt)}", style_ar_right)]
+            ]
+            info_table = Table(info_data, colWidths=[300, 245])
+            info_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#f8fafc')),
+                ('BOX', (0, 0), (-1, -1), 0.5, colors.HexColor('#cbd5e1')),
+                ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#e2e8f0')),
+                ('PADDING', (0, 0), (-1, -1), 6),
+            ]))
+            story.append(info_table)
+            story.append(Spacer(1, 12))
+
+            # 4. Items Table
+            items = context.get('items', [])
+            curr_symbol = context.get('currency_symbol_active', 'ج.م')
+            
+            items_data = [
+                [Paragraph(reshape_ar('#'), style_ar_center),
+                 Paragraph(reshape_ar('المنتج / الوصف'), style_ar_right),
+                 Paragraph(reshape_ar('الكمية'), style_ar_center),
+                 Paragraph(reshape_ar('السعر'), style_ar_center),
+                 Paragraph(reshape_ar('الإجمالي'), style_ar_center)]
+            ]
+
+            for idx, item in enumerate(items, 1):
+                product_obj = getattr(item, 'product', None)
+                p_name = (getattr(product_obj, 'name', '') if product_obj else None) or getattr(item, 'item_name', '') or getattr(item, 'description', '') or 'منتج'
+                qty = str(getattr(item, 'quantity', 1))
+                price = f"{getattr(item, 'unit_price', 0)} {curr_symbol}"
+                total = f"{getattr(item, 'total', 0)} {curr_symbol}"
+                
+                items_data.append([
+                    Paragraph(str(idx), style_ar_center),
+                    Paragraph(reshape_ar(p_name), style_ar_right),
+                    Paragraph(qty, style_ar_center),
+                    Paragraph(price, style_ar_center),
+                    Paragraph(total, style_ar_center)
+                ])
+
+            items_table = Table(items_data, colWidths=[30, 235, 80, 100, 100])
+            items_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#04578d')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+                ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), font_bold),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
+                ('TOPPADDING', (0, 0), (-1, 0), 6),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#cbd5e1')),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f8fafc')]),
+            ]))
+            story.append(items_table)
+            story.append(Spacer(1, 10))
+
+            # 5. Summary Totals
+            subtotal = f"{getattr(doc_obj, 'subtotal', 0)} {curr_symbol}"
+            discount = f"{getattr(doc_obj, 'discount', 0)} {curr_symbol}"
+            tax = f"{getattr(doc_obj, 'tax', 0)} {curr_symbol}"
+            total_val = f"{getattr(doc_obj, 'total', 0)} {curr_symbol}"
+            
+            try:
+                due_amount = getattr(doc_obj, 'amount_due', getattr(doc_obj, 'total', 0))
+            except Exception:
+                due_amount = getattr(doc_obj, 'total', 0)
+            due_val = f"{due_amount} {curr_symbol}"
+
+            summary_data = [
+                [Paragraph(reshape_ar('المجموع الفرعي:'), style_ar_right), Paragraph(subtotal, style_ar_right)],
+                [Paragraph(reshape_ar('الخصم:'), style_ar_right), Paragraph(discount, style_ar_right)],
+                [Paragraph(reshape_ar('الضريبة:'), style_ar_right), Paragraph(tax, style_ar_right)],
+                [Paragraph(f"<b>{reshape_ar('الإجمالي الكلي:')}</b>", style_ar_right), Paragraph(f"<b>{total_val}</b>", style_ar_right)],
+                [Paragraph(f"<b>{reshape_ar('المبلغ المستحق:')}</b>", style_ar_right), Paragraph(f"<b>{due_val}</b>", style_ar_right)]
+            ]
+            
+            summary_table = Table(summary_data, colWidths=[150, 120])
+            summary_table.setStyle(TableStyle([
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#cbd5e1')),
+                ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#04578d')),
+                ('TEXTCOLOR', (0, -1), (-1, -1), colors.white),
+                ('PADDING', (0, 0), (-1, -1), 5),
+            ]))
+            
+            # Position summary to the left
+            wrapper_table = Table([[Paragraph('', style_ar_right), summary_table]], colWidths=[275, 270])
+            wrapper_table.setStyle(TableStyle([('VALIGN', (0, 0), (-1, -1), 'TOP')]))
+            story.append(wrapper_table)
 
         doc.build(story)
         pdf_bytes = buffer.getvalue()
         
         response = HttpResponse(pdf_bytes, content_type='application/pdf')
-        response['Content-Disposition'] = f'attachment; filename="{filename}"'
-        return response
+        return set_pdf_content_disposition(response, filename)
 
     except Exception as e:
         logger.error(f"ReportLab PDF generation error for {filename}: {e}", exc_info=True)
         return None
+
+def set_pdf_content_disposition(response, filename="document.pdf"):
+    """
+    ضبط ترويسة Content-Disposition بمعيار RFC 5987 لدعم الأسماء العربية بدون خطأ Latin-1
+    """
+    from urllib.parse import quote
+    import unicodedata
+    if not filename.endswith('.pdf'):
+        filename += '.pdf'
+    
+    # Safe ASCII fallback filename
+    ascii_clean = unicodedata.normalize('NFKD', filename).encode('ascii', 'ignore').decode('ascii')
+    ascii_filename = ascii_clean if (ascii_clean and ascii_clean.strip() != '.pdf') else "document.pdf"
+    
+    encoded_filename = quote(filename)
+    response['Content-Disposition'] = f'attachment; filename="{ascii_filename}"; filename*=UTF-8\'\'{encoded_filename}'
+    return response
 
 def generate_pdf_from_html(html_content, request=None, filename="document.pdf", doc_type="sale", context=None):
     """
@@ -342,8 +524,7 @@ def generate_pdf_from_html(html_content, request=None, filename="document.pdf", 
         ).write_pdf()
         
         response = HttpResponse(pdf_bytes, content_type='application/pdf')
-        response['Content-Disposition'] = f'attachment; filename="{filename}"'
-        return response
+        return set_pdf_content_disposition(response, filename)
     except Exception as e:
         logger.warning(f"WeasyPrint unavailable or failed ({e}), falling back to ReportLab engine.")
 
@@ -388,11 +569,9 @@ def generate_guaranteed_pdf_response(doc_type, context, filename="document.pdf")
         doc.build(story)
         
         response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
-        response['Content-Disposition'] = f'attachment; filename="{filename}"'
-        return response
+        return set_pdf_content_disposition(response, filename)
     except Exception as e:
         logger.error(f"Fallback minimal PDF generation error: {e}")
         minimal_pdf = b"%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj 2 0 obj<</Type/Pages/Count 1/Kids[3 0 R]>>endobj 3 0 obj<</Type/Page/MediaBox[0 0 595 842]/Parent 2 0 R>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF"
         response = HttpResponse(minimal_pdf, content_type='application/pdf')
-        response['Content-Disposition'] = f'attachment; filename="{filename}"'
-        return response
+        return set_pdf_content_disposition(response, filename)

@@ -1,0 +1,561 @@
+{% load static %}
+{% load custom_filters %}
+{% load utils_extras %}
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ document_title|default:"كشف حساب" }} - {{ account.name }}</title>
+    <style>
+        :root {
+            --primary-color: #04578d;
+            --primary-dark: #034069;
+            --primary-light: #e6f0f7;
+            --bg-light: #f8fafc;
+            --bg-card: #ffffff;
+            --border-color: #cbd5e1;
+            --border-light: #e2e8f0;
+            --text-dark: #0f172a;
+            --text-muted: #64748b;
+            --debit-color: #04578d;
+            --credit-color: #0d9488;
+            --danger-color: #dc2626;
+        }
+
+        @page {
+            size: A4 portrait;
+            margin: 12mm 10mm 14mm 10mm;
+            @bottom-left {
+                content: "نظام موهبة ERP المحاسبي";
+                font-family: 'Tajawal', sans-serif;
+                font-size: 7.5pt;
+                color: #94a3b8;
+            }
+            @bottom-center {
+                content: "صفحة " counter(page) " من " counter(pages);
+                font-family: 'Tajawal', sans-serif;
+                font-size: 8pt;
+                color: #64748b;
+                font-weight: bold;
+            }
+            @bottom-right {
+                content: "تاريخ الاستخراج: {{ generated_at }}";
+                font-family: 'Tajawal', sans-serif;
+                font-size: 7.5pt;
+                color: #94a3b8;
+            }
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Tajawal', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #ffffff;
+            color: var(--text-dark);
+            direction: rtl;
+            text-align: right;
+            font-size: 9pt;
+            line-height: 1.35;
+        }
+
+        /* ترويسة المنشأة الرسمية */
+        .company-header {
+            display: table;
+            width: 100%;
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 8px;
+            margin-bottom: 10px;
+        }
+
+        .header-col {
+            display: table-cell;
+            vertical-align: middle;
+        }
+
+        .company-info {
+            width: 60%;
+            text-align: right;
+        }
+
+        .company-name {
+            font-size: 14pt;
+            font-weight: bold;
+            color: var(--primary-color);
+            margin-bottom: 3px;
+        }
+
+        .company-details {
+            font-size: 8pt;
+            color: var(--text-muted);
+            line-height: 1.4;
+        }
+
+        .company-logo-box {
+            width: 40%;
+            text-align: left;
+        }
+
+        .company-logo {
+            max-height: 55px;
+            max-width: 180px;
+            object-fit: contain;
+        }
+
+        /* عنوان التقرير وبطاقة البيانات */
+        .report-title-bar {
+            background-color: var(--primary-light);
+            border-right: 4px solid var(--primary-color);
+            padding: 6px 10px;
+            margin-bottom: 8px;
+            display: table;
+            width: 100%;
+        }
+
+        .report-title {
+            display: table-cell;
+            font-size: 11pt;
+            font-weight: bold;
+            color: var(--primary-color);
+            vertical-align: middle;
+        }
+
+        .report-period {
+            display: table-cell;
+            text-align: left;
+            font-size: 8.5pt;
+            color: var(--text-dark);
+            vertical-align: middle;
+            font-weight: 500;
+        }
+
+        /* بطاقة معلومات الحساب */
+        .account-card {
+            background-color: var(--bg-light);
+            border: 1px solid var(--border-light);
+            border-radius: 4px;
+            padding: 8px 10px;
+            margin-bottom: 10px;
+        }
+
+        .info-grid {
+            display: table;
+            width: 100%;
+        }
+
+        .info-row {
+            display: table-row;
+        }
+
+        .info-cell {
+            display: table-cell;
+            padding: 2px 4px;
+            font-size: 8.5pt;
+            vertical-align: top;
+        }
+
+        .info-cell.w-50 {
+            width: 50%;
+        }
+
+        .info-label {
+            font-weight: bold;
+            color: var(--text-muted);
+            display: inline-block;
+            min-width: 85px;
+        }
+
+        .info-value {
+            color: var(--text-dark);
+            font-weight: 600;
+        }
+
+        /* شريط المؤشرات المالية والمعادلة المحاسبية */
+        .kpi-strip {
+            display: table;
+            width: 100%;
+            margin-bottom: 10px;
+            border-collapse: separate;
+            border-spacing: 4px 0;
+        }
+
+        .kpi-item {
+            display: table-cell;
+            width: 25%;
+            background-color: #ffffff;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 6px 8px;
+            text-align: center;
+            vertical-align: middle;
+        }
+
+        .kpi-item.opening {
+            border-top: 3px solid #64748b;
+        }
+
+        .kpi-item.debit {
+            border-top: 3px solid var(--debit-color);
+        }
+
+        .kpi-item.credit {
+            border-top: 3px solid var(--credit-color);
+        }
+
+        .kpi-item.closing {
+            border-top: 3px solid var(--primary-color);
+            background-color: var(--primary-light);
+        }
+
+        .kpi-label {
+            font-size: 7.5pt;
+            color: var(--text-muted);
+            margin-bottom: 2px;
+            font-weight: 500;
+        }
+
+        .kpi-val {
+            font-size: 9.5pt;
+            font-weight: bold;
+            color: var(--text-dark);
+            direction: ltr;
+            unicode-bidi: embed;
+        }
+
+        /* جدول الحركات المحاسبية */
+        .statement-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 12px;
+            font-size: 8pt;
+        }
+
+        thead {
+            display: table-header-group;
+        }
+
+        tr {
+            page-break-inside: avoid;
+        }
+
+        .statement-table th {
+            background-color: var(--primary-color);
+            color: #ffffff;
+            font-weight: bold;
+            padding: 6px 4px;
+            text-align: center;
+            border: 1px solid var(--primary-dark);
+            font-size: 8pt;
+        }
+
+        .statement-table td {
+            padding: 5px 4px;
+            border: 1px solid var(--border-light);
+            vertical-align: middle;
+        }
+
+        .statement-table tbody tr:nth-child(even) {
+            background-color: var(--bg-light);
+        }
+
+        .col-idx { width: 4%; text-align: center; color: var(--text-muted); }
+        .col-date { width: 10%; text-align: center; direction: ltr; }
+        .col-type { width: 13%; text-align: center; }
+        .col-desc { width: 31%; text-align: right; }
+        .col-ref { width: 12%; text-align: center; }
+        .col-num { width: 10%; text-align: left; direction: ltr; unicode-bidi: embed; padding-left: 6px !important; }
+
+        .cell-bold { font-weight: bold; }
+        .cell-debit { color: var(--debit-color); }
+        .cell-credit { color: var(--credit-color); }
+        .cell-balance { font-weight: bold; color: var(--text-dark); }
+
+        .badge-sub {
+            display: inline-block;
+            padding: 1px 4px;
+            border-radius: 3px;
+            font-size: 6.5pt;
+            margin-top: 2px;
+            background-color: #e2e8f0;
+            color: #334155;
+        }
+
+        .badge-rev {
+            background-color: #fee2e2;
+            color: #991b1b;
+            font-weight: bold;
+        }
+
+        .badge-fx {
+            background-color: #fef3c7;
+            color: #92400e;
+        }
+
+        .bf-row {
+            background-color: var(--primary-light) !important;
+            font-weight: bold;
+        }
+
+        /* ملخص الإجماليات والتوقيعات الرسمية في نهاية التقرير */
+        .summary-section {
+            page-break-inside: avoid;
+            margin-top: 10px;
+        }
+
+        .totals-box {
+            display: table;
+            width: 100%;
+            border: 1px solid var(--border-color);
+            background-color: var(--bg-light);
+            border-radius: 4px;
+            padding: 6px 10px;
+            margin-bottom: 15px;
+        }
+
+        .totals-cell {
+            display: table-cell;
+            vertical-align: middle;
+            font-size: 8.5pt;
+        }
+
+        .totals-cell.title {
+            width: 30%;
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+
+        .totals-cell.data {
+            width: 70%;
+            text-align: left;
+            direction: ltr;
+        }
+
+        .signatures-box {
+            display: table;
+            width: 100%;
+            margin-top: 15px;
+            border-top: 1px solid var(--border-color);
+            padding-top: 12px;
+        }
+
+        .sig-col {
+            display: table-cell;
+            width: 33.33%;
+            text-align: center;
+            vertical-align: top;
+            padding: 0 8px;
+        }
+
+        .sig-title {
+            font-weight: bold;
+            font-size: 8.5pt;
+            color: var(--text-dark);
+            margin-bottom: 30px;
+        }
+
+        .sig-line {
+            border-bottom: 1px dashed #94a3b8;
+            margin: 0 15px 4px 15px;
+        }
+
+        .sig-name {
+            font-size: 7.5pt;
+            color: var(--text-muted);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 1. ترويسة المنشأة الرسمية -->
+    <div class="company-header">
+        <div class="header-col company-info">
+            <div class="company-name">{{ company_name|default:"مؤسسة موهبة للتجارة" }}</div>
+            <div class="company-details">
+                {% if company_tax_number %}الرقم الضريبي: {{ company_tax_number }} | {% endif %}
+                {% if company_cr %}س.ت: {{ company_cr }} | {% endif %}
+                {% if company_phone %}هاتف: {{ company_phone }}{% endif %}
+                <br>
+                {{ company_address|default:"" }}
+            </div>
+        </div>
+        <div class="header-col company-logo-box">
+            {% if company_logo %}
+                <img src="{{ company_logo }}" alt="Logo" class="company-logo">
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- 2. عنوان التقرير وفترة الاستخراج -->
+    <div class="report-title-bar">
+        <div class="report-title">
+            كشف حساب تفصيلي: {{ account.name }}
+        </div>
+        <div class="report-period">
+            {{ period_label|default:"كافة الحركات المالية حتى تاريخه" }}
+        </div>
+    </div>
+
+    <!-- 3. بطاقة بيانات الحساب والفلترة -->
+    <div class="account-card">
+        <div class="info-grid">
+            <div class="info-row">
+                <div class="info-cell w-50">
+                    <span class="info-label">كود الحساب:</span>
+                    <span class="info-value">{{ account.code }}</span>
+                </div>
+                <div class="info-cell w-50">
+                    <span class="info-label">نوع الحساب:</span>
+                    <span class="info-value">{{ account.account_type.name|default:"-" }}</span>
+                </div>
+            </div>
+            <div class="info-row">
+                <div class="info-cell w-50">
+                    <span class="info-label">العملة الأساسية:</span>
+                    <span class="info-value">{{ account.currency.name|default:"الجنيه المصري (EGP)" }}</span>
+                </div>
+                <div class="info-cell w-50">
+                    <span class="info-label">مركز التكلفة:</span>
+                    <span class="info-value">{% if cost_center_name %}{{ cost_center_name }}{% else %}كافة مراكز التكلفة{% endif %}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. شريط المعادلة المحاسبية والمؤشرات المالية -->
+    <div class="kpi-strip">
+        <div class="kpi-item opening">
+            <div class="kpi-label">الرصيد الافتتاحي</div>
+            <div class="kpi-val">{{ summary.opening_balance|smart_float }}</div>
+        </div>
+        <div class="kpi-item debit">
+            <div class="kpi-label">إجمالي المدين (+)</div>
+            <div class="kpi-val cell-debit">{{ summary.total_debit|smart_float }}</div>
+        </div>
+        <div class="kpi-item credit">
+            <div class="kpi-label">إجمالي الدائن (-)</div>
+            <div class="kpi-val cell-credit">{{ summary.total_credit|smart_float }}</div>
+        </div>
+        <div class="kpi-item closing">
+            <div class="kpi-label">الرصيد الختامي</div>
+            <div class="kpi-val cell-balance">{{ summary.closing_balance|smart_float }}</div>
+        </div>
+    </div>
+
+    <!-- 5. جدول الحركات المالية -->
+    <table class="statement-table">
+        <thead>
+            <tr>
+                <th class="col-idx">#</th>
+                <th class="col-date">التاريخ</th>
+                <th class="col-type">النوع</th>
+                <th class="col-desc">البيان والتفاصيل</th>
+                <th class="col-ref">المرجع</th>
+                <th class="col-num">مدين ({{ currency_symbol_active|default:"ج.م" }})</th>
+                <th class="col-num">دائن ({{ currency_symbol_active|default:"ج.م" }})</th>
+                <th class="col-num">الرصيد ({{ currency_symbol_active|default:"ج.م" }})</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- سطر الرصيد المنقول الافتتاحي -->
+            <tr class="bf-row">
+                <td class="col-idx">-</td>
+                <td class="col-date">{% if date_from %}{{ date_from|date:'Y-m-d' }}{% else %}-{% endif %}</td>
+                <td class="col-type">-</td>
+                <td class="col-desc"><strong>رصيد منقول (افتتاحي ما قبل الفترة)</strong></td>
+                <td class="col-ref">-</td>
+                <td class="col-num">-</td>
+                <td class="col-num">-</td>
+                <td class="col-num cell-balance">{{ summary.opening_balance|smart_float }}</td>
+            </tr>
+
+            {% for item in transactions %}
+            <tr>
+                <td class="col-idx">{{ forloop.counter }}</td>
+                <td class="col-date">{{ item.date|date:'Y-m-d' }}</td>
+                <td class="col-type">
+                    <span style="font-weight: 600;">{{ item.entry_type_display|default:item.journal_entry_number }}</span>
+                    <br><span style="font-size: 6.5pt; color: #64748b;">{{ item.journal_entry_number }}</span>
+                </td>
+                <td class="col-desc">
+                    {{ item.description|default:"-" }}
+                    {% if item.is_reversal %}
+                        <span class="badge-sub badge-rev">قيد عكسي</span>
+                    {% endif %}
+                    {% if item.reversed_by_entry %}
+                        <span class="badge-sub badge-rev">معكوس</span>
+                    {% endif %}
+                    {% if item.cost_center_name %}
+                        <span class="badge-sub">مركز: {{ item.cost_center_name }}</span>
+                    {% endif %}
+                    {% if item.foreign_debit or item.foreign_credit %}
+                        <span class="badge-sub badge-fx">
+                            {% if item.foreign_debit %}{{ item.foreign_debit|smart_float }}{% else %}{{ item.foreign_credit|smart_float }}{% endif %}
+                            {{ item.currency }} @ {{ item.exchange_rate }}
+                        </span>
+                    {% endif %}
+                </td>
+                <td class="col-ref">
+                    {% if item.reference and item.reference != '-' %}
+                        <span style="font-size: 7.5pt; color: #334155;">{{ item.reference }}</span>
+                    {% else %}
+                        <span style="color: #94a3b8;">-</span>
+                    {% endif %}
+                </td>
+                <td class="col-num {% if item.debit %}cell-debit cell-bold{% endif %}">
+                    {% if item.debit %}{{ item.debit|smart_float }}{% else %}-{% endif %}
+                </td>
+                <td class="col-num {% if item.credit %}cell-credit cell-bold{% endif %}">
+                    {% if item.credit %}{{ item.credit|smart_float }}{% else %}-{% endif %}
+                </td>
+                <td class="col-num cell-balance">
+                    {{ item.running_balance|smart_float }}
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="8" style="text-align: center; padding: 15px; color: #64748b;">
+                    لا توجد حركات مالية مسجلة على هذا الحساب خلال الفترة المحددة - الرصيد المنقول مستمر.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- 6. قسم الإجماليات والتوقيعات المعتمدة -->
+    <div class="summary-section">
+        <div class="totals-box">
+            <div class="totals-cell title">
+                إجمالي حركة الفترة ({{ summary.transaction_count|default:0 }} حركة):
+            </div>
+            <div class="totals-cell data">
+                <strong>المدين:</strong> {{ summary.total_debit|smart_float }} &nbsp;|&nbsp;
+                <strong>الدائن:</strong> {{ summary.total_credit|smart_float }} &nbsp;|&nbsp;
+                <strong>صافي التغير:</strong> {{ summary.period_movement|smart_float }} &nbsp;|&nbsp;
+                <strong>الرصيد الختامي:</strong> {{ summary.closing_balance|smart_float }}
+            </div>
+        </div>
+
+        <div class="signatures-box">
+            <div class="sig-col">
+                <div class="sig-title">إعداد / المحاسب المسؤول</div>
+                <div class="sig-line"></div>
+                <div class="sig-name">{{ generated_by|default:"المحاسب المالي" }}</div>
+            </div>
+            <div class="sig-col">
+                <div class="sig-title">مراجعة / التدقيق الداخلي</div>
+                <div class="sig-line"></div>
+                <div class="sig-name">قسم المراجعة الداخلية</div>
+            </div>
+            <div class="sig-col">
+                <div class="sig-title">اعتماد / المدير المالي</div>
+                <div class="sig-line"></div>
+                <div class="sig-name">الإدارة المالية</div>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>

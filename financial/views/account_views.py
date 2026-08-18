@@ -1496,6 +1496,12 @@ def chart_of_accounts_detail(request, pk):
         "page_icon": "fas fa-file-invoice-dollar",
         "header_buttons": [
             {
+                "url": f"{reverse('financial:ledger_report')}?account={account.pk}",
+                "icon": "fa-file-invoice-dollar",
+                "text": "كشف الحساب",
+                "class": "btn-outline-info",
+            },
+            {
                 "url": reverse("financial:account_edit", args=[account.pk]),
                 "icon": "fa-edit",
                 "text": "تعديل",

@@ -1799,41 +1799,52 @@ def create_stock_movement_entry(
     
     # Helper function to get account by code with fallback
     def get_account_code(primary_code, fallback_code=None, account_type_code=None, required=True):
-        """Get account code with fallback options"""
-        try:
-            account = ChartOfAccounts.objects.get(code=primary_code, is_active=True)
-            return account.code
-        except ChartOfAccounts.DoesNotExist:
-            if fallback_code:
-                try:
-                    account = ChartOfAccounts.objects.get(code=fallback_code, is_active=True)
-                    logger.info(f"Using fallback account {fallback_code} instead of {primary_code}")
+        """Get account code with fallback options ensuring postable account resolution"""
+        codes_to_try = [c for c in [primary_code, fallback_code] if c]
+        for code in codes_to_try:
+            try:
+                account = ChartOfAccounts.objects.get(code=code, is_active=True)
+                if account.can_post_entries():
                     return account.code
-                except ChartOfAccounts.DoesNotExist:
-                    pass
-            if account_type_code:
-                try:
+                # إذا كان الحساب غير نهائي وله أبناء، نستخدم أول حساب فرعي نشط
+                leaf_child = account.children.filter(is_active=True, is_leaf=True).first()
+                if leaf_child and leaf_child.can_post_entries():
+                    logger.info(f"Using leaf child {leaf_child.code} of parent account {code}")
+                    return leaf_child.code
+                if account.children.count() == 0:
+                    return account.code
+            except ChartOfAccounts.DoesNotExist:
+                pass
+
+        if account_type_code:
+            try:
+                account = ChartOfAccounts.objects.filter(
+                    account_type__code=account_type_code, 
+                    is_active=True,
+                    is_leaf=True
+                ).first()
+                if not account:
                     account = ChartOfAccounts.objects.filter(
                         account_type__code=account_type_code, 
                         is_active=True
                     ).first()
-                    if account:
-                        logger.info(f"Using account type {account_type_code}: {account.code} instead of {primary_code}")
-                        return account.code
-                except:
-                    pass
-            
-            if required:
-                error_msg = f"Required account not found: {primary_code}"
-                if fallback_code:
-                    error_msg += f" (fallback: {fallback_code})"
-                if account_type_code:
-                    error_msg += f" (type: {account_type_code})"
-                logger.error(error_msg)
-                raise ValidationError(error_msg)
-            else:
-                logger.warning(f"Optional account not found: {primary_code}, will skip this entry")
-                return None
+                if account and account.can_post_entries():
+                    logger.info(f"Using account type {account_type_code}: {account.code} instead of {primary_code}")
+                    return account.code
+            except Exception:
+                pass
+        
+        if required:
+            error_msg = f"Required account not found: {primary_code}"
+            if fallback_code:
+                error_msg += f" (fallback: {fallback_code})"
+            if account_type_code:
+                error_msg += f" (type: {account_type_code})"
+            logger.error(error_msg)
+            raise ValidationError(error_msg)
+        else:
+            logger.warning(f"Optional account not found: {primary_code}, will skip this entry")
+            return None
     
     # Get standard account codes
     inventory_account_code = get_account_code('10400', '10400', 'inventory', required=True)  # المخزون

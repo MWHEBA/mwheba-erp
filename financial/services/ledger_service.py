@@ -33,42 +33,18 @@ class LedgerService:
         as_of_date: date
     ) -> Decimal:
         """
-        حساب الرصيد الافتتاحي للحساب قبل تاريخ معين
-        
-        Args:
-            account: الحساب
-            as_of_date: التاريخ المطلوب
-            
-        Returns:
-            الرصيد الافتتاحي
+        حساب الرصيد الافتتاحي للحساب قبل تاريخ معين عبر LedgerQueryService
         """
         try:
-            # جلب جميع القيود المرحلة قبل التاريخ المحدد
-            lines = JournalEntryLine.objects.filter(
-                account=account,
-                journal_entry__status='posted',
-                journal_entry__date__lt=as_of_date
-            ).aggregate(
-                total_debit=Coalesce(Sum('debit'), Decimal('0')),
-                total_credit=Coalesce(Sum('credit'), Decimal('0'))
+            from .ledger_query_service import LedgerQueryService
+            res = LedgerQueryService.get_account_balance(
+                account_or_id=account,
+                as_of_date=as_of_date - timedelta(days=1)
             )
-            
-            total_debit = lines['total_debit']
-            total_credit = lines['total_credit']
-            
-            # حساب الرصيد حسب طبيعة الحساب
-            if account.account_type.nature == 'debit':
-                # الحسابات المدينة (أصول، مصروفات)
-                opening_balance = total_debit - total_credit
-            else:
-                # الحسابات الدائنة (خصوم، إيرادات، حقوق ملكية)
-                opening_balance = total_credit - total_debit
-            
-            return opening_balance
-            
+            return res.get('balance', Decimal('0.00'))
         except Exception as e:
             logger.error(f"خطأ في حساب الرصيد الافتتاحي للحساب {account.code}: {e}")
-            return Decimal('0')
+            return Decimal('0.00')
 
     @staticmethod
     def get_account_transactions(
@@ -78,73 +54,17 @@ class LedgerService:
         include_unposted: bool = False
     ) -> List[Dict]:
         """
-        جلب جميع معاملات الحساب مع حساب الرصيد التراكمي
-        
-        Args:
-            account: الحساب
-            date_from: من تاريخ (اختياري)
-            date_to: إلى تاريخ (اختياري)
-            include_unposted: هل نشمل القيود غير المرحلة؟
-            
-        Returns:
-            قائمة المعاملات مع الرصيد التراكمي
+        جلب جميع معاملات الحساب مع حساب الرصيد التراكمي عبر LedgerQueryService
         """
         try:
-            # بناء الاستعلام
-            query = Q(account=account)
-            
-            # فلترة حسب الحالة
-            if not include_unposted:
-                query &= Q(journal_entry__status='posted')
-            
-            # فلترة حسب التاريخ
-            if date_from:
-                query &= Q(journal_entry__date__gte=date_from)
-            if date_to:
-                query &= Q(journal_entry__date__lte=date_to)
-            
-            # جلب المعاملات
-            lines = JournalEntryLine.objects.filter(query).select_related(
-                'journal_entry',
-                'journal_entry__created_by'
-            ).order_by('journal_entry__date', 'journal_entry__id', 'id')
-            
-            # حساب الرصيد الافتتاحي
-            opening_balance = Decimal('0')
-            if date_from:
-                opening_balance = LedgerService.get_opening_balance(account, date_from)
-            
-            # بناء قائمة المعاملات مع الرصيد التراكمي
-            transactions = []
-            running_balance = opening_balance
-            
-            for line in lines:
-                debit = line.debit or Decimal('0')
-                credit = line.credit or Decimal('0')
-                
-                # حساب الرصيد التراكمي حسب طبيعة الحساب
-                if account.account_type.nature == 'debit':
-                    running_balance += debit - credit
-                else:
-                    running_balance += credit - debit
-                
-                transactions.append({
-                    'id': line.id,
-                    'date': line.journal_entry.date,
-                    'journal_entry': line.journal_entry,
-                    'journal_number': line.journal_entry.number,
-                    'journal_id': line.journal_entry.id,
-                    'reference': line.journal_entry.reference or '-',
-                    'description': line.description or line.journal_entry.description,
-                    'debit': debit,
-                    'credit': credit,
-                    'balance': running_balance,
-                    'status': line.journal_entry.status,
-                    'created_by': line.journal_entry.created_by,
-                })
-            
-            return transactions
-            
+            from .ledger_query_service import LedgerQueryService
+            statement = LedgerQueryService.get_account_statement(
+                account_or_id=account,
+                start_date=date_from,
+                end_date=date_to,
+                include_unposted=include_unposted
+            )
+            return statement.get('transactions', [])
         except Exception as e:
             logger.error(f"خطأ في جلب معاملات الحساب {account.code}: {e}")
             return []
@@ -156,42 +76,21 @@ class LedgerService:
         end_date: Optional[date] = None
     ) -> Dict:
         """
-        توليد تقرير دفتر الأستاذ لحساب معين
-        
-        Args:
-            account_id: رقم الحساب
-            start_date: تاريخ البداية
-            end_date: تاريخ النهاية
-            
-        Returns:
-            تقرير دفتر الأستاذ
+        توليد تقرير دفتر الأستاذ لحساب معين عبر LedgerQueryService
         """
         try:
             account = ChartOfAccounts.objects.get(id=account_id)
-            
-            # حساب الرصيد الافتتاحي
-            opening_balance = Decimal('0')
-            if start_date:
-                opening_balance = LedgerService.get_opening_balance(account, start_date)
-            
-            # جلب المعاملات
-            transactions = LedgerService.get_account_transactions(
-                account=account,
-                date_from=start_date,
-                date_to=end_date
-            )
-            
-            # حساب الملخص
-            summary = LedgerService.get_account_summary(
-                account=account,
-                date_from=start_date,
-                date_to=end_date
+            from .ledger_query_service import LedgerQueryService
+            statement = LedgerQueryService.get_account_statement(
+                account_or_id=account,
+                start_date=start_date,
+                end_date=end_date
             )
             
             return {
                 'account': account,
-                'transactions': transactions,
-                'summary': summary,
+                'transactions': statement.get('transactions', []),
+                'summary': statement,
                 'start_date': start_date,
                 'end_date': end_date,
             }
@@ -370,7 +269,7 @@ class LedgerService:
             # إنشاء workbook
             wb = openpyxl.Workbook()
             ws = wb.active
-            ws.title = "دفتر الأستاذ"
+            ws.title = "كشف حساب"
             
             # تنسيق العنوان
             header_fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
@@ -384,7 +283,7 @@ class LedgerService:
             
             if account:
                 # تصدير حساب واحد
-                ws['A1'] = f"دفتر الأستاذ - {account.name}"
+                ws['A1'] = f"كشف حساب - {account.name}"
                 ws['A1'].font = Font(bold=True, size=14)
                 ws.merge_cells('A1:G1')
                 
@@ -394,7 +293,7 @@ class LedgerService:
                 ws['E2'] = f"الفترة: {date_from or 'البداية'} - {date_to or 'النهاية'}"
                 
                 # العناوين
-                headers = ['التاريخ', 'رقم القيد', 'المرجع', 'الوصف', 'مدين', 'دائن', 'الرصيد']
+                headers = ['التاريخ', 'النوع', 'البيان', 'المرجع', 'مدين', 'دائن', 'الرصيد']
                 for col, header in enumerate(headers, 1):
                     cell = ws.cell(row=4, column=col, value=header)
                     cell.fill = header_fill
@@ -416,9 +315,9 @@ class LedgerService:
                 for trans in transactions:
                     row += 1
                     ws.cell(row=row, column=1, value=trans['date'].strftime('%Y-%m-%d'))
-                    ws.cell(row=row, column=2, value=trans['journal_number'])
-                    ws.cell(row=row, column=3, value=trans['reference'])
-                    ws.cell(row=row, column=4, value=trans['description'])
+                    ws.cell(row=row, column=2, value=trans.get('entry_type_display') or trans.get('journal_number', ''))
+                    ws.cell(row=row, column=3, value=trans['description'])
+                    ws.cell(row=row, column=4, value=trans['reference'])
                     ws.cell(row=row, column=5, value=float(trans['debit']))
                     ws.cell(row=row, column=6, value=float(trans['credit']))
                     ws.cell(row=row, column=7, value=float(trans['balance']))
@@ -432,7 +331,7 @@ class LedgerService:
                 
             else:
                 # تصدير جميع الحسابات
-                ws['A1'] = "دفتر الأستاذ - جميع الحسابات"
+                ws['A1'] = "كشف حركة وأرصدة الحسابات العامة"
                 ws['A1'].font = Font(bold=True, size=14)
                 ws.merge_cells('A1:F1')
                 

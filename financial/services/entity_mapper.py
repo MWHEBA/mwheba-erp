@@ -107,6 +107,21 @@ class EntityAccountMapper:
                     logger.debug(f"الحقل {field_name} غير موجود في {type(account).__name__}")
                     return None
             
+            if account is None:
+                # محاولة إنشاء الحساب تلقائياً للكيانات الأساسية (Auto-Healing)
+                if entity_type == 'supplier':
+                    try:
+                        from supplier.services.supplier_service import SupplierService
+                        account = SupplierService.create_financial_account_for_supplier(entity)
+                    except Exception as err:
+                        logger.warning(f"تعذر إنشاء حساب تلقائي للمورد {entity}: {err}")
+                elif entity_type == 'customer':
+                    try:
+                        from client.services.customer_service import CustomerService
+                        account = CustomerService().create_financial_account_for_customer(entity)
+                    except Exception as err:
+                        logger.warning(f"تعذر إنشاء حساب تلقائي للعميل {entity}: {err}")
+            
             return account
             
         except AttributeError as e:

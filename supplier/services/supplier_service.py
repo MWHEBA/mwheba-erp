@@ -232,6 +232,11 @@ class SupplierService:
             ChartOfAccounts: الحساب المحاسبي المنشأ
         """
         from governance.services.idempotency_service import IdempotencyService
+        from django.contrib.auth import get_user_model
+        
+        if user is None:
+            User = get_user_model()
+            user = getattr(supplier, 'created_by', None) or User.objects.filter(is_superuser=True).first() or User.objects.first()
         
         # Generate idempotency key for this operation
         idempotency_key = IdempotencyService.generate_key(
@@ -251,6 +256,11 @@ class SupplierService:
             account_id = result_data.get('account_id')
             try:
                 account = ChartOfAccounts.objects.get(id=account_id)
+                if not supplier.financial_account_id:
+                    from supplier.models import Supplier
+                    Supplier.objects.filter(pk=supplier.pk).update(financial_account=account)
+                    supplier.financial_account = account
+                    supplier.financial_account_id = account.id
                 logger.info(
                     f"✅ Idempotency: Returning existing account {account.code} "
                     f"for supplier {supplier.code}"

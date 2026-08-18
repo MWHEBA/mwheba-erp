@@ -43,11 +43,15 @@ class IdempotencyService:
         if user is None:
             user = GovernanceContext.get_current_user()
             if user is None:
-                raise IdempotencyError(
-                    operation_type=operation_type,
-                    idempotency_key=idempotency_key,
-                    context={'error': 'No user provided and none in context'}
-                )
+                from django.contrib.auth import get_user_model
+                User = get_user_model()
+                user = User.objects.filter(is_superuser=True).first() or User.objects.first()
+                if user is None:
+                    raise IdempotencyError(
+                        operation_type=operation_type,
+                        idempotency_key=idempotency_key,
+                        context={'error': 'No user provided and no user found in database'}
+                    )
         
         # Use idempotency lock for thread safety
         with IdempotencyLock(operation_type, idempotency_key).acquire() as existing_record:

@@ -7,75 +7,72 @@
 {% block title %}{{ page_title }}{% endblock %}
 
 {% block extra_css %}
-<!-- جميع الستايلات موجودة في unified-components.css و components.css -->
 <style>
-  /* ستايلات خاصة بصفحة دفتر الأستاذ فقط */
-  
-  /* جدول محسّن */
-  .ledger-table {
+  /* استايلات مخصصة لكشف الحسابات ملتزمة بنظام ألوان :root وقواعد المشروع */
+  .statement-table {
     width: 100%;
     margin-bottom: 0;
     border-collapse: separate;
     border-spacing: 0;
   }
   
-  .ledger-table thead th {
-    background-color: var(--primary-color);
-    color: white;
+  .statement-table thead th {
+    background-color: var(--bg-light);
+    color: var(--text-dark, #1f2937);
     font-weight: 600;
     padding: 0.875rem 0.75rem;
     text-align: center;
-    border: none;
-    font-size: 0.9rem;
+    border-bottom: 2px solid var(--border-color);
+    font-size: 0.875rem;
     white-space: nowrap;
   }
   
-  .ledger-table thead tr:first-child th:first-child {
-    border-top-right-radius: var(--border-radius);
-  }
-  
-  .ledger-table thead tr:first-child th:last-child {
-    border-top-left-radius: var(--border-radius);
-  }
-  
-  .ledger-table tbody td {
+  .statement-table tbody td {
     padding: 0.75rem;
     vertical-align: middle;
     border-bottom: 1px solid var(--border-color);
     text-align: center;
+    font-size: 0.875rem;
   }
   
-  .ledger-table tbody tr {
-    transition: all 0.2s ease;
+  .statement-table tbody tr.clickable-row {
+    cursor: pointer;
+    transition: background-color 0.15s ease-in-out;
   }
   
-  .ledger-table tbody tr:hover {
+  .statement-table tbody tr.clickable-row:hover {
     background-color: var(--bg-light);
   }
   
-  .ledger-table tfoot td {
+  .statement-table tfoot td {
     background-color: var(--bg-light);
     font-weight: 700;
-    padding: 1rem 0.75rem;
-    border-top: 2px solid var(--primary-color);
+    padding: 0.875rem 0.75rem;
+    border-top: 2px solid var(--border-color);
     text-align: center;
+    font-size: 0.9rem;
+  }
+
+  .brought-forward-row {
+    background-color: var(--bg-light);
+    font-weight: 600;
+    color: var(--primary-color);
   }
   
-  /* أرقام */
   .number-cell {
     text-align: center;
-    font-family: 'Tajawal', sans-serif;
     direction: ltr;
     font-weight: 500;
+    font-variant-numeric: tabular-nums;
   }
   
   .debit-cell {
-    color: var(--success-color);
+    color: var(--success-color, #059669);
     font-weight: 600;
   }
   
   .credit-cell {
-    color: var(--danger-color);
+    color: var(--danger-color, #dc2626);
     font-weight: 600;
   }
   
@@ -84,388 +81,338 @@
     color: var(--primary-color);
   }
   
-  /* تمييز الأرقام السالبة */
-  .negative-balance {
-    color: var(--danger-color);
-  }
-  
-  .positive-balance {
-    color: var(--success-color);
-  }
-  
-  /* حالة فارغة */
-  .empty-state {
-    padding: 4rem 2rem;
-    text-align: center;
-  }
-  
-  .empty-state-icon {
-    font-size: 4rem;
-    color: var(--text-light);
-    margin-bottom: 1rem;
-    opacity: 0.5;
-  }
-  
-  /* أزرار التصدير */
-  .export-buttons {
-    display: flex;
-    gap: 0.5rem;
-  }
-  
-  /* Badge للحالة */
-  .status-badge {
-    padding: 0.25rem 0.75rem;
-    border-radius: 20px;
-    font-size: 0.85rem;
-    font-weight: 600;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.25rem;
-  }
-  
-  .status-badge i {
+  .badge-currency {
+    background-color: var(--bg-light);
+    color: var(--text-muted);
+    border: 1px solid var(--border-color);
     font-size: 0.75rem;
-  }
-  
-  .status-posted {
-    background-color: var(--bg-soft-success);
-    color: var(--success-color);
-  }
-  
-  .status-draft {
-    background-color: var(--bg-soft-warning);
-    color: var(--warning-color);
-  }
-  
-  /* Pagination محسن */
-  .pagination {
-    margin-top: 1.5rem;
-    gap: 0.25rem;
-  }
-  
-  .pagination .page-link {
-    border-radius: var(--border-radius);
-    margin: 0;
-    border: 1px solid var(--border-color);
-    color: var(--text-dark);
-    padding: 0.5rem 0.875rem;
     font-weight: 500;
-    transition: all 0.2s ease;
   }
-  
-  .pagination .page-link:hover {
+
+  .badge-cost-center {
     background-color: var(--bg-light);
-    border-color: var(--primary-color);
     color: var(--primary-color);
-  }
-  
-  .pagination .page-item.active .page-link {
-    background-color: var(--primary-color);
-    border-color: var(--primary-color);
-    color: white;
-    font-weight: 600;
-  }
-  
-  .pagination .page-item.disabled .page-link {
-    background-color: var(--bg-light);
-    border-color: var(--border-color);
-    color: var(--text-muted);
-    cursor: not-allowed;
-  }
-  
-  .pagination-info {
-    text-align: center;
-    color: var(--text-muted);
-    font-size: 0.9rem;
-    margin-top: 0.5rem;
-  }
-  
-  /* معلومات الحساب */
-  .account-info-card {
-    background: #f8f9fa;
-    border-radius: var(--border-radius);
-    padding: 1.5rem;
-    margin-bottom: 1.5rem;
     border: 1px solid var(--border-color);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-  }
-  
-  .account-info-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0.75rem 0;
-    border-bottom: 1px solid var(--border-color);
-  }
-  
-  .account-info-item strong {
-    color: var(--text-dark);
-    font-weight: 600;
-  }
-  
-  .account-info-item span {
-    color: var(--text-muted);
-    font-weight: 500;
-  }
-  
-  .account-info-item:last-child {
-    border-bottom: none;
-  }
-  
-  /* تحسينات responsive */
-  @media (max-width: 768px) {
-    .stats-card {
-      margin-bottom: 1rem;
-    }
-    
-    .stats-card-value {
-      font-size: 1.5rem;
-    }
-    
-    .export-buttons {
-      flex-direction: column;
-      width: 100%;
-    }
-    
-    .export-buttons .btn {
-      width: 100%;
-      margin-bottom: 0.5rem;
-    }
-    
-    .ledger-table {
-      font-size: 0.85rem;
-    }
-    
-    .ledger-table thead th,
-    .ledger-table tbody td {
-      padding: 0.5rem 0.25rem;
-    }
-  }
-  
-  /* طباعة */
-  @media print {
-    .no-print {
-      display: none !important;
-    }
-    
-    .stats-card {
-      box-shadow: none;
-      border: 1px solid #ddd;
-    }
-    
-    .ledger-table {
-      font-size: 0.85rem;
-    }
-    
-    .ledger-table thead th,
-    .ledger-table tbody td,
-    .ledger-table tfoot td {
-      padding: 0.5rem;
-    }
+    font-size: 0.75rem;
   }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="container-fluid">
-    <!-- Page Header المركزي -->
+    <!-- Page Header المركزي الموحد -->
     {% include "shared/page_header.html" %}
 
-    <!-- فلتر البحث -->
-    <div class="section-container no-print">
-        <h5 class="section-title">
-            <i class="fas fa-filter me-2"></i>تصفية وبحث
+    <!-- فلتر البحث والتصفية المتطابق مع Rule 6 -->
+    <div class="section-container mb-4 no-print">
+        <h5 class="section-title" data-bs-toggle="collapse" data-bs-target="#filterSection" style="cursor: pointer;">
+            <i class="fas fa-filter me-2"></i>{% trans "تصفية وبحث كشف الحسابات" %}
+            <i class="fas fa-chevron-down float-end mt-1 text-muted" style="font-size: 0.85rem;"></i>
         </h5>
-        <form method="GET" action="" class="row g-3" id="filterForm">
-            <div class="col-md-5">
-                <label for="account" class="form-label">
-                    <i class="fas fa-user-circle me-1"></i>الحساب:
-                </label>
-                <select name="account" id="account" class="form-select">
-                    <option value="">-- جميع الحسابات --</option>
-                    {% for acc in accounts %}
-                    <option value="{{ acc.id }}" {% if selected_account_id == acc.id %}selected{% endif %}>
-                        {{ acc.code }} - {{ acc.name }}
-                    </option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="col-md-3">
-                <label for="date_from" class="form-label">
-                    <i class="fas fa-calendar-alt me-1"></i>من تاريخ:
-                </label>
-                <input type="text" class="form-control" id="date_from" name="date_from" data-date-picker placeholder="من تاريخ" value="{{ request.GET.date_from }}">
-            </div>
-            <div class="col-md-2">
-                <label for="date_to" class="form-label">{% trans "إلى تاريخ" %}</label>
-                <input type="text" class="form-control" id="date_to" name="date_to" data-date-picker placeholder="إلى تاريخ" value="{{ request.GET.date_to }}">
-            </div>
-            <div class="col-md-1 d-flex align-items-end">
-                <button type="submit" class="btn btn-primary w-100" title="بحث">
-                    <i class="fas fa-search"></i>
-                </button>
-            </div>
-        </form>
-        {% if account or date_from or date_to %}
-        <div class="mt-3">
-            <a href="{% url 'financial:ledger_report' %}" class="btn btn-sm btn-outline-secondary">
-                <i class="fas fa-times me-1"></i>إلغاء الفلتر
-            </a>
+        
+        <div class="collapse show" id="filterSection">
+            <form method="GET" action="" class="row g-3 align-items-end" id="filterForm">
+                <!-- اختيار الحساب مصنف عبر optgroup -->
+                <div class="col-md-3">
+                    <label for="account" class="form-label fw-semibold">
+                        <i class="fas fa-user-circle me-1 text-primary"></i>{% trans "الحساب المالي" %}:
+                    </label>
+                    <select name="account" id="account" class="form-select select2-filter">
+                        <option value="">-- {% trans "كافة الحسابات (ملخص عام)" %} --</option>
+                        {% for group in grouped_accounts %}
+                        <optgroup label="{{ group.category_name }}">
+                            {% for acc in group.accounts %}
+                            <option value="{{ acc.id }}" {% if selected_account_id == acc.id %}selected{% endif %}>
+                                {{ acc.code }} - {{ acc.name }} {% if acc.currency %}({{ acc.currency.code }}){% endif %}
+                            </option>
+                            {% endfor %}
+                        </optgroup>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- فلتر العملة -->
+                <div class="col-md-2">
+                    <label for="currency" class="form-label fw-semibold">
+                        <i class="fas fa-coins me-1 text-muted"></i>{% trans "العملة" %}:
+                    </label>
+                    <select name="currency" id="currency" class="form-select select2-filter">
+                        <option value="">-- {% trans "كافة العملات" %} --</option>
+                        {% for curr in currencies %}
+                        <option value="{{ curr.code }}" {% if selected_currency == curr.code %}selected{% endif %}>
+                            {{ curr.code }} ({{ curr.name }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- من تاريخ -->
+                <div class="col-md-2">
+                    <label for="date_from" class="form-label fw-semibold">
+                        <i class="fas fa-calendar-alt me-1 text-muted"></i>{% trans "من تاريخ" %}:
+                    </label>
+                    <input type="text" class="form-control" id="date_from" name="date_from" data-date-picker placeholder="YYYY-MM-DD" value="{{ request.GET.date_from }}">
+                </div>
+
+                <!-- إلى تاريخ -->
+                <div class="col-md-2">
+                    <label for="date_to" class="form-label fw-semibold">
+                        <i class="fas fa-calendar-check me-1 text-muted"></i>{% trans "إلى تاريخ" %}:
+                    </label>
+                    <input type="text" class="form-control" id="date_to" name="date_to" data-date-picker placeholder="YYYY-MM-DD" value="{{ request.GET.date_to }}">
+                </div>
+
+                <!-- مركز التكلفة -->
+                <div class="col-md-2">
+                    <label for="cost_center" class="form-label fw-semibold">
+                        <i class="fas fa-project-diagram me-1 text-muted"></i>{% trans "مركز التكلفة" %}:
+                    </label>
+                    <select name="cost_center" id="cost_center" class="form-select select2-filter">
+                        <option value="">-- {% trans "الكل" %} --</option>
+                        {% for cc in cost_centers %}
+                        <option value="{{ cc.id }}" {% if selected_cost_center_id == cc.id %}selected{% endif %}>
+                            {{ cc.code }} - {{ cc.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- أزرار الإجراء والبحث -->
+                <div class="col-md-1 d-flex gap-1">
+                    <button type="submit" class="btn btn-primary flex-grow-1" id="searchBtn" title="{% trans 'تطبيق الفلتر' %}">
+                        <i class="fas fa-search"></i>
+                    </button>
+                    {% if account or date_from or date_to or selected_cost_center_id or selected_currency or include_unposted %}
+                    <a href="{% url 'financial:ledger_report' %}" class="btn btn-outline-secondary" title="{% trans 'إعادة ضبط' %}">
+                        <i class="fas fa-redo"></i>
+                    </a>
+                    {% endif %}
+                </div>
+
+                <!-- خيارات إضافية -->
+                <div class="col-12 mt-2 pt-2 border-top">
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="checkbox" name="include_unposted" id="include_unposted" value="1" {% if include_unposted %}checked{% endif %} onchange="window.doSearch()">
+                        <label class="form-check-label text-muted" for="include_unposted">
+                            <i class="fas fa-edit me-1"></i>{% trans "تضمين القيود المسودة (غير المرحلة) لأغراض المراجعة والتدقيق" %}
+                        </label>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ترويسة الطباعة الرسمية -->
+    <div class="d-none d-print-block mb-4 p-3 border-bottom text-center">
+        <h3 class="fw-bold mb-1">{{ request.company.name|default:"شركة موهبة" }}</h3>
+        <h4 class="text-secondary fw-bold mb-2">
+            {% if account %}{% trans "كشف حساب الحساب المالي" %}{% else %}{% trans "كشف حركة وأرصدة الحسابات العامة" %}{% endif %}
+        </h4>
+        {% if account %}
+        <div class="d-flex justify-content-between text-muted mt-2" style="font-size: 0.9rem;">
+            <div><strong>{% trans "اسم الحساب" %}:</strong> {{ account.name }} ({{ account.code }})</div>
+            <div><strong>{% trans "نوع الحساب" %}:</strong> {{ account.account_type.name }}</div>
+            <div><strong>{% trans "عملة الحساب" %}:</strong> {{ summary.account_currency }}</div>
+            <div><strong>{% trans "الفترة" %}:</strong> من {{ date_from|default:"البداية" }} إلى {{ date_to|default:"تاريخه" }}</div>
         </div>
         {% endif %}
     </div>
 
-    {% if account %}
-        <!-- تفاصيل حساب معين -->
-        
-        <!-- كروت الإحصائيات -->
-        <div class="section-container">
-            <h5 class="section-title"><i class="fas fa-chart-bar me-2"></i>إحصائيات الحساب</h5>
-            <div class="row">
-                <div class="col-md-6 col-lg-3 mb-4">
-                    <div class="stats-card stats-card-primary">
-                        <div class="stats-card-header"></div>
+    <!-- الحاوية الرئيسية التفاعلية لكشف الحساب -->
+    <div id="statement-main-content">
+        {% if account %}
+            <!-- كروت الإحصائيات (مستقلة في شبكة row g-3 mb-4 تطبيقاً لـ Rule 7 الصارمة) -->
+            <div class="row g-3 mb-4" id="statement-stats-cards">
+                <div class="col-md-4 col-lg-2">
+                    <div class="stats-card stats-card-info h-100">
                         <div class="stats-card-body">
                             <div class="stats-card-icon">
                                 <i class="fas fa-balance-scale"></i>
                             </div>
-                            <div class="stats-card-title">الرصيد الافتتاحي</div>
-                            <div class="stats-card-value">{{ summary.opening_balance|smart_float }}</div>
-                            <div class="stats-card-unit">{% currency_symbol %}</div>
+                            <div class="stats-card-title">{% trans "الرصيد الافتتاحي" %}</div>
+                            {% if summary.is_foreign_account or selected_currency %}
+                                <div class="stats-card-value" dir="ltr">{{ summary.opening_balance_foreign|smart_float }} <small class="fs-8">{{ summary.account_currency_symbol }}</small></div>
+                                <div class="stats-card-unit" dir="ltr"><small class="text-muted">{{ summary.opening_balance|smart_float }} {{ summary.functional_currency_symbol }}</small></div>
+                            {% else %}
+                                <div class="stats-card-value" dir="ltr">{{ summary.opening_balance|smart_float }}</div>
+                                <div class="stats-card-unit">{{ summary.functional_currency_symbol }}</div>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
-                <div class="col-md-6 col-lg-3 mb-4">
-                    <div class="stats-card stats-card-success">
-                        <div class="stats-card-header"></div>
+
+                <div class="col-md-4 col-lg-2">
+                    <div class="stats-card stats-card-success h-100">
                         <div class="stats-card-body">
                             <div class="stats-card-icon">
                                 <i class="fas fa-arrow-up"></i>
                             </div>
-                            <div class="stats-card-title">إجمالي المدين</div>
-                            <div class="stats-card-value">{{ summary.total_debit|smart_float }}</div>
-                            <div class="stats-card-unit">{% currency_symbol %}</div>
+                            <div class="stats-card-title">{% trans "إجمالي المدين" %}</div>
+                            {% if summary.is_foreign_account or selected_currency %}
+                                <div class="stats-card-value" dir="ltr">{{ summary.total_foreign_debit|smart_float }} <small class="fs-8">{{ summary.account_currency_symbol }}</small></div>
+                                <div class="stats-card-unit" dir="ltr"><small class="text-muted">{{ summary.total_debit|smart_float }} {{ summary.functional_currency_symbol }}</small></div>
+                            {% else %}
+                                <div class="stats-card-value" dir="ltr">{{ summary.total_debit|smart_float }}</div>
+                                <div class="stats-card-unit">{{ summary.functional_currency_symbol }}</div>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
-                <div class="col-md-6 col-lg-3 mb-4">
-                    <div class="stats-card stats-card-danger">
-                        <div class="stats-card-header"></div>
+
+                <div class="col-md-4 col-lg-2">
+                    <div class="stats-card stats-card-danger h-100">
                         <div class="stats-card-body">
                             <div class="stats-card-icon">
                                 <i class="fas fa-arrow-down"></i>
                             </div>
-                            <div class="stats-card-title">إجمالي الدائن</div>
-                            <div class="stats-card-value">{{ summary.total_credit|smart_float }}</div>
-                            <div class="stats-card-unit">{% currency_symbol %}</div>
+                            <div class="stats-card-title">{% trans "إجمالي الدائن" %}</div>
+                            {% if summary.is_foreign_account or selected_currency %}
+                                <div class="stats-card-value" dir="ltr">{{ summary.total_foreign_credit|smart_float }} <small class="fs-8">{{ summary.account_currency_symbol }}</small></div>
+                                <div class="stats-card-unit" dir="ltr"><small class="text-muted">{{ summary.total_credit|smart_float }} {{ summary.functional_currency_symbol }}</small></div>
+                            {% else %}
+                                <div class="stats-card-value" dir="ltr">{{ summary.total_credit|smart_float }}</div>
+                                <div class="stats-card-unit">{{ summary.functional_currency_symbol }}</div>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
-                <div class="col-md-6 col-lg-3 mb-4">
-                    <div class="stats-card stats-card-info">
-                        <div class="stats-card-header"></div>
+
+                <div class="col-md-4 col-lg-2">
+                    <div class="stats-card stats-card-warning h-100">
                         <div class="stats-card-body">
                             <div class="stats-card-icon">
                                 <i class="fas fa-wallet"></i>
                             </div>
-                            <div class="stats-card-title">الرصيد الختامي</div>
-                            <div class="stats-card-value">{{ summary.closing_balance|smart_float }}</div>
-                            <div class="stats-card-unit">{% currency_symbol %}</div>
+                            <div class="stats-card-title">{% trans "الرصيد الختامي" %}</div>
+                            {% if summary.is_foreign_account or selected_currency %}
+                                <div class="stats-card-value" dir="ltr">{{ summary.closing_balance_foreign|smart_float }} <small class="fs-8">{{ summary.account_currency_symbol }}</small></div>
+                                <div class="stats-card-unit" dir="ltr"><small class="text-muted">{{ summary.closing_balance|smart_float }} {{ summary.functional_currency_symbol }}</small></div>
+                            {% else %}
+                                <div class="stats-card-value" dir="ltr">{{ summary.closing_balance|smart_float }}</div>
+                                <div class="stats-card-unit">{{ summary.functional_currency_symbol }}</div>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
-                <div class="col-md-6 col-lg-3 mb-4">
-                    <div class="stats-card stats-card-warning">
-                        <div class="stats-card-header"></div>
+
+                <div class="col-md-4 col-lg-2">
+                    <div class="stats-card stats-card-info h-100">
                         <div class="stats-card-body">
                             <div class="stats-card-icon">
                                 <i class="fas fa-exchange-alt"></i>
                             </div>
-                            <div class="stats-card-title">الحركة خلال الفترة</div>
-                            <div class="stats-card-value">{{ summary.period_movement|smart_float }}</div>
-                            <div class="stats-card-unit">{% currency_symbol %}</div>
+                            <div class="stats-card-title">{% trans "حركة الفترة" %}</div>
+                            {% if summary.is_foreign_account or selected_currency %}
+                                <div class="stats-card-value" dir="ltr">{{ summary.period_foreign_movement|smart_float }} <small class="fs-8">{{ summary.account_currency_symbol }}</small></div>
+                                <div class="stats-card-unit" dir="ltr"><small class="text-muted">{{ summary.period_movement|smart_float }} {{ summary.functional_currency_symbol }}</small></div>
+                            {% else %}
+                                <div class="stats-card-value" dir="ltr">{{ summary.period_movement|smart_float }}</div>
+                                <div class="stats-card-unit">{{ summary.functional_currency_symbol }}</div>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
-                <div class="col-md-6 col-lg-3 mb-4">
-                    <div class="stats-card stats-card-secondary">
-                        <div class="stats-card-header"></div>
+
+                <div class="col-md-4 col-lg-2">
+                    <div class="stats-card stats-card-info h-100">
                         <div class="stats-card-body">
                             <div class="stats-card-icon">
                                 <i class="fas fa-list-ol"></i>
                             </div>
-                            <div class="stats-card-title">عدد المعاملات</div>
+                            <div class="stats-card-title">{% trans "عدد الحركات" %}</div>
                             <div class="stats-card-value">{{ summary.transaction_count }}</div>
-                            <div class="stats-card-unit">معاملة</div>
+                            <div class="stats-card-unit">{% trans "حركة" %}</div>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
 
-        <!-- معلومات الحساب -->
-        <div class="account-info-card">
-            <div class="account-info-item">
-                <strong>اسم الحساب:</strong>
-                <span>{{ account.name }}</span>
-            </div>
-            <div class="account-info-item">
-                <strong>الكود:</strong>
-                <span>{{ account.code }}</span>
-            </div>
-            <div class="account-info-item">
-                <strong>النوع:</strong>
-                <span>{{ account.account_type.name }}</span>
-            </div>
-            <div class="account-info-item">
-                <strong>التصنيف:</strong>
-                <span>
-                    {% if account.account_type.category == 'asset' %}أصول
-                    {% elif account.account_type.category == 'liability' %}خصوم
-                    {% elif account.account_type.category == 'equity' %}حقوق ملكية
-                    {% elif account.account_type.category == 'revenue' %}إيرادات
-                    {% elif account.account_type.category == 'expense' %}مصروفات
+            <!-- قسم تفاصيل حركات كشف الحساب -->
+            <div class="section-container">
+                <h5 class="section-title">
+                    <i class="fas fa-file-invoice-dollar me-2"></i>{% trans "حركات كشف الحساب" %}: {{ account.name }} <span class="text-muted fw-normal">({{ account.code }})</span>
+                    {% if summary.is_foreign_account %}
+                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle ms-2 fs-7">{{ summary.account_currency }}</span>
                     {% endif %}
-                </span>
-            </div>
-        </div>
-
-
-        <!-- جدول المعاملات -->
-        <div class="section-container">
-            <h5 class="section-title">
-                <i class="fas fa-list me-2"></i>
-                تفاصيل المعاملات
-            </h5>
-            
-            {% if page_obj %}
-                <div class="table-responsive">
-                    <table class="table ledger-table">
+                    {% if summary.is_consolidated %}
+                        <span class="badge bg-info-subtle text-info border border-info-subtle ms-2 fs-7">{% trans "حساب مجمع" %}</span>
+                    {% endif %}
+                </h5>
+                
+                <div class="table-responsive" id="statement-table-container">
+                    <table class="table statement-table align-middle">
                         <thead>
                             <tr>
-                                <th class="text-center">التاريخ</th>
-                                <th class="text-center">رقم القيد</th>
-                                <th class="text-center">المرجع</th>
-                                <th class="text-center">الوصف</th>
-                                <th class="text-center">مدين</th>
-                                <th class="text-center">دائن</th>
-                                <th class="text-center">الرصيد</th>
-                                <th class="no-print text-center">الحالة</th>
+                                <th>{% trans "التاريخ" %}</th>
+                                <th>{% trans "النوع" %}</th>
+                                <th style="width: 32%;">{% trans "البيان / مركز التكلفة" %}</th>
+                                <th>{% trans "المرجع" %}</th>
+                                <th>{% trans "مدين" %}</th>
+                                <th>{% trans "دائن" %}</th>
+                                <th>{% trans "الرصيد الجاري" %}</th>
+                                <th class="no-print">{% trans "الحالة" %}</th>
                             </tr>
                         </thead>
                         <tbody>
+                            <!-- سطر الرصيد المنقول من الصفحة / الفترة السابقة -->
+                            <tr class="brought-forward-row">
+                                <td class="text-center text-muted"><i class="fas fa-history me-1"></i>{{ date_from|default:"-" }}</td>
+                                <td class="text-center">-</td>
+                                <td>
+                                    <strong>
+                                        {% if page_obj.number > 1 %}
+                                            {% trans "رصيد منقول من الصفحة السابقة" %} ({{ page_obj.previous_page_number }})
+                                        {% else %}
+                                            {% trans "الرصيد الافتتاحي / رصيد بداية الفترة" %}
+                                        {% endif %}
+                                    </strong>
+                                </td>
+                                <td class="text-center">-</td>
+                                <td class="number-cell">-</td>
+                                <td class="number-cell">-</td>
+                                <td class="number-cell balance-cell" dir="ltr">
+                                    {% if summary.is_foreign_account or selected_currency %}
+                                        <div class="fw-bold">{{ page_brought_forward_foreign|smart_float }} <small class="text-muted">{{ summary.account_currency_symbol }}</small></div>
+                                        <small class="text-muted fs-8">({{ page_brought_forward|smart_float }} {{ summary.functional_currency_symbol }})</small>
+                                    {% else %}
+                                        {{ page_brought_forward|smart_float }}
+                                    {% endif %}
+                                </td>
+                                <td class="no-print text-center"><span class="badge bg-light text-dark">{% trans "افتتاحي" %}</span></td>
+                            </tr>
+
                             {% for trans in page_obj %}
-                            <tr>
-                                <td class="text-center">
-                                    <span class="text-muted" style="font-size: 0.9rem;">
-                                        {{ trans.date|date:"Y-m-d" }}
-                                    </span>
+                            <tr class="clickable-row" data-href="{% url 'financial:journal_entries_detail' trans.journal_id %}">
+                                <td class="text-center text-muted" style="white-space: nowrap;">
+                                    {{ trans.date|date:"Y-m-d" }}
                                 </td>
                                 <td class="text-center">
-                                    <a href="{% url 'financial:journal_entries_detail' trans.journal_id %}" 
-                                       class="text-primary">
-                                        {{ trans.journal_number }}
+                                    <a href="{% url 'financial:journal_entries_detail' trans.journal_id %}" class="text-decoration-none fw-semibold text-primary" title="{{ trans.journal_number }}">
+                                        {{ trans.entry_type_display|default:trans.journal_number }}
                                     </a>
+                                    <div class="text-muted small" style="font-size: 0.75rem;">{{ trans.journal_number }}</div>
+                                </td>
+                                <td class="text-start">
+                                    <div>{{ trans.description|default:"-" }}</div>
+                                    <div class="d-flex flex-wrap gap-1 mt-1">
+                                        {% if trans.cost_center_name %}
+                                            <span class="badge badge-cost-center"><i class="fas fa-project-diagram me-1"></i>{{ trans.cost_center_name }}</span>
+                                        {% endif %}
+                                        {% if trans.currency and trans.currency != summary.functional_currency %}
+                                            <span class="badge badge-currency" title="{% trans 'العملة الأجنبية' %}">
+                                                {{ trans.currency }} ({{ trans.foreign_debit|default:trans.foreign_credit|smart_float }}) @ {{ trans.exchange_rate }}
+                                            </span>
+                                        {% endif %}
+                                        {% if trans.is_fx_revaluation %}
+                                            <span class="badge bg-info-subtle text-info border border-info-subtle"><i class="fas fa-sync-alt me-1"></i>{% trans "تقييم IAS 21" %}</span>
+                                        {% endif %}
+                                        {% if trans.is_realized_fx %}
+                                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle"><i class="fas fa-exchange-alt me-1"></i>{% trans "فروق محققة" %}</span>
+                                        {% endif %}
+                                        {% if trans.is_reversal %}
+                                            <span class="badge bg-warning text-dark"><i class="fas fa-undo me-1"></i>{% trans "تم عكسه" %}</span>
+                                        {% endif %}
+                                    </div>
                                 </td>
                                 <td class="text-center">
                                     {% if trans.reference and trans.reference != '-' %}
@@ -474,33 +421,54 @@
                                         <span class="text-muted">-</span>
                                     {% endif %}
                                 </td>
-                                <td class="text-center">{{ trans.description|truncatewords:10 }}</td>
-                                <td class="number-cell debit-cell text-center">
-                                    {% if trans.debit > 0 %}{{ trans.debit|smart_float }}{% else %}-{% endif %}
+                                <td class="number-cell debit-cell" dir="ltr">
+                                    {% if trans.foreign_debit > 0 and trans.currency != summary.functional_currency %}
+                                        <div class="text-success fw-bold">{{ trans.foreign_debit|smart_float }} <small class="text-muted fs-9">{{ trans.currency }}</small></div>
+                                        <small class="text-muted fs-8">({{ trans.debit|smart_float }})</small>
+                                    {% elif trans.debit > 0 %}
+                                        <span class="text-success fw-bold">{{ trans.debit|smart_float }}</span>
+                                    {% else %}
+                                        -
+                                    {% endif %}
                                 </td>
-                                <td class="number-cell credit-cell text-center">
-                                    {% if trans.credit > 0 %}{{ trans.credit|smart_float }}{% else %}-{% endif %}
+                                <td class="number-cell credit-cell" dir="ltr">
+                                    {% if trans.foreign_credit > 0 and trans.currency != summary.functional_currency %}
+                                        <div class="text-danger fw-bold">{{ trans.foreign_credit|smart_float }} <small class="text-muted fs-9">{{ trans.currency }}</small></div>
+                                        <small class="text-muted fs-8">({{ trans.credit|smart_float }})</small>
+                                    {% elif trans.credit > 0 %}
+                                        <span class="text-danger fw-bold">{{ trans.credit|smart_float }}</span>
+                                    {% else %}
+                                        -
+                                    {% endif %}
                                 </td>
-                                <td class="number-cell balance-cell {% if trans.balance < 0 %}negative-balance{% elif trans.balance > 0 %}positive-balance{% endif %}">
-                                    {{ trans.balance|smart_float }}
+                                <td class="number-cell balance-cell" dir="ltr">
+                                    {% if summary.is_foreign_account or selected_currency %}
+                                        <div class="fw-bold">{{ trans.foreign_balance|smart_float }} <small class="text-muted fs-9">{{ summary.account_currency_symbol }}</small></div>
+                                        <small class="text-muted fs-8">({{ trans.balance|smart_float }} {{ summary.functional_currency_symbol }})</small>
+                                    {% else %}
+                                        {{ trans.balance|smart_float }}
+                                    {% endif %}
                                 </td>
                                 <td class="no-print text-center">
                                     {% if trans.status == 'posted' %}
-                                        <span class="status-badge status-posted">
-                                            <i class="fas fa-check-circle"></i>مرحّل
-                                        </span>
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle"><i class="fas fa-check-circle me-1"></i>{% trans "مرحّل" %}</span>
                                     {% else %}
-                                        <span class="status-badge status-draft">
-                                            <i class="fas fa-clock"></i>مسودة
-                                        </span>
+                                        <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle"><i class="fas fa-clock me-1"></i>{% trans "مسودة" %}</span>
                                     {% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="8" class="text-center py-4 text-muted">
+                                    <i class="fas fa-inbox fa-2x mb-2 d-block text-secondary"></i>
+                                    {% trans "لا توجد حركات مسجلة لهذا الحساب خلال الفترة المحددة" %}
                                 </td>
                             </tr>
                             {% endfor %}
                         </tbody>
                         <tfoot>
                             <tr>
-                                <td colspan="4"><strong>الإجمالي:</strong></td>
+                                <td colspan="4" class="text-start pe-4"><strong>{% trans "إجمالي حركات الفترة والرصيد النهائي" %}:</strong></td>
                                 <td class="number-cell debit-cell">{{ summary.total_debit|smart_float }}</td>
                                 <td class="number-cell credit-cell">{{ summary.total_credit|smart_float }}</td>
                                 <td class="number-cell balance-cell">{{ summary.closing_balance|smart_float }}</td>
@@ -510,105 +478,73 @@
                     </table>
                 </div>
                 
-                <!-- Pagination محسن -->
-                {% if page_obj.has_other_pages %}
-                <nav aria-label="Page navigation" class="no-print">
-                    <ul class="pagination justify-content-center">
-                        <!-- زر الصفحة الأولى -->
-                        <li class="page-item {% if not page_obj.has_previous %}disabled{% endif %}">
-                            <a class="page-link" href="?account={{ selected_account_id }}&{% if date_from %}date_from={{ date_from|date:'Y-m-d' }}&{% endif %}{% if date_to %}date_to={{ date_to|date:'Y-m-d' }}&{% endif %}page=1" {% if not page_obj.has_previous %}tabindex="-1" aria-disabled="true"{% endif %}>
-                                <i class="fas fa-angle-double-right"></i>
-                            </a>
-                        </li>
-                        
-                        <!-- زر السابق -->
-                        <li class="page-item {% if not page_obj.has_previous %}disabled{% endif %}">
-                            <a class="page-link" href="{% if page_obj.has_previous %}?account={{ selected_account_id }}&{% if date_from %}date_from={{ date_from|date:'Y-m-d' }}&{% endif %}{% if date_to %}date_to={{ date_to|date:'Y-m-d' }}&{% endif %}page={{ page_obj.previous_page_number }}{% else %}#{% endif %}" {% if not page_obj.has_previous %}tabindex="-1" aria-disabled="true"{% endif %}>
-                                <i class="fas fa-angle-right"></i> السابق
-                            </a>
-                        </li>
-                        
-                        <!-- أرقام الصفحات -->
-                        {% for num in page_obj.paginator.page_range %}
-                            {% if page_obj.number == num %}
-                                <li class="page-item active" aria-current="page">
-                                    <span class="page-link">{{ num }}</span>
-                                </li>
-                            {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
-                                <li class="page-item">
-                                    <a class="page-link" href="?account={{ selected_account_id }}&{% if date_from %}date_from={{ date_from|date:'Y-m-d' }}&{% endif %}{% if date_to %}date_to={{ date_to|date:'Y-m-d' }}&{% endif %}page={{ num }}">{{ num }}</a>
-                                </li>
-                            {% endif %}
-                        {% endfor %}
-                        
-                        <!-- زر التالي -->
-                        <li class="page-item {% if not page_obj.has_next %}disabled{% endif %}">
-                            <a class="page-link" href="{% if page_obj.has_next %}?account={{ selected_account_id }}&{% if date_from %}date_from={{ date_from|date:'Y-m-d' }}&{% endif %}{% if date_to %}date_to={{ date_to|date:'Y-m-d' }}&{% endif %}page={{ page_obj.next_page_number }}{% else %}#{% endif %}" {% if not page_obj.has_next %}tabindex="-1" aria-disabled="true"{% endif %}>
-                                التالي <i class="fas fa-angle-left"></i>
-                            </a>
-                        </li>
-                        
-                        <!-- زر الصفحة الأخيرة -->
-                        <li class="page-item {% if not page_obj.has_next %}disabled{% endif %}">
-                            <a class="page-link" href="?account={{ selected_account_id }}&{% if date_from %}date_from={{ date_from|date:'Y-m-d' }}&{% endif %}{% if date_to %}date_to={{ date_to|date:'Y-m-d' }}&{% endif %}page={{ page_obj.paginator.num_pages }}" {% if not page_obj.has_next %}tabindex="-1" aria-disabled="true"{% endif %}>
-                                <i class="fas fa-angle-double-left"></i>
-                            </a>
-                        </li>
-                    </ul>
-                    <div class="pagination-info">
-                        عرض صفحة {{ page_obj.number }} من {{ page_obj.paginator.num_pages }} (إجمالي {{ page_obj.paginator.count }} سجل)
-                    </div>
-                </nav>
-                {% endif %}
-            {% else %}
-                <div class="empty-state">
-                    <div class="empty-state-icon">
-                        <i class="fas fa-inbox"></i>
-                    </div>
-                    <h5 class="text-muted">لا توجد معاملات</h5>
-                    <p class="text-muted">لا توجد معاملات لهذا الحساب في الفترة المحددة</p>
+                <!-- الترقيم الموحد SSR المتطابق مع Rule 6 -->
+                <div id="pagination-wrapper" class="no-print mt-3">
+                    {% include "partials/pagination.html" %}
                 </div>
-            {% endif %}
-        </div>
+            </div>
 
-    {% else %}
-        <!-- ملخص جميع الحسابات -->
-        <div class="section-container">
-            <h5 class="section-title">
-                <i class="fas fa-table me-2"></i>
-                ملخص جميع الحسابات
-            </h5>
-            
-            {% if page_obj %}
-                <div class="table-responsive">
-                    <table class="table ledger-table">
+            <!-- تذييل الطباعة للاعتمادات والتوقيعات الرسمية -->
+            <div class="d-none d-print-block mt-5 pt-4 border-top">
+                <div class="row text-center">
+                    <div class="col-4">
+                        <p class="fw-bold mb-4">{% trans "المحاسب المسؤول" %}</p>
+                        <p class="text-muted">....................................</p>
+                    </div>
+                    <div class="col-4">
+                        <p class="fw-bold mb-4">{% trans "المراجع المالي" %}</p>
+                        <p class="text-muted">....................................</p>
+                    </div>
+                    <div class="col-4">
+                        <p class="fw-bold mb-4">{% trans "اعتماد الإدارة المالية" %}</p>
+                        <p class="text-muted">....................................</p>
+                    </div>
+                </div>
+            </div>
+
+        {% else %}
+            <!-- ملخص حركة وأرصدة جميع الحسابات -->
+            <div class="section-container">
+                <h5 class="section-title">
+                    <i class="fas fa-table me-2"></i>{% trans "كشف حركة وأرصدة الحسابات المالية" %}
+                </h5>
+                
+                <div class="table-responsive" id="statement-table-container">
+                    <table class="table statement-table align-middle">
                         <thead>
                             <tr>
-                                <th class="text-center">الكود</th>
-                                <th class="text-center">الحساب</th>
-                                <th class="text-center">النوع</th>
-                                <th class="text-center">الرصيد الافتتاحي</th>
-                                <th class="text-center">مدين</th>
-                                <th class="text-center">دائن</th>
-                                <th class="text-center">الرصيد الختامي</th>
-                                <th class="no-print text-center">عرض</th>
+                                <th>{% trans "كود الحساب" %}</th>
+                                <th>{% trans "اسم الحساب" %}</th>
+                                <th>{% trans "نوع الحساب" %}</th>
+                                <th>{% trans "إجمالي مدين" %}</th>
+                                <th>{% trans "إجمالي دائن" %}</th>
+                                <th>{% trans "الرصيد الحالي" %}</th>
+                                <th>{% trans "الحركات" %}</th>
+                                <th class="no-print">{% trans "عرض كشف الحساب" %}</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for item in page_obj %}
-                            <tr>
-                                <td class="text-center">{{ item.account.code }}</td>
-                                <td class="text-center">{{ item.account.name }}</td>
-                                <td class="text-center">{{ item.account.account_type.name }}</td>
-                                <td class="number-cell text-center">{{ item.opening_balance|smart_float }}</td>
-                                <td class="number-cell debit-cell text-center">{{ item.total_debit|smart_float }}</td>
-                                <td class="number-cell credit-cell text-center">{{ item.total_credit|smart_float }}</td>
-                                <td class="number-cell balance-cell text-center">{{ item.closing_balance|smart_float }}</td>
+                            <tr class="clickable-row" data-href="?account={{ item.account.id }}{% if date_from %}&date_from={{ date_from|date:'Y-m-d' }}{% endif %}{% if date_to %}&date_to={{ date_to|date:'Y-m-d' }}{% endif %}">
+                                <td class="text-center fw-bold text-primary">{{ item.account.code }}</td>
+                                <td class="text-start fw-semibold">{{ item.account.name }}</td>
+                                <td class="text-center text-muted">{{ item.account.account_type.name }}</td>
+                                <td class="number-cell debit-cell">{{ item.total_debit|smart_float }}</td>
+                                <td class="number-cell credit-cell">{{ item.total_credit|smart_float }}</td>
+                                <td class="number-cell balance-cell">{{ item.current_balance|smart_float }}</td>
+                                <td class="text-center"><span class="badge bg-light text-dark">{{ item.transaction_count }}</span></td>
                                 <td class="no-print text-center">
                                     <a href="?account={{ item.account.id }}{% if date_from %}&date_from={{ date_from|date:'Y-m-d' }}{% endif %}{% if date_to %}&date_to={{ date_to|date:'Y-m-d' }}{% endif %}" 
-                                       class="btn btn-sm btn-primary">
-                                        <i class="fas fa-eye"></i>
+                                       class="btn btn-sm btn-outline-primary" title="{% trans 'فتح كشف الحساب' %}">
+                                        <i class="fas fa-file-invoice-dollar me-1"></i>{% trans "كشف الحساب" %}
                                     </a>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="8" class="text-center py-4 text-muted">
+                                    <i class="fas fa-inbox fa-2x mb-2 d-block text-secondary"></i>
+                                    {% trans "لا توجد حسابات مطابقة لمعايير البحث" %}
                                 </td>
                             </tr>
                             {% endfor %}
@@ -616,102 +552,92 @@
                     </table>
                 </div>
                 
-                <!-- Pagination محسن -->
-                {% if page_obj.has_other_pages %}
-                <nav aria-label="Page navigation" class="no-print">
-                    <ul class="pagination justify-content-center">
-                        <!-- زر الصفحة الأولى -->
-                        <li class="page-item {% if not page_obj.has_previous %}disabled{% endif %}">
-                            <a class="page-link" href="?{% if date_from %}date_from={{ date_from|date:'Y-m-d' }}&{% endif %}{% if date_to %}date_to={{ date_to|date:'Y-m-d' }}&{% endif %}page=1" {% if not page_obj.has_previous %}tabindex="-1" aria-disabled="true"{% endif %}>
-                                <i class="fas fa-angle-double-right"></i>
-                            </a>
-                        </li>
-                        
-                        <!-- زر السابق -->
-                        <li class="page-item {% if not page_obj.has_previous %}disabled{% endif %}">
-                            <a class="page-link" href="{% if page_obj.has_previous %}?{% if date_from %}date_from={{ date_from|date:'Y-m-d' }}&{% endif %}{% if date_to %}date_to={{ date_to|date:'Y-m-d' }}&{% endif %}page={{ page_obj.previous_page_number }}{% else %}#{% endif %}" {% if not page_obj.has_previous %}tabindex="-1" aria-disabled="true"{% endif %}>
-                                <i class="fas fa-angle-right"></i> السابق
-                            </a>
-                        </li>
-                        
-                        <!-- أرقام الصفحات -->
-                        {% for num in page_obj.paginator.page_range %}
-                            {% if page_obj.number == num %}
-                                <li class="page-item active" aria-current="page">
-                                    <span class="page-link">{{ num }}</span>
-                                </li>
-                            {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
-                                <li class="page-item">
-                                    <a class="page-link" href="?{% if date_from %}date_from={{ date_from|date:'Y-m-d' }}&{% endif %}{% if date_to %}date_to={{ date_to|date:'Y-m-d' }}&{% endif %}page={{ num }}">{{ num }}</a>
-                                </li>
-                            {% endif %}
-                        {% endfor %}
-                        
-                        <!-- زر التالي -->
-                        <li class="page-item {% if not page_obj.has_next %}disabled{% endif %}">
-                            <a class="page-link" href="{% if page_obj.has_next %}?{% if date_from %}date_from={{ date_from|date:'Y-m-d' }}&{% endif %}{% if date_to %}date_to={{ date_to|date:'Y-m-d' }}&{% endif %}page={{ page_obj.next_page_number }}{% else %}#{% endif %}" {% if not page_obj.has_next %}tabindex="-1" aria-disabled="true"{% endif %}>
-                                التالي <i class="fas fa-angle-left"></i>
-                            </a>
-                        </li>
-                        
-                        <!-- زر الصفحة الأخيرة -->
-                        <li class="page-item {% if not page_obj.has_next %}disabled{% endif %}">
-                            <a class="page-link" href="?{% if date_from %}date_from={{ date_from|date:'Y-m-d' }}&{% endif %}{% if date_to %}date_to={{ date_to|date:'Y-m-d' }}&{% endif %}page={{ page_obj.paginator.num_pages }}" {% if not page_obj.has_next %}tabindex="-1" aria-disabled="true"{% endif %}>
-                                <i class="fas fa-angle-double-left"></i>
-                            </a>
-                        </li>
-                    </ul>
-                    <div class="pagination-info">
-                        عرض صفحة {{ page_obj.number }} من {{ page_obj.paginator.num_pages }} (إجمالي {{ page_obj.paginator.count }} سجل)
-                    </div>
-                </nav>
-                {% endif %}
-            {% else %}
-                <div class="empty-state">
-                    <div class="empty-state-icon">
-                        <i class="fas fa-book"></i>
-                    </div>
-                    <h5 class="text-muted">لا توجد حسابات نشطة</h5>
-                    <p class="text-muted">لا توجد حسابات نشطة في الفترة المحددة</p>
+                <!-- الترقيم الموحد SSR -->
+                <div id="pagination-wrapper" class="no-print mt-3">
+                    {% include "partials/pagination.html" %}
                 </div>
-            {% endif %}
-        </div>
-    {% endif %}
+            </div>
+        {% endif %}
+    </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-    // تحسين تجربة المستخدم
+    // تفعيل أحداث الجدول والنقر على الصفوف (Project Rule 7)
+    function initTableEvents() {
+        $('.clickable-row').off('click').on('click', function(e) {
+            if ($(e.target).closest('a, button, input, select, label, .btn').length === 0) {
+                const href = $(this).data('href');
+                if (href) {
+                    window.location.href = href;
+                }
+            }
+        });
+    }
+
+    // محرك البحث التفاعلي الحي doSearch ومزامنة الـ URL (Project Rule 6)
+    window.doSearch = function() {
+        const form = $('#filterForm');
+        const searchBtn = $('#searchBtn');
+        const originalBtnHtml = searchBtn.html();
+        
+        searchBtn.html('<i class="fas fa-spinner fa-spin me-1"></i>جاري البحث...').prop('disabled', true);
+
+        const formData = form.serialize();
+        const currentUrl = window.location.pathname + '?' + formData;
+
+        $.ajax({
+            url: currentUrl,
+            type: 'GET',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            success: function(response) {
+                // تحديث المحتوى التفاعلي
+                const tempDom = $('<div>').html(response);
+                const newContent = tempDom.find('#statement-main-content').html();
+                
+                if (newContent) {
+                    $('#statement-main-content').html(newContent);
+                } else {
+                    $('#statement-main-content').html(response);
+                }
+
+                // مزامنة حالة عنوان المتصفح
+                if (window.history && window.history.replaceState) {
+                    window.history.replaceState({}, '', currentUrl);
+                }
+
+                initTableEvents();
+            },
+            error: function() {
+                // Fallback to normal form submission if AJAX fails
+                form.off('submit').submit();
+            },
+            complete: function() {
+                searchBtn.html(originalBtnHtml).prop('disabled', false);
+            }
+        });
+    };
+
+    // موجه التصدير التفاعلي الذكي (Dynamic Export Dispatcher)
+    window.exportReport = function(format) {
+        const form = $('#filterForm');
+        let formData = form.serialize();
+        const exportUrl = window.location.pathname + '?' + formData + '&export=' + format;
+        window.location.href = exportUrl;
+    };
+
     $(document).ready(function() {
-        // تفعيل Select2 للحسابات
-        $('#account').select2({
-            placeholder: '-- جميع الحسابات --',
-            allowClear: true,
+        // تفعيل Select2 للحسابات ومراكز التكلفة
+        $('.select2-filter').select2({
             dir: 'rtl',
             language: 'ar',
             width: '100%'
         });
-        
-        // تحسين تجربة الفلتر - إضافة loading state
-        $('#filterForm').on('submit', function() {
-            const submitBtn = $(this).find('button[type="submit"]');
-            submitBtn.html('<i class="fas fa-spinner fa-spin"></i>');
-            submitBtn.prop('disabled', true);
-        });
-        
-        // تفعيل tooltips
-        $('[data-bs-toggle="tooltip"]').tooltip();
-        
         // تحسين عرض الجدول
         $('.ledger-table').addClass('table-hover');
-        
-        // تحسين تجربة الطباعة
-        window.onbeforeprint = function() {
-        };
-        
-        window.onafterprint = function() {
-        };
         
         // إضافة animation للكروت عند التحميل
         $('.stats-card').each(function(index) {

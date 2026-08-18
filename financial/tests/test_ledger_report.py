@@ -360,6 +360,37 @@ class LedgerReportViewTestCase(TestCase):
         self.assertGreater(len(response.context['page_obj']), 0)
         self.assertLessEqual(len(response.context['page_obj']), 60)
 
+    def test_ledger_report_pdf_export_single_account(self):
+        """
+        اختبار تصدير كشف حساب تفصيلي بصيغة PDF
+        """
+        response = self.client.get(
+            reverse('financial:ledger_report'),
+            {
+                'account': self.account.id,
+                'export': 'pdf'
+            }
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Type'], 'application/pdf')
+        self.assertIn('attachment;', response['Content-Disposition'])
+        self.assertTrue(len(response.content) > 0)
+
+    def test_ledger_report_pdf_export_summary(self):
+        """
+        اختبار تصدير ملخص الحسابات المالية بصيغة PDF
+        """
+        response = self.client.get(
+            reverse('financial:ledger_report'),
+            {
+                'export': 'pdf'
+            }
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Type'], 'application/pdf')
+        self.assertIn('attachment;', response['Content-Disposition'])
+        self.assertTrue(len(response.content) > 0)
+
 
 class LedgerReportIntegrationTestCase(TestCase):
     """
@@ -538,3 +569,173 @@ class LedgerReportIntegrationTestCase(TestCase):
         total_debits = sum(s['total_debit'] for s in all_summaries)
         total_credits = sum(s['total_credit'] for s in all_summaries)
         self.assertEqual(total_debits, total_credits)
+
+
+class MultiCurrencyLedgerTestCase(TestCase):
+    """
+    اختبارات معيار IAS 21 والعملات المتعددة والحسابات المجمعة لكشف الحسابات
+    """
+
+    def setUp(self):
+        self.user = User.objects.create_user(username='fx_user', password='fx_password123')
+        self.period, _ = AccountingPeriod.objects.get_or_create(
+            name="2026",
+            defaults={"start_date": date(2026, 1, 1), "end_date": date(2026, 12, 31), "status": "open"}
+        )
+
+        from financial.models.currency import Currency
+        from financial.services.exchange_rate_service import ExchangeRateService
+
+        self.egp, _ = Currency.objects.get_or_create(code='EGP', defaults={'name': 'جنيه مصري', 'symbol': 'ج.م', 'is_functional': True})
+        self.usd, _ = Currency.objects.get_or_create(code='USD', defaults={'name': 'دولار أمريكي', 'symbol': '$', 'is_functional': False})
+        self.eur, _ = Currency.objects.get_or_create(code='EUR', defaults={'name': 'يورو', 'symbol': '€', 'is_functional': False})
+
+        ExchangeRateService.set_rate('USD', 'EGP', Decimal('50.000000'), date=date(2026, 1, 1))
+        ExchangeRateService.set_rate('EUR', 'EGP', Decimal('55.000000'), date=date(2026, 1, 1))
+
+        self.asset_type, _ = AccountType.objects.get_or_create(
+            name="أصول متداولة",
+            defaults={"category": "asset", "nature": "debit"}
+        )
+
+        # حساب رئيسي (أب) للخزائن
+        self.parent_safe = ChartOfAccounts.objects.create(
+            code="10100",
+            name="الخزائن النقدية",
+            account_type=self.asset_type,
+            is_leaf=False
+        )
+
+        # حساب فرعي بالجنيه
+        self.egp_safe = ChartOfAccounts.objects.create(
+            code="10101",
+            name="الخزينة الرئيسية (جنيه)",
+            account_type=self.asset_type,
+            parent=self.parent_safe,
+            currency=self.egp,
+            opening_balance=Decimal('1000.00'),
+            is_leaf=True
+        )
+
+        # حساب فرعي بالدولار
+        self.usd_safe = ChartOfAccounts.objects.create(
+            code="10102",
+            name="خزينة الدولار",
+            account_type=self.asset_type,
+            parent=self.parent_safe,
+            currency=self.usd,
+            opening_balance=Decimal('5000.00'),
+            opening_balance_foreign=Decimal('100.00'),
+            opening_balance_rate=Decimal('50.000000'),
+            is_leaf=True
+        )
+
+    def test_triangular_cross_rate_conversion(self):
+        """اختبار حل أسعار الصرف التبادلية الثلاثية EUR -> USD عبر العملة الوظيفية EGP"""
+        from financial.services.exchange_rate_service import ExchangeRateService
+        cross_rate = ExchangeRateService.get_rate('EUR', 'USD', date=date(2026, 1, 1))
+        # 55.00 / 50.00 = 1.100000
+        self.assertEqual(cross_rate, Decimal('1.100000'))
+
+    def test_foreign_currency_account_dual_balances(self):
+        """اختبار حساب الرصيد المزدوج التراكمي (أجنبي ومحلي) لحساب الخزينة الدولار"""
+        from financial.services.ledger_query_service import LedgerQueryService
+
+        # إنشاء قيد إيداع 50 دولار بسعر 50 = 2500 جنيه
+        je = JournalEntry.objects.create(
+            number="GL-FX-001",
+            date=date(2026, 1, 15),
+            description="إيداع نقدي بالدولار",
+            status="posted",
+            accounting_period=self.period,
+            created_by=self.user
+        )
+        JournalEntryLine.objects.create(
+            journal_entry=je,
+            account=self.usd_safe,
+            debit=Decimal('2500.00'),
+            credit=Decimal('0.00'),
+            currency='USD',
+            exchange_rate=Decimal('50.000000'),
+            foreign_debit=Decimal('50.00'),
+            foreign_credit=Decimal('0.00'),
+            exchange_rate_snapshot=Decimal('50.000000')
+        )
+
+        statement = LedgerQueryService.get_account_statement(self.usd_safe)
+        self.assertEqual(statement['opening_balance_foreign'], Decimal('100.00'))
+        self.assertEqual(statement['total_foreign_debit'], Decimal('50.00'))
+        self.assertEqual(statement['closing_balance_foreign'], Decimal('150.00'))
+        self.assertEqual(statement['closing_balance'], Decimal('7500.00'))  # 5000 + 2500
+
+    def test_parent_account_multi_currency_rollup(self):
+        """اختبار تجميع الحركات للحساب الأب (الخزائن 10100) بكشف مجمع للفروع"""
+        from financial.services.ledger_query_service import LedgerQueryService
+
+        # إنشاء حركة على خزينة الجنيه
+        je_egp = JournalEntry.objects.create(
+            number="GL-EGP-001",
+            date=date(2026, 1, 10),
+            description="إيداع محلي",
+            status="posted",
+            accounting_period=self.period,
+            created_by=self.user
+        )
+        JournalEntryLine.objects.create(
+            journal_entry=je_egp,
+            account=self.egp_safe,
+            debit=Decimal('500.00'),
+            credit=Decimal('0.00'),
+            currency='EGP'
+        )
+
+        statement = LedgerQueryService.get_account_statement(self.parent_safe)
+        self.assertTrue(statement['is_consolidated'])
+        # الرصيد الافتتاحي المجمع: 1000 (جنيه) + 5000 (معادل الدولار) = 6000
+        self.assertEqual(statement['opening_balance'], Decimal('6000.00'))
+
+    def test_currency_filter_in_ledger(self):
+        """اختبار تصفية الحركات بحسب العملة في كشف الحساب"""
+        from financial.services.ledger_query_service import LedgerQueryService
+
+        statement = LedgerQueryService.get_account_statement(self.parent_safe, currency='USD')
+        for trans in statement['transactions']:
+            self.assertEqual(trans['currency'], 'USD')
+
+    def test_journal_entry_reversal_preserves_foreign_currency(self):
+        """اختبار عكس قيد أجنبي والتأكد من نسخ حقول العملة الأجنبية بالكامل"""
+        je = JournalEntry.objects.create(
+            number="GL-REV-001",
+            date=date(2026, 1, 20),
+            description="قيد تحويل عملة أصلي",
+            status="posted",
+            accounting_period=self.period,
+            created_by=self.user
+        )
+        orig_line = JournalEntryLine.objects.create(
+            journal_entry=je,
+            account=self.usd_safe,
+            debit=Decimal('5000.00'),
+            credit=Decimal('0.00'),
+            currency='USD',
+            exchange_rate=Decimal('50.000000'),
+            foreign_debit=Decimal('100.00'),
+            foreign_credit=Decimal('0.00'),
+            exchange_rate_snapshot=Decimal('50.000000')
+        )
+        JournalEntryLine.objects.create(
+            journal_entry=je,
+            account=self.egp_safe,
+            debit=Decimal('0.00'),
+            credit=Decimal('5000.00'),
+            currency='EGP',
+            exchange_rate=Decimal('1.000000')
+        )
+
+        reversal_je = je.reverse_entry(user=self.user)
+        rev_line = reversal_je.lines.filter(account=self.usd_safe).first()
+        self.assertEqual(rev_line.currency, 'USD')
+        self.assertEqual(rev_line.credit, Decimal('5000.00'))
+        self.assertEqual(rev_line.foreign_credit, Decimal('100.00'))
+        self.assertEqual(rev_line.exchange_rate, Decimal('50.000000'))
+

@@ -619,7 +619,11 @@ class ChartOfAccounts(models.Model):
 
     def can_post_entries(self):
         """التحقق من إمكانية إدراج قيود على الحساب"""
-        return self.is_leaf and self.is_active
+        if not self.is_active:
+            return False
+        if self.is_leaf:
+            return True
+        return self.children.count() == 0
 
     def validate_entry_amount(self, debit=0, credit=0):
         """التحقق من صحة مبلغ القيد"""

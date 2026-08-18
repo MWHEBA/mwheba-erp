@@ -302,16 +302,18 @@ def generate_balance_sheet_excel_optimized(balance_date, group_by_subtype=True):
         return None
 
 
-def handle_progressive_ledger_load(request, account_id, date_from, date_to, page_size):
+def handle_progressive_ledger_load(request, account_id, date_from, date_to, page_size, cost_center=None, include_unposted=False):
     """
-    معالجة التحميل التدريجي لبيانات دفتر الأستاذ
+    معالجة التحميل التدريجي لبيانات كشف الحساب
     """
     try:
         page = int(request.GET.get('page', 1))
         account = get_object_or_404(ChartOfAccounts, id=account_id)
         
-        # جلب المعاملات بشكل محسن
-        transactions, _ = get_account_transactions_optimized(account, date_from, date_to)
+        # جلب المعاملات بشكل دقيق عبر LedgerQueryService
+        transactions, _ = get_account_transactions_optimized(
+            account, date_from, date_to, cost_center=cost_center, include_unposted=include_unposted
+        )
         
         # تطبيق Pagination
         paginator = Paginator(transactions, page_size)
@@ -327,6 +329,11 @@ def handle_progressive_ledger_load(request, account_id, date_from, date_to, page
                 'debit': float(transaction.get('debit', 0)),
                 'credit': float(transaction.get('credit', 0)),
                 'balance': float(transaction.get('balance', 0)),
+                'currency': transaction.get('currency', 'EGP'),
+                'foreign_debit': float(transaction.get('foreign_debit', 0)),
+                'foreign_credit': float(transaction.get('foreign_credit', 0)),
+                'cost_center_name': transaction.get('cost_center_name', ''),
+                'is_reversal': transaction.get('is_reversal', False),
             })
         
         return JsonResponse({
@@ -346,80 +353,41 @@ def handle_progressive_ledger_load(request, account_id, date_from, date_to, page
         }, status=500)
 
 
-def get_account_transactions_optimized(account, date_from=None, date_to=None):
+def get_account_transactions_optimized(account, date_from=None, date_to=None, cost_center=None, currency=None, include_unposted=False):
     """
-    جلب معاملات الحساب بطريقة محسنة مع استخدام الطرق المحسنة
+    جلب معاملات كشف الحساب بدقة محاسبية 100% عبر LedgerQueryService
+    مع الدعم الكامل للعملات الأجنبية ومعيار IAS 21
     """
-    from .journal_entry import JournalEntryLine
-    from django.db.models import Q, F
-    from decimal import Decimal
-    
-    # بناء الاستعلام المحسن
-    query = Q(account=account, journal_entry__status="posted")
-    
-    if date_from:
-        query &= Q(journal_entry__date__gte=date_from)
-    if date_to:
-        query &= Q(journal_entry__date__lte=date_to)
-    
-    # جلب البنود مع تحسين الاستعلام
-    lines = JournalEntryLine.objects.select_related(
-        'journal_entry', 'account'
-    ).filter(query).order_by(
-        'journal_entry__date', 'journal_entry__id', 'id'
+    from ..services.ledger_query_service import LedgerQueryService
+    statement_data = LedgerQueryService.get_account_statement(
+        account_or_id=account,
+        start_date=date_from,
+        end_date=date_to,
+        cost_center=cost_center,
+        currency=currency,
+        include_unposted=include_unposted
     )
-    
-    # تحضير قائمة المعاملات مع حساب الرصيد التراكمي
-    transactions = []
-    running_balance = account.opening_balance or Decimal('0')
-    
-    # إضافة الرصيد الافتتاحي كأول معاملة إذا كان موجوداً
-    if account.opening_balance and account.opening_balance != 0:
-        opening_date = account.opening_balance_date or date(2020, 1, 1)
-        if (not date_from or opening_date >= date_from) and (not date_to or opening_date <= date_to):
-            transactions.append({
-                'date': opening_date,
-                'reference': 'رصيد افتتاحي',
-                'description': 'الرصيد الافتتاحي للحساب',
-                'debit': account.opening_balance if account.nature == 'debit' and account.opening_balance > 0 else Decimal('0'),
-                'credit': account.opening_balance if account.nature == 'credit' and account.opening_balance > 0 else Decimal('0'),
-                'balance': running_balance,
-                'is_opening': True
-            })
-    
-    # معالجة البنود
-    for line in lines:
-        # حساب الرصيد التراكمي حسب طبيعة الحساب
-        if account.nature == 'debit':
-            running_balance += line.debit - line.credit
-        else:
-            running_balance += line.credit - line.debit
-        
-        transactions.append({
-            'date': line.journal_entry.date,
-            'reference': line.journal_entry.reference or f"قيد رقم {line.journal_entry.id}",
-            'description': line.description or line.journal_entry.description,
-            'debit': line.debit,
-            'credit': line.credit,
-            'balance': running_balance,
-            'journal_entry_id': line.journal_entry.id,
-            'line_id': line.id,
-            'is_opening': False
-        })
-    
-    # حساب الملخص
-    total_debit = sum(t['debit'] for t in transactions)
-    total_credit = sum(t['credit'] for t in transactions)
-    
+    transactions = statement_data['transactions']
     summary = {
-        'opening_balance': account.opening_balance or Decimal('0'),
-        'total_debit': total_debit,
-        'total_credit': total_credit,
-        'closing_balance': running_balance,
-        'net_movement': total_debit - total_credit,
-        'transaction_count': len(transactions)
+        'opening_balance': statement_data['opening_balance'],
+        'opening_balance_foreign': statement_data.get('opening_balance_foreign', Decimal('0.00')),
+        'total_debit': statement_data['total_debit'],
+        'total_credit': statement_data['total_credit'],
+        'total_foreign_debit': statement_data.get('total_foreign_debit', Decimal('0.00')),
+        'total_foreign_credit': statement_data.get('total_foreign_credit', Decimal('0.00')),
+        'closing_balance': statement_data['closing_balance'],
+        'closing_balance_foreign': statement_data.get('closing_balance_foreign', Decimal('0.00')),
+        'period_movement': statement_data['period_movement'],
+        'period_foreign_movement': statement_data.get('period_foreign_movement', Decimal('0.00')),
+        'transaction_count': statement_data['transaction_count'],
+        'account_currency': statement_data.get('account_currency', 'EGP'),
+        'account_currency_symbol': statement_data.get('account_currency_symbol', 'ج.م'),
+        'is_foreign_account': statement_data.get('is_foreign_account', False),
+        'is_consolidated': statement_data.get('is_consolidated', False),
+        'functional_currency': statement_data.get('functional_currency', 'EGP'),
+        'functional_currency_symbol': statement_data.get('functional_currency_symbol', 'ج.م'),
+        'by_currency_breakdown': statement_data.get('by_currency_breakdown', {}),
     }
-    
     return transactions, summary
 
 
@@ -447,7 +415,7 @@ def get_all_accounts_summary_optimized(date_from=None, date_to=None):
         )
         
         # جلب إحصائيات المعاملات
-        from .journal_entry import JournalEntryLine
+        from ..models import JournalEntryLine
         
         query = Q(account=account, journal_entry__status="posted")
         if date_from:
@@ -480,133 +448,161 @@ def get_all_accounts_summary_optimized(date_from=None, date_to=None):
     return summaries
 
 
-def generate_ledger_excel_optimized(account, date_from=None, date_to=None):
+def generate_ledger_excel_optimized(account, date_from=None, date_to=None, cost_center=None, currency=None, include_unposted=False):
     """
-    تصدير دفتر الأستاذ إلى Excel بطريقة محسنة
+    تصدير كشف الحساب إلى Excel بطريقة محسنة مع الدعم الكامل للعملات المتعددة
     """
     try:
         import openpyxl
-        from openpyxl.styles import Font, Alignment, Border, Side
+        from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
         from openpyxl.utils import get_column_letter
+        from io import BytesIO
         
         # إنشاء ملف Excel
         wb = openpyxl.Workbook()
         ws = wb.active
         
+        header_fill = PatternFill(start_color="1E3A8A", end_color="1E3A8A", fill_type="solid")
+        header_font = Font(bold=True, size=11, color="FFFFFF")
+        title_font = Font(bold=True, size=14, color="1E3A8A")
+        subheader_font = Font(bold=True, size=11)
+        normal_font = Font(size=10)
+        border = Border(
+            left=Side(style='thin', color="D1D5DB"),
+            right=Side(style='thin', color="D1D5DB"),
+            top=Side(style='thin', color="D1D5DB"),
+            bottom=Side(style='thin', color="D1D5DB")
+        )
+        
         if account:
-            ws.title = f"دفتر الأستاذ - {account.code}"
+            ws.title = f"كشف حساب - {account.code}"
             
             # جلب المعاملات
-            transactions, summary = get_account_transactions_optimized(account, date_from, date_to)
-            
-            # تنسيق الخطوط والحدود
-            header_font = Font(bold=True, size=14)
-            subheader_font = Font(bold=True, size=12)
-            normal_font = Font(size=11)
-            border = Border(
-                left=Side(style='thin'),
-                right=Side(style='thin'),
-                top=Side(style='thin'),
-                bottom=Side(style='thin')
+            transactions, summary = get_account_transactions_optimized(
+                account, date_from, date_to, cost_center=cost_center, currency=currency, include_unposted=include_unposted
             )
             
             # العنوان الرئيسي
-            ws.merge_cells('A1:F1')
-            ws['A1'] = f"دفتر الأستاذ - {account.name} ({account.code})"
-            ws['A1'].font = header_font
-            ws['A1'].alignment = Alignment(horizontal='center')
+            ws.merge_cells('A1:G1')
+            ws['A1'] = f"كشف حساب - {account.name} ({account.code})"
+            ws['A1'].font = title_font
+            ws['A1'].alignment = Alignment(horizontal='center', vertical='center')
             
             # معلومات الفترة
-            row = 2
-            if date_from or date_to:
-                period_text = f"الفترة: من {date_from or 'البداية'} إلى {date_to or 'النهاية'}"
-                ws.merge_cells(f'A{row}:F{row}')
-                ws[f'A{row}'] = period_text
-                ws[f'A{row}'].font = subheader_font
-                ws[f'A{row}'].alignment = Alignment(horizontal='center')
-                row += 1
-            
-            row += 1
+            period_text = f"الفترة: من {date_from or 'البداية'} إلى {date_to or 'النهاية'}"
+            ws.merge_cells('A2:G2')
+            ws['A2'] = period_text
+            ws['A2'].font = subheader_font
+            ws['A2'].alignment = Alignment(horizontal='center', vertical='center')
             
             # رؤوس الأعمدة
-            headers = ['التاريخ', 'المرجع', 'الوصف', 'مدين', 'دائن', 'الرصيد']
+            headers = ['التاريخ', 'النوع', 'البيان', 'المرجع', 'مدين', 'دائن', 'الرصيد']
             for col, header in enumerate(headers, 1):
-                cell = ws.cell(row=row, column=col, value=header)
-                cell.font = subheader_font
-                cell.border = border
-                cell.alignment = Alignment(horizontal='center')
+                cell = ws.cell(row=4, column=col, value=header)
+                cell.fill = header_fill
+                cell.font = header_font
+                cell.alignment = Alignment(horizontal='center', vertical='center')
             
-            row += 1
+            row = 5
+            # سطر الرصيد الافتتاحي
+            ws.cell(row=row, column=1, value=date_from.strftime('%Y-%m-%d') if date_from else '')
+            ws.cell(row=row, column=2, value="-")
+            ws.cell(row=row, column=3, value="الرصيد الافتتاحي / المنقول")
+            ws.cell(row=row, column=4, value="-")
+            ws.cell(row=row, column=5, value="-")
+            ws.cell(row=row, column=6, value="-")
+            cell_op = ws.cell(row=row, column=7, value=float(summary['opening_balance']))
+            cell_op.number_format = '#,##0.00'
+            ws.cell(row=row, column=3).font = subheader_font
+            cell_op.font = subheader_font
             
             # البيانات
             for transaction in transactions:
-                ws.cell(row=row, column=1, value=transaction['date'].strftime('%Y-%m-%d') if transaction['date'] else '')
-                ws.cell(row=row, column=2, value=transaction['reference'])
-                ws.cell(row=row, column=3, value=transaction['description'])
-                ws.cell(row=row, column=4, value=float(transaction['debit']))
-                ws.cell(row=row, column=5, value=float(transaction['credit']))
-                ws.cell(row=row, column=6, value=float(transaction['balance']))
-                
-                # تطبيق التنسيق
-                for col in range(1, 7):
-                    ws.cell(row=row, column=col).border = border
-                    ws.cell(row=row, column=col).font = normal_font
-                
                 row += 1
+                ws.cell(row=row, column=1, value=transaction['date'].strftime('%Y-%m-%d') if transaction.get('date') else '')
+                ws.cell(row=row, column=2, value=transaction.get('entry_type_display') or transaction.get('journal_number', ''))
+                ws.cell(row=row, column=3, value=transaction.get('description', ''))
+                ws.cell(row=row, column=4, value=transaction.get('reference', ''))
+                
+                cell_d = ws.cell(row=row, column=5, value=float(transaction['debit']) if transaction.get('debit') else 0)
+                cell_c = ws.cell(row=row, column=6, value=float(transaction['credit']) if transaction.get('credit') else 0)
+                cell_b = ws.cell(row=row, column=7, value=float(transaction['balance']))
+                
+                cell_d.number_format = '#,##0.00'
+                cell_c.number_format = '#,##0.00'
+                cell_b.number_format = '#,##0.00'
+                
+                for c in range(1, 8):
+                    ws.cell(row=row, column=c).border = border
+                    ws.cell(row=row, column=c).font = normal_font
             
-            # الملخص
+            # الإجمالي
             row += 1
-            ws.cell(row=row, column=3, value="إجمالي المدين:").font = subheader_font
-            ws.cell(row=row, column=4, value=float(summary['total_debit'])).font = subheader_font
-            row += 1
-            ws.cell(row=row, column=3, value="إجمالي الدائن:").font = subheader_font
-            ws.cell(row=row, column=5, value=float(summary['total_credit'])).font = subheader_font
-            row += 1
-            ws.cell(row=row, column=3, value="الرصيد الختامي:").font = subheader_font
-            ws.cell(row=row, column=6, value=float(summary['closing_balance'])).font = subheader_font
+            ws.cell(row=row, column=3, value="الإجمالي:").font = subheader_font
+            cell_td = ws.cell(row=row, column=5, value=float(summary['total_debit']))
+            cell_tc = ws.cell(row=row, column=6, value=float(summary['total_credit']))
+            cell_cb = ws.cell(row=row, column=7, value=float(summary['closing_balance']))
+            
+            cell_td.font = subheader_font
+            cell_tc.font = subheader_font
+            cell_cb.font = subheader_font
+            cell_td.number_format = '#,##0.00'
+            cell_tc.number_format = '#,##0.00'
+            cell_cb.number_format = '#,##0.00'
             
         else:
             # تصدير ملخص جميع الحسابات
-            ws.title = "ملخص دفتر الأستاذ العام"
+            ws.title = "كشف حركة الحسابات"
             
             summaries = get_all_accounts_summary_optimized(date_from, date_to)
             
             # العنوان
             ws.merge_cells('A1:G1')
-            ws['A1'] = "ملخص دفتر الأستاذ العام"
-            ws['A1'].font = Font(bold=True, size=14)
+            ws['A1'] = "كشف حركة وأرصدة الحسابات العامة"
+            ws['A1'].font = title_font
             ws['A1'].alignment = Alignment(horizontal='center')
             
             # رؤوس الأعمدة
             headers = ['كود الحساب', 'اسم الحساب', 'نوع الحساب', 'إجمالي مدين', 'إجمالي دائن', 'الرصيد الحالي', 'عدد المعاملات']
             for col, header in enumerate(headers, 1):
                 cell = ws.cell(row=3, column=col, value=header)
-                cell.font = Font(bold=True)
+                cell.fill = header_fill
+                cell.font = header_font
                 cell.alignment = Alignment(horizontal='center')
             
-            # البيانات
-            for row_idx, summary in enumerate(summaries, 4):
-                ws.cell(row=row_idx, column=1, value=summary['account'].code)
-                ws.cell(row=row_idx, column=2, value=summary['account'].name)
-                ws.cell(row=row_idx, column=3, value=summary['account_type'])
-                ws.cell(row=row_idx, column=4, value=float(summary['total_debit']))
-                ws.cell(row=row_idx, column=5, value=float(summary['total_credit']))
-                ws.cell(row=row_idx, column=6, value=float(summary['current_balance']))
-                ws.cell(row=row_idx, column=7, value=summary['transaction_count'])
+            row = 4
+            for s in summaries:
+                ws.cell(row=row, column=1, value=s['account'].code)
+                ws.cell(row=row, column=2, value=s['account'].name)
+                ws.cell(row=row, column=3, value=s['account_type'])
+                
+                cd = ws.cell(row=row, column=4, value=float(s['total_debit']))
+                cc = ws.cell(row=row, column=5, value=float(s['total_credit']))
+                cb = ws.cell(row=row, column=6, value=float(s['current_balance']))
+                ws.cell(row=row, column=7, value=s['transaction_count'])
+                
+                cd.number_format = '#,##0.00'
+                cc.number_format = '#,##0.00'
+                cb.number_format = '#,##0.00'
+                
+                for c in range(1, 8):
+                    ws.cell(row=row, column=c).border = border
+                    ws.cell(row=row, column=c).font = normal_font
+                row += 1
         
-        # ضبط عرض الأعمدة
-        for col in range(1, 8):
-            ws.column_dimensions[get_column_letter(col)].width = 15
-        
-        # حفظ الملف في الذاكرة
-        from io import BytesIO
+        # Auto-fit columns
+        for col in ws.columns:
+            max_len = max(len(str(cell.value or '')) for cell in col)
+            col_letter = get_column_letter(col[0].column)
+            ws.column_dimensions[col_letter].width = max(max_len + 3, 12)
+            
         output = BytesIO()
         wb.save(output)
-        output.seek(0)
-        
         return output.getvalue()
         
-    except ImportError:
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"Error generating Excel statement: {e}")
         return None
 
 
@@ -868,23 +864,23 @@ def export_transactions(request):
 @login_required
 def ledger_report(request):
     """
-    تقرير دفتر الأستاذ العام - محسّن واحترافي مع التحميل التدريجي
-    يستخدم الطرق المحسنة والتخزين المؤقت لمعالجة البيانات الكبيرة
+    تقرير كشف الحسابات المالي - مطابق للمعايير المحاسبية وقواعد المشروع
+    يستخدم محرك LedgerQueryService مع دعم البحث التفاعلي والعملات الأجنبية ومراكز التكلفة
     """
     from django.http import HttpResponse, JsonResponse
     from django.core.paginator import Paginator
-    from django.core.cache import cache
-    from django.db.models import Prefetch
-    import hashlib
-    import json
+    from django.template.loader import render_to_string
+    from ..models import CostCenter
     
     # معالجة الفلاتر
     account_id = request.GET.get("account")
     date_from_str = request.GET.get("date_from")
     date_to_str = request.GET.get("date_to")
-    export_format = request.GET.get("export")  # excel أو pdf
-    page_size = int(request.GET.get("page_size", "50"))  # حجم الصفحة القابل للتخصيص
-    use_cache = request.GET.get("use_cache", "1") == "1"
+    cost_center_id = request.GET.get("cost_center")
+    currency = request.GET.get("currency")
+    include_unposted = request.GET.get("include_unposted") == "1"
+    export_format = request.GET.get("export")  # excel / pdf
+    page_size = int(request.GET.get("page_size", "50"))
     progressive_load = request.GET.get("progressive", "0") == "1"
     
     # تحويل التواريخ
@@ -903,13 +899,42 @@ def ledger_report(request):
         except ValueError:
             messages.warning(request, "تنسيق تاريخ النهاية غير صحيح")
     
-    # جلب جميع الحسابات للفلتر مع تحسين الاستعلام
+    # جلب مركز التكلفة إذا تم اختياره
+    selected_cost_center = None
+    if cost_center_id:
+        try:
+            selected_cost_center = CostCenter.objects.get(id=cost_center_id)
+        except (CostCenter.DoesNotExist, ValueError):
+            pass
+
+    cost_centers = CostCenter.objects.filter(is_active=True).order_by('code')
+    
+    from ..models.currency import Currency
+    currencies = Currency.objects.filter(is_active=True).order_by("-is_functional", "code")
+
+    # جلب جميع الحسابات مع تجميعها للفئات
     accounts = ChartOfAccounts.objects.filter(
-        is_leaf=True,
         is_active=True
-    ).select_related('account_type').only(
-        'id', 'code', 'name', 'account_type__name'
+    ).select_related('account_type', 'currency').only(
+        'id', 'code', 'name', 'is_leaf', 'currency__code', 'currency__symbol', 'account_type__name', 'account_type__category'
     ).order_by('code')
+    
+    categories_def = [
+        ('asset', 'الأصول'),
+        ('liability', 'الالتزامات والخصوم'),
+        ('equity', 'حقوق الملكية'),
+        ('revenue', 'الإيرادات'),
+        ('expense', 'المصروفات'),
+    ]
+    grouped_accounts = []
+    for cat_key, cat_name in categories_def:
+        cat_accs = [acc for acc in accounts if getattr(getattr(acc, 'account_type', None), 'category', '') == cat_key]
+        if cat_accs:
+            grouped_accounts.append({
+                'category_key': cat_key,
+                'category_name': cat_name,
+                'accounts': cat_accs
+            })
     
     # معالجة التصدير
     if export_format == 'excel':
@@ -918,221 +943,261 @@ def ledger_report(request):
             if account_id:
                 account = get_object_or_404(ChartOfAccounts, id=account_id)
             
-            # محاولة استخدام خدمة دفتر الأستاذ إذا كانت متاحة
-            try:
-                from ..services.ledger_service import LedgerService
-                excel_data = LedgerService.export_to_excel(account, date_from, date_to)
-            except ImportError:
-                # استخدام التنفيذ المحسن المباشر
-                excel_data = generate_ledger_excel_optimized(account, date_from, date_to)
-            
-            response = HttpResponse(
-                excel_data,
-                content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            excel_data = generate_ledger_excel_optimized(
+                account, date_from, date_to, cost_center=selected_cost_center, currency=currency, include_unposted=include_unposted
             )
-            filename = f"ledger_report_{timezone.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
-            response['Content-Disposition'] = f'attachment; filename="{filename}"'
             
-            return response
+            if excel_data:
+                response = HttpResponse(
+                    excel_data,
+                    content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                )
+                filename = f"account_statement_{account.code if account else 'all'}_{timezone.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+                response['Content-Disposition'] = f'attachment; filename="{filename}"'
+                return response
+            else:
+                messages.error(request, "تعذر إنشاء ملف Excel")
         except Exception as e:
             messages.error(request, f"خطأ في تصدير Excel: {e}")
+
+    elif export_format == 'pdf':
+        try:
+            from django.template.loader import render_to_string
+            from utils.pdf_utils import generate_pdf_from_html, get_base64_encoded_file
+            from core.models import SystemSetting
+            import os
+
+            # صياغة نص الفترة الزمنية
+            if date_from and date_to:
+                period_label = f"الفترة: من {date_from.strftime('%d/%m/%Y')} إلى {date_to.strftime('%d/%m/%Y')}"
+            elif date_from:
+                period_label = f"الفترة: من {date_from.strftime('%d/%m/%Y')} حتى تاريخه"
+            elif date_to:
+                period_label = f"الفترة: حتى تاريخ {date_to.strftime('%d/%m/%Y')}"
+            else:
+                period_label = "الفترة: كافة الحركات المالية حتى تاريخه"
+
+            # جلب هوية وبيانات المنشأة
+            company_name = SystemSetting.get_setting('company_name', 'مؤسسة موهبة للتجارة')
+            company_tax_number = SystemSetting.get_setting('tax_number', '') or SystemSetting.get_setting('company_tax_number', '')
+            company_cr = SystemSetting.get_setting('commercial_register', '') or SystemSetting.get_setting('company_cr', '')
+            company_phone = SystemSetting.get_setting('company_phone', '')
+            company_address = SystemSetting.get_setting('company_address', '')
+            
+            logo_rel = SystemSetting.get_setting('company_logo', '')
+            company_logo = None
+            if logo_rel:
+                logo_path = os.path.join(settings.MEDIA_ROOT, str(logo_rel).lstrip('/'))
+                if not os.path.exists(logo_path):
+                    logo_path = os.path.join(settings.BASE_DIR, 'static', str(logo_rel).lstrip('/'))
+                if os.path.exists(logo_path):
+                    company_logo = get_base64_encoded_file(logo_path)
+
+            pdf_context = {
+                "company_name": company_name,
+                "company_tax_number": company_tax_number,
+                "company_cr": company_cr,
+                "company_phone": company_phone,
+                "company_address": company_address,
+                "company_logo": company_logo,
+                "period_label": period_label,
+                "currency_symbol_active": SystemSetting.get_currency_symbol() if hasattr(SystemSetting, 'get_currency_symbol') else 'ج.م',
+                "generated_at": timezone.now().strftime('%d/%m/%Y %H:%M'),
+                "generated_by": request.user.get_full_name() or request.user.username,
+                "date_from": date_from,
+                "date_to": date_to,
+            }
+
+            if account_id:
+                # تصدير كشف حساب تفصيلي للحساب المحدد
+                account = get_object_or_404(ChartOfAccounts, id=account_id)
+                transactions, summary = get_account_transactions_optimized(
+                    account, date_from, date_to,
+                    cost_center=selected_cost_center, currency=currency, include_unposted=include_unposted
+                )
+                pdf_context.update({
+                    "account": account,
+                    "account_name": account.name,
+                    "account_code": account.code,
+                    "summary": summary,
+                    "transactions": transactions,
+                    "cost_center_name": selected_cost_center.name if selected_cost_center else "",
+                    "document_title": f"كشف حساب - {account.name}",
+                })
+                html_content = render_to_string("financial/reports/pdf/account_statement_pdf.html", pdf_context, request=request)
+                safe_filename = f"statement_{account.code}_{timezone.now().strftime('%Y%m%d')}.pdf"
+                return generate_pdf_from_html(html_content, request=request, filename=safe_filename, doc_type="account_statement", context=pdf_context)
+            else:
+                # تصدير ملخص حركة وأرصدة كافة الحسابات
+                account_summaries = get_all_accounts_summary_optimized(date_from, date_to)
+                pdf_context.update({
+                    "accounts_summary": account_summaries,
+                    "document_title": "ملخص حركة وأرصدة الحسابات المالية",
+                })
+                html_content = render_to_string("financial/reports/pdf/accounts_summary_pdf.html", pdf_context, request=request)
+                safe_filename = f"accounts_summary_{timezone.now().strftime('%Y%m%d')}.pdf"
+                return generate_pdf_from_html(html_content, request=request, filename=safe_filename, doc_type="accounts_summary", context=pdf_context)
+
+        except Exception as e:
+            logger.error(f"خطأ في تصدير PDF لكشف الحسابات: {e}", exc_info=True)
+            messages.error(request, f"خطأ في تصدير ملف PDF: {e}")
     
     # معالجة طلبات AJAX للتحميل التدريجي
     if progressive_load and request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        return handle_progressive_ledger_load(request, account_id, date_from, date_to, page_size)
+        return handle_progressive_ledger_load(
+            request, account_id, date_from, date_to, page_size,
+            cost_center=selected_cost_center, include_unposted=include_unposted
+        )
     
     # عرض تفاصيل حساب معين
     if account_id:
         try:
             account = get_object_or_404(ChartOfAccounts, id=account_id)
             
-            # إنشاء مفتاح التخزين المؤقت
-            cache_key_data = f"ledger_{account_id}_{date_from}_{date_to}_{page_size}"
-            cache_key = f"ledger_{hashlib.md5(cache_key_data.encode()).hexdigest()}"
+            # جلب المعاملات والملخص مباشرة من محرك الحسابات المالي
+            transactions, summary = get_account_transactions_optimized(
+                account, date_from, date_to,
+                cost_center=selected_cost_center, currency=currency, include_unposted=include_unposted
+            )
             
-            # محاولة الحصول على البيانات من التخزين المؤقت
-            cached_data = None
-            if use_cache:
-                cached_data = cache.get(cache_key)
-            
-            if cached_data:
-                transactions, summary = cached_data
-                messages.info(request, "تم تحميل البيانات من التخزين المؤقت لتحسين الأداء")
-            else:
-                # جلب المعاملات والملخص بطريقة محسنة
-                try:
-                    from ..services.ledger_service import LedgerService
-                    transactions = LedgerService.get_account_transactions(
-                        account, date_from, date_to
-                    )
-                    summary = LedgerService.get_account_summary(
-                        account, date_from, date_to
-                    )
-                except ImportError:
-                    # استخدام التنفيذ المحسن المباشر
-                    transactions, summary = get_account_transactions_optimized(
-                        account, date_from, date_to
-                    )
-                
-                # حفظ في التخزين المؤقت لمدة 15 دقيقة
-                if use_cache:
-                    cache.set(cache_key, (transactions, summary), 900)
-            
-            # Pagination محسن للمعاملات
+            # Pagination للمعاملات
             paginator = Paginator(transactions, page_size)
             page_number = request.GET.get('page', 1)
             page_obj = paginator.get_page(page_number)
             
-            # بناء أزرار الهيدر
+            # حساب الرصيد المنقول من الصفحة السابقة (المحلي والأجنبي)
+            page_brought_forward = summary['opening_balance']
+            page_brought_forward_foreign = summary.get('opening_balance_foreign', Decimal('0.00'))
+            if page_obj.number > 1 and len(transactions) > 0:
+                prev_idx = (page_obj.number - 1) * page_size - 1
+                if 0 <= prev_idx < len(transactions):
+                    page_brought_forward = transactions[prev_idx]['balance']
+                    page_brought_forward_foreign = transactions[prev_idx].get('foreign_balance', Decimal('0.00'))
+            
+            # بناء أزرار الهيدر التفاعلية (Dynamic Export Dispatchers)
             header_buttons = [
                 {
-                    "onclick": "window.print()",
-                    "icon": "fa-print",
-                    "text": "طباعة",
-                    "class": "btn-outline-secondary",
+                    "onclick": "window.exportReport('pdf')",
+                    "icon": "fa-file-pdf",
+                    "text": "تصدير PDF",
+                    "class": "btn-outline-danger",
                 },
                 {
-                    "url": f"?account={account_id}&date_from={date_from or ''}&date_to={date_to or ''}&export=excel",
+                    "onclick": "window.exportReport('excel')",
                     "icon": "fa-file-excel",
                     "text": "تصدير Excel",
                     "class": "btn-success",
                 },
             ]
             
-            # إضافة زر تحديث إذا كانت البيانات مخزنة مؤقتاً
-            if cached_data:
-                header_buttons.append({
-                    "url": f"?account={account_id}&date_from={date_from or ''}&date_to={date_to or ''}&use_cache=0",
-                    "icon": "fa-sync",
-                    "text": "تحديث البيانات",
-                    "class": "btn-outline-warning",
-                })
-            
             context = {
-                "page_title": f"دفتر الأستاذ - {account.name}",
-                "page_subtitle": f"تقرير تفصيلي لحركة الحساب: {account.code}",
-                "page_icon": "fas fa-book-open",
+                "page_title": f"كشف حساب - {account.name}",
+                "page_subtitle": f"كشف تفصيلي لحركات الحساب المالي: {account.code} - {account.name}",
+                "page_icon": "fas fa-file-invoice-dollar",
                 "header_buttons": header_buttons,
                 "breadcrumb_items": [
                     {"title": "الرئيسية", "url": reverse('core:dashboard'), "icon": "fas fa-home"},
                     {"title": "الإدارة المالية", "icon": "fas fa-money-bill-wave"},
                     {"title": "التقارير", "icon": "fas fa-chart-bar"},
-                    {"title": "دفتر الأستاذ", "active": True},
+                    {"title": "كشف الحسابات", "active": True},
                 ],
                 "account": account,
                 "summary": summary,
                 "page_obj": page_obj,
                 "transactions": transactions,
                 "accounts": accounts,
+                "grouped_accounts": grouped_accounts,
+                "cost_centers": cost_centers,
+                "currencies": currencies,
+                "selected_currency": currency,
+                "selected_cost_center_id": int(cost_center_id) if cost_center_id and cost_center_id.isdigit() else None,
+                "include_unposted": include_unposted,
                 "date_from": date_from,
                 "date_to": date_to,
                 "selected_account_id": int(account_id),
                 "page_size": page_size,
-                "is_cached": cached_data is not None,
-                "progressive_load_enabled": len(transactions) > 100,  # تفعيل التحميل التدريجي للبيانات الكبيرة
+                "page_brought_forward": page_brought_forward,
+                "page_brought_forward_foreign": page_brought_forward_foreign,
             }
             
         except ChartOfAccounts.DoesNotExist:
             messages.error(request, "الحساب المطلوب غير موجود")
             return redirect('financial:ledger_report')
         except Exception as e:
+            logger.error(f"خطأ في تحميل تفاصيل الحساب: {e}")
             messages.error(request, f"خطأ في تحميل تفاصيل الحساب: {e}")
             return redirect('financial:ledger_report')
     
     else:
-        # عرض ملخص جميع الحسابات مع تحسين الأداء
+        # عرض ملخص جميع الحسابات
         try:
-            # إنشاء مفتاح التخزين المؤقت للملخص العام
-            cache_key_data = f"ledger_summary_{date_from}_{date_to}"
-            cache_key = f"ledger_summary_{hashlib.md5(cache_key_data.encode()).hexdigest()}"
+            account_summaries = get_all_accounts_summary_optimized(date_from, date_to)
             
-            # محاولة الحصول على البيانات من التخزين المؤقت
-            cached_summaries = None
-            if use_cache:
-                cached_summaries = cache.get(cache_key)
-            
-            if cached_summaries:
-                account_summaries = cached_summaries
-                messages.info(request, "تم تحميل ملخص الحسابات من التخزين المؤقت")
-            else:
-                # جلب ملخص الحسابات بطريقة محسنة
-                try:
-                    from ..services.ledger_service import LedgerService
-                    account_summaries = LedgerService.get_all_accounts_summary(
-                        date_from, date_to, only_active=True
-                    )
-                except ImportError:
-                    # استخدام التنفيذ المحسن المباشر
-                    account_summaries = get_all_accounts_summary_optimized(
-                        date_from, date_to
-                    )
-                
-                # حفظ في التخزين المؤقت لمدة 20 دقيقة
-                if use_cache:
-                    cache.set(cache_key, account_summaries, 1200)
-            
-            # Pagination للحسابات
             paginator = Paginator(account_summaries, page_size)
             page_number = request.GET.get('page', 1)
             page_obj = paginator.get_page(page_number)
             
-            # بناء أزرار الهيدر
             header_buttons = [
                 {
-                    "onclick": "window.print()",
-                    "icon": "fa-print",
-                    "text": "طباعة",
-                    "class": "btn-outline-secondary",
+                    "onclick": "window.exportReport('pdf')",
+                    "icon": "fa-file-pdf",
+                    "text": "تصدير PDF",
+                    "class": "btn-outline-danger",
+                },
+                {
+                    "onclick": "window.exportReport('excel')",
+                    "icon": "fa-file-excel",
+                    "text": "تصدير Excel",
+                    "class": "btn-success",
                 },
             ]
             
-            # إضافة زر تحديث إذا كانت البيانات مخزنة مؤقتاً
-            if cached_summaries:
-                header_buttons.append({
-                    "url": f"?date_from={date_from or ''}&date_to={date_to or ''}&use_cache=0",
-                    "icon": "fa-sync",
-                    "text": "تحديث البيانات",
-                    "class": "btn-outline-warning",
-                })
-            
             context = {
-                "page_title": "دفتر الأستاذ العام",
-                "page_subtitle": "ملخص شامل لجميع حركات الحسابات",
-                "page_icon": "fas fa-book",
+                "page_title": "كشف حركة وأرصدة الحسابات",
+                "page_subtitle": "ملخص شامل لأرصدة وحركات الحسابات المالية في دليل الحسابات",
+                "page_icon": "fas fa-table",
                 "header_buttons": header_buttons,
                 "breadcrumb_items": [
                     {"title": "الرئيسية", "url": reverse('core:dashboard'), "icon": "fas fa-home"},
                     {"title": "الإدارة المالية", "icon": "fas fa-money-bill-wave"},
                     {"title": "التقارير", "icon": "fas fa-chart-bar"},
-                    {"title": "دفتر الأستاذ", "active": True},
+                    {"title": "كشف الحسابات", "active": True},
                 ],
                 "page_obj": page_obj,
                 "account_summaries": account_summaries,
                 "accounts": accounts,
+                "grouped_accounts": grouped_accounts,
+                "cost_centers": cost_centers,
                 "date_from": date_from,
                 "date_to": date_to,
                 "page_size": page_size,
-                "is_cached": cached_summaries is not None,
             }
             
         except Exception as e:
             messages.error(request, f"خطأ في تحميل ملخص الحسابات: {e}")
             context = {
-                "page_title": "دفتر الأستاذ العام",
-                "page_subtitle": "ملخص شامل لجميع حركات الحسابات",
-                "page_icon": "fas fa-book",
+                "page_title": "كشف حركة وأرصدة الحسابات",
+                "page_subtitle": "ملخص شامل لأرصدة وحركات الحسابات المالية في دليل الحسابات",
+                "page_icon": "fas fa-table",
                 "breadcrumb_items": [
                     {"title": "الرئيسية", "url": reverse('core:dashboard'), "icon": "fas fa-home"},
                     {"title": "الإدارة المالية", "icon": "fas fa-money-bill-wave"},
                     {"title": "التقارير", "icon": "fas fa-chart-bar"},
-                    {"title": "دفتر الأستاذ", "active": True},
+                    {"title": "كشف الحسابات", "active": True},
                 ],
                 "accounts": accounts,
+                "grouped_accounts": grouped_accounts,
+                "cost_centers": cost_centers,
                 "date_from": date_from,
                 "date_to": date_to,
                 "error": str(e)
             }
     
+    # دعم طلبات AJAX الديناميكية لاستبدال المحتوى
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest' and not progressive_load:
+        # Partial rendering
+        return render(request, "financial/reports/ledger_report.html", context)
+        
     return render(request, "financial/reports/ledger_report.html", context)
 
 

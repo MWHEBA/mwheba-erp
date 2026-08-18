@@ -83,9 +83,21 @@ class ExchangeRateService:
         if inv_rate_obj and inv_rate_obj.rate > 0:
             return (Decimal("1.000000") / inv_rate_obj.rate).quantize(Decimal("0.000001"))
 
+        # 3. Triangular Cross-Rate Resolution (حل أسعار الصرف التبادلية الثلاثية عبر العملة الأساسية)
+        func_curr = cls.get_functional_currency()
+        func_code = func_curr.code if func_curr else "EGP"
+        if from_code != func_code and to_code != func_code:
+            try:
+                rate_from_base = cls.get_rate(from_code, func_code, date)
+                rate_to_base = cls.get_rate(to_code, func_code, date)
+                if rate_to_base > 0:
+                    return (rate_from_base / rate_to_base).quantize(Decimal("0.000001"))
+            except Exception:
+                pass
+
         # Fail Fast Policy: Raise ValidationError when no exchange rate is recorded
         raise ValidationError(
-            f"لا يوجد سعر صرف مسجل بين العملة ({from_code}) والعملة الأساسية ({to_code}) بتاريخ {date}. يرجى تسجيل سعر الصرف رسمياً في النظام أولاً."
+            f"لا يوجد سعر صرف مسجل بين العملة ({from_code}) والعملة ({to_code}) بتاريخ {date}. يرجى تسجيل سعر الصرف رسمياً في النظام أولاً."
         )
 
     @classmethod

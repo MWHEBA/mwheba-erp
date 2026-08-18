@@ -130,6 +130,17 @@ class JournalEntry(models.Model):
     ENTRY_TYPES = (
         ("manual", _("يدوي")),
         ("automatic", _("تلقائي")),
+        ("sales_invoice", _("فاتورة مبيعات")),
+        ("sale", _("فاتورة مبيعات")),
+        ("sales_return", _("مرتجع مبيعات")),
+        ("purchase_invoice", _("فاتورة مشتريات")),
+        ("purchase", _("فاتورة مشتريات")),
+        ("purchase_return", _("مرتجع مشتريات")),
+        ("receipt_voucher", _("سند قبض")),
+        ("payment_voucher", _("سند صرف")),
+        ("stock_movement", _("حركة مخزون")),
+        ("pos_sale", _("مبيعات نقاط البيع")),
+        ("fx_revaluation", _("تقييم فروق عملة")),
         ("adjustment", _("تسوية")),
         ("closing", _("إقفال")),
         ("opening", _("افتتاحي")),
@@ -377,6 +388,74 @@ class JournalEntry(models.Model):
         self._posting_source = value
         if value and not self.source_module:
             self.source_module = value
+
+    def get_entry_type_display_smart(self):
+        """
+        عرض نوع القيد بشكل ذكي ودقيق استناداً للنوع الصريح أو الموديل المصدر أو المرجع
+        """
+        # 1. إذا كان النوع صريحاً وواضحاً ومعرفاً في ENTRY_TYPES وليس عاماً
+        generic_types = ['automatic', 'GENERAL', 'general', 'manual', '']
+        if self.entry_type and self.entry_type not in generic_types:
+            for code, name in self.ENTRY_TYPES:
+                if code == self.entry_type:
+                    return str(name)
+
+        # 2. استنتاج دقيق من الوحدة والنموذج المصدر
+        src_mod = (self.source_module or '').lower()
+        src_model = (self.source_model or '').lower()
+        
+        if src_mod == 'sale' or 'sale' in src_model:
+            if 'return' in src_model:
+                return _("مرتجع مبيعات")
+            if 'payment' in src_model:
+                return _("سند قبض")
+            return _("فاتورة مبيعات")
+            
+        if src_mod == 'purchase' or 'purchase' in src_model:
+            if 'return' in src_model:
+                return _("مرتجع مشتريات")
+            if 'payment' in src_model:
+                return _("سند صرف")
+            return _("فاتورة مشتريات")
+            
+        if src_mod in ['inventory', 'product'] or 'stock' in src_model or 'movement' in src_model:
+            return _("حركة مخزون")
+            
+        # 3. استنتاج من المرجع والوصف
+        ref = (self.reference or '').upper()
+        desc = (self.description or '')
+        desc_upper = desc.upper()
+        
+        if 'GRN-REV' in ref or 'GRN REVERSAL' in desc_upper:
+            return _("عكس إذن استلام (GRN)")
+        if 'GRN' in ref or 'GRN ' in desc_upper or 'GOODS RECEIPT' in desc_upper:
+            return _("إذن استلام مخزني (GRN)")
+        if 'فاتورة مبيعات' in desc or ref.startswith('INV-') or ref.startswith('SALE'):
+            return _("فاتورة مبيعات")
+        if 'مرتجع مبيعات' in desc or ref.startswith('SR-') or ref.startswith('RET-S'):
+            return _("مرتجع مبيعات")
+        if 'فاتورة مشتريات' in desc or ref.startswith('BILL-') or ref.startswith('PUR-'):
+            return _("فاتورة مشتريات")
+        if 'مرتجع مشتريات' in desc or ref.startswith('PR-') or ref.startswith('RET-P'):
+            return _("مرتجع مشتريات")
+        if 'سند صرف' in desc or 'دفعة مورد' in desc or ref.startswith('PAY-') or ref.startswith('PV-'):
+            return _("سند صرف")
+        if 'سند قبض' in desc or 'قبض' in desc or ref.startswith('REC-') or ref.startswith('RV-'):
+            return _("سند قبض")
+        if 'حركة مخزون' in desc or ref.startswith('SM-') or ref.startswith('STK-'):
+            return _("حركة مخزون")
+        if 'تقييم' in desc or 'فروق عملة' in desc or ref.startswith('FX-'):
+            return _("تقييم فروق عملة")
+        if 'تسوية' in desc:
+            return _("قيد تسوية")
+        if self.entry_type == 'manual':
+            return _("قيد يدوي")
+        if self.entry_type == 'opening':
+            return _("قيد افتتاحي")
+        if self.entry_type == 'reversal':
+            return _("قيد عكسي")
+
+        return str(self.get_entry_type_display()) if self.entry_type else _("قيد يومية")
 
     class Meta:
 
@@ -646,11 +725,11 @@ class JournalEntry(models.Model):
         if reversal_amount > self.total_amount:
             raise ValidationError(_("مبلغ العكس أكبر من المبلغ الأصلي"))
         
-        # إنشاء القيد العكسي
+        # إنشاء القيد العكسي كمسودة أولاً لتمكين إضافة البنود
         reversal_entry = JournalEntry(
             date=timezone.now().date(),
             entry_type='reversal',
-            status='posted',  # القيود العكسية ترحل تلقائياً
+            status='draft',
             description=f"عكس القيد {self.number} - {reason}",
             reference=f"REV-{self.number}",
             source_module=self.source_module,
@@ -662,25 +741,31 @@ class JournalEntry(models.Model):
             reversal_reason=reason,
             created_by_service='AccountingGateway',
             created_by=user,
-            posted_at=timezone.now(),
-            posted_by=user
         )
         
         # تمييز القيد كمعتمد من البوابة
         reversal_entry.mark_as_gateway_approved()
         reversal_entry.save()
         
-        # إنشاء بنود القيد العكسي (عكس المدين والدائن)
+        # إنشاء بنود القيد العكسي (عكس المدين والدائن مع الحفاظ التام على بيانات العملات الأجنبية)
         for original_line in self.lines.all():
             if partial_amount and partial_amount < self.total_amount:
                 # حساب النسبة للعكس الجزئي
                 ratio = partial_amount / self.total_amount
-                line_debit = original_line.credit * ratio  # عكس المدين والدائن
-                line_credit = original_line.debit * ratio
+                line_debit = (original_line.credit * ratio).quantize(Decimal('0.01'))  # عكس المدين والدائن
+                line_credit = (original_line.debit * ratio).quantize(Decimal('0.01'))
+                line_f_debit = (original_line.foreign_credit * ratio).quantize(Decimal('0.01')) if original_line.foreign_credit else Decimal('0.00')
+                line_f_credit = (original_line.foreign_debit * ratio).quantize(Decimal('0.01')) if original_line.foreign_debit else Decimal('0.00')
+                line_t_debit = (original_line.transaction_credit * ratio).quantize(Decimal('0.01')) if original_line.transaction_credit else Decimal('0.00')
+                line_t_credit = (original_line.transaction_debit * ratio).quantize(Decimal('0.01')) if original_line.transaction_debit else Decimal('0.00')
             else:
                 # عكس كامل
                 line_debit = original_line.credit
                 line_credit = original_line.debit
+                line_f_debit = original_line.foreign_credit
+                line_f_credit = original_line.foreign_debit
+                line_t_debit = original_line.transaction_credit
+                line_t_credit = original_line.transaction_debit
             
             JournalEntryLine.objects.create(
                 journal_entry=reversal_entry,
@@ -688,16 +773,34 @@ class JournalEntry(models.Model):
                 debit=line_debit,
                 credit=line_credit,
                 description=f"عكس: {original_line.description}",
+                currency=original_line.currency,
+                exchange_rate=original_line.exchange_rate,
+                foreign_debit=line_f_debit,
+                foreign_credit=line_f_credit,
+                transaction_debit=line_t_debit,
+                transaction_credit=line_t_credit,
+                exchange_rate_snapshot=original_line.exchange_rate_snapshot or original_line.exchange_rate,
                 cost_center=original_line.cost_center,
+                cost_center_code_snapshot=original_line.cost_center_code_snapshot,
+                cost_center_name_snapshot=original_line.cost_center_name_snapshot,
+                cost_center_path_snapshot=original_line.cost_center_path_snapshot,
                 project=original_line.project
             )
         
-        # التحقق من توازن القيد العكسي
+        # التحقق من توازن القيد العكسي وترحيله رسمياً
         reversal_entry.validate_entry()
+        reversal_entry.status = 'posted'
+        reversal_entry.posted_at = timezone.now()
+        reversal_entry.posted_by = user
+        reversal_entry.save(update_fields=['status', 'posted_at', 'posted_by'])
         
         import logging
         logger = logging.getLogger(__name__)
         return reversal_entry
+
+    def reverse_entry(self, user, reason="", partial_amount=None):
+        """اسم بديل مباشر لـ create_reversal_entry"""
+        return self.create_reversal_entry(user=user, reason=reason, partial_amount=partial_amount)
 
     def post(self, user=None):
         """ترحيل القيد"""

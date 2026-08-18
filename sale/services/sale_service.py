@@ -422,6 +422,9 @@ class SaleService:
             
             # إعداد بيانات القيد باستخدام JournalEntryLineData
             lines = []
+            customer_name = getattr(sale.customer, 'name', '')
+            cust_suffix = f" - {customer_name}" if customer_name else ""
+
             if sale.total > 0:
                 lines.append(
                     # مدين: العملاء/الخزينة/البنك
@@ -429,7 +432,7 @@ class SaleService:
                         account_code=debit_account.code,
                         debit=sale.total,
                         credit=Decimal('0'),
-                        description=f'مبيعات - فاتورة {sale.number}'
+                        description=f'مبيعات - فاتورة {sale.number}{cust_suffix}'
                     )
                 )
 
@@ -440,7 +443,7 @@ class SaleService:
                         account_code=sales_revenue_account.code,
                         debit=Decimal('0'),
                         credit=physical_revenue_total,
-                        description=f'مبيعات منتجات - فاتورة {sale.number}'
+                        description=f'مبيعات منتجات - فاتورة {sale.number}{cust_suffix}'
                     )
                 )
 
@@ -451,7 +454,7 @@ class SaleService:
                         account_code=services_revenue_account.code,
                         debit=Decimal('0'),
                         credit=service_revenue_total,
-                        description=f'مبيعات خدمات - فاتورة {sale.number}'
+                        description=f'مبيعات خدمات - فاتورة {sale.number}{cust_suffix}'
                     )
                 )
 
@@ -462,7 +465,7 @@ class SaleService:
                         account_code=cogs_account.code,
                         debit=cost_of_goods_sold,
                         credit=Decimal('0'),
-                        description=f'تكلفة مبيعات - فاتورة {sale.number}'
+                        description=f'تكلفة مبيعات - فاتورة {sale.number}{cust_suffix}'
                     )
                 )
                 lines.append(
@@ -470,7 +473,7 @@ class SaleService:
                         account_code=inventory_account.code,
                         debit=Decimal('0'),
                         credit=cost_of_goods_sold,
-                        description=f'تكلفة مبيعات - فاتورة {sale.number}'
+                        description=f'تكلفة مبيعات - فاتورة {sale.number}{cust_suffix}'
                     )
                 )
             
@@ -488,7 +491,7 @@ class SaleService:
                 lines=lines,
                 idempotency_key=entry_idem_key,
                 user=user,
-                entry_type='automatic',
+                entry_type='sales_invoice',
                 description=f'فاتورة مبيعات رقم {sale.number} - {sale.customer.name}',
                 reference=sale.number,
                 date=sale.date
@@ -679,21 +682,72 @@ class SaleService:
             
             credit_account_code = payment.sale.customer.financial_account.code
             
-            # إعداد بيانات القيد باستخدام JournalEntryLineData
+            # فحص وتحديد العملات وأسعار الصرف اللحظية للحسابات
+            from financial.services.exchange_rate_service import ExchangeRateService
+            from financial.models.chart_of_accounts import ChartOfAccounts
+            
+            func_curr = ExchangeRateService.get_functional_currency()
+            base_code = func_curr.code if func_curr else 'EGP'
+            
+            debit_acc_obj = ChartOfAccounts.objects.filter(code=debit_account_code).first()
+            sale_currency_obj = getattr(payment.sale, 'currency', None)
+            
+            # عملة الخزينة والعميل
+            debit_curr_code = debit_acc_obj.currency.code if (debit_acc_obj and debit_acc_obj.currency) else (sale_currency_obj.code if sale_currency_obj else base_code)
+            credit_curr_code = sale_currency_obj.code if sale_currency_obj else base_code
+            
+            # استخراج سعر الصرف وتحديد المبالغ المحلية والأجنبية
+            rate = getattr(payment.sale, 'exchange_rate', Decimal('1.000000')) or Decimal('1.000000')
+            if debit_curr_code != base_code and rate <= 1:
+                try:
+                    rate = ExchangeRateService.get_exchange_rate(debit_curr_code, date=payment.payment_date)
+                except Exception:
+                    rate = Decimal('1.000000')
+
+            payment_amt = payment.amount
+            if credit_curr_code != base_code:
+                # الفاتورة بعملة أجنبية
+                f_debit = payment_amt if debit_curr_code == credit_curr_code else (payment_amt / rate).quantize(Decimal('0.01'))
+                f_credit = payment_amt
+                local_debit = (payment_amt * rate).quantize(Decimal('0.01'))
+                local_credit = local_debit
+            else:
+                # الفاتورة بالعملة المحلية
+                if debit_curr_code != base_code:
+                    # الخزينة أجنبية
+                    f_debit = (payment_amt / rate).quantize(Decimal('0.01')) if rate > 0 else payment_amt
+                    f_credit = Decimal('0.00')
+                    local_debit = payment_amt
+                    local_credit = payment_amt
+                else:
+                    f_debit = Decimal('0.00')
+                    f_credit = Decimal('0.00')
+                    local_debit = payment_amt
+                    local_credit = payment_amt
+
+            # إعداد بيانات القيد باستخدام JournalEntryLineData مع دعم العملات الأجنبية
             lines = [
                 # مدين: الخزينة/البنك
                 JournalEntryLineData(
                     account_code=debit_account_code,
-                    debit=payment.amount,
+                    debit=local_debit,
                     credit=Decimal('0'),
-                    description=f'دفعة - فاتورة {payment.sale.number}'
+                    description=f'دفعة - فاتورة {payment.sale.number} - {payment.sale.customer.name}',
+                    currency=debit_curr_code,
+                    exchange_rate=rate,
+                    foreign_debit=f_debit,
+                    foreign_credit=Decimal('0.00')
                 ),
                 # دائن: العملاء
                 JournalEntryLineData(
                     account_code=credit_account_code,
                     debit=Decimal('0'),
-                    credit=payment.amount,
-                    description=f'دفعة - فاتورة {payment.sale.number}'
+                    credit=local_credit,
+                    description=f'دفعة - فاتورة {payment.sale.number} - {payment.sale.customer.name}',
+                    currency=credit_curr_code,
+                    exchange_rate=rate,
+                    foreign_debit=Decimal('0.00'),
+                    foreign_credit=f_credit
                 )
             ]
             
@@ -706,7 +760,7 @@ class SaleService:
                 lines=lines,
                 idempotency_key=f'sale_payment_{payment.id}_journal_entry',
                 user=user,
-                entry_type='automatic',
+                entry_type='receipt_voucher',
                 description=f'دفعة على فاتورة {payment.sale.number} - {payment.sale.customer.name}',
                 reference=f'PAY-{payment.sale.number}',
                 date=payment.payment_date
@@ -941,7 +995,7 @@ class SaleService:
                 lines=lines,
                 idempotency_key=f'sale_return_{sale_return.id}_journal_entry',
                 user=user,
-                entry_type='automatic',
+                entry_type='sales_return',
                 description=f'مرتجع مبيعات رقم {sale_return.number} - فاتورة {sale.number}',
                 reference=sale_return.number,
                 date=sale_return.date
