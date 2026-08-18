@@ -9,6 +9,7 @@ from financial.models.chart_of_accounts import ChartOfAccounts
 from financial.models.journal_entry import JournalEntry, JournalEntryLine
 from financial.exceptions import FinancialCoreError
 from core.services.sequence_service import SequenceService
+from core.enums.document_types import DocumentType
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +47,7 @@ class ProfitClosingService:
         total_expense_egp = Decimal('0.00')
 
         # 3. توليد رقم قيد اليومية عبر SequenceService
-        jv_number = SequenceService.get_next_number('journal_entry', date=fiscal_year.end_date)
+        jv_number = SequenceService.get_next_number(DocumentType.JOURNAL_ENTRY, date=fiscal_year.end_date)
 
         closing_entry = JournalEntry.objects.create(
             number=jv_number,

@@ -225,13 +225,16 @@
                                         <div class="row g-3">
                                             <!-- رقم الفاتورة -->
                                             <div class="col-12 col-md-6">
-                                                <label class="form-label">رقم الفاتورة <span class="text-danger">*</span></label>
+                                                <label class="form-label d-flex justify-content-between align-items-center">
+                                                    <span>رقم الفاتورة <span class="text-danger">*</span></span>
+                                                    {% if not sale.id %}
+                                                        <span class="badge bg-secondary-subtle text-secondary" style="font-size: 0.75rem;">رقم مقترح تلقائياً</span>
+                                                    {% endif %}
+                                                </label>
                                                 {% if sale.id %}
                                                     <input type="text" id="id_number" value="{{ sale.number }}" class="form-control" readonly>
-                                                    <input type="hidden" name="number" value="{{ sale.number }}">
                                                 {% else %}
-                                                    <input type="text" id="id_number" value="{{ next_sale_number|default:'' }}" class="form-control bg-light" readonly>
-                                                    <input type="hidden" name="number" value="{{ next_sale_number|default:'' }}">
+                                                    <input type="text" id="id_number" value="{{ next_sale_number|default:'تلقائي عند الحفظ' }}" class="form-control bg-light" readonly>
                                                 {% endif %}
                                             </div>
 

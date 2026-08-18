@@ -9,6 +9,7 @@ from financial.models.opening_balance import OpeningBalanceBatch, OpeningBalance
 from financial.models.journal_entry import JournalEntry, JournalEntryLine
 from financial.exceptions import ImmutableLedgerError
 from core.services.sequence_service import SequenceService
+from core.enums.document_types import DocumentType
 
 
 class RoundingTolerancePolicy:
@@ -119,7 +120,7 @@ class OpeningBalancePostingService:
                 return batch
 
             # 5. Generate Opening Journal Entry via SequenceService
-            jv_number = SequenceService.get_next_number('journal_entry', date=batch.opening_date)
+            jv_number = SequenceService.get_next_number(DocumentType.JOURNAL_ENTRY, date=batch.opening_date)
 
             journal_entry = JournalEntry.objects.create(
                 number=jv_number,
@@ -271,7 +272,7 @@ class OpeningBalancePostingService:
             if not original_jv:
                 raise ValidationError(_("لم يتم العثور على القيد الافتتاحي الأصلي المرتبط بالدفعة."))
 
-            rev_jv_number = SequenceService.get_next_number('journal_entry', date=timezone.now().date())
+            rev_jv_number = SequenceService.get_next_number(DocumentType.REVERSAL_JOURNAL, date=timezone.now().date())
 
             reversal_jv = JournalEntry.objects.create(
                 number=rev_jv_number,

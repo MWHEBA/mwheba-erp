@@ -14,22 +14,24 @@ class SequenceFormatter:
     @staticmethod
     def clean_prefix(prefix: str) -> str:
         """
-        تنظيف البادئة ومنع التكرار والرموز الزائدة
-        مثال: "inv-" -> "INV", "AP-INV-" -> "AP-INV"
+        تنظيف البادئة وإزالة الفواصل والرموز الزائدة
+        مثال: "inv-" -> "INV", "AP-INV" -> "AP", "GL-" -> "GL"
         """
         if not prefix:
             return "DOC"
         cleaned = str(prefix).strip().upper()
-        # Remove trailing hyphens or underscores
-        cleaned = re.sub(r"[-_\s]+$", "", cleaned)
-        cleaned = re.sub(r"^[-_\s]+", "", cleaned)
+        # Remove hyphens, underscores and spaces
+        cleaned = re.sub(r"[-_\s]+", "", cleaned)
         return cleaned if cleaned else "DOC"
 
     @classmethod
-    def format_number(cls, prefix: str, year: int, number: int, padding: int = 5) -> str:
+    def format_number(cls, prefix: str, year: int, number: int, padding: int = 4) -> str:
         """
-        تنسيق الرقم القياسي الموحد: PREFIX-YYYY-00001
+        تنسيق الرقم القياسي الموحد بدون فواصل: PREFIX + YY + 0001
+        مثال: GL260001, INV260001
         """
         cleaned_prefix = cls.clean_prefix(prefix)
+        year_short = str(year)[-2:] if year else ""
         number_str = str(number).zfill(padding)
-        return f"{cleaned_prefix}-{year}-{number_str}"
+        return f"{cleaned_prefix}{year_short}{number_str}"
+

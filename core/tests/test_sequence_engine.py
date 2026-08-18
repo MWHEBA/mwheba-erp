@@ -45,7 +45,7 @@ class SequenceEngineTestCase(TestCase):
         self.warehouse_main = Warehouse.objects.create(name="المخزن الرئيسي", code="MAIN-WH")
         self.warehouse_alex = Warehouse.objects.create(name="مخزن الإسكندرية", code="ALEX-WH")
         self.customer = Customer.objects.create(name="عميل تجريبي", code="CUST-001")
-        self.currency = Currency.objects.create(code="EGP", name="جنيه مصري", symbol="ج.م")
+        self.currency, _ = Currency.objects.get_or_create(code="EGP", defaults={"name": "جنيه مصري", "symbol": "ج.م"})
 
     def test_standard_sequence_generation(self):
         """اختبار التوليد القياسي للأرقام التسلسلية للمستندات المختلفة"""
@@ -56,9 +56,9 @@ class SequenceEngineTestCase(TestCase):
             DocumentType.SALES_ORDER, warehouse=self.warehouse_main, user=self.user
         )
 
-        year = timezone.now().year
-        self.assertEqual(so_num1, f"SO-{year}-00001")
-        self.assertEqual(so_num2, f"SO-{year}-00002")
+        year_short = str(timezone.now().year)[-2:]
+        self.assertEqual(so_num1, f"SO{year_short}0001")
+        self.assertEqual(so_num2, f"SO{year_short}0002")
 
         # Verify audit trail creation
         audit = DocumentSequenceAudit.objects.filter(document_number=so_num1).first()
@@ -69,7 +69,7 @@ class SequenceEngineTestCase(TestCase):
 
     def test_multi_warehouse_isolation(self):
         """اختبار استقلال الترقيم والتسلسل بين المخازن/الفروع المختلفة"""
-        year = timezone.now().year
+        year_short = str(timezone.now().year)[-2:]
         num_main = SequenceService.get_next_number(
             DocumentType.DELIVERY_NOTE, warehouse=self.warehouse_main, user=self.user
         )
@@ -77,8 +77,8 @@ class SequenceEngineTestCase(TestCase):
             DocumentType.DELIVERY_NOTE, warehouse=self.warehouse_alex, user=self.user
         )
 
-        self.assertEqual(num_main, f"DEL-{year}-00001")
-        self.assertEqual(num_alex, f"DEL-{year}-00001")
+        self.assertEqual(num_main, f"DEL{year_short}0001")
+        self.assertEqual(num_alex, f"DEL{year_short}0001")
 
     def test_rule_locking_on_first_use(self):
         """اختبار قفل القاعدة تلقائياً بعد إنتاج أول رقم"""
@@ -142,7 +142,7 @@ class SequenceEngineTestCase(TestCase):
             entry_type="manual",
         )
         entry_number = je.generate_entry_number()
-        self.assertTrue(entry_number.startswith("JE-") or entry_number.startswith("GL-"))
+        self.assertTrue(entry_number.startswith("JE") or entry_number.startswith("GL") or entry_number.startswith("REV"))
 
     def test_batch_numbers_generation(self):
         """اختبار التوليد الجماعي لأرقام دفعة واحدة"""
@@ -151,6 +151,75 @@ class SequenceEngineTestCase(TestCase):
         )
         self.assertEqual(len(numbers), 5)
         self.assertEqual(len(set(numbers)), 5)
+
+    def test_peek_next_number_is_idempotent_and_zero_waste(self):
+        """اختبار دالة المعاينة للتأكد من عدم حرق أي أرقام أو تسجيل audit"""
+        from core.models import DocumentSequenceCounter, DocumentSequenceAudit
+
+        initial_audits = DocumentSequenceAudit.objects.count()
+
+        # Call peek 15 times
+        peek_results = [
+            SequenceService.peek_next_number(DocumentType.SALES_INVOICE)
+            for _ in range(15)
+        ]
+
+        # All 15 calls should return identical preview string
+        self.assertEqual(len(set(peek_results)), 1)
+        self.assertEqual(peek_results[0], "INV260001")
+
+        # Zero audit entries created by peek
+        self.assertEqual(DocumentSequenceAudit.objects.count(), initial_audits)
+
+        # Now actually generate one number
+        actual = SequenceService.get_next_number(DocumentType.SALES_INVOICE)
+        self.assertEqual(actual, "INV260001")
+
+        # Next peek should cleanly point to next number without incrementing
+        next_peek = SequenceService.peek_next_number(DocumentType.SALES_INVOICE)
+        self.assertEqual(next_peek, "INV260002")
+
+    def test_legacy_sequence_analyzer_compact_and_various_formats(self):
+        """اختبار دقة محلل السجلات القديمة والمدمجة بدقة 100%"""
+        from core.services.legacy_seed_service import LegacySequenceAnalyzer
+
+        # 1. Compact format INV260009
+        y1, s1 = LegacySequenceAnalyzer.parse_legacy_number("INV260009")
+        self.assertEqual(y1, 2026)
+        self.assertEqual(s1, 9)
+
+        # 2. Compact format GL260001
+        y2, s2 = LegacySequenceAnalyzer.parse_legacy_number("GL260001")
+        self.assertEqual(y2, 2026)
+        self.assertEqual(s2, 1)
+
+        # 3. Standard dash format
+        y3, s3 = LegacySequenceAnalyzer.parse_legacy_number("INV-2026-0005")
+        self.assertEqual(y3, 2026)
+        self.assertEqual(s3, 5)
+
+        # 4. Full date format
+        y4, s4 = LegacySequenceAnalyzer.parse_legacy_number("INV-20260803-0098")
+        self.assertEqual(y4, 2026)
+        self.assertEqual(s4, 98)
+
+        # 5. Timestamp fallback format (should ignore timestamp digits)
+        y5, s5 = LegacySequenceAnalyzer.parse_legacy_number("GRN-20260809205840")
+        self.assertEqual(y5, 2026)
+        self.assertEqual(s5, 0)
+
+    def test_document_type_normalization_and_immunity(self):
+        """اختبار مناعة تطبيع أسماء المستندات ومنع بادئة DOC"""
+        # Test lowercase string mappings
+        self.assertEqual(SequenceService.normalize_document_type('journal_entry'), DocumentType.JOURNAL_ENTRY)
+        self.assertEqual(SequenceService.normalize_document_type('sale'), DocumentType.SALES_INVOICE)
+        self.assertEqual(SequenceService.normalize_document_type('sales_order'), DocumentType.SALES_ORDER)
+        self.assertEqual(SequenceService.normalize_document_type('purchase_order'), DocumentType.PURCHASE_ORDER)
+        self.assertEqual(SequenceService.normalize_document_type('purchase_invoice'), DocumentType.PURCHASE_INVOICE)
+
+        # Prefix should be GL not DOC
+        prefix = SequenceService.get_default_prefix('journal_entry')
+        self.assertEqual(prefix, 'GL')
 
 
 class SequenceConcurrencyTestCase(TransactionTestCase):

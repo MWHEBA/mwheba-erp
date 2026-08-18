@@ -1495,7 +1495,7 @@ class DocumentSequenceRule(models.Model):
     warehouse = models.ForeignKey('product.Warehouse', on_delete=models.SET_NULL, null=True, blank=True, related_name='sequence_rules', verbose_name=_("المخزن / الفرع"))
     document_type = models.CharField(_("نوع المستند"), max_length=50, db_index=True)
     prefix = models.CharField(_("البادئة"), max_length=20)
-    padding = models.PositiveIntegerField(_("طول الخانة التسلسلية"), default=5)
+    padding = models.PositiveIntegerField(_("طول الخانة التسلسلية"), default=4)
     numbering_basis = models.CharField(_("أساس السنة التسلسلية"), max_length=20, default="POSTING_DATE")
     version = models.PositiveIntegerField(_("إصدار القاعدة"), default=1)
     is_locked = models.BooleanField(_("مقفلة لإنشاء مستندات حقيقية"), default=False, help_text=_("تقفل القاعدة تلقائياً بعد إنتاج أول رقم لحماية تاريخ السجلات"))

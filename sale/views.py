@@ -313,12 +313,12 @@ def sale_create(request, customer_id=None):
             
         form = SaleForm(initial=initial_data, user=request.user)
 
-    # الحصول على الرقم التسلسلي التالي
+    # الحصول على الرقم التسلسلي التالي (معاينة بدون حجز)
     next_sale_number = None
     try:
         from core.services.sequence_service import SequenceService
         from core.enums.document_types import DocumentType
-        next_sale_number = SequenceService.get_next_number(DocumentType.SALES_INVOICE)
+        next_sale_number = SequenceService.peek_next_number(DocumentType.SALES_INVOICE)
     except Exception as e:
         logger.error(f"خطأ في الحصول على الرقم التالي: {str(e)}")
 
@@ -1740,12 +1740,12 @@ def sale_duplicate(request, pk):
         
     product_categories = Category.objects.filter(category_filter).distinct().order_by("name")
 
-    # رقم الفاتورة الجديد
+    # رقم الفاتورة الجديد (معاينة بدون حجز)
     next_sale_number = None
     try:
         from core.services.sequence_service import SequenceService
         from core.enums.document_types import DocumentType
-        next_sale_number = SequenceService.get_next_number(DocumentType.SALES_INVOICE)
+        next_sale_number = SequenceService.peek_next_number(DocumentType.SALES_INVOICE)
     except Exception as e:
         logger.error(f"خطأ في الحصول على الرقم التالي: {str(e)}")
 

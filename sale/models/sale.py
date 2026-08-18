@@ -222,9 +222,13 @@ class Sale(models.Model):
     def save(self, *args, **kwargs):
         # حفظ الفاتورة
         if not self.number:
-            from product.models import SerialNumber
-            sale_year = self.date.year if self.date else timezone.now().year
-            self.number = SerialNumber.get_next_sequence("sale", prefix="SALE-", year=sale_year)
+            from core.services.sequence_service import SequenceService
+            from core.enums.document_types import DocumentType
+            self.number = SequenceService.get_next_number(
+                DocumentType.SALES_INVOICE,
+                warehouse=getattr(self, 'warehouse', None),
+                date=self.date,
+            )
 
         super().save(*args, **kwargs)
 

@@ -19,7 +19,10 @@ class LegacySequenceAnalyzer:
         """
         تحليل النص القديم واستخراج (السنة، الرقم التسلسلي)
         أمثلة:
-        - "INV-20260803-0098" -> year=2026, sequence=98
+        - "INV260009"        -> year=2026, sequence=9  (الصيغة المدمجة الحديثة)
+        - "INV-2026-0001"    -> year=2026, sequence=1
+        - "INV-20260803-0098"-> year=2026, sequence=98
+        - "PO20260819001"    -> year=2026, sequence=1
         - "PO-2026-0015"     -> year=2026, sequence=15
         - "JE-0042"          -> year=current_year, sequence=42
         """
@@ -27,22 +30,49 @@ class LegacySequenceAnalyzer:
         if not raw_number:
             return current_year, 0
 
-        text = str(raw_number).strip()
+        text = str(raw_number).strip().upper()
 
-        # 1. Search for YYYYMMDD or YYYY date string inside text
-        date_match = re.search(r"(20\d{2})(?:(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01]))?", text)
-        year = int(date_match.group(1)) if date_match else current_year
+        # 1. Match modern compact format: PREFIX + YY + (4 to 6 digits serial) e.g. INV260009, GL260001, AP260012
+        compact_match = re.match(r"^[A-Z_-]+(\d{2})(\d{4,6})$", text)
+        if compact_match:
+            yy = int(compact_match.group(1))
+            year = 2000 + yy
+            seq = int(compact_match.group(2))
+            return year, seq
 
-        # 2. Extract trailing numbers or numbers after hyphens
+        # 2. Match date-based compact format: PREFIX + YYYYMMDD + (3 to 5 digits) e.g. PO20260819001
+        date_compact_match = re.match(r"^[A-Z_-]*(20\d{2})\d{4}(\d{3,5})$", text)
+        if date_compact_match:
+            year = int(date_compact_match.group(1))
+            seq = int(date_compact_match.group(2))
+            return year, seq
+
+        # 3. Match dash/separator standard format: PREFIX-YYYY-NUMBER or PREFIX-YY-NUMBER
+        dash_match = re.search(r"[-_](20\d{2}|\d{2})[-_](\d+)$", text)
+        if dash_match:
+            year_raw = dash_match.group(1)
+            year = int(year_raw) if len(year_raw) == 4 else 2000 + int(year_raw)
+            seq = int(dash_match.group(2))
+            return year, seq
+
+        # 4. Match full date format with dashes: PREFIX-YYYYMMDD-XXXX e.g. INV-20260803-0098
+        date_match = re.search(r"(20\d{2})(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])[-_](\d+)", text)
+        if date_match:
+            year = int(date_match.group(1))
+            seq = int(date_match.group(2))
+            return year, seq
+
+        # 5. Fallback: Search for 4-digit year and trailing digits
+        year_match = re.search(r"(20\d{2})", text)
+        year = int(year_match.group(1)) if year_match else current_year
+
         digits_list = re.findall(r"\d+", text)
         if not digits_list:
             return year, 0
 
-        # The actual sequence is usually the last group of digits
         last_digits = int(digits_list[-1])
-
-        # If last digits is the 8-digit date itself (e.g. 20260803), fallback to 0
-        if len(digits_list[-1]) == 8 and date_match and digits_list[-1] == date_match.group(0):
+        # If last digits is a full date or timestamp (e.g. 20260803 or 20260809205840), fallback to 0
+        if len(digits_list[-1]) >= 8 and digits_list[-1].startswith(str(year)):
             last_digits = 0
 
         return year, last_digits

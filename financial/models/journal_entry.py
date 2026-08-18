@@ -556,11 +556,17 @@ class JournalEntry(models.Model):
     def generate_entry_number(self):
         """
         توليد رقم القيد تلقائياً باستخدام المحرك الموحد SequenceService
-        التنسيق الموحد: GL-YYYY-00001
+        التنسيق الموحد: GL260001, JV260001, REV260001
         """
         from core.services.sequence_service import SequenceService
         from core.enums.document_types import DocumentType
-        doc_type = DocumentType.REVERSAL_JOURNAL if getattr(self, 'entry_type', '') == 'reversal' else DocumentType.JOURNAL_ENTRY
+        entry_type = getattr(self, 'entry_type', '')
+        if entry_type == 'reversal':
+            doc_type = DocumentType.REVERSAL_JOURNAL
+        elif entry_type == 'adjustment':
+            doc_type = DocumentType.ADJUSTMENT_JOURNAL
+        else:
+            doc_type = DocumentType.JOURNAL_ENTRY
         return SequenceService.get_next_number(doc_type, date=self.date)
 
     @property

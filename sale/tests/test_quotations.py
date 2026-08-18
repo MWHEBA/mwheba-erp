@@ -158,7 +158,7 @@ class QuotationSystemTest(TestCase):
             notes="شروط الدفع عند التوريد"
         )
         self.assertIsNotNone(quotation.number)
-        self.assertTrue(quotation.number.startswith("QT"))
+        self.assertTrue(quotation.number.startswith("SO"))
 
         item = QuotationItem.objects.create(
             quotation=quotation,

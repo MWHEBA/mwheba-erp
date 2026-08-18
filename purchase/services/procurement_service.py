@@ -24,6 +24,8 @@ from purchase.services.matching_service import ThreeWayMatchingService
 from governance.services.movement_service import MovementService
 from financial.services.ledger_core_service import LedgerCoreService
 from financial.exceptions import FinancialCoreError
+from core.services.sequence_service import SequenceService
+from core.enums.document_types import DocumentType
 
 logger = logging.getLogger("purchase.procurement_service")
 
@@ -34,22 +36,16 @@ class ProcurementService:
     """
 
     @classmethod
-    def generate_po_number(cls) -> str:
-        date_prefix = timezone.now().strftime("%Y%m%d")
-        unique_suffix = str(uuid.uuid4()).split('-')[0].upper()
-        return f"PO-{date_prefix}-{unique_suffix}"
+    def generate_po_number(cls, date=None, warehouse=None) -> str:
+        return SequenceService.get_next_number(DocumentType.PURCHASE_ORDER, date=date, warehouse=warehouse)
 
     @classmethod
-    def generate_grn_number(cls) -> str:
-        date_prefix = timezone.now().strftime("%Y%m%d")
-        unique_suffix = str(uuid.uuid4()).split('-')[0].upper()
-        return f"GRN-{date_prefix}-{unique_suffix}"
+    def generate_grn_number(cls, date=None, warehouse=None) -> str:
+        return SequenceService.get_next_number(DocumentType.GOODS_RECEIPT_NOTE, date=date, warehouse=warehouse)
 
     @classmethod
-    def generate_bill_number(cls) -> str:
-        date_prefix = timezone.now().strftime("%Y%m%d")
-        unique_suffix = str(uuid.uuid4()).split('-')[0].upper()
-        return f"BILL-{date_prefix}-{unique_suffix}"
+    def generate_bill_number(cls, date=None) -> str:
+        return SequenceService.get_next_number(DocumentType.PURCHASE_INVOICE, date=date)
 
     @classmethod
     def create_purchase_order(
@@ -66,7 +62,7 @@ class ProcurementService:
         إنشاء أمر شراء جديد (مسودة)
         """
         with transaction.atomic():
-            po_num = cls.generate_po_number()
+            po_num = cls.generate_po_number(date=order_date, warehouse=warehouse)
             po = PurchaseOrder.objects.create(
                 order_number=po_num,
                 supplier=supplier,
@@ -136,7 +132,7 @@ class ProcurementService:
             if po.status not in ["APPROVED", "PARTIALLY_RECEIVED"]:
                 raise FinancialCoreError("Cannot issue GRN for unapproved purchase order.")
 
-            grn_num = cls.generate_grn_number()
+            grn_num = cls.generate_grn_number(date=timezone.now().date(), warehouse=po.warehouse)
             grn = GoodsReceivedNote.objects.create(
                 grn_number=grn_num,
                 purchase_order=po,
@@ -233,7 +229,7 @@ class ProcurementService:
         إنشاء وتأكيد فاتورة المورد وإجراء المطابقة الثلاثية Line-Level 3-Way Matching وقيد AP/GRNI/PPV
         """
         with transaction.atomic():
-            bill_num = cls.generate_bill_number()
+            bill_num = cls.generate_bill_number(date=bill_date)
             bill = SupplierBill.objects.create(
                 bill_number=bill_num,
                 supplier=supplier,
@@ -287,9 +283,10 @@ class ProcurementService:
             bill.save(update_fields=["total_amount", "functional_amount"])
 
             # إنشاء القيد المحاسبي للفاتورة: Dr. 20150 GRNI / Dr/Cr. 50120 PPV / Cr. 20100 AP
+            ap_acc_code = supplier.financial_account.code if (hasattr(supplier, 'financial_account') and supplier.financial_account) else "20100"
             lines_data = [
                 {"account_code": "20150_GRNI", "debit": total_grni_clearance, "credit": Decimal("0.00"), "description": f"GRNI Clearance for Bill #{supplier_bill_number}"},
-                {"account_code": "20100", "debit": Decimal("0.00"), "credit": total_bill_amount, "description": f"AP Payable to {supplier.name}"}
+                {"account_code": ap_acc_code, "debit": Decimal("0.00"), "credit": total_bill_amount, "description": f"AP Payable to {supplier.name}"}
             ]
 
             if total_ppv_variance > Decimal("0.00"):

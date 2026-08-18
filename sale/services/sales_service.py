@@ -48,10 +48,15 @@ class SalesService:
         """
         إنشاء أمر بيع وتطبيق لقطات التسعير المحوكمة والتقييم لموافقات الاعتماد
         """
-        from product.models import SerialNumber
-        order_num = SerialNumber.get_next_sequence("sales_order", prefix="SO-", year=order_date.year)
-
         with transaction.atomic():
+            from core.services.sequence_service import SequenceService
+            from core.enums.document_types import DocumentType
+            order_num = SequenceService.get_next_number(
+                DocumentType.SALES_ORDER,
+                warehouse=warehouse,
+                date=order_date,
+            )
+
             so = SalesOrder.objects.create(
                 order_number=order_num,
                 customer=customer,
@@ -182,13 +187,18 @@ class SalesService:
         تسليم البضاعة وإصدار إذن التسليم المخزني وتمرير الحركة عبر MovementService
         القيد المحاسبي للتكلفة: Dr. 50100 COGS Control / Cr. 10400 Inventory Asset
         """
-        from product.models import SerialNumber
-        deliv_num = SerialNumber.get_next_sequence("delivery_note", prefix="DN-", year=delivery_date.year)
-
         with transaction.atomic():
             so = SalesOrder.objects.select_for_update().get(pk=so_id)
             if so.status not in ["APPROVED", "CONFIRMED", "PARTIALLY_DELIVERED"]:
                 raise FinancialCoreError(f"Cannot issue delivery note for Sales Order #{so.order_number} in status {so.status}.")
+
+            from core.services.sequence_service import SequenceService
+            from core.enums.document_types import DocumentType
+            deliv_num = SequenceService.get_next_number(
+                DocumentType.DELIVERY_NOTE,
+                warehouse=so.warehouse,
+                date=delivery_date,
+            )
 
             dn = DeliveryNote.objects.create(
                 delivery_number=deliv_num,
@@ -283,12 +293,17 @@ class SalesService:
         القيد المحاسبي: Dr. 11010 Customer AR / Cr. 40100 Sales Revenue
         تسجيل المعاملة المفتوحة في CustomerSubledgerService
         """
-        from product.models import SerialNumber
-        inv_num = SerialNumber.get_next_sequence("sales_invoice", prefix="INV-", year=invoice_date.year)
-
         with transaction.atomic():
             so = SalesOrder.objects.select_for_update().get(pk=so_id)
             dn = DeliveryNote.objects.get(pk=delivery_note_id) if delivery_note_id else None
+
+            from core.services.sequence_service import SequenceService
+            from core.enums.document_types import DocumentType
+            inv_num = SequenceService.get_next_number(
+                DocumentType.SALES_INVOICE,
+                warehouse=so.warehouse,
+                date=invoice_date,
+            )
 
             inv = SalesInvoice.objects.create(
                 invoice_number=inv_num,

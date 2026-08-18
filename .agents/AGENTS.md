@@ -24,7 +24,8 @@
 
 ## 5. Testing & Data Safety
 - **Data Preservation**: NEVER issue destructive database operations or drop columns without explicit user approval.
-- **Verification**: Always verify changes by running tests (`pytest` / Django checks) before declaring tasks completed.
+- **Strict Testing Tool**: ALWAYS use `pytest` for executing any unit or integration tests (e.g. `pytest <path_to_test> -v`). NEVER use `python manage.py test`.
+- **Verification**: Always verify changes by running `pytest` and Django check before declaring tasks completed.
 
 ## 6. Standardized ListView Architecture & Components Pattern
 - **Central Page Header & Breadcrumbs**:

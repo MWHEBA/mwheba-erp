@@ -476,8 +476,7 @@
                 <td class="col-idx">{{ forloop.counter }}</td>
                 <td class="col-date">{{ item.date|date:'Y-m-d' }}</td>
                 <td class="col-type">
-                    <span style="font-weight: 600;">{{ item.entry_type_display|default:item.journal_entry_number }}</span>
-                    <br><span style="font-size: 6.5pt; color: #64748b;">{{ item.journal_entry_number }}</span>
+                    <span style="font-weight: 600;">{{ item.entry_type_display|default:"قيد يومية" }}</span>
                 </td>
                 <td class="col-desc">
                     {{ item.description|default:"-" }}

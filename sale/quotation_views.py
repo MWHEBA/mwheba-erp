@@ -267,12 +267,12 @@ def quotation_create(request, customer_id=None):
         
     product_categories = Category.objects.filter(category_filter).distinct().order_by("name")
 
-    # توليد الرقم القادم للعرض
+    # معاينة الرقم القادم للعرض بدون حجز
     next_quotation_number = None
     try:
         from core.services.sequence_service import SequenceService
         from core.enums.document_types import DocumentType
-        next_quotation_number = SequenceService.get_next_number(DocumentType.SALES_ORDER)
+        next_quotation_number = SequenceService.peek_next_number(DocumentType.SALES_ORDER)
     except Exception as e:
         logger.error(f"Error generating next quotation number: {str(e)}")
 

@@ -76,7 +76,8 @@ def opening_balance_wizard(request, pk=None):
         active_year = PeriodControlService.get_or_create_active_fiscal_year()
         
         from core.services.sequence_service import SequenceService
-        batch_number = SequenceService.get_next_number('OPENING_BALANCE', date=active_year.start_date)
+        from core.enums.document_types import DocumentType
+        batch_number = SequenceService.get_next_number(DocumentType.OPENING_BALANCE, date=active_year.start_date)
         batch = OpeningBalanceBatch.objects.create(
             fiscal_year=active_year,
             batch_number=batch_number,
