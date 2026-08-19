@@ -106,7 +106,7 @@ class TestAccountRoleRegistryAndContextProcessors:
     def test_resolved_account_exists_and_is_active(self, setup_asset_and_liability_types):
         asset_type, _ = setup_asset_and_liability_types
         created_account, _ = ChartOfAccounts.objects.get_or_create(
-            code="10100",
+            code="11110",
             defaults={
                 "name": "Default Cash Drawer Active Account",
                 "account_type": asset_type,
@@ -120,14 +120,14 @@ class TestAccountRoleRegistryAndContextProcessors:
 
         assert account is not None
         assert account.pk == created_account.pk
-        assert account.code == "10100"
+        assert account.code == "11110"
         assert account.is_active is True
         assert account.account_type is not None
 
     def test_legacy_fallback_resolution_priority_3(self, setup_asset_and_liability_types):
         asset_type, _ = setup_asset_and_liability_types
         ChartOfAccounts.objects.get_or_create(
-            code="10100",
+            code="11110",
             defaults={
                 "name": "Default Cash Drawer Account",
                 "account_type": asset_type,
@@ -136,11 +136,11 @@ class TestAccountRoleRegistryAndContextProcessors:
         )
 
         resolved_code = AccountRoleRegistry.resolve_role_code(AccountRoleNames.DEFAULT_CASH_DRAWER)
-        assert resolved_code == "10100"
+        assert resolved_code == "11110"
 
         account = AccountRoleRegistry.get_account(AccountRoleNames.DEFAULT_CASH_DRAWER)
         assert isinstance(account, ChartOfAccounts)
-        assert account.code == "10100"
+        assert account.code == "11110"
 
     def test_env_resolution_priority_2(self, monkeypatch, setup_asset_and_liability_types):
         asset_type, _ = setup_asset_and_liability_types
@@ -178,12 +178,12 @@ class TestAccountRoleRegistryAndContextProcessors:
 
     def test_inactive_account_raises_configuration_error(self, setup_asset_and_liability_types):
         asset_type, _ = setup_asset_and_liability_types
-        ChartOfAccounts.objects.create(
-            code="10200",
-            name="Inactive Bank Account",
-            account_type=asset_type,
-            is_active=False
+        acc, _ = ChartOfAccounts.objects.get_or_create(
+            code="11160",
+            defaults={"name": "Inactive Bank Account", "account_type": asset_type}
         )
+        acc.is_active = False
+        acc.save()
 
         with pytest.raises(RoleConfigurationError) as exc_info:
             AccountRoleRegistry.get_account(AccountRoleNames.DEFAULT_BANK_ACCOUNT)

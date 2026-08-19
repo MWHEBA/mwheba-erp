@@ -68,12 +68,16 @@ class GRNISubledgerService:
     @classmethod
     def reconcile_grni_control_account(
         cls,
-        account_code: str = "20150_GRNI",
+        account_code: Optional[str] = None,
         as_of_date: Optional[Any] = None
     ) -> Dict[str, Any]:
         """
-        مطابقة مجموع أستاذ GRNI الفرعي مع رصيد حساب الأستاذ العام 20150
+        مطابقة مجموع أستاذ GRNI الفرعي مع رصيد حساب الأستاذ العام
         """
+        from financial.services.account_role_registry import AccountRoleRegistry
+        if not account_code:
+            account_code = AccountRoleRegistry.get_account_code("GRNI_CLEARING_ACCOUNT")
+
         grni_summary = cls.get_open_grni_summary(as_of_date=as_of_date)
         subledger_grni_value = grni_summary["total_open_grni_value"]
 
@@ -104,8 +108,11 @@ class GRNISubledgerService:
         user
     ) -> Dict[str, Any]:
         """
-        تسوية وإغلاق المبالغ المعلقة في حساب 20150 GRNI للحالات الاستثنائية بطلب حوكمة معتمد
+        تسوية وإغلاق المبالغ المعلقة في حساب GRNI للحالات الاستثنائية بطلب حوكمة معتمد
         """
+        from financial.services.account_role_registry import AccountRoleRegistry
+        grni_acc = AccountRoleRegistry.get_account_code("GRNI_CLEARING_ACCOUNT")
+
         with transaction.atomic():
             item = GoodsReceivedNoteItem.objects.select_for_update().get(pk=grn_item_id)
             unbilled_qty = item.received_qty - item.billed_qty
@@ -120,9 +127,9 @@ class GRNISubledgerService:
             item.billed_qty = item.received_qty
             item.save(update_fields=["billed_qty"])
 
-            # قيد التسوية المحاسبية: Dr. 20150 GRNI / Cr. 50120 PPV Variance
+            # قيد التسوية المحاسبية: Dr. GRNI / Cr. PPV Variance
             lines_data = [
-                {"account_code": "20150_GRNI", "debit": clearing_val, "credit": Decimal("0.00"), "description": f"GRNI Clearing: {reason}"},
+                {"account_code": grni_acc, "debit": clearing_val, "credit": Decimal("0.00"), "description": f"GRNI Clearing: {reason}"},
                 {"account_code": "50120_PPV", "debit": Decimal("0.00"), "credit": clearing_val, "description": f"GRNI Clearing Variance Credit"}
             ]
 

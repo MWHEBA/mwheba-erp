@@ -28,41 +28,80 @@ class AccountRoleNames(str, Enum):
     DEFAULT_CASH_DRAWER = "default_cash_drawer"
     DEFAULT_BANK_ACCOUNT = "default_bank_account"
     GENERAL_SALES_REVENUE = "general_sales_revenue"
+    SALES_REVENUE = "sales_revenue"
+    SALES_RETURNS = "sales_returns"
     SUPPLIER_PAYABLE_CONTROL = "supplier_payable_control"
     CUSTOMER_RECEIVABLE_CONTROL = "customer_receivable_control"
     CUSTOMER_ADVANCE_LIABILITY = "customer_advance_liability"
     SUPPLIER_ADVANCE_ASSET = "supplier_advance_asset"
+    GRNI_CLEARING = "grni_clearing"
+    COGS_EXPENSE = "cogs_expense"
+    INVENTORY_GENERAL = "inventory_general"
+    VAT_OUTPUT = "vat_output"
+    VAT_INPUT = "vat_input"
+    FX_REALIZED_GAIN = "fx_realized_gain"
+    FX_REALIZED_LOSS = "fx_realized_loss"
     SALARY_EXPENSE = "salary_expense"
     SOCIAL_INSURANCE = "social_insurance"
     INCOME_TAX = "income_tax"
     SALARY_PAYABLES = "salary_payables"
     EMPLOYEE_ADVANCE = "employee_advance"
-    INVENTORY_GENERAL = "inventory_general"
     ROUNDING_DIFFERENCE_ACCOUNT = "rounding_difference_account"
 
 
 LEGACY_ROLE_FALLBACKS: Dict[str, str] = {
-    AccountRoleNames.DEFAULT_CASH_DRAWER.value: "10100",
-    AccountRoleNames.DEFAULT_BANK_ACCOUNT.value: "10200",
-    AccountRoleNames.GENERAL_SALES_REVENUE.value: "40100",
-    AccountRoleNames.SUPPLIER_PAYABLE_CONTROL.value: "20100",
-    AccountRoleNames.CUSTOMER_RECEIVABLE_CONTROL.value: "11010",
-    AccountRoleNames.CUSTOMER_ADVANCE_LIABILITY.value: "20200",
-    AccountRoleNames.SUPPLIER_ADVANCE_ASSET.value: "10500",
-    "CUSTOMER_ADVANCE_LIABILITY": "20200",
-    "SUPPLIER_ADVANCE_ASSET": "10500",
-    "AP_CONTROL_ACCOUNT": "20100",
-    "AR_CONTROL_ACCOUNT": "11010",
-    AccountRoleNames.SALARY_EXPENSE.value: "50200",
-    "SALARY_EXPENSE": "50200",
-    AccountRoleNames.SOCIAL_INSURANCE.value: "2103",
-    AccountRoleNames.INCOME_TAX.value: "2104",
-    AccountRoleNames.SALARY_PAYABLES.value: "20200",
-    "SALARY_PAYABLES": "20200",
-    AccountRoleNames.EMPLOYEE_ADVANCE.value: "10350",
-    AccountRoleNames.INVENTORY_GENERAL.value: "10400",
-    AccountRoleNames.ROUNDING_DIFFERENCE_ACCOUNT.value: "50900",
-    "ROUNDING_DIFFERENCE_ACCOUNT": "50900",
+    AccountRoleNames.DEFAULT_CASH_DRAWER.value: "11110",
+    "DEFAULT_CASH_DRAWER": "11110",
+    "CASH_CONTROL_ACCOUNT": "11110",
+    AccountRoleNames.DEFAULT_BANK_ACCOUNT.value: "11160",
+    "DEFAULT_BANK_ACCOUNT": "11160",
+    "BANK_CONTROL_ACCOUNT": "11160",
+    AccountRoleNames.CUSTOMER_RECEIVABLE_CONTROL.value: "11210",
+    "CUSTOMER_RECEIVABLE_CONTROL": "11210",
+    "AR_CONTROL_ACCOUNT": "11210",
+    AccountRoleNames.SUPPLIER_PAYABLE_CONTROL.value: "21110",
+    "SUPPLIER_PAYABLE_CONTROL": "21110",
+    "AP_CONTROL_ACCOUNT": "21110",
+    AccountRoleNames.GRNI_CLEARING.value: "21210",
+    "GRNI_CLEARING": "21210",
+    "GRNI_CLEARING_ACCOUNT": "21210",
+    AccountRoleNames.SALES_REVENUE.value: "41100",
+    "SALES_REVENUE": "41100",
+    "SALES_REVENUE_ACCOUNT": "41100",
+    AccountRoleNames.SALES_RETURNS.value: "41910",
+    "SALES_RETURNS": "41910",
+    "SALES_RETURNS_ACCOUNT": "41910",
+    AccountRoleNames.COGS_EXPENSE.value: "51100",
+    "COGS_EXPENSE": "51100",
+    "COGS_EXPENSE_ACCOUNT": "51100",
+    AccountRoleNames.INVENTORY_GENERAL.value: "11310",
+    "INVENTORY_CONTROL_ACCOUNT": "11310",
+    AccountRoleNames.VAT_OUTPUT.value: "21310",
+    "VAT_OUTPUT": "21310",
+    "SALES_TAX_PAYABLE": "21310",
+    AccountRoleNames.VAT_INPUT.value: "11510",
+    "VAT_INPUT": "11510",
+    "PURCHASE_TAX_RECEIVABLE": "11510",
+    AccountRoleNames.FX_REALIZED_GAIN.value: "43100",
+    "FX_REALIZED_GAIN": "43100",
+    "FX_REALIZED_GAIN_ACCOUNT": "43100",
+    AccountRoleNames.FX_REALIZED_LOSS.value: "54300",
+    "FX_REALIZED_LOSS": "54300",
+    "FX_REALIZED_LOSS_ACCOUNT": "54300",
+    AccountRoleNames.CUSTOMER_ADVANCE_LIABILITY.value: "21510",
+    "CUSTOMER_ADVANCE_LIABILITY": "21510",
+    AccountRoleNames.SUPPLIER_ADVANCE_ASSET.value: "11400",
+    "SUPPLIER_ADVANCE_ASSET": "11400",
+    AccountRoleNames.SALARY_EXPENSE.value: "52110",
+    "SALARY_EXPENSE": "52110",
+    "SALARY_EXPENSE_ACCOUNT": "52110",
+    AccountRoleNames.SOCIAL_INSURANCE.value: "21420",
+    AccountRoleNames.INCOME_TAX.value: "21330",
+    AccountRoleNames.SALARY_PAYABLES.value: "21410",
+    "SALARY_PAYABLES": "21410",
+    AccountRoleNames.EMPLOYEE_ADVANCE.value: "11230",
+    AccountRoleNames.ROUNDING_DIFFERENCE_ACCOUNT.value: "54400",
+    "ROUNDING_DIFFERENCE_ACCOUNT": "54400",
 }
 
 

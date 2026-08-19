@@ -43,11 +43,11 @@ class TestMasterPhase3Integration:
         rev_type, _ = AccountType.objects.get_or_create(code="REV_TEST3", defaults={"name": "Revenue Test3", "category": "revenue", "nature": "credit"})
 
         # Chart of Accounts
-        ChartOfAccounts.objects.get_or_create(code="11010_AR", defaults={"name": "حساب العملاء", "account_type": ast_type})
-        ChartOfAccounts.objects.get_or_create(code="20100_AP", defaults={"name": "حساب الموردين", "account_type": liab_type})
-        ChartOfAccounts.objects.get_or_create(code="41010_SALES_REVENUE", defaults={"name": "إيراد المبيعات", "account_type": rev_type})
-        ChartOfAccounts.objects.get_or_create(code="20150_GRNI", defaults={"name": "حساب الاستلامات غير المفوترة", "account_type": liab_type})
-        ChartOfAccounts.objects.get_or_create(code="21050_VAT_OUTPUT", defaults={"name": "ضريبة المبيعات", "account_type": liab_type})
+        ChartOfAccounts.objects.get_or_create(code="11210", defaults={"name": "حساب العملاء", "account_type": ast_type})
+        ChartOfAccounts.objects.get_or_create(code="21110", defaults={"name": "حساب الموردين", "account_type": liab_type})
+        ChartOfAccounts.objects.get_or_create(code="41100", defaults={"name": "إيراد المبيعات", "account_type": rev_type})
+        ChartOfAccounts.objects.get_or_create(code="21210", defaults={"name": "حساب الاستلامات غير المفوترة", "account_type": liab_type})
+        ChartOfAccounts.objects.get_or_create(code="21310", defaults={"name": "ضريبة القيمة المضافة", "account_type": liab_type})
 
         # Entities
         self.customer, _ = Customer.objects.get_or_create(name="عميل تجريبي دولي", defaults={"code": "CUST-INT-99"})

@@ -27,6 +27,8 @@ from financial.exceptions import FinancialCoreError
 from core.services.sequence_service import SequenceService
 from core.enums.document_types import DocumentType
 
+from financial.services.account_role_registry import AccountRoleRegistry
+
 logger = logging.getLogger("purchase.procurement_service")
 
 
@@ -191,10 +193,12 @@ class ProcurementService:
                 po.status = "PARTIALLY_RECEIVED"
             po.save(update_fields=["status"])
 
-            # 2. إنشاء قيد الاستلام المحاسبي: Dr. 10400 Inventory / Cr. 20150 GRNI
+            # 2. إنشاء قيد الاستلام المحاسبي: Dr. Inventory / Cr. GRNI
+            inv_acc = AccountRoleRegistry.get_account_code("INVENTORY_CONTROL_ACCOUNT")
+            grni_acc = AccountRoleRegistry.get_account_code("GRNI_CLEARING_ACCOUNT")
             lines_data = [
-                {"account_code": "10400", "debit": total_grn_cost, "credit": Decimal("0.00"), "description": f"GRN Inventory Asset Receipt #{grn_num}"},
-                {"account_code": "20150_GRNI", "debit": Decimal("0.00"), "credit": total_grn_cost, "description": f"GRNI Account Credit #{grn_num}"}
+                {"account_code": inv_acc, "debit": total_grn_cost, "credit": Decimal("0.00"), "description": f"GRN Inventory Asset Receipt #{grn_num}"},
+                {"account_code": grni_acc, "debit": Decimal("0.00"), "credit": total_grn_cost, "description": f"GRNI Account Credit #{grn_num}"}
             ]
 
             draft_entry = LedgerCoreService.create_draft_entry(
@@ -282,10 +286,12 @@ class ProcurementService:
             bill.functional_amount = (total_bill_amount * exchange_rate).quantize(Decimal("0.01"))
             bill.save(update_fields=["total_amount", "functional_amount"])
 
-            # إنشاء القيد المحاسبي للفاتورة: Dr. 20150 GRNI / Dr/Cr. 50120 PPV / Cr. 20100 AP
-            ap_acc_code = supplier.financial_account.code if (hasattr(supplier, 'financial_account') and supplier.financial_account) else "20100"
+            # إنشاء القيد المحاسبي للفاتورة: Dr. GRNI / Dr/Cr. PPV / Cr. AP
+            grni_acc = AccountRoleRegistry.get_account_code("GRNI_CLEARING_ACCOUNT")
+            default_ap = AccountRoleRegistry.get_account_code("AP_CONTROL_ACCOUNT")
+            ap_acc_code = supplier.financial_account.code if (hasattr(supplier, 'financial_account') and supplier.financial_account) else default_ap
             lines_data = [
-                {"account_code": "20150_GRNI", "debit": total_grni_clearance, "credit": Decimal("0.00"), "description": f"GRNI Clearance for Bill #{supplier_bill_number}"},
+                {"account_code": grni_acc, "debit": total_grni_clearance, "credit": Decimal("0.00"), "description": f"GRNI Clearance for Bill #{supplier_bill_number}"},
                 {"account_code": ap_acc_code, "debit": Decimal("0.00"), "credit": total_bill_amount, "description": f"AP Payable to {supplier.name}"}
             ]
 
@@ -348,10 +354,12 @@ class ProcurementService:
                 warehouse_id=grn_item.grn.warehouse.id
             )
 
-            # قيد المحاسبة: Dr. 20150 GRNI / Cr. 10400 Inventory Asset
+            # قيد المحاسبة: Dr. GRNI / Cr. Inventory Asset
+            grni_acc = AccountRoleRegistry.get_account_code("GRNI_CLEARING_ACCOUNT")
+            inv_acc = AccountRoleRegistry.get_account_code("INVENTORY_CONTROL_ACCOUNT")
             lines_data = [
-                {"account_code": "20150_GRNI", "debit": return_value, "credit": Decimal("0.00"), "description": f"Pre-Invoice Return GRNI Debit"},
-                {"account_code": "10400", "debit": Decimal("0.00"), "credit": return_value, "description": f"Pre-Invoice Return Inventory Credit"}
+                {"account_code": grni_acc, "debit": return_value, "credit": Decimal("0.00"), "description": f"Pre-Invoice Return GRNI Debit"},
+                {"account_code": inv_acc, "debit": Decimal("0.00"), "credit": return_value, "description": f"Pre-Invoice Return Inventory Credit"}
             ]
 
             draft_entry = LedgerCoreService.create_draft_entry(

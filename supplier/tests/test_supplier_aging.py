@@ -51,6 +51,18 @@ class TestSupplierAgingService:
             is_active=True
         )
 
+        from purchase.models import Purchase
+        Purchase.objects.create(
+            number="PUR-SAG-001",
+            supplier=supplier,
+            subtotal=Decimal("5000.00"),
+            total=Decimal("5000.00"),
+            status="confirmed",
+            payment_status="unpaid",
+            date=today,
+            created_by=user
+        )
+
         # Post GL entry for supplier bill
         draft = LedgerCoreService.create_draft_entry(
             date=today,

@@ -367,36 +367,33 @@ class SaleService:
             
             logger.info(f"   - تكلفة البضاعة المباعة: {cost_of_goods_sold}")
             
-            # الحصول على الحسابات المطلوبة
-            try:
-                sales_revenue_account = ChartOfAccounts.objects.get(code='40100', is_active=True)
-                logger.info(f"✅ حساب إيرادات المبيعات: {sales_revenue_account.code} - {sales_revenue_account.name}")
-            except ChartOfAccounts.DoesNotExist:
-                error_msg = "❌ حساب إيرادات المبيعات (40100) غير موجود في دليل الحسابات. يرجى إنشاؤه أولاً."
+            from financial.services.account_role_registry import AccountRoleRegistry
+
+            # الحصول على الحسابات المطلوبة عبر سجل الأدوار المركزي
+            sales_revenue_account = AccountRoleRegistry.get_account_by_role("SALES_REVENUE_ACCOUNT")
+            if not sales_revenue_account:
+                sales_revenue_account = ChartOfAccounts.objects.filter(code__in=['41100', '40100'], is_active=True).first()
+            if not sales_revenue_account:
+                error_msg = "❌ حساب إيرادات المبيعات غير موجود في دليل الحسابات. يرجى إنشاؤه أولاً."
                 logger.error(error_msg)
                 raise ValidationError(error_msg)
 
-            # محاولة جلب حساب إيرادات الخدمات (40200) - والارتداد لـ (40100) لو مش موجود
-            try:
-                services_revenue_account = ChartOfAccounts.objects.get(code='40200', is_active=True)
-                logger.info(f"✅ حساب إيرادات الخدمات: {services_revenue_account.code} - {services_revenue_account.name}")
-            except ChartOfAccounts.DoesNotExist:
-                services_revenue_account = sales_revenue_account
-                logger.warning("⚠️ حساب إيرادات الخدمات (40200) غير موجود، سيتم استخدام حساب إيرادات المبيعات العام")
-            
-            try:
-                cogs_account = ChartOfAccounts.objects.get(code='50100', is_active=True)
-                logger.info(f"✅ حساب تكلفة البضاعة المباعة: {cogs_account.code} - {cogs_account.name}")
-            except ChartOfAccounts.DoesNotExist:
-                error_msg = "❌ حساب تكلفة البضاعة المباعة (50100) غير موجود في دليل الحسابات. يرجى إنشاؤه أولاً."
+            # محاولة جلب حساب إيرادات الخدمات (41200 / 40200) - والارتداد لحساب المبيعات لو مش موجود
+            services_revenue_account = ChartOfAccounts.objects.filter(code__in=['41200', '40200'], is_active=True).first() or sales_revenue_account
+
+            cogs_account = AccountRoleRegistry.get_account_by_role("COGS_EXPENSE_ACCOUNT")
+            if not cogs_account:
+                cogs_account = ChartOfAccounts.objects.filter(code__in=['51100', '50100'], is_active=True).first()
+            if not cogs_account:
+                error_msg = "❌ حساب تكلفة البضاعة المباعة غير موجود في دليل الحسابات. يرجى إنشاؤه أولاً."
                 logger.error(error_msg)
                 raise ValidationError(error_msg)
-            
-            try:
-                inventory_account = ChartOfAccounts.objects.get(code='10400', is_active=True)
-                logger.info(f"✅ حساب المخزون: {inventory_account.code} - {inventory_account.name}")
-            except ChartOfAccounts.DoesNotExist:
-                error_msg = "❌ حساب المخزون (10400) غير موجود في دليل الحسابات. يرجى إنشاؤه أولاً."
+
+            inventory_account = AccountRoleRegistry.get_account_by_role("INVENTORY_CONTROL_ACCOUNT")
+            if not inventory_account:
+                inventory_account = ChartOfAccounts.objects.filter(code__in=['11310', '10400'], is_active=True).first()
+            if not inventory_account:
+                error_msg = "❌ حساب المخزون غير موجود في دليل الحسابات. يرجى إنشاؤه أولاً."
                 logger.error(error_msg)
                 raise ValidationError(error_msg)
 
@@ -868,14 +865,15 @@ class SaleService:
         try:
             from governance.services.accounting_gateway import JournalEntryLineData
             from financial.models import ChartOfAccounts
+            from financial.services.account_role_registry import AccountRoleRegistry
             
             sale = sale_return.sale
             
             # تحديد حساب الدائن حسب طريقة الدفع الأصلية
             if sale.payment_method == 'cash':
-                credit_account_code = '10100'
+                credit_account_code = AccountRoleRegistry.get_account_code("CASH_CONTROL_ACCOUNT")
             elif sale.payment_method == 'bank_transfer':
-                credit_account_code = '10200'
+                credit_account_code = AccountRoleRegistry.get_account_code("BANK_CONTROL_ACCOUNT")
             else:
                 # حساب العميل - التأكد من وجود الحساب المحاسبي
                 if not sale.customer.financial_account:
@@ -930,11 +928,13 @@ class SaleService:
             # إعداد بيانات القيد باستخدام JournalEntryLineData
             lines = []
 
+            sales_rev_code = AccountRoleRegistry.get_account_code("SALES_REVENUE_ACCOUNT")
+
             # مدين: إيرادات المبيعات (عكس) للرصيد المادي
             if physical_return_total > 0:
                 lines.append(
                     JournalEntryLineData(
-                        account_code='40100',
+                        account_code=sales_rev_code,
                         debit=physical_return_total,
                         credit=Decimal('0'),
                         description=f'عكس مبيعات منتجات - مرتجع {sale_return.number}'
@@ -969,9 +969,11 @@ class SaleService:
 
             # قيد تكلفة ومخزون للمرتجع (فقط للمنتجات المادية وعند وجود تكلفة بضاعة مرتجعة)
             if cost_of_goods_returned > 0:
+                inv_code = AccountRoleRegistry.get_account_code("INVENTORY_CONTROL_ACCOUNT")
+                cogs_code = AccountRoleRegistry.get_account_code("COGS_EXPENSE_ACCOUNT")
                 lines.append(
                     JournalEntryLineData(
-                        account_code='10400',
+                        account_code=inv_code,
                         debit=cost_of_goods_returned,
                         credit=Decimal('0'),
                         description=f'إرجاع مخزون - مرتجع {sale_return.number}'
@@ -979,7 +981,7 @@ class SaleService:
                 )
                 lines.append(
                     JournalEntryLineData(
-                        account_code='50100',
+                        account_code=cogs_code,
                         debit=Decimal('0'),
                         credit=cost_of_goods_returned,
                         description=f'عكس تكلفة البضاعة - مرتجع {sale_return.number}'

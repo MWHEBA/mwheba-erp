@@ -34,11 +34,11 @@ class TestSprint6ProcurementEngine:
         liability_type, _ = AccountType.objects.get_or_create(code="LIABILITY", defaults={"name": "Liability", "category": "LIABILITY"})
         expense_type, _ = AccountType.objects.get_or_create(code="EXPENSE", defaults={"name": "Expense", "category": "EXPENSE"})
 
-        inv_acc = ChartOfAccounts.objects.create(code="10400", name="Inventory Control", account_type=asset_type, is_active=True)
-        ap_acc = ChartOfAccounts.objects.create(code="20100", name="Accounts Payable Control", account_type=liability_type, is_active=True)
-        grni_acc = ChartOfAccounts.objects.create(code="20150_GRNI", name="GRNI Payable", account_type=liability_type, is_active=True)
-        ppv_acc = ChartOfAccounts.objects.create(code="50120_PPV", name="PPV Variance", account_type=expense_type, is_active=True)
-        cogs_acc = ChartOfAccounts.objects.create(code="50100", name="COGS Control", account_type=expense_type, is_active=True)
+        inv_acc, _ = ChartOfAccounts.objects.get_or_create(code="11310", defaults={"name": "Inventory Control", "account_type": asset_type, "is_active": True})
+        ap_acc, _ = ChartOfAccounts.objects.get_or_create(code="21110", defaults={"name": "Accounts Payable Control", "account_type": liability_type, "is_active": True})
+        grni_acc, _ = ChartOfAccounts.objects.get_or_create(code="21210", defaults={"name": "GRNI Payable", "account_type": liability_type, "is_active": True})
+        ppv_acc, _ = ChartOfAccounts.objects.get_or_create(code="50120_PPV", defaults={"name": "PPV Variance", "account_type": expense_type, "is_active": True})
+        cogs_acc, _ = ChartOfAccounts.objects.get_or_create(code="51100", defaults={"name": "COGS Control", "account_type": expense_type, "is_active": True})
 
         fiscal_year = FiscalYear.objects.create(name="FY2026", start_date="2026-01-01", end_date="2026-12-31")
         period = AccountingPeriod.objects.create(fiscal_year=fiscal_year, name="AUG2026", period_number=8, start_date="2026-08-01", end_date="2026-08-31", status="open")

@@ -1178,49 +1178,17 @@ def customer_create_account(request, pk):
     
     if request.method == "POST":
         try:
-            # البحث عن حساب العملاء الرئيسي
-            customers_account = ChartOfAccounts.objects.filter(code="10300").first()
+            from client.services.customer_service import CustomerService
+            new_account = CustomerService.create_financial_account_for_customer(customer, user=request.user)
             
-            if not customers_account:
-                error_msg = "لا يمكن العثور على حساب العملاء الرئيسي في النظام"
+            if not new_account:
+                error_msg = "فشل في إنشاء الحساب المحاسبي للعميل"
                 if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                     return JsonResponse({'success': False, 'message': error_msg})
                 messages.error(request, error_msg)
                 return redirect("client:customer_change_account", pk=customer.pk)
             
-            # البحث عن آخر حساب فرعي تحت حساب العملاء - النمط: 1030XXXX
-            last_customer_account = ChartOfAccounts.objects.filter(
-                parent=customers_account,
-                code__startswith='1030'
-            ).exclude(code='10300').order_by('-code').first()
-            
-            if last_customer_account:
-                last_number = int(last_customer_account.code[-4:])
-                new_number = last_number + 1
-            else:
-                new_number = 1
-            
-            new_code = f"1030{new_number:04d}"
-            
-            # إنشاء اسم مناسب للحساب
-            account_name = f"عميل - {customer.name}"
-            
-            # إنشاء الحساب الجديد
-            new_account = ChartOfAccounts.objects.create(
-                code=new_code,
-                name=account_name,
-                parent=customers_account,
-                account_type=customers_account.account_type,
-                is_active=True,
-                is_leaf=True,
-                description=f"حساب محاسبي للعميل: {customer.name} (كود العميل: {customer.code})"
-            )
-            
-            # ربط العميل بالحساب الجديد
-            # استخدام update() بدلاً من save() لتجنب تشغيل الـ signal
-            Customer.objects.filter(pk=customer.pk).update(financial_account=new_account)
-            customer.financial_account = new_account  # تحديث الـ instance في الذاكرة
-            
+            customer.financial_account = new_account
             success_msg = f'تم إنشاء حساب محاسبي جديد "{new_account.code} - {new_account.name}" وربطه بالعميل بنجاح'
             
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':

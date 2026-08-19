@@ -45,6 +45,8 @@ class CustomerSubledgerService:
         balance_data['customer_id'] = customer.id
         balance_data['customer_code'] = customer.code
         balance_data['customer_name'] = customer.name
+        return balance_data
+
     @classmethod
     def get_customer_balances_by_currency(cls, customer_id: int) -> List[Dict[str, Any]]:
         """

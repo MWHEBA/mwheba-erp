@@ -28,38 +28,38 @@ class SupplierParentAccountService:
         """
         from financial.models import ChartOfAccounts, AccountType
 
+        from financial.services.account_role_registry import AccountRoleRegistry
+
         try:
             with transaction.atomic():
-                # البحث عن الحساب الرئيسي للموردين
-                payables_type = AccountType.objects.filter(code="PAYABLES").first()
-                if not payables_type:
-                    raise ValueError("نوع حساب PAYABLES غير موجود")
-
-                parent_account = ChartOfAccounts.objects.filter(
-                    account_type=payables_type, is_active=True
-                ).first()
+                parent_account = AccountRoleRegistry.get_account_by_role("SUPPLIER_PAYABLE_CONTROL")
+                if not parent_account:
+                    parent_account = ChartOfAccounts.objects.filter(code="21110", is_active=True).first()
 
                 if not parent_account:
-                    # إنشاء الحساب الرئيسي إذا لم يكن موجوداً
-                    parent_account = ChartOfAccounts.objects.create(
-                        code="20100",
-                        name="الموردون",
-                        account_type=payables_type,
-                        is_active=True,
-                        is_leaf=False,
-                        is_control_account=True,
-                        created_by=user,
-                    )
+                    raise ValueError("حساب رقابة الموردين (21110) غير موجود في دليل الحسابات")
 
-                # توليد كود فريد للحساب الفرعي
-                code = f"2010{supplier.id:03d}"  # مثال: 20100001
+                payables_type = parent_account.account_type
+                prefix = parent_account.code[:4]
 
-                # التحقق من عدم وجود الكود
-                if ChartOfAccounts.objects.filter(code=code).exists():
-                    # إذا كان موجوداً، نستخدم timestamp
-                    import time
+                # البحث عن آخر كود مستخدم تحت حساب الموردين
+                last_sub = ChartOfAccounts.objects.filter(
+                    parent=parent_account,
+                    code__startswith=prefix
+                ).exclude(code=parent_account.code).order_by("-code").first()
 
-                    code = f"2010{int(time.time()) % 10000:04d}"
+                if last_sub:
+                    try:
+                        seq = int(last_sub.code[len(prefix):]) + 1
+                    except ValueError:
+                        seq = 1
+                else:
+                    seq = 1
+
+                code = f"{prefix}{seq:04d}"
+                while ChartOfAccounts.objects.filter(code=code).exists():
+                    seq += 1
+                    code = f"{prefix}{seq:04d}"
 
                 # حساب الرصيد الافتتاحي من القيود المرحلة فقط
                 from purchase.models import Purchase, PurchasePayment
@@ -121,37 +121,42 @@ class SupplierParentAccountService:
             ChartOfAccounts: الحساب المحاسبي المنشأ
         """
         from financial.models import ChartOfAccounts, AccountType
+        from financial.services.account_role_registry import AccountRoleRegistry
         from decimal import Decimal
 
         try:
             with transaction.atomic():
-                receivables_type = AccountType.objects.filter(code="RECEIVABLES").first()
-                if not receivables_type:
-                    raise ValueError("نوع حساب RECEIVABLES غير موجود")
-
-                parent_account = ChartOfAccounts.objects.filter(
-                    code="10300", is_active=True
-                ).first()
+                parent_account = AccountRoleRegistry.get_account_by_role("CUSTOMER_RECEIVABLE_CONTROL")
+                if not parent_account:
+                    parent_account = ChartOfAccounts.objects.filter(code="11210", is_active=True).first()
 
                 if not parent_account:
-                    parent_account = ChartOfAccounts.objects.create(
-                        code="10300",
-                        name="مدينو العملاء",
-                        account_type=receivables_type,
-                        is_active=True,
-                        is_leaf=False,
-                        is_control_account=True,
-                        created_by=user,
-                    )
+                    raise ValueError("حساب رقابة العملاء (11210) غير موجود في دليل الحسابات")
 
-                code = f"1030{customer.id:04d}"
-                if ChartOfAccounts.objects.filter(code=code).exists():
-                    import time
-                    code = f"1030{int(time.time()) % 10000:04d}"
+                receivables_type = parent_account.account_type
+                prefix = parent_account.code[:4]
+
+                last_sub = ChartOfAccounts.objects.filter(
+                    parent=parent_account,
+                    code__startswith=prefix
+                ).exclude(code=parent_account.code).order_by("-code").first()
+
+                if last_sub:
+                    try:
+                        seq = int(last_sub.code[len(prefix):]) + 1
+                    except ValueError:
+                        seq = 1
+                else:
+                    seq = 1
+
+                code = f"{prefix}{seq:04d}"
+                while ChartOfAccounts.objects.filter(code=code).exists():
+                    seq += 1
+                    code = f"{prefix}{seq:04d}"
 
                 account = ChartOfAccounts.objects.create(
                     code=code,
-                    name=f"عميل - {customer}",
+                    name=f"عميل - {customer.name if hasattr(customer, 'name') else customer}",
                     parent=parent_account,
                     account_type=receivables_type,
                     is_active=True,

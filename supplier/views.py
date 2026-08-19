@@ -1702,59 +1702,27 @@ def supplier_create_account(request, pk):
     
     if request.method == "POST":
         try:
-            # البحث عن حساب الموردين الرئيسي عبر مسجل الأدوار المحوكم
-            from financial.services.account_role_registry import AccountRoleRegistry
-            suppliers_account = AccountRoleRegistry.get_account_by_role("AP_CONTROL_ACCOUNT")
-            
-            if not suppliers_account:
-                error_msg = "لا يمكن العثور على حساب الموردين الرئيسي في النظام"
+            from supplier.services.supplier_service import SupplierService
+            new_account = SupplierService.create_financial_account_for_supplier(
+                supplier=supplier,
+                user=request.user
+            )
+
+            if not new_account:
+                error_msg = "فشل في إنشاء الحساب المحاسبي للمورد"
                 if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                     return JsonResponse({'success': False, 'message': error_msg})
                 messages.error(request, error_msg)
                 return redirect("supplier:supplier_change_account", pk=supplier.pk)
-            
-            # البحث عن آخر حساب فرعي تحت حساب الموردين - النمط: 2010XXXX
-            last_supplier_account = ChartOfAccounts.objects.filter(
-                parent=suppliers_account,
-                code__startswith='2010'
-            ).exclude(code='20100').order_by('-code').first()
-            
-            if last_supplier_account:
-                last_number = int(last_supplier_account.code[-4:])
-                new_number = last_number + 1
-            else:
-                new_number = 1
-            
-            new_code = f"2010{new_number:04d}"
-            
-            # إنشاء اسم مناسب للحساب
-            account_name = f"مورد - {supplier.name}"
-            
-            # إنشاء الحساب الجديد
-            new_account = ChartOfAccounts.objects.create(
-                code=new_code,
-                name=account_name,
-                parent=suppliers_account,
-                account_type=suppliers_account.account_type,
-                is_active=True,
-                is_leaf=True,
-                description=f"حساب محاسبي للمورد: {supplier.name} (كود المورد: {supplier.code})"
-            )
-            
-            # ربط المورد بالحساب الجديد
-            # استخدام update() بدلاً من save() لتجنب تشغيل الـ signal
-            from supplier.models import Supplier
-            Supplier.objects.filter(pk=supplier.pk).update(financial_account=new_account)
-            supplier.financial_account = new_account  # تحديث الـ instance في الذاكرة
-            
+
             success_msg = f'تم إنشاء حساب محاسبي جديد "{new_account.code} - {new_account.name}" وربطه بالمورد بنجاح'
-            
+
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                 return JsonResponse({'success': True, 'message': success_msg})
-            
+
             messages.success(request, success_msg)
             return redirect("supplier:supplier_detail", pk=supplier.pk)
-            
+
         except Exception as e:
             error_msg = f"حدث خطأ أثناء إنشاء الحساب: {str(e)}"
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':

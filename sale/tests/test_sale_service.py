@@ -156,7 +156,7 @@ def chart_of_accounts(db):
     # Get or create accounts (استخدام get_or_create بدلاً من إعادة الإنشاء)
     accounts = {
         'cash': ChartOfAccounts.objects.get_or_create(
-            code='10100',
+            code='11110',
             defaults={
                 'name': 'الخزينة',
                 'account_type': cash_type,
@@ -164,7 +164,7 @@ def chart_of_accounts(db):
             }
         )[0],
         'bank': ChartOfAccounts.objects.get_or_create(
-            code='10200',
+            code='11160',
             defaults={
                 'name': 'البنك',
                 'account_type': cash_type,
@@ -172,7 +172,7 @@ def chart_of_accounts(db):
             }
         )[0],
         'inventory': ChartOfAccounts.objects.get_or_create(
-            code='10400',
+            code='11310',
             defaults={
                 'name': 'المخزون',
                 'account_type': asset_type,
@@ -180,23 +180,15 @@ def chart_of_accounts(db):
             }
         )[0],
         'inventory_goods': ChartOfAccounts.objects.get_or_create(
-            code='10400',
+            code='11310',
             defaults={
                 'name': 'مخزون البضاعة',
                 'account_type': asset_type,
                 'is_active': True
             }
         )[0],
-        'inventory_goods_movement': ChartOfAccounts.objects.get_or_create(
-            code='2010001',
-            defaults={
-                'name': 'مخزون البضاعة - حركة',
-                'account_type': asset_type,
-                'is_active': True
-            }
-        )[0],
         'sales_revenue': ChartOfAccounts.objects.get_or_create(
-            code='40100',
+            code='41100',
             defaults={
                 'name': 'إيرادات المبيعات',
                 'account_type': revenue_type,
@@ -204,7 +196,7 @@ def chart_of_accounts(db):
             }
         )[0],
         'cogs': ChartOfAccounts.objects.get_or_create(
-            code='50100',
+            code='51100',
             defaults={
                 'name': 'تكلفة البضاعة المباعة',
                 'account_type': expense_type,
@@ -213,9 +205,9 @@ def chart_of_accounts(db):
         )[0],
     }
     
-    # Create customers parent account (10300) - مطلوب للـ fallback في SaleService
+    # Create customers parent control account (11210)
     ChartOfAccounts.objects.get_or_create(
-        code='10300',
+        code='11210',
         defaults={
             'name': 'مدينو العملاء',
             'account_type': asset_type,
@@ -339,7 +331,7 @@ class TestSaleServiceProcessPayment:
         # Process payment
         payment_data = {
             'amount': Decimal('100.00'),
-            'payment_method': '10100',  # Cash account
+            'payment_method': '11110',  # Cash account
             'payment_date': timezone.now().date(),
             'notes': 'Partial payment'
         }
@@ -525,7 +517,7 @@ class TestSaleDownPaymentAndAccountingUnified:
             'date': timezone.now().date(),
             'customer_id': customer.id,
             'warehouse_id': warehouse.id,
-            'payment_method': '10100',  # Cash account code
+            'payment_method': '11110',  # Cash account code
             'discount': Decimal('0'),
             'tax': Decimal('0'),
             'notes': 'Test cash sale unified',
@@ -554,7 +546,7 @@ class TestSaleDownPaymentAndAccountingUnified:
         # 2. Process automatic payment for cash sale
         payment_data = {
             'amount': sale.total,
-            'payment_method': '10100',
+            'payment_method': '11110',
             'payment_date': sale.date,
             'notes': 'Automatic cash payment'
         }
@@ -564,7 +556,7 @@ class TestSaleDownPaymentAndAccountingUnified:
         assert payment.financial_transaction is not None
         pay_debit = payment.financial_transaction.lines.get(debit__gt=0)
         pay_credit = payment.financial_transaction.lines.get(credit__gt=0)
-        assert pay_debit.account.code == '10100'
+        assert pay_debit.account.code == '11110'
         assert pay_credit.account.code == customer.financial_account.code
         assert pay_debit.debit == Decimal('300.00')
         
@@ -608,7 +600,7 @@ class TestSaleDownPaymentAndAccountingUnified:
         # 2. Process down payment (150 EGP)
         payment_data = {
             'amount': Decimal('150.00'),
-            'payment_method': '10100',  # Treasury
+            'payment_method': '11110',  # Treasury
             'payment_date': sale.date,
             'notes': 'Down payment'
         }

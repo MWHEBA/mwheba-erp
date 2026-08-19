@@ -39,9 +39,12 @@ class PurchaseAccountingBridge:
             func_tax = (purchase.tax * rate).quantize(Decimal("0.01"))
             func_subtotal = (func_total - func_tax).quantize(Decimal("0.01"))
 
+            from financial.services.account_role_registry import AccountRoleRegistry
             lines = []
             # 1. Inventory Clearing / Expense Debit Line
-            expense_account = "20150_GRNI" if not purchase.is_service else "51010_EXPENSES"
+            grni_acc = AccountRoleRegistry.get_account_code("GRNI_CLEARING_ACCOUNT")
+            cogs_acc = AccountRoleRegistry.get_account_code("COGS_EXPENSE_ACCOUNT")
+            expense_account = grni_acc if not purchase.is_service else cogs_acc
             lines.append({
                 "account_code": expense_account,
                 "debit": func_subtotal,
@@ -54,8 +57,9 @@ class PurchaseAccountingBridge:
 
             # 2. Input VAT Tax Line (if any)
             if func_tax > Decimal("0.00"):
+                input_tax_acc = AccountRoleRegistry.get_account_code("INPUT_TAX_ACCOUNT")
                 lines.append({
-                    "account_code": "11050_VAT_INPUT",
+                    "account_code": input_tax_acc,
                     "debit": func_tax,
                     "credit": Decimal("0.00"),
                     "foreign_debit": purchase.tax if currency_code != "EGP" else None,
@@ -65,7 +69,12 @@ class PurchaseAccountingBridge:
                 })
 
             # 3. AP Supplier Credit Line
-            ap_account = getattr(purchase.supplier, "account_code", "20100_AP") or "20100_AP"
+            default_ap = AccountRoleRegistry.get_account_code("AP_CONTROL_ACCOUNT")
+            ap_account = (
+                purchase.supplier.financial_account.code
+                if (hasattr(purchase.supplier, "financial_account") and purchase.supplier.financial_account)
+                else getattr(purchase.supplier, "account_code", default_ap) or default_ap
+            )
             lines.append({
                 "account_code": ap_account,
                 "debit": Decimal("0.00"),

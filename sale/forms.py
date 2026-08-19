@@ -458,11 +458,13 @@ class SalePaymentForm(forms.ModelForm):
                 if self.instance and self.instance.pk and self.instance.payment_method:
                     old_value = self.instance.payment_method
                     if old_value == 'cash':
-                        default_cash = ChartOfAccounts.objects.filter(code='10100').first()
+                        from financial.services.account_role_registry import AccountRoleRegistry
+                        default_cash = AccountRoleRegistry.get_account_by_role("CASH_CONTROL_ACCOUNT")
                         if default_cash:
                             self.initial['payment_method'] = default_cash.code
                     elif old_value == 'bank_transfer':
-                        default_bank = ChartOfAccounts.objects.filter(code='10200').first()
+                        from financial.services.account_role_registry import AccountRoleRegistry
+                        default_bank = AccountRoleRegistry.get_account_by_role("BANK_CONTROL_ACCOUNT")
                         if default_bank:
                             self.initial['payment_method'] = default_bank.code
                     else:
@@ -602,16 +604,16 @@ class SalePaymentEditForm(forms.ModelForm):
             # تحويل القيم القديمة
             if old_value == 'cash':
                 try:
-                    from financial.models import ChartOfAccounts
-                    default_cash = ChartOfAccounts.objects.filter(code='10100').first()
+                    from financial.services.account_role_registry import AccountRoleRegistry
+                    default_cash = AccountRoleRegistry.get_account_by_role("CASH_CONTROL_ACCOUNT")
                     if default_cash:
                         self.initial['payment_method'] = default_cash.code
                 except:
                     self.initial['payment_method'] = 'cash'
             elif old_value == 'bank_transfer':
                 try:
-                    from financial.models import ChartOfAccounts
-                    default_bank = ChartOfAccounts.objects.filter(code='10200').first()
+                    from financial.services.account_role_registry import AccountRoleRegistry
+                    default_bank = AccountRoleRegistry.get_account_by_role("BANK_CONTROL_ACCOUNT")
                     if default_bank:
                         self.initial['payment_method'] = default_bank.code
                 except:

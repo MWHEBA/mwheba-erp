@@ -7,356 +7,316 @@
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/components.css' %}">
 <style>
-    /* form-section و section-title موجودين في components.css */
-    .required-field {
-        color: #e74c3c;
+    .account-form-card {
+        background: var(--card-bg, #ffffff);
+        border: 1px solid var(--border-color, #e2e8f0);
+        border-radius: var(--border-radius-lg, 12px);
+        box-shadow: var(--shadow-sm, 0 1px 3px rgba(0, 0, 0, 0.05));
     }
-    .help-text {
-        font-size: 0.9em;
-        color: #7f8c8d;
-        margin-top: 5px;
+    .form-group-label {
+        font-weight: 600;
+        color: var(--text-main, #2d3748);
+        margin-bottom: 0.4rem;
+        font-size: 0.9rem;
     }
-    .form-row {
-        margin-bottom: 15px;
+    .required-star {
+        color: var(--danger-color, #e53e3e);
     }
-    .btn-save {
-        background: #27ae60;
-        border: none;
-        color: white;
-        padding: 12px 30px;
-        border-radius: 5px;
-        font-weight: bold;
+    .field-hint {
+        font-size: 0.8rem;
+        color: var(--text-muted, #718096);
+        margin-top: 0.3rem;
     }
-    .btn-save:hover {
-        background: #229954;
-        color: white;
+    .feature-switch-card {
+        background: var(--bg-light, #f8fafc);
+        border: 1px solid var(--border-color, #e2e8f0);
+        border-radius: var(--border-radius-md, 8px);
+        padding: 0.75rem 1rem;
+        height: 100%;
+        transition: border-color var(--transition-fast, 0.2s ease);
     }
-    .btn-cancel {
-        background: #95a5a6;
-        border: none;
-        color: white;
-        padding: 12px 30px;
-        border-radius: 5px;
+    .feature-switch-card:hover {
+        border-color: var(--primary-color, #3182ce);
     }
-    .btn-cancel:hover {
-        background: #7f8c8d;
-        color: white;
+    .feature-switch-label {
+        font-weight: 600;
+        cursor: pointer;
+        color: var(--text-main, #2d3748);
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid">
+<div class="container-fluid py-3">
     <!-- Page Header المركزي -->
     {% include "shared/page_header.html" %}
-    
-    <div class="row">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-body">
-                    <form method="post" id="accountForm">
-                        {% csrf_token %}
-                        
-                        <!-- معلومات أساسية -->
-                        <div class="form-section">
-                            <h4 class="section-title">
-                                <i class="fas fa-info-circle"></i>
-                                المعلومات الأساسية
-                            </h4>
-                            
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="form-row">
-                                        <label for="code" class="form-label">
-                                            كود الحساب <span class="required-field">*</span>
-                                        </label>
-                                        <input type="text" class="form-control" id="code" name="code" 
-                                               value="{% if form_data.code %}{{ form_data.code }}{% elif account.code %}{{ account.code }}{% elif suggested_code %}{{ suggested_code }}{% endif %}" required
-                                               pattern="[0-9]{4,8}" maxlength="8"
-                                               {% if account %}readonly{% endif %}>
-                                        <div class="help-text">
-                                            كود الحساب يجب أن يكون من 4 إلى 8 أرقام
-                                            {% if account %}
-                                            <br><small class="text-muted">لا يمكن تعديل كود الحساب بعد الإنشاء</small>
-                                            {% else %}
-                                            <br><small class="text-info">سيتم اقتراح الكود تلقائياً عند اختيار نوع الحساب أو الحساب الأب</small>
-                                            {% endif %}
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <div class="col-md-6">
-                                    <div class="form-row">
-                                        <label for="name" class="form-label">
-                                            اسم الحساب <span class="required-field">*</span>
-                                        </label>
-                                        <input type="text" class="form-control" id="name" name="name" 
-                                               value="{% if form_data.name %}{{ form_data.name }}{% elif account.name %}{{ account.name }}{% endif %}" required maxlength="200">
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="form-row">
-                                        <label for="account_type" class="form-label">
-                                            نوع الحساب <span class="required-field">*</span>
-                                        </label>
-                                        <select class="form-control" id="account_type" name="account_type" required>
-                                            <option value="">اختر نوع الحساب</option>
-                                            <!-- سيتم ملء الخيارات بواسطة JavaScript أو Django -->
-                                        </select>
-                                    </div>
-                                </div>
-                                
-                                <div class="col-md-6">
-                                    <div class="form-row">
-                                        <label for="parent" class="form-label">الحساب الأب</label>
-                                        <select class="form-control" id="parent" name="parent">
-                                            <option value="">لا يوجد (حساب رئيسي)</option>
-                                            <!-- سيتم ملء الخيارات بواسطة JavaScript أو Django -->
-                                        </select>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="form-row">
-                                        <div class="form-check mt-4">
-                                            <input class="form-check-input" type="checkbox" id="is_leaf" name="is_leaf" 
-                                                   {% if account.is_leaf|default:True %}checked{% endif %}>
-                                            <label class="form-check-label" for="is_leaf">
-                                                حساب نهائي
-                                            </label>
-                                            <div class="help-text">الحسابات النهائية فقط يمكن إدراج قيود عليها</div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- الرصيد الافتتاحي -->
-                        <div class="form-section">
-                            <h4 class="section-title">
-                                <i class="fas fa-calculator"></i>
-                                الرصيد الافتتاحي
-                            </h4>
-                            
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="form-row">
-                                        <label for="opening_balance" class="form-label">
-                                            الرصيد الافتتاحي
-                                        </label>
-                                        <input type="number" class="form-control" id="opening_balance" name="opening_balance" 
-                                               value="{{ account.opening_balance|default:'0.00' }}" min="0">
-                                        <div class="help-text">الرصيد الافتتاحي للحساب</div>
-                                    </div>
-                                </div>
-                                
-                                <div class="col-md-6">
-                                    <div class="form-row">
-                                        <label for="opening_balance_date" class="form-label">
-                                            تاريخ الرصيد الافتتاحي
-                                        </label>
-                                        <input type="text" class="form-control" id="opening_balance_date" name="opening_balance_date" data-date-picker
-                                               placeholder="تاريخ الرصيد" value="{{ account.opening_balance_date|date:'Y-m-d'|default:'' }}">
-                                        <div class="help-text">تاريخ الرصيد الافتتاحي</div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="row mt-3">
-                                <div class="col-md-6">
-                                    <div class="form-row">
-                                        <label for="currency" class="form-label">عملة الحساب</label>
-                                        <select class="form-control" id="currency" name="currency">
-                                            <option value="">تلقائي (العملة الأساسية للنظام)</option>
-                                            {% for curr in currencies %}
-                                                <option value="{{ curr.id }}" {% if account.currency_id == curr.id %}selected{% endif %}>
-                                                    {{ curr.code }} - {{ curr.name }}
-                                                </option>
-                                            {% endfor %}
-                                        </select>
-                                        <div class="help-text">اختر عملة الحساب إذا كانت غير العملة الأساسية</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- خصائص الحساب -->
-                        <div class="form-section">
-                            <h4 class="section-title">
-                                <i class="fas fa-cogs"></i>
-                                خصائص الحساب
-                            </h4>
-                            
-                            <div class="row">
-                                <div class="col-md-3">
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="is_bank_account" name="is_bank_account" 
-                                               {% if account.is_bank_account %}checked{% endif %}>
-                                        <label class="form-check-label" for="is_bank_account">
-                                            حساب بنكي
-                                        </label>
-                                    </div>
-                                </div>
-                                
-                                <div class="col-md-3">
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="is_cash_account" name="is_cash_account" 
-                                               {% if account.is_cash_account %}checked{% endif %}>
-                                        <label class="form-check-label" for="is_cash_account">
-                                            حساب نقدي
-                                        </label>
-                                    </div>
-                                </div>
-                                
-                                <div class="col-md-3">
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="is_reconcilable" name="is_reconcilable" 
-                                               {% if account.is_reconcilable %}checked{% endif %}>
-                                        <label class="form-check-label" for="is_reconcilable">
-                                            يخضع للتسوية
-                                        </label>
-                                    </div>
-                                </div>
-                                
-                                <div class="col-md-3">
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="is_control_account" name="is_control_account" 
-                                               {% if account.is_control_account %}checked{% endif %}>
-                                        <label class="form-check-label" for="is_control_account">
-                                            حساب رقابي
-                                        </label>
-                                    </div>
-                                </div>
-                            </div>
 
-                            <div class="row mt-3">
-                                <div class="col-md-6">
-                                    <div class="form-row">
-                                        <label for="cost_center_policy" class="form-label fw-bold">
-                                            سياسة فرض مركز التكلفة (Cost Center Policy)
-                                        </label>
-                                        <select class="form-select" id="cost_center_policy" name="cost_center_policy">
-                                            <option value="OPTIONAL" {% if account.cost_center_policy == 'OPTIONAL' or not account.cost_center_policy %}selected{% endif %}>اختياري (OPTIONAL)</option>
-                                            <option value="REQUIRED" {% if account.cost_center_policy == 'REQUIRED' %}selected{% endif %}>إجباري (REQUIRED)</option>
-                                            <option value="FORBIDDEN" {% if account.cost_center_policy == 'FORBIDDEN' %}selected{% endif %}>ممنوع (FORBIDDEN)</option>
-                                        </select>
-                                        <div class="help-text">حدد ما إذا كان إدخال مركز التكلفة إجبارياً أو اختيارياً أو محظوراً عند اختيار هذا الحساب</div>
-                                    </div>
-                                </div>
+    <div class="row justify-content-center">
+        <div class="col-xl-10 col-lg-12">
+            <form method="post" id="accountForm" novalidate>
+                {% csrf_token %}
+
+                <!-- 1. المعلومات الأساسية والتصنيف -->
+                <div class="section-container mb-4">
+                    <h5 class="section-title">
+                        <i class="fas fa-sitemap text-primary me-2"></i>
+                        المعلومات الأساسية وموضع الحساب
+                    </h5>
+
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="account_type" class="form-group-label">
+                                نوع الحساب المحاسبي <span class="required-star">*</span>
+                            </label>
+                            <select class="form-select select2-account" id="account_type" name="account_type" required>
+                                <option value="">-- اختر نوع الحساب --</option>
+                            </select>
+                            <div class="field-hint">يحدد طبيعة الحساب وتصنيفه في القوائم المالية (أصول، خصوم، إلخ).</div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="parent" class="form-group-label">الحساب الأب (المستوى الأعلى)</label>
+                            <select class="form-select select2-account" id="parent" name="parent">
+                                <option value="">لا يوجد (حساب رئيسي مستقل)</option>
+                            </select>
+                            <div class="field-hint">اختر الحساب الأب ليتفرع الحساب الجديد تحته تلقائياً.</div>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label for="code" class="form-group-label">
+                                كود الحساب <span class="required-star">*</span>
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light text-muted"><i class="fas fa-barcode"></i></span>
+                                <input type="text" class="form-control text-start fw-bold" id="code" name="code" 
+                                       value="{% if form_data.code %}{{ form_data.code }}{% elif account.code %}{{ account.code }}{% elif suggested_code %}{{ suggested_code }}{% endif %}" 
+                                       required pattern="[0-9]{2,10}" maxlength="10"
+                                       {% if account %}readonly{% endif %} placeholder="مثال: 11110">
+                            </div>
+                            <div class="field-hint">
+                                <span id="suggested-code-hint" class="text-primary fw-bold"></span>
                             </div>
                         </div>
-                        
-                        <!-- المعلومات البنكية (تظهر فقط للحسابات البنكية) -->
-                        <div class="form-section" id="bank-info-section" style="display: none;">
-                            <h4 class="section-title">
-                                <i class="fas fa-university"></i>
-                                المعلومات البنكية
-                            </h4>
-                            
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="form-row">
-                                        <label for="bank_name" class="form-label">اسم البنك</label>
-                                        <input type="text" class="form-control" id="bank_name" name="bank_name" 
-                                               value="{{ account.bank_name|default:'' }}" placeholder="مثال: البنك الأهلي المصري">
-                                        <div class="help-text">اسم البنك الذي يتبع له الحساب</div>
-                                    </div>
-                                </div>
-                                
-                                <div class="col-md-6">
-                                    <div class="form-row">
-                                        <label for="account_number" class="form-label">رقم الحساب البنكي</label>
-                                        <input type="text" class="form-control" id="account_number" name="account_number" 
-                                               value="{{ account.account_number|default:'' }}" placeholder="رقم الحساب">
-                                        <div class="help-text">رقم الحساب البنكي</div>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="form-row">
-                                        <label for="iban" class="form-label">رقم الآيبان (IBAN)</label>
-                                        <input type="text" class="form-control" id="iban" name="iban" 
-                                               value="{{ account.iban|default:'' }}" placeholder="EG00 0000 0000 0000 0000 0000 000" maxlength="34">
-                                        <div class="help-text">رقم الحساب البنكي الدولي (IBAN)</div>
-                                    </div>
-                                </div>
-                                
-                                <div class="col-md-6">
-                                    <div class="form-row">
-                                        <label for="swift_code" class="form-label">رمز السويفت (SWIFT)</label>
-                                        <input type="text" class="form-control" id="swift_code" name="swift_code" 
-                                               value="{{ account.swift_code|default:'' }}" placeholder="NBEGEGCXXXX" maxlength="11">
-                                        <div class="help-text">رمز السويفت للبنك (SWIFT Code)</div>
-                                    </div>
-                                </div>
-                            </div>
+
+                        <div class="col-md-4">
+                            <label for="name" class="form-group-label">
+                                اسم الحساب (بالعربية) <span class="required-star">*</span>
+                            </label>
+                            <input type="text" class="form-control" id="name" name="name" 
+                                   value="{% if form_data.name %}{{ form_data.name }}{% elif account.name %}{{ account.name }}{% endif %}" 
+                                   required maxlength="200" placeholder="مثال: بنك مصر - جاري محلي">
                         </div>
-                        
-                        <!-- معلومات إضافية -->
-                        <div class="form-section">
-                            <h4 class="section-title">
-                                <i class="fas fa-sticky-note"></i>
-                                معلومات إضافية
-                            </h4>
-                            
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="form-row">
-                                        <label for="description" class="form-label">الوصف</label>
-                                        <textarea class="form-control" id="description" name="description" rows="3">{{ account.description|default:'' }}</textarea>
-                                    </div>
-                                </div>
-                                
-                                <div class="col-md-6">
-                                    <div class="form-row">
-                                        <label for="notes" class="form-label">ملاحظات</label>
-                                        <textarea class="form-control" id="notes" name="notes" rows="3">{{ account.notes|default:'' }}</textarea>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="form-check mt-3">
-                                        <input class="form-check-input" type="checkbox" id="is_active" name="is_active" 
-                                               {% if account.is_active|default:True %}checked{% endif %}>
-                                        <label class="form-check-label" for="is_active">
-                                            نشط
-                                        </label>
-                                    </div>
-                                </div>
-                            </div>
+
+                        <div class="col-md-4">
+                            <label for="name_en" class="form-group-label">اسم الحساب (بالإنجليزية)</label>
+                            <input type="text" class="form-control text-start" id="name_en" name="name_en" 
+                                   value="{% if form_data.name_en %}{{ form_data.name_en }}{% elif account.name_en %}{{ account.name_en }}{% endif %}" 
+                                   maxlength="200" placeholder="e.g. Banque Misr - Current">
                         </div>
-                        
-                        <!-- أزرار الحفظ والإلغاء -->
-                        <div class="form-section">
-                            <div class="row">
-                                <div class="col-12 text-center">
-                                    <button type="submit" class="btn btn-save me-3">
-                                        <i class="fas fa-save"></i>
-                                        حفظ
-                                    </button>
-                                    <a href="{% url 'financial:chart_of_accounts_list' %}" class="btn btn-cancel">
-                                        <i class="fas fa-times"></i>
-                                        إلغاء
-                                    </a>
-                                </div>
-                            </div>
-                        </div>
-                    </form>
+                    </div>
                 </div>
-            </div>
+
+                <!-- 2. العملة والرصيد الافتتاحي -->
+                <div class="section-container mb-4">
+                    <h5 class="section-title">
+                        <i class="fas fa-coins text-warning me-2"></i>
+                        العملة والرصيد الافتتاحي
+                    </h5>
+
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label for="currency" class="form-group-label">عملة الحساب</label>
+                            <select class="form-select select2-account" id="currency" name="currency">
+                                <option value="">العملة الأساسية للنظام (EGP)</option>
+                                {% for curr in currencies %}
+                                    <option value="{{ curr.id }}" data-code="{{ curr.code }}" {% if account.currency_id == curr.id %}selected{% endif %}>
+                                        {{ curr.code }} - {{ curr.name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                            <div class="field-hint">يحدد عملة حركة الحساب وتقييمه حسب المعيار المحاسبي IAS 21.</div>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label for="opening_balance" class="form-group-label">الرصيد الافتتاحي (بالعملة المحلية)</label>
+                            <div class="input-group">
+                                <input type="number" step="0.01" class="form-control text-start fw-bold" id="opening_balance" name="opening_balance" 
+                                       value="{{ account.opening_balance|default:'0.00' }}" placeholder="0.00">
+                                <span class="input-group-text bg-light text-muted">EGP</span>
+                            </div>
+                            <div class="field-hint">الرصيد الافتتاحي في بداية الفترة المالية.</div>
+                        </div>
+
+                        <div class="col-md-4">
+                            <label for="opening_balance_date" class="form-group-label">تاريخ الرصيد الافتتاحي</label>
+                            <input type="date" class="form-control" id="opening_balance_date" name="opening_balance_date" 
+                                   value="{{ account.opening_balance_date|date:'Y-m-d'|default:'' }}">
+                            <div class="field-hint">تاريخ سريان الرصيد الافتتاحي للحساب.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. خصائص وطبيعة الحساب -->
+                <div class="section-container mb-4">
+                    <h5 class="section-title">
+                        <i class="fas fa-sliders-h text-info me-2"></i>
+                        خصائص وتشغيل الحساب
+                    </h5>
+
+                    <div class="row g-3">
+                        <div class="col-md-4 col-sm-6">
+                            <div class="feature-switch-card">
+                                <div class="form-check form-switch mb-0">
+                                    <input class="form-check-input" type="checkbox" id="is_leaf" name="is_leaf" 
+                                           {% if account.is_leaf|default:True %}checked{% endif %}>
+                                    <label class="form-check-label feature-switch-label" for="is_leaf">
+                                        حساب نهائي (يقبل قيود يومية)
+                                    </label>
+                                </div>
+                                <div class="field-hint">الحسابات النهائية فقط هي التي يمكن إجراء القيود والمعاملات عليها.</div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-4 col-sm-6">
+                            <div class="feature-switch-card">
+                                <div class="form-check form-switch mb-0">
+                                    <input class="form-check-input" type="checkbox" id="is_bank_account" name="is_bank_account" 
+                                           {% if account.is_bank_account %}checked{% endif %}>
+                                    <label class="form-check-label feature-switch-label" for="is_bank_account">
+                                        حساب بنكي
+                                    </label>
+                                </div>
+                                <div class="field-hint">يتيح إدارة الحسابات المصرفية والتسويات البنكية ومطابقة الكشوفات.</div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-4 col-sm-6">
+                            <div class="feature-switch-card">
+                                <div class="form-check form-switch mb-0">
+                                    <input class="form-check-input" type="checkbox" id="is_cash_account" name="is_cash_account" 
+                                           {% if account.is_cash_account %}checked{% endif %}>
+                                    <label class="form-check-label feature-switch-label" for="is_cash_account">
+                                        حساب نقدي / خزينة
+                                    </label>
+                                </div>
+                                <div class="field-hint">يتيح إدارة الخزن النقدية وحركات المقبوضات والمدفوعات الفورية.</div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-4 col-sm-6">
+                            <div class="feature-switch-card">
+                                <div class="form-check form-switch mb-0">
+                                    <input class="form-check-input" type="checkbox" id="is_control_account" name="is_control_account" 
+                                           {% if account.is_control_account %}checked{% endif %}>
+                                    <label class="form-check-label feature-switch-label" for="is_control_account">
+                                        حساب رقابي (Control Account)
+                                    </label>
+                                </div>
+                                <div class="field-hint">حساب تجميعي للأستاذ المساعد (مثل رقابة العملاء أو الموردين).</div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-4 col-sm-6">
+                            <div class="feature-switch-card">
+                                <div class="form-check form-switch mb-0">
+                                    <input class="form-check-input" type="checkbox" id="is_reconcilable" name="is_reconcilable" 
+                                           {% if account.is_reconcilable %}checked{% endif %}>
+                                    <label class="form-check-label feature-switch-label" for="is_reconcilable">
+                                        يخضع للتسوية الدورية
+                                    </label>
+                                </div>
+                                <div class="field-hint">حسابات المقاصة والوسيطة التي تتطلب تسوية ومطابقة دورية.</div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-4 col-sm-6">
+                            <div class="feature-switch-card">
+                                <div class="form-check form-switch mb-0">
+                                    <input class="form-check-input" type="checkbox" id="is_active" name="is_active" 
+                                           {% if account.is_active|default:True %}checked{% endif %}>
+                                    <label class="form-check-label feature-switch-label text-success" for="is_active">
+                                        حساب نشط
+                                    </label>
+                                </div>
+                                <div class="field-hint">الحسابات النشطة تظهر في خيارات القيود ودليل الحسابات.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 4. المعلومات البنكية (تظهر فقط للحسابات البنكية) -->
+                <div class="section-container mb-4" id="bank-info-section" style="display: none;">
+                    <h5 class="section-title">
+                        <i class="fas fa-university text-primary me-2"></i>
+                        البيانات المصرفية والبنكية
+                    </h5>
+
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="bank_name" class="form-group-label">اسم البنك / المصرف</label>
+                            <input type="text" class="form-control" id="bank_name" name="bank_name" 
+                                   value="{{ account.bank_name|default:'' }}" placeholder="مثال: البنك الأهلي المصري">
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="account_number" class="form-group-label">رقم الحساب البنكي</label>
+                            <input type="text" class="form-control text-start" id="account_number" name="account_number" 
+                                   value="{{ account.account_number|default:'' }}" placeholder="e.g. 10023456789">
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="iban" class="form-group-label">رقم الآيبان الدولي (IBAN)</label>
+                            <input type="text" class="form-control text-start" id="iban" name="iban" 
+                                   value="{{ account.iban|default:'' }}" placeholder="EG00 0000 0000 0000 0000 0000 000" maxlength="34">
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="swift_code" class="form-group-label">رمز السويفت (SWIFT Code)</label>
+                            <input type="text" class="form-control text-start" id="swift_code" name="swift_code" 
+                                   value="{{ account.swift_code|default:'' }}" placeholder="NBEGEGCXXXX" maxlength="11">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 5. ملاحظات ووصف -->
+                <div class="section-container mb-4">
+                    <h5 class="section-title">
+                        <i class="fas fa-clipboard text-secondary me-2"></i>
+                        الوصف والملاحظات
+                    </h5>
+
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="description" class="form-group-label">الوصف المحاسبي</label>
+                            <textarea class="form-control" id="description" name="description" rows="2" placeholder="وصف الغرض من هذا الحساب وقيوده">{{ account.description|default:'' }}</textarea>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="notes" class="form-group-label">ملاحظات داخلية</label>
+                            <textarea class="form-control" id="notes" name="notes" rows="2" placeholder="أي ملاحظات إدارية أو توجيهات">{{ account.notes|default:'' }}</textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- أزرار الإجراءات -->
+                <div class="d-flex justify-content-between align-items-center mb-5">
+                    <a href="{% url 'financial:chart_of_accounts_list' %}" class="btn btn-secondary px-4">
+                        <i class="fas fa-arrow-right me-2"></i>
+                        إلغاء والعودة
+                    </a>
+
+                    <button type="submit" class="btn btn-primary px-5 fw-bold">
+                        <i class="fas fa-save me-2"></i>
+                        حفظ الحساب المحاسبي
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
 {% endblock %}
 
+{% block extra_js %}
 <script type="application/json" id="account-types-json">
 [
     {% for account_type in account_types %}
@@ -383,58 +343,55 @@
 ]
 </script>
 
-{% block extra_js %}
 <script>
 $(document).ready(function() {
-    // تحميل أنواع الحسابات
+    // تهيئة القوائم المنسدلة
     loadAccountTypes();
-    
-    // تحميل الحسابات الأب
     loadParentAccounts();
-    
-    // إظهار/إخفاء قسم المعلومات البنكية
+
+    // تهيئة Select2
+    $('.select2-account').select2({
+        dir: "rtl",
+        language: "ar",
+        width: '100%'
+    });
+
+    // إظهار/إخفاء قسم البنوك
     toggleBankInfoSection();
     $('#is_bank_account').on('change', function() {
         toggleBankInfoSection();
     });
-    
-    // تحديث الحسابات الأب والكود المقترح عند تغيير نوع الحساب
+
+    // عند تغيير نوع الحساب
     $('#account_type').on('change', function() {
         var accountTypeId = $(this).val();
-        
         if (accountTypeId) {
-            // تحديث قائمة الحسابات الأب
             updateParentAccountsList(accountTypeId);
-            
-            // تحديث الكود المقترح
             updateSuggestedCode();
         } else {
-            // إعادة تحميل جميع الحسابات الأب
             loadParentAccounts();
             $('#code').val('');
         }
     });
-    
-    // تحديث الكود المقترح عند تغيير الحساب الأب
+
+    // عند تغيير الحساب الأب
     $('#parent').on('change', function() {
         updateSuggestedCode();
     });
-    
-    // التحقق من صحة النموذج
+
+    // تعيين تاريخ الرصيد الافتتاحي تلقائياً عند كتابة رصيد
+    $('#opening_balance').on('input change', function() {
+        var val = parseFloat($(this).val()) || 0;
+        if (val > 0 && !$('#opening_balance_date').val()) {
+            var today = new Date().toISOString().split('T')[0];
+            $('#opening_balance_date').val(today);
+        }
+    });
+
+    // التحقق عند الإرسال
     $('#accountForm').on('submit', function(e) {
         if (!validateForm()) {
             e.preventDefault();
-        }
-    });
-    
-    // تحديث تاريخ الرصيد الافتتاحي تلقائياً عند تغيير الرصيد
-    $('#opening_balance').on('change', function() {
-        if ($(this).val() && $(this).val() != '0' && $(this).val() != '0.00') {
-            if (!$('#opening_balance_date').val()) {
-                // تعيين التاريخ الحالي كافتراضي
-                var today = new Date().toISOString().split('T')[0];
-                $('#opening_balance_date').val(today);
-            }
         }
     });
 });
@@ -442,43 +399,34 @@ $(document).ready(function() {
 function toggleBankInfoSection() {
     var isBankAccount = $('#is_bank_account').is(':checked');
     if (isBankAccount) {
-        $('#bank-info-section').slideDown(300);
+        $('#bank-info-section').slideDown(200);
     } else {
-        $('#bank-info-section').slideUp(300);
+        $('#bank-info-section').slideUp(200);
     }
 }
 
 function updateParentAccountsList(accountTypeId) {
     var parentSelect = $('#parent');
     var currentValue = parentSelect.val();
-    
-    // عرض loading
+
     parentSelect.prop('disabled', true);
-    parentSelect.html('<option value="">جاري التحميل...</option>');
-    
-    // استدعاء API للحصول على الحسابات المتاحة
+
     $.ajax({
         url: '{% url "financial:get_parent_accounts_by_type" %}',
         method: 'GET',
-        data: {
-            account_type_id: accountTypeId
-        },
+        data: { account_type_id: accountTypeId },
         success: function(response) {
             if (response.success && response.accounts) {
-                parentSelect.html('<option value="">لا يوجد (حساب رئيسي)</option>');
-                
+                parentSelect.empty().append('<option value="">لا يوجد (حساب رئيسي)</option>');
                 response.accounts.forEach(function(account) {
-                    var selected = (account.id == currentValue) ? 'selected' : '';
+                    var selected = (String(account.id) === String(currentValue)) ? 'selected' : '';
                     parentSelect.append(`<option value="${account.id}" ${selected}>${account.display}</option>`);
                 });
-                
-                parentSelect.prop('disabled', false);
+                parentSelect.prop('disabled', false).trigger('change.select2');
             }
         },
         error: function() {
-            parentSelect.html('<option value="">خطأ في التحميل</option>');
             parentSelect.prop('disabled', false);
-            console.error('فشل في تحميل الحسابات الأب');
         }
     });
 }
@@ -486,13 +434,11 @@ function updateParentAccountsList(accountTypeId) {
 function updateSuggestedCode() {
     var accountTypeId = $('#account_type').val();
     var parentId = $('#parent').val();
-    
-    // إذا لم يتم اختيار نوع حساب أو حساب أب، لا نفعل شيء
+
     if (!accountTypeId && !parentId) {
         return;
     }
-    
-    // استدعاء API للحصول على الكود المقترح
+
     $.ajax({
         url: '{% url "financial:suggest_account_code" %}',
         method: 'GET',
@@ -503,12 +449,8 @@ function updateSuggestedCode() {
         success: function(response) {
             if (response.success && response.suggested_code) {
                 $('#code').val(response.suggested_code);
-                // تحديث النص المساعد
-                $('.help-text strong.text-info').text('كود مقترح متاح: ' + response.suggested_code);
+                $('#suggested-code-hint').html('<i class="fas fa-magic me-1"></i> كود مقترح: ' + response.suggested_code);
             }
-        },
-        error: function() {
-            console.error('فشل في الحصول على الكود المقترح');
         }
     });
 }
@@ -516,17 +458,16 @@ function updateSuggestedCode() {
 function loadAccountTypes() {
     var accountTypeSelect = $('#account_type');
     var currentValue = '{{ account.account_type.id|default:"" }}';
-    
-    // تجميع أنواع الحسابات حسب التصنيف
+
     var categories = {
-        'asset': { name: 'الأصول', types: [] },
-        'liability': { name: 'الخصوم', types: [] },
-        'equity': { name: 'حقوق الملكية', types: [] },
-        'revenue': { name: 'الإيرادات', types: [] },
-        'expense': { name: 'المصروفات', types: [] }
+        'asset': { name: 'الأصول (Assets)', types: [] },
+        'liability': { name: 'الخصوم (Liabilities)', types: [] },
+        'equity': { name: 'حقوق الملكية (Equity)', types: [] },
+        'revenue': { name: 'الإيرادات (Revenue)', types: [] },
+        'expense': { name: 'المصروفات (Expenses)', types: [] }
     };
-    
-    const accountTypesData = JSON.parse(document.getElementById('account-types-json')?.textContent || '[]');
+
+    var accountTypesData = JSON.parse(document.getElementById('account-types-json')?.textContent || '[]');
     accountTypesData.forEach(function (typeData) {
         typeData.selected = (String(typeData.id) === String(currentValue));
         if (categories[typeData.category]) {
@@ -534,22 +475,15 @@ function loadAccountTypes() {
         }
     });
 
-    // بناء القائمة مع optgroups
     for (var catKey in categories) {
         var category = categories[catKey];
         if (category.types.length > 0) {
             var optgroup = $('<optgroup>').attr('label', category.name);
-            
             category.types.forEach(function(type) {
-                var indent = type.level - 1;
-                var prefix = '\u00A0\u00A0\u00A0'.repeat(indent * 2);
-                var separator = indent > 0 ? '└─ ' : '';
-                var displayText = prefix + separator + type.code + ' - ' + type.name;
+                var displayText = type.code + ' - ' + type.name;
                 var selected = type.selected ? 'selected' : '';
-                
                 optgroup.append(`<option value="${type.id}" ${selected}>${displayText}</option>`);
             });
-            
             accountTypeSelect.append(optgroup);
         }
     }
@@ -558,8 +492,8 @@ function loadAccountTypes() {
 function loadParentAccounts() {
     var parentSelect = $('#parent');
     var currentValue = '{{ account.parent.id|default:"" }}';
-    
-    const parentAccountsData = JSON.parse(document.getElementById('parent-accounts-json')?.textContent || '[]');
+
+    var parentAccountsData = JSON.parse(document.getElementById('parent-accounts-json')?.textContent || '[]');
     parentAccountsData.forEach(function (parentAcc) {
         var selected = (String(parentAcc.id) === String(currentValue)) ? 'selected' : '';
         parentSelect.append(`<option value="${parentAcc.id}" ${selected}>${parentAcc.code} - ${parentAcc.name}</option>`);
@@ -567,86 +501,41 @@ function loadParentAccounts() {
 }
 
 function validateForm() {
-    var isValid = true;
-    var errors = [];
-    
-    // التحقق من الحقول المطلوبة
-    if (!$('#code').val().trim()) {
-        errors.push('كود الحساب مطلوب');
-        isValid = false;
-    }
-    
-    if (!$('#name').val().trim()) {
-        errors.push('اسم الحساب مطلوب');
-        isValid = false;
-    }
-    
-    if (!$('#account_type').val()) {
-        errors.push('نوع الحساب مطلوب');
-        isValid = false;
-    }
-    
-    // التحقق من صحة كود الحساب
     var code = $('#code').val().trim();
-    if (code && !/^\d{4,8}$/.test(code)) {
-        errors.push('كود الحساب يجب أن يكون من 4 إلى 8 أرقام');
-        isValid = false;
-    }
-    
-    // تخطي validation الكود للحسابات الموجودة (في وضع التعديل)
-    var isEditMode = $('#code').prop('readonly');
-    
-    if (!isEditMode) {
-        // التحقق من تطابق الكود مع نوع الحساب (فقط للحسابات الجديدة)
-        var accountTypeId = $('#account_type').val();
-        if (code && accountTypeId) {
-            var firstDigit = code.charAt(0);
-            var accountTypeText = $('#account_type option:selected').text().toLowerCase();
-            
-            var validPrefixes = {
-                '1': ['أصول', 'asset'],
-                '2': ['خصوم', 'liability'],
-                '3': ['حقوق', 'equity'],
-                '4': ['إيرادات', 'revenue'],
-                '5': ['مصروفات', 'expense']
-            };
-            
-            if (validPrefixes[firstDigit]) {
-                var isValidPrefix = validPrefixes[firstDigit].some(function(keyword) {
-                    return accountTypeText.includes(keyword);
-                });
-                
-                if (!isValidPrefix) {
-                    errors.push('كود الحساب لا يتطابق مع نوع الحساب المختار');
-                    isValid = false;
-                }
-            }
+    var name = $('#name').val().trim();
+    var accountType = $('#account_type').val();
+
+    if (!code) {
+        if (window.showNotification) {
+            window.showNotification('يرجى إدخال كود الحساب', 'warning', 'حقل مطلوب');
+        } else {
+            alert('يرجى إدخال كود الحساب');
         }
-        
-        // التحقق من تطابق الكود مع الحساب الأب (فقط للحسابات الجديدة)
-        var parentId = $('#parent').val();
-        if (code && parentId) {
-            var parentCode = $('#parent option:selected').text().split(' - ')[0];
-            if (parentCode && !code.startsWith(parentCode)) {
-                errors.push('كود الحساب يجب أن يبدأ بكود الحساب الأب: ' + parentCode);
-                isValid = false;
-            }
+        $('#code').focus();
+        return false;
+    }
+
+    if (!name) {
+        if (window.showNotification) {
+            window.showNotification('يرجى إدخال اسم الحساب', 'warning', 'حقل مطلوب');
+        } else {
+            alert('يرجى إدخال اسم الحساب');
         }
+        $('#name').focus();
+        return false;
     }
-    
-    // التحقق من الرصيد الافتتاحي
-    var openingBalance = parseFloat($('#opening_balance').val()) || 0;
-    if (openingBalance < 0) {
-        errors.push('الرصيد الافتتاحي لا يمكن أن يكون سالباً');
-        isValid = false;
+
+    if (!accountType) {
+        if (window.showNotification) {
+            window.showNotification('يرجى اختيار نوع الحساب المحاسبي', 'warning', 'حقل مطلوب');
+        } else {
+            alert('يرجى اختيار نوع الحساب المحاسبي');
+        }
+        $('#account_type').focus();
+        return false;
     }
-    
-    // عرض الأخطاء
-    if (!isValid) {
-        alert('يرجى تصحيح الأخطاء التالية:\n' + errors.join('\n'));
-    }
-    
-    return isValid;
+
+    return true;
 }
 </script>
 {% endblock %}

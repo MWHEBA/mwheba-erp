@@ -153,11 +153,11 @@ class CustomerService:
         finally:
             GovernanceContext.clear_context()
     
+    @staticmethod
     @transaction.atomic
     def create_financial_account_for_customer(
-        self,
         customer: Customer,
-        user: User
+        user: User = None
     ) -> ChartOfAccounts:
         """
         Create financial account for customer using proper account structure.
@@ -241,28 +241,31 @@ class CustomerService:
                 )
                 logger.info(f"Created main customers account: {customers_parent.code}")
             
-            # Generate account code under 1103
+            ctrl_code = customers_parent.code
+            prefix = ctrl_code[:4]
+            
+            # Generate account code under control account prefix
             last_customer_account = ChartOfAccounts.objects.filter(
-                code__startswith='1103',
+                code__startswith=prefix,
                 parent=customers_parent
-            ).exclude(code__in=['11030', '1103']).order_by('-code').first()
+            ).exclude(code=ctrl_code).order_by('-code').first()
             
             if last_customer_account:
                 try:
-                    last_number = int(last_customer_account.code[4:])
+                    last_number = int(last_customer_account.code[len(prefix):])
                     new_number = last_number + 1
                 except (ValueError, AttributeError, IndexError):
                     new_number = 1
             else:
                 new_number = 1
             
-            # Generate new code (1103 + 4 digits)
-            next_code = f"1103{new_number:04d}"
+            # Generate new code (prefix + 4 digits)
+            next_code = f"{prefix}{new_number:04d}"
             
             # Ensure code uniqueness
             while ChartOfAccounts.objects.filter(code=next_code).exists():
                 new_number += 1
-                next_code = f"1103{new_number:04d}"
+                next_code = f"{prefix}{new_number:04d}"
             
             # Create the account
             account = ChartOfAccounts.objects.create(

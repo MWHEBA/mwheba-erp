@@ -297,20 +297,24 @@ class TaxDeterminationService:
             func_tax = calc_result.functional_tax_amount
             correlation_id = uuid.uuid4()
 
-            # Resolve Account Mapping
-            mapping = TaxAccountMapping.objects.filter(tax_code=tax_code_obj, currency=currency).first()
+            from financial.services.account_role_registry import AccountRoleRegistry
+            default_ar = AccountRoleRegistry.get_account_code("AR_CONTROL_ACCOUNT")
+            default_ap = AccountRoleRegistry.get_account_code("AP_CONTROL_ACCOUNT")
+            output_tax_acc = AccountRoleRegistry.get_account_code("OUTPUT_TAX_ACCOUNT")
+            input_tax_acc = AccountRoleRegistry.get_account_code("INPUT_TAX_ACCOUNT")
+
             if mapping and mapping.debit_account and mapping.credit_account:
                 dr_acc = mapping.debit_account.code
                 cr_acc = mapping.credit_account.code
             elif decision.accounting_position == "OUTPUT":
-                dr_acc = customer.financial_account.code if (customer and hasattr(customer, 'financial_account') and customer.financial_account) else "11010"
-                cr_acc = "22010"
+                dr_acc = customer.financial_account.code if (customer and hasattr(customer, 'financial_account') and customer.financial_account) else default_ar
+                cr_acc = output_tax_acc
             elif decision.accounting_position == "INPUT":
-                dr_acc = "11050"
-                cr_acc = supplier.financial_account.code if (supplier and hasattr(supplier, 'financial_account') and supplier.financial_account) else "20100"
+                dr_acc = input_tax_acc
+                cr_acc = supplier.financial_account.code if (supplier and hasattr(supplier, 'financial_account') and supplier.financial_account) else default_ap
             else:
-                dr_acc = "11050"
-                cr_acc = "22010"
+                dr_acc = input_tax_acc
+                cr_acc = output_tax_acc
 
             journal_entry = None
             if func_tax > Decimal("0.00") and decision.applicable:

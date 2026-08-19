@@ -1747,7 +1747,7 @@ def financial_analytics(request):
         "daily_transactions": analytics["basic_metrics"]["daily_transactions"],
         # المؤشرات المتقدمة
         "collection_rate": analytics["advanced_metrics"]["collection_rate"],
-        "new_parents": analytics["advanced_metrics"]["new_parents"],
+        "new_clients": analytics["advanced_metrics"]["new_clients"],
         "sales_cycle": analytics["advanced_metrics"]["sales_cycle"],
         "due_debt": analytics["advanced_metrics"]["due_debt"],
         "total_receivables": analytics["advanced_metrics"]["total_receivables"],

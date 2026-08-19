@@ -1,89 +1,102 @@
 {% load utils_extras %}
-<!-- صف الحساب في الجدول مع ديناميكية -->
-<tr class="account-row level-{{ level }} {% if account.is_leaf %}leaf-row{% endif %} {% if not account.is_active %}text-muted{% endif %} {% if account.children.exists %}expandable-row{% endif %}" 
-    data-account-id="{{ account.id }}" 
+{# صف الحساب الهرمي فائق السرعة - يعتمد 100% على الذاكرة بدون أي استعلامات DB #}
+{% with item=account|default:node %}
+<tr class="account-row level-{{ level }} {% if item.is_leaf %}leaf-row{% else %}parent-row{% endif %} {% if not item.is_active %}text-muted opacity-75{% endif %} {% if item.children %}expandable-row{% endif %}" 
+    data-account-id="{{ item.id }}" 
+    data-parent-id="{{ item.parent_id|default:'' }}"
     data-level="{{ level }}"
-    {% if account.is_leaf %}data-href="{% url 'financial:account_detail' account.pk %}"{% endif %}
-    id="account-{{ account.id }}"
-    {% if account.children.exists %}onclick="toggleAccountChildren({{ account.id }})" style="cursor: pointer;"{% endif %}>
+    data-code="{{ item.code }}"
+    data-name="{{ item.name }}"
+    {% if item.is_leaf %}data-href="{% url 'financial:account_detail' item.id %}"{% endif %}
+    id="account-{{ item.id }}"
+    {% if item.children %}onclick="toggleAccountChildren('{{ item.id }}')" style="cursor: pointer;"{% endif %}>
     
     <!-- كود الحساب -->
-    <td>{{ account.code }}</td>
+    <td class="text-center font-monospace fw-bold">
+        {{ item.code }}
+    </td>
     
+    <!-- اسم الحساب والتسلسل الهرمي -->
     <td>
         <div class="d-flex align-items-center indent">
             <!-- أيقونة التوسع/الطي -->
-            {% if account.children.exists %}
-                <button type="button" class="btn btn-sm btn-link p-0 me-2 expand-btn" 
-                        title="توسيع/طي">
-                    <i class="fas fa-chevron-left" id="icon-{{ account.id }}"></i>
+            {% if item.children %}
+                <button type="button" class="btn btn-sm btn-link p-0 me-2 expand-btn" title="توسيع/طي">
+                    <i class="fas fa-chevron-left" id="icon-{{ item.id }}"></i>
                 </button>
+                <i class="fas fa-folder text-warning me-2 fs-6"></i>
+                <span class="account-name fw-bold text-dark">{{ item.name }}</span>
+                <span class="badge bg-light text-secondary border ms-2 small" title="عدد الحسابات الفرعية">{{ item.leaf_count }} حساب</span>
             {% else %}
                 <span class="me-4"></span>
-            {% endif %}
-            
-            {% if account.is_leaf %}
-                <i class="fas fa-file text-info me-2"></i>
+                <i class="fas fa-file-alt text-primary me-2"></i>
                 <!-- اسم الحساب كـ رابط للحسابات النهائية -->
-                <a href="{% url 'financial:account_detail' account.pk %}" class="account-name text-decoration-none">{{ account.name }}</a>
-            {% else %}
-                <i class="fas fa-folder text-warning me-2"></i>
-                <!-- اسم الحساب نص فقط للحسابات الأب -->
-                <span class="account-name">{{ account.name }}</span>
+                <a href="{% url 'financial:account_detail' item.id %}" class="account-name text-decoration-none fw-medium">{{ item.name }}</a>
             {% endif %}
             
-            <!-- شارات إضافية -->
-            {% if account.is_cash_account %}
-                <small class="badge bg-success ms-2">نقدي</small>
+            <!-- شارات إضافية للحسابات النقدية والبنكية -->
+            {% if item.is_cash %}
+                <span class="badge bg-success-subtle text-success border border-success-subtle ms-2 px-2 py-0">نقدي</span>
             {% endif %}
-            {% if account.is_bank_account %}
-                <small class="badge bg-info ms-2">بنكي</small>
+            {% if item.is_bank %}
+                <span class="badge bg-info-subtle text-info border border-info-subtle ms-2 px-2 py-0">بنكي</span>
             {% endif %}
         </div>
     </td>
     
-    <!-- نوع الحساب - للحسابات النهائية فقط -->
-    <td>
-        {% if account.is_leaf %}
-            {{ account.account_type.name }}
+    <!-- نوع الحساب -->
+    <td class="text-center">
+        {% if item.is_leaf %}
+            <span class="badge bg-light text-dark border">{{ item.type_name }}</span>
         {% else %}
-            <span class="text-muted">-</span>
+            <span class="text-muted small">مجموعة رئيسية</span>
         {% endif %}
     </td>
     
-    <!-- الرصيد - للحسابات النهائية فقط -->
-    <td class="text-end">
-        {% if account.is_leaf %}
-            {% if account.current_balance %}
-                <span class="{% if account.current_balance > 0 %}text-success{% elif account.current_balance < 0 %}text-danger{% endif %}">
-                    {{ account.current_balance|smart_float }}
-                </span>
-            {% else %}
-                <span class="text-muted">0.00</span>
+    <!-- الرصيد (نهائي أو مجمع للأب) -->
+    <td class="text-end font-monospace">
+        {% if item.is_leaf %}
+            <div class="fw-bold {% if item.balance > 0 %}text-success{% elif item.balance < 0 %}text-danger{% else %}text-muted{% endif %}">
+                {{ item.balance|smart_float }} <small class="text-muted fw-normal">{{ currency_symbol }}</small>
+            </div>
+            {% if item.is_foreign and item.foreign_balance is not None %}
+                <div class="small text-muted font-monospace" title="الرصيد بالعملة الأصلية">
+                    {{ item.foreign_balance|smart_float }} {{ item.currency_symbol }}
+                </div>
             {% endif %}
         {% else %}
-            <span class="text-muted">-</span>
+            <!-- الرصيد التجميعي للأمهات (Roll-up Balance) -->
+            <span class="badge bg-light text-primary border border-primary-subtle fw-bold fs-7 px-2 py-1" title="إجمالي المجموعة التراكمي">
+                {{ item.roll_up_balance|smart_float }} <small class="text-muted fw-normal">{{ currency_symbol }}</small>
+            </span>
         {% endif %}
     </td>
     
     <!-- الحالة -->
     <td class="text-center">
-        {% if account.is_active %}
+        {% if item.is_active %}
             <span class="badge bg-success">نشط</span>
         {% else %}
-            <span class="badge bg-secondary">غير نشط</span>
+            <span class="badge bg-secondary">معطل</span>
         {% endif %}
     </td>
     
     <!-- الإجراءات -->
-    <td onclick="event.stopPropagation();">
+    <td class="text-center" onclick="event.stopPropagation();">
         <div class="btn-group btn-group-sm">
-            <a href="{% url 'financial:account_detail' account.pk %}" 
+            {% if not item.is_leaf %}
+                <a href="{% url 'financial:chart_of_accounts_create' %}?parent={{ item.id }}" 
+                   class="btn btn-outline-success btn-sm" 
+                   title="إضافة حساب فرعي">
+                    <i class="fas fa-plus"></i>
+                </a>
+            {% endif %}
+            <a href="{% url 'financial:account_detail' item.id %}" 
                class="btn btn-outline-primary btn-sm" 
                title="عرض التفاصيل">
                 <i class="fas fa-eye"></i>
             </a>
-            <a href="{% url 'financial:account_edit' account.pk %}" 
+            <a href="{% url 'financial:account_edit' item.id %}" 
                class="btn btn-outline-warning btn-sm" 
                title="تعديل">
                 <i class="fas fa-edit"></i>
@@ -92,19 +105,12 @@
     </td>
 </tr>
 
-<!-- الحسابات الفرعية (مخفية افتراضياً) -->
-{% for child in account.children.all %}
+<!-- الحسابات الفرعية من الذاكرة مباشرة بدون أي DB Query -->
+{% for child in item.children %}
     {% if child.is_active or show_inactive %}
-        {% if hide_zero_balance and child.is_leaf %}
-            {# إخفاء الحسابات النهائية الصفرية فقط #}
-            {% with child_balance=child.get_balance %}
-                {% if child_balance != 0 %}
-                    {% include 'financial/components/enhanced_account_row.html' with account=child level=level|add:"1" %}
-                {% endif %}
-            {% endwith %}
-        {% else %}
-            {# عرض الحسابات الأب والحسابات النهائية غير الصفرية #}
-            {% include 'financial/components/enhanced_account_row.html' with account=child level=level|add:"1" %}
+        {% if not hide_zero_balance or not child.is_leaf or child.balance != 0 %}
+            {% include 'financial/components/enhanced_account_row.html' with account=child level=level|add:1 %}
         {% endif %}
     {% endif %}
 {% endfor %}
+{% endwith %}

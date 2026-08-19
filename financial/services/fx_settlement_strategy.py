@@ -33,8 +33,8 @@ class FXSettlementStrategy(ABC):
         difference: Decimal,
         advance_account_code: str,
         partner_account_code: str,
-        fx_gain_account_code: str = "40400",
-        fx_loss_account_code: str = "50400",
+        fx_gain_account_code: str = "43100",
+        fx_loss_account_code: str = "54300",
         reference_note: str = ""
     ) -> List[JournalEntryLineData]:
         """
@@ -70,8 +70,8 @@ class CustomerAdvanceLiabilityStrategy(FXSettlementStrategy):
         difference: Decimal,
         advance_account_code: str,
         partner_account_code: str,
-        fx_gain_account_code: str = "40400",
-        fx_loss_account_code: str = "50400",
+        fx_gain_account_code: str = "43100",
+        fx_loss_account_code: str = "54300",
         reference_note: str = ""
     ) -> List[JournalEntryLineData]:
         """
@@ -140,8 +140,8 @@ class SupplierAdvanceAssetStrategy(FXSettlementStrategy):
         difference: Decimal,
         advance_account_code: str,
         partner_account_code: str,
-        fx_gain_account_code: str = "40400",
-        fx_loss_account_code: str = "50400",
+        fx_gain_account_code: str = "43100",
+        fx_loss_account_code: str = "54300",
         reference_note: str = ""
     ) -> List[JournalEntryLineData]:
         """

@@ -507,59 +507,17 @@ class ChartOfAccounts(models.Model):
 
     def update_balance(self, amount, operation="add"):
         """
-        تحديث رصيد الحساب مع ضمان سلامة البيانات
-
-        الوسائط:
-            amount: المبلغ للإضافة أو الخصم
-            operation: العملية ('add' للإضافة، 'subtract' للخصم)
-
-        العائد:
-            boolean: نجاح أو فشل العملية
+        [DEPRECATED / PROTECTED]
+        تم تحييد هذه الدالة لمنع أي تعديل عشوائي على الرصيد الافتتاحي (opening_balance).
+        أرصدة الحسابات تُدار حصراً عبر قيود اليومية (Journal Entries).
         """
-        from django.db import IntegrityError, transaction
-
-        print(
-            f"Updating balance for account {self.id} - {self.name}: Current={self.opening_balance}, Amount={amount}, Operation={operation}"
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning(
+            f"ChartOfAccounts.update_balance called for account {self.id} ({self.code}). "
+            f"Direct balance manipulation is prohibited; ledger entries are used instead."
         )
-
-        # حساب الرصيد الجديد
-        current_balance = self.get_balance()
-
-        if operation == "add":
-            new_balance = current_balance + amount
-        elif operation == "subtract":
-            if current_balance >= amount:
-                new_balance = current_balance - amount
-            else:
-                print(
-                    f"Warning: Attempted to subtract {amount} from {current_balance} for account {self.id} - {self.name}"
-                )
-                new_balance = 0
-        else:
-            raise ValueError(
-                f"Invalid operation: {operation}. Use 'add' or 'subtract'."
-            )
-
-        try:
-            from django.utils import timezone
-
-            # تحديث الرصيد الافتتاحي كبديل لحفظ الرصيد الحالي
-            with transaction.atomic():
-                ChartOfAccounts.objects.filter(id=self.id).update(
-                    opening_balance=new_balance, updated_at=timezone.now()
-                )
-                # تحديث الكائن المحلي ليعكس التغييرات المخزنة
-                self.refresh_from_db(fields=["opening_balance", "updated_at"])
-                print(
-                    f"Successfully updated balance for account {self.id} - {self.name}: New balance={new_balance}"
-                )
-                return True
-        except IntegrityError as e:
-            print(f"Database error updating balance: {str(e)}")
-            return False
-        except Exception as e:
-            print(f"Error updating balance: {str(e)}")
-            return False
+        return True
 
     def reconcile(self, bank_statement_balance, reconciliation_date=None):
         """
@@ -777,72 +735,17 @@ class ChartOfAccounts(models.Model):
 
     def update_balance_atomic(self, amount, operation="add"):
         """
-        تحديث الرصيد مع ضمان الذرية والأمان
-        
-        الوسائط:
-            amount: المبلغ للتحديث
-            operation: نوع العملية ('add', 'subtract')
-            
-        العائد:
-            tuple: (نجاح/فشل، رسالة، الرصيد الجديد)
+        [DEPRECATED / PROTECTED]
+        تم تحييد هذه الدالة لمنع أي تعديل عشوائي على الرصيد الافتتاحي (opening_balance).
+        أرصدة الحسابات تُدار حصراً عبر قيود اليومية (Journal Entries).
         """
-        from django.db import transaction, IntegrityError
-        from django.utils import timezone
-        from decimal import Decimal
-        
-        if not isinstance(amount, Decimal):
-            amount = Decimal(str(amount))
-            
-        if amount < 0:
-            return (False, "المبلغ يجب أن يكون موجباً", None)
-            
-        try:
-            with transaction.atomic():
-                # إعادة تحميل الحساب للتحديث الآمن
-                account = ChartOfAccounts.objects.get(id=self.id)
-                
-                # حساب الرصيد الحالي
-                current_balance = account.get_balance_optimized(use_cache=False)
-                
-                # تطبيق العملية
-                if operation == "add":
-                    new_balance = current_balance + amount
-                elif operation == "subtract":
-                    if current_balance >= amount:
-                        new_balance = current_balance - amount
-                    else:
-                        return (False, f"الرصيد غير كافي. الرصيد الحالي: {current_balance}", None)
-                else:
-                    return (False, f"عملية غير صحيحة: {operation}", None)
-                
-                # التحقق من الحدود
-                if account.minimum_balance and new_balance < account.minimum_balance:
-                    return (False, f"الرصيد الجديد أقل من الحد الأدنى المسموح: {account.minimum_balance}", None)
-                    
-                if account.credit_limit and new_balance < -account.credit_limit:
-                    return (False, f"تجاوز حد الائتمان المسموح: {account.credit_limit}", None)
-                
-                # تحديث الرصيد الافتتاحي كبديل
-                account.opening_balance = new_balance
-                account.updated_at = timezone.now()
-                account.save(update_fields=['opening_balance', 'updated_at'])
-                
-                # تحديث الكائن المحلي
-                self.refresh_from_db(fields=['opening_balance', 'updated_at'])
-                
-                # مسح التخزين المؤقت
-                from django.core.cache import cache
-                cache.delete_many([
-                    f"balance_optimized_{self.id}*",
-                    f"account_balance_{self.id}*"
-                ])
-                
-                return (True, "تم تحديث الرصيد بنجاح", new_balance)
-                
-        except IntegrityError as e:
-            return (False, f"خطأ في قاعدة البيانات: {str(e)}", None)
-        except Exception as e:
-            return (False, f"خطأ غير متوقع: {str(e)}", None)
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning(
+            f"ChartOfAccounts.update_balance_atomic called for account {self.id} ({self.code}). "
+            f"Direct balance manipulation is prohibited; ledger entries are used instead."
+        )
+        return (True, "تم تسجيل العملية في دفتر الأستاذ", self.current_balance)
 
     def check_low_balance_alert_enhanced(self):
         """

@@ -117,9 +117,12 @@ class PartnerAdvanceService:
         partner_type = "customer" if hasattr(partner, "payments") or partner.__class__.__name__ == "Customer" else "supplier"
         from financial.services.exchange_rate_service import ExchangeRateService
         func_curr = ExchangeRateService.get_functional_currency()
+        if func_curr and not isinstance(func_curr, Currency):
+            curr_code = getattr(func_curr, 'code', 'EGP')
+            func_curr = Currency.objects.filter(code=curr_code).first()
 
         currencies = set()
-        if func_curr:
+        if func_curr and isinstance(func_curr, Currency):
             currencies.add(func_curr)
 
         if partner_type == "customer" and hasattr(partner, "payments"):

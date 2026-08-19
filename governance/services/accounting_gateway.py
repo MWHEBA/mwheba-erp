@@ -1846,8 +1846,14 @@ def create_stock_movement_entry(
             logger.warning(f"Optional account not found: {primary_code}, will skip this entry")
             return None
     
-    # Get standard account codes
-    inventory_account_code = get_account_code('10400', '10400', 'inventory', required=True)  # المخزون
+    from financial.services.account_role_registry import AccountRoleRegistry
+    
+    # Get standard account codes dynamically via AccountRoleRegistry
+    def_inv = AccountRoleRegistry.get_account_code("INVENTORY_CONTROL_ACCOUNT")
+    def_cogs = AccountRoleRegistry.get_account_code("COGS_EXPENSE_ACCOUNT")
+    def_returns = AccountRoleRegistry.get_account_code("SALES_RETURNS_ACCOUNT")
+    
+    inventory_account_code = get_account_code(def_inv, '10400', 'inventory', required=True)  # المخزون
 
     # محاولة الحصول على حساب المصروفات من التصنيف المالي للفاتورة
     expense_account_code = None
@@ -1863,11 +1869,11 @@ def create_stock_movement_entry(
             logger.warning(f"Could not get expense account from financial category: {str(e)}")
 
     if not expense_account_code:
-        expense_account_code = get_account_code('50100', '50100', 'cogs', required=True)  # تكلفة البضاعة المباعة
+        expense_account_code = get_account_code(def_cogs, '50100', 'cogs', required=True)  # تكلفة البضاعة المباعة
         logger.info(f"Using default expense account: {expense_account_code}")
 
-    other_expenses_code = get_account_code('50300', '50300', 'expense', required=True)  # مصروفات إدارية
-    sales_returns_code = get_account_code('41100', '41100', 'sales_return', required=False)  # مرتجعات نقدية
+    other_expenses_code = get_account_code('52430', '50300', 'expense', required=False) or def_cogs  # مصروفات إدارية
+    sales_returns_code = get_account_code(def_returns, '41100', 'sales_return', required=False)  # مرتجعات نقدية
     
     # محاولة الحصول على حساب المورد من الفاتورة (للمشتريات فقط)
     supplier_account_code = None

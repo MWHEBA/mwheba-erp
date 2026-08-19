@@ -141,7 +141,7 @@ def get_bank_accounts():
 
 def get_next_available_code(account_type_id=None, parent_id=None):
     """
-    الحصول على أول كود متاح بناءً على نوع الحساب والحساب الأب
+    الحصول على أول كود متاح بناءً على الحساب الأب ونوع الحساب بما يوافق الهيكل المحاسبي للنظام
     
     Args:
         account_type_id: معرف نوع الحساب
@@ -151,7 +151,7 @@ def get_next_available_code(account_type_id=None, parent_id=None):
         str: الكود المقترح
     """
     if not ChartOfAccounts:
-        return "10000"
+        return "11000"
     
     existing_codes = set(ChartOfAccounts.objects.values_list("code", flat=True))
     
@@ -159,33 +159,40 @@ def get_next_available_code(account_type_id=None, parent_id=None):
     if parent_id:
         try:
             parent = ChartOfAccounts.objects.get(id=parent_id)
-            parent_code = parent.code
+            p_code = str(parent.code).strip()
             
-            # البحث عن أكواد الأولاد الموجودة
-            children_codes = ChartOfAccounts.objects.filter(
-                parent_id=parent_id
-            ).values_list("code", flat=True)
-            
-            if not children_codes:
-                # أول ولد: نضيف 01 أو 001 حسب طول كود الأب
-                if len(parent_code) <= 5:
-                    return f"{parent_code}01"
-                else:
-                    return f"{parent_code}1"
-            
-            # البحث عن أول كود متاح للأولاد
-            if len(parent_code) <= 5:
-                # نستخدم رقمين
-                for i in range(1, 100):
-                    code = f"{parent_code}{i:02d}"
-                    if code not in existing_codes:
-                        return code
-            else:
-                # نستخدم رقم واحد
+            # 1. إذا كان الأب من 3 أرقام (مثل 111, 112, 113, 121, 122, 211, 312)
+            if len(p_code) == 3:
                 for i in range(1, 10):
-                    code = f"{parent_code}{i}"
-                    if code not in existing_codes:
-                        return code
+                    candidate = f"{p_code}{i}0"
+                    if candidate not in existing_codes:
+                        return candidate
+                for i in range(1, 100):
+                    candidate = f"{p_code}{i:02d}"
+                    if candidate not in existing_codes:
+                        return candidate
+
+            # 2. إذا كان الأب من رقمين (مثل 11, 12, 21, 22, 31, 41, 42, 43, 51, 52, 54)
+            elif len(p_code) == 2:
+                for i in range(1, 100):
+                    candidate = f"{p_code}{i:02d}0"
+                    if candidate not in existing_codes:
+                        return candidate
+
+            # 3. إذا كان الأب من 5 أرقام أو أكثر (حساب رقابي فرعي مثل العملاء 11210، الموردين 21110)
+            elif len(p_code) >= 5:
+                prefix = p_code[:4]
+                for i in range(1, 10000):
+                    candidate = f"{prefix}{i:04d}"
+                    if candidate not in existing_codes:
+                        return candidate
+
+            # 4. أي طول آخر
+            else:
+                for i in range(1, 100):
+                    candidate = f"{p_code}{i:02d}"
+                    if candidate not in existing_codes:
+                        return candidate
         except ChartOfAccounts.DoesNotExist:
             pass
     
@@ -193,42 +200,23 @@ def get_next_available_code(account_type_id=None, parent_id=None):
     if account_type_id and AccountType:
         try:
             account_type = AccountType.objects.get(id=account_type_id)
-            category = account_type.category
-            
-            # تحديد النطاق بناءً على التصنيف
-            category_ranges = {
-                "asset": (10000, 19999),
-                "liability": (20000, 29999),
-                "equity": (30000, 39999),
-                "revenue": (40000, 49999),
-                "expense": (50000, 59999),
+            prefix_map = {
+                "asset": "11",
+                "liability": "21",
+                "equity": "31",
+                "revenue": "41",
+                "expense": "51",
             }
-            
-            if category in category_ranges:
-                start, end = category_ranges[category]
-                
-                # البحث عن أول كود متاح في النطاق
-                for code in range(start, end + 1):
-                    if str(code) not in existing_codes:
-                        return str(code)
+            pref = prefix_map.get(account_type.category, "11")
+            for i in range(10, 100):
+                cand = f"{pref}{i}0"
+                if cand not in existing_codes:
+                    return cand
         except AccountType.DoesNotExist:
             pass
     
-    # البحث العام عن كود متاح (fallback)
-    ranges = [
-        (10000, 19999),  # الأصول
-        (20000, 29999),  # الخصوم
-        (30000, 39999),  # حقوق الملكية
-        (40000, 49999),  # الإيرادات
-        (50000, 59999),  # المصروفات
-    ]
-    
-    for start, end in ranges:
-        for code in range(start, end + 1):
-            if str(code) not in existing_codes:
-                return str(code)
-    
-    return "99999"  # كود احتياطي
+    # الكود الافتراضي
+    return "11450"
 
 
 @login_required
@@ -708,216 +696,227 @@ def cash_and_bank_accounts_list(request):
 
 @login_required
 def chart_of_accounts_list(request):
-    """عرض قائمة دليل الحسابات بشكل محسّن مع شجرة هرمية تفاعلية"""
-    from django.db.models import Sum, Count, Q, Prefetch
+    """عرض قائمة دليل الحسابات بشكل فائق السرعة مع شجرة هرمية تفاعلية وتجميع أرصدة الأمهات في الذاكرة"""
+    from django.db.models import Sum, Count, Q
     from decimal import Decimal
+    from financial.services.exchange_rate_service import ExchangeRateService
+
+    # 1. الحصول على العملة الوظيفية للنظام ديناميكياً
+    func_currency = ExchangeRateService.get_functional_currency()
+    functional_currency_code = func_currency.code if func_currency else "EGP"
+    functional_currency_symbol = (func_currency.symbol or func_currency.code) if func_currency else "ج.م"
 
     if ChartOfAccounts is None:
-        accounts = []
-        root_accounts = []
-        stats = {}
-        account_types = []
-        tree_data = []
+        context = {
+            "accounts": [],
+            "root_accounts": [],
+            "root_nodes": [],
+            "tree_data": [],
+            "stats": {},
+            "currency_symbol": functional_currency_symbol,
+            "currency_code": functional_currency_code,
+            "page_title": "دليل الحسابات",
+        }
+        return render(request, "financial/accounts/chart_of_accounts_list.html", context)
+
+    search_query = request.GET.get("search", "").strip()
+    if search_query == "None":
         search_query = ""
-        type_filter = ""
-        status_filter = ""
-        show_inactive = False
-        hide_zero_balance = False
-    else:
-        search_query = request.GET.get("search", "").strip()
-        if search_query == "None":
-            search_query = ""
-        type_filter = request.GET.get("type")
-        show_inactive = request.GET.get("show_inactive", False)
-        status_filter = request.GET.get("status")
-        hide_zero_balance = request.GET.get("hide_zero")
+    type_filter = request.GET.get("type")
+    show_inactive = request.GET.get("show_inactive", False)
+    status_filter = request.GET.get("status")
+    hide_zero_balance = request.GET.get("hide_zero")
 
-        # ============================================================
-        # STEP 1: جلب كل الأرصدة في query واحدة (بدل N queries)
-        # ============================================================
-        balances_qs = (
-            JournalEntryLine.objects
-            .filter(journal_entry__status="posted")
-            .values("account_id")
-            .annotate(
-                total_debit=Sum("debit"),
-                total_credit=Sum("credit"),
-            )
+    # ============================================================
+    # STEP 1: استعلام موحد لجلب كل أرصدة القيود في استعلام واحد
+    # ============================================================
+    balances_qs = (
+        JournalEntryLine.objects
+        .filter(journal_entry__status="posted")
+        .values("account_id")
+        .annotate(
+            total_debit=Sum("debit"),
+            total_credit=Sum("credit"),
         )
-        # dict: {account_id: {total_debit, total_credit}}
-        balances_map = {
-            row["account_id"]: (
-                row["total_debit"] or Decimal("0"),
-                row["total_credit"] or Decimal("0"),
-            )
-            for row in balances_qs
-        }
-
-        # ============================================================
-        # STEP 2: جلب كل الحسابات في query واحدة
-        # ============================================================
-        accounts_query = (
-            ChartOfAccounts.objects
-            .select_related("account_type", "parent")
-            .filter(is_active=True)
-            .order_by("code")
+    )
+    balances_map = {
+        row["account_id"]: (
+            row["total_debit"] or Decimal("0"),
+            row["total_credit"] or Decimal("0"),
         )
+        for row in balances_qs
+    }
 
-        if search_query:
-            search_terms = search_query.split()
-            search_q = Q()
-            for term in search_terms:
-                search_q |= (
-                    Q(name__icontains=term)
-                    | Q(code__icontains=term)
-                    | Q(name_en__icontains=term)
-                    | Q(description__icontains=term)
-                )
-            accounts_query = accounts_query.filter(search_q)
+    # ============================================================
+    # STEP 2: استعلام موحد لجلب كل الحسابات مع الأنواع والعملات
+    # ============================================================
+    accounts_query = (
+        ChartOfAccounts.objects
+        .select_related("account_type", "parent", "currency")
+        .order_by("code")
+    )
+    if not show_inactive:
+        accounts_query = accounts_query.filter(is_active=True)
 
-        all_accounts_list = list(accounts_query)
+    all_accounts_list = list(accounts_query)
 
-        # ============================================================
-        # STEP 3: حساب الرصيد من الـ map (بدون أي query إضافية)
-        # ============================================================
-        def calc_balance_from_map(account):
-            debit, credit = balances_map.get(account.id, (Decimal("0"), Decimal("0")))
-            opening = account.opening_balance or Decimal("0")
-            nature = account.account_type.nature if account.account_type else "debit"
-            if nature == "debit":
-                return opening + debit - credit
-            else:
-                return opening + credit - debit
+    # ============================================================
+    # STEP 3: بناء عقد الشجرة في الذاكرة (In-Memory Node Assembly)
+    # ============================================================
+    nodes_by_id = {}
+    for acc in all_accounts_list:
+        debit, credit = balances_map.get(acc.id, (Decimal("0"), Decimal("0")))
+        opening = acc.opening_balance or Decimal("0")
+        nature = acc.account_type.nature if acc.account_type else "debit"
 
-        # فلتر الحسابات الصفرية
-        if hide_zero_balance:
-            excluded_ids = {
-                acc.id for acc in all_accounts_list
-                if acc.is_leaf and calc_balance_from_map(acc) == 0
-            }
-            all_accounts_list = [
-                acc for acc in all_accounts_list
-                if not (acc.is_leaf and acc.id in excluded_ids)
-            ]
-
-        # ============================================================
-        # STEP 4: بناء الشجرة من الـ list (بدون أي query)
-        # ============================================================
-        # بناء dict سريع: {id: account}
-        accounts_by_id = {acc.id: acc for acc in all_accounts_list}
-
-        def build_tree_data(account, level=0):
-            balance = calc_balance_from_map(account)
-            children_data = []
-            for child in sorted(
-                [a for a in all_accounts_list if a.parent_id == account.id],
-                key=lambda x: x.code
-            ):
-                children_data.append(build_tree_data(child, level + 1))
-
-            return {
-                "id": account.id,
-                "code": account.code,
-                "name": account.name,
-                "account_type": account.account_type.name if account.account_type else "",
-                "category": account.account_type.category if account.account_type else "",
-                "nature": account.account_type.nature if account.account_type else "debit",
-                "balance": float(balance),
-                "balance_formatted": f"{balance:,.2f}",
-                "is_leaf": account.is_leaf,
-                "is_active": account.is_active,
-                "is_cash": account.is_cash_account,
-                "is_bank": account.is_bank_account,
-                "level": level,
-                "has_children": len(children_data) > 0,
-                "children": children_data,
-                "url_detail": f"/financial/accounts/{account.id}/",
-                "url_edit": f"/financial/accounts/{account.id}/edit/",
-            }
-
-        # الحسابات الجذرية
-        if type_filter == "parents":
-            parents_main_account = next(
-                (a for a in all_accounts_list if a.code == "10300"), None
-            )
-            root_accounts = [parents_main_account] if parents_main_account else []
+        if nature == "debit":
+            balance = opening + debit - credit
         else:
-            root_accounts = [a for a in all_accounts_list if a.parent_id is None]
+            balance = opening + credit - debit
 
-        tree_data = [build_tree_data(acc) for acc in root_accounts]
+        # العملة الأجنبية
+        acc_currency = acc.currency
+        is_foreign = bool(acc_currency and not getattr(acc_currency, "is_functional", False) and acc_currency.code != functional_currency_code)
+        acc_curr_symbol = (acc_currency.symbol or acc_currency.code) if acc_currency else functional_currency_symbol
+        acc_curr_code = acc_currency.code if acc_currency else functional_currency_code
 
-        # ============================================================
-        # STEP 5: الإحصائيات من الـ map (بدون queries إضافية)
-        # ============================================================
-        leaf_accounts = [a for a in all_accounts_list if a.is_leaf]
-
-        def category_balance(category):
-            return sum(
-                calc_balance_from_map(a)
-                for a in leaf_accounts
-                if a.account_type and a.account_type.category == category
-            )
-
-        assets_balance     = category_balance("asset")
-        liabilities_balance = category_balance("liability")
-        equity_balance     = category_balance("equity")
-        revenue_balance    = category_balance("revenue")
-        expense_balance    = category_balance("expense")
-
-        cash_balance = sum(
-            calc_balance_from_map(a)
-            for a in leaf_accounts
-            if a.is_cash_account or a.is_bank_account
-        )
-
-        # إحصائيات عامة (count queries - سريعة جداً)
-        total_count    = ChartOfAccounts.objects.count()
-        active_count   = ChartOfAccounts.objects.filter(is_active=True).count()
-        inactive_count = total_count - active_count
-        leaf_count     = ChartOfAccounts.objects.filter(is_leaf=True).count()
-        parent_count   = total_count - leaf_count
-        cash_count     = ChartOfAccounts.objects.filter(is_cash_account=True).count()
-        bank_count     = ChartOfAccounts.objects.filter(is_bank_account=True).count()
-
-        # إحصائيات حسب النوع
-        account_types = AccountType.objects.filter(is_active=True).order_by("code")
-        type_stats = []
-        for acc_type in AccountType.objects.filter(is_active=True).order_by("category", "code"):
-            count = sum(1 for a in leaf_accounts if a.account_type_id == acc_type.id)
-            if count > 0:
-                type_stats.append({"type": acc_type, "count": count})
-
-        stats = {
-            "total": total_count,
-            "active": active_count,
-            "inactive": inactive_count,
-            "leaf": leaf_count,
-            "parent": parent_count,
-            "cash": cash_count,
-            "bank": bank_count,
-            "assets_balance": assets_balance,
-            "liabilities_balance": liabilities_balance,
-            "equity_balance": equity_balance,
-            "revenue_balance": revenue_balance,
-            "expense_balance": expense_balance,
-            "net_assets": assets_balance - liabilities_balance,
-            "cash_balance": cash_balance,
-            "by_type": type_stats,
+        nodes_by_id[acc.id] = {
+            "id": acc.id,
+            "pk": acc.id,
+            "code": acc.code,
+            "name": acc.name,
+            "name_en": acc.name_en or "",
+            "account": acc,  # كائن الموديل الأصلي للتوافق الكامل
+            "account_type": acc.account_type,
+            "type_name": acc.account_type.name if acc.account_type else "",
+            "category": acc.account_type.category if acc.account_type else "",
+            "nature": nature,
+            "is_leaf": acc.is_leaf,
+            "is_active": acc.is_active,
+            "is_cash": acc.is_cash_account,
+            "is_bank": acc.is_bank_account,
+            "is_foreign": is_foreign,
+            "currency_symbol": acc_curr_symbol,
+            "currency_code": acc_curr_code,
+            "opening_balance": opening,
+            "foreign_balance": acc.opening_balance_foreign if is_foreign else None,
+            "balance": balance,
+            "roll_up_balance": balance,
+            "debit_total": debit,
+            "credit_total": credit,
+            "children": [],
+            "parent_id": acc.parent_id,
+            "leaf_count": 1 if acc.is_leaf else 0,
+            "url_detail": reverse("financial:account_detail", kwargs={"pk": acc.id}),
+            "url_edit": reverse("financial:account_edit", kwargs={"pk": acc.id}),
+            "url_statement": f"/financial/reports/account-statement/?account={acc.id}",
         }
 
-        accounts = leaf_accounts
+    # ============================================================
+    # STEP 4: تجميع الشجرة الهرمية وتجميع أرصدة الأمهات (Roll-up Engine)
+    # ============================================================
+    root_nodes = []
+    for acc in all_accounts_list:
+        node = nodes_by_id[acc.id]
+        if acc.parent_id and acc.parent_id in nodes_by_id:
+            nodes_by_id[acc.parent_id]["children"].append(node)
+        else:
+            root_nodes.append(node)
+
+    # دالة التجميع الصاعد (Bottom-Up Recursive Roll-up)
+    def compute_rollups(node):
+        if node["is_leaf"]:
+            node["roll_up_balance"] = node["balance"]
+            node["leaf_count"] = 1
+            return node["balance"], 1
+
+        total_bal = Decimal("0.00")
+        total_leafs = 0
+        for child in node["children"]:
+            c_bal, c_leafs = compute_rollups(child)
+            total_bal += c_bal
+            total_leafs += c_leafs
+
+        node["roll_up_balance"] = total_bal
+        node["leaf_count"] = total_leafs
+        return total_bal, total_leafs
+
+    for root in root_nodes:
+        compute_rollups(root)
+
+    # ============================================================
+    # STEP 5: الإحصائيات الشاملة من الذاكرة (0 Queries)
+    # ============================================================
+    leaf_nodes = [n for n in nodes_by_id.values() if n["is_leaf"]]
+
+    def category_sum(category):
+        return sum(
+            n["balance"] for n in leaf_nodes
+            if n["category"] == category
+        )
+
+    assets_balance      = category_sum("asset")
+    liabilities_balance = category_sum("liability")
+    equity_balance      = category_sum("equity")
+    revenue_balance     = category_sum("revenue")
+    expense_balance     = category_sum("expense")
+    cash_balance        = sum(n["balance"] for n in leaf_nodes if n["is_cash"] or n["is_bank"])
+
+    total_count    = len(all_accounts_list)
+    active_count   = sum(1 for n in nodes_by_id.values() if n["is_active"])
+    inactive_count = total_count - active_count
+    leaf_count     = len(leaf_nodes)
+    parent_count   = total_count - leaf_count
+    cash_count     = sum(1 for n in leaf_nodes if n["is_cash"])
+    bank_count     = sum(1 for n in leaf_nodes if n["is_bank"])
+
+    # إحصائيات الأنواع
+    account_types = AccountType.objects.filter(is_active=True).order_by("category", "code")
+    type_stats = []
+    for acc_type in account_types:
+        count = sum(1 for n in leaf_nodes if n["account"].account_type_id == acc_type.id)
+        if count > 0:
+            type_stats.append({"type": acc_type, "count": count})
+
+    stats = {
+        "total": total_count,
+        "active": active_count,
+        "inactive": inactive_count,
+        "leaf": leaf_count,
+        "parent": parent_count,
+        "cash": cash_count,
+        "bank": bank_count,
+        "assets_balance": assets_balance,
+        "liabilities_balance": liabilities_balance,
+        "equity_balance": equity_balance,
+        "revenue_balance": revenue_balance,
+        "expense_balance": expense_balance,
+        "net_assets": assets_balance - liabilities_balance,
+        "net_profit": revenue_balance - expense_balance,
+        "cash_balance": cash_balance,
+        "by_type": type_stats,
+    }
+
+    # فلتر مخصص بالنوع لو طلب
+    if type_filter == "parents":
+        root_accounts_display = [n for n in root_nodes if n["code"] == "10300" or any(c["code"].startswith("103") for c in n["children"])]
+    else:
+        root_accounts_display = root_nodes
 
     context = {
-        "accounts": accounts if "accounts" in locals() else [],
-        "root_accounts": root_accounts,
-        "account_types": account_types if "account_types" in locals() else [],
-        "tree_data": tree_data if "tree_data" in locals() else [],
-        "stats": stats if "stats" in locals() else {},
+        "accounts": [n["account"] for n in leaf_nodes],
+        "root_accounts": root_accounts_display,
+        "root_nodes": root_accounts_display,
+        "nodes_by_id": nodes_by_id,
+        "account_types": account_types,
+        "stats": stats,
         "search_query": search_query,
-        "selected_type": type_filter,  # تغيير الاسم ليتطابق مع القالب
+        "selected_type": type_filter,
         "status_filter": status_filter,
         "show_inactive": show_inactive,
         "hide_zero_balance": hide_zero_balance,
+        "currency_symbol": functional_currency_symbol,
+        "currency_code": functional_currency_code,
         "view_mode": "tree",
         "page_title": "دليل الحسابات",
         "page_subtitle": "إدارة دليل الحسابات المحاسبي الشامل",
@@ -1063,15 +1062,24 @@ def chart_tree_api(request):
 @login_required
 def chart_of_accounts_create(request):
     """إنشاء حساب جديد في دليل الحسابات"""
+    from financial.models.currency import Currency
+
+    currencies = list(Currency.objects.filter(is_active=True).order_by("code"))
+    account_types = list(AccountType.objects.filter(is_active=True).order_by("category", "level", "code")) if AccountType else []
+    parent_accounts = list(ChartOfAccounts.objects.filter(is_active=True).order_by("code")) if ChartOfAccounts else []
+
     if request.method == "POST":
         try:
             # التحقق من توفر الكود
             code = request.POST.get("code", "").strip()
+            if not code:
+                messages.error(request, "كود الحساب مطلوب")
+                raise ValueError("كود الحساب مطلوب")
+
             if ChartOfAccounts and ChartOfAccounts.objects.filter(code=code).exists():
                 messages.error(
                     request, f"كود الحساب {code} موجود مسبقاً. يرجى استخدام كود آخر."
                 )
-                # اقتراح كود بديل
                 account_type_id = request.POST.get("account_type")
                 parent_id = request.POST.get("parent")
                 suggested_code = get_next_available_code(
@@ -1080,16 +1088,15 @@ def chart_of_accounts_create(request):
                 )
                 messages.info(request, f"كود مقترح متاح: {suggested_code}")
 
-                # إعادة تحميل الصفحة مع البيانات
                 context = {
-                    "account_types": AccountType.objects.all() if AccountType else [],
-                    "parent_accounts": ChartOfAccounts.objects.filter(is_active=True)
-                    if ChartOfAccounts
-                    else [],
+                    "account_types": account_types,
+                    "parent_accounts": parent_accounts,
+                    "currencies": currencies,
                     "suggested_code": suggested_code,
                     "form_data": request.POST,
-                    "page_title": "إنشاء حساب جديد",
-                    "page_icon": "fas fa-plus",
+                    "page_title": "إضافة حساب جديد",
+                    "page_subtitle": "إنشاء حساب جديد في دليل الحسابات",
+                    "page_icon": "fas fa-plus-circle",
                     "header_buttons": [
                         {
                             "url": reverse("financial:chart_of_accounts_list"),
@@ -1109,7 +1116,7 @@ def chart_of_accounts_create(request):
                             "url": reverse("financial:chart_of_accounts_list"),
                             "icon": "fas fa-sitemap",
                         },
-                        {"title": "إنشاء حساب جديد", "active": True},
+                        {"title": "إضافة حساب جديد", "active": True},
                     ],
                 }
                 return render(
@@ -1173,6 +1180,18 @@ def chart_of_accounts_create(request):
             account.account_type = account_type
             account.parent = parent
 
+            # حساب المستوى
+            if parent:
+                account.level = parent.level + 1
+            elif len(code) == 1:
+                account.level = 1
+            elif len(code) == 2:
+                account.level = 2
+            elif len(code) <= 4:
+                account.level = 3
+            else:
+                account.level = 4
+
             # تحديث الرصيد الافتتاحي
             opening_balance = request.POST.get("opening_balance", "0")
             try:
@@ -1186,10 +1205,12 @@ def chart_of_accounts_create(request):
             opening_balance_date = request.POST.get("opening_balance_date")
             if opening_balance_date:
                 from datetime import datetime
-
-                account.opening_balance_date = datetime.strptime(
-                    opening_balance_date, "%Y-%m-%d"
-                ).date()
+                try:
+                    account.opening_balance_date = datetime.strptime(
+                        opening_balance_date, "%Y-%m-%d"
+                    ).date()
+                except ValueError:
+                    pass
 
             # تحديث الخصائص
             account.is_leaf = "is_leaf" in request.POST
@@ -1199,13 +1220,20 @@ def chart_of_accounts_create(request):
             account.is_control_account = "is_control_account" in request.POST
             account.is_active = "is_active" in request.POST
 
+            # العملة
             currency_id = request.POST.get("currency") or request.POST.get("currency_id")
             if currency_id:
-                from financial.models.currency import Currency
                 try:
                     account.currency = Currency.objects.get(pk=currency_id)
                 except Exception:
                     pass
+
+            # المعلومات البنكية
+            if account.is_bank_account:
+                account.bank_name = request.POST.get("bank_name", "").strip()
+                account.account_number = request.POST.get("account_number", "").strip()
+                account.iban = request.POST.get("iban", "").strip()
+                account.swift_code = request.POST.get("swift_code", "").strip()
 
             # تحديث المعلومات الإضافية
             account.description = request.POST.get("description", "").strip()
@@ -1217,29 +1245,27 @@ def chart_of_accounts_create(request):
             # حفظ الحساب الجديد
             account.save()
 
-            messages.success(request, f'تم إنشاء الحساب "{account.name}" بنجاح.')
+            messages.success(request, f'تم إنشاء الحساب "{account.code} - {account.name}" بنجاح.')
             return redirect("financial:account_detail", pk=account.pk)
 
         except AccountType.DoesNotExist:
             messages.error(request, "نوع الحساب المحدد غير موجود")
         except ChartOfAccounts.DoesNotExist:
             messages.error(request, "الحساب الأب المحدد غير موجود")
-        except ValueError as e:
-            # الرسالة تم عرضها بالفعل
+        except ValueError:
             pass
         except Exception as e:
             messages.error(request, f"حدث خطأ أثناء إنشاء الحساب: {str(e)}")
         
         # في حالة الخطأ، إعادة تحميل الصفحة مع البيانات
-        account_types = AccountType.objects.filter(is_active=True).order_by("category", "level", "code") if AccountType else []
-        parent_accounts = ChartOfAccounts.objects.filter(is_active=True).order_by("code") if ChartOfAccounts else []
-        
         context = {
             "account_types": account_types,
             "parent_accounts": parent_accounts,
+            "currencies": currencies,
             "form_data": request.POST,
-            "page_title": "إنشاء حساب جديد",
-            "page_icon": "fas fa-plus",
+            "page_title": "إضافة حساب جديد",
+            "page_subtitle": "إنشاء حساب جديد في دليل الحسابات",
+            "page_icon": "fas fa-plus-circle",
             "header_buttons": [
                 {
                     "url": reverse("financial:chart_of_accounts_list"),
@@ -1259,26 +1285,10 @@ def chart_of_accounts_create(request):
                     "url": reverse("financial:chart_of_accounts_list"),
                     "icon": "fas fa-sitemap",
                 },
-                {"title": "إنشاء حساب جديد", "active": True},
+                {"title": "إضافة حساب جديد", "active": True},
             ],
         }
         return render(request, "financial/accounts/chart_of_accounts_form.html", context)
-
-    # تحميل أنواع الحسابات للنموذج مرتبة حسب التصنيف والمستوى
-    account_types = []
-    if AccountType:
-        account_types = AccountType.objects.filter(is_active=True).order_by("category", "level", "code")
-
-    # تحميل الحسابات الأب المحتملة
-    parent_accounts = []
-    if ChartOfAccounts:
-        parent_accounts = ChartOfAccounts.objects.filter(is_active=True).order_by(
-            "code"
-        )
-
-    # تحميل العملات
-    from financial.models.currency import Currency
-    currencies = list(Currency.objects.filter(is_active=True).order_by("code"))
 
     # اقتراح كود متاح
     suggested_code = get_next_available_code()
@@ -1305,7 +1315,6 @@ def chart_of_accounts_create(request):
                 "url": reverse("core:dashboard"),
                 "icon": "fas fa-home",
             },
-            {"title": "النظام المحاسبي", "url": "#", "icon": "fas fa-calculator"},
             {
                 "title": "دليل الحسابات",
                 "url": reverse("financial:chart_of_accounts_list"),
@@ -1625,20 +1634,20 @@ def account_types_list(request):
         "inactive_types": inactive_types,
         "category_stats": category_stats,
         "level_stats": level_stats,
-        "page_title": "أنواع الحسابات",
-        "page_subtitle": "إدارة أنواع الحسابات المحاسبية وتصنيفاتها",
+        "page_title": "أنواع الحسابات (معايير النظام)",
+        "page_subtitle": "عرض معايير وتصنيفات أنواع الحسابات المحاسبية (للقراءة فقط)",
         "page_icon": "fas fa-layer-group",
         "header_buttons": [
             {
-                "url": reverse("financial:account_types_create"),
-                "icon": "fa-plus",
-                "text": "إضافة نوع جديد",
+                "url": reverse("financial:chart_of_accounts_list"),
+                "icon": "fa-sitemap",
+                "text": "دليل الحسابات",
                 "class": "btn-primary",
             }
         ],
         "breadcrumb_items": [
             {"title": "الرئيسية", "url": reverse("core:dashboard"), "icon": "fas fa-home"},
-            {"title": "المالية", "url": reverse("financial:chart_of_accounts_list"), "icon": "fas fa-chart-line"},
+            {"title": "الإدارة المالية", "url": reverse("financial:chart_of_accounts_list"), "icon": "fas fa-calculator"},
             {"title": "أنواع الحسابات", "active": True},
         ],
     }
@@ -1647,7 +1656,7 @@ def account_types_list(request):
 
 @login_required
 def account_types_detail(request, pk):
-    """عرض تفاصيل نوع حساب"""
+    """عرض تفاصيل نوع حساب (للقراءة فقط)"""
     account_type = get_object_or_404(AccountType, pk=pk)
     
     # جلب الحسابات المرتبطة بهذا النوع
@@ -1672,7 +1681,7 @@ def account_types_detail(request, pk):
         "accounts_count": accounts_count,
         "children_count": children_count,
         "page_title": f"تفاصيل نوع الحساب: {account_type.name}",
-        "page_subtitle": f"عرض تفاصيل وإحصائيات نوع الحساب ({account_type.code})",
+        "page_subtitle": f"عرض بيانات وتصنيف نوع الحساب ({account_type.code})",
         "page_icon": "fas fa-layer-group",
         "breadcrumb_items": [
             {
@@ -1680,7 +1689,7 @@ def account_types_detail(request, pk):
                 "url": reverse("core:dashboard"),
                 "icon": "fas fa-home",
             },
-            {"title": "الإدارة المالية", "url": reverse("financial:chart_of_accounts_list"), "icon": "fas fa-money-bill-wave"},
+            {"title": "الإدارة المالية", "url": reverse("financial:chart_of_accounts_list"), "icon": "fas fa-calculator"},
             {
                 "title": "أنواع الحسابات",
                 "url": reverse("financial:account_types_list"),
@@ -1692,13 +1701,13 @@ def account_types_detail(request, pk):
             {
                 "url": reverse("financial:account_types_list"),
                 "icon": "fa-arrow-left",
-                "text": "العودة للقائمة",
+                "text": "العودة لأنواع الحسابات",
                 "class": "btn-secondary",
             },
             {
-                "url": reverse("financial:account_types_edit", kwargs={"pk": account_type.pk}),
-                "icon": "fa-edit",
-                "text": "تعديل",
+                "url": reverse("financial:chart_of_accounts_list"),
+                "icon": "fa-sitemap",
+                "text": "دليل الحسابات",
                 "class": "btn-primary",
             },
         ],
@@ -1708,168 +1717,23 @@ def account_types_detail(request, pk):
 
 @login_required
 def account_types_create(request):
-    """إنشاء نوع حساب جديد"""
-    if request.method == "POST":
-        try:
-            # إنشاء نوع حساب جديد
-            account_type = AccountType()
-
-            # تحديث البيانات الأساسية
-            account_type.code = request.POST.get("code", "").strip().upper()
-            account_type.name = request.POST.get("name", "").strip()
-            account_type.category = request.POST.get("category", "").strip()
-            account_type.nature = request.POST.get("nature", "").strip()
-
-            # تحديث النوع الأب
-            parent_id = request.POST.get("parent")
-            if parent_id:
-                account_type.parent = AccountType.objects.get(id=parent_id)
-                account_type.level = account_type.parent.level + 1
-            else:
-                account_type.level = 1
-
-            # تحديث الحالة
-            account_type.is_active = "is_active" in request.POST
-
-            # تعيين المستخدم الحالي
-            account_type.created_by = request.user
-
-            # حفظ نوع الحساب الجديد
-            account_type.save()
-
-            messages.success(
-                request, f'تم إنشاء نوع الحساب "{account_type.name}" بنجاح.'
-            )
-            return redirect("financial:account_types_list")
-
-        except Exception as e:
-            messages.error(request, f"حدث خطأ أثناء إنشاء نوع الحساب: {str(e)}")
-
-    # تحميل الأنواع الأب المحتملة
-    parent_types = []
-    if AccountType:
-        parent_types = AccountType.objects.filter(is_active=True).order_by("code")
-
-    context = {
-        "parent_types": parent_types,
-        "page_title": "إضافة نوع حساب جديد",
-        "page_subtitle": "إدارة أنواع الحسابات المحاسبية",
-        "page_icon": "fas fa-plus-circle",
-        "header_buttons": [
-            {
-                "url": reverse("financial:account_types_list"),
-                "icon": "fa-arrow-left",
-                "text": "العودة للقائمة",
-                "class": "btn-secondary",
-            }
-        ],
-        "breadcrumb_items": [
-            {"title": "الرئيسية", "url": reverse("core:dashboard"), "icon": "fas fa-home"},
-            {"title": "المالية", "url": "#", "icon": "fas fa-coins"},
-            {"title": "أنواع الحسابات", "url": reverse("financial:account_types_list"), "icon": "fas fa-layer-group"},
-            {"title": "إضافة نوع جديد", "active": True},
-        ],
-    }
-    return render(request, "financial/accounts/account_types_form.html", context)
+    """أنواع الحسابات هي معايير نظامية للقراءة فقط"""
+    messages.info(request, "أنواع الحسابات هي معايير وتصنيفات نظامية أساسية للقراءة فقط.")
+    return redirect("financial:account_types_list")
 
 
 @login_required
 def account_types_edit(request, pk):
-    """تعديل نوع حساب"""
-    account_type = get_object_or_404(AccountType, pk=pk)
-
-    if request.method == "POST":
-        try:
-            # تحديث البيانات الأساسية
-            account_type.code = request.POST.get("code", "").strip().upper()
-            account_type.name = request.POST.get("name", "").strip()
-            account_type.category = request.POST.get("category", "").strip()
-            account_type.nature = request.POST.get("nature", "").strip()
-
-            # تحديث النوع الأب
-            parent_id = request.POST.get("parent")
-            if parent_id:
-                parent = AccountType.objects.get(id=parent_id)
-                # التأكد من عدم إنشاء حلقة مفرغة
-                # التحقق البسيط: الأب لا يمكن أن يكون النوع نفسه أو أحد أطفاله
-                if parent != account_type:
-                    # التحقق من أن الأب ليس طفل للنوع الحالي
-                    is_valid = True
-                    temp_parent = parent
-                    while temp_parent:
-                        if temp_parent == account_type:
-                            is_valid = False
-                            break
-                        temp_parent = temp_parent.parent
-
-                    if is_valid:
-                        account_type.parent = parent
-                        account_type.level = parent.level + 1
-                    else:
-                        messages.warning(
-                            request, "لا يمكن جعل النوع أباً لنفسه أو لأحد أجداده"
-                        )
-            else:
-                account_type.parent = None
-                account_type.level = 1
-
-            # تحديث الحالة
-            account_type.is_active = "is_active" in request.POST
-
-            # حفظ التغييرات
-            account_type.save()
-
-            messages.success(
-                request, f'تم تحديث نوع الحساب "{account_type.name}" بنجاح.'
-            )
-            return redirect("financial:account_types_list")
-
-        except Exception as e:
-            messages.error(request, f"حدث خطأ أثناء تحديث نوع الحساب: {str(e)}")
-
-    # تحميل الأنواع الأب المحتملة (تجنب النوع الحالي وأطفاله)
-    parent_types = []
-    if AccountType:
-        parent_types = (
-            AccountType.objects.filter(is_active=True)
-            .exclude(id=account_type.id)
-            .order_by("code")
-        )
-        # يمكن إضافة منطق لتجنب الأطفال أيضاً
-
-    context = {
-        "account_type": account_type,
-        "parent_types": parent_types,
-        "page_title": f"تعديل نوع حساب: {account_type.name}",
-        "page_subtitle": "إدارة أنواع الحسابات المحاسبية",
-        "page_icon": "fas fa-edit",
-        "header_buttons": [
-            {
-                "url": reverse("financial:account_types_list"),
-                "icon": "fa-arrow-left",
-                "text": "العودة للقائمة",
-                "class": "btn-secondary",
-            }
-        ],
-        "breadcrumb_items": [
-            {"title": "الرئيسية", "url": reverse("core:dashboard"), "icon": "fas fa-home"},
-            {"title": "المالية", "url": "#", "icon": "fas fa-coins"},
-            {"title": "أنواع الحسابات", "url": reverse("financial:account_types_list"), "icon": "fas fa-layer-group"},
-            {"title": f"تعديل: {account_type.name}", "active": True},
-        ],
-    }
-    return render(request, "financial/accounts/account_types_form.html", context)
+    """أنواع الحسابات هي معايير نظامية للقراءة فقط"""
+    messages.info(request, "أنواع الحسابات هي معايير وتصنيفات نظامية أساسية للقراءة فقط.")
+    return redirect("financial:account_types_list")
 
 
 @login_required
 def account_types_delete(request, pk):
-    """حذف نوع حساب"""
-    account_type = get_object_or_404(AccountType, pk=pk)
-    if request.method == "POST":
-        account_type.is_active = False
-        account_type.save()
-        messages.success(request, f'تم حذف نوع الحساب "{account_type.name}" بنجاح.')
-        return redirect("financial:account_types_list")
+    """أنواع الحسابات هي معايير نظامية للقراءة فقط"""
+    messages.warning(request, "لا يمكن حذف أنواع الحسابات الأساسية لأنها معايير نظامية للقراءة فقط.")
+    return redirect("financial:account_types_list")
 
     context = {
         "page_title": f"حذف نوع حساب: {account_type.name}",

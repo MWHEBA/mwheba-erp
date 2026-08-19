@@ -5,227 +5,264 @@
 {% block title %}{{ page_title }}{% endblock %}
 
 {% block extra_css %}
-<!-- جميع الستايلات موجودة في unified-components.css و components.css -->
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
 <style>
-    
-    .info-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-        gap: 1rem;
-        margin-bottom: 2rem;
-    }
-    
-    .info-item {
-        background: var(--light-bg);
+    .info-card-item {
+        background: var(--bg-light, #f8fafc);
+        border: 1px solid var(--border-color, #e2e8f0);
+        border-radius: var(--border-radius-md, 8px);
         padding: 1rem;
-        border-radius: 8px;
-        border-left: 4px solid var(--primary-color);
+        height: 100%;
     }
-    
-    .info-label {
+    .info-card-label {
+        font-size: 0.8rem;
+        color: var(--text-muted, #718096);
+        margin-bottom: 0.3rem;
         font-weight: 600;
-        color: var(--text-muted);
-        font-size: 0.875rem;
-        margin-bottom: 0.25rem;
     }
-    
-    .info-value {
-        font-size: 1rem;
-        color: var(--text-dark);
-    }
-    
-    /* section-title موجود في components.css */
-    
-    .account-item {
-        transition: all 0.2s ease;
-    }
-    
-    .account-item:hover {
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-        transform: translateY(-2px);
-    }
-    
-    .account-code {
-        background: var(--light-bg);
-        padding: 0.25rem 0.5rem;
-        border-radius: 4px;
-        font-size: 0.875rem;
-        color: var(--primary-color);
+    .info-card-value {
+        font-size: 1.05rem;
+        font-weight: 700;
+        color: var(--text-main, #2d3748);
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid">
+<div class="container-fluid py-3">
     <!-- Page Header المركزي -->
     {% include "shared/page_header.html" %}
 
-    <!-- Account Type Details Card -->
-    <div class="card mb-4">
-        <div class="card-header bg-primary text-white">
-            <div class="d-flex align-items-center">
-                <i class="{{ page_icon }} fa-2x me-3"></i>
-                <div>
-                    <h2 class="h4 mb-1">{{ account_type.name }}</h2>
-                    <p class="mb-0 opacity-75">كود: {{ account_type.code }}</p>
+    <!-- Statistical KPI Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3 col-sm-6">
+            <div class="stats-card stats-card-info">
+                <div class="stats-card-body">
+                    <div class="stats-card-icon"><i class="fas fa-barcode"></i></div>
+                    <div class="stats-card-title">كود النوع</div>
+                    <div class="stats-card-value">{{ account_type.code }}</div>
                 </div>
             </div>
         </div>
-        
-        <div class="card-body">
-            <!-- Basic Information -->
-            <div class="info-grid">
-                <div class="info-item">
-                    <div class="info-label">الكود</div>
-                    <div class="info-value">{{ account_type.code }}</div>
+        <div class="col-md-3 col-sm-6">
+            <div class="stats-card stats-card-primary">
+                <div class="stats-card-body">
+                    <div class="stats-card-icon"><i class="fas fa-sitemap"></i></div>
+                    <div class="stats-card-title">الحسابات المرتبطة</div>
+                    <div class="stats-card-value">{{ accounts_count }}</div>
                 </div>
-                <div class="info-item">
-                    <div class="info-label">الاسم</div>
-                    <div class="info-value">{{ account_type.name }}</div>
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6">
+            <div class="stats-card stats-card-warning">
+                <div class="stats-card-body">
+                    <div class="stats-card-icon"><i class="fas fa-code-branch"></i></div>
+                    <div class="stats-card-title">الأنواع الفرعية</div>
+                    <div class="stats-card-value">{{ children_count }}</div>
                 </div>
-                <div class="info-item">
-                    <div class="info-label">التصنيف</div>
-                    <div class="info-value">
-                        {% if account_type.category == 'asset' %}
-                            أصول
-                        {% elif account_type.category == 'liability' %}
-                            خصوم
-                        {% elif account_type.category == 'equity' %}
-                            حقوق الملكية
-                        {% elif account_type.category == 'revenue' %}
-                            إيرادات
-                        {% elif account_type.category == 'expense' %}
-                            مصروفات
-                        {% else %}
-                            {{ account_type.category }}
-                        {% endif %}
+            </div>
+        </div>
+        <div class="col-md-3 col-sm-6">
+            <div class="stats-card stats-card-success">
+                <div class="stats-card-body">
+                    <div class="stats-card-icon"><i class="fas fa-check-circle"></i></div>
+                    <div class="stats-card-title">الحالة</div>
+                    <div class="stats-card-value">{% if account_type.is_active %}نشط{% else %}معطل{% endif %}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- بطاقة المعلومات الأساسية -->
+    <div class="section-container mb-4">
+        <h5 class="section-title">
+            <i class="fas fa-info-circle text-primary me-2"></i>
+            المعلومات والتصنيف المالي
+        </h5>
+
+        <div class="row g-3">
+            <div class="col-md-4 col-sm-6">
+                <div class="info-card-item">
+                    <div class="info-card-label">اسم نوع الحساب</div>
+                    <div class="info-card-value">{{ account_type.name }}</div>
+                </div>
+            </div>
+            <div class="col-md-4 col-sm-6">
+                <div class="info-card-item">
+                    <div class="info-card-label">التصنيف المالي الرئيسي</div>
+                    <div class="info-card-value">
+                        {% if account_type.category == 'asset' %}الأصول (Assets)
+                        {% elif account_type.category == 'liability' %}الخصوم (Liabilities)
+                        {% elif account_type.category == 'equity' %}حقوق الملكية (Equity)
+                        {% elif account_type.category == 'revenue' %}الإيرادات (Revenue)
+                        {% elif account_type.category == 'expense' %}المصروفات (Expenses)
+                        {% else %}{{ account_type.category }}{% endif %}
                     </div>
                 </div>
-                <div class="info-item">
-                    <div class="info-label">الطبيعة</div>
-                    <div class="info-value">
+            </div>
+            <div class="col-md-4 col-sm-6">
+                <div class="info-card-item">
+                    <div class="info-card-label">الطبيعة المحاسبية</div>
+                    <div class="info-card-value">
                         {% if account_type.nature == 'debit' %}
-                            مدين
-                        {% elif account_type.nature == 'credit' %}
-                            دائن
+                            <span class="text-success"><i class="fas fa-arrow-up me-1"></i> مدين (Debit)</span>
                         {% else %}
-                            {{ account_type.nature }}
+                            <span class="text-primary"><i class="fas fa-arrow-down me-1"></i> دائن (Credit)</span>
                         {% endif %}
                     </div>
                 </div>
-                {% if account_type.parent %}
-                <div class="info-item">
-                    <div class="info-label">النوع الأب</div>
-                    <div class="info-value">
-                        <a href="{% url 'financial:account_type_detail' account_type.parent.pk %}">
-                            {{ account_type.parent.name }}
-                        </a>
+            </div>
+            <div class="col-md-4 col-sm-6">
+                <div class="info-card-item">
+                    <div class="info-card-label">النوع الأب</div>
+                    <div class="info-card-value">
+                        {% if account_type.parent %}
+                            <a href="{% url 'financial:account_type_detail' account_type.parent.pk %}">
+                                {{ account_type.parent.code }} - {{ account_type.parent.name }}
+                            </a>
+                        {% else %}
+                            <span class="text-muted">نوع رئيسي مستقل</span>
+                        {% endif %}
                     </div>
                 </div>
-                {% endif %}
-                <div class="info-item">
-                    <div class="info-label">الحالة</div>
-                    <div class="info-value">
+            </div>
+            <div class="col-md-4 col-sm-6">
+                <div class="info-card-item">
+                    <div class="info-card-label">المستوى الهرمي</div>
+                    <div class="info-card-value">{{ account_type.level }}</div>
+                </div>
+            </div>
+            <div class="col-md-4 col-sm-6">
+                <div class="info-card-item">
+                    <div class="info-card-label">الحالة التشغيلية</div>
+                    <div class="info-card-value">
                         {% if account_type.is_active %}
-                            <span class="badge bg-success">نشط</span>
+                            <span class="badge bg-success text-white">نشط ويعمل</span>
                         {% else %}
-                            <span class="badge bg-secondary">غير نشط</span>
+                            <span class="badge bg-secondary text-white">معطل</span>
                         {% endif %}
                     </div>
                 </div>
             </div>
-
-            <!-- Statistics -->
-            <div class="row mb-4">
-                <div class="col-md-6">
-                    <div class="stats-card">
-                        <div class="stats-number">{{ accounts_count }}</div>
-                        <div class="stats-label">الحسابات المرتبطة</div>
-                    </div>
-                </div>
-                <div class="col-md-6">
-                    <div class="stats-card">
-                        <div class="stats-number">{{ children_count }}</div>
-                        <div class="stats-label">الأنواع الفرعية</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Child Types -->
-            {% if child_types %}
-            <div class="mb-4">
-                <h3 class="section-title">
-                    <i class="fas fa-sitemap me-2"></i>الأنواع الفرعية
-                </h3>
-                <div class="row">
-                    {% for child_type in child_types %}
-                    <div class="col-md-6 col-lg-4 mb-3">
-                        <div class="account-item">
-                            <div class="d-flex justify-content-between align-items-start mb-2">
-                                <span class="account-code">{{ child_type.code }}</span>
-                                {% if child_type.is_active %}
-                                    <span class="badge bg-success">نشط</span>
-                                {% else %}
-                                    <span class="badge bg-secondary">غير نشط</span>
-                                {% endif %}
-                            </div>
-                            <h6 class="mb-1">
-                                <a href="{% url 'financial:account_type_detail' child_type.pk %}" class="text-decoration-none">
-                                    {{ child_type.name }}
-                                </a>
-                            </h6>
-                            <small class="text-muted">{{ child_type.get_category_display }}</small>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
-            {% endif %}
-
-            <!-- Related Accounts -->
-            {% if related_accounts %}
-            <div class="mb-4">
-                <h3 class="section-title">
-                    <i class="fas fa-list me-2"></i>الحسابات المرتبطة
-                </h3>
-                <div class="row">
-                    {% for account in related_accounts %}
-                    <div class="col-md-6 col-lg-4 mb-3">
-                        <div class="account-item">
-                            <div class="d-flex justify-content-between align-items-start mb-2">
-                                <span class="account-code">{{ account.code }}</span>
-                                {% if account.is_active %}
-                                    <span class="badge bg-success">نشط</span>
-                                {% else %}
-                                    <span class="badge bg-secondary">غير نشط</span>
-                                {% endif %}
-                            </div>
-                            <h6 class="mb-1">
-                                <a href="{% url 'financial:account_detail' account.pk %}" class="text-decoration-none">
-                                    {{ account.name }}
-                                </a>
-                            </h6>
-                            {% if account.description %}
-                                <small class="text-muted">{{ account.description|truncatechars:50 }}</small>
-                            {% endif %}
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
-            {% else %}
-            <div class="empty-state">
-                <div class="empty-icon">
-                    <i class="fas fa-inbox"></i>
-                </div>
-                <h5>لا توجد حسابات مرتبطة</h5>
-                <p>لم يتم إنشاء أي حسابات لهذا النوع بعد.</p>
-                <a href="{% url 'financial:account_create' %}" class="btn btn-primary">
-                    <i class="fas fa-plus me-1"></i>إنشاء حساب جديد
-                </a>
-            </div>
-            {% endif %}
         </div>
+    </div>
+
+    <!-- الأنواع الفرعية -->
+    {% if child_types %}
+    <div class="section-container mb-4">
+        <h5 class="section-title">
+            <i class="fas fa-code-branch text-warning me-2"></i>
+            الأنواع المتفرعة ({{ children_count }})
+        </h5>
+
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>الكود</th>
+                        <th>الاسم</th>
+                        <th>الطبيعة</th>
+                        <th class="text-center">المستوى</th>
+                        <th class="text-center">الإجراءات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for child in child_types %}
+                    <tr>
+                        <td><span class="badge bg-light text-dark border">{{ child.code }}</span></td>
+                        <td>
+                            <a href="{% url 'financial:account_type_detail' child.pk %}" class="fw-bold text-dark text-decoration-none">
+                                {{ child.name }}
+                            </a>
+                        </td>
+                        <td>
+                            {% if child.nature == 'debit' %}
+                                <span class="badge bg-light text-success border border-success">مدين</span>
+                            {% else %}
+                                <span class="badge bg-light text-primary border border-primary">دائن</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center"><span class="badge bg-light text-muted border">{{ child.level }}</span></td>
+                        <td class="text-center">
+                            <a href="{% url 'financial:account_type_detail' child.pk %}" class="btn btn-sm btn-outline-secondary">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- الحسابات المرتبطة بهذا النوع في الدليل -->
+    <div class="section-container mb-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="section-title mb-0">
+                <i class="fas fa-list text-success me-2"></i>
+                الحسابات المحاسبية التابعة لهذا النوع ({{ accounts_count }})
+            </h5>
+            <a href="{% url 'financial:chart_of_accounts_create' %}" class="btn btn-sm btn-outline-primary">
+                <i class="fas fa-plus me-1"></i> إضافة حساب محاسبي جديد
+            </a>
+        </div>
+
+        {% if related_accounts %}
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>كود الحساب</th>
+                        <th>اسم الحساب</th>
+                        <th>العملة</th>
+                        <th>الرصيد الافتتاحي</th>
+                        <th class="text-center">حساب نهائي</th>
+                        <th class="text-center">الحالة</th>
+                        <th class="text-center">الإجراءات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for acc in related_accounts %}
+                    <tr>
+                        <td><span class="badge bg-light text-dark border fw-bold">{{ acc.code }}</span></td>
+                        <td>
+                            <a href="{% url 'financial:account_detail' acc.pk %}" class="fw-bold text-dark text-decoration-none">
+                                {{ acc.name }}
+                            </a>
+                        </td>
+                        <td>{{ acc.currency.code|default:'EGP' }}</td>
+                        <td>{{ acc.opening_balance|default:'0.00' }}</td>
+                        <td class="text-center">
+                            {% if acc.is_leaf %}
+                                <span class="badge bg-success text-white">نعم</span>
+                            {% else %}
+                                <span class="badge bg-secondary text-white">حساب تجميعي</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            {% if acc.is_active %}
+                                <span class="badge bg-success text-white">نشط</span>
+                            {% else %}
+                                <span class="badge bg-secondary text-white">معطل</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            <a href="{% url 'financial:account_detail' acc.pk %}" class="btn btn-sm btn-outline-secondary">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-4 text-muted">
+            <i class="fas fa-inbox fa-2x mb-2 text-muted"></i>
+            <p class="mb-0">لا توجد حسابات مسجلة تتبع هذا النوع حالياً.</p>
+        </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}

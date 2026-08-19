@@ -39,9 +39,16 @@ class SalesAccountingBridge:
             func_tax = (sale.tax * rate).quantize(Decimal("0.01"))
             func_net_sales = (func_total - func_tax).quantize(Decimal("0.01"))
 
+            from financial.services.account_role_registry import AccountRoleRegistry
+
             lines = []
             # 1. AR Customer Debit Line
-            ar_account = getattr(sale.customer, "account_code", "11010_AR") or "11010_AR"
+            cust_acc = getattr(sale.customer, "financial_account", None)
+            if cust_acc:
+                ar_account = cust_acc.code
+            else:
+                ar_account = getattr(sale.customer, "account_code", None) or AccountRoleRegistry.get_account_code("CUSTOMER_RECEIVABLE_CONTROL")
+
             lines.append({
                 "account_code": ar_account,
                 "debit": func_total,
@@ -53,7 +60,7 @@ class SalesAccountingBridge:
             })
 
             # 2. Net Sales Revenue Credit Line
-            revenue_account = "41010_SALES_REVENUE"
+            revenue_account = AccountRoleRegistry.get_account_code("SALES_REVENUE_ACCOUNT")
             lines.append({
                 "account_code": revenue_account,
                 "debit": Decimal("0.00"),
@@ -66,8 +73,9 @@ class SalesAccountingBridge:
 
             # 3. Output VAT Tax Line (if any)
             if func_tax > Decimal("0.00"):
+                vat_account = AccountRoleRegistry.get_account_code("SALES_TAX_PAYABLE")
                 lines.append({
-                    "account_code": "21050_VAT_OUTPUT",
+                    "account_code": vat_account,
                     "debit": Decimal("0.00"),
                     "credit": func_tax,
                     "foreign_credit": sale.tax if currency_code != "EGP" else None,

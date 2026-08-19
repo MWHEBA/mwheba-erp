@@ -31,6 +31,8 @@ class CustomerCreateAccountAPITest(TestCase):
             code="CUST001",
             email="test@customer.com"
         )
+        Customer.objects.filter(pk=self.customer.pk).update(financial_account=None)
+        self.customer.refresh_from_db()
         
     def test_get_create_account_modal_html(self):
         """اختبار الحصول على HTML نافذة إنشاء الحساب"""

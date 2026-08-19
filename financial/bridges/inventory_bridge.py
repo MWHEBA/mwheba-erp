@@ -43,10 +43,14 @@ class InventoryAccountingBridge:
                 total_foreign += item_total
                 total_functional += (item_total * rate).quantize(Decimal("0.01"))
 
+            from financial.services.account_role_registry import AccountRoleRegistry
+            inv_acc = AccountRoleRegistry.get_account_code("INVENTORY_CONTROL_ACCOUNT")
+            grni_acc = AccountRoleRegistry.get_account_code("GRNI_CLEARING_ACCOUNT")
+
             lines = [
                 # Debit Inventory Account
                 {
-                    "account_code": "11040_INVENTORY",
+                    "account_code": inv_acc,
                     "debit": total_functional,
                     "credit": Decimal("0.00"),
                     "foreign_debit": total_foreign if currency_code != "EGP" else None,
@@ -56,7 +60,7 @@ class InventoryAccountingBridge:
                 },
                 # Credit GRNI Accrual Clearing Account
                 {
-                    "account_code": "20150_GRNI",
+                    "account_code": grni_acc,
                     "debit": Decimal("0.00"),
                     "credit": total_functional,
                     "foreign_credit": total_foreign if currency_code != "EGP" else None,
