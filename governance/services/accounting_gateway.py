@@ -705,6 +705,42 @@ class AccountingGateway:
                     context={'account_code': line_data.account_code}
                 )
         
+        # Validate debit/credit balance with automatic penny rounding difference handling (Rule 3)
+        diff = abs(total_debit - total_credit)
+        if diff > Decimal('0.00') and diff <= Decimal('0.05'):
+            from financial.services.account_role_registry import AccountRoleRegistry
+            rounding_acc = AccountRoleRegistry.get_account_by_role("ROUNDING_DIFFERENCE_ACCOUNT")
+            if not rounding_acc:
+                rounding_acc = ChartOfAccounts.objects.filter(code__in=['52490', '40550', '50500'], is_active=True, is_leaf=True).first()
+
+            if rounding_acc:
+                if total_debit < total_credit:
+                    validated_lines.append({
+                        'account': rounding_acc,
+                        'debit': diff,
+                        'credit': Decimal('0.00'),
+                        'description': 'فروق تقريب كسور العملة (Penny Rounding Balance)',
+                        'cost_center': None,
+                        'currency': 'EGP',
+                        'exchange_rate': Decimal('1.000000'),
+                        'foreign_debit': Decimal('0.00'),
+                        'foreign_credit': Decimal('0.00'),
+                    })
+                    total_debit += diff
+                else:
+                    validated_lines.append({
+                        'account': rounding_acc,
+                        'debit': Decimal('0.00'),
+                        'credit': diff,
+                        'description': 'فروق تقريب كسور العملة (Penny Rounding Balance)',
+                        'cost_center': None,
+                        'currency': 'EGP',
+                        'exchange_rate': Decimal('1.000000'),
+                        'foreign_debit': Decimal('0.00'),
+                        'foreign_credit': Decimal('0.00'),
+                    })
+                    total_credit += diff
+
         # Validate debit/credit balance
         if total_debit != total_credit:
             raise GovValidationError(
@@ -1811,8 +1847,10 @@ def create_stock_movement_entry(
                 if leaf_child and leaf_child.can_post_entries():
                     logger.info(f"Using leaf child {leaf_child.code} of parent account {code}")
                     return leaf_child.code
-                if account.children.count() == 0:
-                    return account.code
+                leaf_desc = account.get_leaf_descendants(include_self=False)
+                active_leaf = next((a for a in leaf_desc if a.is_active and a.can_post_entries()), None)
+                if active_leaf:
+                    return active_leaf.code
             except ChartOfAccounts.DoesNotExist:
                 pass
 

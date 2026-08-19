@@ -232,6 +232,17 @@ class ChartOfAccounts(models.Model):
     def __str__(self):
         return f"{self.code} - {self.name}"
 
+    def clean(self):
+        super().clean()
+        if self.pk:
+            old_acc = ChartOfAccounts.objects.filter(pk=self.pk).first()
+            if old_acc and old_acc.is_active and not self.is_active:
+                bal = old_acc.current_balance
+                if bal != Decimal("0.00"):
+                    raise ValidationError(
+                        _("لا يمكن إلغاء تنشيط حساب رصيده غير صفري (الرصيد الحالي: {}). يجب تسوية وتصفية رصيد الحساب أولاً.").format(bal)
+                    )
+
     def save(self, *args, **kwargs):
         # حساب الرصيد الافتتاحي بالعملة المحلية تلقائياً عند إدخال رصيد أجنبي
         if self.opening_balance_foreign and self.opening_balance_foreign != Decimal("0.00"):
@@ -242,8 +253,9 @@ class ChartOfAccounts(models.Model):
         if self.parent:
             self.level = self.parent.level + 1
             # إذا كان للحساب أب، فالأب ليس حساباً نهائياً
-            self.parent.is_leaf = False
-            self.parent.save(update_fields=["is_leaf"])
+            if self.parent.is_leaf:
+                self.parent.is_leaf = False
+                self.parent.save(update_fields=["is_leaf"])
         else:
             self.level = 1
 
@@ -460,10 +472,13 @@ class ChartOfAccounts(models.Model):
 
     def get_leaf_descendants(self, include_self=False):
         """
-        جلب الأحفاد النهائيين فقط (التي يمكن أن تحتوي على قيود)
+        جلب الأحفاد النهائيين فقط (التي يمكن أن تحتوي على قيود) مع تضمين الحساب نفسه اختيارياً
         """
-        descendants = self.get_descendants(include_self=include_self)
-        return [acc for acc in descendants if acc.is_leaf]
+        descendants = self.get_descendants(include_self=False)
+        leafs = [acc for acc in descendants if acc.is_leaf]
+        if include_self:
+            return [self] + leafs
+        return leafs
 
     def get_transactions_summary(self, date_from=None, date_to=None):
         """
@@ -579,8 +594,8 @@ class ChartOfAccounts(models.Model):
         """التحقق من إمكانية إدراج قيود على الحساب"""
         if not self.is_active:
             return False
-        if self.is_leaf:
-            return True
+        if not self.is_leaf:
+            return False
         return self.children.count() == 0
 
     def validate_entry_amount(self, debit=0, credit=0):

@@ -42,7 +42,7 @@ class FinancialReportingQueryService:
         """
         حساب إجمالي الأرصدة لمجموعة حسابات تبدأ بـ code_prefix (مثال: '1' للأصول، '4' للإيرادات)
         """
-        accounts = ChartOfAccounts.objects.filter(code__startswith=code_prefix, is_active=True)
+        accounts = ChartOfAccounts.objects.filter(code__startswith=code_prefix, is_leaf=True)
         total_balance = Decimal("0.00")
 
         for acc in accounts:

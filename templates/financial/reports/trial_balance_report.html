@@ -7,173 +7,260 @@
 {% block title %}{{ page_title }}{% endblock %}
 
 {% block extra_css %}
-<!-- جميع الستايلات موجودة في unified-components.css و components.css -->
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
 <style>
-  
-  /* بطاقة الملخص */
-  .balance-summary-card {
-    background: #667eea;
-    color: white;
-    border-radius: var(--border-radius);
-    padding: 2rem;
-    margin-bottom: 1.5rem;
-  }
-  
-  .balance-summary-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 1.5rem;
-    margin-top: 1rem;
-  }
-  
-  .balance-summary-item {
-    background: rgba(255, 255, 255, 0.15);
-    backdrop-filter: blur(10px);
-    border-radius: 8px;
-    padding: 1.5rem;
-    text-align: center;
-  }
-  
-  .balance-summary-label {
-    font-size: 0.9rem;
-    opacity: 0.9;
-    margin-bottom: 0.5rem;
-  }
-  
-  .balance-summary-value {
-    font-size: 2rem;
-    font-weight: 700;
-  }
-  
-  /* جدول محسّن */
-  .trial-balance-table {
+  /* =========================================================
+     تنسيقات UI/UX المتقدمة لميزان المراجعة - MWHEBA ERP
+     ========================================================= */
+
+  /* تحسينات الجدول الهرمي */
+  .tb-table {
     width: 100%;
     margin-bottom: 0;
     border-collapse: separate;
     border-spacing: 0;
+    font-size: 0.875rem;
   }
-  
-  .trial-balance-table thead th {
-    background-color: var(--primary-color);
-    color: white;
-    font-weight: 600;
-    padding: 0.875rem 0.75rem;
+
+  .tb-table thead tr:first-child th {
+    background-color: var(--primary-color) !important;
+    color: #ffffff !important;
+    font-weight: 700;
+    font-size: 0.88rem;
+    padding: 0.8rem 0.5rem;
     text-align: center;
-    border: none;
-    font-size: 0.9rem;
+    vertical-align: middle;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
     white-space: nowrap;
+    letter-spacing: 0.2px;
   }
-  
-  .trial-balance-table thead tr:first-child th:first-child {
-    border-top-right-radius: var(--border-radius);
+
+  .tb-table thead tr.sub-header th {
+    background-color: var(--bg-light) !important;
+    font-size: 0.84rem;
+    font-weight: 700;
+    padding: 0.55rem 0.5rem;
+    border-bottom: 2px solid var(--border-color) !important;
+    border-left: 1px solid var(--border-color) !important;
+    text-align: center;
   }
-  
-  .trial-balance-table thead tr:first-child th:last-child {
-    border-top-left-radius: var(--border-radius);
+
+  .tb-table thead tr.sub-header th.th-debit {
+    color: var(--success-color, #059669) !important;
+    font-weight: 700;
   }
-  
-  .trial-balance-table tbody td {
-    padding: 0.75rem;
+
+  .tb-table thead tr.sub-header th.th-credit {
+    color: var(--danger-color, #dc2626) !important;
+    font-weight: 700;
+  }
+
+  .tb-table tbody td {
+    padding: 0.6rem 0.65rem;
     vertical-align: middle;
     border-bottom: 1px solid var(--border-color);
-    text-align: center;
+    border-left: 1px solid var(--border-color);
   }
-  
-  .trial-balance-table tbody tr:hover {
-    background-color: var(--bg-light);
+
+  .account-row {
+    transition: background-color 0.15s ease;
   }
-  
-  /* عناوين المجموعات */
-  .group-header {
-    background-color: var(--bg-light);
-    font-weight: 700;
-    font-size: 1.05rem;
-    color: var(--primary-color);
-    text-align: right;
+
+  .account-row:hover {
+    background-color: rgba(0, 0, 0, 0.025);
   }
-  
-  .group-header td {
-    text-align: right !important;
+
+  /* =========================================================
+     تمييز المستويات الهرمية بدقة بصرية واضحة
+     ========================================================= */
+
+  /* المستوى 1: الأمهات الكبرى */
+  .account-row.tb-level-1 {
+    background-color: var(--bg-soft-primary, #eef4ff) !important;
+    font-weight: 800 !important;
+    border-top: 2px solid var(--primary-color) !important;
+    border-bottom: 2px solid var(--primary-color) !important;
   }
-  
-  .group-subtotal {
-    background-color: var(--bg-soft-primary);
+  .account-row.tb-level-1 td {
+    font-weight: 800 !important;
+    font-size: 0.93rem;
+  }
+  .account-row.tb-level-1 a {
+    color: var(--primary-color) !important;
+    font-weight: 800 !important;
+  }
+
+  /* المستوى 2: المجموعات الرئيسية */
+  .account-row.tb-level-2 {
+    background-color: var(--bg-light, #f8f9fa) !important;
+    font-weight: 700 !important;
+    border-bottom: 1px solid var(--border-color) !important;
+  }
+  .account-row.tb-level-2 td {
+    font-weight: 700 !important;
+    font-size: 0.88rem;
+  }
+  .account-row.tb-level-2 a {
+    color: var(--text-dark, #1f2937) !important;
+    font-weight: 700 !important;
+  }
+
+  /* المستوى 3: الحسابات الوسيطة */
+  .account-row.tb-level-3 {
+    background-color: #ffffff !important;
+    font-weight: 600 !important;
+  }
+  .account-row.tb-level-3 td {
+    font-weight: 600 !important;
+    font-size: 0.86rem;
+  }
+  .account-row.tb-level-3 a {
+    color: var(--text-dark, #374151) !important;
+    font-weight: 600 !important;
+  }
+
+  /* المستوى 4 وما بعده والحسابات التحليلية الطرفية */
+  .account-row.tb-level-4,
+  .account-row.tb-level-5,
+  .account-row.tb-level-leaf {
+    background-color: #ffffff;
+    font-weight: 400;
+  }
+  .account-row.tb-level-leaf td {
+    font-size: 0.84rem;
+  }
+  .account-row.tb-level-leaf a {
+    color: var(--text-body, #4b5563) !important;
+    font-weight: 500 !important;
+  }
+
+  .account-row.parent-row {
     font-weight: 600;
   }
-  
-  .group-subtotal td:first-child {
-    text-align: center;
+
+  .account-row.parent-row:hover {
+    background-color: rgba(0, 0, 0, 0.04);
   }
-  
-  .grand-total {
-    background-color: var(--primary-color);
-    color: white;
-    font-weight: 700;
-    font-size: 1.05rem;
+
+  /* أزرار طي وتوسيع الشجرة */
+  .expand-btn {
+    color: var(--text-muted, #6c757d);
+    text-decoration: none;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    width: 22px;
+    height: 22px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border-radius: 4px;
+    transition: all 0.2s ease;
   }
-  
-  .grand-total td:first-child {
-    text-align: center;
+
+  .expand-btn:hover {
+    color: var(--primary-color);
+    background-color: rgba(0, 0, 0, 0.05);
   }
-  
-  /* أرقام */
+
+  .expand-btn i {
+    font-size: 0.75rem;
+    transition: transform 0.2s ease, color 0.2s ease;
+  }
+
+  /* فواصل الكتل العمودية المزدوجة للفترات */
+  .col-sep-left {
+    border-left: 2px solid var(--border-color) !important;
+  }
+
+  /* تنسيق الأرقام والمبالغ المالية */
   .number-cell {
-    text-align: center;
     font-family: 'Tajawal', sans-serif;
     direction: ltr;
+    text-align: right;
+    white-space: nowrap;
     font-weight: 500;
+    font-variant-numeric: tabular-nums;
   }
-  
-  .debit-cell {
-    color: var(--success-color);
+
+  .debit-val {
+    color: var(--success-color, #059669);
     font-weight: 600;
   }
-  
-  .credit-cell {
-    color: var(--danger-color);
-    font-weight: 600;
+
+  .credit-val {
+    color: var(--danger-color, #dc2626);
   }
-  
-  /* حالة التوازن */
-  .balance-status {
-    padding: 0.5rem 1rem;
-    border-radius: 20px;
-    font-weight: 600;
-    display: inline-block;
+
+  .tb-row-group-header {
+    background-color: var(--bg-light);
+    color: var(--primary-color);
+    font-weight: 700;
+    border-top: 1px solid var(--border-color);
   }
-  
-  .balance-status.balanced {
-    background-color: var(--bg-soft-success);
-    color: var(--success-color);
+
+  .tb-row-subtotal {
+    background-color: var(--bg-light);
+    font-weight: 700;
+    border-top: 2px solid var(--border-color);
+    border-bottom: 2px solid var(--border-color);
   }
-  
-  .balance-status.unbalanced {
-    background-color: var(--bg-soft-danger);
-    color: var(--danger-color);
+
+  /* تمييز صف الإجمالي النهائي العام */
+  .tb-row-grand-total {
+    background-color: var(--bg-light);
+    font-weight: 700;
+    border-top: 3px double var(--primary-color);
+    border-bottom: 2px solid var(--primary-color);
+    font-size: 0.95rem;
   }
-  
-  /* حالة فارغة */
-  .empty-state {
-    padding: 4rem 2rem;
+
+  .tb-row-grand-total td {
+    padding: 0.85rem 0.65rem;
+    border-top: 3px double var(--primary-color) !important;
+    border-bottom: 2px solid var(--primary-color) !important;
+  }
+
+  /* تذييل التوقيعات للطباعة الرسمية */
+  .print-signatures {
+    display: none;
+    margin-top: 3rem;
+    padding-top: 1.5rem;
+    border-top: 2px dashed var(--border-color);
+  }
+
+  .signature-box {
     text-align: center;
   }
-  
-  .empty-state-icon {
-    font-size: 4rem;
-    color: var(--text-light);
-    margin-bottom: 1rem;
-    opacity: 0.5;
+
+  .signature-line {
+    margin-top: 2.5rem;
+    border-top: 1px solid var(--border-color);
+    width: 80%;
+    margin-left: auto;
+    margin-right: auto;
   }
-  
-  /* طباعة */
+
   @media print {
+    @page {
+      size: landscape;
+      margin: 10mm;
+    }
+
     .no-print {
       display: none !important;
     }
-    
-    .balance-summary-card {
-      background: #f8f9fa !important;
-      color: #000 !important;
+
+    .section-container {
+      border: none !important;
+      box-shadow: none !important;
+      padding: 0 !important;
+      margin-bottom: 0 !important;
+    }
+
+    .print-signatures {
+      display: flex !important;
     }
   }
 </style>
@@ -181,303 +268,775 @@
 
 {% block content %}
 <div class="container-fluid">
-    <!-- Page Header المركزي -->
+    <!-- Page Header المركزي الموحد -->
     {% include "shared/page_header.html" %}
 
-    <!-- فلتر البحث -->
-    <div class="section-container no-print">
-        <h5 class="section-title">
-            <i class="fas fa-filter me-2"></i>تصفية وبحث
-        </h5>
-        <form method="GET" action="" class="row g-3" id="filterForm">
-            <div class="col-md-4">
-                <label for="date_from" class="form-label">
-                    <i class="fas fa-calendar-alt me-1"></i>من تاريخ:
-                </label>
-                <input type="text" class="form-control" id="date_from" name="date_from" data-date-picker placeholder="من تاريخ" value="{{ request.GET.date_from }}">
-            </div>
-            <div class="col-md-2">
-                <label for="date_to" class="form-label">{% trans "إلى تاريخ" %}</label>
-                <input type="text" class="form-control" id="date_to" name="date_to" data-date-picker placeholder="إلى تاريخ" value="{{ request.GET.date_to }}">
-            </div>
-            <div class="col-md-3">
-                <label for="group_by_type" class="form-label">
-                    <i class="fas fa-layer-group me-1"></i>تجميع حسب النوع:
-                </label>
-                <select name="group_by_type" id="group_by_type" class="form-select">
-                    <option value="1" {% if group_by_type %}selected{% endif %}>نعم</option>
-                    <option value="0" {% if not group_by_type %}selected{% endif %}>لا</option>
-                </select>
-            </div>
-            <div class="col-md-1 d-flex align-items-end">
-                <button type="submit" class="btn btn-primary w-100" title="بحث">
-                    <i class="fas fa-search"></i>
-                </button>
-            </div>
-        </form>
-        {% if date_from or date_to or group_by_type %}
-        <div class="mt-3">
-            <a href="{% url 'financial:trial_balance_report' %}" class="btn btn-sm btn-outline-secondary">
-                <i class="fas fa-times me-1"></i>إلغاء الفلتر
-            </a>
-        </div>
-        {% endif %}
-    </div>
-
-    {% if trial_balance_data %}
-        <!-- كروت الإحصائيات -->
-        <div class="section-container">
-            <h5 class="section-title"><i class="fas fa-chart-bar me-2"></i>إحصائيات ميزان المراجعة</h5>
-            <div class="row">
-                <div class="col-md-6 col-lg-3 mb-4">
-                    <div class="stats-card stats-card-success">
-                        <div class="stats-card-header"></div>
-                        <div class="stats-card-body">
-                            <div class="stats-card-icon">
-                                <i class="fas fa-arrow-up"></i>
-                            </div>
-                            <div class="stats-card-title">إجمالي المدين</div>
-                            <div class="stats-card-value">{{ trial_balance_data.total_debit|smart_float }}</div>
-                            <div class="stats-card-unit">{% currency_symbol %}</div>
-                        </div>
+    <!-- 1. كروت الإحصائيات (مباشرة في row g-3 mb-4 وفق Rule 7) -->
+    <div class="row g-3 mb-4">
+        <!-- كارت رصيد أول المدة -->
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="stats-card stats-card-info">
+                <div class="stats-card-body">
+                    <div class="stats-card-icon">
+                        <i class="fas fa-history"></i>
                     </div>
-                </div>
-                <div class="col-md-6 col-lg-3 mb-4">
-                    <div class="stats-card stats-card-danger">
-                        <div class="stats-card-header"></div>
-                        <div class="stats-card-body">
-                            <div class="stats-card-icon">
-                                <i class="fas fa-arrow-down"></i>
-                            </div>
-                            <div class="stats-card-title">إجمالي الدائن</div>
-                            <div class="stats-card-value">{{ trial_balance_data.total_credit|smart_float }}</div>
-                            <div class="stats-card-unit">{% currency_symbol %}</div>
-                        </div>
+                    <div class="stats-card-title">{% trans "رصيد أول المدة" %}</div>
+                    <div class="stats-card-value number-cell">
+                        {{ trial_balance_data.total_opening_debit|smart_float }}
                     </div>
-                </div>
-                <div class="col-md-6 col-lg-3 mb-4">
-                    <div class="stats-card stats-card-warning">
-                        <div class="stats-card-header"></div>
-                        <div class="stats-card-body">
-                            <div class="stats-card-icon">
-                                <i class="fas fa-equals"></i>
-                            </div>
-                            <div class="stats-card-title">الفرق</div>
-                            <div class="stats-card-value">{{ trial_balance_data.difference|smart_float }}</div>
-                            <div class="stats-card-unit">{% currency_symbol %}</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-6 col-lg-3 mb-4">
-                    <div class="stats-card {% if trial_balance_data.is_balanced %}stats-card-success{% else %}stats-card-danger{% endif %}">
-                        <div class="stats-card-header"></div>
-                        <div class="stats-card-body">
-                            <div class="stats-card-icon">
-                                <i class="fas {% if trial_balance_data.is_balanced %}fa-check-circle{% else %}fa-exclamation-triangle{% endif %}"></i>
-                            </div>
-                            <div class="stats-card-title">الحالة</div>
-                            <div class="stats-card-value" style="font-size: 1.3rem;">
-                                {% if trial_balance_data.is_balanced %}متوازن{% else %}غير متوازن{% endif %}
-                            </div>
-                            <div class="stats-card-unit">{{ trial_balance_data.accounts_count }} حساب</div>
-                        </div>
+                    <div class="stats-card-unit">
+                        {{ trial_balance_data.currency_symbol }} ({% trans "فارق" %}: {{ trial_balance_data.diff_opening|smart_float }})
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- بطاقة الملخص (مخفية - البيانات في الكروت) -->
-        <div class="balance-summary-card" style="display: none;">
-            <h5 class="mb-3">
-                <i class="fas fa-chart-line me-2"></i>
-                ملخص ميزان المراجعة
-            </h5>
-            <div class="balance-summary-grid">
-                <div class="balance-summary-item">
-                    <div class="balance-summary-label">إجمالي المدين</div>
-                    <div class="balance-summary-value">{{ trial_balance_data.total_debit|smart_float }}</div>
+        <!-- كارت حركات الفترة -->
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="stats-card stats-card-primary">
+                <div class="stats-card-body">
+                    <div class="stats-card-icon">
+                        <i class="fas fa-exchange-alt"></i>
+                    </div>
+                    <div class="stats-card-title">{% trans "حركات الفترة (المجاميع)" %}</div>
+                    <div class="stats-card-value number-cell">
+                        {{ trial_balance_data.total_period_debit|smart_float }}
+                    </div>
+                    <div class="stats-card-unit">
+                        {{ trial_balance_data.currency_symbol }} ({% trans "مدين = دائن" %})
+                    </div>
                 </div>
-                <div class="balance-summary-item">
-                    <div class="balance-summary-label">إجمالي الدائن</div>
-                    <div class="balance-summary-value">{{ trial_balance_data.total_credit|smart_float }}</div>
+            </div>
+        </div>
+
+        <!-- كارت الأرصدة الختامية -->
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="stats-card stats-card-success">
+                <div class="stats-card-body">
+                    <div class="stats-card-icon">
+                        <i class="fas fa-wallet"></i>
+                    </div>
+                    <div class="stats-card-title">{% trans "إجمالي رصيد الإقفال" %}</div>
+                    <div class="stats-card-value number-cell">
+                        {{ trial_balance_data.total_closing_debit|smart_float }}
+                    </div>
+                    <div class="stats-card-unit">
+                        {{ trial_balance_data.currency_symbol }}
+                    </div>
                 </div>
-                <div class="balance-summary-item">
-                    <div class="balance-summary-label">الفرق</div>
-                    <div class="balance-summary-value">{{ trial_balance_data.difference|smart_float }}</div>
-                </div>
-                <div class="balance-summary-item">
-                    <div class="balance-summary-label">الحالة</div>
-                    <div class="balance-summary-value">
+            </div>
+        </div>
+
+        <!-- كارت حالة التوازن المحاسبي -->
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="stats-card {% if trial_balance_data.is_balanced %}stats-card-success{% else %}stats-card-danger{% endif %}">
+                <div class="stats-card-body">
+                    <div class="stats-card-icon">
+                        <i class="fas {% if trial_balance_data.is_balanced %}fa-check-circle{% else %}fa-exclamation-triangle{% endif %}"></i>
+                    </div>
+                    <div class="stats-card-title">{% trans "حالة التوازن المحاسبي" %}</div>
+                    <div class="stats-card-value" style="font-size: 1.25rem;">
                         {% if trial_balance_data.is_balanced %}
-                            ✓ متوازن
+                            <span class="text-success"><i class="fas fa-check me-1"></i>{% trans "متوازن تماماً" %}</span>
                         {% else %}
-                            ⚠ غير متوازن
+                            <span class="text-danger"><i class="fas fa-times me-1"></i>{% trans "غير متوازن" %} ({{ trial_balance_data.difference|smart_float }})</span>
                         {% endif %}
                     </div>
+                    <div class="stats-card-unit">
+                        {{ trial_balance_data.active_accounts_count }} {% trans "حساب نشط" %} / {{ trial_balance_data.total_accounts_count }} {% trans "إجمالي" %}
+                    </div>
                 </div>
-                <div class="balance-summary-item">
-                    <div class="balance-summary-label">عدد الحسابات</div>
-                    <div class="balance-summary-value">{{ trial_balance_data.accounts_count }}</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. فلتر البحث والتصفية القياسي الموحد (وفق Rule 6) -->
+    <div class="section-container mb-4 no-print">
+        <h5 class="section-title" data-bs-toggle="collapse" data-bs-target="#filterSection" style="cursor: pointer;">
+            <i class="fas fa-filter me-2 text-primary"></i>{% trans "تصفية وبحث ميزان المراجعة" %}
+            <i class="fas fa-chevron-down float-end mt-1 text-muted" style="font-size: 0.85rem;"></i>
+        </h5>
+
+        <div class="collapse show mt-3" id="filterSection">
+            <form method="GET" action="" id="tbFilterForm" class="row g-3 align-items-end">
+                <!-- من تاريخ -->
+                <div class="col-12 col-sm-4 col-lg-2">
+                    <label for="date_from" class="form-label fw-semibold">
+                        <i class="fas fa-calendar-alt me-1 text-muted"></i>{% trans "من تاريخ" %}:
+                    </label>
+                    <input type="text" class="form-control" id="date_from" name="date_from" data-date-picker placeholder="YYYY-MM-DD" value="{{ date_from|date:'Y-m-d' }}">
+                </div>
+
+                <!-- إلى تاريخ -->
+                <div class="col-12 col-sm-4 col-lg-2">
+                    <label for="date_to" class="form-label fw-semibold">
+                        <i class="fas fa-calendar-check me-1 text-muted"></i>{% trans "إلى تاريخ" %}:
+                    </label>
+                    <input type="text" class="form-control" id="date_to" name="date_to" data-date-picker placeholder="YYYY-MM-DD" value="{{ date_to|date:'Y-m-d' }}">
+                </div>
+
+                <!-- نمط العرض (تم تكبيره بدرجة إلى col-lg-3) -->
+                <div class="col-12 col-sm-4 col-lg-3">
+                    <label for="display_mode" class="form-label fw-semibold">
+                        <i class="fas fa-columns me-1 text-muted"></i>{% trans "نمط الأعمدة" %}:
+                    </label>
+                    <select name="display_mode" id="display_mode" class="form-select select2-filter">
+                        <option value="6_columns" {% if display_mode == '6_columns' %}selected{% endif %}>{% trans "6 أعمدة (مجاميع وأرصدة)" %}</option>
+                        <option value="2_columns" {% if display_mode == '2_columns' %}selected{% endif %}>{% trans "عمودان (أرصدة إقفال)" %}</option>
+                    </select>
+                </div>
+
+                <!-- المستوى الشجري -->
+                <div class="col-12 col-sm-4 col-lg-2">
+                    <label for="account_level" class="form-label fw-semibold">
+                        <i class="fas fa-sitemap me-1 text-muted"></i>{% trans "المستوى الشجري" %}:
+                    </label>
+                    <select name="account_level" id="account_level" class="form-select select2-filter">
+                        <option value="" {% if not account_level %}selected{% endif %}>-- {% trans "كافة المستويات" %} --</option>
+                        <option value="1" {% if account_level == '1' %}selected{% endif %}>{% trans "المستوى 1 (رئيسي)" %}</option>
+                        <option value="2" {% if account_level == '2' %}selected{% endif %}>{% trans "المستوى 2 (مجموعات)" %}</option>
+                        <option value="3" {% if account_level == '3' %}selected{% endif %}>{% trans "المستوى 3 (حسابات عامة)" %}</option>
+                        <option value="leaf" {% if account_level == 'leaf' %}selected{% endif %}>{% trans "الحسابات الفرعية فقط" %}</option>
+                    </select>
+                </div>
+
+                <!-- إخفاء الحسابات الصفرية -->
+                <div class="col-12 col-sm-4 col-lg-1 d-flex align-items-center justify-content-center pb-2">
+                    <div class="form-check form-switch mb-0">
+                        <input class="form-check-input" type="checkbox" id="hide_zero" name="hide_zero" value="1" {% if hide_zero %}checked{% endif %}>
+                        <label class="form-check-label small fw-semibold" for="hide_zero">{% trans "إخفاء الصفرية" %}</label>
+                    </div>
+                </div>
+
+                <!-- أزرار الإجراءات -->
+                <div class="col-12 col-sm-4 col-lg-2 d-flex gap-2">
+                    <button type="submit" class="btn btn-primary flex-fill" title="{% trans 'عرض التقرير' %}">
+                        <i class="fas fa-search me-1"></i>{% trans "بحث" %}
+                    </button>
+                    <a href="{% url 'financial:trial_balance_report' %}" class="btn btn-outline-secondary" title="{% trans 'إعادة تعيين' %}">
+                        <i class="fas fa-undo"></i>
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 3. جدول ميزان المراجعة التفصيلي مع شريط الأدوات الذكي -->
+    <div class="section-container">
+        <!-- شريط أدوات الشجرة والبحث الفوري المعتمد في شاشات الحسابات -->
+        <div class="p-3 bg-light border-bottom d-flex flex-wrap align-items-center justify-content-between gap-3 no-print">
+            <!-- بحث حي فوري مع عداد الحسابات -->
+            <div class="d-flex align-items-center gap-2 flex-grow-1" style="max-width: 440px;">
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text bg-white border-end-0">
+                        <i class="fas fa-search text-muted"></i>
+                    </span>
+                    <input type="text" id="liveTreeSearch" class="form-control border-start-0" 
+                           placeholder="{% trans 'بحث فوري بالكود أو اسم الحساب...' %}" 
+                           autocomplete="off">
+                    <button type="button" class="btn btn-outline-secondary" id="clearSearchBtn" title="{% trans 'مسح' %}">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <span class="badge bg-white text-dark border ms-1 d-inline-flex align-items-center" id="visibleCounterBadge" title="{% trans 'عدد الحسابات الظاهرة حالياً' %}">
+                    <i class="fas fa-list-ol text-primary me-1"></i>
+                    <span id="counterValue">{{ trial_balance_data.accounts|length }}</span>&nbsp;{% trans "حساب" %}
+                </span>
+            </div>
+
+            <!-- أزرار التحكم بالمستويات ونمط العرض -->
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                <div class="btn-group btn-group-sm" role="group" aria-label="أدوات عرض الشجرة">
+                    <button type="button" class="btn btn-outline-secondary tb-level-btn" id="btnLevel1" title="{% trans 'عرض المستوى الأول فقط' %}">
+                        <i class="fas fa-layer-group me-1"></i>{% trans "المستوى 1" %}
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary tb-level-btn" id="btnLevel2" title="{% trans 'عرض المجموعات الرئيسية' %}">
+                        {% trans "المستوى 2" %}
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary tb-level-btn" id="btnLevel3" title="{% trans 'عرض الحسابات الفرعية' %}">
+                        {% trans "المستوى 3" %}
+                    </button>
+                    <button type="button" class="btn btn-primary tb-level-btn active" id="btnExpandAll" title="{% trans 'توسيع كافة الشجرة' %}">
+                        <i class="fas fa-expand-alt me-1"></i>{% trans "توسيع الكل" %}
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary tb-level-btn" id="btnCollapseAll" title="{% trans 'طي كافة الشجرة' %}">
+                        <i class="fas fa-compress-alt me-1"></i>{% trans "طي الكل" %}
+                    </button>
                 </div>
             </div>
         </div>
 
-        <!-- الجدول -->
-        <div class="section-container">
-            <h5 class="section-title">
-                <i class="fas fa-table me-2"></i>
-                تفاصيل ميزان المراجعة
-            </h5>
-            
-            {% if trial_balance_data.accounts %}
-                <div class="table-responsive">
-                    <table class="table trial-balance-table">
-                        <thead>
-                            <tr>
-                                <th style="width: 10%" class="text-center">الكود</th>
-                                <th style="width: 35%" class="text-center">الحساب</th>
-                                <th style="width: 15%" class="text-center">النوع</th>
-                                <th style="width: 15%" class="text-center">مدين</th>
-                                <th style="width: 15%" class="text-center">دائن</th>
-                                <th style="width: 10%" class="text-center">الرصيد</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% if group_by_type and trial_balance_data.grouped %}
-                                <!-- عرض مجمع حسب النوع -->
-                                {% for type_key, type_data in trial_balance_data.grouped.items %}
-                                    <!-- عنوان المجموعة -->
-                                    <tr class="group-header">
-                                        <td colspan="6" class="text-center">
-                                            <i class="fas fa-folder-open me-2"></i>
-                                            {{ type_data.name }}
-                                        </td>
-                                    </tr>
-                                    
-                                    <!-- حسابات المجموعة -->
-                                    {% for account_data in type_data.accounts %}
-                                    <tr>
-                                        <td class="text-center">{{ account_data.account.code }}</td>
-                                        <td class="text-center">{{ account_data.account.name }}</td>
-                                        <td class="text-center">{{ account_data.account_type_name }}</td>
-                                        <td class="number-cell debit-cell text-center">
-                                            {% if account_data.debit_balance > 0 %}
-                                                {{ account_data.debit_balance|smart_float }}
-                                            {% else %}
-                                                -
-                                            {% endif %}
-                                        </td>
-                                        <td class="number-cell credit-cell text-center">
-                                            {% if account_data.credit_balance > 0 %}
-                                                {{ account_data.credit_balance|smart_float }}
-                                            {% else %}
-                                                -
-                                            {% endif %}
-                                        </td>
-                                        <td class="number-cell text-center">
-                                            {% if account_data.debit_balance > 0 %}
-                                                <span class="text-success">{{ account_data.debit_balance|smart_float }} م</span>
-                                            {% elif account_data.credit_balance > 0 %}
-                                                <span class="text-danger">{{ account_data.credit_balance|smart_float }} د</span>
-                                            {% else %}
-                                                -
-                                            {% endif %}
-                                        </td>
-                                    </tr>
-                                    {% endfor %}
-                                    
-                                    <!-- إجمالي المجموعة -->
-                                    <tr class="group-subtotal">
-                                        <td colspan="3" class="text-center"><strong>إجمالي {{ type_data.name }}:</strong></td>
-                                        <td class="number-cell debit-cell text-center"><strong>{{ type_data.total_debit|smart_float }}</strong></td>
-                                        <td class="number-cell credit-cell text-center"><strong>{{ type_data.total_credit|smart_float }}</strong></td>
-                                        <td class="text-center"></td>
-                                    </tr>
-                                    
-                                    <!-- سطر فارغ -->
-                                    <tr style="height: 10px;">
-                                        <td colspan="6" style="border: none;" class="text-center"></td>
-                                    </tr>
-                                {% endfor %}
-                            {% else %}
-                                <!-- عرض عادي بدون تجميع -->
-                                {% for account_data in trial_balance_data.accounts %}
-                                <tr>
-                                    <td class="text-center">{{ account_data.account.code }}</td>
-                                    <td class="text-center">{{ account_data.account.name }}</td>
-                                    <td class="text-center">{{ account_data.account_type_name }}</td>
-                                    <td class="number-cell debit-cell text-center">
-                                        {% if account_data.debit_balance > 0 %}
-                                            {{ account_data.debit_balance|smart_float }}
-                                        {% else %}
-                                            -
-                                        {% endif %}
-                                    </td>
-                                    <td class="number-cell credit-cell text-center">
-                                        {% if account_data.credit_balance > 0 %}
-                                            {{ account_data.credit_balance|smart_float }}
-                                        {% else %}
-                                            -
-                                        {% endif %}
-                                    </td>
-                                    <td class="number-cell text-center">
-                                        {% if account_data.debit_balance > 0 %}
-                                            <span class="text-success">{{ account_data.debit_balance|smart_float }} م</span>
-                                        {% elif account_data.credit_balance > 0 %}
-                                            <span class="text-danger">{{ account_data.credit_balance|smart_float }} د</span>
-                                        {% else %}
-                                            -
-                                        {% endif %}
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            {% endif %}
-                            
-                            <!-- الإجمالي النهائي -->
-                            <tr class="grand-total">
-                                <td colspan="3" class="text-center"><strong>الإجمالي النهائي:</strong></td>
-                                <td class="number-cell text-center"><strong>{{ trial_balance_data.total_debit|smart_float }}</strong></td>
-                                <td class="number-cell text-center"><strong>{{ trial_balance_data.total_credit|smart_float }}</strong></td>
-                                <td class="text-center">
-                                    {% if trial_balance_data.is_balanced %}
-                                        <span class="balance-status balanced">✓ متوازن</span>
-                                    {% else %}
-                                        <span class="balance-status unbalanced">⚠ غير متوازن</span>
-                                    {% endif %}
+        {% if trial_balance_data.accounts %}
+        <div class="table-responsive">
+            <table class="table transaction-table table-hover tb-table" id="trialBalanceTable">
+                <thead>
+                    {% if display_mode == '6_columns' %}
+                        <tr>
+                            <th rowspan="2" style="width: 120px;">{% trans "الكود" %}</th>
+                            <th rowspan="2" style="min-width: 250px;" class="text-end ps-3">{% trans "اسم الحساب" %}</th>
+                            <th rowspan="2" style="width: 90px;" class="col-sep-left">{% trans "المستوى" %}</th>
+                            <th colspan="2" class="col-sep-left">{% trans "رصيد أول المدة" %}</th>
+                            <th colspan="2" class="col-sep-left">{% trans "حركات الفترة" %}</th>
+                            <th colspan="2" class="col-sep-left">{% trans "رصيد نهاية المدة" %}</th>
+                            <th rowspan="2" class="no-print col-sep-left" style="width: 60px;">{% trans "كشف" %}</th>
+                        </tr>
+                        <tr class="sub-header">
+                            <th style="width: 110px;" class="th-debit">{% trans "مدين" %}</th>
+                            <th style="width: 110px;" class="th-credit col-sep-left">{% trans "دائن" %}</th>
+                            <th style="width: 110px;" class="th-debit">{% trans "مدين" %}</th>
+                            <th style="width: 110px;" class="th-credit col-sep-left">{% trans "دائن" %}</th>
+                            <th style="width: 110px;" class="th-debit">{% trans "مدين" %}</th>
+                            <th style="width: 110px;" class="th-credit col-sep-left">{% trans "دائن" %}</th>
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <th style="width: 130px;">{% trans "الكود" %}</th>
+                            <th style="min-width: 260px;" class="text-end ps-3">{% trans "اسم الحساب" %}</th>
+                            <th style="width: 130px;" class="col-sep-left">{% trans "التصنيف" %}</th>
+                            <th style="width: 150px;" class="col-sep-left text-success">{% trans "مدين (ختامي)" %}</th>
+                            <th style="width: 150px;" class="text-danger">{% trans "دائن (ختامي)" %}</th>
+                            <th style="width: 140px;" class="col-sep-left">{% trans "صافي الرصيد" %}</th>
+                            <th class="no-print col-sep-left" style="width: 60px;">{% trans "كشف" %}</th>
+                        </tr>
+                    {% endif %}
+                </thead>
+                <tbody id="trialBalanceTableBody">
+                    {% if group_by_type and trial_balance_data.grouped %}
+                        {% for cat_key, group in trial_balance_data.grouped.items %}
+                            <!-- عنوان المجموعة الرئيسية مع شارة عدد الحسابات -->
+                            <tr class="tb-row-group-header" data-group-key="{{ cat_key }}">
+                                <td colspan="{% if display_mode == '6_columns' %}10{% else %}7{% endif %}" class="text-end py-2 px-3">
+                                    <i class="fas fa-layer-group me-2 text-primary"></i>
+                                    <span>{{ group.name }}</span>
+                                    <span class="badge bg-white text-primary border ms-2 small">{{ group.accounts|length }} {% trans "حساب" %}</span>
                                 </td>
                             </tr>
-                        </tbody>
-                    </table>
-                </div>
-            {% else %}
-                <div class="empty-state">
-                    <div class="empty-state-icon">
-                        <i class="fas fa-inbox"></i>
-                    </div>
-                    <h5 class="text-muted">لا توجد بيانات</h5>
-                    <p class="text-muted">لا توجد حسابات نشطة في الفترة المحددة</p>
-                </div>
-            {% endif %}
+
+                            <!-- حسابات المجموعة -->
+                            {% for item in group.accounts %}
+                                <tr class="account-row tb-level-{{ item.level|default:1 }} {% if item.is_leaf %}tb-level-leaf{% else %}parent-row{% endif %}"
+                                    id="account-{{ item.id }}"
+                                    data-account-id="{{ item.id }}"
+                                    data-parent-id="{{ item.parent_id|default:'' }}"
+                                    data-level="{{ item.level }}"
+                                    data-leaf="{{ item.is_leaf|yesno:'1,0' }}"
+                                    data-code="{{ item.code }}"
+                                    data-name="{{ item.name }}"
+                                    data-group-key="{{ cat_key }}">
+                                    <!-- الكود -->
+                                    <td class="text-center font-monospace small">
+                                        {% if item.level == 1 %}
+                                            <span class="badge bg-primary text-white font-monospace px-2 py-1">{{ item.code }}</span>
+                                        {% elif item.level == 2 %}
+                                            <span class="badge bg-white text-primary border border-primary font-monospace px-2 py-1">{{ item.code }}</span>
+                                        {% elif item.level == 3 %}
+                                            <span class="badge bg-light text-dark border font-monospace">{{ item.code }}</span>
+                                        {% else %}
+                                            <span class="text-muted font-monospace small">{{ item.code }}</span>
+                                        {% endif %}
+                                    </td>
+
+                                    <!-- الاسم مع التدرج الشجري وزر الطي/التوسيع -->
+                                    <td class="text-end">
+                                        {% if not item.is_leaf %}
+                                            <button type="button" class="expand-btn me-1" onclick="toggleAccountChildren('{{ item.id }}')" title="{% trans 'طي/توسيع' %}">
+                                                <i class="fas fa-chevron-down text-primary" id="icon-{{ item.id }}"></i>
+                                            </button>
+                                            {% if item.level == 1 %}
+                                                <i class="fas fa-folder text-primary opacity-90 me-1"></i>
+                                            {% elif item.level == 2 %}
+                                                <i class="fas fa-folder text-warning opacity-90 me-1"></i>
+                                            {% else %}
+                                                <i class="fas fa-folder-open text-muted opacity-75 me-1 small"></i>
+                                            {% endif %}
+                                        {% else %}
+                                            <i class="far fa-file-alt text-muted opacity-50 me-1 small ms-3"></i>
+                                        {% endif %}
+                                        <a href="{% url 'financial:ledger_report' %}?account_id={{ item.id }}&date_from={{ date_from|date:'Y-m-d' }}&date_to={{ date_to|date:'Y-m-d' }}"
+                                           target="_blank"
+                                           class="text-decoration-none {% if item.level == 1 %}fw-bold text-primary{% elif item.level == 2 %}fw-bold text-dark{% else %}text-body{% endif %}"
+                                           title="{% trans 'فتح كشف الحساب في تبويب جديد' %}">
+                                            {{ item.name }}
+                                        </a>
+                                    </td>
+
+                                    <!-- المستوى / النوع -->
+                                    <td class="text-center col-sep-left">
+                                        {% if item.level == 1 %}
+                                            <span class="badge bg-primary text-white">المستوى 1</span>
+                                        {% elif item.level == 2 %}
+                                            <span class="badge bg-secondary text-white">المستوى 2</span>
+                                        {% elif item.level == 3 %}
+                                            <span class="badge bg-light text-muted border">المستوى 3</span>
+                                        {% elif item.is_leaf %}
+                                            <span class="badge bg-light text-muted border" style="font-size: 0.7rem;">{% trans "فرعي" %}</span>
+                                        {% else %}
+                                            <span class="badge bg-light text-muted border">م {{ item.level }}</span>
+                                        {% endif %}
+                                    </td>
+
+                                    {% if display_mode == '6_columns' %}
+                                        <!-- أول المدة مدين -->
+                                        <td class="number-cell {% if item.opening_debit > 0 %}debit-val{% endif %} col-sep-left">
+                                            {% if item.opening_debit > 0 %}{{ item.opening_debit|smart_float }}{% else %}<span class="text-muted opacity-25">-</span>{% endif %}
+                                        </td>
+                                        <!-- أول المدة دائن -->
+                                        <td class="number-cell {% if item.opening_credit > 0 %}credit-val{% endif %} col-sep-left">
+                                            {% if item.opening_credit > 0 %}{{ item.opening_credit|smart_float }}{% else %}<span class="text-muted opacity-25">-</span>{% endif %}
+                                        </td>
+                                        <!-- حركات الفترة مدين -->
+                                        <td class="number-cell {% if item.period_debit > 0 %}text-dark fw-semibold{% endif %}">
+                                            {% if item.period_debit > 0 %}{{ item.period_debit|smart_float }}{% else %}<span class="text-muted opacity-25">-</span>{% endif %}
+                                        </td>
+                                        <!-- حركات الفترة دائن -->
+                                        <td class="number-cell {% if item.period_credit > 0 %}text-dark fw-semibold{% endif %} col-sep-left">
+                                            {% if item.period_credit > 0 %}{{ item.period_credit|smart_float }}{% else %}<span class="text-muted opacity-25">-</span>{% endif %}
+                                        </td>
+                                        <!-- إقفال مدين -->
+                                        <td class="number-cell {% if item.closing_debit > 0 %}debit-val{% endif %}">
+                                            {% if item.closing_debit > 0 %}{{ item.closing_debit|smart_float }}{% else %}<span class="text-muted opacity-25">-</span>{% endif %}
+                                        </td>
+                                        <!-- إقفال دائن -->
+                                        <td class="number-cell {% if item.closing_credit > 0 %}credit-val{% endif %} col-sep-left">
+                                            {% if item.closing_credit > 0 %}{{ item.closing_credit|smart_float }}{% else %}<span class="text-muted opacity-25">-</span>{% endif %}
+                                        </td>
+                                    {% else %}
+                                        <!-- عمودان فقط -->
+                                        <td class="number-cell {% if item.closing_debit > 0 %}debit-val{% endif %} col-sep-left">
+                                            {% if item.closing_debit > 0 %}{{ item.closing_debit|smart_float }}{% else %}<span class="text-muted opacity-25">-</span>{% endif %}
+                                        </td>
+                                        <td class="number-cell {% if item.closing_credit > 0 %}credit-val{% endif %}">
+                                            {% if item.closing_credit > 0 %}{{ item.closing_credit|smart_float }}{% else %}<span class="text-muted opacity-25">-</span>{% endif %}
+                                        </td>
+                                        <td class="number-cell text-center col-sep-left">
+                                            {% if item.closing_debit > 0 %}
+                                                <span class="text-success fw-bold">{{ item.closing_debit|smart_float }} م</span>
+                                            {% elif item.closing_credit > 0 %}
+                                                <span class="text-danger fw-bold">{{ item.closing_credit|smart_float }} د</span>
+                                            {% else %}
+                                                <span class="text-muted opacity-25">-</span>
+                                            {% endif %}
+                                        </td>
+                                    {% endif %}
+
+                                    <!-- رابط كشف الحساب -->
+                                    <td class="text-center no-print col-sep-left">
+                                        <a href="{% url 'financial:ledger_report' %}?account_id={{ item.id }}&date_from={{ date_from|date:'Y-m-d' }}&date_to={{ date_to|date:'Y-m-d' }}"
+                                           target="_blank"
+                                           class="btn btn-sm btn-outline-secondary py-0 px-2"
+                                           title="{% trans 'فتح كشف الحساب' %}">
+                                            <i class="fas fa-external-link-alt" style="font-size: 0.75rem;"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+
+                            <!-- إجمالي المجموعة -->
+                            <tr class="tb-row-subtotal" data-subtotal-for="{{ cat_key }}">
+                                <td colspan="3" class="text-center fw-bold col-sep-left">
+                                    {% trans "إجمالي" %} {{ group.name }}
+                                </td>
+                                {% if display_mode == '6_columns' %}
+                                    <td class="number-cell fw-bold debit-val col-sep-left">{{ group.total_opening_debit|smart_float }}</td>
+                                    <td class="number-cell fw-bold credit-val col-sep-left">{{ group.total_opening_credit|smart_float }}</td>
+                                    <td class="number-cell fw-bold">{{ group.total_period_debit|smart_float }}</td>
+                                    <td class="number-cell fw-bold col-sep-left">{{ group.total_period_credit|smart_float }}</td>
+                                    <td class="number-cell fw-bold debit-val">{{ group.total_closing_debit|smart_float }}</td>
+                                    <td class="number-cell fw-bold credit-val col-sep-left">{{ group.total_closing_credit|smart_float }}</td>
+                                {% else %}
+                                    <td class="number-cell fw-bold debit-val col-sep-left">{{ group.total_closing_debit|smart_float }}</td>
+                                    <td class="number-cell fw-bold credit-val">{{ group.total_closing_credit|smart_float }}</td>
+                                    <td class="number-cell text-center col-sep-left">-</td>
+                                {% endif %}
+                                <td class="no-print col-sep-left"></td>
+                            </tr>
+                        {% endfor %}
+                    {% else %}
+                        <!-- عرض غير مجمع -->
+                        {% for item in trial_balance_data.accounts %}
+                            <tr class="account-row tb-level-{{ item.level|default:1 }} {% if item.is_leaf %}tb-level-leaf{% else %}parent-row{% endif %}"
+                                id="account-{{ item.id }}"
+                                data-account-id="{{ item.id }}"
+                                data-parent-id="{{ item.parent_id|default:'' }}"
+                                data-level="{{ item.level }}"
+                                data-leaf="{{ item.is_leaf|yesno:'1,0' }}"
+                                data-code="{{ item.code }}"
+                                data-name="{{ item.name }}">
+                                <td class="text-center font-monospace small">
+                                    {% if item.level == 1 %}
+                                        <span class="badge bg-primary text-white font-monospace px-2 py-1">{{ item.code }}</span>
+                                    {% elif item.level == 2 %}
+                                        <span class="badge bg-white text-primary border border-primary font-monospace px-2 py-1">{{ item.code }}</span>
+                                    {% elif item.level == 3 %}
+                                        <span class="badge bg-light text-dark border font-monospace">{{ item.code }}</span>
+                                    {% else %}
+                                        <span class="text-muted font-monospace small">{{ item.code }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end">
+                                    {% if not item.is_leaf %}
+                                        <button type="button" class="expand-btn me-1" onclick="toggleAccountChildren('{{ item.id }}')" title="{% trans 'طي/توسيع' %}">
+                                            <i class="fas fa-chevron-down text-primary" id="icon-{{ item.id }}"></i>
+                                        </button>
+                                        {% if item.level == 1 %}
+                                            <i class="fas fa-folder text-primary opacity-90 me-1"></i>
+                                        {% elif item.level == 2 %}
+                                            <i class="fas fa-folder text-warning opacity-90 me-1"></i>
+                                        {% else %}
+                                            <i class="fas fa-folder-open text-muted opacity-75 me-1 small"></i>
+                                        {% endif %}
+                                    {% else %}
+                                        <i class="far fa-file-alt text-muted opacity-50 me-1 small ms-3"></i>
+                                    {% endif %}
+                                    <a href="{% url 'financial:ledger_report' %}?account_id={{ item.id }}&date_from={{ date_from|date:'Y-m-d' }}&date_to={{ date_to|date:'Y-m-d' }}"
+                                       target="_blank"
+                                       class="text-decoration-none {% if item.level == 1 %}fw-bold text-primary{% elif item.level == 2 %}fw-bold text-dark{% else %}text-body{% endif %}">
+                                        {{ item.name }}
+                                    </a>
+                                </td>
+                                <td class="text-center col-sep-left">
+                                    {% if item.level == 1 %}
+                                        <span class="badge bg-primary text-white">المستوى 1</span>
+                                    {% elif item.level == 2 %}
+                                        <span class="badge bg-secondary text-white">المستوى 2</span>
+                                    {% elif item.level == 3 %}
+                                        <span class="badge bg-light text-muted border">المستوى 3</span>
+                                    {% elif item.is_leaf %}
+                                        <span class="badge bg-light text-muted border" style="font-size: 0.7rem;">{% trans "فرعي" %}</span>
+                                    {% else %}
+                                        <span class="badge bg-light text-muted border">م {{ item.level }}</span>
+                                    {% endif %}
+                                </td>
+
+                                {% if display_mode == '6_columns' %}
+                                    <td class="number-cell {% if item.opening_debit > 0 %}debit-val{% endif %} col-sep-left">
+                                        {% if item.opening_debit > 0 %}{{ item.opening_debit|smart_float }}{% else %}<span class="text-muted opacity-25">-</span>{% endif %}
+                                    </td>
+                                    <td class="number-cell {% if item.opening_credit > 0 %}credit-val{% endif %} col-sep-left">
+                                        {% if item.opening_credit > 0 %}{{ item.opening_credit|smart_float }}{% else %}<span class="text-muted opacity-25">-</span>{% endif %}
+                                    </td>
+                                    <td class="number-cell">
+                                        {% if item.period_debit > 0 %}{{ item.period_debit|smart_float }}{% else %}<span class="text-muted opacity-25">-</span>{% endif %}
+                                    </td>
+                                    <td class="number-cell col-sep-left">
+                                        {% if item.period_credit > 0 %}{{ item.period_credit|smart_float }}{% else %}<span class="text-muted opacity-25">-</span>{% endif %}
+                                    </td>
+                                    <td class="number-cell {% if item.closing_debit > 0 %}debit-val{% endif %}">
+                                        {% if item.closing_debit > 0 %}{{ item.closing_debit|smart_float }}{% else %}<span class="text-muted opacity-25">-</span>{% endif %}
+                                    </td>
+                                    <td class="number-cell {% if item.closing_credit > 0 %}credit-val{% endif %} col-sep-left">
+                                        {% if item.closing_credit > 0 %}{{ item.closing_credit|smart_float }}{% else %}<span class="text-muted opacity-25">-</span>{% endif %}
+                                    </td>
+                                {% else %}
+                                    <td class="number-cell {% if item.closing_debit > 0 %}debit-val{% endif %} col-sep-left">
+                                        {% if item.closing_debit > 0 %}{{ item.closing_debit|smart_float }}{% else %}<span class="text-muted opacity-25">-</span>{% endif %}
+                                    </td>
+                                    <td class="number-cell {% if item.closing_credit > 0 %}credit-val{% endif %}">
+                                        {% if item.closing_credit > 0 %}{{ item.closing_credit|smart_float }}{% else %}<span class="text-muted opacity-25">-</span>{% endif %}
+                                    </td>
+                                    <td class="number-cell text-center col-sep-left">
+                                        {% if item.closing_debit > 0 %}
+                                            <span class="text-success fw-bold">{{ item.closing_debit|smart_float }} م</span>
+                                        {% elif item.closing_credit > 0 %}
+                                            <span class="text-danger fw-bold">{{ item.closing_credit|smart_float }} د</span>
+                                        {% else %}
+                                            <span class="text-muted opacity-25">-</span>
+                                        {% endif %}
+                                    </td>
+                                {% endif %}
+                                <td class="text-center no-print col-sep-left">
+                                    <a href="{% url 'financial:ledger_report' %}?account_id={{ item.id }}&date_from={{ date_from|date:'Y-m-d' }}&date_to={{ date_to|date:'Y-m-d' }}"
+                                       target="_blank"
+                                       class="btn btn-sm btn-outline-secondary py-0 px-2">
+                                        <i class="fas fa-external-link-alt" style="font-size: 0.75rem;"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    {% endif %}
+                </tbody>
+                <tfoot>
+                    <!-- الإجمالي النهائي للميزان -->
+                    <tr class="tb-row-grand-total">
+                        <td colspan="3" class="text-center py-3 col-sep-left">
+                            <i class="fas fa-calculator text-primary me-2"></i>
+                            <strong class="text-dark">{% trans "الإجمالي النهائي العام" %}</strong>
+                        </td>
+                        {% if display_mode == '6_columns' %}
+                            <td class="number-cell debit-val fw-bold col-sep-left">{{ trial_balance_data.total_opening_debit|smart_float }}</td>
+                            <td class="number-cell credit-val fw-bold col-sep-left">{{ trial_balance_data.total_opening_credit|smart_float }}</td>
+                            <td class="number-cell fw-bold">{{ trial_balance_data.total_period_debit|smart_float }}</td>
+                            <td class="number-cell fw-bold col-sep-left">{{ trial_balance_data.total_period_credit|smart_float }}</td>
+                            <td class="number-cell debit-val fw-bold">{{ trial_balance_data.total_closing_debit|smart_float }}</td>
+                            <td class="number-cell credit-val fw-bold col-sep-left">{{ trial_balance_data.total_closing_credit|smart_float }}</td>
+                        {% else %}
+                            <td class="number-cell debit-val fw-bold col-sep-left">{{ trial_balance_data.total_closing_debit|smart_float }}</td>
+                            <td class="number-cell credit-val fw-bold">{{ trial_balance_data.total_closing_credit|smart_float }}</td>
+                            <td class="number-cell text-center col-sep-left">
+                                {% if trial_balance_data.is_balanced %}
+                                    <span class="badge bg-success">{% trans "متوازن" %}</span>
+                                {% else %}
+                                    <span class="badge bg-danger">{% trans "غير متوازن" %}</span>
+                                {% endif %}
+                            </td>
+                        {% endif %}
+                        <td class="no-print col-sep-left"></td>
+                    </tr>
+                </tfoot>
+            </table>
         </div>
-    {% else %}
-        <div class="section-container">
-            <div class="empty-state">
-                <div class="empty-state-icon">
-                    <i class="fas fa-exclamation-triangle"></i>
+        {% else %}
+            <!-- حالة عدم وجود بيانات -->
+            <div class="empty-state py-5 text-center">
+                <div class="empty-state-icon mb-3">
+                    <i class="fas fa-balance-scale fa-4x text-muted opacity-50"></i>
                 </div>
-                <h5 class="text-muted">خطأ في تحميل البيانات</h5>
-                <p class="text-muted">حدث خطأ أثناء تحميل ميزان المراجعة</p>
+                <h5 class="text-muted fw-bold">{% trans "لا توجد حركات أو حسابات مطابقة" %}</h5>
+                <p class="text-muted small">{% trans "يرجى تغيير محددات التصفية أو اختيار نطاق زمني أوسع" %}</p>
+            </div>
+        {% endif %}
+
+        <!-- تذييل التوقيعات للطباعة الرسمية -->
+        <div class="print-signatures row">
+            <div class="col-4 signature-box">
+                <div class="fw-bold">{% trans "إعداد: المحاسب" %}</div>
+                <div class="signature-line"></div>
+            </div>
+            <div class="col-4 signature-box">
+                <div class="fw-bold">{% trans "مراجعة: رئيس الحسابات" %}</div>
+                <div class="signature-line"></div>
+            </div>
+            <div class="col-4 signature-box">
+                <div class="fw-bold">{% trans "اعتماد: المدير المالي" %}</div>
+                <div class="signature-line"></div>
             </div>
         </div>
-    {% endif %}
+    </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-    // تحسين تجربة المستخدم
-    $(document).ready(function() {
-        // لا حاجة لـ JavaScript إضافي - كل شيء في Python
-    });
+document.addEventListener('DOMContentLoaded', function() {
+    // 1. تهيئة select2-filter المتوافق مع النظام
+    if (window.jQuery && $.fn.select2) {
+        $('.select2-filter').select2({
+            theme: 'bootstrap-5',
+            dir: 'rtl',
+            language: 'ar',
+            width: '100%'
+        });
+    }
+
+    const searchInput = document.getElementById('liveTreeSearch');
+    const clearSearchBtn = document.getElementById('clearSearchBtn');
+    const counterSpan = document.getElementById('counterValue');
+
+    function updateVisibleCount() {
+        if (!counterSpan) return;
+        const visibleRows = document.querySelectorAll('.account-row:not([style*="display: none"])').length;
+        counterSpan.textContent = visibleRows;
+    }
+
+    function setActiveBtn(activeBtn) {
+        document.querySelectorAll('.tb-level-btn').forEach(btn => {
+            btn.classList.remove('btn-primary', 'active');
+            btn.classList.add('btn-outline-secondary');
+        });
+        if (activeBtn) {
+            activeBtn.classList.remove('btn-outline-secondary');
+            activeBtn.classList.add('btn-primary', 'active');
+        }
+    }
+
+    // 2. وظيفة طي وتوسيع الشجرة المحاسبية المحكمة
+    window.toggleAccountChildren = function(accountId) {
+        const row = document.getElementById('account-' + accountId);
+        if (!row) return;
+
+        const currentLevel = parseInt(row.dataset.level || 1, 10);
+        const icon = document.getElementById('icon-' + accountId);
+        if (!icon) return;
+
+        const isExpanded = icon.classList.contains('fa-chevron-down');
+
+        if (isExpanded) {
+            // طي (Collapse)
+            icon.classList.remove('fa-chevron-down');
+            icon.classList.add('fa-chevron-left');
+
+            let nextRow = row.nextElementSibling;
+            while (nextRow && nextRow.classList.contains('account-row')) {
+                const nextLevel = parseInt(nextRow.dataset.level || 1, 10);
+                if (nextLevel <= currentLevel) break;
+
+                nextRow.style.display = 'none';
+                const childIcon = nextRow.querySelector('.expand-btn i');
+                if (childIcon) {
+                    childIcon.classList.remove('fa-chevron-down');
+                    childIcon.classList.add('fa-chevron-left');
+                }
+                nextRow = nextRow.nextElementSibling;
+            }
+        } else {
+            // فتح (Expand)
+            icon.classList.remove('fa-chevron-left');
+            icon.classList.add('fa-chevron-down');
+
+            let nextRow = row.nextElementSibling;
+            while (nextRow && nextRow.classList.contains('account-row')) {
+                const nextLevel = parseInt(nextRow.dataset.level || 1, 10);
+                if (nextLevel <= currentLevel) break;
+
+                // إظهار الأبناء المباشرين فقط
+                if (nextLevel === currentLevel + 1) {
+                    nextRow.style.display = 'table-row';
+                    const childIcon = nextRow.querySelector('.expand-btn i');
+                    if (childIcon) {
+                        childIcon.classList.remove('fa-chevron-down');
+                        childIcon.classList.add('fa-chevron-left');
+                    }
+                } else {
+                    nextRow.style.display = 'none';
+                }
+                nextRow = nextRow.nextElementSibling;
+            }
+        }
+        updateVisibleCount();
+    };
+
+    // 3. أدوات التحكم بالمستويات الهرمية
+    function showUpToLevel(maxLevel) {
+        document.querySelectorAll('.account-row').forEach(row => {
+            const lvl = parseInt(row.dataset.level || 1, 10);
+            const icon = row.querySelector('.expand-btn i');
+            if (lvl <= maxLevel) {
+                row.style.display = 'table-row';
+                if (icon) {
+                    if (lvl < maxLevel) {
+                        icon.classList.remove('fa-chevron-left');
+                        icon.classList.add('fa-chevron-down');
+                    } else {
+                        icon.classList.remove('fa-chevron-down');
+                        icon.classList.add('fa-chevron-left');
+                    }
+                }
+            } else {
+                row.style.display = 'none';
+                if (icon) {
+                    icon.classList.remove('fa-chevron-down');
+                    icon.classList.add('fa-chevron-left');
+                }
+            }
+        });
+        updateVisibleCount();
+    }
+
+    const btnLvl1 = document.getElementById('btnLevel1');
+    const btnLvl2 = document.getElementById('btnLevel2');
+    const btnLvl3 = document.getElementById('btnLevel3');
+    const btnExpAll = document.getElementById('btnExpandAll');
+    const btnColAll = document.getElementById('btnCollapseAll');
+
+    if (btnLvl1) {
+        btnLvl1.addEventListener('click', function() {
+            showUpToLevel(1);
+            setActiveBtn(this);
+        });
+    }
+    if (btnLvl2) {
+        btnLvl2.addEventListener('click', function() {
+            showUpToLevel(2);
+            setActiveBtn(this);
+        });
+    }
+    if (btnLvl3) {
+        btnLvl3.addEventListener('click', function() {
+            showUpToLevel(3);
+            setActiveBtn(this);
+        });
+    }
+    
+    if (btnExpAll) {
+        btnExpAll.addEventListener('click', function() {
+            document.querySelectorAll('.account-row, .tb-row-group-header, .tb-row-subtotal').forEach(row => {
+                row.style.display = 'table-row';
+                const icon = row.querySelector('.expand-btn i');
+                if (icon) {
+                    icon.classList.remove('fa-chevron-left');
+                    icon.classList.add('fa-chevron-down');
+                }
+            });
+            setActiveBtn(this);
+            updateVisibleCount();
+        });
+    }
+
+    if (btnColAll) {
+        btnColAll.addEventListener('click', function() {
+            showUpToLevel(1);
+            setActiveBtn(this);
+        });
+    }
+
+    // 4. البحث الحي الفوري (Live Instant Filter in 0ms)
+    if (searchInput) {
+        searchInput.addEventListener('input', function() {
+            const query = this.value.trim().toLowerCase();
+            if (!query) {
+                document.querySelectorAll('.account-row, .tb-row-group-header, .tb-row-subtotal').forEach(row => {
+                    row.style.display = 'table-row';
+                });
+                setActiveBtn(btnExpAll);
+                updateVisibleCount();
+                return;
+            }
+
+            const rows = document.querySelectorAll('.account-row');
+            const matchingParents = new Set();
+
+            // فحص التطابق أولاً
+            rows.forEach(row => {
+                const code = (row.dataset.code || '').toLowerCase();
+                const name = (row.dataset.name || '').toLowerCase();
+                const match = code.includes(query) || name.includes(query);
+
+                if (match) {
+                    row.style.display = 'table-row';
+                    // إضافة معرف الأب ليظل مرئياً
+                    if (row.dataset.parentId) {
+                        matchingParents.add(row.dataset.parentId);
+                    }
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+
+            // إبقاء صفوف الآباء المرتبطة مفتوحة
+            matchingParents.forEach(parentId => {
+                const parentRow = document.getElementById('account-' + parentId);
+                if (parentRow) {
+                    parentRow.style.display = 'table-row';
+                    const icon = document.getElementById('icon-' + parentId);
+                    if (icon) {
+                        icon.classList.remove('fa-chevron-left');
+                        icon.classList.add('fa-chevron-down');
+                    }
+                }
+            });
+            updateVisibleCount();
+        });
+    }
+
+    if (clearSearchBtn && searchInput) {
+        clearSearchBtn.addEventListener('click', function() {
+            searchInput.value = '';
+            searchInput.dispatchEvent(new Event('input'));
+            searchInput.focus();
+        });
+    }
+
+    updateVisibleCount();
+});
 </script>
 {% endblock %}

@@ -3,254 +3,1300 @@
 {% load i18n %}
 {% load custom_filters %}
 {% load utils_extras %}
-{% load app_tags %}
 
 {% block title %}{{ page_title }}{% endblock %}
 
 {% block extra_css %}
-<!-- جميع الستايلات موجودة في unified-components.css و components.css -->
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
 <style>
-  .cash-flow-section {
-    margin-bottom: 2rem;
+  /* =========================================================
+     تنسيقات UI/UX الموحدة لقائمة التدفقات النقدية - MWHEBA ERP
+     مطابقة تامة 100% مع ميزان المراجعة وقائمة الدخل والميزانية
+     ========================================================= */
+
+  /* تحسينات الجدول الهرمي */
+  .tb-table {
+    width: 100%;
+    margin-bottom: 0;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 0.875rem;
   }
-  
-  .cash-flow-item {
-    padding: 0.75rem;
-    border-bottom: 1px solid #f0f0f0;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+
+  .tb-table thead tr:first-child th {
+    background-color: var(--primary-color) !important;
+    color: #ffffff !important;
+    font-weight: 700;
+    font-size: 0.88rem;
+    padding: 0.8rem 0.5rem;
+    text-align: center;
+    vertical-align: middle;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    white-space: nowrap;
+    letter-spacing: 0.2px;
   }
-  
-  .cash-flow-item:last-child {
-    border-bottom: none;
+
+  .tb-table thead tr.sub-header th {
+    background-color: var(--bg-light) !important;
+    font-size: 0.84rem;
+    font-weight: 700;
+    padding: 0.55rem 0.5rem;
+    border-bottom: 2px solid var(--border-color) !important;
+    border-left: 1px solid var(--border-color) !important;
+    text-align: center;
   }
-  
-  .cash-flow-total {
-    background-color: #f8f9fa;
-    padding: 1rem;
-    border-radius: 8px;
+
+  .tb-table tbody td {
+    padding: 0.6rem 0.65rem;
+    vertical-align: middle;
+    border-bottom: 1px solid var(--border-color);
+    border-left: 1px solid var(--border-color);
+  }
+
+  .account-row {
+    transition: background-color 0.15s ease;
+  }
+
+  .account-row:hover {
+    background-color: rgba(0, 0, 0, 0.025);
+  }
+
+  /* تمييز المستويات الهرمية */
+  .account-row.tb-level-1 {
+    background-color: var(--bg-soft-primary, #eef4ff) !important;
+    font-weight: 800 !important;
+    border-top: 2px solid var(--primary-color) !important;
+    border-bottom: 2px solid var(--primary-color) !important;
+  }
+  .account-row.tb-level-1 td {
+    font-weight: 800 !important;
+    font-size: 0.93rem;
+  }
+
+  .account-row.tb-level-2 {
+    background-color: var(--bg-light, #f8f9fa) !important;
+    font-weight: 700 !important;
+    border-bottom: 1px solid var(--border-color) !important;
+  }
+  .account-row.tb-level-2 td {
+    font-weight: 700 !important;
+    font-size: 0.88rem;
+  }
+
+  .account-row.tb-level-3 {
+    background-color: #ffffff !important;
+    font-weight: 600 !important;
+  }
+  .account-row.tb-level-3 td {
+    font-weight: 600 !important;
+    font-size: 0.86rem;
+  }
+
+  .account-row.tb-level-leaf td {
+    font-size: 0.84rem;
+  }
+  .account-row.tb-level-leaf a {
+    color: var(--text-body, #4b5563) !important;
+    font-weight: 500 !important;
+  }
+
+  .account-row.parent-row {
     font-weight: 600;
-    margin-top: 1rem;
   }
-  
-  .positive-amount {
-    color: var(--success-color);
+
+  .account-row.parent-row:hover {
+    background-color: rgba(0, 0, 0, 0.04);
   }
-  .negative-amount {
-    color: var(--danger-color);
+
+  /* المسافات البادئة للشجرة */
+  .indent-1 { padding-right: 0.5rem !important; }
+  .indent-2 { padding-right: 1.5rem !important; }
+  .indent-3 { padding-right: 2.5rem !important; }
+  .indent-4 { padding-right: 3.5rem !important; }
+  .indent-5 { padding-right: 4.5rem !important; }
+
+  /* أزرار طي وتوسيع الشجرة */
+  .expand-btn {
+    color: var(--text-muted, #6c757d);
+    text-decoration: none;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    width: 22px;
+    height: 22px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+  }
+
+  .expand-btn:hover {
+    color: var(--primary-color);
+    background-color: rgba(0, 0, 0, 0.05);
+  }
+
+  .expand-btn i {
+    font-size: 0.75rem;
+    transition: transform 0.2s ease, color 0.2s ease;
+  }
+
+  /* فواصل الكتل العمودية المزدوجة للفترات */
+  .col-sep-left {
+    border-left: 2px solid var(--border-color) !important;
+  }
+
+  /* تنسيق الأرقام والمبالغ المالية */
+  .number-cell {
+    direction: ltr;
+    text-align: right;
+    white-space: nowrap;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .debit-val {
+    color: var(--danger-color, #dc2626);
+    font-weight: 600;
+  }
+
+  .credit-val {
+    color: var(--success-color, #059669);
+    font-weight: 600;
+  }
+
+  .inflow-val {
+    color: var(--success-color, #059669);
+    font-weight: 700;
+  }
+
+  .outflow-val {
+    color: var(--danger-color, #dc2626);
+    font-weight: 700;
+  }
+
+  /* ترويسات الأقسام والمجموعات */
+  .tb-row-group-header {
+    background-color: var(--bg-light);
+    color: var(--primary-color);
+    font-weight: 700;
+    border-top: 1px solid var(--border-color);
+  }
+
+  /* الإجماليات الفرعية */
+  .tb-row-subtotal {
+    background-color: var(--bg-light);
+    font-weight: 700;
+    border-top: 2px solid var(--border-color);
+    border-bottom: 2px solid var(--border-color);
+  }
+
+  /* صف الإجمالي النهائي العام */
+  .tb-row-grand-total {
+    background-color: var(--bg-light);
+    font-weight: 700;
+    border-top: 3px double var(--primary-color);
+    border-bottom: 2px solid var(--primary-color);
+    font-size: 0.95rem;
+  }
+
+  .tb-row-grand-total td {
+    padding: 0.85rem 0.65rem;
+    border-top: 3px double var(--primary-color) !important;
+    border-bottom: 2px solid var(--primary-color) !important;
+  }
+
+  /* تذييل التوقيعات للطباعة الرسمية */
+  .print-signatures {
+    display: none;
+    margin-top: 3rem;
+    padding-top: 1.5rem;
+    border-top: 2px dashed var(--border-color);
+  }
+
+  .signature-box {
+    text-align: center;
+  }
+
+  .signature-line {
+    margin-top: 2.5rem;
+    border-top: 1px solid var(--border-color);
+    width: 80%;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  @media print {
+    @page {
+      size: landscape;
+      margin: 10mm;
+    }
+
+    .no-print {
+      display: none !important;
+    }
+
+    .section-container {
+      border: none !important;
+      box-shadow: none !important;
+      padding: 0 !important;
+      margin-bottom: 0 !important;
+    }
+
+    .table-responsive {
+      border: none !important;
+      box-shadow: none !important;
+    }
+
+    .tb-table {
+      font-size: 0.75rem !important;
+    }
+
+    .tb-table thead tr:first-child th {
+      background-color: #222 !important;
+      color: #fff !important;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .print-signatures {
+      display: block !important;
+    }
+
+    .card-header, .stats-card, .btn, .breadcrumb-wrapper, .page-header {
+      display: none !important;
+    }
   }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <!-- Page Header المركزي -->
-    {% include "shared/page_header.html" %}
+<div class="container-fluid px-3 py-2">
+  <!-- 1. Header الصفحة المركزي القياسي -->
+  {% include "shared/page_header.html" %}
 
-    <!-- فلتر التاريخ -->
-    <div class="section-container mb-4">
-        <form method="get" class="row g-3">
-            <div class="col-md-4">
-                <label class="form-label">من تاريخ</label>
-                <input type="text" name="date_from" class="form-control" data-date-picker placeholder="من تاريخ" value="{{ date_from|date:'Y-m-d' }}">
-            </div>
-            <div class="col-md-4">
-                <label class="form-label">إلى تاريخ</label>
-                <input type="text" name="date_to" class="form-control" data-date-picker placeholder="إلى تاريخ" value="{{ date_to|date:'Y-m-d' }}">
-            </div>
-            <div class="col-md-4 d-flex align-items-end">
-                <button type="submit" class="btn btn-primary w-100">
-                    <i class="fas fa-search me-2"></i>عرض التقرير
-                </button>
-            </div>
-        </form>
-    </div>
-
-    <!-- كروت الإحصائيات -->
-    {% if cash_flow_data %}
-    <div class="section-container">
-        <h5 class="section-title"><i class="fas fa-chart-bar me-2"></i>ملخص التدفقات النقدية</h5>
-        <div class="row">
-            <div class="col-md-6 col-lg-3 mb-4">
-                <div class="stats-card stats-card-primary">
-                    <div class="stats-card-header"></div>
-                    <div class="stats-card-body">
-                        <div class="stats-card-icon">
-                            <i class="fas fa-wallet"></i>
-                        </div>
-                        <div class="stats-card-title">الرصيد الافتتاحي</div>
-                        <div class="stats-card-value">{{ cash_flow_data.opening_cash|smart_float }}</div>
-                        <div class="stats-card-unit">{% currency_symbol %}</div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-6 col-lg-3 mb-4">
-                <div class="stats-card {% if cash_flow_data.net_cash_flow >= 0 %}stats-card-success{% else %}stats-card-danger{% endif %}">
-                    <div class="stats-card-header"></div>
-                    <div class="stats-card-body">
-                        <div class="stats-card-icon">
-                            <i class="fas {% if cash_flow_data.net_cash_flow >= 0 %}fa-arrow-up{% else %}fa-arrow-down{% endif %}"></i>
-                        </div>
-                        <div class="stats-card-title">صافي التدفق النقدي</div>
-                        <div class="stats-card-value">{{ cash_flow_data.net_cash_flow|smart_float }}</div>
-                        <div class="stats-card-unit">{% currency_symbol %}</div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-6 col-lg-3 mb-4">
-                <div class="stats-card stats-card-info">
-                    <div class="stats-card-header"></div>
-                    <div class="stats-card-body">
-                        <div class="stats-card-icon">
-                            <i class="fas fa-money-bill-wave"></i>
-                        </div>
-                        <div class="stats-card-title">الرصيد الختامي</div>
-                        <div class="stats-card-value">{{ cash_flow_data.closing_cash|smart_float }}</div>
-                        <div class="stats-card-unit">{% currency_symbol %}</div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-6 col-lg-3 mb-4">
-                <div class="stats-card stats-card-warning">
-                    <div class="stats-card-header"></div>
-                    <div class="stats-card-body">
-                        <div class="stats-card-icon">
-                            <i class="fas fa-percentage"></i>
-                        </div>
-                        <div class="stats-card-title">نسبة التغير</div>
-                        <div class="stats-card-value">
-                            {% widthratio cash_flow_data.net_cash_flow cash_flow_data.opening_cash 100 %}%
-                        </div>
-                        <div class="stats-card-unit">من الرصيد الافتتاحي</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- ملخص التدفقات (مخفي - البيانات في الكروت) -->
-    <div class="summary-card" style="display: none;">
-        <h5 class="mb-3">
-            <i class="fas fa-chart-line me-2"></i>
-            ملخص التدفقات النقدية
-        </h5>
-        <div class="summary-item">
-            <span>الرصيد النقدي في بداية الفترة</span>
-            <span>{{ cash_flow_data.opening_cash|smart_float }} {{ currency_symbol }}</span>
-        </div>
-        <div class="summary-item">
-            <span>صافي التدفق النقدي</span>
-            <span class="{% if cash_flow_data.net_cash_flow >= 0 %}positive-amount{% else %}negative-amount{% endif %}">
-                {{ cash_flow_data.net_cash_flow|smart_float }} {{ currency_symbol }}
+  <!-- 2. كروت الإحصائيات التنفيذية (KPI Cards) وفق Rule 7 -->
+  <div class="row g-3 mb-4">
+    <!-- كارت 1: رصيد النقدية الافتتاحي -->
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="stats-card stats-card-info">
+        <div class="stats-card-body">
+          <div class="stats-card-icon">
+            <i class="fas fa-wallet"></i>
+          </div>
+          <div class="stats-card-title">{% trans "رصيد النقدية أول المدة" %}</div>
+          <div class="stats-card-value number-cell">
+            {{ cf.beginning_cash|smart_float }}
+          </div>
+          <div class="stats-card-unit d-flex align-items-center justify-content-between">
+            <span>{{ cf.currency_symbol }}</span>
+            <span class="badge bg-light text-dark border">
+              {% trans "كما في" %} {{ date_from|date:"d/m/Y" }}
             </span>
+          </div>
         </div>
-        <div class="summary-item">
-            <span>الرصيد النقدي في نهاية الفترة</span>
-            <span>{{ cash_flow_data.closing_cash|smart_float }} {{ currency_symbol }}</span>
-        </div>
+      </div>
     </div>
-    {% endif %}
 
-    {% if cash_flow_data %}
-    <div class="row">
-        <!-- التدفقات التشغيلية -->
-        <div class="col-md-4">
-            <div class="section-container cash-flow-section">
-                <div class="section-title">
-                    <i class="fas fa-cogs me-2 text-primary"></i>
-                    التدفقات التشغيلية
-                </div>
-                <div class="cash-flow-item">
-                    <span>النقدية من الإيرادات</span>
-                    <span class="positive-amount">
-                        {{ cash_flow_data.operating_activities.cash_from_revenue|smart_float }}
-                    </span>
-                </div>
-                <div class="cash-flow-item">
-                    <span>النقدية للمصروفات</span>
-                    <span class="negative-amount">
-                        ({{ cash_flow_data.operating_activities.cash_for_expenses|smart_float }})
-                    </span>
-                </div>
-                <div class="cash-flow-total">
-                    <div class="d-flex justify-content-between">
-                        <span>صافي التدفق التشغيلي:</span>
-                        <span class="{% if cash_flow_data.operating_activities.net_cash_from_operating >= 0 %}positive-amount{% else %}negative-amount{% endif %}">
-                            {{ cash_flow_data.operating_activities.net_cash_from_operating|smart_float }} {% currency_symbol %}
-                        </span>
-                    </div>
-                </div>
-            </div>
+    <!-- كارت 2: صافي التدفق التشغيلي -->
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="stats-card {% if cf.net_operating_cash_flow >= 0 %}stats-card-success{% else %}stats-card-warning{% endif %}">
+        <div class="stats-card-body">
+          <div class="stats-card-icon">
+            <i class="fas fa-cogs"></i>
+          </div>
+          <div class="stats-card-title">{% trans "صافي التدفق التشغيلي" %}</div>
+          <div class="stats-card-value number-cell {% if cf.net_operating_cash_flow >= 0 %}inflow-val{% else %}outflow-val{% endif %}">
+            {{ cf.net_operating_cash_flow|smart_float }}
+          </div>
+          <div class="stats-card-unit d-flex align-items-center justify-content-between">
+            <span>{{ cf.currency_symbol }}</span>
+            <span class="badge {% if cf.net_operating_cash_flow >= 0 %}bg-success{% else %}bg-danger{% endif %} text-white">
+              {% if cf.net_operating_cash_flow >= 0 %}{% trans "فائض تشغيلي" %}{% else %}{% trans "عجز تشغيلي" %}{% endif %}
+            </span>
+          </div>
         </div>
-
-        <!-- التدفقات الاستثمارية -->
-        <div class="col-md-4">
-            <div class="section-container cash-flow-section">
-                <div class="section-title">
-                    <i class="fas fa-chart-line me-2 text-success"></i>
-                    التدفقات الاستثمارية
-                </div>
-                <div class="cash-flow-item">
-                    <span>النقدية لشراء الأصول</span>
-                    <span class="negative-amount">
-                        ({{ cash_flow_data.investing_activities.cash_for_investments|smart_float }})
-                    </span>
-                </div>
-                <div class="cash-flow-item">
-                    <span>النقدية من بيع الأصول</span>
-                    <span class="positive-amount">
-                        {{ cash_flow_data.investing_activities.cash_from_asset_sales|smart_float }}
-                    </span>
-                </div>
-                <div class="cash-flow-total">
-                    <div class="d-flex justify-content-between">
-                        <span>صافي التدفق الاستثماري:</span>
-                        <span class="{% if cash_flow_data.investing_activities.net_cash_from_investing >= 0 %}positive-amount{% else %}negative-amount{% endif %}">
-                            {{ cash_flow_data.investing_activities.net_cash_from_investing|smart_float }} {% currency_symbol %}
-                        </span>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- التدفقات التمويلية -->
-        <div class="col-md-4">
-            <div class="section-container cash-flow-section">
-                <div class="section-title">
-                    <i class="fas fa-hand-holding-usd me-2 text-warning"></i>
-                    التدفقات التمويلية
-                </div>
-                <div class="cash-flow-item">
-                    <span>النقدية من التمويل</span>
-                    <span class="positive-amount">
-                        {{ cash_flow_data.financing_activities.cash_from_financing|smart_float }}
-                    </span>
-                </div>
-                <div class="cash-flow-item">
-                    <span>النقدية لسداد التمويل</span>
-                    <span class="negative-amount">
-                        ({{ cash_flow_data.financing_activities.cash_for_financing|smart_float }})
-                    </span>
-                </div>
-                <div class="cash-flow-total">
-                    <div class="d-flex justify-content-between">
-                        <span>صافي التدفق التمويلي:</span>
-                        <span class="{% if cash_flow_data.financing_activities.net_cash_from_financing >= 0 %}positive-amount{% else %}negative-amount{% endif %}">
-                            {{ cash_flow_data.financing_activities.net_cash_from_financing|smart_float }} {% currency_symbol %}
-                        </span>
-                    </div>
-                </div>
-            </div>
-        </div>
+      </div>
     </div>
-    {% else %}
-    <div class="section-container">
-        <div class="alert alert-info text-center mb-0">
-            <i class="fas fa-info-circle me-2"></i>
-            لا توجد بيانات تدفقات نقدية للفترة المحددة
+
+    <!-- كارت 3: صافي التغير في النقدية -->
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="stats-card {% if cf.total_net_cash_flow >= 0 %}stats-card-primary{% else %}stats-card-danger{% endif %}">
+        <div class="stats-card-body">
+          <div class="stats-card-icon">
+            <i class="fas fa-{% if cf.total_net_cash_flow >= 0 %}arrow-trend-up{% else %}arrow-trend-down{% endif %}"></i>
+          </div>
+          <div class="stats-card-title">{% trans "صافي التغير في النقدية" %}</div>
+          <div class="stats-card-value number-cell {% if cf.total_net_cash_flow >= 0 %}inflow-val{% else %}outflow-val{% endif %}">
+            {% if cf.total_net_cash_flow >= 0 %}+{% endif %}{{ cf.total_net_cash_flow|smart_float }}
+          </div>
+          <div class="stats-card-unit d-flex align-items-center justify-content-between">
+            <span>{{ cf.currency_symbol }}</span>
+            <span class="badge bg-light text-dark border">
+              {% trans "الأنشطة الثلاثة" %}
+            </span>
+          </div>
         </div>
+      </div>
     </div>
-    {% endif %}
+
+    <!-- كارت 4: رصيد النقدية الختامي وحالة المطابقة والتوازن -->
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="stats-card {% if cf.is_balanced %}stats-card-success{% else %}stats-card-danger{% endif %}">
+        <div class="stats-card-body">
+          <div class="stats-card-icon">
+            <i class="fas fa-{% if cf.is_balanced %}check-circle{% else %}exclamation-triangle{% endif %}"></i>
+          </div>
+          <div class="stats-card-title">{% trans "رصيد النقدية آخر المدة" %}</div>
+          <div class="stats-card-value number-cell">
+            {{ cf.actual_ending_cash|smart_float }}
+          </div>
+          <div class="stats-card-unit d-flex align-items-center justify-content-between">
+            <span>{{ cf.currency_symbol }}</span>
+            {% if cf.is_balanced %}
+              <span class="badge bg-success text-white"><i class="fas fa-check me-1"></i>{% trans "مطابقة 100%" %}</span>
+            {% else %}
+              <span class="badge bg-danger text-white"><i class="fas fa-times me-1"></i>{% trans "فرق" %}: {{ cf.discrepancy|smart_float }}</span>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. فلتر البحث والتصفية القياسي الموحد (وفق Rule 6) -->
+  <div class="section-container mb-4 no-print">
+    <h5 class="section-title" data-bs-toggle="collapse" data-bs-target="#filterSection" style="cursor: pointer;">
+      <i class="fas fa-filter me-2 text-primary"></i>{% trans "تصفية وبحث قائمة التدفقات النقدية" %}
+      <i class="fas fa-chevron-down float-end mt-1 text-muted" style="font-size: 0.85rem;"></i>
+    </h5>
+
+    <div class="collapse show mt-3" id="filterSection">
+      <!-- أزرار الفترات السريعة -->
+      <div class="d-flex flex-wrap gap-2 mb-3 pb-2 border-bottom">
+        <span class="text-muted small align-self-center me-2">
+          <i class="fas fa-bolt text-warning me-1"></i>{% trans "فترات سريعة" %}:
+        </span>
+        <button type="button" class="btn btn-sm {% if active_preset == 'this_month' %}btn-primary active{% else %}btn-outline-secondary{% endif %}" onclick="setDatePreset('this_month')">
+          {% trans "الشهر الحالي" %}
+        </button>
+        <button type="button" class="btn btn-sm {% if active_preset == 'this_quarter' %}btn-primary active{% else %}btn-outline-secondary{% endif %}" onclick="setDatePreset('this_quarter')">
+          {% trans "الربع الحالي" %}
+        </button>
+        <button type="button" class="btn btn-sm {% if active_preset == 'ytd' %}btn-primary active{% else %}btn-outline-secondary{% endif %}" onclick="setDatePreset('ytd')">
+          {% trans "السنة حتى تاريخه (YTD)" %}
+        </button>
+        <button type="button" class="btn btn-sm {% if active_preset == 'last_year' %}btn-primary active{% else %}btn-outline-secondary{% endif %}" onclick="setDatePreset('last_year')">
+          {% trans "السنة السابقة كاملة" %}
+        </button>
+      </div>
+
+      <form method="GET" action="" id="cashFlowFilterForm" class="row g-3 align-items-end">
+        <input type="hidden" name="preset" id="preset_input" value="{{ active_preset|default:'' }}">
+
+        <!-- من تاريخ -->
+        <div class="col-12 col-sm-4 col-lg-2">
+          <label for="date_from" class="form-label fw-semibold">
+            <i class="fas fa-calendar-alt me-1 text-muted"></i>{% trans "من تاريخ" %}:
+          </label>
+          <input type="text" class="form-control form-control-sm" id="date_from" name="date_from"
+                 data-date-picker placeholder="YYYY-MM-DD" value="{{ date_from|date:'Y-m-d' }}">
+        </div>
+
+        <!-- إلى تاريخ -->
+        <div class="col-12 col-sm-4 col-lg-2">
+          <label for="date_to" class="form-label fw-semibold">
+            <i class="fas fa-calendar-check me-1 text-muted"></i>{% trans "إلى تاريخ" %}:
+          </label>
+          <input type="text" class="form-control form-control-sm" id="date_to" name="date_to"
+                 data-date-picker placeholder="YYYY-MM-DD" value="{{ date_to|date:'Y-m-d' }}">
+        </div>
+
+        <!-- مركز التكلفة -->
+        <div class="col-12 col-sm-4 col-lg-2">
+          <label for="cost_center" class="form-label fw-semibold">
+            <i class="fas fa-sitemap me-1 text-muted"></i>{% trans "مركز التكلفة" %}:
+          </label>
+          <select name="cost_center" id="cost_center" class="form-select form-select-sm select2-filter">
+            <option value="">-- {% trans "كافة مراكز التكلفة" %} --</option>
+            {% for cc in cost_centers_list %}
+              <option value="{{ cc.id }}" {% if selected_cost_center_id == cc.id|stringformat:"s" %}selected{% endif %}>
+                {{ cc.code }} - {{ cc.name }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- المستوى الشجري -->
+        <div class="col-12 col-sm-4 col-lg-2">
+          <label for="account_level" class="form-label fw-semibold">
+            <i class="fas fa-layer-group me-1 text-muted"></i>{% trans "المستوى الشجري" %}:
+          </label>
+          <select name="account_level" id="account_level" class="form-select form-select-sm select2-filter">
+            <option value="all" {% if account_level == 'all' %}selected{% endif %}>-- {% trans "كافة المستويات" %} --</option>
+            <option value="1" {% if account_level == '1' %}selected{% endif %}>{% trans "المستوى 1 (المجموعات الرئيسية)" %}</option>
+            <option value="2" {% if account_level == '2' %}selected{% endif %}>{% trans "المستوى 2 (الحسابات الفرعية)" %}</option>
+          </select>
+        </div>
+
+        <!-- إخفاء الحسابات الصفرية وتضمين غير المرحلة -->
+        <div class="col-12 col-sm-4 col-lg-2 d-flex flex-column justify-content-center pb-1">
+          <div class="form-check form-switch mb-1">
+            <input class="form-check-input" type="checkbox" id="hide_zero_balances" name="hide_zero_balances" value="1" {% if hide_zero_balances %}checked{% endif %}>
+            <label class="form-check-label small fw-semibold" for="hide_zero_balances">{% trans "إخفاء الصفرية" %}</label>
+          </div>
+          <div class="form-check form-switch mb-0">
+            <input class="form-check-input" type="checkbox" id="include_unposted" name="include_unposted" value="1" {% if include_unposted %}checked{% endif %}>
+            <label class="form-check-label small fw-semibold" for="include_unposted">{% trans "تضمين المسودات" %}</label>
+          </div>
+        </div>
+
+        <!-- أزرار الإجراءات -->
+        <div class="col-12 col-sm-4 col-lg-2 d-flex gap-2">
+          <button type="submit" class="btn btn-primary flex-fill" title="{% trans 'عرض التقرير' %}">
+            <i class="fas fa-search me-1"></i>{% trans "بحث" %}
+          </button>
+          <a href="{% url 'financial:cash_flow_statement' %}" class="btn btn-outline-secondary" title="{% trans 'إعادة تعيين' %}">
+            <i class="fas fa-undo"></i>
+          </a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 4. جدول قائمة التدفقات النقدية المعيارية (IAS 7) -->
+  <div class="section-container">
+    <!-- شريط أدوات الشجرة والبحث الفوري المعتمد -->
+    <div class="p-3 bg-light border-bottom d-flex flex-wrap align-items-center justify-content-between gap-3 no-print">
+      <!-- بحث حي فوري مع عداد الحسابات -->
+      <div class="d-flex align-items-center gap-2 flex-grow-1" style="max-width: 440px;">
+        <div class="input-group input-group-sm">
+          <span class="input-group-text bg-white border-end-0">
+            <i class="fas fa-search text-muted"></i>
+          </span>
+          <input type="text" id="liveTreeSearch" class="form-control border-start-0" 
+                 placeholder="{% trans 'بحث فوري في بنود التدفق النقدي...' %}" 
+                 autocomplete="off">
+          <button type="button" class="btn btn-outline-secondary" id="clearSearchBtn" title="{% trans 'مسح' %}">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        <span class="badge bg-white text-dark border ms-1 d-inline-flex align-items-center" id="visibleCounterBadge" title="{% trans 'عدد البنود الظاهرة حالياً' %}">
+          <i class="fas fa-list-ol text-primary me-1"></i>
+          <span id="counterValue">0</span>&nbsp;{% trans "بند" %}
+        </span>
+      </div>
+
+      <!-- أزرار التحكم بالمستويات الهرمية -->
+      <div class="d-flex align-items-center gap-2 flex-wrap">
+        <div class="btn-group btn-group-sm" role="group" aria-label="أدوات عرض الشجرة">
+          <button type="button" class="btn btn-outline-secondary cf-level-btn" id="btnLevel1" title="{% trans 'المجموعات الرئيسية فقط' %}">
+            <i class="fas fa-layer-group me-1"></i>{% trans "المستوى 1" %}
+          </button>
+          <button type="button" class="btn btn-primary cf-level-btn active" id="btnExpandAll" title="{% trans 'توسيع كافة الشجرة' %}">
+            <i class="fas fa-expand-alt me-1"></i>{% trans "توسيع الكل" %}
+          </button>
+          <button type="button" class="btn btn-outline-secondary cf-level-btn" id="btnCollapseAll" title="{% trans 'طي كافة الشجرة' %}">
+            <i class="fas fa-compress-alt me-1"></i>{% trans "طي الكل" %}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- جدول البيانات الهرمي -->
+    <div class="table-responsive">
+      <table class="table transaction-table table-hover tb-table" id="cashFlowTable">
+        <thead>
+          <tr>
+            <th style="width: 120px;">{% trans "الكود" %}</th>
+            <th style="min-width: 320px;" class="text-end ps-3">{% trans "بيان التدفق النقدي / البند المحاسبي" %}</th>
+            <th style="width: 170px;" class="col-sep-left">{% trans "المبلغ الجزئي" %}</th>
+            <th style="width: 180px;" class="col-sep-left">{% trans "صافي التدفق" %} ({{ cf.currency_symbol }})</th>
+            {% if cf.has_comparison %}
+              <th style="width: 180px;" class="col-sep-left">{% trans "فترة المقارنة" %}</th>
+              <th style="width: 140px;" class="col-sep-left">{% trans "مبلغ التغير" %}</th>
+              <th style="width: 110px;" class="col-sep-left">{% trans "نسبة التغير" %}</th>
+            {% endif %}
+            <th class="no-print col-sep-left" style="width: 60px;">{% trans "كشف" %}</th>
+          </tr>
+        </thead>
+        <tbody id="cashFlowTableBody">
+          <!-- ================= 1. الأنشطة التشغيلية ================= -->
+          <tr class="tb-row-group-header">
+            <td colspan="{% if cf.has_comparison %}8{% else %}5{% endif %}" class="text-end py-2 px-3">
+              <i class="fas fa-cogs me-2 text-primary"></i>
+              <span class="fw-bold">{% trans "1. التدفقات النقدية من الأنشطة التشغيلية (Operating Activities)" %}</span>
+            </td>
+          </tr>
+
+          <!-- صافي الربح / الخسارة -->
+          <tr class="account-row tb-level-1 parent-row" data-id="net_income" data-level="1" data-code="NET-INC" data-name="صافي الربح أو الخسارة للفترة">
+            <td class="text-center font-monospace small"><span class="badge bg-primary text-white font-monospace px-2 py-1">P&L</span></td>
+            <td class="text-end indent-1 fw-bold">
+              <i class="fas fa-file-invoice-dollar text-primary me-1"></i>
+              {% trans "صافي الربح / (الخسارة) للفترة (Net Income)" %}
+            </td>
+            <td class="number-cell col-sep-left"></td>
+            <td class="number-cell col-sep-left {% if cf.net_income >= 0 %}credit-val{% else %}debit-val{% endif %}">
+              {{ cf.net_income|smart_float }}
+            </td>
+            {% if cf.has_comparison %}
+              <td class="number-cell col-sep-left">-</td>
+              <td class="number-cell col-sep-left">-</td>
+              <td class="text-center col-sep-left">-</td>
+            {% endif %}
+            <td class="text-center no-print col-sep-left">
+              <a href="{% url 'financial:income_statement' %}?date_from={{ date_from|date:'Y-m-d' }}&date_to={{ date_to|date:'Y-m-d' }}" class="btn btn-sm btn-outline-secondary p-1" title="{% trans 'عرض قائمة الدخل' %}" target="_blank">
+                <i class="fas fa-external-link-alt"></i>
+              </a>
+            </td>
+          </tr>
+
+          <!-- تسويات البنود غير النقدية -->
+          <tr class="tb-row-group-header">
+            <td colspan="{% if cf.has_comparison %}8{% else %}5{% endif %}" class="text-end py-1 px-4 small text-muted">
+              <i class="fas fa-sliders-h me-2"></i>{% trans "تسويات البنود غير النقدية والمصروفات الدفترية:" %}
+            </td>
+          </tr>
+
+          {% for item in cf.non_cash_adjustments.items %}
+            <tr class="account-row tb-level-2" data-id="non-cash-{{ item.code }}" data-level="2" data-code="{{ item.code }}" data-name="{{ item.name }}">
+              <td class="text-center font-monospace small"><span class="badge bg-white text-primary border border-primary font-monospace px-2 py-1">{{ item.code }}</span></td>
+              <td class="text-end indent-2">
+                <i class="fas fa-calculator text-muted me-1"></i>
+                {{ item.name }}
+                <span class="text-muted small ms-2">({{ item.note }})</span>
+              </td>
+              <td class="number-cell col-sep-left {% if item.amount >= 0 %}credit-val{% else %}debit-val{% endif %}">
+                {% if item.amount >= 0 %}+{% endif %}{{ item.amount|smart_float }}
+              </td>
+              <td class="number-cell col-sep-left"></td>
+              {% if cf.has_comparison %}
+                <td class="number-cell col-sep-left">-</td>
+                <td class="number-cell col-sep-left">-</td>
+                <td class="text-center col-sep-left">-</td>
+              {% endif %}
+              <td class="no-print col-sep-left"></td>
+            </tr>
+          {% endfor %}
+
+          <!-- التغيرات في رأس المال العامل -->
+          <tr class="tb-row-group-header">
+            <td colspan="{% if cf.has_comparison %}8{% else %}5{% endif %}" class="text-end py-1 px-4 small text-muted">
+              <i class="fas fa-arrows-spin me-2"></i>{% trans "التغيرات في بنود رأس المال العامل التشغيلي:" %}
+            </td>
+          </tr>
+
+          {% for wc in cf.working_capital.groups %}
+            <tr class="account-row tb-level-2 parent-row"
+                id="wc-group-{{ wc.code }}"
+                data-id="wc-{{ wc.code }}"
+                data-level="2"
+                data-code="{{ wc.code }}"
+                data-name="{{ wc.name }}">
+              <td class="text-center font-monospace small">
+                <span class="badge bg-light text-dark border font-monospace">{{ wc.code }}</span>
+              </td>
+              <td class="text-end indent-2">
+                {% if wc.nodes %}
+                  <button type="button" class="expand-btn me-1" onclick="toggleAccountChildren('wc-{{ wc.code }}')" title="{% trans 'طي/توسيع' %}">
+                    <i class="fas fa-chevron-down text-primary" id="icon-wc-{{ wc.code }}"></i>
+                  </button>
+                {% else %}
+                  <span class="expand-btn me-1"><i class="fas fa-circle text-muted" style="font-size: 5px;"></i></span>
+                {% endif %}
+                <i class="fas fa-folder text-warning opacity-90 me-1"></i>
+                <span class="fw-semibold">{{ wc.name }}</span>
+              </td>
+              <td class="number-cell col-sep-left {% if wc.cash_impact >= 0 %}credit-val{% else %}debit-val{% endif %}">
+                {% if wc.cash_impact >= 0 %}+{% endif %}{{ wc.cash_impact|smart_float }}
+              </td>
+              <td class="number-cell col-sep-left"></td>
+              {% if cf.has_comparison %}
+                <td class="number-cell col-sep-left">-</td>
+                <td class="number-cell col-sep-left">-</td>
+                <td class="text-center col-sep-left">-</td>
+              {% endif %}
+              <td class="no-print col-sep-left"></td>
+            </tr>
+
+            <!-- الحسابات الفرعية للشجرة داخل مجموعة رأس المال العامل -->
+            {% for node in wc.nodes %}
+              <tr class="account-row tb-level-leaf"
+                  id="account-{{ node.id }}"
+                  data-id="{{ node.id }}"
+                  data-parent-id="wc-{{ wc.code }}"
+                  data-level="3"
+                  data-code="{{ node.code }}"
+                  data-name="{{ node.name }}">
+                <td class="text-center font-monospace small">
+                  <span class="text-muted font-monospace small">{{ node.code }}</span>
+                </td>
+                <td class="text-end indent-3">
+                  <span class="expand-btn me-1"><i class="fas fa-circle text-muted" style="font-size: 4px;"></i></span>
+                  <a href="{% url 'financial:ledger_report' %}?account={{ node.id }}&date_from={{ date_from|date:'Y-m-d' }}&date_to={{ date_to|date:'Y-m-d' }}" class="text-decoration-none text-dark" title="{% trans 'عرض كشف الحساب' %}" target="_blank">
+                    {{ node.name }}
+                  </a>
+                </td>
+                <td class="number-cell col-sep-left text-muted small">
+                  {% if node.cash_impact >= 0 %}+{% endif %}{{ node.cash_impact|smart_float }}
+                </td>
+                <td class="number-cell col-sep-left"></td>
+                {% if cf.has_comparison %}
+                  <td class="number-cell col-sep-left">-</td>
+                  <td class="number-cell col-sep-left">-</td>
+                  <td class="text-center col-sep-left">-</td>
+                {% endif %}
+                <td class="text-center no-print col-sep-left">
+                  <a href="{% url 'financial:ledger_report' %}?account={{ node.id }}&date_from={{ date_from|date:'Y-m-d' }}&date_to={{ date_to|date:'Y-m-d' }}" class="btn btn-sm btn-outline-secondary p-1" title="{% trans 'كشف الحساب' %}" target="_blank">
+                    <i class="fas fa-book-open"></i>
+                  </a>
+                </td>
+              </tr>
+            {% endfor %}
+          {% endfor %}
+
+          <!-- إجمالي الأنشطة التشغيلية -->
+          <tr class="tb-row-subtotal">
+            <td class="text-center font-monospace">1-TOTAL</td>
+            <td class="fw-bold ps-3">
+              <span class="text-primary">{% trans "صافي التدفقات النقدية من الأنشطة التشغيلية (Operating Cash Flow)" %}</span>
+            </td>
+            <td class="number-cell col-sep-left"></td>
+            <td class="number-cell fw-bold col-sep-left {% if cf.net_operating_cash_flow >= 0 %}inflow-val{% else %}outflow-val{% endif %}">
+              {{ cf.net_operating_cash_flow|smart_float }}
+            </td>
+            {% if cf.has_comparison %}
+              <td class="number-cell fw-bold col-sep-left text-muted">{{ cf.comp_net_operating_cash_flow|smart_float }}</td>
+              <td class="number-cell fw-bold col-sep-left {% if cf.diff_net_operating >= 0 %}credit-val{% else %}debit-val{% endif %}">
+                {% if cf.diff_net_operating >= 0 %}+{% endif %}{{ cf.diff_net_operating|smart_float }}
+              </td>
+              <td class="text-center col-sep-left">
+                <span class="badge {% if cf.diff_net_operating >= 0 %}bg-success{% else %}bg-danger{% endif %} text-white">
+                  {{ cf.pct_net_operating }}%
+                </span>
+              </td>
+            {% endif %}
+            <td class="no-print col-sep-left"></td>
+          </tr>
+
+          <!-- ================= 2. الأنشطة الاستثمارية ================= -->
+          <tr class="tb-row-group-header">
+            <td colspan="{% if cf.has_comparison %}8{% else %}5{% endif %}" class="text-end py-2 px-3">
+              <i class="fas fa-chart-line me-2 text-success"></i>
+              <span class="fw-bold">{% trans "2. التدفقات النقدية من الأنشطة الاستثمارية (Investing Activities)" %}</span>
+            </td>
+          </tr>
+
+          <!-- مدفوعات شراء الأصول الثابتة -->
+          <tr class="account-row tb-level-2" data-id="capex-purchases" data-level="2" data-code="121-CAPEX" data-name="المدفوعات النقدية لشراء أصول ثابتة">
+            <td class="text-center font-monospace small"><span class="badge bg-light text-dark border font-monospace">121</span></td>
+            <td class="text-end indent-2">
+              <i class="fas fa-minus-circle text-danger me-1"></i>
+              {% trans "المدفوعات النقدية لشراء وتطوير أصول ثابتة ومعدات (CAPEX)" %}
+            </td>
+            <td class="number-cell col-sep-left debit-val">{{ cf.investing_activities.cash_paid_for_capex|smart_float }}</td>
+            <td class="number-cell col-sep-left"></td>
+            {% if cf.has_comparison %}
+              <td class="number-cell col-sep-left">-</td>
+              <td class="number-cell col-sep-left">-</td>
+              <td class="text-center col-sep-left">-</td>
+            {% endif %}
+            <td class="no-print col-sep-left"></td>
+          </tr>
+
+          <!-- متحصلات بيع الأصول الثابتة -->
+          <tr class="account-row tb-level-2" data-id="capex-disposals" data-level="2" data-code="121-SALE" data-name="المتحصلات النقدية من بيع أصول ثابتة">
+            <td class="text-center font-monospace small"><span class="badge bg-light text-dark border font-monospace">121</span></td>
+            <td class="text-end indent-2">
+              <i class="fas fa-plus-circle text-success me-1"></i>
+              {% trans "المتحصلات النقدية من بيع واستبعاد أصول ثابتة واستثمارات" %}
+            </td>
+            <td class="number-cell col-sep-left credit-val">{% if cf.investing_activities.cash_from_asset_sales >= 0 %}+{% endif %}{{ cf.investing_activities.cash_from_asset_sales|smart_float }}</td>
+            <td class="number-cell col-sep-left"></td>
+            {% if cf.has_comparison %}
+              <td class="number-cell col-sep-left">-</td>
+              <td class="number-cell col-sep-left">-</td>
+              <td class="text-center col-sep-left">-</td>
+            {% endif %}
+            <td class="no-print col-sep-left"></td>
+          </tr>
+
+          <!-- إجمالي الأنشطة الاستثمارية -->
+          <tr class="tb-row-subtotal">
+            <td class="text-center font-monospace">2-TOTAL</td>
+            <td class="fw-bold ps-3">
+              <span class="text-primary">{% trans "صافي التدفقات النقدية من الأنشطة الاستثمارية (Investing Cash Flow)" %}</span>
+            </td>
+            <td class="number-cell col-sep-left"></td>
+            <td class="number-cell fw-bold col-sep-left {% if cf.investing_activities.total >= 0 %}inflow-val{% else %}outflow-val{% endif %}">
+              {{ cf.investing_activities.total|smart_float }}
+            </td>
+            {% if cf.has_comparison %}
+              <td class="number-cell fw-bold col-sep-left text-muted">{{ cf.investing_activities.comp_total|smart_float }}</td>
+              <td class="number-cell fw-bold col-sep-left {% if cf.investing_activities.diff >= 0 %}credit-val{% else %}debit-val{% endif %}">
+                {% if cf.investing_activities.diff >= 0 %}+{% endif %}{{ cf.investing_activities.diff|smart_float }}
+              </td>
+              <td class="text-center col-sep-left">
+                <span class="badge {% if cf.investing_activities.diff >= 0 %}bg-success{% else %}bg-danger{% endif %} text-white">
+                  {{ cf.investing_activities.pct }}%
+                </span>
+              </td>
+            {% endif %}
+            <td class="no-print col-sep-left"></td>
+          </tr>
+
+          <!-- ================= 3. الأنشطة التمويلية ================= -->
+          <tr class="tb-row-group-header">
+            <td colspan="{% if cf.has_comparison %}8{% else %}5{% endif %}" class="text-end py-2 px-3">
+              <i class="fas fa-hand-holding-usd me-2 text-warning"></i>
+              <span class="fw-bold">{% trans "3. التدفقات النقدية من الأنشطة التمويلية (Financing Activities)" %}</span>
+            </td>
+          </tr>
+
+          <!-- زيادة رأس المال -->
+          <tr class="account-row tb-level-2" data-id="equity-capital" data-level="2" data-code="311" data-name="زيادة رأس المال والمساهمات النقدية">
+            <td class="text-center font-monospace small"><span class="badge bg-light text-dark border font-monospace">311</span></td>
+            <td class="text-end indent-2">
+              <i class="fas fa-landmark text-primary me-1"></i>
+              {% trans "زيادة رأس المال المدفوع والمساهمات النقدية" %}
+            </td>
+            <td class="number-cell col-sep-left credit-val">{% if cf.financing_activities.capital_cash_impact >= 0 %}+{% endif %}{{ cf.financing_activities.capital_cash_impact|smart_float }}</td>
+            <td class="number-cell col-sep-left"></td>
+            {% if cf.has_comparison %}
+              <td class="number-cell col-sep-left">-</td>
+              <td class="number-cell col-sep-left">-</td>
+              <td class="text-center col-sep-left">-</td>
+            {% endif %}
+            <td class="no-print col-sep-left"></td>
+          </tr>
+
+          <!-- القروض والتسهيلات -->
+          <tr class="account-row tb-level-2" data-id="debt-loans" data-level="2" data-code="221/216" data-name="صافي حركة القروض والتسهيلات">
+            <td class="text-center font-monospace small"><span class="badge bg-light text-dark border font-monospace">221/216</span></td>
+            <td class="text-end indent-2">
+              <i class="fas fa-building-columns text-info me-1"></i>
+              {% trans "المتحصلات من / (سداد) القروض والتسهيلات الائتمانية البنكية" %}
+            </td>
+            <td class="number-cell col-sep-left {% if cf.financing_activities.debt_cash_impact >= 0 %}credit-val{% else %}debit-val{% endif %}">
+              {% if cf.financing_activities.debt_cash_impact >= 0 %}+{% endif %}{{ cf.financing_activities.debt_cash_impact|smart_float }}
+            </td>
+            <td class="number-cell col-sep-left"></td>
+            {% if cf.has_comparison %}
+              <td class="number-cell col-sep-left">-</td>
+              <td class="number-cell col-sep-left">-</td>
+              <td class="text-center col-sep-left">-</td>
+            {% endif %}
+            <td class="no-print col-sep-left"></td>
+          </tr>
+
+          <!-- التوزيعات النقدية ومسحوبات الشركاء -->
+          <tr class="account-row tb-level-2" data-id="dividends-withdrawals" data-level="2" data-code="312/215" data-name="توزيعات الأرباح ومسحوبات الشركاء">
+            <td class="text-center font-monospace small"><span class="badge bg-light text-dark border font-monospace">312/215</span></td>
+            <td class="text-end indent-2">
+              <i class="fas fa-money-bill-transfer text-danger me-1"></i>
+              {% trans "التوزيعات النقدية للأرباح ومسحوبات الشركاء" %}
+            </td>
+            <td class="number-cell col-sep-left {% if cf.financing_activities.dividends_cash_impact >= 0 %}credit-val{% else %}debit-val{% endif %}">
+              {% if cf.financing_activities.dividends_cash_impact >= 0 %}+{% endif %}{{ cf.financing_activities.dividends_cash_impact|smart_float }}
+            </td>
+            <td class="number-cell col-sep-left"></td>
+            {% if cf.has_comparison %}
+              <td class="number-cell col-sep-left">-</td>
+              <td class="number-cell col-sep-left">-</td>
+              <td class="text-center col-sep-left">-</td>
+            {% endif %}
+            <td class="no-print col-sep-left"></td>
+          </tr>
+
+          <!-- إجمالي الأنشطة التمويلية -->
+          <tr class="tb-row-subtotal">
+            <td class="text-center font-monospace">3-TOTAL</td>
+            <td class="fw-bold ps-3">
+              <span class="text-primary">{% trans "صافي التدفقات النقدية من الأنشطة التمويلية (Financing Cash Flow)" %}</span>
+            </td>
+            <td class="number-cell col-sep-left"></td>
+            <td class="number-cell fw-bold col-sep-left {% if cf.financing_activities.total >= 0 %}inflow-val{% else %}outflow-val{% endif %}">
+              {{ cf.financing_activities.total|smart_float }}
+            </td>
+            {% if cf.has_comparison %}
+              <td class="number-cell fw-bold col-sep-left text-muted">{{ cf.financing_activities.comp_total|smart_float }}</td>
+              <td class="number-cell fw-bold col-sep-left {% if cf.financing_activities.diff >= 0 %}credit-val{% else %}debit-val{% endif %}">
+                {% if cf.financing_activities.diff >= 0 %}+{% endif %}{{ cf.financing_activities.diff|smart_float }}
+              </td>
+              <td class="text-center col-sep-left">
+                <span class="badge {% if cf.financing_activities.diff >= 0 %}bg-success{% else %}bg-danger{% endif %} text-white">
+                  {{ cf.financing_activities.pct }}%
+                </span>
+              </td>
+            {% endif %}
+            <td class="no-print col-sep-left"></td>
+          </tr>
+
+          <!-- ================= 4. الخلاصة والتسوية وفحص التوازن ================= -->
+          <tr class="tb-row-group-header">
+            <td colspan="{% if cf.has_comparison %}8{% else %}5{% endif %}" class="text-end py-2 px-3">
+              <i class="fas fa-scale-balanced me-2 text-info"></i>
+              <span class="fw-bold">{% trans "4. خلاصة حركة النقدية والمطابقة مع الميزانية العمومية" %}</span>
+            </td>
+          </tr>
+
+          <!-- أثر تغير أسعار صرف العملات الأجنبية (IAS 7.28) -->
+          <tr class="account-row tb-level-2" data-id="fx-effect" data-level="2" data-code="IAS-7.28" data-name="أثر تغيرات أسعار صرف العملات الأجنبية على النقدية">
+            <td class="text-center font-monospace small"><span class="badge bg-light text-dark border font-monospace">FX</span></td>
+            <td class="text-end indent-2">
+              <i class="fas fa-coins text-warning me-1"></i>
+              {% trans "أثر تغيرات أسعار صرف العملات الأجنبية على النقدية وما في حكمها (IAS 7.28)" %}
+            </td>
+            <td class="number-cell col-sep-left"></td>
+            <td class="number-cell col-sep-left {% if cf.fx_effect_on_cash >= 0 %}credit-val{% else %}debit-val{% endif %}">
+              {% if cf.fx_effect_on_cash >= 0 %}+{% endif %}{{ cf.fx_effect_on_cash|smart_float }}
+            </td>
+            {% if cf.has_comparison %}
+              <td class="number-cell col-sep-left">-</td>
+              <td class="number-cell col-sep-left">-</td>
+              <td class="text-center col-sep-left">-</td>
+            {% endif %}
+            <td class="no-print col-sep-left"></td>
+          </tr>
+
+          <!-- صافي التغير في النقدية وما في حكمها خلال الفترة -->
+          <tr class="tb-row-subtotal">
+            <td class="text-center font-monospace">NET-CHG</td>
+            <td class="fw-bold ps-3">
+              <span class="text-dark">{% trans "صافي التغير في النقدية وما في حكمها خلال الفترة" %}</span>
+            </td>
+            <td class="number-cell col-sep-left"></td>
+            <td class="number-cell fw-bold col-sep-left {% if cf.total_net_cash_flow >= 0 %}inflow-val{% else %}outflow-val{% endif %}">
+              {% if cf.total_net_cash_flow >= 0 %}+{% endif %}{{ cf.total_net_cash_flow|smart_float }}
+            </td>
+            {% if cf.has_comparison %}
+              <td class="number-cell fw-bold col-sep-left text-muted">{{ cf.comp_total_net_cash_flow|smart_float }}</td>
+              <td class="number-cell fw-bold col-sep-left {% if cf.diff_total_net >= 0 %}credit-val{% else %}debit-val{% endif %}">
+                {% if cf.diff_total_net >= 0 %}+{% endif %}{{ cf.diff_total_net|smart_float }}
+              </td>
+              <td class="text-center col-sep-left">
+                <span class="badge {% if cf.diff_total_net >= 0 %}bg-success{% else %}bg-danger{% endif %} text-white">
+                  {{ cf.pct_total_net }}%
+                </span>
+              </td>
+            {% endif %}
+            <td class="no-print col-sep-left"></td>
+          </tr>
+
+          <!-- رصيد النقدية وما في حكمها أول الفترة -->
+          <tr class="account-row tb-level-1 parent-row" data-id="beg-cash" data-level="1" data-code="111-BEG" data-name="رصيد النقدية أول الفترة">
+            <td class="text-center font-monospace small"><span class="badge bg-light text-dark border font-monospace">111</span></td>
+            <td class="text-end indent-1 fw-bold">
+              <i class="fas fa-clock-rotate-left text-muted me-1"></i>
+              {% trans "رصيد النقدية وما في حكمها في بداية الفترة" %} ({{ date_from|date:"d/m/Y" }})
+            </td>
+            <td class="number-cell col-sep-left"></td>
+            <td class="number-cell fw-bold col-sep-left">
+              {{ cf.beginning_cash|smart_float }}
+            </td>
+            {% if cf.has_comparison %}
+              <td class="number-cell fw-bold col-sep-left text-muted">{{ cf.comp_beginning_cash|smart_float }}</td>
+              <td class="number-cell fw-bold col-sep-left">-</td>
+              <td class="text-center col-sep-left">-</td>
+            {% endif %}
+            <td class="no-print col-sep-left"></td>
+          </tr>
+
+          <!-- رصيد النقدية وما في حكمها آخر الفترة المحسوب -->
+          <tr class="tb-row-grand-total" style="background-color: var(--primary-color) !important; color: #fff !important;">
+            <td class="text-center" style="color: #fff !important;"><i class="fas fa-award"></i></td>
+            <td class="fw-bold ps-3" style="color: #fff !important;">
+              <span style="font-size: 1.05rem;">{% trans "رصيد النقدية وما في حكمها في نهاية الفترة (Ending Cash & Equivalents)" %}</span>
+              <span class="badge bg-white text-dark ms-2">{% trans "كما في" %} {{ date_to|date:"d/m/Y" }}</span>
+            </td>
+            <td class="number-cell col-sep-left" style="color: #fff !important;"></td>
+            <td class="number-cell fw-bold col-sep-left" style="font-size: 1.15rem; color: #fff !important;">
+              {{ cf.calculated_ending_cash|smart_float }}
+            </td>
+            {% if cf.has_comparison %}
+              <td class="number-cell fw-bold col-sep-left" style="color: #e2e8f0 !important;">{{ cf.comp_actual_ending_cash|smart_float }}</td>
+              <td class="number-cell fw-bold col-sep-left" style="color: #fff !important;">
+                {% if cf.diff_actual_ending_cash >= 0 %}+{% endif %}{{ cf.diff_actual_ending_cash|smart_float }}
+              </td>
+              <td class="number-cell fw-bold col-sep-left text-center" style="color: #fff !important;">-</td>
+            {% endif %}
+            <td class="no-print col-sep-left"></td>
+          </tr>
+
+          <!-- صف المطابقة الصريحة مع الميزانية العمومية -->
+          <tr class="account-row tb-level-2 bg-light">
+            <td class="text-center"><i class="fas fa-check-double text-success"></i></td>
+            <td class="text-end ps-3 fw-semibold">
+              <i class="fas fa-building-columns text-primary me-1"></i>
+              {% trans "الرصيد الفعلي لحسابات الخزائن والبنوك (111) في الميزانية العمومية" %}
+              {% if cf.is_balanced %}
+                <span class="badge bg-success text-white ms-2"><i class="fas fa-check me-1"></i>{% trans "مطابقة تامة 100%" %}</span>
+              {% else %}
+                <span class="badge bg-danger text-white ms-2"><i class="fas fa-exclamation-triangle me-1"></i>{% trans "يوجد عدم تطابق بمبلغ" %}: {{ cf.discrepancy|smart_float }}</span>
+              {% endif %}
+            </td>
+            <td class="number-cell col-sep-left"></td>
+            <td class="number-cell fw-bold col-sep-left text-primary">
+              {{ cf.actual_ending_cash|smart_float }}
+            </td>
+            {% if cf.has_comparison %}
+              <td class="number-cell col-sep-left text-muted">{{ cf.comp_actual_ending_cash|smart_float }}</td>
+              <td class="number-cell col-sep-left">-</td>
+              <td class="text-center col-sep-left">-</td>
+            {% endif %}
+            <td class="text-center no-print col-sep-left">
+              <a href="{% url 'financial:balance_sheet' %}?date={{ date_to|date:'Y-m-d' }}" class="btn btn-sm btn-outline-secondary p-1" title="{% trans 'عرض الميزانية العمومية' %}" target="_blank">
+                <i class="fas fa-balance-scale"></i>
+              </a>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 5. جدول المعاملات غير النقدية الإيضاحية (IAS 7.43) إن وجدت -->
+  {% if cf.non_cash_disclosures %}
+    <div class="section-container mt-4 no-print">
+      <h6 class="fw-bold text-dark mb-3">
+        <i class="fas fa-info-circle text-primary me-2"></i>{% trans "إيضاحات: المعاملات الاستثمارية والتمويلية غير النقدية (IAS 7.43)" %}
+      </h6>
+      <div class="table-responsive">
+        <table class="table table-sm table-bordered">
+          <thead class="table-light">
+            <tr>
+              <th>{% trans "بيان المعاملة" %}</th>
+              <th class="text-end" style="width: 200px;">{% trans "القيمة الدفترية" %}</th>
+              <th>{% trans "ملاحظات وتفاصيل المعالجة" %}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in cf.non_cash_disclosures %}
+              <tr>
+                <td>{{ item.title }}</td>
+                <td class="number-cell">{{ item.amount|smart_float }} {{ cf.currency_symbol }}</td>
+                <td class="text-muted small">{{ item.note }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  {% endif %}
+
+  <!-- تذييل التوقيعات والاعتمادات الرسمية للطباعة -->
+  <div class="print-signatures mt-4">
+    <div class="row text-center">
+      <div class="col-4">
+        <div class="signature-box">
+          <span class="fw-bold text-dark">{% trans "إعداد: المحاسب المالي" %}</span>
+          <div class="signature-line"></div>
+        </div>
+      </div>
+      <div class="col-4">
+        <div class="signature-box">
+          <span class="fw-bold text-dark">{% trans "مراجعة: رئيس الحسابات" %}</span>
+          <div class="signature-line"></div>
+        </div>
+      </div>
+      <div class="col-4">
+        <div class="signature-box">
+          <span class="fw-bold text-dark">{% trans "اعتماد: المدير المالي (CFO)" %}</span>
+          <div class="signature-line"></div>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  /**
+   * =========================================================================
+   * محرك التفاعلية الشجرية وإدارة الشاشة - قائمة التدفقات النقدية (MWHEBA ERP v2.0)
+   * مطابقة تامة 100% مع ميزان المراجعة وقائمة الدخل والميزانية
+   * =========================================================================
+   */
+
+  let currentLevelFilter = 'all';
+
+  document.addEventListener('DOMContentLoaded', function () {
+    // 1. تهيئة حقول Select2 المعيارية
+    if (typeof $ !== 'undefined' && $.fn.select2) {
+      $('.select2-filter').select2({
+        dir: 'rtl',
+        language: 'ar',
+        width: '100%',
+        dropdownAutoWidth: true
+      });
+    }
+
+    // 2. تحديث عداد البنود الظاهرة
+    updateVisibleCounter();
+
+    // 3. ربط أحداث البحث الفوري الحي
+    const searchInput = document.getElementById('liveTreeSearch');
+    const clearBtn = document.getElementById('clearSearchBtn');
+
+    if (searchInput) {
+      searchInput.addEventListener('input', function () {
+        filterTableTree();
+      });
+    }
+
+    if (clearBtn && searchInput) {
+      clearBtn.addEventListener('click', function () {
+        searchInput.value = '';
+        filterTableTree();
+        searchInput.focus();
+      });
+    }
+
+    // 4. ربط أزرار المستويات الهرمية
+    const btnLvl1 = document.getElementById('btnLevel1');
+    const btnExp = document.getElementById('btnExpandAll');
+    const btnCol = document.getElementById('btnCollapseAll');
+
+    if (btnLvl1) btnLvl1.addEventListener('click', () => applyLevelFilter(1));
+    if (btnExp) btnExp.addEventListener('click', () => expandAllTree());
+    if (btnCol) btnCol.addEventListener('click', () => collapseAllTree());
+
+    // 5. مسح preset عند التعديل اليدوي على التواريخ
+    const dateFromEl = document.getElementById('date_from');
+    const dateToEl = document.getElementById('date_to');
+    const presetInput = document.getElementById('preset_input');
+
+    const handleManualDateChange = () => {
+      if (presetInput) presetInput.value = '';
+    };
+
+    if (dateFromEl) dateFromEl.addEventListener('change', handleManualDateChange);
+    if (dateToEl) dateToEl.addEventListener('change', handleManualDateChange);
+  });
+
+  /**
+   * تحديث عداد البنود الظاهرة
+   */
+  function updateVisibleCounter() {
+    const visibleRows = document.querySelectorAll('#cashFlowTable tbody tr.account-row:not([style*="display: none"])');
+    const counterEl = document.getElementById('counterValue');
+    if (counterEl) {
+      counterEl.textContent = visibleRows.length;
+    }
+  }
+
+  /**
+   * البحث الفوري المباشر بالشجرة مع فتح الآباء صعوداً
+   */
+  function filterTableTree() {
+    const searchInput = document.getElementById('liveTreeSearch');
+    const query = searchInput ? searchInput.value.trim().toLowerCase() : '';
+    const rows = document.querySelectorAll('#cashFlowTable tbody tr.account-row');
+
+    if (!query) {
+      if (currentLevelFilter === 'all') {
+        rows.forEach(r => r.style.display = '');
+      } else {
+        applyLevelFilter(currentLevelFilter);
+      }
+      updateVisibleCounter();
+      return;
+    }
+
+    const matchedIds = new Set();
+    rows.forEach(row => {
+      const code = (row.getAttribute('data-code') || '').toLowerCase();
+      const name = (row.getAttribute('data-name') || '').toLowerCase();
+      if (code.includes(query) || name.includes(query)) {
+        matchedIds.add(row.getAttribute('data-id'));
+        let pId = row.getAttribute('data-parent-id');
+        while (pId) {
+          matchedIds.add(pId);
+          const pRow = document.querySelector(`#cashFlowTable tbody tr[data-id="${pId}"]`);
+          pId = pRow ? pRow.getAttribute('data-parent-id') : null;
+        }
+      }
+    });
+
+    rows.forEach(row => {
+      const rowId = row.getAttribute('data-id');
+      if (matchedIds.has(rowId)) {
+        row.style.display = '';
+        const icon = row.querySelector('.expand-btn i');
+        if (icon && icon.classList.contains('fa-chevron-right')) {
+          icon.classList.remove('fa-chevron-right');
+          icon.classList.add('fa-chevron-down');
+        }
+      } else {
+        row.style.display = 'none';
+      }
+    });
+
+    updateVisibleCounter();
+  }
+
+  /**
+   * تطبيق فلترة المستويات
+   */
+  function applyLevelFilter(targetLevel) {
+    currentLevelFilter = targetLevel;
+    setActiveLevelButton(targetLevel);
+
+    const rows = document.querySelectorAll('#cashFlowTable tbody tr.account-row');
+    rows.forEach(row => {
+      const level = parseInt(row.getAttribute('data-level'), 10);
+      const icon = row.querySelector('.expand-btn i');
+
+      if (level <= targetLevel) {
+        row.style.display = '';
+        if (icon) {
+          if (level < targetLevel) {
+            icon.className = 'fas fa-chevron-down text-primary';
+          } else {
+            icon.className = 'fas fa-chevron-right text-primary';
+          }
+        }
+      } else {
+        row.style.display = 'none';
+      }
+    });
+
+    updateVisibleCounter();
+  }
+
+  /**
+   * توسيع كافة الشجرة
+   */
+  function expandAllTree() {
+    currentLevelFilter = 'all';
+    setActiveLevelButton('expand');
+
+    const rows = document.querySelectorAll('#cashFlowTable tbody tr.account-row');
+    rows.forEach(row => {
+      row.style.display = '';
+      const icon = row.querySelector('.expand-btn i');
+      if (icon) {
+        icon.className = 'fas fa-chevron-down text-primary';
+      }
+    });
+
+    updateVisibleCounter();
+  }
+
+  /**
+   * طي كافة الشجرة
+   */
+  function collapseAllTree() {
+    currentLevelFilter = 1;
+    setActiveLevelButton('collapse');
+
+    const rows = document.querySelectorAll('#cashFlowTable tbody tr.account-row');
+    rows.forEach(row => {
+      const level = parseInt(row.getAttribute('data-level'), 10);
+      const icon = row.querySelector('.expand-btn i');
+      if (level <= 1) {
+        row.style.display = '';
+        if (icon) icon.className = 'fas fa-chevron-right text-primary';
+      } else {
+        row.style.display = 'none';
+      }
+    });
+
+    updateVisibleCounter();
+  }
+
+  /**
+   * تبديل طي/توسيع مجموعة معينة وأبنائها
+   */
+  function toggleAccountChildren(groupId) {
+    const icon = document.getElementById(`icon-${groupId}`);
+    if (!icon) return;
+
+    const isExpanding = icon.classList.contains('fa-chevron-right');
+
+    if (isExpanding) {
+      icon.classList.remove('fa-chevron-right');
+      icon.classList.add('fa-chevron-down');
+    } else {
+      icon.classList.remove('fa-chevron-down');
+      icon.classList.add('fa-chevron-right');
+    }
+
+    const children = document.querySelectorAll(`#cashFlowTable tbody tr[data-parent-id="${groupId}"]`);
+    children.forEach(child => {
+      child.style.display = isExpanding ? '' : 'none';
+    });
+
+    updateVisibleCounter();
+  }
+
+  /**
+   * تمييز زر المستوى النشط
+   */
+  function setActiveLevelButton(activeType) {
+    document.querySelectorAll('.cf-level-btn').forEach(btn => {
+      btn.classList.remove('active', 'btn-primary');
+      btn.classList.add('btn-outline-secondary');
+    });
+
+    let activeBtn = null;
+    if (activeType === 1) activeBtn = document.getElementById('btnLevel1');
+    else if (activeType === 'expand') activeBtn = document.getElementById('btnExpandAll');
+    else if (activeType === 'collapse') activeBtn = document.getElementById('btnCollapseAll');
+
+    if (activeBtn) {
+      activeBtn.classList.remove('btn-outline-secondary');
+      activeBtn.classList.add('btn-primary', 'active');
+    }
+  }
+
+  /**
+   * ضبط الفترات السريعة وتفعيل زر الفترة المناسب
+   */
+  function setDatePreset(preset) {
+    const presetInput = document.getElementById('preset_input');
+    if (presetInput) presetInput.value = preset;
+
+    const today = new Date();
+    const y = today.getFullYear();
+    const m = today.getMonth();
+
+    let fromDate, toDate;
+
+    function format(dt) {
+      const year = dt.getFullYear();
+      const month = String(dt.getMonth() + 1).padStart(2, '0');
+      const day = String(dt.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+
+    if (preset === 'this_month') {
+      fromDate = new Date(y, m, 1);
+      toDate = new Date(y, m + 1, 0);
+    } else if (preset === 'this_quarter') {
+      const qStartMonth = Math.floor(m / 3) * 3;
+      fromDate = new Date(y, qStartMonth, 1);
+      toDate = new Date(y, qStartMonth + 3, 0);
+    } else if (preset === 'ytd') {
+      fromDate = new Date(y, 0, 1);
+      toDate = today;
+    } else if (preset === 'last_year') {
+      fromDate = new Date(y - 1, 0, 1);
+      toDate = new Date(y - 1, 11, 31);
+    }
+
+    if (fromDate && toDate) {
+      const fromEl = document.getElementById('date_from');
+      const toEl = document.getElementById('date_to');
+      if (fromEl) fromEl.value = format(fromDate);
+      if (toEl) toEl.value = format(toDate);
+
+      const form = document.getElementById('cashFlowFilterForm');
+      if (form) form.submit();
+    }
+  }
+</script>
 {% endblock %}

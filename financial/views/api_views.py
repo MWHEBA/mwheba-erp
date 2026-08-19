@@ -21,285 +21,21 @@ logger = logging.getLogger(__name__)
 
 
 def generate_balance_sheet_optimized(balance_date, group_by_subtype=True):
-    """
-    إنشاء الميزانية العمومية بطريقة محسنة مع استخدام الطرق المحسنة
-    """
-    from decimal import Decimal
-    
-    # جلب جميع الحسابات النهائية النشطة مع تحسين الاستعلام
-    accounts = ChartOfAccounts.objects.select_related('account_type').filter(
-        is_leaf=True,
-        is_active=True
-    ).order_by('account_type__category', 'code')
-    
-    # تصنيف الحسابات
-    assets = []
-    liabilities = []
-    equity = []
-    
-    # معالجة الحسابات بشكل محسن
-    for account in accounts:
-        balance = account.get_balance_optimized(date_to=balance_date, use_cache=True)
-        
-        if balance != 0:  # تجاهل الحسابات بدون رصيد
-            account_data = {
-                'id': account.id,
-                'code': account.code,
-                'name': account.name,
-                'balance': balance,
-                'account_type': account.account_type.name,
-                'category': account.category
-            }
-            
-            if account.category == 'asset':
-                assets.append(account_data)
-            elif account.category == 'liability':
-                liabilities.append(account_data)
-            elif account.category == 'equity':
-                equity.append(account_data)
-    
-    # حساب المجاميع
-    total_assets = sum(acc['balance'] for acc in assets)
-    total_liabilities = sum(acc['balance'] for acc in liabilities)
-    total_equity = sum(acc['balance'] for acc in equity)
-    
-    # حساب صافي الدخل من حسابات الإيرادات والمصروفات
-    revenue_accounts = ChartOfAccounts.objects.select_related('account_type').filter(
-        is_leaf=True,
-        is_active=True,
-        account_type__category='revenue'
-    )
-    
-    expense_accounts = ChartOfAccounts.objects.select_related('account_type').filter(
-        is_leaf=True,
-        is_active=True,
-        account_type__category='expense'
-    )
-    
-    total_revenue = sum(
-        acc.get_balance_optimized(date_to=balance_date, use_cache=True) 
-        for acc in revenue_accounts
-    )
-    total_expenses = sum(
-        acc.get_balance_optimized(date_to=balance_date, use_cache=True) 
-        for acc in expense_accounts
-    )
-    
-    net_income = total_revenue - total_expenses
-    total_equity += net_income
-    
-    # التحقق من توازن الميزانية
-    total_liabilities_equity = total_liabilities + total_equity
-    is_balanced = abs(total_assets - total_liabilities_equity) < Decimal('0.01')
-    
-    return {
-        'assets': {
-            'accounts': assets,
-            'total': total_assets,
-            'grouped': group_accounts_by_type(assets) if group_by_subtype else {}
-        },
-        'liabilities': {
-            'accounts': liabilities,
-            'total': total_liabilities,
-            'grouped': group_accounts_by_type(liabilities) if group_by_subtype else {}
-        },
-        'equity': {
-            'accounts': equity,
-            'total': total_equity,
-            'net_income': net_income
-        },
-        'total_assets': total_assets,
-        'total_liabilities': total_liabilities,
-        'total_equity': total_equity,
-        'total_liabilities_equity': total_liabilities_equity,
-        'is_balanced': is_balanced,
-        'balance_date': balance_date
-    }
-
-
-def group_accounts_by_type(accounts):
-    """
-    تجميع الحسابات حسب النوع
-    """
-    grouped = {}
-    for account in accounts:
-        account_type = account['account_type']
-        if account_type not in grouped:
-            grouped[account_type] = {
-                'accounts': [],
-                'total': Decimal('0')
-            }
-        grouped[account_type]['accounts'].append(account)
-        grouped[account_type]['total'] += account['balance']
-    
-    return grouped
+    """تفويض مباشر إلى BalanceSheetService"""
+    from financial.services.balance_sheet_service import BalanceSheetService
+    return BalanceSheetService.generate_balance_sheet(as_of_date=balance_date, group_by_subtype=group_by_subtype)
 
 
 def calculate_financial_ratios_optimized(balance_sheet_data):
-    """
-    حساب النسب المالية المحسنة
-    """
-    ratios = {}
-    
-    try:
-        total_assets = balance_sheet_data['total_assets']
-        total_liabilities = balance_sheet_data['total_liabilities']
-        total_equity = balance_sheet_data['total_equity']
-        
-        if total_assets > 0:
-            # نسبة الدين إلى الأصول
-            ratios['debt_to_assets'] = (total_liabilities / total_assets) * 100
-            
-            # نسبة حقوق الملكية إلى الأصول
-            ratios['equity_to_assets'] = (total_equity / total_assets) * 100
-        
-        if total_equity > 0:
-            # نسبة الدين إلى حقوق الملكية
-            ratios['debt_to_equity'] = (total_liabilities / total_equity) * 100
-        
-        # نسبة السيولة (إذا كانت متاحة)
-        current_assets = Decimal('0')
-        current_liabilities = Decimal('0')
-        
-        # البحث عن الأصول والخصوم المتداولة
-        for asset in balance_sheet_data['assets']['accounts']:
-            if 'متداول' in asset['account_type'] or 'نقد' in asset['account_type']:
-                current_assets += asset['balance']
-        
-        for liability in balance_sheet_data['liabilities']['accounts']:
-            if 'متداول' in liability['account_type'] or 'قصير' in liability['account_type']:
-                current_liabilities += liability['balance']
-        
-        if current_liabilities > 0:
-            ratios['current_ratio'] = current_assets / current_liabilities
-        
-    except (KeyError, ZeroDivisionError, TypeError):
-        pass
-    
-    return ratios
+    """تفويض مباشر إلى BalanceSheetService"""
+    from financial.services.balance_sheet_service import BalanceSheetService
+    return BalanceSheetService.calculate_financial_ratios(balance_sheet_data)
 
 
 def generate_balance_sheet_excel_optimized(balance_date, group_by_subtype=True):
-    """
-    تصدير الميزانية العمومية إلى Excel بطريقة محسنة
-    """
-    try:
-        import openpyxl
-        from openpyxl.styles import Font, Alignment, Border, Side
-        from openpyxl.utils import get_column_letter
-        
-        # إنشاء الميزانية
-        balance_sheet_data = generate_balance_sheet_optimized(balance_date, group_by_subtype)
-        
-        # إنشاء ملف Excel
-        wb = openpyxl.Workbook()
-        ws = wb.active
-        ws.title = "الميزانية العمومية"
-        
-        # تنسيق الخطوط والحدود
-        header_font = Font(bold=True, size=14)
-        subheader_font = Font(bold=True, size=12)
-        normal_font = Font(size=11)
-        border = Border(
-            left=Side(style='thin'),
-            right=Side(style='thin'),
-            top=Side(style='thin'),
-            bottom=Side(style='thin')
-        )
-        
-        # العنوان الرئيسي
-        ws.merge_cells('A1:D1')
-        ws['A1'] = f"الميزانية العمومية كما في {balance_date.strftime('%Y-%m-%d')}"
-        ws['A1'].font = header_font
-        ws['A1'].alignment = Alignment(horizontal='center')
-        
-        row = 3
-        
-        # الأصول
-        ws[f'A{row}'] = "الأصول"
-        ws[f'A{row}'].font = subheader_font
-        row += 1
-        
-        for asset in balance_sheet_data['assets']['accounts']:
-            ws[f'A{row}'] = asset['code']
-            ws[f'B{row}'] = asset['name']
-            ws[f'C{row}'] = float(asset['balance'])
-            row += 1
-        
-        ws[f'B{row}'] = "إجمالي الأصول"
-        ws[f'C{row}'] = float(balance_sheet_data['total_assets'])
-        ws[f'B{row}'].font = subheader_font
-        ws[f'C{row}'].font = subheader_font
-        row += 2
-        
-        # الخصوم
-        ws[f'A{row}'] = "الخصوم"
-        ws[f'A{row}'].font = subheader_font
-        row += 1
-        
-        for liability in balance_sheet_data['liabilities']['accounts']:
-            ws[f'A{row}'] = liability['code']
-            ws[f'B{row}'] = liability['name']
-            ws[f'C{row}'] = float(liability['balance'])
-            row += 1
-        
-        ws[f'B{row}'] = "إجمالي الخصوم"
-        ws[f'C{row}'] = float(balance_sheet_data['total_liabilities'])
-        ws[f'B{row}'].font = subheader_font
-        ws[f'C{row}'].font = subheader_font
-        row += 2
-        
-        # حقوق الملكية
-        ws[f'A{row}'] = "حقوق الملكية"
-        ws[f'A{row}'].font = subheader_font
-        row += 1
-        
-        for equity in balance_sheet_data['equity']['accounts']:
-            ws[f'A{row}'] = equity['code']
-            ws[f'B{row}'] = equity['name']
-            ws[f'C{row}'] = float(equity['balance'])
-            row += 1
-        
-        # صافي الدخل
-        ws[f'B{row}'] = "صافي الدخل"
-        ws[f'C{row}'] = float(balance_sheet_data['equity']['net_income'])
-        row += 1
-        
-        ws[f'B{row}'] = "إجمالي حقوق الملكية"
-        ws[f'C{row}'] = float(balance_sheet_data['total_equity'])
-        ws[f'B{row}'].font = subheader_font
-        ws[f'C{row}'].font = subheader_font
-        row += 2
-        
-        # المجموع النهائي
-        ws[f'B{row}'] = "إجمالي الخصوم وحقوق الملكية"
-        ws[f'C{row}'] = float(balance_sheet_data['total_liabilities_equity'])
-        ws[f'B{row}'].font = header_font
-        ws[f'C{row}'].font = header_font
-        
-        # تطبيق التنسيق على جميع الخلايا
-        for row_cells in ws.iter_rows():
-            for cell in row_cells:
-                if cell.value is not None:
-                    cell.border = border
-                    if cell.font == Font():
-                        cell.font = normal_font
-        
-        # ضبط عرض الأعمدة
-        ws.column_dimensions['A'].width = 15
-        ws.column_dimensions['B'].width = 40
-        ws.column_dimensions['C'].width = 20
-        
-        # حفظ الملف في الذاكرة
-        from io import BytesIO
-        output = BytesIO()
-        wb.save(output)
-        output.seek(0)
-        
-        return output.getvalue()
-        
-    except ImportError:
-        return None
+    """تفويض مباشر إلى BalanceSheetService"""
+    from financial.services.balance_sheet_service import BalanceSheetService
+    return BalanceSheetService.export_to_excel(as_of_date=balance_date)
 
 
 def handle_progressive_ledger_load(request, account_id, date_from, date_to, page_size, cost_center=None, include_unposted=False):
@@ -1204,377 +940,637 @@ def ledger_report(request):
 @login_required
 def balance_sheet(request):
     """
-    تقرير الميزانية العمومية - محسّن واحترافي مع التخزين المؤقت
-    يستخدم الطرق المحسنة لحساب الأرصدة والتخزين المؤقت للتقارير الكبيرة
+    تقرير الميزانية العمومية والمركز المالي (IAS 1 Statement of Financial Position)
+    مرتبط بالكامل بـ BalanceSheetService المعياري مع دعم التخزين المؤقت، المقارنة الزمنية، وتصدير Excel الرسمي.
     """
     from django.http import HttpResponse
     from django.core.cache import cache
-    from django.db.models import Q
-    from decimal import Decimal
     import hashlib
-    import json
-    
-    # معالجة الفلاتر
-    date_str = request.GET.get("date")
-    group_by_subtype = request.GET.get("group_by_subtype", "1") == "1"
+    from financial.services.balance_sheet_service import BalanceSheetService
+
+    # 1. معالجة الفلاتر والمعايير
+    date_str = request.GET.get("date") or request.GET.get("date_to") or request.GET.get("as_of_date")
+    comparison_date_str = request.GET.get("comparison_date")
+    account_level = request.GET.get("account_level")
+    hide_zero_balances = request.GET.get("hide_zero_balances", "0") in ["1", "true", "True"]
     export_format = request.GET.get("export")
     use_cache = request.GET.get("use_cache", "1") == "1"
-    
-    # تحويل التاريخ
-    balance_date = None
+
+    # معالجة التواريخ
+    as_of_date = None
     if date_str:
         try:
-            balance_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+            as_of_date = datetime.strptime(date_str, "%Y-%m-%d").date()
         except ValueError:
-            messages.warning(request, "تنسيق التاريخ غير صحيح")
-            balance_date = timezone.now().date()
+            messages.warning(request, "تنسيق التاريخ غير صحيح، تم استخدام تاريخ اليوم.")
+            as_of_date = timezone.now().date()
     else:
-        balance_date = timezone.now().date()
-    
-    # إنشاء مفتاح التخزين المؤقت للتقرير
-    cache_key_data = f"balance_sheet_{balance_date}_{group_by_subtype}_{export_format or 'html'}"
-    cache_key = f"report_{hashlib.md5(cache_key_data.encode()).hexdigest()}"
-    
-    # محاولة الحصول على التقرير من التخزين المؤقت
-    cached_data = None
-    if use_cache and not export_format:
-        cached_data = cache.get(cache_key)
-        if cached_data:
-            try:
-                balance_sheet_data = json.loads(cached_data)
-                # تحويل القيم النصية إلى Decimal
-                for category in ['assets', 'liabilities', 'equity']:
-                    if category in balance_sheet_data:
-                        for account in balance_sheet_data[category].get('accounts', []):
-                            if 'balance' in account:
-                                account['balance'] = Decimal(str(account['balance']))
-                        if 'total' in balance_sheet_data[category]:
-                            balance_sheet_data[category]['total'] = Decimal(str(balance_sheet_data[category]['total']))
-                
-                # إضافة رسالة للمستخدم
-                messages.info(request, "تم تحميل التقرير من التخزين المؤقت لتحسين الأداء")
-            except (json.JSONDecodeError, KeyError):
-                cached_data = None
-    
-    # معالجة التصدير
+        as_of_date = timezone.now().date()
+
+    comparison_date = None
+    if comparison_date_str:
+        try:
+            comparison_date = datetime.strptime(comparison_date_str, "%Y-%m-%d").date()
+        except ValueError:
+            comparison_date = None
+
+    # 2. معالجة تصدير Excel الرسمي المعتمد
     if export_format == 'excel':
         try:
-            # محاولة استخدام خدمة الميزانية إذا كانت متاحة
-            try:
-                from ..services.balance_sheet_service import BalanceSheetService
-                excel_data = BalanceSheetService.export_to_excel(
-                    balance_date,
-                    group_by_subtype
-                )
-            except ImportError:
-                # استخدام التنفيذ المحسن المباشر
-                excel_data = generate_balance_sheet_excel_optimized(balance_date, group_by_subtype)
-            
+            excel_data = BalanceSheetService.export_to_excel(
+                as_of_date=as_of_date,
+                comparison_date=comparison_date,
+                account_level=account_level,
+                hide_zero_balances=hide_zero_balances
+            )
             response = HttpResponse(
                 excel_data,
                 content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
             )
-            filename = f"balance_sheet_{balance_date.strftime('%Y%m%d')}.xlsx"
+            filename = f"balance_sheet_{as_of_date.strftime('%Y%m%d')}.xlsx"
             response['Content-Disposition'] = f'attachment; filename="{filename}"'
-            
             return response
         except Exception as e:
-            messages.error(request, f"خطأ في تصدير Excel: {e}")
-    
-    # إنشاء الميزانية العمومية إذا لم تكن في التخزين المؤقت
+            logger.error(f"خطأ في تصدير Excel للميزانية: {e}", exc_info=True)
+            messages.error(request, f"خطأ في تصدير ملف Excel: {e}")
+
+    # 3. إدارة التخزين المؤقت (Cache Key)
+    cache_key_data = f"bs_v2_{as_of_date}_{comparison_date}_{account_level}_{hide_zero_balances}"
+    cache_key = f"report_bs_{hashlib.md5(cache_key_data.encode()).hexdigest()}"
+
+    cached_data = None
+    if use_cache and not export_format:
+        cached_data = cache.get(cache_key)
+
+    if cached_data:
+        try:
+            balance_sheet_data = cached_data
+            financial_ratios = balance_sheet_data.get('financial_ratios', {})
+        except Exception:
+            cached_data = None
+
     if not cached_data:
-        try:
-            # محاولة استخدام خدمة الميزانية إذا كانت متاحة
+        balance_sheet_data = BalanceSheetService.generate_balance_sheet(
+            as_of_date=as_of_date,
+            comparison_date=comparison_date,
+            account_level=account_level,
+            hide_zero_balances=hide_zero_balances
+        )
+        financial_ratios = balance_sheet_data.get('financial_ratios', {})
+
+        if use_cache:
             try:
-                from ..services.balance_sheet_service import BalanceSheetService
-                balance_sheet_data = BalanceSheetService.generate_balance_sheet(
-                    balance_date,
-                    group_by_subtype
-                )
-                financial_ratios = BalanceSheetService.calculate_financial_ratios(balance_sheet_data)
-            except ImportError:
-                # استخدام التنفيذ المحسن المباشر
-                balance_sheet_data = generate_balance_sheet_optimized(balance_date, group_by_subtype)
-                financial_ratios = calculate_financial_ratios_optimized(balance_sheet_data)
-            
-            # حفظ التقرير في التخزين المؤقت لمدة 30 دقيقة
-            if use_cache:
-                try:
-                    # تحويل Decimal إلى string للتخزين
-                    cache_data = json.loads(json.dumps(balance_sheet_data, default=str))
-                    cache.set(cache_key, json.dumps(cache_data), 1800)  # 30 minutes
-                except Exception as cache_error:
-                    # تجاهل أخطاء التخزين المؤقت
-                    pass
-            
-        except Exception as e:
-            messages.error(request, f"خطأ في إنشاء الميزانية العمومية: {e}")
-            balance_sheet_data = {
-                'assets': {'accounts': [], 'grouped': {}, 'total': Decimal('0')},
-                'liabilities': {'accounts': [], 'grouped': {}, 'total': Decimal('0')},
-                'equity': {'accounts': [], 'total': Decimal('0'), 'net_income': Decimal('0')},
-                'total_assets': Decimal('0'),
-                'total_liabilities': Decimal('0'),
-                'total_equity': Decimal('0'),
-                'total_liabilities_equity': Decimal('0'),
-                'is_balanced': False,
-                'error': str(e)
-            }
-            financial_ratios = {}
-    else:
-        # حساب النسب المالية للبيانات المخزنة مؤقتاً
-        try:
-            financial_ratios = calculate_financial_ratios_optimized(balance_sheet_data)
-        except:
-            financial_ratios = {}
-    
-    # بناء أزرار الهيدر مع خيارات التخزين المؤقت
+                cache.set(cache_key, balance_sheet_data, 300)  # 5 دقائق TTL
+            except Exception:
+                pass
+
+    # 4. بناء أزرار الهيدر المركزي
     header_buttons = [
         {
             "onclick": "window.print()",
             "icon": "fa-print",
             "text": "طباعة",
-            "class": "btn-outline-success",
+            "class": "btn-outline-secondary",
         }
     ]
-    
-    # إضافة زر تصدير Excel
-    export_params = []
-    if date_str:
-        export_params.append(f"date={date_str}")
-    if group_by_subtype:
-        export_params.append("group_by_subtype=1")
+
+    # زر تصدير Excel
+    export_params = [f"date={as_of_date.strftime('%Y-%m-%d')}"]
+    if comparison_date:
+        export_params.append(f"comparison_date={comparison_date.strftime('%Y-%m-%d')}")
+    if account_level:
+        export_params.append(f"account_level={account_level}")
+    if hide_zero_balances:
+        export_params.append("hide_zero_balances=1")
     export_params.append("export=excel")
     export_url = "?" + "&".join(export_params)
-    
+
     header_buttons.append({
         "url": export_url,
         "icon": "fa-file-excel",
         "text": "تصدير Excel",
         "class": "btn-success",
     })
-    
-    # إضافة زر تحديث التخزين المؤقت
-    if cached_data:
-        refresh_params = []
-        if date_str:
-            refresh_params.append(f"date={date_str}")
-        if group_by_subtype:
-            refresh_params.append("group_by_subtype=1")
-        refresh_params.append("use_cache=0")
-        refresh_url = "?" + "&".join(refresh_params)
-        
-        header_buttons.append({
-            "url": refresh_url,
-            "icon": "fa-sync",
-            "text": "تحديث البيانات",
-            "class": "btn-outline-warning",
-        })
-    
+
+    # زر التحديث المباشر (تجاوز الكاش)
+    refresh_params = [f"date={as_of_date.strftime('%Y-%m-%d')}"]
+    if comparison_date:
+        refresh_params.append(f"comparison_date={comparison_date.strftime('%Y-%m-%d')}")
+    if account_level:
+        refresh_params.append(f"account_level={account_level}")
+    if hide_zero_balances:
+        refresh_params.append("hide_zero_balances=1")
+    refresh_params.append("use_cache=0")
+    refresh_url = "?" + "&".join(refresh_params)
+
+    header_buttons.append({
+        "url": refresh_url,
+        "icon": "fa-sync",
+        "text": "تحديث البيانات",
+        "class": "btn-outline-primary",
+    })
+
     context = {
-        "page_title": "الميزانية العمومية",
-        "page_subtitle": f"تقرير الميزانية العمومية كما في {balance_date.strftime('%d-%m-%Y')}",
+        "page_title": "الميزانية العمومية والمركز المالي",
+        "page_subtitle": f"تقرير المركز المالي كما في {as_of_date.strftime('%d/%m/%Y')}",
         "page_icon": "fas fa-balance-scale",
         "breadcrumb_items": [
             {"title": "الرئيسية", "url": reverse("core:dashboard"), "icon": "fas fa-home"},
-            {"title": "الإدارة المالية", "url": reverse("financial:chart_of_accounts_list"), "icon": "fas fa-money-bill-wave"},
-            {"title": "التقارير", "url": "#", "icon": "fas fa-chart-bar"},
+            {"title": "الإدارة المالية", "url": reverse("financial:chart_of_accounts_list"), "icon": "fas fa-calculator"},
+            {"title": "التقارير المالية", "url": "#", "icon": "fas fa-chart-line"},
             {"title": "الميزانية العمومية", "active": True},
         ],
         "header_buttons": header_buttons,
+        "bs": balance_sheet_data,
         "balance_sheet_data": balance_sheet_data,
         "financial_ratios": financial_ratios,
-        "balance_date": balance_date,
-        "group_by_subtype": group_by_subtype,
+        "as_of_date": as_of_date,
+        "comparison_date": comparison_date,
+        "account_level": account_level or "all",
+        "hide_zero_balances": hide_zero_balances,
         "is_cached": cached_data is not None,
     }
-    
+
     return render(request, "financial/reports/balance_sheet.html", context)
 
 
 @login_required
 def income_statement(request):
     """
-    تقرير قائمة الدخل - محسّن واحترافي
-    يستخدم IncomeStatementService للحسابات الديناميكية والدقيقة
+    تقرير قائمة الدخل والأرباح والخسائر (IAS 1 Statement of Profit or Loss)
+    مرتبط بالكامل بـ IncomeStatementService المعياري مع دعم المقارنة الزمنية، مراكز التكلفة، وتصدير Excel الرسمي.
     """
-    from ..services.income_statement_service import IncomeStatementService
     from django.http import HttpResponse
-    
-    # معالجة الفلاتر
+    from django.core.cache import cache
+    import hashlib
+    from financial.services.income_statement_service import IncomeStatementService
+    from financial.models.cost_center import CostCenter
+
+    # 1. معالجة الفلاتر والمعايير
+    preset = request.GET.get("preset")
     date_from_str = request.GET.get("date_from")
     date_to_str = request.GET.get("date_to")
+    comp_date_from_str = request.GET.get("comp_date_from")
+    comp_date_to_str = request.GET.get("comp_date_to")
+    cost_center_id = request.GET.get("cost_center") or request.GET.get("cost_center_id")
+    account_level = request.GET.get("account_level")
+    hide_zero_balances = request.GET.get("hide_zero_balances", "0") in ["1", "true", "True"]
+    include_unposted = request.GET.get("include_unposted", "0") in ["1", "true", "True"]
     export_format = request.GET.get("export")
-    
-    # تحويل التواريخ
+    use_cache = request.GET.get("use_cache", "1") == "1"
+
+    # تحويل التواريخ وفق الفترات السريعة أو المدخلة يدوياً
+    today = timezone.now().date()
     date_from = None
     date_to = None
-    
-    if date_from_str:
+
+    if preset == 'this_month':
+        date_from = date(today.year, today.month, 1)
+        next_month = today.month % 12 + 1
+        next_month_year = today.year + (1 if today.month == 12 else 0)
+        date_to = date(next_month_year, next_month, 1) - timedelta(days=1)
+    elif preset == 'this_quarter':
+        q_start_month = ((today.month - 1) // 3) * 3 + 1
+        date_from = date(today.year, q_start_month, 1)
+        q_end_month = q_start_month + 2
+        next_q_month = q_end_month % 12 + 1
+        next_q_year = today.year + (1 if q_end_month == 12 else 0)
+        date_to = date(next_q_year, next_q_month, 1) - timedelta(days=1)
+    elif preset == 'ytd':
+        date_from = date(today.year, 1, 1)
+        date_to = today
+    elif preset == 'last_year':
+        date_from = date(today.year - 1, 1, 1)
+        date_to = date(today.year - 1, 12, 31)
+    else:
+        if date_to_str:
+            try:
+                date_to = datetime.strptime(date_to_str, "%Y-%m-%d").date()
+            except ValueError:
+                date_to = today
+        else:
+            date_to = today
+
+        if date_from_str:
+            try:
+                date_from = datetime.strptime(date_from_str, "%Y-%m-%d").date()
+            except ValueError:
+                date_from = date(date_to.year, 1, 1)
+        else:
+            date_from = date(date_to.year, 1, 1)
+
+    # تحديد الفترة السريعة النشطة لتفعيل الزر المناسب في الواجهة
+    active_preset = preset
+    if not active_preset:
+        month_start = date(today.year, today.month, 1)
+        next_m = today.month % 12 + 1
+        next_m_y = today.year + (1 if today.month == 12 else 0)
+        month_end = date(next_m_y, next_m, 1) - timedelta(days=1)
+
+        q_s_m = ((today.month - 1) // 3) * 3 + 1
+        quarter_start = date(today.year, q_s_m, 1)
+        q_e_m = q_s_m + 2
+        next_q_m = q_e_m % 12 + 1
+        next_q_y = today.year + (1 if q_e_m == 12 else 0)
+        quarter_end = date(next_q_y, next_q_m, 1) - timedelta(days=1)
+
+        if date_from == date(today.year, 1, 1) and date_to == today:
+            active_preset = 'ytd'
+        elif date_from == month_start and date_to == month_end:
+            active_preset = 'this_month'
+        elif date_from == quarter_start and date_to == quarter_end:
+            active_preset = 'this_quarter'
+        elif date_from == date(today.year - 1, 1, 1) and date_to == date(today.year - 1, 12, 31):
+            active_preset = 'last_year'
+
+    comp_date_from = None
+    if comp_date_from_str:
         try:
-            date_from = datetime.strptime(date_from_str, "%Y-%m-%d").date()
+            comp_date_from = datetime.strptime(comp_date_from_str, "%Y-%m-%d").date()
         except ValueError:
-            messages.warning(request, "تنسيق تاريخ البداية غير صحيح")
-    
-    if date_to_str:
+            comp_date_from = None
+
+    comp_date_to = None
+    if comp_date_to_str:
         try:
-            date_to = datetime.strptime(date_to_str, "%Y-%m-%d").date()
+            comp_date_to = datetime.strptime(comp_date_to_str, "%Y-%m-%d").date()
         except ValueError:
-            messages.warning(request, "تنسيق تاريخ النهاية غير صحيح")
-    
-    # معالجة التصدير
+            comp_date_to = None
+
+    # 2. معالجة تصدير Excel الرسمي المعتمد
     if export_format == 'excel':
         try:
-            excel_data = IncomeStatementService.export_to_excel(date_from, date_to)
-            
+            excel_data = IncomeStatementService.export_to_excel(
+                date_from=date_from,
+                date_to=date_to,
+                comp_date_from=comp_date_from,
+                comp_date_to=comp_date_to,
+                cost_center_id=cost_center_id,
+                account_level=account_level,
+                hide_zero_balances=hide_zero_balances
+            )
             response = HttpResponse(
                 excel_data,
                 content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
             )
-            filename = f"income_statement_{timezone.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+            filename = f"income_statement_{date_from.strftime('%Y%m%d')}_{date_to.strftime('%Y%m%d')}.xlsx"
             response['Content-Disposition'] = f'attachment; filename="{filename}"'
-            
             return response
         except Exception as e:
-            messages.error(request, f"خطأ في تصدير Excel: {e}")
-    
-    # إنشاء قائمة الدخل
-    try:
-        income_statement_data = IncomeStatementService.generate_income_statement(date_from, date_to)
-        
-        context = {
-            "page_title": "قائمة الدخل",
-            "page_subtitle": f"تقرير الأرباح والخسائر للفترة من {income_statement_data.get('date_from')} إلى {income_statement_data.get('date_to')}",
-            "page_icon": "fas fa-chart-line",
-            "header_buttons": [
-                {
-                    "onclick": "window.print()",
-                    "icon": "fa-print",
-                    "text": "طباعة",
-                    "class": "btn-success",
-                },
-            ],
-            "breadcrumb_items": [
-                {"title": "الرئيسية", "url": "/", "icon": "fas fa-home"},
-                {"title": "الإدارة المالية", "url": "#", "icon": "fas fa-money-bill-wave"},
-                {"title": "التقارير", "url": "#", "icon": "fas fa-chart-bar"},
-                {"title": "قائمة الدخل", "active": True},
-            ],
-            "income_statement_data": income_statement_data,
-            "date_from": income_statement_data.get('date_from'),
-            "date_to": income_statement_data.get('date_to'),
+            logger.error(f"خطأ في تصدير Excel لقائمة الدخل: {e}", exc_info=True)
+            messages.error(request, f"خطأ في تصدير ملف Excel: {e}")
+
+    # 3. إدارة التخزين المؤقت
+    cache_key_data = f"inc_v2_{date_from}_{date_to}_{comp_date_from}_{comp_date_to}_{cost_center_id}_{account_level}_{hide_zero_balances}_{include_unposted}"
+    cache_key = f"report_inc_{hashlib.md5(cache_key_data.encode()).hexdigest()}"
+
+    cached_data = None
+    if use_cache and not export_format and not include_unposted:
+        cached_data = cache.get(cache_key)
+
+    if cached_data:
+        try:
+            income_statement_data = cached_data
+        except Exception:
+            cached_data = None
+
+    if not cached_data:
+        income_statement_data = IncomeStatementService.generate_income_statement(
+            date_from=date_from,
+            date_to=date_to,
+            comp_date_from=comp_date_from,
+            comp_date_to=comp_date_to,
+            cost_center_id=cost_center_id,
+            account_level=account_level,
+            hide_zero_balances=hide_zero_balances,
+            include_unposted=include_unposted
+        )
+        if use_cache and not include_unposted:
+            try:
+                cache.set(cache_key, income_statement_data, 300)
+            except Exception:
+                pass
+
+    # 4. بناء أزرار الهيدر المركزي
+    header_buttons = [
+        {
+            "onclick": "window.print()",
+            "icon": "fa-print",
+            "text": "طباعة",
+            "class": "btn-outline-secondary",
         }
-        
-    except Exception as e:
-        messages.error(request, f"خطأ في إنشاء قائمة الدخل: {e}")
-        context = {
-            "page_title": "قائمة الدخل",
-            "page_icon": "fas fa-file-invoice-dollar",
-            "breadcrumb_items": [
-                {"title": "الرئيسية", "url": "/", "icon": "fas fa-home"},
-                {"title": "الإدارة المالية", "url": "#", "icon": "fas fa-money-bill-wave"},
-                {"title": "التقارير", "url": "#", "icon": "fas fa-chart-bar"},
-                {"title": "قائمة الدخل", "active": True, "icon": "fas fa-file-invoice-dollar"},
-            ],
-            "income_statement_data": {
-                'revenues': [],
-                'expenses': [],
-                'total_revenue': 0,
-                'total_expense': 0,
-                'net_income': 0,
-                'error': str(e)
-            },
-            "date_from": date_from,
-            "date_to": date_to,
-        }
-    
+    ]
+
+    # زر تصدير Excel
+    export_params = [f"date_from={date_from.strftime('%Y-%m-%d')}", f"date_to={date_to.strftime('%Y-%m-%d')}"]
+    if comp_date_from and comp_date_to:
+        export_params.extend([f"comp_date_from={comp_date_from.strftime('%Y-%m-%d')}", f"comp_date_to={comp_date_to.strftime('%Y-%m-%d')}"])
+    if cost_center_id:
+        export_params.append(f"cost_center={cost_center_id}")
+    if account_level:
+        export_params.append(f"account_level={account_level}")
+    if hide_zero_balances:
+        export_params.append("hide_zero_balances=1")
+    export_params.append("export=excel")
+    export_url = "?" + "&".join(export_params)
+
+    header_buttons.append({
+        "url": export_url,
+        "icon": "fa-file-excel",
+        "text": "تصدير Excel",
+        "class": "btn-success",
+    })
+
+    # زر التحديث المباشر
+    refresh_params = [f"date_from={date_from.strftime('%Y-%m-%d')}", f"date_to={date_to.strftime('%Y-%m-%d')}"]
+    if comp_date_from and comp_date_to:
+        refresh_params.extend([f"comp_date_from={comp_date_from.strftime('%Y-%m-%d')}", f"comp_date_to={comp_date_to.strftime('%Y-%m-%d')}"])
+    if cost_center_id:
+        refresh_params.append(f"cost_center={cost_center_id}")
+    if account_level:
+        refresh_params.append(f"account_level={account_level}")
+    if hide_zero_balances:
+        refresh_params.append("hide_zero_balances=1")
+    if include_unposted:
+        refresh_params.append("include_unposted=1")
+    refresh_params.append("use_cache=0")
+    refresh_url = "?" + "&".join(refresh_params)
+
+    header_buttons.append({
+        "url": refresh_url,
+        "icon": "fa-sync",
+        "text": "تحديث البيانات",
+        "class": "btn-outline-primary",
+    })
+
+    # قائمة مراكز التكلفة
+    cost_centers_list = CostCenter.objects.filter(is_active=True).order_by('code')
+
+    context = {
+        "page_title": "قائمة الدخل والأرباح والخسائر",
+        "page_subtitle": f"تقرير نتائج الأعمال للفترة من {date_from.strftime('%d/%m/%Y')} إلى {date_to.strftime('%d/%m/%Y')}",
+        "page_icon": "fas fa-chart-line",
+        "breadcrumb_items": [
+            {"title": "الرئيسية", "url": reverse("core:dashboard"), "icon": "fas fa-home"},
+            {"title": "الإدارة المالية", "url": reverse("financial:chart_of_accounts_list"), "icon": "fas fa-calculator"},
+            {"title": "التقارير المالية", "url": "#", "icon": "fas fa-chart-line"},
+            {"title": "قائمة الدخل", "active": True},
+        ],
+        "header_buttons": header_buttons,
+        "inc": income_statement_data,
+        "income_statement_data": income_statement_data,
+        "date_from": date_from,
+        "date_to": date_to,
+        "comp_date_from": comp_date_from,
+        "comp_date_to": comp_date_to,
+        "cost_centers_list": cost_centers_list,
+        "selected_cost_center_id": str(cost_center_id) if cost_center_id else "",
+        "account_level": account_level or "all",
+        "hide_zero_balances": hide_zero_balances,
+        "include_unposted": include_unposted,
+        "active_preset": active_preset,
+        "is_cached": cached_data is not None,
+    }
+
     return render(request, "financial/reports/income_statement.html", context)
 
 
 @login_required
 def cash_flow_statement(request):
     """
-    تقرير قائمة التدفقات النقدية
+    تقرير قائمة التدفقات النقدية (IAS 7 Statement of Cash Flows)
+    مرتبط بالكامل بـ CashFlowService المعياري مع دعم الطريقة غير المباشرة المتقدمة،
+    المقارنة الزمنية، مراكز التكلفة، وتصدير Excel الرسمي.
     """
-    from ..services.cash_flow_service import CashFlowService
     from django.http import HttpResponse
-    
-    # تحديد فترة التقرير
-    date_from = request.GET.get("date_from")
-    date_to = request.GET.get("date_to")
+    from django.core.cache import cache
+    import hashlib
+    from financial.services.cash_flow_service import CashFlowService
+    from financial.models.cost_center import CostCenter
 
-    if date_from:
-        date_from = datetime.strptime(date_from, "%Y-%m-%d").date()
+    # 1. معالجة الفلاتر والمعايير
+    preset = request.GET.get("preset")
+    date_from_str = request.GET.get("date_from")
+    date_to_str = request.GET.get("date_to")
+    comp_date_from_str = request.GET.get("comp_date_from")
+    comp_date_to_str = request.GET.get("comp_date_to")
+    cost_center_id = request.GET.get("cost_center") or request.GET.get("cost_center_id")
+    account_level = request.GET.get("account_level")
+    hide_zero_balances = request.GET.get("hide_zero_balances", "0") in ["1", "true", "True"]
+    include_unposted = request.GET.get("include_unposted", "0") in ["1", "true", "True"]
+    export_format = request.GET.get("export")
+    use_cache = request.GET.get("use_cache", "1") == "1"
+
+    # تحويل التواريخ وفق الفترات السريعة أو المدخلة يدوياً
+    today = timezone.now().date()
+    date_from = None
+    date_to = None
+
+    if preset == 'this_month':
+        date_from = date(today.year, today.month, 1)
+        next_month = today.month % 12 + 1
+        next_month_year = today.year + (1 if today.month == 12 else 0)
+        date_to = date(next_month_year, next_month, 1) - timedelta(days=1)
+    elif preset == 'this_quarter':
+        q_start_month = ((today.month - 1) // 3) * 3 + 1
+        date_from = date(today.year, q_start_month, 1)
+        q_end_month = q_start_month + 2
+        next_q_month = q_end_month % 12 + 1
+        next_q_year = today.year + (1 if q_end_month == 12 else 0)
+        date_to = date(next_q_year, next_q_month, 1) - timedelta(days=1)
+    elif preset == 'ytd':
+        date_from = date(today.year, 1, 1)
+        date_to = today
+    elif preset == 'last_year':
+        date_from = date(today.year - 1, 1, 1)
+        date_to = date(today.year - 1, 12, 31)
     else:
-        # افتراضيًا، بداية الشهر الحالي
-        today = timezone.now().date()
-        date_from = datetime(today.year, today.month, 1).date()
+        if date_to_str:
+            try:
+                date_to = datetime.strptime(date_to_str, "%Y-%m-%d").date()
+            except ValueError:
+                date_to = today
+        else:
+            date_to = today
 
-    if date_to:
-        date_to = datetime.strptime(date_to, "%Y-%m-%d").date()
+        if date_from_str:
+            try:
+                date_from = datetime.strptime(date_from_str, "%Y-%m-%d").date()
+            except ValueError:
+                date_from = date(date_to.year, 1, 1)
+        else:
+            date_from = date(date_to.year, 1, 1)
+
+    # تحديد الفترة السريعة النشطة لتفعيل الزر المناسب في الواجهة
+    active_preset = preset
+    if not active_preset:
+        month_start = date(today.year, today.month, 1)
+        next_m = today.month % 12 + 1
+        next_m_y = today.year + (1 if today.month == 12 else 0)
+        month_end = date(next_m_y, next_m, 1) - timedelta(days=1)
+
+        q_s_m = ((today.month - 1) // 3) * 3 + 1
+        quarter_start = date(today.year, q_s_m, 1)
+        q_e_m = q_s_m + 2
+        next_q_m = q_e_m % 12 + 1
+        next_q_y = today.year + (1 if q_e_m == 12 else 0)
+        quarter_end = date(next_q_y, next_q_m, 1) - timedelta(days=1)
+
+        if date_from == date(today.year, 1, 1) and date_to == today:
+            active_preset = 'ytd'
+        elif date_from == month_start and date_to == month_end:
+            active_preset = 'this_month'
+        elif date_from == quarter_start and date_to == quarter_end:
+            active_preset = 'this_quarter'
+        elif date_from == date(today.year - 1, 1, 1) and date_to == date(today.year - 1, 12, 31):
+            active_preset = 'last_year'
+
+    comp_date_from = None
+    if comp_date_from_str:
+        try:
+            comp_date_from = datetime.strptime(comp_date_from_str, "%Y-%m-%d").date()
+        except ValueError:
+            comp_date_from = None
+
+    comp_date_to = None
+    if comp_date_to_str:
+        try:
+            comp_date_to = datetime.strptime(comp_date_to_str, "%Y-%m-%d").date()
+        except ValueError:
+            comp_date_to = None
+
+    # 2. معالجة تصدير Excel الرسمي المعتمد
+    if export_format == 'excel':
+        try:
+            excel_data = CashFlowService.export_to_excel(
+                date_from=date_from,
+                date_to=date_to,
+                cost_center_id=cost_center_id,
+                include_unposted=include_unposted,
+            )
+            response = HttpResponse(
+                excel_data,
+                content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            )
+            response["Content-Disposition"] = f'attachment; filename="Cash_Flow_IAS7_{date_from.strftime("%Y%m%d")}_{date_to.strftime("%Y%m%d")}.xlsx"'
+            return response
+        except Exception as e:
+            logger.error(f"Error exporting Cash Flow to Excel: {e}", exc_info=True)
+            messages.error(request, f"حدث خطأ أثناء تصدير ملف Excel: {e}")
+
+    # 3. جلب بيانات التدفقات النقدية مع التخزين المؤقت
+    cache_key = None
+    cached_data = None
+    if use_cache:
+        cache_key_raw = f"cf_stmt_{date_from}_{date_to}_{comp_date_from}_{comp_date_to}_{cost_center_id}_{account_level}_{hide_zero_balances}_{include_unposted}"
+        cache_key = f"cf_report_{hashlib.md5(cache_key_raw.encode()).hexdigest()}"
+        cached_data = cache.get(cache_key)
+
+    if cached_data:
+        cash_flow_data = cached_data
     else:
-        # افتراضيًا، تاريخ اليوم
-        date_to = timezone.now().date()
+        try:
+            cash_flow_data = CashFlowService.generate_cash_flow_statement(
+                date_from=date_from,
+                date_to=date_to,
+                comp_date_from=comp_date_from,
+                comp_date_to=comp_date_to,
+                cost_center_id=cost_center_id,
+                account_level=account_level,
+                hide_zero_balances=hide_zero_balances,
+                include_unposted=include_unposted,
+            )
+            if use_cache and cache_key:
+                cache.set(cache_key, cash_flow_data, 180)  # 3 minutes
+        except Exception as e:
+            logger.error(f"Error generating Cash Flow data: {e}", exc_info=True)
+            messages.error(request, f"حدث خطأ أثناء احتساب قائمة التدفقات النقدية: {e}")
+            cash_flow_data = {}
 
-    try:
-        # إنشاء خدمة التدفقات النقدية
-        cash_flow_service = CashFlowService(date_from=date_from, date_to=date_to)
-        
-        # التحقق من طلب التصدير
-        if request.GET.get('export') == 'excel':
-            # إنشاء التقرير
-            report_data = cash_flow_service.generate_cash_flow_statement()
-            
-            # تصدير إلى Excel
-            excel_content = cash_flow_service.export_to_excel(report_data)
-            
-            if excel_content:
-                response = HttpResponse(
-                    excel_content,
-                    content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-                )
-                response['Content-Disposition'] = f'attachment; filename="cash_flow_{date_from}_{date_to}.xlsx"'
-                return response
-            else:
-                messages.warning(request, "تصدير Excel غير متاح. يرجى تثبيت openpyxl")
-        
-        # إنشاء التقرير
-        report_data = cash_flow_service.generate_cash_flow_statement()
-
-        context = {
-            "page_title": "قائمة التدفقات النقدية",
-            "page_subtitle": f"من {date_from.strftime('%Y-%m-%d')} إلى {date_to.strftime('%Y-%m-%d')}",
-            "page_icon": "fas fa-money-bill-wave",
-            "header_buttons": [
-                {
-                    "onclick": "window.print()",
-                    "icon": "fa-print",
-                    "text": "طباعة",
-                    "class": "btn-success",
-                },
-                {
-                    "url": f"?date_from={date_from.strftime('%Y-%m-%d')}&date_to={date_to.strftime('%Y-%m-%d')}&export=excel",
-                    "icon": "fa-file-excel",
-                    "text": "تصدير Excel",
-                    "class": "btn-primary",
-                },
-            ],
-            "breadcrumb_items": [
-                {"title": "الرئيسية", "url": "/", "icon": "fas fa-home"},
-                {"title": "الإدارة المالية", "url": "#", "icon": "fas fa-money-bill-wave"},
-                {"title": "التقارير", "url": "#", "icon": "fas fa-chart-bar"},
-                {"title": "قائمة التدفقات النقدية", "active": True},
-            ],
-            "cash_flow_data": report_data,
-            "date_from": date_from,
-            "date_to": date_to,
+    # 4. أزرار الهيدر المعيارية
+    header_buttons = [
+        {
+            "onclick": "window.print()",
+            "icon": "fa-print",
+            "text": "طباعة",
+            "class": "btn-outline-secondary",
         }
+    ]
 
-        return render(request, "financial/reports/cash_flow_statement.html", context)
+    # رابط تصدير Excel
+    export_params = [f"date_from={date_from.strftime('%Y-%m-%d')}", f"date_to={date_to.strftime('%Y-%m-%d')}"]
+    if comp_date_from and comp_date_to:
+        export_params.extend([f"comp_date_from={comp_date_from.strftime('%Y-%m-%d')}", f"comp_date_to={comp_date_to.strftime('%Y-%m-%d')}"])
+    if cost_center_id:
+        export_params.append(f"cost_center={cost_center_id}")
+    if account_level:
+        export_params.append(f"account_level={account_level}")
+    if hide_zero_balances:
+        export_params.append("hide_zero_balances=1")
+    if include_unposted:
+        export_params.append("include_unposted=1")
+    export_params.append("export=excel")
+    export_url = "?" + "&".join(export_params)
 
-    except Exception as e:
-        messages.error(request, f"خطأ في تحميل قائمة التدفقات النقدية: {e}")
-        return redirect("core:dashboard")
+    header_buttons.append({
+        "url": export_url,
+        "icon": "fa-file-excel",
+        "text": "تصدير Excel",
+        "class": "btn-success",
+    })
+
+    # زر التحديث المباشر
+    refresh_params = [f"date_from={date_from.strftime('%Y-%m-%d')}", f"date_to={date_to.strftime('%Y-%m-%d')}"]
+    if comp_date_from and comp_date_to:
+        refresh_params.extend([f"comp_date_from={comp_date_from.strftime('%Y-%m-%d')}", f"comp_date_to={comp_date_to.strftime('%Y-%m-%d')}"])
+    if cost_center_id:
+        refresh_params.append(f"cost_center={cost_center_id}")
+    if account_level:
+        refresh_params.append(f"account_level={account_level}")
+    if hide_zero_balances:
+        refresh_params.append("hide_zero_balances=1")
+    if include_unposted:
+        refresh_params.append("include_unposted=1")
+    refresh_params.append("use_cache=0")
+    refresh_url = "?" + "&".join(refresh_params)
+
+    header_buttons.append({
+        "url": refresh_url,
+        "icon": "fa-sync",
+        "text": "تحديث البيانات",
+        "class": "btn-outline-primary",
+    })
+
+    # قائمة مراكز التكلفة
+    cost_centers_list = CostCenter.objects.filter(is_active=True).order_by('code')
+
+    context = {
+        "page_title": "قائمة التدفقات النقدية (IAS 7)",
+        "page_subtitle": f"تقرير التدفقات النقدية للفترة من {date_from.strftime('%d/%m/%Y')} إلى {date_to.strftime('%d/%m/%Y')}",
+        "page_icon": "fas fa-money-bill-wave",
+        "breadcrumb_items": [
+            {"title": "الرئيسية", "url": reverse("core:dashboard"), "icon": "fas fa-home"},
+            {"title": "الإدارة المالية", "url": reverse("financial:chart_of_accounts_list"), "icon": "fas fa-calculator"},
+            {"title": "التقارير المالية", "url": "#", "icon": "fas fa-chart-line"},
+            {"title": "قائمة التدفقات النقدية", "active": True},
+        ],
+        "header_buttons": header_buttons,
+        "cf": cash_flow_data,
+        "cash_flow_data": cash_flow_data,
+        "date_from": date_from,
+        "date_to": date_to,
+        "comp_date_from": comp_date_from,
+        "comp_date_to": comp_date_to,
+        "cost_centers_list": cost_centers_list,
+        "selected_cost_center_id": str(cost_center_id) if cost_center_id else "",
+        "account_level": account_level or "all",
+        "hide_zero_balances": hide_zero_balances,
+        "include_unposted": include_unposted,
+        "active_preset": active_preset,
+        "is_cached": cached_data is not None,
+    }
+
+    return render(request, "financial/reports/cash_flow_statement.html", context)
 
 
 @login_required
@@ -1852,83 +1848,100 @@ def payment_sync_resolve_errors_api(request):
 @login_required
 def trial_balance_report(request):
     """
-    تقرير ميزان المراجعة - محسّن واحترافي
-    يستخدم TrialBalanceService للحسابات الديناميكية والدقيقة
+    تقرير ميزان المراجعة المؤسسي الشامل - Trial Balance Report (v10.0)
+    يدعم ميزان الـ 6 أعمدة والـ 2 عمود، التدرج الشجري، فلترة المستويات، وتصدير Excel الرسمي
     """
     from ..services.trial_balance_service import TrialBalanceService
     from django.http import HttpResponse
-    
+    from django.urls import reverse
+
     # معالجة الفلاتر
     date_from_str = request.GET.get("date_from")
     date_to_str = request.GET.get("date_to")
+    display_mode = request.GET.get("display_mode", "6_columns")
+    account_level = request.GET.get("account_level")
+    hide_zero = request.GET.get("hide_zero", "0") == "1"
     group_by_type = request.GET.get("group_by_type", "1") == "1"
     export_format = request.GET.get("export")
-    
+
     # تحويل التواريخ
     date_from = None
     date_to = None
-    
+
     if date_from_str:
         try:
             date_from = datetime.strptime(date_from_str, "%Y-%m-%d").date()
         except ValueError:
             messages.warning(request, "تنسيق تاريخ البداية غير صحيح")
-    
+
     if date_to_str:
         try:
             date_to = datetime.strptime(date_to_str, "%Y-%m-%d").date()
         except ValueError:
             messages.warning(request, "تنسيق تاريخ النهاية غير صحيح")
-    
-    # معالجة التصدير
+
+    # معالجة التصدير لـ Excel
     if export_format == 'excel':
         try:
             excel_data = TrialBalanceService.export_to_excel(
-                date_from,
-                date_to,
-                group_by_type
+                date_from=date_from,
+                date_to=date_to,
+                display_mode=display_mode,
+                account_level=account_level,
+                hide_zero_balances=hide_zero,
+                group_by_type=group_by_type
             )
-            
+
             response = HttpResponse(
                 excel_data,
                 content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
             )
             filename = f"trial_balance_{timezone.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
             response['Content-Disposition'] = f'attachment; filename="{filename}"'
-            
             return response
         except Exception as e:
             messages.error(request, f"خطأ في تصدير Excel: {e}")
-    
+
     # إنشاء ميزان المراجعة
     try:
         trial_balance_data = TrialBalanceService.generate_trial_balance(
-            date_from,
-            date_to,
+            date_from=date_from,
+            date_to=date_to,
+            display_mode=display_mode,
+            account_level=account_level,
+            hide_zero_balances=hide_zero,
             group_by_type=group_by_type
         )
-        
-        # بناء URL للتصدير
+
+        # بناء رابط التصدير للـ Excel مع الحفاظ على كافة الفلاتر
         export_params = []
-        if date_from:
-            export_params.append(f"date_from={date_from.strftime('%Y-%m-%d')}")
-        if date_to:
-            export_params.append(f"date_to={date_to.strftime('%Y-%m-%d')}")
+        if trial_balance_data.get('date_from'):
+            export_params.append(f"date_from={trial_balance_data['date_from'].strftime('%Y-%m-%d')}")
+        if trial_balance_data.get('date_to'):
+            export_params.append(f"date_to={trial_balance_data['date_to'].strftime('%Y-%m-%d')}")
+        if display_mode:
+            export_params.append(f"display_mode={display_mode}")
+        if account_level:
+            export_params.append(f"account_level={account_level}")
+        if hide_zero:
+            export_params.append("hide_zero=1")
         if group_by_type:
             export_params.append("group_by_type=1")
+        else:
+            export_params.append("group_by_type=0")
         export_params.append("export=excel")
         export_url = "?" + "&".join(export_params)
-        
+
         context = {
             "page_title": "ميزان المراجعة",
-            "page_subtitle": f"تقرير ميزان المراجعة حتى {date_to.strftime('%Y-%m-%d') if date_to else 'اليوم'}",
+            "page_subtitle": f"عن الفترة من {trial_balance_data['date_from'].strftime('%Y-%m-%d')} إلى {trial_balance_data['date_to'].strftime('%Y-%m-%d')}",
             "page_icon": "fas fa-balance-scale",
             "header_buttons": [
                 {
                     "onclick": "window.print()",
                     "icon": "fa-print",
                     "text": "طباعة",
-                    "class": "btn-success",
+                    "class": "btn-outline-secondary",
                 },
                 {
                     "url": export_url,
@@ -1938,41 +1951,50 @@ def trial_balance_report(request):
                 },
             ],
             "breadcrumb_items": [
-                {"title": "الرئيسية", "url": "/", "icon": "fas fa-home"},
-                {"title": "الإدارة المالية", "url": "#", "icon": "fas fa-money-bill-wave"},
-                {"title": "التقارير", "url": "#", "icon": "fas fa-chart-bar"},
+                {"title": "الرئيسية", "url": reverse('core:dashboard'), "icon": "fa-home"},
+                {"title": "الإدارة المالية", "url": reverse('financial:chart_of_accounts_list'), "icon": "fa-calculator"},
                 {"title": "ميزان المراجعة", "active": True},
             ],
             "trial_balance_data": trial_balance_data,
-            "date_from": date_from,
-            "date_to": date_to,
+            "date_from": trial_balance_data['date_from'],
+            "date_to": trial_balance_data['date_to'],
+            "display_mode": display_mode,
+            "account_level": account_level or '',
+            "hide_zero": hide_zero,
             "group_by_type": group_by_type,
         }
-        
+
     except Exception as e:
+        logger.exception(f"خطأ في صفحة ميزان المراجعة: {e}")
         messages.error(request, f"خطأ في إنشاء ميزان المراجعة: {e}")
         context = {
             "page_title": "ميزان المراجعة",
             "page_icon": "fas fa-balance-scale",
             "breadcrumb_items": [
-                {"title": "الرئيسية", "url": "/", "icon": "fas fa-home"},
-                {"title": "الإدارة المالية", "url": "#", "icon": "fas fa-money-bill-wave"},
-                {"title": "التقارير", "url": "#", "icon": "fas fa-chart-bar"},
-                {"title": "ميزان المراجعة", "active": True, "icon": "fas fa-balance-scale"},
+                {"title": "الرئيسية", "url": reverse('core:dashboard'), "icon": "fa-home"},
+                {"title": "الإدارة المالية", "url": reverse('financial:chart_of_accounts_list'), "icon": "fa-calculator"},
+                {"title": "ميزان المراجعة", "active": True},
             ],
             "trial_balance_data": {
                 'accounts': [],
                 'grouped': {},
-                'total_debit': 0,
-                'total_credit': 0,
+                'total_opening_debit': Decimal('0.00'),
+                'total_opening_credit': Decimal('0.00'),
+                'total_period_debit': Decimal('0.00'),
+                'total_period_credit': Decimal('0.00'),
+                'total_closing_debit': Decimal('0.00'),
+                'total_closing_credit': Decimal('0.00'),
                 'is_balanced': False,
                 'error': str(e)
             },
             "date_from": date_from,
             "date_to": date_to,
+            "display_mode": display_mode,
+            "account_level": account_level or '',
+            "hide_zero": hide_zero,
             "group_by_type": group_by_type,
         }
-    
+
     return render(request, "financial/reports/trial_balance_report.html", context)
 
 

@@ -55,7 +55,7 @@ class LedgerQueryService:
 
         # تحديد الحسابات المستهدفة (الحساب نفسه أو فروعه الطرفية إذا كان حساباً رئيسياً)
         if not account.is_leaf:
-            leaf_accounts = list(account.get_leaf_descendants())
+            leaf_accounts = list(account.get_leaf_descendants(include_self=True))
             target_accounts = leaf_accounts if leaf_accounts else [account]
             filters = Q(account__in=target_accounts)
         else:

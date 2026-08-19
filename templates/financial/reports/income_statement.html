@@ -3,284 +3,1067 @@
 {% load i18n %}
 {% load custom_filters %}
 {% load utils_extras %}
-{% load custom_filters %}
-{% load app_tags %}
 
 {% block title %}{{ page_title }}{% endblock %}
 
 {% block extra_css %}
-<!-- جميع الستايلات موجودة في unified-components.css و components.css -->
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
 <style>
-  .income-statement-section {
-    margin-bottom: 1.5rem;
+  /* =========================================================
+     تنسيقات UI/UX الموحدة لقائمة الدخل - MWHEBA ERP
+     مطابقة تامة 100% مع ميزان المراجعة والميزانية العمومية
+     ========================================================= */
+
+  /* تحسينات الجدول الهرمي */
+  .tb-table {
+    width: 100%;
+    margin-bottom: 0;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 0.875rem;
   }
-  
-  .income-statement-title {
-    color: var(--text-color);
-    font-size: 1.1rem;
-    font-weight: 600;
-    margin-bottom: 1rem;
-    padding-bottom: 0.5rem;
-    border-bottom: 2px solid var(--primary-color);
+
+  .tb-table thead tr:first-child th {
+    background-color: var(--primary-color) !important;
+    color: #ffffff !important;
+    font-weight: 700;
+    font-size: 0.88rem;
+    padding: 0.8rem 0.5rem;
+    text-align: center;
+    vertical-align: middle;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    white-space: nowrap;
+    letter-spacing: 0.2px;
   }
-  
+
+  .tb-table thead tr.sub-header th {
+    background-color: var(--bg-light) !important;
+    font-size: 0.84rem;
+    font-weight: 700;
+    padding: 0.55rem 0.5rem;
+    border-bottom: 2px solid var(--border-color) !important;
+    border-left: 1px solid var(--border-color) !important;
+    text-align: center;
+  }
+
+  .tb-table thead tr.sub-header th.th-debit {
+    color: var(--success-color, #059669) !important;
+    font-weight: 700;
+  }
+
+  .tb-table thead tr.sub-header th.th-credit {
+    color: var(--danger-color, #dc2626) !important;
+    font-weight: 700;
+  }
+
+  .tb-table tbody td {
+    padding: 0.6rem 0.65rem;
+    vertical-align: middle;
+    border-bottom: 1px solid var(--border-color);
+    border-left: 1px solid var(--border-color);
+  }
+
   .account-row {
-    display: flex;
-    justify-content: space-between;
+    transition: background-color 0.15s ease;
+  }
+
+  .account-row:hover {
+    background-color: rgba(0, 0, 0, 0.025);
+  }
+
+  /* تمييز المستويات الهرمية بدقة بصرية واضحة */
+  .account-row.tb-level-1 {
+    background-color: var(--bg-soft-primary, #eef4ff) !important;
+    font-weight: 800 !important;
+    border-top: 2px solid var(--primary-color) !important;
+    border-bottom: 2px solid var(--primary-color) !important;
+  }
+  .account-row.tb-level-1 td {
+    font-weight: 800 !important;
+    font-size: 0.93rem;
+  }
+  .account-row.tb-level-1 a {
+    color: var(--primary-color) !important;
+    font-weight: 800 !important;
+  }
+
+  .account-row.tb-level-2 {
+    background-color: var(--bg-light, #f8f9fa) !important;
+    font-weight: 700 !important;
+    border-bottom: 1px solid var(--border-color) !important;
+  }
+  .account-row.tb-level-2 td {
+    font-weight: 700 !important;
+    font-size: 0.88rem;
+  }
+  .account-row.tb-level-2 a {
+    color: var(--text-dark, #1f2937) !important;
+    font-weight: 700 !important;
+  }
+
+  .account-row.tb-level-3 {
+    background-color: #ffffff !important;
+    font-weight: 600 !important;
+  }
+  .account-row.tb-level-3 td {
+    font-weight: 600 !important;
+    font-size: 0.86rem;
+  }
+  .account-row.tb-level-3 a {
+    color: var(--text-dark, #374151) !important;
+    font-weight: 600 !important;
+  }
+
+  .account-row.tb-level-4,
+  .account-row.tb-level-5,
+  .account-row.tb-level-leaf {
+    background-color: #ffffff;
+    font-weight: 400;
+  }
+  .account-row.tb-level-leaf td {
+    font-size: 0.84rem;
+  }
+  .account-row.tb-level-leaf a {
+    color: var(--text-body, #4b5563) !important;
+    font-weight: 500 !important;
+  }
+
+  .account-row.parent-row {
+    font-weight: 600;
+  }
+
+  .account-row.parent-row:hover {
+    background-color: rgba(0, 0, 0, 0.04);
+  }
+
+  /* المسافات البادئة للشجرة */
+  .indent-1 { padding-right: 0.5rem !important; }
+  .indent-2 { padding-right: 1.5rem !important; }
+  .indent-3 { padding-right: 2.5rem !important; }
+  .indent-4 { padding-right: 3.5rem !important; }
+  .indent-5 { padding-right: 4.5rem !important; }
+
+  /* أزرار طي وتوسيع الشجرة */
+  .expand-btn {
+    color: var(--text-muted, #6c757d);
+    text-decoration: none;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    width: 22px;
+    height: 22px;
+    display: inline-flex;
     align-items: center;
-    padding: 0.75rem 1rem;
-    margin-bottom: 0.5rem;
-    background: #f8f9fa;
-    border-radius: 6px;
-    border: 1px solid #e9ecef;
+    justify-content: center;
+    padding: 0;
+    border-radius: 4px;
     transition: all 0.2s ease;
   }
-  
-  .account-row:hover {
-    background: #e9ecef;
-    transform: translateX(5px);
+
+  .expand-btn:hover {
+    color: var(--primary-color);
+    background-color: rgba(0, 0, 0, 0.05);
   }
-  
-  .account-name {
+
+  .expand-btn i {
+    font-size: 0.75rem;
+    transition: transform 0.2s ease, color 0.2s ease;
+  }
+
+  /* فواصل الكتل العمودية المزدوجة للفترات */
+  .col-sep-left {
+    border-left: 2px solid var(--border-color) !important;
+  }
+
+  /* تنسيق الأرقام والمبالغ المالية */
+  .number-cell {
+    direction: ltr;
+    text-align: right;
+    white-space: nowrap;
     font-weight: 500;
-    color: var(--text-color);
+    font-variant-numeric: tabular-nums;
   }
-  
-  .account-balance {
+
+  .debit-val {
+    color: var(--danger-color, #dc2626);
     font-weight: 600;
-    color: var(--success-color);
-    font-family: 'Tajawal', sans-serif;
   }
-  
-  .total-row {
-    background-color: var(--primary-color);
-    color: white;
+
+  .credit-val {
+    color: var(--success-color, #059669);
+    font-weight: 600;
+  }
+
+  .profit-val {
+    color: var(--success-color, #059669);
     font-weight: 700;
-    font-size: 1.05rem;
-    border: none;
-    margin-top: 1rem;
   }
-  
-  .total-row:hover {
-    transform: none;
-  }
-  
-  .final-row {
-    background-color: var(--primary-color);
-    color: white;
+
+  .loss-val {
+    color: var(--danger-color, #dc2626);
     font-weight: 700;
-    font-size: 1.15rem;
-    border-radius: var(--border-radius);
-    padding: 1.5rem;
-    margin-top: 2rem;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
   }
-  
-  .profit {
-    color: var(--success-color) !important;
+
+  /* ترويسات الأقسام والمجموعات */
+  .tb-row-group-header {
+    background-color: var(--bg-light);
+    color: var(--primary-color);
+    font-weight: 700;
+    border-top: 1px solid var(--border-color);
   }
-  
-  .loss {
-    color: var(--danger-color) !important;
+
+  /* الإجماليات الفرعية */
+  .tb-row-subtotal {
+    background-color: var(--bg-light);
+    font-weight: 700;
+    border-top: 2px solid var(--border-color);
+    border-bottom: 2px solid var(--border-color);
   }
-  
-  /* chart-container موجود في unified-components.css */
+
+  /* تمييز صف الإجمالي النهائي العام */
+  .tb-row-grand-total {
+    background-color: var(--bg-light);
+    font-weight: 700;
+    border-top: 3px double var(--primary-color);
+    border-bottom: 2px solid var(--primary-color);
+    font-size: 0.95rem;
+  }
+
+  .tb-row-grand-total td {
+    padding: 0.85rem 0.65rem;
+    border-top: 3px double var(--primary-color) !important;
+    border-bottom: 2px solid var(--primary-color) !important;
+  }
+
+  /* تذييل التوقيعات للطباعة الرسمية */
+  .print-signatures {
+    display: none;
+    margin-top: 3rem;
+    padding-top: 1.5rem;
+    border-top: 2px dashed var(--border-color);
+  }
+
+  .signature-box {
+    text-align: center;
+  }
+
+  .signature-line {
+    margin-top: 2.5rem;
+    border-top: 1px solid var(--border-color);
+    width: 80%;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  @media print {
+    @page {
+      size: landscape;
+      margin: 10mm;
+    }
+
+    .no-print {
+      display: none !important;
+    }
+
+    .section-container {
+      border: none !important;
+      box-shadow: none !important;
+      padding: 0 !important;
+      margin-bottom: 0 !important;
+    }
+
+    .table-responsive {
+      border: none !important;
+      box-shadow: none !important;
+    }
+
+    .tb-table {
+      font-size: 0.75rem !important;
+    }
+
+    .tb-table thead tr:first-child th {
+      background-color: #222 !important;
+      color: #fff !important;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .print-signatures {
+      display: block !important;
+    }
+
+    .card-header, .stats-card, .btn, .breadcrumb-wrapper, .page-header {
+      display: none !important;
+    }
+  }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-  <!-- Page Header المركزي -->
+<div class="container-fluid px-3 py-2">
+  <!-- 1. Header الصفحة المركزي القياسي -->
   {% include "shared/page_header.html" %}
-  
-  <!-- تصفية وبحث -->
-  <div class="section-container no-print">
-    <h5 class="section-title"><i class="fas fa-filter me-2"></i>{% trans "تصفية وبحث" %}</h5>
-    <div class="filter-section mb-4">
-      <form method="GET" action="" class="row g-3">
-        <div class="col-md-3">
-          <label for="date_from" class="form-label">{% trans "من تاريخ" %}</label>
-          <input type="text" class="form-control" id="date_from" name="date_from" data-date-picker
-                 placeholder="من تاريخ" value="{{ date_from|date:'Y-m-d' }}">
+
+  <!-- 2. كروت الإحصائيات التنفيذية (KPI Cards) وفق Rule 7 -->
+  <div class="row g-3 mb-4">
+    <!-- كارت 1: صافي إيرادات النشاط -->
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="stats-card stats-card-success">
+        <div class="stats-card-body">
+          <div class="stats-card-icon">
+            <i class="fas fa-arrow-trend-up"></i>
+          </div>
+          <div class="stats-card-title">{% trans "صافي إيرادات النشاط" %}</div>
+          <div class="stats-card-value number-cell credit-val">
+            {{ inc.operating_revenues.total|smart_float }}
+          </div>
+          <div class="stats-card-unit d-flex align-items-center justify-content-between">
+            <span>{{ inc.currency_symbol }}</span>
+            {% if inc.has_comparison %}
+              <span class="badge {% if inc.operating_revenues.diff_amount >= 0 %}bg-success{% else %}bg-danger{% endif %}">
+                {% if inc.operating_revenues.diff_amount >= 0 %}+{% endif %}{{ inc.operating_revenues.diff_amount|smart_float }}
+              </span>
+            {% endif %}
+          </div>
         </div>
-        <div class="col-md-3">
-          <label for="date_to" class="form-label">{% trans "إلى تاريخ" %}</label>
-          <input type="text" class="form-control" id="date_to" name="date_to" data-date-picker
-                 placeholder="إلى تاريخ" value="{{ date_to|date:'Y-m-d' }}">
+      </div>
+    </div>
+
+    <!-- كارت 2: مجمل الربح / الخسارة -->
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="stats-card {% if inc.gross_profit >= 0 %}stats-card-info{% else %}stats-card-warning{% endif %}">
+        <div class="stats-card-body">
+          <div class="stats-card-icon">
+            <i class="fas fa-boxes-stacked"></i>
+          </div>
+          <div class="stats-card-title">{% trans "مجمل الربح / الخسارة" %}</div>
+          <div class="stats-card-value number-cell {% if inc.gross_profit >= 0 %}profit-val{% else %}loss-val{% endif %}">
+            {{ inc.gross_profit|smart_float }}
+          </div>
+          <div class="stats-card-unit d-flex align-items-center justify-content-between">
+            <span>{{ inc.currency_symbol }}</span>
+            <span class="badge bg-light text-dark border">
+              {% trans "الهامش" %}: {{ inc.gross_margin|smart_float }}%
+            </span>
+          </div>
         </div>
-        <div class="col-md-3 d-flex align-items-end gap-2">
-          <button type="submit" class="btn btn-primary flex-fill" title="{% trans 'عرض' %}">
-            <i class="fas fa-search"></i>
+      </div>
+    </div>
+
+    <!-- كارت 3: الربح التشغيلي (EBIT) -->
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="stats-card {% if inc.operating_profit >= 0 %}stats-card-primary{% else %}stats-card-warning{% endif %}">
+        <div class="stats-card-body">
+          <div class="stats-card-icon">
+            <i class="fas fa-cogs"></i>
+          </div>
+          <div class="stats-card-title">{% trans "الربح التشغيلي (EBIT)" %}</div>
+          <div class="stats-card-value number-cell {% if inc.operating_profit >= 0 %}profit-val{% else %}loss-val{% endif %}">
+            {{ inc.operating_profit|smart_float }}
+          </div>
+          <div class="stats-card-unit d-flex align-items-center justify-content-between">
+            <span>{{ inc.currency_symbol }}</span>
+            <span class="badge bg-light text-dark border">
+              {% trans "هامش التشغيل" %}: {{ inc.operating_margin|smart_float }}%
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- كارت 4: صافي الربح / الخسارة النهائي -->
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="stats-card {% if inc.is_profit %}stats-card-success{% else %}stats-card-danger{% endif %}">
+        <div class="stats-card-body">
+          <div class="stats-card-icon">
+            <i class="fas fa-{% if inc.is_profit %}chart-line{% else %}triangle-exclamation{% endif %}"></i>
+          </div>
+          <div class="stats-card-title">{% trans "صافي الربح / الخسارة" %}</div>
+          <div class="stats-card-value number-cell {% if inc.is_profit %}profit-val{% else %}loss-val{% endif %}">
+            {{ inc.net_income|smart_float }}
+          </div>
+          <div class="stats-card-unit d-flex align-items-center justify-content-between">
+            <span>{{ inc.currency_symbol }}</span>
+            <span class="badge {% if inc.is_profit %}bg-success{% else %}bg-danger{% endif %} text-white">
+              {% trans "الصافي" %}: {{ inc.net_margin|smart_float }}%
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. فلتر البحث والتصفية القياسي الموحد (وفق Rule 6) -->
+  <div class="section-container mb-4 no-print">
+    <h5 class="section-title" data-bs-toggle="collapse" data-bs-target="#filterSection" style="cursor: pointer;">
+      <i class="fas fa-filter me-2 text-primary"></i>{% trans "تصفية وبحث قائمة الدخل" %}
+      <i class="fas fa-chevron-down float-end mt-1 text-muted" style="font-size: 0.85rem;"></i>
+    </h5>
+
+    <div class="collapse show mt-3" id="filterSection">
+      <!-- أزرار الفترات السريعة -->
+      <div class="d-flex flex-wrap gap-2 mb-3 pb-2 border-bottom">
+        <span class="text-muted small align-self-center me-2">
+          <i class="fas fa-bolt text-warning me-1"></i>{% trans "فترات سريعة" %}:
+        </span>
+        <button type="button" class="btn btn-sm {% if active_preset == 'this_month' %}btn-primary active{% else %}btn-outline-secondary{% endif %}" onclick="setDatePreset('this_month')">
+          {% trans "الشهر الحالي" %}
+        </button>
+        <button type="button" class="btn btn-sm {% if active_preset == 'this_quarter' %}btn-primary active{% else %}btn-outline-secondary{% endif %}" onclick="setDatePreset('this_quarter')">
+          {% trans "الربع الحالي" %}
+        </button>
+        <button type="button" class="btn btn-sm {% if active_preset == 'ytd' %}btn-primary active{% else %}btn-outline-secondary{% endif %}" onclick="setDatePreset('ytd')">
+          {% trans "السنة حتى تاريخه (YTD)" %}
+        </button>
+        <button type="button" class="btn btn-sm {% if active_preset == 'last_year' %}btn-primary active{% else %}btn-outline-secondary{% endif %}" onclick="setDatePreset('last_year')">
+          {% trans "السنة السابقة كاملة" %}
+        </button>
+      </div>
+
+      <form method="GET" action="" id="incomeStatementFilterForm" class="row g-3 align-items-end">
+        <input type="hidden" name="preset" id="preset_input" value="{{ active_preset|default:'' }}">
+        <!-- من تاريخ -->
+        <div class="col-12 col-sm-4 col-lg-2">
+          <label for="date_from" class="form-label fw-semibold">
+            <i class="fas fa-calendar-alt me-1 text-muted"></i>{% trans "من تاريخ" %}:
+          </label>
+          <input type="text" class="form-control form-control-sm" id="date_from" name="date_from"
+                 data-date-picker placeholder="YYYY-MM-DD" value="{{ date_from|date:'Y-m-d' }}">
+        </div>
+
+        <!-- إلى تاريخ -->
+        <div class="col-12 col-sm-4 col-lg-2">
+          <label for="date_to" class="form-label fw-semibold">
+            <i class="fas fa-calendar-check me-1 text-muted"></i>{% trans "إلى تاريخ" %}:
+          </label>
+          <input type="text" class="form-control form-control-sm" id="date_to" name="date_to"
+                 data-date-picker placeholder="YYYY-MM-DD" value="{{ date_to|date:'Y-m-d' }}">
+        </div>
+
+        <!-- مركز التكلفة -->
+        <div class="col-12 col-sm-4 col-lg-2">
+          <label for="cost_center" class="form-label fw-semibold">
+            <i class="fas fa-sitemap me-1 text-muted"></i>{% trans "مركز التكلفة" %}:
+          </label>
+          <select name="cost_center" id="cost_center" class="form-select form-select-sm select2-filter">
+            <option value="">-- {% trans "كافة مراكز التكلفة" %} --</option>
+            {% for cc in cost_centers_list %}
+              <option value="{{ cc.id }}" {% if selected_cost_center_id == cc.id|stringformat:"s" %}selected{% endif %}>
+                {{ cc.code }} - {{ cc.name }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- المستوى الشجري -->
+        <div class="col-12 col-sm-4 col-lg-2">
+          <label for="account_level" class="form-label fw-semibold">
+            <i class="fas fa-layer-group me-1 text-muted"></i>{% trans "المستوى الشجري" %}:
+          </label>
+          <select name="account_level" id="account_level" class="form-select form-select-sm select2-filter">
+            <option value="all" {% if account_level == 'all' %}selected{% endif %}>-- {% trans "كافة المستويات" %} --</option>
+            <option value="1" {% if account_level == '1' %}selected{% endif %}>{% trans "المستوى 1 (الأمهات الكبرى)" %}</option>
+            <option value="2" {% if account_level == '2' %}selected{% endif %}>{% trans "المستوى 2 (المجموعات الرئيسية)" %}</option>
+            <option value="3" {% if account_level == '3' %}selected{% endif %}>{% trans "المستوى 3 (الحسابات الفرعية)" %}</option>
+          </select>
+        </div>
+
+        <!-- إخفاء الحسابات الصفرية وتضمين غير المرحلة -->
+        <div class="col-12 col-sm-4 col-lg-2 d-flex flex-column justify-content-center pb-1">
+          <div class="form-check form-switch mb-1">
+            <input class="form-check-input" type="checkbox" id="hide_zero_balances" name="hide_zero_balances" value="1" {% if hide_zero_balances %}checked{% endif %}>
+            <label class="form-check-label small fw-semibold" for="hide_zero_balances">{% trans "إخفاء الصفرية" %}</label>
+          </div>
+          <div class="form-check form-switch mb-0">
+            <input class="form-check-input" type="checkbox" id="include_unposted" name="include_unposted" value="1" {% if include_unposted %}checked{% endif %}>
+            <label class="form-check-label small fw-semibold" for="include_unposted">{% trans "تضمين المسودات" %}</label>
+          </div>
+        </div>
+
+        <!-- أزرار الإجراءات -->
+        <div class="col-12 col-sm-4 col-lg-2 d-flex gap-2">
+          <button type="submit" class="btn btn-primary flex-fill" title="{% trans 'عرض التقرير' %}">
+            <i class="fas fa-search me-1"></i>{% trans "بحث" %}
           </button>
-          <a href="{% url 'financial:income_statement' %}" class="btn btn-outline-secondary flex-fill" title="{% trans 'الشهر الحالي' %}">
-            <i class="fas fa-calendar-alt"></i>
+          <a href="{% url 'financial:income_statement' %}" class="btn btn-outline-secondary" title="{% trans 'إعادة تعيين' %}">
+            <i class="fas fa-undo"></i>
           </a>
         </div>
       </form>
     </div>
   </div>
-  
-  <!-- الإحصائيات -->
+
+  <!-- 4. جدول قائمة الدخل المعيارية والمركز المالي التفصيلي -->
   <div class="section-container">
-    <h5 class="section-title"><i class="fas fa-chart-bar me-2"></i>{% trans "الإحصائيات العامة" %}</h5>
-    <div class="row">
-      <div class="col-md-6 col-lg-3 mb-4">
-        <div class="stats-card stats-card-success">
-          <div class="stats-card-header"></div>
-          <div class="stats-card-body">
-            <div class="stats-card-icon">
-              <i class="fas fa-arrow-up"></i>
-            </div>
-            <div class="stats-card-title">{% trans "إجمالي الإيرادات" %}</div>
-            <div class="stats-card-value">{{ income_statement_data.total_revenue|smart_float }}</div>
-            <div class="stats-card-unit">{% currency_symbol %}</div>
-          </div>
+    <!-- شريط أدوات الشجرة والبحث الفوري المعتمد -->
+    <div class="p-3 bg-light border-bottom d-flex flex-wrap align-items-center justify-content-between gap-3 no-print">
+      <!-- بحث حي فوري مع عداد الحسابات -->
+      <div class="d-flex align-items-center gap-2 flex-grow-1" style="max-width: 440px;">
+        <div class="input-group input-group-sm">
+          <span class="input-group-text bg-white border-end-0">
+            <i class="fas fa-search text-muted"></i>
+          </span>
+          <input type="text" id="liveTreeSearch" class="form-control border-start-0" 
+                 placeholder="{% trans 'بحث فوري بالكود أو اسم الحساب...' %}" 
+                 autocomplete="off">
+          <button type="button" class="btn btn-outline-secondary" id="clearSearchBtn" title="{% trans 'مسح' %}">
+            <i class="fas fa-times"></i>
+          </button>
         </div>
+        <span class="badge bg-white text-dark border ms-1 d-inline-flex align-items-center" id="visibleCounterBadge" title="{% trans 'عدد البنود الظاهرة حالياً' %}">
+          <i class="fas fa-list-ol text-primary me-1"></i>
+          <span id="counterValue">0</span>&nbsp;{% trans "بند" %}
+        </span>
       </div>
-      <div class="col-md-6 col-lg-3 mb-4">
-        <div class="stats-card stats-card-danger">
-          <div class="stats-card-header"></div>
-          <div class="stats-card-body">
-            <div class="stats-card-icon">
-              <i class="fas fa-arrow-down"></i>
-            </div>
-            <div class="stats-card-title">{% trans "إجمالي المصروفات" %}</div>
-            <div class="stats-card-value">{{ income_statement_data.total_expense|smart_float }}</div>
-            <div class="stats-card-unit">{% currency_symbol %}</div>
-          </div>
-        </div>
-      </div>
-      <div class="col-md-6 col-lg-3 mb-4">
-        <div class="stats-card {% if income_statement_data.is_profit %}stats-card-primary{% else %}stats-card-warning{% endif %}">
-          <div class="stats-card-header"></div>
-          <div class="stats-card-body">
-            <div class="stats-card-icon">
-              <i class="fas fa-{% if income_statement_data.is_profit %}chart-line{% else %}chart-line-down{% endif %}"></i>
-            </div>
-            <div class="stats-card-title">{% trans "صافي الربح/الخسارة" %}</div>
-            <div class="stats-card-value">{{ income_statement_data.net_income|smart_float }}</div>
-            <div class="stats-card-unit">{% currency_symbol %}</div>
-          </div>
-        </div>
-      </div>
-      <div class="col-md-6 col-lg-3 mb-4">
-        <div class="stats-card stats-card-info">
-          <div class="stats-card-header"></div>
-          <div class="stats-card-body">
-            <div class="stats-card-icon">
-              <i class="fas fa-percentage"></i>
-            </div>
-            <div class="stats-card-title">{% trans "هامش الربح" %}</div>
-            <div class="stats-card-value">
-              {% if total_income and total_income != 0 %}
-                {% widthratio net_income total_income 100 %}%
-              {% else %}
-                0%
-              {% endif %}
-            </div>
-            <div class="stats-card-unit">{% trans "نسبة مئوية" %}</div>
-          </div>
+
+      <!-- أزرار التحكم بالمستويات الهرمية -->
+      <div class="d-flex align-items-center gap-2 flex-wrap">
+        <div class="btn-group btn-group-sm" role="group" aria-label="أدوات عرض الشجرة">
+          <button type="button" class="btn btn-outline-secondary inc-level-btn" id="btnLevel1" title="{% trans 'المستوى الأول فقط' %}">
+            <i class="fas fa-layer-group me-1"></i>{% trans "المستوى 1" %}
+          </button>
+          <button type="button" class="btn btn-outline-secondary inc-level-btn" id="btnLevel2" title="{% trans 'المجموعات الرئيسية' %}">
+            {% trans "المستوى 2" %}
+          </button>
+          <button type="button" class="btn btn-outline-secondary inc-level-btn" id="btnLevel3" title="{% trans 'الحسابات الفرعية' %}">
+            {% trans "المستوى 3" %}
+          </button>
+          <button type="button" class="btn btn-primary inc-level-btn active" id="btnExpandAll" title="{% trans 'توسيع كافة الشجرة' %}">
+            <i class="fas fa-expand-alt me-1"></i>{% trans "توسيع الكل" %}
+          </button>
+          <button type="button" class="btn btn-outline-secondary inc-level-btn" id="btnCollapseAll" title="{% trans 'طي كافة الشجرة' %}">
+            <i class="fas fa-compress-alt me-1"></i>{% trans "طي الكل" %}
+          </button>
         </div>
       </div>
     </div>
-  </div>
-  
-  <!-- قائمة الدخل -->
-  <div class="section-container">
-      <div class="card-header d-flex justify-content-between align-items-center">
-        <h5 class="card-title mb-0"><i class="fas fa-chart-line me-2"></i>{% trans "قائمة الدخل" %}</h5>
-        <div class="actions-container">
-          <button type="button" class="btn btn-sm btn-outline-secondary" onclick="exportIncomeStatement()">
-            <i class="fas fa-file-csv me-1"></i>{% trans "تصدير CSV" %}
-          </button>
-          <button type="button" class="btn btn-sm btn-outline-success" onclick="exportIncomeStatementExcel()">
-            <i class="fas fa-file-excel me-1"></i>{% trans "تصدير Excel" %}
-          </button>
-        </div>
-      </div>
-      <div class="card-body">
-        <div class="row">
-          <!-- الإيرادات -->
-          <div class="col-md-6">
-            <div class="income-statement-section">
-              <h5 class="income-statement-title">{% trans "الإيرادات" %}</h5>
-              {% if income_statement_data.revenues %}
-                {% for item in income_statement_data.revenues %}
-                <div class="account-row">
-                  <span class="account-name">{{ item.account.name }}</span>
-                  <span class="account-balance">{{ item.amount|currency }}</span>
-                </div>
-                {% endfor %}
-                <div class="account-row total-row">
-                  <span>{% trans "إجمالي الإيرادات" %}</span>
-                  <span>{{ income_statement_data.total_revenue|currency }}</span>
-                </div>
-              {% else %}
-                <div class="empty-state">
-                  <div class="empty-state-icon">
-                    <i class="fas fa-arrow-up"></i>
-                  </div>
-                  <h5>{% trans "لا توجد إيرادات" %}</h5>
-                  <p>{% trans "لا توجد إيرادات لعرضها في هذه الفترة" %}</p>
-                </div>
+
+    <!-- جدول البيانات الهرمي -->
+    <div class="table-responsive">
+      <table class="table transaction-table table-hover tb-table" id="incomeStatementTable">
+        <thead>
+          <tr>
+            <th style="width: 130px;">{% trans "الكود" %}</th>
+            <th style="min-width: 280px;" class="text-end ps-3">{% trans "اسم الحساب / البند المحاسبي" %}</th>
+            <th style="width: 180px;" class="col-sep-left">{% trans "الفترة الحالية" %}</th>
+            {% if inc.has_comparison %}
+              <th style="width: 180px;" class="col-sep-left">{% trans "فترة المقارنة" %}</th>
+              <th style="width: 150px;" class="col-sep-left">{% trans "مبلغ التغير" %}</th>
+              <th style="width: 110px;" class="col-sep-left">{% trans "نسبة التغير" %}</th>
+            {% endif %}
+            <th class="no-print col-sep-left" style="width: 60px;">{% trans "كشف" %}</th>
+          </tr>
+        </thead>
+        <tbody id="incomeStatementTableBody">
+          <!-- ================= 1. إيرادات النشاط التشغيلي ================= -->
+          <tr class="tb-row-group-header">
+            <td colspan="{% if inc.has_comparison %}7{% else %}4{% endif %}" class="text-end py-2 px-3">
+              <i class="fas fa-arrow-trend-up me-2 text-success"></i>
+              <span class="fw-bold">{% trans "1. إيرادات النشاط التشغيلي (Operating Revenues)" %}</span>
+              <span class="badge bg-white text-primary border ms-2 small">{{ inc.operating_revenues.nodes|length }} {% trans "حساب" %}</span>
+            </td>
+          </tr>
+
+          {% for node in inc.operating_revenues.nodes %}
+            <tr class="account-row tb-level-{{ node.level }} {% if node.is_leaf %}tb-level-leaf{% else %}parent-row{% endif %}"
+                id="account-{{ node.id }}"
+                data-account-id="{{ node.id }}"
+                data-id="{{ node.id }}"
+                data-level="{{ node.level }}"
+                data-parent-id="{{ node.parent_id|default:'' }}"
+                data-code="{{ node.code }}"
+                data-name="{{ node.name }}">
+              <!-- الكود مع البادج الموحد -->
+              <td class="text-center font-monospace small">
+                {% if node.level == 1 %}
+                  <span class="badge bg-primary text-white font-monospace px-2 py-1">{{ node.code }}</span>
+                {% elif node.level == 2 %}
+                  <span class="badge bg-white text-primary border border-primary font-monospace px-2 py-1">{{ node.code }}</span>
+                {% elif node.level == 3 %}
+                  <span class="badge bg-light text-dark border font-monospace">{{ node.code }}</span>
+                {% else %}
+                  <span class="text-muted font-monospace small">{{ node.code }}</span>
+                {% endif %}
+              </td>
+
+              <!-- الاسم مع التدرج الشجري وزر الطي/التوسيع -->
+              <td class="text-end indent-{{ node.level }}">
+                {% if not node.is_leaf %}
+                  <button type="button" class="expand-btn me-1" onclick="toggleAccountChildren('{{ node.id }}')" title="{% trans 'طي/توسيع' %}">
+                    <i class="fas fa-chevron-down text-primary" id="icon-{{ node.id }}"></i>
+                  </button>
+                  {% if node.level == 1 %}
+                    <i class="fas fa-folder text-primary opacity-90 me-1"></i>
+                  {% elif node.level == 2 %}
+                    <i class="fas fa-folder text-warning opacity-90 me-1"></i>
+                  {% else %}
+                    <i class="fas fa-folder-open text-muted opacity-75 me-1"></i>
+                  {% endif %}
+                  <span>{{ node.name }}</span>
+                {% else %}
+                  <span class="expand-btn me-1"><i class="fas fa-circle text-muted" style="font-size: 5px;"></i></span>
+                  <a href="{% url 'financial:ledger_report' %}?account={{ node.id }}" class="text-decoration-none text-dark" title="{% trans 'عرض دفتر الأستاذ' %}">
+                    {{ node.name }}
+                  </a>
+                {% endif %}
+              </td>
+
+              <!-- الرصيد الحالي -->
+              <td class="number-cell col-sep-left {% if node.is_abnormal %}debit-val{% else %}credit-val{% endif %}">
+                {{ node.balance|smart_float }}
+              </td>
+
+              {% if inc.has_comparison %}
+                <td class="number-cell col-sep-left text-muted">
+                  {{ node.comparison_balance|smart_float }}
+                </td>
+                <td class="number-cell col-sep-left {% if node.diff_amount >= 0 %}credit-val{% else %}debit-val{% endif %}">
+                  {% if node.diff_amount >= 0 %}+{% endif %}{{ node.diff_amount|smart_float }}
+                </td>
+                <td class="text-center col-sep-left">
+                  {% if node.is_new %}
+                    <span class="badge bg-info text-dark">{% trans "جديد" %}</span>
+                  {% else %}
+                    <span class="badge {% if node.diff_percent >= 0 %}bg-success text-white{% else %}bg-danger text-white{% endif %}">
+                      {% if node.diff_percent >= 0 %}+{% endif %}{{ node.diff_percent }}%
+                    </span>
+                  {% endif %}
+                </td>
               {% endif %}
-            </div>
-          </div>
-          
-          <!-- المصروفات -->
-          <div class="col-md-6">
-            <div class="income-statement-section">
-              <h5 class="income-statement-title">{% trans "المصروفات" %}</h5>
-              {% if income_statement_data.expenses %}
-                {% for item in income_statement_data.expenses %}
-                <div class="account-row">
-                  <span class="account-name">{{ item.account.name }}</span>
-                  <span class="account-balance">{{ item.amount|currency }}</span>
-                </div>
-                {% endfor %}
-                <div class="account-row total-row">
-                  <span>{% trans "إجمالي المصروفات" %}</span>
-                  <span>{{ income_statement_data.total_expense|currency }}</span>
-                </div>
-              {% else %}
-                <div class="text-center text-muted py-3">
-                  <i class="fas fa-info-circle me-2"></i>{% trans "لا توجد مصروفات" %}
-                </div>
+
+              <!-- عمود كشف الحساب -->
+              <td class="text-center no-print col-sep-left">
+                {% if node.is_leaf %}
+                  <a href="{% url 'financial:ledger_report' %}?account={{ node.id }}" class="btn btn-sm btn-outline-secondary p-1" title="{% trans 'كشف الحساب' %}" target="_blank">
+                    <i class="fas fa-book-open"></i>
+                  </a>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+
+          <!-- صف إجمالي صافي إيرادات النشاط -->
+          <tr class="tb-row-subtotal">
+            <td class="text-center">41</td>
+            <td class="fw-bold ps-3">{% trans "صافي إيرادات النشاط التشغيلي" %}</td>
+            <td class="number-cell fw-bold credit-val col-sep-left">{{ inc.operating_revenues.total|smart_float }}</td>
+            {% if inc.has_comparison %}
+              <td class="number-cell fw-bold col-sep-left text-muted">{{ inc.operating_revenues.comp_total|smart_float }}</td>
+              <td class="number-cell fw-bold col-sep-left {% if inc.operating_revenues.diff_amount >= 0 %}credit-val{% else %}debit-val{% endif %}">
+                {% if inc.operating_revenues.diff_amount >= 0 %}+{% endif %}{{ inc.operating_revenues.diff_amount|smart_float }}
+              </td>
+              <td class="number-cell fw-bold col-sep-left text-center">-</td>
+            {% endif %}
+            <td class="no-print col-sep-left"></td>
+          </tr>
+
+          <!-- ================= 2. تكلفة المبيعات ================= -->
+          <tr class="tb-row-group-header">
+            <td colspan="{% if inc.has_comparison %}7{% else %}4{% endif %}" class="text-end py-2 px-3">
+              <i class="fas fa-boxes-stacked me-2 text-danger"></i>
+              <span class="fw-bold">{% trans "2. تكلفة المبيعات (Cost of Goods Sold)" %}</span>
+              <span class="badge bg-white text-primary border ms-2 small">{{ inc.cogs.nodes|length }} {% trans "حساب" %}</span>
+            </td>
+          </tr>
+
+          {% for node in inc.cogs.nodes %}
+            <tr class="account-row tb-level-{{ node.level }} {% if node.is_leaf %}tb-level-leaf{% else %}parent-row{% endif %}"
+                id="account-{{ node.id }}"
+                data-account-id="{{ node.id }}"
+                data-id="{{ node.id }}"
+                data-level="{{ node.level }}"
+                data-parent-id="{{ node.parent_id|default:'' }}"
+                data-code="{{ node.code }}"
+                data-name="{{ node.name }}">
+              <td class="text-center font-monospace small">
+                {% if node.level == 1 %}
+                  <span class="badge bg-primary text-white font-monospace px-2 py-1">{{ node.code }}</span>
+                {% elif node.level == 2 %}
+                  <span class="badge bg-white text-primary border border-primary font-monospace px-2 py-1">{{ node.code }}</span>
+                {% elif node.level == 3 %}
+                  <span class="badge bg-light text-dark border font-monospace">{{ node.code }}</span>
+                {% else %}
+                  <span class="text-muted font-monospace small">{{ node.code }}</span>
+                {% endif %}
+              </td>
+
+              <td class="text-end indent-{{ node.level }}">
+                {% if not node.is_leaf %}
+                  <button type="button" class="expand-btn me-1" onclick="toggleAccountChildren('{{ node.id }}')" title="{% trans 'طي/توسيع' %}">
+                    <i class="fas fa-chevron-down text-primary" id="icon-{{ node.id }}"></i>
+                  </button>
+                  {% if node.level == 1 %}
+                    <i class="fas fa-folder text-primary opacity-90 me-1"></i>
+                  {% elif node.level == 2 %}
+                    <i class="fas fa-folder text-warning opacity-90 me-1"></i>
+                  {% else %}
+                    <i class="fas fa-folder-open text-muted opacity-75 me-1"></i>
+                  {% endif %}
+                  <span>{{ node.name }}</span>
+                {% else %}
+                  <span class="expand-btn me-1"><i class="fas fa-circle text-muted" style="font-size: 5px;"></i></span>
+                  <a href="{% url 'financial:ledger_report' %}?account={{ node.id }}" class="text-decoration-none text-dark" title="{% trans 'عرض دفتر الأستاذ' %}">
+                    {{ node.name }}
+                  </a>
+                {% endif %}
+              </td>
+
+              <td class="number-cell col-sep-left {% if node.is_abnormal %}credit-val{% else %}debit-val{% endif %}">
+                {{ node.balance|smart_float }}
+              </td>
+
+              {% if inc.has_comparison %}
+                <td class="number-cell col-sep-left text-muted">
+                  {{ node.comparison_balance|smart_float }}
+                </td>
+                <td class="number-cell col-sep-left {% if node.diff_amount <= 0 %}credit-val{% else %}debit-val{% endif %}">
+                  {% if node.diff_amount >= 0 %}+{% endif %}{{ node.diff_amount|smart_float }}
+                </td>
+                <td class="text-center col-sep-left">
+                  {% if node.is_new %}
+                    <span class="badge bg-info text-dark">{% trans "جديد" %}</span>
+                  {% else %}
+                    <span class="badge {% if node.diff_percent <= 0 %}bg-success text-white{% else %}bg-danger text-white{% endif %}">
+                      {% if node.diff_percent >= 0 %}+{% endif %}{{ node.diff_percent }}%
+                    </span>
+                  {% endif %}
+                </td>
               {% endif %}
-            </div>
-          </div>
-        </div>
-        
-        <!-- صافي الربح أو الخسارة -->
-        <div class="final-row">
-          <div class="account-row">
-            <span>{% trans "صافي الربح (الخسارة)" %}</span>
-            <span class="{% if income_statement_data.is_profit %}profit{% else %}loss{% endif %}">
-              {{ income_statement_data.net_income|currency }}
-            </span>
-          </div>
-        </div>
-      </div>
+
+              <td class="text-center no-print col-sep-left">
+                {% if node.is_leaf %}
+                  <a href="{% url 'financial:ledger_report' %}?account={{ node.id }}" class="btn btn-sm btn-outline-secondary p-1" title="{% trans 'كشف الحساب' %}" target="_blank">
+                    <i class="fas fa-book-open"></i>
+                  </a>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+
+          <!-- إجمالي تكلفة المبيعات -->
+          <tr class="tb-row-subtotal">
+            <td class="text-center">51</td>
+            <td class="fw-bold ps-3">{% trans "إجمالي تكلفة المبيعات" %}</td>
+            <td class="number-cell fw-bold debit-val col-sep-left">{{ inc.cogs.total|smart_float }}</td>
+            {% if inc.has_comparison %}
+              <td class="number-cell fw-bold col-sep-left text-muted">{{ inc.cogs.comp_total|smart_float }}</td>
+              <td class="number-cell fw-bold col-sep-left {% if inc.cogs.diff_amount <= 0 %}credit-val{% else %}debit-val{% endif %}">
+                {% if inc.cogs.diff_amount >= 0 %}+{% endif %}{{ inc.cogs.diff_amount|smart_float }}
+              </td>
+              <td class="number-cell fw-bold col-sep-left text-center">-</td>
+            {% endif %}
+            <td class="no-print col-sep-left"></td>
+          </tr>
+
+          <!-- صف مجمل الربح / الخسارة (GROSS PROFIT) -->
+          <tr class="tb-row-grand-total">
+            <td class="text-center"><i class="fas fa-equals text-primary"></i></td>
+            <td class="fw-bold ps-3">
+              <span class="text-primary fw-bold">{% trans "مجمل الربح / الخسارة (GROSS PROFIT)" %}</span>
+              <span class="badge bg-light text-dark border ms-2 small">{% trans "الهامش" %}: {{ inc.gross_margin|smart_float }}%</span>
+            </td>
+            <td class="number-cell fw-bold col-sep-left {% if inc.gross_profit >= 0 %}profit-val{% else %}loss-val{% endif %}">
+              {{ inc.gross_profit|smart_float }}
+            </td>
+            {% if inc.has_comparison %}
+              <td class="number-cell fw-bold col-sep-left text-muted">{{ inc.comp_gross_profit|smart_float }}</td>
+              <td class="number-cell fw-bold col-sep-left {% if inc.gross_profit_diff >= 0 %}credit-val{% else %}debit-val{% endif %}">
+                {% if inc.gross_profit_diff >= 0 %}+{% endif %}{{ inc.gross_profit_diff|smart_float }}
+              </td>
+              <td class="number-cell fw-bold col-sep-left text-center">-</td>
+            {% endif %}
+            <td class="no-print col-sep-left"></td>
+          </tr>
+
+          <!-- ================= 3. المصروفات التشغيلية والعمومية ================= -->
+          <tr class="tb-row-group-header">
+            <td colspan="{% if inc.has_comparison %}7{% else %}4{% endif %}" class="text-end py-2 px-3">
+              <i class="fas fa-cogs me-2 text-warning"></i>
+              <span class="fw-bold">{% trans "3. المصروفات التشغيلية والعمومية والإدارية (Operating Expenses)" %}</span>
+              <span class="badge bg-white text-primary border ms-2 small">{{ inc.operating_expenses.nodes|length }} {% trans "حساب" %}</span>
+            </td>
+          </tr>
+
+          {% for node in inc.operating_expenses.nodes %}
+            <tr class="account-row tb-level-{{ node.level }} {% if node.is_leaf %}tb-level-leaf{% else %}parent-row{% endif %}"
+                id="account-{{ node.id }}"
+                data-account-id="{{ node.id }}"
+                data-id="{{ node.id }}"
+                data-level="{{ node.level }}"
+                data-parent-id="{{ node.parent_id|default:'' }}"
+                data-code="{{ node.code }}"
+                data-name="{{ node.name }}">
+              <td class="text-center font-monospace small">
+                {% if node.level == 1 %}
+                  <span class="badge bg-primary text-white font-monospace px-2 py-1">{{ node.code }}</span>
+                {% elif node.level == 2 %}
+                  <span class="badge bg-white text-primary border border-primary font-monospace px-2 py-1">{{ node.code }}</span>
+                {% elif node.level == 3 %}
+                  <span class="badge bg-light text-dark border font-monospace">{{ node.code }}</span>
+                {% else %}
+                  <span class="text-muted font-monospace small">{{ node.code }}</span>
+                {% endif %}
+              </td>
+
+              <td class="text-end indent-{{ node.level }}">
+                {% if not node.is_leaf %}
+                  <button type="button" class="expand-btn me-1" onclick="toggleAccountChildren('{{ node.id }}')" title="{% trans 'طي/توسيع' %}">
+                    <i class="fas fa-chevron-down text-primary" id="icon-{{ node.id }}"></i>
+                  </button>
+                  {% if node.level == 1 %}
+                    <i class="fas fa-folder text-primary opacity-90 me-1"></i>
+                  {% elif node.level == 2 %}
+                    <i class="fas fa-folder text-warning opacity-90 me-1"></i>
+                  {% else %}
+                    <i class="fas fa-folder-open text-muted opacity-75 me-1"></i>
+                  {% endif %}
+                  <span>{{ node.name }}</span>
+                {% else %}
+                  <span class="expand-btn me-1"><i class="fas fa-circle text-muted" style="font-size: 5px;"></i></span>
+                  <a href="{% url 'financial:ledger_report' %}?account={{ node.id }}" class="text-decoration-none text-dark" title="{% trans 'عرض دفتر الأستاذ' %}">
+                    {{ node.name }}
+                  </a>
+                {% endif %}
+              </td>
+
+              <td class="number-cell col-sep-left {% if node.is_abnormal %}credit-val{% else %}debit-val{% endif %}">
+                {{ node.balance|smart_float }}
+              </td>
+
+              {% if inc.has_comparison %}
+                <td class="number-cell col-sep-left text-muted">
+                  {{ node.comparison_balance|smart_float }}
+                </td>
+                <td class="number-cell col-sep-left {% if node.diff_amount <= 0 %}credit-val{% else %}debit-val{% endif %}">
+                  {% if node.diff_amount >= 0 %}+{% endif %}{{ node.diff_amount|smart_float }}
+                </td>
+                <td class="text-center col-sep-left">
+                  {% if node.is_new %}
+                    <span class="badge bg-info text-dark">{% trans "جديد" %}</span>
+                  {% else %}
+                    <span class="badge {% if node.diff_percent <= 0 %}bg-success text-white{% else %}bg-danger text-white{% endif %}">
+                      {% if node.diff_percent >= 0 %}+{% endif %}{{ node.diff_percent }}%
+                    </span>
+                  {% endif %}
+                </td>
+              {% endif %}
+
+              <td class="text-center no-print col-sep-left">
+                {% if node.is_leaf %}
+                  <a href="{% url 'financial:ledger_report' %}?account={{ node.id }}" class="btn btn-sm btn-outline-secondary p-1" title="{% trans 'كشف الحساب' %}" target="_blank">
+                    <i class="fas fa-book-open"></i>
+                  </a>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+
+          <!-- إجمالي المصروفات التشغيلية -->
+          <tr class="tb-row-subtotal">
+            <td class="text-center">52</td>
+            <td class="fw-bold ps-3">{% trans "إجمالي المصروفات التشغيلية والعمومية" %}</td>
+            <td class="number-cell fw-bold debit-val col-sep-left">{{ inc.operating_expenses.total|smart_float }}</td>
+            {% if inc.has_comparison %}
+              <td class="number-cell fw-bold col-sep-left text-muted">{{ inc.operating_expenses.comp_total|smart_float }}</td>
+              <td class="number-cell fw-bold col-sep-left {% if inc.operating_expenses.diff_amount <= 0 %}credit-val{% else %}debit-val{% endif %}">
+                {% if inc.operating_expenses.diff_amount >= 0 %}+{% endif %}{{ inc.operating_expenses.diff_amount|smart_float }}
+              </td>
+              <td class="number-cell fw-bold col-sep-left text-center">-</td>
+            {% endif %}
+            <td class="no-print col-sep-left"></td>
+          </tr>
+
+          <!-- صف الربح التشغيلي (OPERATING PROFIT / EBIT) -->
+          <tr class="tb-row-grand-total">
+            <td class="text-center"><i class="fas fa-equals text-primary"></i></td>
+            <td class="fw-bold ps-3">
+              <span class="text-primary fw-bold">{% trans "الربح / الخسارة التشغيلية (OPERATING PROFIT / EBIT)" %}</span>
+              <span class="badge bg-light text-dark border ms-2 small">{% trans "هامش التشغيل" %}: {{ inc.operating_margin|smart_float }}%</span>
+            </td>
+            <td class="number-cell fw-bold col-sep-left {% if inc.operating_profit >= 0 %}profit-val{% else %}loss-val{% endif %}">
+              {{ inc.operating_profit|smart_float }}
+            </td>
+            {% if inc.has_comparison %}
+              <td class="number-cell fw-bold col-sep-left text-muted">{{ inc.comp_operating_profit|smart_float }}</td>
+              <td class="number-cell fw-bold col-sep-left {% if inc.operating_profit_diff >= 0 %}credit-val{% else %}debit-val{% endif %}">
+                {% if inc.operating_profit_diff >= 0 %}+{% endif %}{{ inc.operating_profit_diff|smart_float }}
+              </td>
+              <td class="number-cell fw-bold col-sep-left text-center">-</td>
+            {% endif %}
+            <td class="no-print col-sep-left"></td>
+          </tr>
+
+          <!-- ================= 4. الإيرادات والمصروفات الأخرى وفروق العملة ================= -->
+          <tr class="tb-row-group-header">
+            <td colspan="{% if inc.has_comparison %}7{% else %}4{% endif %}" class="text-end py-2 px-3">
+              <i class="fas fa-money-bill-transfer me-2 text-info"></i>
+              <span class="fw-bold">{% trans "4. الإيرادات والمصروفات الأخرى والتمويلية وفروق العملة (Other Items & FX)" %}</span>
+            </td>
+          </tr>
+
+          <!-- بنود الإيرادات الأخرى -->
+          {% for node in inc.other_revenues.nodes %}
+            <tr class="account-row tb-level-{{ node.level }} {% if node.is_leaf %}tb-level-leaf{% else %}parent-row{% endif %}"
+                id="account-{{ node.id }}"
+                data-account-id="{{ node.id }}"
+                data-id="{{ node.id }}"
+                data-level="{{ node.level }}"
+                data-parent-id="{{ node.parent_id|default:'' }}"
+                data-code="{{ node.code }}"
+                data-name="{{ node.name }}">
+              <td class="text-center font-monospace small">
+                {% if node.level == 1 %}
+                  <span class="badge bg-primary text-white font-monospace px-2 py-1">{{ node.code }}</span>
+                {% elif node.level == 2 %}
+                  <span class="badge bg-white text-primary border border-primary font-monospace px-2 py-1">{{ node.code }}</span>
+                {% elif node.level == 3 %}
+                  <span class="badge bg-light text-dark border font-monospace">{{ node.code }}</span>
+                {% else %}
+                  <span class="text-muted font-monospace small">{{ node.code }}</span>
+                {% endif %}
+              </td>
+              <td class="text-end indent-{{ node.level }}">
+                {% if not node.is_leaf %}
+                  <button type="button" class="expand-btn me-1" onclick="toggleAccountChildren('{{ node.id }}')" title="{% trans 'طي/توسيع' %}">
+                    <i class="fas fa-chevron-down text-primary" id="icon-{{ node.id }}"></i>
+                  </button>
+                  <i class="fas fa-folder text-info opacity-90 me-1"></i>
+                  <span>{{ node.name }}</span>
+                {% else %}
+                  <span class="expand-btn me-1"><i class="fas fa-circle text-muted" style="font-size: 5px;"></i></span>
+                  <a href="{% url 'financial:ledger_report' %}?account={{ node.id }}" class="text-decoration-none text-dark" title="{% trans 'عرض دفتر الأستاذ' %}">
+                    {{ node.name }}
+                  </a>
+                {% endif %}
+              </td>
+              <td class="number-cell col-sep-left credit-val">{{ node.balance|smart_float }}</td>
+              {% if inc.has_comparison %}
+                <td class="number-cell col-sep-left text-muted">{{ node.comparison_balance|smart_float }}</td>
+                <td class="number-cell col-sep-left credit-val">{% if node.diff_amount >= 0 %}+{% endif %}{{ node.diff_amount|smart_float }}</td>
+                <td class="text-center col-sep-left"><span class="badge bg-success text-white">{{ node.diff_percent }}%</span></td>
+              {% endif %}
+              <td class="text-center no-print col-sep-left">
+                {% if node.is_leaf %}
+                  <a href="{% url 'financial:ledger_report' %}?account={{ node.id }}" class="btn btn-sm btn-outline-secondary p-1" title="{% trans 'كشف الحساب' %}" target="_blank">
+                    <i class="fas fa-book-open"></i>
+                  </a>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+
+          <!-- بنود المصروفات الأخرى والتمويلية -->
+          {% for node in inc.other_expenses.nodes %}
+            <tr class="account-row tb-level-{{ node.level }} {% if node.is_leaf %}tb-level-leaf{% else %}parent-row{% endif %}"
+                id="account-{{ node.id }}"
+                data-account-id="{{ node.id }}"
+                data-id="{{ node.id }}"
+                data-level="{{ node.level }}"
+                data-parent-id="{{ node.parent_id|default:'' }}"
+                data-code="{{ node.code }}"
+                data-name="{{ node.name }}">
+              <td class="text-center font-monospace small">
+                {% if node.level == 1 %}
+                  <span class="badge bg-primary text-white font-monospace px-2 py-1">{{ node.code }}</span>
+                {% elif node.level == 2 %}
+                  <span class="badge bg-white text-primary border border-primary font-monospace px-2 py-1">{{ node.code }}</span>
+                {% elif node.level == 3 %}
+                  <span class="badge bg-light text-dark border font-monospace">{{ node.code }}</span>
+                {% else %}
+                  <span class="text-muted font-monospace small">{{ node.code }}</span>
+                {% endif %}
+              </td>
+              <td class="text-end indent-{{ node.level }}">
+                {% if not node.is_leaf %}
+                  <button type="button" class="expand-btn me-1" onclick="toggleAccountChildren('{{ node.id }}')" title="{% trans 'طي/توسيع' %}">
+                    <i class="fas fa-chevron-down text-primary" id="icon-{{ node.id }}"></i>
+                  </button>
+                  <i class="fas fa-folder text-danger opacity-90 me-1"></i>
+                  <span>{{ node.name }}</span>
+                {% else %}
+                  <span class="expand-btn me-1"><i class="fas fa-circle text-muted" style="font-size: 5px;"></i></span>
+                  <a href="{% url 'financial:ledger_report' %}?account={{ node.id }}" class="text-decoration-none text-dark" title="{% trans 'عرض دفتر الأستاذ' %}">
+                    {{ node.name }}
+                  </a>
+                {% endif %}
+              </td>
+              <td class="number-cell col-sep-left debit-val">{{ node.balance|smart_float }}</td>
+              {% if inc.has_comparison %}
+                <td class="number-cell col-sep-left text-muted">{{ node.comparison_balance|smart_float }}</td>
+                <td class="number-cell col-sep-left debit-val">{% if node.diff_amount >= 0 %}+{% endif %}{{ node.diff_amount|smart_float }}</td>
+                <td class="text-center col-sep-left"><span class="badge bg-danger text-white">{{ node.diff_percent }}%</span></td>
+              {% endif %}
+              <td class="text-center no-print col-sep-left">
+                {% if node.is_leaf %}
+                  <a href="{% url 'financial:ledger_report' %}?account={{ node.id }}" class="btn btn-sm btn-outline-secondary p-1" title="{% trans 'كشف الحساب' %}" target="_blank">
+                    <i class="fas fa-book-open"></i>
+                  </a>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+
+          <!-- صف صافي البنود الأخرى وفروق العملة -->
+          <tr class="tb-row-subtotal">
+            <td class="text-center"></td>
+            <td class="fw-bold ps-3">
+              <span>{% trans "صافي البنود الأخرى وفروق العملة" %}</span>
+              <span class="badge bg-light text-dark border ms-2 small">{% trans "أثر العملة الصافي" %}: {{ inc.net_fx_impact|smart_float }}</span>
+            </td>
+            <td class="number-cell fw-bold col-sep-left {% if inc.net_other_items >= 0 %}credit-val{% else %}debit-val{% endif %}">
+              {{ inc.net_other_items|smart_float }}
+            </td>
+            {% if inc.has_comparison %}
+              <td class="number-cell fw-bold col-sep-left text-muted">{{ inc.comp_net_other_items|smart_float }}</td>
+              <td class="number-cell fw-bold col-sep-left">-</td>
+              <td class="number-cell fw-bold col-sep-left text-center">-</td>
+            {% endif %}
+            <td class="no-print col-sep-left"></td>
+          </tr>
+
+          <!-- ================= 5. صافي الربح / الخسارة النهائي ================= -->
+          <tr class="tb-row-grand-total" style="background-color: var(--primary-color) !important; color: #fff !important;">
+            <td class="text-center" style="color: #fff !important;"><i class="fas fa-award"></i></td>
+            <td class="fw-bold ps-3" style="color: #fff !important;">
+              <span style="font-size: 1.05rem;">{% trans "صافي الربح / الخسارة النهائي (NET PROFIT / LOSS)" %}</span>
+              <span class="badge bg-white text-dark ms-2">{% trans "هامش صافي الربح" %}: {{ inc.net_margin|smart_float }}%</span>
+            </td>
+            <td class="number-cell fw-bold col-sep-left" style="font-size: 1.1rem; color: #fff !important;">
+              {{ inc.net_income|smart_float }}
+            </td>
+            {% if inc.has_comparison %}
+              <td class="number-cell fw-bold col-sep-left" style="color: #e2e8f0 !important;">{{ inc.comp_net_income|smart_float }}</td>
+              <td class="number-cell fw-bold col-sep-left" style="color: #fff !important;">
+                {% if inc.net_income_diff >= 0 %}+{% endif %}{{ inc.net_income_diff|smart_float }}
+              </td>
+              <td class="number-cell fw-bold col-sep-left text-center" style="color: #fff !important;">-</td>
+            {% endif %}
+            <td class="no-print col-sep-left"></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   </div>
-  
-  <!-- التحليل البياني -->
-  <div class="section-container">
-    <h5 class="section-title"><i class="fas fa-chart-pie me-2"></i>{% trans "التحليل البياني" %}</h5>
-    <div class="row">
-      <div class="col-md-6 mb-4">
-        <div class="chart-container">
-          <h6 class="text-center mb-3"><i class="fas fa-arrow-up text-success me-2"></i>{% trans "تحليل الإيرادات" %}</h6>
-          <div class="chart-pie">
-            <canvas id="incomeChart" style="height: 300px;"></canvas>
-          </div>
+
+  <!-- تذييل التوقيعات والاعتمادات الرسمية للطباعة -->
+  <div class="print-signatures mt-4">
+    <div class="row text-center">
+      <div class="col-4">
+        <div class="signature-box">
+          <span class="fw-bold text-dark">{% trans "إعداد: المحاسب المالي" %}</span>
+          <div class="signature-line"></div>
         </div>
       </div>
-      <div class="col-md-6 mb-4">
-        <div class="chart-container">
-          <h6 class="text-center mb-3"><i class="fas fa-arrow-down text-danger me-2"></i>{% trans "تحليل المصروفات" %}</h6>
-          <div class="chart-pie">
-            <canvas id="expenseChart" style="height: 300px;"></canvas>
-          </div>
+      <div class="col-4">
+        <div class="signature-box">
+          <span class="fw-bold text-dark">{% trans "مراجعة: رئيس الحسابات" %}</span>
+          <div class="signature-line"></div>
+        </div>
+      </div>
+      <div class="col-4">
+        <div class="signature-box">
+          <span class="fw-bold text-dark">{% trans "اعتماد: المدير المالي (CFO)" %}</span>
+          <div class="signature-line"></div>
         </div>
       </div>
     </div>
@@ -289,213 +1072,310 @@
 {% endblock %}
 
 {% block extra_js %}
-<!-- مكتبة SheetJS لتصدير البيانات إلى Excel بدعم كامل للغة العربية -->
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<!-- مكتبة Chart.js للرسوم البيانية -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<!-- استخدام مكتبة DataTables من ملف datatables.min.js الموجود -->
-<script src="{% static 'js/global-table.js' %}"></script>
 <script>
-  // تصدير قائمة الدخل إلى CSV
-  function exportIncomeStatement() {
-    try {
-      let csvContent = '\uFEFF'; // BOM للدعم العربي
-      const dateFrom = document.querySelector('#date_from')?.value || '';
-      const dateTo = document.querySelector('#date_to')?.value || '';
-      csvContent += 'قائمة الدخل ' + (dateFrom ? 'للفترة من ' + dateFrom + ' إلى ' + dateTo : '') + '\n\n';
-      
-      document.querySelectorAll('.income-statement-section').forEach(section => {
-        const titleEl = section.querySelector('.income-statement-title');
-        if (titleEl) {
-          csvContent += '"' + titleEl.textContent.trim() + '"\n';
-        }
-        section.querySelectorAll('.account-row').forEach(row => {
-          const spans = row.querySelectorAll('span');
-          if (spans.length >= 2) {
-            const name = spans[0].textContent.trim();
-            const val = spans[1].textContent.trim().replace(/"/g, '""');
-            csvContent += '"' + name + '","' + val + '"\n';
-          }
-        });
-        csvContent += '\n';
-      });
-      
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement('a');
-      const url = URL.createObjectURL(blob);
-      link.setAttribute('href', url);
-      link.setAttribute('download', 'قائمة_الدخل.csv');
-      link.style.visibility = 'hidden';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
-      if (typeof toastr !== 'undefined') { toastr.success('تم تصدير قائمة الدخل إلى CSV بنجاح'); }
-    } catch (error) {
-      console.error('خطأ في تصدير CSV:', error);
-      if (typeof toastr !== 'undefined') { toastr.error('حدث خطأ أثناء تصدير البيانات'); }
-    }
-  }
-  
-  // تصدير قائمة الدخل إلى Excel
-  function exportIncomeStatementExcel() {
-    try {
-      let data = [];
-      const dateFrom = document.querySelector('#date_from')?.value || '';
-      const dateTo = document.querySelector('#date_to')?.value || '';
-      data.push(['قائمة الدخل ' + (dateFrom ? 'للفترة من ' + dateFrom + ' إلى ' + dateTo : '')]);
-      data.push([]);
-      
-      document.querySelectorAll('.income-statement-section').forEach(section => {
-        const titleEl = section.querySelector('.income-statement-title');
-        if (titleEl) {
-          data.push([titleEl.textContent.trim()]);
-        }
-        section.querySelectorAll('.account-row').forEach(row => {
-          const spans = row.querySelectorAll('span');
-          if (spans.length >= 2) {
-            data.push([spans[0].textContent.trim(), spans[1].textContent.trim()]);
-          }
-        });
-        data.push([]);
-      });
-      
-      const ws = XLSX.utils.aoa_to_sheet(data);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'قائمة الدخل');
-      XLSX.writeFile(wb, 'قائمة_الدخل.xlsx');
-      
-      if (typeof toastr !== 'undefined') { toastr.success('تم تصدير قائمة الدخل إلى Excel بنجاح'); }
-    } catch (error) {
-      console.error('خطأ في تصدير Excel:', error);
-      if (typeof toastr !== 'undefined') { toastr.error('حدث خطأ أثناء تصدير البيانات'); }
-    }
-  }
-  
-  // دالة إظهار الإشعارات
-  function showNotification(message, type = 'info') {
-    if (typeof toastr !== 'undefined') {
-      if (type === 'success') toastr.success(message);
-      else if (type === 'error') toastr.error(message);
-      else toastr.info(message);
-    }
-  }
+  /**
+   * =========================================================================
+   * محرك التفاعلية الشجرية وإدارة الشاشة - قائمة الدخل (MWHEBA ERP v2.0)
+   * مطابقة تامة 100% مع ميزان المراجعة والميزانية العمومية
+   * =========================================================================
+   */
 
-  $(document).ready(function() {
-    // إعداد الرسوم البيانية
-    initCharts();
-    
-    // إضافة تأثيرات hover للحسابات
-    $('.account-row').hover(
-      function() {
-        if (!$(this).hasClass('total-row')) {
-          $(this).addClass('shadow-sm');
-        }
-      },
-      function() {
-        $(this).removeClass('shadow-sm');
-      }
-    );
-    
-    // تنسيق حقول التاريخ
-    $('input[type="date"]').addClass('form-control');
+  let currentLevelFilter = 'all';
+
+  document.addEventListener('DOMContentLoaded', function () {
+    // 1. تهيئة حقول Select2 المعيارية
+    if (typeof $ !== 'undefined' && $.fn.select2) {
+      $('.select2-filter').select2({
+        dir: 'rtl',
+        language: 'ar',
+        width: '100%',
+        dropdownAutoWidth: true
+      });
+    }
+
+    // 2. تحديث عداد البنود الظاهرة
+    updateVisibleCounter();
+
+    // 3. ربط أحداث البحث الفوري الحي
+    const searchInput = document.getElementById('liveTreeSearch');
+    const clearBtn = document.getElementById('clearSearchBtn');
+
+    if (searchInput) {
+      searchInput.addEventListener('input', function () {
+        filterTableTree();
+      });
+    }
+
+    if (clearBtn && searchInput) {
+      clearBtn.addEventListener('click', function () {
+        searchInput.value = '';
+        filterTableTree();
+        searchInput.focus();
+      });
+    }
+
+    // 4. ربط أزرار المستويات الهرمية
+    const btnLvl1 = document.getElementById('btnLevel1');
+    const btnLvl2 = document.getElementById('btnLevel2');
+    const btnLvl3 = document.getElementById('btnLevel3');
+    const btnExp = document.getElementById('btnExpandAll');
+    const btnCol = document.getElementById('btnCollapseAll');
+
+    if (btnLvl1) btnLvl1.addEventListener('click', () => applyLevelFilter(1));
+    if (btnLvl2) btnLvl2.addEventListener('click', () => applyLevelFilter(2));
+    if (btnLvl3) btnLvl3.addEventListener('click', () => applyLevelFilter(3));
+    if (btnExp) btnExp.addEventListener('click', () => expandAllTree());
+    if (btnCol) btnCol.addEventListener('click', () => collapseAllTree());
   });
-  
-  // دالة إعداد الرسوم البيانية
-  function initCharts() {
-    const extractData = (sectionIndex) => {
-      const labels = [];
-      const values = [];
-      const sections = document.querySelectorAll('.income-statement-section');
-      if (sections[sectionIndex]) {
-        sections[sectionIndex].querySelectorAll('.account-row:not(.total-row)').forEach(row => {
-          const nameEl = row.querySelector('.account-name');
-          const balanceEl = row.querySelector('.account-balance');
-          if (nameEl && balanceEl) {
-            labels.push(nameEl.textContent.trim());
-            const num = parseFloat(balanceEl.textContent.replace(/[^0-9.-]+/g, '')) || 0;
-            values.push(num);
-          }
-        });
-      }
-      return { labels, values };
-    };
 
-    const incomeData = extractData(0);
-    const expenseData = extractData(1);
-    
-    // إنشاء رسم بياني للإيرادات
-    if (incomeData.labels.length > 0) {
-      createPieChart('incomeChart', incomeData, 'الإيرادات', '#28a745');
-    }
-    
-    // إنشاء رسم بياني للمصروفات
-    if (expenseData.labels.length > 0) {
-      createPieChart('expenseChart', expenseData, 'المصروفات', '#dc3545');
+  /**
+   * تحديث عداد البنود الظاهرة
+   */
+  function updateVisibleCounter() {
+    const visibleRows = document.querySelectorAll('#incomeStatementTable tbody tr.account-row:not([style*="display: none"])');
+    const counterEl = document.getElementById('counterValue');
+    if (counterEl) {
+      counterEl.textContent = visibleRows.length;
     }
   }
-  
-  // دالة إنشاء الرسم البياني الدائري
-  function createPieChart(canvasId, data, title, baseColor) {
-    const ctx = document.getElementById(canvasId);
-    if (!ctx) return;
-    
-    const colors = generateColors(data.labels.length, baseColor);
-    
-    new Chart(ctx, {
-      type: 'pie',
-      data: {
-        labels: data.labels,
-        datasets: [{
-          data: data.values,
-          backgroundColor: colors,
-          borderWidth: 2,
-          borderColor: '#fff'
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: {
-            position: 'bottom',
-            labels: {
-              padding: 20,
-              usePointStyle: true,
-              font: {
-                size: 12
-              }
-            }
-          },
-          tooltip: {
-            callbacks: {
-              label: function(context) {
-                const label = context.label || '';
-                const value = context.parsed || 0;
-                const total = context.dataset.data.reduce(function(a, b) { return a + b; }, 0);
-                const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : '0';
-                return label + ': ' + value.toLocaleString() + ' (' + percentage + '%)';
-              }
-            }
-          }
+
+  /**
+   * البحث الفوري المباشر بالشجرة مع فتح الآباء صعوداً
+   */
+  function filterTableTree() {
+    const searchInput = document.getElementById('liveTreeSearch');
+    const query = searchInput ? searchInput.value.trim().toLowerCase() : '';
+    const rows = document.querySelectorAll('#incomeStatementTable tbody tr.account-row');
+
+    if (!query) {
+      if (currentLevelFilter === 'all') {
+        rows.forEach(r => r.style.display = '');
+      } else {
+        applyLevelFilter(currentLevelFilter);
+      }
+      updateVisibleCounter();
+      return;
+    }
+
+    const matchedIds = new Set();
+    rows.forEach(row => {
+      const code = (row.getAttribute('data-code') || '').toLowerCase();
+      const name = (row.getAttribute('data-name') || '').toLowerCase();
+      if (code.includes(query) || name.includes(query)) {
+        matchedIds.add(row.getAttribute('data-id'));
+        let pId = row.getAttribute('data-parent-id');
+        while (pId) {
+          matchedIds.add(pId);
+          const pRow = document.querySelector(`#incomeStatementTable tbody tr[data-id="${pId}"]`);
+          pId = pRow ? pRow.getAttribute('data-parent-id') : null;
         }
       }
     });
+
+    rows.forEach(row => {
+      const rowId = row.getAttribute('data-id');
+      if (matchedIds.has(rowId)) {
+        row.style.display = '';
+        const icon = row.querySelector('.expand-btn i');
+        if (icon && icon.classList.contains('fa-chevron-right')) {
+          icon.classList.remove('fa-chevron-right');
+          icon.classList.add('fa-chevron-down');
+        }
+      } else {
+        row.style.display = 'none';
+      }
+    });
+
+    updateVisibleCounter();
   }
-  
-  // توليد ألوان متدرجة
-  function generateColors(count, baseColor) {
-    const colors = [];
-    const baseColors = [
-      '#0d6efd', '#198754', '#dc3545', '#ffc107', '#6f42c1',
-      '#fd7e14', '#20c997', '#6610f2', '#e83e8c', '#17a2b8'
-    ];
-    
-    for (let i = 0; i < count; i++) {
-      colors.push(baseColors[i % baseColors.length]);
+
+  /**
+   * تطبيق فلترة المستويات
+   */
+  function applyLevelFilter(targetLevel) {
+    currentLevelFilter = targetLevel;
+    setActiveLevelButton(targetLevel);
+
+    const rows = document.querySelectorAll('#incomeStatementTable tbody tr.account-row');
+    rows.forEach(row => {
+      const level = parseInt(row.getAttribute('data-level'), 10);
+      const icon = row.querySelector('.expand-btn i');
+
+      if (level <= targetLevel) {
+        row.style.display = '';
+        if (icon) {
+          if (level < targetLevel) {
+            icon.className = 'fas fa-chevron-down text-primary';
+          } else {
+            icon.className = 'fas fa-chevron-right text-primary';
+          }
+        }
+      } else {
+        row.style.display = 'none';
+      }
+    });
+
+    updateVisibleCounter();
+  }
+
+  /**
+   * توسيع كافة الشجرة
+   */
+  function expandAllTree() {
+    currentLevelFilter = 'all';
+    setActiveLevelButton('expand');
+
+    const rows = document.querySelectorAll('#incomeStatementTable tbody tr.account-row');
+    rows.forEach(row => {
+      row.style.display = '';
+      const icon = row.querySelector('.expand-btn i');
+      if (icon) {
+        icon.className = 'fas fa-chevron-down text-primary';
+      }
+    });
+
+    updateVisibleCounter();
+  }
+
+  /**
+   * طي كافة الشجرة
+   */
+  function collapseAllTree() {
+    currentLevelFilter = 1;
+    setActiveLevelButton('collapse');
+
+    const rows = document.querySelectorAll('#incomeStatementTable tbody tr.account-row');
+    rows.forEach(row => {
+      const level = parseInt(row.getAttribute('data-level'), 10);
+      const icon = row.querySelector('.expand-btn i');
+      if (level === 1) {
+        row.style.display = '';
+        if (icon) icon.className = 'fas fa-chevron-right text-primary';
+      } else {
+        row.style.display = 'none';
+      }
+    });
+
+    updateVisibleCounter();
+  }
+
+  /**
+   * تبديل طي/توسيع حساب معين وأبنائه
+   */
+  function toggleAccountChildren(accountId) {
+    const icon = document.getElementById(`icon-${accountId}`);
+    if (!icon) return;
+
+    const isExpanding = icon.classList.contains('fa-chevron-right');
+
+    if (isExpanding) {
+      icon.classList.remove('fa-chevron-right');
+      icon.classList.add('fa-chevron-down');
+    } else {
+      icon.classList.remove('fa-chevron-down');
+      icon.classList.add('fa-chevron-right');
     }
-    
-    return colors;
+
+    const toggleChildren = (parentId, show) => {
+      const children = document.querySelectorAll(`#incomeStatementTable tbody tr[data-parent-id="${parentId}"]`);
+      children.forEach(child => {
+        child.style.display = show ? '' : 'none';
+        const childId = child.getAttribute('data-id');
+        const childIcon = document.getElementById(`icon-${childId}`);
+        if (show) {
+          if (childIcon && childIcon.classList.contains('fa-chevron-down')) {
+            toggleChildren(childId, true);
+          }
+        } else {
+          toggleChildren(childId, false);
+        }
+      });
+    };
+
+    toggleChildren(accountId, isExpanding);
+    updateVisibleCounter();
   }
+
+  /**
+   * تمييز زر المستوى النشط
+   */
+  function setActiveLevelButton(activeType) {
+    document.querySelectorAll('.inc-level-btn').forEach(btn => {
+      btn.classList.remove('active', 'btn-primary');
+      btn.classList.add('btn-outline-secondary');
+    });
+
+    let activeBtn = null;
+    if (activeType === 1) activeBtn = document.getElementById('btnLevel1');
+    else if (activeType === 2) activeBtn = document.getElementById('btnLevel2');
+    else if (activeType === 3) activeBtn = document.getElementById('btnLevel3');
+    else if (activeType === 'expand') activeBtn = document.getElementById('btnExpandAll');
+    else if (activeType === 'collapse') activeBtn = document.getElementById('btnCollapseAll');
+
+    if (activeBtn) {
+      activeBtn.classList.remove('btn-outline-secondary');
+      activeBtn.classList.add('btn-primary', 'active');
+    }
+  }
+
+  /**
+   * ضبط الفترات السريعة وتفعيل زر الفترة المناسب
+   */
+  function setDatePreset(preset) {
+    const presetInput = document.getElementById('preset_input');
+    if (presetInput) presetInput.value = preset;
+
+    const today = new Date();
+    const y = today.getFullYear();
+    const m = today.getMonth();
+
+    let fromDate, toDate;
+
+    function format(dt) {
+      const year = dt.getFullYear();
+      const month = String(dt.getMonth() + 1).padStart(2, '0');
+      const day = String(dt.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+
+    if (preset === 'this_month') {
+      fromDate = new Date(y, m, 1);
+      toDate = new Date(y, m + 1, 0);
+    } else if (preset === 'this_quarter') {
+      const qStartMonth = Math.floor(m / 3) * 3;
+      fromDate = new Date(y, qStartMonth, 1);
+      toDate = new Date(y, qStartMonth + 3, 0);
+    } else if (preset === 'ytd') {
+      fromDate = new Date(y, 0, 1);
+      toDate = today;
+    } else if (preset === 'last_year') {
+      fromDate = new Date(y - 1, 0, 1);
+      toDate = new Date(y - 1, 11, 31);
+    }
+
+    if (fromDate && toDate) {
+      const fromEl = document.getElementById('date_from');
+      const toEl = document.getElementById('date_to');
+      if (fromEl) fromEl.value = format(fromDate);
+      if (toEl) toEl.value = format(toDate);
+
+      const form = document.getElementById('incomeStatementFilterForm');
+      if (form) form.submit();
+    }
+  }
+
+  // إلغاء تمييز الفترات السريعة عند قيام المستخدم بتغيير التواريخ يدوياً
+  document.addEventListener('DOMContentLoaded', function () {
+    const dateFromEl = document.getElementById('date_from');
+    const dateToEl = document.getElementById('date_to');
+    const presetInput = document.getElementById('preset_input');
+
+    const handleManualDateChange = () => {
+      if (presetInput) presetInput.value = '';
+    };
+
+    if (dateFromEl) dateFromEl.addEventListener('change', handleManualDateChange);
+    if (dateToEl) dateToEl.addEventListener('change', handleManualDateChange);
+  });
 </script>
-{% endblock %} 
+{% endblock %}
