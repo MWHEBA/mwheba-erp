@@ -658,31 +658,12 @@ def sale_detail(request, pk):
             sale.customer.name
         ),
         "page_icon": "fas fa-file-invoice-dollar",
-        "header_buttons": [
-            *([{
-                "url": reverse("sale:sale_edit", kwargs={"pk": sale.pk}),
-                "icon": "fa-edit",
-                "text": "تعديل",
-                "class": "btn-outline-secondary",
-            }] if not sale.is_fully_paid and sale.status != 'cancelled' else []),
-            *([{
-                "url": reverse("sale:sale_add_payment", kwargs={"pk": sale.pk}),
-                "icon": "fa-money-bill-wave",
-                "text": "إضافة دفعة",
-                "class": "btn-success",
-            }] if sale.payment_status != 'paid' else []),
-            *([{
-                "url": reverse("sale:sale_return", kwargs={"pk": sale.pk}),
-                "icon": "fa-undo",
-                "text": "مرتجع",
-                "class": "btn-warning",
-            }] if sale.status != 'cancelled' else []),
-            {
-                "url": reverse("sale:sale_duplicate", kwargs={"pk": sale.pk}),
-                "icon": "fa-copy",
-                "text": "نسخ",
-                "class": "btn-outline-primary",
-            },
+        "header_buttons": ([{
+            "url": reverse("sale:sale_add_payment", kwargs={"pk": sale.pk}),
+            "icon": "fa-money-bill",
+            "text": "إضافة دفعة",
+            "class": "btn-success",
+        }] if sale.payment_status != 'paid' else []) + [
             {
                 "url": reverse("sale:sale_print", kwargs={"pk": sale.pk}),
                 "icon": "fa-print",
@@ -713,10 +694,18 @@ def sale_detail(request, pk):
                 ]
             },
             {
-                "url": f"{reverse('sale:credit_note_create')}?sale_id={sale.pk}",
-                "icon": "fa-file-invoice-dollar",
-                "text": "إصدار إشعار دائن",
-                "class": "btn-outline-danger",
+                "url": reverse("sale:sale_duplicate", kwargs={"pk": sale.pk}),
+                "icon": "fa-copy",
+                "text": "نسخ",
+                "class": "btn-outline-primary",
+            },
+            {
+                "url": "#",
+                "icon": "fa-ellipsis-v",
+                "text": "",
+                "class": "btn-outline-secondary",
+                "toggle": "modal",
+                "target": "#actionsModal",
             },
         ],
         "page_title": f"فاتورة مبيعات {sale.number}",
@@ -727,7 +716,7 @@ def sale_detail(request, pk):
         "page_icon": "fas fa-file-invoice",
         "header_badges": [
             *([{"text": sale.work_order.number, "class": "bg-info text-white", "icon": "fas fa-tasks", "url": reverse("work_order:work_order_detail", kwargs={"pk": sale.work_order.pk})}] if hasattr(sale, 'work_order') and sale.work_order else []),
-            {"text": sale.get_status_display(), "class": f"bg-{get_status_color(sale.status)}", "icon": "fas fa-info-circle"}
+            *([{"text": sale.get_status_display(), "class": f"bg-{get_status_color(sale.status)} text-white", "icon": "fas fa-info-circle"}] if sale.status != 'confirmed' else []),
         ],
         "active_menu": "sales",
         "breadcrumb_items": [
@@ -1301,15 +1290,41 @@ def sale_edit(request, pk):
     customers = Customer.objects.filter(is_active=True).order_by("name")
     warehouses = Warehouse.objects.filter(is_active=True).order_by("name")
 
+    from financial.models import Currency
+    from product.models import Category
+    from core.models import SystemSetting
+
+    custom_fields_merged = SaleService.smart_merge_custom_fields('sale', getattr(sale, 'custom_fields', []))
+    product_categories = Category.objects.filter(is_active=True).order_by("name")
+    allowed_item_types = SystemSetting.get_setting('allowed_item_types', 'both')
+    
+    customer_prepaid_balance = Decimal('0.00')
+    if sale.customer and hasattr(sale.customer, 'available_prepaid_balance'):
+        try:
+            customer_prepaid_balance = sale.customer.available_prepaid_balance
+        except Exception:
+            pass
+
+    currencies_qs = Currency.objects.filter(is_active=True).order_by("code")
+
     context = {
         "sale": sale,
         "form": form,
         "is_edit": True,
         "products": products,
+        "product_categories": product_categories,
+        "allowed_item_types": allowed_item_types,
         "customers": customers,
         "warehouses": warehouses,
+        "currencies": currencies_qs,
+        "active_currencies": currencies_qs,
+        "selected_customer": sale.customer,
+        "customer_prepaid_balance": customer_prepaid_balance,
         "duplicate_items": json.dumps(duplicate_items),
         "posted_items_json": json.dumps(posted_items, cls=DjangoJSONEncoder) if posted_items else "null",
+        "custom_fields_json": json.dumps(custom_fields_merged),
+        "custom_fields_display_mode": SystemSetting.get_setting('custom_fields_display_mode', 'expanded'),
+        "enable_custom_fields": SystemSetting.get_setting('enable_custom_fields', 'true'),
         "duplicate_invoice_type": getattr(sale, 'payment_method', 'credit'),
         "currency_symbol": "ج.م",
         "page_title": f"تعديل فاتورة مبيعات {sale.number}",

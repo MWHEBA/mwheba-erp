@@ -221,6 +221,11 @@ class PurchasePayment(MonetaryTransactionMixin, PaymentAuditMixin, models.Model)
         return super().delete(*args, **kwargs)
 
     @property
+    def payment_code(self) -> str:
+        """الكود التسلسلي القياسي لسند الصرف"""
+        return f"PAY-{str(self.id).zfill(4)}"
+
+    @property
     def source_display_info(self) -> str:
         """الوصف الشفاف المحسن لمصدر الدفعة"""
         if self.source_type == "PREPAID_BALANCE":

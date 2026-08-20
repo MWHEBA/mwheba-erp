@@ -551,40 +551,35 @@ class AccountingIntegrationService:
                 financial_subcategory = None
                 
                 if payment_type == "sale_payment":
-                    # دفعة من عميل
+                    # دفعة من عميل (سند قبض)
                     entry_type = "client_payment"
                     client_name = payment.sale.customer.name if (payment.sale and payment.sale.customer) else getattr(payment.sale, 'client_name', 'عميل')
-                    reference = f"دفعة من العميل - فاتورة {payment.sale.number}"
-                    description = f"استلام دفعة من {client_name}"
+                    rec_code = f"REC-{str(payment.id).zfill(4)}"
+                    reference = payment.reference_number if getattr(payment, 'reference_number', None) else rec_code
+                    description = f"تحصيل من العميل \"{client_name}\" - فاتورة مبيعات {payment.sale.number}"
 
                 elif payment_type == "fee_payment":
                     # دفعة رسوم خدمات
                     entry_type = "service_payment"
-                    reference = f"دفعة رسوم - {payment.reference or ''}"
+                    reference = f"FEE-{str(payment.id).zfill(4)}" if not getattr(payment, 'reference', None) else payment.reference
                     description = f"استلام دفعة رسوم"
 
                 elif payment_type == "purchase_payment":
-                    # دفعة لمورد
+                    # دفعة لمورد (سند صرف)
                     entry_type = "supplier_payment"
+                    supplier_name = payment.purchase.supplier.name if (payment.purchase and payment.purchase.supplier) else "المورد"
+                    pay_code = f"PAY-{str(payment.id).zfill(4)}"
+                    reference = payment.reference_number if getattr(payment, 'reference_number', None) else pay_code
                     
-                    # المرجع يبقى بسيط مع رقم الفاتورة
-                    reference = f"دفعة للمورد - فاتورة {payment.purchase.number}"
-                    
-                    # الوصف يكون تفصيلي مع المنتجات/الخدمات
                     purchase_items = payment.purchase.items.all()
                     if purchase_items.exists():
-                        # جمع أسماء المنتجات/الخدمات (أول 3 عناصر)
-                        items_list = []
-                        for item in purchase_items[:3]:
-                            items_list.append(f"{item.product.name}")
-                        
+                        items_list = [f"{item.product.name}" for item in purchase_items[:3]]
                         items_text = "، ".join(items_list)
                         if purchase_items.count() > 3:
                             items_text += f" وعناصر أخرى ({purchase_items.count() - 3})"
-                        
-                        description = f"دفع لـ \"{payment.purchase.supplier.name}\" مقابل {items_text}"
+                        description = f"سداد للمورد \"{supplier_name}\" مقابل {items_text} - فاتورة مشتريات {payment.purchase.number}"
                     else:
-                        description = f"دفع للمورد {payment.purchase.supplier.name}"
+                        description = f"سداد للمورد \"{supplier_name}\" - فاتورة مشتريات {payment.purchase.number}"
 
                 cost_center_code = None
                 if hasattr(payment, 'cost_center') and payment.cost_center:

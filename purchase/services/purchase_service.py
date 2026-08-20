@@ -285,42 +285,21 @@ class PurchaseService:
         try:
             from financial.services.accounting_integration_service import AccountingIntegrationService
             
-            print(f"\n{'='*60}")
-            print(f"🔄 بدء إنشاء قيد محاسبي للدفعة {payment.id}")
-            print(f"   Payment method: {payment.payment_method}")
-            print(f"   Amount: {payment.amount}")
-            print(f"   Purchase: {payment.purchase.number}")
-            print(f"   Supplier: {payment.purchase.supplier.name}")
-            print(f"   Supplier Account: {payment.purchase.supplier.financial_account}")
-            print(f"{'='*60}\n")
-            
             journal_entry = AccountingIntegrationService.create_payment_journal_entry(
                 payment=payment,
                 payment_type='purchase_payment',
                 user=user
             )
             
-            print(f"\n{'='*60}")
             if journal_entry:
-                print(f"✅ تم إنشاء القيد المحاسبي: {journal_entry.number}")
+                logger.info(f"✅ تم إنشاء القيد المحاسبي: {journal_entry.number} للدفعة: {payment.id}")
             else:
-                print(f"❌ AccountingIntegrationService returned None!")
-            print(f"{'='*60}\n")
-            
-            logger.info(f"✅ تم إنشاء القيد المحاسبي: {journal_entry.number} للدفعة: {payment.id}" if journal_entry else f"❌ Failed to create journal entry for payment {payment.id}")
+                logger.error(f"❌ Failed to create journal entry for payment {payment.id}")
             
             return journal_entry
             
         except Exception as e:
-            print(f"\n{'='*60}")
-            print(f"❌ EXCEPTION في إنشاء القيد المحاسبي للدفعة {payment.id}")
-            print(f"   Error: {str(e)}")
-            print(f"{'='*60}\n")
-            
             logger.error(f"❌ خطأ في إنشاء القيد المحاسبي للدفعة {payment.id}: {str(e)}")
-            import traceback
-            traceback.print_exc()
-            logger.error(traceback.format_exc())
             raise
 
     @staticmethod

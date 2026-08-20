@@ -61,7 +61,8 @@ urlpatterns = [
     path("<int:pk>/email-pdf/", purchase_email_pdf, name="purchase_email_pdf"),
     path("<int:pk>/duplicate/", purchase_duplicate, name="purchase_duplicate"),
     # المدفوعات
-    path("<int:pk>/add-payment/", add_payment, name="purchase_add_payment"),
+    path("<int:pk>/payment/", add_payment, name="purchase_add_payment"),
+    path("<int:pk>/add-payment/", add_payment, name="purchase_add_payment_alias"),
     path("<int:pk>/allocate-prepaid/", allocate_supplier_prepaid_balance, name="purchase_allocate_prepaid"),
     path("payments/<int:pk>/", payment_detail, name="payment_detail"),
     path("payments/<int:payment_id>/post/", post_payment, name="post_payment"),

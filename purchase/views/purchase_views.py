@@ -642,7 +642,12 @@ def purchase_detail(request, pk):
         ),
         "page_icon": purchase.invoice_type_icon,
         "show_post_alert": show_post_alert,
-        "header_buttons": [
+        "header_buttons": ([{
+            "url": reverse("purchase:purchase_add_payment", kwargs={"pk": purchase.pk}),
+            "icon": "fa-money-bill",
+            "text": "إضافة دفعة",
+            "class": "btn-success",
+        }] if purchase.payment_status != 'paid' else []) + [
             {
                 "url": reverse("purchase:purchase_print", kwargs={"pk": purchase.pk}),
                 "icon": "fa-print",
@@ -672,12 +677,6 @@ def purchase_detail(request, pk):
                     }
                 ]
             },
-        ] + ([{
-            "url": reverse("purchase:purchase_add_payment", kwargs={"pk": purchase.pk}),
-            "icon": "fa-money-bill",
-            "text": "إضافة دفعة",
-            "class": "btn-success",
-        }] if purchase.payment_status != 'paid' else []) + [
             {
                 "url": reverse("purchase:purchase_duplicate", kwargs={"pk": purchase.pk}),
                 "icon": "fa-copy",
@@ -695,6 +694,7 @@ def purchase_detail(request, pk):
         ],
         "header_badges": [
             *([{"text": purchase.work_order.number, "class": "bg-info text-white", "icon": "fas fa-tasks", "url": reverse("work_order:work_order_detail", kwargs={"pk": purchase.work_order.pk})}] if hasattr(purchase, 'work_order') and purchase.work_order else []),
+            *([{"text": purchase.get_status_display(), "class": "bg-warning text-dark" if purchase.status == 'draft' else "bg-danger text-white", "icon": "fas fa-info-circle"}] if purchase.status != 'confirmed' else []),
         ],
         "breadcrumb_items": [
             {
@@ -1040,12 +1040,17 @@ def purchase_update(request, pk):
     warehouses = Warehouse.objects.filter(is_active=True).order_by("name")
     products = Product.objects.filter(is_active=True).order_by("name")
 
+    from financial.models import Currency
+    currencies_qs = Currency.objects.filter(is_active=True).order_by("code")
+
     context = {
         "form": form,
         "purchase": purchase,
         "products": products,
         "suppliers": suppliers,
         "warehouses": warehouses,
+        "currencies": currencies_qs,
+        "active_currencies": currencies_qs,
         "title": "تعديل فاتورة مشتريات",
         "page_title": f"تعديل فاتورة مشتريات - {purchase.number}",
         "page_icon": "fas fa-edit",

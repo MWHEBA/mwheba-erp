@@ -226,4 +226,13 @@ class AccountRoleRegistry:
                 f"Account '{account_code}' resolved for role '{role_input}' is inactive."
             )
 
-        return account
+    @classmethod
+    def get_account_by_role(cls, role_input: Union[str, AccountRoleNames]):
+        """
+        Alias for get_account to ensure full compatibility across all modules.
+        """
+        try:
+            return cls.get_account(role_input)
+        except Exception as e:
+            logger.warning(f"Failed to get account for role '{role_input}': {e}")
+            return None

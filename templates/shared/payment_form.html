@@ -278,6 +278,9 @@
                 </label>
                 <div class="input-group input-group-sm">
                   <input type="number" step="0.000001" min="0.000001" class="form-control text-start font-monospace fw-bold" id="payment_exchange_rate" name="payment_exchange_rate" value="{{ invoice.exchange_rate|clean_rate|default:'1' }}">
+                  <button type="button" class="btn btn-outline-secondary" id="btn_refresh_payment_rate" title="تحديث سعر الصرف اللحظي من البنك المركزي">
+                    <i class="fas fa-sync-alt" id="icon_refresh_payment_rate"></i>
+                  </button>
                 </div>
               </div>
               <div class="col-md-4">
@@ -321,7 +324,7 @@
             <table class="table table-hover table-sm prev-payments-table">
               <thead class="table-light">
                 <tr>
-                  <th class="text-center" style="width: 50px;">#</th>
+                  <th class="text-center" style="width: 110px;">كود السند</th>
                   <th class="text-center">تاريخ الدفع</th>
                   <th class="text-center">المبلغ</th>
                   <th class="text-center">طريقة الدفع / الحساب</th>
@@ -333,7 +336,11 @@
               <tbody>
                 {% for pmt in invoice.payments.all %}
                 <tr>
-                  <td class="text-center">{{ forloop.counter }}</td>
+                  <td class="text-center fw-bold font-monospace">
+                    <a href="{% if is_purchase %}{% url 'purchase:payment_detail' pmt.id %}{% else %}{% url 'sale:payment_detail' pmt.id %}{% endif %}" class="text-primary text-decoration-none">
+                      {{ pmt.payment_code|default:pmt.id }}
+                    </a>
+                  </td>
                   <td class="text-center">{{ pmt.payment_date|date:"Y-m-d" }}</td>
                   <td class="text-center fw-bold text-success">{{ pmt.amount|smart_float:2 }} {{ invoice.currency_symbol|default:currency_symbol|default:"ج.م" }}</td>
                   <td class="text-center">
@@ -434,7 +441,8 @@
     treasuryCurrSpan.text(treasuryCurrency);
     treasuryCurrSymbol.text(treasuryCurrency);
     
-    const isMultiCurrency = !isPrepaid && ((INVOICE_DATA.currencyCode !== 'EGP') || (treasuryCurrency !== INVOICE_DATA.currencyCode));
+    // تظهر لوحة تحويل العملة فقط عندما تختلف عملة الخزينة المسدد منها عن عملة الفاتورة
+    const isMultiCurrency = !isPrepaid && (treasuryCurrency !== INVOICE_DATA.currencyCode);
     
     if (isMultiCurrency) {
       fxPanel.removeClass('d-none');
@@ -451,6 +459,7 @@
     let paidCalculated = 0;
     if (treasuryCurrency === INVOICE_DATA.currencyCode) {
       paidCalculated = amountVal;
+      rateField.val(cleanNumInput(INVOICE_DATA.invoiceRate || 1.0));
     } else if (treasuryCurrency === 'EGP') {
       paidCalculated = amountVal * currentRate;
     } else {
@@ -543,6 +552,82 @@
       rateField.val((paid / amountVal).toFixed(6));
     }
     syncCurrencyPanel();
+  });
+
+  // زر تحديث سعر الصرف اللحظي من البنك المركزي
+  $('#btn_refresh_payment_rate').on('click', function(e) {
+    e.preventDefault();
+    const $btn = $(this);
+    const $icon = $('#icon_refresh_payment_rate');
+    const selectedOpt = paymentMethodSelect.find('option:selected');
+    const treasuryCurrency = selectedOpt.data('currency') || 'EGP';
+    
+    // تحديد العملة الأجنبية المستهدفة
+    let targetCurrency = (INVOICE_DATA.currencyCode && INVOICE_DATA.currencyCode !== 'EGP') ? INVOICE_DATA.currencyCode : treasuryCurrency;
+    
+    if (targetCurrency === 'EGP') {
+      if (typeof window.showNotification === 'function') {
+        window.showNotification('العملة المحددة هي العملة الأساسية للمؤسسة وسعر صرفها دائمًا 1.000000', 'info');
+      } else if (typeof toastr !== 'undefined') {
+        toastr.info('العملة المحددة هي العملة الأساسية للمؤسسة وسعر صرفها دائمًا 1.000000');
+      }
+      return;
+    }
+
+    $btn.prop('disabled', true);
+    $icon.addClass('fa-spin');
+
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]') ? 
+                      document.querySelector('[name=csrfmiddlewaretoken]').value : 
+                      (document.cookie.split('; ').find(row => row.startsWith('csrftoken=')) || '').split('=')[1];
+
+    fetch("{% url 'financial:api_sync_exchange_rates' %}", {
+      method: "POST",
+      headers: {
+        "X-CSRFToken": csrfToken || "",
+        "Content-Type": "application/json"
+      }
+    })
+    .then(res => {
+      if (!res.ok) throw new Error("فشل الاتصال بخدمة أسعار الصرف");
+      return res.json();
+    })
+    .then(data => {
+      if (data.status === 'SUCCESS' && Array.isArray(data.synced_rates)) {
+        let matched = data.synced_rates.find(item => item.code.toUpperCase() === targetCurrency.toUpperCase());
+        if (matched && matched.rate) {
+          const newRate = parseFloat(matched.rate).toFixed(6);
+          rateField.val(newRate);
+          const amountVal = parseFloat(amountField.val()) || 0;
+          paidAmtField.val(cleanNumInput(amountVal * parseFloat(newRate)));
+          syncCurrencyPanel();
+          if (typeof window.showNotification === 'function') {
+            window.showNotification(`تم تحديث سعر صرف ${targetCurrency} إلى ${newRate} ج.م بنجاح`, 'success');
+          } else if (typeof toastr !== 'undefined') {
+            toastr.success(`تم تحديث سعر صرف ${targetCurrency} إلى ${newRate} ج.م بنجاح`);
+          }
+        } else {
+          if (typeof window.showNotification === 'function') {
+            window.showNotification('تم تحديث أسعار الصرف ولكن لم يتم العثور على سعر جديد للعملة المحددة', 'warning');
+          } else if (typeof toastr !== 'undefined') {
+            toastr.warning('تم تحديث أسعار الصرف ولكن لم يتم العثور على سعر جديد للعملة المحددة');
+          }
+        }
+      } else {
+        throw new Error(data.message || 'فشل تحديث أسعار الصرف');
+      }
+    })
+    .catch(err => {
+      if (typeof window.showNotification === 'function') {
+        window.showNotification(err.message || 'حدث خطأ أثناء تحديث سعر الصرف', 'error');
+      } else if (typeof toastr !== 'undefined') {
+        toastr.error(err.message || 'حدث خطأ أثناء تحديث سعر الصرف');
+      }
+    })
+    .finally(() => {
+      $btn.prop('disabled', false);
+      $icon.removeClass('fa-spin');
+    });
   });
 
   // حماية الإرسال والتنبيهات

@@ -262,11 +262,11 @@
                 <div class="payment-header">
                     <div class="d-flex justify-content-between align-items-start">
                         <div>
-                            <div class="payment-number">
-                                <i class="fas fa-money-bill-wave me-2"></i>
-                                دفعة رقم #{{ payment.id }}
+                            <div class="payment-number font-monospace text-primary">
+                                <i class="fas fa-receipt me-2"></i>
+                                سند صرف #{{ payment.payment_code|default:payment.id }}
                                 {% if payment.reference_number %}
-                                    - {{ payment.reference_number }}
+                                    <span class="badge bg-light text-dark border ms-2 font-sans fw-normal" style="font-size: 0.85rem;">مرجع يدوي: {{ payment.reference_number }}</span>
                                 {% endif %}
                             </div>
                             <div class="mt-2">
