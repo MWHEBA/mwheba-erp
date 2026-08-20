@@ -51,6 +51,7 @@ from decimal import Decimal
 from datetime import datetime, timedelta
 from django.db.models import Avg, Max, Min
 from core.models import SystemSetting
+from core.utils import paginate_queryset, render_paginated_response
 from utils.templatetags.utils_extras import currency_format
 
 # استيراد نماذج المشتريات للتحقق من الارتباطات
@@ -405,6 +406,36 @@ def product_list(request):
         for category in categories_with_products:
             category.has_children = category.children.count()
 
+        # حساب إحصائيات المنتجات للمؤشرات
+        total_products_count = Product.objects.filter(is_service=False).count()
+        active_products_count = Product.objects.filter(is_service=False, is_active=True).count()
+        
+        annotated_stats_qs = Product.objects.filter(is_service=False, is_active=True).annotate(
+            calc_stock=Sum('stocks__quantity')
+        )
+        low_stock_count = annotated_stats_qs.filter(
+            calc_stock__lte=models.F('min_stock'), calc_stock__gt=0
+        ).count()
+        out_of_stock_count = annotated_stats_qs.filter(
+            models.Q(calc_stock__lte=0) | models.Q(calc_stock__isnull=True)
+        ).count()
+
+        from product.models.stock_management import Stock
+        total_stock_value = Stock.objects.filter(
+            product__is_service=False,
+            product__is_active=True
+        ).aggregate(
+            val=models.Sum(models.F('quantity') * models.F('product__cost_price'), output_field=models.DecimalField())
+        )['val'] or Decimal('0.00')
+
+        product_stats = {
+            'total_products': total_products_count,
+            'active_products': active_products_count,
+            'low_stock_count': low_stock_count,
+            'out_of_stock_count': out_of_stock_count,
+            'total_stock_value': total_stock_value,
+        }
+
         context = {
             **pagination_data,
             "products": page_obj,
@@ -413,6 +444,7 @@ def product_list(request):
             "action_buttons": action_buttons,
             "primary_key": "id",
             "categories": categories_with_products,
+            "stats": product_stats,
             "current_search": search_query,
             "current_status": status,
             "current_category": category_id,
@@ -671,7 +703,7 @@ def service_list(request):
                 "label": "الصورة",
                 "sortable": False,
                 "class": "text-center",
-                "template": "components/cells/product_image.html",
+                "format": "html",
                 "width": "80px",
             },
             {
@@ -679,14 +711,14 @@ def service_list(request):
                 "label": "اسم الخدمة",
                 "sortable": True,
                 "class": "text-center",
-                "template": "components/cells/product_name_with_sku.html",
+                "format": "html",
             },
             {
                 "key": "category",
                 "label": "التصنيف",
                 "sortable": True,
                 "class": "text-center",
-                "template": "components/cells/product_category.html",
+                "format": "html",
                 "width": "120px",
             },
             {
@@ -694,7 +726,7 @@ def service_list(request):
                 "label": "السعر",
                 "sortable": True,
                 "class": "text-center",
-                "template": "components/cells/product_price.html",
+                "format": "html",
                 "width": "120px",
             },
             {
@@ -702,30 +734,62 @@ def service_list(request):
                 "label": "الحالة",
                 "sortable": True,
                 "class": "text-center",
-                "template": "components/cells/product_status.html",
+                "format": "html",
                 "width": "90px",
             },
         ]
 
+        # حساب إحصائيات الخدمات للمؤشرات
+        total_services_count = Product.objects.filter(is_service=True).count()
+        active_services_count = Product.objects.filter(is_service=True, is_active=True).count()
+        avg_service_price = Product.objects.filter(is_service=True, is_active=True).aggregate(
+            avg=models.Avg('selling_price')
+        )['avg'] or Decimal('0.00')
+        service_categories_count = Category.objects.filter(products__is_service=True).distinct().count()
+
+        service_stats = {
+            'total_services': total_services_count,
+            'active_services': active_services_count,
+            'avg_price': avg_service_price,
+            'categories_count': service_categories_count,
+        }
+
+        # Pagination
+        paginator = Paginator(services, 25)
+        page_number = request.GET.get('page', 1)
+        try:
+            page_obj = paginator.page(page_number)
+        except (PageNotAnInteger, EmptyPage):
+            page_obj = paginator.page(1)
+
         # تحضير بيانات الجدول
         table_data = []
-        
-        for service in services:
+        for service in page_obj:
             detail_url = reverse("product:product_detail", args=[service.pk])
-            
+            image_html = (
+                f'<img src="{service.primary_image.image.url}" alt="{service.name}" style="width:40px;height:40px;object-fit:cover;border-radius:6px;">'
+                if hasattr(service, 'primary_image') and service.primary_image else
+                '<div style="width:40px;height:40px;background:#f8f9fa;border-radius:6px;border:1px solid #dee2e6;display:flex;align-items:center;justify-content:center;margin:auto;"><i class="fas fa-concierge-bell text-muted"></i></div>'
+            )
+            sku_html = f'<div style="font-size:0.75rem;color:var(--text-muted);"><i class="fas fa-hashtag me-1"></i>{service.sku}</div>' if service.sku else ''
+            name_html = f'<div style="font-weight:500;">{service.name}</div>{sku_html}'
+            category_html = f'<span class="badge bg-light text-dark">{service.category.name}</span>' if service.category else '-'
+            price_html = f'<span style="font-weight:600;">{currency_format(service.selling_price)}</span> <small class="text-muted">ج.م</small>'
+            status_html = '<span class="badge bg-success">نشط</span>' if service.is_active else '<span class="badge bg-danger">غير نشط</span>'
+
             row_data = {
                 "id": service.id,
-                "image": service,
-                "name_with_sku": service,
+                "image": image_html,
+                "name_with_sku": name_html,
                 "name": service.name,
                 "sku": service.sku,
-                "category": service.category,
-                "sale_price": service.selling_price,
-                "is_active": service.is_active,
+                "category": category_html,
+                "sale_price": price_html,
+                "is_active": status_html,
                 "row_click_url": detail_url,
             }
             table_data.append(row_data)
-        
+
         # تعريف أزرار الإجراءات
         action_buttons = [
             {
@@ -744,16 +808,35 @@ def service_list(request):
             },
         ]
 
+        # Ajax response
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            table_html = render_to_string('product/partials/service_table.html', {
+                'table_data': table_data,
+                'product_headers': service_headers,
+                'action_buttons': action_buttons,
+            }, request=request)
+            pagination_html = render_to_string('partials/pagination.html', {
+                'page_obj': page_obj,
+                'align': 'center',
+            }, request=request) if paginator.num_pages > 1 else ''
+            return JsonResponse({
+                'table_html': table_html,
+                'pagination_html': pagination_html,
+                'count': paginator.count,
+            })
+
         context = {
-            "products": services,
+            "products": page_obj,
+            "page_obj": page_obj,
             "table_data": table_data,
             "filter_form": filter_form,
             "product_headers": service_headers,
             "action_buttons": action_buttons,
             "primary_key": "id",
+            "stats": service_stats,
             
             "page_title": "قائمة الخدمات",
-            "page_subtitle": "إدارة الخدمات المقدمة في النظام",
+            "page_subtitle": "إدارة الخدمات المقدمة في النظام وأسعارها وتصنيفاتها",
             "page_icon": "fas fa-concierge-bell",
             "header_buttons": [
                 {
@@ -785,7 +868,12 @@ def service_list(request):
             ],
         }
 
-        return render(request, "product/service_list.html", context)
+        return render_paginated_response(
+            request,
+            "product/service_list.html",
+            context,
+            table_template_name="product/partials/service_table.html"
+        )
     except Exception as e:
         messages.error(request, f"حدث خطأ أثناء تحميل الخدمات: {str(e)}")
         return render(

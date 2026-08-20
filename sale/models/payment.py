@@ -99,6 +99,17 @@ class SalePayment(MonetaryTransactionMixin, PaymentAuditMixin, models.Model):
         help_text=_("صافي أرباح أو خسائر فروق العملة الناتجة عن التحصيل"),
     )
 
+    # مفتاح منع التكرار اللحظي (Backend Idempotency Key)
+    idempotency_key = models.CharField(
+        _("مفتاح منع التكرار"),
+        max_length=100,
+        unique=True,
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text=_("مفتاح فريد لمنع تكرار ترحيل الدفعة"),
+    )
+
     # حقل للإشارة إلى المعاملة المالية المرتبطة
     financial_transaction = models.ForeignKey(
         "financial.JournalEntry",
@@ -237,6 +248,26 @@ class SalePayment(MonetaryTransactionMixin, PaymentAuditMixin, models.Model):
         # التحقق من أن المبلغ موجب
         if self.amount and self.amount <= 0:
             raise ValidationError({"amount": _("يجب أن يكون المبلغ أكبر من صفر")})
+
+    def delete(self, *args, **kwargs):
+        if self.sale_id and self.sale:
+            customer_id = getattr(self.sale, "customer_id", None) or (self.sale.customer.id if getattr(self.sale, "customer", None) else None)
+            if customer_id:
+                from financial.services.partner_balance_service import PartnerBalanceService
+                settled = getattr(self, "amount_settled_invoice_currency", self.amount) or self.amount
+                raw_rate = getattr(self.sale, "exchange_rate", Decimal("1.000000")) or Decimal("1.000000")
+                rate = Decimal(str(raw_rate))
+                PartnerBalanceService.apply_settlement_delta(
+                    partner_type="customer",
+                    partner_id=customer_id,
+                    settled_invoice_amount=settled,
+                    invoice_rate=rate,
+                    is_addition=True
+                )
+                from financial.services.partner_subledger_service import PartnerSubledgerService
+                PartnerSubledgerService.record_sale_invoice(self.sale)
+                self.sale.update_payment_status()
+        return super().delete(*args, **kwargs)
 
     @property
     def source_display_info(self) -> str:

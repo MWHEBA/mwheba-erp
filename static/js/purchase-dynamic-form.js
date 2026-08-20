@@ -98,6 +98,18 @@
         // Update UI labels
         updateUILabels(data.is_service_provider);
         
+        // Update stock info on existing rows if switching to service provider
+        if (data.is_service_provider) {
+            $('#items-container .item-row').each(function() {
+                var $row = $(this);
+                if ($row.find('.product-id-input').val()) {
+                    if (typeof window.renderStockState === 'function') {
+                        window.renderStockState($row, { is_service: true }, 'purchase');
+                    }
+                }
+            });
+        }
+        
         // Update financial category based on supplier type
         updateFinancialCategory(data.financial_categories || [], data.is_service_provider);
 

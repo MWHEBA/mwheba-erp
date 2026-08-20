@@ -193,7 +193,7 @@
   {% csrf_token %}
   
   <!-- الهيدر الموحد -->
-  {% include "shared/page_header.html" with title=title subtitle=subtitle icon=icon header_buttons=header_buttons breadcrumb_items=breadcrumb_items %}
+  {% include "shared/page_header.html" with title=title subtitle=subtitle icon=icon header_buttons=header_buttons header_badges=header_badges breadcrumb_items=breadcrumb_items %}
 
   <!-- ملخص الأرصدة الموحد الأنيق -->
   <div class="row g-3 mb-4">
@@ -247,7 +247,14 @@
       <div class="card h-100">
         <div class="card-body py-3 d-flex align-items-center justify-content-between">
           <div>
-            <span class="text-muted fs-8 d-block mb-1">الرصيد الصافي الحالي</span>
+            <span class="text-muted fs-8 d-block mb-1">
+              الرصيد الصافي الحالي
+              {% if not account.is_active %}
+                <span class="badge bg-danger ms-1"><i class="fas fa-ban me-1"></i>معطلة</span>
+              {% else %}
+                <span class="badge bg-success-subtle text-success ms-1"><i class="fas fa-check me-1"></i>نشطة</span>
+              {% endif %}
+            </span>
             <h5 class="fw-bold text-primary mb-0">
               {{ current_balance|smart_float }} <small class="fs-8 text-muted">{{ account_currency_symbol }}</small>
             </h5>
@@ -265,7 +272,7 @@
     </div>
   </div>
 
-  {% if account.is_bank_account %}
+  {% if account.is_bank_account and account.is_active %}
   <!-- Bank Reconciliation Gateway Operational Banner -->
   <div class="card mb-4 border-primary-subtle bg-primary-subtle bg-opacity-10">
     <div class="card-body py-3 d-flex flex-wrap align-items-center justify-content-between gap-3">
@@ -1339,6 +1346,124 @@
       }
     }
     
+  }
+
+  function confirmToggleCashAccount(accountId, isActivate) {
+    const actionText = isActivate ? 'تفعيل' : 'تعطيل';
+    const actionIcon = isActivate ? 'fa-check-circle text-success' : 'fa-ban text-warning';
+    const confirmBtnClass = isActivate ? 'btn btn-success px-4 fw-bold ms-2' : 'btn btn-warning px-4 fw-bold ms-2';
+    const descText = isActivate 
+      ? 'هل تريد إعادة تفعيل هذه الخزينة؟ ستظهر مجدداً في خيارات السداد والقبض.' 
+      : 'هل أنت متأكد من تعطيل هذه الخزينة؟ لن تظهر في خيارات السداد والقبض حتى إعادة تفعيلها.';
+
+    Swal.fire({
+      title: `<i class="fas ${actionIcon} me-2"></i>تأكيد ${actionText} الخزينة`,
+      text: descText,
+      icon: isActivate ? 'question' : 'warning',
+      showCancelButton: true,
+      confirmButtonText: `<i class="fas ${isActivate ? 'fa-check' : 'fa-ban'} me-1"></i>نعم، ${actionText}`,
+      cancelButtonText: '<i class="fas fa-times me-1"></i>إلغاء',
+      reverseButtons: true,
+      buttonsStyling: false,
+      focusCancel: true,
+      customClass: {
+        popup: 'rounded-3 shadow-lg border-0 p-4',
+        title: 'fs-5 fw-bold text-dark mb-2',
+        htmlContainer: 'text-muted fs-6 mb-3',
+        confirmButton: confirmBtnClass,
+        cancelButton: 'btn btn-secondary px-4',
+        actions: 'gap-2 mt-3'
+      }
+    }).then((result) => {
+      if (result.isConfirmed) {
+        Swal.fire({
+          title: `جاري ${actionText} الخزينة...`,
+          text: 'يرجى الانتظار',
+          allowOutsideClick: false,
+          allowEscapeKey: false,
+          showConfirmButton: false,
+          didOpen: () => {
+            Swal.showLoading();
+          }
+        });
+
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/financial/cash-accounts/${accountId}/toggle-active/`;
+        
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
+        if (csrfToken) {
+          const csrfInput = document.createElement('input');
+          csrfInput.type = 'hidden';
+          csrfInput.name = 'csrfmiddlewaretoken';
+          csrfInput.value = csrfToken.value;
+          form.appendChild(csrfInput);
+        }
+        
+        document.body.appendChild(form);
+        form.submit();
+      }
+    });
+  }
+
+  function confirmDeleteCashAccount(accountId) {
+    Swal.fire({
+      title: '<i class="fas fa-trash-alt text-danger me-2"></i>حذف الخزينة نهائياً',
+      html: `
+        <div class="text-start small p-3 bg-light rounded border mb-3">
+          <p class="mb-2 text-danger fw-bold"><i class="fas fa-exclamation-triangle me-1"></i>شروط حذف الخزينة:</p>
+          <ul class="mb-0 text-muted ps-3">
+            <li class="mb-1">يجب أن تكون الخزينة <strong>معطلة</strong>.</li>
+            <li>يجب أن يكون رصيد الخزينة <strong>مصفراً تماماً (0.00)</strong>.</li>
+          </ul>
+        </div>
+        <p class="mb-0 fw-bold text-dark">هل أنت متأكد من رغبتك في حذف هذه الخزينة؟</p>
+      `,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: '<i class="fas fa-trash-alt me-1"></i>نعم، حذف الخزينة',
+      cancelButtonText: '<i class="fas fa-times me-1"></i>إلغاء',
+      reverseButtons: true,
+      buttonsStyling: false,
+      focusCancel: true,
+      customClass: {
+        popup: 'rounded-3 shadow-lg border-0 p-4',
+        title: 'fs-5 fw-bold text-danger mb-2',
+        htmlContainer: 'text-muted fs-6 mb-3',
+        confirmButton: 'btn btn-danger px-4 fw-bold ms-2',
+        cancelButton: 'btn btn-secondary px-4',
+        actions: 'gap-2 mt-3'
+      }
+    }).then((result) => {
+      if (result.isConfirmed) {
+        Swal.fire({
+          title: 'جاري حذف الخزينة...',
+          text: 'يرجى الانتظار والتحقق من الشروط',
+          allowOutsideClick: false,
+          allowEscapeKey: false,
+          showConfirmButton: false,
+          didOpen: () => {
+            Swal.showLoading();
+          }
+        });
+
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/financial/cash-accounts/${accountId}/delete/`;
+        
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
+        if (csrfToken) {
+          const csrfInput = document.createElement('input');
+          csrfInput.type = 'hidden';
+          csrfInput.name = 'csrfmiddlewaretoken';
+          csrfInput.value = csrfToken.value;
+          form.appendChild(csrfInput);
+        }
+        
+        document.body.appendChild(form);
+        form.submit();
+      }
+    });
   }
 </script>
 {% endblock %}

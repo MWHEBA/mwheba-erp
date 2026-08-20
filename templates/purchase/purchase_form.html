@@ -274,17 +274,19 @@
                     {% for item in purchase.items.all %}
                     <div class="item-row row g-2 align-items-center">
                         <div class="col-12 col-md-2">
-                            <label class="form-label form-label-sm">الكود / الباركود</label>
+                            <label class="form-label form-label-sm product-code-label">الكود / الباركود</label>
                             <input type="text" class="form-control form-control-sm product-code-input" placeholder="الكود / الباركود" value="{{ item.product.sku|default:'' }}">
                         </div>
-                        <div class="col-12 col-md-3" style="position:relative;">
-                            <label class="form-label form-label-sm required-field">المنتج</label>
+                        <div class="col-12 col-md-3">
+                            <div class="product-header-row d-flex align-items-center mb-2">
+                                <label class="form-label form-label-sm product-label product-header required-field mb-0">المنتج</label>
+                                <span class="stock-info"></span>
+                            </div>
                             <button type="button" class="product-picker-btn">
                                 <span class="selected-text">{{ item.product.name }}</span>
                                 <i class="fas fa-th-large text-muted small"></i>
                             </button>
                             <input type="hidden" name="product[]" class="product-id-input" value="{{ item.product.id }}" data-price="{{ item.product.cost_price }}" data-stock="{{ item.product.stock|default:0 }}" required>
-                            <div class="stock-info"></div>
                         </div>
                         <div class="col-6 col-md-1">
                             <label class="form-label form-label-sm required-field">الكمية</label>
@@ -315,17 +317,19 @@
                 {% else %}
                 <div class="item-row row g-2 align-items-center">
                     <div class="col-12 col-md-2">
-                        <label class="form-label form-label-sm">الكود / الباركود</label>
+                        <label class="form-label form-label-sm product-code-label">الكود / الباركود</label>
                         <input type="text" class="form-control form-control-sm product-code-input" placeholder="الكود / الباركود">
                     </div>
-                    <div class="col-12 col-md-3" style="position:relative;">
-                        <label class="form-label form-label-sm required-field product-header">المنتج</label>
+                    <div class="col-12 col-md-3">
+                        <div class="product-header-row d-flex align-items-center mb-2">
+                            <label class="form-label form-label-sm product-label product-header required-field mb-0">المنتج</label>
+                            <span class="stock-info"></span>
+                        </div>
                         <button type="button" class="product-picker-btn">
                             <span class="placeholder-text">اختر المنتج</span>
                             <i class="fas fa-th-large text-muted small"></i>
                         </button>
                         <input type="hidden" name="product[]" class="product-id-input" required>
-                        <div class="stock-info"></div>
                     </div>
                     <div class="col-6 col-md-1">
                         <label class="form-label form-label-sm required-field">الكمية</label>
@@ -513,66 +517,7 @@
         </div>
     </form>
 {% include 'components/product_picker_modal.html' %}
-
-<!-- ===== مودال إضافة منتج جديد ===== -->
-<div class="modal fade" id="newProductModal" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header py-2 px-3">
-                <h6 class="modal-title mb-0">
-                    <i class="fas fa-box-open me-2 text-success"></i>إضافة منتج جديد
-                </h6>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <div class="mb-3">
-                    <label class="form-label">اسم المنتج <span class="text-danger">*</span></label>
-                    <input type="text" id="np-name" class="form-control" placeholder="أدخل اسم المنتج">
-                </div>
-                <div class="row g-3">
-                    <div class="col-6">
-                        <label class="form-label">التصنيف <span class="text-danger">*</span></label>
-                        <div class="input-group">
-                            <select id="np-category" class="form-select">
-                                <option value="">جاري التحميل...</option>
-                            </select>
-                            <button class="btn btn-outline-secondary" type="button" id="btn-add-category-quick" title="إضافة تصنيف جديد">
-                                <i class="fas fa-plus"></i>
-                            </button>
-                        </div>
-                    </div>
-                    <div class="col-6">
-                        <label class="form-label">الوحدة <span class="text-danger">*</span></label>
-                        <div class="input-group">
-                            <select id="np-unit" class="form-select">
-                                <option value="">جاري التحميل...</option>
-                            </select>
-                            <button class="btn btn-outline-secondary" type="button" id="btn-add-unit-quick" title="إضافة وحدة جديدة">
-                                <i class="fas fa-plus"></i>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                <div class="row g-3 mt-1">
-                    <div class="col-6">
-                        <label class="form-label">سعر التكلفة</label>
-                        <input type="number" id="np-cost" class="form-control" value="0" min="0" step="0.01">
-                    </div>
-                    <div class="col-6">
-                        <label class="form-label">سعر البيع</label>
-                        <input type="number" id="np-selling" class="form-control" value="0" min="0" step="0.01">
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer py-2">
-                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">إلغاء</button>
-                <button type="button" class="btn btn-success btn-sm" id="btn-save-product">
-                    <i class="fas fa-save me-1"></i> حفظ المنتج
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
+{% include 'components/quick_product_modal.html' %}
 
 <!-- ===== Supplier Modal Container ===== -->
 <div class="modal fade" id="supplierModal" tabindex="-1" aria-hidden="true">
@@ -762,20 +707,19 @@
                     var isService = prodInput.attr('data-is-service') === 'true' || 
                                     prodInput.attr('data-is-service') === true || 
                                     prodInput.data('is-service') === true;
-                    if (isService) {
-                        row.find('.stock-info').html('<span class="text-success small"><i class="fas fa-tools"></i> خدمة</span>');
-                    } else {
-                        var stock = parseInt(prodInput.attr('data-stock') || 0);
-                        if (typeof window.renderStockInfo === 'function') {
-                            window.renderStockInfo(row, stock);
-                        } else if (typeof renderStockInfo === 'function') {
-                            renderStockInfo(row, stock);
-                        }
+                    var stock = parseInt(prodInput.attr('data-stock') || 0);
+                    var qty = parseFloat($(this).val()) || 1;
+                    if (typeof window.renderStockState === 'function') {
+                        window.renderStockState(row, { stock: stock, is_service: isService, quantity: qty }, 'purchase');
+                    } else if (typeof window.renderStockInfo === 'function') {
+                        window.renderStockInfo(row, stock);
                     }
                 }
             });
             $('#id_discount, #id_tax_active, #id_wht_active, #id_wht_rate').off('input change').on('input change', calculateTotals);
         }
+
+        bindEventHandlers();
 
         // ===== حساب الإجماليات =====
         function calculateRowTotal(row) {
@@ -882,180 +826,13 @@
             if (!isValid) e.preventDefault();
         });
 
-        // ===== مودال إضافة منتج جديد =====
-        function loadNewProductFormData() {
-            $.ajax({
-                url: '{% url "purchase:ajax_form_data" %}',
-                success: function(data) {
-                    // التصنيفات هرمياً
-                    var $cat = $('#np-category');
-                    $cat.empty().append('<option value="">اختر التصنيف</option>');
-                    (data.categories || []).forEach(function(cat) {
-                        var label = (cat.is_child ? '\u00a0\u00a0\u00a0↳ ' : '📁 ') + cat.name;
-                        $cat.append($('<option>').val(cat.id).text(label));
-                    });
-                    // الوحدات
-                    var $unit = $('#np-unit');
-                    $unit.empty().append('<option value="">اختر الوحدة</option>');
-                    (data.units || []).forEach(function(u) {
-                        $unit.append($('<option>').val(u.id).text(u.name));
-                    });
-                }
-            });
-        }
-
+        // ===== فتح المودال المعياري الموحد للمنتج / الخدمة =====
         $('#btn-new-product').on('click', function() {
-            loadNewProductFormData();
-            new bootstrap.Modal(document.getElementById('newProductModal')).show();
-        });
-
-        $('#btn-save-product').on('click', function() {
-            var name    = $('#np-name').val().trim();
-            var catId   = $('#np-category').val();
-            var unitId  = $('#np-unit').val();
-            var cost    = $('#np-cost').val() || '0';
-            var selling = $('#np-selling').val() || '0';
-
-            if (!name || !catId || !unitId) {
-                toastr.warning('يرجى ملء الاسم والتصنيف والوحدة');
-                return;
-            }
-
-            var $btn = $(this).prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i> جاري الحفظ...');
-
-            $.ajax({
-                url: '{% url "purchase:ajax_create_product" %}',
-                method: 'POST',
-                data: {
-                    name: name,
-                    category: catId,
-                    unit: unitId,
-                    cost_price: cost,
-                    selling_price: selling,
-                    csrfmiddlewaretoken: $('[name=csrfmiddlewaretoken]').val()
-                },
-                success: function(data) {
-                    if (data.success) {
-                        var p = data.product;
-                        // إضافة للـ allProducts وتحديث الـ picker
-                        window._allProducts = window._allProducts || [];
-                        window._allProducts.push({
-                            id: p.id,
-                            name: p.name,
-                            sku: p.sku || '',
-                            category_id: p.category_id,
-                            cost_price: p.cost_price,
-                            selling_price: p.selling_price,
-                            stock: 0
-                        });
-                        toastr.success('تم إضافة المنتج "' + p.name + '" بنجاح');
-                        bootstrap.Modal.getInstance(document.getElementById('newProductModal')).hide();
-                        // reset الفورم
-                        $('#np-name').val('');
-                        $('#np-cost').val('0');
-                        $('#np-selling').val('0');
-                        $('#np-category').val('');
-                        $('#np-unit').val('');
-                    } else {
-                        toastr.error(data.message || 'حدث خطأ أثناء الحفظ');
-                    }
-                },
-                error: function() { toastr.error('حدث خطأ في الاتصال'); },
-                complete: function() {
-                    $btn.prop('disabled', false).html('<i class="fas fa-save me-1"></i> حفظ المنتج');
-                }
-            });
-        });
-
-        $('#btn-add-category-quick').on('click', function() {
-            Swal.fire({
-                title: 'إضافة تصنيف جديد',
-                input: 'text',
-                inputPlaceholder: 'أدخل اسم التصنيف الجديد',
-                showCancelButton: true,
-                confirmButtonText: 'حفظ',
-                cancelButtonText: 'إلغاء',
-                inputValidator: (value) => {
-                    if (!value) {
-                        return 'يجب كتابة اسم التصنيف!';
-                    }
-                }
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    var categoryName = result.value.trim();
-                    $.ajax({
-                        url: '{% url "product:category_create" %}',
-                        method: 'POST',
-                        data: {
-                            name: categoryName,
-                            csrfmiddlewaretoken: $('[name=csrfmiddlewaretoken]').val()
-                        },
-                        success: function(response) {
-                            if (response.success) {
-                                toastr.success(response.message || 'تم إضافة التصنيف بنجاح');
-                                var newOption = $('<option>').val(response.category_id).text('📁 ' + response.category_name);
-                                $('#np-category').append(newOption).val(response.category_id);
-                            } else {
-                                var errorMsg = '';
-                                if (response.errors) {
-                                    for (var field in response.errors) {
-                                        errorMsg += response.errors[field].join(', ') + ' ';
-                                    }
-                                }
-                                toastr.error(errorMsg || 'حدث خطأ أثناء الحفظ');
-                            }
-                        },
-                        error: function() {
-                            toastr.error('حدث خطأ في الاتصال بالخادم');
-                        }
-                    });
-                }
-            });
-        });
-
-        $('#btn-add-unit-quick').on('click', function() {
-            Swal.fire({
-                title: 'إضافة وحدة قياس جديدة',
-                input: 'text',
-                inputPlaceholder: 'أدخل اسم الوحدة الجديدة (مثال: متر، كيلو)',
-                showCancelButton: true,
-                confirmButtonText: 'حفظ',
-                cancelButtonText: 'إلغاء',
-                inputValidator: (value) => {
-                    if (!value) {
-                        return 'يجب كتابة اسم الوحدة!';
-                    }
-                }
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    var unitName = result.value.trim();
-                    $.ajax({
-                        url: '{% url "product:unit_create" %}',
-                        method: 'POST',
-                        data: {
-                            name: unitName,
-                            csrfmiddlewaretoken: $('[name=csrfmiddlewaretoken]').val()
-                        },
-                        success: function(response) {
-                            if (response.success) {
-                                toastr.success(response.message || 'تم إضافة الوحدة بنجاح');
-                                var newOption = $('<option>').val(response.unit_id).text(response.unit_name);
-                                $('#np-unit').append(newOption).val(response.unit_id);
-                            } else {
-                                var errorMsg = '';
-                                if (response.errors) {
-                                    for (var field in response.errors) {
-                                        errorMsg += response.errors[field].join(', ') + ' ';
-                                    }
-                                }
-                                toastr.error(errorMsg || 'حدث خطأ أثناء الحفظ');
-                            }
-                        },
-                        error: function() {
-                            toastr.error('حدث خطأ في الاتصال بالخادم');
-                        }
-                    });
-                }
+            var isService = ($('#django-purchase-form-data').data('is-service-invoice') === true || 
+                             $('#django-purchase-form-data').data('is-service-invoice') === 'true');
+            window.openQuickProductModal({
+                isService: isService,
+                currencySymbol: $('#django-purchase-form-data').data('currency-symbol') || 'ج.م'
             });
         });
 

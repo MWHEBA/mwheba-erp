@@ -19,13 +19,13 @@ SESSION_KEY = 'product_import_pending'
 def _base_context(extra=None):
     from product.models.stock_management import Warehouse
     ctx = {
-        'title': 'استيراد المنتجات',
+        'page_title': 'استيراد المنتجات',
         'page_subtitle': 'رفع ملف Excel أو CSV لاستيراد المنتجات دفعة واحدة',
         'page_icon': 'fas fa-file-import',
         'active_menu': 'products',
         'header_buttons': [
             {'url': reverse('product:product_import_template'), 'icon': 'fa-download',
-             'text': 'تحميل القالب', 'class': 'btn-outline-info'},
+             'text': 'تحميل القالب', 'class': 'btn-outline-primary'},
             {'url': reverse('product:product_list'), 'icon': 'fa-arrow-right',
              'text': 'العودة للمنتجات', 'class': 'btn-outline-secondary'},
         ],

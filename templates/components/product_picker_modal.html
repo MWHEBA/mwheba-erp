@@ -26,18 +26,24 @@
             <div class="modal-body p-3">
                 <div class="row g-3 mb-3 align-items-center">
                     <!-- حقل البحث -->
-                    <div class="col-md-7 col-12">
+                    <div class="col-md-6 col-12">
                         <div class="input-group input-group-sm">
                             <span class="input-group-text bg-white"><i class="fas fa-search text-muted"></i></span>
                             <input type="text" id="picker-search" class="form-control" placeholder="{% trans 'ابحث باسم المنتج، الكود، أو الباركود...' %}" autocomplete="off">
                         </div>
                     </div>
+                    <!-- زر إضافة صنف جديد سريع -->
+                    <div class="col-md-3 col-6 text-md-center">
+                        <button type="button" class="btn btn-sm btn-outline-success w-100" id="btn-picker-add-product" onclick="if(window.openQuickProductModal){$('#productPickerModal').modal('hide'); window.openQuickProductModal();}">
+                            <i class="fas fa-plus-circle me-1"></i> {% trans "إضافة صنف جديد" %}
+                        </button>
+                    </div>
                     <!-- خيار إظهار المنتجات بدون مخزون -->
-                    <div class="col-md-5 col-12 text-md-end">
+                    <div class="col-md-3 col-6 text-md-end">
                         <div class="form-check form-switch d-inline-block">
                             <input class="form-check-input show-all-products-toggle" type="checkbox" id="modal-show-all-products" role="switch">
                             <label class="form-check-label small text-muted show-all-label" for="modal-show-all-products" style="white-space: nowrap;">
-                                {% trans "إظهار المنتجات بدون مخزون" %}
+                                {% trans "إظهار بدون مخزون" %}
                             </label>
                         </div>
                     </div>

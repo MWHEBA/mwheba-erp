@@ -92,7 +92,15 @@ class ProductForm(forms.ModelForm):
             "unit",
             "cost_price",
             "selling_price",
+            "tax_rate",
+            "tax_code",
+            "default_supplier",
             "min_stock",
+            "item_type",
+            "uniform_size",
+            "uniform_gender",
+            "educational_subject",
+            "suitable_for_grades",
             "is_service",
             "is_active",
             "is_featured",
@@ -104,10 +112,17 @@ class ProductForm(forms.ModelForm):
             "description_en": forms.Textarea(attrs={"rows": 3, "placeholder": "الوصف (English)"}),
             "cost_price": forms.NumberInput(attrs={"step": "0.01"}),
             "selling_price": forms.NumberInput(attrs={"step": "0.01"}),
+            "tax_rate": forms.NumberInput(attrs={"step": "0.5", "min": "0", "max": "100", "placeholder": "0.00"}),
+            "tax_code": forms.TextInput(attrs={"placeholder": "كود الضريبة"}),
             "sku": forms.TextInput(attrs={
                 "placeholder": "سيتم توليده تلقائياً إذا ترك فارغاً",
                 "readonly": False
             }),
+            "item_type": forms.Select(attrs={"class": "form-select"}),
+            "uniform_size": forms.TextInput(attrs={"placeholder": "مثل: S, M, L, XL, 32"}),
+            "uniform_gender": forms.Select(attrs={"class": "form-select"}),
+            "educational_subject": forms.TextInput(attrs={"placeholder": "مثل: رياضيات، كيمياء"}),
+            "suitable_for_grades": forms.TextInput(attrs={"placeholder": "مثل: المرحلة الابتدائية"}),
         }
         
     def __init__(self, *args, **kwargs):
@@ -133,6 +148,14 @@ class ProductForm(forms.ModelForm):
         self.fields['barcode'].label = "الباركود"
         self.fields['cost_price'].label = "سعر التكلفة"
         self.fields['selling_price'].label = "سعر البيع"
+        self.fields['tax_rate'].label = "نسبة الضريبة (%)"
+        self.fields['tax_code'].label = "كود الضريبة"
+        self.fields['default_supplier'].label = "المورد الافتراضي"
+        self.fields['item_type'].label = "تصنيف نوع الاستخدام"
+        self.fields['uniform_size'].label = "مقاس الزي"
+        self.fields['uniform_gender'].label = "الجنس المخصص"
+        self.fields['educational_subject'].label = "التخصص / المادة"
+        self.fields['suitable_for_grades'].label = "الفئة المستهدفة / الصفوف"
         
         # تحديث help texts و placeholders
         self.fields['name'].widget.attrs['placeholder'] = f"اسم {item_type} (عربي)"
@@ -142,8 +165,16 @@ class ProductForm(forms.ModelForm):
         self.fields['sku'].help_text = f"سيتم توليد كود {item_type} تلقائياً بناءً على التصنيف إذا ترك فارغاً"
         self.fields['name'].help_text = f"أدخل اسم {item_type} (عربي) بوضوح"
         
-        # جعل حقل SKU اختياري
+        # جعل الحقول غير الإلزامية اختيارية
         self.fields['sku'].required = False
+        self.fields['tax_rate'].required = False
+        self.fields['tax_code'].required = False
+        self.fields['default_supplier'].required = False
+        self.fields['item_type'].required = False
+        self.fields['uniform_size'].required = False
+        self.fields['uniform_gender'].required = False
+        self.fields['educational_subject'].required = False
+        self.fields['suitable_for_grades'].required = False
         
         # جعل وحدة القياس وسعر التكلفة اختيارية للخدمات
         if is_service_value:
@@ -152,10 +183,13 @@ class ProductForm(forms.ModelForm):
             
             self.fields['cost_price'].required = False
             self.fields['cost_price'].help_text = "سعر التكلفة اختياري للخدمات"
+            
+            self.fields['min_stock'].required = False
+            self.fields['barcode'].required = False
         
         # تحديث label حقل is_service
         self.fields['is_service'].label = "خدمة (وليس منتج)"
-        self.fields['is_service'].help_text = "الخدمات لا تحتاج مخزون (مثل: كورسات، مواصلات، رسوم)"
+        self.fields['is_service'].help_text = "الخدمات لا تحتاج مخزون (مثل: استشارات، نقل، صيانة)"
 
         # بناء خيارات التصنيف مجمعة (رئيسي > فرعي)
         self.fields['category'].widget.attrs.update({'class': 'form-select'})

@@ -244,12 +244,10 @@ class SupplierAllocationService:
                     reference=f"فاتورة مشتريات {purchase.number}"
                 )
 
-            PartnerCurrencySnapshotUpdater.trigger_on_commit(
-                partner_type="supplier",
-                partner_id=locked_supplier.id,
-                currency_code=purchase.currency.code if purchase.currency else "EGP",
-                event_type="ALLOCATION_APPLIED"
-            )
+            from financial.services.partner_subledger_service import PartnerSubledgerService
+            PartnerSubledgerService.record_purchase_bill(purchase, user)
+            from financial.services.partner_balance_service import PartnerBalanceService
+            PartnerBalanceService.update_partner_snapshot("supplier", locked_supplier.id)
 
             return last_audit
 

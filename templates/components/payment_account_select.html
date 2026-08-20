@@ -1,11 +1,12 @@
 {% comment %}
 Component: Payment Account Select
 مكون موحد لاختيار حساب الدفع (الخزينة/البنك/الرصيد المسبق)
-مظهر مؤسسي رقيق وهادئ
+مع إظهار العملة بجانب كل حساب
 {% endcomment %}
+{% load utils_extras %}
 
-<label for="{{ field_id|default:'payment_method' }}" class="form-label">
-    {{ label|default:"طريقة الدفع (الخزينة/البنك)" }}
+<label for="{{ field_id|default:'payment_method' }}" class="form-label fw-bold">
+    <i class="fas fa-wallet me-1 text-warning"></i>{{ label|default:"طريقة الدفع (الخزينة/البنك)" }}
     {% if required %}<span class="text-danger">*</span>{% endif %}
 </label>
 <select 
@@ -22,10 +23,10 @@ Component: Payment Account Select
     <optgroup label="الخزن النقدية">
         {% for account in cash_payment_accounts %}
         <option value="{% if value_type == 'id' %}{{ account.id }}{% else %}{{ account.code }}{% endif %}"
-            data-currency="{{ account.currency.code|default:'EGP' }}"
-            data-symbol="{{ account.currency.symbol|default:'ج.م' }}"
-            data-rate="{{ account.currency.exchange_rate|default:'1.000000' }}"
-            data-is-functional="{% if account.currency and not account.currency.is_functional %}0{% else %}1{% endif %}"
+            data-currency="{{ account.currency_code|default:'EGP' }}"
+            data-symbol="{{ account.currency_symbol|default:'ج.م' }}"
+            data-rate="{{ account.currency_rate|default:'1.000000' }}"
+            data-is-functional="{{ account.currency_is_functional|default:'1' }}"
             {% if value_type == 'id' %}
                 {% if selected_value and selected_value|stringformat:'s' == account.id|stringformat:'s' %}selected{% endif %}
             {% else %}
@@ -33,7 +34,7 @@ Component: Payment Account Select
             {% endif %}
             {% if not selected_value and default_payment_account and account.code == default_payment_account.code %}selected{% endif %}
         >
-            {{ account.name }}
+            {{ account.name }} ({{ account.currency_symbol|default:account.currency_code|default:'ج.م' }})
         </option>
         {% endfor %}
     </optgroup>
@@ -43,17 +44,17 @@ Component: Payment Account Select
     <optgroup label="الحسابات البنكية">
         {% for account in bank_payment_accounts %}
         <option value="{% if value_type == 'id' %}{{ account.id }}{% else %}{{ account.code }}{% endif %}"
-            data-currency="{{ account.currency.code|default:'EGP' }}"
-            data-symbol="{{ account.currency.symbol|default:'ج.م' }}"
-            data-rate="{{ account.currency.exchange_rate|default:'1.000000' }}"
-            data-is-functional="{% if account.currency and not account.currency.is_functional %}0{% else %}1{% endif %}"
+            data-currency="{{ account.currency_code|default:'EGP' }}"
+            data-symbol="{{ account.currency_symbol|default:'ج.م' }}"
+            data-rate="{{ account.currency_rate|default:'1.000000' }}"
+            data-is-functional="{{ account.currency_is_functional|default:'1' }}"
             {% if value_type == 'id' %}
                 {% if selected_value and selected_value|stringformat:'s' == account.id|stringformat:'s' %}selected{% endif %}
             {% else %}
                 {% if selected_value and selected_value|stringformat:'s' == account.code|stringformat:'s' %}selected{% endif %}
             {% endif %}
         >
-            {{ account.name }}
+            {{ account.name }} ({{ account.currency_symbol|default:account.currency_code|default:'ج.م' }})
         </option>
         {% endfor %}
     </optgroup>
@@ -62,10 +63,10 @@ Component: Payment Account Select
     {% if not cash_payment_accounts and not bank_payment_accounts and payment_accounts %}
         {% for account in payment_accounts %}
         <option value="{% if value_type == 'id' %}{{ account.id }}{% else %}{{ account.code }}{% endif %}"
-            data-currency="{{ account.currency.code|default:'EGP' }}"
-            data-symbol="{{ account.currency.symbol|default:'ج.م' }}"
-            data-rate="{{ account.currency.exchange_rate|default:'1.000000' }}"
-            data-is-functional="{% if account.currency and not account.currency.is_functional %}0{% else %}1{% endif %}"
+            data-currency="{{ account.currency_code|default:'EGP' }}"
+            data-symbol="{{ account.currency_symbol|default:'ج.م' }}"
+            data-rate="{{ account.currency_rate|default:'1.000000' }}"
+            data-is-functional="{{ account.currency_is_functional|default:'1' }}"
             {% if value_type == 'id' %}
                 {% if selected_value and selected_value|stringformat:'s' == account.id|stringformat:'s' %}selected{% endif %}
             {% else %}
@@ -73,23 +74,23 @@ Component: Payment Account Select
             {% endif %}
             {% if not selected_value and default_payment_account and account.code == default_payment_account.code %}selected{% endif %}
         >
-            {{ account.name }}
+            {{ account.name }} ({{ account.currency_symbol|default:account.currency_code|default:'ج.م' }})
         </option>
         {% endfor %}
     {% endif %}
 
     {% if customer_prepaid_balance and customer_prepaid_balance > 0 %}
     <optgroup label="الرصيد المسبق">
-        <option value="PREPAID_BALANCE" {% if selected_value == "PREPAID_BALANCE" %}selected{% endif %}>
-            رصيد مسبق متاح ({{ customer_prepaid_balance|floatformat:"-2" }} ج.م)
+        <option value="PREPAID_BALANCE" data-currency="EGP" data-symbol="ج.م" data-rate="1.000000" data-is-functional="1" {% if selected_value == "PREPAID_BALANCE" %}selected{% endif %}>
+            رصيد مسبق متاح ({{ customer_prepaid_balance|smart_float:2 }} ج.م)
         </option>
     </optgroup>
     {% endif %}
 
     {% if supplier_prepaid_balance and supplier_prepaid_balance > 0 %}
     <optgroup label="الرصيد المسبق">
-        <option value="PREPAID_BALANCE" {% if selected_value == "PREPAID_BALANCE" %}selected{% endif %}>
-            رصيد مسبق للمورد ({{ supplier_prepaid_balance|floatformat:"-2" }} ج.م)
+        <option value="PREPAID_BALANCE" data-currency="EGP" data-symbol="ج.م" data-rate="1.000000" data-is-functional="1" {% if selected_value == "PREPAID_BALANCE" %}selected{% endif %}>
+            رصيد مسبق للمورد ({{ supplier_prepaid_balance|smart_float:2 }} ج.م)
         </option>
     </optgroup>
     {% endif %}

@@ -139,6 +139,13 @@ class SaleService:
             
             # 5. إنشاء حركات المخزون عبر MovementService
             SaleService._create_stock_movements(sale, user)
+
+            # 6. تحديث رصيد العميل دفترياً والأستاذ المساعد
+            if sale.customer:
+                from financial.services.partner_subledger_service import PartnerSubledgerService
+                from financial.services.partner_balance_service import PartnerBalanceService
+                PartnerSubledgerService.record_sale_invoice(sale, user)
+                PartnerBalanceService.apply_document_delta("customer", sale.customer.id, sale.total_functional, is_addition=True)
             
             logger.info(f"✅ تم إنشاء فاتورة المبيعات بنجاح: {sale.number}")
             return sale
@@ -682,6 +689,13 @@ class SaleService:
             else:
                 func_amt = (paid_curr_amt * pmt_rate).quantize(Decimal('0.01'))
 
+            idem_key = payment_data.get('idempotency_key')
+            if idem_key:
+                existing = SalePayment.objects.filter(idempotency_key=idem_key).first()
+                if existing:
+                    logger.warning(f"⚠️ تم رصد طلب دفع مكرر بنفس المفتاح {idem_key} - إعادة الدفعة القائمة #{existing.id}")
+                    return existing
+
             # 1. إنشاء الدفعة
             payment = SalePayment.objects.create(
                 sale=sale,
@@ -693,6 +707,7 @@ class SaleService:
                 amount_paid_currency=paid_curr_amt,
                 amount_functional=func_amt,
                 amount_settled_invoice_currency=amount,
+                idempotency_key=idem_key,
                 payment_date=payment_data.get('payment_date', timezone.now().date()),
                 notes=payment_data.get('notes', ''),
                 status='draft',
@@ -710,8 +725,23 @@ class SaleService:
                 payment.posted_by = user
                 payment.save(update_fields=['financial_transaction', 'status', 'posted_at', 'posted_by'])
                 logger.info(f"✅ تم ترحيل الدفعة: {payment.id}")
+
+                # 3. تسجيل في الأستاذ المساعد
+                from financial.services.partner_subledger_service import PartnerSubledgerService
+                PartnerSubledgerService.record_payment_settlement(payment, "customer", user)
+
+                # 4. تطبيق التعديل التفاضلي لرصيد العميل
+                if sale.customer:
+                    from financial.services.partner_balance_service import PartnerBalanceService
+                    PartnerBalanceService.apply_settlement_delta(
+                        partner_type="customer",
+                        partner_id=sale.customer.id,
+                        settled_invoice_amount=payment.amount_settled_invoice_currency,
+                        invoice_rate=getattr(sale, "exchange_rate", Decimal("1.000000")) or Decimal("1.000000"),
+                        is_addition=False
+                    )
             
-            # 3. تحديث حالة الدفع للفاتورة
+            # 5. تحديث حالة الدفع للفاتورة
             sale.update_payment_status()
             
             return payment

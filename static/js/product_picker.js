@@ -139,11 +139,13 @@
                     '<label class="form-label form-label-sm product-code-label">الكود / الباركود</label>' +
                     '<input type="text" class="form-control form-control-sm product-code-input" placeholder="الكود / الباركود" value="' + productCode + '">' +
                 '</div>' +
-                '<div class="col-12 col-md-3" style="position:relative;">' +
-                    '<label class="form-label form-label-sm product-label required-field">' + labelProductText + '</label>' +
+                '<div class="col-12 col-md-3">' +
+                    '<div class="product-header-row d-flex align-items-center mb-2">' +
+                        '<label class="form-label form-label-sm product-label product-header required-field mb-0">' + labelProductText + '</label>' +
+                        '<span class="stock-info"></span>' +
+                    '</div>' +
                     '<button type="button" class="product-picker-btn"><span class="' + (productId ? 'selected-text' : 'placeholder-text') + '">' + productName + '</span><i class="fas fa-th-large text-muted small"></i></button>' +
                     '<input type="hidden" name="product[]" class="product-id-input" value="' + productId + '" data-price="' + productPrice + '" data-stock="' + productStock + '" data-is-service="' + isService + '" required>' +
-                    '<div class="stock-info"></div>' +
                 '</div>' +
                 '<div class="col-6 col-md-1"><label class="form-label form-label-sm required-field">الكمية</label><input type="number" name="quantity[]" class="form-control form-control-sm quantity" min="1" step="1" value="' + qty + '" required></div>' +
                 '<div class="col-6 col-md-2"><label class="form-label form-label-sm required-field">' + (isPurchase ? 'سعر التكلفة' : 'سعر الوحدة') + '</label><input type="text" inputmode="decimal" name="' + priceFieldName + '" class="form-control form-control-sm unit-price" value="' + unitPrice + '" required ' + priceReadonly + '></div>' +
@@ -152,10 +154,12 @@
                 removeBtn +
             '</div>');
 
-            if (isService) {
-                $row.find('.stock-info').html('<span class="text-success small"><i class="fas fa-tools"></i> خدمة</span>');
-            } else if (productStock > 0 && typeof this.renderStockInfo === 'function') {
-                this.renderStockInfo($row, productStock);
+            if (productId && typeof this.renderStockState === 'function') {
+                this.renderStockState($row, {
+                    stock: productStock,
+                    is_service: isService,
+                    quantity: qty
+                }, isPurchase ? 'purchase' : 'sale');
             }
 
             return $row;
@@ -259,6 +263,27 @@
                         toastr.warning('يجب الإبقاء على بند واحد على الأقل في الفاتورة');
                     }
                 }
+            });
+
+            // تفاعل شارة المخزون فورياً مع أي تغيير في حقل الكمية عبر كافة النماذج
+            $(document).off('input.productPickerQty change.productPickerQty keyup.productPickerQty', '#items-container .quantity, .item-row .quantity, input[name^="quantity"]').on('input.productPickerQty change.productPickerQty keyup.productPickerQty', '#items-container .quantity, .item-row .quantity, input[name^="quantity"]', function() {
+                var $row = $(this).closest('.item-row');
+                var $idInput = $row.find('.product-id-input');
+                var productId = $idInput.val();
+                if (!productId) return;
+
+                var isService = $idInput.attr('data-is-service') === 'true' || 
+                                $idInput.attr('data-is-service') === true || 
+                                $idInput.data('is-service') === true;
+                var stock = parseInt($idInput.attr('data-stock') !== undefined ? $idInput.attr('data-stock') : ($idInput.data('stock') || 0));
+                if (isNaN(stock)) stock = 0;
+                var qty = parseFloat($(this).val()) || 0;
+
+                self.renderStockState($row, {
+                    stock: stock,
+                    is_service: isService,
+                    quantity: qty
+                }, self.options.type);
             });
         },
 
@@ -732,11 +757,12 @@
 
             $row.find('.unit-price').val(product.price !== '' && product.price !== undefined ? (typeof smartFloat === 'function' ? smartFloat(product.price) : product.price) : '');
 
-            if (product.is_service) {
-                $row.find('.stock-info').html('<span class="text-success small"><i class="fas fa-tools"></i> خدمة</span>');
-            } else {
-                self.renderStockInfo($row, product.stock);
-            }
+            var isService = product.is_service === true || product.is_service === 'true' || product.is_service === 1;
+            self.renderStockState($row, {
+                stock: product.stock,
+                is_service: isService,
+                quantity: parseFloat($row.find('.quantity').val()) || 1
+            }, self.options.type);
 
             if (typeof self.options.onProductSelect === 'function') {
                 self.options.onProductSelect($row, product, matchType);
@@ -753,7 +779,7 @@
             $row.find('.product-id-input').val('').removeAttr('data-price data-stock data-is-service');
             $row.find('.product-code-input').removeClass('is-valid is-invalid').val('');
             $row.find('.unit-price').val('');
-            $row.find('.stock-info').html('');
+            this.renderStockState($row, null);
             if (typeof window.calculateRowTotal === 'function') {
                 window.calculateRowTotal($row);
             }
@@ -900,27 +926,57 @@
             });
         },
 
-        // طباعة حالة رصيد المخزون
+        // الدالة المركزية لرسم وتحديث رصيد المخزون وحالة البند
+        renderStockState: function($row, data, docType) {
+            var $stockContainer = $row.find('.stock-info');
+            var $headerRow = $row.find('.product-header-row');
+            if (!$stockContainer.length) return;
+
+            if (!data) {
+                $stockContainer.empty().removeAttr('title');
+                $headerRow.removeClass('has-stock-info');
+                return;
+            }
+
+            var isService = data.is_service === true || data.is_service === 'true' || data.is_service === 1;
+            if (isService) {
+                $stockContainer.html('<span class="text-success small"><i class="fas fa-tools"></i> خدمة</span>')
+                               .attr('title', 'صنف خدمي - لا يتطلب مخزون');
+                $headerRow.addClass('has-stock-info');
+                return;
+            }
+
+            var stock = parseInt(data.stock !== undefined ? data.stock : 0);
+            if (isNaN(stock)) stock = 0;
+            var qty = parseFloat(data.quantity !== undefined ? data.quantity : ($row.find('.quantity').val() || 0));
+            if (isNaN(qty)) qty = 0;
+
+            if (stock <= 0) {
+                $stockContainer.html('<span class="stock-warning">لا يوجد مخزون</span>')
+                               .attr('title', 'الرصيد المتاح حالياً هو 0');
+            } else if (qty > stock) {
+                $stockContainer.html('<span class="stock-warning">الكمية أكبر من المخزون المتاح (' + stock + ')</span>')
+                               .attr('title', 'الكمية المطلوبة (' + qty + ') أكبر من المخزون المتاح (' + stock + ')');
+            } else if (stock <= 5) {
+                $stockContainer.html('<span class="stock-warning">المخزون المتاح: ' + stock + ' (منخفض)</span>')
+                               .attr('title', 'المخزون المتاح: ' + stock + ' (وصل لحد إعادة الطلب)');
+            } else {
+                $stockContainer.html('المخزون المتاح: ' + stock)
+                               .attr('title', 'المخزون المتاح: ' + stock);
+            }
+            $headerRow.addClass('has-stock-info');
+        },
+
+        // متوافقة مع الاستدعاءات السابقة
         renderStockInfo: function($row, stock) {
             var $idInput = $row.find('.product-id-input');
             var isService = $idInput.attr('data-is-service') === 'true' || 
                             $idInput.attr('data-is-service') === true || 
                             $idInput.data('is-service') === true ||
                             $idInput.data('is-service') === 'true';
-
-            var $stockContainer = $row.find('.stock-info');
-            if (isService) {
-                $stockContainer.html('<span class="text-success small"><i class="fas fa-tools"></i> خدمة</span>');
-                return;
-            }
-
-            if (stock <= 0) {
-                $stockContainer.html('<span class="stock-warning">لا يوجد مخزون</span>');
-            } else if (stock <= 5) {
-                $stockContainer.html('<span class="stock-warning">المخزون المتاح: ' + stock + ' (منخفض)</span>');
-            } else {
-                $stockContainer.html('المخزون المتاح: ' + stock);
-            }
+            var qty = parseFloat($row.find('.quantity').val()) || 1;
+            var docType = this.options ? this.options.type : 'sale';
+            this.renderStockState($row, { stock: stock, is_service: isService, quantity: qty }, docType);
         },
 
         // طلب تجمعي واحد لتحميل أرصدة المخزون للبنود القديمة عند فتح الصفحة
@@ -958,18 +1014,23 @@
                             .attr('data-is-service', p.is_service);
                         $row.find('.product-code-input').val(p.code);
 
-                        if (p.is_service) {
-                            $row.find('.stock-info').html('<span class="text-success small"><i class="fas fa-tools"></i> خدمة</span>');
-                        } else {
-                            self.renderStockInfo($row, p.stock);
-                        }
+                        var isService = p.is_service === true || p.is_service === 'true' || p.is_service === 1;
+                        self.renderStockState($row, {
+                            stock: p.stock,
+                            is_service: isService,
+                            quantity: parseFloat($row.find('.quantity').val()) || 1
+                        }, lookupType);
                     });
                 }
             });
         }
     };
 
-    // تصدير دالة renderStockInfo و ProductPicker عالمياً
+    // تصدير دالة renderStockState و renderStockInfo و ProductPicker عالمياً
+    window.renderStockState = function($row, data, docType) {
+        ProductPicker.renderStockState($row, data, docType);
+    };
+
     window.renderStockInfo = function($row, stock) {
         ProductPicker.renderStockInfo($row, stock);
     };

@@ -71,92 +71,13 @@ def delete_customer_account_signal(sender, instance, **kwargs):
             logger.error(f"فشل حذف الحساب المحاسبي للعميل {instance.name}: {e}")
 
 
-@receiver(post_save, sender="sale.Sale")
-def sync_sale_subledger_signal(sender, instance, created, **kwargs):
-    """
-    مزامنة فاتورة المبيعات مع أستاذ العملاء الفرعي CustomerTransaction بدعم العملات المتعددة (IAS 21)
-    """
-    try:
-        from decimal import Decimal
-        from django.db.models import Sum
-        from client.models import CustomerTransaction
-        from sale.models import SalePayment
-        
-        paid_foreign = SalePayment.objects.filter(sale=instance).aggregate(t=Sum('amount'))['t'] or Decimal('0.00')
-        due_foreign = instance.total - paid_foreign
+# ⚠️ تم نقل مزامنة الأستاذ المساعد CustomerTransaction إلى خط التدفق الخدمي الصريح (PartnerSubledgerService)
 
-        curr_code = instance.currency.code if (hasattr(instance, 'currency') and instance.currency) else (getattr(instance, 'currency', None) or 'EGP')
-        raw_rate = getattr(instance, 'exchange_rate', Decimal('1.000000')) or Decimal('1.000000')
-        rate = Decimal(str(raw_rate))
+# @receiver(post_save, sender="sale.Sale")
+# def sync_sale_subledger_signal(sender, instance, created, **kwargs):
+#     pass
 
-        func_total = getattr(instance, 'total_functional', None)
-        if not func_total or func_total == Decimal('0.00'):
-            func_total = (Decimal(str(instance.total)) * rate).quantize(Decimal('0.01'))
-
-        paid_functional = (paid_foreign * rate).quantize(Decimal('0.01'))
-        due_functional = func_total - paid_functional
-
-        status = 'PAID' if due_foreign <= 0 else ('PARTIAL' if paid_foreign > 0 else 'OPEN')
-        
-        txn, is_new = CustomerTransaction.objects.get_or_create(
-            customer=instance.customer,
-            transaction_type='INVOICE',
-            reference_id=str(instance.id),
-            defaults={
-                'transaction_number': instance.number,
-                'issue_date': instance.date,
-                'due_date': instance.date,
-                'currency': curr_code,
-                'foreign_amount': instance.total,
-                'exchange_rate': rate,
-                'functional_amount': func_total,
-                'open_amount': due_functional,
-                'open_amount_functional': due_functional,
-                'open_amount_foreign': due_foreign,
-                'status': status
-            }
-        )
-        if not is_new:
-            txn.currency = curr_code
-            txn.exchange_rate = rate
-            txn.foreign_amount = instance.total
-            txn.functional_amount = func_total
-            txn.open_amount = due_functional
-            txn.open_amount_functional = due_functional
-            txn.open_amount_foreign = due_foreign
-            txn.status = status
-            txn.save()
-    except Exception as e:
-        logger.error(f"Failed to sync sale {instance.number} to subledger: {e}")
-
-
-@receiver(post_save, sender="client.CustomerPayment")
-def sync_customer_payment_subledger_signal(sender, instance, created, **kwargs):
-    """
-    مزامنة الدفعات المقدمة مع أستاذ العملاء الفرعي CustomerTransaction
-    """
-    try:
-        from decimal import Decimal
-        from client.models import CustomerTransaction
-        
-        CustomerTransaction.objects.get_or_create(
-            customer=instance.customer,
-            transaction_type='ADVANCE',
-            reference_id=str(instance.id),
-            defaults={
-                'transaction_number': instance.reference_number or f'CP-{instance.id}',
-                'issue_date': instance.payment_date,
-                'due_date': instance.payment_date,
-                'currency': 'EGP',
-                'foreign_amount': instance.amount,
-                'exchange_rate': Decimal('1.000000'),
-                'functional_amount': instance.amount,
-                'open_amount': instance.amount,
-                'open_amount_functional': instance.amount,
-                'open_amount_foreign': instance.amount,
-                'status': 'OPEN'
-            }
-        )
-    except Exception as e:
-        logger.error(f"Failed to sync CustomerPayment {instance.id} to subledger: {e}")
+# @receiver(post_save, sender="client.CustomerPayment")
+# def sync_customer_payment_subledger_signal(sender, instance, created, **kwargs):
+#     pass
 

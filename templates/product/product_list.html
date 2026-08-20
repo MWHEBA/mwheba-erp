@@ -71,6 +71,73 @@
     <!-- Page Header -->
     {% include "shared/page_header.html" %}
 
+    <!-- بطاقات المؤشرات الإحصائية (KPI Stats Cards) -->
+    <div class="row g-3 mb-4">
+        <!-- إجمالي المنتجات -->
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="stats-card stats-card-info">
+                <div class="stats-card-body">
+                    <div class="stats-card-icon">
+                        <i class="fas fa-boxes"></i>
+                    </div>
+                    <div class="stats-card-content">
+                        <div class="stats-card-title">إجمالي المنتجات</div>
+                        <div class="stats-card-value">{{ stats.total_products|default:"0" }}</div>
+                        <small class="text-muted">{{ stats.active_products|default:"0" }} منتج نشط</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- إجمالي قيمة المخزون -->
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="stats-card stats-card-success">
+                <div class="stats-card-body">
+                    <div class="stats-card-icon">
+                        <i class="fas fa-coins"></i>
+                    </div>
+                    <div class="stats-card-content">
+                        <div class="stats-card-title">قيمة المخزون التقديرية</div>
+                        <div class="stats-card-value">{{ stats.total_stock_value|smart_float|default:"0.00" }} <small class="fs-6">{{ currency_symbol|default:"ج.م" }}</small></div>
+                        <small class="text-success"><i class="fas fa-check-circle me-1"></i>حسب سعر التكلفة</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- تحت حد الأمان -->
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="stats-card stats-card-warning">
+                <div class="stats-card-body">
+                    <div class="stats-card-icon">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                    <div class="stats-card-content">
+                        <div class="stats-card-title">نواقص (تحت حد الطلب)</div>
+                        <div class="stats-card-value text-warning">{{ stats.low_stock_count|default:"0" }}</div>
+                        <small class="text-muted">يحتاج لإعادة شراء</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- نفد المخزون / غير نشط -->
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="stats-card stats-card-danger">
+                <div class="stats-card-body">
+                    <div class="stats-card-icon">
+                        <i class="fas fa-times-circle"></i>
+                    </div>
+                    <div class="stats-card-content">
+                        <div class="stats-card-title">نفد المخزون / معطل</div>
+                        <div class="stats-card-value text-danger">{{ stats.out_of_stock_count|default:"0" }}</div>
+                        <small class="text-muted">رصيد المخزن 0</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- تصفية وبحث -->
     <div class="section-container mb-4">
         <h5 class="section-title" data-bs-toggle="collapse" data-bs-target="#filterSection"
@@ -84,7 +151,7 @@
         </h5>
         <div class="collapse" id="filterSection">
             <div class="filter-section mb-4">
-                <form method="GET" action="{% url 'product:product_list' %}" class="row g-2 align-items-end">
+                <form method="GET" action="{% url 'product:product_list' %}" class="row g-2 align-items-end" id="products-filter-form" onsubmit="event.preventDefault(); window.doSearch();">
                     <!-- بحث -->
                     <div class="col-12 col-md">
                         <label for="search" class="form-label">{% trans "بحث" %}</label>
@@ -121,7 +188,7 @@
                     </div>
                     <!-- أزرار -->
                     <div class="col-6 col-md-auto">
-                        <button type="submit" class="btn btn-primary w-100">
+                        <button type="button" class="btn btn-primary w-100" onclick="window.doSearch()">
                             <i class="fas fa-search me-1"></i>{% trans "بحث" %}
                         </button>
                     </div>
@@ -183,20 +250,15 @@
 
     <!-- قائمة المنتجات -->
     <div class="section-container">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="card-title mb-0"><i class="fas fa-list me-2"></i>قائمة المنتجات</h5>
-            </div>
-            <div class="card-body">
-                <div id="products-table-container">
-                    {% include "product/partials/product_table.html" %}
-                </div>
+        <h5 class="section-title"><i class="fas fa-list me-2"></i>قائمة المنتجات</h5>
+        <div id="products-table-container">
+            {% include "product/partials/product_table.html" %}
+        </div>
 
-            </div>
-
-            <!-- Django Pagination -->
-            <div id="pagination-wrapper">
-                {% include "partials/pagination.html" with page_obj=page_obj align="center" %}
-            </div>
+        <!-- Django Pagination -->
+        <div id="pagination-wrapper">
+            {% include "partials/pagination.html" with page_obj=page_obj align="center" %}
+        </div>
     </div>
 
     <!-- Bulk Edit Modal -->
@@ -255,6 +317,9 @@
             </div>
         </div>
     </div>
+
+    <!-- المودال السريع لإضافة منتج -->
+    {% include "components/quick_product_modal.html" %}
 </div>
 {% endblock %}
 

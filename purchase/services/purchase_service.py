@@ -53,6 +53,9 @@ class PurchaseService:
                 discount=Decimal(data.get('discount', 0)),
                 tax=Decimal(data.get('tax', 0)),
                 total=Decimal('0'),
+                wht_active=data.get('wht_active', False),
+                wht_rate=Decimal(str(data.get('wht_rate', 1.00))),
+                wht_amount=Decimal(str(data.get('wht_amount', 0))),
                 notes=data.get('notes', ''),
                 status='confirmed',
                 is_service=data.get('is_service', False),
@@ -82,6 +85,14 @@ class PurchaseService:
             # 5. إنشاء حركات المخزون عبر MovementService (للمنتجات فقط)
             if not purchase.is_service:
                 PurchaseService._create_stock_movements(purchase, user)
+
+            # 6. تحديث رصيد المورد دفترياً والأستاذ المساعد
+            if purchase.supplier:
+                from financial.services.partner_subledger_service import PartnerSubledgerService
+                from financial.services.partner_balance_service import PartnerBalanceService
+                PartnerSubledgerService.record_purchase_bill(purchase, user)
+                func_tot = getattr(purchase, "total_functional", None) or (purchase.total * (getattr(purchase, "exchange_rate", Decimal("1.000000")) or Decimal("1.000000"))).quantize(Decimal("0.01"))
+                PartnerBalanceService.apply_document_delta("supplier", purchase.supplier.id, func_tot, is_addition=True)
             
             logger.info(f"✅ تم إنشاء فاتورة المشتريات بنجاح: {purchase.number}")
             return purchase
@@ -206,11 +217,19 @@ class PurchaseService:
                 if prepaid_payment:
                     return prepaid_payment
 
+            idem_key = payment_data.get('idempotency_key')
+            if idem_key:
+                existing = PurchasePayment.objects.filter(idempotency_key=idem_key).first()
+                if existing:
+                    logger.warning(f"⚠️ تم رصد طلب دفع مكرر بنفس المفتاح {idem_key} - إعادة الدفعة القائمة #{existing.id}")
+                    return existing
+
             # 1. إنشاء الدفعة
             payment = PurchasePayment.objects.create(
                 purchase=purchase,
                 amount=amount,
                 payment_method=pm,
+                idempotency_key=idem_key,
                 payment_date=payment_data.get('payment_date', timezone.now().date()),
                 notes=payment_data.get('notes', ''),
                 status='draft',
@@ -229,8 +248,23 @@ class PurchaseService:
                     payment.posted_by = user
                     payment.save(update_fields=['financial_transaction', 'status', 'posted_at', 'posted_by'])
                     logger.info(f"✅ تم ترحيل الدفعة: {payment.id}")
+
+                    # 3. تسجيل في الأستاذ المساعد
+                    from financial.services.partner_subledger_service import PartnerSubledgerService
+                    PartnerSubledgerService.record_payment_settlement(payment, "supplier", user)
+
+                    # 4. تطبيق التعديل التفاضلي لرصيد المورد
+                    if purchase.supplier:
+                        from financial.services.partner_balance_service import PartnerBalanceService
+                        PartnerBalanceService.apply_settlement_delta(
+                            partner_type="supplier",
+                            partner_id=purchase.supplier.id,
+                            settled_invoice_amount=getattr(payment, "amount_settled_invoice_currency", payment.amount) or payment.amount,
+                            invoice_rate=getattr(purchase, "exchange_rate", Decimal("1.000000")) or Decimal("1.000000"),
+                            is_addition=False
+                        )
                 
-                # 3. تحديث حالة الدفع للفاتورة
+                # 5. تحديث حالة الدفع للفاتورة
                 purchase.update_payment_status()
             else:
                 logger.info(f"ℹ️ الدفعة {payment.id} في حالة مسودة - تحتاج للترحيل اليدوي")

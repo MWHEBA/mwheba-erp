@@ -81,44 +81,22 @@ def invalidate_custom_fields_cache(sender, instance, **kwargs):
         cache.delete(f"custom_field_defs_{module}_{client_name}")
 
 
-# ✅ Signal نشط: تحديث حالة الدفع ورصيد العميل عند الدفع
-@receiver(post_save, sender=SalePayment)
-def update_payment_status_and_balance_on_payment(sender, instance, created, **kwargs):
-    """
-    تحديث حالة الدفع ورصيد العميل عند تسجيل دفعة أو تعديلها أو ترحيلها
-    """
-    if instance.sale:
-        instance.sale.update_payment_status()
-    
-    if instance.sale and instance.sale.customer:
-        recalculate_customer_balance(instance.sale.customer)
-
-
-# ✅ Signal نشط: تحديث رصيد العميل عند حذف الدفعة
 @receiver(post_delete, sender=SalePayment)
 def update_customer_balance_on_payment_delete(sender, instance, **kwargs):
     """
-    تحديث رصيد العميل عند حذف دفعة
+    تحديث رصيد العميل عند حذف دفعة (Safety Net)
     """
     if instance.sale and instance.sale.customer:
         recalculate_customer_balance(instance.sale.customer)
+        from financial.services.partner_subledger_service import PartnerSubledgerService
+        PartnerSubledgerService.record_sale_invoice(instance.sale)
+        instance.sale.update_payment_status()
 
 
-# ✅ Signal نشط: تحديث رصيد العميل عند حفظ الفاتورة
-@receiver(post_save, sender=Sale)
-def update_customer_balance_on_sale_save(sender, instance, created, **kwargs):
-    """
-    تحديث رصيد العميل عند إنشاء أو تعديل فاتورة مبيعات
-    """
-    if instance.customer:
-        recalculate_customer_balance(instance.customer)
-
-
-# ✅ Signal نشط: تحديث رصيد العميل عند حذف الفاتورة
 @receiver(post_delete, sender=Sale)
 def update_customer_balance_on_sale_delete(sender, instance, **kwargs):
     """
-    تحديث رصيد العميل عند حذف فاتورة مبيعات
+    تحديث رصيد العميل عند حذف فاتورة مبيعات (Safety Net)
     """
     if instance.customer:
         recalculate_customer_balance(instance.customer)

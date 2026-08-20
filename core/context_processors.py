@@ -124,22 +124,41 @@ def payment_accounts(request):
     إضافة حسابات الدفع (الخزينة/البنك) المصنفة للقوالب مع Cache
     ✅ استخدام AccountHelperService للمرجعية الموحدة وتقديم الخزن والبنك والافتراضي بمرونة
     """
-    cache_key = 'payment_accounts_data_v2'
+    cache_key = 'payment_accounts_data_v4'
     cached_data = cache.get(cache_key)
 
     if cached_data is None:
         try:
             from financial.services.account_helper import AccountHelperService
 
-            cash_qs = AccountHelperService.get_cash_accounts()
-            bank_qs = AccountHelperService.get_bank_accounts()
+            cash_qs = AccountHelperService.get_cash_accounts().select_related('currency')
+            bank_qs = AccountHelperService.get_bank_accounts().select_related('currency')
 
-            cash_accounts_data = list(
-                cash_qs.values('id', 'code', 'name', 'is_cash_account', 'is_bank_account')
-            )
-            bank_accounts_data = list(
-                bank_qs.values('id', 'code', 'name', 'is_cash_account', 'is_bank_account')
-            )
+            def _serialize_acc(acc):
+                curr_code = 'EGP'
+                curr_symbol = 'ج.م'
+                curr_rate = '1.000000'
+                is_func = '1'
+                if getattr(acc, 'currency', None):
+                    curr = acc.currency
+                    curr_code = curr.code or 'EGP'
+                    curr_symbol = getattr(curr, 'symbol', None) or curr_code
+                    curr_rate = str(getattr(curr, 'rate', getattr(curr, 'current_rate', '1.000000')) or '1.000000')
+                    is_func = '1' if getattr(curr, 'is_functional', False) else '0'
+                return {
+                    'id': acc.id,
+                    'code': acc.code,
+                    'name': acc.name,
+                    'currency_code': curr_code,
+                    'currency_symbol': curr_symbol,
+                    'currency_rate': curr_rate,
+                    'currency_is_functional': is_func,
+                    'is_cash_account': getattr(acc, 'is_cash_account', True),
+                    'is_bank_account': getattr(acc, 'is_bank_account', False),
+                }
+
+            cash_accounts_data = [_serialize_acc(a) for a in cash_qs]
+            bank_accounts_data = [_serialize_acc(a) for a in bank_qs]
 
             # الدمج للقوائم العامة
             all_accounts_data = cash_accounts_data + bank_accounts_data
@@ -148,11 +167,7 @@ def payment_accounts(request):
             def_cash_obj = AccountHelperService.get_default_cash_account()
             default_account_data = None
             if def_cash_obj:
-                default_account_data = {
-                    'id': def_cash_obj.id,
-                    'code': def_cash_obj.code,
-                    'name': def_cash_obj.name
-                }
+                default_account_data = _serialize_acc(def_cash_obj)
 
             # الحساب الافتراضي للبنك
             default_bank_data = None

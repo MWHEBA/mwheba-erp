@@ -309,14 +309,16 @@
                                     <label class="form-label form-label-sm product-code-label">الكود / الباركود</label>
                                     <input type="text" class="form-control form-control-sm product-code-input" placeholder="الكود / الباركود" value="{{ item.product.sku|default:'' }}">
                                 </div>
-                                <div class="col-12 col-md-3" style="position:relative;">
-                                    <label class="form-label form-label-sm product-label required-field">{% if allowed_item_types == 'services' %}الخدمة{% elif allowed_item_types == 'products' %}المنتج{% else %}المنتج / الخدمة{% endif %}</label>
+                                <div class="col-12 col-md-3">
+                                    <div class="product-header-row d-flex align-items-center mb-2">
+                                        <label class="form-label form-label-sm product-label product-header required-field mb-0">{% if allowed_item_types == 'services' %}الخدمة{% elif allowed_item_types == 'products' %}المنتج{% else %}المنتج / الخدمة{% endif %}</label>
+                                        <span class="stock-info"></span>
+                                    </div>
                                     <button type="button" class="product-picker-btn" data-row-index="{{ forloop.counter0 }}">
                                         <span class="selected-text">{{ item.product.name }}</span>
                                         <i class="fas fa-th-large text-muted small"></i>
                                     </button>
                                     <input type="hidden" name="product[]" class="product-id-input" value="{{ item.product.id }}" data-price="{{ item.product.selling_price }}" data-stock="{{ item.product.stock }}" required>
-                                    <div class="stock-info"></div>
                                 </div>
                                 <div class="col-6 col-md-1">
                                     <label class="form-label form-label-sm required-field">الكمية</label>
@@ -350,14 +352,16 @@
                                 <label class="form-label form-label-sm product-code-label">الكود / الباركود</label>
                                 <input type="text" class="form-control form-control-sm product-code-input" placeholder="الكود / الباركود">
                             </div>
-                            <div class="col-12 col-md-3" style="position:relative;">
-                                <label class="form-label form-label-sm product-label required-field">{% if allowed_item_types == 'services' %}الخدمة{% elif allowed_item_types == 'products' %}المنتج{% else %}المنتج / الخدمة{% endif %}</label>
+                            <div class="col-12 col-md-3">
+                                <div class="product-header-row d-flex align-items-center mb-2">
+                                    <label class="form-label form-label-sm product-label product-header required-field mb-0">{% if allowed_item_types == 'services' %}الخدمة{% elif allowed_item_types == 'products' %}المنتج{% else %}المنتج / الخدمة{% endif %}</label>
+                                    <span class="stock-info"></span>
+                                </div>
                                 <button type="button" class="product-picker-btn" data-row-index="0">
                                     <span class="placeholder-text">{% if allowed_item_types == 'services' %}اختر الخدمة{% elif allowed_item_types == 'products' %}اختر المنتج{% else %}اختر المنتج / الخدمة{% endif %}</span>
                                     <i class="fas fa-th-large text-muted small"></i>
                                 </button>
                                 <input type="hidden" name="product[]" class="product-id-input" required>
-                                <div class="stock-info"></div>
                             </div>
                             <div class="col-6 col-md-1">
                                 <label class="form-label form-label-sm required-field">الكمية</label>
@@ -384,6 +388,9 @@
 
                     <button type="button" id="add-item" class="btn btn-sm btn-primary add-more-btn mt-3">
                         <i class="fa fa-plus me-1"></i> إضافة بند
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-success add-more-btn mt-3 ms-2" id="btn-sale-new-product" onclick="if(window.openQuickProductModal) window.openQuickProductModal();">
+                        <i class="fas fa-plus-circle me-1"></i> صنف جديد
                     </button>
                 </div>
 
@@ -582,6 +589,7 @@
 
 <!-- ===== Product Picker Modal ===== -->
 {% include 'components/product_picker_modal.html' %}
+{% include 'components/quick_product_modal.html' %}
 
 <!-- ===== Add Customer Modal ===== -->
 <div class="modal fade" id="addCustomerModal" tabindex="-1" aria-hidden="true">
@@ -1069,25 +1077,19 @@
                     var isService = prodInput.attr('data-is-service') === 'true' || 
                                     prodInput.attr('data-is-service') === true || 
                                     prodInput.data('is-service') === true;
-                    if (isService) {
-                        row.find('.stock-info').html('<span class="text-success small"><i class="fas fa-tools"></i> خدمة</span>');
-                    } else {
-                        var stock = parseInt(prodInput.attr('data-stock') || 0);
-                        if (quantity > stock && stock > 0) {
-                            row.find('.stock-info').html('<span class="stock-warning">الكمية أكبر من المخزون المتاح (' + stock + ')</span>');
-                        } else {
-                            if (typeof renderStockInfo === 'function') {
-                                renderStockInfo(row, stock);
-                            } else if (typeof window.renderStockInfo === 'function') {
-                                window.renderStockInfo(row, stock);
-                            }
-                        }
+                    var stock = parseInt(prodInput.attr('data-stock') || 0);
+                    if (typeof window.renderStockState === 'function') {
+                        window.renderStockState(row, { stock: stock, is_service: isService, quantity: quantity }, 'sale');
+                    } else if (typeof window.renderStockInfo === 'function') {
+                        window.renderStockInfo(row, stock);
                     }
                 }
             });
 
             $('#id_discount, #id_discount_type, #id_adjustment_name, #id_adjustment_type, #id_adjustment_amount, #id_tax_active, #id_wht_active, #id_wht_rate').off('input change').on('input change', calculateTotals);
         }
+
+        bindEventHandlers();
 
         // ===== حساب الإجماليات =====
         function calculateRowTotal(row) {

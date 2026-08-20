@@ -84,15 +84,40 @@ def add_payment(request, pk):
     """
     إضافة دفعة لفاتورة الشراء - محدث بالتكامل المالي الشامل
     """
+    import uuid
+    from decimal import Decimal
+    from financial.models import CostCenter, ChartOfAccounts, Currency
     from financial.exceptions import FinancialValidationError
     from financial.services.validation_service import FinancialValidationService
+    from purchase.services.purchase_service import PurchaseService
     
     purchase = get_object_or_404(Purchase, pk=pk)
+
+    # التحقق من أن الفاتورة غير مسددة بالكامل
+    if purchase.amount_due <= Decimal('0.00') or purchase.payment_status == 'paid':
+        messages.info(request, f"فاتورة المشتريات #{purchase.number} مسددة بالكامل بالفعل.")
+        return redirect("purchase:purchase_detail", pk=purchase.pk)
 
     if request.method == "POST":
         form = PurchasePaymentForm(request.POST, purchase=purchase)
         if form.is_valid():
             try:
+                pm = request.POST.get('payment_method') or form.cleaned_data.get('payment_method')
+                amount = form.cleaned_data['amount']
+
+                # معالجة خاصة للسداد من الرصيد المسبق للمورد
+                if pm == 'PREPAID_BALANCE':
+                    payment_data = {
+                        'amount': amount,
+                        'payment_method': 'PREPAID_BALANCE',
+                        'payment_date': form.cleaned_data.get('payment_date', timezone.now().date()),
+                        'notes': form.cleaned_data.get('notes', ''),
+                        'idempotency_key': request.POST.get('idempotency_token'),
+                    }
+                    payment = PurchaseService.process_payment(purchase, payment_data, request.user)
+                    messages.success(request, f"تم خصم الدفعة بنجاح من الرصيد المسبق للمورد - المبلغ: {amount} ج.م")
+                    return redirect("purchase:purchase_detail", pk=purchase.pk)
+
                 with transaction.atomic():
                     # حفظ الدفعة أولاً
                     payment = form.save(commit=False)
@@ -107,7 +132,6 @@ def add_payment(request, pk):
                         payment.amount = purchase.amount_due
 
                     # التحقق من المعاملة المالية قبل الحفظ
-                    # نستخدم supplier (المورد) كالكيان المالي
                     try:
                         validation_result = FinancialValidationService.validate_transaction(
                             entity=purchase.supplier,
@@ -124,14 +148,11 @@ def add_payment(request, pk):
                         )
                     except FinancialValidationError as e:
                         messages.error(request, str(e))
-                        # إعادة عرض النموذج مع الخطأ
                         raise
 
                     # استخراج الحساب المالي والعملات
-                    from financial.models import ChartOfAccounts
                     acc = ChartOfAccounts.objects.filter(code=payment.payment_method, is_active=True).first()
                     payment.financial_account = acc
-                    from financial.models import Currency
                     if acc and acc.currency:
                         payment.payment_currency = acc.currency
                     else:
@@ -166,6 +187,7 @@ def add_payment(request, pk):
                         payment.amount_paid_currency = payment.amount
 
                     payment.amount_settled_invoice_currency = payment.amount
+                    payment.idempotency_key = request.POST.get('idempotency_token') or None
                     
                     # حساب القيمة الوظيفية EGP
                     treasury_code = acc.currency_code if acc else 'EGP'
@@ -174,13 +196,16 @@ def add_payment(request, pk):
                     else:
                         payment.amount_functional = (payment.amount_paid_currency * payment.payment_exchange_rate).quantize(Decimal('0.01'))
 
-                    # حفظ الدفعة أولاً
+                    # حساب أرباح/خسائر فروق العملة المحققة (IAS 21)
+                    inv_rate = purchase.exchange_rate if hasattr(purchase, 'exchange_rate') and purchase.exchange_rate else Decimal('1.000000')
+                    inv_functional = (payment.amount * inv_rate).quantize(Decimal('0.01'))
+                    payment.realized_fx_difference = (payment.amount_functional - inv_functional).quantize(Decimal('0.01'))
+
+                    # حفظ الدفعة
                     payment.status = "draft"
                     payment.save()
 
                     # إنشاء قيد محاسبي للدفعة وترحيلها باستخدام PurchaseService
-                    from purchase.services.purchase_service import PurchaseService
-
                     try:
                         journal_entry = PurchaseService._create_payment_journal_entry(
                             payment=payment,
@@ -188,7 +213,6 @@ def add_payment(request, pk):
                         )
 
                         if journal_entry:
-                            # ربط القيد بالدفعة وتحديث الحالة إلى مرحلة
                             payment.financial_transaction = journal_entry
                             payment.financial_status = "synced"
                             payment.status = "posted"
@@ -201,14 +225,11 @@ def add_payment(request, pk):
                                     "status",
                                     "posted_at",
                                     "posted_by",
+                                    "realized_fx_difference",
                                 ]
                             )
                             logger.info(
                                 f"✅ تم إنشاء دفعة وقيد محاسبي للفاتورة: {purchase.number}"
-                            )
-                        else:
-                            logger.warning(
-                                f"⚠️ تم إنشاء الدفعة لكن فشل إنشاء القيد المحاسبي للفاتورة: {purchase.number}"
                             )
                     except Exception as e:
                         logger.error(f"❌ خطأ في إنشاء القيد المحاسبي: {str(e)}")
@@ -226,32 +247,44 @@ def add_payment(request, pk):
                     return redirect("purchase:purchase_detail", pk=purchase.pk)
 
             except FinancialValidationError as e:
-                # معالجة أخطاء التحقق المالي
                 logger.warning(f"فشل التحقق المالي لدفعة المشتريات: {str(e)}")
                 messages.error(request, str(e))
             except Exception as e:
                 logger.error(f"خطأ في حفظ دفعة المشتريات: {str(e)}")
                 messages.error(request, f"حدث خطأ أثناء حفظ الدفعة: {str(e)}")
         else:
-            # عرض أخطاء النموذج
             for field, errors in form.errors.items():
                 for error in errors:
                     messages.error(request, f"خطأ في الحقل {field}: {error}")
     else:
-        # تعبئة قيمة افتراضية للمبلغ (المبلغ المستحق)
         initial_data = {
             "amount": purchase.amount_due,
-            "payment_date": datetime.now().date(),
+            "payment_date": timezone.now().date(),
         }
         form = PurchasePaymentForm(initial=initial_data, purchase=purchase)
+
+    supplier_prepaid = Decimal('0.00')
+    if purchase.supplier and hasattr(purchase.supplier, 'available_prepaid_balance'):
+        supplier_prepaid = purchase.supplier.available_prepaid_balance
 
     context = {
         "invoice": purchase,
         "form": form,
         "is_purchase": True,
-        "title": f"إضافة دفعة لفاتورة المشتريات {purchase.number}",
-        "page_subtitle": "إضافة دفعة جديدة لفاتورة المشتريات",
-        "header_buttons": [],
+        "supplier_prepaid_balance": supplier_prepaid,
+        "cost_centers": CostCenter.objects.filter(is_active=True).order_by('code'),
+        "idempotency_token": uuid.uuid4().hex,
+        "page_title": f"إضافة دفعة - فاتورة مشتريات #{purchase.number}",
+        "page_subtitle": f"المبلغ المستحق: {purchase.amount_due} ج.م | المورد: {purchase.supplier.name if purchase.supplier else '-'}",
+        "page_icon": "fas fa-money-bill-wave",
+        "header_buttons": [
+            {
+                "url": reverse("purchase:purchase_detail", kwargs={"pk": purchase.pk}),
+                "icon": "fa-arrow-right",
+                "text": "العودة للفاتورة",
+                "class": "btn-outline-secondary",
+            }
+        ],
         "breadcrumb_items": [
             {
                 "title": "الرئيسية",
@@ -264,7 +297,7 @@ def add_payment(request, pk):
                 "icon": "fas fa-shopping-cart",
             },
             {
-                "title": purchase.number,
+                "title": f"فاتورة {purchase.number}",
                 "url": reverse("purchase:purchase_detail", kwargs={"pk": purchase.pk}),
             },
             {"title": "إضافة دفعة", "active": True},
@@ -586,9 +619,9 @@ def delete_payment(request, payment_id):
                         "status": payment.status,
                     }
                 )
-            
-            # حذف الدفعة
-            payment.delete()
+            # حذف الدفعة المحوكم
+            from financial.services.payment_management_service import PaymentManagementService
+            PaymentManagementService.delete_payment(payment, user=request.user)
             
             messages.success(request, "تم حذف الدفعة بنجاح")
             

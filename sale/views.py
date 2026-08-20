@@ -435,7 +435,15 @@ def add_payment(request, pk):
     إضافة دفعة على فاتورة مبيعات
     ✅ محدث: يستخدم SaleService لمعالجة الدفعات
     """
+    import uuid
+    from financial.models import CostCenter
+    
     sale = get_object_or_404(Sale, pk=pk)
+
+    # التحقق من أن الفاتورة غير مسددة بالكامل
+    if sale.amount_due <= Decimal('0.00') or sale.payment_status == 'paid':
+        messages.info(request, f"فاتورة المبيعات #{sale.number} مسددة بالكامل بالفعل.")
+        return redirect("sale:sale_detail", pk=sale.pk)
 
     if request.method == "POST":
         form = SalePaymentForm(request.POST, sale=sale)
@@ -448,7 +456,10 @@ def add_payment(request, pk):
                     'payment_exchange_rate': request.POST.get('payment_exchange_rate'),
                     'amount_paid_currency': request.POST.get('amount_paid_currency'),
                     'payment_date': form.cleaned_data.get('payment_date', timezone.now().date()),
+                    'cost_center_id': request.POST.get('cost_center') or None,
+                    'reference_number': request.POST.get('reference_number') or '',
                     'notes': form.cleaned_data.get('notes', ''),
+                    'idempotency_key': request.POST.get('idempotency_token') or None,
                 }
                 
                 # معالجة الدفعة عبر SaleService
@@ -469,22 +480,35 @@ def add_payment(request, pk):
         }
         form = SalePaymentForm(initial=initial_data, sale=sale)
 
+    customer_prepaid = Decimal('0.00')
+    if sale.customer and hasattr(sale.customer, 'available_prepaid_balance'):
+        customer_prepaid = sale.customer.available_prepaid_balance
+
     context = {
-        "invoice": sale,  # الـ template بيستخدم invoice مش sale
+        "invoice": sale,  # الـ template بيستخدم invoice
         "sale": sale,  # للتوافق
         "form": form,
         "is_purchase": False,  # للتمييز بين المبيعات والمشتريات
-        "title": f"إضافة دفعة - فاتورة {sale.number}",
-        "page_title": f"إضافة دفعة - فاتورة {sale.number}",
-        "page_subtitle": f"المبلغ المتبقي: {sale.amount_due} ج.م",
+        "customer_prepaid_balance": customer_prepaid,
+        "cost_centers": CostCenter.objects.filter(is_active=True).order_by('code'),
+        "idempotency_token": uuid.uuid4().hex,
+        "page_title": f"إضافة دفعة - فاتورة مبيعات #{sale.number}",
+        "page_subtitle": f"المبلغ المستحق: {sale.amount_due} ج.م | العميل: {sale.customer.name if sale.customer else '-'}",
         "page_icon": "fas fa-money-bill-wave",
+        "header_buttons": [
+            {
+                "url": reverse("sale:sale_detail", kwargs={"pk": sale.pk}),
+                "icon": "fa-arrow-right",
+                "text": "العودة للفاتورة",
+                "class": "btn-outline-secondary",
+            }
+        ],
         "breadcrumb_items": [
             {"title": "الرئيسية", "url": reverse("core:dashboard"), "icon": "fas fa-home"},
             {"title": "المبيعات", "url": reverse("sale:sale_list"), "icon": "fas fa-shopping-cart"},
             {"title": f"فاتورة {sale.number}", "url": reverse("sale:sale_detail", kwargs={"pk": sale.pk}), "icon": "fas fa-file-invoice"},
             {"title": "إضافة دفعة", "active": True},
         ],
-        "header_buttons": [],
     }
     return render(request, "sale/sale_payment_form.html", context)
 
@@ -1448,7 +1472,8 @@ def delete_payment(request, payment_id):
                     }
                 )
             
-            payment.delete()
+            from financial.services.payment_management_service import PaymentManagementService
+            PaymentManagementService.delete_payment(payment, user=request.user)
             messages.success(request, "تم حذف الدفعة بنجاح")
             return redirect("sale:sale_detail", pk=sale.pk)
             

@@ -220,7 +220,7 @@ class AccountingIntegrationService:
                 # 3. قيد ضريبة الخصم والإضافة (WHT) - دائن
                 if getattr(purchase, 'wht_active', False) and purchase.wht_amount and purchase.wht_amount > Decimal("0.00"):
                     from financial.services.role_registry import AccountRoleRegistry
-                    wht_code = AccountRoleRegistry.resolve_role_code("INCOME_TAX") or "21330"
+                    wht_code = AccountRoleRegistry.resolve_role_code("WITHHOLDING_TAX_PAYABLE") or AccountRoleRegistry.resolve_role_code("INCOME_TAX") or "21810"
                     lines.append(
                         JournalEntryLineData(
                             account_code=wht_code,
@@ -254,11 +254,16 @@ class AccountingIntegrationService:
                 else:
                     line_description = f"مشتريات - المورد {purchase.supplier.name} - فاتورة {purchase.number}"
                 
+                # حساب صافي المستحق للمورد بعد خصم ضريبة المنبع
+                net_supplier_payable = purchase.total
+                if getattr(purchase, 'wht_active', False) and purchase.wht_amount and purchase.wht_amount > Decimal("0.00"):
+                    net_supplier_payable = max(Decimal("0.00"), purchase.total - purchase.wht_amount)
+
                 lines.append(
                     JournalEntryLineData(
                         account_code=supplier_account.code,
                         debit=Decimal("0.00"),
-                        credit=purchase.total,
+                        credit=net_supplier_payable,
                         description=line_description
                     )
                 )

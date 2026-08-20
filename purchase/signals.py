@@ -114,146 +114,29 @@ def update_product_prices_on_purchase(sender, instance, created, **kwargs):
                 )
 
 
-@governed_signal_handler(
-    signal_name="handle_deleted_purchase_item",
-    critical=True,
-    description="معالجة حذف بند المشتريات"
-)
-@receiver(post_delete, sender=PurchaseItem)
-def handle_deleted_purchase_item(sender, instance, **kwargs):
-    """
-    إلغاء حركة المخزون عند حذف بند الفاتورة
-    
-    ✅ محدث: يستخدم MovementService لإنشاء حركة معاكسة
-    """
-    try:
-        # ✨ تخطي الخدمات - لا تحتاج حركات مخزون
-        if instance.product.is_service:
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.info(
-                f"⏭️ تخطي معالجة حذف الخدمة '{instance.product.name}' - "
-                f"فاتورة {instance.purchase.number}"
-            )
-            return
-        
-        # ✅ استخدام MovementService لإنشاء حركة معاكسة
-        from governance.services import MovementService
-        from product.models import StockMovement
-        from decimal import Decimal
-        import logging
-        
-        logger = logging.getLogger(__name__)
-        
-        # البحث عن حركة المخزون المرتبطة
-        related_movement = StockMovement.objects.filter(
-            idempotency_key=f"purchase_item_{instance.id}_create"
-        ).first()
+# ⚠️ تم نقل معالجة حذف بنود وحركات المشتريات وإدارتها إلى خط التدفق الخدمي الصريح (PurchaseService & PartnerBalanceService)
 
-        if related_movement:
-            with transaction.atomic():
-                # ✅ إنشاء حركة معاكسة عبر MovementService
-                movement_service = MovementService()
-                reversal_movement = movement_service.process_movement(
-                    product_id=instance.product.id,
-                    quantity_change=-Decimal(str(instance.quantity)),  # سالب للإرجاع
-                    movement_type='out',
-                    source_reference=f"PUR-CANCEL-{instance.purchase.number}",
-                    idempotency_key=f"purchase_item_{instance.id}_delete",
-                    user=instance.purchase.created_by,
-                    unit_cost=instance.unit_price,
-                    document_number=instance.purchase.number,
-                    notes=f"إلغاء بند مشتريات - فاتورة رقم {instance.purchase.number}"
-                )
-                
-                logger.info(
-                    f"✅ تم إنشاء حركة إرجاع عبر MovementService: {reversal_movement.id} - "
-                    f"المنتج '{instance.product.name}' - الكمية: {instance.quantity}"
-                )
+# @receiver(post_delete, sender=PurchaseItem)
+# def handle_deleted_purchase_item(sender, instance, **kwargs):
+#     pass
 
-                # ✅ حذف الحركة الأصلية بطريقة مباشرة
-                StockMovement.objects.filter(pk=related_movement.pk).delete()
-                
-                logger.info(
-                    f"✅ تم حذف حركة المخزون الأصلية للمنتج '{instance.product.name}'"
-                )
-        else:
-            logger.warning(
-                f"⚠️ لم يتم العثور على حركة مخزون للبند المحذوف: "
-                f"{instance.product.name} - فاتورة {instance.purchase.number}"
-            )
-
-    except Exception as e:
-        # تسجيل الخطأ ورفعه لإيقاف العملية
-        import logging
-
-        logger = logging.getLogger(__name__)
-        logger.error(f"❌ خطأ في معالجة حذف بند المشتريات: {str(e)}")
-        # ✅ رفع الخطأ لإيقاف عملية الحذف إذا فشلت معالجة المخزون
-        raise
-
-
-@governed_signal_handler(
-    signal_name="update_payment_status_on_purchase_payment",
-    critical=True,
-    description="تحديث حالة الدفع عند دفعة المشتريات"
-)
-@receiver(post_save, sender=PurchasePayment)
-def update_payment_status_on_payment(sender, instance, created, **kwargs):
-    """
-    تحديث حالة الدفع عند تسجيل دفعة أو تعديلها أو ترحيلها
-    """
-    if instance.purchase:
-        instance.purchase.update_payment_status()
-
-    if created and instance.purchase and instance.purchase.supplier:
-        supplier = instance.purchase.supplier
-        raw_rate = getattr(instance.purchase, 'exchange_rate', Decimal('1.000000')) or Decimal('1.000000')
-        rate = Decimal(str(raw_rate))
-        settled = getattr(instance, 'amount_settled_invoice_currency', instance.amount) or instance.amount
-        func_deduction = (Decimal(str(settled)) * rate).quantize(Decimal('0.01'))
-        supplier.balance -= func_deduction
-        supplier.save(update_fields=["balance"])
-
-        try:
-            from financial.services.partner_balance_snapshot_service import PartnerBalanceSnapshotService
-            PartnerBalanceSnapshotService.update_snapshot("supplier", supplier.id)
-        except Exception:
-            pass
-
+# @receiver(post_save, sender=PurchasePayment)
+# def update_payment_status_on_payment(sender, instance, created, **kwargs):
+#     pass
 
 @receiver(post_delete, sender=PurchasePayment)
 def update_supplier_balance_on_payment_delete(sender, instance, **kwargs):
     """
-    تحديث رصيد المورد ولقطة الانكشاف عند حذف دفعة
+    تحديث حالة وأستاذ المورد عند حذف دفعة مشتريات (Safety Net)
     """
     if instance.purchase and instance.purchase.supplier:
-        supplier = instance.purchase.supplier
-        try:
-            from financial.services.partner_balance_snapshot_service import PartnerBalanceSnapshotService
-            PartnerBalanceSnapshotService.update_snapshot("supplier", supplier.id)
-        except Exception:
-            pass
+        from financial.services.partner_subledger_service import PartnerSubledgerService
+        PartnerSubledgerService.record_purchase_bill(instance.purchase)
+        instance.purchase.update_payment_status()
 
-
-@governed_signal_handler(
-    signal_name="update_supplier_balance_on_purchase",
-    critical=True,
-    description="تحديث رصيد المورد عند الشراء"
-)
-@receiver(post_save, sender=Purchase)
-def update_supplier_balance_on_purchase(sender, instance, created, **kwargs):
-    """
-    تحديث رصيد المورد عند إنشاء فاتورة مشتريات
-    """
-    if created and instance.payment_method == "credit":
-        supplier = instance.supplier
-        if supplier:
-            raw_rate = getattr(instance, 'exchange_rate', Decimal('1.000000')) or Decimal('1.000000')
-            rate = Decimal(str(raw_rate))
-            func_total = getattr(instance, 'total_functional', None) or (instance.total * rate).quantize(Decimal('0.01'))
-            supplier.balance += func_total
-            supplier.save(update_fields=["balance"])
+# @receiver(post_save, sender=Purchase)
+# def update_supplier_balance_on_purchase(sender, instance, created, **kwargs):
+#     pass
 
 
 @governed_signal_handler(

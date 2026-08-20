@@ -315,11 +315,20 @@
                             </div>
                             
                             <div class="info-item">
-                                <span class="info-label">المبلغ:</span>
+                                <span class="info-label">المبلغ المخصوم من الفاتورة:</span>
                                 <span class="info-value amount-highlight">
-                                    {{ payment.amount|currency }}
+                                    {{ payment.amount|smart_float }} {% if payment.sale.currency %}{{ payment.sale.currency.symbol|default:payment.sale.currency.code }}{% else %}{{ currency_symbol }}{% endif %}
                                 </span>
                             </div>
+                            {% if payment.payment_currency and payment.payment_currency != payment.sale.currency %}
+                            <div class="info-item">
+                                <span class="info-label">المبلغ المدفوع بالخزينة:</span>
+                                <span class="info-value text-muted fw-bold">
+                                    {{ payment.amount_paid_currency|smart_float }} {{ payment.payment_currency.symbol }}
+                                    <small class="d-block text-muted fw-normal">(سعر الصرف: {{ payment.payment_exchange_rate|smart_float }})</small>
+                                </span>
+                            </div>
+                            {% endif %}
                             
                             <div class="info-item">
                                 <span class="info-label">طريقة الدفع:</span>

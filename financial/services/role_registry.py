@@ -50,6 +50,8 @@ class AccountRoleNames(str, Enum):
     SALARY_PAYABLES = "salary_payables"
     EMPLOYEE_ADVANCE = "employee_advance"
     ROUNDING_DIFFERENCE_ACCOUNT = "rounding_difference_account"
+    WITHHOLDING_TAX_PAYABLE = "withholding_tax_payable"
+    WITHHOLDING_TAX_RECEIVABLE = "withholding_tax_receivable"
 
 
 LEGACY_ROLE_FALLBACKS: Dict[str, str] = {
@@ -110,11 +112,18 @@ LEGACY_ROLE_FALLBACKS: Dict[str, str] = {
     "SALARY_EXPENSE_ACCOUNT": "52110",
     AccountRoleNames.SOCIAL_INSURANCE.value: "21420",
     AccountRoleNames.INCOME_TAX.value: "21330",
+    "INCOME_TAX": "21330",
     AccountRoleNames.SALARY_PAYABLES.value: "21410",
     "SALARY_PAYABLES": "21410",
     AccountRoleNames.EMPLOYEE_ADVANCE.value: "11230",
     AccountRoleNames.ROUNDING_DIFFERENCE_ACCOUNT.value: "54400",
     "ROUNDING_DIFFERENCE_ACCOUNT": "54400",
+    AccountRoleNames.WITHHOLDING_TAX_PAYABLE.value: "21810",
+    "WITHHOLDING_TAX_PAYABLE": "21810",
+    "WHT_PAYABLE": "21810",
+    AccountRoleNames.WITHHOLDING_TAX_RECEIVABLE.value: "11810",
+    "WITHHOLDING_TAX_RECEIVABLE": "11810",
+    "WHT_RECEIVABLE": "11810",
 }
 
 

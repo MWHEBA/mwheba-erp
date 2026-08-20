@@ -8,18 +8,19 @@
 {% block extra_css %}
 <style>
     /* ==========================================================================
-       تنسيقات نموذج إضافة وتعديل المنتجات والخدمات (Product / Service Form)
+       تنسيقات نموذج إضافة وتعديل المنتجات والخدمات المعياري
        ========================================================================== */
 
     .product-form-container {
-        padding-bottom: 2rem;
+        padding-bottom: 2.5rem;
     }
 
     .form-section-card {
         background: var(--white, #ffffff);
         border: 1px solid var(--border-color, #e5e7eb);
         border-radius: var(--border-radius, 8px);
-        margin-bottom: 1.25rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
     }
 
     .form-section-header {
@@ -44,12 +45,6 @@
         padding: 1.25rem;
     }
 
-    .form-check-label small {
-        font-size: 0.8125rem;
-        margin-top: 2px;
-    }
-
-    /* أزرار الإجراءات السفلية */
     .form-actions-bar {
         background-color: var(--white, #ffffff);
         border: 1px solid var(--border-color, #e5e7eb);
@@ -91,20 +86,20 @@
 
     <!-- تنبيه نوع العنصر (منتج أم خدمة) -->
     <div class="alert {% if form.instance.is_service or is_service %}alert-info{% else %}alert-primary{% endif %} d-flex align-items-center mb-3" role="alert">
-        <i class="fas {% if form.instance.is_service or is_service %}fa-concierge-bell{% else %}fa-box{% endif %} fa-2x me-3"></i>
+        <i class="fas {% if form.instance.is_service or is_service %}fa-concierge-bell{% else %}fa-box-open{% endif %} fa-2x me-3"></i>
         <div>
             <h6 class="mb-1 fw-bold">
                 {% if form.instance.pk %}
-                    {% if form.instance.is_service %}تعديل خدمة: {{ form.instance.name }}{% else %}تعديل منتج: {{ form.instance.name }}{% endif %}
+                    {% if form.instance.is_service %}تعديل بيانات الخدمة: {{ form.instance.name }}{% else %}تعديل بيانات المنتج: {{ form.instance.name }}{% endif %}
                 {% else %}
-                    {% if is_service %}إضافة خدمة جديدة{% else %}إضافة منتج جديد{% endif %}
+                    {% if is_service %}إضافة خدمة جديدة للنظام{% else %}إضافة منتج مادي جديد للنظام{% endif %}
                 {% endif %}
             </h6>
-            <small class="mb-0">
+            <small class="mb-0 text-muted">
                 {% if form.instance.is_service or is_service %}
-                    الخدمات لا تتطلب إدارة مخزون أو حدود أمان للكميات.
+                    الخدمات لا تتطلب إدارة مخزون أو حدود أمان للكميات أو باركود إلزامي.
                 {% else %}
-                    المنتجات تتطلب تتبع المخزون وتحديد كميات الأمان والوحدات.
+                    المنتجات المادية تتطلب تحديد وحدة قياس وحد أدنى للأمان وتتبع المخزون في المستودعات.
                 {% endif %}
             </small>
         </div>
@@ -115,13 +110,13 @@
         {% csrf_token %}
 
         <div class="row">
-            <!-- العمود الأيسر: المعلومات الرئيسية والتسعير -->
+            <!-- العمود الأيمن الرئيسي (المعلومات، التصنيف، التسعير، المواصفات) -->
             <div class="col-lg-8 col-md-12">
-                <!-- 1. المعلومات الأساسية -->
+                <!-- 1. المعلومات الأساسية والتصنيف -->
                 <div class="form-section-card">
                     <div class="form-section-header">
                         <h6 class="form-section-title">
-                            <i class="fas fa-info-circle text-primary"></i>المعلومات الأساسية
+                            <i class="fas fa-info-circle text-primary"></i>المعلومات الأساسية والتصنيف
                         </h6>
                     </div>
                     <div class="form-section-body">
@@ -132,30 +127,8 @@
                             <div class="col-md-6">
                                 {{ form.name_en|as_crispy_field }}
                             </div>
-                            <div class="col-12">
-                                <div class="position-relative">
-                                    {{ form.sku|as_crispy_field }}
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                {{ form.description|as_crispy_field }}
-                            </div>
-                            <div class="col-md-6">
-                                {{ form.description_en|as_crispy_field }}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 2. التصنيف ووحدة القياس -->
-                <div class="form-section-card">
-                    <div class="form-section-header">
-                        <h6 class="form-section-title">
-                            <i class="fas fa-tags text-primary"></i>التصنيف ووحدة القياس
-                        </h6>
-                    </div>
-                    <div class="form-section-body">
-                        <div class="row g-3">
+                            
+                            <!-- التصنيف -->
                             <div class="col-md-6">
                                 <label class="form-label fw-medium" for="{{ form.category.id_for_label }}">
                                     التصنيف{% if form.category.field.required %} <span class="text-danger">*</span>{% endif %}
@@ -205,9 +178,10 @@
                                 {% endif %}
                             </div>
 
-                            <div class="col-md-6" id="unit-field">
+                            <!-- وحدة القياس -->
+                            <div class="col-md-6" id="unit-field-col">
                                 <label class="form-label fw-medium" for="{{ form.unit.id_for_label }}">
-                                    وحدة القياس{% if form.unit.field.required %} <span class="text-danger">*</span>{% endif %}
+                                    وحدة القياس{% if not form.instance.is_service and not is_service %} <span class="text-danger">*</span>{% endif %}
                                 </label>
                                 <div class="input-group">
                                     <select name="{{ form.unit.html_name }}"
@@ -230,16 +204,34 @@
                                 <div class="invalid-feedback d-block">{{ form.unit.errors.0 }}</div>
                                 {% endif %}
                             </div>
+
+                            <!-- الكود والباركود -->
+                            <div class="col-md-6">
+                                <div class="position-relative">
+                                    {{ form.sku|as_crispy_field }}
+                                </div>
+                            </div>
+                            <div class="col-md-6" id="barcode-field-col">
+                                {{ form.barcode|as_crispy_field }}
+                            </div>
+
+                            <!-- الوصف -->
+                            <div class="col-md-6">
+                                {{ form.description|as_crispy_field }}
+                            </div>
+                            <div class="col-md-6">
+                                {{ form.description_en|as_crispy_field }}
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- 3. الأسعار والمخزون والباركود -->
+                <!-- 2. التسعير والضرائب والموردين -->
                 <div class="form-section-card" id="pricing-stock-card">
                     <div class="form-section-header">
                         <h6 class="form-section-title">
-                            <i class="fas fa-dollar-sign text-primary"></i>
-                            <span id="pricing-title">الأسعار والمخزون</span>
+                            <i class="fas fa-dollar-sign text-success"></i>
+                            <span id="pricing-title">الأسعار والضرائب والمورد</span>
                         </h6>
                     </div>
                     <div class="form-section-body">
@@ -250,18 +242,106 @@
                             <div class="col-md-4">
                                 {{ form.selling_price|as_crispy_field }}
                             </div>
-                            <div class="col-md-4" id="min-stock-field">
+                            <div class="col-md-4" id="min-stock-field-col">
                                 {{ form.min_stock|as_crispy_field }}
                             </div>
-                            <div class="col-12">
-                                {{ form.barcode|as_crispy_field }}
+                            
+                            <!-- الضرائب والمورد -->
+                            <div class="col-md-4">
+                                {{ form.tax_rate|as_crispy_field }}
+                            </div>
+                            <div class="col-md-4">
+                                {{ form.tax_code|as_crispy_field }}
+                            </div>
+                            <div class="col-md-4">
+                                {{ form.default_supplier|as_crispy_field }}
                             </div>
                         </div>
                     </div>
                 </div>
+
+                <!-- 3. المواصفات التخصصية ونوع الاستخدام -->
+                <div class="form-section-card">
+                    <div class="form-section-header">
+                        <h6 class="form-section-title">
+                            <i class="fas fa-layer-group text-primary"></i>المواصفات التخصصية ونوع الاستخدام
+                        </h6>
+                    </div>
+                    <div class="form-section-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                {{ form.item_type|as_crispy_field }}
+                            </div>
+                            <div class="col-md-6">
+                                {{ form.suitable_for_grades|as_crispy_field }}
+                            </div>
+                            
+                            <!-- حقول الزي الرسمي (مشروطة) -->
+                            <div class="col-md-6 {% if form.item_type.value != 'uniform' %}d-none{% endif %}" id="col-uniform-size">
+                                {{ form.uniform_size|as_crispy_field }}
+                            </div>
+                            <div class="col-md-6 {% if form.item_type.value != 'uniform' %}d-none{% endif %}" id="col-uniform-gender">
+                                {{ form.uniform_gender|as_crispy_field }}
+                            </div>
+
+                            <!-- حقول المواد التعليمية (مشروطة) -->
+                            <div class="col-12 {% if form.item_type.value != 'educational' %}d-none{% endif %}" id="col-edu-subject">
+                                {{ form.educational_subject|as_crispy_field }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 4. في حالة التعديل: أسعار العملات الأجنبية (IAS 21) وأسعار الموردين -->
+                {% if form.instance.pk %}
+                <div class="form-section-card">
+                    <div class="form-section-header d-flex justify-content-between align-items-center">
+                        <h6 class="form-section-title">
+                            <i class="fas fa-globe text-info"></i>أسعار العملات الأجنبية والموردين
+                        </h6>
+                        <a href="{% url 'product:product_detail' form.instance.pk %}" class="btn btn-xs btn-outline-primary">
+                            <i class="fas fa-external-link-alt me-1"></i>إدارة الأسعار بالتفصيل
+                        </a>
+                    </div>
+                    <div class="form-section-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <h6 class="small fw-bold text-muted mb-2"><i class="fas fa-coins me-1"></i>أسعار العملات المسجلة</h6>
+                                {% if form.instance.currency_prices.exists %}
+                                    <ul class="list-group list-group-flush border rounded">
+                                        {% for cp in form.instance.currency_prices.all %}
+                                        <li class="list-group-item d-flex justify-content-between align-items-center py-2">
+                                            <span>{{ cp.currency.name }} ({{ cp.currency.code }})</span>
+                                            <span class="badge bg-light text-dark">{{ cp.price }} {{ cp.currency.symbol }}</span>
+                                        </li>
+                                        {% endfor %}
+                                    </ul>
+                                {% else %}
+                                    <p class="small text-muted mb-0">لا توجد أسعار مخصصة بعملات أجنبية مسجلة لهذا الصنف.</p>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <h6 class="small fw-bold text-muted mb-2"><i class="fas fa-truck me-1"></i>أسعار الموردين المسجلة</h6>
+                                {% if form.instance.supplier_prices.exists %}
+                                    <ul class="list-group list-group-flush border rounded">
+                                        {% for sp in form.instance.supplier_prices.all %}
+                                        <li class="list-group-item d-flex justify-content-between align-items-center py-2">
+                                            <span>{{ sp.supplier.name }}</span>
+                                            <span class="badge bg-light text-dark">{{ sp.purchase_price }} ج.م</span>
+                                        </li>
+                                        {% endfor %}
+                                    </ul>
+                                {% else %}
+                                    <p class="small text-muted mb-0">لا توجد أسعار موردين مسجلة لهذا الصنف.</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
             </div>
 
-            <!-- العمود الأيمن: الخيارات العامة والصور -->
+            <!-- العمود الأيسر: الخيارات العامة والصور -->
             <div class="col-lg-4 col-md-12">
                 <!-- الخيارات العامة وحالة التفعيل -->
                 <div class="form-section-card">
@@ -269,7 +349,7 @@
                         <h6 class="form-section-title"><i class="fas fa-cog text-secondary"></i>الخيارات والتفعيل</h6>
                     </div>
                     <div class="form-section-body">
-                        <input type="hidden" name="is_service" value="{% if form.instance.is_service or is_service %}True{% else %}False{% endif %}">
+                        <input type="hidden" name="is_service" id="id_is_service_hidden" value="{% if form.instance.is_service or is_service %}True{% else %}False{% endif %}">
                         
                         <div class="form-check mb-3">
                             {{ form.is_active }}
@@ -321,7 +401,7 @@
                             {% else %}
                             <div class="text-center text-muted py-3">
                                 <i class="fas fa-image fa-2x mb-2 opacity-50"></i>
-                                <p class="small mb-0">لا توجد صور مرفوعة لهذا المنتج</p>
+                                <p class="small mb-0">لا توجد صور مرفوعة لهذا الصنف</p>
                             </div>
                             {% endif %}
                         </div>
@@ -332,8 +412,8 @@
         </div>
 
         <!-- أزرار الإجراءات السفلية -->
-        <div class="form-actions-bar mt-2">
-            <button type="submit" class="btn btn-primary">
+        <div class="form-actions-bar mt-3">
+            <button type="submit" class="btn btn-primary px-4 fw-bold">
                 <i class="fas fa-save me-1"></i>حفظ البيانات
             </button>
             {% if form.instance.pk %}
@@ -341,7 +421,7 @@
                 <i class="fas fa-arrow-right me-1"></i>العودة للتفاصيل
             </a>
             {% else %}
-            <a href="{% url 'product:product_list' %}" class="btn btn-outline-secondary">
+            <a href="{% if is_service %}{% url 'product:service_list' %}{% else %}{% url 'product:product_list' %}{% endif %}" class="btn btn-outline-secondary">
                 <i class="fas fa-times me-1"></i>إلغاء
             </a>
             {% endif %}
@@ -350,18 +430,18 @@
 </div>
 
 <!-- ==========================================================================
-   المودالات التفاعلية المنسدلة (Modals)
+   المودالات التفاعلية المنسدلة (Modals) وفق معيار Rule 8
    ========================================================================== -->
 
 <!-- نافذة منبثقة لإضافة صورة -->
 <div class="modal fade" id="imageModal" tabindex="-1" aria-labelledby="imageModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title fw-bold" id="imageModalLabel"><i class="fas fa-upload me-2 text-primary"></i>إضافة صورة</h5>
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-light border-bottom px-4 py-3">
+                <h5 class="modal-title fw-bold text-dark mb-0" id="imageModalLabel"><i class="fas fa-upload me-2 text-primary"></i>إضافة صورة</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body">
+            <div class="modal-body p-4">
                 <form id="image-form" enctype="multipart/form-data">
                     {% csrf_token %}
                     <div class="mb-3">
@@ -372,7 +452,7 @@
                         <label for="image-alt" class="form-label fw-medium">نص بديل (اختياري)</label>
                         <input type="text" class="form-control" id="image-alt" name="alt_text" placeholder="وصف الصورة">
                     </div>
-                    <div class="form-check mb-3">
+                    <div class="form-check mb-2">
                         <input class="form-check-input" type="checkbox" id="image-primary" name="is_primary">
                         <label class="form-check-label ms-1" for="image-primary">
                             جعلها الصورة الرئيسية
@@ -380,9 +460,9 @@
                     </div>
                 </form>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">إلغاء</button>
-                <button type="button" class="btn btn-primary btn-sm" id="save-image-btn"><i class="fas fa-save me-1"></i>رفع وحفظ</button>
+            <div class="modal-footer bg-light border-top px-4 py-3">
+                <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">إلغاء</button>
+                <button type="button" class="btn btn-primary px-4 fw-bold" id="save-image-btn"><i class="fas fa-save me-1"></i>رفع وحفظ</button>
             </div>
         </div>
     </div>
@@ -390,13 +470,13 @@
 
 <!-- نافذة منبثقة لإضافة تصنيف جديد -->
 <div class="modal fade" id="categoryModal" tabindex="-1" aria-labelledby="categoryModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title fw-bold" id="categoryModalLabel"><i class="fas fa-folder-plus me-2 text-primary"></i>إضافة تصنيف جديد</h5>
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-light border-bottom px-4 py-3">
+                <h5 class="modal-title fw-bold text-dark mb-0" id="categoryModalLabel"><i class="fas fa-folder-plus me-2 text-primary"></i>إضافة تصنيف جديد</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body">
+            <div class="modal-body p-4">
                 <form id="category-form-modal">
                     {% csrf_token %}
                     <div class="row g-3">
@@ -411,7 +491,6 @@
                         <div class="col-12">
                             <label for="modal-cat-code" class="form-label fw-medium">رمز التصنيف (اختياري)</label>
                             <input type="text" class="form-control" id="modal-cat-code" name="code" placeholder="مثل: SUP">
-                            <small class="text-muted">رمز مختصر للتصنيف (مثل: SUP للمواد والأنشطة)</small>
                         </div>
                         <div class="col-12">
                             <label for="modal-cat-parent" class="form-label fw-medium">التصنيف الأم (اختياري)</label>
@@ -422,16 +501,12 @@
                                 {% endfor %}
                             </select>
                         </div>
-                        <div class="col-12">
-                            <label for="modal-cat-description" class="form-label fw-medium">الوصف (اختياري)</label>
-                            <textarea class="form-control" id="modal-cat-description" name="description" rows="2"></textarea>
-                        </div>
                     </div>
                 </form>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">إلغاء</button>
-                <button type="button" class="btn btn-primary btn-sm" id="save-category-modal-btn"><i class="fas fa-save me-1"></i>حفظ التصنيف</button>
+            <div class="modal-footer bg-light border-top px-4 py-3">
+                <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">إلغاء</button>
+                <button type="button" class="btn btn-primary px-4 fw-bold" id="save-category-modal-btn"><i class="fas fa-save me-1"></i>حفظ التصنيف</button>
             </div>
         </div>
     </div>
@@ -439,35 +514,30 @@
 
 <!-- نافذة منبثقة لإضافة وحدة قياس جديدة -->
 <div class="modal fade" id="unitModal" tabindex="-1" aria-labelledby="unitModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title fw-bold" id="unitModalLabel"><i class="fas fa-ruler me-2 text-primary"></i>إضافة وحدة قياس جديدة</h5>
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-light border-bottom px-4 py-3">
+                <h5 class="modal-title fw-bold text-dark mb-0" id="unitModalLabel"><i class="fas fa-ruler me-2 text-primary"></i>إضافة وحدة قياس جديدة</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body">
+            <div class="modal-body p-4">
                 <form id="unit-form-modal">
                     {% csrf_token %}
                     <div class="row g-3">
                         <div class="col-md-6">
-                            <label for="modal-unit-name" class="form-label fw-medium">اسم الوحدة (عربي) <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" id="modal-unit-name" name="name" required placeholder="مثل: قطعة، كيلو">
+                            <label for="modal-unit-name" class="form-label fw-medium">اسم الوحدة <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="modal-unit-name" name="name" required placeholder="مثل: كرتونة، باكت">
                         </div>
                         <div class="col-md-6">
-                            <label for="modal-unit-name-en" class="form-label fw-medium">اسم الوحدة (English)</label>
-                            <input type="text" class="form-control" id="modal-unit-name-en" name="name_en" placeholder="Unit Name (English)">
-                        </div>
-                        <div class="col-12">
-                            <label for="modal-unit-symbol" class="form-label fw-medium">الرمز <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" id="modal-unit-symbol" name="symbol" required placeholder="مثل: Pcs, Kg">
-                            <small class="text-muted">الرمز المختصر للوحدة المستخدم بالفواتير</small>
+                            <label for="modal-unit-symbol" class="form-label fw-medium">الرمز / الاختصار <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="modal-unit-symbol" name="symbol" required placeholder="مثل: كرتون، باكت">
                         </div>
                     </div>
                 </form>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">إلغاء</button>
-                <button type="button" class="btn btn-primary btn-sm" id="save-unit-modal-btn"><i class="fas fa-save me-1"></i>حفظ الوحدة</button>
+            <div class="modal-footer bg-light border-top px-4 py-3">
+                <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">إلغاء</button>
+                <button type="button" class="btn btn-primary px-4 fw-bold" id="save-unit-modal-btn"><i class="fas fa-save me-1"></i>حفظ الوحدة</button>
             </div>
         </div>
     </div>
@@ -477,120 +547,41 @@
 {% block extra_js %}
 <script>
     $(document).ready(function() {
-        // التحكم في إظهار/إخفاء حقول المخزون للخدمات
-        function toggleStockFields() {
-            const isServiceCheckbox = $('#id_is_service');
-            const isServiceHidden = $('input[name="is_service"][type="hidden"]');
-            
-            let isService = false;
-            if (isServiceCheckbox.length) {
-                isService = isServiceCheckbox.is(':checked');
-            } else if (isServiceHidden.length) {
-                isService = isServiceHidden.val() === 'True';
-            }
-            
-            const minStockField = $('#min-stock-field');
-            const unitField = $('#unit-field');
-            const costPriceField = $('#id_cost_price').closest('.col-md-4');
-            const pricingTitle = $('#pricing-title');
-            
-            if (isService) {
-                minStockField.slideUp(200);
-                $('#id_min_stock').val(0).prop('required', false);
-                unitField.find('label').html('وحدة القياس <small class="text-muted">(اختياري)</small>');
-                $('#id_unit').prop('required', false);
-                costPriceField.find('label').html('سعر التكلفة <small class="text-muted">(اختياري)</small>');
-                $('#id_cost_price').prop('required', false);
-                pricingTitle.html('<i class="fas fa-dollar-sign me-2"></i>الأسعار');
-            } else {
-                minStockField.slideDown(200);
-                $('#id_min_stock').prop('required', false);
-                unitField.find('label').html('وحدة القياس <span class="text-danger">*</span>');
-                $('#id_unit').prop('required', true);
-                costPriceField.find('label').html('سعر التكلفة <span class="text-danger">*</span>');
-                $('#id_cost_price').prop('required', true);
-                pricingTitle.html('<i class="fas fa-dollar-sign me-2"></i>الأسعار والمخزون');
-            }
-        }
-        
-        toggleStockFields();
-        
-        $('#id_is_service').change(function() {
-            toggleStockFields();
-        });
-        
-        // توليد كود SKU تلقائي
-        function generateSKU() {
-            const categorySelect = $('#id_category');
-            const skuField = $('#id_sku');
-            
-            if (categorySelect.val() && !skuField.val()) {
-                $.ajax({
-                    url: '{% url "product:generate_sku" %}',
-                    type: 'POST',
-                    data: {
-                        'category_id': categorySelect.val(),
-                        'csrfmiddlewaretoken': $('input[name=csrfmiddlewaretoken]').val()
-                    },
-                    success: function(response) {
-                        if (response.success) {
-                            skuField.val(response.sku).addClass('auto-generated');
-                        }
-                    },
-                    error: function() { console.log('خطأ في توليد الكود'); }
-                });
-            }
-        }
-        
-        $('#id_category').change(function() {
-            const skuField = $('#id_sku');
-            if (!skuField.val() || skuField.hasClass('auto-generated')) {
-                skuField.val('').removeClass('auto-generated');
-                generateSKU();
-            }
-        });
+        // إدارة التبديل الديناميكي لحقول نوع الاستخدام
+        $('#id_item_type').on('change', function() {
+            var val = $(this).val();
+            var isUniform = (val === 'uniform');
+            var isEdu = (val === 'educational');
 
-        function validatePrices() {
-            const costPrice = parseFloat($('#id_cost_price').val()) || 0;
-            const sellingPrice = parseFloat($('#id_selling_price').val()) || 0;
+            $('#col-uniform-size, #col-uniform-gender').toggleClass('d-none', !isUniform);
+            $('#col-edu-subject').toggleClass('d-none', !isEdu);
+        }).trigger('change');
+
+        // إدارة الصور إذا كان في وضع التعديل
+        if ($('#product-images').length) {
+            $('#add-image-btn').click(function() {
+                $('#image-form')[0].reset();
+                $('#imageModal').modal('show');
+            });
             
-            if (sellingPrice > 0 && costPrice > 0 && sellingPrice <= costPrice) {
-                alert('سعر البيع يجب أن يكون أكبر من سعر التكلفة');
-                return false;
-            }
-            return true;
-        }
-        
-        $('#product-form').submit(function(e) {
-            if (!validatePrices()) {
-                e.preventDefault();
-                return false;
-            }
-        });
-        
-        $('#add-image-btn').click(function() {
-            $('#image-form')[0].reset();
-            $('#imageModal').modal('show');
-        });
-        
-        const isEditMode = $('#product-form').data('is-edit') === true;
-        if (isEditMode) {
             $('#save-image-btn').click(function() {
                 const formData = new FormData($('#image-form')[0]);
-                formData.append('product_id', '{{ form.instance.pk|default:"" }}');
                 
                 $.ajax({
-                    url: "{% url 'product:add_product_image' %}",
+                    url: '{% if form.instance.pk %}{% url "product:product_image_add" form.instance.pk %}{% endif %}',
                     type: 'POST',
                     data: formData,
                     processData: false,
                     contentType: false,
+                    headers: {
+                        'X-CSRFToken': $('input[name=csrfmiddlewaretoken]').val()
+                    },
                     success: function(response) {
                         if (response.success) {
                             $('#imageModal').modal('hide');
                             location.reload();
                         } else {
-                            alert(response.error);
+                            alert(response.error || 'حدث خطأ أثناء رفع الصورة');
                         }
                     },
                     error: function() {
@@ -676,7 +667,7 @@
                     }
                 },
                 error: function() { alert('حدث خطأ في الاتصال بالخادم'); },
-                complete: function() { $btn.prop('disabled', false).text('حفظ'); }
+                complete: function() { $btn.prop('disabled', false).text('حفظ التصنيف'); }
             });
         });
 
@@ -723,7 +714,7 @@
                     }
                 },
                 error: function() { alert('حدث خطأ في الاتصال بالخادم'); },
-                complete: function() { $btn.prop('disabled', false).text('حفظ'); }
+                complete: function() { $btn.prop('disabled', false).text('حفظ الوحدة'); }
             });
         });
     });

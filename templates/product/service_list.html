@@ -41,7 +41,75 @@
 <div class="container-fluid">
     {% csrf_token %}
     
+    <!-- Page Header المركزي -->
     {% include "shared/page_header.html" %}
+
+    <!-- بطاقات المؤشرات الإحصائية للخدمات (KPI Stats Cards) -->
+    <div class="row g-3 mb-4">
+        <!-- إجمالي الخدمات -->
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="stats-card stats-card-info">
+                <div class="stats-card-body">
+                    <div class="stats-card-icon">
+                        <i class="fas fa-concierge-bell"></i>
+                    </div>
+                    <div class="stats-card-content">
+                        <div class="stats-card-title">إجمالي الخدمات</div>
+                        <div class="stats-card-value">{{ stats.total_services|default:"0" }}</div>
+                        <small class="text-muted">الخدمات المسجلة بالنظام</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- الخدمات النشطة -->
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="stats-card stats-card-success">
+                <div class="stats-card-body">
+                    <div class="stats-card-icon">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <div class="stats-card-content">
+                        <div class="stats-card-title">الخدمات النشطة</div>
+                        <div class="stats-card-value">{{ stats.active_services|default:"0" }}</div>
+                        <small class="text-success"><i class="fas fa-bolt me-1"></i>متاحة للفوترة والعمليات</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- متوسط سعر البيع -->
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="stats-card stats-card-primary">
+                <div class="stats-card-body">
+                    <div class="stats-card-icon">
+                        <i class="fas fa-tag"></i>
+                    </div>
+                    <div class="stats-card-content">
+                        <div class="stats-card-title">متوسط سعر الخدمة</div>
+                        <div class="stats-card-value">{{ stats.avg_price|smart_float|default:"0.00" }} <small class="fs-6">{{ currency_symbol|default:"ج.م" }}</small></div>
+                        <small class="text-muted">حسب أسعار البيع الحالية</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- التصنيفات الخدمية -->
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="stats-card stats-card-warning">
+                <div class="stats-card-body">
+                    <div class="stats-card-icon">
+                        <i class="fas fa-folder-open"></i>
+                    </div>
+                    <div class="stats-card-content">
+                        <div class="stats-card-title">التصنيفات الخدمية</div>
+                        <div class="stats-card-value text-warning">{{ stats.categories_count|default:"0" }}</div>
+                        <small class="text-muted">تصنيف مختلف للخدمات</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- قسم الفلاتر -->
     <div class="section-container mb-4">
@@ -51,36 +119,39 @@
             <i class="fas fa-chevron-down float-end"></i>
         </h5>
         <div class="collapse" id="filtersSection">
-            <form method="get" id="filter-form">
+            <form method="get" id="filter-form" onsubmit="event.preventDefault(); window.doSearch();">
                 <div class="row g-3 align-items-end">
                     <div class="col-md-3">
-                        {{ filter_form.name|as_crispy_field }}
+                        <label for="id_name" class="form-label">اسم الخدمة</label>
+                        <input type="text" name="name" id="id_name" class="form-control" placeholder="بحث بالاسم أو الكود..." value="{{ request.GET.name }}">
                     </div>
-                    <div class="col-md-2">
+                    <div class="col-md-3">
                         {{ filter_form.category|as_crispy_field }}
                     </div>
                     <div class="col-md-2">
-                        {{ filter_form.min_price|as_crispy_field }}
+                        <label for="id_min_price" class="form-label">السعر من</label>
+                        <input type="number" step="0.01" name="min_price" id="id_min_price" class="form-control" placeholder="0.00" value="{{ request.GET.min_price }}">
                     </div>
                     <div class="col-md-2">
-                        {{ filter_form.max_price|as_crispy_field }}
+                        <label for="id_max_price" class="form-label">السعر إلى</label>
+                        <input type="number" step="0.01" name="max_price" id="id_max_price" class="form-control" placeholder="0.00" value="{{ request.GET.max_price }}">
                     </div>
-                    <div class="col-md-1">
-                        <div class="form-check">
-                            {{ filter_form.is_active }}
-                            <label class="form-check-label" for="{{ filter_form.is_active.id_for_label }}">
-                                {{ filter_form.is_active.label }}
+                    <div class="col-md-2">
+                        <div class="form-check mb-2">
+                            <input type="checkbox" name="is_active" id="id_is_active" class="form-check-input" {% if request.GET.is_active or not request.GET %}checked{% endif %}>
+                            <label class="form-check-label ms-1" for="id_is_active">
+                                النشطة فقط
                             </label>
                         </div>
                     </div>
                 </div>
                 <div class="row mt-3">
                     <div class="col-12">
-                        <button type="submit" class="btn btn-primary me-2">
-                            <i class="fas fa-search me-2"></i>تطبيق الفلاتر
+                        <button type="button" class="btn btn-primary me-2" onclick="window.doSearch()">
+                            <i class="fas fa-search me-1"></i>تطبيق الفلاتر
                         </button>
                         <a href="{% url 'product:service_list' %}" class="btn btn-outline-secondary">
-                            <i class="fas fa-undo me-2"></i>إعادة تعيين
+                            <i class="fas fa-undo me-1"></i>إعادة تعيين
                         </a>
                     </div>
                 </div>
@@ -90,15 +161,20 @@
 
     <!-- قسم الجدول -->
     <div class="section-container">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h5 class="section-title mb-0">
-                <i class="fas fa-list me-2"></i>قائمة الخدمات
-                <span class="badge bg-primary ms-2">{{ products|length }} خدمة</span>
-            </h5>
-        </div>
+        <h5 class="section-title"><i class="fas fa-concierge-bell me-2"></i>قائمة الخدمات</h5>
         
-        {% include "components/data_table.html" with table_id="services-table" headers=product_headers data=table_data action_buttons=action_buttons primary_key="id" clickable_rows=True row_click_field="row_click_url" empty_message="لا توجد خدمات متاحة" %}
+        <div id="services-table-container">
+            {% include "product/partials/service_table.html" %}
+        </div>
+
+        <!-- Django SSR Pagination -->
+        <div id="pagination-wrapper">
+            {% include "partials/pagination.html" with page_obj=page_obj align="center" %}
+        </div>
     </div>
+
+    <!-- المودال السريع لإضافة خدمة -->
+    {% include "components/quick_product_modal.html" %}
 </div>
 {% endblock %}
 
@@ -106,52 +182,85 @@
 <script src="{% static 'js/global-table.js' %}"></script>
 <script>
 $(document).ready(function() {
-    const tableElement = document.getElementById('services-table');
-    if (tableElement && typeof initGlobalTable === 'function') {
-        initGlobalTable('services-table', {
-            ordering: true,
-            order: [],
-            columnDefs: [
-                { targets: 0, orderable: false },
-                { targets: 1, className: 'text-start' },
-                { targets: 2, className: 'text-center' },
-                { targets: 3, className: 'text-center' },
-                { targets: 4, className: 'text-center' },
-                { targets: -1, orderable: false }
-            ],
-            language: {
-                "search": "البحث:",
-                "lengthMenu": "عرض _MENU_ خدمة",
-                "info": "عرض _START_ إلى _END_ من _TOTAL_ خدمة",
-                "emptyTable": "لا توجد خدمات للعرض",
-                "zeroRecords": "لا توجد خدمات مطابقة للبحث"
-            }
+    function initServicesTable() {
+        const tableElement = document.getElementById('services-table');
+        if (tableElement && typeof initGlobalTable === 'function') {
+            initGlobalTable('services-table', {
+                paging: false,
+                searching: false,
+                info: false,
+                ordering: true,
+                order: [],
+                columnDefs: [
+                    { targets: 0, orderable: false, width: "70px" },
+                    { targets: 1, className: 'text-start' },
+                    { targets: 2, className: 'text-center' },
+                    { targets: 3, className: 'text-center' },
+                    { targets: 4, className: 'text-center' },
+                    { targets: -1, orderable: false }
+                ]
+            });
+        }
+        
+        $('#services-table tbody').off('click', 'tr[data-clickable="true"]').on('click', 'tr[data-clickable="true"]', function(e) {
+            if ($(e.target).closest('button, a, .btn, input').length > 0) return;
+            const url = $(this).data('url');
+            if (url) window.location.href = url;
         });
     }
 
-    $('#filtersSection').on('show.bs.collapse', function() {
-        $(this).prev('.section-title').attr('aria-expanded', 'true');
-    }).on('hide.bs.collapse', function() {
-        $(this).prev('.section-title').attr('aria-expanded', 'false');
-    });
-    
-    $('#services-table tbody').on('click', 'tr[data-clickable="true"]', function(e) {
-        if ($(e.target).closest('button, a, .btn').length > 0) {
-            return;
+    initServicesTable();
+
+    let debounceTimer;
+    window.doSearch = function(customQueryStr) {
+        let queryString = '';
+        if (typeof customQueryStr === 'string' && customQueryStr.length > 0) {
+            queryString = customQueryStr;
+        } else {
+            const params = new URLSearchParams();
+            const nameVal = $('#id_name').val();
+            if (nameVal) params.set('name', nameVal);
+            
+            const catVal = $('#filter-form [name="category"]').val();
+            if (catVal) params.set('category', catVal);
+            
+            const minP = $('#id_min_price').val();
+            if (minP) params.set('min_price', minP);
+            
+            const maxP = $('#id_max_price').val();
+            if (maxP) params.set('max_price', maxP);
+            
+            if ($('#id_is_active').is(':checked')) {
+                params.set('is_active', 'on');
+            }
+            
+            params.set('page', '1');
+            queryString = params.toString();
         }
-        
-        const url = $(this).data('url');
-        if (url) {
-            window.location.href = url;
-        }
+
+        $.ajax({
+            url: '{% url "product:service_list" %}?' + queryString,
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            success: function(data) {
+                if (data.table_html !== undefined) {
+                    $('#services-table-container').html(data.table_html);
+                }
+                if (data.pagination_html !== undefined) {
+                    $('#pagination-wrapper').html(data.pagination_html);
+                }
+                history.replaceState(null, '', '?' + queryString);
+                initServicesTable();
+            }
+        });
+    };
+
+    $('#id_name, #id_min_price, #id_max_price').on('input', function() {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(function() { window.doSearch(); }, 400);
     });
-    
-    $('#services-table tbody tr[data-clickable="true"]').css('cursor', 'pointer');
-    
-    $('#services-table tbody').on('mouseenter', 'tr[data-clickable="true"]', function() {
-        $(this).addClass('table-active');
-    }).on('mouseleave', 'tr[data-clickable="true"]', function() {
-        $(this).removeClass('table-active');
+
+    $('#filter-form [name="category"], #id_is_active').on('change', function() {
+        window.doSearch();
     });
 });
 </script>

@@ -23,6 +23,21 @@ urlpatterns = [
         views.cash_account_movements,
         name="cash_account_movements",
     ),
+    path(
+        "cash-accounts/<int:pk>/edit/",
+        views.cash_account_edit,
+        name="cash_account_edit",
+    ),
+    path(
+        "cash-accounts/<int:pk>/toggle-active/",
+        views.cash_account_toggle_active,
+        name="cash_account_toggle_active",
+    ),
+    path(
+        "cash-accounts/<int:pk>/delete/",
+        views.cash_account_delete,
+        name="cash_account_delete",
+    ),
     # التسويات البنكية
     path("bank-reconciliations/", views.bank_reconciliation_list, name="bank_reconciliation_list"),
     path("bank-reconciliations/<int:pk>/", views.bank_reconciliation_detail, name="bank_reconciliation_detail"),

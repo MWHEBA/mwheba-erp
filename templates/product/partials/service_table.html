@@ -1,0 +1,6 @@
+{% load static %}
+{% load i18n %}
+{% load utils_extras %}
+{% load custom_filters %}
+
+{% include "components/data_table.html" with table_id="services-table" headers=product_headers data=table_data action_buttons=action_buttons primary_key="id" clickable_rows=True row_click_field="row_click_url" empty_message="لا توجد خدمات متاحة" show_search=False show_length_menu=False disable_pagination=True %}

@@ -1,0 +1,701 @@
+{% load i18n %}
+<!-- ===== المودال المعياري الموحد لإضافة منتج / خدمة جديدة ===== -->
+<div class="modal fade" id="quickProductModal" tabindex="-1" aria-labelledby="quickProductModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: var(--border-radius, 8px);">
+            <!-- الرأس -->
+            <div class="modal-header bg-light border-bottom px-4 py-3 d-flex align-items-center justify-content-between">
+                <div class="d-flex align-items-center gap-2">
+                    <h5 class="modal-title fw-bold text-dark mb-0" id="quickProductModalLabel">
+                        <i class="fas fa-box-open text-primary me-2" id="qp-title-icon"></i>
+                        <span id="qp-title-text">إضافة صنف جديد</span>
+                    </h5>
+                </div>
+                <!-- شريط التبديل بين منتج مادي وخدمة -->
+                <div class="d-flex align-items-center gap-3">
+                    <div class="btn-group btn-group-sm" role="group" id="qp-type-switcher">
+                        <input type="radio" class="btn-check" name="qp_is_service_radio" id="qp-type-product" value="product" checked autocomplete="off">
+                        <label class="btn btn-outline-primary px-3" for="qp-type-product">
+                            <i class="fas fa-box me-1"></i> منتج مادي
+                        </label>
+
+                        <input type="radio" class="btn-check" name="qp_is_service_radio" id="qp-type-service" value="service" autocomplete="off">
+                        <label class="btn btn-outline-primary px-3" for="qp-type-service">
+                            <i class="fas fa-concierge-bell me-1"></i> خدمة
+                        </label>
+                    </div>
+                    <button type="button" class="btn-close ms-2" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+            </div>
+
+            <!-- التبويبات الثلاثة -->
+            <ul class="nav nav-tabs nav-fill px-4 pt-3 border-bottom bg-white" id="qpTabList" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active fw-bold py-2" id="qp-tab-basic" data-bs-toggle="tab" data-bs-target="#qp-pane-basic" type="button" role="tab">
+                        <i class="fas fa-info-circle me-1 text-primary"></i> البيانات الأساسية
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link fw-bold py-2" id="qp-tab-pricing" data-bs-toggle="tab" data-bs-target="#qp-pane-pricing" type="button" role="tab">
+                        <i class="fas fa-dollar-sign me-1 text-success"></i> التسعير والضرائب
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link fw-bold py-2" id="qp-tab-specs" data-bs-toggle="tab" data-bs-target="#qp-pane-specs" type="button" role="tab">
+                        <i class="fas fa-sliders-h me-1 text-info"></i> المواصفات والخيارات
+                    </button>
+                </li>
+            </ul>
+
+            <!-- محتوى المودال -->
+            <div class="modal-body p-4">
+                <form id="quickProductForm" novalidate autocomplete="off">
+                    <div class="tab-content" id="qpTabContent">
+                        
+                        <!-- 📑 التبويب 1: البيانات الأساسية -->
+                        <div class="tab-pane fade show active" id="qp-pane-basic" role="tabpanel">
+                            <div class="row g-3">
+                                <div class="col-md-6 col-12">
+                                    <label class="form-label fw-medium" for="qp-name">
+                                        <span id="qp-lbl-name">اسم المنتج (عربي)</span> <span class="text-danger">*</span>
+                                    </label>
+                                    <input type="text" id="qp-name" class="form-control" placeholder="أدخل الاسم بالعربي" required>
+                                </div>
+                                <div class="col-md-6 col-12">
+                                    <label class="form-label fw-medium" for="qp-name-en">
+                                        <span id="qp-lbl-name-en">اسم المنتج (English)</span>
+                                    </label>
+                                    <input type="text" id="qp-name-en" class="form-control" placeholder="Enter English name">
+                                </div>
+
+                                <div class="col-md-6 col-12">
+                                    <label class="form-label fw-medium" for="qp-category">التصنيف <span class="text-danger">*</span></label>
+                                    <div class="input-group">
+                                        <select id="qp-category" class="form-select" required>
+                                            <option value="">جاري التحميل...</option>
+                                        </select>
+                                        <button class="btn btn-outline-secondary" type="button" id="btn-qp-add-category" title="إضافة تصنيف جديد">
+                                            <i class="fas fa-plus"></i>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-6 col-12" id="qp-unit-container">
+                                    <label class="form-label fw-medium" for="qp-unit">
+                                        وحدة القياس <span class="text-danger" id="qp-unit-required">*</span>
+                                    </label>
+                                    <div class="input-group">
+                                        <select id="qp-unit" class="form-select">
+                                            <option value="">جاري التحميل...</option>
+                                        </select>
+                                        <button class="btn btn-outline-secondary" type="button" id="btn-qp-add-unit" title="إضافة وحدة جديدة">
+                                            <i class="fas fa-plus"></i>
+                                        </button>
+                                    </div>
+                                    <small class="text-muted d-none" id="qp-unit-service-hint">اختيارية للخدمات (تُسند تلقائياً لوحدة "خدمة")</small>
+                                </div>
+
+                                <div class="col-md-6 col-12">
+                                    <label class="form-label fw-medium" for="qp-sku">
+                                        كود الصنف (SKU)
+                                    </label>
+                                    <div class="input-group">
+                                        <input type="text" id="qp-sku" class="form-control" placeholder="يُولّد تلقائياً إن ترك فارغاً">
+                                        <button class="btn btn-outline-primary" type="button" id="btn-qp-generate-sku" title="توليد كود تلقائياً">
+                                            <i class="fas fa-magic me-1"></i>توليد
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-6 col-12" id="qp-barcode-container">
+                                    <label class="form-label fw-medium" for="qp-barcode">الباركود (Barcode)</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="fas fa-barcode"></i></span>
+                                        <input type="text" id="qp-barcode" class="form-control" placeholder="أدخل أو امسح الباركود">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 💵 التبويب 2: التسعير والضرائب والمورد -->
+                        <div class="tab-pane fade" id="qp-pane-pricing" role="tabpanel">
+                            <div class="row g-3">
+                                <div class="col-md-6 col-12">
+                                    <label class="form-label fw-medium" for="qp-cost-price">
+                                        سعر التكلفة <span class="text-muted qp-currency-symbol"></span>
+                                    </label>
+                                    <input type="number" id="qp-cost-price" class="form-control" value="0" min="0" step="0.01">
+                                </div>
+
+                                <div class="col-md-6 col-12">
+                                    <label class="form-label fw-medium" for="qp-selling-price">
+                                        سعر البيع الافتراضي <span class="text-muted qp-currency-symbol"></span>
+                                    </label>
+                                    <input type="number" id="qp-selling-price" class="form-control" value="0" min="0" step="0.01">
+                                </div>
+
+                                <div class="col-md-6 col-12">
+                                    <label class="form-label fw-medium" for="qp-tax-rate">نسبة الضريبة (%)</label>
+                                    <div class="input-group">
+                                        <input type="number" id="qp-tax-rate" class="form-control" value="0" min="0" max="100" step="0.5">
+                                        <span class="input-group-text">%</span>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-6 col-12" id="qp-min-stock-container">
+                                    <label class="form-label fw-medium" for="qp-min-stock">الحد الأدنى للمخزون (تنبيه إعادة الطلب)</label>
+                                    <input type="number" id="qp-min-stock" class="form-control" value="0" min="0" step="1">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ⚙️ التبويب 3: المواصفات التخصصية والخيارات -->
+                        <div class="tab-pane fade" id="qp-pane-specs" role="tabpanel">
+                            <div class="row g-3">
+                                <div class="col-md-6 col-12">
+                                    <label class="form-label fw-medium" for="qp-item-type">تصنيف نوع الاستخدام</label>
+                                    <select id="qp-item-type" class="form-select">
+                                        <option value="general">عام</option>
+                                        <option value="educational">مادة متخصصة / تعليمي</option>
+                                        <option value="uniform">زي رسمي</option>
+                                        <option value="stationery">قرطاسية ومكتبية</option>
+                                        <option value="activity">أنشطة وفعاليات</option>
+                                        <option value="kitchen">مستلزمات مطبخ</option>
+                                        <option value="cleaning">مستلزمات نظافة</option>
+                                        <option value="medical">مستلزمات طبية</option>
+                                    </select>
+                                </div>
+
+                                <!-- حقول الزي الرسمي (مشروطة) -->
+                                <div class="col-md-6 col-12 d-none" id="qp-uniform-size-col">
+                                    <label class="form-label fw-medium" for="qp-uniform-size">مقاس الزي</label>
+                                    <input type="text" id="qp-uniform-size" class="form-control" placeholder="مثل: S, M, L, XL, 32">
+                                </div>
+
+                                <div class="col-md-6 col-12 d-none" id="qp-uniform-gender-col">
+                                    <label class="form-label fw-medium" for="qp-uniform-gender">الجنس المخصص</label>
+                                    <select id="qp-uniform-gender" class="form-select">
+                                        <option value="">اختر...</option>
+                                        <option value="boys">رجالي / بنين</option>
+                                        <option value="girls">نسائي / بنات</option>
+                                        <option value="unisex">مشترك</option>
+                                    </select>
+                                </div>
+
+                                <!-- حقول المواد التعليمية (مشروطة) -->
+                                <div class="col-md-6 col-12 d-none" id="qp-edu-subject-col">
+                                    <label class="form-label fw-medium" for="qp-educational-subject">التخصص / المادة</label>
+                                    <input type="text" id="qp-educational-subject" class="form-control" placeholder="مثل: كيمياء، روبوت، حاسب">
+                                </div>
+
+                                <div class="col-md-6 col-12 d-none" id="qp-suitable-grades-col">
+                                    <label class="form-label fw-medium" for="qp-suitable-grades">الفئة المستهدفة / الصفوف</label>
+                                    <input type="text" id="qp-suitable-grades" class="form-control" placeholder="مثل: المرحلة الابتدائية، الصف الأول">
+                                </div>
+
+                                <div class="col-md-6 col-12">
+                                    <label class="form-label fw-medium" for="qp-description">الوصف (عربي)</label>
+                                    <textarea id="qp-description" class="form-control" rows="2" placeholder="وصف الصنف..."></textarea>
+                                </div>
+
+                                <div class="col-md-6 col-12">
+                                    <label class="form-label fw-medium" for="qp-description-en">الوصف (English)</label>
+                                    <textarea id="qp-description-en" class="form-control" rows="2" placeholder="Item description..."></textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </form>
+            </div>
+
+            <!-- التذييل -->
+            <div class="modal-footer bg-light border-top px-4 py-3 d-flex justify-content-between">
+                <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">إلغاء</button>
+                <button type="button" class="btn btn-primary px-4 fw-bold" id="btn-qp-save-product">
+                    <i class="fas fa-save me-1"></i> <span id="qp-save-btn-text">حفظ الصنف</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- سكريبت إدارة المودال المعياري الموحد -->
+<script>
+(function() {
+    'use strict';
+
+    function initQuickProductModule() {
+        var $ = window.jQuery || window.$;
+        if (!$) return;
+
+        var QuickProductModal = {
+            _isInitialized: false,
+            _currentOptions: {},
+
+            init: function() {
+                if (this._isInitialized) return;
+                this._isInitialized = true;
+                this.bindEvents();
+            },
+
+            open: function(options) {
+                this.init();
+                this._currentOptions = options || {};
+                var self = this;
+
+                // ضبط العملة الحالية إن وجدت
+                var currencySymbol = this._currentOptions.currencySymbol || $('#django-purchase-form-data').data('currency-symbol') || 'ج.م';
+                $('.qp-currency-symbol').text('(' + currencySymbol + ')');
+
+                // قراءة نوع المورد أو الخيار الممرر لضبط التبويب الافتراضي
+                var isServiceDefault = (this._currentOptions.isService === true);
+                if (this._currentOptions.isService === undefined) {
+                    // فحص الفاتورة الحالية
+                    if ($('#django-purchase-form-data').data('is-service-invoice') === true || 
+                        $('#django-purchase-form-data').data('is-service-invoice') === 'true') {
+                        isServiceDefault = true;
+                    }
+                }
+
+                // تطبيق التبديل
+                if (isServiceDefault) {
+                    $('#qp-type-service').prop('checked', true).trigger('change');
+                } else {
+                    $('#qp-type-product').prop('checked', true).trigger('change');
+                }
+
+                // إعادة تعيين التبويب النشط إلى الأول
+                var firstTab = document.getElementById('qp-tab-basic');
+                if (firstTab && window.bootstrap && bootstrap.Tab) {
+                    new bootstrap.Tab(firstTab).show();
+                }
+
+                // تحميل بيانات التصنيفات والوحدات
+                this.loadFormData();
+
+                // فتح المودال
+                var modalEl = document.getElementById('quickProductModal');
+                if (modalEl && window.bootstrap) {
+                    var modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+                    modal.show();
+                }
+            },
+
+            resetForm: function() {
+                $('#quickProductForm')[0].reset();
+                $('#qp-cost-price').val('0');
+                $('#qp-selling-price').val('0');
+                $('#qp-tax-rate').val('0');
+                $('#qp-min-stock').val('0');
+                $('#qp-item-type').val('general').trigger('change');
+            },
+
+            loadFormData: function() {
+                $.ajax({
+                    url: '{% url "purchase:ajax_form_data" %}',
+                    success: function(data) {
+                        // 1. التصنيفات
+                        var $cat = $('#qp-category');
+                        var currentVal = $cat.val();
+                        $cat.empty().append('<option value="">--- اختر التصنيف ---</option>');
+                        (data.categories || []).forEach(function(cat) {
+                            var prefix = cat.is_child ? '\u00a0\u00a0\u00a0↳ ' : '📁 ';
+                            $cat.append($('<option>').val(cat.id).text(prefix + cat.name));
+                        });
+                        if (currentVal) $cat.val(currentVal);
+
+                        // 2. الوحدات
+                        var $unit = $('#qp-unit');
+                        var currentUnitVal = $unit.val();
+                        $unit.empty().append('<option value="">--- اختر وحدة القياس ---</option>');
+                        (data.units || []).forEach(function(u) {
+                            $unit.append($('<option>').val(u.id).text(u.name + ' (' + u.symbol + ')'));
+                        });
+                        if (currentUnitVal) $unit.val(currentUnitVal);
+
+                        // 3. أنواع الاستخدام
+                        if (data.item_types && data.item_types.length) {
+                            var $it = $('#qp-item-type');
+                            var currentItVal = $it.val();
+                            $it.empty();
+                            data.item_types.forEach(function(it) {
+                                $it.append($('<option>').val(it.id).text(it.name));
+                            });
+                            if (currentItVal) $it.val(currentItVal);
+                        }
+                    }
+                });
+            },
+
+            bindEvents: function() {
+                var self = this;
+
+                // 1. التبديل بين منتج مادي وخدمة
+                $(document).on('change', 'input[name="qp_is_service_radio"]', function() {
+                    var isService = ($(this).val() === 'service');
+
+                    if (isService) {
+                        $('#qp-title-icon').removeClass('fa-box-open text-primary').addClass('fa-concierge-bell text-success');
+                        $('#qp-title-text').text('إضافة خدمة جديدة');
+                        $('#qp-save-btn-text').text('حفظ الخدمة');
+                        
+                        $('#qp-lbl-name').text('اسم الخدمة (عربي)');
+                        $('#qp-lbl-name-en').text('اسم الخدمة (English)');
+                        
+                        $('#qp-unit-required').addClass('d-none');
+                        $('#qp-unit-service-hint').removeClass('d-none');
+                        $('#qp-barcode-container').addClass('d-none');
+                        $('#qp-min-stock-container').addClass('d-none');
+                    } else {
+                        $('#qp-title-icon').removeClass('fa-concierge-bell text-success').addClass('fa-box-open text-primary');
+                        $('#qp-title-text').text('إضافة منتج جديد');
+                        $('#qp-save-btn-text').text('حفظ المنتج');
+                        
+                        $('#qp-lbl-name').text('اسم المنتج (عربي)');
+                        $('#qp-lbl-name-en').text('اسم المنتج (English)');
+                        
+                        $('#qp-unit-required').removeClass('d-none');
+                        $('#qp-unit-service-hint').addClass('d-none');
+                        $('#qp-barcode-container').removeClass('d-none');
+                        $('#qp-min-stock-container').removeClass('d-none');
+                    }
+                });
+
+                // 2. تغيير نوع الاستخدام لإظهار الحقول المشروطة
+                $(document).on('change', '#qp-item-type', function() {
+                    var type = $(this).val();
+                    
+                    var isUniform = (type === 'uniform');
+                    $('#qp-uniform-size-col, #qp-uniform-gender-col').toggleClass('d-none', !isUniform);
+
+                    var isEdu = (type === 'educational');
+                    $('#qp-edu-subject-col, #qp-suitable-grades-col').toggleClass('d-none', !isEdu);
+                });
+
+                // 3. توليد كود SKU تلقائياً
+                $(document).on('click', '#btn-qp-generate-sku', function(e) {
+                    e.preventDefault();
+                    var catId = $('#qp-category').val();
+                    var isService = ($('#qp-type-service').is(':checked'));
+
+                    if (!catId && !isService) {
+                        if (typeof toastr !== 'undefined') toastr.warning('يرجى اختيار التصنيف أولاً لتوليد الكود بناءً عليه');
+                        return;
+                    }
+
+                    if (isService && !catId) {
+                        var srvCount = Math.floor(1000 + Math.random() * 9000);
+                        $('#qp-sku').val('SRV-' + srvCount);
+                        if (typeof toastr !== 'undefined') toastr.info('تم توليد كود الخدمة: SRV-' + srvCount);
+                        return;
+                    }
+
+                    var $btn = $(this).prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i>');
+                    $.ajax({
+                        url: '{% url "product:generate_sku" %}',
+                        method: 'POST',
+                        data: {
+                            category_id: catId,
+                            csrfmiddlewaretoken: $('[name=csrfmiddlewaretoken]').val()
+                        },
+                        success: function(res) {
+                            if (res.success && res.sku) {
+                                var code = isService ? ('SRV-' + res.sku.replace(/^PRD-/, '')) : res.sku;
+                                $('#qp-sku').val(code);
+                                if (typeof toastr !== 'undefined') toastr.info('تم توليد الكود: ' + code);
+                            } else {
+                                var srvCount = Math.floor(1000 + Math.random() * 9000);
+                                var prefix = isService ? 'SRV-' : 'PRD-';
+                                $('#qp-sku').val(prefix + srvCount);
+                            }
+                        },
+                        error: function() {
+                            var srvCount = Math.floor(1000 + Math.random() * 9000);
+                            var prefix = isService ? 'SRV-' : 'PRD-';
+                            $('#qp-sku').val(prefix + srvCount);
+                        },
+                        complete: function() {
+                            $btn.prop('disabled', false).html('<i class="fas fa-magic me-1"></i>توليد');
+                        }
+                    });
+                });
+
+                // 4. إضافة تصنيف جديد سريعاً Inline
+                $(document).on('click', '#btn-qp-add-category', function(e) {
+                    e.preventDefault();
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            title: 'إضافة تصنيف جديد',
+                            html: '<input id="swal-cat-name" class="swal2-input" placeholder="اسم التصنيف (عربي)">' +
+                                  '<input id="swal-cat-code" class="swal2-input" placeholder="رمز التصنيف بالإنجليزية (مثال: SUP)">',
+                            showCancelButton: true,
+                            confirmButtonText: 'حفظ التصنيف',
+                            cancelButtonText: 'إلغاء',
+                            preConfirm: () => {
+                                const name = document.getElementById('swal-cat-name').value.trim();
+                                const code = document.getElementById('swal-cat-code').value.trim();
+                                if (!name) {
+                                    Swal.showValidationMessage('يجب كتابة اسم التصنيف!');
+                                    return false;
+                                }
+                                return { name: name, code: code };
+                            }
+                        }).then((result) => {
+                            if (result.isConfirmed) {
+                                $.ajax({
+                                    url: '{% url "product:category_create" %}',
+                                    method: 'POST',
+                                    data: {
+                                        name: result.value.name,
+                                        code: result.value.code,
+                                        csrfmiddlewaretoken: $('[name=csrfmiddlewaretoken]').val()
+                                    },
+                                    success: function(resp) {
+                                        if (resp.success) {
+                                            if (typeof toastr !== 'undefined') toastr.success('تم إضافة التصنيف بنجاح');
+                                            var newOpt = $('<option>').val(resp.category_id).text('📁 ' + resp.category_name + (result.value.code ? ' (' + result.value.code + ')' : ''));
+                                            $('#qp-category').append(newOpt).val(resp.category_id);
+                                        } else {
+                                            if (typeof toastr !== 'undefined') toastr.error('حدث خطأ أثناء حفظ التصنيف');
+                                        }
+                                    }
+                                });
+                            }
+                        });
+                    }
+                });
+
+                // 5. إضافة وحدة جديدة سريعاً Inline
+                $(document).on('click', '#btn-qp-add-unit', function(e) {
+                    e.preventDefault();
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            title: 'إضافة وحدة قياس جديدة',
+                            html: '<input id="swal-unit-name" class="swal2-input" placeholder="اسم الوحدة (مثال: كرتونة)">' +
+                                  '<input id="swal-unit-symbol" class="swal2-input" placeholder="رمز الوحدة (مثال: كرتون)">',
+                            showCancelButton: true,
+                            confirmButtonText: 'حفظ الوحدة',
+                            cancelButtonText: 'إلغاء',
+                            preConfirm: () => {
+                                const name = document.getElementById('swal-unit-name').value.trim();
+                                const symbol = document.getElementById('swal-unit-symbol').value.trim();
+                                if (!name || !symbol) {
+                                    Swal.showValidationMessage('يجب إدخال اسم الوحدة والرمز!');
+                                    return false;
+                                }
+                                return { name: name, symbol: symbol };
+                            }
+                        }).then((result) => {
+                            if (result.isConfirmed) {
+                                $.ajax({
+                                    url: '{% url "product:unit_create" %}',
+                                    method: 'POST',
+                                    data: {
+                                        name: result.value.name,
+                                        symbol: result.value.symbol,
+                                        csrfmiddlewaretoken: $('[name=csrfmiddlewaretoken]').val()
+                                    },
+                                    success: function(resp) {
+                                        if (resp.success) {
+                                            if (typeof toastr !== 'undefined') toastr.success('تم إضافة وحدة القياس بنجاح');
+                                            var newOpt = $('<option>').val(resp.unit_id).text(resp.unit_name + ' (' + result.value.symbol + ')');
+                                            $('#qp-unit').append(newOpt).val(resp.unit_id);
+                                        } else {
+                                            if (typeof toastr !== 'undefined') toastr.error('حدث خطأ أثناء حفظ الوحدة');
+                                        }
+                                    }
+                                });
+                            }
+                        });
+                    }
+                });
+
+                // 6. حفظ الصنف وإرساله للـ Backend
+                $(document).on('click', '#btn-qp-save-product', function(e) {
+                    e.preventDefault();
+
+                    var name = $('#qp-name').val().trim();
+                    var nameEn = $('#qp-name-en').val().trim();
+                    var catId = $('#qp-category').val();
+                    var unitId = $('#qp-unit').val();
+                    var isService = $('#qp-type-service').is(':checked');
+                    var sku = $('#qp-sku').val().trim();
+                    var barcode = $('#qp-barcode').val().trim();
+                    var costPrice = $('#qp-cost-price').val() || '0';
+                    var sellingPrice = $('#qp-selling-price').val() || '0';
+                    var taxRate = $('#qp-tax-rate').val() || '0';
+                    var minStock = $('#qp-min-stock').val() || '0';
+                    var itemType = $('#qp-item-type').val() || 'general';
+                    var desc = $('#qp-description').val().trim();
+                    var descEn = $('#qp-description-en').val().trim();
+                    var uniformSize = $('#qp-uniform-size').val().trim();
+                    var uniformGender = $('#qp-uniform-gender').val();
+                    var eduSubject = $('#qp-educational-subject').val().trim();
+                    var suitableGrades = $('#qp-suitable-grades').val().trim();
+
+                    // التحقق الأساسي
+                    if (!name) {
+                        if (typeof toastr !== 'undefined') toastr.warning('يرجى كتابة اسم الصنف');
+                        var tabEl = document.getElementById('qp-tab-basic');
+                        if (tabEl && bootstrap.Tab) new bootstrap.Tab(tabEl).show();
+                        $('#qp-name').focus();
+                        return;
+                    }
+
+                    if (!catId) {
+                        if (typeof toastr !== 'undefined') toastr.warning('يرجى اختيار التصنيف');
+                        var tabEl = document.getElementById('qp-tab-basic');
+                        if (tabEl && bootstrap.Tab) new bootstrap.Tab(tabEl).show();
+                        $('#qp-category').focus();
+                        return;
+                    }
+
+                    if (!isService && !unitId) {
+                        if (typeof toastr !== 'undefined') toastr.warning('يرجى اختيار وحدة القياس للمنتجات المادية');
+                        var tabEl = document.getElementById('qp-tab-basic');
+                        if (tabEl && bootstrap.Tab) new bootstrap.Tab(tabEl).show();
+                        $('#qp-unit').focus();
+                        return;
+                    }
+
+                    var supplierId = $('#id_supplier').val() || '';
+                    var currencyId = $('#id_currency').val() || '';
+                    var exchangeRate = $('#id_exchange_rate').val() || '1.0';
+
+                    var $btn = $(this).prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i> جاري الحفظ...');
+
+                    $.ajax({
+                        url: '{% url "purchase:ajax_create_product" %}',
+                        method: 'POST',
+                        data: {
+                            name: name,
+                            name_en: nameEn,
+                            category: catId,
+                            unit: unitId,
+                            is_service: isService,
+                            sku: sku,
+                            barcode: barcode,
+                            cost_price: costPrice,
+                            selling_price: sellingPrice,
+                            tax_rate: taxRate,
+                            min_stock: minStock,
+                            item_type: itemType,
+                            description: desc,
+                            description_en: descEn,
+                            uniform_size: uniformSize,
+                            uniform_gender: uniformGender,
+                            educational_subject: eduSubject,
+                            suitable_for_grades: suitableGrades,
+                            supplier_id: supplierId,
+                            currency_id: currencyId,
+                            exchange_rate: exchangeRate,
+                            csrfmiddlewaretoken: $('[name=csrfmiddlewaretoken]').val()
+                        },
+                        success: function(data) {
+                            if (data.success) {
+                                var p = data.product;
+                                if (typeof toastr !== 'undefined') toastr.success(data.message || 'تم حفظ الصنف بنجاح');
+
+                                // تحديث كاش الأصناف العام
+                                window._allProducts = window._allProducts || [];
+                                window._allProducts.push({
+                                    id: p.id,
+                                    name: p.name,
+                                    code: p.code || p.sku || '',
+                                    sku: p.sku || '',
+                                    barcode: p.barcode || '',
+                                    price: p.cost_price,
+                                    cost_price: p.cost_price,
+                                    selling_price: p.selling_price,
+                                    is_service: p.is_service,
+                                    stock: p.stock || 0,
+                                    category_id: p.category_id,
+                                    category_name: p.category_name
+                                });
+
+                                // إغلاق المودال
+                                var modalEl = document.getElementById('quickProductModal');
+                                if (modalEl) {
+                                    var modal = bootstrap.Modal.getInstance(modalEl);
+                                    if (modal) modal.hide();
+                                }
+
+                                // تصفير الفورم
+                                self.resetForm();
+
+                                // تنفيذ الإنزال التلقائي في سطر الفاتورة (Zero-Friction Row Insertion)
+                                if (typeof self._currentOptions.onSuccess === 'function') {
+                                    self._currentOptions.onSuccess(p);
+                                } else {
+                                    self.applyToActiveInvoiceRow(p);
+                                }
+
+                            } else {
+                                if (typeof toastr !== 'undefined') toastr.error(data.message || 'حدث خطأ أثناء الحفظ');
+                            }
+                        },
+                        error: function() {
+                            if (typeof toastr !== 'undefined') toastr.error('حدث خطأ في الاتصال بالخادم');
+                        },
+                        complete: function() {
+                            $btn.prop('disabled', false).html('<i class="fas fa-save me-1"></i> <span id="qp-save-btn-text">حفظ الصنف</span>');
+                        }
+                    });
+                });
+            },
+
+            // الإنزال الفوري في سطر الفاتورة النشط
+            applyToActiveInvoiceRow: function(product) {
+                var $container = $('#items-container');
+                if (!$container.length) return;
+
+                // البحث عن سطر فارغ أو استخدام السطر الأخير
+                var $targetRow = null;
+                $container.find('.item-row').each(function() {
+                    var $row = $(this);
+                    var prodId = $row.find('.product-id-input').val();
+                    var codeVal = $row.find('.product-code-input').val();
+                    if (!prodId && (!codeVal || codeVal.trim() === '')) {
+                        $targetRow = $row;
+                        return false;
+                    }
+                });
+
+                // لو مفيش سطر فارغ، نضغط على إضافة بند
+                if (!$targetRow) {
+                    $('#add-item').trigger('click');
+                    $targetRow = $container.find('.item-row:last-child');
+                }
+
+                if ($targetRow && $targetRow.length && window.ProductPicker) {
+                    window.ProductPicker.applyProductToRow($targetRow, product, 'modal');
+                    
+                    // نقل التركيز فورياً لحقل الكمية
+                    setTimeout(function() {
+                        var $qtyInput = $targetRow.find('.quantity');
+                        if ($qtyInput.length) {
+                            $qtyInput.focus().select();
+                        }
+                    }, 150);
+                }
+            }
+        };
+
+        // تصدير دالة فتح المودال السريع عالمياً
+        window.openQuickProductModal = function(options) {
+            QuickProductModal.open(options);
+        };
+
+        window.QuickProductModal = QuickProductModal;
+
+        QuickProductModal.init();
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initQuickProductModule);
+    } else {
+        initQuickProductModule();
+    }
+})();
+</script>

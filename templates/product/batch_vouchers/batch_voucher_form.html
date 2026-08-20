@@ -70,14 +70,16 @@
                         {% if existing_items %}
                             {% for item in existing_items %}
                             <div class="item-row row g-2 align-items-center">
-                                <div class="col-md-4" style="position:relative;">
-                                    <label class="form-label form-label-sm">المنتج <span class="text-danger">*</span></label>
+                                <div class="col-md-4">
+                                    <div class="product-header-row d-flex align-items-center mb-2">
+                                        <label class="form-label form-label-sm product-label product-header mb-0">المنتج <span class="text-danger">*</span></label>
+                                        <span class="stock-info"></span>
+                                    </div>
                                     <button type="button" class="product-picker-btn">
                                         <span class="selected-text">{{ item.product.name }}</span>
                                         <i class="fas fa-th-large text-muted small"></i>
                                     </button>
                                     <input type="hidden" name="product[]" class="product-id-input" value="{{ item.product.id }}" data-stock="{{ item.product.stock|default:0 }}" required>
-                                    <div class="stock-info"></div>
                                 </div>
                                 <div class="col-6 col-md-2">
                                     <label class="form-label form-label-sm">الكمية <span class="text-danger">*</span></label>
@@ -99,14 +101,16 @@
                             {% endfor %}
                         {% else %}
                         <div class="item-row row g-2 align-items-center">
-                            <div class="col-md-4" style="position:relative;">
-                                <label class="form-label form-label-sm">المنتج <span class="text-danger">*</span></label>
+                            <div class="col-md-4">
+                                <div class="product-header-row d-flex align-items-center mb-2">
+                                    <label class="form-label form-label-sm product-label product-header mb-0">المنتج <span class="text-danger">*</span></label>
+                                    <span class="stock-info"></span>
+                                </div>
                                 <button type="button" class="product-picker-btn">
                                     <span class="placeholder-text">اختر المنتج</span>
                                     <i class="fas fa-th-large text-muted small"></i>
                                 </button>
                                 <input type="hidden" name="product[]" class="product-id-input" required>
-                                <div class="stock-info"></div>
                             </div>
                             <div class="col-6 col-md-2">
                                 <label class="form-label form-label-sm">الكمية <span class="text-danger">*</span></label>
@@ -273,8 +277,13 @@ $(document).ready(function () {
 
     function renderStockInfo($row, stock) {
         var $info = $row.find('.stock-info');
+        var $headerRow = $row.find('.product-header-row');
         var vt = $('#id_voucher_type').val();
-        if (vt !== 'issue' && vt !== 'transfer') { $info.html(''); return; }
+        if (vt !== 'issue' && vt !== 'transfer') { 
+            $info.empty(); 
+            $headerRow.removeClass('has-stock-info');
+            return; 
+        }
         if (stock <= 0) {
             $info.html('<span class="stock-warning">لا يوجد مخزون</span>');
         } else if (stock <= 5) {
@@ -282,6 +291,7 @@ $(document).ready(function () {
         } else {
             $info.html('المخزون المتاح: ' + stock);
         }
+        $headerRow.addClass('has-stock-info');
     }
 
     // ===== Product Picker Component Initialization =====

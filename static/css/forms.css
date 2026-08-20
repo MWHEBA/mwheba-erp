@@ -72,7 +72,7 @@ label:not(.form-check-label):not(.btn) {
     background-color: var(--form-input-bg);
     border-color: var(--primary-color);
     outline: 0;
-    box-shadow: 0 0 0 0.2rem var(--primary-focus);
+    box-shadow: 0 0 0 0.1rem var(--primary-focus);
 }
 
 .form-control:disabled,
@@ -859,9 +859,8 @@ html[dir="rtl"] .form-floating > .form-select ~ label {
     display: block;
 }
 
-#items-container .product-code-label,
-#items-container .product-label {
-    text-align: right !important;
+#items-container .product-code-label {
+    text-align: center !important;
 }
 
 #items-container .quantity,
@@ -912,7 +911,7 @@ html[dir="rtl"] .form-floating > .form-select ~ label {
     top: 50%;
     left: -10px;
     transform: translateY(-50%);
-    color: #dc3545;
+    color: var(--danger, #dc3545);
     cursor: pointer;
     font-size: 15px;
     line-height: 1;
@@ -925,26 +924,69 @@ html[dir="rtl"] .form-floating > .form-select ~ label {
     justify-content: center;
 }
 
-.remove-item:hover { color: #c82333; }
+.remove-item:hover { color: var(--danger-hover, #bb2d3b); }
 
+/* ========================================
+   11.1 PRODUCT HEADER ROW & STOCK INFO COMPONENT
+   ======================================== */
+.product-header-row {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: 21px;
+    margin-bottom: var(--spacing-2, 0.5rem) !important;
+    line-height: 1.5;
+    width: 100%;
+}
+
+.product-header-row .product-label {
+    flex-shrink: 0;
+    white-space: nowrap;
+    margin-bottom: 0 !important;
+    text-align: center !important;
+}
+
+/* عند ظهور شارة المخزون، ينتقل الليبل لليمين والشارة لليسار */
+.product-header-row.has-stock-info,
+.product-header-row:has(.stock-info:not(:empty)) {
+    justify-content: space-between !important;
+}
+
+.product-header-row.has-stock-info .product-label,
+.product-header-row:has(.stock-info:not(:empty)) .product-label {
+    text-align: right !important;
+}
+
+.product-header-row .stock-info:empty {
+    display: none !important;
+}
+
+.product-header-row .stock-info:not(:empty),
+.product-header-row.has-stock-info .stock-info,
 .stock-info {
-    position: absolute;
-    top: 8px;
-    left: 26px;
-    font-size: 11px;
-    color: #6c757d;
+    display: inline-block;
+    flex-shrink: 1;
+    max-width: 65%;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-}
-
-@media (max-width: 768px) {
-    .stock-info { bottom: unset; top: 5px; right: unset; }
+    font-size: 11px;
+    line-height: 1.2;
+    text-align: left;
+    direction: ltr;
+    color: var(--text-muted, #6c757d);
 }
 
 .stock-warning {
-    color: #dc3545;
+    color: var(--danger, #dc3545);
     font-weight: 500;
+}
+
+@media print {
+    .stock-info {
+        display: none !important;
+    }
 }
 
 /* إخفاء أيقونة ملحق الألوان المتصفح */

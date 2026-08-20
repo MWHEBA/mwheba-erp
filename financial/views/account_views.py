@@ -12,7 +12,7 @@ from django.http import JsonResponse
 from django.utils import timezone
 from django.utils.translation import gettext as _
 from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_http_methods
+from django.views.decorators.http import require_http_methods, require_POST
 from django.contrib.contenttypes.models import ContentType
 from datetime import date, datetime, timedelta
 from decimal import Decimal
@@ -1898,6 +1898,11 @@ def account_edit(request, pk):
 
             account.save()
             messages.success(request, f'تم تعديل الحساب "{account.name}" بنجاح.')
+            next_url = request.POST.get("next") or request.GET.get("next")
+            if next_url:
+                return redirect(next_url)
+            if account.is_cash_account or account.is_bank_account:
+                return redirect("financial:cash_account_movements", pk=account.pk)
             return redirect("financial:account_detail", pk=account.pk)
         except Exception as e:
             messages.error(request, f"خطأ في تعديل الحساب: {str(e)}")
@@ -2629,41 +2634,98 @@ def cash_account_movements(request, pk):
         latest_reconciliation = BankStatementBatch.objects.filter(bank_account=account).order_by('-statement_date', '-id').first()
 
     header_buttons = []
-    if account.is_bank_account:
-        if latest_reconciliation:
+
+    # إذا كانت الخزينة نشطة: تظهر كافة أزرار الإجراءات والمعاملات المالية
+    if account.is_active:
+        if account.is_bank_account:
+            if latest_reconciliation:
+                header_buttons.append({
+                    "url": reverse("financial:bank_reconciliation_detail", args=[latest_reconciliation.id]),
+                    "icon": "fa-sliders",
+                    "text": "التسوية البنكية الحالية",
+                    "class": "btn-primary me-2"
+                })
             header_buttons.append({
-                "url": reverse("financial:bank_reconciliation_detail", args=[latest_reconciliation.id]),
-                "icon": "fa-sliders",
-                "text": "التسوية البنكية الحالية",
-                "class": "btn-primary me-2"
+                "url": f"{reverse('financial:bank_reconciliation_list')}?bank_account={account.id}",
+                "icon": "fa-building-columns",
+                "text": "التسويات البنكية",
+                "class": "btn-outline-primary me-2"
             })
+
+        header_buttons.extend([
+            {
+                "onclick": "openIncomeModal()",
+                "icon": "fa-plus-circle",
+                "text": "إيراد",
+                "class": "btn-success me-2"
+            },
+            {
+                "onclick": "openExpenseModal()",
+                "icon": "fa-minus-circle",
+                "text": "مصروف",
+                "class": "btn-danger me-2"
+            },
+            {
+                "onclick": "openTransferModal()",
+                "icon": "fa-exchange-alt",
+                "text": "تحويل مبلغ",
+                "class": "btn-info me-2"
+            },
+            {
+                "url": reverse("financial:cash_account_edit", args=[account.pk]),
+                "icon": "fa-edit",
+                "text": "تعديل الخزينة" if account.is_cash_account else "تعديل الحساب",
+                "class": "btn-outline-primary me-2"
+            },
+            {
+                "onclick": f"confirmToggleCashAccount('{account.id}', false)",
+                "icon": "fa-ban",
+                "text": "تعطيل الخزينة",
+                "class": "btn-outline-warning"
+            }
+        ])
+        header_badges = [
+            {
+                "icon": "fa-check-circle",
+                "text": "نشطة",
+                "class": "bg-success text-white px-3 py-2 fw-bold"
+            }
+        ]
+    else:
+        current_bal_val = current_foreign_balance if account.is_foreign_currency else current_base_balance
+        is_zero_balance = abs(current_bal_val) <= Decimal("0.005")
+
+        # زر تعديل الخزينة متاح دائماً
         header_buttons.append({
-            "url": f"{reverse('financial:bank_reconciliation_list')}?bank_account={account.id}",
-            "icon": "fa-building-columns",
-            "text": "التسويات البنكية",
-            "class": "btn-outline-primary me-2"
+            "url": reverse("financial:cash_account_edit", args=[account.pk]),
+            "icon": "fa-edit",
+            "text": "تعديل الخزينة" if account.is_cash_account else "تعديل الحساب",
+            "class": "btn-outline-secondary me-2"
         })
 
-    header_buttons.extend([
-        {
-            "onclick": "openIncomeModal()",
-            "icon": "fa-plus-circle",
-            "text": "إيراد",
-            "class": "btn-success me-2"
-        },
-        {
-            "onclick": "openExpenseModal()",
-            "icon": "fa-minus-circle",
-            "text": "مصروف",
-            "class": "btn-danger me-2"
-        },
-        {
-            "onclick": "openTransferModal()",
-            "icon": "fa-exchange-alt",
-            "text": "تحويل مبلغ",
-            "class": "btn-info"
-        }
-    ])
+        # إذا كانت الخزينة معطلة: يظهر زر إعادة التفعيل
+        header_buttons.append({
+            "onclick": f"confirmToggleCashAccount('{account.id}', true)",
+            "icon": "fa-check-circle",
+            "text": "تفعيل الخزينة",
+            "class": "btn-success fw-bold" + (" me-2" if is_zero_balance else "")
+        })
+        header_badges = [
+            {
+                "icon": "fa-ban",
+                "text": "معطلة",
+                "class": "bg-danger text-white px-3 py-2 fw-bold"
+            }
+        ]
+
+        # زر الحذف يظهر فقط وحصرياً إذا كانت الخزينة معطلة ورصيدها مصفراً تماماً (0)
+        if is_zero_balance:
+            header_buttons.append({
+                "onclick": f"confirmDeleteCashAccount('{account.id}')",
+                "icon": "fa-trash-alt",
+                "text": "حذف الخزينة",
+                "class": "btn-outline-danger"
+            })
 
     is_filtered = bool(date_from or date_to or search or category_filter)
 
@@ -2688,10 +2750,11 @@ def cash_account_movements(request, pk):
         "categories": categories,
         "currency_symbol": currency_symbol,
         "title": f"حركات {account.name}",
-        "subtitle": account_type,
+        "subtitle": f"{account_type} - {'نشطة' if account.is_active else 'معطلة'}",
         "icon": account_icon,
         "latest_reconciliation": latest_reconciliation,
         "header_buttons": header_buttons,
+        "header_badges": header_badges,
         "breadcrumb_items": [
             {
                 "title": "الرئيسية",
@@ -2709,6 +2772,228 @@ def cash_account_movements(request, pk):
     }
 
     return render(request, "financial/banking/cash_account_movements.html", context)
+
+
+@login_required
+def cash_account_edit(request, pk):
+    """
+    تعديل بيانات الخزينة أو الحساب البنكي بشاشة مخصصة وهادئة
+    """
+    from decimal import Decimal
+    from django.core.cache import cache
+    from financial.models import Currency, JournalEntryLine
+
+    account = get_object_or_404(ChartOfAccounts, pk=pk)
+
+    # التحقق من أن الحساب نقدي أو بنكي
+    if not (account.is_cash_account or account.is_bank_account):
+        messages.error(request, "هذا الحساب ليس خزينة أو حساباً بنكياً.")
+        return redirect("financial:cash_and_bank_accounts_list")
+
+    # التحقق من وجود قيود مرحلة لمنع التلاعب في الرصيد الافتتاحي والعملة
+    has_transactions = JournalEntryLine.objects.filter(
+        account=account, 
+        journal_entry__status='posted'
+    ).exists()
+
+    if request.method == "POST":
+        try:
+            name = request.POST.get("name", "").strip()
+            code = request.POST.get("code", "").strip()
+            account_type_choice = request.POST.get("account_type_choice", "cash")
+            description = request.POST.get("description", "").strip()
+            notes = request.POST.get("notes", "").strip()
+            is_active = request.POST.get("is_active") == "on"
+
+            if not name:
+                messages.error(request, "يرجى إدخال اسم الخزينة / الحساب البنكي.")
+                return redirect("financial:cash_account_edit", pk=account.pk)
+
+            # التحقق من تكرار الكود
+            if code and ChartOfAccounts.objects.exclude(pk=account.pk).filter(code=code).exists():
+                messages.error(request, f"كود الحساب '{code}' مستخدم بالفعل لحساب آخر.")
+                return redirect("financial:cash_account_edit", pk=account.pk)
+
+            account.name = name
+            if code:
+                account.code = code
+            account.description = description
+            account.notes = notes
+            account.is_active = is_active
+
+            # نوع الحساب
+            if account_type_choice == "bank":
+                account.is_bank_account = True
+                account.is_cash_account = False
+                account.bank_name = request.POST.get("bank_name", "").strip()
+                account.account_number = request.POST.get("account_number", "").strip()
+                account.iban = request.POST.get("iban", "").strip()
+                account.swift_code = request.POST.get("swift_code", "").strip()
+            else:
+                account.is_cash_account = True
+                account.is_bank_account = False
+                account.bank_name = ""
+                account.account_number = ""
+                account.iban = ""
+                account.swift_code = ""
+
+            # العملة والرصيد الافتتاحي (يُسمح بتعديلها فقط إذا لم توجد قيود مسجلة)
+            if not has_transactions:
+                currency_id = request.POST.get("currency")
+                if currency_id:
+                    account.currency = Currency.objects.get(id=currency_id)
+                else:
+                    account.currency = None
+
+                opening_bal_str = request.POST.get("opening_balance", "0").strip()
+                account.opening_balance = Decimal(opening_bal_str) if opening_bal_str else Decimal("0.00")
+
+                opening_date = request.POST.get("opening_balance_date")
+                account.opening_balance_date = opening_date if opening_date else None
+
+            account.save()
+
+            # تفريغ الكاش المالي لتحديث كافة القوائم المنسدلة
+            cache.delete('payment_accounts_data_v4')
+            cache.delete('payment_accounts_data_v2')
+            cache.delete('payment_accounts_data_v3')
+
+            messages.success(request, f"تم تحديث بيانات '{account.name}' بنجاح.")
+            return redirect("financial:cash_account_movements", pk=account.pk)
+
+        except Exception as e:
+            messages.error(request, f"حدث خطأ أثناء حفظ البيانات: {str(e)}")
+
+    currencies = Currency.objects.filter(is_active=True).order_by("code")
+
+    account_type_label = "خزينة نقدية" if account.is_cash_account else "حساب بنكي"
+    account_icon = "fas fa-money-bill-wave" if account.is_cash_account else "fas fa-university"
+
+    context = {
+        "account": account,
+        "currencies": currencies,
+        "has_transactions": has_transactions,
+        "title": f"تعديل {account.name}",
+        "subtitle": f"إدارة وتعديل بيانات {account_type_label}",
+        "icon": account_icon,
+        "header_buttons": [
+            {
+                "url": reverse("financial:cash_account_movements", args=[account.pk]),
+                "icon": "fa-arrow-right",
+                "text": "العودة للحركات",
+                "class": "btn-secondary",
+            }
+        ],
+        "breadcrumb_items": [
+            {
+                "title": "الرئيسية",
+                "url": reverse("core:dashboard"),
+                "icon": "fas fa-home",
+            },
+            {"title": "الإدارة المالية", "url": "#", "icon": "fas fa-money-bill-wave"},
+            {
+                "title": "الحسابات النقدية",
+                "url": reverse("financial:cash_and_bank_accounts_list"),
+                "icon": "fas fa-money-bill-wave",
+            },
+            {
+                "title": f"حركات {account.name}",
+                "url": reverse("financial:cash_account_movements", args=[account.pk]),
+                "icon": account_icon,
+            },
+            {"title": f"تعديل {account.name}", "active": True},
+        ],
+    }
+
+    return render(request, "financial/banking/cash_account_edit.html", context)
+
+
+@login_required
+@require_POST
+def cash_account_toggle_active(request, pk):
+    """
+    تعطيل أو إعادة تفعيل الخزينة / الحساب البنكي بدون شروط
+    """
+    from django.core.cache import cache
+    account = get_object_or_404(ChartOfAccounts, pk=pk)
+
+    account.is_active = not account.is_active
+    account.save(update_fields=['is_active'])
+
+    # تفريغ كاش حسابات الدفع لتحديث القوائم المنسدلة فوراً
+    cache.delete('payment_accounts_data_v4')
+    cache.delete('payment_accounts_data_v2')
+    cache.delete('payment_accounts_data_v3')
+
+    status_text = "تفعيل" if account.is_active else "تعطيل"
+    messages.success(request, f"تم {status_text} حساب/خزينة '{account.name}' بنجاح.")
+
+    return redirect("financial:cash_account_movements", pk=account.pk)
+
+
+@login_required
+@require_POST
+def cash_account_delete(request, pk):
+    """
+    حذف الخزينة / الحساب البنكي
+    يُشترط للحذف:
+    1. أن تكون الخزينة معطلة (is_active is False)
+    2. أن يكون رصيد الخزينة الحالي مصفراً تماماً (current_balance == 0)
+    """
+    from django.core.cache import cache
+    from decimal import Decimal
+    from django.db.models import Sum
+
+    account = get_object_or_404(ChartOfAccounts, pk=pk)
+
+    # الشرط 1: يجب أن تكون الخزينة معطلة أولاً
+    if account.is_active:
+        messages.error(request, "لا يمكن حذف الخزينة وهي نشطة! يرجى تعطيل الخزينة أولاً قبل حذفها.")
+        return redirect("financial:cash_account_movements", pk=account.pk)
+
+    # الشرط 2: يجب أن يكون الرصيد مصفراً تماماً (0)
+    lines = JournalEntryLine.objects.filter(account=account, journal_entry__status='posted')
+    debit_sum = lines.aggregate(Sum("debit"))["debit__sum"] or Decimal("0.00")
+    credit_sum = lines.aggregate(Sum("credit"))["credit__sum"] or Decimal("0.00")
+    base_balance = debit_sum - credit_sum
+
+    if account.is_foreign_currency:
+        f_deb = lines.aggregate(Sum("foreign_debit"))["foreign_debit__sum"] or Decimal("0.00")
+        f_crd = lines.aggregate(Sum("foreign_credit"))["foreign_credit__sum"] or Decimal("0.00")
+        current_balance = (account.opening_balance or Decimal("0.00")) + f_deb - f_crd
+    else:
+        current_balance = base_balance
+
+    if abs(current_balance) > Decimal("0.005"):
+        curr_symbol = account.currency_symbol or "ج.م"
+        messages.error(request, f"لا يمكن حذف الخزينة لأن رصيدها غير مصفّر! الرصيد الحالي: {current_balance} {curr_symbol}.")
+        return redirect("financial:cash_account_movements", pk=account.pk)
+
+    account_name = account.name
+
+    # التحقق من وجود قيود مرحلة تاريخية للحساب
+    if lines.exists():
+        # في حالة وجود قيود تاريخية مسجلة، نقوم بإلغاء وسم الخزينة/البنك والتعطيل التام لحفظ سلامة دفتر الأستاذ
+        account.is_cash_account = False
+        account.is_bank_account = False
+        account.is_active = False
+        account.save(update_fields=['is_cash_account', 'is_bank_account', 'is_active'])
+    else:
+        try:
+            account.delete()
+        except Exception:
+            account.is_cash_account = False
+            account.is_bank_account = False
+            account.is_active = False
+            account.save(update_fields=['is_cash_account', 'is_bank_account', 'is_active'])
+
+    # تفريغ الكاش
+    cache.delete('payment_accounts_data_v4')
+    cache.delete('payment_accounts_data_v2')
+    cache.delete('payment_accounts_data_v3')
+
+    messages.success(request, f"تم حذف الخزينة '{account_name}' بنجاح.")
+    return redirect("financial:cash_and_bank_accounts_list")
 
 
 @login_required
@@ -3986,7 +4271,8 @@ def payment_delete(request, payment_type, payment_id):
         
         if request.method == "POST":
             payment_info = f"#{payment.id} - {payment.amount}"
-            payment.delete()
+            from financial.services.payment_management_service import PaymentManagementService
+            PaymentManagementService.delete_payment(payment, user=request.user)
             messages.success(request, f"تم حذف الدفعة {payment_info} بنجاح")
             return redirect("financial:dashboard")
         

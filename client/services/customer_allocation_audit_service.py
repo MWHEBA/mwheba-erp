@@ -491,6 +491,11 @@ class CustomerAllocationAuditService:
                 event_type="ALLOCATION_APPLIED"
             )
 
+            from financial.services.partner_subledger_service import PartnerSubledgerService
+            PartnerSubledgerService.record_sale_invoice(sale, user)
+            from financial.services.partner_balance_service import PartnerBalanceService
+            PartnerBalanceService.update_partner_snapshot("customer", locked_customer.id)
+
         return last_audit
 
     @classmethod
