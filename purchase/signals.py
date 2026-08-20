@@ -206,12 +206,34 @@ def update_payment_status_on_payment(sender, instance, created, **kwargs):
     if instance.purchase:
         instance.purchase.update_payment_status()
 
-    if created:
-        # تحديث رصيد المورد عند إضافة الدفعة لأول مرة
+    if created and instance.purchase and instance.purchase.supplier:
         supplier = instance.purchase.supplier
-        if supplier:
-            supplier.balance -= instance.amount
-            supplier.save(update_fields=["balance"])
+        raw_rate = getattr(instance.purchase, 'exchange_rate', Decimal('1.000000')) or Decimal('1.000000')
+        rate = Decimal(str(raw_rate))
+        settled = getattr(instance, 'amount_settled_invoice_currency', instance.amount) or instance.amount
+        func_deduction = (Decimal(str(settled)) * rate).quantize(Decimal('0.01'))
+        supplier.balance -= func_deduction
+        supplier.save(update_fields=["balance"])
+
+        try:
+            from financial.services.partner_balance_snapshot_service import PartnerBalanceSnapshotService
+            PartnerBalanceSnapshotService.update_snapshot("supplier", supplier.id)
+        except Exception:
+            pass
+
+
+@receiver(post_delete, sender=PurchasePayment)
+def update_supplier_balance_on_payment_delete(sender, instance, **kwargs):
+    """
+    تحديث رصيد المورد ولقطة الانكشاف عند حذف دفعة
+    """
+    if instance.purchase and instance.purchase.supplier:
+        supplier = instance.purchase.supplier
+        try:
+            from financial.services.partner_balance_snapshot_service import PartnerBalanceSnapshotService
+            PartnerBalanceSnapshotService.update_snapshot("supplier", supplier.id)
+        except Exception:
+            pass
 
 
 @governed_signal_handler(

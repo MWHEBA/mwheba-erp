@@ -22,7 +22,7 @@ from django.conf import settings
 def recalculate_customer_balance(customer):
     """
     إعادة حساب رصيد العميل الفعلي وتحديثه بحماية كاملة للتزامن (Atomic Transaction & Row Locking)
-    الحسبة الشاملة: (إجمالي الفواتير - إجمالي المرتجعات - إجمالي المدفوعات)
+    الحسبة الشاملة بالمعادل الوظيفي: (إجمالي الفواتير الوظيفية - إجمالي المرتجعات الوظيفية - إجمالي المدفوعات الوظيفية)
     """
     if not customer or not customer.pk:
         return
@@ -33,28 +33,41 @@ def recalculate_customer_balance(customer):
         except Customer.DoesNotExist:
             return
 
-        # مجموع كل فواتير المبيعات للعميل (المؤكدة وغير الملغاة)
-        total_sales = Sale.objects.filter(
-            customer=locked_customer
-        ).exclude(status='cancelled').aggregate(total=Sum('total'))['total'] or Decimal('0')
+        # مجموع كل فواتير المبيعات للعميل بالمعادل الوظيفي (المؤكدة وغير الملغاة)
+        sales_qs = Sale.objects.filter(customer=locked_customer).exclude(status='cancelled')
+        total_sales = sum(
+            (getattr(s, 'total_functional', None) or (s.total * (getattr(s, 'exchange_rate', Decimal('1.000000')) or Decimal('1.000000')))).quantize(Decimal('0.01'))
+            for s in sales_qs
+        ) if sales_qs.exists() else Decimal('0.00')
         
-        # مجموع كل المرتجعات المؤكدة للعميل
-        total_returns = SaleReturn.objects.filter(
-            sale__customer=locked_customer,
-            status='confirmed'
-        ).aggregate(total=Sum('total'))['total'] or Decimal('0')
+        # مجموع كل المرتجعات المؤكدة للعميل بالمعادل الوظيفي
+        returns_qs = SaleReturn.objects.filter(sale__customer=locked_customer, status='confirmed').select_related('sale')
+        total_returns = sum(
+            (r.total * (getattr(r.sale, 'exchange_rate', Decimal('1.000000')) or Decimal('1.000000'))).quantize(Decimal('0.01'))
+            for r in returns_qs
+        ) if returns_qs.exists() else Decimal('0.00')
 
-        # مجموع كل الدفعات المرحلة للعميل
-        total_payments = SalePayment.objects.filter(
-            sale__customer=locked_customer,
-            status='posted'
-        ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+        # مجموع كل الدفعات المرحلة للعميل بالمعادل الوظيفي
+        payments_qs = SalePayment.objects.filter(sale__customer=locked_customer, status='posted').select_related('sale')
+        total_payments = Decimal('0.00')
+        for p in payments_qs:
+            rate = getattr(p.sale, 'exchange_rate', Decimal('1.000000')) or Decimal('1.000000')
+            settled = getattr(p, 'amount_settled_invoice_currency', p.amount) or p.amount
+            func_amt = (Decimal(str(settled)) * Decimal(str(rate))).quantize(Decimal('0.01'))
+            total_payments += func_amt
         
         # تحديث الحقل المخزن بالرصيد الفعلي بحماية ضد الـ Race Conditions
-        new_balance = total_sales - total_returns - total_payments
+        new_balance = (total_sales - total_returns - total_payments).quantize(Decimal('0.01'))
         locked_customer.balance = new_balance
         locked_customer.save(update_fields=['balance'])
         customer.balance = new_balance
+
+        # مزامنة لقطة انكشاف عملة العميل
+        try:
+            from financial.services.partner_balance_snapshot_service import PartnerBalanceSnapshotService
+            PartnerBalanceSnapshotService.update_snapshot("customer", locked_customer.id)
+        except Exception:
+            pass
 
 
 @receiver(post_save, sender=CustomFieldDefinition)

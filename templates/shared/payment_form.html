@@ -360,6 +360,40 @@
               </div>
             </div>
             
+            <!-- قسم تحويل العملة الذكي للدفع متعدد العملات -->
+            <div id="fx-conversion-panel" class="card mb-4 border-primary border-opacity-25 shadow-sm" style="background-color: var(--bs-body-bg); display: none;">
+              <div class="card-header bg-light py-2 px-3 border-bottom d-flex justify-content-between align-items-center">
+                <span class="fw-bold small text-primary">
+                  <i class="fas fa-coins me-1"></i>{% trans "معادلة تحويل العملة وسعر الصرف اللحظي (IAS 21)" %}
+                </span>
+                <span class="badge bg-secondary" id="fx-badge-info"></span>
+              </div>
+              <div class="card-body p-3">
+                <div class="row g-3">
+                  <div class="col-md-4">
+                    <label class="form-label small fw-bold text-muted">{% trans "المبلغ المخصوم من الفاتورة" %} (<span class="inv-curr-code">{{ invoice.currency.code|default:'EGP' }}</span>):</label>
+                    <input type="text" id="fx_settled_display" class="form-control form-control-sm text-start" readonly>
+                  </div>
+                  <div class="col-md-4">
+                    <label for="payment_exchange_rate" class="form-label small fw-bold text-muted">{% trans "سعر صرف السداد:" %}</label>
+                    <div class="input-group input-group-sm">
+                      <input type="number" step="0.000001" min="0.000001" class="form-control text-start font-monospace" id="payment_exchange_rate" name="payment_exchange_rate" value="{{ invoice.exchange_rate|default:'1.000000' }}">
+                    </div>
+                  </div>
+                  <div class="col-md-4">
+                    <label for="amount_paid_currency" class="form-label small fw-bold text-muted">{% trans "المبلغ الفعلي من الخزينة" %} (<span id="treasury-curr-code">EGP</span>):</label>
+                    <div class="input-group input-group-sm">
+                      <input type="number" step="0.01" min="0.01" class="form-control text-start fw-bold" id="amount_paid_currency" name="amount_paid_currency">
+                    </div>
+                  </div>
+                </div>
+                <div id="fx-diff-preview" class="small text-muted mt-2 pt-2 border-top">
+                  <i class="fas fa-info-circle me-1 text-info"></i>
+                  <span id="fx-diff-text"></span>
+                </div>
+              </div>
+            </div>
+            
             <!-- حقل الملاحظات -->
             <div class="form-group mb-4">
               <label for="{{ form.notes.id_for_label }}" class="form-label fw-bold">
@@ -379,7 +413,7 @@
             <!-- رصيد ما بعد الدفع -->
             <div class="remaining-balance mb-4">
               <div class="balance-label">{% trans "الرصيد المتبقي بعد الدفع:" %}</div>
-              <div class="balance-value" id="remaining-balance">{{ invoice.amount_due|currency }}</div>
+              <div class="balance-value" id="remaining-balance">{{ invoice.amount_due|currency:invoice.currency_symbol }}</div>
             </div>
             
             <!-- أزرار الإجراءات -->
@@ -403,12 +437,72 @@
 <script>
   // تمرير البيانات من Django للـ JavaScript
   const INVOICE_DATA = {
-    amountDue: parseFloat('{{ invoice.amount_due }}') || 0
+    amountDue: parseFloat('{{ invoice.amount_due }}') || 0,
+    currencyCode: '{{ invoice.currency.code|default:"EGP" }}',
+    currencySymbol: '{{ invoice.currency_symbol|default:currency_symbol }}',
+    invoiceRate: parseFloat('{{ invoice.exchange_rate|default:"1.000000" }}') || 1.0
   };
   
   $(document).ready(function() {
     const amountField = $('#{{ form.amount.id_for_label }}');
-    const referenceField = $('#{{ form.reference_number.id_for_label }}');
+    const paymentMethodSelect = $('#payment_method');
+    const rateField = $('#payment_exchange_rate');
+    const paidAmtField = $('#amount_paid_currency');
+    const fxPanel = $('#fx-conversion-panel');
+    const fxDiffText = $('#fx-diff-text');
+    const fxBadge = $('#fx-badge-info');
+    const treasuryCurrSpan = $('#treasury-curr-code');
+    const fxSettledDisplay = $('#fx_settled_display');
+
+    function syncCurrencyPanel() {
+      const selectedOpt = paymentMethodSelect.find('option:selected');
+      const treasuryCurrency = selectedOpt.data('currency') || 'EGP';
+      const treasuryRate = parseFloat(selectedOpt.data('rate')) || 1.0;
+      
+      treasuryCurrSpan.text(treasuryCurrency);
+      
+      const isMultiCurrency = (INVOICE_DATA.currencyCode !== 'EGP') || (treasuryCurrency !== INVOICE_DATA.currencyCode);
+      
+      if (isMultiCurrency) {
+        fxPanel.slideDown(200);
+        fxBadge.text(`${INVOICE_DATA.currencyCode} ➔ ${treasuryCurrency}`);
+      } else {
+        fxPanel.slideUp(200);
+      }
+
+      const amountVal = parseFloat(amountField.val()) || 0;
+      let currentRate = parseFloat(rateField.val()) || (INVOICE_DATA.invoiceRate || 1.0);
+      
+      fxSettledDisplay.val(amountVal.toFixed(2) + ' ' + INVOICE_DATA.currencySymbol);
+      
+      // Calculate paid in treasury currency
+      let paidCalculated = 0;
+      if (treasuryCurrency === INVOICE_DATA.currencyCode) {
+        paidCalculated = amountVal;
+      } else if (treasuryCurrency === 'EGP') {
+        paidCalculated = amountVal * currentRate;
+      } else {
+        paidCalculated = (amountVal * currentRate) / (treasuryRate || 1.0);
+      }
+      
+      paidAmtField.val(paidCalculated.toFixed(2));
+      
+      // Realized FX Preview
+      const invBookFunctional = amountVal * INVOICE_DATA.invoiceRate;
+      const treasuryFunctional = (treasuryCurrency === 'EGP') ? paidCalculated : (paidCalculated * treasuryRate);
+      const fxDiff = treasuryFunctional - invBookFunctional;
+      
+      if (Math.abs(fxDiff) > 0.005) {
+        const diffAbs = Math.abs(fxDiff).toFixed(2);
+        if (fxDiff > 0) {
+          fxDiffText.html(`<strong class="text-danger">فروق عملة محققة: خسائر بمقدار ${diffAbs} ج.م</strong> (سعر الصرف الحالي أعلى من سعر الفاتورة)`);
+        } else {
+          fxDiffText.html(`<strong class="text-success">فروق عملة محققة: أرباح بمقدار ${diffAbs} ج.م</strong> (سعر الصرف الحالي أقل من سعر الفاتورة)`);
+        }
+      } else {
+        fxDiffText.html(`القيد المحاسبي متزن تماماً بدون فروق أسعار صرف.`);
+      }
+    }
     
     // تحديث المبلغ المتبقي بعد الدفع
     function updateRemainingAmount() {
@@ -416,65 +510,62 @@
       const totalDue = INVOICE_DATA.amountDue;
       let remaining = totalDue - amountValue;
       
-      // للتأكد من عدم وجود قيم سالبة
-      if (remaining < 0) {
-        remaining = 0;
-      }
+      if (remaining < 0) remaining = 0;
       
-      // تنسيق المبلغ المتبقي بعد الدفع
-      $('#remaining-balance').text(formatNumber(remaining) + ' {{ currency_symbol }}');
+      $('#remaining-balance').text(formatNumber(remaining) + ' ' + INVOICE_DATA.currencySymbol);
       
-      // تحذير إذا كان المبلغ أكبر من المبلغ المتبقي
       if (amountValue > totalDue) {
         amountField.addClass('is-invalid');
-        amountField.parent().parent().append('<div class="invalid-feedback d-block">{% trans "المبلغ المدخل أكبر من المبلغ المستحق" %}</div>');
       } else {
         amountField.removeClass('is-invalid');
-        amountField.parent().parent().find('.invalid-feedback').remove();
       }
+
+      syncCurrencyPanel();
     }
     
-    // تنسيق الأرقام لعرضها
     function formatNumber(number) {
       return number.toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,');
     }
     
-    // ربط الأحداث
     amountField.on('input', updateRemainingAmount);
+    paymentMethodSelect.on('change', syncCurrencyPanel);
+    rateField.on('input', function() {
+      const amountVal = parseFloat(amountField.val()) || 0;
+      const r = parseFloat($(this).val()) || 1.0;
+      paidAmtField.val((amountVal * r).toFixed(2));
+      syncCurrencyPanel();
+    });
     
-    // التحقق من النموذج قبل الإرسال
+    paidAmtField.on('input', function() {
+      const paid = parseFloat($(this).val()) || 0;
+      const amountVal = parseFloat(amountField.val()) || 0;
+      if (amountVal > 0) {
+        rateField.val((paid / amountVal).toFixed(6));
+      }
+      syncCurrencyPanel();
+    });
+
+    // منع النقر المزدوج
     $('.payment-form').on('submit', function(e) {
       const amount = parseFloat(amountField.val());
-      
-      // التحقق من المبلغ
       if (isNaN(amount) || amount <= 0) {
         e.preventDefault();
-        amountField.addClass('is-invalid');
-        amountField.parent().parent().find('.invalid-feedback').remove();
-        amountField.parent().parent().append('<div class="invalid-feedback d-block">{% trans "يرجى إدخال مبلغ صحيح أكبر من صفر" %}</div>');
+        alert('يرجى إدخال مبلغ صحيح أكبر من صفر');
         return false;
       }
-      
-      // التحقق الصارم: حظر إذا كان المبلغ أكبر من المبلغ المستحق
       if (amount > INVOICE_DATA.amountDue) {
         e.preventDefault();
-        amountField.addClass('is-invalid');
-        amountField.parent().parent().find('.invalid-feedback').remove();
-        amountField.parent().parent().append('<div class="invalid-feedback d-block">{% trans "المبلغ المدخل يتجاوز المبلغ المتبقي على الفاتورة" %}</div>');
+        alert('المبلغ المدخل يتجاوز المبلغ المتبقي على الفاتورة');
         return false;
       }
-      
-      // منع النقر المزدوج عند الإرسال
       const $submitBtn = $(this).find('button[type="submit"]');
       if ($submitBtn.length) {
         $submitBtn.prop('disabled', true);
-        $submitBtn.html('<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> {% trans "جاري المعالجة..." %}');
+        $submitBtn.html('<span class="spinner-border spinner-border-sm me-2" role="status"></span> جاري المعالجة...');
       }
-      
       return true;
     });
     
-    // تفعيل التلميحات عند تحميل الصفحة
     updateRemainingAmount();
   });
 </script>

@@ -417,32 +417,31 @@ class AccountingIntegrationService:
         """
         try:
             with transaction.atomic():
-                accounts = cls._get_required_accounts_for_payment()
-                if not accounts:
-                    return None
-
                 # تحديد نوع القيد
                 if payment_type == "sale_payment":
                     # دفعة من عميل/ولي أمر
-                    client_name = payment.sale.client_name
+                    client_name = payment.sale.customer.name if (payment.sale and payment.sale.customer) else getattr(payment.sale, 'client_name', 'عميل')
                     reference = f"دفعة من العميل - فاتورة {payment.sale.number}"
                     description = f"استلام دفعة من {client_name}"
 
-                    # النظام الجديد: payment_method هو account code مباشرة
+                    # النظام الجديد: payment_method هو account code مباشرة أو legacy 'cash' / 'bank_transfer'
                     payment_method = payment.payment_method
-                    try:
+                    account_debit = None
+                    if getattr(payment, 'financial_account', None):
+                        account_debit = payment.financial_account
+                    elif payment_method:
                         from financial.models import ChartOfAccounts
-                        account_debit = ChartOfAccounts.objects.filter(
-                            code=payment_method,
-                            is_active=True
-                        ).first()
+                        account_debit = ChartOfAccounts.objects.filter(code=str(payment_method), is_active=True).first()
+                    
+                    if not account_debit:
+                        from financial.services.account_helper import AccountHelperService
+                        if payment_method == 'bank_transfer':
+                            account_debit = AccountHelperService.get_default_bank_account()
+                        else:
+                            account_debit = AccountHelperService.get_default_cash_account()
                         
-                        if not account_debit:
-                            raise ValueError(f"الحساب المحاسبي {payment_method} غير موجود أو غير نشط")
-                            
-                    except Exception as e:
-                        logger.error(f"فشل في الحصول على حساب الدفع {payment_method}: {str(e)}")
-                        raise
+                    if not account_debit:
+                        raise ValueError(f"الحساب المحاسبي {payment_method} غير موجود أو غير نشط")
                     
                     # دائن حساب العميل المحدد
                     client_account = None
@@ -471,19 +470,14 @@ class AccountingIntegrationService:
                     description = f"استلام دفعة رسوم"
 
                     payment_method = payment.payment_method
-                    try:
-                        from financial.models import ChartOfAccounts
-                        account_debit = ChartOfAccounts.objects.filter(
-                            code=payment_method,
-                            is_active=True
-                        ).first()
-                        
-                        if not account_debit:
-                            raise ValueError(f"الحساب المحاسبي {payment_method} غير موجود أو غير نشط")
-                            
-                    except Exception as e:
-                        logger.error(f"فشل في الحصول على حساب الدفع {payment_method}: {str(e)}")
-                        raise
+                    from financial.models import ChartOfAccounts
+                    account_debit = ChartOfAccounts.objects.filter(code=payment_method, is_active=True).first() if payment_method else None
+                    if not account_debit:
+                        from financial.services.account_helper import AccountHelperService
+                        account_debit = AccountHelperService.get_default_cash_account()
+                    
+                    if not account_debit:
+                        raise ValueError(f"الحساب المحاسبي {payment_method} غير موجود أو غير نشط")
                     
                     account_credit = None
 
@@ -525,19 +519,22 @@ class AccountingIntegrationService:
                     
                     # النظام الجديد: payment_method هو account code مباشرة
                     payment_method = payment.payment_method
-                    try:
+                    account_credit = None
+                    if getattr(payment, 'financial_account', None):
+                        account_credit = payment.financial_account
+                    elif payment_method:
                         from financial.models import ChartOfAccounts
-                        account_credit = ChartOfAccounts.objects.filter(
-                            code=payment_method,
-                            is_active=True
-                        ).first()
-                        
-                        if not account_credit:
-                            raise ValueError(f"الحساب المحاسبي {payment_method} غير موجود أو غير نشط")
-                            
-                    except Exception as e:
-                        logger.error(f"فشل في الحصول على حساب الدفع {payment_method}: {str(e)}")
-                        raise
+                        account_credit = ChartOfAccounts.objects.filter(code=str(payment_method), is_active=True).first()
+                    
+                    if not account_credit:
+                        from financial.services.account_helper import AccountHelperService
+                        if payment_method == 'bank_transfer':
+                            account_credit = AccountHelperService.get_default_bank_account()
+                        else:
+                            account_credit = AccountHelperService.get_default_cash_account()
+                    
+                    if not account_credit:
+                        raise ValueError(f"الحساب المحاسبي {payment_method} غير موجود أو غير نشط")
 
                 else:
                     logger.error(f"نوع دفعة غير معروف: {payment_type}")
@@ -551,7 +548,7 @@ class AccountingIntegrationService:
                 if payment_type == "sale_payment":
                     # دفعة من عميل
                     entry_type = "client_payment"
-                    client_name = payment.sale.client_name
+                    client_name = payment.sale.customer.name if (payment.sale and payment.sale.customer) else getattr(payment.sale, 'client_name', 'عميل')
                     reference = f"دفعة من العميل - فاتورة {payment.sale.number}"
                     description = f"استلام دفعة من {client_name}"
 
@@ -584,21 +581,233 @@ class AccountingIntegrationService:
                     else:
                         description = f"دفع للمورد {payment.purchase.supplier.name}"
 
-                # Prepare journal entry lines
-                lines = [
-                    JournalEntryLineData(
-                        account_code=account_debit.code,
-                        debit=payment.amount,
-                        credit=Decimal("0.00"),
-                        description=description
-                    ),
-                    JournalEntryLineData(
-                        account_code=account_credit.code,
-                        debit=Decimal("0.00"),
-                        credit=payment.amount,
-                        description=description
+                cost_center_code = None
+                if hasattr(payment, 'cost_center') and payment.cost_center:
+                    cost_center_code = payment.cost_center.code if hasattr(payment.cost_center, 'code') else str(payment.cost_center)
+                elif payment_type == "purchase_payment" and hasattr(payment.purchase, 'cost_center') and payment.purchase.cost_center:
+                    cost_center_code = payment.purchase.cost_center.code if hasattr(payment.purchase.cost_center, 'code') else str(payment.purchase.cost_center)
+                elif payment_type == "sale_payment" and hasattr(payment.sale, 'cost_center') and payment.sale.cost_center:
+                    cost_center_code = payment.sale.cost_center.code if hasattr(payment.sale.cost_center, 'code') else str(payment.sale.cost_center)
+
+                # إعداد بنود القيد المحاسبي مع دعم تعدد العملات وحوكمة فروق الصرف (IAS 21)
+                lines = []
+                from financial.services.role_registry import AccountRoleRegistry, AccountRoleNames
+
+                if payment_type == "purchase_payment":
+                    invoice = payment.purchase
+                    inv_currency_code = invoice.currency.code if (invoice.currency and invoice.currency.code) else "EGP"
+                    inv_rate = Decimal(str(getattr(invoice, 'exchange_rate', Decimal('1.000000')) or Decimal('1.000000')))
+                    
+                    # 1. المبلغ المخصوم من أصل الفاتورة بعملة الفاتورة
+                    settled_invoice_amt = Decimal(str(getattr(payment, 'amount_settled_invoice_currency', Decimal('0.00')) or Decimal('0.00')))
+                    if settled_invoice_amt <= Decimal('0.00'):
+                        settled_invoice_amt = Decimal(str(payment.amount))
+                    
+                    # مدين حساب المورد بالمعادل الوظيفي الدفتري لأصل الفاتورة
+                    supplier_functional_debit = (settled_invoice_amt * inv_rate).quantize(Decimal('0.01'))
+                    
+                    # 2. المبلغ الفعلي المسدد من الخزينة/البنك
+                    treasury_currency_code = getattr(account_credit, 'currency_code', 'EGP') or 'EGP'
+                    pmt_rate = Decimal(str(getattr(payment, 'payment_exchange_rate', Decimal('1.000000')) or Decimal('1.000000')))
+                    
+                    paid_treasury_amt = Decimal(str(getattr(payment, 'amount_paid_currency', Decimal('0.00')) or Decimal('0.00')))
+                    treasury_functional_credit = Decimal(str(getattr(payment, 'amount_functional', Decimal('0.00')) or Decimal('0.00')))
+                    
+                    if treasury_functional_credit <= Decimal('0.00'):
+                        if paid_treasury_amt > Decimal('0.00'):
+                            treasury_functional_credit = (paid_treasury_amt * pmt_rate).quantize(Decimal('0.01'))
+                        else:
+                            if treasury_currency_code == inv_currency_code:
+                                paid_treasury_amt = settled_invoice_amt
+                                treasury_functional_credit = (paid_treasury_amt * pmt_rate).quantize(Decimal('0.01'))
+                            elif treasury_currency_code == 'EGP':
+                                paid_treasury_amt = (settled_invoice_amt * pmt_rate).quantize(Decimal('0.01'))
+                                treasury_functional_credit = paid_treasury_amt
+                            else:
+                                paid_treasury_amt = settled_invoice_amt
+                                treasury_functional_credit = (paid_treasury_amt * pmt_rate).quantize(Decimal('0.01'))
+
+                    # سطر 1: مدين حساب المورد (إقفال أصل المديونية)
+                    lines.append(
+                        JournalEntryLineData(
+                            account_code=account_debit.code,
+                            debit=supplier_functional_debit,
+                            credit=Decimal("0.00"),
+                            description=description,
+                            cost_center=cost_center_code,
+                            currency=inv_currency_code,
+                            exchange_rate=inv_rate,
+                            foreign_debit=settled_invoice_amt if inv_currency_code != 'EGP' else Decimal('0.00'),
+                            foreign_credit=Decimal('0.00')
+                        )
                     )
-                ]
+                    
+                    # سطر 2: دائن حساب الخزينة / البنك (خروج النقدية الفعلي)
+                    lines.append(
+                        JournalEntryLineData(
+                            account_code=account_credit.code,
+                            debit=Decimal("0.00"),
+                            credit=treasury_functional_credit,
+                            description=description,
+                            cost_center=cost_center_code,
+                            currency=treasury_currency_code,
+                            exchange_rate=pmt_rate,
+                            foreign_debit=Decimal('0.00'),
+                            foreign_credit=paid_treasury_amt if treasury_currency_code != 'EGP' else Decimal('0.00')
+                        )
+                    )
+                    
+                    # سطر 3: أرباح أو خسائر فروق الصرف المحققة (Realized FX Gain/Loss)
+                    fx_diff = (treasury_functional_credit - supplier_functional_debit).quantize(Decimal('0.01'))
+                    payment.realized_fx_difference = fx_diff
+                    payment.amount_paid_currency = paid_treasury_amt
+                    payment.amount_functional = treasury_functional_credit
+                    payment.amount_settled_invoice_currency = settled_invoice_amt
+                    payment.save(update_fields=['realized_fx_difference', 'amount_paid_currency', 'amount_functional', 'amount_settled_invoice_currency'])
+                    
+                    if fx_diff > Decimal('0.00'):
+                        # خروج نقدية أكبر من المعادل الدفتري -> خسائر فروق عملة محققة (مدين 54300)
+                        fx_loss_account = AccountRoleRegistry.get_account_by_role(AccountRoleNames.FX_REALIZED_LOSS)
+                        loss_code = fx_loss_account.code if fx_loss_account else '54300'
+                        lines.append(
+                            JournalEntryLineData(
+                                account_code=loss_code,
+                                debit=fx_diff,
+                                credit=Decimal('0.00'),
+                                description=f"خسائر فروق عملة محققة - سداد فاتورة مشتريات {invoice.number}",
+                                cost_center=cost_center_code
+                            )
+                        )
+                    elif fx_diff < Decimal('0.00'):
+                        # خروج نقدية أقل من المعادل الدفتري -> أرباح فروق عملة محققة (دائن 43100)
+                        fx_gain_account = AccountRoleRegistry.get_account_by_role(AccountRoleNames.FX_REALIZED_GAIN)
+                        gain_code = fx_gain_account.code if fx_gain_account else '43100'
+                        lines.append(
+                            JournalEntryLineData(
+                                account_code=gain_code,
+                                debit=Decimal('0.00'),
+                                credit=abs(fx_diff),
+                                description=f"أرباح فروق عملة محققة - سداد فاتورة مشتريات {invoice.number}",
+                                cost_center=cost_center_code
+                            )
+                        )
+
+                elif payment_type == "sale_payment":
+                    invoice = payment.sale
+                    inv_currency_code = invoice.currency.code if (invoice.currency and invoice.currency.code) else "EGP"
+                    inv_rate = Decimal(str(getattr(invoice, 'exchange_rate', Decimal('1.000000')) or Decimal('1.000000')))
+                    
+                    # 1. المبلغ المخصوم من أصل الفاتورة بعملة الفاتورة
+                    settled_invoice_amt = Decimal(str(getattr(payment, 'amount_settled_invoice_currency', Decimal('0.00')) or Decimal('0.00')))
+                    if settled_invoice_amt <= Decimal('0.00'):
+                        settled_invoice_amt = Decimal(str(payment.amount))
+                    
+                    # دائن حساب العميل بالمعادل الوظيفي الدفتري لأصل الفاتورة
+                    customer_functional_credit = (settled_invoice_amt * inv_rate).quantize(Decimal('0.01'))
+                    
+                    # 2. المبلغ الفعلي المحصل في الخزينة/البنك
+                    treasury_currency_code = getattr(account_debit, 'currency_code', 'EGP') or 'EGP'
+                    pmt_rate = Decimal(str(getattr(payment, 'payment_exchange_rate', Decimal('1.000000')) or Decimal('1.000000')))
+                    
+                    paid_treasury_amt = Decimal(str(getattr(payment, 'amount_paid_currency', Decimal('0.00')) or Decimal('0.00')))
+                    treasury_functional_debit = Decimal(str(getattr(payment, 'amount_functional', Decimal('0.00')) or Decimal('0.00')))
+                    
+                    if treasury_functional_debit <= Decimal('0.00'):
+                        if paid_treasury_amt > Decimal('0.00'):
+                            treasury_functional_debit = (paid_treasury_amt * pmt_rate).quantize(Decimal('0.01'))
+                        else:
+                            if treasury_currency_code == inv_currency_code:
+                                paid_treasury_amt = settled_invoice_amt
+                                treasury_functional_debit = (paid_treasury_amt * pmt_rate).quantize(Decimal('0.01'))
+                            elif treasury_currency_code == 'EGP':
+                                paid_treasury_amt = (settled_invoice_amt * pmt_rate).quantize(Decimal('0.01'))
+                                treasury_functional_debit = paid_treasury_amt
+                            else:
+                                paid_treasury_amt = settled_invoice_amt
+                                treasury_functional_debit = (paid_treasury_amt * pmt_rate).quantize(Decimal('0.01'))
+
+                    # سطر 1: مدين حساب الخزينة / البنك (دخول النقدية الفعلي)
+                    lines.append(
+                        JournalEntryLineData(
+                            account_code=account_debit.code,
+                            debit=treasury_functional_debit,
+                            credit=Decimal("0.00"),
+                            description=description,
+                            cost_center=cost_center_code,
+                            currency=treasury_currency_code,
+                            exchange_rate=pmt_rate,
+                            foreign_debit=paid_treasury_amt if treasury_currency_code != 'EGP' else Decimal('0.00'),
+                            foreign_credit=Decimal('0.00')
+                        )
+                    )
+                    
+                    # سطر 2: دائن حساب العميل (إقفال أصل المديونية)
+                    lines.append(
+                        JournalEntryLineData(
+                            account_code=account_credit.code,
+                            debit=Decimal("0.00"),
+                            credit=customer_functional_credit,
+                            description=description,
+                            cost_center=cost_center_code,
+                            currency=inv_currency_code,
+                            exchange_rate=inv_rate,
+                            foreign_debit=Decimal('0.00'),
+                            foreign_credit=settled_invoice_amt if inv_currency_code != 'EGP' else Decimal('0.00')
+                        )
+                    )
+                    
+                    # سطر 3: أرباح أو خسائر فروق الصرف المحققة
+                    fx_diff = (treasury_functional_debit - customer_functional_credit).quantize(Decimal('0.01'))
+                    payment.realized_fx_difference = fx_diff
+                    payment.amount_paid_currency = paid_treasury_amt
+                    payment.amount_functional = treasury_functional_debit
+                    payment.amount_settled_invoice_currency = settled_invoice_amt
+                    payment.save(update_fields=['realized_fx_difference', 'amount_paid_currency', 'amount_functional', 'amount_settled_invoice_currency'])
+                    
+                    if fx_diff > Decimal('0.00'):
+                        # دخول نقدية أكبر من المعادل الدفتري -> أرباح فروق عملة محققة (دائن 43100)
+                        fx_gain_account = AccountRoleRegistry.get_account_by_role(AccountRoleNames.FX_REALIZED_GAIN)
+                        gain_code = fx_gain_account.code if fx_gain_account else '43100'
+                        lines.append(
+                            JournalEntryLineData(
+                                account_code=gain_code,
+                                debit=Decimal('0.00'),
+                                credit=fx_diff,
+                                description=f"أرباح فروق عملة محققة - تحصيل فاتورة مبيعات {invoice.number}",
+                                cost_center=cost_center_code
+                            )
+                        )
+                    elif fx_diff < Decimal('0.00'):
+                        # دخول نقدية أقل من المعادل الدفتري -> خسائر فروق عملة محققة (مدين 54300)
+                        fx_loss_account = AccountRoleRegistry.get_account_by_role(AccountRoleNames.FX_REALIZED_LOSS)
+                        loss_code = fx_loss_account.code if fx_loss_account else '54300'
+                        lines.append(
+                            JournalEntryLineData(
+                                account_code=loss_code,
+                                debit=abs(fx_diff),
+                                credit=Decimal('0.00'),
+                                description=f"خسائر فروق عملة محققة - تحصيل فاتورة مبيعات {invoice.number}",
+                                cost_center=cost_center_code
+                            )
+                        )
+                else:
+                    # سداد الرسوم والمدفوعات العامة
+                    lines = [
+                        JournalEntryLineData(
+                            account_code=account_debit.code,
+                            debit=payment.amount,
+                            credit=Decimal("0.00"),
+                            description=description,
+                            cost_center=cost_center_code
+                        ),
+                        JournalEntryLineData(
+                            account_code=account_credit.code,
+                            debit=Decimal("0.00"),
+                            credit=payment.amount,
+                            description=description,
+                            cost_center=cost_center_code
+                        )
+                    ]
                 
                 # Determine correct source module and model based on payment type
                 if payment_type == "purchase_payment":

@@ -22,6 +22,10 @@ Component: Payment Account Select
     <optgroup label="الخزن النقدية">
         {% for account in cash_payment_accounts %}
         <option value="{% if value_type == 'id' %}{{ account.id }}{% else %}{{ account.code }}{% endif %}"
+            data-currency="{{ account.currency.code|default:'EGP' }}"
+            data-symbol="{{ account.currency.symbol|default:'ج.م' }}"
+            data-rate="{{ account.currency.exchange_rate|default:'1.000000' }}"
+            data-is-functional="{% if account.currency and not account.currency.is_functional %}0{% else %}1{% endif %}"
             {% if value_type == 'id' %}
                 {% if selected_value and selected_value|stringformat:'s' == account.id|stringformat:'s' %}selected{% endif %}
             {% else %}
@@ -39,6 +43,10 @@ Component: Payment Account Select
     <optgroup label="الحسابات البنكية">
         {% for account in bank_payment_accounts %}
         <option value="{% if value_type == 'id' %}{{ account.id }}{% else %}{{ account.code }}{% endif %}"
+            data-currency="{{ account.currency.code|default:'EGP' }}"
+            data-symbol="{{ account.currency.symbol|default:'ج.م' }}"
+            data-rate="{{ account.currency.exchange_rate|default:'1.000000' }}"
+            data-is-functional="{% if account.currency and not account.currency.is_functional %}0{% else %}1{% endif %}"
             {% if value_type == 'id' %}
                 {% if selected_value and selected_value|stringformat:'s' == account.id|stringformat:'s' %}selected{% endif %}
             {% else %}
@@ -54,6 +62,10 @@ Component: Payment Account Select
     {% if not cash_payment_accounts and not bank_payment_accounts and payment_accounts %}
         {% for account in payment_accounts %}
         <option value="{% if value_type == 'id' %}{{ account.id }}{% else %}{{ account.code }}{% endif %}"
+            data-currency="{{ account.currency.code|default:'EGP' }}"
+            data-symbol="{{ account.currency.symbol|default:'ج.م' }}"
+            data-rate="{{ account.currency.exchange_rate|default:'1.000000' }}"
+            data-is-functional="{% if account.currency and not account.currency.is_functional %}0{% else %}1{% endif %}"
             {% if value_type == 'id' %}
                 {% if selected_value and selected_value|stringformat:'s' == account.id|stringformat:'s' %}selected{% endif %}
             {% else %}

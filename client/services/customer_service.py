@@ -380,24 +380,25 @@ class CustomerService:
         Returns:
             Decimal: Actual balance (positive = customer owes us)
         """
-        from django.db.models import Sum
+        # Total sales in functional currency
+        sales_qs = customer.sales.exclude(status='cancelled')
+        total_sales = sum(
+            (getattr(s, 'total_functional', None) or (s.total * (getattr(s, 'exchange_rate', Decimal('1.000000')) or Decimal('1.000000')))).quantize(Decimal('0.01'))
+            for s in sales_qs
+        ) if sales_qs.exists() else Decimal('0.00')
         
-        # Total sales
-        total_sales = customer.sales.aggregate(
-            total=Sum('total')
-        )['total'] or Decimal('0')
-        
-        # Total payments on sales
+        # Total payments on sales in functional currency
         from sale.models import SalePayment
-        total_payments = SalePayment.objects.filter(
-            sale__customer=customer,
-            status='posted'
-        ).aggregate(
-            total=Sum('amount')
-        )['total'] or Decimal('0')
+        payments_qs = SalePayment.objects.filter(sale__customer=customer, status='posted').select_related('sale')
+        total_payments = Decimal('0.00')
+        for p in payments_qs:
+            rate = getattr(p.sale, 'exchange_rate', Decimal('1.000000')) or Decimal('1.000000')
+            settled = getattr(p, 'amount_settled_invoice_currency', p.amount) or p.amount
+            func_amt = (Decimal(str(settled)) * Decimal(str(rate))).quantize(Decimal('0.01'))
+            total_payments += func_amt
         
         # Balance = Sales - Payments
-        return total_sales - total_payments
+        return (total_sales - total_payments).quantize(Decimal('0.01'))
     
     def get_customer_statement(
         self,
@@ -480,23 +481,25 @@ class CustomerService:
         Returns:
             Dictionary with customer statistics
         """
-        from django.db.models import Sum, Count
         from sale.models import SalePayment
         
-        # Sales statistics
-        sales_stats = customer.sales.aggregate(
-            total_sales=Sum('total'),
-            count=Count('id')
-        )
+        # Sales statistics in functional currency
+        sales_qs = customer.sales.exclude(status='cancelled')
+        sales_count = sales_qs.count()
+        total_sales = sum(
+            (getattr(s, 'total_functional', None) or (s.total * (getattr(s, 'exchange_rate', Decimal('1.000000')) or Decimal('1.000000')))).quantize(Decimal('0.01'))
+            for s in sales_qs
+        ) if sales_count > 0 else Decimal('0.00')
         
-        # Payment statistics
-        payment_stats = SalePayment.objects.filter(
-            sale__customer=customer,
-            status='posted'
-        ).aggregate(
-            total_payments=Sum('amount'),
-            count=Count('id')
-        )
+        # Payment statistics in functional currency
+        payments_qs = SalePayment.objects.filter(sale__customer=customer, status='posted').select_related('sale')
+        payments_count = payments_qs.count()
+        total_payments = Decimal('0.00')
+        for p in payments_qs:
+            rate = getattr(p.sale, 'exchange_rate', Decimal('1.000000')) or Decimal('1.000000')
+            settled = getattr(p, 'amount_settled_invoice_currency', p.amount) or p.amount
+            func_amt = (Decimal(str(settled)) * Decimal(str(rate))).quantize(Decimal('0.01'))
+            total_payments += func_amt
         
         # Calculate balance
         actual_balance = self.calculate_balance(customer)
@@ -505,10 +508,10 @@ class CustomerService:
         available_credit = customer.credit_limit - actual_balance if customer.credit_limit else Decimal('0')
         
         return {
-            'total_sales': sales_stats['total_sales'] or Decimal('0'),
-            'sales_count': sales_stats['count'] or 0,
-            'total_payments': payment_stats['total_payments'] or Decimal('0'),
-            'payments_count': payment_stats['count'] or 0,
+            'total_sales': total_sales,
+            'sales_count': sales_count,
+            'total_payments': total_payments,
+            'payments_count': payments_count,
             'actual_balance': actual_balance,
             'credit_limit': customer.credit_limit,
             'available_credit': available_credit,

@@ -86,11 +86,12 @@ def sync_sale_subledger_signal(sender, instance, created, **kwargs):
         due_foreign = instance.total - paid_foreign
 
         curr_code = instance.currency.code if (hasattr(instance, 'currency') and instance.currency) else (getattr(instance, 'currency', None) or 'EGP')
-        rate = getattr(instance, 'exchange_rate', Decimal('1.000000')) or Decimal('1.000000')
+        raw_rate = getattr(instance, 'exchange_rate', Decimal('1.000000')) or Decimal('1.000000')
+        rate = Decimal(str(raw_rate))
 
         func_total = getattr(instance, 'total_functional', None)
         if not func_total or func_total == Decimal('0.00'):
-            func_total = (instance.total * rate).quantize(Decimal('0.01'))
+            func_total = (Decimal(str(instance.total)) * rate).quantize(Decimal('0.01'))
 
         paid_functional = (paid_foreign * rate).quantize(Decimal('0.01'))
         due_functional = func_total - paid_functional

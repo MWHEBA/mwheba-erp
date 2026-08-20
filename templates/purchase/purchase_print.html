@@ -73,17 +73,17 @@
         )</span>
         {% endif %}
     </td>
-    <td style="text-align: center;">{{ item.unit_price|currency }}</td>
+    <td style="text-align: center;">{{ item.unit_price|currency:purchase.currency_symbol }}</td>
     {% if has_item_discounts or purchase.has_item_discounts %}
     <td style="text-align: center;">
         {% if item.discount and item.discount > 0 %}
-            {{ item.discount|currency }}
+            {{ item.discount|currency:purchase.currency_symbol }}
         {% else %}
             -
         {% endif %}
     </td>
     {% endif %}
-    <td style="text-align: center; font-weight: 700;">{{ item.total|currency }}</td>
+    <td style="text-align: center; font-weight: 700;">{{ item.total|currency:purchase.currency_symbol }}</td>
 </tr>
 {% endfor %}
 {% endblock %}
@@ -102,23 +102,23 @@
 {% block summary_rows %}
 <tr>
     <td>{% trans "المجموع الفرعي" %}</td>
-    <td>{{ purchase.subtotal|currency }}</td>
+    <td>{{ purchase.subtotal|currency:purchase.currency_symbol }}</td>
 </tr>
 {% if purchase.discount and purchase.discount > 0 %}
 <tr>
     <td>{% trans "الخصم" %}</td>
-    <td>-{{ purchase.discount|currency }}</td>
+    <td>-{{ purchase.discount|currency:purchase.currency_symbol }}</td>
 </tr>
 {% endif %}
 {% if purchase.tax and purchase.tax > 0 %}
 <tr>
     <td>{% trans "الضريبة" %}</td>
-    <td>+{{ purchase.tax|currency }}</td>
+    <td>+{{ purchase.tax|currency:purchase.currency_symbol }}</td>
 </tr>
 {% endif %}
 <tr class="summary-highlight-row">
     <td>{% trans "الإجمالي النهائي للمشتريات" %}</td>
-    <td>{{ purchase.total|currency }}</td>
+    <td>{{ purchase.total|currency:purchase.currency_symbol }}</td>
 </tr>
 {% endblock %}
 

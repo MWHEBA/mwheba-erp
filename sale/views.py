@@ -445,6 +445,8 @@ def add_payment(request, pk):
                 payment_data = {
                     'amount': form.cleaned_data['amount'],
                     'payment_method': request.POST.get('payment_method'),  # من payment_account_select
+                    'payment_exchange_rate': request.POST.get('payment_exchange_rate'),
+                    'amount_paid_currency': request.POST.get('amount_paid_currency'),
                     'payment_date': form.cleaned_data.get('payment_date', timezone.now().date()),
                     'notes': form.cleaned_data.get('notes', ''),
                 }

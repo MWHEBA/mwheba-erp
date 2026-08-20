@@ -421,21 +421,34 @@ class PurchaseService:
                 # للمنتجات: حساب المخزون
                 credit_account_code = '10400'
             
+            raw_rate = getattr(purchase, 'exchange_rate', Decimal('1.000000')) or Decimal('1.000000')
+            inv_rate = Decimal(str(raw_rate))
+            curr_code = purchase.currency.code if (purchase.currency and purchase.currency.code) else "EGP"
+            func_total = (purchase_return.total * inv_rate).quantize(Decimal('0.01'))
+
             # إعداد بيانات القيد باستخدام JournalEntryLineData
             lines = [
                 # مدين: الموردين/الخزينة/البنك (عكس)
                 JournalEntryLineData(
                     account_code=debit_account_code,
-                    debit=purchase_return.total,
+                    debit=func_total,
                     credit=Decimal('0'),
-                    description=f'مرتجع - فاتورة {purchase.number}'
+                    description=f'مرتجع - فاتورة {purchase.number}',
+                    currency=curr_code,
+                    exchange_rate=inv_rate,
+                    foreign_debit=purchase_return.total if curr_code != 'EGP' else Decimal('0.00'),
+                    foreign_credit=Decimal('0.00')
                 ),
                 # دائن: المخزون/المصروفات (عكس)
                 JournalEntryLineData(
                     account_code=credit_account_code,
                     debit=Decimal('0'),
-                    credit=purchase_return.total,
-                    description=f'مرتجع - فاتورة {purchase.number}'
+                    credit=func_total,
+                    description=f'مرتجع - فاتورة {purchase.number}',
+                    currency=curr_code,
+                    exchange_rate=inv_rate,
+                    foreign_debit=Decimal('0.00'),
+                    foreign_credit=purchase_return.total if curr_code != 'EGP' else Decimal('0.00')
                 )
             ]
             

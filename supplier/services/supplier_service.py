@@ -383,20 +383,24 @@ class SupplierService:
             from django.db.models import Sum
             from purchase.models import Purchase, PurchasePayment
             
-            # إجمالي المشتريات
-            total_purchases = Purchase.objects.filter(
-                supplier=supplier,
-                status='confirmed'
-            ).aggregate(total=Sum('total'))['total'] or Decimal('0')
+            # إجمالي المشتريات بالمعادل الوظيفي
+            purchases_qs = Purchase.objects.filter(supplier=supplier, status='confirmed')
+            total_purchases = sum(
+                (getattr(p, 'total_functional', None) or (p.total * (getattr(p, 'exchange_rate', Decimal('1.000000')) or Decimal('1.000000')))).quantize(Decimal('0.01'))
+                for p in purchases_qs
+            ) if purchases_qs.exists() else Decimal('0.00')
             
-            # إجمالي المدفوعات
-            total_payments = PurchasePayment.objects.filter(
-                purchase__supplier=supplier,
-                status='posted'
-            ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
+            # إجمالي المدفوعات بالمعادل الوظيفي
+            payments_qs = PurchasePayment.objects.filter(purchase__supplier=supplier, status='posted').select_related('purchase')
+            total_payments = Decimal('0.00')
+            for p in payments_qs:
+                rate = getattr(p.purchase, 'exchange_rate', Decimal('1.000000')) or Decimal('1.000000')
+                settled = getattr(p, 'amount_settled_invoice_currency', p.amount) or p.amount
+                func_amt = (Decimal(str(settled)) * Decimal(str(rate))).quantize(Decimal('0.01'))
+                total_payments += func_amt
             
             # الرصيد = المشتريات - المدفوعات
-            balance = total_purchases - total_payments
+            balance = (total_purchases - total_payments).quantize(Decimal('0.01'))
             
             return balance
             
@@ -511,43 +515,35 @@ class SupplierService:
             from purchase.models import Purchase, PurchasePayment
             
             # إحصائيات المشتريات
-            purchases_stats = Purchase.objects.filter(
-                supplier=supplier,
-                status='confirmed'
-            ).aggregate(
-                total_purchases=Sum('total'),
-                count=Count('id')
-            )
+            # إحصائيات المشتريات بالمعادل الوظيفي
+            purchases_qs = Purchase.objects.filter(supplier=supplier, status='confirmed')
+            purchases_count = purchases_qs.count()
+            total_purchases = sum(
+                (getattr(p, 'total_functional', None) or (p.total * (getattr(p, 'exchange_rate', Decimal('1.000000')) or Decimal('1.000000')))).quantize(Decimal('0.01'))
+                for p in purchases_qs
+            ) if purchases_count > 0 else Decimal('0.00')
             
-            # إحصائيات المدفوعات
-            payments_stats = PurchasePayment.objects.filter(
-                purchase__supplier=supplier,
-                status='posted'
-            ).aggregate(
-                total_payments=Sum('amount'),
-                count=Count('id')
-            )
+            # إحصائيات المدفوعات بالمعادل الوظيفي
+            payments_qs = PurchasePayment.objects.filter(purchase__supplier=supplier, status='posted').select_related('purchase')
+            payments_count = payments_qs.count()
+            total_payments = Decimal('0.00')
+            for p in payments_qs:
+                rate = getattr(p.purchase, 'exchange_rate', Decimal('1.000000')) or Decimal('1.000000')
+                settled = getattr(p, 'amount_settled_invoice_currency', p.amount) or p.amount
+                func_amt = (Decimal(str(settled)) * Decimal(str(rate))).quantize(Decimal('0.01'))
+                total_payments += func_amt
             
-            total_purchases = purchases_stats['total_purchases'] or Decimal('0')
-            total_payments = payments_stats['total_payments'] or Decimal('0')
-            balance = total_purchases - total_payments
+            balance = (total_purchases - total_payments).quantize(Decimal('0.01'))
             
             # آخر معاملة
-            last_purchase = Purchase.objects.filter(
-                supplier=supplier,
-                status='confirmed'
-            ).order_by('-date').first()
-            
-            last_payment = PurchasePayment.objects.filter(
-                purchase__supplier=supplier,
-                status='posted'
-            ).order_by('-payment_date').first()
+            last_purchase = purchases_qs.order_by('-date').first()
+            last_payment = payments_qs.order_by('-payment_date').first()
             
             return {
                 'total_purchases': total_purchases,
-                'purchases_count': purchases_stats['count'] or 0,
+                'purchases_count': purchases_count,
                 'total_payments': total_payments,
-                'payments_count': payments_stats['count'] or 0,
+                'payments_count': payments_count,
                 'balance': balance,
                 'last_purchase_date': last_purchase.date if last_purchase else None,
                 'last_payment_date': last_payment.payment_date if last_payment else None,

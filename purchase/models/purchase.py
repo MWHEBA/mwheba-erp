@@ -301,11 +301,23 @@ class Purchase(models.Model):
         return direct_paid + allocated_paid
 
     @property
+    def amount_returned(self):
+        """
+        حساب إجمالي المبالغ المرتجعة المؤكدة
+        """
+        from decimal import Decimal
+        return self.returns.filter(status="confirmed").aggregate(
+            models.Sum("total")
+        )["total__sum"] or Decimal("0.00")
+
+    @property
     def amount_due(self):
         """
-        حساب المبلغ المتبقي
+        حساب المبلغ المتبقي بعد خصم المدفوعات والمرتجعات المؤكدة
         """
-        return self.total - self.amount_paid
+        from decimal import Decimal
+        due = self.total - self.amount_paid - self.amount_returned
+        return max(Decimal("0.00"), due)
 
     @property
     def is_fully_paid(self):

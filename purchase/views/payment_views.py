@@ -127,6 +127,53 @@ def add_payment(request, pk):
                         # إعادة عرض النموذج مع الخطأ
                         raise
 
+                    # استخراج الحساب المالي والعملات
+                    from financial.models import ChartOfAccounts
+                    acc = ChartOfAccounts.objects.filter(code=payment.payment_method, is_active=True).first()
+                    payment.financial_account = acc
+                    from financial.models import Currency
+                    if acc and acc.currency:
+                        payment.payment_currency = acc.currency
+                    else:
+                        from financial.services.exchange_rate_service import ExchangeRateService
+                        func_curr_obj = ExchangeRateService.get_functional_currency()
+                        if isinstance(func_curr_obj, Currency):
+                            payment.payment_currency = func_curr_obj
+                        else:
+                            curr_code = getattr(func_curr_obj, 'code', 'EGP')
+                            payment.payment_currency = Currency.objects.filter(code=curr_code).first()
+                    
+                    # قراءة سعر صرف السداد والمبلغ المدفوع بعملة الخزينة
+                    raw_pmt_rate = request.POST.get('payment_exchange_rate')
+                    if raw_pmt_rate:
+                        try:
+                            payment.payment_exchange_rate = Decimal(str(raw_pmt_rate))
+                        except Exception:
+                            payment.payment_exchange_rate = Decimal('1.000000')
+                    elif payment.payment_currency and not payment.payment_currency.is_functional:
+                        from financial.services.exchange_rate_service import ExchangeRateService
+                        payment.payment_exchange_rate = Decimal(str(ExchangeRateService.get_rate(payment.payment_currency) or 1.0))
+                    else:
+                        payment.payment_exchange_rate = Decimal('1.000000')
+
+                    raw_paid_amt = request.POST.get('amount_paid_currency')
+                    if raw_paid_amt:
+                        try:
+                            payment.amount_paid_currency = Decimal(str(raw_paid_amt))
+                        except Exception:
+                            payment.amount_paid_currency = payment.amount
+                    else:
+                        payment.amount_paid_currency = payment.amount
+
+                    payment.amount_settled_invoice_currency = payment.amount
+                    
+                    # حساب القيمة الوظيفية EGP
+                    treasury_code = acc.currency_code if acc else 'EGP'
+                    if treasury_code == 'EGP':
+                        payment.amount_functional = payment.amount_paid_currency
+                    else:
+                        payment.amount_functional = (payment.amount_paid_currency * payment.payment_exchange_rate).quantize(Decimal('0.01'))
+
                     # حفظ الدفعة أولاً
                     payment.status = "draft"
                     payment.save()

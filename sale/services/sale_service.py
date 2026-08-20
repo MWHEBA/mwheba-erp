@@ -649,12 +649,50 @@ class SaleService:
                 from financial.services.account_helper import AccountHelperService
                 fin_acc = AccountHelperService.get_default_cash_account()
 
+            # العملات المتعددة
+            from financial.models import Currency
+            from financial.services.exchange_rate_service import ExchangeRateService
+
+            pmt_curr = fin_acc.currency if (fin_acc and fin_acc.currency) else (sale.currency or None)
+            if not pmt_curr:
+                func_curr_obj = ExchangeRateService.get_functional_currency()
+                if isinstance(func_curr_obj, Currency):
+                    pmt_curr = func_curr_obj
+                else:
+                    curr_code = getattr(func_curr_obj, 'code', 'EGP')
+                    pmt_curr = Currency.objects.filter(code=curr_code).first()
+            elif not isinstance(pmt_curr, Currency):
+                curr_code = getattr(pmt_curr, 'code', 'EGP')
+                pmt_curr = Currency.objects.filter(code=curr_code).first()
+            
+            raw_rate = payment_data.get('payment_exchange_rate')
+            if raw_rate:
+                pmt_rate = Decimal(str(raw_rate))
+            elif pmt_curr and not getattr(pmt_curr, 'is_functional', True):
+                pmt_rate = Decimal(str(ExchangeRateService.get_rate(pmt_curr) or 1.0))
+            else:
+                pmt_rate = Decimal('1.000000')
+
+            raw_paid_amt = payment_data.get('amount_paid_currency')
+            paid_curr_amt = Decimal(str(raw_paid_amt)) if raw_paid_amt else amount
+            
+            treasury_code = fin_acc.currency_code if fin_acc else 'EGP'
+            if treasury_code == 'EGP':
+                func_amt = paid_curr_amt
+            else:
+                func_amt = (paid_curr_amt * pmt_rate).quantize(Decimal('0.01'))
+
             # 1. إنشاء الدفعة
             payment = SalePayment.objects.create(
                 sale=sale,
                 amount=amount,
                 payment_method=pm if pm else (fin_acc.code if fin_acc else 'cash'),
                 financial_account=fin_acc,
+                payment_currency=pmt_curr,
+                payment_exchange_rate=pmt_rate,
+                amount_paid_currency=paid_curr_amt,
+                amount_functional=func_amt,
+                amount_settled_invoice_currency=amount,
                 payment_date=payment_data.get('payment_date', timezone.now().date()),
                 notes=payment_data.get('notes', ''),
                 status='draft',
@@ -663,12 +701,14 @@ class SaleService:
             
             logger.info(f"✅ تم إنشاء دفعة: {payment.id} للفاتورة: {sale.number}")
             
-            # 2. إنشاء القيد المحاسبي للدفعة عبر AccountingGateway
+            # 2. إنشاء القيد المحاسبي للدفعة عبر AccountingIntegrationService
             journal_entry = SaleService._create_payment_journal_entry(payment, user)
             if journal_entry:
                 payment.financial_transaction = journal_entry
                 payment.status = 'posted'
-                payment.save(update_fields=['financial_transaction', 'status'])
+                payment.posted_at = timezone.now()
+                payment.posted_by = user
+                payment.save(update_fields=['financial_transaction', 'status', 'posted_at', 'posted_by'])
                 logger.info(f"✅ تم ترحيل الدفعة: {payment.id}")
             
             # 3. تحديث حالة الدفع للفاتورة
@@ -683,140 +723,23 @@ class SaleService:
     @staticmethod
     def _create_payment_journal_entry(payment, user):
         """
-        إنشاء القيد المحاسبي للدفعة عبر AccountingGateway
-        
-        القيد:
-        - مدين: الخزينة/البنك
-        - دائن: العملاء
+        إنشاء القيد المحاسبي للدفعة عبر AccountingIntegrationService (Single Source of Truth)
         """
         try:
-            from governance.services.accounting_gateway import JournalEntryLineData
-            
             # الدفعات المخصومة من الرصيد المسبق يتم ترحيل قيودها عبر خدمة التخصيص
             if payment.source_type == 'PREPAID_BALANCE' or payment.payment_method == 'PREPAID_BALANCE':
                 return None
 
-            # تحديد حساب المدين حسب طريقة الدفع
-            payment_method = payment.payment_method
-            
-            from financial.services.account_role_registry import AccountRoleRegistry
-            cash_code = AccountRoleRegistry.get_account_code("DEFAULT_CASH_DRAWER")
-            bank_code = AccountRoleRegistry.get_account_code("DEFAULT_BANK_ACCOUNT")
-
-            if payment.financial_account:
-                debit_account_code = payment.financial_account.code
-            elif payment_method == 'cash' or payment_method == cash_code:
-                debit_account_code = cash_code  # الخزينة
-            elif payment_method == 'bank_transfer' or payment_method == bank_code:
-                debit_account_code = bank_code  # البنك
-            elif payment_method and str(payment_method).isdigit():
-                # إذا كان account code مباشرة
-                debit_account_code = str(payment_method)
-            else:
-                debit_account_code = cash_code  # افتراضي: الخزينة
-            
-            # حساب العميل - التأكد من وجود الحساب المحاسبي
-            if not payment.sale.customer.financial_account:
-                # استدعاء الـ signal لإنشاء الحساب (Single Source of Truth)
-                logger.warning(
-                    f"العميل '{payment.sale.customer.name}' ليس لديه حساب محاسبي. "
-                    f"سيتم إنشاؤه تلقائياً عبر signal."
-                )
-                payment.sale.customer.save()  # Trigger post_save signal
-                payment.sale.customer.refresh_from_db()
-                
-                # التحقق من نجاح الإنشاء
-                if not payment.sale.customer.financial_account:
-                    raise ValidationError(
-                        f"فشل إنشاء حساب محاسبي للعميل '{payment.sale.customer.name}'. "
-                        f"يرجى التواصل مع الدعم الفني."
-                    )
-            
-            credit_account_code = payment.sale.customer.financial_account.code
-            
-            # فحص وتحديد العملات وأسعار الصرف اللحظية للحسابات
-            from financial.services.exchange_rate_service import ExchangeRateService
-            from financial.models.chart_of_accounts import ChartOfAccounts
-            
-            func_curr = ExchangeRateService.get_functional_currency()
-            base_code = func_curr.code if func_curr else 'EGP'
-            
-            debit_acc_obj = ChartOfAccounts.objects.filter(code=debit_account_code).first()
-            sale_currency_obj = getattr(payment.sale, 'currency', None)
-            
-            # عملة الخزينة والعميل
-            debit_curr_code = debit_acc_obj.currency.code if (debit_acc_obj and debit_acc_obj.currency) else (sale_currency_obj.code if sale_currency_obj else base_code)
-            credit_curr_code = sale_currency_obj.code if sale_currency_obj else base_code
-            
-            # استخراج سعر الصرف وتحديد المبالغ المحلية والأجنبية
-            rate = getattr(payment.sale, 'exchange_rate', Decimal('1.000000')) or Decimal('1.000000')
-            if debit_curr_code != base_code and rate <= 1:
-                try:
-                    rate = ExchangeRateService.get_exchange_rate(debit_curr_code, date=payment.payment_date)
-                except Exception:
-                    rate = Decimal('1.000000')
-
-            payment_amt = payment.amount
-            if credit_curr_code != base_code:
-                # الفاتورة بعملة أجنبية
-                f_debit = payment_amt if debit_curr_code == credit_curr_code else (payment_amt / rate).quantize(Decimal('0.01'))
-                f_credit = payment_amt
-                local_debit = (payment_amt * rate).quantize(Decimal('0.01'))
-                local_credit = local_debit
-            else:
-                # الفاتورة بالعملة المحلية
-                if debit_curr_code != base_code:
-                    # الخزينة أجنبية
-                    f_debit = (payment_amt / rate).quantize(Decimal('0.01')) if rate > 0 else payment_amt
-                    f_credit = Decimal('0.00')
-                    local_debit = payment_amt
-                    local_credit = payment_amt
-                else:
-                    f_debit = Decimal('0.00')
-                    f_credit = Decimal('0.00')
-                    local_debit = payment_amt
-                    local_credit = payment_amt
-
-            # إعداد بيانات القيد باستخدام JournalEntryLineData مع دعم العملات الأجنبية
-            lines = [
-                # مدين: الخزينة/البنك
-                JournalEntryLineData(
-                    account_code=debit_account_code,
-                    debit=local_debit,
-                    credit=Decimal('0'),
-                    description=f'دفعة - فاتورة {payment.sale.number} - {payment.sale.customer.name}',
-                    currency=debit_curr_code,
-                    exchange_rate=rate,
-                    foreign_debit=f_debit,
-                    foreign_credit=Decimal('0.00')
-                ),
-                # دائن: العملاء
-                JournalEntryLineData(
-                    account_code=credit_account_code,
-                    debit=Decimal('0'),
-                    credit=local_credit,
-                    description=f'دفعة - فاتورة {payment.sale.number} - {payment.sale.customer.name}',
-                    currency=credit_curr_code,
-                    exchange_rate=rate,
-                    foreign_debit=Decimal('0.00'),
-                    foreign_credit=f_credit
-                )
-            ]
-            
-            # إنشاء القيد عبر AccountingGateway
-            gateway = AccountingGateway()
-            journal_entry = gateway.create_journal_entry(
-                source_module='sale',
-                source_model='SalePayment',
-                source_id=payment.id,
-                lines=lines,
-                idempotency_key=f'sale_payment_{payment.id}_journal_entry',
-                user=user,
-                entry_type='receipt_voucher',
-                description=f'دفعة على فاتورة {payment.sale.number} - {payment.sale.customer.name}',
-                reference=f'PAY-{payment.sale.number}',
-                date=payment.payment_date
+            from financial.services.accounting_integration_service import AccountingIntegrationService
+            journal_entry = AccountingIntegrationService.create_payment_journal_entry(
+                payment=payment,
+                payment_type='sale_payment',
+                user=user
             )
+            return journal_entry
+        except Exception as e:
+            logger.error(f"❌ خطأ في إنشاء القيد المحاسبي لدفعة المبيعات {payment.id}: {str(e)}")
+            raise
             
             logger.info(f"✅ تم إنشاء القيد المحاسبي: {journal_entry.number} للدفعة: {payment.id}")
             return journal_entry

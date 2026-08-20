@@ -54,6 +54,51 @@ class PurchasePayment(MonetaryTransactionMixin, PaymentAuditMixin, models.Model)
         blank=True,
     )
 
+    # حقول السداد متعدد العملات وحوكمة فروق الصرف (IAS 21)
+    payment_currency = models.ForeignKey(
+        "financial.Currency",
+        on_delete=models.PROTECT,
+        verbose_name=_("عملة السداد / الخزينة"),
+        null=True,
+        blank=True,
+        related_name="purchase_payments_as_payment_currency",
+    )
+    payment_exchange_rate = models.DecimalField(
+        _("سعر صرف السداد"),
+        max_digits=18,
+        decimal_places=6,
+        default=Decimal("1.000000"),
+        help_text=_("سعر صرف عملة السداد مقابل العملة الأساسية وقت الدفع"),
+    )
+    amount_paid_currency = models.DecimalField(
+        _("المبلغ المسدد بعملة الخزينة"),
+        max_digits=15,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        help_text=_("المبلغ الفعلي المدفوع بعملة الخزينة أو البنك"),
+    )
+    amount_functional = models.DecimalField(
+        _("المعادل بالعملة الوظيفية (EGP)"),
+        max_digits=15,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        help_text=_("القيمة المعادلة بالجنيه المصري المسحوبة من الخزينة"),
+    )
+    amount_settled_invoice_currency = models.DecimalField(
+        _("المبلغ المقفول بعملة الفاتورة"),
+        max_digits=15,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        help_text=_("المبلغ المخصوم من أصل الفاتورة بعملة الفاتورة"),
+    )
+    realized_fx_difference = models.DecimalField(
+        _("أرباح / خسائر فروق الصرف المحققة"),
+        max_digits=15,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        help_text=_("صافي أرباح أو خسائر فروق العملة الناتجة عن السداد"),
+    )
+
     # حقل للإشارة إلى المعاملة المالية المرتبطة
     financial_transaction = models.ForeignKey(
         "financial.JournalEntry",
@@ -336,6 +381,11 @@ class PurchasePayment(MonetaryTransactionMixin, PaymentAuditMixin, models.Model)
             "financial_account_id": self.financial_account.id
             if self.financial_account
             else None,
+            "payment_currency_id": self.payment_currency_id,
+            "payment_exchange_rate": float(self.payment_exchange_rate),
+            "amount_paid_currency": float(self.amount_paid_currency),
+            "amount_functional": float(self.amount_functional),
+            "amount_settled_invoice_currency": float(self.amount_settled_invoice_currency),
             "reference_number": self.reference_number,
             "notes": self.notes,
             "status": self.status,
@@ -365,6 +415,11 @@ class PurchasePayment(MonetaryTransactionMixin, PaymentAuditMixin, models.Model)
             "financial_account_id": self.financial_account.id
             if self.financial_account
             else None,
+            "payment_currency_id": self.payment_currency_id,
+            "payment_exchange_rate": float(self.payment_exchange_rate),
+            "amount_paid_currency": float(self.amount_paid_currency),
+            "amount_functional": float(self.amount_functional),
+            "amount_settled_invoice_currency": float(self.amount_settled_invoice_currency),
             "reference_number": self.reference_number,
             "notes": self.notes,
             "status": self.status,
