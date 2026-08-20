@@ -1112,4 +1112,35 @@ function initDropdowns() {
         const allDropdowns = document.querySelectorAll('.dropdown-menu.show');
         allDropdowns.forEach(menu => menu.classList.remove('show'));
     });
-} 
+}
+
+// ====================================================
+// Global Select2 Autofocus Search Field on Dropdown Open
+// ====================================================
+(function() {
+    function focusSelect2Search() {
+        const searchInput = document.querySelector('.select2-container--open .select2-search__field') ||
+                            document.querySelector('.select2-dropdown .select2-search__field');
+        if (searchInput && document.activeElement !== searchInput) {
+            searchInput.focus();
+        }
+    }
+
+    function initSelect2Autofocus() {
+        if (typeof $ !== 'undefined') {
+            $(document).off('select2:open.autoSearchFocus').on('select2:open.autoSearchFocus', function() {
+                // محاولة فورية بالـ requestAnimationFrame
+                window.requestAnimationFrame(focusSelect2Search);
+                // محاولة تأكيدية لتخطي أي تأخير في العرض أو داخل النوافذ المنبثقة (Modals)
+                setTimeout(focusSelect2Search, 30);
+                setTimeout(focusSelect2Search, 100);
+            });
+        }
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initSelect2Autofocus);
+    } else {
+        initSelect2Autofocus();
+    }
+})(); 

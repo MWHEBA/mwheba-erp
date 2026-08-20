@@ -57,8 +57,8 @@ class Purchase(models.Model):
         _("الخصم"), max_digits=12, decimal_places=2, default=0
     )
     tax = models.DecimalField(_("الضريبة"), max_digits=12, decimal_places=2, default=0)
-    tax_active = models.BooleanField(_("الضريبة نشطة"), default=False)
-    vat_active = models.BooleanField(_("ضريبة القيمة المضافة نشطة"), default=False)
+    tax_active = models.BooleanField(_("الضريبة نشطة"), default=True)
+    vat_active = models.BooleanField(_("ضريبة القيمة المضافة نشطة"), default=True)
     vat_rate = models.DecimalField(_("نسبة القيمة المضافة %"), max_digits=5, decimal_places=2, default=Decimal("14.00"))
     wht_active = models.BooleanField(_("ضريبة الخصم والإضافة نشطة"), default=False)
     wht_rate = models.DecimalField(_("نسبة الخصم والإضافة %"), max_digits=5, decimal_places=2, default=Decimal("1.00"))

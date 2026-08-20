@@ -27,12 +27,11 @@ class SaleForm(forms.ModelForm):
     invoice_type = forms.ChoiceField(
         label="نوع الفاتورة",
         choices=[
-            ("credit_with_downpayment", "أجل مع دفعة مقدمة"),
-            ("credit", "آجل بالكامل"),
-            ("cash", "نقدي بالكامل"),
+            ("credit", "آجل"),
+            ("cash", "نقدي"),
         ],
-        initial="credit_with_downpayment",
-        widget=forms.Select(attrs={"class": "form-control", "id": "id_invoice_type"}),
+        initial="credit",
+        widget=forms.Select(attrs={"class": "form-select select2", "id": "id_invoice_type"}),
     )
 
     # مبلغ الدفعة المقدمة
@@ -215,22 +214,36 @@ class SaleForm(forms.ModelForm):
             if self.instance.payment_method == 'credit':
                 self.initial['invoice_type'] = 'credit'
                 self.initial['payment_method'] = ''
+                self.initial['down_payment_amount'] = Decimal('0')
+            elif self.instance.payment_status == 'paid' and self.instance.payment_method not in ['credit', 'credit_with_downpayment']:
+                self.initial['invoice_type'] = 'cash'
+                self.initial['payment_method'] = self.instance.payment_method
+                self.initial['down_payment_amount'] = Decimal('0')
             else:
-                if self.instance.payment_status == 'paid':
-                    self.initial['invoice_type'] = 'cash'
-                    self.initial['payment_method'] = self.instance.payment_method
-                else:
-                    self.initial['invoice_type'] = 'credit_with_downpayment'
-                    self.initial['payment_method'] = self.instance.payment_method
-                    # استخراج مبلغ الدفعة الأولى المرتبطة بالفاتورة كدفعة مقدمة
-                    first_payment = self.instance.payments.filter(status='posted').first()
-                    if first_payment:
-                        self.initial['down_payment_amount'] = first_payment.amount
+                self.initial['invoice_type'] = 'credit'
+                self.initial['payment_method'] = self.instance.payment_method if self.instance.payment_method != 'credit' else ''
+                # استخراج مبلغ الدفعة الأولى المرتبطة بالفاتورة كدفعة مقدمة
+                first_payment = self.instance.payments.filter(status='posted').first()
+                if first_payment:
+                    self.initial['down_payment_amount'] = first_payment.amount
+                    if not self.initial['payment_method'] and first_payment.payment_method:
+                        self.initial['payment_method'] = first_payment.payment_method
         else:
             # حالة الإنشاء الجديد
-            self.initial['invoice_type'] = 'credit_with_downpayment'
+            self.initial['invoice_type'] = 'credit'
             self.initial['payment_method'] = ''
-            self.initial['down_payment_amount'] = 0
+            self.initial['down_payment_amount'] = Decimal('0')
+
+        # تفعيل الضريبة افتراضياً للفواتير الجديدة ديناميكياً حسب إعدادات النظام
+        if not self.instance.pk:
+            from core.models import SystemSetting
+            enable_tax = SystemSetting.get_setting("enable_tax", True)
+            if isinstance(enable_tax, str):
+                enable_tax = enable_tax.lower() in ["true", "1", "yes", "نعم"]
+            self.initial.setdefault("tax_active", bool(enable_tax))
+            self.initial.setdefault("vat_active", bool(enable_tax))
+            default_rate = SystemSetting.get_setting("default_tax_rate", 14)
+            self.initial.setdefault("vat_rate", default_rate)
 
         # إعداد خيارات التصنيف المالي (إيرادات)
         try:
@@ -256,6 +269,15 @@ class SaleForm(forms.ModelForm):
         except Exception:
             self.fields['financial_category'].choices = [('', 'اختر التصنيف المالي')]
 
+        # ضبط الحقول الاختيارية والافتراضية
+        for field_name in [
+            "number", "discount", "discount_type", "adjustment_name",
+            "adjustment_amount", "tax_active", "vat_active", "vat_rate",
+            "wht_active", "wht_rate", "wht_amount", "notes"
+        ]:
+            if field_name in self.fields:
+                self.fields[field_name].required = False
+
     def clean_salesman(self):
         salesman = self.cleaned_data.get('salesman')
         user = getattr(self, 'user', None)
@@ -272,33 +294,27 @@ class SaleForm(forms.ModelForm):
                 return self.instance.salesman
             return user
 
-        for field_name in ["discount", "tax_active", "vat_active", "vat_rate", "wht_active", "wht_rate", "wht_amount", "adjustment_name", "adjustment_amount"]:
-            if field_name in self.fields:
-                self.fields[field_name].required = False
-
         return salesman or user
 
     def clean(self):
         cleaned_data = super().clean()
         invoice_type = cleaned_data.get('invoice_type')
         payment_method = cleaned_data.get('payment_method')
-        down_payment_amount = cleaned_data.get('down_payment_amount') or 0
+        down_payment_amount = cleaned_data.get('down_payment_amount') or Decimal('0')
         
         # التحقق من حساب الدفع حسب نوع الفاتورة
         if invoice_type == 'cash':
             if not payment_method or payment_method == '':
                 raise ValidationError({'payment_method': 'يجب اختيار حساب دفع (خزينة/بنك) للفاتورة النقدية.'})
-        
-        elif invoice_type == 'credit_with_downpayment':
-            if not payment_method or payment_method == '':
-                raise ValidationError({'payment_method': 'يجب اختيار حساب دفع (خزينة/بنك) للدفعة المقدمة.'})
-            if down_payment_amount <= 0:
-                raise ValidationError({'down_payment_amount': 'يجب أن يكون مبلغ الدفعة المقدمة أكبر من الصفر.'})
+            cleaned_data['down_payment_amount'] = Decimal('0')
         
         elif invoice_type == 'credit':
-            # مسح البيانات غير المطلوبة للفاتورة الآجلة بالكامل
-            cleaned_data['payment_method'] = 'credit'
-            cleaned_data['down_payment_amount'] = 0
+            if down_payment_amount > Decimal('0'):
+                if not payment_method or payment_method == '':
+                    raise ValidationError({'payment_method': 'يجب اختيار حساب دفع (خزينة/بنك) للدفعة المقدمة.'})
+            else:
+                cleaned_data['payment_method'] = 'credit'
+                cleaned_data['down_payment_amount'] = Decimal('0')
             
         return cleaned_data
 
@@ -323,7 +339,7 @@ class SaleForm(forms.ModelForm):
 
     def clean_number(self):
         number = self.cleaned_data.get("number")
-        if not self.instance.pk and Sale.objects.filter(number=number).exists():
+        if number and not self.instance.pk and Sale.objects.filter(number=number).exists():
             raise ValidationError("رقم الفاتورة موجود بالفعل")
         return number
 
@@ -833,6 +849,17 @@ class QuotationForm(forms.ModelForm):
         warehouses = Warehouse.objects.filter(is_active=True)
         if warehouses.exists() and not self.initial.get("warehouse"):
             self.initial["warehouse"] = warehouses.first().pk
+
+        # تفعيل الضريبة افتراضياً لعروض الأسعار الجديدة ديناميكياً حسب إعدادات النظام
+        if not self.instance.pk:
+            from core.models import SystemSetting
+            enable_tax = SystemSetting.get_setting("enable_tax", True)
+            if isinstance(enable_tax, str):
+                enable_tax = enable_tax.lower() in ["true", "1", "yes", "نعم"]
+            self.initial.setdefault("tax_active", bool(enable_tax))
+            self.initial.setdefault("vat_active", bool(enable_tax))
+            default_rate = SystemSetting.get_setting("default_tax_rate", 14)
+            self.initial.setdefault("vat_rate", default_rate)
 
         for field_name in ["discount", "tax_active", "vat_active", "vat_rate", "wht_active", "wht_rate", "wht_amount", "adjustment_name", "adjustment_amount", "currency", "exchange_rate", "total_foreign", "total_functional"]:
             if field_name in self.fields:

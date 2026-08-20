@@ -48,8 +48,17 @@ def invoice_product_lookup(request):
         # 1. فلترة المنتجات الأساسية
         if product_type in ["service", "services"]:
             qs = Product.objects.filter(is_service=True)
-        elif product_type in ["purchase", "products"]:
+        elif product_type in ["products"]:
             qs = Product.objects.filter(is_service=False, is_bundle=False)
+        elif product_type == "purchase":
+            from core.models import SystemSetting
+            allowed_types = SystemSetting.get_setting('purchase_invoice_item_types', 'both')
+            if allowed_types == 'products':
+                qs = Product.objects.filter(is_service=False, is_bundle=False)
+            elif allowed_types == 'services':
+                qs = Product.objects.filter(is_service=True)
+            else: # both
+                qs = Product.objects.filter(is_bundle=False)
         else: # sale / all
             from core.models import SystemSetting
             allowed_types = SystemSetting.get_setting('sale_invoice_item_types', 'both')
@@ -130,7 +139,7 @@ def invoice_product_lookup(request):
 
         for p in qs.select_related('category', 'unit').order_by("name"):
             stock_qty = stock_map.get(str(p.id), 0.0)
-            if not show_all and stock_qty <= 0:
+            if not show_all and stock_qty <= 0 and not p.is_service:
                 continue
 
             curr_prices = p.get_currency_prices_dict()

@@ -86,6 +86,17 @@ class PurchaseForm(forms.ModelForm):
             from utils.helpers import get_system_today_string
             self.initial["date"] = get_system_today_string()
 
+        # تفعيل الضريبة افتراضياً للفواتير الجديدة ديناميكياً حسب إعدادات النظام
+        if not self.instance.pk:
+            from core.models import SystemSetting
+            enable_tax = SystemSetting.get_setting("enable_tax", True)
+            if isinstance(enable_tax, str):
+                enable_tax = enable_tax.lower() in ["true", "1", "yes", "نعم"]
+            self.initial.setdefault("tax_active", bool(enable_tax))
+            self.initial.setdefault("vat_active", bool(enable_tax))
+            default_rate = SystemSetting.get_setting("default_tax_rate", 14)
+            self.initial.setdefault("vat_rate", default_rate)
+
         # تعيين أول مخزن بشكل افتراضي (فقط للفواتير غير الخدمية)
         # سيتم التحكم في إظهار/إخفاء الحقل من JavaScript حسب نوع المورد
         warehouses = Warehouse.objects.filter(is_active=True)
@@ -169,7 +180,10 @@ class PurchaseForm(forms.ModelForm):
             self.fields["financial_category"].choices = [('', 'اختر التصنيف المالي')]
             self.fields["financial_category"].required = False
 
-        for field_name in ["discount", "tax_active", "vat_active", "vat_rate", "wht_active", "wht_rate", "wht_amount"]:
+        for field_name in [
+            "number", "discount", "tax_active", "vat_active", "vat_rate",
+            "wht_active", "wht_rate", "wht_amount", "notes"
+        ]:
             if field_name in self.fields:
                 self.fields[field_name].required = False
 
@@ -248,7 +262,7 @@ class PurchaseForm(forms.ModelForm):
 
     def clean_number(self):
         number = self.cleaned_data.get("number")
-        if not self.instance.pk and Purchase.objects.filter(number=number).exists():
+        if number and not self.instance.pk and Purchase.objects.filter(number=number).exists():
             raise ValidationError("رقم الفاتورة موجود بالفعل")
         return number
 

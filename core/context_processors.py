@@ -66,6 +66,8 @@ def global_settings(request):
         'site_name': 'موهبة ERP',
         'enable_thermal_printing': False,
         'enable_company_stamp': True,
+        'enable_tax': False,
+        'default_tax_rate': 14.0,
         'color_primary': '#04578d',
         'color_primary_dark': '#033d64',
         'color_primary_light': '#e6f0fa',
@@ -88,6 +90,16 @@ def global_settings(request):
     if isinstance(stamp_value, str):
         stamp_value = stamp_value.lower() in ["true", "1", "yes", "نعم"]
     settings_dict["enable_company_stamp"] = stamp_value
+
+    enable_tax_value = settings_dict.get("enable_tax", True)
+    if isinstance(enable_tax_value, str):
+        enable_tax_value = enable_tax_value.lower() in ["true", "1", "yes", "نعم"]
+    settings_dict["enable_tax"] = enable_tax_value
+
+    try:
+        settings_dict["default_tax_rate"] = float(settings_dict.get("default_tax_rate", 14.0))
+    except (ValueError, TypeError):
+        settings_dict["default_tax_rate"] = 14.0
 
     return {
         "settings": settings_dict,

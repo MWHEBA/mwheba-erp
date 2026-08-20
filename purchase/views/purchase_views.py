@@ -423,7 +423,9 @@ def purchase_create(request, supplier_id=None):
 
                     tax_active = request.POST.get('tax_active') in ['on', 'true', True]
                     vat_active = request.POST.get('vat_active') in ['on', 'true', True] or tax_active
-                    vat_rate = Decimal(str(request.POST.get('vat_rate', '14.00') or '14.00'))
+                    from core.models import SystemSetting
+                    default_tax_rate_str = str(SystemSetting.get_setting('default_tax_rate', '14.00') or '14.00')
+                    vat_rate = Decimal(str(request.POST.get('vat_rate', default_tax_rate_str) or default_tax_rate_str))
                     wht_active = request.POST.get('wht_active') in ['on', 'true', True]
                     wht_rate = Decimal(str(request.POST.get('wht_rate', '1.00') or '1.00'))
 

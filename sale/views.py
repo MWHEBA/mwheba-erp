@@ -206,12 +206,13 @@ def sale_create(request, customer_id=None):
                 payment_method = form.cleaned_data.get("payment_method", "")
                 down_payment_amount = form.cleaned_data.get("down_payment_amount") or Decimal('0')
 
-                if invoice_type == "credit":
-                    sale_data['payment_method'] = "credit"
-                elif invoice_type == "cash":
+                if invoice_type == "cash":
                     sale_data['payment_method'] = payment_method if payment_method else "cash"
-                elif invoice_type == "credit_with_downpayment":
-                    sale_data['payment_method'] = "credit_with_downpayment"
+                elif invoice_type == "credit":
+                    if down_payment_amount > Decimal('0'):
+                        sale_data['payment_method'] = "credit_with_downpayment"
+                    else:
+                        sale_data['payment_method'] = "credit"
                 else:
                     sale_data['payment_method'] = "credit"
 
@@ -266,16 +267,16 @@ def sale_create(request, customer_id=None):
                         else:
                             raise ValueError("لم يتم اختيار حساب دفع للفاتورة النقدية")
                             
-                    elif invoice_type == "credit_with_downpayment" and down_payment_amount > 0:
-                        # التحقق من أن مبلغ الدفعة أقل من إجمالي الفاتورة
-                        if down_payment_amount >= sale.total:
-                            raise ValueError(f"مبلغ الدفعة المقدمة ({down_payment_amount} ج.م) يجب أن يكون أقل من إجمالي الفاتورة ({sale.total} ج.م)")
+                    elif invoice_type == "credit" and down_payment_amount > Decimal('0'):
+                        # التحقق من أن مبلغ الدفعة لا يتجاوز إجمالي الفاتورة
+                        if down_payment_amount > sale.total:
+                            raise ValueError(f"مبلغ الدفعة المقدمة ({down_payment_amount} ج.م) لا يمكن أن يتجاوز إجمالي الفاتورة ({sale.total} ج.م)")
                             
                         payment_data = {
                             'amount': down_payment_amount,
                             'payment_method': payment_method,
                             'payment_date': sale.date,
-                            'notes': f'دفعة مقدمة تلقائية مع الفاتورة - المتبقي: {sale.total - down_payment_amount} ج.م'
+                            'notes': f'دفعة مقدمة تلقائية مع الفاتورة - المتبقي: {sale.total - down_payment_amount} ج.م' if down_payment_amount < sale.total else 'دفعة كاملة مع الفاتورة'
                         }
                         SaleService.process_payment(sale, payment_data, request.user)
                         logger.info(f"✅ تم إنشاء دفعة مقدمة للفاتورة: {sale.number}")
@@ -297,7 +298,7 @@ def sale_create(request, customer_id=None):
 
         initial_data = {
             "date": timezone.now().date(),
-            "invoice_type": "credit_with_downpayment",
+            "invoice_type": "credit",
             "notes": default_sale_notes,
         }
         if default_cash:
@@ -1762,13 +1763,15 @@ def sale_duplicate(request, pk):
     if original.payment_method == "credit":
         invoice_type = "credit"
     elif original.payment_method == "credit_with_downpayment":
-        invoice_type = "credit_with_downpayment"
+        invoice_type = "credit"
         if first_payment:
             down_payment_amount = float(first_payment.amount)
-    else:
+    elif original.payment_status == "paid" or original.payment_method in ["cash", "bank_transfer", "check"] or payment_account_code:
         invoice_type = "cash"
         if not payment_account_code and original.payment_method not in ["cash", "bank_transfer", "check"]:
             payment_account_code = original.payment_method
+    else:
+        invoice_type = "credit"
 
     # التصنيف المالي بصيغة cat_X
     financial_category_id = f"cat_{original.financial_category.id}" if original.financial_category else None

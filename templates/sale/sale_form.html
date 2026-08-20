@@ -73,8 +73,13 @@
                 <div class="alert alert-danger border-0 mb-4">
                     <h6 class="alert-heading mb-2">يرجى تصحيح الأخطاء التالية:</h6>
                     <ul class="mb-0">
-                        {% for field, errors in form.errors.items %}
-                            {% for error in errors %}<li>{{ error }}</li>{% endfor %}
+                        {% for field in form %}
+                            {% for error in field.errors %}
+                                <li><strong>{{ field.label }}:</strong> {{ error }}</li>
+                            {% endfor %}
+                        {% endfor %}
+                        {% for error in form.non_field_errors %}
+                            <li>{{ error }}</li>
                         {% endfor %}
                     </ul>
                 </div>
@@ -156,7 +161,7 @@
                                                 <label class="form-label">
                                                     مركز التكلفة الرئيسي
                                                 </label>
-                                                <select name="cost_center" id="id_cost_center" class="form-control">
+                                                <select name="cost_center" id="id_cost_center" class="form-select select2" dir="rtl">
                                                     <option value="">-- بدون مركز تكلفة --</option>
                                                     {% for cc in cost_centers %}
                                                         <option value="{{ cc.id }}" {% if form.cost_center.value == cc.id|stringformat:'s' or sale.cost_center_id == cc.id %}selected{% endif %}>
@@ -246,13 +251,12 @@
 
                                             <!-- نوع الفاتورة -->
                                             <div class="col-12 col-md-6">
-                                                <label class="form-label">
+                                                <label class="form-label text-dark fw-medium">
                                                     نوع الفاتورة <span class="text-danger">*</span>
                                                 </label>
-                                                <select name="invoice_type" id="id_invoice_type" class="form-control" {% if is_edit or sale.id %}disabled{% else %}required{% endif %}>
-                                                    <option value="credit_with_downpayment" {% if form.invoice_type.value == 'credit_with_downpayment' or not form.invoice_type.value %}selected{% endif %}>أجل مع دفعة مقدمة</option>
-                                                    <option value="credit" {% if form.invoice_type.value == 'credit' %}selected{% endif %}>آجل بالكامل</option>
-                                                    <option value="cash" {% if form.invoice_type.value == 'cash' %}selected{% endif %}>نقدي بالكامل</option>
+                                                <select name="invoice_type" id="id_invoice_type" class="form-select select2" dir="rtl" {% if is_edit or sale.id %}disabled{% else %}required{% endif %}>
+                                                    <option value="credit" {% if form.invoice_type.value == 'credit' or not form.invoice_type.value %}selected{% endif %}>آجل</option>
+                                                    <option value="cash" {% if form.invoice_type.value == 'cash' %}selected{% endif %}>نقدي</option>
                                                 </select>
                                                 {% if is_edit or sale.id %}
                                                     <input type="hidden" name="invoice_type" value="{{ form.invoice_type.value|default:'credit' }}">
@@ -262,17 +266,20 @@
                                             <!-- العملة وسعر الصرف -->
                                             {% include "components/currency_header.html" %}
 
-                                            <!-- حساب الدفع -->
-                                            <div class="col-12 col-md-6" id="payment-method-field" style="display: none;">
-                                                {% include "components/payment_account_select.html" with field_name="payment_method" field_id="id_payment_method" label="حساب الدفع" required=False selected_value=form.payment_method.value %}
-                                            </div>
-
                                             <!-- مبلغ الدفعة المقدمة -->
                                             <div class="col-12 col-md-6" id="down-payment-field" style="display: none;">
-                                                <label class="form-label">
-                                                    مبلغ الدفعة المقدمة <span class="text-danger">*</span>
+                                                <label class="form-label text-dark fw-medium">
+                                                    مبلغ الدفعة المقدمة <span class="text-muted small">(اختياري)</span>
                                                 </label>
-                                                <input type="number" step="0.01" name="down_payment_amount" id="id_down_payment_amount" class="form-control" value="{{ form.down_payment_amount.value|default:'0' }}" min="0">
+                                                <div class="input-group">
+                                                    <input type="number" step="0.01" name="down_payment_amount" id="id_down_payment_amount" class="form-control text-center" value="{{ form.down_payment_amount.value|default:'' }}" min="0" placeholder="0.00">
+                                                    <span class="input-group-text bg-light text-muted small down-payment-currency-addon">{{ currency_symbol|default:'ج.م' }}</span>
+                                                </div>
+                                            </div>
+
+                                            <!-- حساب الدفع -->
+                                            <div class="col-12 col-md-6" id="payment-method-field" style="display: none;">
+                                                {% include "components/payment_account_select.html" with field_name="payment_method" field_id="id_payment_method" label="حساب الدفع (الخزينة/البنك)" required=False selected_value=form.payment_method.value %}
                                             </div>
                                         </div>
                                     </div>
@@ -454,10 +461,10 @@
                                             <div class="card border-0 shadow-sm bg-white p-3 h-100">
                                                 <h6 class="fw-bold text-dark mb-2"><i class="fas fa-percent text-primary me-2"></i>ضريبة القيمة المضافة (VAT)</h6>
                                                 <div class="form-check form-switch pt-1">
-                                                    <input class="form-check-input" type="checkbox" name="tax_active" id="id_tax_active" role="switch" {% if form.instance.tax_active or form.instance.tax_active is None %}checked{% endif %}>
-                                                    <label class="form-check-label text-dark fw-medium small" for="id_tax_active">تفعيل ضريبة القيمة المضافة (14%)</label>
+                                                    <input class="form-check-input" type="checkbox" name="tax_active" id="id_tax_active" role="switch" {% if form.instance.pk %}{% if form.instance.tax_active %}checked{% endif %}{% else %}{% if settings.enable_tax %}checked{% endif %}{% endif %}>
+                                                    <label class="form-check-label text-dark fw-medium small" for="id_tax_active">تفعيل ضريبة القيمة المضافة ({{ settings.default_tax_rate|smart_float|default:'14' }}%)</label>
                                                 </div>
-                                                <small class="form-text text-muted mt-2">تُحسب بنسبة 14% على الصافي التجاري للمستند.</small>
+                                                <small class="form-text text-muted mt-2">تُحسب بنسبة {{ settings.default_tax_rate|smart_float|default:'14' }}% على الصافي التجاري للمستند.</small>
                                             </div>
                                         </div>
                                         <div class="col-md-6">
@@ -466,7 +473,7 @@
                                                 <div class="d-flex align-items-center mb-2">
                                                     <div class="form-check form-switch me-2 pt-1">
                                                         <input class="form-check-input" type="checkbox" name="wht_active" id="id_wht_active" role="switch" {% if form.instance.wht_active %}checked{% endif %}>
-                                                        <label class="form-check-label text-dark fw-medium small" for="id_wht_active">ضريبة الخصم والإضافة (WHT)</label>
+                                                        <label class="form-check-label text-dark fw-medium small" for="id_wht_active">ضريبة الخصم والإضافة</label>
                                                     </div>
                                                     <select name="wht_rate" id="id_wht_rate" class="form-select form-select-sm ms-auto text-center" style="width: fit-content;">
                                                         <option value="1.00" {% if form.instance.wht_rate == 1 or not form.instance.wht_rate %}selected{% endif %}>1% (سلع)</option>
@@ -524,13 +531,29 @@
                                     <div class="col-6 text-end"><strong style="white-space: nowrap;" id="adjustment-label">التسوية:</strong></div>
                                     <div class="col-6 text-end"><span id="adjustment-total">0</span></div>
                                 </div>
+                                <div class="row mb-2" id="tax-total-row">
+                                    <div class="col-6 text-end"><strong style="white-space: nowrap;">القيمة المضافة ({{ settings.default_tax_rate|smart_float|default:'14' }}%):</strong></div>
+                                    <div class="col-6 text-end text-primary"><span id="tax-total">0</span></div>
+                                </div>
+                                <div class="row mb-2" id="wht-total-row" style="display: none;">
+                                    <div class="col-6 text-end"><strong style="white-space: nowrap;">خصم أرباح تجارية:</strong></div>
+                                    <div class="col-6 text-end text-warning"><span id="wht-total">0</span></div>
+                                </div>
                                 <hr class="my-2">
-                                <div class="row">
+                                <div class="row mb-2">
                                     <div class="col-6 text-end"><strong style="white-space: nowrap;" class="fs-6 text-dark">الإجمالي:</strong></div>
                                     <div class="col-6 text-end">
                                         <span id="grand-total" class="fs-6 fw-bold text-success">0</span>
                                         <input type="hidden" name="total" id="total-input">
                                     </div>
+                                </div>
+                                <div class="row mb-2" id="paid-summary-row" style="display: none;">
+                                    <div class="col-6 text-end"><strong style="white-space: nowrap;" id="paid-summary-label">المدفوع:</strong></div>
+                                    <div class="col-6 text-end"><span id="down-payment-total" class="text-success fw-bold">0</span></div>
+                                </div>
+                                <div class="row" id="remaining-summary-row" style="display: none;">
+                                    <div class="col-6 text-end"><strong style="white-space: nowrap;">المتبقي (آجل):</strong></div>
+                                    <div class="col-6 text-end"><span id="remaining-total" class="text-primary fw-bold">0</span></div>
                                 </div>
                             </div>
                         </div>
@@ -773,9 +796,13 @@
                 : num.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 2});
         }
 
-        // ===== Select2 للعميل والمخزن فقط =====
+        // ===== Select2 للعميل والمخزن ومسؤول المبيعات ومركز التكلفة ونوع الفاتورة وحساب الدفع =====
         $('#id_customer').select2({ placeholder: "اختر العميل", width: '100%', allowClear: true });
         $('#id_warehouse').select2({ placeholder: "اختر المخزن", width: '100%', allowClear: true });
+        $('#id_salesman').select2({ placeholder: "اختر مسؤول المبيعات", width: '100%', allowClear: true });
+        $('#id_cost_center').select2({ placeholder: "اختر مركز التكلفة", width: '100%', allowClear: true });
+        $('#id_invoice_type').select2({ width: '100%', dir: 'rtl', minimumResultsForSearch: Infinity });
+        $('#id_payment_method').select2({ width: '100%', dir: 'rtl', placeholder: "اختر الحساب / طريقة الدفع", allowClear: true });
 
         // إخفاء المخزن إذا كان نوع البنود المسموح بها خدمات فقط
         const allowedItemTypes = $('#django-sales-form-data').data('allowed-item-types') || 'both';
@@ -967,38 +994,54 @@
             })();
         }
 
-        // ===== نوع الفاتورة =====
-        $('#id_invoice_type').on('change', function() {
-            const invoiceType = $(this).val();
+        // ===== نوع الفاتورة والدفعة المقدمة وحساب الدفع =====
+        function updatePaymentFieldsState() {
+            const invoiceType = $('#id_invoice_type').val() || 'credit';
+            const downPaymentVal = parseFloat($('#id_down_payment_amount').val()) || 0;
             const paymentMethodField = $('#payment-method-field');
             const paymentMethodSelect = $('#id_payment_method');
             const downPaymentField = $('#down-payment-field');
             const downPaymentInput = $('#id_down_payment_amount');
             
             if (invoiceType === 'cash') {
-                paymentMethodField.show();
-                paymentMethodSelect.prop('required', true);
                 downPaymentField.hide();
                 downPaymentInput.prop('required', false);
-            } else if (invoiceType === 'credit_with_downpayment') {
                 paymentMethodField.show();
                 paymentMethodSelect.prop('required', true);
-                downPaymentField.show();
-                downPaymentInput.prop('required', true);
+                paymentMethodSelect.select2({ width: '100%', dir: 'rtl', placeholder: "اختر الحساب / طريقة الدفع", allowClear: true });
             } else {
-                // credit (آجل بالكامل)
-                paymentMethodField.hide();
-                paymentMethodSelect.val('').trigger('change');
-                paymentMethodSelect.prop('required', false);
-                downPaymentField.hide();
+                // credit (آجل)
+                downPaymentField.show();
                 downPaymentInput.prop('required', false);
+                if (downPaymentVal > 0) {
+                    paymentMethodField.show();
+                    paymentMethodSelect.prop('required', true);
+                    paymentMethodSelect.select2({ width: '100%', dir: 'rtl', placeholder: "اختر الحساب / طريقة الدفع", allowClear: true });
+                } else {
+                    paymentMethodField.hide();
+                    paymentMethodSelect.prop('required', false);
+                    paymentMethodSelect.val('').trigger('change');
+                }
             }
+            if (typeof calculateTotals === 'function') {
+                calculateTotals();
+            }
+        }
+
+        $('#id_invoice_type').on('change', function() {
+            if ($(this).val() === 'cash') {
+                $('#id_down_payment_amount').val('');
+            }
+            updatePaymentFieldsState();
+        });
+
+        $('#id_down_payment_amount').on('input change', function() {
+            updatePaymentFieldsState();
         });
 
         (function() {
             if (window._duplicateData) return;
-            // تفعيل إظهار/إخفاء الحقول بناءً على نوع الفاتورة المحدد من السيرفر
-            $('#id_invoice_type').trigger('change');
+            updatePaymentFieldsState();
         })();
 
         // ===== تهيئة مكون اختيار المنتجات والبحث الموحد =====
@@ -1023,7 +1066,9 @@
                 if ($(this).hasClass('quantity')) {
                     var quantity = parseFloat($(this).val()) || 0;
                     var prodInput = row.find('.product-id-input');
-                    var isService = prodInput.attr('data-is-service') === 'true';
+                    var isService = prodInput.attr('data-is-service') === 'true' || 
+                                    prodInput.attr('data-is-service') === true || 
+                                    prodInput.data('is-service') === true;
                     if (isService) {
                         row.find('.stock-info').html('<span class="text-success small"><i class="fas fa-tools"></i> خدمة</span>');
                     } else {
@@ -1089,11 +1134,12 @@
 
             var netSubtotal = Math.max(0, subtotal - discountTotal + adjTotal);
 
-            // 3. حساب ضريبة القيمة المضافة (VAT 14%)
+            // 3. حساب ضريبة القيمة المضافة (VAT) ديناميكياً حسب إعدادات النظام
+            var defaultTaxRate = parseFloat('{{ settings.default_tax_rate|default:14 }}') || 14;
             var isTaxActive = $('#id_tax_active').is(':checked');
             var vatTotal = 0;
             if (isTaxActive) {
-                vatTotal = netSubtotal * 0.14;
+                vatTotal = (netSubtotal * defaultTaxRate) / 100.0;
                 $('#tax-total-row').removeClass('text-muted opacity-50');
             } else {
                 vatTotal = 0;
@@ -1146,6 +1192,33 @@
             $('#grand-total').text(smartFloat(grandTotal) + ' ' + currencySymbol);
             $('#subtotal-input').val(subtotal.toFixed(2));
             $('#total-input').val(grandTotal.toFixed(2));
+
+            // 5. حساب وعرض الدفعة المقدمة والمتبقي الآجل لحظياً
+            var currentInvType = $('#id_invoice_type').val() || 'credit';
+            var currentDownPayment = parseFloat($('#id_down_payment_amount').val()) || 0;
+            $('.down-payment-currency-addon').text(currencySymbol);
+
+            if (currentInvType === 'cash') {
+                $('#paid-summary-row').show();
+                $('#paid-summary-label').text('المسدد نقداً:');
+                $('#down-payment-total').text(smartFloat(grandTotal) + ' ' + currencySymbol);
+                $('#remaining-summary-row').show();
+                $('#remaining-total').text('0.00 ' + currencySymbol).removeClass('text-primary').addClass('text-muted');
+            } else {
+                // credit
+                if (currentDownPayment > 0) {
+                    $('#paid-summary-row').show();
+                    $('#paid-summary-label').text('الدفعة المقدمة:');
+                    $('#down-payment-total').text(smartFloat(currentDownPayment) + ' ' + currencySymbol);
+                    var remainingBal = Math.max(0, grandTotal - currentDownPayment);
+                    $('#remaining-summary-row').show();
+                    $('#remaining-total').text(smartFloat(remainingBal) + ' ' + currencySymbol).removeClass('text-muted').addClass('text-primary fw-bold');
+                } else {
+                    $('#paid-summary-row').hide();
+                    $('#remaining-summary-row').show();
+                    $('#remaining-total').text(smartFloat(grandTotal) + ' ' + currencySymbol).removeClass('text-muted').addClass('text-primary fw-bold');
+                }
+            }
         }
 
         // ===== تهيئة عند التحميل =====
@@ -1174,7 +1247,7 @@
             }
 
             // التحقق من نوع الفاتورة وطريقة الدفع والدفعة المقدمة قبل الإرسال
-            var invoiceType = $('#id_invoice_type').val();
+            var invoiceType = $('#id_invoice_type').val() || 'credit';
             var paymentMethod = $('#id_payment_method').val();
             var downPaymentAmount = parseFloat($('#id_down_payment_amount').val()) || 0;
             var grandTotal = parseFloat($('#total-input').val()) || 0;
@@ -1191,43 +1264,35 @@
                     });
                     e.preventDefault(); return false;
                 }
-            } else if (invoiceType === 'credit_with_downpayment') {
-                if (!paymentMethod || paymentMethod.trim() === '') {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'حساب الدفع مطلوب',
-                        text: 'يجب اختيار حساب دفع (خزينة/بنك) للدفعة المقدمة.'
-                    }).then(function() {
-                        $('#id_payment_method').focus();
-                    });
-                    e.preventDefault(); return false;
-                }
-                if (downPaymentAmount <= 0) {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'مبلغ الدفعة المقدمة غير صحيح',
-                        text: 'يجب أن يكون مبلغ الدفعة المقدمة أكبر من الصفر. إذا كانت الفاتورة آجلة بالكامل، اختر نوع الفاتورة "آجل بالكامل".'
-                    }).then(function() {
-                        $('#id_down_payment_amount').focus();
-                    });
-                    e.preventDefault(); return false;
-                }
-                if (grandTotal > 0 && downPaymentAmount >= grandTotal) {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'مبلغ الدفعة المقدمة مرتفع',
-                        text: 'مبلغ الدفعة المقدمة (' + smartFloat(downPaymentAmount) + ' ' + currencySymbol + ') يجب أن يكون أقل من إجمالي الفاتورة (' + smartFloat(grandTotal) + ' ' + currencySymbol + '). للفاتورة النقدية بالكامل، اختر نوع الفاتورة "نقدي بالكامل".'
-                    }).then(function() {
-                        $('#id_down_payment_amount').focus();
-                    });
-                    e.preventDefault(); return false;
+            } else if (invoiceType === 'credit') {
+                if (downPaymentAmount > 0) {
+                    if (!paymentMethod || paymentMethod.trim() === '') {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'حساب الدفع مطلوب',
+                            text: 'يجب اختيار حساب دفع (خزينة/بنك) للدفعة المقدمة.'
+                        }).then(function() {
+                            $('#id_payment_method').focus();
+                        });
+                        e.preventDefault(); return false;
+                    }
+                    if (grandTotal > 0 && downPaymentAmount > grandTotal) {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'مبلغ الدفعة المقدمة مرتفع',
+                            text: 'مبلغ الدفعة المقدمة (' + smartFloat(downPaymentAmount) + ' ' + currencySymbol + ') لا يمكن أن يتجاوز إجمالي الفاتورة (' + smartFloat(grandTotal) + ' ' + currencySymbol + ').'
+                        }).then(function() {
+                            $('#id_down_payment_amount').focus();
+                        });
+                        e.preventDefault(); return false;
+                    }
                 }
             }
 
             if (paymentMethod === 'PREPAID_BALANCE') {
                 var selectedOpt = $('#id_customer option:selected');
                 var availablePrepaid = parseFloat(selectedOpt.data('prepaid-balance') || $('#id_customer').data('prepaid-balance') || '0');
-                var reqAmount = (invoiceType === 'cash') ? grandTotal : (invoiceType === 'credit_with_downpayment' ? downPaymentAmount : 0);
+                var reqAmount = (invoiceType === 'cash') ? grandTotal : (downPaymentAmount > 0 ? downPaymentAmount : 0);
 
                 if (reqAmount > 0 && availablePrepaid < reqAmount) {
                     Swal.fire({
@@ -1320,17 +1385,18 @@
 
             // 1. نوع الفاتورة
             if (d.invoiceType) {
-                $('#id_invoice_type').val(d.invoiceType).trigger('change');
+                var invType = (d.invoiceType === 'credit_with_downpayment') ? 'credit' : d.invoiceType;
+                $('#id_invoice_type').val(invType).trigger('change');
             }
 
             // 2. طريقة الدفع والدفعة المقدمة
-            if ((d.invoiceType === 'cash' || d.invoiceType === 'credit_with_downpayment') && d.paymentMethod) {
+            if (d.downPaymentAmount && parseFloat(d.downPaymentAmount) > 0) {
+                $('#id_down_payment_amount').val(d.downPaymentAmount).trigger('input');
+            }
+            if (d.paymentMethod) {
                 setTimeout(function() {
                     $('#id_payment_method').val(d.paymentMethod).trigger('change');
                 }, 150);
-            }
-            if (d.invoiceType === 'credit_with_downpayment' && d.downPaymentAmount && parseFloat(d.downPaymentAmount) > 0) {
-                $('#id_down_payment_amount').val(d.downPaymentAmount).trigger('input');
             }
 
             // 3. التصنيف المالي
@@ -1395,10 +1461,13 @@
 {% if form.errors or messages %}
 <div id="django-server-errors" class="d-none">
     {% if form.errors %}
-        {% for field, errors in form.errors.items %}
-            {% for error in errors %}
-                <span class="django-error-item">{{ error }}</span>
+        {% for field in form %}
+            {% for error in field.errors %}
+                <span class="django-error-item">{{ field.label }}: {{ error }}</span>
             {% endfor %}
+        {% endfor %}
+        {% for error in form.non_field_errors %}
+            <span class="django-error-item">{{ error }}</span>
         {% endfor %}
     {% endif %}
     {% if messages %}

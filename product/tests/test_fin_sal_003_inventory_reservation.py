@@ -32,8 +32,8 @@ class TestFINSAL003InventoryReservation:
         customer = Customer.objects.create(name="Delta Electronics", code="CUST-RES-001", credit_limit=Decimal("100000.00"))
 
         from financial.models.chart_of_accounts import ChartOfAccounts, AccountType
-        asset_type, _ = AccountType.objects.get_or_create(code="ASSET", name="Assets", category="ASSET")
-        exp_type, _ = AccountType.objects.get_or_create(code="EXPENSE", name="Expenses", category="EXPENSE")
+        asset_type, _ = AccountType.objects.get_or_create(code="ASSET", defaults={"name": "Assets", "category": "ASSET"})
+        exp_type, _ = AccountType.objects.get_or_create(code="EXPENSE", defaults={"name": "Expenses", "category": "EXPENSE"})
 
         ChartOfAccounts.objects.get_or_create(code="10400", defaults={"name": "Inventory Asset Account", "account_type": asset_type, "is_active": True})
         ChartOfAccounts.objects.get_or_create(code="50100", defaults={"name": "Cost of Goods Sold Account", "account_type": exp_type, "is_active": True})

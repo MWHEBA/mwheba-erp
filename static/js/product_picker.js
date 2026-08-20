@@ -902,7 +902,18 @@
 
         // طباعة حالة رصيد المخزون
         renderStockInfo: function($row, stock) {
+            var $idInput = $row.find('.product-id-input');
+            var isService = $idInput.attr('data-is-service') === 'true' || 
+                            $idInput.attr('data-is-service') === true || 
+                            $idInput.data('is-service') === true ||
+                            $idInput.data('is-service') === 'true';
+
             var $stockContainer = $row.find('.stock-info');
+            if (isService) {
+                $stockContainer.html('<span class="text-success small"><i class="fas fa-tools"></i> خدمة</span>');
+                return;
+            }
+
             if (stock <= 0) {
                 $stockContainer.html('<span class="stock-warning">لا يوجد مخزون</span>');
             } else if (stock <= 5) {

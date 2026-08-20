@@ -24,7 +24,7 @@ Reusable Multi-Currency Header Card Component (IAS 21 Governance Standard)
 
 <div class="col-12 col-md-6 mb-3 {% if not selected_currency_is_foreign %}d-none{% endif %}" id="exchange_rate_container">
     <label for="id_exchange_rate" class="form-label text-dark fw-medium">
-        سعر الصرف (مقابل {{ functional_currency.code }}) <span class="text-danger">*</span>
+        سعر الصرف (مقابل {{ functional_currency.code|default:"EGP" }}) <span class="text-danger">*</span>
     </label>
     <div class="input-group">
         <input type="number" 
@@ -36,6 +36,13 @@ Reusable Multi-Currency Header Card Component (IAS 21 Governance Standard)
                value="{{ current_exchange_rate|default:'1.000000' }}" 
                readonly
                placeholder="1.000000">
+        <button type="button" 
+                class="input-group-text bg-light text-muted" 
+                id="btn_refresh_exchange_rate" 
+                title="تحديث ومزامنة سعر الصرف اللحظي"
+                style="cursor: pointer;">
+            <i class="fas fa-sync-alt" id="icon_refresh_exchange_rate" style="font-size: 0.85rem;"></i>
+        </button>
         <span class="input-group-text bg-light text-muted small" id="exchange_rate_unit">
             {{ functional_currency.symbol|default:"ج.م" }}
         </span>
@@ -78,6 +85,113 @@ Reusable Multi-Currency Header Card Component (IAS 21 Governance Standard)
         }
     }
 
+    function refreshExchangeRateLive() {
+        var $select = $('#id_currency');
+        if (!$select.length) return;
+        var $opt = $select.find('option:selected');
+        if (!$opt.length) return;
+
+        var isFunctional = $opt.data('is-functional') === true || $opt.data('is-functional') === "true";
+        var currCode = ($opt.data('code') || $opt.text().trim().split(' ')[0] || '').toUpperCase();
+
+        if (isFunctional) {
+            if (typeof window.showNotification === 'function') {
+                window.showNotification('العملة المحددة هي العملة الأساسية للمؤسسة وسعر صرفها دائمًا 1.000000', 'info');
+            } else if (typeof toastr !== 'undefined') {
+                toastr.info('العملة المحددة هي العملة الأساسية للمؤسسة وسعر صرفها دائمًا 1.000000');
+            }
+            return;
+        }
+
+        var $btn = $('#btn_refresh_exchange_rate');
+        var $icon = $('#icon_refresh_exchange_rate');
+
+        $btn.prop('disabled', true);
+        $icon.addClass('fa-spin');
+
+        var csrfToken = document.querySelector('[name=csrfmiddlewaretoken]') ? 
+                        document.querySelector('[name=csrfmiddlewaretoken]').value : 
+                        (document.cookie.split('; ').find(function(row) { return row.startsWith('csrftoken='); }) || '').split('=')[1];
+
+        fetch("{% url 'financial:api_sync_exchange_rates' %}", {
+            method: "POST",
+            headers: {
+                "X-CSRFToken": csrfToken || "",
+                "Content-Type": "application/json"
+            }
+        })
+        .then(function(res) {
+            if (!res.ok) throw new Error("فشل الاتصال بخدمة أسعار الصرف");
+            return res.json();
+        })
+        .then(function(data) {
+            if (data.status === 'SUCCESS' && Array.isArray(data.synced_rates)) {
+                // تحديث جميع خيارات العملات في القائمة
+                data.synced_rates.forEach(function(item) {
+                    var $matchedOpt = $select.find('option').filter(function() {
+                        var code = ($(this).data('code') || $(this).text().trim().split(' ')[0] || '').toUpperCase();
+                        return code === item.code.toUpperCase();
+                    });
+                    if ($matchedOpt.length) {
+                        var parsedVal = parseFloat(item.rate).toFixed(6);
+                        $matchedOpt.attr('data-rate', parsedVal);
+                        $matchedOpt.data('rate', parsedVal);
+                    }
+                });
+
+                // تحديث الحقل للعملة المختارة حالياً
+                var currentMatched = data.synced_rates.find(function(item) {
+                    return item.code.toUpperCase() === currCode;
+                });
+
+                if (currentMatched && currentMatched.rate) {
+                    var newRate = parseFloat(currentMatched.rate).toFixed(6);
+                    $opt.attr('data-rate', newRate);
+                    $opt.data('rate', newRate);
+                    $('#id_exchange_rate').val(newRate);
+
+                    if (typeof window.calculateTotals === 'function') {
+                        window.calculateTotals();
+                    }
+
+                    var msg = 'تم تحديث سعر صرف (' + currCode + ') إلى ' + newRate + ' بنجاح';
+                    if (typeof window.showNotification === 'function') {
+                        window.showNotification(msg, 'success');
+                    } else if (typeof toastr !== 'undefined') {
+                        toastr.success(msg);
+                    }
+                } else {
+                    var okMsg = data.message || 'تم تحديث ومزامنة أسعار الصرف بنجاح';
+                    if (typeof window.showNotification === 'function') {
+                        window.showNotification(okMsg, 'success');
+                    } else if (typeof toastr !== 'undefined') {
+                        toastr.success(okMsg);
+                    }
+                }
+            } else {
+                var warnMsg = data.message || 'تعذر تحديث سعر الصرف التلقائي';
+                if (typeof window.showNotification === 'function') {
+                    window.showNotification(warnMsg, 'warning');
+                } else if (typeof toastr !== 'undefined') {
+                    toastr.warning(warnMsg);
+                }
+            }
+        })
+        .catch(function(err) {
+            console.error("Exchange rate sync error:", err);
+            var errMsg = 'تعذر الاتصال بمزود أسعار الصرف، يرجى المحاولة لاحقاً';
+            if (typeof window.showNotification === 'function') {
+                window.showNotification(errMsg, 'error');
+            } else if (typeof toastr !== 'undefined') {
+                toastr.error(errMsg);
+            }
+        })
+        .finally(function() {
+            $icon.removeClass('fa-spin');
+            $btn.prop('disabled', false);
+        });
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
         if (typeof jQuery !== 'undefined' && typeof jQuery.fn.select2 !== 'undefined') {
             var $curr = $('#id_currency');
@@ -91,6 +205,13 @@ Reusable Multi-Currency Header Card Component (IAS 21 Governance Standard)
         $(document).off('change.syncRate select2:select.syncRate', '#id_currency')
                    .on('change.syncRate select2:select.syncRate', '#id_currency', function() {
             updateExchangeRateFromSelect();
+        });
+
+        // ربط زر التحديث اللحظي لسعر الصرف
+        $(document).off('click.refreshRate', '#btn_refresh_exchange_rate')
+                   .on('click.refreshRate', '#btn_refresh_exchange_rate', function(e) {
+            e.preventDefault();
+            refreshExchangeRateLive();
         });
     });
 </script>

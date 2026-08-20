@@ -68,10 +68,13 @@
         <div class="alert alert-danger border-0 mb-4">
             <h6 class="alert-heading mb-2">يرجى تصحيح الأخطاء التالية:</h6>
             <ul class="mb-0">
-                {% for field, errors in form.errors.items %}
-                    {% for error in errors %}
-                        <li>{{ error }}</li>
+                {% for field in form %}
+                    {% for error in field.errors %}
+                        <li><strong>{{ field.label }}:</strong> {{ error }}</li>
                     {% endfor %}
+                {% endfor %}
+                {% for error in form.non_field_errors %}
+                    <li>{{ error }}</li>
                 {% endfor %}
             </ul>
         </div>
@@ -146,7 +149,7 @@
                                         <label class="form-label">
                                             <i class="bi bi-diagram-3 me-1"></i>مركز التكلفة الرئيسي
                                         </label>
-                                        <select name="cost_center" id="id_cost_center" class="form-control">
+                                        <select name="cost_center" id="id_cost_center" class="form-select select2" dir="rtl">
                                             <option value="">-- بدون مركز تكلفة --</option>
                                             {% for cc in cost_centers %}
                                                 <option value="{{ cc.id }}" {% if form.cost_center.value == cc.id|stringformat:'s' or purchase.cost_center_id == cc.id %}selected{% endif %}>
@@ -233,8 +236,8 @@
 
                                     <!-- نوع الفاتورة -->
                                     <div class="col-12 col-md-6">
-                                        <label class="form-label">نوع الفاتورة <span class="text-danger">*</span></label>
-                                        <select name="invoice_type" id="id_invoice_type" class="form-control" required>
+                                        <label class="form-label text-dark fw-medium">نوع الفاتورة <span class="text-danger">*</span></label>
+                                        <select name="invoice_type" id="id_invoice_type" class="form-select select2" dir="rtl" required>
                                             <option value="">اختر نوع الفاتورة</option>
                                             <option value="cash" {% if form.payment_method.value and form.payment_method.value != 'credit' %}selected{% endif %}>نقدي</option>
                                             <option value="credit" {% if form.payment_method.value == 'credit' %}selected{% endif %}>آجل</option>
@@ -399,10 +402,10 @@
                                     <div class="card border-0 shadow-sm bg-white p-3 h-100">
                                         <h6 class="fw-bold text-dark mb-2"><i class="fas fa-percent text-primary me-2"></i>ضريبة القيمة المضافة (VAT)</h6>
                                         <div class="form-check form-switch pt-1">
-                                            <input class="form-check-input" type="checkbox" name="tax_active" id="id_tax_active" role="switch" {% if form.instance.tax_active %}checked{% endif %}>
-                                            <label class="form-check-label text-dark fw-medium small" for="id_tax_active">تفعيل ضريبة القيمة المضافة (14%)</label>
+                                            <input class="form-check-input" type="checkbox" name="tax_active" id="id_tax_active" role="switch" {% if form.instance.pk %}{% if form.instance.tax_active %}checked{% endif %}{% else %}{% if settings.enable_tax %}checked{% endif %}{% endif %}>
+                                            <label class="form-check-label text-dark fw-medium small" for="id_tax_active">تفعيل ضريبة القيمة المضافة ({{ settings.default_tax_rate|smart_float|default:'14' }}%)</label>
                                         </div>
-                                        <small class="form-text text-muted mt-2">تُحسب بنسبة 14% على الصافي التجاري للفاتورة.</small>
+                                        <small class="form-text text-muted mt-2">تُحسب بنسبة {{ settings.default_tax_rate|smart_float|default:'14' }}% على الصافي التجاري للفاتورة.</small>
                                     </div>
                                 </div>
                                 <div class="col-md-6">
@@ -461,7 +464,7 @@
 
                         <div class="row mb-2" id="tax-total-row">
                             <div class="col-6 text-end">
-                                <strong style="white-space: nowrap;">القيمة المضافة (14%):</strong>
+                                <strong style="white-space: nowrap;">القيمة المضافة ({{ settings.default_tax_rate|smart_float|default:'14' }}%):</strong>
                             </div>
                             <div class="col-6 text-end text-primary">
                                 <span id="tax-total">0.00</span>
@@ -587,10 +590,13 @@
 <script src="{% static 'js/product_picker.js' %}"></script>
 <script>
     $(document).ready(function() {
-        // ===== Select2 للمورد والمخزن فقط =====
+        // ===== Select2 للمورد والمخزن والتصنيف المالي ومركز التكلفة ونوع الفاتورة وطريقة الدفع =====
         $('#id_supplier').select2({ placeholder: "اختر المورد", width: '100%', allowClear: true });
         $('#id_warehouse').select2({ placeholder: "اختر المخزن", width: '100%', allowClear: true });
         $('#id_financial_category').select2({ placeholder: "اختر التصنيف المالي", width: '100%', allowClear: true });
+        $('#id_cost_center').select2({ placeholder: "اختر مركز التكلفة", width: '100%', allowClear: true });
+        $('#id_invoice_type').select2({ width: '100%', dir: 'rtl', minimumResultsForSearch: Infinity });
+        $('#id_payment_method').select2({ width: '100%', dir: 'rtl', placeholder: "اختر طريقة الدفع", allowClear: true });
 
         // حل مشكلة عدم القدرة على الكتابة في حقول SweetAlert عند فتحها من داخل مودال
         window.addEventListener('focusin', function(e) {
@@ -712,6 +718,7 @@
             if (invoiceType === 'cash') {
                 paymentMethodField.show();
                 paymentMethodSelect.prop('required', true);
+                paymentMethodSelect.select2({ width: '100%', dir: 'rtl', placeholder: "اختر طريقة الدفع", allowClear: true });
             } else if (invoiceType === 'credit') {
                 paymentMethodField.hide();
                 paymentMethodSelect.val('credit').trigger('change');
@@ -751,15 +758,18 @@
                 var row = $(this).closest('.item-row');
                 calculateRowTotal(row);
                 if ($(this).hasClass('quantity')) {
-                    var quantity = parseFloat($(this).val()) || 0;
-                    var stock = parseInt(row.find('.product-id-input').attr('data-stock') || 0);
-                    if (quantity > stock && stock > 0) {
-                        row.find('.stock-info').html('<span class="stock-warning">تحذير: الكمية أكبر من المخزون (' + stock + ')</span>');
+                    var prodInput = row.find('.product-id-input');
+                    var isService = prodInput.attr('data-is-service') === 'true' || 
+                                    prodInput.attr('data-is-service') === true || 
+                                    prodInput.data('is-service') === true;
+                    if (isService) {
+                        row.find('.stock-info').html('<span class="text-success small"><i class="fas fa-tools"></i> خدمة</span>');
                     } else {
-                        if (typeof renderStockInfo === 'function') {
-                            renderStockInfo(row, stock);
-                        } else if (typeof window.renderStockInfo === 'function') {
+                        var stock = parseInt(prodInput.attr('data-stock') || 0);
+                        if (typeof window.renderStockInfo === 'function') {
                             window.renderStockInfo(row, stock);
+                        } else if (typeof renderStockInfo === 'function') {
+                            renderStockInfo(row, stock);
                         }
                     }
                 }
@@ -785,10 +795,11 @@
             var discount = parseFloat($('#id_discount').val()) || 0;
             var netSubtotal = Math.max(0, subtotal - discount);
 
+            var defaultTaxRate = parseFloat('{{ settings.default_tax_rate|default:14 }}') || 14;
             var isTaxActive = $('#id_tax_active').is(':checked');
             var vatTotal = 0;
             if (isTaxActive) {
-                vatTotal = netSubtotal * 0.14;
+                vatTotal = (netSubtotal * defaultTaxRate) / 100.0;
                 $('#tax-total-row').removeClass('text-muted opacity-50');
             } else {
                 vatTotal = 0;
@@ -1143,10 +1154,13 @@
 {% if form.errors or messages %}
 <div id="django-server-errors" class="d-none">
     {% if form.errors %}
-        {% for field, errors in form.errors.items %}
-            {% for error in errors %}
-                <span class="django-error-item">{{ error }}</span>
+        {% for field in form %}
+            {% for error in field.errors %}
+                <span class="django-error-item">{{ field.label }}: {{ error }}</span>
             {% endfor %}
+        {% endfor %}
+        {% for error in form.non_field_errors %}
+            <span class="django-error-item">{{ error }}</span>
         {% endfor %}
     {% endif %}
     {% if messages %}

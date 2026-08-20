@@ -31,6 +31,22 @@
     <form method="post" id="quotation-form" novalidate>
         {% csrf_token %}
         
+        {% if form.errors %}
+        <div class="alert alert-danger border-0 mb-4">
+            <h6 class="alert-heading mb-2">يرجى تصحيح الأخطاء التالية:</h6>
+            <ul class="mb-0">
+                {% for field in form %}
+                    {% for error in field.errors %}
+                        <li><strong>{{ field.label }}:</strong> {{ error }}</li>
+                    {% endfor %}
+                {% endfor %}
+                {% for error in form.non_field_errors %}
+                    <li>{{ error }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+        
         <!-- القسم الأول: بيانات عرض السعر والعميل والعملة -->
         <div class="section-container mb-4">
             <h5 class="section-title"><i class="fas fa-file-invoice me-2"></i>بيانات عرض السعر والعميل والعملة</h5>
@@ -90,7 +106,7 @@
                                         <label class="form-label">
                                             <i class="bi bi-diagram-3 me-1"></i>مركز التكلفة الرئيسي
                                         </label>
-                                        <select name="cost_center" id="id_cost_center" class="form-control">
+                                        <select name="cost_center" id="id_cost_center" class="form-select select2" dir="rtl">
                                             <option value="">-- بدون مركز تكلفة --</option>
                                             {% for cc in cost_centers %}
                                                 <option value="{{ cc.id }}" {% if form.cost_center.value == cc.id|stringformat:'s' or quotation.cost_center_id == cc.id %}selected{% endif %}>
@@ -297,10 +313,10 @@
                                     <div class="card border-0 shadow-sm bg-white p-3 h-100">
                                         <h6 class="fw-bold text-dark mb-2"><i class="fas fa-percent text-primary me-2"></i>ضريبة القيمة المضافة (VAT)</h6>
                                         <div class="form-check form-switch pt-1">
-                                            <input class="form-check-input" type="checkbox" name="tax_active" id="id_tax_active" role="switch" {% if form.instance.tax_active or form.instance.tax_active is None %}checked{% endif %}>
-                                            <label class="form-check-label text-dark fw-medium small" for="id_tax_active">{% trans "تفعيل ضريبة القيمة المضافة (14%)" %}</label>
+                                            <input class="form-check-input" type="checkbox" name="tax_active" id="id_tax_active" role="switch" {% if form.instance.pk %}{% if form.instance.tax_active %}checked{% endif %}{% else %}{% if settings.enable_tax %}checked{% endif %}{% endif %}>
+                                            <label class="form-check-label text-dark fw-medium small" for="id_tax_active">{% trans "تفعيل ضريبة القيمة المضافة" %} ({{ settings.default_tax_rate|smart_float|default:'14' }}%)</label>
                                         </div>
-                                        <small class="form-text text-muted mt-2">تُحسب بنسبة 14% على الصافي التجاري للمستند.</small>
+                                        <small class="form-text text-muted mt-2">{% trans "تُحسب بنسبة" %} {{ settings.default_tax_rate|smart_float|default:'14' }}% {% trans "على الصافي التجاري للمستند." %}</small>
                                     </div>
                                 </div>
                                 <div class="col-md-6">
@@ -309,7 +325,7 @@
                                         <div class="d-flex align-items-center mb-2">
                                             <div class="form-check form-switch me-2 pt-1">
                                                 <input class="form-check-input" type="checkbox" name="wht_active" id="id_wht_active" role="switch" {% if form.instance.wht_active %}checked{% endif %}>
-                                                <label class="form-check-label text-dark fw-medium small" for="id_wht_active">{% trans "خصم أرباح تجارية" %}</label>
+                                                <label class="form-check-label text-dark fw-medium small" for="id_wht_active">ضريبة الخصم والإضافة</label>
                                             </div>
                                             <select name="wht_rate" id="id_wht_rate" class="form-select form-select-sm ms-auto text-center" style="width: fit-content;">
                                                 <option value="1.00" {% if form.instance.wht_rate == 1 or not form.instance.wht_rate %}selected{% endif %}>1% (سلع)</option>
@@ -371,7 +387,7 @@
                             </div>
                         </div>
                         <div class="row mb-2" id="tax-total-row">
-                            <div class="col-6 text-end"><strong>{% trans "القيمة المضافة (14%):" %}</strong></div>
+                            <div class="col-6 text-end"><strong>{% trans "القيمة المضافة" %} ({{ settings.default_tax_rate|smart_float|default:'14' }}%):</strong></div>
                             <div class="col-6 text-end text-primary">
                                 <span id="tax-total">0</span>
                             </div>
@@ -617,8 +633,11 @@
                 : num.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 2});
         }
 
-        // ===== Select2 للعميل =====
+        // ===== Select2 للعميل والمخزن ومسؤول المبيعات ومركز التكلفة =====
         $('#id_customer').select2({ placeholder: "اختر العميل", width: '100%', allowClear: true });
+        $('#id_warehouse').select2({ placeholder: "اختر المخزن", width: '100%', allowClear: true });
+        $('#id_salesman').select2({ placeholder: "اختر مسؤول المبيعات", width: '100%', allowClear: true });
+        $('#id_cost_center').select2({ placeholder: "اختر مركز التكلفة", width: '100%', allowClear: true });
 
         const allowedItemTypes = $('#django-sales-form-data').data('allowed-item-types') || 'both';
         var placeholderText = "اختر المنتج / الخدمة";
@@ -773,7 +792,9 @@
                 if ($(this).hasClass('quantity')) {
                     var quantity = parseFloat($(this).val()) || 0;
                     var prodInput = row.find('.product-id-input');
-                    var isService = prodInput.attr('data-is-service') === 'true';
+                    var isService = prodInput.attr('data-is-service') === 'true' || 
+                                    prodInput.attr('data-is-service') === true || 
+                                    prodInput.data('is-service') === true;
                     if (isService) {
                         row.find('.stock-info').html('<span class="text-success small"><i class="fas fa-tools"></i> خدمة</span>');
                     } else {
@@ -838,10 +859,11 @@
 
             var netSubtotal = Math.max(0, subtotal - discountTotal + adjTotal);
             
+            var defaultTaxRate = parseFloat('{{ settings.default_tax_rate|default:14 }}') || 14;
             var isTaxActive = $('#id_tax_active').is(':checked');
             var vat = 0;
             if (isTaxActive) {
-                vat = netSubtotal * 0.14; // ضريبة 14%
+                vat = (netSubtotal * defaultTaxRate) / 100.0;
                 $('#tax-total-row').removeClass('text-muted opacity-50');
             } else {
                 vat = 0;

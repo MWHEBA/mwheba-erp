@@ -247,7 +247,7 @@ def exchange_rate_create(request):
 @login_required
 def api_sync_exchange_rates(request):
     """API لمزامنة أسعار الصرف الرسمية من البنك المركزي المصري (CBE API)"""
-    if request.method == "POST":
+    if request.method in ["POST", "GET"]:
         from financial.services.exchange_rate_sync_service import ExchangeRateSyncService
         res = ExchangeRateSyncService.sync_official_cbe_rates(user=request.user)
         return JsonResponse(res)
