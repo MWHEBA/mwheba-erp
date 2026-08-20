@@ -222,8 +222,8 @@
     <div id="statement-main-content">
         {% if account %}
             <!-- كروت الإحصائيات (مستقلة في شبكة row g-3 mb-4 تطبيقاً لـ Rule 7 الصارمة) -->
-            <div class="row g-3 mb-4" id="statement-stats-cards">
-                <div class="col-md-4 col-lg-2">
+            <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-xl-5 g-3 mb-4" id="statement-stats-cards">
+                <div class="col">
                     <div class="stats-card stats-card-info h-100">
                         <div class="stats-card-body">
                             <div class="stats-card-icon">
@@ -241,7 +241,7 @@
                     </div>
                 </div>
 
-                <div class="col-md-4 col-lg-2">
+                <div class="col">
                     <div class="stats-card stats-card-success h-100">
                         <div class="stats-card-body">
                             <div class="stats-card-icon">
@@ -259,7 +259,7 @@
                     </div>
                 </div>
 
-                <div class="col-md-4 col-lg-2">
+                <div class="col">
                     <div class="stats-card stats-card-danger h-100">
                         <div class="stats-card-body">
                             <div class="stats-card-icon">
@@ -277,7 +277,7 @@
                     </div>
                 </div>
 
-                <div class="col-md-4 col-lg-2">
+                <div class="col">
                     <div class="stats-card stats-card-warning h-100">
                         <div class="stats-card-body">
                             <div class="stats-card-icon">
@@ -295,25 +295,7 @@
                     </div>
                 </div>
 
-                <div class="col-md-4 col-lg-2">
-                    <div class="stats-card stats-card-info h-100">
-                        <div class="stats-card-body">
-                            <div class="stats-card-icon">
-                                <i class="fas fa-exchange-alt"></i>
-                            </div>
-                            <div class="stats-card-title">{% trans "حركة الفترة" %}</div>
-                            {% if summary.is_foreign_account or selected_currency %}
-                                <div class="stats-card-value">{{ summary.period_foreign_movement|smart_float }} <small class="fs-8">{{ summary.account_currency_symbol }}</small></div>
-                                <div class="stats-card-unit"><small class="text-muted">{{ summary.period_movement|smart_float }} {{ summary.functional_currency_symbol }}</small></div>
-                            {% else %}
-                                <div class="stats-card-value">{{ summary.period_movement|smart_float }}</div>
-                                <div class="stats-card-unit">{{ summary.functional_currency_symbol }}</div>
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
-
-                <div class="col-md-4 col-lg-2">
+                <div class="col">
                     <div class="stats-card stats-card-info h-100">
                         <div class="stats-card-body">
                             <div class="stats-card-icon">

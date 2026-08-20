@@ -254,9 +254,10 @@ def generate_pdf_via_reportlab(doc_type, context, filename="document.pdf"):
                 ('PADDING', (0, 0), (-1, -1), 5),
             ]))
             story.append(info_table)
-            story.append(Spacer(1, 8))
+            story.append(Spacer(1, 10))
             
-            # كروت المؤشرات المالية
+            # جدول حركات كشف الحساب
+            trans = context.get('transactions', [])
             summary_info = context.get('summary', {})
             try:
                 op_bal = float(summary_info.get('opening_balance') or 0)
@@ -275,27 +276,6 @@ def generate_pdf_via_reportlab(doc_type, context, filename="document.pdf"):
             except (ValueError, TypeError):
                 cl_bal = 0.0
             
-            kpi_data = [
-                [
-                    Paragraph(f"<font size=8>{reshape_ar('الرصيد الافتتاحي')}</font><br/><b>{op_bal:,.2f}</b>", style_ar_center),
-                    Paragraph(f"<font size=8>{reshape_ar('إجمالي المدين (+)')}</font><br/><b>{tot_deb:,.2f}</b>", style_ar_center),
-                    Paragraph(f"<font size=8>{reshape_ar('إجمالي الدائن (-)')}</font><br/><b>{tot_crd:,.2f}</b>", style_ar_center),
-                    Paragraph(f"<font size=8>{reshape_ar('الرصيد الختامي')}</font><br/><b>{cl_bal:,.2f}</b>", style_ar_center),
-                ]
-            ]
-            kpi_table = Table(kpi_data, colWidths=[136, 136, 136, 137])
-            kpi_table.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#f1f5f9')),
-                ('BOX', (0, 0), (-1, -1), 0.5, colors.HexColor('#94a3b8')),
-                ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#cbd5e1')),
-                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                ('PADDING', (0, 0), (-1, -1), 5),
-            ]))
-            story.append(kpi_table)
-            story.append(Spacer(1, 10))
-            
-            # جدول حركات كشف الحساب
-            trans = context.get('transactions', [])
             tx_data = [
                 [Paragraph(reshape_ar('#'), style_ar_center),
                  Paragraph(reshape_ar('التاريخ'), style_ar_center),
@@ -306,6 +286,18 @@ def generate_pdf_via_reportlab(doc_type, context, filename="document.pdf"):
                  Paragraph(reshape_ar('دائن'), style_ar_center),
                  Paragraph(reshape_ar('الرصيد'), style_ar_center)]
             ]
+            
+            # سطر الرصيد الافتتاحي المنقول
+            tx_data.append([
+                Paragraph("-", style_ar_center),
+                Paragraph(str(context.get('date_from') or '-'), style_ar_center),
+                Paragraph("-", style_ar_center),
+                Paragraph(f"<b>{reshape_ar('رصيد منقول (افتتاحي ما قبل الفترة)')}</b>", style_ar_right),
+                Paragraph("-", style_ar_center),
+                Paragraph("-", style_ar_center),
+                Paragraph("-", style_ar_center),
+                Paragraph(f"<b>{op_bal:,.2f}</b>", style_ar_center),
+            ])
             
             for idx, t in enumerate(trans, 1):
                 dt_str = str(t.get('date') or '')
@@ -351,9 +343,30 @@ def generate_pdf_via_reportlab(doc_type, context, filename="document.pdf"):
                 ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
                 ('TOPPADDING', (0, 0), (-1, -1), 4),
                 ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#cbd5e1')),
-                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f8fafc')]),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.HexColor('#e6f0f7'), colors.white, colors.HexColor('#f8fafc')]),
             ]))
             story.append(tx_table)
+            story.append(Spacer(1, 10))
+            
+            # صندوق الرصيد الختامي فقط أسفل الجدول
+            bal_status = ' (مدين)' if cl_bal > 0 else ' (دائن)' if cl_bal < 0 else ' (متزن)'
+            currency_sym = str(context.get('currency_symbol_active') or 'ج.م')
+            
+            closing_box_data = [
+                [
+                    Paragraph(f"<b>{reshape_ar('الرصيد الختامي:')}</b>", style_ar_right),
+                    Paragraph(f"<b>{cl_bal:,.2f} {reshape_ar(currency_sym)}{reshape_ar(bal_status)}</b>", style_ar_left),
+                ]
+            ]
+            closing_box_table = Table(closing_box_data, colWidths=[200, 345])
+            closing_box_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#e6f0f7')),
+                ('TEXTCOLOR', (0, 0), (-1, -1), colors.HexColor('#034069')),
+                ('BOX', (0, 0), (-1, -1), 0.5, colors.HexColor('#cbd5e1')),
+                ('PADDING', (0, 0), (-1, -1), 7),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ]))
+            story.append(closing_box_table)
             story.append(Spacer(1, 15))
             
             # مربعات التوقيعات الثلاثية الرسمية

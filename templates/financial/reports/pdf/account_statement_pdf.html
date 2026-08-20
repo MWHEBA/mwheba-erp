@@ -20,6 +20,12 @@
             --debit-color: #04578d;
             --credit-color: #0d9488;
             --danger-color: #dc2626;
+            --badge-sub-bg: #e2e8f0;
+            --badge-sub-text: #334155;
+            --badge-rev-bg: #fee2e2;
+            --badge-rev-text: #991b1b;
+            --badge-fx-bg: #fef3c7;
+            --badge-fx-text: #92400e;
         }
 
         @page {
@@ -29,20 +35,20 @@
                 content: "نظام موهبة ERP المحاسبي";
                 font-family: 'Tajawal', sans-serif;
                 font-size: 7.5pt;
-                color: #94a3b8;
+                color: #64748b;
             }
             @bottom-center {
                 content: "صفحة " counter(page) " من " counter(pages);
                 font-family: 'Tajawal', sans-serif;
                 font-size: 8pt;
-                color: #64748b;
+                color: #0f172a;
                 font-weight: bold;
             }
             @bottom-right {
                 content: "تاريخ الاستخراج: {{ generated_at }}";
                 font-family: 'Tajawal', sans-serif;
                 font-size: 7.5pt;
-                color: #94a3b8;
+                color: #64748b;
             }
         }
 
@@ -54,7 +60,7 @@
 
         body {
             font-family: 'Tajawal', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background-color: #ffffff;
+            background-color: var(--bg-card);
             color: var(--text-dark);
             direction: rtl;
             text-align: right;
@@ -173,58 +179,6 @@
             font-weight: 600;
         }
 
-        /* شريط المؤشرات المالية والمعادلة المحاسبية */
-        .kpi-strip {
-            display: table;
-            width: 100%;
-            margin-bottom: 10px;
-            border-collapse: separate;
-            border-spacing: 4px 0;
-        }
-
-        .kpi-item {
-            display: table-cell;
-            width: 25%;
-            background-color: #ffffff;
-            border: 1px solid var(--border-color);
-            border-radius: 4px;
-            padding: 6px 8px;
-            text-align: center;
-            vertical-align: middle;
-        }
-
-        .kpi-item.opening {
-            border-top: 3px solid #64748b;
-        }
-
-        .kpi-item.debit {
-            border-top: 3px solid var(--debit-color);
-        }
-
-        .kpi-item.credit {
-            border-top: 3px solid var(--credit-color);
-        }
-
-        .kpi-item.closing {
-            border-top: 3px solid var(--primary-color);
-            background-color: var(--primary-light);
-        }
-
-        .kpi-label {
-            font-size: 7.5pt;
-            color: var(--text-muted);
-            margin-bottom: 2px;
-            font-weight: 500;
-        }
-
-        .kpi-val {
-            font-size: 9.5pt;
-            font-weight: bold;
-            color: var(--text-dark);
-            direction: ltr;
-            unicode-bidi: embed;
-        }
-
         /* جدول الحركات المحاسبية */
         .statement-table {
             width: 100%;
@@ -243,7 +197,7 @@
 
         .statement-table th {
             background-color: var(--primary-color);
-            color: #ffffff;
+            color: var(--bg-card);
             font-weight: bold;
             padding: 6px 4px;
             text-align: center;
@@ -279,19 +233,19 @@
             border-radius: 3px;
             font-size: 6.5pt;
             margin-top: 2px;
-            background-color: #e2e8f0;
-            color: #334155;
+            background-color: var(--badge-sub-bg);
+            color: var(--badge-sub-text);
         }
 
         .badge-rev {
-            background-color: #fee2e2;
-            color: #991b1b;
+            background-color: var(--badge-rev-bg);
+            color: var(--badge-rev-text);
             font-weight: bold;
         }
 
         .badge-fx {
-            background-color: #fef3c7;
-            color: #92400e;
+            background-color: var(--badge-fx-bg);
+            color: var(--badge-fx-text);
         }
 
         .bf-row {
@@ -299,38 +253,64 @@
             font-weight: bold;
         }
 
-        /* ملخص الإجماليات والتوقيعات الرسمية في نهاية التقرير */
+        /* تذييل جدول الحركات */
+        .statement-table tfoot td {
+            background-color: var(--bg-light);
+            font-weight: bold;
+            border-top: 2px solid var(--primary-color);
+            border-bottom: 2px solid var(--border-color);
+            padding: 6px 4px;
+        }
+
+        .col-totals-title {
+            text-align: right !important;
+            padding-right: 8px !important;
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+
+        /* صندوق الرصيد الختامي أسفل الجدول */
         .summary-section {
             page-break-inside: avoid;
             margin-top: 10px;
         }
 
-        .totals-box {
+        .closing-balance-box {
             display: table;
             width: 100%;
             border: 1px solid var(--border-color);
-            background-color: var(--bg-light);
+            background-color: var(--primary-light);
             border-radius: 4px;
-            padding: 6px 10px;
+            padding: 8px 12px;
             margin-bottom: 15px;
         }
 
-        .totals-cell {
+        .closing-title {
             display: table-cell;
-            vertical-align: middle;
-            font-size: 8.5pt;
-        }
-
-        .totals-cell.title {
-            width: 30%;
             font-weight: bold;
-            color: var(--primary-color);
+            font-size: 9.5pt;
+            color: var(--primary-dark);
+            vertical-align: middle;
+            width: 30%;
         }
 
-        .totals-cell.data {
-            width: 70%;
+        .closing-amount {
+            display: table-cell;
             text-align: left;
             direction: ltr;
+            font-size: 10.5pt;
+            font-weight: bold;
+            color: var(--primary-color);
+            vertical-align: middle;
+            unicode-bidi: embed;
+            width: 70%;
+        }
+
+        .balance-tag {
+            font-size: 8pt;
+            font-weight: normal;
+            margin-right: 4px;
+            color: var(--text-muted);
         }
 
         .signatures-box {
@@ -357,7 +337,7 @@
         }
 
         .sig-line {
-            border-bottom: 1px dashed #94a3b8;
+            border-bottom: 1px dashed var(--text-muted);
             margin: 0 15px 4px 15px;
         }
 
@@ -424,27 +404,7 @@
         </div>
     </div>
 
-    <!-- 4. شريط المعادلة المحاسبية والمؤشرات المالية -->
-    <div class="kpi-strip">
-        <div class="kpi-item opening">
-            <div class="kpi-label">الرصيد الافتتاحي</div>
-            <div class="kpi-val">{{ summary.opening_balance|smart_float }}</div>
-        </div>
-        <div class="kpi-item debit">
-            <div class="kpi-label">إجمالي المدين (+)</div>
-            <div class="kpi-val cell-debit">{{ summary.total_debit|smart_float }}</div>
-        </div>
-        <div class="kpi-item credit">
-            <div class="kpi-label">إجمالي الدائن (-)</div>
-            <div class="kpi-val cell-credit">{{ summary.total_credit|smart_float }}</div>
-        </div>
-        <div class="kpi-item closing">
-            <div class="kpi-label">الرصيد الختامي</div>
-            <div class="kpi-val cell-balance">{{ summary.closing_balance|smart_float }}</div>
-        </div>
-    </div>
-
-    <!-- 5. جدول الحركات المالية -->
+    <!-- 4. جدول الحركات المالية -->
     <table class="statement-table">
         <thead>
             <tr>
@@ -498,9 +458,9 @@
                 </td>
                 <td class="col-ref">
                     {% if item.reference and item.reference != '-' %}
-                        <span style="font-size: 7.5pt; color: #334155;">{{ item.reference }}</span>
+                        <span style="font-size: 7.5pt; color: var(--text-dark);">{{ item.reference }}</span>
                     {% else %}
-                        <span style="color: #94a3b8;">-</span>
+                        <span style="color: var(--text-muted);">-</span>
                     {% endif %}
                 </td>
                 <td class="col-num {% if item.debit %}cell-debit cell-bold{% endif %}">
@@ -515,28 +475,43 @@
             </tr>
             {% empty %}
             <tr>
-                <td colspan="8" style="text-align: center; padding: 15px; color: #64748b;">
+                <td colspan="8" style="text-align: center; padding: 15px; color: var(--text-muted);">
                     لا توجد حركات مالية مسجلة على هذا الحساب خلال الفترة المحددة - الرصيد المنقول مستمر.
                 </td>
             </tr>
             {% endfor %}
         </tbody>
+        <tfoot>
+            <tr>
+                <td colspan="5" class="col-totals-title">
+                    إجمالي حركة الفترة ({{ summary.transaction_count|default:0 }} حركة)
+                </td>
+                <td class="col-num cell-debit cell-bold">
+                    {{ summary.total_debit|smart_float }}
+                </td>
+                <td class="col-num cell-credit cell-bold">
+                    {{ summary.total_credit|smart_float }}
+                </td>
+                <td class="col-num cell-balance">
+                    {{ summary.closing_balance|smart_float }}
+                </td>
+            </tr>
+        </tfoot>
     </table>
 
-    <!-- 6. قسم الإجماليات والتوقيعات المعتمدة -->
+    <!-- 5. قسم الرصيد الختامي والتوقيعات الرسمية (تحت الجدول) -->
     <div class="summary-section">
-        <div class="totals-box">
-            <div class="totals-cell title">
-                إجمالي حركة الفترة ({{ summary.transaction_count|default:0 }} حركة):
-            </div>
-            <div class="totals-cell data">
-                <strong>المدين:</strong> {{ summary.total_debit|smart_float }} &nbsp;|&nbsp;
-                <strong>الدائن:</strong> {{ summary.total_credit|smart_float }} &nbsp;|&nbsp;
-                <strong>صافي التغير:</strong> {{ summary.period_movement|smart_float }} &nbsp;|&nbsp;
-                <strong>الرصيد الختامي:</strong> {{ summary.closing_balance|smart_float }}
+        <div class="closing-balance-box">
+            <div class="closing-title">الرصيد الختامي:</div>
+            <div class="closing-amount">
+                {{ summary.closing_balance|smart_float }} {{ currency_symbol_active|default:"ج.م" }}
+                <span class="balance-tag">
+                    {% if summary.closing_balance > 0 %}(مدين){% elif summary.closing_balance < 0 %}(دائن){% else %}(متزن){% endif %}
+                </span>
             </div>
         </div>
 
+        <!-- التوقيعات والاعتماد الرسمي -->
         <div class="signatures-box">
             <div class="sig-col">
                 <div class="sig-title">إعداد / المحاسب المسؤول</div>
