@@ -21,7 +21,7 @@ from financial.models.chart_of_accounts import ChartOfAccounts
 from financial.models.journal_entry import JournalEntryLine, AccountingPeriod
 from financial.models.fiscal_year import FiscalYear
 from financial.services.exchange_rate_service import ExchangeRateService
-from financial.services.account_role_registry import AccountRoleRegistry
+from financial.services.role_registry import AccountRoleRegistry, AccountRoleNames
 
 logger = logging.getLogger(__name__)
 

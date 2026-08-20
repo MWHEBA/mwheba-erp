@@ -158,7 +158,7 @@ class TrialBalanceService:
                     )
                     net_unclosed_pl = (unclosed_pl_lines['sum_cr'] or Decimal('0.00')) - (unclosed_pl_lines['sum_dr'] or Decimal('0.00'))
                     if net_unclosed_pl != Decimal('0.00'):
-                        from financial.services.account_role_registry import AccountRoleRegistry
+                        from financial.services.role_registry import AccountRoleRegistry
                         retained_acc = AccountRoleRegistry.get_account_by_role("RETAINED_EARNINGS")
                         if not retained_acc:
                             retained_acc = accounts_qs.filter(code__in=['30200', '3020', '30000', '31000'], is_active=True).first()

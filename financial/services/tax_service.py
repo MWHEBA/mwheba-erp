@@ -297,7 +297,7 @@ class TaxDeterminationService:
             func_tax = calc_result.functional_tax_amount
             correlation_id = uuid.uuid4()
 
-            from financial.services.account_role_registry import AccountRoleRegistry
+            from financial.services.role_registry import AccountRoleRegistry
             default_ar = AccountRoleRegistry.get_account_code("AR_CONTROL_ACCOUNT")
             default_ap = AccountRoleRegistry.get_account_code("AP_CONTROL_ACCOUNT")
             output_tax_acc = AccountRoleRegistry.get_account_code("OUTPUT_TAX_ACCOUNT")

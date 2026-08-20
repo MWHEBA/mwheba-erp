@@ -40,7 +40,7 @@ class SalesAccountingBridge:
             func_discount = ((sale.discount or Decimal("0.00")) * rate).quantize(Decimal("0.01"))
             func_gross_sales = (func_total + func_discount - func_tax).quantize(Decimal("0.01"))
 
-            from financial.services.account_role_registry import AccountRoleRegistry
+            from financial.services.role_registry import AccountRoleRegistry
 
             lines = []
             # 1. AR Customer Debit Line

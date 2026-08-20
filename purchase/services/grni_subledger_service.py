@@ -74,7 +74,7 @@ class GRNISubledgerService:
         """
         مطابقة مجموع أستاذ GRNI الفرعي مع رصيد حساب الأستاذ العام
         """
-        from financial.services.account_role_registry import AccountRoleRegistry
+        from financial.services.role_registry import AccountRoleRegistry
         if not account_code:
             account_code = AccountRoleRegistry.get_account_code("GRNI_CLEARING_ACCOUNT")
 
@@ -110,7 +110,7 @@ class GRNISubledgerService:
         """
         تسوية وإغلاق المبالغ المعلقة في حساب GRNI للحالات الاستثنائية بطلب حوكمة معتمد
         """
-        from financial.services.account_role_registry import AccountRoleRegistry
+        from financial.services.role_registry import AccountRoleRegistry
         grni_acc = AccountRoleRegistry.get_account_code("GRNI_CLEARING_ACCOUNT")
 
         with transaction.atomic():

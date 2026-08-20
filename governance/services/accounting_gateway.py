@@ -734,7 +734,7 @@ class AccountingGateway:
         # Validate debit/credit balance with automatic penny rounding difference handling (Rule 3)
         diff = abs(total_debit - total_credit)
         if diff > Decimal('0.00') and diff <= Decimal('0.05'):
-            from financial.services.account_role_registry import AccountRoleRegistry
+            from financial.services.role_registry import AccountRoleRegistry
             rounding_acc = AccountRoleRegistry.get_account_by_role("ROUNDING_DIFFERENCE_ACCOUNT")
             if not rounding_acc:
                 rounding_acc = ChartOfAccounts.objects.filter(code__in=['52490', '40550', '50500'], is_active=True, is_leaf=True).first()
@@ -1910,7 +1910,7 @@ def create_stock_movement_entry(
             logger.warning(f"Optional account not found: {primary_code}, will skip this entry")
             return None
     
-    from financial.services.account_role_registry import AccountRoleRegistry
+    from financial.services.role_registry import AccountRoleRegistry
     
     # Get standard account codes dynamically via AccountRoleRegistry
     def_inv = AccountRoleRegistry.get_account_code("INVENTORY_CONTROL_ACCOUNT")
@@ -2398,7 +2398,7 @@ def create_return_cogs_reversal_entry(command) -> JournalEntry:
     Create COGS reversal entry for sales returns.
     """
     from financial.services.legacy_adapter import LegacyAccountingAdapter
-    from financial.services.account_role_registry import AccountRoleRegistry
+    from financial.services.role_registry import AccountRoleRegistry
 
     inv_acc = getattr(command, "inventory_account", None) or AccountRoleRegistry.get_account_by_role("INVENTORY_ACCOUNT")
     cogs_acc = getattr(command, "cogs_account", None) or AccountRoleRegistry.get_account_by_role("COGS_ACCOUNT")
@@ -2424,7 +2424,7 @@ def create_return_cogs_reversal_entry(command) -> JournalEntry:
 
 def create_tax_posting(command) -> JournalEntry:
     from financial.services.legacy_adapter import LegacyAccountingAdapter
-    from financial.services.account_role_registry import AccountRoleRegistry
+    from financial.services.role_registry import AccountRoleRegistry
 
     tax_acc = getattr(command, "credit_account_code", None) or AccountRoleRegistry.get_account_by_role("OUTPUT_TAX_ACCOUNT")
     ar_acc = getattr(command, "debit_account_code", None) or AccountRoleRegistry.get_account_by_role("AR_CONTROL_ACCOUNT")
@@ -2451,7 +2451,7 @@ def create_tax_posting(command) -> JournalEntry:
 
 def create_tax_reversal_posting(command=None, user=None, reason="", **kwargs) -> JournalEntry:
     from financial.services.legacy_adapter import LegacyAccountingAdapter
-    from financial.services.account_role_registry import AccountRoleRegistry
+    from financial.services.role_registry import AccountRoleRegistry
 
     if hasattr(command, "original_audit"):
         audit = command.original_audit
@@ -2500,7 +2500,7 @@ def create_tax_reversal_posting(command=None, user=None, reason="", **kwargs) ->
 
 def create_credit_note_posting(command) -> JournalEntry:
     from financial.services.legacy_adapter import LegacyAccountingAdapter
-    from financial.services.account_role_registry import AccountRoleRegistry
+    from financial.services.role_registry import AccountRoleRegistry
 
     doc_num = getattr(command, "document_number", getattr(command, "credit_note_number", "N/A"))
     total_amt = getattr(command, "total_amount", getattr(command, "amount", Decimal("0.00")))
@@ -2532,7 +2532,7 @@ def create_credit_note_posting(command) -> JournalEntry:
 
 def create_credit_note_reversal_posting(command) -> JournalEntry:
     from financial.services.legacy_adapter import LegacyAccountingAdapter
-    from financial.services.account_role_registry import AccountRoleRegistry
+    from financial.services.role_registry import AccountRoleRegistry
 
     sales_ret_acc = AccountRoleRegistry.get_account_by_role("SALES_RETURNS_ACCOUNT")
     tax_acc = AccountRoleRegistry.get_account_by_role("OUTPUT_TAX_ACCOUNT")
@@ -2561,7 +2561,7 @@ def create_credit_note_reversal_posting(command) -> JournalEntry:
 
 def create_revenue_recognition_entry(command) -> JournalEntry:
     from financial.services.legacy_adapter import LegacyAccountingAdapter
-    from financial.services.account_role_registry import AccountRoleRegistry
+    from financial.services.role_registry import AccountRoleRegistry
 
     rev_acc = AccountRoleRegistry.get_account_by_role("SALES_REVENUE_ACCOUNT")
     def_rev_acc = AccountRoleRegistry.get_account_by_role("DEFERRED_REVENUE_ACCOUNT")
@@ -2586,7 +2586,7 @@ def create_revenue_recognition_entry(command) -> JournalEntry:
 
 def create_revenue_reversal_entry(command) -> JournalEntry:
     from financial.services.legacy_adapter import LegacyAccountingAdapter
-    from financial.services.account_role_registry import AccountRoleRegistry
+    from financial.services.role_registry import AccountRoleRegistry
 
     rev_acc = AccountRoleRegistry.get_account_by_role("SALES_REVENUE_ACCOUNT")
     def_rev_acc = AccountRoleRegistry.get_account_by_role("DEFERRED_REVENUE_ACCOUNT")

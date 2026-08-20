@@ -873,7 +873,7 @@ class SaleService:
         try:
             from governance.services.accounting_gateway import JournalEntryLineData
             from financial.models import ChartOfAccounts
-            from financial.services.account_role_registry import AccountRoleRegistry
+            from financial.services.role_registry import AccountRoleRegistry, AccountRoleNames
             
             sale = sale_return.sale
             

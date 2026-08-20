@@ -15,7 +15,7 @@ from purchase.models.grn_audit_log import GRNAuditLog
 from purchase.models.grn_posting_log import GRNPostingLog
 from governance.services.movement_service import MovementService
 from financial.services.ledger_core_service import LedgerCoreService
-from financial.services.account_role_registry import AccountRoleRegistry
+from financial.services.role_registry import AccountRoleRegistry, AccountRoleNames
 from financial.exceptions import FinancialCoreError
 
 logger = logging.getLogger("purchase.grn_posting_service")

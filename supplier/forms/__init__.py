@@ -206,7 +206,7 @@ class SupplierAccountChangeForm(forms.ModelForm):
             from django.db import models
 
             # الحسابات المؤهلة للموردين - فقط الحسابات الفرعية من حساب الموردين
-            from financial.services.account_role_registry import AccountRoleRegistry
+            from financial.services.role_registry import AccountRoleRegistry
             suppliers_account = AccountRoleRegistry.get_account_by_role("SUPPLIER_PAYABLE_CONTROL")
 
             if suppliers_account:
@@ -235,7 +235,7 @@ class SupplierAccountChangeForm(forms.ModelForm):
         """
         account = self.cleaned_data.get("financial_account")
         if account:
-            from financial.services.account_role_registry import AccountRoleRegistry
+            from financial.services.role_registry import AccountRoleRegistry
             suppliers_account = AccountRoleRegistry.get_account_by_role("SUPPLIER_PAYABLE_CONTROL")
             is_valid = False
 

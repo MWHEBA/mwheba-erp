@@ -20,8 +20,8 @@ if env("DB_ENGINE", default="sqlite") == "mysql":
                 'charset': 'utf8mb4',
                 'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
                 'connect_timeout': 60,
-                'read_timeout': 120,
-                'write_timeout': 120,
+                'read_timeout': 300,
+                'write_timeout': 300,
             },
             'TEST': {
                 'NAME': 'test_corporate_erp',

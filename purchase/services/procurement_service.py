@@ -27,7 +27,7 @@ from financial.exceptions import FinancialCoreError
 from core.services.sequence_service import SequenceService
 from core.enums.document_types import DocumentType
 
-from financial.services.account_role_registry import AccountRoleRegistry
+from financial.services.role_registry import AccountRoleRegistry, AccountRoleNames
 
 logger = logging.getLogger("purchase.procurement_service")
 

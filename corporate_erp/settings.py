@@ -206,6 +206,10 @@ TEMPLATES = [
                 # "utils.context_processors.user_permissions",  # مكرر
                 # "utils.context_processors.breadcrumb_context",  # يدوي أفضل
             ],
+            "builtins": [
+                "utils.templatetags.utils_extras",
+                "core.templatetags.custom_filters",
+            ],
         },
     },
 ]
@@ -229,9 +233,9 @@ if env("DB_ENGINE", default="sqlite") == "mysql":
             "OPTIONS": {
                 "charset": "utf8mb4",
                 "init_command": "SET sql_mode='STRICT_TRANS_TABLES', NAMES 'utf8mb4'",
-                "connect_timeout": 10,
-                "read_timeout": 60,
-                "write_timeout": 60,
+                "connect_timeout": 60,
+                "read_timeout": 300,
+                "write_timeout": 300,
                 "use_unicode": True,
             },
             # ✅ PHASE 1: Optimized for cPanel shared hosting

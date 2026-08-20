@@ -85,7 +85,7 @@ def remove_triggers(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('financial', '0005_fiscalyear_openingbalancebatch_openingbalanceline'),
+        ('financial', '0002_initial'),
     ]
 
     operations = [

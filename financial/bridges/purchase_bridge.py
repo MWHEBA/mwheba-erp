@@ -40,7 +40,7 @@ class PurchaseAccountingBridge:
             func_discount = ((purchase.discount or Decimal("0.00")) * rate).quantize(Decimal("0.01"))
             func_gross_subtotal = (func_total + func_discount - func_tax).quantize(Decimal("0.01"))
 
-            from financial.services.account_role_registry import AccountRoleRegistry
+            from financial.services.role_registry import AccountRoleRegistry
             lines = []
             # 1. Inventory Clearing / Expense Debit Line (Gross amount)
             grni_acc = AccountRoleRegistry.get_account_code("GRNI_CLEARING_ACCOUNT")

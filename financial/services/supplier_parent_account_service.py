@@ -28,7 +28,7 @@ class SupplierParentAccountService:
         """
         from financial.models import ChartOfAccounts, AccountType
 
-        from financial.services.account_role_registry import AccountRoleRegistry
+        from financial.services.role_registry import AccountRoleRegistry
 
         try:
             with transaction.atomic():
@@ -121,7 +121,7 @@ class SupplierParentAccountService:
             ChartOfAccounts: الحساب المحاسبي المنشأ
         """
         from financial.models import ChartOfAccounts, AccountType
-        from financial.services.account_role_registry import AccountRoleRegistry
+        from financial.services.role_registry import AccountRoleRegistry
         from decimal import Decimal
 
         try:

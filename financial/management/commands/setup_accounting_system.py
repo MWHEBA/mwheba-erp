@@ -11,7 +11,7 @@ from decimal import Decimal
 import logging
 
 from financial.models import AccountType, ChartOfAccounts, FiscalYear, AccountingPeriod, Currency
-from financial.services.account_role_registry import AccountRoleRegistry
+from financial.services.role_registry import AccountRoleRegistry, AccountRoleNames
 
 logger = logging.getLogger(__name__)
 

@@ -82,8 +82,8 @@ class PayrollForm(forms.ModelForm):
                         self.initial['payment_method'] = default_cash.code
                 elif self.instance.payment_method == 'bank_transfer':
                     # Legacy value: convert to default bank account
-                    from financial.services.account_role_registry import AccountRoleRegistry
-                    default_bank = AccountRoleRegistry.get_account_role("BANK_CONTROL_ACCOUNT")
+                    from financial.services.role_registry import AccountRoleRegistry
+                    default_bank = AccountRoleRegistry.get_account_by_role("BANK_CONTROL_ACCOUNT")
                     if default_bank:
                         self.initial['payment_method'] = default_bank.code
                 else:

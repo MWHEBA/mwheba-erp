@@ -6,7 +6,7 @@ from .opening_balance_service import OpeningBalanceService, OpeningBalanceValida
 from .bank_subledger_service import BankSubledgerService
 from .allocation_service import AllocationService
 from .bank_reconciliation_service import BankReconciliationService
-from .account_role_registry import AccountRoleRegistry
+from .role_registry import AccountRoleRegistry, AccountRoleNames
 from .legacy_adapter import LegacyAccountingAdapter
 
 from .expense_classification import ExpenseClassifier

@@ -43,7 +43,7 @@ class InventoryAccountingBridge:
                 total_foreign += item_total
                 total_functional += (item_total * rate).quantize(Decimal("0.01"))
 
-            from financial.services.account_role_registry import AccountRoleRegistry
+            from financial.services.role_registry import AccountRoleRegistry
             inv_acc = AccountRoleRegistry.get_account_code("INVENTORY_CONTROL_ACCOUNT")
             grni_acc = AccountRoleRegistry.get_account_code("GRNI_CLEARING_ACCOUNT")
 
