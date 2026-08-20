@@ -1,265 +1,1008 @@
-﻿{% extends 'base.html' %}
+{% extends 'base.html' %}
 {% load static %}
 {% load i18n %}
 {% load custom_filters %}
 {% load utils_extras %}
-{% load app_tags %}
 
-{% block title %}{{ page_title|default:"التحليلات المالية" }}{% endblock %}
+{% block title %}{{ page_title }}{% endblock %}
+
 {% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
 <style>
-  /* تصميم خاص بالصفحة */
-  .empty-state {
-    padding: 4rem 1rem;
-    text-align: center;
+  /* =========================================================
+     تنسيقات UI/UX الموحدة لمركز التحليلات والمؤشرات المالية التنفيذي
+     مطابقة تامة 100% مع معايير MWHEBA ERP و AGENTS.md
+     ========================================================= */
+
+  /* كروت التقييم التنفيذية */
+  .score-card-box {
+    background-color: var(--bg-light, #f8f9fa);
+    border: 1px solid var(--border-color, #e2e8f0);
+    border-radius: var(--border-radius, 8px);
+    padding: 1.25rem;
+    height: 100%;
   }
-  
-  .empty-state-icon {
-    font-size: 4rem;
-    color: #dee2e6;
-    margin-bottom: 1.5rem;
-    animation: float 3s ease-in-out infinite;
-  }
-  
-  /* @keyframes float موجود في unified-components.css */
-  
-  /* chart-container موجود في unified-components.css */
-  
-  .chart-header {
+
+  .health-score-circle {
+    width: 85px;
+    height: 85px;
+    border-radius: 50%;
     display: flex;
-    justify-content: between;
+    flex-direction: column;
     align-items: center;
-    margin-bottom: 1rem;
-    padding-bottom: 0.75rem;
-    border-bottom: 1px solid #eee;
+    justify-content: center;
+    background-color: var(--bg-card, #ffffff);
+    border: 3px solid var(--primary-color);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
   }
-  
-  .chart-title {
-    color: #344767;
-    font-size: 1.1rem;
+
+  .health-score-circle.border-safe { border-color: var(--success-color, #059669) !important; }
+  .health-score-circle.border-grey { border-color: var(--warning-color, #d97706) !important; }
+  .health-score-circle.border-distress { border-color: var(--danger-color, #dc2626) !important; }
+
+  .health-score-number {
+    font-size: 1.55rem;
+    font-weight: 800;
+    line-height: 1;
+    color: var(--primary-color);
+  }
+
+  .health-score-number.text-safe { color: var(--success-color, #059669) !important; }
+  .health-score-number.text-grey { color: var(--warning-color, #d97706) !important; }
+  .health-score-number.text-distress { color: var(--danger-color, #dc2626) !important; }
+
+  .health-score-label {
+    font-size: 0.65rem;
+    color: var(--text-muted);
     font-weight: 600;
-    margin: 0;
   }
-  
-  .chart-subtitle {
-    color: #6c757d;
-    font-size: 0.875rem;
-    margin: 0;
+
+  /* جداول المؤشرات المالية */
+  .ratio-table {
+    width: 100%;
+    margin-bottom: 0;
+    font-size: 0.86rem;
   }
-  
-  /* تصميم كروت التحليلات المتقدمة */
-  .analytics-card {
-    background-color: var(--primary-color);
-    color: white;
-    border-radius: var(--border-radius);
-    padding: 1.5rem;
-    margin-bottom: 1.5rem;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-    transition: all 0.3s ease;
-  }
-  
-  .analytics-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
-  }
-  
-  .analytics-card.success {
-    background-color: #198754;
-    box-shadow: 0 4px 15px rgba(25, 135, 84, 0.2);
-  }
-  
-  .analytics-card.warning {
-    background-color: #ffc107;
-    color: #000;
-    box-shadow: 0 4px 15px rgba(255, 193, 7, 0.2);
-  }
-  
-  .analytics-card.danger {
-    background-color: #dc3545;
-    box-shadow: 0 4px 15px rgba(220, 53, 69, 0.2);
-  }
-  
-  .analytics-card-icon {
-    font-size: 2rem;
-    margin-bottom: 1rem;
-    opacity: 0.9;
-  }
-  
-  .analytics-card-title {
-    font-size: 0.9rem;
-    font-weight: 500;
-    margin-bottom: 0.5rem;
-    opacity: 0.9;
-  }
-  
-  .analytics-card-value {
-    font-size: 2rem;
+
+  .ratio-table th {
+    background-color: var(--bg-light) !important;
+    color: var(--text-dark) !important;
     font-weight: 700;
+    padding: 0.65rem 0.6rem;
+    border-bottom: 2px solid var(--border-color) !important;
+    font-size: 0.83rem;
+  }
+
+  .ratio-table td {
+    padding: 0.6rem 0.6rem;
+    vertical-align: middle;
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  .ratio-table tr:last-child td {
+    border-bottom: none;
+  }
+
+  /* بطاقة نموذج دوبونت */
+  .dupont-box {
+    background-color: var(--bg-light, #f8f9fa);
+    border: 1px solid var(--border-color, #e2e8f0);
+    border-radius: var(--border-radius, 8px);
+    padding: 1rem;
+    text-align: center;
+    position: relative;
+  }
+
+  .dupont-step-val {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--primary-color);
+  }
+
+  .dupont-step-title {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    font-weight: 600;
+  }
+
+  .dupont-operator {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* إطارات الرسوم البيانية */
+  .chart-box {
+    background-color: var(--bg-card, #ffffff);
+    border: 1px solid var(--border-color, #e2e8f0);
+    border-radius: var(--border-radius, 8px);
+    padding: 1.25rem;
+    height: 100%;
+  }
+
+  .chart-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text-dark);
     margin-bottom: 0.25rem;
   }
-  
-  .analytics-card-unit {
-    font-size: 0.8rem;
-    opacity: 0.8;
+
+  .chart-subtitle {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    margin-bottom: 1rem;
   }
-  
+
+  .number-cell {
+    direction: ltr;
+    text-align: right;
+    white-space: nowrap;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* فواصل الكتل العمودية المزدوجة للفترات */
+  .col-sep-left {
+    border-left: 2px solid var(--border-color) !important;
+  }
+
+  /* شارات التغير بالفترة السابقة */
+  .delta-badge {
+    font-size: 0.72rem;
+    padding: 0.2rem 0.4rem;
+    font-weight: 600;
+    border-radius: 4px;
+  }
+
+  /* تذييل التوقيعات للطباعة الرسمية */
+  .print-signatures {
+    display: none;
+    margin-top: 3rem;
+    padding-top: 1.5rem;
+    border-top: 2px dashed var(--border-color);
+  }
+
+  .signature-box {
+    text-align: center;
+  }
+
+  .signature-line {
+    margin-top: 2.5rem;
+    border-top: 1px solid var(--border-color);
+    width: 80%;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
   @media print {
     .no-print {
       display: none !important;
+    }
+
+    .print-signatures {
+      display: block !important;
+    }
+
+    .chart-box {
+      display: none !important;
+    }
+
+    .section-container {
+      border: none !important;
+      box-shadow: none !important;
+      padding: 0 !important;
+      margin-bottom: 1rem !important;
     }
   }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-  <!-- Page Header المركزي -->
+<div class="container-fluid px-3 py-2">
+  <!-- 1. Header الصفحة المركزي القياسي -->
   {% include "shared/page_header.html" %}
-  
-  <!-- الإحصائيات الأساسية -->
-  <div class="section-container">
-    <h5 class="section-title"><i class="fas fa-chart-bar me-2"></i>{% trans "المؤشرات المالية الرئيسية" %}</h5>
-    <div class="row">
-      <div class="col-md-6 col-lg-3 mb-4">
-        <div class="stats-card stats-card-primary">
-          <div class="stats-card-header"></div>
-          <div class="stats-card-body">
-            <div class="stats-card-icon">
-              <i class="fas fa-money-bill-wave"></i>
-            </div>
-            <div class="stats-card-title">{% trans "الإيرادات الشهرية" %}</div>
-            <div class="stats-card-value">{{ monthly_income|default:0|smart_float }}</div>
-            <div class="stats-card-unit">{% currency_symbol %}</div>
+
+  <!-- 2. كروت الإحصائيات التنفيذية (KPI Cards) وفق Rule 7 -->
+  <div class="row g-3 mb-4">
+    <!-- كارت 1: صافي الإيرادات التشغيلية -->
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="stats-card stats-card-primary">
+        <div class="stats-card-body">
+          <div class="stats-card-icon">
+            <i class="fas fa-hand-holding-dollar"></i>
+          </div>
+          <div class="stats-card-title">{% trans "صافي الإيرادات للفترة" %}</div>
+          <div class="stats-card-value number-cell">
+            {{ analytics.basic_metrics.monthly_income|smart_float }}
+          </div>
+          <div class="stats-card-unit d-flex align-items-center justify-content-between">
+            <span>{{ analytics.currency_symbol }}</span>
+            {% if has_comparison and analytics.basic_metrics.delta_income.pct != 0 %}
+              <span class="badge {% if analytics.basic_metrics.delta_income.is_positive %}bg-success{% else %}bg-danger{% endif %} text-white">
+                <i class="fas fa-arrow-{% if analytics.basic_metrics.delta_income.is_positive %}up{% else %}down{% endif %} me-1"></i>
+                {{ analytics.basic_metrics.delta_income.pct }}%
+              </span>
+            {% else %}
+              <span class="badge bg-light text-dark border">{% trans "صافي المبيعات" %}</span>
+            {% endif %}
           </div>
         </div>
       </div>
-      <div class="col-md-6 col-lg-3 mb-4">
-        <div class="stats-card stats-card-success">
-          <div class="stats-card-header"></div>
-          <div class="stats-card-body">
-            <div class="stats-card-icon">
-              <i class="fas fa-chart-line"></i>
-            </div>
-            <div class="stats-card-title">{% trans "هامش الربح" %}</div>
-            <div class="stats-card-value">{{ profit_margin|default:0 }}%</div>
-            <div class="stats-card-unit">{% trans "نسبة مئوية" %}</div>
+    </div>
+
+    <!-- كارت 2: هامش صافي الربح -->
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="stats-card {% if profitability.net_margin >= 0 %}stats-card-success{% else %}stats-card-danger{% endif %}">
+        <div class="stats-card-body">
+          <div class="stats-card-icon">
+            <i class="fas fa-chart-line"></i>
+          </div>
+          <div class="stats-card-title">{% trans "هامش صافي الربح" %}</div>
+          <div class="stats-card-value number-cell {% if profitability.net_margin >= 0 %}text-success{% else %}text-danger{% endif %}">
+            {{ profitability.net_margin }}%
+          </div>
+          <div class="stats-card-unit d-flex align-items-center justify-content-between">
+            <span>{{ profitability.net_income|smart_float }} {{ analytics.currency_symbol }}</span>
+            {% if has_comparison and profitability.delta_net_margin.diff != 0 %}
+              <span class="badge {% if profitability.delta_net_margin.is_positive %}bg-success{% else %}bg-danger{% endif %} text-white">
+                <i class="fas fa-arrow-{% if profitability.delta_net_margin.is_positive %}up{% else %}down{% endif %} me-1"></i>
+                {% if profitability.delta_net_margin.is_positive %}+{% endif %}{{ profitability.delta_net_margin.diff }}%
+              </span>
+            {% else %}
+              <span class="badge {% if profitability.net_margin >= 0 %}bg-success{% else %}bg-danger{% endif %} text-white">
+                {% if profitability.net_margin >= 0 %}{% trans "صافي ربح" %}{% else %}{% trans "صافي خسارة" %}{% endif %}
+              </span>
+            {% endif %}
           </div>
         </div>
       </div>
-      <div class="col-md-6 col-lg-3 mb-4">
-        <div class="stats-card stats-card-info">
-          <div class="stats-card-header"></div>
-          <div class="stats-card-body">
-            <div class="stats-card-icon">
-              <i class="fas fa-file-invoice-dollar"></i>
-            </div>
-            <div class="stats-card-title">{% trans "متوسط قيمة الفاتورة" %}</div>
-            <div class="stats-card-value">{{ avg_invoice|default:0|smart_float }}</div>
-            <div class="stats-card-unit">{% currency_symbol %}</div>
+    </div>
+
+    <!-- كارت 3: نسبة التداول والسيولة الحالية -->
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="stats-card {% if liquidity.current_ratio_status == 'success' %}stats-card-info{% elif liquidity.current_ratio_status == 'warning' %}stats-card-warning{% else %}stats-card-danger{% endif %}">
+        <div class="stats-card-body">
+          <div class="stats-card-icon">
+            <i class="fas fa-scale-balanced"></i>
+          </div>
+          <div class="stats-card-title">{% trans "نسبة التداول (Current Ratio)" %}</div>
+          <div class="stats-card-value number-cell">
+            {% if liquidity.has_no_liabilities %}<span class="text-success fs-6">{% trans "بدون التزامات" %}</span>{% else %}{{ liquidity.current_ratio }}{% endif %}
+          </div>
+          <div class="stats-card-unit d-flex align-items-center justify-content-between">
+            <span>{% trans "تغطية الخصوم المتداولة" %}</span>
+            <span class="badge {% if liquidity.current_ratio_status == 'success' %}bg-success{% elif liquidity.current_ratio_status == 'warning' %}bg-warning text-dark{% else %}bg-danger{% endif %} text-white">
+              {% if liquidity.has_no_liabilities %}{% trans "آمن تماماً" %}{% elif liquidity.current_ratio >= 1.5 %}{% trans "سيولة ممتازة" %}{% elif liquidity.current_ratio >= 1.0 %}{% trans "سيولة مقبولة" %}{% else %}{% trans "عجز سيولة" %}{% endif %}
+            </span>
           </div>
         </div>
       </div>
-      <div class="col-md-6 col-lg-3 mb-4">
-        <div class="stats-card stats-card-warning">
-          <div class="stats-card-header"></div>
-          <div class="stats-card-body">
-            <div class="stats-card-icon">
-              <i class="fas fa-calendar-check"></i>
-            </div>
-            <div class="stats-card-title">{% trans "المعاملات اليومية" %}</div>
-            <div class="stats-card-value">{{ daily_transactions|default:0|smart_float:0 }}</div>
-            <div class="stats-card-unit">{% trans "معاملة/يوم" %}</div>
+    </div>
+
+    <!-- كارت 4: العائد السنوي على حقوق الملكية (Annualized ROE) -->
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="stats-card {% if profitability.roe_status == 'success' %}stats-card-success{% elif profitability.roe_status == 'warning' %}stats-card-warning{% else %}stats-card-danger{% endif %}">
+        <div class="stats-card-body">
+          <div class="stats-card-icon">
+            <i class="fas fa-award"></i>
+          </div>
+          <div class="stats-card-title">{% trans "العائد على الملكية السنوي (ROE)" %}</div>
+          <div class="stats-card-value number-cell">
+            {% if profitability.is_negative_equity %}
+              <span class="text-danger fs-6">{% trans "عجز حقوق ملكية" %}</span>
+            {% else %}
+              {{ profitability.annualized_roe }}%
+            {% endif %}
+          </div>
+          <div class="stats-card-unit d-flex align-items-center justify-content-between">
+            <span>{% trans "معدل سنوي تقديري" %}</span>
+            <span class="badge {% if profitability.roe_status == 'success' %}bg-success{% elif profitability.roe_status == 'warning' %}bg-warning text-dark{% else %}bg-danger{% endif %} text-white">
+              {% if profitability.is_negative_equity %}{% trans "عالي المخاطر" %}{% elif profitability.roe_status == 'success' %}{% trans "عائد مرتفع" %}{% elif profitability.roe_status == 'warning' %}{% trans "عائد متوسط" %}{% else %}{% trans "عائد ضعيف" %}{% endif %}
+            </span>
           </div>
         </div>
       </div>
     </div>
   </div>
-  
-  <!-- التحليلات المتقدمة -->
-  <div class="section-container">
-    <h5 class="section-title"><i class="fas fa-analytics me-2"></i>{% trans "مؤشرات الأداء المتقدمة" %}</h5>
-    <div class="row">
-      <div class="col-md-6 col-lg-3 mb-4">
-        <div class="analytics-card">
-          <div class="analytics-card-icon">
-            <i class="fas fa-percent"></i>
+
+  <!-- 3. بطاقتي التقييم التنفيذي: الصحة المالية ومؤشر ألتمان Z-Score جنباً إلى جنب -->
+  <div class="row g-3 mb-4">
+    <!-- بطاقة 1: مؤشر الصحة المالية العامة -->
+    <div class="col-12 col-lg-6">
+      <div class="score-card-box">
+        <div class="d-flex align-items-center gap-3">
+          <div class="health-score-circle">
+            <span class="health-score-number">{{ health_scorecard.score }}</span>
+            <span class="health-score-label">/ 100</span>
           </div>
-          <div class="analytics-card-title">{% trans "معدل التحصيل" %}</div>
-          <div class="analytics-card-value">{{ collection_rate|default:0 }}%</div>
-          <div class="analytics-card-unit">{% trans "نسبة التحصيل" %}</div>
+          <div class="flex-grow-1">
+            <div class="d-flex align-items-center justify-content-between mb-1">
+              <h6 class="fw-bold mb-0 text-dark">
+                <i class="fas {{ health_scorecard.icon }} text-{{ health_scorecard.grade_class }} me-1"></i>
+                {% trans "مؤشر الصحة المالية والتصنيف الائتماني" %}
+              </h6>
+              <span class="badge bg-{{ health_scorecard.grade_class }} text-white">
+                {{ health_scorecard.grade }}
+              </span>
+            </div>
+            <p class="text-muted small mb-2">
+              {% trans "تقييم مركب لأوزان محاور السيولة والربحية والملاءة وكفاءة التحصيل ودوران الأصول." %}
+            </p>
+            <div class="progress" style="height: 7px;">
+              <div class="progress-bar bg-{{ health_scorecard.grade_class }}" id="healthProgressBar" role="progressbar" data-score="{{ health_scorecard.score|default:0 }}" aria-valuenow="{{ health_scorecard.score|default:0 }}" aria-valuemin="0" aria-valuemax="100"></div>
+            </div>
+          </div>
         </div>
       </div>
-      <div class="col-md-6 col-lg-3 mb-4">
-        <div class="analytics-card success">
-          <div class="analytics-card-icon">
-            <i class="fas fa-user-plus"></i>
+    </div>
+
+    <!-- بطاقة 2: مؤشر ألتمان للسلامة والتعثر المالي (Altman Z-Score) -->
+    <div class="col-12 col-lg-6">
+      <div class="score-card-box">
+        <div class="d-flex align-items-center gap-3">
+          <div class="health-score-circle border-{{ altman_z.zone|default:'distress' }}">
+            <span class="health-score-number text-{{ altman_z.zone|default:'distress' }}">{{ altman_z.z_score }}</span>
+            <span class="health-score-label">Z' Score</span>
           </div>
-          <div class="analytics-card-title">{% trans "عملاء جدد" %}</div>
-          <div class="analytics-card-value">{{ new_clients|default:0|smart_float:0 }}</div>
-          <div class="analytics-card-unit">{% trans "هذا الشهر" %}</div>
-        </div>
-      </div>
-      <div class="col-md-6 col-lg-3 mb-4">
-        <div class="analytics-card warning">
-          <div class="analytics-card-icon">
-            <i class="fas fa-clock"></i>
+          <div class="flex-grow-1">
+            <div class="d-flex align-items-center justify-content-between mb-1">
+              <h6 class="fw-bold mb-0 text-dark">
+                <i class="fas fa-shield-halved text-{{ altman_z.zone_class }} me-1"></i>
+                {% trans "مؤشر ألتمان للسلامة المالية (Altman Z-Score)" %}
+              </h6>
+              <span class="badge bg-{{ altman_z.zone_class }} text-white">
+                {{ altman_z.zone_name }}
+              </span>
+            </div>
+            <p class="text-muted small mb-0">
+              {{ altman_z.zone_desc }}
+            </p>
           </div>
-          <div class="analytics-card-title">{% trans "متوسط دورة المبيعات" %}</div>
-          <div class="analytics-card-value">{{ sales_cycle|default:0|smart_float:1 }}</div>
-          <div class="analytics-card-unit">{% trans "أيام" %}</div>
-        </div>
-      </div>
-      <div class="col-md-6 col-lg-3 mb-4">
-        <div class="analytics-card danger">
-          <div class="analytics-card-icon">
-            <i class="fas fa-credit-card"></i>
-          </div>
-          <div class="analytics-card-title">{% trans "ديون مستحقة" %}</div>
-          <div class="analytics-card-value">{{ due_debt|default:0|smart_float }}</div>
-          <div class="analytics-card-unit">{% currency_symbol %}</div>
         </div>
       </div>
     </div>
   </div>
-  
-  <!-- الرسوم البيانية -->
-  <div class="section-container">
-    <h5 class="section-title"><i class="fas fa-chart-pie me-2"></i>{% trans "التحليل البياني" %}</h5>
-    <div class="row">
-      <div class="col-lg-8 mb-4">
-        <div class="chart-container">
-          <div class="chart-header">
-            <div>
-              <h6 class="chart-title">{% trans "الإيرادات والمصروفات" %}</h6>
-              <p class="chart-subtitle">{% trans "آخر 6 أشهر" %}</p>
-            </div>
-            <div class="actions-container">
-              <button type="button" class="btn btn-sm btn-outline-secondary" onclick="exportChart('revenue-expenses-chart')">
-                <i class="fas fa-download me-1"></i>{% trans "تصدير" %}
-              </button>
-            </div>
-          </div>
-          <div style="height: 300px;">
-            <canvas id="revenue-expenses-chart"></canvas>
+
+  <!-- بانر توضيحي لفلتر مركز التكلفة إن وجد -->
+  {% if selected_cost_center_id %}
+    <div class="alert alert-info py-2 px-3 mb-4 d-flex align-items-center justify-content-between">
+      <div>
+        <i class="fas fa-info-circle me-2"></i>
+        <span>{% trans "تم تطبيق فلتر مركز التكلفة على بنود الإيرادات والمصروفات" %} (<strong>{{ cost_center_name }}</strong>)، {% trans "بينما مؤشرات الميزانية والسيولة العامة محسوبة على مستوى المنشأة بالكامل." %}</span>
+      </div>
+      <a href="{% url 'financial:financial_analytics' %}?date_from={{ date_from|date:'Y-m-d' }}&date_to={{ date_to|date:'Y-m-d' }}" class="btn btn-sm btn-outline-info">
+        {% trans "إلغاء الفلتر" %}
+      </a>
+    </div>
+  {% endif %}
+
+  <!-- 4. فلتر البحث والتصفية القياسي الموحد -->
+  <div class="section-container mb-4 no-print">
+    <h5 class="section-title" data-bs-toggle="collapse" data-bs-target="#filterSection" style="cursor: pointer;">
+      <i class="fas fa-filter me-2 text-primary"></i>{% trans "تصفية وبحث المؤشرات المالية" %}
+      <i class="fas fa-chevron-down float-end mt-1 text-muted" style="font-size: 0.85rem;"></i>
+    </h5>
+
+    <div class="collapse show mt-3" id="filterSection">
+      <!-- أزرار الفترات السريعة -->
+      <div class="d-flex flex-wrap gap-2 mb-3 pb-2 border-bottom">
+        <span class="text-muted small align-self-center me-2">
+          <i class="fas fa-bolt text-warning me-1"></i>{% trans "فترات سريعة" %}:
+        </span>
+        <button type="button" class="btn btn-sm {% if active_preset == 'this_month' %}btn-primary active{% else %}btn-outline-secondary{% endif %}" onclick="setDatePreset('this_month')">
+          {% trans "الشهر الحالي" %}
+        </button>
+        <button type="button" class="btn btn-sm {% if active_preset == 'this_quarter' %}btn-primary active{% else %}btn-outline-secondary{% endif %}" onclick="setDatePreset('this_quarter')">
+          {% trans "الربع الحالي" %}
+        </button>
+        <button type="button" class="btn btn-sm {% if active_preset == 'ytd' %}btn-primary active{% else %}btn-outline-secondary{% endif %}" onclick="setDatePreset('ytd')">
+          {% trans "السنة حتى تاريخه (YTD)" %}
+        </button>
+        <button type="button" class="btn btn-sm {% if active_preset == 'last_year' %}btn-primary active{% else %}btn-outline-secondary{% endif %}" onclick="setDatePreset('last_year')">
+          {% trans "السنة السابقة كاملة" %}
+        </button>
+      </div>
+
+      <form method="GET" action="" id="analyticsFilterForm" class="row g-3 align-items-end">
+        <input type="hidden" name="preset" id="preset_input" value="{{ active_preset|default:'' }}">
+
+        <!-- من تاريخ -->
+        <div class="col-12 col-sm-6 col-lg-3">
+          <label for="date_from" class="form-label fw-semibold">
+            <i class="fas fa-calendar-alt me-1 text-muted"></i>{% trans "من تاريخ" %}:
+          </label>
+          <input type="text" class="form-control form-control-sm" id="date_from" name="date_from"
+                 data-date-picker placeholder="YYYY-MM-DD" value="{{ date_from|date:'Y-m-d' }}">
+        </div>
+
+        <!-- إلى تاريخ -->
+        <div class="col-12 col-sm-6 col-lg-3">
+          <label for="date_to" class="form-label fw-semibold">
+            <i class="fas fa-calendar-check me-1 text-muted"></i>{% trans "إلى تاريخ" %}:
+          </label>
+          <input type="text" class="form-control form-control-sm" id="date_to" name="date_to"
+                 data-date-picker placeholder="YYYY-MM-DD" value="{{ date_to|date:'Y-m-d' }}">
+        </div>
+
+        <!-- مركز التكلفة -->
+        <div class="col-12 col-sm-6 col-lg-2">
+          <label for="cost_center" class="form-label fw-semibold">
+            <i class="fas fa-sitemap me-1 text-muted"></i>{% trans "مركز التكلفة" %}:
+          </label>
+          <select name="cost_center" id="cost_center" class="form-select form-select-sm select2-filter">
+            <option value="">-- {% trans "كافة مراكز التكلفة" %} --</option>
+            {% for cc in cost_centers_list %}
+              <option value="{{ cc.id }}" {% if selected_cost_center_id == cc.id|stringformat:"s" %}selected{% endif %}>
+                {{ cc.code }} - {{ cc.name }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- تضمين المسودات -->
+        <div class="col-12 col-sm-6 col-lg-2 d-flex flex-column justify-content-center pb-1">
+          <div class="form-check form-switch mb-0">
+            <input class="form-check-input" type="checkbox" id="include_unposted" name="include_unposted" value="1" {% if include_unposted %}checked{% endif %}>
+            <label class="form-check-label small fw-semibold" for="include_unposted">{% trans "تضمين المسودات" %}</label>
           </div>
         </div>
+
+        <!-- أزرار الإجراءات -->
+        <div class="col-12 col-sm-6 col-lg-2 d-flex gap-2">
+          <button type="submit" class="btn btn-primary flex-fill" title="{% trans 'تحديث التحليلات' %}">
+            <i class="fas fa-search me-1"></i>{% trans "بحث" %}
+          </button>
+          <a href="{% url 'financial:financial_analytics' %}" class="btn btn-outline-secondary" title="{% trans 'إعادة تعيين' %}">
+            <i class="fas fa-undo"></i>
+          </a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 5. الرسوم البيانية التفاعلية الملتزمة بمعايير النظام -->
+  <div class="row g-3 mb-4">
+    <!-- الرسم البياني 1: منحنى اتجاهات الأداء المالي لـ 12 شهراً -->
+    <div class="col-12 col-lg-8">
+      <div class="chart-box">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <div>
+            <h6 class="chart-title"><i class="fas fa-chart-area text-primary me-2"></i>{% trans "منحنى اتجاهات الأداء المالي لـ 12 شهراً" %}</h6>
+            <p class="chart-subtitle mb-0">{% trans "مقارنة شهرية لتطور الإيرادات والمصروفات وصافي الأرباح" %}</p>
+          </div>
+          <span class="badge bg-light text-dark border">{{ analytics.currency_symbol }}</span>
+        </div>
+        <div style="height: 290px;">
+          <canvas id="monthlyTrendsChart"></canvas>
+        </div>
       </div>
-      <div class="col-lg-4 mb-4">
-        <div class="chart-container h-100">
-          <div class="chart-header">
-            <div>
-              <h6 class="chart-title">{% trans "توزيع المصروفات" %}</h6>
-              <p class="chart-subtitle">{% trans "حسب التصنيف" %}</p>
-            </div>
-            <div class="actions-container">
-              <button type="button" class="btn btn-sm btn-outline-secondary" onclick="exportChart('expenses-distribution-chart')">
-                <i class="fas fa-download me-1"></i>{% trans "تصدير" %}
-              </button>
-            </div>
+    </div>
+
+    <!-- الرسم البياني 2: الهيكل النسبي لتوزيع التكاليف والمصروفات -->
+    <div class="col-12 col-lg-4">
+      <div class="chart-box">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <div>
+            <h6 class="chart-title"><i class="fas fa-chart-pie text-info me-2"></i>{% trans "هيكل توزيع التكاليف" %}</h6>
+            <p class="chart-subtitle mb-0">{% trans "الوزن النسبي لعناصر المصروفات" %}</p>
           </div>
-          <div style="height: 250px;">
-            <canvas id="expenses-distribution-chart"></canvas>
-          </div>
+          <span class="badge bg-light text-dark border">100%</span>
+        </div>
+        <div style="height: 290px;">
+          <canvas id="expenseDistributionChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 6. الجداول التفصيلية للمحاور المالية الأربعة مع المقارنة وروابط التدقيق السريع -->
+  <div class="row g-3 mb-4">
+    <!-- المحور 1: نسب السيولة ورأس المال العامل -->
+    <div class="col-12 col-lg-6">
+      <div class="section-container h-100">
+        <div class="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2">
+          <h5 class="section-title mb-0">
+            <i class="fas fa-droplet text-info me-2"></i>{% trans "1. مؤشرات السيولة ورأس المال العامل" %}
+          </h5>
+          <a href="{% url 'financial:balance_sheet' %}?date={{ date_to|date:'Y-m-d' }}" class="btn btn-sm btn-outline-secondary" title="{% trans 'فتح الميزانية العمومية' %}" target="_blank">
+            <i class="fas fa-external-link-alt me-1"></i>{% trans "الميزانية" %}
+          </a>
+        </div>
+        <div class="table-responsive">
+          <table class="table ratio-table">
+            <thead>
+              <tr>
+                <th>{% trans "المؤشر المالي" %}</th>
+                <th class="text-center col-sep-left" style="width: 105px;">{% trans "الحالي" %}</th>
+                <th class="text-center col-sep-left" style="width: 105px;">{% trans "المقارنة" %}</th>
+                <th class="text-center col-sep-left" style="width: 85px;">{% trans "التغير" %}</th>
+                <th class="text-center col-sep-left" style="width: 110px;">{% trans "التقييم" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>
+                  <span class="fw-semibold">{% trans "نسبة التداول (Current Ratio)" %}</span>
+                  <div class="text-muted small">{% trans "الأصول المتداولة ÷ الالتزامات" %}</div>
+                </td>
+                <td class="number-cell text-center col-sep-left">
+                  {% if liquidity.has_no_liabilities %}-{% else %}{{ liquidity.current_ratio }}{% endif %}
+                </td>
+                <td class="number-cell text-center col-sep-left text-muted">
+                  {{ liquidity.comp_current_ratio }}
+                </td>
+                <td class="text-center col-sep-left">
+                  {% if liquidity.delta_current_ratio.pct != 0 %}
+                    <span class="badge {% if liquidity.delta_current_ratio.is_positive %}bg-success{% else %}bg-danger{% endif %} text-white delta-badge">
+                      {% if liquidity.delta_current_ratio.is_positive %}+{% endif %}{{ liquidity.delta_current_ratio.pct }}%
+                    </span>
+                  {% else %}-{% endif %}
+                </td>
+                <td class="text-center col-sep-left">
+                  <span class="badge {% if liquidity.current_ratio_status == 'success' %}bg-success{% elif liquidity.current_ratio_status == 'warning' %}bg-warning text-dark{% else %}bg-danger{% endif %} text-white">
+                    {% if liquidity.has_no_liabilities %}{% trans "آمن" %}{% elif liquidity.current_ratio >= 1.5 %}{% trans "آمن (>= 1.5)" %}{% elif liquidity.current_ratio >= 1.0 %}{% trans "مقبول (>= 1.0)" %}{% else %}{% trans "حرج (< 1.0)" %}{% endif %}
+                  </span>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <span class="fw-semibold">{% trans "نسبة السيولة السريعة (Quick Ratio)" %}</span>
+                  <div class="text-muted small">{% trans "(الأصول - المخزون) ÷ الالتزامات" %}</div>
+                </td>
+                <td class="number-cell text-center col-sep-left">
+                  {% if liquidity.has_no_liabilities %}-{% else %}{{ liquidity.quick_ratio }}{% endif %}
+                </td>
+                <td class="number-cell text-center col-sep-left text-muted">
+                  {{ liquidity.comp_quick_ratio }}
+                </td>
+                <td class="text-center col-sep-left">
+                  {% if liquidity.delta_quick_ratio.pct != 0 %}
+                    <span class="badge {% if liquidity.delta_quick_ratio.is_positive %}bg-success{% else %}bg-danger{% endif %} text-white delta-badge">
+                      {% if liquidity.delta_quick_ratio.is_positive %}+{% endif %}{{ liquidity.delta_quick_ratio.pct }}%
+                    </span>
+                  {% else %}-{% endif %}
+                </td>
+                <td class="text-center col-sep-left">
+                  <span class="badge {% if liquidity.quick_ratio_status == 'success' %}bg-success{% elif liquidity.quick_ratio_status == 'warning' %}bg-warning text-dark{% else %}bg-danger{% endif %} text-white">
+                    {% if liquidity.has_no_liabilities %}{% trans "آمن" %}{% elif liquidity.quick_ratio >= 1.0 %}{% trans "آمن (>= 1.0)" %}{% elif liquidity.quick_ratio >= 0.7 %}{% trans "مقبول (>= 0.7)" %}{% else %}{% trans "حرج (< 0.7)" %}{% endif %}
+                  </span>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <span class="fw-semibold">{% trans "نسبة النقدية الفورية (Cash Ratio)" %}</span>
+                  <div class="text-muted small">{% trans "النقدية والبنوك ÷ الالتزامات" %}</div>
+                </td>
+                <td class="number-cell text-center col-sep-left">
+                  {% if liquidity.has_no_liabilities %}-{% else %}{{ liquidity.cash_ratio }}{% endif %}
+                </td>
+                <td class="number-cell text-center col-sep-left text-muted">
+                  {{ liquidity.comp_cash_ratio }}
+                </td>
+                <td class="text-center col-sep-left">
+                  {% if liquidity.delta_cash_ratio.pct != 0 %}
+                    <span class="badge {% if liquidity.delta_cash_ratio.is_positive %}bg-success{% else %}bg-danger{% endif %} text-white delta-badge">
+                      {% if liquidity.delta_cash_ratio.is_positive %}+{% endif %}{{ liquidity.delta_cash_ratio.pct }}%
+                    </span>
+                  {% else %}-{% endif %}
+                </td>
+                <td class="text-center col-sep-left">
+                  <span class="badge {% if liquidity.cash_ratio_status == 'success' %}bg-success{% elif liquidity.cash_ratio_status == 'warning' %}bg-warning text-dark{% else %}bg-danger{% endif %} text-white">
+                    {% if liquidity.cash_ratio >= 0.2 %}{% trans "آمن (>= 0.2)" %}{% else %}{% trans "منخفض (< 0.2)" %}{% endif %}
+                  </span>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <span class="fw-semibold">{% trans "صافي رأس المال العامل" %}</span>
+                  <div class="text-muted small">{% trans "الأصول المتداولة - الالتزامات" %}</div>
+                </td>
+                <td class="number-cell text-center col-sep-left {% if liquidity.net_working_capital >= 0 %}text-success{% else %}text-danger{% endif %}">
+                  {{ liquidity.net_working_capital|smart_float }}
+                </td>
+                <td class="number-cell text-center col-sep-left text-muted">
+                  {{ liquidity.comp_net_working_capital|smart_float }}
+                </td>
+                <td class="text-center col-sep-left">
+                  {% if liquidity.delta_net_working_capital.pct != 0 %}
+                    <span class="badge {% if liquidity.delta_net_working_capital.is_positive %}bg-success{% else %}bg-danger{% endif %} text-white delta-badge">
+                      {% if liquidity.delta_net_working_capital.is_positive %}+{% endif %}{{ liquidity.delta_net_working_capital.pct }}%
+                    </span>
+                  {% else %}-{% endif %}
+                </td>
+                <td class="text-center col-sep-left">
+                  <span class="badge {% if liquidity.net_working_capital >= 0 %}bg-success{% else %}bg-danger{% endif %} text-white">
+                    {% if liquidity.net_working_capital >= 0 %}{% trans "فائض سيولة" %}{% else %}{% trans "عجز سيولة" %}{% endif %}
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- المحور 2: نسب الربحية والعوائد -->
+    <div class="col-12 col-lg-6">
+      <div class="section-container h-100">
+        <div class="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2">
+          <h5 class="section-title mb-0">
+            <i class="fas fa-sack-dollar text-success me-2"></i>{% trans "2. مؤشرات الربحية وهوامش العائد" %}
+          </h5>
+          <a href="{% url 'financial:income_statement' %}?date_from={{ date_from|date:'Y-m-d' }}&date_to={{ date_to|date:'Y-m-d' }}" class="btn btn-sm btn-outline-secondary" title="{% trans 'فتح قائمة الدخل' %}" target="_blank">
+            <i class="fas fa-external-link-alt me-1"></i>{% trans "قائمة الدخل" %}
+          </a>
+        </div>
+        <div class="table-responsive">
+          <table class="table ratio-table">
+            <thead>
+              <tr>
+                <th>{% trans "المؤشر المالي" %}</th>
+                <th class="text-center col-sep-left" style="width: 105px;">{% trans "الحالي" %}</th>
+                <th class="text-center col-sep-left" style="width: 105px;">{% trans "المقارنة" %}</th>
+                <th class="text-center col-sep-left" style="width: 85px;">{% trans "التغير" %}</th>
+                <th class="text-center col-sep-left" style="width: 110px;">{% trans "التصنيف" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>
+                  <span class="fw-semibold">{% trans "هامش مجمل الربح (Gross Margin)" %}</span>
+                  <div class="text-muted small">{% trans "مجمل الربح ÷ صافي المبيعات" %}</div>
+                </td>
+                <td class="number-cell text-center col-sep-left">{{ profitability.gross_margin }}%</td>
+                <td class="number-cell text-center col-sep-left text-muted">{{ profitability.comp_gross_margin }}%</td>
+                <td class="text-center col-sep-left">
+                  {% if profitability.delta_gross_margin.diff != 0 %}
+                    <span class="badge {% if profitability.delta_gross_margin.is_positive %}bg-success{% else %}bg-danger{% endif %} text-white delta-badge">
+                      {% if profitability.delta_gross_margin.is_positive %}+{% endif %}{{ profitability.delta_gross_margin.diff }}%
+                    </span>
+                  {% else %}-{% endif %}
+                </td>
+                <td class="text-center col-sep-left"><span class="badge bg-light text-dark border">{{ profitability.gross_profit|smart_float }}</span></td>
+              </tr>
+              <tr>
+                <td>
+                  <span class="fw-semibold">{% trans "هامش الربح التشغيلي (Operating)" %}</span>
+                  <div class="text-muted small">{% trans "الربح التشغيلي EBIT ÷ المبيعات" %}</div>
+                </td>
+                <td class="number-cell text-center col-sep-left">{{ profitability.operating_margin }}%</td>
+                <td class="number-cell text-center col-sep-left text-muted">{{ profitability.comp_operating_margin }}%</td>
+                <td class="text-center col-sep-left">
+                  {% if profitability.delta_operating_margin.diff != 0 %}
+                    <span class="badge {% if profitability.delta_operating_margin.is_positive %}bg-success{% else %}bg-danger{% endif %} text-white delta-badge">
+                      {% if profitability.delta_operating_margin.is_positive %}+{% endif %}{{ profitability.delta_operating_margin.diff }}%
+                    </span>
+                  {% else %}-{% endif %}
+                </td>
+                <td class="text-center col-sep-left"><span class="badge bg-light text-dark border">{{ profitability.operating_profit|smart_float }}</span></td>
+              </tr>
+              <tr>
+                <td>
+                  <span class="fw-semibold">{% trans "العائد على الأصول السنوي (ROA)" %}</span>
+                  <div class="text-muted small">{% trans "صافي الربح ÷ متوسط الأصول (سنوياً)" %}</div>
+                </td>
+                <td class="number-cell text-center col-sep-left">{{ profitability.annualized_roa }}%</td>
+                <td class="number-cell text-center col-sep-left text-muted">{{ profitability.comp_annualized_roa }}%</td>
+                <td class="text-center col-sep-left">
+                  {% if profitability.delta_annualized_roa.diff != 0 %}
+                    <span class="badge {% if profitability.delta_annualized_roa.is_positive %}bg-success{% else %}bg-danger{% endif %} text-white delta-badge">
+                      {% if profitability.delta_annualized_roa.is_positive %}+{% endif %}{{ profitability.delta_annualized_roa.diff }}%
+                    </span>
+                  {% else %}-{% endif %}
+                </td>
+                <td class="text-center col-sep-left"><span class="badge bg-light text-dark border">{% trans "دوري" %}: {{ profitability.periodic_roa }}%</span></td>
+              </tr>
+              <tr>
+                <td>
+                  <span class="fw-semibold">{% trans "العائد على الملكية السنوي (ROE)" %}</span>
+                  <div class="text-muted small">{% trans "صافي الربح ÷ متوسط حقوق الملكية" %}</div>
+                </td>
+                <td class="number-cell text-center col-sep-left">
+                  {% if profitability.is_negative_equity %}
+                    <span class="text-danger small">{% trans "عجز ملكية" %}</span>
+                  {% else %}
+                    {{ profitability.annualized_roe }}%
+                  {% endif %}
+                </td>
+                <td class="number-cell text-center col-sep-left text-muted">
+                  {{ profitability.comp_annualized_roe }}%
+                </td>
+                <td class="text-center col-sep-left">
+                  {% if not profitability.is_negative_equity and profitability.delta_annualized_roe.diff != 0 %}
+                    <span class="badge {% if profitability.delta_annualized_roe.is_positive %}bg-success{% else %}bg-danger{% endif %} text-white delta-badge">
+                      {% if profitability.delta_annualized_roe.is_positive %}+{% endif %}{{ profitability.delta_annualized_roe.diff }}%
+                    </span>
+                  {% else %}-{% endif %}
+                </td>
+                <td class="text-center col-sep-left">
+                  {% if profitability.is_negative_equity %}
+                    <span class="badge bg-danger text-white">{% trans "عالي المخاطر" %}</span>
+                  {% else %}
+                    <span class="badge bg-light text-dark border">{% trans "دوري" %}: {{ profitability.periodic_roe }}%</span>
+                  {% endif %}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- المحور 3: نسب الملاءة والرفع المالي -->
+    <div class="col-12 col-lg-6">
+      <div class="section-container h-100">
+        <div class="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2">
+          <h5 class="section-title mb-0">
+            <i class="fas fa-building-columns text-warning me-2"></i>{% trans "3. مؤشرات الملاءة والرفع المالي" %}
+          </h5>
+          <a href="{% url 'financial:balance_sheet' %}?date={{ date_to|date:'Y-m-d' }}" class="btn btn-sm btn-outline-secondary" title="{% trans 'فتح الميزانية' %}" target="_blank">
+            <i class="fas fa-external-link-alt me-1"></i>{% trans "الخصوم والملكيات" %}
+          </a>
+        </div>
+        <div class="table-responsive">
+          <table class="table ratio-table">
+            <thead>
+              <tr>
+                <th>{% trans "المؤشر المالي" %}</th>
+                <th class="text-center col-sep-left" style="width: 105px;">{% trans "الحالي" %}</th>
+                <th class="text-center col-sep-left" style="width: 105px;">{% trans "المقارنة" %}</th>
+                <th class="text-center col-sep-left" style="width: 85px;">{% trans "التغير" %}</th>
+                <th class="text-center col-sep-left" style="width: 110px;">{% trans "التقييم" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>
+                  <span class="fw-semibold">{% trans "نسبة المديونية للملكية (Debt-to-Equity)" %}</span>
+                  <div class="text-muted small">{% trans "إجمالي الالتزامات ÷ حقوق الملكية" %}</div>
+                </td>
+                <td class="number-cell text-center col-sep-left">
+                  {% if solvency.is_negative_equity %}
+                    <span class="text-danger small">{% trans "عجز ملكية" %}</span>
+                  {% elif solvency.has_no_debt %}
+                    -
+                  {% else %}
+                    {{ solvency.debt_to_equity }}
+                  {% endif %}
+                </td>
+                <td class="number-cell text-center col-sep-left text-muted">
+                  {{ solvency.comp_debt_to_equity }}
+                </td>
+                <td class="text-center col-sep-left">
+                  {% if solvency.delta_debt_to_equity.pct != 0 %}
+                    <span class="badge {% if not solvency.delta_debt_to_equity.is_positive %}bg-success{% else %}bg-danger{% endif %} text-white delta-badge">
+                      {% if solvency.delta_debt_to_equity.is_positive %}+{% endif %}{{ solvency.delta_debt_to_equity.pct }}%
+                    </span>
+                  {% else %}-{% endif %}
+                </td>
+                <td class="text-center col-sep-left">
+                  <span class="badge {% if solvency.de_status == 'success' %}bg-success{% elif solvency.de_status == 'warning' %}bg-warning text-dark{% else %}bg-danger{% endif %} text-white">
+                    {% if solvency.is_negative_equity %}{% trans "حرج" %}{% elif solvency.has_no_debt %}{% trans "بدون ديون" %}{% elif solvency.debt_to_equity <= 1.5 %}{% trans "آمن (<= 1.5)" %}{% elif solvency.debt_to_equity <= 2.5 %}{% trans "متوسط (<= 2.5)" %}{% else %}{% trans "مرتفع (> 2.5)" %}{% endif %}
+                  </span>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <span class="fw-semibold">{% trans "نسبة المديونية للأصول (Debt Ratio)" %}</span>
+                  <div class="text-muted small">{% trans "إجمالي الالتزامات ÷ إجمالي الأصول" %}</div>
+                </td>
+                <td class="number-cell text-center col-sep-left">{{ solvency.debt_ratio }}%</td>
+                <td class="number-cell text-center col-sep-left text-muted">{{ solvency.comp_debt_ratio }}%</td>
+                <td class="text-center col-sep-left">
+                  {% if solvency.delta_debt_ratio.diff != 0 %}
+                    <span class="badge {% if not solvency.delta_debt_ratio.is_positive %}bg-success{% else %}bg-danger{% endif %} text-white delta-badge">
+                      {% if solvency.delta_debt_ratio.is_positive %}+{% endif %}{{ solvency.delta_debt_ratio.diff }}%
+                    </span>
+                  {% else %}-{% endif %}
+                </td>
+                <td class="text-center col-sep-left">
+                  <span class="badge {% if solvency.dr_status == 'success' %}bg-success{% elif solvency.dr_status == 'warning' %}bg-warning text-dark{% else %}bg-danger{% endif %} text-white">
+                    {% if solvency.debt_ratio <= 60 %}{% trans "آمن (<= 60%)" %}{% elif solvency.debt_ratio <= 80 %}{% trans "متوسط (<= 80%)" %}{% else %}{% trans "مرتفع (> 80%)" %}{% endif %}
+                  </span>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <span class="fw-semibold">{% trans "مضاعف الرفع المالي (Equity Multiplier)" %}</span>
+                  <div class="text-muted small">{% trans "إجمالي الأصول ÷ حقوق الملكية" %}</div>
+                </td>
+                <td class="number-cell text-center col-sep-left">{{ solvency.equity_multiplier }}</td>
+                <td class="number-cell text-center col-sep-left text-muted">-</td>
+                <td class="text-center col-sep-left">-</td>
+                <td class="text-center col-sep-left"><span class="badge bg-light text-dark border">{% trans "مقياس الرفع" %}</span></td>
+              </tr>
+              <tr>
+                <td>
+                  <span class="fw-semibold">{% trans "إجمالي حقوق الملكية" %}</span>
+                  <div class="text-muted small">{% trans "رأس المال والأرباح والاحتياطيات" %}</div>
+                </td>
+                <td class="number-cell text-center col-sep-left {% if solvency.total_equity >= 0 %}text-success{% else %}text-danger{% endif %}">
+                  {{ solvency.total_equity|smart_float }}
+                </td>
+                <td class="number-cell text-center col-sep-left text-muted">-</td>
+                <td class="text-center col-sep-left">-</td>
+                <td class="text-center col-sep-left">
+                  <span class="badge {% if solvency.total_equity >= 0 %}bg-success{% else %}bg-danger{% endif %} text-white">
+                    {% if solvency.total_equity >= 0 %}{% trans "ملكية موجبة" %}{% else %}{% trans "عجز رأس مال" %}{% endif %}
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- المحور 4: مؤشرات الكفاءة ودورة التحول النقدي -->
+    <div class="col-12 col-lg-6">
+      <div class="section-container h-100">
+        <div class="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2">
+          <h5 class="section-title mb-0">
+            <i class="fas fa-arrows-spin text-primary me-2"></i>{% trans "4. مؤشرات الكفاءة ودورة التحول النقدي" %}
+          </h5>
+          <a href="{% url 'financial:cash_flow_statement' %}?date_from={{ date_from|date:'Y-m-d' }}&date_to={{ date_to|date:'Y-m-d' }}" class="btn btn-sm btn-outline-secondary" title="{% trans 'فتح قائمة التدفقات النقدية' %}" target="_blank">
+            <i class="fas fa-external-link-alt me-1"></i>{% trans "التدفق النقدي" %}
+          </a>
+        </div>
+        <div class="table-responsive">
+          <table class="table ratio-table">
+            <thead>
+              <tr>
+                <th>{% trans "المؤشر المالي" %}</th>
+                <th class="text-center col-sep-left" style="width: 105px;">{% trans "الحالي" %}</th>
+                <th class="text-center col-sep-left" style="width: 105px;">{% trans "المقارنة" %}</th>
+                <th class="text-center col-sep-left" style="width: 85px;">{% trans "التغير" %}</th>
+                <th class="text-center col-sep-left" style="width: 110px;">{% trans "كشف" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>
+                  <span class="fw-semibold">{% trans "متوسط فترة تحصيل العملاء (DSO)" %}</span>
+                  <div class="text-muted small">{% trans "متوسط رصيد العملاء ÷ المبيعات × الأيام" %}</div>
+                </td>
+                <td class="number-cell text-center col-sep-left">{{ activity.dso_days }} {% trans "يوم" %}</td>
+                <td class="number-cell text-center col-sep-left text-muted">{{ activity.comp_dso_days }} {% trans "يوم" %}</td>
+                <td class="text-center col-sep-left">
+                  {% if activity.delta_dso_days.pct != 0 %}
+                    <span class="badge {% if not activity.delta_dso_days.is_positive %}bg-success{% else %}bg-danger{% endif %} text-white delta-badge">
+                      {% if activity.delta_dso_days.is_positive %}+{% endif %}{{ activity.delta_dso_days.pct }}%
+                    </span>
+                  {% else %}-{% endif %}
+                </td>
+                <td class="text-center col-sep-left">
+                  <a href="{% url 'financial:customer_supplier_balances_report' 'customer' %}?date_from={{ date_from|date:'Y-m-d' }}&date_to={{ date_to|date:'Y-m-d' }}" class="btn btn-sm btn-outline-secondary p-1" title="{% trans 'كشف أرصدة العملاء' %}" target="_blank">
+                    <i class="fas fa-users"></i>
+                  </a>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <span class="fw-semibold">{% trans "متوسط فترة دوران المخزون (DSI)" %}</span>
+                  <div class="text-muted small">{% trans "متوسط المخزون ÷ تكلفة المبيعات × الأيام" %}</div>
+                </td>
+                <td class="number-cell text-center col-sep-left">{{ activity.dsi_days }} {% trans "يوم" %}</td>
+                <td class="number-cell text-center col-sep-left text-muted">{{ activity.comp_dsi_days }} {% trans "يوم" %}</td>
+                <td class="text-center col-sep-left">
+                  {% if activity.delta_dsi_days.pct != 0 %}
+                    <span class="badge {% if not activity.delta_dsi_days.is_positive %}bg-success{% else %}bg-danger{% endif %} text-white delta-badge">
+                      {% if activity.delta_dsi_days.is_positive %}+{% endif %}{{ activity.delta_dsi_days.pct }}%
+                    </span>
+                  {% else %}-{% endif %}
+                </td>
+                <td class="text-center col-sep-left"><span class="badge bg-light text-dark border">{% trans "دوران" %}: {{ activity.inv_turnover }}</span></td>
+              </tr>
+              <tr>
+                <td>
+                  <span class="fw-semibold">{% trans "متوسط فترة سداد الموردين (DPO)" %}</span>
+                  <div class="text-muted small">{% trans "متوسط الموردين ÷ المشتريات × الأيام" %}</div>
+                </td>
+                <td class="number-cell text-center col-sep-left">{{ activity.dpo_days }} {% trans "يوم" %}</td>
+                <td class="number-cell text-center col-sep-left text-muted">{{ activity.comp_dpo_days }} {% trans "يوم" %}</td>
+                <td class="text-center col-sep-left">
+                  {% if activity.delta_dpo_days.pct != 0 %}
+                    <span class="badge {% if activity.delta_dpo_days.is_positive %}bg-success{% else %}bg-danger{% endif %} text-white delta-badge">
+                      {% if activity.delta_dpo_days.is_positive %}+{% endif %}{{ activity.delta_dpo_days.pct }}%
+                    </span>
+                  {% else %}-{% endif %}
+                </td>
+                <td class="text-center col-sep-left">
+                  <a href="{% url 'financial:customer_supplier_balances_report' 'supplier' %}?date_from={{ date_from|date:'Y-m-d' }}&date_to={{ date_to|date:'Y-m-d' }}" class="btn btn-sm btn-outline-secondary p-1" title="{% trans 'كشف أرصدة الموردين' %}" target="_blank">
+                    <i class="fas fa-truck"></i>
+                  </a>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <span class="fw-semibold">{% trans "دورة التحول النقدي (Cash Conversion Cycle)" %}</span>
+                  <div class="text-muted small">{% trans "DSO (تحصيل) + DSI (مخزون) - DPO (سداد)" %}</div>
+                </td>
+                <td class="number-cell text-center col-sep-left text-primary fw-bold">{{ activity.ccc_days }} {% trans "يوم" %}</td>
+                <td class="number-cell text-center col-sep-left text-muted">{{ activity.comp_ccc_days }} {% trans "يوم" %}</td>
+                <td class="text-center col-sep-left">
+                  {% if activity.delta_ccc_days.diff != 0 %}
+                    <span class="badge {% if not activity.delta_ccc_days.is_positive %}bg-success{% else %}bg-danger{% endif %} text-white delta-badge">
+                      {% if activity.delta_ccc_days.is_positive %}+{% endif %}{{ activity.delta_ccc_days.diff }}
+                    </span>
+                  {% else %}-{% endif %}
+                </td>
+                <td class="text-center col-sep-left"><span class="badge bg-primary text-white">{% trans "دورة نقدية" %}</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 7. بطاقة تحليل دوبونت الاستراتيجي الثلاثي (DuPont 3-Step Model) -->
+  <div class="section-container mb-4">
+    <h5 class="section-title">
+      <i class="fas fa-sitemap text-primary me-2"></i>{% trans "5. تحليل دوبونت الاستراتيجي الثلاثي (DuPont 3-Step Analysis)" %}
+    </h5>
+    <p class="text-muted small mb-3">
+      {% trans "تفكيك العائد على حقوق الملكية (ROE) إلى محركاته الثلاثة: كفاءة التشغيل (هامش الربح)، كفاءة استخدام الأصول (معدل الدوران)، والرافعة المالية (هيكل رأس المال)." %}
+    </p>
+
+    <div class="row g-2 align-items-center justify-content-center">
+      <!-- 1. هامش صافي الربح -->
+      <div class="col-12 col-md-3">
+        <div class="dupont-box">
+          <div class="dupont-step-val">{{ dupont.net_margin }}%</div>
+          <div class="dupont-step-title mt-1">{% trans "1. هامش صافي الربح" %}</div>
+          <div class="text-muted small">{% trans "(الربحية والتحكم بالتكاليف)" %}</div>
+        </div>
+      </div>
+
+      <!-- معامل الضرب × -->
+      <div class="col-12 col-md-1 dupont-operator">×</div>
+
+      <!-- 2. معدل دوران الأصول -->
+      <div class="col-12 col-md-3">
+        <div class="dupont-box">
+          <div class="dupont-step-val">{{ dupont.asset_turnover }}</div>
+          <div class="dupont-step-title mt-1">{% trans "2. دوران الأصول" %}</div>
+          <div class="text-muted small">{% trans "(كفاءة توليد المبيعات)" %}</div>
+        </div>
+      </div>
+
+      <!-- معامل الضرب × -->
+      <div class="col-12 col-md-1 dupont-operator">×</div>
+
+      <!-- 3. مضاعف الرفع المالي -->
+      <div class="col-12 col-md-3">
+        <div class="dupont-box">
+          <div class="dupont-step-val">{{ dupont.leverage }}</div>
+          <div class="dupont-step-title mt-1">{% trans "3. الرافعة المالية" %}</div>
+          <div class="text-muted small">{% trans "(هيكل التمويل والديون)" %}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- تذييل التوقيعات والاعتمادات الرسمية للطباعة -->
+  <div class="print-signatures mt-4">
+    <div class="row text-center">
+      <div class="col-4">
+        <div class="signature-box">
+          <span class="fw-bold text-dark">{% trans "إعداد: محلل البيانات المالية" %}</span>
+          <div class="signature-line"></div>
+        </div>
+      </div>
+      <div class="col-4">
+        <div class="signature-box">
+          <span class="fw-bold text-dark">{% trans "مراجعة: رئيس الحسابات" %}</span>
+          <div class="signature-line"></div>
+        </div>
+      </div>
+      <div class="col-4">
+        <div class="signature-box">
+          <span class="fw-bold text-dark">{% trans "اعتماد: المدير المالي (CFO)" %}</span>
+          <div class="signature-line"></div>
         </div>
       </div>
     </div>
@@ -268,147 +1011,100 @@
 {% endblock %}
 
 {% block extra_js %}
-<!-- مكتبة SheetJS لتصدير البيانات إلى Excel بدعم كامل للغة العربية -->
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<!-- مكتبة Chart.js للرسوم البيانية -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
-  // تصدير التحليلات المالية
-  function exportAnalytics() {
-    try {
-      let data = [];
-      
-      // العنوان
-      data.push(['التحليلات المالية']);
-      data.push(['تاريخ التقرير: ' + new Date().toLocaleDateString('ar-EG')]);
-      data.push([]);
-      
-      // المؤشرات الرئيسية
-      data.push(['المؤشرات المالية الرئيسية']);
-      data.push(['الإيرادات الشهرية', '{{ monthly_income|default:"32500" }}']);
-      data.push(['هامش الربح', '{{ profit_margin|default:"24" }}%']);
-      data.push(['متوسط قيمة الفاتورة', '{{ avg_invoice|default:"1250" }}']);
-      data.push(['المعاملات اليومية', '{{ daily_transactions|default:"14" }}']);
-      data.push([]);
-      
-      // مؤشرات الأداء المتقدمة
-      data.push(['مؤشرات الأداء المتقدمة']);
-      data.push(['معدل التحصيل', '{{ collection_rate|default:"87" }}%']);
-      data.push(['عملاء جدد', '{{ new_clients|default:"24" }}']);
-      data.push(['متوسط دورة المبيعات', '{{ sales_cycle|default:"4.2" }} أيام']);
-      data.push(['ديون مستحقة', '{{ due_debt|default:"18750" }}']);
-      
-      // إنشاء ملف Excel
-      const ws = XLSX.utils.aoa_to_sheet(data);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'التحليلات المالية');
-      XLSX.writeFile(wb, 'التحليلات_المالية_' + new Date().toISOString().split('T')[0] + '.xlsx');
-      
-      if (typeof toastr !== 'undefined') { toastr.success('تم تصدير التحليلات المالية بنجاح'); };
-    } catch (error) {
-      console.error('خطأ في تصدير التحليلات:', error);
-      if (typeof toastr !== 'undefined') { toastr.error('حدث خطأ أثناء تصدير البيانات'); };
-    }
-  }
-  
-  // تصدير الرسم البياني
-  function exportChart(chartId) {
-    try {
-      const canvas = document.getElementById(chartId);
-      const url = canvas.toDataURL('image/png');
-      const link = document.createElement('a');
-      link.download = chartId + '_' + new Date().toISOString().split('T')[0] + '.png';
-      link.href = url;
-      link.click();
-      
-      if (typeof toastr !== 'undefined') { toastr.success('تم تصدير الرسم البياني بنجاح'); };
-    } catch (error) {
-      console.error('خطأ في تصدير الرسم البياني:', error);
-      if (typeof toastr !== 'undefined') { toastr.error('حدث خطأ أثناء تصدير الرسم البياني'); };
-    }
-  }
-  
-  // دالة إظهار الإشعارات
-  // Removed: Using toastr library directly alert-dismissible fade show position-fixed" 
-             style="top: 20px; right: 20px; z-index: 9999; min-width: 300px;">
-            <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'} me-2"></i>
-            ${message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    `);
-    
-    $('body').append(notification);
-    
-    // إزالة الإشعار تلقائياً بعد 5 ثوان
-    setTimeout(() => {
-        notification.alert('close');
-    }, 5000);
-  }
+<!-- بيانات الرسوم البيانية كـ JSON آمن -->
+<script id="monthly-trends-data" type="application/json">{{ monthly_trends_json|safe }}</script>
+<script id="expense-distribution-data" type="application/json">{{ expense_distribution_json|safe }}</script>
 
-  $(document).ready(function() {
-    // بيانات الاتجاهات الشهرية من الخادم
-    const monthlyTrends = JSON.parse('{{ monthly_trends|escapejs }}');
-    
-    // رسم بياني للإيرادات والمصروفات
-    const revenueExpensesChart = new Chart(
-      document.getElementById('revenue-expenses-chart'),
-      {
+<!-- مكتبة Chart.js للرسوم البيانية المؤسسية -->
+<script src="{% static 'js/chart.min.js' %}"></script>
+<script>
+  /**
+   * محرك الرسوم البيانية التفاعلية الملتزمة بمعايير MWHEBA ERP
+   */
+  document.addEventListener('DOMContentLoaded', function () {
+    // 1. تهيئة Select2 وتحديث شريط التقدم
+    if (typeof $ !== 'undefined' && $.fn.select2) {
+      $('.select2-filter').select2({
+        dir: 'rtl',
+        language: 'ar',
+        width: '100%',
+        dropdownAutoWidth: true
+      });
+    }
+
+    const pBar = document.getElementById('healthProgressBar');
+    if (pBar) {
+      const score = pBar.getAttribute('data-score') || 0;
+      pBar.style.width = score + '%';
+    }
+
+    // 2. قراءة بيانات JSON بشكل آمن
+    const trendsEl = document.getElementById('monthly-trends-data');
+    const expenseEl = document.getElementById('expense-distribution-data');
+    const trendsData = trendsEl ? JSON.parse(trendsEl.textContent || '{}') : {};
+    const expenseData = expenseEl ? JSON.parse(expenseEl.textContent || '{}') : {};
+    const currencySymbol = '{{ analytics.currency_symbol|default:"ج.م" }}';
+
+    // 3. رسم منحنى اتجاهات 12 شهراً
+    const trendsCanvas = document.getElementById('monthlyTrendsChart');
+    if (trendsCanvas && typeof Chart !== 'undefined' && trendsData.labels) {
+      new Chart(trendsCanvas, {
         type: 'line',
         data: {
-          labels: monthlyTrends.labels || ['يناير', 'فبراير', 'مارس', 'إبريل', 'مايو', 'يونيو'],
+          labels: trendsData.labels,
           datasets: [
             {
-              label: 'الإيرادات',
-              data: monthlyTrends.revenue || [28500, 32000, 35500, 31000, 38000, 41500],
-              borderColor: '#0d6efd',
-              backgroundColor: 'rgba(13, 110, 253, 0.1)',
-              borderWidth: 3,
+              label: '{% trans "الإيرادات" %}',
+              data: trendsData.revenues,
+              borderColor: '#1e3a8a',
+              backgroundColor: 'rgba(30, 58, 138, 0.08)',
               fill: true,
-              tension: 0.4,
-              pointBackgroundColor: '#0d6efd',
-              pointBorderColor: '#fff',
-              pointBorderWidth: 2,
-              pointRadius: 6
+              tension: 0.25,
+              borderWidth: 2,
+              pointRadius: 3,
             },
             {
-              label: 'المصروفات',
-              data: monthlyTrends.expenses || [22000, 25000, 26500, 23000, 29000, 31500],
-              borderColor: '#dc3545',
-              backgroundColor: 'rgba(220, 53, 69, 0.1)',
-              borderWidth: 3,
-              fill: true,
-              tension: 0.4,
-              pointBackgroundColor: '#dc3545',
-              pointBorderColor: '#fff',
-              pointBorderWidth: 2,
-              pointRadius: 6
+              label: '{% trans "المصروفات" %}',
+              data: trendsData.expenses,
+              borderColor: '#dc2626',
+              backgroundColor: 'transparent',
+              borderDash: [4, 4],
+              tension: 0.25,
+              borderWidth: 2,
+              pointRadius: 3,
+            },
+            {
+              label: '{% trans "صافي الأرباح" %}',
+              data: trendsData.profits,
+              borderColor: '#059669',
+              backgroundColor: 'transparent',
+              tension: 0.25,
+              borderWidth: 2,
+              pointRadius: 3,
             }
           ]
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
+          interaction: {
+            mode: 'index',
+            intersect: false,
+          },
           plugins: {
             legend: {
               position: 'top',
+              rtl: true,
               labels: {
-                usePointStyle: true,
-                padding: 20,
-                font: {
-                  size: 14
-                }
+                boxWidth: 12,
+                font: { family: 'inherit', size: 11 }
               }
             },
             tooltip: {
-              backgroundColor: 'rgba(0, 0, 0, 0.8)',
-              titleColor: '#fff',
-              bodyColor: '#fff',
-              borderColor: '#0d6efd',
-              borderWidth: 1,
-              cornerRadius: 8,
+              rtl: true,
               callbacks: {
                 label: function(context) {
-                  return context.dataset.label + ': ' + context.parsed.y.toLocaleString() + ' {{ currency_symbol }}';
+                  return context.dataset.label + ': ' + Number(context.raw).toLocaleString('en-US', {minimumFractionDigits: 2}) + ' ' + currencySymbol;
                 }
               }
             }
@@ -416,59 +1112,39 @@
           scales: {
             y: {
               beginAtZero: true,
-              grid: {
-                color: 'rgba(0, 0, 0, 0.1)'
-              },
+              grid: { color: 'rgba(0, 0, 0, 0.05)' },
               ticks: {
-                callback: function(value) {
-                  return value.toLocaleString() + ' {{ currency_symbol }}';
-                },
-                font: {
-                  size: 12
-                }
+                font: { size: 10 },
+                callback: function(val) { return Number(val).toLocaleString('en-US'); }
               }
             },
             x: {
-              grid: {
-                color: 'rgba(0, 0, 0, 0.1)'
-              },
-              ticks: {
-                font: {
-                  size: 12
-                }
-              }
+              grid: { display: false },
+              ticks: { font: { size: 10 } }
             }
           }
         }
-      }
-    );
-    
-    // بيانات توزيع المصروفات من الخادم
-    const expenseDistribution = JSON.parse('{{ expense_distribution|escapejs }}');
-    
-    // رسم بياني لتوزيع المصروفات
-    const expensesDistributionChart = new Chart(
-      document.getElementById('expenses-distribution-chart'),
-      {
+      });
+    }
+
+    // 4. رسم هيكل توزيع المصروفات (Donut)
+    const expenseCanvas = document.getElementById('expenseDistributionChart');
+    if (expenseCanvas && typeof Chart !== 'undefined' && expenseData.labels) {
+      new Chart(expenseCanvas, {
         type: 'doughnut',
         data: {
-          labels: expenseDistribution.labels || ['رواتب', 'إيجارات', 'مصروفات تشغيل', 'خدمات', 'أخرى'],
-          datasets: [
-            {
-              data: expenseDistribution.data || [45, 15, 20, 12, 8],
-              backgroundColor: [
-                '#0d6efd',
-                '#198754',
-                '#ffc107',
-                '#0dcaf0',
-                '#dc3545'
-              ],
-              borderWidth: 3,
-              borderColor: '#fff',
-              hoverBorderWidth: 4,
-              hoverBorderColor: '#fff'
-            }
-          ]
+          labels: expenseData.labels,
+          datasets: [{
+            data: expenseData.data,
+            backgroundColor: [
+              '#1e3a8a', // كحلي لتكلفة المبيعات
+              '#0284c7', // أزرق للإدارية
+              '#d97706', // برتقالي للإهلاك
+              '#6b7280', // رمادي للتمويلية
+            ],
+            borderWidth: 1,
+            borderColor: '#ffffff',
+          }]
         },
         options: {
           responsive: true,
@@ -476,43 +1152,74 @@
           plugins: {
             legend: {
               position: 'bottom',
+              rtl: true,
               labels: {
-                usePointStyle: true,
-                padding: 15,
-                font: {
-                  size: 12
-                }
+                boxWidth: 10,
+                font: { family: 'inherit', size: 10 }
               }
             },
             tooltip: {
-              backgroundColor: 'rgba(0, 0, 0, 0.8)',
-              titleColor: '#fff',
-              bodyColor: '#fff',
-              borderColor: '#0d6efd',
-              borderWidth: 1,
-              cornerRadius: 8,
+              rtl: true,
               callbacks: {
                 label: function(context) {
+                  const val = Number(context.raw);
                   const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                  const percentage = ((context.parsed / total) * 100).toFixed(1);
-                  return context.label + ': ' + percentage + '%';
+                  const pct = total > 0 ? ((val / total) * 100).toFixed(1) : 0;
+                  return context.label + ': ' + val.toLocaleString('en-US', {minimumFractionDigits: 2}) + ' (' + pct + '%)';
                 }
               }
             }
-          }
+          },
+          cutout: '68%',
         }
-      }
-    );
-    
-    // إضافة تأثيرات hover للكروت
-    $('.stats-card, .analytics-card').hover(
-      function() {
-        $(this).addClass('shadow-lg');
-      },
-      function() {
-        $(this).removeClass('shadow-lg');
-      }
-    );
+      });
+    }
   });
+
+  /**
+   * ضبط الفترات السريعة
+   */
+  function setDatePreset(preset) {
+    const presetInput = document.getElementById('preset_input');
+    if (presetInput) presetInput.value = preset;
+
+    const today = new Date();
+    const y = today.getFullYear();
+    const m = today.getMonth();
+
+    let fromDate, toDate;
+
+    function format(dt) {
+      const year = dt.getFullYear();
+      const month = String(dt.getMonth() + 1).padStart(2, '0');
+      const day = String(dt.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+
+    if (preset === 'this_month') {
+      fromDate = new Date(y, m, 1);
+      toDate = new Date(y, m + 1, 0);
+    } else if (preset === 'this_quarter') {
+      const qStartMonth = Math.floor(m / 3) * 3;
+      fromDate = new Date(y, qStartMonth, 1);
+      toDate = new Date(y, qStartMonth + 3, 0);
+    } else if (preset === 'ytd') {
+      fromDate = new Date(y, 0, 1);
+      toDate = today;
+    } else if (preset === 'last_year') {
+      fromDate = new Date(y - 1, 0, 1);
+      toDate = new Date(y - 1, 11, 31);
+    }
+
+    if (fromDate && toDate) {
+      const fromEl = document.getElementById('date_from');
+      const toEl = document.getElementById('date_to');
+      if (fromEl) fromEl.value = format(fromDate);
+      if (toEl) toEl.value = format(toDate);
+
+      const form = document.getElementById('analyticsFilterForm');
+      if (form) form.submit();
+    }
+  }
 </script>
-{% endblock %} 
+{% endblock %}

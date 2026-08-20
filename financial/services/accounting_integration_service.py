@@ -105,7 +105,7 @@ class AccountingIntegrationService:
                     lines=lines,
                     idempotency_key=idem_key,
                     user=user or sale.created_by,
-                    entry_type='automatic',
+                    entry_type='sales_invoice',
                     description=f"مبيعات لـ {client_name}",
                     reference=f"فاتورة مبيعات رقم {sale.number}",
                     date=sale.date
@@ -141,7 +141,6 @@ class AccountingIntegrationService:
                 # بناء وصف تفصيلي يتضمن المنتجات/الخدمات
                 purchase_items = purchase.items.all()
                 if purchase_items.exists():
-                    # جمع أسماء المنتجات/الخدمات (أول 3 عناصر)
                     items_list = []
                     for item in purchase_items[:3]:
                         items_list.append(f"{item.product.name}")
@@ -157,74 +156,100 @@ class AccountingIntegrationService:
                 # Prepare journal entry lines
                 lines = []
                 
-                # قيد المخزون أو المصروفات (مدين)
+                # حساب صافي البضاعة/المصروف (المبلغ قبل الضريبة والخصم)
+                net_purchase_amount = max(Decimal("0.00"), purchase.subtotal - purchase.discount)
+                
+                # 1. قيد المخزون أو المصروفات (مدين)
                 if purchase.is_service:
-                    # للخدمات: استخدام حساب المصروفات من التصنيف المالي
-                    if not purchase.financial_category:
-                        logger.error(f"فاتورة الخدمات {purchase.number} ليس لها تصنيف مالي")
-                        return None
+                    # للخدمات: استخدام حساب المصروفات من التصنيف المالي أو الافتراضي
+                    expense_account = None
+                    if purchase.financial_category and purchase.financial_category.default_expense_account:
+                        expense_account = purchase.financial_category.default_expense_account
+                    elif "purchase_expense" in accounts:
+                        expense_account = accounts["purchase_expense"]
                     
-                    expense_account = purchase.financial_category.default_expense_account
                     if not expense_account:
-                        logger.error(
-                            f"التصنيف المالي {purchase.financial_category.name} "
-                            f"ليس له حساب مصروفات افتراضي"
-                        )
+                        logger.error(f"فاتورة الخدمات {purchase.number} ليس لها حساب مصروفات")
                         return None
                     
                     lines.append(
                         JournalEntryLineData(
                             account_code=expense_account.code,
-                            debit=purchase.total,
+                            debit=net_purchase_amount,
                             credit=Decimal("0.00"),
-                            description=f"مصروفات {purchase.service_type_display} - فاتورة {purchase.number}"
+                            description=f"مصروفات {purchase.service_type_display or 'خدمات'} - فاتورة {purchase.number}"
                         )
                     )
                 else:
                     # للمنتجات: استخدام حساب المصروفات من التصنيف المالي (إذا كان موجود)
                     # أو حساب المخزون الافتراضي
+                    goods_account = None
                     if purchase.financial_category and purchase.financial_category.default_expense_account:
-                        # استخدام حساب المصروفات من التصنيف
-                        lines.append(
-                            JournalEntryLineData(
-                                account_code=purchase.financial_category.default_expense_account.code,
-                                debit=purchase.total,
-                                credit=Decimal("0.00"),
-                                description=f"مشتريات - {purchase.financial_category.name} - فاتورة {purchase.number}"
-                            )
+                        goods_account = purchase.financial_category.default_expense_account
+                    elif "inventory" in accounts:
+                        goods_account = accounts["inventory"]
+                    elif "purchase_expense" in accounts:
+                        goods_account = accounts["purchase_expense"]
+                    
+                    if not goods_account:
+                        logger.error(f"لا يمكن العثور على حساب المخزون للفاتورة {purchase.number}")
+                        return None
+                    
+                    lines.append(
+                        JournalEntryLineData(
+                            account_code=goods_account.code,
+                            debit=net_purchase_amount,
+                            credit=Decimal("0.00"),
+                            description=f"مشتريات مخزون - فاتورة {purchase.number}"
                         )
-                    else:
-                        # Fallback: استخدام حساب المخزون الافتراضي
-                        lines.append(
-                            JournalEntryLineData(
-                                account_code=accounts["inventory"].code,
-                                debit=purchase.total,
-                                credit=Decimal("0.00"),
-                                description=f"مشتريات مخزون - فاتورة {purchase.number}"
-                            )
-                        )
+                    )
 
-                # قيد المورد (دائن)
+                # 2. قيد ضريبة القيمة المضافة (مدخلات) - مدين
+                if getattr(purchase, 'vat_active', False) and purchase.tax and purchase.tax > Decimal("0.00"):
+                    from financial.services.role_registry import AccountRoleRegistry
+                    vat_code = AccountRoleRegistry.resolve_role_code("VAT_INPUT") or "11510"
+                    lines.append(
+                        JournalEntryLineData(
+                            account_code=vat_code,
+                            debit=purchase.tax,
+                            credit=Decimal("0.00"),
+                            description=f"ضريبة القيمة المضافة مدخلات - فاتورة {purchase.number}"
+                        )
+                    )
+
+                # 3. قيد ضريبة الخصم والإضافة (WHT) - دائن
+                if getattr(purchase, 'wht_active', False) and purchase.wht_amount and purchase.wht_amount > Decimal("0.00"):
+                    from financial.services.role_registry import AccountRoleRegistry
+                    wht_code = AccountRoleRegistry.resolve_role_code("INCOME_TAX") or "21330"
+                    lines.append(
+                        JournalEntryLineData(
+                            account_code=wht_code,
+                            debit=Decimal("0.00"),
+                            credit=purchase.wht_amount,
+                            description=f"ضريبة خصم المنبع - فاتورة {purchase.number}"
+                        )
+                    )
+
+                # 4. قيد المورد (دائن) - المبلغ الصافي المستحق للمورد
                 supplier_account = cls._get_supplier_account(purchase.supplier)
                 if not supplier_account:
-                    logger.warning(f"⚠️ المورد {purchase.supplier.name} ليس له حساب محاسبي - سيتم إنشاء حساب جديد")
-                    supplier_account = cls._create_supplier_account(purchase.supplier, user or purchase.created_by)
+                    logger.warning(f"⚠️ المورد {purchase.supplier.name} ليس له حساب محاسبي - سيتم إنشاؤه")
+                    from financial.services.supplier_parent_account_service import SupplierParentAccountService
+                    supplier_account = SupplierParentAccountService.get_or_create_supplier_account(
+                        purchase.supplier, user or purchase.created_by
+                    )
                     
                     if not supplier_account:
-                        error_msg = f"❌ فشل إنشاء حساب محاسبي للمورد {purchase.supplier.name}. يجب إنشاء حساب محاسبي للمورد أولاً."
+                        error_msg = f"❌ فشل إنشاء حساب محاسبي للمورد {purchase.supplier.name}."
                         logger.error(error_msg)
                         raise ValueError(error_msg)
                 
                 # بناء وصف تفصيلي لبند القيد
                 if purchase_items.exists():
-                    items_list = []
-                    for item in purchase_items[:3]:
-                        items_list.append(f"{item.product.name}")
-                    
+                    items_list = [item.product.name for item in purchase_items[:3]]
                     items_text = "، ".join(items_list)
                     if purchase_items.count() > 3:
                         items_text += f" وعناصر أخرى ({purchase_items.count() - 3})"
-                    
                     line_description = f"مشتريات من \"{purchase.supplier.name}\" - {items_text}"
                 else:
                     line_description = f"مشتريات - المورد {purchase.supplier.name} - فاتورة {purchase.number}"
@@ -247,21 +272,23 @@ class AccountingIntegrationService:
                     lines=lines,
                     idempotency_key=f"JE:purchase:Purchase:{purchase.id}:create",
                     user=user or purchase.created_by,
-                    entry_type='automatic',
+                    entry_type='purchase_invoice',
                     description=description,
                     reference=f"فاتورة مشتريات رقم {purchase.number}",
                     date=purchase.date
                 )
 
                 # ربط القيد بالفاتورة
-                purchase.journal_entry = journal_entry
-                purchase.save(update_fields=["journal_entry"])
+                if journal_entry:
+                    purchase.journal_entry = journal_entry
+                    purchase.save(update_fields=["journal_entry"])
+                    logger.info(f"✅ تم ربط القيد المحاسبي {journal_entry.number} بالفاتورة {purchase.number}")
 
                 return journal_entry
 
         except Exception as e:
             logger.error(f"خطأ في إنشاء قيد المشتريات: {str(e)}")
-            return None
+            raise
 
     @classmethod
     def create_return_journal_entry(
@@ -362,7 +389,7 @@ class AccountingIntegrationService:
                     lines=lines,
                     idempotency_key=f"JE:sales:SaleReturn:{sale_return.id}:create",
                     user=user or sale_return.created_by,
-                    entry_type='automatic',
+                    entry_type='sales_return',
                     description=f"مرتجع من {sale_return.sale.client_name}",
                     reference=f"مرتجع مبيعات رقم {sale_return.number} - فاتورة {sale_return.sale.number}",
                     date=sale_return.date
@@ -615,27 +642,41 @@ class AccountingIntegrationService:
     def _get_required_accounts_for_sale(cls) -> Dict[str, ChartOfAccounts]:
         """الحصول على الحسابات المطلوبة للمبيعات"""
         try:
+            from financial.services.role_registry import AccountRoleRegistry
+            from financial.models import ChartOfAccounts
+            
             accounts = {}
-            required_codes = [
-                "sales_revenue",
-                "cost_of_goods_sold",
-                "inventory",
-                "accounts_receivable",
-                "cash",
-                "bank",
-            ]
+            role_mappings = {
+                "sales_revenue": ["SALES_REVENUE", "GENERAL_SALES_REVENUE"],
+                "cost_of_goods_sold": ["COGS_EXPENSE"],
+                "inventory": ["INVENTORY_CONTROL_ACCOUNT", "INVENTORY_GENERAL"],
+                "accounts_receivable": ["CUSTOMER_RECEIVABLE_CONTROL", "AR_CONTROL_ACCOUNT"],
+                "cash": ["DEFAULT_CASH_DRAWER", "CASH_CONTROL_ACCOUNT"],
+                "bank": ["DEFAULT_BANK_ACCOUNT", "BANK_CONTROL_ACCOUNT"],
+            }
 
-            for account_key in required_codes:
-                code = cls.DEFAULT_ACCOUNTS[account_key]
-                account = ChartOfAccounts.objects.filter(
-                    code=code, is_active=True
-                ).first()
+            for key, role_names in role_mappings.items():
+                account = None
+                for role_name in role_names:
+                    try:
+                        code = AccountRoleRegistry.resolve_role_code(role_name)
+                        if code:
+                            account = ChartOfAccounts.objects.filter(code=code, is_active=True).first()
+                            if account:
+                                break
+                    except Exception:
+                        pass
+                
+                if not account and key in cls.DEFAULT_ACCOUNTS:
+                    code = cls.DEFAULT_ACCOUNTS[key]
+                    account = ChartOfAccounts.objects.filter(code=code, is_active=True).first()
+
                 if account:
-                    accounts[account_key] = account
+                    accounts[key] = account
                 else:
-                    logger.warning(f"لا يمكن العثور على الحساب: {code}")
+                    logger.warning(f"لا يمكن العثور على حساب لدور: {key}")
 
-            return accounts if len(accounts) >= 4 else None  # على الأقل 4 حسابات أساسية
+            return accounts if len(accounts) >= 2 else None
         except Exception as e:
             logger.error(f"خطأ في الحصول على حسابات المبيعات: {str(e)}")
             return None
@@ -644,26 +685,40 @@ class AccountingIntegrationService:
     def _get_required_accounts_for_purchase(cls) -> Dict[str, ChartOfAccounts]:
         """الحصول على الحسابات المطلوبة للمشتريات"""
         try:
+            from financial.services.role_registry import AccountRoleRegistry
+            from financial.models import ChartOfAccounts
+            
             accounts = {}
-            required_codes = [
-                "inventory",
-                "accounts_payable",
-                "cash",
-                "bank",
-                "purchase_expense",
-            ]
+            role_mappings = {
+                "inventory": ["INVENTORY_CONTROL_ACCOUNT", "INVENTORY_GENERAL"],
+                "accounts_payable": ["SUPPLIER_PAYABLE_CONTROL", "AP_CONTROL_ACCOUNT"],
+                "cash": ["DEFAULT_CASH_DRAWER", "CASH_CONTROL_ACCOUNT"],
+                "bank": ["DEFAULT_BANK_ACCOUNT", "BANK_CONTROL_ACCOUNT"],
+                "purchase_expense": ["COGS_EXPENSE"],
+            }
 
-            for account_key in required_codes:
-                code = cls.DEFAULT_ACCOUNTS[account_key]
-                account = ChartOfAccounts.objects.filter(
-                    code=code, is_active=True
-                ).first()
+            for key, role_names in role_mappings.items():
+                account = None
+                for role_name in role_names:
+                    try:
+                        code = AccountRoleRegistry.resolve_role_code(role_name)
+                        if code:
+                            account = ChartOfAccounts.objects.filter(code=code, is_active=True).first()
+                            if account:
+                                break
+                    except Exception:
+                        pass
+                
+                if not account and key in cls.DEFAULT_ACCOUNTS:
+                    code = cls.DEFAULT_ACCOUNTS[key]
+                    account = ChartOfAccounts.objects.filter(code=code, is_active=True).first()
+
                 if account:
-                    accounts[account_key] = account
+                    accounts[key] = account
                 else:
-                    logger.warning(f"لا يمكن العثور على الحساب: {code}")
+                    logger.warning(f"لا يمكن العثور على حساب لدور: {key}")
 
-            return accounts if len(accounts) >= 4 else None
+            return accounts if len(accounts) >= 2 else None
         except Exception as e:
             logger.error(f"خطأ في الحصول على حسابات المشتريات: {str(e)}")
             return None
@@ -672,20 +727,39 @@ class AccountingIntegrationService:
     def _get_required_accounts_for_payment(cls) -> Dict[str, ChartOfAccounts]:
         """الحصول على الحسابات المطلوبة للمدفوعات"""
         try:
+            from financial.services.role_registry import AccountRoleRegistry
+            from financial.models import ChartOfAccounts
+            
             accounts = {}
-            required_codes = ["accounts_receivable", "accounts_payable", "cash", "bank"]
+            role_mappings = {
+                "accounts_receivable": ["CUSTOMER_RECEIVABLE_CONTROL", "AR_CONTROL_ACCOUNT"],
+                "accounts_payable": ["SUPPLIER_PAYABLE_CONTROL", "AP_CONTROL_ACCOUNT"],
+                "cash": ["DEFAULT_CASH_DRAWER", "CASH_CONTROL_ACCOUNT"],
+                "bank": ["DEFAULT_BANK_ACCOUNT", "BANK_CONTROL_ACCOUNT"],
+            }
 
-            for account_key in required_codes:
-                code = cls.DEFAULT_ACCOUNTS[account_key]
-                account = ChartOfAccounts.objects.filter(
-                    code=code, is_active=True
-                ).first()
+            for key, role_names in role_mappings.items():
+                account = None
+                for role_name in role_names:
+                    try:
+                        code = AccountRoleRegistry.resolve_role_code(role_name)
+                        if code:
+                            account = ChartOfAccounts.objects.filter(code=code, is_active=True).first()
+                            if account:
+                                break
+                    except Exception:
+                        pass
+                
+                if not account and key in cls.DEFAULT_ACCOUNTS:
+                    code = cls.DEFAULT_ACCOUNTS[key]
+                    account = ChartOfAccounts.objects.filter(code=code, is_active=True).first()
+
                 if account:
-                    accounts[account_key] = account
+                    accounts[key] = account
                 else:
-                    logger.warning(f"لا يمكن العثور على الحساب: {code}")
+                    logger.warning(f"لا يمكن العثور على حساب لدور: {key}")
 
-            return accounts if len(accounts) >= 3 else None
+            return accounts if len(accounts) >= 2 else None
         except Exception as e:
             logger.error(f"خطأ في الحصول على حسابات المدفوعات: {str(e)}")
             return None
@@ -935,21 +1009,16 @@ class AccountingIntegrationService:
     def _get_supplier_account(cls, supplier) -> Optional[ChartOfAccounts]:
         """الحصول على حساب المورد المحدد أو إنشاؤه"""
         try:
-            # أولاً: محاولة استخدام الحساب المالي المحدد للمورد
+            if not supplier:
+                return None
             if supplier.financial_account and supplier.financial_account.is_active:
                 return supplier.financial_account
             
-            # ثانياً: البحث عن حساب فرعي للمورد في شجرة الحسابات
-            supplier_sub_accounts = ChartOfAccounts.objects.filter(
-                name__icontains=supplier.name,
-                is_active=True,
-                is_leaf=True,  # حساب نهائي
-                parent__code__startswith="201"  # تحت مجموعة الموردين
-            )
-            
-            if supplier_sub_accounts.exists():
-                account = supplier_sub_accounts.first()
-                return account
+            from financial.services.supplier_parent_account_service import SupplierParentAccountService
+            return SupplierParentAccountService.get_or_create_supplier_account(supplier)
+        except Exception as e:
+            logger.error(f"خطأ في الحصول على حساب المورد: {str(e)}")
+            return None
             
             # ثالثاً: محاولة إنشاء حساب جديد للمورد
             try:

@@ -189,6 +189,7 @@ def generate_ledger_excel_optimized(account, date_from=None, date_to=None, cost_
     تصدير كشف الحساب إلى Excel بطريقة محسنة مع الدعم الكامل للعملات المتعددة
     """
     try:
+        import re
         import openpyxl
         from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
         from openpyxl.utils import get_column_letter
@@ -211,7 +212,8 @@ def generate_ledger_excel_optimized(account, date_from=None, date_to=None, cost_
         )
         
         if account:
-            ws.title = f"كشف حساب - {account.code}"
+            raw_title = f"كشف حساب - {account.code}"
+            ws.title = re.sub(r'[\/\\\*\?\:\[\]]', '_', raw_title)[:31]
             
             # جلب المعاملات
             transactions, summary = get_account_transactions_optimized(
@@ -247,7 +249,11 @@ def generate_ledger_excel_optimized(account, date_from=None, date_to=None, cost_
             ws.cell(row=row, column=4, value="-")
             ws.cell(row=row, column=5, value="-")
             ws.cell(row=row, column=6, value="-")
-            cell_op = ws.cell(row=row, column=7, value=float(summary['opening_balance']))
+            try:
+                op_val = float(summary.get('opening_balance') or 0)
+            except (ValueError, TypeError):
+                op_val = 0.0
+            cell_op = ws.cell(row=row, column=7, value=op_val)
             cell_op.number_format = '#,##0.00'
             ws.cell(row=row, column=3).font = subheader_font
             cell_op.font = subheader_font
@@ -255,14 +261,41 @@ def generate_ledger_excel_optimized(account, date_from=None, date_to=None, cost_
             # البيانات
             for transaction in transactions:
                 row += 1
-                ws.cell(row=row, column=1, value=transaction['date'].strftime('%Y-%m-%d') if transaction.get('date') else '')
-                ws.cell(row=row, column=2, value=transaction.get('entry_type_display') or transaction.get('journal_number', ''))
-                ws.cell(row=row, column=3, value=transaction.get('description', ''))
-                ws.cell(row=row, column=4, value=transaction.get('reference', ''))
+                d_val = transaction.get('date')
+                if hasattr(d_val, 'strftime'):
+                    d_str = d_val.strftime('%Y-%m-%d')
+                else:
+                    d_str = str(d_val or '')
+                ws.cell(row=row, column=1, value=d_str)
                 
-                cell_d = ws.cell(row=row, column=5, value=float(transaction['debit']) if transaction.get('debit') else 0)
-                cell_c = ws.cell(row=row, column=6, value=float(transaction['credit']) if transaction.get('credit') else 0)
-                cell_b = ws.cell(row=row, column=7, value=float(transaction['balance']))
+                type_display = str(transaction.get('entry_type_display') or transaction.get('journal_number') or '')
+                ws.cell(row=row, column=2, value=type_display)
+                
+                desc = str(transaction.get('description') or '')
+                ws.cell(row=row, column=3, value=desc)
+                
+                ref = str(transaction.get('reference') or '')
+                ws.cell(row=row, column=4, value=ref)
+                
+                try:
+                    d_amount = float(transaction.get('debit') or 0)
+                except (ValueError, TypeError):
+                    d_amount = 0.0
+                    
+                try:
+                    c_amount = float(transaction.get('credit') or 0)
+                except (ValueError, TypeError):
+                    c_amount = 0.0
+                    
+                bal_raw = transaction.get('running_balance') if transaction.get('running_balance') is not None else transaction.get('balance', 0)
+                try:
+                    b_amount = float(bal_raw or 0)
+                except (ValueError, TypeError):
+                    b_amount = 0.0
+                
+                cell_d = ws.cell(row=row, column=5, value=d_amount)
+                cell_c = ws.cell(row=row, column=6, value=c_amount)
+                cell_b = ws.cell(row=row, column=7, value=b_amount)
                 
                 cell_d.number_format = '#,##0.00'
                 cell_c.number_format = '#,##0.00'
@@ -275,9 +308,24 @@ def generate_ledger_excel_optimized(account, date_from=None, date_to=None, cost_
             # الإجمالي
             row += 1
             ws.cell(row=row, column=3, value="الإجمالي:").font = subheader_font
-            cell_td = ws.cell(row=row, column=5, value=float(summary['total_debit']))
-            cell_tc = ws.cell(row=row, column=6, value=float(summary['total_credit']))
-            cell_cb = ws.cell(row=row, column=7, value=float(summary['closing_balance']))
+            try:
+                tot_d = float(summary.get('total_debit') or 0)
+            except (ValueError, TypeError):
+                tot_d = 0.0
+
+            try:
+                tot_c = float(summary.get('total_credit') or 0)
+            except (ValueError, TypeError):
+                tot_c = 0.0
+
+            try:
+                tot_b = float(summary.get('closing_balance') or 0)
+            except (ValueError, TypeError):
+                tot_b = 0.0
+
+            cell_td = ws.cell(row=row, column=5, value=tot_d)
+            cell_tc = ws.cell(row=row, column=6, value=tot_c)
+            cell_cb = ws.cell(row=row, column=7, value=tot_b)
             
             cell_td.font = subheader_font
             cell_tc.font = subheader_font
@@ -308,18 +356,36 @@ def generate_ledger_excel_optimized(account, date_from=None, date_to=None, cost_
             
             row = 4
             for s in summaries:
-                ws.cell(row=row, column=1, value=s['account'].code)
-                ws.cell(row=row, column=2, value=s['account'].name)
-                ws.cell(row=row, column=3, value=s['account_type'])
+                acc_obj = s.get('account')
+                ws.cell(row=row, column=1, value=str(getattr(acc_obj, 'code', '')))
+                ws.cell(row=row, column=2, value=str(getattr(acc_obj, 'name', '')))
+                ws.cell(row=row, column=3, value=str(s.get('account_type') or ''))
                 
-                cd = ws.cell(row=row, column=4, value=float(s['total_debit']))
-                cc = ws.cell(row=row, column=5, value=float(s['total_credit']))
-                cb = ws.cell(row=row, column=6, value=float(s['current_balance']))
-                ws.cell(row=row, column=7, value=s['transaction_count'])
+                try:
+                    cd = float(s.get('total_debit') or 0)
+                except (ValueError, TypeError):
+                    cd = 0.0
+                try:
+                    cc = float(s.get('total_credit') or 0)
+                except (ValueError, TypeError):
+                    cc = 0.0
+                try:
+                    cb = float(s.get('current_balance') or 0)
+                except (ValueError, TypeError):
+                    cb = 0.0
+                try:
+                    tc = int(s.get('transaction_count') or 0)
+                except (ValueError, TypeError):
+                    tc = 0
                 
-                cd.number_format = '#,##0.00'
-                cc.number_format = '#,##0.00'
-                cb.number_format = '#,##0.00'
+                cell_d = ws.cell(row=row, column=4, value=cd)
+                cell_c = ws.cell(row=row, column=5, value=cc)
+                cell_b = ws.cell(row=row, column=6, value=cb)
+                ws.cell(row=row, column=7, value=tc)
+                
+                cell_d.number_format = '#,##0.00'
+                cell_c.number_format = '#,##0.00'
+                cell_b.number_format = '#,##0.00'
                 
                 for c in range(1, 8):
                     ws.cell(row=row, column=c).border = border
@@ -338,7 +404,7 @@ def generate_ledger_excel_optimized(account, date_from=None, date_to=None, cost_
         
     except Exception as e:
         import logging
-        logging.getLogger(__name__).error(f"Error generating Excel statement: {e}")
+        logging.getLogger(__name__).error(f"Error generating Excel statement: {e}", exc_info=True)
         return None
 
 
@@ -1678,82 +1744,239 @@ def customer_supplier_balances_report(request, account_type):
 @login_required
 def financial_analytics(request):
     """
-    عرض صفحة التحليلات المالية - محدّث ✅
-    تعرض مجموعة من المؤشرات المالية الرئيسية والرسوم البيانية
+    عرض لوحة التحليلات والمؤشرات المالية التنفيذية (CFO Executive Analytics Command Center v3.0)
+    متكاملة مع المحاور الخمسة، مؤشر ألتمان للسلامة والتعثر، بطاقة الصحة المالية، المقارنة بالفترة السابقة، وتصدير Excel المعتمد.
     """
-    from financial.services.financial_analytics_service import FinancialAnalyticsService
-    from django.utils import timezone
-
-    # الحصول على الفترة الزمنية من الطلب
-    date_from = request.GET.get("date_from")
-    date_to = request.GET.get("date_to")
-
-    # تحويل التواريخ إذا كانت موجودة
-    if date_from:
-        try:
-            date_from = datetime.strptime(date_from, "%Y-%m-%d").date()
-        except ValueError:
-            date_from = None
-
-    if date_to:
-        try:
-            date_to = datetime.strptime(date_to, "%Y-%m-%d").date()
-        except ValueError:
-            date_to = None
-
-    # إنشاء خدمة التحليلات
-    analytics_service = FinancialAnalyticsService(
-        date_from=date_from,
-        date_to=date_to
-    )
-
-    # الحصول على جميع التحليلات
-    analytics = analytics_service.get_complete_analytics()
-
-    # تحويل البيانات إلى JSON للاستخدام في JavaScript
     import json
-    monthly_trends_json = json.dumps(analytics["monthly_trends"])
-    expense_distribution_json = json.dumps(analytics["expense_distribution"])
+    import hashlib
+    from django.http import HttpResponse
+    from django.core.cache import cache
+    from financial.services.financial_analytics_service import FinancialAnalyticsService
+    from financial.models.cost_center import CostCenter
 
-    # إعداد سياق البيانات
+    # 1. معالجة الفلاتر والمعايير
+    preset = request.GET.get("preset")
+    date_from_str = request.GET.get("date_from")
+    date_to_str = request.GET.get("date_to")
+    comp_date_from_str = request.GET.get("comp_date_from")
+    comp_date_to_str = request.GET.get("comp_date_to")
+    cost_center_id = request.GET.get("cost_center") or request.GET.get("cost_center_id")
+    include_unposted = request.GET.get("include_unposted", "0") in ["1", "true", "True"]
+    export_format = request.GET.get("export")
+    use_cache = request.GET.get("use_cache", "1") == "1"
+
+    today = timezone.now().date()
+    date_from = None
+    date_to = None
+
+    if preset == 'this_month':
+        date_from = date(today.year, today.month, 1)
+        next_month = today.month % 12 + 1
+        next_month_year = today.year + (1 if today.month == 12 else 0)
+        date_to = date(next_month_year, next_month, 1) - timedelta(days=1)
+    elif preset == 'this_quarter':
+        q_start_month = ((today.month - 1) // 3) * 3 + 1
+        date_from = date(today.year, q_start_month, 1)
+        q_end_month = q_start_month + 2
+        next_q_month = q_end_month % 12 + 1
+        next_q_year = today.year + (1 if q_end_month == 12 else 0)
+        date_to = date(next_q_year, next_q_month, 1) - timedelta(days=1)
+    elif preset == 'ytd':
+        date_from = date(today.year, 1, 1)
+        date_to = today
+    elif preset == 'last_year':
+        date_from = date(today.year - 1, 1, 1)
+        date_to = date(today.year - 1, 12, 31)
+    else:
+        if date_to_str:
+            try:
+                date_to = datetime.strptime(date_to_str, "%Y-%m-%d").date()
+            except ValueError:
+                date_to = today
+        else:
+            date_to = today
+
+        if date_from_str:
+            try:
+                date_from = datetime.strptime(date_from_str, "%Y-%m-%d").date()
+            except ValueError:
+                date_from = date(date_to.year, 1, 1)
+        else:
+            date_from = date(date_to.year, 1, 1)
+
+    # تحديد الفترة السريعة النشطة
+    active_preset = preset
+    if not active_preset:
+        month_start = date(today.year, today.month, 1)
+        next_m = today.month % 12 + 1
+        next_m_y = today.year + (1 if today.month == 12 else 0)
+        month_end = date(next_m_y, next_m, 1) - timedelta(days=1)
+
+        q_s_m = ((today.month - 1) // 3) * 3 + 1
+        quarter_start = date(today.year, q_s_m, 1)
+        q_e_m = q_s_m + 2
+        next_q_m = q_e_m % 12 + 1
+        next_q_y = today.year + (1 if q_e_m == 12 else 0)
+        quarter_end = date(next_q_y, next_q_m, 1) - timedelta(days=1)
+
+        if date_from == date(today.year, 1, 1) and date_to == today:
+            active_preset = 'ytd'
+        elif date_from == month_start and date_to == month_end:
+            active_preset = 'this_month'
+        elif date_from == quarter_start and date_to == quarter_end:
+            active_preset = 'this_quarter'
+        elif date_from == date(today.year - 1, 1, 1) and date_to == date(today.year - 1, 12, 31):
+            active_preset = 'last_year'
+
+    comp_date_from = None
+    if comp_date_from_str:
+        try:
+            comp_date_from = datetime.strptime(comp_date_from_str, "%Y-%m-%d").date()
+        except ValueError:
+            comp_date_from = None
+
+    comp_date_to = None
+    if comp_date_to_str:
+        try:
+            comp_date_to = datetime.strptime(comp_date_to_str, "%Y-%m-%d").date()
+        except ValueError:
+            comp_date_to = None
+
+    # 2. معالجة تصدير Excel الرسمي
+    if export_format == 'excel':
+        try:
+            excel_data = FinancialAnalyticsService.export_to_excel(
+                date_from=date_from,
+                date_to=date_to,
+                comp_date_from=comp_date_from,
+                comp_date_to=comp_date_to,
+                cost_center_id=cost_center_id,
+                include_unposted=include_unposted,
+            )
+            response = HttpResponse(
+                excel_data,
+                content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            )
+            response["Content-Disposition"] = f'attachment; filename="Financial_Analytics_{date_from.strftime("%Y%m%d")}_{date_to.strftime("%Y%m%d")}.xlsx"'
+            return response
+        except Exception as e:
+            logger.error(f"Error exporting Financial Analytics to Excel: {e}", exc_info=True)
+            messages.error(request, f"حدث خطأ أثناء تصدير ملف Excel: {e}")
+
+    # 3. جلب بيانات التحليلات مع الكاش
+    cache_key = None
+    cached_data = None
+    if use_cache:
+        cache_key_raw = f"fa_stmt_{date_from}_{date_to}_{comp_date_from}_{comp_date_to}_{cost_center_id}_{include_unposted}"
+        cache_key = f"fa_report_{hashlib.md5(cache_key_raw.encode()).hexdigest()}"
+        cached_data = cache.get(cache_key)
+
+    if cached_data:
+        analytics = cached_data
+    else:
+        try:
+            analytics = FinancialAnalyticsService.get_complete_analytics(
+                date_from=date_from,
+                date_to=date_to,
+                comp_date_from=comp_date_from,
+                comp_date_to=comp_date_to,
+                cost_center_id=cost_center_id,
+                include_unposted=include_unposted,
+            )
+            if use_cache and cache_key:
+                cache.set(cache_key, analytics, 180)  # 3 minutes
+        except Exception as e:
+            logger.error(f"Error generating Financial Analytics data: {e}", exc_info=True)
+            messages.error(request, f"حدث خطأ أثناء احتساب المؤشرات المالية: {e}")
+            analytics = {}
+
+    monthly_trends_json = json.dumps(analytics.get("monthly_trends", {}))
+    expense_distribution_json = json.dumps(analytics.get("expense_distribution", {}))
+
+    # 4. أزرار الهيدر
+    header_buttons = [
+        {
+            "onclick": "window.print()",
+            "icon": "fa-print",
+            "text": "طباعة",
+            "class": "btn-outline-secondary",
+        }
+    ]
+
+    export_params = [f"date_from={date_from.strftime('%Y-%m-%d')}", f"date_to={date_to.strftime('%Y-%m-%d')}"]
+    if analytics.get("comp_date_from") and analytics.get("comp_date_to"):
+        export_params.extend([
+            f"comp_date_from={analytics['comp_date_from'].strftime('%Y-%m-%d')}",
+            f"comp_date_to={analytics['comp_date_to'].strftime('%Y-%m-%d')}"
+        ])
+    if cost_center_id:
+        export_params.append(f"cost_center={cost_center_id}")
+    if include_unposted:
+        export_params.append("include_unposted=1")
+    export_params.append("export=excel")
+    export_url = "?" + "&".join(export_params)
+
+    header_buttons.append({
+        "url": export_url,
+        "icon": "fa-file-excel",
+        "text": "تصدير Excel",
+        "class": "btn-success",
+    })
+
+    refresh_params = [f"date_from={date_from.strftime('%Y-%m-%d')}", f"date_to={date_to.strftime('%Y-%m-%d')}"]
+    if analytics.get("comp_date_from") and analytics.get("comp_date_to"):
+        refresh_params.extend([
+            f"comp_date_from={analytics['comp_date_from'].strftime('%Y-%m-%d')}",
+            f"comp_date_to={analytics['comp_date_to'].strftime('%Y-%m-%d')}"
+        ])
+    if cost_center_id:
+        refresh_params.append(f"cost_center={cost_center_id}")
+    if include_unposted:
+        refresh_params.append("include_unposted=1")
+    refresh_params.append("use_cache=0")
+    refresh_url = "?" + "&".join(refresh_params)
+
+    header_buttons.append({
+        "url": refresh_url,
+        "icon": "fa-sync",
+        "text": "تحديث البيانات",
+        "class": "btn-outline-primary",
+    })
+
+    cost_centers_list = CostCenter.objects.filter(is_active=True).order_by('code')
+
     context = {
-        "page_title": "التحليلات المالية",
-        "page_subtitle": "مؤشرات ورسوم بيانية للأداء المالي",
+        "page_title": "لوحة التحليلات والمؤشرات المالية التنفيذية",
+        "page_subtitle": f"مؤشرات الأداء المالي للفترة من {date_from.strftime('%d/%m/%Y')} إلى {date_to.strftime('%d/%m/%Y')}",
         "page_icon": "fas fa-chart-pie",
-        "header_buttons": [
-            {
-                "onclick": "window.print()",
-                "icon": "fa-print",
-                "text": "طباعة",
-                "class": "btn-outline-secondary",
-            },
-        ],
         "breadcrumb_items": [
             {"title": "الرئيسية", "url": reverse('core:dashboard'), "icon": "fas fa-home"},
-            {"title": "الإدارة المالية", "icon": "fas fa-money-bill-wave"},
-            {"title": "التقارير", "icon": "fas fa-chart-bar"},
-            {"title": "التحليلات المالية", "active": True},
+            {"title": "الإدارة المالية", "url": reverse('financial:chart_of_accounts_list'), "icon": "fas fa-calculator"},
+            {"title": "التقارير المالية", "url": "#", "icon": "fas fa-chart-line"},
+            {"title": "التحليلات والمؤشرات المالية", "active": True},
         ],
-        # المؤشرات الأساسية
-        "monthly_income": analytics["basic_metrics"]["monthly_income"],
-        "monthly_expenses": analytics["basic_metrics"]["monthly_expenses"],
-        "net_profit": analytics["basic_metrics"]["net_profit"],
-        "profit_margin": analytics["basic_metrics"]["profit_margin"],
-        "avg_invoice": analytics["basic_metrics"]["avg_entry_value"],
-        "daily_transactions": analytics["basic_metrics"]["daily_transactions"],
-        # المؤشرات المتقدمة
-        "collection_rate": analytics["advanced_metrics"]["collection_rate"],
-        "new_clients": analytics["advanced_metrics"]["new_clients"],
-        "sales_cycle": analytics["advanced_metrics"]["sales_cycle"],
-        "due_debt": analytics["advanced_metrics"]["due_debt"],
-        "total_receivables": analytics["advanced_metrics"]["total_receivables"],
-        # الاتجاهات الشهرية (JSON)
-        "monthly_trends": monthly_trends_json,
-        # توزيع المصروفات (JSON)
-        "expense_distribution": expense_distribution_json,
-        # الفترة الزمنية
-        "date_from": analytics["date_from"],
-        "date_to": analytics["date_to"],
+        "header_buttons": header_buttons,
+        "analytics": analytics,
+        "liquidity": analytics.get("liquidity", {}),
+        "profitability": analytics.get("profitability", {}),
+        "solvency": analytics.get("solvency", {}),
+        "activity": analytics.get("activity", {}),
+        "dupont": analytics.get("dupont", {}),
+        "altman_z": analytics.get("altman_z", {}),
+        "health_scorecard": analytics.get("health_scorecard", {}),
+        "monthly_trends_json": monthly_trends_json,
+        "expense_distribution_json": expense_distribution_json,
+        "date_from": date_from,
+        "date_to": date_to,
+        "comp_date_from": analytics.get("comp_date_from"),
+        "comp_date_to": analytics.get("comp_date_to"),
+        "has_comparison": analytics.get("has_comparison", False),
+        "cost_centers_list": cost_centers_list,
+        "selected_cost_center_id": str(cost_center_id) if cost_center_id else "",
+        "cost_center_name": analytics.get("cost_center_name", ""),
+        "include_unposted": include_unposted,
+        "active_preset": active_preset,
+        "is_cached": cached_data is not None,
     }
     return render(request, "financial/reports/analytics.html", context)
 

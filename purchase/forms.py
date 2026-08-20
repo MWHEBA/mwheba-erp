@@ -115,7 +115,20 @@ class PurchaseForm(forms.ModelForm):
         if not self.initial.get("payment_method"):
             self.initial["payment_method"] = "cash"
         
-        # Handle old values when editing
+        # Handle old values when editing or dynamically submitted
+        current_method = self.data.get('payment_method') or self.initial.get('payment_method') or (self.instance.payment_method if self.instance and self.instance.pk else None)
+        if current_method and current_method not in [c[0] for c in payment_choices]:
+            try:
+                from financial.models import ChartOfAccounts
+                acc = ChartOfAccounts.objects.filter(code=current_method).first()
+                if acc:
+                    payment_choices.append((acc.code, f"{acc.name} ({acc.code})"))
+                else:
+                    payment_choices.append((current_method, current_method))
+            except Exception:
+                payment_choices.append((current_method, current_method))
+            self.fields['payment_method'].choices = payment_choices
+
         if self.instance and self.instance.pk and self.instance.payment_method:
             # إذا كانت القيمة القديمة cash أو credit، نبقيها كما هي
             # إذا كانت account code، نبقيها أيضاً
@@ -322,6 +335,36 @@ class PurchaseUpdateForm(forms.ModelForm):
             if "tax" in self.fields and not self.initial.get("tax"):
                 self.initial["tax"] = 0
 
+        # إعداد خيارات طريقة الدفع للفورم
+        if "payment_method" in self.fields:
+            payment_choices = [
+                ('', 'اختر طريقة الدفع'),
+                ('cash', 'نقدي'),
+                ('credit', 'آجل'),
+                ('PREPAID_BALANCE', '💳 خصم من الرصيد المسبق لدى المورد'),
+            ]
+            try:
+                from financial.services.account_helper import AccountHelperService
+                payment_accounts = AccountHelperService.get_cash_and_bank_accounts()
+                for account in payment_accounts:
+                    payment_choices.append((account.code, f"{account.name} ({account.code})"))
+            except Exception:
+                pass
+
+            current_method = self.data.get('payment_method') or self.initial.get('payment_method') or (self.instance.payment_method if self.instance and self.instance.pk else None)
+            if current_method and current_method not in [c[0] for c in payment_choices]:
+                try:
+                    from financial.models import ChartOfAccounts
+                    acc = ChartOfAccounts.objects.filter(code=current_method).first()
+                    if acc:
+                        payment_choices.append((acc.code, f"{acc.name} ({acc.code})"))
+                    else:
+                        payment_choices.append((current_method, current_method))
+                except Exception:
+                    payment_choices.append((current_method, current_method))
+
+            self.fields['payment_method'].choices = payment_choices
+
     def clean_discount(self):
         discount = self.cleaned_data.get("discount", 0)
         if discount < 0:
@@ -411,21 +454,17 @@ class PurchasePaymentForm(forms.ModelForm):
         payment_choices = [('', 'اختر حساب الدفع')]
         
         try:
-            from financial.models import ChartOfAccounts
-            payment_accounts = ChartOfAccounts.objects.filter(
-                account_type__code__in=['cash', 'bank'],
-                is_active=True
-            ).order_by('code')
-            
+            from financial.services.account_helper import AccountHelperService
+            payment_accounts = AccountHelperService.get_cash_and_bank_accounts()
             for account in payment_accounts:
                 payment_choices.append((account.code, f"{account.name} ({account.code})"))
             
             # تعيين الحساب النقدي الافتراضي
-            default_cash = ChartOfAccounts.objects.filter(code='10100', is_active=True).first()
+            default_cash = AccountHelperService.get_default_cash_account()
             if default_cash and not self.initial.get("payment_method"):
                 self.initial["payment_method"] = default_cash.code
                 
-        except ImportError:
+        except Exception:
             payment_choices = [
                 ('', 'اختر طريقة الدفع'),
                 ('cash', 'نقداً'),
@@ -434,6 +473,18 @@ class PurchasePaymentForm(forms.ModelForm):
             if not self.initial.get("payment_method"):
                 self.initial["payment_method"] = "cash"
         
+        current_method = self.data.get('payment_method') or self.initial.get('payment_method') or (self.instance.payment_method if self.instance and self.instance.pk else None)
+        if current_method and current_method not in [c[0] for c in payment_choices]:
+            try:
+                from financial.models import ChartOfAccounts
+                acc = ChartOfAccounts.objects.filter(code=current_method).first()
+                if acc:
+                    payment_choices.append((acc.code, f"{acc.name} ({acc.code})"))
+                else:
+                    payment_choices.append((current_method, current_method))
+            except Exception:
+                payment_choices.append((current_method, current_method))
+
         self.fields['payment_method'].choices = payment_choices
         
         # Handle old values when editing
@@ -547,22 +598,30 @@ class PurchasePaymentEditForm(forms.ModelForm):
         payment_choices = [('', 'اختر حساب الدفع')]
         
         try:
-            from financial.models import ChartOfAccounts
-            payment_accounts = ChartOfAccounts.objects.filter(
-                account_type__code__in=['cash', 'bank'],
-                is_active=True
-            ).order_by('code')
-            
+            from financial.services.account_helper import AccountHelperService
+            payment_accounts = AccountHelperService.get_cash_and_bank_accounts()
             for account in payment_accounts:
                 payment_choices.append((account.code, f"{account.name} ({account.code})"))
                 
-        except ImportError:
+        except Exception:
             payment_choices = [
                 ('', 'اختر طريقة الدفع'),
                 ('cash', 'نقداً'),
                 ('bank_transfer', 'تحويل بنكي'),
             ]
         
+        current_method = self.data.get('payment_method') or self.initial.get('payment_method') or (self.instance.payment_method if self.instance and self.instance.pk else None)
+        if current_method and current_method not in [c[0] for c in payment_choices]:
+            try:
+                from financial.models import ChartOfAccounts
+                acc = ChartOfAccounts.objects.filter(code=current_method).first()
+                if acc:
+                    payment_choices.append((acc.code, f"{acc.name} ({acc.code})"))
+                else:
+                    payment_choices.append((current_method, current_method))
+            except Exception:
+                payment_choices.append((current_method, current_method))
+
         self.fields['payment_method'].choices = payment_choices
         
         # Handle old values when editing

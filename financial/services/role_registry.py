@@ -30,6 +30,9 @@ class AccountRoleNames(str, Enum):
     GENERAL_SALES_REVENUE = "general_sales_revenue"
     SALES_REVENUE = "sales_revenue"
     SALES_RETURNS = "sales_returns"
+    SALES_DISCOUNTS = "sales_discounts"
+    PURCHASE_DISCOUNTS = "purchase_discounts"
+    PURCHASE_RETURNS = "purchase_returns"
     SUPPLIER_PAYABLE_CONTROL = "supplier_payable_control"
     CUSTOMER_RECEIVABLE_CONTROL = "customer_receivable_control"
     CUSTOMER_ADVANCE_LIABILITY = "customer_advance_liability"
@@ -71,6 +74,16 @@ LEGACY_ROLE_FALLBACKS: Dict[str, str] = {
     AccountRoleNames.SALES_RETURNS.value: "41910",
     "SALES_RETURNS": "41910",
     "SALES_RETURNS_ACCOUNT": "41910",
+    AccountRoleNames.SALES_DISCOUNTS.value: "41930",
+    "SALES_DISCOUNTS": "41930",
+    "SALES_DISCOUNTS_ACCOUNT": "41930",
+    AccountRoleNames.PURCHASE_DISCOUNTS.value: "51930",
+    "PURCHASE_DISCOUNTS": "51930",
+    "PURCHASE_DISCOUNTS_ACCOUNT": "51930",
+    "EARNED_DISCOUNT_ACCOUNT": "51930",
+    AccountRoleNames.PURCHASE_RETURNS.value: "51910",
+    "PURCHASE_RETURNS": "51910",
+    "PURCHASE_RETURNS_ACCOUNT": "51910",
     AccountRoleNames.COGS_EXPENSE.value: "51100",
     "COGS_EXPENSE": "51100",
     "COGS_EXPENSE_ACCOUNT": "51100",

@@ -437,54 +437,55 @@ class SalePaymentForm(forms.ModelForm):
         self.sale = kwargs.pop("sale", None)
         super().__init__(*args, **kwargs)
 
-        # تحميل حسابات الدفع ديناميكياً (حسب unified-components-guide.md)
+        # تحميل حسابات الدفع ديناميكياً
         try:
-            from financial.models import ChartOfAccounts
-            from django.db.models import Q
+            from financial.services.account_helper import AccountHelperService
+            payment_accounts = AccountHelperService.get_cash_and_bank_accounts()
             
-            payment_accounts = ChartOfAccounts.objects.filter(
-                Q(is_cash_account=True) | Q(is_bank_account=True),
-                is_active=True
-            ).order_by('code')
+            choices = [('', 'اختر حساب الدفع')]
+            for account in payment_accounts:
+                choices.append((account.code, f"{account.name} ({account.code})"))
             
-            if payment_accounts.exists():
-                choices = [('', 'اختر حساب الدفع')]
-                for account in payment_accounts:
-                    choices.append((account.code, f"{account.name} ({account.code})"))
-                
-                self.fields['payment_method'].choices = choices
-                
-                # Handle old values when editing
-                if self.instance and self.instance.pk and self.instance.payment_method:
-                    old_value = self.instance.payment_method
-                    if old_value == 'cash':
-                        from financial.services.account_role_registry import AccountRoleRegistry
-                        default_cash = AccountRoleRegistry.get_account_by_role("CASH_CONTROL_ACCOUNT")
-                        if default_cash:
-                            self.initial['payment_method'] = default_cash.code
-                    elif old_value == 'bank_transfer':
-                        from financial.services.account_role_registry import AccountRoleRegistry
-                        default_bank = AccountRoleRegistry.get_account_by_role("BANK_CONTROL_ACCOUNT")
-                        if default_bank:
-                            self.initial['payment_method'] = default_bank.code
+            current_method = self.data.get('payment_method') or self.initial.get('payment_method') or (self.instance.payment_method if self.instance and self.instance.pk else None)
+            if current_method and current_method not in [c[0] for c in choices]:
+                try:
+                    from financial.models import ChartOfAccounts
+                    acc = ChartOfAccounts.objects.filter(code=current_method).first()
+                    if acc:
+                        choices.append((acc.code, f"{acc.name} ({acc.code})"))
                     else:
-                        # Already an account code - verify it exists
-                        if payment_accounts.filter(code=old_value).exists():
-                            self.initial['payment_method'] = old_value
-            else:
-                # No payment accounts found - use fallback
-                self.fields['payment_method'].choices = [
-                    ('', 'اختر طريقة الدفع'),
-                    ('cash', 'نقداً'),
-                    ('bank_transfer', 'تحويل بنكي'),
-                ]
+                        choices.append((current_method, current_method))
+                except Exception:
+                    choices.append((current_method, current_method))
+
+            self.fields['payment_method'].choices = choices
+            
+            # Handle old values when editing
+            if self.instance and self.instance.pk and self.instance.payment_method:
+                old_value = self.instance.payment_method
+                if old_value == 'cash':
+                    from financial.services.account_role_registry import AccountRoleRegistry
+                    default_cash = AccountRoleRegistry.get_account_by_role("CASH_CONTROL_ACCOUNT")
+                    if default_cash:
+                        self.initial['payment_method'] = default_cash.code
+                elif old_value == 'bank_transfer':
+                    from financial.services.account_role_registry import AccountRoleRegistry
+                    default_bank = AccountRoleRegistry.get_account_role("BANK_CONTROL_ACCOUNT")
+                    if default_bank:
+                        self.initial['payment_method'] = default_bank.code
+                else:
+                    self.initial['payment_method'] = old_value
         except Exception:
             # Fallback to default choices on any error
-            self.fields['payment_method'].choices = [
+            choices = [
                 ('', 'اختر طريقة الدفع'),
                 ('cash', 'نقداً'),
                 ('bank_transfer', 'تحويل بنكي'),
             ]
+            current_method = self.data.get('payment_method') or self.initial.get('payment_method') or (self.instance.payment_method if self.instance and self.instance.pk else None)
+            if current_method and current_method not in [c[0] for c in choices]:
+                choices.append((current_method, current_method))
+            self.fields['payment_method'].choices = choices
         
         # تعيين التاريخ الحالي كافتراضي
         if not self.initial.get("payment_date"):
@@ -570,24 +571,10 @@ class SalePaymentEditForm(forms.ModelForm):
         payment_choices = [('', 'اختر حساب الدفع')]
         
         try:
-            from financial.models import ChartOfAccounts
-            from django.db.models import Q
-            
-            payment_accounts = ChartOfAccounts.objects.filter(
-                Q(is_cash_account=True) | Q(is_bank_account=True),
-                is_active=True
-            ).order_by('code')
-            
-            if payment_accounts.exists():
-                for account in payment_accounts:
-                    payment_choices.append((account.code, f"{account.name} ({account.code})"))
-            else:
-                # No payment accounts found - use fallback
-                payment_choices = [
-                    ('', 'اختر طريقة الدفع'),
-                    ('cash', 'نقداً'),
-                    ('bank_transfer', 'تحويل بنكي'),
-                ]
+            from financial.services.account_helper import AccountHelperService
+            payment_accounts = AccountHelperService.get_cash_and_bank_accounts()
+            for account in payment_accounts:
+                payment_choices.append((account.code, f"{account.name} ({account.code})"))
                 
         except Exception:
             payment_choices = [
@@ -596,6 +583,18 @@ class SalePaymentEditForm(forms.ModelForm):
                 ('bank_transfer', 'تحويل بنكي'),
             ]
         
+        current_method = self.data.get('payment_method') or self.initial.get('payment_method') or (self.instance.payment_method if self.instance and self.instance.pk else None)
+        if current_method and current_method not in [c[0] for c in payment_choices]:
+            try:
+                from financial.models import ChartOfAccounts
+                acc = ChartOfAccounts.objects.filter(code=current_method).first()
+                if acc:
+                    payment_choices.append((acc.code, f"{acc.name} ({acc.code})"))
+                else:
+                    payment_choices.append((current_method, current_method))
+            except Exception:
+                payment_choices.append((current_method, current_method))
+
         self.fields['payment_method'].choices = payment_choices
         
         # Handle old values when editing

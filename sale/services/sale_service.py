@@ -90,8 +90,8 @@ class SaleService:
                 adjustment_name=data.get('adjustment_name'),
                 adjustment_amount=Decimal(data.get('adjustment_amount', 0)),
                 tax=Decimal(data.get('tax', 0)),
-                tax_active=data.get('tax_active', True),
-                vat_active=data.get('vat_active', True),
+                tax_active=data.get('tax_active', True) if ('vat_active' in data or 'tax' not in data or Decimal(str(data.get('tax', 0) or 0)) > 0) else False,
+                vat_active=data.get('vat_active', True) if ('vat_active' in data or 'tax' not in data or Decimal(str(data.get('tax', 0) or 0)) > 0) else False,
                 vat_rate=Decimal(str(data.get('vat_rate', 14.00))),
                 wht_active=data.get('wht_active', False),
                 wht_rate=Decimal(str(data.get('wht_rate', 1.00))),
@@ -367,11 +367,13 @@ class SaleService:
             
             logger.info(f"   - تكلفة البضاعة المباعة: {cost_of_goods_sold}")
             
-            from financial.services.account_role_registry import AccountRoleRegistry
+            from financial.services.role_registry import AccountRoleRegistry
 
             # الحصول على الحسابات المطلوبة عبر سجل الأدوار المركزي
-            sales_revenue_account = AccountRoleRegistry.get_account_by_role("SALES_REVENUE_ACCOUNT")
-            if not sales_revenue_account:
+            sales_revenue_account = None
+            try:
+                sales_revenue_account = AccountRoleRegistry.get_account("SALES_REVENUE")
+            except Exception:
                 sales_revenue_account = ChartOfAccounts.objects.filter(code__in=['41100', '40100'], is_active=True).first()
             if not sales_revenue_account:
                 error_msg = "❌ حساب إيرادات المبيعات غير موجود في دليل الحسابات. يرجى إنشاؤه أولاً."
@@ -381,16 +383,20 @@ class SaleService:
             # محاولة جلب حساب إيرادات الخدمات (41200 / 40200) - والارتداد لحساب المبيعات لو مش موجود
             services_revenue_account = ChartOfAccounts.objects.filter(code__in=['41200', '40200'], is_active=True).first() or sales_revenue_account
 
-            cogs_account = AccountRoleRegistry.get_account_by_role("COGS_EXPENSE_ACCOUNT")
-            if not cogs_account:
+            cogs_account = None
+            try:
+                cogs_account = AccountRoleRegistry.get_account("COGS_EXPENSE")
+            except Exception:
                 cogs_account = ChartOfAccounts.objects.filter(code__in=['51100', '50100'], is_active=True).first()
             if not cogs_account:
                 error_msg = "❌ حساب تكلفة البضاعة المباعة غير موجود في دليل الحسابات. يرجى إنشاؤه أولاً."
                 logger.error(error_msg)
                 raise ValidationError(error_msg)
 
-            inventory_account = AccountRoleRegistry.get_account_by_role("INVENTORY_CONTROL_ACCOUNT")
-            if not inventory_account:
+            inventory_account = None
+            try:
+                inventory_account = AccountRoleRegistry.get_account("INVENTORY_GENERAL")
+            except Exception:
                 inventory_account = ChartOfAccounts.objects.filter(code__in=['11310', '10400'], is_active=True).first()
             if not inventory_account:
                 error_msg = "❌ حساب المخزون غير موجود في دليل الحسابات. يرجى إنشاؤه أولاً."
@@ -414,8 +420,15 @@ class SaleService:
                 physical_ratio = Decimal('1')
                 service_ratio = Decimal('0')
                 
-            physical_revenue_total = (sale.total * physical_ratio).quantize(Decimal('0.01'))
-            service_revenue_total = (sale.total - physical_revenue_total).quantize(Decimal('0.01'))
+            # حساب صافي الإيراد (المبلغ قبل الضريبة والخصم)
+            net_revenue_total = max(Decimal('0'), sale.subtotal - sale.discount)
+            
+            # إذا كانت هناك ضرائب (VAT/WHT) نوزع صافي الإيراد على المنتجات والخدمات
+            has_taxes = (getattr(sale, 'vat_active', False) and sale.tax and sale.tax > Decimal('0')) or (getattr(sale, 'wht_active', False) and sale.wht_amount and sale.wht_amount > Decimal('0'))
+            
+            revenue_base = net_revenue_total if has_taxes else sale.total
+            physical_revenue_total = (revenue_base * physical_ratio).quantize(Decimal('0.01'))
+            service_revenue_total = (revenue_base - physical_revenue_total).quantize(Decimal('0.01'))
             
             # إعداد بيانات القيد باستخدام JournalEntryLineData
             lines = []
@@ -432,6 +445,24 @@ class SaleService:
                         description=f'مبيعات - فاتورة {sale.number}{cust_suffix}'
                     )
                 )
+
+            # مدين: ضريبة الخصم والإضافة (WHT محجوزة لدى العميل) إذا كانت مفعلة
+            if getattr(sale, 'wht_active', False) and sale.wht_amount and sale.wht_amount > Decimal('0'):
+                wht_account = None
+                try:
+                    wht_account = AccountRoleRegistry.get_account("CUSTOMER_WHT_RECEIVABLE")
+                except Exception:
+                    wht_account = ChartOfAccounts.objects.filter(code__in=['11520', '11500'], is_active=True).first()
+                
+                if wht_account:
+                    lines.append(
+                        JournalEntryLineData(
+                            account_code=wht_account.code,
+                            debit=sale.wht_amount,
+                            credit=Decimal('0'),
+                            description=f'ضريبة مخصومة ومحجوزة لدى الغير - فاتورة {sale.number}{cust_suffix}'
+                        )
+                    )
 
             # دائن: إيرادات المنتجات المادية
             if physical_revenue_total > 0:
@@ -454,6 +485,30 @@ class SaleService:
                         description=f'مبيعات خدمات - فاتورة {sale.number}{cust_suffix}'
                     )
                 )
+
+            # دائن: ضريبة القيمة المضافة (مخرجات) إذا كانت مفعلة
+            if getattr(sale, 'vat_active', False) and sale.tax and sale.tax > Decimal('0'):
+                vat_account = None
+                try:
+                    vat_account = AccountRoleRegistry.get_account("VAT_OUTPUT")
+                except Exception:
+                    vat_account = ChartOfAccounts.objects.filter(code__in=['21310', '21300'], is_active=True).first()
+
+                if vat_account:
+                    lines.append(
+                        JournalEntryLineData(
+                            account_code=vat_account.code,
+                            debit=Decimal('0'),
+                            credit=sale.tax,
+                            description=f'ضريبة القيمة المضافة مخرجات - فاتورة {sale.number}{cust_suffix}'
+                        )
+                    )
+                else:
+                    # في حالة عدم وجود حساب ضريبة مخرجات (مثلاً في بيئة اختبار مبسطة) تضاف للإيراد
+                    if physical_revenue_total > 0:
+                        lines[1].credit += sale.tax
+                    elif service_revenue_total > 0:
+                        lines[2].credit += sale.tax
 
             # مدين ودائن قيد التكلفة (فقط للمنتجات المادية وعندما تكون التكلفة أكبر من صفر)
             if cost_of_goods_sold > 0:

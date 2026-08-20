@@ -232,10 +232,8 @@ def work_order_detail(request, pk):
     remaining_deposit = total_deposits - total_allocated
 
     # حسابات نقدية/بنكية لتسجيل الدفعات
-    cash_accounts = ChartOfAccounts.objects.filter(
-        account_type__code__in=['cash', 'bank'],
-        is_active=True
-    ).order_by('code')
+    from financial.services.account_helper import AccountHelperService
+    cash_accounts = AccountHelperService.get_cash_and_bank_accounts()
 
     context = {
         "work_order": work_order,

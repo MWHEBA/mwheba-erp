@@ -39,10 +39,10 @@ class TestFINSAL002SalesReturn:
         )
         customer = Customer.objects.create(name=f"Alexandria Trading {uid}", code=f"CUST-RET-{uid}", credit_limit=Decimal("500000.00"))
 
-        asset_type, _ = AccountType.objects.get_or_create(code="ASSET", name="Assets", category="ASSET")
-        liab_type, _ = AccountType.objects.get_or_create(code="LIAB", name="Liabilities", category="LIABILITY")
-        rev_type, _ = AccountType.objects.get_or_create(code="REV", name="Revenues", category="REVENUE")
-        exp_type, _ = AccountType.objects.get_or_create(code="EXPENSE", name="Expenses", category="EXPENSE")
+        asset_type = AccountType.objects.filter(code="ASSET").first() or AccountType.objects.create(code="ASSET", name="Assets", category="asset")
+        liab_type = AccountType.objects.filter(code="LIAB").first() or AccountType.objects.create(code="LIAB", name="Liabilities", category="liability")
+        rev_type = AccountType.objects.filter(code="REV").first() or AccountType.objects.create(code="REV", name="Revenues", category="revenue")
+        exp_type = AccountType.objects.filter(code="EXPENSE").first() or AccountType.objects.create(code="EXPENSE", name="Expenses", category="expense")
 
         ChartOfAccounts.objects.get_or_create(code="10400", defaults={"name": "Inventory Asset", "account_type": asset_type, "is_active": True})
         ChartOfAccounts.objects.get_or_create(code="11010", defaults={"name": "Customer AR", "account_type": asset_type, "is_active": True})

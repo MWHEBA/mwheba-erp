@@ -37,7 +37,8 @@ class SalesAccountingBridge:
 
             func_total = (sale.total * rate).quantize(Decimal("0.01"))
             func_tax = (sale.tax * rate).quantize(Decimal("0.01"))
-            func_net_sales = (func_total - func_tax).quantize(Decimal("0.01"))
+            func_discount = ((sale.discount or Decimal("0.00")) * rate).quantize(Decimal("0.01"))
+            func_gross_sales = (func_total + func_discount - func_tax).quantize(Decimal("0.01"))
 
             from financial.services.account_role_registry import AccountRoleRegistry
 
@@ -59,19 +60,32 @@ class SalesAccountingBridge:
                 "description": f"فاتورة مبيعات #{sale.number} - {sale.customer.name}"
             })
 
-            # 2. Net Sales Revenue Credit Line
+            # 2. Sales Discount Debit Line (41930 - الخصم المسموح به - تخفيض إيراد)
+            if func_discount > Decimal("0.00"):
+                discount_acc = AccountRoleRegistry.get_account_code("SALES_DISCOUNTS_ACCOUNT")
+                lines.append({
+                    "account_code": discount_acc,
+                    "debit": func_discount,
+                    "credit": Decimal("0.00"),
+                    "foreign_debit": sale.discount if currency_code != "EGP" else None,
+                    "currency_code": currency_code,
+                    "exchange_rate": rate,
+                    "description": f"خصم مسموح به فاتورة مبيعات #{sale.number}"
+                })
+
+            # 3. Gross Sales Revenue Credit Line
             revenue_account = AccountRoleRegistry.get_account_code("SALES_REVENUE_ACCOUNT")
             lines.append({
                 "account_code": revenue_account,
                 "debit": Decimal("0.00"),
-                "credit": func_net_sales,
-                "foreign_credit": sale.subtotal - sale.discount if currency_code != "EGP" else None,
+                "credit": func_gross_sales,
+                "foreign_credit": sale.subtotal if currency_code != "EGP" else None,
                 "currency_code": currency_code,
                 "exchange_rate": rate,
                 "description": f"إيراد مبيعات #{sale.number}"
             })
 
-            # 3. Output VAT Tax Line (if any)
+            # 4. Output VAT Tax Line (if any)
             if func_tax > Decimal("0.00"):
                 vat_account = AccountRoleRegistry.get_account_code("SALES_TAX_PAYABLE")
                 lines.append({

@@ -369,7 +369,33 @@ class AccountingGateway:
                             idempotency_key=idempotency_key,
                             context={'error': 'Existing record found but no journal entry ID'}
                         )
-                
+                # Deduce semantic entry_type if generic 'automatic', 'manual', or empty
+                if not entry_type or entry_type in ['automatic', 'manual']:
+                    s_mod = str(source_module or '').lower()
+                    s_model = str(source_model or '').lower()
+                    if 'purchase' in s_mod or 'purchase' in s_model:
+                        if 'return' in s_model:
+                            entry_type = 'purchase_return'
+                        elif 'payment' in s_model:
+                            entry_type = 'payment_voucher'
+                        else:
+                            entry_type = 'purchase_invoice'
+                    elif 'sale' in s_mod or 'sale' in s_model:
+                        if 'return' in s_model:
+                            entry_type = 'sales_return'
+                        elif 'payment' in s_model:
+                            entry_type = 'receipt_voucher'
+                        else:
+                            entry_type = 'sales_invoice'
+                    elif 'supplier' in s_mod or 'supplier' in s_model:
+                        entry_type = 'supplier_payment'
+                    elif 'client' in s_mod or 'customer' in s_model:
+                        entry_type = 'parent_payment'
+                    elif 'hr' in s_mod or 'payroll' in s_mod or 'payroll' in s_model:
+                        entry_type = 'salary_payment'
+                    elif 'inventory' in s_mod or 'stock' in s_mod or 'product' in s_mod:
+                        entry_type = 'inventory'
+
                 # Create journal entry with thread-safe transaction
                 journal_entry = self._create_journal_entry_atomic(
                     source_info=source_info,

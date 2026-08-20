@@ -349,7 +349,7 @@ def load_fixture(fixture_path, description="", timeout=60):
     else:
         print_info(f"تحميل {fixture_path}...")
     
-    success = run_command(f"python manage.py loaddata {fixture_path}", show_output=False, timeout=timeout)
+    success = run_command(f'"{sys.executable}" manage.py loaddata {fixture_path}', show_output=False, timeout=timeout)
     
     if success:
         print_success(f"✅ تم تحميل {fixture.name}")
@@ -1024,7 +1024,7 @@ def main():
     print_info("تطبيق جميع الهجرات (قد يستغرق بضع دقائق)...")
     
     # تطبيق migrations بدون timeout (None = لا يوجد حد زمني)
-    migration_success = run_command("python manage.py migrate --no-input", show_output=True, timeout=None)
+    migration_success = run_command(f'"{sys.executable}" manage.py migrate --no-input', show_output=True, timeout=None)
     
     if not migration_success:
         print_colored("\n❌ فشل تطبيق الهجرات", Colors.RED)
@@ -1055,7 +1055,7 @@ def main():
     roles_fixture = Path("users/fixtures/roles.json")
     if roles_fixture.exists():
         print_info("تحميل الأدوار الأساسية للنظام...")
-        if run_command("python manage.py loaddata users/fixtures/roles.json", show_output=False):
+        if run_command(f'"{sys.executable}" manage.py loaddata users/fixtures/roles.json', show_output=False):
             print_success("تم تحميل 10 أدوار أساسية للنظام")
             print_info("- مدير النظام (صلاحيات كاملة)")
             print_info("- مدير (إدارة العمليات والإشراف العام)")
@@ -1074,7 +1074,7 @@ def main():
     users_fixture = Path("users/fixtures/initial_data.json")
     if users_fixture.exists():
         print_info("تحميل المستخدمين من الفيكستشر المحدث...")
-        if run_command("python manage.py loaddata users/fixtures/initial_data.json", show_output=False):
+        if run_command(f'"{sys.executable}" manage.py loaddata users/fixtures/initial_data.json', show_output=False):
             print_success("تم تحميل المستخدمين الآمنين بنجاح")
             
             # التأكد من كلمات المرور
@@ -1220,7 +1220,7 @@ def main():
     print_step(9, TOTAL_STEPS, "تفعيل موديول Governance تلقائياً")
     
     print_info("تفعيل جميع المكونات والسير العمل الحرج...")
-    governance_success = run_command("python manage.py activate_governance --silent", show_output=False)
+    governance_success = run_command(f'"{sys.executable}" manage.py activate_governance --silent', show_output=False)
     
     if governance_success:
         print_success("✅ تم تفعيل موديول Governance بنجاح")
@@ -1230,7 +1230,7 @@ def main():
         
         # التحقق من الحالة
         print_info("التحقق من حالة Governance...")
-        verification_success = run_command("python manage.py activate_governance --check-only --silent", show_output=False)
+        verification_success = run_command(f'"{sys.executable}" manage.py activate_governance --check-only --silent', show_output=False)
         
         if verification_success:
             print_success("✅ تم التحقق من تفعيل Governance بنجاح")
@@ -1272,7 +1272,7 @@ def main():
             fixture_path = Path("financial/fixtures/accounting_periods.json")
             if fixture_path.exists():
                 print_info("تحميل الفترة المحاسبية من fixture...")
-                if run_command("python manage.py loaddata financial/fixtures/accounting_periods.json", show_output=False):
+                if run_command(f'"{sys.executable}" manage.py loaddata financial/fixtures/accounting_periods.json', show_output=False):
                     print_success("تم تحميل الفترة المحاسبية من fixture")
                     return True
             

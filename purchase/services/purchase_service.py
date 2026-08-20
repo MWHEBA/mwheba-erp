@@ -448,7 +448,7 @@ class PurchaseService:
                 lines=lines,
                 idempotency_key=f'purchase_return_{purchase_return.id}_journal_entry',
                 user=user,
-                entry_type='automatic',
+                entry_type='purchase_return',
                 description=f'مرتجع مشتريات رقم {purchase_return.number} - فاتورة {purchase.number}',
                 reference=purchase_return.number,
                 date=purchase_return.date

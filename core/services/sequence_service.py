@@ -61,8 +61,8 @@ class SequenceService:
         DocumentType.OPENING_BALANCE: [("financial.OpeningBalanceBatch", "batch_number")],
         DocumentType.BANK_RECONCILIATION: [("financial.BankReconciliationBatch", "batch_number")],
         DocumentType.STOCK_TRANSFER: [("product.StockTransfer", "transfer_number")],
-        DocumentType.STOCK_RECEIPT: [("product.InventoryMovement", "movement_number")],
-        DocumentType.STOCK_ISSUE: [("product.InventoryMovement", "movement_number")],
+        DocumentType.STOCK_RECEIPT: [("product.StockMovement", "number"), ("product.InventoryMovement", "movement_number")],
+        DocumentType.STOCK_ISSUE: [("product.StockMovement", "number"), ("product.InventoryMovement", "movement_number")],
         DocumentType.INVENTORY_ADJUSTMENT: [("product.InventoryAdjustment", "adjustment_number")],
     }
 
@@ -291,22 +291,38 @@ class SequenceService:
                     )
 
 
-                # 3. Increment Counter
-                counter.last_number += 1
+                # 3. Increment Counter with collision protection
+                while True:
+                    counter.last_number += 1
+                    generated_number = SequenceFormatter.format_number(
+                        prefix=rule.prefix,
+                        year=year,
+                        number=counter.last_number,
+                        padding=rule.padding,
+                    )
+                    
+                    collision = False
+                    if document_type in cls.MODEL_MAPPINGS:
+                        mappings = cls.MODEL_MAPPINGS[document_type]
+                        model_paths = mappings if isinstance(mappings, list) else [mappings]
+                        for model_path, field_name in model_paths:
+                            try:
+                                from django.apps import apps
+                                target_model = apps.get_model(model_path)
+                                if target_model.objects.filter(**{field_name: generated_number}).exists():
+                                    collision = True
+                                    break
+                            except Exception:
+                                pass
+                    if not collision:
+                        break
+
                 counter.save(update_fields=["last_number", "last_reserved_at"])
 
                 # 4. Lock Rule after first generation
                 if not rule.is_locked:
                     rule.is_locked = True
                     rule.save(update_fields=["is_locked"])
-
-                # 5. Format Number String
-                generated_number = SequenceFormatter.format_number(
-                    prefix=rule.prefix,
-                    year=year,
-                    number=counter.last_number,
-                    padding=rule.padding,
-                )
 
                 # 6. Audit Trail Logging
                 DocumentSequenceAudit.objects.create(

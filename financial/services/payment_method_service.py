@@ -65,36 +65,29 @@ class PaymentMethodService:
         Get account type from payment method code.
         
         Args:
-            payment_method_code: Account code (e.g., '10100', '10200')
+            payment_method_code: Account code (e.g., '10100', '11160')
             
         Returns:
             Account type ('cash', 'bank') or None
-            
-        Example:
-            >>> PaymentMethodService.get_account_type('10100')
-            'cash'
-            >>> PaymentMethodService.get_account_type('10200')
-            'bank'
         """
         account = cls.get_account_from_code(payment_method_code)
-        return account.account_type if account else None
+        if not account:
+            return None
+        if account.is_cash_account or (account.account_type and account.account_type.code.lower() == 'cash'):
+            return 'cash'
+        if account.is_bank_account or (account.account_type and account.account_type.code.lower() == 'bank'):
+            return 'bank'
+        name = account.name
+        if any(k in name for k in ['نقدي', 'صندوق', 'خزينة', 'عهدة']):
+            return 'cash'
+        if any(k in name for k in ['بنك', 'مصرف', 'جارية']):
+            return 'bank'
+        return 'cash' if getattr(account, 'is_leaf', False) else None
     
     @classmethod
     def is_cash_payment(cls, payment_method_code: str) -> bool:
         """
         Check if payment method is cash.
-        
-        Args:
-            payment_method_code: Account code
-            
-        Returns:
-            True if cash payment, False otherwise
-            
-        Example:
-            >>> PaymentMethodService.is_cash_payment('10100')
-            True
-            >>> PaymentMethodService.is_cash_payment('10200')
-            False
         """
         account_type = cls.get_account_type(payment_method_code)
         return account_type == 'cash'
@@ -103,12 +96,6 @@ class PaymentMethodService:
     def is_bank_payment(cls, payment_method_code: str) -> bool:
         """
         Check if payment method is bank.
-        
-        Args:
-            payment_method_code: Account code
-            
-        Returns:
-            True if bank payment, False otherwise
         """
         account_type = cls.get_account_type(payment_method_code)
         return account_type == 'bank'
@@ -117,12 +104,6 @@ class PaymentMethodService:
     def is_non_cash_payment(cls, payment_method_code: str) -> bool:
         """
         Check if payment method is non-cash (bank, check, card, etc.).
-        
-        Args:
-            payment_method_code: Account code
-            
-        Returns:
-            True if non-cash payment, False otherwise
         """
         return not cls.is_cash_payment(payment_method_code)
     
@@ -130,12 +111,6 @@ class PaymentMethodService:
     def get_payment_method_display(cls, payment_method_code: str) -> str:
         """
         Get display name for payment method.
-        
-        Args:
-            payment_method_code: Account code
-            
-        Returns:
-            Display name (e.g., "نقدي", "تحويل بنكي")
         """
         account = cls.get_account_from_code(payment_method_code)
         if account:
@@ -148,12 +123,6 @@ class PaymentMethodService:
     def get_payment_method_icon(cls, payment_method_code: str) -> str:
         """
         Get FontAwesome icon for payment method.
-        
-        Args:
-            payment_method_code: Account code
-            
-        Returns:
-            FontAwesome icon class
         """
         account_type = cls.get_account_type(payment_method_code)
         
@@ -168,17 +137,6 @@ class PaymentMethodService:
     def validate_payment_method(cls, payment_method_code: str) -> Tuple[bool, Optional[str]]:
         """
         Validate payment method code.
-        
-        Args:
-            payment_method_code: Account code to validate
-            
-        Returns:
-            Tuple of (is_valid, error_message)
-            
-        Example:
-            >>> is_valid, error = PaymentMethodService.validate_payment_method('10100')
-            >>> if not is_valid:
-            ...     raise ValidationError(error)
         """
         if not payment_method_code:
             return False, _("طريقة الدفع مطلوبة")
@@ -196,7 +154,13 @@ class PaymentMethodService:
             return False, _(f"رمز الحساب غير صحيح أو غير نشط: {payment_method_code}")
         
         # Check if account is cash or bank type
-        if account.account_type not in ['cash', 'bank']:
+        is_cash_or_bank = (
+            getattr(account, 'is_cash_account', False)
+            or getattr(account, 'is_bank_account', False)
+            or (account.account_type and account.account_type.code.lower() in ['cash', 'bank'])
+            or any(k in account.name for k in ['نقدي', 'صندوق', 'خزينة', 'عهدة', 'بنك', 'مصرف', 'جارية'])
+        )
+        if not is_cash_or_bank:
             return False, _(
                 f"الحساب {account.name} ({account.code}) ليس حساب نقدية أو بنك"
             )
@@ -205,19 +169,25 @@ class PaymentMethodService:
     
     @classmethod
     def get_default_cash_account(cls):
-        """Get default cash account (10100)"""
-        from financial.models import ChartOfAccounts
-        return ChartOfAccounts.objects.filter(
-            code='10100',
-            is_active=True
-        ).first()
+        """Get default cash account"""
+        from financial.services.account_helper import AccountHelperService
+        return AccountHelperService.get_default_cash_account()
     
     @classmethod
     def get_default_bank_account(cls):
-        """Get default bank account (10200)"""
+        """Get default bank account (11160 / 10200)"""
+        from financial.services.role_registry import AccountRoleRegistry
         from financial.models import ChartOfAccounts
+        try:
+            def_code = AccountRoleRegistry.resolve_role_code("DEFAULT_BANK_ACCOUNT")
+            if def_code:
+                acc = ChartOfAccounts.objects.filter(code=def_code, is_active=True, is_leaf=True).first()
+                if acc:
+                    return acc
+        except Exception:
+            pass
         return ChartOfAccounts.objects.filter(
-            code='10200',
+            code__in=['11160', '10200'],
             is_active=True
         ).first()
     
@@ -225,20 +195,12 @@ class PaymentMethodService:
     def clear_cache(cls, payment_method_code: str = None):
         """
         Clear cached payment account data.
-        
-        Args:
-            payment_method_code: Specific code to clear, or None to clear all
         """
         if payment_method_code:
             cache_key = f"payment_account_{payment_method_code}"
             cache.delete(cache_key)
         else:
-            # Clear all payment account caches
-            # This is a simple implementation - in production you might want
-            # to use cache key patterns
-            from financial.models import ChartOfAccounts
-            for account in ChartOfAccounts.objects.filter(
-                account_type__code__in=['cash', 'bank']
-            ):
+            from financial.services.account_helper import AccountHelperService
+            for account in AccountHelperService.get_cash_and_bank_accounts():
                 cache_key = f"payment_account_{account.code}"
                 cache.delete(cache_key)

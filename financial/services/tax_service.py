@@ -302,7 +302,7 @@ class TaxDeterminationService:
             default_ap = AccountRoleRegistry.get_account_code("AP_CONTROL_ACCOUNT")
             output_tax_acc = AccountRoleRegistry.get_account_code("OUTPUT_TAX_ACCOUNT")
             input_tax_acc = AccountRoleRegistry.get_account_code("INPUT_TAX_ACCOUNT")
-
+            mapping = TaxAccountMapping.objects.filter(tax_code=tax_code_obj).first()
             if mapping and mapping.debit_account and mapping.credit_account:
                 dr_acc = mapping.debit_account.code
                 cr_acc = mapping.credit_account.code

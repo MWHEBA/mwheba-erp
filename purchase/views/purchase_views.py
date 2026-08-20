@@ -465,6 +465,18 @@ def purchase_create(request, supplier_id=None):
                             logger.error(f"❌ خطأ في إنشاء حركات المخزون: {str(e)}")
                             raise
 
+                    # إنشاء القيد المحاسبي لفاتورة المشتريات
+                    try:
+                        from purchase.services.purchase_service import PurchaseService
+                        journal_entry = PurchaseService._create_purchase_journal_entry(purchase, request.user)
+                        if journal_entry:
+                            purchase.journal_entry = journal_entry
+                            purchase.save(update_fields=['journal_entry'])
+                            logger.info(f"✅ تم إنشاء وربط القيد المحاسبي: {journal_entry.number} للفاتورة: {purchase.number}")
+                    except Exception as e:
+                        logger.error(f"❌ خطأ في إنشاء القيد المحاسبي لفاتورة المشتريات {purchase.number}: {str(e)}")
+                        raise
+
                     # إنشاء دفعة تلقائية للفواتير النقدية فقط (غير مرحلة)
                     if invoice_type == "cash" and purchase.payment_method not in ["credit", ""]:
                         # payment_method هو account code (مثل 10100)

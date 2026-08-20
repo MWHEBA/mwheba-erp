@@ -51,31 +51,39 @@ class PayrollForm(forms.ModelForm):
         
         # تحميل حسابات الدفع ديناميكياً
         try:
-            from financial.models import ChartOfAccounts
-            from django.db import models
-            # البحث عن الحسابات النقدية والبنكية
-            payment_accounts = ChartOfAccounts.objects.filter(
-                is_active=True
-            ).filter(
-                models.Q(is_cash_account=True) | models.Q(is_bank_account=True)
-            ).order_by('code')
+            from financial.services.account_helper import AccountHelperService
+            payment_accounts = AccountHelperService.get_cash_and_bank_accounts()
             
             choices = [('', 'اختر حساب الدفع')]
             for account in payment_accounts:
                 choices.append((account.code, f"{account.name} ({account.code})"))
             
+            current_method = self.data.get('payment_method') or self.initial.get('payment_method') or (self.instance.payment_method if self.instance and self.instance.pk else None)
+            if current_method and current_method not in [c[0] for c in choices]:
+                try:
+                    from financial.models import ChartOfAccounts
+                    acc = ChartOfAccounts.objects.filter(code=current_method).first()
+                    if acc:
+                        choices.append((acc.code, f"{acc.name} ({acc.code})"))
+                    else:
+                        choices.append((current_method, current_method))
+                except Exception:
+                    choices.append((current_method, current_method))
+
             self.fields['payment_method'].choices = choices
             
             # MIGRATION SUPPORT: Handle old database values when editing existing records
             if self.instance and self.instance.pk and self.instance.payment_method:
                 if self.instance.payment_method == 'cash':
                     # Legacy value: convert to default cash account
-                    default_cash = ChartOfAccounts.objects.filter(code='10100', is_active=True).first()
+                    from financial.services.account_helper import AccountHelperService
+                    default_cash = AccountHelperService.get_default_cash_account()
                     if default_cash:
                         self.initial['payment_method'] = default_cash.code
                 elif self.instance.payment_method == 'bank_transfer':
                     # Legacy value: convert to default bank account
-                    default_bank = ChartOfAccounts.objects.filter(code='10200', is_active=True).first()
+                    from financial.services.account_role_registry import AccountRoleRegistry
+                    default_bank = AccountRoleRegistry.get_account_role("BANK_CONTROL_ACCOUNT")
                     if default_bank:
                         self.initial['payment_method'] = default_bank.code
                 else:
@@ -83,11 +91,15 @@ class PayrollForm(forms.ModelForm):
                     self.initial['payment_method'] = self.instance.payment_method
         except Exception:
             # في حالة فشل التحميل، استخدم الخيارات الافتراضية
-            self.fields['payment_method'].choices = [
+            choices = [
                 ('', 'اختر طريقة الدفع'),
                 ('cash', 'نقداً'),
                 ('bank_transfer', 'تحويل بنكي'),
             ]
+            current_method = self.data.get('payment_method') or self.initial.get('payment_method') or (self.instance.payment_method if self.instance and self.instance.pk else None)
+            if current_method and current_method not in [c[0] for c in choices]:
+                choices.append((current_method, current_method))
+            self.fields['payment_method'].choices = choices
 
 
 class PayrollProcessForm(forms.Form):

@@ -292,6 +292,10 @@ urlpatterns = [
     path("payment-sync/logs/", views.payment_sync_logs, name="payment_sync_logs"),
     # التقارير المحاسبية المتقدمة
     path("reports/ledger/", views.ledger_report, name="ledger_report"),
+    path("reports/account-statement/", views.ledger_report, name="account_statement_report"),
+    path("reports/statement/", views.ledger_report, name="statement_report"),
+    path("reports/general-ledger/", views.ledger_report, name="general_ledger_report"),
+    path("account-statement/", views.ledger_report, name="account_statement"),
     path(
         "reports/trial-balance/",
         views.trial_balance_report,

@@ -42,15 +42,28 @@ def get_base64_encoded_file(file_path):
 
 def prepare_html_for_pdf(html_content, request=None):
     base_dir = settings.BASE_DIR
+    module_dir = Path(__file__).resolve().parent.parent
     media_root = getattr(settings, 'MEDIA_ROOT', os.path.join(base_dir, 'media'))
     static_root = getattr(settings, 'STATIC_ROOT', os.path.join(base_dir, 'static'))
 
     # Embed Tajawal fonts into @font-face for WeasyPrint
-    font_reg_path = os.path.join(base_dir, 'static', 'fonts', 'Tajawal-Regular.ttf')
-    font_bold_path = os.path.join(base_dir, 'static', 'fonts', 'Tajawal-Bold.ttf')
+    possible_reg = [
+        os.path.join(base_dir, 'static', 'fonts', 'Tajawal-Regular.ttf'),
+        os.path.join(static_root, 'fonts', 'Tajawal-Regular.ttf'),
+        os.path.join(module_dir, 'static', 'fonts', 'Tajawal-Regular.ttf'),
+        os.path.join(base_dir, 'core', 'static', 'fonts', 'Tajawal-Regular.ttf'),
+    ]
+    possible_bold = [
+        os.path.join(base_dir, 'static', 'fonts', 'Tajawal-Bold.ttf'),
+        os.path.join(static_root, 'fonts', 'Tajawal-Bold.ttf'),
+        os.path.join(module_dir, 'static', 'fonts', 'Tajawal-Bold.ttf'),
+        os.path.join(base_dir, 'core', 'static', 'fonts', 'Tajawal-Bold.ttf'),
+    ]
+    font_reg_path = next((p for p in possible_reg if p and os.path.exists(p)), None)
+    font_bold_path = next((p for p in possible_bold if p and os.path.exists(p)), None)
     
     font_css = ""
-    if os.path.exists(font_reg_path):
+    if font_reg_path and os.path.exists(font_reg_path):
         with open(font_reg_path, 'rb') as f:
             b64_reg = base64.b64encode(f.read()).decode('utf-8')
             font_css += f"""
@@ -61,7 +74,7 @@ def prepare_html_for_pdf(html_content, request=None):
                 font-style: normal;
             }}
             """
-    if os.path.exists(font_bold_path):
+    if font_bold_path and os.path.exists(font_bold_path):
         with open(font_bold_path, 'rb') as f:
             b64_bold = base64.b64encode(f.read()).decode('utf-8')
             font_css += f"""
@@ -91,6 +104,8 @@ def prepare_html_for_pdf(html_content, request=None):
         full_path = os.path.join(static_root, rel_path.lstrip('/'))
         if not os.path.exists(full_path):
             full_path = os.path.join(base_dir, 'static', rel_path.lstrip('/'))
+        if not os.path.exists(full_path):
+            full_path = os.path.join(module_dir, 'static', rel_path.lstrip('/'))
         if os.path.exists(full_path):
             b64 = get_base64_encoded_file(full_path)
             if b64:
@@ -115,15 +130,18 @@ def generate_pdf_via_reportlab(doc_type, context, filename="document.pdf"):
         from reportlab.pdfbase.ttfonts import TTFont
         from reportlab.lib import colors
 
+        module_dir = Path(__file__).resolve().parent.parent
         possible_paths = [
             os.path.join(settings.BASE_DIR, 'static', 'fonts', 'Tajawal-Regular.ttf'),
             os.path.join(getattr(settings, 'STATIC_ROOT', '') or '', 'fonts', 'Tajawal-Regular.ttf'),
+            os.path.join(module_dir, 'static', 'fonts', 'Tajawal-Regular.ttf'),
             os.path.join(settings.BASE_DIR, 'core', 'static', 'fonts', 'Tajawal-Regular.ttf'),
             'static/fonts/Tajawal-Regular.ttf',
         ]
         possible_bold_paths = [
             os.path.join(settings.BASE_DIR, 'static', 'fonts', 'Tajawal-Bold.ttf'),
             os.path.join(getattr(settings, 'STATIC_ROOT', '') or '', 'fonts', 'Tajawal-Bold.ttf'),
+            os.path.join(module_dir, 'static', 'fonts', 'Tajawal-Bold.ttf'),
             os.path.join(settings.BASE_DIR, 'core', 'static', 'fonts', 'Tajawal-Bold.ttf'),
             'static/fonts/Tajawal-Bold.ttf',
         ]
@@ -240,10 +258,22 @@ def generate_pdf_via_reportlab(doc_type, context, filename="document.pdf"):
             
             # كروت المؤشرات المالية
             summary_info = context.get('summary', {})
-            op_bal = summary_info.get('opening_balance', 0)
-            tot_deb = summary_info.get('total_debit', 0)
-            tot_crd = summary_info.get('total_credit', 0)
-            cl_bal = summary_info.get('closing_balance', 0)
+            try:
+                op_bal = float(summary_info.get('opening_balance') or 0)
+            except (ValueError, TypeError):
+                op_bal = 0.0
+            try:
+                tot_deb = float(summary_info.get('total_debit') or 0)
+            except (ValueError, TypeError):
+                tot_deb = 0.0
+            try:
+                tot_crd = float(summary_info.get('total_credit') or 0)
+            except (ValueError, TypeError):
+                tot_crd = 0.0
+            try:
+                cl_bal = float(summary_info.get('closing_balance') or 0)
+            except (ValueError, TypeError):
+                cl_bal = 0.0
             
             kpi_data = [
                 [
@@ -278,15 +308,28 @@ def generate_pdf_via_reportlab(doc_type, context, filename="document.pdf"):
             ]
             
             for idx, t in enumerate(trans, 1):
-                dt_str = str(t.get('date', ''))
-                type_str = f"{t.get('entry_type_display') or t.get('journal_entry_number', '')}"
-                ref_str = f"{t.get('reference', '-')}"
-                desc_str = t.get('description', '') or '-'
+                dt_str = str(t.get('date') or '')
+                type_str = str(t.get('entry_type_display') or t.get('journal_entry_number') or t.get('journal_number') or '')
+                ref_str = str(t.get('reference') or '-')
+                desc_str = str(t.get('description') or '-')
                 if t.get('cost_center_name'):
                     desc_str += f" [{t.get('cost_center_name')}]"
-                deb_val = f"{t.get('debit', 0):,.2f}" if t.get('debit') else "-"
-                crd_val = f"{t.get('credit', 0):,.2f}" if t.get('credit') else "-"
-                bal_val = f"{t.get('running_balance', t.get('balance', 0)):,.2f}"
+                
+                try:
+                    deb_val = f"{float(t['debit']):,.2f}" if t.get('debit') else "-"
+                except (ValueError, TypeError):
+                    deb_val = str(t.get('debit') or '-')
+                
+                try:
+                    crd_val = f"{float(t['credit']):,.2f}" if t.get('credit') else "-"
+                except (ValueError, TypeError):
+                    crd_val = str(t.get('credit') or '-')
+                
+                bal_raw = t.get('running_balance') if t.get('running_balance') is not None else t.get('balance', 0)
+                try:
+                    bal_val = f"{float(bal_raw):,.2f}" if bal_raw is not None else "0.00"
+                except (ValueError, TypeError):
+                    bal_val = str(bal_raw or "0.00")
                 
                 tx_data.append([
                     Paragraph(str(idx), style_ar_center),
@@ -347,12 +390,22 @@ def generate_pdf_via_reportlab(doc_type, context, filename="document.pdf"):
             ]
             for item in accounts_summary_list:
                 acc = item.get('account')
-                code_str = getattr(acc, 'code', '')
-                name_str = getattr(acc, 'name', '')
-                type_name = getattr(getattr(acc, 'account_type', None), 'name', '')
-                deb_str = f"{item.get('total_debit', 0):,.2f}"
-                crd_str = f"{item.get('total_credit', 0):,.2f}"
-                bal_str = f"{item.get('current_balance', 0):,.2f}"
+                code_str = str(getattr(acc, 'code', ''))
+                name_str = str(getattr(acc, 'name', ''))
+                acc_type = getattr(acc, 'account_type', None)
+                type_name = str(getattr(acc_type, 'name', '')) if acc_type else ''
+                try:
+                    deb_str = f"{float(item.get('total_debit', 0) or 0):,.2f}"
+                except (ValueError, TypeError):
+                    deb_str = str(item.get('total_debit') or "0.00")
+                try:
+                    crd_str = f"{float(item.get('total_credit', 0) or 0):,.2f}"
+                except (ValueError, TypeError):
+                    crd_str = str(item.get('total_credit') or "0.00")
+                try:
+                    bal_str = f"{float(item.get('current_balance', 0) or 0):,.2f}"
+                except (ValueError, TypeError):
+                    bal_str = str(item.get('current_balance') or "0.00")
                 sm_data.append([
                     Paragraph(code_str, style_ar_center),
                     Paragraph(reshape_ar(name_str), style_ar_right),
