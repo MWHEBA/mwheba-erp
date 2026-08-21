@@ -1,123 +1,104 @@
-﻿{% extends 'base.html' %}
+{% extends 'base.html' %}
 {% load static %}
 {% load i18n %}
 
 {% block title %}{{ title }}{% endblock %}
 
-{% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
-<style>
-    .warning-box {
-        background: linear-gradient(135deg, #fff5f5 0%, #ffe5e5 100%);
-        border: 2px solid var(--danger-color);
-        border-radius: 8px;
-        padding: 2rem;
-        margin: 2rem 0;
-    }
-    
-    .warning-icon {
-        font-size: 4rem;
-        color: var(--danger-color);
-        margin-bottom: 1rem;
-    }
-    
-    .danger-list {
-        background: white;
-        border-radius: 8px;
-        padding: 1.5rem;
-        margin: 1rem 0;
-    }
-    
-    .danger-list li {
-        padding: 0.5rem 0;
-        border-bottom: 1px solid #f0f0f0;
-    }
-    
-    .danger-list li:last-child {
-        border-bottom: none;
-    }
-</style>
-{% endblock %}
-
 {% block content %}
-<div class="container-fluid">
+<div class="container-fluid py-3">
     <!-- Page Header المركزي -->
     {% include "shared/page_header.html" %}
 
-    <!-- عرض الرسائل -->
-    {% if messages %}
-        {% for message in messages %}
-            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-                <i class="fas fa-{% if message.tags == 'success' %}check-circle{% elif message.tags == 'error' or message.tags == 'danger' %}exclamation-circle{% elif message.tags == 'warning' %}exclamation-triangle{% else %}info-circle{% endif %} me-2"></i>
-                {{ message }}
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>
-        {% endfor %}
-    {% endif %}
-
-    <!-- محتوى الصفحة -->
-    <div class="card border-0 shadow-sm">
-        <div class="card-body">
-            <div class="warning-box text-center">
-                <i class="fas fa-exclamation-triangle warning-icon"></i>
-                <h3 class="text-danger mb-3">تحذير: إعادة تهيئة النظام</h3>
-                <p class="lead mb-0">
-                    هذه العملية خطيرة وستؤدي إلى حذف جميع البيانات واستعادة النظام إلى حالته الأولية
-                </p>
-            </div>
-
-            <div class="danger-list">
-                <h5 class="text-danger mb-3">
-                    <i class="fas fa-exclamation-circle me-2"></i>
-                    سيتم حذف البيانات التالية:
-                </h5>
-                <ul class="list-unstyled">
-                    <li>
-                        <i class="fas fa-times-circle text-danger me-2"></i>
-                        جميع بيانات العملاء
-                    </li>
-                    <li>
-                        <i class="fas fa-times-circle text-danger me-2"></i>
-                        جميع السجلات المالية والفواتير
-                    </li>
-                    <li>
-                        <i class="fas fa-times-circle text-danger me-2"></i>
-                        جميع بيانات الموظفين والحضور
-                    </li>
-                    <li>
-                        <i class="fas fa-times-circle text-danger me-2"></i>
-                        جميع المنتجات والمخزون
-                    </li>
-                    <li>
-                        <i class="fas fa-times-circle text-danger me-2"></i>
-                        جميع الإعدادات المخصصة
-                    </li>
-                    <li>
-                        <i class="fas fa-times-circle text-danger me-2"></i>
-                        جميع الملفات المرفوعة (الصور والمستندات)
-                    </li>
-                </ul>
-            </div>
-
-            <div class="alert alert-warning border-start border-4 border-warning mt-4">
-                <div class="d-flex align-items-start">
-                    <i class="fas fa-info-circle fa-2x text-warning me-3 mt-1"></i>
-                    <div>
-                        <h6 class="mb-2"><strong>ملاحظة مهمة</strong></h6>
-                        <p class="mb-0">
-                            تم تعطيل هذه الميزة مؤقتاً لأغراض الأمان. إذا كنت بحاجة إلى إعادة تهيئة النظام،
-                            يرجى التواصل مع مسؤول النظام أو الدعم الفني.
-                        </p>
+    <div class="row justify-content-center">
+        <div class="col-lg-10 col-xl-8">
+            
+            <!-- الصندوق الرئيسي لتفريغ الحركات -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-light border-bottom px-4 py-3">
+                    <h5 class="fw-bold text-danger mb-0">
+                        <i class="fas fa-trash-restore text-danger me-2"></i>
+                        تفريغ وتصفير الحركات والمعاملات التجريبية
+                    </h5>
+                </div>
+                
+                <div class="card-body p-4">
+                    
+                    <div class="alert alert-warning border-start border-4 border-warning mb-4">
+                        <div class="d-flex align-items-start">
+                            <i class="fas fa-exclamation-triangle fa-2x text-warning me-3 mt-1"></i>
+                            <div>
+                                <h6 class="fw-bold text-dark mb-1">تنبيه هام ومحاسبي</h6>
+                                <p class="mb-0 text-muted small">
+                                    هذه العملية مخصصة لتصفير الحركات التجريبية وفواتير الاختبار بين مراحل الفحص. سيتم حذف المعاملات الحركية فقط مع **الحفاظ التام على الإعدادات، المستخدمين، شجرة الحسابات، والعملات**.
+                                </p>
+                            </div>
+                        </div>
                     </div>
+
+                    <div class="row g-4 mb-4">
+                        <!-- البيانات التي سيتم حذفها -->
+                        <div class="col-md-6">
+                            <div class="border rounded p-3 bg-light h-100">
+                                <h6 class="fw-bold text-danger mb-3">
+                                    <i class="fas fa-times-circle text-danger me-2"></i>
+                                    البيانات التي سيتم تصفيرها (الحركات):
+                                </h6>
+                                <ul class="list-unstyled text-muted small mb-0 lh-lg">
+                                    <li><i class="fas fa-check text-danger me-2"></i> فواتير وعروض وأوامر المبيعات</li>
+                                    <li><i class="fas fa-check text-danger me-2"></i> فواتير وأوامر وإذون المشتريات (GRN)</li>
+                                    <li><i class="fas fa-check text-danger me-2"></i> أذون تسليم وحركات المخزون</li>
+                                    <li><i class="fas fa-check text-danger me-2"></i> سندات القبض والصرف وتخصيص الدفعات</li>
+                                    <li><i class="fas fa-check text-danger me-2"></i> قيود اليومية ومسارات الاعتماد</li>
+                                    <li><i class="fas fa-check text-danger me-2"></i> تصفير تسلسلات الترقيم لتبدأ من (1)</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <!-- البيانات التي سيتم الحفاظ عليها -->
+                        <div class="col-md-6">
+                            <div class="border rounded p-3 bg-light h-100">
+                                <h6 class="fw-bold text-success mb-3">
+                                    <i class="fas fa-shield-alt text-success me-2"></i>
+                                    البيانات المحفوظة بنسبة 100%:
+                                </h6>
+                                <ul class="list-unstyled text-muted small mb-0 lh-lg">
+                                    <li><i class="fas fa-check text-success me-2"></i> إعدادات الشركة والنظام والضرائب</li>
+                                    <li><i class="fas fa-check text-success me-2"></i> حسابات المستخدمين والصلاحيات والأدوار</li>
+                                    <li><i class="fas fa-check text-success me-2"></i> دليل شجرة الحسابات ومراكز التكلفة</li>
+                                    <li><i class="fas fa-check text-success me-2"></i> العملات وأسعار الصرف والفترات المالية</li>
+                                    <li><i class="fas fa-check text-success me-2"></i> بيانات المنتجات والتصنيفات ووحدات القياس</li>
+                                    <li><i class="fas fa-check text-success me-2"></i> المخازن المعتمدة في النظام</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- نموذج التأكيد -->
+                    <form method="POST" action="{% url 'core:system_reset' %}" id="resetSystemForm">
+                        {% csrf_token %}
+                        <div class="p-3 border border-danger rounded bg-soft-danger mb-4">
+                            <label for="confirmation" class="form-label fw-bold text-danger mb-2">
+                                <i class="fas fa-lock me-1"></i>
+                                لتأكيد عملية التصفير، يرجى كتابة كلمة <span class="badge bg-danger text-white fs-6">تأكيد</span> أو <span class="badge bg-danger text-white fs-6">RESET</span> في الحقل أدناه:
+                            </label>
+                            <input type="text" name="confirmation" id="confirmation" class="form-control form-control-lg border-danger text-center fw-bold" placeholder="اكتب 'تأكيد' هنا..." autocomplete="off" required>
+                        </div>
+
+                        <div class="d-flex justify-content-between align-items-center">
+                            <a href="{% url 'core:dashboard' %}" class="btn btn-secondary px-4">
+                                <i class="fas fa-arrow-right me-2"></i>
+                                إلغاء والعودة للوحة التحكم
+                            </a>
+                            <button type="submit" class="btn btn-danger px-4 fw-bold" id="btnSubmitReset">
+                                <i class="fas fa-trash-restore me-2"></i>
+                                تفريغ وتصفير الحركات الآن
+                            </button>
+                        </div>
+                    </form>
+
                 </div>
             </div>
 
-            <div class="text-center mt-4">
-                <a href="{% url 'core:dashboard' %}" class="btn btn-secondary btn-lg">
-                    <i class="fas fa-arrow-right me-2"></i>
-                    العودة للوحة التحكم
-                </a>
-            </div>
         </div>
     </div>
 </div>
@@ -126,6 +107,28 @@
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('resetSystemForm');
+    const input = document.getElementById('confirmation');
+    const btn = document.getElementById('btnSubmitReset');
+
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            const val = (input.value || '').trim();
+            if (val !== 'تأكيد' && val !== 'RESET' && val !== 'reset') {
+                e.preventDefault();
+                if (window.showNotification) {
+                    window.showNotification("يرجى كتابة كلمة 'تأكيد' أو 'RESET' للمتابعة", "error", "تنبيه");
+                } else {
+                    alert("يرجى كتابة كلمة 'تأكيد' أو 'RESET' للمتابعة");
+                }
+                input.focus();
+                return false;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> جاري تفريغ الحركات...';
+        });
+    }
 });
 </script>
 {% endblock %}

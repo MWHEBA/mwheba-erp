@@ -648,12 +648,16 @@ def get_current_time(request):
 @login_required
 def system_reset(request):
     """
-    إعادة تعيين النظام (للمديرين فقط)
+    تفريغ وتصفير الحركات والمعاملات التجريبية (للمدير العام فقط)
+    مع الحفاظ الكامل على الإعدادات والمستخدمين وشجرة الحسابات والعملات.
     """
     from django.contrib import messages
+    from django.http import JsonResponse
+    from core.services.system_reset_service import SystemResetService
     
-    # التحقق من صلاحيات المستخدم
     if not request.user.is_superuser:
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.content_type == 'application/json':
+            return JsonResponse({'success': False, 'message': 'عفواً، هذه العملية مقتصرة على المدير العام فقط.'}, status=403)
         return render(
             request,
             "core/permission_denied.html",
@@ -661,17 +665,49 @@ def system_reset(request):
         )
     
     if request.method == "POST":
-        # هنا يمكن إضافة منطق إعادة التعيين
-        messages.warning(request, "وظيفة إعادة التعيين غير مفعلة حالياً")
-        return redirect("core:dashboard")
+        confirmation = request.POST.get("confirmation", "").strip()
+        if confirmation not in ["تأكيد", "RESET", "reset"]:
+            msg = "يرجى كتابة كلمة 'تأكيد' أو 'RESET' للموافقة على تفريغ الحركات."
+            if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                return JsonResponse({'success': False, 'message': msg}, status=400)
+            messages.error(request, msg)
+            return redirect("core:system_reset")
+        
+        try:
+            summary = SystemResetService.reset_test_transactions()
+            total_deleted = sum(summary.values())
+            success_msg = f"تم تفريغ وتصفير الحركات والمعاملات بنجاح ({total_deleted} سجل). تم الحفاظ على الإعدادات وشجرة الحسابات والمستخدمين."
+            
+            if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'success': True,
+                    'message': success_msg,
+                    'total_deleted': total_deleted,
+                    'redirect_url': reverse('core:dashboard')
+                })
+            
+            messages.success(request, success_msg)
+            return redirect("core:dashboard")
+        except Exception as e:
+            error_msg = f"حدث خطأ أثناء تفريغ البيانات: {str(e)}"
+            if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                return JsonResponse({'success': False, 'message': error_msg}, status=500)
+            messages.error(request, error_msg)
+            return redirect("core:system_reset")
     
     context = {
-        "title": "إعادة تعيين النظام",
-        "subtitle": "إعادة تعيين بيانات النظام",
-        "icon": "fas fa-redo",
+        "title": "تفريغ وتصفير الحركات التجريبية",
+        "subtitle": "تصفير الفواتير والسندات والقيود مع الحفاظ التام على الإعدادات وشجرة الحسابات",
+        "icon": "fas fa-trash-restore",
+        "breadcrumb_items": [
+            {'title': 'الرئيسية', 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},
+            {'title': 'إعدادات النظام', 'url': reverse('core:system_settings'), 'icon': 'fas fa-cogs'},
+            {'title': 'تفريغ الحركات', 'active': True}
+        ]
     }
     
     return render(request, "core/system_reset.html", context)
+
 
 
 @login_required

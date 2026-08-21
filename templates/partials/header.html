@@ -351,6 +351,16 @@
                                 <small>عرض الأخطاء والـ Logs</small>
                             </div>
                         </a>
+                        
+                        <a href="javascript:void(0);" data-bs-toggle="modal" data-bs-target="#systemResetHeaderModal" class="user-dropdown-item text-danger">
+                            <div class="dropdown-item-icon bg-soft-danger">
+                                <i class="fas fa-trash-restore text-danger"></i>
+                            </div>
+                            <div class="dropdown-item-text">
+                                <span class="text-danger fw-bold">تفريغ الحركات التجريبية</span>
+                                <small>تصفير الفواتير مع الحفاظ على الإعدادات</small>
+                            </div>
+                        </a>
                         {% endif %}
                     </div>
                     
@@ -376,6 +386,51 @@
     </div>
 </header>
 
+{% if user.is_superuser %}
+<!-- Modal تفريغ وتصفير الحركات التجريبية الموحد -->
+<div class="modal fade" id="systemResetHeaderModal" tabindex="-1" aria-labelledby="systemResetHeaderModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-light border-bottom px-4 py-3">
+                <h5 class="modal-title fw-bold text-dark mb-0" id="systemResetHeaderModalLabel">
+                    <i class="fas fa-trash-restore text-danger me-2"></i>
+                    تفريغ وتصفير الحركات والمعاملات
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="alert alert-warning border-start border-4 border-warning mb-3">
+                    <div class="d-flex align-items-start">
+                        <i class="fas fa-exclamation-triangle fa-2x text-warning me-3 mt-1"></i>
+                        <div>
+                            <h6 class="fw-bold text-dark mb-1">تنبيه هام للمدير العام</h6>
+                            <p class="mb-0 text-muted small">
+                                سيتم حذف وتصفير جميع الفواتير، السندات، حركات المخزن، قيود اليومية، وتسلسلات الترقيم.
+                                <br>
+                                <strong>✅ ستبقى الإعدادات، المستخدمين، شجرة الحسابات، والعملات محفوظة بالكامل.</strong>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label for="headerResetConfirmInput" class="form-label fw-bold text-danger small">
+                        لتأكيد العملية، يرجى كتابة كلمة <span class="badge bg-danger text-white">تأكيد</span> أو <span class="badge bg-danger text-white">RESET</span>:
+                    </label>
+                    <input type="text" id="headerResetConfirmInput" class="form-control text-center fw-bold border-danger" placeholder="اكتب 'تأكيد' هنا..." autocomplete="off">
+                </div>
+            </div>
+            <div class="modal-footer bg-light border-top px-4 py-3">
+                <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">إلغاء</button>
+                <button type="button" class="btn btn-danger px-4 fw-bold" id="btnExecuteHeaderReset">
+                    <i class="fas fa-trash-restore me-1"></i>
+                    تفريغ وتصفير الحركات
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
 
 <script>
 // معالجة زر "جعل الكل مقروء"
@@ -388,7 +443,6 @@ document.addEventListener('DOMContentLoaded', function() {
             
             const url = this.getAttribute('data-url');
             
-            // إرسال الطلب
             fetch(url, {
                 method: 'POST',
                 headers: {
@@ -400,7 +454,6 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    // إعادة تحميل الصفحة لتحديث التنبيهات
                     location.reload();
                 } else {
                     alert('حدث خطأ أثناء تعليم الإشعارات كمقروءة');
@@ -412,5 +465,78 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
     }
+
+    // معالجة تصفير الحركات من الهيدر
+    const btnExecuteHeaderReset = document.getElementById('btnExecuteHeaderReset');
+    const headerResetConfirmInput = document.getElementById('headerResetConfirmInput');
+
+    if (btnExecuteHeaderReset) {
+        btnExecuteHeaderReset.addEventListener('click', function() {
+            const val = (headerResetConfirmInput.value || '').trim();
+            if (val !== 'تأكيد' && val !== 'RESET' && val !== 'reset') {
+                if (window.showNotification) {
+                    window.showNotification("يرجى كتابة كلمة 'تأكيد' أو 'RESET' للمتابعة", "error", "تنبيه");
+                } else {
+                    alert("يرجى كتابة كلمة 'تأكيد' أو 'RESET' للمتابعة");
+                }
+                headerResetConfirmInput.focus();
+                return;
+            }
+
+            btnExecuteHeaderReset.disabled = true;
+            btnExecuteHeaderReset.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> جاري التفريغ...';
+
+            const formData = new FormData();
+            formData.append('confirmation', val);
+            formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+            fetch("{% url 'core:system_reset' %}", {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const modalEl = document.getElementById('systemResetHeaderModal');
+                    if (modalEl && typeof bootstrap !== 'undefined') {
+                        const modalInstance = bootstrap.Modal.getInstance(modalEl);
+                        if (modalInstance) modalInstance.hide();
+                    }
+
+                    if (window.showNotification) {
+                        window.showNotification(data.message, "success", "تم التصفير بنجاح");
+                    } else {
+                        alert(data.message);
+                    }
+
+                    setTimeout(() => {
+                        window.location.href = data.redirect_url || "{% url 'core:dashboard' %}";
+                    }, 3100);
+                } else {
+                    btnExecuteHeaderReset.disabled = false;
+                    btnExecuteHeaderReset.innerHTML = '<i class="fas fa-trash-restore me-1"></i> تفريغ وتصفير الحركات';
+                    if (window.showNotification) {
+                        window.showNotification(data.message || "حدث خطأ أثناء تفريغ البيانات", "error", "خطأ");
+                    } else {
+                        alert(data.message || "حدث خطأ أثناء تفريغ البيانات");
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                btnExecuteHeaderReset.disabled = false;
+                btnExecuteHeaderReset.innerHTML = '<i class="fas fa-trash-restore me-1"></i> تفريغ وتصفير الحركات';
+                if (window.showNotification) {
+                    window.showNotification("حدث خطأ في الاتصال بالخادم", "error", "خطأ اتصال");
+                } else {
+                    alert("حدث خطأ في الاتصال بالخادم");
+                }
+            });
+        });
+    }
 });
-</script> 
+</script>
+ 
