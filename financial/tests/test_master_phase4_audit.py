@@ -50,7 +50,7 @@ class TestMasterPhase4Audit:
 
         self.customer, _ = Customer.objects.get_or_create(name="عميل التفتيش النهائي", defaults={"code": "CUST-AUDIT-01"})
         self.supplier, _ = Supplier.objects.get_or_create(name="مورد التفتيش النهائي", defaults={"code": "SUP-AUDIT-01"})
-        self.warehouse, _ = Warehouse.objects.get_or_create(name="المستودع الرئيسي", defaults={"code": "WH-01"})
+        self.warehouse, _ = Warehouse.objects.get_or_create(name="المخزن الرئيسي", defaults={"code": "WH0001"})
 
         ExchangeRateService.set_rate(from_code="USD", to_code="EGP", rate=Decimal("50.000000"), date=self.today, user=self.user)
 

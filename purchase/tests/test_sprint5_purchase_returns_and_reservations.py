@@ -67,7 +67,7 @@ class Sprint5TestSuite(TestCase):
             selling_price=Decimal("150.00"),
             created_by=self.user
         )
-        self.warehouse = Warehouse.objects.create(name="مستودع القاهرة المركزى", code=f"WH{uuid.uuid4().hex[:4]}")
+        self.warehouse = Warehouse.objects.create(name="مخزن القاهرة المركزى", code=f"WH{uuid.uuid4().hex[:4]}")
 
         # إنشاء مخزون 20 قطعة متوفرة بالمخزن
         self.stock = Stock.objects.create(

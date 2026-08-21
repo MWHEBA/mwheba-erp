@@ -129,7 +129,7 @@
                 <tr>
                   <th class="ps-3">{% trans "رقم إذن الاستلام" %}</th>
                   <th>{% trans "تاريخ الاستلام" %}</th>
-                  <th>{% trans "المستودع" %}</th>
+                  <th>{% trans "المخزن" %}</th>
                   <th>{% trans "القيد المحاسبي" %}</th>
                   <th>{% trans "الحالة" %}</th>
                   <th class="text-end pe-3">{% trans "عرض" %}</th>
@@ -183,7 +183,7 @@
             <span class="fw-bold"><a href="{% url 'supplier:supplier_detail' po.supplier.id %}">{{ po.supplier.name }}</a></span>
           </div>
           <div class="d-flex justify-content-between border-bottom pb-2">
-            <span class="text-muted">{% trans "المستودع المستهدف:" %}</span>
+            <span class="text-muted">{% trans "المخزن المستهدف:" %}</span>
             <span class="fw-semibold">{{ po.warehouse.name }}</span>
           </div>
           <div class="d-flex justify-content-between border-bottom pb-2">

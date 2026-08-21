@@ -8,7 +8,7 @@ from financial.models.journal_entry import JournalEntry
 class GRNPostingLog(models.Model):
     """
     سجل تتبع الترحيل المالي والمخزني المزدوج (GRN Posting Control Log)
-    يربط بين إذن الاستلام والقيد المحاسبي وحركات المستودع المباشرة
+    يربط بين إذن الاستلام والقيد المحاسبي وحركات المخزن المباشرة
     """
     grn = models.ForeignKey(
         GoodsReceivedNote,

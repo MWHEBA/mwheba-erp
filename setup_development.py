@@ -1040,7 +1040,7 @@ def main():
         {"path": "supplier/fixtures/supplier_types.json",    "description": "أنواع الموردين"},
         {"path": "supplier/fixtures/service_types.json",     "description": "أنواع الخدمات"},
         {"path": "product/fixtures/units.json",              "description": "وحدات القياس الشاملة"},
-        {"path": "product/fixtures/initial_warehouses.json", "description": "المستودعات الافتراضية"},
+        {"path": "product/fixtures/initial_warehouses.json", "description": "المخازن الافتراضية"},
     ]
     sp_loaded = load_fixtures_batch(supply_fixtures, "تحميل بيانات الموردين والمخازن...")
     print_success(f"تم تحميل {sp_loaded} من {len(supply_fixtures)} ملف تشغيلي")
@@ -1077,18 +1077,18 @@ def main():
         print_warning("⚠️ تم تخطي تفعيل الحوكمة (سيتم تفعيلها تلقائياً عند الدخول)")
 
     # ======================================================
-    # المرحلة 10: التحقق من المستودع الرئيسي والموردين
+    # المرحلة 10: التحقق من المخزن الرئيسي والموردين
     # ======================================================
-    print_step(10, TOTAL_STEPS, "التحقق من المستودع الرئيسي والموردين")
+    print_step(10, TOTAL_STEPS, "التحقق من المخزن الرئيسي والموردين")
     try:
         from product.models import Warehouse
         wh, _ = Warehouse.objects.get_or_create(
             code="WH0001",
             defaults={"name": "المخزن الرئيسي", "location": "المخزن الرئيسي للمؤسسة", "is_active": True}
         )
-        print_success(f"تم التحقق من المستودع الرئيسي: {wh.name} ({wh.code})")
+        print_success(f"تم التحقق من المخزن الرئيسي: {wh.name} ({wh.code})")
     except Exception as e:
-        print_warning(f"تحذير فحص المستودع: {e}")
+        print_warning(f"تحذير فحص المخزن: {e}")
 
     try:
         from supplier.models import Supplier, SupplierType
@@ -1200,7 +1200,7 @@ def main():
             
             print_success(f"✅ المنتجات والخدمات النشطة: {products_count}")
             print_success(f"✅ فئات المنتجات: {categories_count}")
-            print_success(f"✅ المستودعات: {warehouses_count}")
+            print_success(f"✅ المخازن: {warehouses_count}")
         except Exception as e:
             print_info(f"   المنتجات والخدمات: غير متاحة ({e})")
         
@@ -1274,7 +1274,7 @@ def main():
     print_colored("   Financial: دليل حسابات + تصنيفات + تصنيفات فرعية + مزامنة", Colors.GRAY)
     print_colored("   HR      : أقسام + وظائف + موظفين + إجازات + أذونات + عقوبات + بصمة", Colors.GRAY)
     print_colored("   Supplier: أنواع موردين + أنواع خدمات", Colors.GRAY)
-    print_colored("   Product : فئات + وحدات + مستودعات + منتجات", Colors.GRAY)
+    print_colored("   Product : فئات + وحدات + مخازن + منتجات", Colors.GRAY)
     print_colored("   Printing: ورق + ماكينات + تشطيب + تسعير (12 ملف)", Colors.GRAY)
     
     print_colored("\n🎭 الأدوار المتاحة:", Colors.CYAN)

@@ -120,7 +120,7 @@ class GRNPostingService:
                 unit_price = item.unit_price
                 line_cost = (received_qty * unit_price).quantize(Decimal("0.01"))
 
-                # تسجيل حركة المستودع عبر الحركة الموحدة
+                # تسجيل حركة المخزن عبر الحركة الموحدة
                 try:
                     stk_movement = movement_service.process_movement(
                         product_id=item.product.id,

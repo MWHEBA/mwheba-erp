@@ -89,7 +89,7 @@
     </div>
     <div class="col-md-3">
       <div class="card h-100 border-0 shadow-sm p-3">
-        <span class="text-muted small">{% trans "المستودع المستهدف" %}</span>
+        <span class="text-muted small">{% trans "المخزن المستهدف" %}</span>
         <h6 class="fw-bold mt-1 mb-0">{{ grn.warehouse.name }}</h6>
       </div>
     </div>
@@ -208,7 +208,7 @@
       <form method="POST" action="{% url 'purchase:grn_reverse' grn.pk %}">
         {% csrf_token %}
         <div class="modal-body p-4">
-          <p class="text-danger fw-bold">تحذير: سيقوم النظام بتخفيض الكمية من المستودع وإنشاء قيد محاسبي عكسي للقيد الأصلي.</p>
+          <p class="text-danger fw-bold">تحذير: سيقوم النظام بتخفيض الكمية من المخزن وإنشاء قيد محاسبي عكسي للقيد الأصلي.</p>
           <div class="mb-3">
             <label for="reversal_reason" class="form-label required fw-bold">سبب العكس الإجباري</label>
             <textarea class="form-control" id="reversal_reason" name="reason" rows="3" placeholder="أدخل سبب التراجع أو العكس الموثق..." required></textarea>

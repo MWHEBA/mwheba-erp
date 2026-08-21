@@ -12,7 +12,7 @@
 {% block content %}
 <div class="container-fluid">
   <!-- Page Header -->
-  {% include "shared/page_header.html" with title=title|default:"إذن استلام مشتريات جديد (GRN)" subtitle="إدارة وإثبات توريد بضائع المشتريات بالمستودعات" icon="fas fa-truck-loading" %}
+  {% include "shared/page_header.html" with title=title|default:"إذن استلام مشتريات جديد (GRN)" subtitle="إدارة وإثبات توريد بضائع المشتريات بالمخازن" icon="fas fa-truck-loading" %}
 
   <form method="POST" action="" id="grnForm">
     {% csrf_token %}
@@ -45,9 +45,9 @@
         </div>
 
         <div class="col-md-4">
-          <label for="warehouse" class="form-label required fw-bold">{% trans "المستودع المستهدف" %}</label>
+          <label for="warehouse" class="form-label required fw-bold">{% trans "المخزن المستهدف" %}</label>
           <select class="form-select" id="warehouse" name="warehouse" required>
-            <option value="">{% trans "-- اختر المستودع --" %}</option>
+            <option value="">{% trans "-- اختر المخزن --" %}</option>
             {% for wh in warehouses %}
               <option value="{{ wh.id }}" {% if po_obj.warehouse_id == wh.id or purchase.warehouse_id == wh.id %}selected{% endif %}>{{ wh.name }}</option>
             {% endfor %}

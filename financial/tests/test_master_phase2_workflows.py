@@ -47,7 +47,7 @@ class TestMasterPhase2Workflows:
         self.unit, _ = Unit.objects.get_or_create(name="قطعة")
         self.category, _ = Category.objects.get_or_create(name="تصنيف المشتريات التجريبي")
         self.supplier, _ = Supplier.objects.get_or_create(name="شركة التوريدات الدولية التجريبية", defaults={"code": "SUP-PHASE2-99"})
-        self.warehouse, _ = Warehouse.objects.get_or_create(name="المستودع الرئيسي", defaults={"code": "WH-01"})
+        self.warehouse, _ = Warehouse.objects.get_or_create(name="المخزن الرئيسي", defaults={"code": "WH0001"})
         self.product, _ = Product.objects.get_or_create(
             name="منتج تجريبي أجنبي",
             category=self.category,

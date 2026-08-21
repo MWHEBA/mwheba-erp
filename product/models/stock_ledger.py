@@ -44,7 +44,7 @@ class StockLedgerEntry(models.Model):
     warehouse = models.ForeignKey(
         Warehouse,
         on_delete=models.PROTECT,
-        verbose_name=_("المستودع"),
+        verbose_name=_("المخزن"),
         related_name="stock_ledger_entries"
     )
     base_uom = models.ForeignKey(

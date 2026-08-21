@@ -133,7 +133,7 @@
                         <div class="header-subcard">
                             <div class="header-subcard-header">
                                 <h6 class="header-subcard-title">
-                                    <i class="fas fa-truck text-primary"></i> بيانات المورد والمستودع
+                                    <i class="fas fa-truck text-primary"></i> بيانات المورد والمخزن
                                 </h6>
                             </div>
                             <div class="header-subcard-body">
@@ -168,11 +168,11 @@
                                         {% endif %}
                                     </div>
 
-                                    <!-- المستودع المستهدف -->
+                                    <!-- المخزن المستهدف -->
                                     <div class="col-12 col-md-6">
-                                        <label class="form-label">{% trans "المستودع المستهدف" %}</label>
+                                        <label class="form-label">{% trans "المخزن المستهدف" %}</label>
                                         <select name="warehouse" id="id_warehouse" class="form-select select2-init">
-                                            <option value="">-- {% trans "اختر المستودع" %} --</option>
+                                            <option value="">-- {% trans "اختر المخزن" %} --</option>
                                             {% for w in warehouses %}
                                                 <option value="{{ w.id }}" {% if form.warehouse.value == w.id|stringformat:'s' or form.instance.warehouse_id == w.id %}selected{% endif %}>
                                                     {{ w.name }}

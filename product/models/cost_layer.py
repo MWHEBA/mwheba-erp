@@ -26,7 +26,7 @@ class InventoryCostLayer(models.Model):
     warehouse = models.ForeignKey(
         Warehouse,
         on_delete=models.PROTECT,
-        verbose_name=_("المستودع"),
+        verbose_name=_("المخزن"),
         related_name="cost_layers"
     )
     receipt_date = models.DateTimeField(_("تاريخ الاستلام"), db_index=True)

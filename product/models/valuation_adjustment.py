@@ -32,7 +32,7 @@ class InventoryValuationAdjustment(models.Model):
     warehouse = models.ForeignKey(
         Warehouse,
         on_delete=models.PROTECT,
-        verbose_name=_("المستودع"),
+        verbose_name=_("المخزن"),
         related_name="valuation_adjustments"
     )
 

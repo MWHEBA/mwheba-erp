@@ -44,7 +44,7 @@ def run_verification():
     print(f"[+] تم تسجيل دفعة عميل بقيمة: {cp.amount} ج.م")
 
     from product.models import Warehouse
-    warehouse = Warehouse.objects.first() or Warehouse.objects.create(name="المخزن الرئيسي", code="WH-MAIN")
+    warehouse = Warehouse.objects.filter(is_active=True).first() or Warehouse.objects.create(name="المخزن الرئيسي", code="WH0001")
 
     # إضافة فاتورة مبيعات
     sale = Sale.objects.create(

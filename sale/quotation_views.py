@@ -190,7 +190,7 @@ def quotation_create(request, customer_id=None):
                             if not product.is_service and stock_qty < qty:
                                 messages.warning(
                                     request,
-                                    _("تنبيه: المنتج '{}' غير متوفر بالكمية المطلوبة في الفروع/المستودعات (المتوفر كلياً: {}، المطلوب: {})").format(
+                                    _("تنبيه: المنتج '{}' غير متوفر بالكمية المطلوبة في الفروع/المخازن (المتوفر كلياً: {}، المطلوب: {})").format(
                                         product.name, stock_qty, qty
                                     )
                                 )
@@ -377,7 +377,7 @@ def quotation_edit(request, pk):
                             if not product.is_service and stock_qty < qty:
                                 messages.warning(
                                     request,
-                                    _("تنبيه: المنتج '{}' غير متوفر بالكمية المطلوبة في الفروع/المستودعات (المتوفر كلياً: {}، المطلوب: {})").format(
+                                    _("تنبيه: المنتج '{}' غير متوفر بالكمية المطلوبة في الفروع/المخازن (المتوفر كلياً: {}، المطلوب: {})").format(
                                         product.name, stock_qty, qty
                                     )
                                 )

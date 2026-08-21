@@ -12,7 +12,7 @@
 {% block content %}
 <div class="container-fluid">
   <!-- Page Header -->
-  {% include "shared/page_header.html" with title=title|default:"إذونات استلام المشتريات (GRN)" subtitle="إدارة ومتابعة استلام خامات ومواد المشتريات بالمستودعات والمطابقة المالية" icon="fas fa-truck-loading" header_buttons=header_buttons %}
+  {% include "shared/page_header.html" with title=title|default:"إذونات استلام المشتريات (GRN)" subtitle="إدارة ومتابعة استلام خامات ومواد المشتريات بالمخازن والمطابقة المالية" icon="fas fa-truck-loading" header_buttons=header_buttons %}
 
   <!-- KPI Stats Row -->
   {% if grni_summary %}
@@ -76,9 +76,9 @@
           </select>
         </div>
         <div class="col-md-2">
-          <label for="warehouse" class="form-label">{% trans "المستودع" %}</label>
+          <label for="warehouse" class="form-label">{% trans "المخزن" %}</label>
           <select class="form-select" id="warehouse" name="warehouse">
-            <option value="">{% trans "جميع المستودعات" %}</option>
+            <option value="">{% trans "جميع المخازن" %}</option>
             {% for warehouse in warehouses %}
             <option value="{{ warehouse.id }}" {% if request.GET.warehouse == warehouse.id|stringformat:"i" %}selected{% endif %}>
               {{ warehouse.name }}
@@ -130,7 +130,7 @@
             <th>{% trans "رقم إذن الاستلام" %}</th>
             <th>{% trans "أمر الشراء / الفاتورة" %}</th>
             <th>{% trans "المورد" %}</th>
-            <th>{% trans "المستودع" %}</th>
+            <th>{% trans "المخزن" %}</th>
             <th>{% trans "تاريخ الاستلام" %}</th>
             <th class="text-center">{% trans "القيد المحاسبي" %}</th>
             <th class="text-center">{% trans "الحالة" %}</th>

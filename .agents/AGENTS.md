@@ -19,6 +19,7 @@
 
 ## 4. Coding & Language Standards
 - **Language Policy**: Use Egyptian Arabic in chat and code comments. Use English in actual source code (variable names, functions, models, classes) and documentation.
+- **Unified Warehouse Terminology Directive**: NEVER use the term «مستودع / مستودعات» in any user-facing template, form, label, help text, view message, validation error, model verbose_name, or report. The system exclusively and strictly standardizes on «مخزن / مخازن / المخزن المستهدف / أمين المخزن».
 - **Code Cleanliness (DRY)**: Re-use common utility functions in `utils/` and custom Django template tags instead of repeating code across modules.
 - **No Unrequested Browser Runs**: Never open or launch the browser automatically unless specifically requested by the user.
 

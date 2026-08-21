@@ -31,7 +31,7 @@ class SalesOrder(models.Model):
     order_number = models.CharField(_("رقم أمر البيع"), max_length=50, unique=True)
     customer = models.ForeignKey(Customer, on_delete=models.PROTECT, related_name="sales_orders", verbose_name=_("العميل"))
     quotation_reference = models.ForeignKey("sale.Quotation", on_delete=models.SET_NULL, null=True, blank=True, related_name="sales_orders", verbose_name=_("عرض السعر المرتبط"))
-    warehouse = models.ForeignKey(Warehouse, on_delete=models.PROTECT, related_name="sales_orders", verbose_name=_("المستودع"))
+    warehouse = models.ForeignKey(Warehouse, on_delete=models.PROTECT, related_name="sales_orders", verbose_name=_("المخزن"))
     order_date = models.DateField(_("تاريخ أمر البيع"))
     price_list = models.ForeignKey(PriceList, on_delete=models.SET_NULL, null=True, blank=True, verbose_name=_("قائمة الأسعار"))
     approval_request = models.ForeignKey("financial.EnterpriseApprovalRequest", on_delete=models.SET_NULL, null=True, blank=True, related_name="sales_orders", verbose_name=_("طلب الاعتماد المؤسسي"))
@@ -92,7 +92,7 @@ class DeliveryNote(models.Model):
     delivery_number = models.CharField(_("رقم إذن التسليم"), max_length=50, unique=True)
     sales_order = models.ForeignKey(SalesOrder, on_delete=models.PROTECT, related_name="delivery_notes", verbose_name=_("أمر البيع"))
     customer = models.ForeignKey(Customer, on_delete=models.PROTECT, related_name="delivery_notes", verbose_name=_("العميل"))
-    warehouse = models.ForeignKey(Warehouse, on_delete=models.PROTECT, related_name="delivery_notes", verbose_name=_("المستودع"))
+    warehouse = models.ForeignKey(Warehouse, on_delete=models.PROTECT, related_name="delivery_notes", verbose_name=_("المخزن"))
     delivery_date = models.DateField(_("تاريخ التسليم"))
 
     status = models.CharField(_("الحالة"), max_length=20, choices=STATUS_CHOICES, default="DRAFT")

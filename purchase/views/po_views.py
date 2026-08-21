@@ -337,7 +337,7 @@ def po_create(request):
         "custom_fields_json": json.dumps(duplicate_po.custom_fields if duplicate_po else []),
         "breadcrumb_items": breadcrumb_items,
         "page_title": _("إنشاء أمر شراء جديد"),
-        "page_subtitle": _("إنشاء أمر شراء جديد وتحديد المورد والمستودع والبنود والشروط التعاقدية"),
+        "page_subtitle": _("إنشاء أمر شراء جديد وتحديد المورد والمخزن والبنود والشروط التعاقدية"),
         "page_icon": "fas fa-file-invoice",
     }
     return render(request, "purchase/po_form.html", context)

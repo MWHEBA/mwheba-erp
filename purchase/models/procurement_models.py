@@ -46,7 +46,7 @@ class PurchaseOrder(models.Model):
     warehouse = models.ForeignKey(
         Warehouse,
         on_delete=models.PROTECT,
-        verbose_name=_("المستودع المستهدف"),
+        verbose_name=_("المخزن المستهدف"),
         related_name="purchase_orders",
         null=True,
         blank=True

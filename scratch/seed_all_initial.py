@@ -58,7 +58,7 @@ run_remote("manage.py loaddata hr/fixtures/initial_data.json", "16. بيانات
 # 5. Suppliers & Products
 run_remote("manage.py loaddata supplier/fixtures/supplier_types.json", "17. أنواع الموردين (supplier_types)")
 run_remote("manage.py loaddata supplier/fixtures/service_types.json", "18. أنواع الخدمات (service_types)")
-run_remote("manage.py loaddata product/fixtures/initial_warehouses.json", "19. المستودعات (initial_warehouses)")
+run_remote("manage.py loaddata product/fixtures/initial_warehouses.json", "19. المخازن (initial_warehouses)")
 run_remote("manage.py loaddata product/fixtures/units.json", "20. وحدات القياس (units)")
 
 # 6. Printing & Pricing

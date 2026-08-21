@@ -79,9 +79,9 @@
           </select>
         </div>
         <div class="col-md-2">
-          <label class="form-label small text-muted">{% trans "المستودع" %}</label>
+          <label class="form-label small text-muted">{% trans "المخزن" %}</label>
           <select name="warehouse" class="form-select form-select-sm select2-filter" dir="rtl">
-            <option value="">{% trans "كل المستودعات" %}</option>
+            <option value="">{% trans "كل المخازن" %}</option>
             {% for w in warehouses %}
               <option value="{{ w.id }}" {% if request.GET.warehouse == w.id|stringformat:"s" %}selected{% endif %}>{{ w.name }}</option>
             {% endfor %}

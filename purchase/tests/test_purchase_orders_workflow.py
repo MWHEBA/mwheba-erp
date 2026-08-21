@@ -43,7 +43,7 @@ class TestPurchaseOrderLifecycle:
         from product.models import Category
         self.category = Category.objects.create(name="خامات ومعادن")
         self.supplier = Supplier.objects.create(name="شركة التوريدات العالمية", is_active=True)
-        self.warehouse = Warehouse.objects.create(name="مستودع الخامات الرئيسي", is_active=True)
+        self.warehouse = Warehouse.objects.create(name="مخزن الخامات الرئيسي", is_active=True)
         self.unit = Unit.objects.create(name="قطعة", symbol="PCS")
 
         self.product = Product.objects.create(

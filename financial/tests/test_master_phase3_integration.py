@@ -52,7 +52,7 @@ class TestMasterPhase3Integration:
         # Entities
         self.customer, _ = Customer.objects.get_or_create(name="عميل تجريبي دولي", defaults={"code": "CUST-INT-99"})
         self.supplier, _ = Supplier.objects.get_or_create(name="مورد تجريبي دولي", defaults={"code": "SUP-INT-99"})
-        self.warehouse, _ = Warehouse.objects.get_or_create(name="المستودع الرئيسي", defaults={"code": "WH-01"})
+        self.warehouse, _ = Warehouse.objects.get_or_create(name="المخزن الرئيسي", defaults={"code": "WH0001"})
 
         # Spot rate
         ExchangeRateService.set_rate(from_code="USD", to_code="EGP", rate=Decimal("50.000000"), date=self.today, user=self.user)
