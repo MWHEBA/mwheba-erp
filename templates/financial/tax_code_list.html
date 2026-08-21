@@ -3,52 +3,177 @@
 {% load i18n %}
 {% load custom_filters %}
 
-{% block title %}{% trans "أكواد وضرائب المخرجات والمدخلات" %}{% endblock %}
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+{% endblock %}
 
 {% block content %}
 <div class="container-fluid">
+  <!-- Page Header المركزي الموحد -->
   {% include "shared/page_header.html" %}
 
-  <div class="card border-0 shadow-sm rounded-3">
-    <div class="card-body p-0">
-      <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
-          <thead class="table-light">
-            <tr>
-              <th>{% trans "كود الضريبة" %}</th>
-              <th>{% trans "الاسم" %}</th>
-              <th>{% trans "نوع الضريبة" %}</th>
-              <th>{% trans "النسبة المئوية" %}</th>
-              <th>{% trans "الحالة" %}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for tc in tax_codes %}
-            <tr>
-              <td class="fw-bold text-primary">{{ tc.code }}</td>
-              <td>{{ tc.name }}</td>
-              <td><span class="badge bg-light text-dark border">{{ tc.tax_type }}</span></td>
-              <td class="fw-bold text-success">{{ tc.rate|smart_float:2 }} %</td>
-              <td>
-                {% if tc.is_active %}
-                <span class="badge bg-success">{% trans "نشط" %}</span>
-                {% else %}
-                <span class="badge bg-secondary">{% trans "غير نشط" %}</span>
-                {% endif %}
-              </td>
-            </tr>
-            {% empty %}
-            <tr>
-              <td colspan="5" class="text-center py-4 text-muted">
-                <i class="fas fa-percent fa-2x mb-2 d-block text-secondary"></i>
-                {% trans "لا توجد أكواد ضريبية مسجلة حتى الآن." %}
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
+  <!-- بطاقات الإحصائيات (KPI Cards) -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-3 col-sm-6">
+      <div class="stats-card stats-card-info">
+        <div class="stats-card-body">
+          <div class="stats-card-icon"><i class="fas fa-percent"></i></div>
+          <div class="stats-card-title">{% trans "إجمالي الأكواد" %}</div>
+          <div class="stats-card-value">{{ total_count }}</div>
+        </div>
       </div>
     </div>
+    <div class="col-md-3 col-sm-6">
+      <div class="stats-card stats-card-success">
+        <div class="stats-card-body">
+          <div class="stats-card-icon"><i class="fas fa-check-circle"></i></div>
+          <div class="stats-card-title">{% trans "الأكواد النشطة" %}</div>
+          <div class="stats-card-value">{{ active_count }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3 col-sm-6">
+      <div class="stats-card stats-card-warning">
+        <div class="stats-card-body">
+          <div class="stats-card-icon"><i class="fas fa-file-invoice-dollar"></i></div>
+          <div class="stats-card-title">{% trans "ضرائب القيمة المضافة" %}</div>
+          <div class="stats-card-value">{{ vat_count }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3 col-sm-6">
+      <div class="stats-card stats-card-danger">
+        <div class="stats-card-body">
+          <div class="stats-card-icon"><i class="fas fa-receipt"></i></div>
+          <div class="stats-card-title">{% trans "الخصم والتحصيل" %}</div>
+          <div class="stats-card-value">{{ wht_count }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- قسم التصفية والبحث القابل للطي (Collapsible Filter Section) -->
+  <div class="section-container mb-4">
+    <h5 class="section-title" data-bs-toggle="collapse" data-bs-target="#filterSection" aria-expanded="{% if request.GET.search or request.GET.tax_type %}true{% else %}false{% endif %}" style="cursor: pointer;">
+      <i class="fas fa-filter me-2"></i>{% trans "تصفية وبحث الأكواد" %}
+      {% if request.GET.search or request.GET.tax_type %}<span class="badge bg-primary ms-2">فعّال</span>{% endif %}
+      <i class="fas fa-chevron-down float-end"></i>
+    </h5>
+    <div class="collapse {% if request.GET.search or request.GET.tax_type %}show{% endif %}" id="filterSection">
+      <form method="get" class="row g-3 align-items-end">
+        <div class="col-md-5">
+          <label class="form-label small text-muted">{% trans "بحث بالاسم أو الكود" %}</label>
+          <div class="input-group">
+            <span class="input-group-text"><i class="fas fa-search"></i></span>
+            <input type="text" name="search" class="form-control" placeholder="{% trans 'اكتب الكود أو اسم الضريبة...' %}" value="{{ request.GET.search }}">
+          </div>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label small text-muted">{% trans "نوع الضريبة" %}</label>
+          <select name="tax_type" class="form-select">
+            <option value="">{% trans "كافة الأنواع" %}</option>
+            <option value="VAT" {% if request.GET.tax_type == 'VAT' %}selected{% endif %}>{% trans "ضريبة القيمة المضافة" %}</option>
+            <option value="WITHHOLDING" {% if request.GET.tax_type == 'WITHHOLDING' %}selected{% endif %}>{% trans "خصم وتحصيل تحت الحساب" %}</option>
+            <option value="EXCISE" {% if request.GET.tax_type == 'EXCISE' %}selected{% endif %}>{% trans "ضريبة الجدول" %}</option>
+            <option value="ZERO_RATED" {% if request.GET.tax_type == 'ZERO_RATED' %}selected{% endif %}>{% trans "سعر صفر" %}</option>
+            <option value="EXEMPT" {% if request.GET.tax_type == 'EXEMPT' %}selected{% endif %}>{% trans "معفى بنص القانون" %}</option>
+          </select>
+        </div>
+        <div class="col-md-3 d-flex gap-2">
+          <button type="submit" class="btn btn-primary w-100"><i class="fas fa-search me-1"></i>{% trans "بحث" %}</button>
+          <a href="{% url 'financial:tax_code_list' %}" class="btn btn-outline-secondary" title="{% trans 'إعادة تعيين' %}"><i class="fas fa-redo"></i></a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- جدول البيانات الموحد (Data Table Section) -->
+  <div class="section-container">
+    <h5 class="section-title"><i class="fas fa-list me-2"></i>{% trans "سجل أكواد الضرائب والنسب المعيارية" %}</h5>
+    
+    <div class="table-responsive">
+      <table class="table table-hover align-middle custom-table mb-0">
+        <thead>
+          <tr>
+            <th style="width: 50px;">#</th>
+            <th>{% trans "كود الضريبة" %}</th>
+            <th>{% trans "اسم الضريبة" %}</th>
+            <th class="text-center">{% trans "النوع" %}</th>
+            <th class="text-center">{% trans "طبيعة القيد" %}</th>
+            <th class="text-center">{% trans "كود ETA" %}</th>
+            <th class="text-center">{% trans "النسبة %" %}</th>
+            <th class="text-center">{% trans "قابلية الخصم" %}</th>
+            <th class="text-center">{% trans "الحالة" %}</th>
+            <th class="text-end">{% trans "الإجراءات" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for tc in tax_codes %}
+          <tr>
+            <td class="text-muted">{{ forloop.counter }}</td>
+            <td class="fw-bold text-primary">
+              {{ tc.code }}
+              {% if tc.is_default %}<span class="badge bg-primary-subtle text-primary border border-primary-subtle ms-1">{% trans "افتراضي" %}</span>{% endif %}
+            </td>
+            <td>
+              <div class="fw-semibold text-dark">{{ tc.name }}</div>
+            </td>
+            <td class="text-center"><span class="badge bg-light text-dark border">{{ tc.get_tax_type_display }}</span></td>
+            <td class="text-center"><span class="badge bg-light text-secondary border">{{ tc.get_tax_nature_display }}</span></td>
+            <td class="text-center"><span class="badge bg-light text-dark border">{{ tc.eta_tax_type|default:"-" }}</span></td>
+            <td class="text-center"><span class="fw-bold text-dark">{{ tc.rate|smart_float:2 }}%</span></td>
+            <td class="text-center">
+              {% if tc.is_recoverable %}
+              <span class="badge bg-success-subtle text-success border border-success-subtle"><i class="fas fa-check me-1"></i>{{ tc.recoverability_percentage|smart_float:0 }}%</span>
+              {% else %}
+              <span class="badge bg-danger-subtle text-danger border border-danger-subtle"><i class="fas fa-times me-1"></i>{% trans "غير قابلة للخصم" %}</span>
+              {% endif %}
+            </td>
+            <td class="text-center">
+              {% if tc.is_active %}
+              <span class="badge bg-success-subtle text-success">{% trans "نشط" %}</span>
+              {% else %}
+              <span class="badge bg-danger-subtle text-danger">{% trans "معطل" %}</span>
+              {% endif %}
+            </td>
+            <td class="text-end">
+              <div class="btn-group btn-group-sm" role="group">
+                <a href="{% url 'financial:tax_code_update' tc.pk %}" class="btn btn-outline-primary" title="{% trans 'تعديل' %}">
+                  <i class="fas fa-edit"></i>
+                </a>
+                <form method="post" action="{% url 'financial:tax_code_delete' tc.pk %}" class="d-inline" data-confirm="{% trans 'هل أنت متأكد من حذف كود الضريبة؟' %}" onsubmit="return confirm(this.getAttribute('data-confirm'));">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn-outline-danger" title="{% trans 'حذف' %}">
+                    <i class="fas fa-trash-alt"></i>
+                  </button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="10" class="text-center py-5 text-muted">
+              <i class="fas fa-percent fa-3x mb-3 d-block text-secondary opacity-50"></i>
+              <h6>{% trans "لا توجد أكواد ضريبية مسجلة حتى الآن." %}</h6>
+              <p class="small">{% trans "يمكنك إضافة كود جديد أو الضغط على 'توليد الضرائب المصرية القياسية' لتهيئة السيستم فورياً." %}</p>
+              <a href="{% url 'financial:tax_seed_presets' %}" class="btn btn-sm btn-primary mt-2">
+                <i class="fas fa-magic me-1"></i>{% trans "توليد الضرائب المصرية القياسية الآن" %}
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- شريط الترقيم (Pagination) -->
+    {% if page_obj.has_other_pages %}
+    <div class="p-3 border-top" id="pagination-wrapper">
+      {% include "partials/pagination.html" %}
+    </div>
+    {% endif %}
   </div>
 </div>
 {% endblock %}

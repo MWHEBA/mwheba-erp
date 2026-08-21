@@ -58,6 +58,7 @@ class TaxCode(models.Model):
     version = models.IntegerField(_("إصدار كود الضريبة"), default=1)
     tax_type = models.CharField(_("نوع الضريبة"), max_length=30, choices=TAX_TYPE_CHOICES, default="VAT")
     tax_nature = models.CharField(_("طبيعة الضريبة المحاسبية"), max_length=30, choices=TAX_NATURE_CHOICES, default="OUTPUT")
+    eta_tax_type = models.CharField(_("كود الضريبة بمنظومة الفاتورة الإلكترونية (ETA)"), max_length=10, blank=True, null=True, default="T1", help_text=_("مثال: T1 للقيمة المضافة، T4 للخصم تحت الحساب"))
 
     rate = models.DecimalField(_("نسبة الضريبة %"), max_digits=8, decimal_places=4, default=Decimal("14.0000"))
     recoverability_percentage = models.DecimalField(_("نسبة القابلية للاسترداد %"), max_digits=5, decimal_places=2, default=Decimal("100.00"))
@@ -65,11 +66,17 @@ class TaxCode(models.Model):
 
     effective_from = models.DateField(_("سارية من"), default=timezone.now)
     effective_to = models.DateField(_("سارية إلى"), null=True, blank=True)
+    is_default = models.BooleanField(_("افتراضي لنوع الضريبة"), default=False, help_text=_("تحديد هذا الكود كافتراضي لنفس نوع الضريبة"))
     is_active = models.BooleanField(_("نشط"), default=True)
 
     class Meta:
         verbose_name = _("كود الضريبة")
         verbose_name_plural = _("أكواد الضرائب")
+
+    def save(self, *args, **kwargs):
+        if self.is_default:
+            TaxCode.objects.filter(tax_type=self.tax_type, is_default=True).exclude(pk=self.pk).update(is_default=False)
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.name} ({self.code} v{self.version} - {self.rate}%)"
@@ -110,7 +117,7 @@ class TaxRule(models.Model):
         ("LOCATION", _("الموقع / النطاق")),
     )
 
-    code = models.CharField(_("كود القاعدة"), max_length=50)
+    code = models.CharField(_("كود القاعدة"), max_length=50, blank=True)
     name = models.CharField(_("اسم القاعدة الضريبية"), max_length=150)
     version = models.IntegerField(_("إصدار القاعدة"), default=1)
     priority = models.IntegerField(_("الأولوية (الرقم الأكبر أعلى أولوية)"), default=10)
@@ -132,6 +139,16 @@ class TaxRule(models.Model):
         constraints = [
             models.UniqueConstraint(fields=["code", "version"], name="unique_tax_rule_code_version")
         ]
+
+    def save(self, *args, **kwargs):
+        if not self.code:
+            last_num = TaxRule.objects.count() + 1
+            candidate = f"RUL-{last_num:03d}"
+            while TaxRule.objects.filter(code=candidate).exists():
+                last_num += 1
+                candidate = f"RUL-{last_num:03d}"
+            self.code = candidate
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"TaxRule #{self.code} v{self.version} [Priority: {self.priority}] -> {self.tax_code.code}"
@@ -253,6 +270,8 @@ class TaxExemptionCertificate(models.Model):
 
     valid_from = models.DateField(_("صالحة من تاريخ"))
     valid_to = models.DateField(_("صالحة إلى تاريخ"))
+    max_quota_amount = models.DecimalField(_("سقف مبلغ الإعفاء المعتمد (إن وجد)"), max_digits=15, decimal_places=2, null=True, blank=True, help_text=_("أقصى قيمة خاضعة للإعفاء"))
+    utilized_amount = models.DecimalField(_("المبلغ المستهلك من الإعفاء"), max_digits=15, decimal_places=2, default=Decimal("0.00"))
     exemption_reason = models.TextField(_("سبب الإعفاء المعتمد قانوناً"))
     attachment_reference = models.CharField(_("مرجع المرفق / الشهادة"), max_length=255, blank=True, null=True)
     status = models.CharField(_("حالة الشهادة"), max_length=20, default="ACTIVE")
@@ -261,10 +280,15 @@ class TaxExemptionCertificate(models.Model):
         verbose_name = _("شهادة إعفاء ضريبي")
         verbose_name_plural = _("شهادات الإعفاء الضريبي")
 
-    def is_valid_on(self, date_val) -> bool:
+    def is_valid_on(self, date_val, amount: Decimal = Decimal("0.00")) -> bool:
         if self.status != "ACTIVE":
             return False
-        return self.valid_from <= date_val <= self.valid_to
+        if not (self.valid_from <= date_val <= self.valid_to):
+            return False
+        if self.max_quota_amount is not None:
+            if (self.utilized_amount + amount) > self.max_quota_amount:
+                return False
+        return True
 
     def __str__(self):
         return f"Exemption Cert #{self.certificate_number} ({self.tax_code.code})"

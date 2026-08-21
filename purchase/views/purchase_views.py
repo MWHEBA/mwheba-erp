@@ -292,7 +292,39 @@ def purchase_create(request, supplier_id=None):
         except WorkOrder.DoesNotExist:
             pass
     
-    if supplier_id:
+    # قراءة أمر الشراء إذا تم تمريره للتحويل
+    from_po_id = request.GET.get('from_po')
+    selected_po = None
+    duplicate_items = None
+    is_duplicate = False
+    duplicate_from = ""
+    if from_po_id:
+        from purchase.models.procurement_models import PurchaseOrder
+        try:
+            selected_po = PurchaseOrder.objects.prefetch_related('items__product', 'items__unit').get(id=from_po_id)
+            selected_supplier = selected_po.supplier
+            selected_work_order = selected_po.work_order
+            is_duplicate = True
+            duplicate_from = f"أمر الشراء #{selected_po.order_number}"
+            
+            po_items_list = []
+            for item in selected_po.items.all():
+                qty = float(item.ordered_qty - item.billed_qty if item.ordered_qty > item.billed_qty else item.ordered_qty)
+                po_items_list.append({
+                    "product_id": item.product_id,
+                    "name": item.product.name,
+                    "code": item.product.sku or "",
+                    "quantity": qty,
+                    "unit_price": float(item.unit_price),
+                    "discount": float(item.discount),
+                    "total": float(item.total_price),
+                    "unit": item.unit.name if item.unit else (item.product.unit.name if getattr(item.product, 'unit', None) else "")
+                })
+            duplicate_items = json.dumps(po_items_list)
+        except PurchaseOrder.DoesNotExist:
+            pass
+
+    if supplier_id and not selected_supplier:
         try:
             selected_supplier = Supplier.objects.get(id=supplier_id, is_active=True)
             # تحديد نوع الفاتورة من إعدادات نوع المورد
@@ -547,6 +579,22 @@ def purchase_create(request, supplier_id=None):
                 initial_data["currency"] = selected_supplier.default_currency
         if selected_work_order:
             initial_data["work_order"] = selected_work_order
+        if selected_po:
+            if selected_po.warehouse:
+                initial_data["warehouse"] = selected_po.warehouse
+            if selected_po.currency:
+                initial_data["currency"] = selected_po.currency
+            if selected_po.cost_center:
+                initial_data["cost_center"] = selected_po.cost_center
+            initial_data["discount"] = selected_po.discount
+            initial_data["tax_active"] = selected_po.tax_active
+            initial_data["vat_active"] = selected_po.vat_active
+            initial_data["vat_rate"] = selected_po.vat_rate
+            initial_data["wht_active"] = selected_po.wht_active
+            initial_data["wht_rate"] = selected_po.wht_rate
+            initial_data["adjustment_name"] = selected_po.adjustment_name
+            initial_data["adjustment_type"] = selected_po.adjustment_type
+            initial_data["adjustment_amount"] = selected_po.adjustment_amount
             
         form = PurchaseForm(initial=initial_data)
 
@@ -566,7 +614,7 @@ def purchase_create(request, supplier_id=None):
         ).distinct().order_by("name")
     
     # إضافة أول مخزن متاح كافتراضي للنموذج الجديد
-    if request.method == "GET" and warehouses.exists():
+    if request.method == "GET" and warehouses.exists() and "warehouse" not in form.initial:
         form.initial["warehouse"] = warehouses.first()
 
     # إنشاء رقم فاتورة مشتريات جديد
@@ -586,6 +634,14 @@ def purchase_create(request, supplier_id=None):
         "is_service_invoice": is_service_invoice,
         "supplier_type_code": selected_supplier.get_primary_type_code() if selected_supplier else None,
         "default_warehouse": warehouses.first() if warehouses.exists() else None,
+        "duplicate_items": duplicate_items,
+        "is_duplicate": is_duplicate,
+        "duplicate_from": duplicate_from,
+        "duplicate_discount": str(selected_po.discount) if selected_po else "0",
+        "duplicate_discount_type": selected_po.discount_type if selected_po else "fixed",
+        "duplicate_adjustment_name": selected_po.adjustment_name if selected_po else "",
+        "duplicate_adjustment_type": selected_po.adjustment_type if selected_po else "add",
+        "duplicate_adjustment_amount": str(selected_po.adjustment_amount) if selected_po else "0",
         "page_title": "إضافة فاتورة مشتريات" + (f" - {selected_supplier.name}" if selected_supplier else ""),
         "page_subtitle": "إضافة فاتورة مشتريات جديدة إلى النظام",
         "page_icon": "fas fa-plus-circle",

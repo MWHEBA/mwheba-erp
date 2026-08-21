@@ -33,6 +33,20 @@ from .views import (
     grn_approve,
     grn_post,
     grn_reverse,
+    # Purchase Order Views
+    po_list,
+    po_create,
+    po_edit,
+    po_detail,
+    po_print,
+    po_pdf_download,
+    po_email_pdf,
+    po_duplicate,
+    po_delete,
+    po_submit,
+    po_approve,
+    po_short_close,
+    po_cancel,
     # Landed Cost Views
     landed_cost_list,
     landed_cost_create,
@@ -45,6 +59,20 @@ from .views import (
 app_name = "purchase"
 
 urlpatterns = [
+    # أوامر الشراء (Purchase Orders)
+    path("orders/", po_list, name="po_list"),
+    path("orders/create/", po_create, name="po_create"),
+    path("orders/<int:pk>/", po_detail, name="po_detail"),
+    path("orders/<int:pk>/edit/", po_edit, name="po_edit"),
+    path("orders/<int:pk>/print/", po_print, name="po_print"),
+    path("orders/<int:pk>/pdf/", po_pdf_download, name="po_pdf_download"),
+    path("orders/<int:pk>/email-pdf/", po_email_pdf, name="po_email_pdf"),
+    path("orders/<int:pk>/duplicate/", po_duplicate, name="po_duplicate"),
+    path("orders/<int:pk>/delete/", po_delete, name="po_delete"),
+    path("orders/<int:pk>/submit/", po_submit, name="po_submit"),
+    path("orders/<int:pk>/approve/", po_approve, name="po_approve"),
+    path("orders/<int:pk>/short-close/", po_short_close, name="po_short_close"),
+    path("orders/<int:pk>/cancel/", po_cancel, name="po_cancel"),
     # فواتير المشتريات
     path("", purchase_list, name="purchase_list"),
     path("create/", purchase_create, name="purchase_create"),

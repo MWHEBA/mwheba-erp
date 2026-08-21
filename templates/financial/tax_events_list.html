@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Page Header المركزي الموحد -->
+  {% include "shared/page_header.html" %}
+
+  <div class="section-container">
+    <h5 class="section-title"><i class="fas fa-stream me-2"></i>{% trans "سجل الأحداث الضريبية المستقل (Tax Domain Events Log)" %}</h5>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle custom-table mb-0">
+        <thead>
+          <tr>
+            <th style="width: 50px;">#</th>
+            <th>{% trans "معرف الحدث (UUID)" %}</th>
+            <th>{% trans "نوع الحدث الضريبي" %}</th>
+            <th>{% trans "نوع المستند" %}</th>
+            <th>{% trans "رقم المستند" %}</th>
+            <th class="text-center">{% trans "الحالة" %}</th>
+            <th class="text-end">{% trans "تاريخ ووقت المعالجة" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for ev in events %}
+          <tr>
+            <td class="text-muted">{{ forloop.counter }}</td>
+            <td class="fw-semibold text-primary small">{{ ev.event_id }}</td>
+            <td>
+              <span class="badge bg-light text-dark border">{{ ev.event_type }}</span>
+            </td>
+            <td><span class="badge bg-light text-secondary border">{{ ev.document_type }}</span></td>
+            <td class="fw-bold">{{ ev.document_number }}</td>
+            <td class="text-center">
+              {% if ev.status == 'PROCESSED' %}
+              <span class="badge bg-success-subtle text-success">{% trans "تمت المعالجة" %}</span>
+              {% else %}
+              <span class="badge bg-secondary-subtle text-secondary">{{ ev.status }}</span>
+              {% endif %}
+            </td>
+            <td class="text-end text-muted small">{{ ev.processed_at|date:"Y-m-d H:i:s" }}</td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="7" class="text-center py-5 text-muted">
+              <i class="fas fa-stream fa-3x mb-3 d-block text-secondary opacity-50"></i>
+              <h6>{% trans "لا توجد أحداث ضريبية مسجلة حتى الآن." %}</h6>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% if page_obj.has_other_pages %}
+    <div class="p-3 border-top" id="pagination-wrapper">
+      {% include "partials/pagination.html" %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

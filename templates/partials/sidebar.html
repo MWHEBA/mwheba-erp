@@ -182,7 +182,23 @@
                         <i class="fas fa-chevron-down sidebar-arrow"></i>
                     </a>
                     <ul class="collapse list-unstyled submenu {% if active_menu == 'purchases' %}show{% endif %}" id="purchaseMenu">
+                        <!-- أوامر الشراء -->
+                        <li class="submenu-title">أوامر الشراء والتوريد</li>
+                        <li>
+                            <a href="{% url 'purchase:po_list' %}" class="submenu-link">
+                                <i class="fas fa-file-contract me-2"></i>{% trans "أوامر الشراء (PO)" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'purchase:po_create' %}" class="submenu-link">
+                                <i class="fas fa-plus-circle me-2"></i>{% trans "إنشاء أمر شراء" %}
+                            </a>
+                        </li>
+
+                        <div class="nav-divider"></div>
+
                         <!-- الفواتير -->
+                        <li class="submenu-title">فواتير المشتريات</li>
                         <li>
                             <a href="{% url 'purchase:purchase_list' %}" class="submenu-link">
                                 <i class="fas fa-file-invoice me-2"></i>{% trans "فواتير المشتريات" %}
@@ -604,10 +620,26 @@
                                 <i class="fas fa-sync-alt me-2"></i>{% trans "معاينة تقييم العملات" %}
                             </a>
                         </li>
+                        <li>
+                            <a href="{% url 'financial:revenue_recognition_dashboard' %}" class="submenu-link">
+                                <i class="fas fa-hand-holding-usd me-2"></i>{% trans "إقرار وتوزيع الإيرادات (IFRS 15)" %}
+                            </a>
+                        </li>
 
+                        <li class="submenu-title">الضرائب والمحرك الضريبي</li>
                         <li>
                             <a href="{% url 'financial:tax_code_list' %}" class="submenu-link">
-                                <i class="fas fa-percent me-2"></i>{% trans "أكواد وضرائب المخرجات" %}
+                                <i class="fas fa-percent me-2"></i>{% trans "أكواد وإعدادات الضرائب" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'financial:tax_audit_list' %}" class="submenu-link">
+                                <i class="fas fa-shield-alt me-2"></i>{% trans "سجل الفحص والتدقيق الضريبي" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'financial:tax_return_vat_report' %}" class="submenu-link">
+                                <i class="fas fa-file-invoice-dollar me-2"></i>{% trans "الإقرارات والتقارير الضريبية" %}
                             </a>
                         </li>
                         

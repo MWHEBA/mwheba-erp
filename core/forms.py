@@ -396,6 +396,7 @@ class SystemSettingsForm(forms.Form):
         min_value=0,
         max_value=100,
         initial=14,
+        required=False,
         widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '1'})
     )
     invoice_notes = forms.CharField(

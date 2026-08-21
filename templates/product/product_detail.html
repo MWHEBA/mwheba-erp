@@ -513,8 +513,17 @@
                             <span class="info-value">{{ product.get_item_type_display|default:product.item_type }}</span>
                         </div>
                         <div class="info-row">
-                            <span class="info-label">نسبة الضريبة / الخصم</span>
-                            <span class="info-value">ضريبة: {{ product.tax_rate|smart_float }}% | خصم: {{ product.discount_rate|smart_float }}%</span>
+                            <span class="info-label">كود ونسبة الضريبة</span>
+                            <span class="info-value">
+                                {% if product.tax_code %}
+                                <a href="{% url 'financial:tax_code_list' %}?search={{ product.tax_code.code }}" class="badge bg-light text-primary border text-decoration-none">
+                                    <i class="fas fa-percent me-1"></i>{{ product.tax_code.code }} ({{ product.tax_code.rate|smart_float }}%) - {{ product.tax_code.name }}
+                                </a>
+                                {% else %}
+                                ضريبة: {{ product.tax_rate|smart_float }}%
+                                {% endif %}
+                                | خصم: {{ product.discount_rate|smart_float }}%
+                            </span>
                         </div>
                         {% if product.default_supplier %}
                         <div class="info-row">

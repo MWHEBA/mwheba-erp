@@ -1,0 +1,180 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load custom_filters %}
+
+{% block title %}{{ page_title|default:_("لوحة إقرار وتوزيع الإيرادات المؤجلة (IFRS 15)") }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Page Header المركزي الموحد -->
+  {% include "shared/page_header.html" %}
+
+  <!-- KPI Stats Cards -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-3 col-sm-6">
+      <div class="stats-card stats-card-info">
+        <div class="stats-card-body">
+          <div class="stats-card-icon"><i class="fas fa-hand-holding-usd"></i></div>
+          <div class="stats-card-title">{% trans "إجمالي الإيرادات المؤجلة المعلقة" %}</div>
+          <div class="stats-card-value">{{ total_deferred_amount|smart_float:2 }} <small class="fs-6 fw-normal">EGP</small></div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3 col-sm-6">
+      <div class="stats-card stats-card-success">
+        <div class="stats-card-body">
+          <div class="stats-card-icon"><i class="fas fa-check-circle"></i></div>
+          <div class="stats-card-title">{% trans "الإيرادات المعترف بها تراكمياً" %}</div>
+          <div class="stats-card-value">{{ total_recognized_amount|smart_float:2 }} <small class="fs-6 fw-normal">EGP</small></div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3 col-sm-6">
+      <div class="stats-card stats-card-warning">
+        <div class="stats-card-body">
+          <div class="stats-card-icon"><i class="fas fa-calendar-alt"></i></div>
+          <div class="stats-card-title">{% trans "أقساط مستحقة للترحيل" %}</div>
+          <div class="stats-card-value">{{ due_lines_count }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3 col-sm-6">
+      <div class="stats-card stats-card-primary">
+        <div class="stats-card-body">
+          <div class="stats-card-icon"><i class="fas fa-file-contract"></i></div>
+          <div class="stats-card-title">{% trans "جداول العقود النشطة" %}</div>
+          <div class="stats-card-value">{{ active_schedules_count }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- إجراء الترحيل الدوري السريع -->
+  <div class="section-container mb-4">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+      <div>
+        <h5 class="section-title mb-0"><i class="fas fa-cogs me-2"></i>{% trans "معالجة وترحيل أقساط الإيرادات المستحقة" %}</h5>
+        <p class="text-muted small mb-0 mt-1">{% trans "ترحيل قيود الاستحقاق من حساب الإيرادات المؤجلة إلى إيرادات المبيعات تلقائياً مع توثيق التوقيع المشفر SHA256." %}</p>
+      </div>
+      <form method="post" action="{% url 'financial:process_due_revenues_action' %}" class="d-flex align-items-center gap-2">
+        {% csrf_token %}
+        <input type="date" name="as_of_date" class="form-control form-control-sm" value="{{ today_date|date:'Y-m-d' }}" style="width: 160px;">
+        {% trans "هل أنت متأكد من ترحيل كافة أقساط الإيرادات المستحقة حتى هذا التاريخ؟" as confirm_msg %}
+        <button type="submit" class="btn btn-sm btn-primary px-3 fw-bold" onclick="return confirm('{{ confirm_msg }}');">
+          <i class="fas fa-play me-1"></i>{% trans "ترحيل الاستحقاقات الآن" %}
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- جدول جداول الإيرادات المؤجلة -->
+  <div class="section-container mb-4">
+    <h5 class="section-title"><i class="fas fa-table me-2"></i>{% trans "جداول وخطط توزيع الإيرادات المؤجلة" %}</h5>
+    
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>{% trans "رقم الجدول" %}</th>
+            <th>{% trans "الفاتورة المرتبطة" %}</th>
+            <th>{% trans "العميل" %}</th>
+            <th>{% trans "السياسة المطبقة" %}</th>
+            <th>{% trans "سعر المعاملة" %}</th>
+            <th>{% trans "المعترف به" %}</th>
+            <th>{% trans "المؤجل المتبقي" %}</th>
+            <th>{% trans "الحالة" %}</th>
+            <th class="text-center">{% trans "الإجراءات" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for sched in schedules %}
+          <tr>
+            <td class="fw-bold">#{{ sched.id }}</td>
+            <td>
+              {% if sched.invoice_item.sales_invoice %}
+                <a href="{% url 'sale:sales_invoice_detail' sched.invoice_item.sales_invoice.id %}" class="fw-bold text-decoration-none">
+                  {{ sched.invoice_item.sales_invoice.invoice_number }}
+                </a>
+              {% else %}
+                -
+              {% endif %}
+            </td>
+            <td>{{ sched.invoice_item.sales_invoice.customer.name|default:"-" }}</td>
+            <td><span class="badge bg-light text-dark border">{{ sched.policy.name }}</span></td>
+            <td class="fw-bold">{{ sched.allocated_transaction_price|smart_float:2 }} {{ sched.currency }}</td>
+            <td class="text-success fw-bold">{{ sched.recognized_amount|smart_float:2 }} {{ sched.currency }}</td>
+            <td class="text-warning fw-bold">{{ sched.deferred_amount|smart_float:2 }} {{ sched.currency }}</td>
+            <td>
+              {% if sched.status == 'ACTIVE' %}
+                <span class="badge bg-success">{% trans "نشط" %}</span>
+              {% elif sched.status == 'FULLY_RECOGNIZED' %}
+                <span class="badge bg-primary">{% trans "معترف به بالكامل" %}</span>
+              {% elif sched.status == 'REVERSED' %}
+                <span class="badge bg-danger">{% trans "معكوس" %}</span>
+              {% else %}
+                <span class="badge bg-secondary">{{ sched.get_status_display }}</span>
+              {% endif %}
+            </td>
+            <td class="text-center">
+              <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#lines_{{ sched.id }}">
+                <i class="fas fa-list me-1"></i>{% trans "الأقساط" %} ({{ sched.lines.count }})
+              </button>
+            </td>
+          </tr>
+          <!-- أسطر الأقساط الفرعية -->
+          <tr class="collapse" id="lines_{{ sched.id }}">
+            <td colspan="9" class="bg-light p-3">
+              <div class="card border-0 shadow-sm p-3">
+                <h6 class="fw-bold mb-2 text-primary"><i class="fas fa-stream me-1"></i>{% trans "أقساط ومحطات جدول رقم" %} #{{ sched.id }}</h6>
+                <table class="table table-sm table-bordered mb-0">
+                  <thead class="table-secondary">
+                    <tr>
+                      <th>#</th>
+                      <th>{% trans "تاريخ الاستحقاق" %}</th>
+                      <th>{% trans "المبلغ بالعملة" %}</th>
+                      <th>{% trans "المبلغ الوظيفي" %}</th>
+                      <th>{% trans "الحالة" %}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for l in sched.lines.all %}
+                    <tr>
+                      <td>{{ l.sequence }}</td>
+                      <td>{{ l.recognition_date|date:"Y-m-d" }}</td>
+                      <td>{{ l.foreign_amount|smart_float:2 }} {{ sched.currency }}</td>
+                      <td>{{ l.functional_amount|smart_float:2 }} EGP</td>
+                      <td>
+                        {% if l.status == 'RECOGNIZED' %}
+                          <span class="badge bg-success">{% trans "تم الاعتراف" %}</span>
+                        {% elif l.status == 'SCHEDULED' %}
+                          <span class="badge bg-warning text-dark">{% trans "مجدول" %}</span>
+                        {% else %}
+                          <span class="badge bg-secondary">{{ l.get_status_display }}</span>
+                        {% endif %}
+                      </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="5" class="text-center text-muted">{% trans "لا توجد أسطر مجدولة" %}</td></tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="9" class="text-center py-4 text-muted">{% trans "لا توجد جداول إيرادات مؤجلة مسجلة" %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

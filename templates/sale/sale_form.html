@@ -483,8 +483,9 @@
                                                         <label class="form-check-label text-dark fw-medium small" for="id_wht_active">ضريبة الخصم والإضافة</label>
                                                     </div>
                                                     <select name="wht_rate" id="id_wht_rate" class="form-select form-select-sm ms-auto text-center" style="width: fit-content;">
-                                                        <option value="1.00" {% if form.instance.wht_rate == 1 or not form.instance.wht_rate %}selected{% endif %}>1% (سلع)</option>
-                                                        <option value="3.00" {% if form.instance.wht_rate == 3 %}selected{% endif %}>3% (خدمات)</option>
+                                                        <option value="1.00" {% if form.instance.wht_rate == 1 or not form.instance.wht_rate %}selected{% endif %}>1% (توريدات ومقاولات)</option>
+                                                        <option value="3.00" {% if form.instance.wht_rate == 3 %}selected{% endif %}>3% (خدمات وصيانة)</option>
+                                                        <option value="5.00" {% if form.instance.wht_rate == 5 %}selected{% endif %}>5% (مهن حرة واستشارات)</option>
                                                     </select>
                                                 </div>
                                                 <small class="form-text text-muted">تُخصم من الصافي المستحق وتورد لمصلحة الضرائب.</small>

@@ -42,18 +42,24 @@ class TestFINTAX001TaxEngineV3:
         )
         customer = Customer.objects.create(name="Pharos Pharma", code="CUST-TAX-V3-001", credit_limit=Decimal("500000.00"))
 
-        asset_type, _ = AccountType.objects.get_or_create(code="ASSET", name="Assets", category="ASSET")
-        liab_type, _ = AccountType.objects.get_or_create(code="LIAB", name="Liabilities", category="LIABILITY")
-        rev_type, _ = AccountType.objects.get_or_create(code="REV", name="Revenues", category="REVENUE")
-        exp_type, _ = AccountType.objects.get_or_create(code="EXPENSE", name="Expenses", category="EXPENSE")
+        asset_type = AccountType.objects.filter(category="ASSET").first() or AccountType.objects.create(code="ASSET_TAX", name="Assets", category="ASSET")
+        liab_type = AccountType.objects.filter(category="LIABILITY").first() or AccountType.objects.create(code="LIAB_TAX", name="Liabilities", category="LIABILITY")
+        rev_type = AccountType.objects.filter(category="REVENUE").first() or AccountType.objects.create(code="REV_TAX", name="Revenues", category="REVENUE")
+        exp_type = AccountType.objects.filter(category="EXPENSE").first() or AccountType.objects.create(code="EXP_TAX", name="Expenses", category="EXPENSE")
 
-        ChartOfAccounts.objects.get_or_create(code="10400", defaults={"name": "Inventory Asset", "account_type": asset_type, "is_active": True})
-        ChartOfAccounts.objects.get_or_create(code="11010", defaults={"name": "Customer AR", "account_type": asset_type, "is_active": True})
+        ChartOfAccounts.objects.get_or_create(code="10400", defaults={"name": "Inventory Asset Legacy", "account_type": asset_type, "is_active": True})
+        ChartOfAccounts.objects.get_or_create(code="11310", defaults={"name": "Inventory Asset Standard", "account_type": asset_type, "is_active": True})
+        ChartOfAccounts.objects.get_or_create(code="11010", defaults={"name": "Customer AR Legacy", "account_type": asset_type, "is_active": True})
+        ChartOfAccounts.objects.get_or_create(code="11210", defaults={"name": "Customer AR Standard", "account_type": asset_type, "is_active": True})
         ChartOfAccounts.objects.get_or_create(code="11050", defaults={"name": "Input VAT Recoverable", "account_type": asset_type, "is_active": True})
-        ChartOfAccounts.objects.get_or_create(code="22010", defaults={"name": "Output VAT Payable", "account_type": liab_type, "is_active": True})
-        ChartOfAccounts.objects.get_or_create(code="21000", defaults={"name": "Deferred Revenue", "account_type": liab_type, "is_active": True})
-        ChartOfAccounts.objects.get_or_create(code="40100", defaults={"name": "Sales Revenue Account", "account_type": rev_type, "is_active": True})
-        ChartOfAccounts.objects.get_or_create(code="50100", defaults={"name": "COGS Control", "account_type": exp_type, "is_active": True})
+        ChartOfAccounts.objects.get_or_create(code="22010", defaults={"name": "Output VAT Payable Legacy", "account_type": liab_type, "is_active": True})
+        ChartOfAccounts.objects.get_or_create(code="21310", defaults={"name": "Output VAT Payable Standard", "account_type": liab_type, "is_active": True})
+        ChartOfAccounts.objects.get_or_create(code="21000", defaults={"name": "Deferred Revenue Legacy", "account_type": liab_type, "is_active": True})
+        ChartOfAccounts.objects.get_or_create(code="21510", defaults={"name": "Deferred Revenue Standard", "account_type": liab_type, "is_active": True})
+        ChartOfAccounts.objects.get_or_create(code="40100", defaults={"name": "Sales Revenue Account Legacy", "account_type": rev_type, "is_active": True})
+        ChartOfAccounts.objects.get_or_create(code="41100", defaults={"name": "Sales Revenue Account Standard", "account_type": rev_type, "is_active": True})
+        ChartOfAccounts.objects.get_or_create(code="50100", defaults={"name": "COGS Control Legacy", "account_type": exp_type, "is_active": True})
+        ChartOfAccounts.objects.get_or_create(code="51100", defaults={"name": "COGS Control Standard", "account_type": exp_type, "is_active": True})
 
         category = Category.objects.create(name="Pharmaceuticals")
         unit = Unit.objects.create(name="BOX")
@@ -61,16 +67,18 @@ class TestFINTAX001TaxEngineV3:
         warehouse = Warehouse.objects.create(code="WH-TAX-V3", name="Pharma Warehouse V3", is_active=True)
         Stock.objects.create(product=product, warehouse=warehouse, quantity=100)
 
-        # Create Tax Code VAT 14% with 100% recoverability
-        tax_code = TaxCode.objects.create(
+        # Create or Get Tax Code VAT 14% with 100% recoverability
+        tax_code, _ = TaxCode.objects.get_or_create(
             code="VAT14",
-            name="Value Added Tax 14%",
-            version=1,
-            tax_type="VAT",
-            tax_nature="OUTPUT",
-            rate=Decimal("14.0000"),
-            recoverability_percentage=Decimal("100.00"),
-            is_active=True
+            defaults={
+                "name": "Value Added Tax 14%",
+                "version": 1,
+                "tax_type": "VAT",
+                "tax_nature": "OUTPUT",
+                "rate": Decimal("14.0000"),
+                "recoverability_percentage": Decimal("100.00"),
+                "is_active": True
+            }
         )
 
         tax_rule = TaxRule.objects.create(

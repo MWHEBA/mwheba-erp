@@ -1,0 +1,181 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load custom_filters %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Page Header المركزي الموحد -->
+  {% include "shared/page_header.html" %}
+
+  <!-- بطاقات الإحصائيات (KPI Summary Cards) -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-4">
+      <div class="stats-card stats-card-info">
+        <div class="stats-card-body">
+          <div class="stats-card-icon"><i class="fas fa-sign-out-alt"></i></div>
+          <div class="stats-card-title">{% trans "ضريبة المخرجات (المبيعات)" %}</div>
+          <div class="stats-card-value">{{ summary.output_tax_total|smart_float:2 }} <small class="fs-6 fw-normal">EGP</small></div>
+          <div class="small text-muted mt-1">{% trans "الوعاء الخاضع:" %} {{ summary.output_tax_base|smart_float:2 }} EGP</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="stats-card stats-card-success">
+        <div class="stats-card-body">
+          <div class="stats-card-icon"><i class="fas fa-sign-in-alt"></i></div>
+          <div class="stats-card-title">{% trans "ضريبة المدخلات (المشتريات المستردة)" %}</div>
+          <div class="stats-card-value">{{ summary.input_tax_total|smart_float:2 }} <small class="fs-6 fw-normal">EGP</small></div>
+          <div class="small text-muted mt-1">{% trans "الوعاء الخاضع:" %} {{ summary.input_tax_base|smart_float:2 }} EGP</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="stats-card {% if summary.is_payable %}stats-card-danger{% else %}stats-card-warning{% endif %}">
+        <div class="stats-card-body">
+          <div class="stats-card-icon"><i class="fas fa-balance-scale"></i></div>
+          <div class="stats-card-title">
+            {% if summary.is_payable %}{% trans "صافي الضريبة واجبة السداد للـ ETA" %}{% else %}{% trans "رصيد ضريبة دائن مرحل للفترة التالية" %}{% endif %}
+          </div>
+          <div class="stats-card-value">
+            {% if summary.is_payable %}
+              {{ summary.net_payable_amount|smart_float:2 }} <small class="fs-6 fw-normal">EGP</small>
+            {% else %}
+              {{ summary.net_credit_carryforward|smart_float:2 }} <small class="fs-6 fw-normal">EGP</small>
+            {% endif %}
+          </div>
+          <div class="small fw-semibold mt-1">
+            {% if summary.is_payable %}<span class="text-danger">{% trans "التزام مستحق السداد" %}</span>{% else %}<span class="text-success">{% trans "أصل دائن قابل للخصم لاحقاً" %}</span>{% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- قسم التصفية وتحديد فترة الإقرار القابل للطي -->
+  <div class="section-container mb-4">
+    <h5 class="section-title" data-bs-toggle="collapse" data-bs-target="#filterSection" aria-expanded="true" style="cursor: pointer;">
+      <i class="fas fa-filter me-2"></i>{% trans "تحديد شهر الإقرار الضريبي" %}
+      <i class="fas fa-chevron-down float-end"></i>
+    </h5>
+    <div class="collapse show" id="filterSection">
+      <form method="get" class="row g-3 align-items-end">
+        <div class="col-md-5 col-lg-4">
+          <label class="form-label small text-muted">{% trans "شهر الإقرار" %}</label>
+          <div class="input-group">
+            <span class="input-group-text"><i class="fas fa-calendar-alt text-primary"></i></span>
+            <input type="month" name="month" class="form-control" value="{{ month_str }}">
+          </div>
+        </div>
+        <div class="col-md-3 col-lg-2">
+          <button type="submit" class="btn btn-primary w-100">
+            <i class="fas fa-search me-1"></i>{% trans "عرض الإقرار" %}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- جدول إقرار ضريبة القيمة المضافة المعياري (نموذج 10) -->
+  <div class="section-container mb-4">
+    <h5 class="section-title">
+      <i class="fas fa-file-alt me-2"></i>{% trans "بيانات إقرار ضريبة القيمة المضافة المعياري (نموذج 10 ض.ق.م)" %}
+    </h5>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle custom-table mb-0">
+        <thead>
+          <tr>
+            <th style="width: 50%;">{% trans "البند والبيان" %}</th>
+            <th class="text-end" style="width: 25%;">{% trans "القيمة الإجمالية للوعاء (EGP)" %}</th>
+            <th class="text-end" style="width: 25%;">{% trans "قيمة الضريبة (EGP)" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- Section 1: Output Tax -->
+          <tr class="bg-light fw-bold">
+            <td colspan="3"><i class="fas fa-arrow-circle-up text-primary me-2"></i>{% trans "أولاً: المبيعات والمخرجات الضريبية" %}</td>
+          </tr>
+          <tr>
+            <td class="ps-4">{% trans "1. مبيعات سلع وخدمات خاضعة للسعر العام (14%)" %}</td>
+            <td class="text-end">{{ summary.output_tax_base|smart_float:2 }}</td>
+            <td class="text-end fw-bold text-primary">{{ summary.output_tax_total|smart_float:2 }}</td>
+          </tr>
+          <tr>
+            <td class="ps-4">{% trans "2. مبيعات بسعر صفر (صادرات ومناطق حرة 0%)" %}</td>
+            <td class="text-end">{{ summary.zero_rated_sales_base|smart_float:2 }}</td>
+            <td class="text-end">0.00</td>
+          </tr>
+          <tr>
+            <td class="ps-4">{% trans "3. مبيعات معفاة بنص القانون" %}</td>
+            <td class="text-end">{{ summary.exempt_sales_base|smart_float:2 }}</td>
+            <td class="text-end">0.00</td>
+          </tr>
+          <tr class="fw-bold bg-light">
+            <td class="text-end">{% trans "إجمالي وعاء وضريبة المخرجات:" %}</td>
+            <td class="text-end">{{ summary.output_tax_base|smart_float:2 }}</td>
+            <td class="text-end text-primary">{{ summary.output_tax_total|smart_float:2 }}</td>
+          </tr>
+
+          <!-- Section 2: Input Tax -->
+          <tr class="bg-light fw-bold">
+            <td colspan="3"><i class="fas fa-arrow-circle-down text-success me-2"></i>{% trans "ثانياً: المشتريات والمدخلات الضريبية القابلة للخصم" %}</td>
+          </tr>
+          <tr>
+            <td class="ps-4">{% trans "1. مشتريات محلية ومصروفات خاضعة للضريبة وقابلة للاسترداد" %}</td>
+            <td class="text-end">{{ summary.input_tax_base|smart_float:2 }}</td>
+            <td class="text-end fw-bold text-success">{{ summary.input_tax_total|smart_float:2 }}</td>
+          </tr>
+          <tr class="fw-bold bg-light">
+            <td class="text-end">{% trans "إجمالي وعاء وضريبة المدخلات القابلة للخصم:" %}</td>
+            <td class="text-end">{{ summary.input_tax_base|smart_float:2 }}</td>
+            <td class="text-end text-success">{{ summary.input_tax_total|smart_float:2 }}</td>
+          </tr>
+
+          <!-- Section 3: Net Settlement -->
+          <tr class="bg-light fw-bold border-top border-2">
+            <td><i class="fas fa-balance-scale me-2 text-dark"></i>{% trans "ثالثاً: صافي الضريبة عن الفترة (المخرجات - المدخلات)" %}</td>
+            <td class="text-end">-</td>
+            <td class="text-end fs-5">
+              {% if summary.is_payable %}
+              <span class="text-danger fw-bold">+{{ summary.net_payable_amount|smart_float:2 }} EGP</span>
+              {% else %}
+              <span class="text-success fw-bold">-{{ summary.net_credit_carryforward|smart_float:2 }} EGP</span>
+              {% endif %}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- سكشن إنشاء قيد المقاصة والتسوية الشهرية -->
+  <div class="section-container">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+      <div>
+        <h5 class="section-title mb-1">
+          <i class="fas fa-magic text-primary me-2"></i>{% trans "إقفال ومقاصة الفترة الضريبية" %}
+        </h5>
+        <p class="text-muted small mb-0">
+          {% trans "عند الضغط على الزر، سيقوم النظام بإنشاء وترحيل قيد اليومية المحاسبي لإقفال حسابي 22010 و 11050 وتوجيه الصافي لحساب مصلحة الضرائب تلقائياً." %}
+        </p>
+      </div>
+      <div>
+        <form method="post" action="{% url 'financial:tax_post_vat_settlement' %}" class="d-inline" data-confirm="{% trans 'هل أنت متأكد من توليد وترحيل قيد المقاصة والتسوية الضريبية لهذا الشهر؟' %}" onsubmit="return confirm(this.getAttribute('data-confirm'));">
+          {% csrf_token %}
+          <input type="hidden" name="month" value="{{ month_str }}">
+          <button type="submit" class="btn btn-primary px-4 py-2 fw-bold shadow-sm">
+            <i class="fas fa-check-circle me-1"></i>{% trans "توليد قيد التسوية والمقاصة الشهرية الآن" %}
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

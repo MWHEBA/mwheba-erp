@@ -378,9 +378,11 @@
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid">
     <!-- Page Header المركزي -->
     {% include "shared/page_header.html" %}
+
+    <!-- شريط دورة حياة المستند المحوكم -->
+    {% include "components/document_lifecycle_stepper.html" with current_step=4 doc_created_at=sale.created_at doc_approved_by=sale.created_by.get_full_name journal_entry=sale.journal_entry journal_entry_id=sale.journal_entry_id %}
     
     <div class="row">
         <div class="col-12">
@@ -534,9 +536,10 @@
                                         {% endif %}
                                         <th>{% trans "المنتج" %}</th>
                                         <th style="width: 100px;">{% trans "الكمية" %}</th>
-                                        <th style="width: 150px;">{% trans "سعر الوحدة" %}</th>
-                                        <th style="width: 150px;">{% trans "الخصم" %}</th>
-                                        <th style="width: 150px;">{% trans "الإجمالي" %}</th>
+                                        <th style="width: 130px;">{% trans "سعر الوحدة" %}</th>
+                                        <th style="width: 110px;">{% trans "الخصم" %}</th>
+                                        <th style="width: 120px;">{% trans "الضريبة" %}</th>
+                                        <th style="width: 140px;">{% trans "الإجمالي" %}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -545,7 +548,7 @@
                                         <td>{{ forloop.counter }}</td>
                                         {% if settings.invoice_product_code_display and settings.invoice_product_code_display != 'none' %}
                                         <td class="text-muted small">
-                                            {% if settings.invoice_product_code_display == 'sku' %}
+                                             {% if settings.invoice_product_code_display == 'sku' %}
                                                 {{ item.product.code|default:item.product.sku|default:"-" }}
                                             {% elif settings.invoice_product_code_display == 'barcode' %}
                                                 {{ item.product.barcode|default:item.product.code|default:item.product.sku|default:"-" }}
@@ -565,6 +568,7 @@
                                         </td>
                                         <td>{{ item.unit_price|smart_float:2 }} {{ sale|get_currency_symbol:currency_symbol }}</td>
                                         <td>{% if item.discount and item.discount > 0 %}{{ item.discount|smart_float:2 }} {{ sale|get_currency_symbol:currency_symbol }}{% else %}-{% endif %}</td>
+                                        <td>{% if item.tax_amount and item.tax_amount > 0 %}<span class="badge bg-light text-dark border">{{ item.tax_amount|smart_float:2 }}</span>{% else %}-{% endif %}</td>
                                         <td class="fw-bold">{{ item.total|smart_float:2 }} {{ sale|get_currency_symbol:currency_symbol }}</td>
                                     </tr>
                                     {% endfor %}

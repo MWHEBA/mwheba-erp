@@ -608,6 +608,13 @@ def system_settings(request):
         {'title': 'إعدادات النظام', 'active': True}
     ]
 
+    default_vat_code = None
+    try:
+        from financial.models import TaxCode
+        default_vat_code = TaxCode.objects.filter(tax_type="VAT", is_default=True, is_active=True).first()
+    except Exception:
+        pass
+
     context = {
         "title": "إعدادات النظام",
         "subtitle": "إدارة إعدادات النظام العامة",
@@ -618,6 +625,7 @@ def system_settings(request):
         "form": form,
         "is_locked": has_transactions,
         "func_curr": func_curr,
+        "default_vat_code": default_vat_code,
     }
 
     return render(request, "core/system_settings.html", context)

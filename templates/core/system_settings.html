@@ -93,6 +93,24 @@
                 <form method="post" novalidate id="settingsForm">
                     {% csrf_token %}
                     
+                    {% if form.errors %}
+                    <div class="alert alert-danger border-0 shadow-sm mb-4">
+                        <h6 class="alert-heading fw-bold mb-2">
+                            <i class="fas fa-exclamation-triangle me-2"></i>يرجى تصحيح الأخطاء التالية لحفظ الإعدادات:
+                        </h6>
+                        <ul class="mb-0 small">
+                            {% for field in form %}
+                                {% for error in field.errors %}
+                                    <li><strong>{{ field.label }}:</strong> {{ error }}</li>
+                                {% endfor %}
+                            {% endfor %}
+                            {% for error in form.non_field_errors %}
+                                <li>{{ error }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+                    
                     <!-- Tabs Navigation -->
                     <ul class="nav nav-tabs mb-4" id="settingsTabs" role="tablist">
                         <style>
@@ -277,20 +295,29 @@
                                                 
                                                 <div class="mt-2 text-end">
                                                     <a href="{% url 'financial:currency_list' %}" class="btn btn-sm btn-outline-primary" target="_blank">
-                                                        <i class="fas fa-plus-circle me-1"></i>إدارة العملات وأسعار الصرف
+                                                        <i class="fas fa-coins me-1"></i>إدارة العملات وأسعار الصرف
                                                     </a>
                                                 </div>
                                             </div>
                                             
-                                            <div class="mb-0">
-                                                {{ form.default_tax_rate.label_tag }}
-                                                {{ form.default_tax_rate }}
-                                                {% if form.default_tax_rate.errors %}
-                                                    <div class="text-danger small mt-1">{{ form.default_tax_rate.errors }}</div>
-                                                {% endif %}
-                                                <small class="form-text text-muted">
-                                                    <i class="fas fa-info-circle"></i> نسبة الضريبة المضافة الافتراضية (مثال: 14 للضريبة 14%)
-                                                </small>
+                                            <div class="mb-0 pt-3 border-top">
+                                                <input type="hidden" name="default_tax_rate" value="{{ form.default_tax_rate.value|default:'14' }}">
+                                                <label class="form-label fw-bold"><i class="fas fa-percent text-primary me-1"></i>ضريبة القيمة المضافة الافتراضية (VAT)</label>
+                                                <div class="p-3 bg-white border rounded d-flex justify-content-between align-items-center">
+                                                    <div>
+                                                        <div class="fw-bold text-dark fs-6">
+                                                            {% if default_vat_code %}
+                                                                <i class="fas fa-check-circle text-success me-1"></i>{{ default_vat_code.name }} ({{ default_vat_code.code }} - {{ default_vat_code.rate|smart_float:2 }}%)
+                                                            {% else %}
+                                                                <i class="fas fa-info-circle text-primary me-1"></i>ضريبة القيمة المضافة العامة (14.00%)
+                                                            {% endif %}
+                                                        </div>
+                                                        <small class="text-muted">تُدار مركزياً وتلقائياً عبر المحرك الضريبي الموحد لضمان التوافق مع الفاتورة الإلكترونية.</small>
+                                                    </div>
+                                                    <a href="{% url 'financial:tax_code_list' %}" class="btn btn-sm btn-outline-primary" target="_blank">
+                                                        <i class="fas fa-sliders-h me-1"></i>إدارة أكواد وقواعد الضرائب
+                                                    </a>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -722,6 +749,42 @@ document.addEventListener('DOMContentLoaded', function() {
         enableThermalCheckbox.addEventListener('change', togglePaperWidthVisibility);
         togglePaperWidthVisibility();
     }
+
+    // ==================== Hash & Tab State Management ====================
+    function activateTabByHash(hash) {
+        if (!hash) return;
+        var cleanHash = hash.replace('#', '');
+        var targetTabBtn = document.querySelector(`#settingsTabs button[data-bs-target="#${cleanHash}"]`) || document.querySelector(`#settingsTabs a[href="#${cleanHash}"]`);
+        if (targetTabBtn) {
+            var tab = new bootstrap.Tab(targetTabBtn);
+            tab.show();
+        }
+    }
+
+    // تفعيل التبويب من الـ URL hash أو من التبويب الذي يحتوي على خطأ
+    var firstErrorField = document.querySelector('.tab-pane .text-danger, .tab-pane .is-invalid');
+    if (firstErrorField) {
+        var parentPane = firstErrorField.closest('.tab-pane');
+        if (parentPane && parentPane.id) {
+            activateTabByHash('#' + parentPane.id);
+        }
+    } else if (window.location.hash) {
+        activateTabByHash(window.location.hash);
+    } else {
+        var savedTab = localStorage.getItem('system_settings_active_tab');
+        if (savedTab) activateTabByHash(savedTab);
+    }
+
+    // حفظ التبويب النشط عند التغيير
+    document.querySelectorAll('#settingsTabs button[data-bs-toggle="tab"]').forEach(function(btn) {
+        btn.addEventListener('shown.bs.tab', function(e) {
+            var target = e.target.getAttribute('data-bs-target');
+            if (target) {
+                history.replaceState(null, null, target);
+                localStorage.setItem('system_settings_active_tab', target);
+            }
+        });
+    });
 
     // ==================== Initialize Tooltips ====================
     const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));

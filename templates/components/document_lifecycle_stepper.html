@@ -1,0 +1,111 @@
+{% load i18n %}
+{# Document Lifecycle Stepper Component (شريط مسار دورة حياة المستند المحوكم) #}
+<div class="document-stepper-container section-container p-3 mb-4">
+  <div class="d-flex align-items-center justify-content-between position-relative">
+    
+    {# 1. المسودة DRAFT #}
+    <div class="stepper-step text-center flex-fill position-relative">
+      <div class="stepper-icon-circle mx-auto mb-2 {% if current_step >= 1 %}step-completed{% else %}step-pending{% endif %}">
+        <i class="fas fa-file-alt"></i>
+      </div>
+      <div class="stepper-title fw-bold">{% trans "مسودة" %}</div>
+      <div class="stepper-subtitle text-muted small">{{ doc_created_at|date:"Y-m-d"|default:"-" }}</div>
+    </div>
+
+    <div class="stepper-line flex-fill {% if current_step >= 2 %}line-completed{% else %}line-pending{% endif %}"></div>
+
+    {# 2. الاعتماد والموافقة APPROVED #}
+    <div class="stepper-step text-center flex-fill position-relative">
+      <div class="stepper-icon-circle mx-auto mb-2 {% if current_step >= 2 %}step-completed{% elif current_step == 1.5 %}step-active{% else %}step-pending{% endif %}">
+        <i class="fas fa-check-double"></i>
+      </div>
+      <div class="stepper-title fw-bold">{% trans "معتمد" %}</div>
+      <div class="stepper-subtitle text-muted small">{{ doc_approved_by|default:"-" }}</div>
+    </div>
+
+    <div class="stepper-line flex-fill {% if current_step >= 3 %}line-completed{% else %}line-pending{% endif %}"></div>
+
+    {# 3. التنفيذ والاستلام / التسليم DELIVERED / FULFILLED #}
+    <div class="stepper-step text-center flex-fill position-relative">
+      <div class="stepper-icon-circle mx-auto mb-2 {% if current_step >= 3 %}step-completed{% elif current_step == 2.5 %}step-active{% else %}step-pending{% endif %}">
+        <i class="fas fa-boxes"></i>
+      </div>
+      <div class="stepper-title fw-bold">{% trans "الاستلام / التسليم" %}</div>
+      <div class="stepper-subtitle text-muted small">{{ doc_fulfillment_date|date:"Y-m-d"|default:"-" }}</div>
+    </div>
+
+    <div class="stepper-line flex-fill {% if current_step >= 4 %}line-completed{% else %}line-pending{% endif %}"></div>
+
+    {# 4. الترحيل المحاسبي بالاستاذ العام POSTED #}
+    <div class="stepper-step text-center flex-fill position-relative">
+      <div class="stepper-icon-circle mx-auto mb-2 {% if current_step >= 4 %}step-completed{% elif current_step == 3.5 %}step-active{% else %}step-pending{% endif %}">
+        <i class="fas fa-book"></i>
+      </div>
+      <div class="stepper-title fw-bold">{% trans "الدفتر العام" %}</div>
+      <div class="stepper-subtitle small">
+        {% if journal_entry %}
+          <a href="{% url 'financial:journal_entry_detail' journal_entry.id %}" class="btn btn-sm btn-outline-primary py-0 px-2 mt-1">
+            <i class="fas fa-link me-1"></i>{{ journal_entry.number }}
+          </a>
+        {% elif journal_entry_id %}
+          <a href="{% url 'financial:journal_entry_detail' journal_entry_id %}" class="btn btn-sm btn-outline-primary py-0 px-2 mt-1">
+            <i class="fas fa-link me-1"></i>{% trans "عرض القيد" %}
+          </a>
+        {% else %}
+          <span class="text-muted">{% trans "غير مرحل" %}</span>
+        {% endif %}
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<style>
+.document-stepper-container {
+  background-color: var(--surface-card, var(--card-bg, #ffffff));
+  border-radius: var(--border-radius, 8px);
+  border: 1px solid var(--border-color, #e2e8f0);
+}
+.stepper-icon-circle {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  transition: all 0.2s ease;
+}
+.stepper-icon-circle.step-completed {
+  background-color: var(--color-success, #198754);
+  color: #ffffff;
+}
+.stepper-icon-circle.step-active {
+  background-color: var(--color-primary, #0d6efd);
+  color: #ffffff;
+  box-shadow: 0 0 0 4px var(--primary-subtle, rgba(13, 110, 253, 0.15));
+}
+.stepper-icon-circle.step-pending {
+  background-color: var(--bg-light, #f8f9fa);
+  color: var(--text-muted, #6c757d);
+  border: 2px solid var(--border-color, #dee2e6);
+}
+.stepper-line {
+  height: 3px;
+  margin-top: -24px;
+  z-index: 1;
+}
+.stepper-line.line-completed {
+  background-color: var(--color-success, #198754);
+}
+.stepper-line.line-pending {
+  background-color: var(--border-color, #dee2e6);
+}
+.stepper-title {
+  font-size: 0.9rem;
+  color: var(--text-dark, #212529);
+}
+.stepper-subtitle {
+  font-size: 0.78rem;
+}
+</style>

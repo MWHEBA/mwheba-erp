@@ -287,6 +287,20 @@
                                     <a href="{% url 'purchase:purchase_detail' source_invoice.pk %}" class="btn btn-outline-primary btn-sm">
                                         <i class="fas fa-shopping-cart me-1"></i>فاتورة مشتريات: {{ source_invoice.number }}
                                     </a>
+                                {% elif source_invoice and invoice_type == 'sale' %}
+                                    <a href="{% url 'sale:sale_detail' source_invoice.pk %}" class="btn btn-outline-primary btn-sm">
+                                        <i class="fas fa-file-invoice me-1"></i>فاتورة مبيعات: {{ source_invoice.number }}
+                                    </a>
+                                {% endif %}
+
+                                {% if journal_entry.source_module == 'sale' and journal_entry.source_model == 'SalesInvoice' and journal_entry.source_id %}
+                                    <a href="{% url 'sale:sales_invoice_detail' journal_entry.source_id %}" class="btn btn-outline-success btn-sm">
+                                        <i class="fas fa-receipt me-1"></i>فاتورة مبيعات معتمدة
+                                    </a>
+                                {% elif journal_entry.source_module == 'purchase' and journal_entry.source_model == 'GoodsReceivedNote' and journal_entry.source_id %}
+                                    <a href="{% url 'purchase:grn_detail' journal_entry.source_id %}" class="btn btn-outline-warning btn-sm">
+                                        <i class="fas fa-truck-loading me-1"></i>إذن استلام مشتريات (GRN)
+                                    </a>
                                 {% endif %}
                             </div>
                         </div>

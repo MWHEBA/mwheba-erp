@@ -128,8 +128,17 @@ class AccountingGateway:
         'sale.Sale',
         'sale.SalePayment',
         'sale.SaleReturn',
+        'sale.SalesInvoice',
+        'sale.SalesOrder',
+        'sale.DeliveryNote',
         'purchase.Purchase',
         'purchase.PurchaseReturn',
+        'purchase.GoodsReceivedNote',
+        'purchase.SupplierBill',
+        'purchase.PurchaseOrder',
+        'financial.RevenueRecognitionSchedule',
+        'hr.PayrollRun',
+        'product.LandedCostDocument',
         'product.BatchVoucher',
         'product.BundleSale',
         'product.Product',
@@ -439,6 +448,13 @@ class AccountingGateway:
                     operation_duration=(timezone.now() - operation_start).total_seconds()
                 )
                 
+                # Synchronize Real-time Account Balance Snapshots
+                try:
+                    from financial.services.account_balance_sync_service import AccountBalanceSyncService
+                    AccountBalanceSyncService.sync_journal_entry(journal_entry)
+                except Exception as sync_err:
+                    logger.warning(f"AccountBalanceSync non-blocking error: {str(sync_err)}")
+
                 logger.info(
                     f"Journal entry created successfully: {journal_entry.number} "
                     f"for {source_module}.{source_model}#{source_id}"

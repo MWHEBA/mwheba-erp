@@ -94,8 +94,15 @@ class SalesReversalService:
                     # Find unit selling price from sales invoice item or delivery item so_item
                     unit_p = item.delivery_item.so_item.unit_price if hasattr(item.delivery_item, 'so_item') else Decimal("0.00")
                     line_sub = (qty * unit_p).quantize(Decimal("0.01"))
-                    # 14% VAT rate default
-                    line_vat = (line_sub * Decimal("0.14")).quantize(Decimal("0.01"))
+                    
+                    # Dynamically resolve product tax rate
+                    rate_val = Decimal("14.0000")
+                    if hasattr(item.product, 'tax_code') and item.product.tax_code:
+                        rate_val = item.product.tax_code.rate
+                    elif hasattr(item.product, 'tax_rate') and item.product.tax_rate is not None:
+                        rate_val = Decimal(str(item.product.tax_rate))
+
+                    line_vat = (line_sub * (rate_val / Decimal("100.00"))).quantize(Decimal("0.01"))
                     line_tot = line_sub + line_vat
 
                     CreditNoteItem.objects.create(
@@ -116,6 +123,25 @@ class SalesReversalService:
             cn.tax_amount = tot_tax
             cn.total_amount = tot_subtotal + tot_tax
             cn.save()
+
+            # Trigger Tax Reversal Audit if original invoice audit exists
+            try:
+                if ret_header.sales_invoice and tot_tax > Decimal("0.00"):
+                    from financial.models import TaxDeterminationAudit
+                    from financial.services.tax_service import TaxDeterminationService
+                    orig_audit = TaxDeterminationAudit.objects.filter(
+                        document_type="SalesInvoice",
+                        document_id=ret_header.sales_invoice.id
+                    ).first()
+                    if orig_audit:
+                        TaxDeterminationService.process_tax_reversal(
+                            audit_id=orig_audit.id,
+                            reversal_amount=tot_tax,
+                            reason=f"إشعار دائن مرتجع مبيعات #{cn.credit_note_number}",
+                            user=user
+                        )
+            except Exception as tax_rev_err:
+                logger.warning(f"Could not log tax reversal for credit note: {tax_rev_err}")
 
             logger.info(f"CreditNote #{cn.credit_note_number} created for SalesReturn #{ret_header.return_number} (Amount: {cn.total_amount}).")
             return cn
@@ -237,6 +263,18 @@ class SalesReversalService:
                     invoice_transaction_id=cn.sales_invoice.id,
                     allocated_amount=cn.total_amount
                 )
+                # Invalidate pending Revenue Recognition schedules for this invoice
+                try:
+                    from financial.models.revenue_recognition import RevenueRecognitionSchedule, RevenueRecognitionScheduleLine
+                    schedules = RevenueRecognitionSchedule.objects.filter(invoice_item__sales_invoice=cn.sales_invoice, status="ACTIVE")
+                    for sched in schedules:
+                        sched.lines.filter(status="SCHEDULED").update(status="REVERSED")
+                        sched.deferred_amount = Decimal("0.00")
+                        sched.status = "REVERSED"
+                        sched.save(update_fields=["deferred_amount", "status"])
+                        logger.info(f"Reversed pending Revenue Recognition Schedule #{sched.id} due to Credit Note #{cn.credit_note_number}")
+                except Exception as sched_err:
+                    logger.warning(f"Could not reverse revenue schedules for credit note #{cn.credit_note_number}: {sched_err}")
 
             old_stat = cn.status
             cn.status = "POSTED"

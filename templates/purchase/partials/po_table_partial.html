@@ -1,0 +1,98 @@
+{% load i18n %}
+{% load utils_extras %}
+
+<div class="table-responsive">
+  <table class="table table-hover align-middle mb-0 unified-table">
+    <thead class="table-light">
+      <tr>
+        <th class="ps-3">{% trans "رقم أمر الشراء" %}</th>
+        <th>{% trans "المورد" %}</th>
+        <th>{% trans "المستودع المستهدف" %}</th>
+        <th>{% trans "تاريخ الأمر" %}</th>
+        <th>{% trans "تاريخ التوريد المتوقع" %}</th>
+        <th>{% trans "القيمة الإجمالية" %}</th>
+        <th>{% trans "الحالة" %}</th>
+        <th class="text-end pe-3">{% trans "الإجراءات" %}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for po in orders %}
+      <tr class="clickable-row" data-href="{% url 'purchase:po_detail' po.id %}">
+        <td class="ps-3 fw-bold text-primary">
+          <i class="fas fa-file-invoice me-1"></i>{{ po.order_number }}
+        </td>
+        <td class="fw-semibold">
+          {{ po.supplier.name }}
+        </td>
+        <td>
+          <i class="fas fa-warehouse text-muted me-1"></i>{{ po.warehouse.name }}
+        </td>
+        <td>{{ po.order_date|date:"Y-m-d" }}</td>
+        <td>
+          {% if po.delivery_due_date %}
+            {{ po.delivery_due_date|date:"Y-m-d" }}
+          {% else %}
+            <span class="text-muted">-</span>
+          {% endif %}
+        </td>
+        <td class="fw-bold">
+          {{ po.total_amount|floatformat:2 }} {{ po.currency|default:"EGP" }}
+        </td>
+        <td>
+          {% if po.status == "DRAFT" %}
+            <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle"><i class="fas fa-edit me-1"></i>{% trans "مسودة" %}</span>
+          {% elif po.status == "SUBMITTED" %}
+            <span class="badge bg-warning-subtle text-warning border border-warning-subtle"><i class="fas fa-clock me-1"></i>{% trans "مقدم للاعتماد" %}</span>
+          {% elif po.status == "APPROVED" %}
+            <span class="badge bg-info-subtle text-info border border-info-subtle"><i class="fas fa-check-circle me-1"></i>{% trans "معتمد" %}</span>
+          {% elif po.status == "PARTIALLY_RECEIVED" %}
+            <span class="badge bg-primary-subtle text-primary border border-primary-subtle"><i class="fas fa-truck-loading me-1"></i>{% trans "مستلم جزئياً" %}</span>
+          {% elif po.status == "FULLY_RECEIVED" or po.status == "COMPLETED" %}
+            <span class="badge bg-success-subtle text-success border border-success-subtle"><i class="fas fa-check-double me-1"></i>{% trans "مكتمل" %}</span>
+          {% elif po.status == "CANCELLED" %}
+            <span class="badge bg-danger-subtle text-danger border border-danger-subtle"><i class="fas fa-times-circle me-1"></i>{% trans "ملغى" %}</span>
+          {% else %}
+            <span class="badge bg-secondary">{{ po.get_status_display }}</span>
+          {% endif %}
+        </td>
+        <td class="text-end pe-3 col-actions" onclick="event.stopPropagation();">
+          <div class="btn-group btn-group-sm">
+            <a href="{% url 'purchase:po_detail' po.id %}" class="btn btn-outline-secondary" title="{% trans 'عرض التفاصيل' %}">
+              <i class="fas fa-eye"></i>
+            </a>
+            <a href="{% url 'purchase:po_duplicate' po.id %}" class="btn btn-outline-primary" title="{% trans 'تكرار أمر الشراء' %}">
+              <i class="fas fa-copy"></i>
+            </a>
+            <a href="{% url 'purchase:po_print' po.id %}" target="_blank" class="btn btn-outline-dark" title="{% trans 'طباعة' %}">
+              <i class="fas fa-print"></i>
+            </a>
+            {% if po.status == "DRAFT" %}
+              <a href="{% url 'purchase:po_edit' po.id %}" class="btn btn-outline-secondary" title="{% trans 'تعديل' %}">
+                <i class="fas fa-edit"></i>
+              </a>
+            {% endif %}
+            {% if po.status in "APPROVED,PARTIALLY_RECEIVED" %}
+              <a href="{% url 'purchase:grn_create' %}?po_id={{ po.id }}" class="btn btn-outline-success" title="{% trans 'استلام بضاعة' %}">
+                <i class="fas fa-truck-loading"></i>
+              </a>
+            {% endif %}
+            {% if po.status in "DRAFT,CANCELLED" %}
+              <a href="{% url 'purchase:po_delete' po.id %}" class="btn btn-outline-danger" title="{% trans 'حذف' %}">
+                <i class="fas fa-trash-alt"></i>
+              </a>
+            {% endif %}
+          </div>
+        </td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="8" class="text-center py-5 text-muted">
+          <i class="fas fa-file-invoice fa-3x mb-3 text-secondary opacity-50 d-block"></i>
+          <h6>{% trans "لا توجد أوامر شراء مطابقة لمعايير البحث." %}</h6>
+          <p class="small mb-0">{% trans "يمكنك إنشاء أمر شراء جديد من الزر أعلاه." %}</p>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

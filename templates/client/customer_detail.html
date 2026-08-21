@@ -192,7 +192,17 @@
                 <i class="fas fa-file-invoice text-secondary mt-1 me-3"></i>
                 <div>
                   <small class="text-muted d-block mb-1">{% trans "الرقم الضريبي" %}</small>
-                  <span class="text-dark fw-semibold">{{ customer.tax_number|default:"-" }}</span>
+                  <span class="text-dark fw-semibold font-monospace">{{ customer.tax_number|default:"-" }}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-md-6 col-lg-4">
+              <div class="d-flex align-items-start">
+                <i class="fas fa-id-card text-secondary mt-1 me-3"></i>
+                <div>
+                  <small class="text-muted d-block mb-1">{% trans "الرقم القومي (للأفراد)" %}</small>
+                  <span class="text-dark fw-semibold font-monospace">{{ customer.national_id|default:"-" }}</span>
                 </div>
               </div>
             </div>
@@ -213,6 +223,18 @@
                 <div>
                   <small class="text-muted d-block mb-1">{% trans "الحد الائتماني" %}</small>
                   <span class="text-dark fw-semibold">{{ customer.credit_limit|smart_float }} {{ currency_symbol }}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-md-6 col-lg-4">
+              <div class="d-flex align-items-start">
+                <i class="fas fa-certificate text-secondary mt-1 me-3"></i>
+                <div>
+                  <small class="text-muted d-block mb-1">{% trans "شهادات الإعفاء الضريبي" %}</small>
+                  <a href="{% url 'financial:tax_exemptions_list' %}?search={{ customer.name }}" class="badge bg-light text-primary border text-decoration-none">
+                    <i class="fas fa-search me-1"></i>{% trans "استعراض الإعفاءات" %}
+                  </a>
                 </div>
               </div>
             </div>

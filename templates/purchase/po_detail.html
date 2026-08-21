@@ -1,0 +1,328 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load utils_extras %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Page Header -->
+  {% include "shared/page_header.html" with title=page_title subtitle="متابعة دورة حياة أمر الشراء وتوريدات المخازن والمطابقة المالية" icon="fas fa-file-invoice" header_buttons=header_buttons breadcrumb_items=breadcrumb_items %}
+
+  <!-- Document Lifecycle Stepper -->
+  <div class="mb-4">
+    {% include "components/document_lifecycle_stepper.html" with status=po.status doc_type="PO" %}
+  </div>
+
+  <!-- 4-Way KPI Summary Cards -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-3">
+      <div class="stats-card stats-card-info">
+        <div class="stats-card-body">
+          <div class="stats-card-icon"><i class="fas fa-boxes"></i></div>
+          <div class="stats-card-title">{% trans "الكمية المطلوبة (Ordered)" %}</div>
+          <div class="stats-card-value">{{ total_ordered_qty|floatformat:2 }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="stats-card stats-card-success">
+        <div class="stats-card-body">
+          <div class="stats-card-icon"><i class="fas fa-truck-loading"></i></div>
+          <div class="stats-card-title">{% trans "الكمية المستلمة (Received)" %}</div>
+          <div class="stats-card-value">{{ total_received_qty|floatformat:2 }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="stats-card stats-card-warning">
+        <div class="stats-card-body">
+          <div class="stats-card-icon"><i class="fas fa-hourglass-half"></i></div>
+          <div class="stats-card-title">{% trans "المتبقي للاستلام (Remaining)" %}</div>
+          <div class="stats-card-value">{{ total_remaining_qty|floatformat:2 }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="stats-card stats-card-danger">
+        <div class="stats-card-body">
+          <div class="stats-card-icon"><i class="fas fa-file-invoice-dollar"></i></div>
+          <div class="stats-card-title">{% trans "إجمالي القيمة التقديرية" %}</div>
+          <div class="stats-card-value">{{ po.total_amount|floatformat:2 }} {{ po.currency|default:"EGP" }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    <!-- Left Details Column -->
+    <div class="col-lg-8">
+      <!-- Items Section -->
+      <div class="section-container mb-4">
+        <h5 class="section-title"><i class="fas fa-list-check me-2"></i>{% trans "بنود أمر الشراء والتتبع الرباعي" %}</h5>
+
+        <div class="d-flex align-items-center justify-content-between mb-2">
+          <span class="small text-muted">{% trans "نسبة اكتمال التوريد والاستلام المخزني:" %}</span>
+          <span class="badge bg-primary-subtle text-primary border border-primary-subtle fw-bold">{{ receipt_progress }}%</span>
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="progress mb-3" style="height: 6px;">
+          <div class="progress-bar bg-primary" id="receiptProgressBar" role="progressbar" data-progress="{{ receipt_progress|default:0 }}" aria-valuenow="{{ receipt_progress|default:0 }}" aria-valuemin="0" aria-valuemax="100"></div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0 unified-table">
+            <thead class="table-light">
+              <tr>
+                <th class="ps-3">{% trans "المنتج / الصنف" %}</th>
+                <th>{% trans "الوحدة" %}</th>
+                <th class="text-center">{% trans "المطلوب" %}</th>
+                <th class="text-center">{% trans "المستلم" %}</th>
+                <th class="text-center">{% trans "المفوتر" %}</th>
+                <th class="text-center">{% trans "المتبقي" %}</th>
+                <th class="text-end">{% trans "سعر الوحدة" %}</th>
+                <th class="text-end pe-3">{% trans "الإجمالي" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in po.items.all %}
+              <tr>
+                <td class="ps-3 fw-semibold">
+                  <i class="fas fa-cube text-muted me-1"></i>{{ item.product.name }}
+                  <div class="small text-muted">كود: {{ item.product.sku|default:item.product.id }}</div>
+                </td>
+                <td>{{ item.unit.name|default:item.product.unit.name|default:"-" }}</td>
+                <td class="text-center fw-bold">{{ item.ordered_qty|floatformat:2 }}</td>
+                <td class="text-center fw-bold text-success">{{ item.received_qty|floatformat:2 }}</td>
+                <td class="text-center fw-bold text-info">{{ item.billed_qty|floatformat:2 }}</td>
+                <td class="text-center fw-bold {% if item.ordered_qty > item.received_qty %}text-warning{% else %}text-muted{% endif %}">
+                  {{ item.ordered_qty|subtract:item.received_qty|floatformat:2 }}
+                </td>
+                <td class="text-end">{{ item.unit_price|floatformat:2 }}</td>
+                <td class="text-end pe-3 fw-bold">{{ item.total_price|floatformat:2 }} {{ po.currency|default:"EGP" }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+            <tfoot class="table-light">
+              <tr>
+                <th colspan="7" class="text-end fw-bold">{% trans "الإجمالي الكلي:" %}</th>
+                <th class="text-end pe-3 fw-bold text-primary fs-6">{{ po.total_amount|floatformat:2 }} {{ po.currency|default:"EGP" }}</th>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+
+      <!-- Linked GRNs Section -->
+      <div class="section-container mb-4">
+        <h5 class="section-title"><i class="fas fa-truck-loading me-2 text-primary"></i>{% trans "أذون الاستلام المخزني المرتبطة (GRNs)" %}</h5>
+        {% if po.grns.all %}
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 unified-table">
+              <thead class="table-light">
+                <tr>
+                  <th class="ps-3">{% trans "رقم إذن الاستلام" %}</th>
+                  <th>{% trans "تاريخ الاستلام" %}</th>
+                  <th>{% trans "المستودع" %}</th>
+                  <th>{% trans "القيد المحاسبي" %}</th>
+                  <th>{% trans "الحالة" %}</th>
+                  <th class="text-end pe-3">{% trans "عرض" %}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for grn in po.grns.all %}
+                <tr class="clickable-row" data-href="{% url 'purchase:grn_detail' grn.id %}">
+                  <td class="ps-3 fw-bold text-primary"><i class="fas fa-receipt me-1"></i>{{ grn.grn_number }}</td>
+                  <td>{{ grn.received_date|date:"Y-m-d" }}</td>
+                  <td>{{ grn.warehouse.name }}</td>
+                  <td>
+                    {% if grn.journal_entry %}
+                      <span class="badge bg-success-subtle text-success border border-success-subtle"><i class="fas fa-check me-1"></i>قيد #{{ grn.journal_entry.id }}</span>
+                    {% else %}
+                      <span class="text-muted">-</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if grn.status == "POSTED" %}
+                      <span class="badge bg-success">مرحل</span>
+                    {% else %}
+                      <span class="badge bg-secondary">{{ grn.get_status_display }}</span>
+                    {% endif %}
+                  </td>
+                  <td class="text-end pe-3 col-actions" onclick="event.stopPropagation();">
+                    <a href="{% url 'purchase:grn_detail' grn.id %}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-eye"></i></a>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="text-center py-4 text-muted">
+            <i class="fas fa-truck-loading fa-2x mb-2 opacity-50 d-block"></i>
+            <p class="small mb-0">{% trans "لم يتم استلام أي بضائع بعد على هذا الأمر." %}</p>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Right Summary & Actions Column -->
+    <div class="col-lg-4">
+      <!-- Order Info Box -->
+      <div class="section-container mb-4">
+        <h5 class="section-title"><i class="fas fa-info-circle me-2 text-primary"></i>{% trans "بيانات أمر الشراء" %}</h5>
+        <div class="d-flex flex-column gap-2 small">
+          <div class="d-flex justify-content-between border-bottom pb-2">
+            <span class="text-muted">{% trans "المورد:" %}</span>
+            <span class="fw-bold"><a href="{% url 'supplier:supplier_detail' po.supplier.id %}">{{ po.supplier.name }}</a></span>
+          </div>
+          <div class="d-flex justify-content-between border-bottom pb-2">
+            <span class="text-muted">{% trans "المستودع المستهدف:" %}</span>
+            <span class="fw-semibold">{{ po.warehouse.name }}</span>
+          </div>
+          <div class="d-flex justify-content-between border-bottom pb-2">
+            <span class="text-muted">{% trans "تاريخ أمر الشراء:" %}</span>
+            <span>{{ po.order_date|date:"Y-m-d" }}</span>
+          </div>
+          <div class="d-flex justify-content-between border-bottom pb-2">
+            <span class="text-muted">{% trans "تاريخ التوريد المتوقع:" %}</span>
+            <span>{{ po.delivery_due_date|date:"Y-m-d"|default:"-" }}</span>
+          </div>
+          <div class="d-flex justify-content-between border-bottom pb-2">
+            <span class="text-muted">{% trans "العملة وسعر الصرف:" %}</span>
+            <span>{{ po.currency|default:"EGP" }} (1 = {{ po.exchange_rate }})</span>
+          </div>
+          <div class="d-flex justify-content-between border-bottom pb-2">
+            <span class="text-muted">{% trans "أنشئ بواسطة:" %}</span>
+            <span>{{ po.created_by.username|default:"-" }} ({{ po.created_at|date:"Y-m-d H:i" }})</span>
+          </div>
+          {% if po.approved_by %}
+          <div class="d-flex justify-content-between">
+            <span class="text-muted">{% trans "اعتمد بواسطة:" %}</span>
+            <span class="text-success fw-semibold"><i class="fas fa-check-circle me-1"></i>{{ po.approved_by.username }}</span>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Governance Actions Box -->
+      <div class="section-container mb-4">
+        <h5 class="section-title"><i class="fas fa-gavel me-2 text-primary"></i>{% trans "إجراءات الحوكمة والاعتماد" %}</h5>
+        <div class="d-grid gap-2">
+          {% if po.status == "DRAFT" %}
+            <form method="post" action="{% url 'purchase:po_submit' po.id %}">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-warning w-100 fw-bold">
+                <i class="fas fa-paper-plane me-1"></i>{% trans "تقديم أمر الشراء للاعتماد" %}
+              </button>
+            </form>
+          {% endif %}
+
+          {% if po.status in "DRAFT,SUBMITTED" %}
+            <form method="post" action="{% url 'purchase:po_approve' po.id %}">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-success w-100 fw-bold">
+                <i class="fas fa-check-circle me-1"></i>{% trans "اعتماد أمر الشراء للتجهيز" %}
+              </button>
+            </form>
+          {% endif %}
+
+          {% if po.status in "APPROVED,PARTIALLY_RECEIVED" and total_remaining_qty > 0 %}
+            <a href="{% url 'purchase:grn_create' %}?po_id={{ po.id }}" class="btn btn-primary fw-bold">
+              <i class="fas fa-truck-loading me-1"></i>{% trans "استلام بضاعة (إنشاء GRN)" %}
+            </a>
+
+            <!-- Short-Close Trigger -->
+            <button type="button" class="btn btn-outline-warning" data-bs-toggle="modal" data-bs-target="#shortCloseModal">
+              <i class="fas fa-ban me-1"></i>{% trans "إغلاق مبكر (Short-Close)" %}
+            </button>
+          {% endif %}
+
+          {% if po.status in "DRAFT,SUBMITTED,APPROVED" and total_received_qty == 0 %}
+            <!-- Cancel Trigger -->
+            <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#cancelModal">
+              <i class="fas fa-times-circle me-1"></i>{% trans "إلغاء أمر الشراء" %}
+            </button>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Short Close Modal -->
+<div class="modal fade" id="shortCloseModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header bg-light border-bottom px-4 py-3">
+        <h5 class="modal-title fw-bold text-dark mb-0"><i class="fas fa-ban text-warning me-2"></i>{% trans "تأكيد الإغلاق المبكر لأمر الشراء" %}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form method="post" action="{% url 'purchase:po_short_close' po.id %}">
+        {% csrf_token %}
+        <div class="modal-body p-4">
+          <p class="text-muted mb-3">{% trans "سيتم إغلاق أمر الشراء رسمياً وتصفير الكميات المتبقية للتوريد في تقارير المخازن والبضاعة بالطريق." %}</p>
+          <label class="form-label fw-bold">{% trans "سبب الإغلاق المبكر" %} <span class="text-danger">*</span></label>
+          <textarea name="reason" class="form-control" rows="3" required placeholder="{% trans 'اكتب سبب توقف التوريد أو اعتذار المورد...' %}"></textarea>
+        </div>
+        <div class="modal-footer bg-light border-top px-4 py-3">
+          <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+          <button type="submit" class="btn btn-warning px-4 fw-bold">{% trans "تأكيد الإغلاق المبكر" %}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Cancel Modal -->
+<div class="modal fade" id="cancelModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header bg-light border-bottom px-4 py-3">
+        <h5 class="modal-title fw-bold text-dark mb-0"><i class="fas fa-times-circle text-danger me-2"></i>{% trans "إلغاء أمر الشراء" %}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form method="post" action="{% url 'purchase:po_cancel' po.id %}">
+        {% csrf_token %}
+        <div class="modal-body p-4">
+          <p class="text-danger fw-semibold mb-3">{% trans "هل أنت متأكد من إلغاء أمر الشراء؟ لن يمكن التراجع عن هذا الإجراء." %}</p>
+          <label class="form-label fw-bold">{% trans "سبب الإلغاء" %} <span class="text-danger">*</span></label>
+          <textarea name="reason" class="form-control" rows="3" required placeholder="{% trans 'اكتب سبب الإلغاء...' %}"></textarea>
+        </div>
+        <div class="modal-footer bg-light border-top px-4 py-3">
+          <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "تراجع" %}</button>
+          <button type="submit" class="btn btn-danger px-4 fw-bold">{% trans "تأكيد الإلغاء" %}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  var progressBar = document.getElementById("receiptProgressBar");
+  if (progressBar) {
+    var p = progressBar.getAttribute("data-progress") || "0";
+    progressBar.style.width = p + "%";
+  }
+
+  document.querySelectorAll(".clickable-row").forEach(function(row) {
+    row.style.cursor = "pointer";
+    row.addEventListener("click", function(e) {
+      if (!e.target.closest(".col-actions, .btn, a, button")) {
+        var href = this.getAttribute("data-href");
+        if (href) window.location.href = href;
+      }
+    });
+  });
+});
+</script>
+{% endblock %}

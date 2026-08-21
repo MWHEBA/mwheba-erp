@@ -12,6 +12,12 @@ from .cost_center_views import (
     suggest_cost_center_code,
 )
 
+# من revenue_recognition_views.py
+from .revenue_recognition_views import (
+    revenue_recognition_dashboard_view,
+    process_due_revenues_action_view,
+)
+
 # من account_views.py
 from .account_views import (
     get_cash_and_bank_accounts,
@@ -202,6 +208,25 @@ from .budget_views import (
 # من tax_views.py
 from .tax_views import (
     tax_code_list,
+    tax_code_create,
+    tax_code_update,
+    tax_code_delete,
+    tax_seed_presets,
+    tax_rules_list,
+    tax_rule_create,
+    tax_rule_update,
+    tax_rule_delete,
+    tax_exemptions_list,
+    tax_exemption_create,
+    tax_exemption_update,
+    tax_exemption_delete,
+    tax_audit_list,
+    tax_audit_verify_ajax,
+    tax_events_list,
+    tax_return_vat_report,
+    tax_post_vat_settlement,
+    tax_withholding_report,
+    api_calculate_tax,
 )
 
 # من opening_balance_views.py

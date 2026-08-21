@@ -1,0 +1,216 @@
+{% load static %}
+{% load i18n %}
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <title>{{ page_title }}</title>
+  <link rel="stylesheet" href="{% static 'css/bootstrap.rtl.min.css' %}">
+  <style>
+    @media print {
+      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .no-print { display: none !important; }
+      @page { size: A4; margin: 15mm; }
+    }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background-color: #fff;
+      color: #212529;
+      padding: 20px;
+    }
+    .print-header {
+      border-bottom: 2px solid #212529;
+      padding-bottom: 15px;
+      margin-bottom: 20px;
+    }
+    .company-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+    }
+    .doc-title {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: #0d6efd;
+    }
+    .info-box {
+      background-color: #f8f9fa;
+      border: 1px solid #dee2e6;
+      border-radius: 4px;
+      padding: 12px;
+    }
+    .table-print th {
+      background-color: #e9ecef !important;
+      border: 1px solid #ced4da;
+    }
+    .table-print td {
+      border: 1px solid #ced4da;
+    }
+    .signatures {
+      margin-top: 50px;
+    }
+  </style>
+</head>
+<body>
+  <!-- Print Controls -->
+  <div class="no-print d-flex justify-content-end gap-2 mb-4">
+    <button onclick="window.print()" class="btn btn-primary px-4 fw-bold">
+      طباعة أمر الشراء (Print / PDF)
+    </button>
+    <button onclick="window.close()" class="btn btn-secondary px-3">
+      إغلاق
+    </button>
+  </div>
+
+  <!-- Document Header -->
+  <div class="print-header d-flex justify-content-between align-items-center">
+    <div>
+      <div class="company-title">MWHEBA ERP SOLUTIONS</div>
+      <div class="text-muted small">إدارة المشتريات والتوريدات المركزية</div>
+    </div>
+    <div class="text-start">
+      <div class="doc-title">أمر شراء معتمد (PURCHASE ORDER)</div>
+      <div class="fw-bold fs-6">رقم: {{ po.order_number }}</div>
+    </div>
+  </div>
+
+  <!-- Info Grid -->
+  <div class="row g-3 mb-4">
+    <div class="col-6">
+      <div class="info-box h-100">
+        <h6 class="fw-bold text-primary mb-2 border-bottom pb-1">بيانات المورد (Vendor Information)</h6>
+        <div class="d-flex justify-content-between mb-1">
+          <span class="text-muted">السيد / السادة:</span>
+          <span class="fw-bold">{{ po.supplier.name }}</span>
+        </div>
+        <div class="d-flex justify-content-between mb-1">
+          <span class="text-muted">رقم الهاتف:</span>
+          <span>{{ po.supplier.phone|default:"-" }}</span>
+        </div>
+        <div class="d-flex justify-content-between mb-1">
+          <span class="text-muted">الرقم الضريبي:</span>
+          <span>{{ po.supplier.tax_number|default:"-" }}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-6">
+      <div class="info-box h-100">
+        <h6 class="fw-bold text-primary mb-2 border-bottom pb-1">تفاصيل أمر الشراء والتسليم</h6>
+        <div class="d-flex justify-content-between mb-1">
+          <span class="text-muted">تاريخ الإصدار:</span>
+          <span>{{ po.order_date|date:"Y-m-d" }}</span>
+        </div>
+        <div class="d-flex justify-content-between mb-1">
+          <span class="text-muted">تاريخ التسليم المتوقع:</span>
+          <span>{{ po.delivery_due_date|date:"Y-m-d"|default:"-" }}</span>
+        </div>
+        <div class="d-flex justify-content-between mb-1">
+          <span class="text-muted">مكان ومستودع التسليم:</span>
+          <span class="fw-semibold">{{ po.warehouse.name }}</span>
+        </div>
+        <div class="d-flex justify-content-between mb-1">
+          <span class="text-muted">العملة:</span>
+          <span class="fw-bold">{{ po.currency|default:"EGP" }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Items Table -->
+  <table class="table table-bordered table-print align-middle mb-4">
+    <thead>
+      <tr>
+        <th style="width: 5%;" class="text-center">#</th>
+        <th style="width: 45%;">البيان / الصنف والمواصفات</th>
+        <th style="width: 15%;" class="text-center">وحدة القياس</th>
+        <th style="width: 15%;" class="text-center">الكمية</th>
+        <th style="width: 10%;" class="text-end">سعر الوحدة</th>
+        <th style="width: 10%;" class="text-end">القيمة الإجمالية</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in po.items.all %}
+      <tr>
+        <td class="text-center">{{ forloop.counter }}</td>
+        <td class="fw-bold">
+          {{ item.product.name }}
+          <div class="small text-muted fw-normal">كود: {{ item.product.sku|default:item.product.id }}</div>
+        </td>
+        <td class="text-center">{{ item.unit.name|default:item.product.unit.name|default:"-" }}</td>
+        <td class="text-center fw-bold">{{ item.ordered_qty|floatformat:2 }}</td>
+        <td class="text-end">{{ item.unit_price|floatformat:2 }}</td>
+        <td class="text-end fw-bold">{{ item.total_price|floatformat:2 }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr>
+        <th colspan="5" class="text-end fw-bold">المجموع الفرعي:</th>
+        <th class="text-end fw-bold">{{ po.subtotal|floatformat:2 }} {{ currency_symbol }}</th>
+      </tr>
+      {% if po.discount and po.discount > 0 %}
+      <tr>
+        <th colspan="5" class="text-end fw-bold text-danger">الخصم الإجمالي:</th>
+        <th class="text-end fw-bold text-danger">-{{ po.discount|floatformat:2 }} {{ currency_symbol }}</th>
+      </tr>
+      {% endif %}
+      {% if po.tax_amount and po.tax_amount > 0 %}
+      <tr>
+        <th colspan="5" class="text-end fw-bold">ضريبة القيمة المضافة ({{ po.vat_rate|floatformat:0 }}%):</th>
+        <th class="text-end fw-bold">+{{ po.tax_amount|floatformat:2 }} {{ currency_symbol }}</th>
+      </tr>
+      {% endif %}
+      {% if po.wht_amount and po.wht_amount > 0 %}
+      <tr>
+        <th colspan="5" class="text-end fw-bold text-warning">ضريبة الخصم والإضافة ({{ po.wht_rate|floatformat:0 }}%):</th>
+        <th class="text-end fw-bold text-warning">-{{ po.wht_amount|floatformat:2 }} {{ currency_symbol }}</th>
+      </tr>
+      {% endif %}
+      {% if po.adjustment_amount and po.adjustment_amount > 0 %}
+      <tr>
+        <th colspan="5" class="text-end fw-bold">{{ po.adjustment_name|default:"تسوية إضافية" }}:</th>
+        <th class="text-end fw-bold">{% if po.adjustment_type == 'subtract' %}-{% else %}+{% endif %}{{ po.adjustment_amount|floatformat:2 }} {{ currency_symbol }}</th>
+      </tr>
+      {% endif %}
+      <tr class="table-dark">
+        <th colspan="5" class="text-end fw-bold fs-6">الإجمالي النهائي المستحق:</th>
+        <th class="text-end fw-bold fs-6">{{ po.total_amount|floatformat:2 }} {{ currency_symbol }}</th>
+      </tr>
+    </tfoot>
+  </table>
+
+  <!-- Payment Terms & Notes -->
+  <div class="info-box mb-4">
+    <h6 class="fw-bold mb-1">الشروط والأحكام الخاصة بالتسليم والسداد:</h6>
+    <ul class="mb-0 small ps-3">
+      <li>يتم تسليم البضائع ومطابقتها وفق المواصفات المذكورة في مستودع: <strong>{{ po.warehouse.name }}</strong>.</li>
+      {% if po.payment_terms %}
+      <li><strong>شروط السداد:</strong> {{ po.payment_terms }}</li>
+      {% endif %}
+      <li>يتم إصدار إذن استلام رسمي (GRN) فور فحص واستلام البضاعة من قبل أمين المستودع.</li>
+    </ul>
+  </div>
+
+  <!-- Signatures Section -->
+  <div class="row signatures text-center">
+    <div class="col-4">
+      <div class="border-top pt-2">
+        <div class="fw-bold">إعداد مسؤول المشتريات</div>
+        <div class="small text-muted">{{ po.created_by.get_full_name|default:po.created_by.username }}</div>
+      </div>
+    </div>
+    <div class="col-4">
+      <div class="border-top pt-2">
+        <div class="fw-bold">اعتماد الإدارة المالية</div>
+        <div class="small text-muted">{% if po.approved_by %}{{ po.approved_by.get_full_name|default:po.approved_by.username }}{% else %}مكتب المدير المالي{% endif %}</div>
+      </div>
+    </div>
+    <div class="col-4">
+      <div class="border-top pt-2">
+        <div class="fw-bold">موافقة وتوقيع المورد</div>
+        <div class="small text-muted">الاسم والختم والتاريخ</div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

@@ -242,14 +242,18 @@ class RevenueRecognitionService:
                     f"exceeds allocated price ({schedule.allocated_transaction_price})."
                 )
 
-            # Resolve Account Mapping
+            # Resolve Account Mapping via AccountRoleRegistry
+            from financial.services.role_registry import AccountRoleRegistry
+            default_rev = AccountRoleRegistry.get_account_code("GENERAL_SALES_REVENUE")
+            default_def = AccountRoleRegistry.get_account_code("DEFERRED_REVENUE_ACCOUNT")
+
             mapping = RevenueRecognitionAccountMapping.objects.filter(
                 policy=schedule.policy, currency=schedule.currency
             ).first()
 
-            rev_account = mapping.revenue_account.code if mapping else "40100"
-            def_account = mapping.deferred_revenue_account.code if mapping else "21000"
-            asset_account = mapping.contract_asset_account.code if mapping and mapping.contract_asset_account else "11040"
+            rev_account = mapping.revenue_account.code if (mapping and mapping.revenue_account) else default_rev
+            def_account = mapping.deferred_revenue_account.code if (mapping and mapping.deferred_revenue_account) else default_def
+            asset_account = mapping.contract_asset_account.code if (mapping and mapping.contract_asset_account) else "11040"
 
             so = schedule.invoice_item.sales_invoice.sales_order
             ex_rate = so.exchange_rate if so else Decimal("1.000000")
@@ -408,3 +412,60 @@ class RevenueRecognitionService:
             timestamp=entry.created_at.isoformat()
         )
         return entry.audit_hash == expected_hash
+
+    @classmethod
+    def process_all_due_schedules(cls, as_of_date: Optional[Any] = None, user=None) -> Dict[str, Any]:
+        """
+        معالجة وترحيل كافة أقساط الاعتراف بالإيراد المستحقة حتى تاريخ محدد
+        مع حماية وتخطي الفترات المقفلة واستخدام مستخدم النظام الآلي
+        """
+        from financial.services.system_automation_user_service import SystemAutomationUserService
+        from financial.models.journal_entry import AccountingPeriod
+
+        target_date = as_of_date or timezone.now().date()
+        exec_user = user or SystemAutomationUserService.get_or_create_system_user()
+
+        due_lines = RevenueRecognitionScheduleLine.objects.filter(
+            status="SCHEDULED",
+            recognition_date__lte=target_date,
+            schedule__status="ACTIVE"
+        ).select_related("schedule__invoice_item__sales_invoice").order_by("recognition_date")
+
+        processed_count = 0
+        failed_count = 0
+        total_recognized = Decimal("0.00")
+        errors = []
+
+        for line in due_lines:
+            try:
+                # Check period lock status
+                period = AccountingPeriod.get_period_for_date(line.recognition_date)
+                if period and not period.can_post_entries():
+                    logger.warning(f"Period {period.name} is closed for line #{line.id}. Rolling forward recognition to today.")
+
+                event_id = f"EVT-REC-SCHED-{line.schedule_id}-L{line.id}-{target_date}"
+                entry = cls.process_recognition_event(
+                    event_id=event_id,
+                    schedule_id=line.schedule_id,
+                    schedule_line_id=line.id,
+                    recognition_event="TIME_MILESTONE",
+                    user=exec_user
+                )
+                processed_count += 1
+                total_recognized += entry.functional_amount
+            except Exception as e:
+                failed_count += 1
+                err_msg = f"Failed recognizing line #{line.id} (Schedule #{line.schedule_id}): {str(e)}"
+                logger.error(err_msg)
+                errors.append(err_msg)
+
+        summary = {
+            "target_date": str(target_date),
+            "processed_count": processed_count,
+            "failed_count": failed_count,
+            "total_recognized_amount": str(total_recognized),
+            "errors": errors
+        }
+        logger.info(f"Revenue Recognition Batch Complete: {processed_count} lines processed ({total_recognized} EGP), {failed_count} failed.")
+        return summary
+

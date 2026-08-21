@@ -61,7 +61,38 @@ from .api_views import (
     ajax_get_form_data,
 )
 
+# PO Views
+from .po_views import (
+    po_list,
+    po_create,
+    po_edit,
+    po_detail,
+    po_print,
+    po_pdf_download,
+    po_email_pdf,
+    po_duplicate,
+    po_delete,
+    po_submit,
+    po_approve,
+    po_short_close,
+    po_cancel,
+)
+
 __all__ = [
+    # Purchase Order Views
+    'po_list',
+    'po_create',
+    'po_edit',
+    'po_detail',
+    'po_print',
+    'po_pdf_download',
+    'po_email_pdf',
+    'po_duplicate',
+    'po_delete',
+    'po_submit',
+    'po_approve',
+    'po_short_close',
+    'po_cancel',
     # Purchase Invoice Views
     'purchase_list',
     'purchase_create',

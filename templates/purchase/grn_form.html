@@ -39,7 +39,7 @@
           <select class="form-select" id="supplier" name="supplier" required>
             <option value="">{% trans "-- اختر المورد --" %}</option>
             {% for sup in suppliers %}
-              <option value="{{ sup.id }}" {% if (po_obj and po_obj.supplier_id == sup.id) or (purchase and purchase.supplier_id == sup.id) %}selected{% endif %}>{{ sup.name }}</option>
+              <option value="{{ sup.id }}" {% if po_obj.supplier_id == sup.id or purchase.supplier_id == sup.id %}selected{% endif %}>{{ sup.name }}</option>
             {% endfor %}
           </select>
         </div>
@@ -49,7 +49,7 @@
           <select class="form-select" id="warehouse" name="warehouse" required>
             <option value="">{% trans "-- اختر المستودع --" %}</option>
             {% for wh in warehouses %}
-              <option value="{{ wh.id }}" {% if (po_obj and po_obj.warehouse_id == wh.id) or (purchase and purchase.warehouse_id == wh.id) %}selected{% endif %}>{{ wh.name }}</option>
+              <option value="{{ wh.id }}" {% if po_obj.warehouse_id == wh.id or purchase.warehouse_id == wh.id %}selected{% endif %}>{{ wh.name }}</option>
             {% endfor %}
           </select>
         </div>
@@ -124,7 +124,7 @@
                   <select name="product[]" class="form-select product-select" required>
                     <option value="">{% trans "-- اختر المنتج --" %}</option>
                     {% for prod in products %}
-                      <option value="{{ prod.id }}">{{ prod.name }}</option>
+                      <option value="{{ prod.id }}" data-cost-price="{{ prod.cost_price|default:'0.00' }}">{{ prod.name }} (كود: {{ prod.code|default:"-" }})</option>
                     {% endfor %}
                   </select>
                 </td>
@@ -132,7 +132,7 @@
                   <input type="number" step="0.0001" min="0.0001" name="quantity[]" class="form-control qty-input" value="1.0000" required>
                 </td>
                 <td>
-                  <input type="number" step="0.0001" min="0" name="unit_price[]" class="form-control price-input" value="0.00">
+                  <input type="number" step="0.0001" min="0" name="unit_price[]" class="form-control price-input bg-light" value="0.00" readonly title="{% trans 'يتم السحب تلقائياً من سعر التكلفة القياسي للصنف أو أمر الشراء المعتمد' %}">
                 </td>
                 <td>
                   <span class="row-total fw-bold font-monospace">0.00 {{ currency_symbol|default:"EGP" }}</span>
@@ -178,9 +178,28 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   function bindRowEvents(row) {
-    row.querySelectorAll('.qty-input, .price-input').forEach(input => {
-      input.addEventListener('input', () => calculateRow(row));
-    });
+    const productSelect = row.querySelector('.product-select');
+    const priceInput = row.querySelector('.price-input');
+    const qtyInput = row.querySelector('.qty-input');
+
+    if (productSelect) {
+      productSelect.addEventListener('change', function() {
+        const selectedOpt = this.options[this.selectedIndex];
+        const costPrice = selectedOpt.getAttribute('data-cost-price') || '0.00';
+        if (priceInput) {
+          priceInput.value = parseFloat(costPrice).toFixed(2);
+        }
+        calculateRow(row);
+      });
+    }
+
+    if (qtyInput) {
+      qtyInput.addEventListener('input', () => calculateRow(row));
+    }
+    if (priceInput) {
+      priceInput.addEventListener('input', () => calculateRow(row));
+    }
+
     row.querySelector('.remove-row-btn').addEventListener('click', () => {
       if (itemsTable.querySelectorAll('.item-row').length > 1) {
         row.remove();

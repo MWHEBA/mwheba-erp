@@ -42,11 +42,23 @@ class SourceLinkageService:
         'sale.Sale',  # Added for sale invoices
         'sale.SalePayment',  # Added for sale payments
         'sale.SaleReturn',  # Added for sale returns
+        'sale.SalesInvoice',  # Master Sales Invoice (FIN-SAL-001)
+        'sale.SalesOrder',  # Sales Order
+        'sale.DeliveryNote',  # Delivery Note
         'purchase.Purchase',  # Added for purchase invoices
         'purchase.PurchaseReturn',  # Added for purchase returns
+        'purchase.GoodsReceivedNote',  # Goods Received Note (GRN)
+        'purchase.SupplierBill',  # Supplier Bill (FIN-PUR-001)
+        'purchase.PurchaseOrder',  # Purchase Order
+        'financial.RevenueRecognitionSchedule',  # Revenue Recognition (IFRS 15)
+        'hr.PayrollRun',  # Payroll Run
+        'product.LandedCostDocument',  # Landed Cost
         'product.BatchVoucher',  # Added for batch vouchers
         'product.BundleSale',  # Added for bundle sale transactions
         'product.Product',  # Added for product master transactions
+        'operations.WorkOrder',  # Operational Work Order
+        'operations.ProductionRun',  # Production Run
+        'operations.MaintenanceTask',  # Maintenance Task
     }
     
     @classmethod

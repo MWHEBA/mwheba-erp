@@ -1,0 +1,80 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  {% include "shared/page_header.html" %}
+
+  <div class="row justify-content-center">
+    <div class="col-lg-8">
+      <div class="section-container">
+        <h5 class="section-title mb-4">
+          <i class="fas fa-gavel me-2"></i>{% if rule %}{% trans "تعديل القاعدة الضريبية" %}{% else %}{% trans "إضافة قاعدة ضريبية جديدة" %}{% endif %}
+        </h5>
+
+        <form method="post" novalidate>
+          {% csrf_token %}
+          
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">{% trans "كود القاعدة" %} <small class="text-muted">({% trans "توليد تلقائي إن تُرك فارغاً" %})</small></label>
+              {{ form.code }}
+              {% if form.code.errors %}<div class="text-danger small mt-1">{{ form.code.errors.0 }}</div>{% endif %}
+            </div>
+            <div class="col-md-6">
+              <label class="form-label required">{% trans "اسم القاعدة" %}</label>
+              {{ form.name }}
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label required">{% trans "الأولوية (الرقم الأكبر أعلى أولوية)" %}</label>
+              {{ form.priority }}
+            </div>
+            <div class="col-md-4">
+              <label class="form-label required">{% trans "نطاق التطبيق" %}</label>
+              {{ form.rule_scope }}
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">{% trans "قيمة النطاق (معرف الصنف/الفئة)" %}</label>
+              {{ form.scope_value }}
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label required">{% trans "كود الضريبة المطبق" %}</label>
+              {{ form.tax_code }}
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">{% trans "النطاق الضريبي / الهيئة" %}</label>
+              {{ form.jurisdiction }}
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">{% trans "سارية من" %}</label>
+              {{ form.effective_from }}
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">{% trans "سارية إلى" %}</label>
+              {{ form.effective_to }}
+            </div>
+
+            <div class="col-12 mt-3 border-top pt-3">
+              <div class="form-check form-switch">
+                {{ form.is_active }}
+                <label class="form-check-label fw-semibold" for="{{ form.is_active.id_for_label }}">{% trans "قاعدة نشطة" %}</label>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-4 pt-3 border-top d-flex justify-content-end gap-2">
+            <a href="{% url 'financial:tax_rules_list' %}" class="btn btn-secondary px-4">{% trans "إلغاء" %}</a>
+            <button type="submit" class="btn btn-primary px-4 fw-bold"><i class="fas fa-save me-1"></i>{% trans "حفظ القاعدة" %}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

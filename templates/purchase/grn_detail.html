@@ -10,9 +10,11 @@
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid">
   <!-- Page Header -->
   {% include "shared/page_header.html" with title=title|default:"تفاصيل إذن استلام المشتريات" subtitle=grn.grn_number icon="fas fa-truck-loading" %}
+
+  <!-- شريط دورة حياة المستند المحوكم -->
+  {% include "components/document_lifecycle_stepper.html" with current_step=4 doc_created_at=grn.created_at doc_approved_by=grn.approved_by.get_full_name journal_entry=grn.journal_entry journal_entry_id=grn.journal_entry_id %}
 
   <!-- Actions Bar -->
   <div class="d-flex justify-content-between align-items-center mb-4 p-3 bg-light border rounded shadow-sm">

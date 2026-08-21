@@ -442,8 +442,33 @@ urlpatterns = [
     path("reports/profitability/export/excel/", views.export_profitability_excel, name="profitability_export_excel"),
     path("reports/profitability/<str:code>/export/excel/", views.export_category_detail_excel, name="category_detail_export_excel"),
 
-    # الضرائب والأرصدة الافتتاحية وصندوق الموافقات
+    # الضرائب والمحرك الضريبي المتقدم ومستكشف التدقيق والإقرارات
     path("tax-codes/", views.tax_code_list, name="tax_code_list"),
+    path("tax-codes/create/", views.tax_code_create, name="tax_code_create"),
+    path("tax-codes/<int:pk>/edit/", views.tax_code_update, name="tax_code_update"),
+    path("tax-codes/<int:pk>/delete/", views.tax_code_delete, name="tax_code_delete"),
+    path("tax-codes/seed-presets/", views.tax_seed_presets, name="tax_seed_presets"),
+    
+    path("tax-rules/", views.tax_rules_list, name="tax_rules_list"),
+    path("tax-rules/create/", views.tax_rule_create, name="tax_rule_create"),
+    path("tax-rules/<int:pk>/edit/", views.tax_rule_update, name="tax_rule_update"),
+    path("tax-rules/<int:pk>/delete/", views.tax_rule_delete, name="tax_rule_delete"),
+
+    path("tax-exemptions/", views.tax_exemptions_list, name="tax_exemptions_list"),
+    path("tax-exemptions/create/", views.tax_exemption_create, name="tax_exemption_create"),
+    path("tax-exemptions/<int:pk>/edit/", views.tax_exemption_update, name="tax_exemption_update"),
+    path("tax-exemptions/<int:pk>/delete/", views.tax_exemption_delete, name="tax_exemption_delete"),
+
+    path("tax-audit/", views.tax_audit_list, name="tax_audit_list"),
+    path("tax-audit/<int:pk>/verify-ajax/", views.tax_audit_verify_ajax, name="tax_audit_verify_ajax"),
+    path("tax-events/", views.tax_events_list, name="tax_events_list"),
+
+    path("tax-reports/vat-return/", views.tax_return_vat_report, name="tax_return_vat_report"),
+    path("tax-reports/vat-return/post-settlement/", views.tax_post_vat_settlement, name="tax_post_vat_settlement"),
+    path("tax-reports/withholding/", views.tax_withholding_report, name="tax_withholding_report"),
+    path("api/tax/calculate/", views.api_calculate_tax, name="api_calculate_tax"),
+
+    # الأرصدة الافتتاحية وصندوق الموافقات
     path("opening-balances/", views.opening_balance_list, name="opening_balance_list"),
     path("opening-balances/create/", views.opening_balance_wizard, name="opening_balance_create"),
     path("opening-balances/download-template/", views.opening_balance_download_template, name="opening_balance_download_template"),
@@ -466,4 +491,8 @@ urlpatterns = [
     path("api/exchange-rates/sync/", views.api_sync_exchange_rates, name="api_sync_exchange_rates"),
     path("api/exchange-rate/get/", views.api_get_exchange_rate, name="api_get_exchange_rate"),
     path("fx-revaluation/", views.fx_revaluation_view, name="fx_revaluation"),
+    
+    # إقرار وتوزيع الإيرادات المؤجلة (IFRS 15)
+    path("revenue-recognition/", views.revenue_recognition_dashboard_view, name="revenue_recognition_dashboard"),
+    path("revenue-recognition/process-due/", views.process_due_revenues_action_view, name="process_due_revenues_action"),
 ]

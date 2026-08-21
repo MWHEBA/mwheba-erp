@@ -178,23 +178,58 @@ def create_journal_entry_for_expense(cleaned_data, user):
         category=financial_category
     )
     
-    # إنشاء القيد عبر AccountingGateway
-    gateway = AccountingGateway()
+    # احتساب ضريبة القيمة المضافة والخصم والتحصيل (FIN-TAX-001)
+    base_amount = cleaned_data['amount']
+    vat_active = cleaned_data.get('vat_active', False)
+    wht_rate_val = Decimal(str(cleaned_data.get('wht_rate', 0) or 0))
+
+    vat_amount = (base_amount * Decimal("0.14")).quantize(Decimal("0.01")) if vat_active else Decimal("0.00")
+    wht_amount = (base_amount * (wht_rate_val / Decimal("100.00"))).quantize(Decimal("0.01")) if wht_rate_val > Decimal("0.00") else Decimal("0.00")
     
+    # Net paid from treasury/bank = Base + VAT - WHT
+    net_payment = base_amount + vat_amount - wht_amount
+
+    from financial.services.role_registry import AccountRoleRegistry
+    input_vat_acc = AccountRoleRegistry.get_account_code("INPUT_TAX_ACCOUNT") or "11050"
+    wht_payable_acc = AccountRoleRegistry.get_account_code("WITHHOLDING_TAX_PAYABLE") or "21050"
+
     lines = [
         JournalEntryLineData(
             account_code=expense_account.code,
-            debit=cleaned_data['amount'],
+            debit=base_amount,
             credit=Decimal('0'),
             description=cleaned_data['description']
         ),
+    ]
+
+    if vat_amount > Decimal("0.00"):
+        lines.append(
+            JournalEntryLineData(
+                account_code=input_vat_acc,
+                debit=vat_amount,
+                credit=Decimal('0'),
+                description=f"ضريبة القيمة المضافة على المصروف (14%) - {cleaned_data['description']}"
+            )
+        )
+
+    if wht_amount > Decimal("0.00"):
+        lines.append(
+            JournalEntryLineData(
+                account_code=wht_payable_acc,
+                debit=Decimal('0'),
+                credit=wht_amount,
+                description=f"ضريبة الخصم والتحصيل من المنبع ({wht_rate_val}%) - {cleaned_data['description']}"
+            )
+        )
+
+    lines.append(
         JournalEntryLineData(
             account_code=payment_account.code,
             debit=Decimal('0'),
-            credit=cleaned_data['amount'],
-            description=cleaned_data['description']
+            credit=net_payment,
+            description=f"سداد صافي المصروف من الخزينة/البنك - {cleaned_data['description']}"
         )
-    ]
+    )
     
     # استخدام FinancialTransaction كـ source
     journal_entry = gateway.create_journal_entry(
@@ -214,9 +249,23 @@ def create_journal_entry_for_expense(cleaned_data, user):
     if cleaned_data.get('notes'):
         journal_entry.notes = cleaned_data['notes']
         journal_entry.save(update_fields=['notes'])
-    
-    # ملاحظة: القيد يتم ترحيله تلقائياً عند الإنشاء عبر AccountingGateway
-    # لا حاجة لاستدعاء post_journal_entry - القيد يُنشأ بحالة 'posted' مباشرة
+
+    # توثيق الإثبات الضريبي للمصروف
+    try:
+        from financial.services.tax_service import TaxDeterminationService
+        if vat_amount > Decimal("0.00") or wht_amount > Decimal("0.00"):
+            tax_lines = [{"line_id": transaction.id, "amount": base_amount, "tax_code": "VAT14_IN" if vat_active else "WHT_01"}]
+            TaxDeterminationService.apply_tax_posting(
+                document_type="Expense",
+                document_id=transaction.id,
+                document_number=f"EXP-{transaction.id}",
+                supplier=cleaned_data.get('supplier'),
+                lines=tax_lines,
+                user=user,
+                journal_entry=journal_entry
+            )
+    except Exception as tax_err:
+        pass
     
     return journal_entry
 

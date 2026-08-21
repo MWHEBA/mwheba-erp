@@ -93,6 +93,24 @@ class PurchaseService:
                 PartnerSubledgerService.record_purchase_bill(purchase, user)
                 func_tot = getattr(purchase, "total_functional", None) or (purchase.total * (getattr(purchase, "exchange_rate", Decimal("1.000000")) or Decimal("1.000000"))).quantize(Decimal("0.01"))
                 PartnerBalanceService.apply_document_delta("supplier", purchase.supplier.id, func_tot, is_addition=True)
+
+            # 7. توثيق التدقيق والحدث الضريبي (FIN-TAX-001)
+            try:
+                from financial.services.tax_service import TaxDeterminationService
+                tax_lines = [{"line_id": item.id, "amount": item.total, "product_id": item.product_id} for item in purchase.items.all()]
+                TaxDeterminationService.apply_tax_posting(
+                    document_type="PurchaseInvoice",
+                    document_id=purchase.id,
+                    document_number=purchase.number,
+                    supplier=purchase.supplier,
+                    lines=tax_lines,
+                    currency=getattr(purchase, "currency", "EGP") or "EGP",
+                    exchange_rate=getattr(purchase, "exchange_rate", Decimal("1.000000")) or Decimal("1.000000"),
+                    user=user,
+                    journal_entry=journal_entry
+                )
+            except Exception as tax_err:
+                logger.warning(f"Could not apply tax posting for purchase invoice {purchase.number}: {tax_err}")
             
             logger.info(f"✅ تم إنشاء فاتورة المشتريات بنجاح: {purchase.number}")
             return purchase

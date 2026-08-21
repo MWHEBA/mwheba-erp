@@ -85,6 +85,27 @@ class ExpenseForm(forms.Form):
         widget=forms.Select(attrs={"class": "form-select"}),
     )
 
+    # الضرائب والخصم والتحصيل (FIN-TAX-001)
+    vat_active = forms.BooleanField(
+        label="خاضع لضريبة القيمة المضافة (14%)",
+        required=False,
+        initial=False,
+        widget=forms.CheckboxInput(attrs={"class": "form-check-input"}),
+    )
+
+    wht_rate = forms.ChoiceField(
+        label="نسبة الخصم والتحصيل من المنبع",
+        required=False,
+        initial="0",
+        choices=(
+            ("0", "بدون خصم (0%)"),
+            ("1", "توريدات ومقاولات (1%)"),
+            ("3", "خدمات وصيانة (3%)"),
+            ("5", "مهن حرة واستشارات (5%)"),
+        ),
+        widget=forms.Select(attrs={"class": "form-select font-monospace"}),
+    )
+
     # حالة الترحيل
     auto_post = forms.BooleanField(
         label="ترحيل تلقائي",

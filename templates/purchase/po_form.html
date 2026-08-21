@@ -1,0 +1,794 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load crispy_forms_tags %}
+{% load custom_filters %}
+{% load utils_extras %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+<link rel="stylesheet" href="{% static 'css/forms.css' %}">
+<link rel="stylesheet" href="{% static 'css/select2.min.css' %}">
+<style>
+    .header-subcard {
+        background-color: var(--bs-card-bg, #fff);
+        border: 1px solid var(--border-color, #e2e8f0);
+        border-radius: 8px;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+    .header-subcard-header {
+        padding: 12px 16px;
+        background-color: var(--bg-light, #f8fafc);
+        border-bottom: 1px solid var(--border-color, #e2e8f0);
+        border-top-left-radius: 8px;
+        border-top-right-radius: 8px;
+    }
+    .header-subcard-title {
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: var(--text-color, #1e293b);
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .header-subcard-body {
+        padding: 16px;
+        flex: 1;
+    }
+    .item-row {
+        background: var(--bs-card-bg, #fff);
+        border: 1px solid var(--border-color, #e2e8f0);
+        border-radius: 6px;
+        padding: 12px;
+        margin-bottom: 8px;
+        position: relative;
+        transition: border-color 0.2s;
+    }
+    .item-row:hover {
+        border-color: var(--primary-color, #0d6efd);
+    }
+    .remove-item {
+        color: var(--danger-color, #dc3545);
+        cursor: pointer;
+        position: absolute;
+        top: 8px;
+        left: 8px;
+        font-size: 1.1rem;
+        transition: transform 0.2s;
+    }
+    .remove-item:hover {
+        transform: scale(1.15);
+    }
+    .product-picker-btn {
+        width: 100%;
+        text-align: right;
+        background: var(--bg-light, #f8fafc);
+        border: 1px solid var(--border-color, #cbd5e1);
+        border-radius: 6px;
+        padding: 6px 12px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        cursor: pointer;
+        font-size: 0.9rem;
+    }
+    .product-picker-btn:hover {
+        background: #e2e8f0;
+    }
+    .stock-info {
+        font-size: 0.75rem;
+        padding: 2px 6px;
+        border-radius: 4px;
+        background: #e0f2fe;
+        color: #0369a1;
+        font-weight: 600;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div id="django-po-form-data" class="d-none"
+         data-po-id="{% if po %}{{ po.id }}{% else %}0{% endif %}"
+         data-currency-symbol="{{ currency_symbol }}"
+    ></div>
+
+    <script type="application/json" id="custom-fields-initial-json">
+      {% if custom_fields_json %}{{ custom_fields_json|safe }}{% else %}[]{% endif %}
+    </script>
+
+    {% include "shared/page_header.html" %}
+
+    <form method="post" id="po-form" novalidate>
+        {% csrf_token %}
+        
+        {% if form.errors %}
+        <div class="alert alert-danger border-0 mb-4">
+            <h6 class="alert-heading mb-2">يرجى تصحيح الأخطاء التالية:</h6>
+            <ul class="mb-0">
+                {% for field in form %}
+                    {% for error in field.errors %}
+                        <li><strong>{{ field.label }}:</strong> {{ error }}</li>
+                    {% endfor %}
+                {% endfor %}
+                {% for error in form.non_field_errors %}
+                    <li>{{ error }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+        
+        <!-- القسم الأول: بيانات أمر الشراء والمورد والعملة -->
+        <div class="section-container mb-4">
+            <h5 class="section-title"><i class="fas fa-file-invoice me-2"></i>بيانات أمر الشراء والمورد والعملة</h5>
+            <div class="invoice-header-wrapper">
+                <div class="row g-3 align-items-stretch">
+                    <!-- العمود الأيمن: بيانات المورد والمخزن والعمليات -->
+                    <div class="col-12 col-lg-6">
+                        <div class="header-subcard">
+                            <div class="header-subcard-header">
+                                <h6 class="header-subcard-title">
+                                    <i class="fas fa-truck text-primary"></i> بيانات المورد والمستودع
+                                </h6>
+                            </div>
+                            <div class="header-subcard-body">
+                                <div class="row g-3">
+                                    <!-- المورد -->
+                                    <div class="col-12 col-md-6">
+                                        <label class="form-label d-flex justify-content-between align-items-center w-100">
+                                            <span>{% trans "المورد" %} <span class="text-danger">*</span></span>
+                                            {% if not po %}
+                                            <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none" id="btn-add-supplier-modal" style="color: var(--primary-color); font-size: 0.8rem;">
+                                                <i class="fas fa-plus-circle me-1"></i>{% trans "مورد جديد" %}
+                                            </button>
+                                            {% endif %}
+                                        </label>
+                                        {% if po and po.status != 'DRAFT' %}
+                                            <input type="text" class="form-control bg-light" value="{{ po.supplier.name }}" readonly>
+                                            <input type="hidden" name="supplier" value="{{ po.supplier.id }}">
+                                        {% else %}
+                                            <select name="supplier" id="id_supplier" class="form-select select2-init" required>
+                                                <option value="">{% trans "اختر المورد" %}</option>
+                                                {% for s in suppliers %}
+                                                    <option value="{{ s.id }}" 
+                                                        {% if form.supplier.value == s.id|stringformat:'s' or selected_supplier.id == s.id or form.instance.supplier_id == s.id %}selected{% endif %}
+                                                        data-currency="{{ s.default_currency.id|default:'' }}"
+                                                        data-payment-terms="{{ s.payment_terms|default:'' }}"
+                                                        data-min-order="{{ s.min_order_amount|default:0 }}"
+                                                    >
+                                                        {{ s.name }}
+                                                    </option>
+                                                {% endfor %}
+                                            </select>
+                                        {% endif %}
+                                    </div>
+
+                                    <!-- المستودع المستهدف -->
+                                    <div class="col-12 col-md-6">
+                                        <label class="form-label">{% trans "المستودع المستهدف" %}</label>
+                                        <select name="warehouse" id="id_warehouse" class="form-select select2-init">
+                                            <option value="">-- {% trans "اختر المستودع" %} --</option>
+                                            {% for w in warehouses %}
+                                                <option value="{{ w.id }}" {% if form.warehouse.value == w.id|stringformat:'s' or form.instance.warehouse_id == w.id %}selected{% endif %}>
+                                                    {{ w.name }}
+                                                </option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+
+                                    <!-- مركز التكلفة -->
+                                    <div class="col-12 col-md-6">
+                                        <label class="form-label">
+                                            <i class="fas fa-project-diagram me-1 text-muted"></i>{% trans "مركز التكلفة" %}
+                                        </label>
+                                        <select name="cost_center" id="id_cost_center" class="form-select select2-init" dir="rtl">
+                                            <option value="">-- {% trans "بدون مركز تكلفة" %} --</option>
+                                            {% for cc in cost_centers %}
+                                                <option value="{{ cc.id }}" {% if form.cost_center.value == cc.id|stringformat:'s' or form.instance.cost_center_id == cc.id %}selected{% endif %}>
+                                                    {{ cc.code }} - {{ cc.name }}
+                                                </option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+
+                                    <!-- شروط وطريقة السداد -->
+                                    <div class="col-12 col-md-6">
+                                        <label class="form-label">{% trans "شروط وطريقة السداد" %}</label>
+                                        <input type="text" name="payment_terms" id="id_payment_terms" class="form-control" value="{{ form.payment_terms.value|default:form.instance.payment_terms|default:'' }}" placeholder="مثال: سداد 30 يوم من تاريخ الاستلام...">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- العمود الأيسر: بيانات المستند والمالية والعملة -->
+                    <div class="col-12 col-lg-6">
+                        <div class="header-subcard">
+                            <div class="header-subcard-header">
+                                <h6 class="header-subcard-title">
+                                    <i class="fas fa-file-invoice-dollar text-success"></i> {% trans "بيانات المستند والعملة" %}
+                                </h6>
+                            </div>
+                            <div class="header-subcard-body">
+                                <div class="row g-3">
+                                    <!-- تاريخ أمر الشراء -->
+                                    <div class="col-12 col-md-6">
+                                        <label class="form-label required-field">{% trans "تاريخ أمر الشراء" %}</label>
+                                        <input type="date" name="order_date" id="id_order_date" class="form-control" value="{{ form.order_date.value|date:'Y-m-d'|default:form.order_date.value|default:'' }}" required>
+                                    </div>
+
+                                    <!-- تاريخ التوريد المتوقع -->
+                                    <div class="col-12 col-md-6">
+                                        <label class="form-label">{% trans "تاريخ التوريد المتوقع" %}</label>
+                                        <input type="date" name="delivery_due_date" id="id_delivery_due_date" class="form-control" value="{{ form.delivery_due_date.value|date:'Y-m-d'|default:form.delivery_due_date.value|default:'' }}">
+                                    </div>
+
+                                    <!-- العملة وسعر الصرف الموحد IAS 21 -->
+                                    {% include "components/currency_header.html" %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- القسم الثاني: بنود أمر الشراء والمنتجات -->
+        <div class="section-container mb-4">
+            <div class="section-title d-flex align-items-center justify-content-between">
+                <div><i class="fas fa-list me-2"></i>{% trans "بنود أمر الشراء" %}</div>
+            </div>
+            
+            <div id="items-container">
+                {% if po and po.items.exists %}
+                    {% for item in po.items.all %}
+                    <div class="item-row row g-2 align-items-center">
+                        <div class="col-12 col-md-2">
+                            <label class="form-label form-label-sm product-code-label">الكود / الباركود</label>
+                            <input type="text" class="form-control form-control-sm product-code-input" placeholder="الكود / الباركود" value="{{ item.product.sku|default:'' }}">
+                        </div>
+                        <div class="col-12 col-md-3">
+                            <div class="product-header-row d-flex align-items-center justify-content-between mb-1">
+                                <label class="form-label form-label-sm product-label required-field mb-0">{% trans "المنتج / الصنف" %}</label>
+                                <span class="stock-info">مخزون: {{ item.product.total_stock|smart_float|default:'0' }}</span>
+                            </div>
+                            <button type="button" class="product-picker-btn" data-row-index="{{ forloop.counter0 }}">
+                                <span class="selected-text">{{ item.product.name }}</span>
+                                <i class="fas fa-th-large text-muted small"></i>
+                            </button>
+                            <input type="hidden" name="product[]" class="product-id-input" value="{{ item.product.id }}" data-price="{{ item.unit_price }}" data-cost="{{ item.product.cost_price }}" required>
+                            <input type="hidden" name="variant[]" class="variant-id-input" value="{{ item.variant_id|default:'' }}">
+                            <input type="hidden" name="unit[]" class="unit-id-input" value="{{ item.unit_id|default:'' }}">
+                        </div>
+                        <div class="col-6 col-md-2">
+                            <label class="form-label form-label-sm required-field">الكمية المطلوبة</label>
+                            <input type="number" name="quantity[]" class="form-control form-control-sm quantity" min="0.0001" step="0.01" value="{{ item.ordered_qty|smart_float }}" required>
+                        </div>
+                        <div class="col-6 col-md-2">
+                            <label class="form-label form-label-sm required-field">سعر الشراء</label>
+                            <input type="number" step="0.0001" name="unit_price[]" class="form-control form-control-sm unit-price" value="{{ item.unit_price|smart_float }}" required>
+                        </div>
+                        <div class="col-6 col-md-1">
+                            <label class="form-label form-label-sm">الخصم</label>
+                            <input type="number" name="discount[]" class="form-control form-control-sm item-discount" min="0" step="0.01" value="{{ item.discount|smart_float|default:'0' }}">
+                        </div>
+                        <div class="col-6 col-md-2">
+                            <label class="form-label form-label-sm">الإجمالي</label>
+                            <div class="input-group input-group-sm">
+                                <input type="text" class="form-control form-control-sm item-total" value="{{ item.total_price|smart_float }}" readonly>
+                                <span class="input-group-text px-1">{{ currency_symbol }}</span>
+                            </div>
+                        </div>
+                        {% if not forloop.first %}
+                        <a href="javascript:void(0)" class="remove-item" title="إزالة البند">
+                            <i class="fas fa-times-circle"></i>
+                        </a>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                {% else %}
+                <div class="item-row row g-2 align-items-center">
+                    <div class="col-12 col-md-2">
+                        <label class="form-label form-label-sm product-code-label">الكود / الباركود</label>
+                        <input type="text" class="form-control form-control-sm product-code-input" placeholder="الكود / الباركود">
+                    </div>
+                    <div class="col-12 col-md-3">
+                        <div class="product-header-row d-flex align-items-center justify-content-between mb-1">
+                            <label class="form-label form-label-sm product-label required-field mb-0">{% trans "المنتج / الصنف" %}</label>
+                            <span class="stock-info d-none"></span>
+                        </div>
+                        <button type="button" class="product-picker-btn" data-row-index="0">
+                            <span class="placeholder-text text-muted">{% trans "اختر المنتج..." %}</span>
+                            <i class="fas fa-th-large text-muted small"></i>
+                        </button>
+                        <input type="hidden" name="product[]" class="product-id-input" required>
+                        <input type="hidden" name="variant[]" class="variant-id-input">
+                        <input type="hidden" name="unit[]" class="unit-id-input">
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <label class="form-label form-label-sm required-field">الكمية المطلوبة</label>
+                        <input type="number" name="quantity[]" class="form-control form-control-sm quantity" min="0.0001" step="0.01" value="1" required>
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <label class="form-label form-label-sm required-field">سعر الشراء</label>
+                        <input type="number" step="0.0001" name="unit_price[]" class="form-control form-control-sm unit-price" placeholder="0.00" required>
+                    </div>
+                    <div class="col-6 col-md-1">
+                        <label class="form-label form-label-sm">الخصم</label>
+                        <input type="number" name="discount[]" class="form-control form-control-sm item-discount" min="0" step="0.01" value="0">
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <label class="form-label form-label-sm">الإجمالي</label>
+                        <div class="input-group input-group-sm">
+                            <input type="text" class="form-control form-control-sm item-total" readonly>
+                            <span class="input-group-text px-1">{{ currency_symbol }}</span>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="d-flex align-items-center gap-2 mt-3">
+                <button type="button" id="add-item" class="btn btn-sm btn-primary">
+                    <i class="fa fa-plus me-1"></i> {% trans "إضافة بند" %}
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-success" id="btn-po-new-product" onclick="if(window.openQuickProductModal) window.openQuickProductModal();">
+                    <i class="fas fa-plus-circle me-1"></i> {% trans "صنف جديد" %}
+                </button>
+            </div>
+        </div>
+
+        <!-- القسم الثالث: الملخص المالي والخصومات والضرائب -->
+        <div class="section-container mb-4">
+            <h5 class="section-title"><i class="fas fa-calculator me-2"></i>الملخص المالي والخصومات</h5>
+            <div class="row total-section g-4 align-items-stretch">
+                <div class="col-lg-8 col-md-12 d-flex flex-column">
+                    <!-- التبويبات الموحدة -->
+                    <ul class="nav nav-tabs border-bottom-0" id="poTotalSectionTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active fw-medium" id="po-discount-tab" data-bs-toggle="tab" data-bs-target="#po-tab-discount" type="button" role="tab">
+                                <i class="fas fa-tag me-1 text-primary"></i> {% trans "الخصم والتسوية" %}
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link fw-medium" id="po-tax-tab" data-bs-toggle="tab" data-bs-target="#po-tab-tax" type="button" role="tab">
+                                <i class="fas fa-file-invoice-dollar me-1 text-primary"></i> {% trans "الضرائب والخصومات" %}
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link fw-medium" id="po-notes-tab" data-bs-toggle="tab" data-bs-target="#po-tab-notes" type="button" role="tab">
+                                <i class="fas fa-sticky-note me-1 text-primary"></i> {% trans "الملاحظات والشروط" %}
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link fw-medium" id="po-custom-fields-tab" data-bs-toggle="tab" data-bs-target="#po-tab-custom-fields" type="button" role="tab">
+                                <i class="fas fa-list-ul me-1 text-primary"></i> {% trans "الحقول الإضافية" %}
+                            </button>
+                        </li>
+                    </ul>
+                    <input type="hidden" name="custom_fields_json" id="custom_fields_json" value="">
+                    
+                    <div class="tab-content p-3 bg-light border rounded-bottom flex-fill d-flex flex-column justify-content-between" id="poTotalSectionTabsContent">
+                        <!-- تبويب الخصم والتسوية -->
+                        <div class="tab-pane fade show active" id="po-tab-discount" role="tabpanel">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label text-dark fw-medium">{% trans "خصم على كامل أمر الشراء" %}</label>
+                                    <div class="input-group">
+                                        <input type="number" step="0.01" name="discount" id="id_discount" class="form-control text-center" value="{{ form.discount.value|default:form.instance.discount|default:'0' }}" min="0" placeholder="0.00">
+                                        <select name="discount_type" id="id_discount_type" class="form-select px-2 text-center" style="max-width: 85px;">
+                                            <option value="fixed" {% if form.discount_type.value == 'fixed' or form.instance.discount_type == 'fixed' or not form.discount_type.value %}selected{% endif %}>{{ currency_symbol }}</option>
+                                            <option value="percentage" {% if form.discount_type.value == 'percentage' or form.instance.discount_type == 'percentage' %}selected{% endif %}>%</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label text-dark fw-medium">{% trans "تسوية ماليّة إضافية (شحن/تفريغ)" %}</label>
+                                    <div class="input-group">
+                                        <input type="text" name="adjustment_name" id="id_adjustment_name" class="form-control" value="{{ form.adjustment_name.value|default:form.instance.adjustment_name|default:'' }}" placeholder="سبب التسوية (مثل: مصاريف شحن)...">
+                                        <select name="adjustment_type" id="id_adjustment_type" class="form-select px-1 text-center" style="max-width: 70px;">
+                                            <option value="add" {% if not form.instance.adjustment_type or form.instance.adjustment_type == 'add' %}selected{% endif %}>+</option>
+                                            <option value="subtract" {% if form.instance.adjustment_type == 'subtract' %}selected{% endif %}>-</option>
+                                        </select>
+                                        <input type="number" step="0.01" name="adjustment_amount" id="id_adjustment_amount" class="form-control text-center" value="{{ form.adjustment_amount.value|default:form.instance.adjustment_amount|default:'0' }}" style="max-width: 110px;" placeholder="0.00">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- تبويب الضرائب والخصومات -->
+                        <div class="tab-pane fade" id="po-tab-tax" role="tabpanel">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <div class="card border-0 shadow-sm bg-white p-3 h-100">
+                                        <h6 class="fw-bold text-dark mb-2"><i class="fas fa-percent text-primary me-2"></i>ضريبة القيمة المضافة (VAT)</h6>
+                                        <div class="form-check form-switch pt-1">
+                                            <input class="form-check-input" type="checkbox" name="vat_active" id="id_vat_active" role="switch" {% if form.instance.pk %}{% if form.instance.vat_active %}checked{% endif %}{% else %}{% if settings.enable_tax %}checked{% endif %}{% endif %}>
+                                            <label class="form-check-label text-dark fw-medium small" for="id_vat_active">{% trans "تفعيل ضريبة القيمة المضافة" %} ({{ settings.default_tax_rate|smart_float|default:'14' }}%)</label>
+                                        </div>
+                                        <input type="hidden" name="vat_rate" id="id_vat_rate" value="{{ settings.default_tax_rate|default:'14.00' }}">
+                                        <small class="form-text text-muted mt-2">{% trans "تُحسب بنسبة" %} {{ settings.default_tax_rate|smart_float|default:'14' }}% {% trans "على الصافي التجاري للمستند." %}</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="card border-0 shadow-sm bg-white p-3 h-100">
+                                        <h6 class="fw-bold text-dark mb-2"><i class="fas fa-hand-holding-usd text-warning me-2"></i>ضريبة الخصم والإضافة (WHT)</h6>
+                                        <div class="d-flex align-items-center mb-2">
+                                            <div class="form-check form-switch me-2 pt-1">
+                                                <input class="form-check-input" type="checkbox" name="wht_active" id="id_wht_active" role="switch" {% if form.instance.wht_active %}checked{% endif %}>
+                                                <label class="form-check-label text-dark fw-medium small" for="id_wht_active">ضريبة الخصم والإضافة</label>
+                                            </div>
+                                            <select name="wht_rate" id="id_wht_rate" class="form-select form-select-sm ms-auto text-center" style="width: fit-content;">
+                                                <option value="1.00" {% if form.instance.wht_rate == 1 or not form.instance.wht_rate %}selected{% endif %}>1% (توريدات)</option>
+                                                <option value="3.00" {% if form.instance.wht_rate == 3 %}selected{% endif %}>3% (خدمات وصيانة)</option>
+                                                <option value="5.00" {% if form.instance.wht_rate == 5 %}selected{% endif %}>5% (استشارات)</option>
+                                            </select>
+                                        </div>
+                                        <small class="form-text text-muted">تُخصم من مستحقات المورد وتورد لمصلحة الضرائب المصرية.</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- تبويب الملاحظات والشروط -->
+                        <div class="tab-pane fade h-100" id="po-tab-notes" role="tabpanel">
+                            {% include "partials/editor.html" with id="id_notes" name="notes" value=form.notes.value|default:form.instance.notes|default:'' placeholder="أضف شروط التوريد، الفحص والاستلام، أو أي شروط تعاقدية أخرى..." height=180 toolbar="basic" %}
+                        </div>
+
+                        <!-- تبويب الحقول الإضافية -->
+                        <div class="tab-pane fade" id="po-tab-custom-fields" role="tabpanel">
+                            <div class="p-2">
+                                <div id="custom-fields-render-container" class="row g-3">
+                                    <div class="col-12 text-muted small">لا توجد حقول إضافية معرفة لأوامر الشراء حالياً.</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- كارت الملخص المالي -->
+                <div class="col-lg-4 col-md-12">
+                    <ul class="nav nav-tabs border-bottom-0" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <span class="nav-link active fw-medium" style="cursor: default;">
+                                <i class="fas fa-calculator me-1 text-primary"></i> {% trans "الملخص المالي" %}
+                            </span>
+                        </li>
+                    </ul>
+                    <div class="p-3 bg-light border rounded-bottom">
+                        <div class="row mb-2">
+                            <div class="col-6 text-end"><strong>{% trans "المجموع الفرعي:" %}</strong></div>
+                            <div class="col-6 text-end">
+                                <span id="subtotal">0.00</span>
+                            </div>
+                        </div>
+                        <div class="row mb-2">
+                            <div class="col-6 text-end"><strong>{% trans "الخصم الإجمالي:" %}</strong></div>
+                            <div class="col-6 text-end text-danger">
+                                <span id="discount-total">0.00</span>
+                            </div>
+                        </div>
+                        <div class="row mb-2" id="adjustment-total-row">
+                            <div class="col-6 text-end"><strong id="adjustment-label">{% trans "التسوية:" %}</strong></div>
+                            <div class="col-6 text-end">
+                                <span id="adjustment-total">0.00</span>
+                            </div>
+                        </div>
+                        <div class="row mb-2" id="tax-total-row">
+                            <div class="col-6 text-end"><strong>{% trans "القيمة المضافة" %} ({{ settings.default_tax_rate|smart_float|default:'14' }}%):</strong></div>
+                            <div class="col-6 text-end text-primary">
+                                <span id="tax-total">0.00</span>
+                            </div>
+                        </div>
+                        <div class="row mb-2" id="wht-total-row" style="display: none;">
+                            <div class="col-6 text-end"><strong id="wht-label">{% trans "خصم أرباح تجارية:" %}</strong></div>
+                            <div class="col-6 text-end text-warning">
+                                <span id="wht-total">0.00</span>
+                            </div>
+                        </div>
+                        <hr class="my-2">
+                        <div class="row mb-1">
+                            <div class="col-6 text-end"><strong class="fs-6 text-dark">{% trans "إجمالي أمر الشراء:" %}</strong></div>
+                            <div class="col-6 text-end">
+                                <span id="grand-total" class="fs-6 fw-bold text-success">0.00</span>
+                            </div>
+                        </div>
+                        <div class="row" id="functional-total-row" style="display: none;">
+                            <div class="col-6 text-end"><small class="text-muted">المعادل بالعملة المحلية:</small></div>
+                            <div class="col-6 text-end">
+                                <small id="functional-total" class="fw-bold text-dark">0.00 ج.م</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- شريط الأزرار السفلي الموحد -->
+            <div class="text-center mt-4 pt-3 border-top">
+                <button type="submit" name="action" value="save_draft" class="btn btn-secondary me-2 px-4">
+                    <i class="fas fa-save me-1"></i> {% trans "حفظ كمسودة" %}
+                </button>
+                <button type="submit" name="action" value="submit_approval" class="btn btn-primary me-2 px-4 fw-bold">
+                    <i class="fas fa-paper-plane me-1"></i> {% trans "حفظ وتقديم للاعتماد" %}
+                </button>
+                {% if po %}
+                    <a href="{% url 'purchase:po_detail' pk=po.id %}" class="btn btn-outline-secondary px-3">
+                        {% trans "إلغاء" %}
+                    </a>
+                {% else %}
+                    <a href="{% url 'purchase:po_list' %}" class="btn btn-outline-secondary px-3">
+                        {% trans "إلغاء" %}
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- ===== Product Picker Modal ===== -->
+{% include 'components/product_picker_modal.html' %}
+{% include 'components/quick_product_modal.html' %}
+
+<!-- ===== Quick Supplier Modal (Rule 8 Compliant) ===== -->
+<div class="modal fade" id="addSupplierModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-light border-bottom px-4 py-3">
+                <h5 class="modal-title fw-bold text-dark mb-0">
+                    <i class="fas fa-truck text-primary me-2"></i>{% trans "إضافة مورد جديد سريع" %}
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="quick-supplier-form">
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label required-field">{% trans "اسم المورد / الشركة" %}</label>
+                        <input type="text" id="quick_supplier_name" class="form-control" required placeholder="مثال: شركة الأمل للتوريدات">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">{% trans "رقم الهاتف" %}</label>
+                        <input type="text" id="quick_supplier_phone" class="form-control" placeholder="مثال: 01012345678">
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-top px-4 py-3">
+                    <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+                    <button type="button" id="btn-save-quick-supplier" class="btn btn-primary px-4 fw-bold">{% trans "حفظ المورد" %}</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/select2.min.js' %}"></script>
+<script src="{% static 'js/product_picker.js' %}"></script>
+<script>
+$(document).ready(function() {
+    // 1. تهيئة Select2
+    $('.select2-init').select2({
+        dir: 'rtl',
+        language: 'ar',
+        width: '100%'
+    });
+
+    let currentCurrencySymbol = '{{ currency_symbol }}';
+    let defaultVatRate = parseFloat('{{ settings.default_tax_rate|default:"14" }}') || 14.0;
+
+    // 2. تحديث الحسابات اللحظية الموحدة (150ms Debounced Calculation Engine)
+    let calcTimer = null;
+    function triggerCalculations() {
+        clearTimeout(calcTimer);
+        calcTimer = setTimeout(calculateTotals, 100);
+    }
+
+    function calculateTotals() {
+        let subtotal = 0;
+
+        $('.item-row').each(function() {
+            let row = $(this);
+            let qty = parseFloat(row.find('.quantity').val()) || 0;
+            let price = parseFloat(row.find('.unit-price').val()) || 0;
+            let discount = parseFloat(row.find('.item-discount').val()) || 0;
+
+            let lineTotal = Math.max(0, (qty * price) - discount);
+            row.find('.item-total').val(lineTotal.toFixed(2));
+            subtotal += lineTotal;
+        });
+
+        $('#subtotal').text(subtotal.toFixed(2) + ' ' + currentCurrencySymbol);
+
+        // حساب خصم المستند
+        let docDiscountVal = parseFloat($('#id_discount').val()) || 0;
+        let docDiscountType = $('#id_discount_type').val();
+        let docDiscountAmt = 0;
+
+        if (docDiscountType === 'percentage') {
+            docDiscountAmt = subtotal * (docDiscountVal / 100);
+        } else {
+            docDiscountAmt = docDiscountVal;
+        }
+        $('#discount-total').text(docDiscountAmt.toFixed(2) + ' ' + currentCurrencySymbol);
+
+        let netCommercial = Math.max(0, subtotal - docDiscountAmt);
+
+        // ضريبة القيمة المضافة VAT
+        let vatActive = $('#id_vat_active').is(':checked');
+        let vatRate = parseFloat($('#id_vat_rate').val()) || defaultVatRate;
+        let vatAmount = vatActive ? (netCommercial * (vatRate / 100)) : 0;
+        $('#tax-total').text(vatAmount.toFixed(2) + ' ' + currentCurrencySymbol);
+
+        // ضريبة الخصم والإضافة WHT
+        let whtActive = $('#id_wht_active').is(':checked');
+        let whtRate = parseFloat($('#id_wht_rate').val()) || 1.0;
+        let whtAmount = whtActive ? (netCommercial * (whtRate / 100)) : 0;
+        if (whtActive) {
+            $('#wht-total-row').show();
+            $('#wht-total').text('-' + whtAmount.toFixed(2) + ' ' + currentCurrencySymbol);
+        } else {
+            $('#wht-total-row').hide();
+        }
+
+        // التسويات الإضافية
+        let adjAmount = parseFloat($('#id_adjustment_amount').val()) || 0;
+        let adjType = $('#id_adjustment_type').val();
+        let netAdj = (adjType === 'subtract') ? -adjAmount : adjAmount;
+        let adjName = $('#id_adjustment_name').val() || 'تسوية';
+        $('#adjustment-label').text(adjName + ':');
+        $('#adjustment-total').text((netAdj >= 0 ? '+' : '') + netAdj.toFixed(2) + ' ' + currentCurrencySymbol);
+
+        // الإجمالي النهائي
+        let grandTotal = Math.max(0, netCommercial + vatAmount - whtAmount + netAdj);
+        $('#grand-total').text(grandTotal.toFixed(2) + ' ' + currentCurrencySymbol);
+
+        // المعادل بالعملة الوظيفية IAS 21
+        let exchangeRate = parseFloat($('#id_exchange_rate').val()) || 1.0;
+        let isForeign = parseFloat($('#id_currency').find(':selected').data('is-foreign') || 0) === 1;
+        if (isForeign && exchangeRate !== 1.0) {
+            let functionalAmt = grandTotal * exchangeRate;
+            $('#functional-total-row').show();
+            $('#functional-total').text(functionalAmt.toFixed(2) + ' ج.م');
+        } else {
+            $('#functional-total-row').hide();
+        }
+    }
+
+    // ربط الأحداث للحسابات التفاعلية
+    $(document).on('input change', '.quantity, .unit-price, .item-discount, #id_discount, #id_discount_type, #id_adjustment_amount, #id_adjustment_type, #id_adjustment_name, #id_vat_active, #id_wht_active, #id_wht_rate, #id_exchange_rate', function() {
+        triggerCalculations();
+    });
+
+    // 3. إضافة وحذف أسطر البنود
+    $('#add-item').on('click', function() {
+        let index = $('.item-row').length;
+        let newRow = `
+        <div class="item-row row g-2 align-items-center">
+            <div class="col-12 col-md-2">
+                <label class="form-label form-label-sm product-code-label">الكود / الباركود</label>
+                <input type="text" class="form-control form-control-sm product-code-input" placeholder="الكود / الباركود">
+            </div>
+            <div class="col-12 col-md-3">
+                <div class="product-header-row d-flex align-items-center justify-content-between mb-1">
+                    <label class="form-label form-label-sm product-label required-field mb-0">{% trans "المنتج / الصنف" %}</label>
+                    <span class="stock-info d-none"></span>
+                </div>
+                <button type="button" class="product-picker-btn" data-row-index="${index}">
+                    <span class="placeholder-text text-muted">{% trans "اختر المنتج..." %}</span>
+                    <i class="fas fa-th-large text-muted small"></i>
+                </button>
+                <input type="hidden" name="product[]" class="product-id-input" required>
+                <input type="hidden" name="variant[]" class="variant-id-input">
+                <input type="hidden" name="unit[]" class="unit-id-input">
+            </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label form-label-sm required-field">الكمية المطلوبة</label>
+                <input type="number" name="quantity[]" class="form-control form-control-sm quantity" min="0.0001" step="0.01" value="1" required>
+            </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label form-label-sm required-field">سعر الشراء</label>
+                <input type="number" step="0.0001" name="unit_price[]" class="form-control form-control-sm unit-price" placeholder="0.00" required>
+            </div>
+            <div class="col-6 col-md-1">
+                <label class="form-label form-label-sm">الخصم</label>
+                <input type="number" name="discount[]" class="form-control form-control-sm item-discount" min="0" step="0.01" value="0">
+            </div>
+            <div class="col-6 col-md-2">
+                <label class="form-label form-label-sm">الإجمالي</label>
+                <div class="input-group input-group-sm">
+                    <input type="text" class="form-control form-control-sm item-total" readonly>
+                    <span class="input-group-text px-1">${currentCurrencySymbol}</span>
+                </div>
+            </div>
+            <a href="javascript:void(0)" class="remove-item" title="إزالة البند">
+                <i class="fas fa-times-circle"></i>
+            </a>
+        </div>`;
+        $('#items-container').append(newRow);
+    });
+
+    $(document).on('click', '.remove-item', function() {
+        $(this).closest('.item-row').remove();
+        triggerCalculations();
+    });
+
+    // 4. فتح منتقي الأصناف
+    $(document).on('click', '.product-picker-btn', function() {
+        let btn = $(this);
+        let row = btn.closest('.item-row');
+        if (window.openProductPicker) {
+            window.openProductPicker(function(selectedProduct) {
+                row.find('.product-id-input').val(selectedProduct.id);
+                row.find('.selected-text, .placeholder-text').text(selectedProduct.name).removeClass('placeholder-text text-muted').addClass('selected-text');
+                row.find('.product-code-input').val(selectedProduct.sku || '');
+                row.find('.unit-price').val(selectedProduct.cost_price || selectedProduct.price || '0.00');
+                if (selectedProduct.stock !== undefined) {
+                    row.find('.stock-info').text('مخزون: ' + selectedProduct.stock).removeClass('d-none');
+                }
+                triggerCalculations();
+            });
+        }
+    });
+
+    // 5. مزامنة بيانات المورد عند تغييره
+    $('#id_supplier').on('change', function() {
+        let opt = $(this).find(':selected');
+        let paymentTerms = opt.data('payment-terms');
+        if (paymentTerms && !$('#id_payment_terms').val()) {
+            $('#id_payment_terms').val(paymentTerms);
+        }
+    });
+
+    // 6. مودال إضافة مورد جديد سريع
+    $('#btn-add-supplier-modal').on('click', function() {
+        $('#addSupplierModal').modal('show');
+    });
+
+    $('#btn-save-quick-supplier').on('click', function() {
+        let name = $('#quick_supplier_name').val().trim();
+        let phone = $('#quick_supplier_phone').val().trim();
+        if (!name) {
+            alert('يرجى كتابة اسم المورد');
+            return;
+        }
+
+        $.ajax({
+            url: '{% url "supplier:supplier_create_modal" %}',
+            type: 'POST',
+            data: {
+                name: name,
+                phone: phone,
+                csrfmiddlewaretoken: '{{ csrf_token }}'
+            },
+            success: function(res) {
+                if (res.success) {
+                    let supId = res.supplier_id || res.id;
+                    let supName = res.supplier_name || res.name;
+                    let newOption = new Option(supName, supId, true, true);
+                    $('#id_supplier').append(newOption).trigger('change');
+                    $('#addSupplierModal').modal('hide');
+                    $('#quick-supplier-form')[0].reset();
+                    if (window.showNotification) {
+                        window.showNotification('تمت إضافة المورد بنجاح', 'success');
+                    }
+                } else {
+                    alert(res.message || (res.errors ? JSON.stringify(res.errors) : 'حدث خطأ أثناء إضافة المورد'));
+                }
+            },
+            error: function() {
+                let tempOption = new Option(name, 'temp_' + Date.now(), true, true);
+                $('#id_supplier').append(tempOption).trigger('change');
+                $('#addSupplierModal').modal('hide');
+            }
+        });
+    });
+
+    // الحساب المبدئي عند التحميل
+    triggerCalculations();
+});
+</script>
+{% endblock %}

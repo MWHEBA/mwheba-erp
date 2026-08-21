@@ -761,3 +761,89 @@ class PurchaseReturnItemForm(forms.ModelForm):
                 )
 
         return quantity
+
+
+class PurchaseOrderForm(forms.ModelForm):
+    """
+    نموذج إنشاء وتعديل أمر الشراء المحوكم
+    """
+    from purchase.models.procurement_models import PurchaseOrder
+
+    class Meta:
+        from purchase.models.procurement_models import PurchaseOrder
+        model = PurchaseOrder
+        fields = [
+            "supplier",
+            "warehouse",
+            "order_date",
+            "delivery_due_date",
+            "currency",
+            "exchange_rate",
+            "cost_source_policy",
+            "cost_center",
+            "work_order",
+            "discount",
+            "discount_type",
+            "tax_active",
+            "vat_active",
+            "vat_rate",
+            "wht_active",
+            "wht_rate",
+            "adjustment_name",
+            "adjustment_type",
+            "adjustment_amount",
+            "payment_terms",
+            "notes",
+        ]
+        widgets = {
+            "order_date": forms.DateInput(attrs={"type": "date", "class": "form-control"}),
+            "delivery_due_date": forms.DateInput(attrs={"type": "date", "class": "form-control"}),
+            "discount": forms.NumberInput(attrs={"class": "form-control text-center", "step": "0.01", "min": "0"}),
+            "discount_type": forms.Select(attrs={"class": "form-select"}),
+            "vat_rate": forms.NumberInput(attrs={"class": "form-control text-center", "step": "0.01"}),
+            "wht_rate": forms.Select(attrs={"class": "form-select form-select-sm"}),
+            "adjustment_name": forms.TextInput(attrs={"class": "form-control", "placeholder": "سبب التسوية (مثل: مصاريف شحن)..."}),
+            "adjustment_type": forms.Select(attrs={"class": "form-select"}),
+            "adjustment_amount": forms.NumberInput(attrs={"class": "form-control text-center", "step": "0.01", "min": "0"}),
+            "payment_terms": forms.TextInput(attrs={"class": "form-control", "placeholder": "مثال: سداد 30 يوم من تاريخ الاستلام..."}),
+            "notes": forms.Textarea(attrs={"class": "form-control", "rows": 3}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop("user", None)
+        super().__init__(*args, **kwargs)
+
+        self.fields["supplier"].queryset = Supplier.objects.filter(is_active=True).order_by("name")
+        self.fields["warehouse"].queryset = Warehouse.objects.filter(is_active=True).order_by("name")
+        self.fields["warehouse"].required = False  # اختياري للخدمات
+
+        from financial.models import CostCenter, Currency
+        self.fields["cost_center"].queryset = CostCenter.objects.filter(is_active=True).order_by("code")
+        self.fields["cost_center"].required = False
+
+        from work_order.models import WorkOrder
+        self.fields["work_order"].queryset = WorkOrder.objects.all()
+        self.fields["work_order"].required = False
+
+        if not self.initial.get("order_date"):
+            self.initial["order_date"] = timezone.now().date()
+
+        # إعدادات الضرائب الافتراضية
+        if not self.instance.pk:
+            from core.models import SystemSetting
+            enable_tax = SystemSetting.get_setting("enable_tax", True)
+            if isinstance(enable_tax, str):
+                enable_tax = enable_tax.lower() in ["true", "1", "yes", "نعم"]
+            self.initial.setdefault("tax_active", bool(enable_tax))
+            self.initial.setdefault("vat_active", bool(enable_tax))
+            default_rate = SystemSetting.get_setting("default_tax_rate", 14)
+            self.initial.setdefault("vat_rate", default_rate)
+
+        for field_name in [
+            "discount", "tax_active", "vat_active", "vat_rate", "wht_active", 
+            "wht_rate", "adjustment_name", "adjustment_type", "adjustment_amount", 
+            "currency", "exchange_rate", "cost_source_policy", "payment_terms", "notes"
+        ]:
+            if field_name in self.fields:
+                self.fields[field_name].required = False
+

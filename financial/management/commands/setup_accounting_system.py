@@ -314,66 +314,15 @@ class Command(BaseCommand):
             }
         )
 
-        # 2. أكواد الضرائب المعيارية
-        tax_codes_data = [
-            {
-                "code": "VAT14",
-                "name": "ضريبة القيمة المضافة 14%",
-                "tax_type": "VAT",
-                "tax_nature": "OUTPUT",
-                "rate": Decimal("14.0000"),
-                "recoverability_percentage": Decimal("100.00"),
-                "is_recoverable": True,
-            },
-            {
-                "code": "WHT1",
-                "name": "ضريبة الخصم والإضافة 1%",
-                "tax_type": "WITHHOLDING",
-                "tax_nature": "WITHHOLDING",
-                "rate": Decimal("1.0000"),
-                "recoverability_percentage": Decimal("100.00"),
-                "is_recoverable": True,
-            },
-            {
-                "code": "VAT0",
-                "name": "ضريبة بسعر صفر 0%",
-                "tax_type": "ZERO_RATED",
-                "tax_nature": "OUTPUT",
-                "rate": Decimal("0.0000"),
-                "recoverability_percentage": Decimal("100.00"),
-                "is_recoverable": True,
-            },
-            {
-                "code": "EXEMPT",
-                "name": "معفى من الضريبة",
-                "tax_type": "EXEMPT",
-                "tax_nature": "OUTPUT",
-                "rate": Decimal("0.0000"),
-                "recoverability_percentage": Decimal("0.00"),
-                "is_recoverable": False,
-            },
-        ]
+        # 2. أكواد الضرائب المعيارية عبر محرك الضرائب الموحد
+        from financial.services.tax_service import TaxDeterminationService
+        TaxDeterminationService.seed_egyptian_tax_presets()
 
-        tax_code_objs = {}
-        for tc_data in tax_codes_data:
-            tc_obj, _ = TaxCode.objects.get_or_create(
-                code=tc_data["code"],
-                defaults={
-                    "name": tc_data["name"],
-                    "tax_type": tc_data["tax_type"],
-                    "tax_nature": tc_data["tax_nature"],
-                    "rate": tc_data["rate"],
-                    "recoverability_percentage": tc_data["recoverability_percentage"],
-                    "is_recoverable": tc_data["is_recoverable"],
-                    "is_active": True,
-                }
-            )
-            tax_code_objs[tc_data["code"]] = tc_obj
+        vat14 = TaxCode.objects.filter(code="VAT14").first()
+        vat14_in = TaxCode.objects.filter(code="VAT14_IN").first()
+        wht_codes = TaxCode.objects.filter(code__in=["WHT_01", "WHT_03", "WHT_05"])
 
         # 3. خرائط ربط الحسابات للضرائب (Tax Account Mapping)
-        vat14 = tax_code_objs.get("VAT14")
-        wht1 = tax_code_objs.get("WHT1")
-
         if vat14:
             # ربط ضريبة مخرجات المبيعات (21310)
             if "21310" in account_map:
@@ -398,11 +347,22 @@ class Command(BaseCommand):
                     }
                 )
 
-        if wht1:
+        if vat14_in and "11510" in account_map:
+            TaxAccountMapping.objects.get_or_create(
+                tax_code=vat14_in,
+                currency="EGP",
+                tax_nature="INPUT",
+                defaults={
+                    "input_tax_account": account_map["11510"],
+                    "debit_account": account_map["11510"],
+                }
+            )
+
+        for wht_code in wht_codes:
             # ربط ضريبة الخصم والإضافة (21330)
             if "21330" in account_map:
                 TaxAccountMapping.objects.get_or_create(
-                    tax_code=wht1,
+                    tax_code=wht_code,
                     currency="EGP",
                     tax_nature="WITHHOLDING",
                     defaults={
@@ -411,7 +371,36 @@ class Command(BaseCommand):
                     }
                 )
 
-        self.stdout.write("  [+] Tax Jurisdiction, Tax Codes & Account Mappings verified")
+        # 4. قواعد احتساب الضرائب الافتراضية (Default Tax Rules)
+        from financial.models import TaxRule
+        if vat14:
+            TaxRule.objects.get_or_create(
+                code="RUL-VAT-SALE",
+                defaults={
+                    "name": "قاعدة ضريبة القيمة المضافة العامة على المبيعات 14%",
+                    "priority": 10,
+                    "rule_scope": "TRANSACTION_TYPE",
+                    "scope_value": "SALE",
+                    "tax_code": vat14,
+                    "jurisdiction": jurisdiction,
+                    "is_active": True,
+                }
+            )
+        if vat14_in:
+            TaxRule.objects.get_or_create(
+                code="RUL-VAT-PURCHASE",
+                defaults={
+                    "name": "قاعدة ضريبة المدخلات على المشتريات 14%",
+                    "priority": 10,
+                    "rule_scope": "TRANSACTION_TYPE",
+                    "scope_value": "PURCHASE",
+                    "tax_code": vat14_in,
+                    "jurisdiction": jurisdiction,
+                    "is_active": True,
+                }
+            )
+
+        self.stdout.write("  [+] Standard Egyptian Tax Codes, Rules & Account Mappings verified")
 
     def setup_cost_centers(self, force=False):
         """إنشاء مركز التكلفة الجذري الافتراضي"""

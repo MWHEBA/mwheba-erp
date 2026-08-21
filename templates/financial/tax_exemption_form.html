@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  {% include "shared/page_header.html" %}
+
+  <div class="row justify-content-center">
+    <div class="col-lg-8">
+      <div class="section-container">
+        <h5 class="section-title mb-4">
+          <i class="fas fa-id-card me-2"></i>{% if cert %}{% trans "تعديل شهادة الإعفاء" %}{% else %}{% trans "تسجيل شهادة إعفاء ضريبي جديدة" %}{% endif %}
+        </h5>
+
+        <form method="post" novalidate>
+          {% csrf_token %}
+          
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">{% trans "العميل المعفى (إن وجد)" %}</label>
+              {{ form.customer }}
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">{% trans "المورد المعفى (إن وجد)" %}</label>
+              {{ form.supplier }}
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label required">{% trans "رقم شهادة الإعفاء" %}</label>
+              {{ form.certificate_number }}
+              {% if form.certificate_number.errors %}<div class="text-danger small mt-1">{{ form.certificate_number.errors.0 }}</div>{% endif %}
+            </div>
+            <div class="col-md-6">
+              <label class="form-label required">{% trans "كود الضريبة المعفى منها" %}</label>
+              {{ form.tax_code }}
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label required">{% trans "صالحة من تاريخ" %}</label>
+              {{ form.valid_from }}
+            </div>
+            <div class="col-md-4">
+              <label class="form-label required">{% trans "صالحة إلى تاريخ" %}</label>
+              {{ form.valid_to }}
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">{% trans "سقف المبلغ المالي للإعفاء" %}</label>
+              {{ form.max_quota_amount }}
+              <div class="form-text small">{% trans "اتركه فارغاً إذا كان الإعفاء غير محدود القيمة" %}</div>
+            </div>
+
+            <div class="col-12">
+              <label class="form-label required">{% trans "سبب وسند الإعفاء القانوني" %}</label>
+              {{ form.exemption_reason }}
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">{% trans "مرجع المرفق / رقم الملف" %}</label>
+              {{ form.attachment_reference }}
+            </div>
+            <div class="col-md-6">
+              <label class="form-label required">{% trans "حالة الشهادة" %}</label>
+              {{ form.status }}
+            </div>
+          </div>
+
+          <div class="mt-4 pt-3 border-top d-flex justify-content-end gap-2">
+            <a href="{% url 'financial:tax_exemptions_list' %}" class="btn btn-secondary px-4">{% trans "إلغاء" %}</a>
+            <button type="submit" class="btn btn-primary px-4 fw-bold"><i class="fas fa-save me-1"></i>{% trans "حفظ الشهادة" %}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

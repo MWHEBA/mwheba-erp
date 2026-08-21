@@ -81,6 +81,16 @@ class SystemSetting(models.Model):
                     except Exception:
                         val = {}
                 settings_dict[s['key']] = val
+
+            # Single Source of Truth for Default VAT Tax Rate
+            try:
+                from financial.models import TaxCode
+                default_vat = TaxCode.objects.filter(tax_type="VAT", is_default=True, is_active=True).first()
+                if default_vat:
+                    settings_dict["default_tax_rate"] = float(default_vat.rate)
+            except Exception:
+                pass
+
             cache.set(cache_key, settings_dict, 300)
         return settings_dict
 
@@ -94,6 +104,15 @@ class SystemSetting(models.Model):
         """
         الحصول على قيمة إعداد معين باستخدام الكاش الموحد
         """
+        if key == "default_tax_rate":
+            try:
+                from financial.models import TaxCode
+                default_vat = TaxCode.objects.filter(tax_type="VAT", is_default=True, is_active=True).first()
+                if default_vat:
+                    return float(default_vat.rate)
+            except Exception:
+                pass
+
         try:
             settings_dict = cls._get_all_settings_dict()
             if key in settings_dict:

@@ -167,13 +167,31 @@ def purchase_return(request, pk):
                         )
                         raise Exception("لم يتم تحديد أي منتجات للإرجاع")
 
-                    # تحديث المرتجع
-                    purchase_return.subtotal = subtotal
-                    purchase_return.tax = 0  # إزالة الضريبة
-                    purchase_return.total = (
-                        subtotal  # الإجمالي يساوي المجموع الفرعي بدون ضريبة
-                    )
+                    # تحديث المرتجع واحتساب ضريبة المدخلات المعكوسة
+                    purchase_return.subtotal = Decimal(str(subtotal))
+                    if purchase.subtotal and purchase.subtotal > Decimal("0.00") and purchase.tax and purchase.tax > Decimal("0.00"):
+                        tax_ratio = purchase.tax / purchase.subtotal
+                        purchase_return.tax = (purchase_return.subtotal * tax_ratio).quantize(Decimal("0.01"))
+                    else:
+                        purchase_return.tax = Decimal("0.00")
+
+                    purchase_return.total = purchase_return.subtotal + purchase_return.tax
                     purchase_return.save()
+
+                    # Trigger Tax Reversal Audit if original audit exists
+                    try:
+                        from financial.models import TaxDeterminationAudit
+                        from financial.services.tax_service import TaxDeterminationService
+                        orig_audit = TaxDeterminationAudit.objects.filter(document_type="PurchaseInvoice", document_id=purchase.id).first()
+                        if orig_audit and purchase_return.tax > Decimal("0.00"):
+                            TaxDeterminationService.process_tax_reversal(
+                                audit_id=orig_audit.id,
+                                reversal_amount=purchase_return.tax,
+                                reason=f"مرتجع مشتريات #{purchase_return.number}",
+                                user=request.user
+                            )
+                    except Exception as tax_rev_err:
+                        logger.warning(f"Could not log tax reversal for purchase return: {tax_rev_err}")
 
                     messages.success(request, "تم إنشاء مرتجع المشتريات بنجاح")
                     return redirect("purchase:purchase_detail", pk=purchase.pk)

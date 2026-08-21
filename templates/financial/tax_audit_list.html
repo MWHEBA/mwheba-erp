@@ -1,0 +1,275 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load custom_filters %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Page Header المركزي الموحد -->
+  {% include "shared/page_header.html" %}
+
+  <!-- KPI Stats Cards -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-3 col-sm-6">
+      <div class="stats-card stats-card-info">
+        <div class="stats-card-body">
+          <div class="stats-card-icon"><i class="fas fa-coins"></i></div>
+          <div class="stats-card-title">{% trans "إجمالي الوعاء الضريبي" %}</div>
+          <div class="stats-card-value">{{ total_taxable_sum|smart_float:2 }} <small class="fs-6 fw-normal">EGP</small></div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3 col-sm-6">
+      <div class="stats-card stats-card-success">
+        <div class="stats-card-body">
+          <div class="stats-card-icon"><i class="fas fa-money-check-alt"></i></div>
+          <div class="stats-card-title">{% trans "إجمالي الضريبة المحتسبة" %}</div>
+          <div class="stats-card-value">{{ total_functional_tax|smart_float:2 }} <small class="fs-6 fw-normal">EGP</small></div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3 col-sm-6">
+      <div class="stats-card stats-card-primary">
+        <div class="stats-card-body">
+          <div class="stats-card-icon"><i class="fas fa-check-double"></i></div>
+          <div class="stats-card-title">{% trans "سجلات مرحلة بالقيود" %}</div>
+          <div class="stats-card-value">{{ posted_count }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3 col-sm-6">
+      <div class="stats-card stats-card-warning">
+        <div class="stats-card-body">
+          <div class="stats-card-icon"><i class="fas fa-undo"></i></div>
+          <div class="stats-card-title">{% trans "ضرائب معكوسة (مرتجعات)" %}</div>
+          <div class="stats-card-value">{{ reversed_count }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Collapsible Filter Section -->
+  <div class="section-container mb-4">
+    <h5 class="section-title" data-bs-toggle="collapse" data-bs-target="#filterAudit" aria-expanded="{% if request.GET.search or request.GET.doc_type or request.GET.status or request.GET.date_from %}true{% else %}false{% endif %}" style="cursor: pointer;">
+      <i class="fas fa-filter me-2"></i>{% trans "تصفية وفحص السجلات" %}
+      {% if request.GET.search or request.GET.doc_type or request.GET.status or request.GET.date_from %}<span class="badge bg-primary ms-2">فعّال</span>{% endif %}
+      <i class="fas fa-chevron-down float-end"></i>
+    </h5>
+    <div class="collapse {% if request.GET.search or request.GET.doc_type or request.GET.status or request.GET.date_from %}show{% endif %}" id="filterAudit">
+      <form method="get" class="row g-3 align-items-end">
+        <div class="col-md-3">
+          <label class="form-label small text-muted">{% trans "رقم المستند" %}</label>
+          <input type="text" name="search" class="form-control" placeholder="{% trans 'INV-..., BILL-...' %}" value="{{ request.GET.search }}">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label small text-muted">{% trans "نوع المستند" %}</label>
+          <select name="doc_type" class="form-select">
+            <option value="">{% trans "كافة المستندات" %}</option>
+            <option value="SalesInvoice" {% if request.GET.doc_type == 'SalesInvoice' %}selected{% endif %}>{% trans "فاتورة مبيعات" %}</option>
+            <option value="PurchaseInvoice" {% if request.GET.doc_type == 'PurchaseInvoice' %}selected{% endif %}>{% trans "فاتورة مشتريات" %}</option>
+            <option value="Expense" {% if request.GET.doc_type == 'Expense' %}selected{% endif %}>{% trans "مصروف تشغيلي" %}</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label small text-muted">{% trans "حالة التدقيق" %}</label>
+          <select name="status" class="form-select">
+            <option value="">{% trans "كافة الحالات" %}</option>
+            <option value="POSTED" {% if request.GET.status == 'POSTED' %}selected{% endif %}>{% trans "مرحل بالقيود" %}</option>
+            <option value="CALCULATED" {% if request.GET.status == 'CALCULATED' %}selected{% endif %}>{% trans "تم الحساب" %}</option>
+            <option value="REVERSED" {% if request.GET.status == 'REVERSED' %}selected{% endif %}>{% trans "معكوس (مرتجع)" %}</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label small text-muted">{% trans "من تاريخ" %}</label>
+          <input type="date" name="date_from" class="form-control" value="{{ request.GET.date_from }}">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label small text-muted">{% trans "إلى تاريخ" %}</label>
+          <input type="date" name="date_to" class="form-control" value="{{ request.GET.date_to }}">
+        </div>
+        <div class="col-md-1 d-flex gap-1">
+          <button type="submit" class="btn btn-primary w-100" title="{% trans 'بحث' %}"><i class="fas fa-search"></i></button>
+          <a href="{% url 'financial:tax_audit_list' %}" class="btn btn-outline-secondary" title="{% trans 'إعادة ضبط' %}"><i class="fas fa-redo"></i></a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Data Table Section -->
+  <div class="section-container">
+    <h5 class="section-title"><i class="fas fa-shield-alt me-2"></i>{% trans "سجلات الفحص والتدقيق الضريبي المحوكمة (Immutable Audit Log)" %}</h5>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle custom-table mb-0">
+        <thead>
+          <tr>
+            <th style="width: 50px;">#</th>
+            <th>{% trans "معرف السجل" %}</th>
+            <th>{% trans "نوع ورقم المستند" %}</th>
+            <th>{% trans "الطرف (عميل/مورد)" %}</th>
+            <th class="text-center">{% trans "كود الضريبة" %}</th>
+            <th class="text-center">{% trans "الوعاء الضريبي" %}</th>
+            <th class="text-center">{% trans "قيمة الضريبة (EGP)" %}</th>
+            <th class="text-center">{% trans "قيد اليومية" %}</th>
+            <th class="text-center">{% trans "الحالة" %}</th>
+            <th>{% trans "بصمة SHA-256" %}</th>
+            <th class="text-end">{% trans "فحص البصمة" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for a in audits %}
+          <tr>
+            <td class="text-muted">{{ forloop.counter }}</td>
+            <td class="fw-bold text-muted">#{{ a.id }}</td>
+            <td>
+              <span class="badge bg-light text-dark border me-1">{{ a.document_type }}</span>
+              <strong>{{ a.document_number }}</strong>
+            </td>
+            <td>
+              {% if a.customer %}
+              <i class="fas fa-user-tie text-primary me-1"></i>{{ a.customer.name }}
+              {% elif a.supplier %}
+              <i class="fas fa-truck text-secondary me-1"></i>{{ a.supplier.name }}
+              {% else %}
+              <span class="text-muted">-</span>
+              {% endif %}
+            </td>
+            <td class="text-center"><span class="badge bg-info-subtle text-info border border-info-subtle">{{ a.tax_code.code }}</span></td>
+            <td class="text-center">{{ a.taxable_amount|smart_float:2 }} {{ a.currency }}</td>
+            <td class="text-center fw-bold text-dark">{{ a.functional_tax_amount|smart_float:2 }} EGP</td>
+            <td class="text-center">
+              {% if a.journal_entry %}
+              <a href="{% url 'financial:journal_entries_detail' a.journal_entry.pk %}" class="badge bg-primary-subtle text-primary border border-primary-subtle text-decoration-none" title="{% trans 'عرض قيد اليومية' %}">
+                <i class="fas fa-receipt me-1"></i>{{ a.journal_entry.number }}
+              </a>
+              {% else %}
+              <span class="text-muted small">{% trans "غير مقيد" %}</span>
+              {% endif %}
+            </td>
+            <td class="text-center">
+              {% if a.audit_status == 'POSTED' %}
+              <span class="badge bg-success-subtle text-success">{% trans "مرحل" %}</span>
+              {% elif a.audit_status == 'REVERSED' %}
+              <span class="badge bg-warning-subtle text-warning">{% trans "معكوس" %}</span>
+              {% else %}
+              <span class="badge bg-secondary-subtle text-secondary">{{ a.audit_status }}</span>
+              {% endif %}
+            </td>
+            <td>
+              <span class="small text-muted text-truncate d-inline-block" style="max-width: 110px;" title="{{ a.audit_hash }}">
+                {{ a.audit_hash|slice:":12" }}...
+              </span>
+            </td>
+            <td class="text-end">
+              <button type="button" class="btn btn-sm btn-outline-primary verify-btn" data-audit-id="{{ a.id }}" title="{% trans 'فحص مطابقة البصمة المشفرة' %}">
+                <i class="fas fa-check-double me-1"></i>{% trans "تحقق" %}
+              </button>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="11" class="text-center py-5 text-muted">
+              <i class="fas fa-shield-alt fa-3x mb-3 d-block text-secondary opacity-50"></i>
+              <h6>{% trans "لا توجد سجلات تدقيق ضريبي مسجلة حتى الآن." %}</h6>
+              <p class="small">{% trans "يقوم النظام بتسجيل الإثبات الضريبي آلياً عند اعتماد وترحيل الفواتير والمصروفات." %}</p>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% if page_obj.has_other_pages %}
+    <div class="p-3 border-top" id="pagination-wrapper">
+      {% include "partials/pagination.html" %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Modal for Instant Verification Feedback -->
+<div class="modal fade" id="verifyModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header bg-light border-bottom px-4 py-3">
+        <h5 class="modal-title fw-bold text-dark mb-0">
+          <i class="fas fa-shield-alt text-primary me-2"></i>{% trans "نتيجة فحص البصمة المشفرة (Canonical SHA-256)" %}
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-4 text-center">
+        <div id="verifySpinner" class="py-3">
+          <div class="spinner-border text-primary" role="status"></div>
+          <p class="mt-2 text-muted">{% trans "جاري التحقق من التوقيع الرقمي ومطابقة الـ Hash..." %}</p>
+        </div>
+        <div id="verifyResult" style="display:none;">
+          <div id="verifyIcon" class="mb-3"></div>
+          <h5 id="verifyTitle" class="fw-bold mb-2"></h5>
+          <p id="verifyMsg" class="text-muted small mb-3"></p>
+          <div class="p-2 bg-light border rounded small text-break" id="verifyHash"></div>
+        </div>
+      </div>
+      <div class="modal-footer bg-light border-top px-4 py-3">
+        <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إغلاق" %}</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const verifyButtons = document.querySelectorAll('.verify-btn');
+  const verifyModal = new bootstrap.Modal(document.getElementById('verifyModal'));
+  const verifySpinner = document.getElementById('verifySpinner');
+  const verifyResult = document.getElementById('verifyResult');
+  const verifyIcon = document.getElementById('verifyIcon');
+  const verifyTitle = document.getElementById('verifyTitle');
+  const verifyMsg = document.getElementById('verifyMsg');
+  const verifyHash = document.getElementById('verifyHash');
+
+  verifyButtons.forEach(btn => {
+    btn.addEventListener('click', function() {
+      const auditId = this.getAttribute('data-audit-id');
+      verifySpinner.style.display = 'block';
+      verifyResult.style.display = 'none';
+      verifyModal.show();
+
+      fetch(`/financial/tax-audit/${auditId}/verify-ajax/`)
+        .then(res => res.json())
+        .then(data => {
+          verifySpinner.style.display = 'none';
+          verifyResult.style.display = 'block';
+          if (data.status === 'success' && data.is_valid) {
+            verifyIcon.innerHTML = '<i class="fas fa-check-circle fa-3x text-success"></i>';
+            verifyTitle.innerText = '{% trans "البصمة سليمة ومطابقة 100%" %}';
+            verifyTitle.className = 'fw-bold mb-2 text-success';
+            verifyMsg.innerText = data.message;
+            verifyHash.innerText = 'SHA-256: ' + data.hash;
+          } else {
+            verifyIcon.innerHTML = '<i class="fas fa-exclamation-triangle fa-3x text-danger"></i>';
+            verifyTitle.innerText = '{% trans "تحذير: عدم تطابق البيانات!" %}';
+            verifyTitle.className = 'fw-bold mb-2 text-danger';
+            verifyMsg.innerText = data.message || '{% trans "تم الكشف عن تعديل أو تلاعب في بيانات السجل بعد إصداره." %}';
+            verifyHash.innerText = data.hash ? ('SHA-256: ' + data.hash) : '';
+          }
+        })
+        .catch(err => {
+          verifySpinner.style.display = 'none';
+          verifyResult.style.display = 'block';
+          verifyIcon.innerHTML = '<i class="fas fa-times-circle fa-3x text-danger"></i>';
+          verifyTitle.innerText = '{% trans "خطأ في الفحص" %}';
+          verifyTitle.className = 'fw-bold mb-2 text-danger';
+          verifyMsg.innerText = err.message;
+          verifyHash.innerText = '';
+        });
+    });
+  });
+});
+</script>
+{% endblock %}

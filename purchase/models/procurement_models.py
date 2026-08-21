@@ -19,12 +19,21 @@ class PurchaseOrder(models.Model):
         ("APPROVED", _("معتمد")),
         ("PARTIALLY_RECEIVED", _("مستلم جزئياً")),
         ("FULLY_RECEIVED", _("مستلم بالكامل")),
+        ("COMPLETED", _("مكتمل")),
         ("CANCELLED", _("ملغى")),
     )
     COST_SOURCE_POLICIES = (
         ("PO_PRICE", _("سعر أمر الشراء الأصلي")),
         ("LIST_PRICE", _("سعر قائمة المورد")),
         ("CUSTOM", _("سعر مخصص")),
+    )
+    DISCOUNT_TYPE_CHOICES = (
+        ("fixed", _("مبلغ ثابت")),
+        ("percentage", _("نسبة مئوية")),
+    )
+    ADJUSTMENT_TYPE_CHOICES = (
+        ("add", _("+")),
+        ("subtract", _("-")),
     )
 
     order_number = models.CharField(_("رقم أمر الشراء"), max_length=50, unique=True)
@@ -38,19 +47,67 @@ class PurchaseOrder(models.Model):
         Warehouse,
         on_delete=models.PROTECT,
         verbose_name=_("المستودع المستهدف"),
-        related_name="purchase_orders"
+        related_name="purchase_orders",
+        null=True,
+        blank=True
     )
     order_date = models.DateField(_("تاريخ أمر الشراء"))
     delivery_due_date = models.DateField(_("تاريخ التوريد المتوقع"), null=True, blank=True)
 
-    currency = models.CharField(_("العملة"), max_length=10, blank=True, null=True)
-    exchange_rate = models.DecimalField(_("سعر الصرف"), max_digits=10, decimal_places=4, default=Decimal("1.0000"))
+    currency = models.ForeignKey(
+        "financial.Currency",
+        on_delete=models.PROTECT,
+        verbose_name=_("العملة"),
+        related_name="purchase_orders",
+        null=True,
+        blank=True
+    )
+    exchange_rate = models.DecimalField(_("سعر الصرف"), max_digits=18, decimal_places=6, default=Decimal("1.000000"))
     cost_source_policy = models.CharField(_("سياسة سعر التكلفة"), max_length=20, choices=COST_SOURCE_POLICIES, default="PO_PRICE")
 
     status = models.CharField(_("الحالة"), max_length=30, choices=STATUS_CHOICES, default="DRAFT")
 
-    total_amount = models.DecimalField(_("الإجمالي بعملة الفاتورة"), max_digits=15, decimal_places=2, default=Decimal("0.00"))
-    functional_amount = models.DecimalField(_("الإجمالي بالعملة الوظيفية"), max_digits=15, decimal_places=2, default=Decimal("0.00"))
+    subtotal = models.DecimalField(_("المجموع الفرعي"), max_digits=15, decimal_places=2, default=Decimal("0.00"))
+    discount = models.DecimalField(_("خصم المستند"), max_digits=15, decimal_places=2, default=Decimal("0.00"))
+    discount_type = models.CharField(_("نوع الخصم"), max_length=20, choices=DISCOUNT_TYPE_CHOICES, default="fixed")
+
+    tax_active = models.BooleanField(_("الضريبة نشطة"), default=True)
+    vat_active = models.BooleanField(_("ضريبة القيمة المضافة نشطة"), default=True)
+    vat_rate = models.DecimalField(_("نسبة ضريبة القيمة المضافة %"), max_digits=5, decimal_places=2, default=Decimal("14.00"))
+    tax_amount = models.DecimalField(_("قيمة ضريبة القيمة المضافة"), max_digits=15, decimal_places=2, default=Decimal("0.00"))
+
+    wht_active = models.BooleanField(_("ضريبة الخصم والإضافة نشطة"), default=False)
+    wht_rate = models.DecimalField(_("نسبة الخصم والإضافة %"), max_digits=5, decimal_places=2, default=Decimal("1.00"))
+    wht_amount = models.DecimalField(_("مبلغ الخصم والإضافة"), max_digits=15, decimal_places=2, default=Decimal("0.00"))
+
+    adjustment_name = models.CharField(_("اسم التسوية الإضافية"), max_length=255, blank=True, null=True)
+    adjustment_type = models.CharField(_("نوع التسوية"), max_length=10, choices=ADJUSTMENT_TYPE_CHOICES, default="add")
+    adjustment_amount = models.DecimalField(_("مبلغ التسوية"), max_digits=15, decimal_places=2, default=Decimal("0.00"))
+
+    total_amount = models.DecimalField(_("الإجمالي بعملة الفاتورة"), max_digits=18, decimal_places=2, default=Decimal("0.00"))
+    total_foreign = models.DecimalField(_("الإجمالي بالعملة الأجنبية"), max_digits=18, decimal_places=2, default=Decimal("0.00"))
+    functional_amount = models.DecimalField(_("الإجمالي بالعملة الوظيفية"), max_digits=18, decimal_places=2, default=Decimal("0.00"))
+
+    cost_center = models.ForeignKey(
+        "financial.CostCenter",
+        on_delete=models.SET_NULL,
+        verbose_name=_("مركز التكلفة"),
+        null=True,
+        blank=True,
+        related_name="purchase_orders"
+    )
+    work_order = models.ForeignKey(
+        "work_order.WorkOrder",
+        on_delete=models.SET_NULL,
+        verbose_name=_("أمر الشغل المرتبط"),
+        null=True,
+        blank=True,
+        related_name="purchase_orders"
+    )
+
+    payment_terms = models.CharField(_("شروط وطريقة السداد"), max_length=255, blank=True, null=True)
+    notes = models.TextField(_("ملاحظات وشروط أمر الشراء"), blank=True, null=True)
+    custom_fields = models.JSONField(_("الحقول الإضافية"), default=list, blank=True, help_text=_("مصفوفة الحقول الإضافية المخصصة"))
 
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -88,6 +145,7 @@ class PurchaseOrderItem(models.Model):
     billed_qty = models.DecimalField(_("الكمية المفوترة"), max_digits=15, decimal_places=4, default=Decimal("0.0000"))
 
     unit_price = models.DecimalField(_("سعر الوحدة المحدد في PO"), max_digits=15, decimal_places=4)
+    discount = models.DecimalField(_("خصم البند"), max_digits=15, decimal_places=2, default=Decimal("0.00"))
     total_price = models.DecimalField(_("إجمالي السطر"), max_digits=15, decimal_places=2)
 
     class Meta:

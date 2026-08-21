@@ -345,27 +345,79 @@ class SalesService:
             inv.total_amount = total_inv_val
             inv.functional_amount = func_val
 
-            # Accounting Entry via AccountingGateway: Dr. 11010 Customer AR / Cr. 40100 Revenue (or 22010 Deferred Revenue if pre-delivery)
-            cust_account_code = so.customer.financial_account.code if so.customer.financial_account else "11010"
-            revenue_account = "40100" if dn else "22010_UNEARNED_REV"
-            revenue_desc = f"Sales Revenue Credit Invoice #{inv.invoice_number}" if dn else f"Deferred Revenue Credit Invoice #{inv.invoice_number}"
+            # Accounting Entry via AccountingGateway: Compound Multi-Currency IAS 21 Entry
+            from governance.services.accounting_gateway import AccountingGateway, JournalEntryLineData
+            from financial.services.role_registry import AccountRoleRegistry
+
+            cust_account_code = so.customer.financial_account.code if (hasattr(so.customer, 'financial_account') and so.customer.financial_account) else AccountRoleRegistry.get_account_code("CUSTOMER_RECEIVABLE_CONTROL")
+            sales_rev_code = AccountRoleRegistry.get_account_code("GENERAL_SALES_REVENUE")
+            deferred_rev_code = AccountRoleRegistry.get_account_code("DEFERRED_REVENUE_ACCOUNT")
+            vat_output_code = AccountRoleRegistry.get_account_code("VAT_OUTPUT")
+
+            # Split immediate delivered revenue vs deferred contract revenue
+            delivered_amount = total_inv_val if dn else Decimal("0.00")
+            deferred_amount = Decimal("0.00") if dn else total_inv_val
+
+            delivered_func = (delivered_amount * so.exchange_rate).quantize(Decimal("0.01"))
+            deferred_func = (deferred_amount * so.exchange_rate).quantize(Decimal("0.01"))
 
             lines_data = [
-                {"account_code": cust_account_code, "debit": func_val, "credit": Decimal("0.00"), "description": f"Customer AR Debit Invoice #{inv.invoice_number}"},
-                {"account_code": revenue_account, "debit": Decimal("0.00"), "credit": func_val, "description": revenue_desc}
+                JournalEntryLineData(
+                    account_code=cust_account_code,
+                    debit=func_val,
+                    credit=Decimal("0.00"),
+                    description=f"مديونية عميل - فاتورة مبيعات #{inv.invoice_number}",
+                    currency=so.currency,
+                    exchange_rate=so.exchange_rate,
+                    foreign_debit=total_inv_val if so.currency != "EGP" else Decimal("0.00"),
+                    foreign_credit=Decimal("0.00")
+                )
             ]
 
-            draft_entry = LedgerCoreService.create_draft_entry(
-                date=invoice_date,
-                description=f"Sales Revenue Entry for Invoice #{inv.invoice_number}",
-                reference=f"INV-{inv.id}",
-                entry_type="automatic",
-                created_by=user,
-                lines_data=lines_data
+            if delivered_func > Decimal("0.00"):
+                lines_data.append(
+                    JournalEntryLineData(
+                        account_code=sales_rev_code,
+                        debit=Decimal("0.00"),
+                        credit=delivered_func,
+                        description=f"إيراد مبيعات فورية - فاتورة #{inv.invoice_number}",
+                        currency=so.currency,
+                        exchange_rate=so.exchange_rate,
+                        foreign_debit=Decimal("0.00"),
+                        foreign_credit=delivered_amount if so.currency != "EGP" else Decimal("0.00")
+                    )
+                )
+
+            if deferred_func > Decimal("0.00"):
+                lines_data.append(
+                    JournalEntryLineData(
+                        account_code=deferred_rev_code,
+                        debit=Decimal("0.00"),
+                        credit=deferred_func,
+                        description=f"إيرادات مؤجلة / التزامات عقود - فاتورة #{inv.invoice_number}",
+                        currency=so.currency,
+                        exchange_rate=so.exchange_rate,
+                        foreign_debit=Decimal("0.00"),
+                        foreign_credit=deferred_amount if so.currency != "EGP" else Decimal("0.00")
+                    )
+                )
+
+            gateway = AccountingGateway()
+            idem_key = AccountingGateway.generate_idempotency_key('sale', 'SalesInvoice', inv.id, 'create')
+            journal_entry = gateway.create_journal_entry(
+                source_module='sale',
+                source_model='SalesInvoice',
+                source_id=inv.id,
+                lines=lines_data,
+                idempotency_key=idem_key,
+                user=user or inv.created_by,
+                entry_type='sales_invoice',
+                description=f"إيراد فاتورة مبيعات رقم {inv.invoice_number} - {so.customer.name}",
+                reference=f"INV-{inv.invoice_number}",
+                date=invoice_date
             )
-            journal_entry = LedgerCoreService.post_entry(draft_entry.id, user=user)
             inv.journal_entry = journal_entry
-            inv.save()
+            inv.save(update_fields=["journal_entry"])
 
             # Create IFRS 15 Revenue Recognition Schedules (FIN-AR-002)
             from financial.services.revenue_recognition_service import RevenueRecognitionService
@@ -374,7 +426,7 @@ class SalesService:
 
             # Apply Tax Determination & Audit Posting (FIN-TAX-001)
             from financial.services.tax_service import TaxDeterminationService
-            tax_lines = [{"line_id": item.id, "amount": item.line_total} for item in inv.items.all()]
+            tax_lines = [{"line_id": item.id, "amount": item.line_total, "product_id": getattr(item, 'product_id', None) or (item.so_item.product_id if hasattr(item, 'so_item') and item.so_item else None)} for item in inv.items.all()]
             TaxDeterminationService.apply_tax_posting(
                 document_type="SalesInvoice",
                 document_id=inv.id,
@@ -383,7 +435,8 @@ class SalesService:
                 lines=tax_lines,
                 currency=so.currency,
                 exchange_rate=so.exchange_rate,
-                user=user
+                user=user,
+                journal_entry=journal_entry
             )
 
             # Register Open Item in CustomerSubledgerService (FIN-AR-003)

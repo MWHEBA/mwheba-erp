@@ -85,7 +85,7 @@ class TestSprint65ProcurementHardening:
             currency="USD",
             exchange_rate=Decimal("48.5000")
         )
-        assert po.currency == "USD"
+        assert po.currency.code == "USD"
         assert po.functional_amount == Decimal("48500.00")  # 1000 * 48.50
 
     def test_fin_pur_016_audit_trail_and_subledger_reconciliations(self, setup_hardening_data):

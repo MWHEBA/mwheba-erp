@@ -101,6 +101,14 @@
           </button>
         </li>
         <li class="nav-item" role="presentation">
+          <button class="nav-link fw-semibold px-3" id="po-tab" data-bs-toggle="tab"
+            data-bs-target="#po-tab-pane" type="button" role="tab" aria-controls="po-tab-pane"
+            aria-selected="false">
+            <i class="fas fa-file-contract me-2"></i>{% trans "أوامر الشراء" %}
+            <span class="badge rounded-pill bg-light text-secondary border ms-1">{{ supplier.purchase_orders.count|default:"0" }}</span>
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
           <button class="nav-link fw-semibold px-3" id="purchases-tab" data-bs-toggle="tab"
             data-bs-target="#purchases-tab-pane" type="button" role="tab" aria-controls="purchases-tab-pane"
             aria-selected="false">
@@ -198,7 +206,29 @@
                 <i class="fas fa-file-invoice text-secondary mt-1 me-3"></i>
                 <div>
                   <small class="text-muted d-block mb-1">{% trans "الرقم الضريبي" %}</small>
-                  <span class="text-dark fw-semibold">{{ supplier.tax_number|default:"-" }}</span>
+                  <span class="text-dark fw-semibold font-monospace">{{ supplier.tax_number|default:"-" }}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-md-6 col-lg-4">
+              <div class="d-flex align-items-start">
+                <i class="fas fa-building text-secondary mt-1 me-3"></i>
+                <div>
+                  <small class="text-muted d-block mb-1">{% trans "مأمورية الضرائب" %}</small>
+                  <span class="text-dark fw-semibold">{{ supplier.tax_office|default:"-" }}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-md-6 col-lg-4">
+              <div class="d-flex align-items-start">
+                <i class="fas fa-certificate text-secondary mt-1 me-3"></i>
+                <div>
+                  <small class="text-muted d-block mb-1">{% trans "شهادات الإعفاء الضريبي" %}</small>
+                  <a href="{% url 'financial:tax_exemptions_list' %}?search={{ supplier.name }}" class="badge bg-light text-primary border text-decoration-none">
+                    <i class="fas fa-search me-1"></i>{% trans "استعراض الإعفاءات" %}
+                  </a>
                 </div>
               </div>
             </div>
@@ -232,6 +262,57 @@
                 <small class="text-muted d-block mb-1">{% trans "ملاحظات" %}</small>
                 <p class="mb-0 text-dark small">{{ supplier.notes }}</p>
               </div>
+            </div>
+          </div>
+          {% endif %}
+        </div>
+
+        <!-- تاب أوامر الشراء -->
+        <div class="tab-pane fade" id="po-tab-pane" role="tabpanel" aria-labelledby="po-tab" tabindex="0">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="section-title mb-0"><i class="fas fa-file-contract me-2 text-primary"></i>{% trans "أوامر الشراء والتوريد" %}</h5>
+            <a href="{% url 'purchase:po_create' %}?supplier={{ supplier.pk }}" class="btn btn-sm btn-primary">
+              <i class="fas fa-plus me-1"></i>{% trans "إنشاء أمر شراء جديد" %}
+            </a>
+          </div>
+
+          {% if supplier.purchase_orders.all %}
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 unified-table">
+              <thead class="table-light">
+                <tr>
+                  <th class="ps-3">{% trans "رقم أمر الشراء" %}</th>
+                  <th>{% trans "تاريخ الأمر" %}</th>
+                  <th>{% trans "المستودع" %}</th>
+                  <th>{% trans "القيمة" %}</th>
+                  <th>{% trans "الحالة" %}</th>
+                  <th class="text-end pe-3">{% trans "عرض" %}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for po in supplier.purchase_orders.all %}
+                <tr class="clickable-row" data-href="{% url 'purchase:po_detail' po.id %}">
+                  <td class="ps-3 fw-bold text-primary"><i class="fas fa-file-contract me-1"></i>{{ po.order_number }}</td>
+                  <td>{{ po.order_date|date:"Y-m-d" }}</td>
+                  <td>{{ po.warehouse.name }}</td>
+                  <td class="fw-bold">{{ po.total_amount|floatformat:2 }} {{ po.currency|default:"EGP" }}</td>
+                  <td><span class="badge bg-secondary">{{ po.get_status_display }}</span></td>
+                  <td class="text-end pe-3 col-actions" onclick="event.stopPropagation();">
+                    <a href="{% url 'purchase:po_detail' po.id %}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-eye"></i></a>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% else %}
+          <div class="alert alert-info d-flex align-items-center m-3">
+            <i class="fas fa-info-circle fa-2x me-3"></i>
+            <div>
+              {% trans "لا توجد أوامر شراء مسجلة لهذا المورد." %}
+              <a href="{% url 'purchase:po_create' %}?supplier={{ supplier.pk }}" class="alert-link ms-1">
+                {% trans "إنشاء أمر شراء جديد" %}
+              </a>
             </div>
           </div>
           {% endif %}

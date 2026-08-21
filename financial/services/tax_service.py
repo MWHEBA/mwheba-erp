@@ -81,10 +81,12 @@ class TaxDeterminationService:
         currency: str = "EGP",
         exchange_rate: Decimal = Decimal("1.000000"),
         transaction_date=None,
-        jurisdiction_code: Optional[str] = "EGYPT-TAX"
+        jurisdiction_code: Optional[str] = "EGYPT-TAX",
+        is_tax_inclusive: bool = False
     ) -> TaxCalculationResult:
         """
-        حساب وتقييم الضريبة والـ Calculation Output مع تسجيل سجل تتبع تقييم القواعد TaxRuleEvaluationLog
+        FIN-TAX-001 v3.2: Enterprise Line-by-Line Multi-Tax Determination Engine
+        حساب وتقييم الضريبة على مستوى كل بند صنف مستقلاً مع دعم الأسعار الشاملة وغير الشاملة وفروق التقريب
         """
         if lines is None:
             lines = []
@@ -100,52 +102,16 @@ class TaxDeterminationService:
                 defaults={"name": "Egyptian Tax Authority", "country": "Egypt", "tax_authority": "مصلحة الضرائب المصرية", "is_active": True}
             )
 
-        # 2. Check Tax Exemption Management
-        exemption = None
+        # 2. Check Global Tax Exemption Certificate on Party
+        party_exemption = None
         if customer:
-            exemption = TaxExemptionCertificate.objects.filter(customer=customer, status="ACTIVE").first()
+            party_exemption = TaxExemptionCertificate.objects.filter(customer=customer, status="ACTIVE").first()
         elif supplier:
-            exemption = TaxExemptionCertificate.objects.filter(supplier=supplier, status="ACTIVE").first()
+            party_exemption = TaxExemptionCertificate.objects.filter(supplier=supplier, status="ACTIVE").first()
 
-        if exemption and exemption.is_valid_on(date_val):
-            total_base = sum(Decimal(str(l.get("amount", "0.00"))) for l in lines)
-            decision = TaxDecision(
-                decision_type="TAX_EXEMPT",
-                applicable=False,
-                selected_rule_code=None,
-                rule_version=1,
-                tax_code=exemption.tax_code.code,
-                tax_rate=Decimal("0.0000"),
-                taxable_amount=total_base,
-                tax_amount=Decimal("0.00"),
-                jurisdiction_code=jurisdiction.code,
-                decision_reason=f"Exempted by valid Exemption Certificate #{exemption.certificate_number}",
-                exemption_certificate_id=exemption.id,
-                effective_date=date_val.isoformat()
-            )
-
-            # Log Evaluation
-            TaxRuleEvaluationLog.objects.create(
-                document_type=document_type,
-                document_number=doc_num,
-                candidate_rules=[],
-                selected_rule=None,
-                rejected_rules=[{"reason": "Exempted by valid certificate"}],
-                priority_score=0
-            )
-
-            return TaxCalculationResult(
-                document_id=document_id,
-                subtotal=total_base,
-                taxable_amount=total_base,
-                tax_amount=Decimal("0.00"),
-                total_amount=total_base,
-                currency=currency,
-                exchange_rate=exchange_rate,
-                functional_tax_amount=Decimal("0.00"),
-                tax_decisions=[decision],
-                line_decisions=[]
-            )
+        is_party_exempt = False
+        if party_exemption and party_exemption.is_valid_on(date_val):
+            is_party_exempt = True
 
         # 3. Rule Evaluation Hierarchy: Jurisdiction -> TaxRule Priority Resolution
         candidate_rules_qs = TaxRule.objects.filter(is_active=True, effective_from__lte=date_val).filter(
@@ -160,72 +126,125 @@ class TaxDeterminationService:
         candidate_rules = list(candidate_rules_qs.order_by("-priority", "-version"))
         selected_rule = candidate_rules[0] if candidate_rules else None
 
-        if not selected_rule:
-            tax_code_obj, _ = TaxCode.objects.get_or_create(
+        # Default system tax code fallback
+        default_vat = selected_rule.tax_code if selected_rule else None
+        if not default_vat:
+            default_vat, _ = TaxCode.objects.get_or_create(
                 code="VAT14",
-                defaults={"name": "Standard Value Added Tax 14%", "tax_type": "VAT", "tax_nature": "OUTPUT", "rate": Decimal("14.0000"), "recoverability_percentage": Decimal("100.00")}
-            )
-            selected_rule = TaxRule.objects.create(
-                code="RUL-VAT14-DEFAULT",
-                name="Default System VAT 14%",
-                version=1,
-                priority=1,
-                rule_scope="GLOBAL",
-                tax_code=tax_code_obj,
-                jurisdiction=jurisdiction,
-                is_active=True
+                defaults={
+                    "name": "ضريبة القيمة المضافة العامة 14%",
+                    "tax_type": "VAT",
+                    "tax_nature": "OUTPUT",
+                    "rate": Decimal("14.0000"),
+                    "recoverability_percentage": Decimal("100.00"),
+                    "is_active": True
+                }
             )
 
-        # Log Rule Resolution Audit
-        TaxRuleEvaluationLog.objects.create(
-            document_type=document_type,
-            document_number=doc_num,
-            candidate_rules=[r.code for r in candidate_rules],
-            selected_rule=selected_rule.code,
-            rejected_rules=[{"rule": r.code, "reason": "Lower Priority"} for r in candidate_rules[1:]],
-            priority_score=selected_rule.priority
-        )
-
-        tax_code = selected_rule.tax_code
-        rate = tax_code.rate
-
-        # 4. Line Calculations & Integrity Assurance
         line_decisions = []
+        tax_decisions = []
         total_subtotal = Decimal("0.00")
         total_taxable = Decimal("0.00")
         total_tax = Decimal("0.00")
 
+        # 4. Line-by-Line Multi-Tax Evaluation
         for line_idx, line in enumerate(lines, start=1):
-            line_amount = Decimal(str(line.get("amount", "0.00")))
-            line_tax = (line_amount * (rate / Decimal("100.00"))).quantize(Decimal("0.01"))
+            raw_amount = Decimal(str(line.get("amount", "0.00")))
+            line_prod = line.get("product")
+            line_prod_id = line.get("product_id")
+            line_tax_code = line.get("tax_code")
+            line_tax_code_obj = None
 
-            total_subtotal += line_amount
-            total_taxable += line_amount
+            # Resolve line tax code
+            if isinstance(line_tax_code, TaxCode):
+                line_tax_code_obj = line_tax_code
+            elif isinstance(line_tax_code, str):
+                line_tax_code_obj = TaxCode.objects.filter(code=line_tax_code, is_active=True).first()
+
+            if not line_tax_code_obj and line_prod:
+                if hasattr(line_prod, 'tax_code') and line_prod.tax_code:
+                    line_tax_code_obj = line_prod.tax_code
+            elif not line_tax_code_obj and line_prod_id:
+                from product.models import Product
+                prod_obj = Product.objects.filter(pk=line_prod_id).select_related("tax_code").first()
+                if prod_obj and prod_obj.tax_code:
+                    line_tax_code_obj = prod_obj.tax_code
+
+            if not line_tax_code_obj:
+                line_tax_code_obj = default_vat
+
+            rate = line_tax_code_obj.rate
+
+            # Handle Party Exemption or Line Exemption
+            if is_party_exempt or line_tax_code_obj.tax_type in ["EXEMPT", "ZERO_RATED"]:
+                if is_party_exempt:
+                    ex_reason = f"معفى بموجب شهادة إعفاء ضريبي رقم {party_exemption.certificate_number}"
+                else:
+                    ex_reason = f"صنف معفى / خاضع لسعر صفر ({line_tax_code_obj.name})"
+                
+                line_base = raw_amount
+                line_tax = Decimal("0.00")
+                applied_rate = Decimal("0.0000")
+            else:
+                ex_reason = None
+                applied_rate = rate
+                line_is_inclusive = line.get("is_tax_inclusive", is_tax_inclusive)
+                if line_is_inclusive and applied_rate > Decimal("0.00"):
+                    # Extraction formula: Base = Amount / (1 + Rate/100)
+                    multiplier = Decimal("1.00") + (applied_rate / Decimal("100.00"))
+                    line_base = (raw_amount / multiplier).quantize(Decimal("0.01"))
+                    line_tax = (raw_amount - line_base).quantize(Decimal("0.01"))
+                else:
+                    line_base = raw_amount
+                    line_tax = (line_base * (applied_rate / Decimal("100.00"))).quantize(Decimal("0.01"))
+
+            total_subtotal += line_base
+            total_taxable += line_base
             total_tax += line_tax
 
-            line_decisions.append({
+            ld = {
                 "line_index": line_idx,
                 "document_line_id": line.get("line_id", line_idx),
-                "tax_code": tax_code.code,
-                "taxable_amount": str(line_amount),
-                "tax_rate": str(rate),
-                "tax_amount": str(line_tax)
-            })
+                "tax_code": line_tax_code_obj.code,
+                "tax_name": line_tax_code_obj.name,
+                "tax_nature": line_tax_code_obj.tax_nature,
+                "taxable_amount": str(line_base),
+                "tax_rate": str(applied_rate),
+                "tax_amount": str(line_tax),
+                "exemption_reason": ex_reason
+            }
+            line_decisions.append(ld)
 
-        decision = TaxDecision(
-            decision_type="TAX_APPLIED",
-            applicable=True,
-            selected_rule_code=selected_rule.code,
-            rule_version=selected_rule.version,
-            tax_code=tax_code.code,
-            tax_rate=rate,
+        # Primary decision for header summary
+        primary_code = line_decisions[0]["tax_code"] if line_decisions else default_vat.code
+        primary_rate = Decimal(line_decisions[0]["tax_rate"]) if line_decisions else default_vat.rate
+
+        header_decision = TaxDecision(
+            decision_type="TAX_EXEMPT" if is_party_exempt else "TAX_APPLIED",
+            applicable=not is_party_exempt and total_tax > Decimal("0.00"),
+            selected_rule_code=None if is_party_exempt else (selected_rule.code if selected_rule else "LINE_MULTI_TAX_RESOLUTION"),
+            rule_version=selected_rule.version if selected_rule else 1,
+            tax_code=primary_code,
+            tax_rate=primary_rate,
             taxable_amount=total_taxable,
             tax_amount=total_tax,
             jurisdiction_code=jurisdiction.code,
-            decision_reason=f"Applied TaxRule {selected_rule.code} (Rate: {rate}%)",
+            decision_reason="Exempted by certificate" if is_party_exempt else f"Applied TaxRule {selected_rule.code if selected_rule else primary_code}",
             effective_date=date_val.isoformat(),
-            accounting_position=tax_code.tax_nature,
-            line_decisions=line_decisions
+            accounting_position=default_vat.tax_nature,
+            line_decisions=line_decisions,
+            exemption_certificate_id=party_exemption.id if party_exemption else None
+        )
+        tax_decisions.append(header_decision)
+
+        # Log Evaluation in TaxRuleEvaluationLog
+        TaxRuleEvaluationLog.objects.create(
+            document_type=document_type,
+            document_number=doc_num,
+            candidate_rules=[r.code for r in candidate_rules] if candidate_rules else [ld["tax_code"] for ld in line_decisions],
+            selected_rule=selected_rule.code if selected_rule else f"MULTI_TAX:{primary_code}",
+            rejected_rules=[{"rule": r.code, "reason": "Lower Priority"} for r in candidate_rules[1:]] if candidate_rules else [],
+            priority_score=selected_rule.priority if selected_rule else 100
         )
 
         func_tax = (total_tax * exchange_rate).quantize(Decimal("0.01"))
@@ -239,7 +258,7 @@ class TaxDeterminationService:
             currency=currency,
             exchange_rate=exchange_rate,
             functional_tax_amount=func_tax,
-            tax_decisions=[decision],
+            tax_decisions=tax_decisions,
             line_decisions=line_decisions
         )
 
@@ -254,10 +273,12 @@ class TaxDeterminationService:
         lines: List[Dict[str, Any]] = None,
         currency: str = "EGP",
         exchange_rate: Decimal = Decimal("1.000000"),
-        user=None
+        user=None,
+        journal_entry=None
     ) -> TaxDeterminationAudit:
         """
-        تطبيق واحتساب وقيد الضريبة ذرية بـ select_for_update مع التوقيع المشفر SHA256 وسجل الأحداث المستقل TaxEvent
+        FIN-TAX-001 v3.2: Atomic Tax Determination & Audit Evidence Logger (Zero Double-Posting)
+        يربط السجل مباشرة بالقيد المحاسبي الأساسي للفاتورة مع التوقيع المشفر SHA256 وسجل الأحداث المستقل
         """
         with transaction.atomic():
             event_id = f"TAX-{document_type}-{document_id}"
@@ -279,46 +300,51 @@ class TaxDeterminationService:
             )
 
             decision = calc_result.tax_decisions[0]
-            tax_code_obj = TaxCode.objects.get(code=decision.tax_code)
+            tax_code_obj = TaxCode.objects.filter(code=decision.tax_code).first()
+            if not tax_code_obj:
+                tax_code_obj = TaxCode.objects.first()
 
             # Persist Line Calculations
             for ld in calc_result.line_decisions:
+                l_code = TaxCode.objects.filter(code=ld["tax_code"]).first() or tax_code_obj
                 TaxCalculationLine.objects.create(
                     document_type=document_type,
                     document_id=document_id,
                     document_line_id=ld["document_line_id"],
-                    tax_code=tax_code_obj,
+                    tax_code=l_code,
                     taxable_amount=Decimal(ld["taxable_amount"]),
                     tax_rate=Decimal(ld["tax_rate"]),
                     tax_amount=Decimal(ld["tax_amount"]),
-                    exemption_reason=decision.decision_reason if not decision.applicable else None
+                    exemption_reason=ld.get("exemption_reason")
                 )
 
             func_tax = calc_result.functional_tax_amount
             correlation_id = uuid.uuid4()
 
-            from financial.services.role_registry import AccountRoleRegistry
-            default_ar = AccountRoleRegistry.get_account_code("AR_CONTROL_ACCOUNT")
-            default_ap = AccountRoleRegistry.get_account_code("AP_CONTROL_ACCOUNT")
-            output_tax_acc = AccountRoleRegistry.get_account_code("OUTPUT_TAX_ACCOUNT")
-            input_tax_acc = AccountRoleRegistry.get_account_code("INPUT_TAX_ACCOUNT")
-            mapping = TaxAccountMapping.objects.filter(tax_code=tax_code_obj).first()
-            if mapping and mapping.debit_account and mapping.credit_account:
-                dr_acc = mapping.debit_account.code
-                cr_acc = mapping.credit_account.code
-            elif decision.accounting_position == "OUTPUT":
-                dr_acc = customer.financial_account.code if (customer and hasattr(customer, 'financial_account') and customer.financial_account) else default_ar
-                cr_acc = output_tax_acc
-            elif decision.accounting_position == "INPUT":
-                dr_acc = input_tax_acc
-                cr_acc = supplier.financial_account.code if (supplier and hasattr(supplier, 'financial_account') and supplier.financial_account) else default_ap
-            else:
-                dr_acc = input_tax_acc
-                cr_acc = output_tax_acc
-
-            journal_entry = None
-            if func_tax > Decimal("0.00") and decision.applicable:
+            # Create standalone journal entry ONLY if no existing journal entry is provided
+            posted_journal_entry = journal_entry
+            if not posted_journal_entry and func_tax > Decimal("0.00") and decision.applicable:
                 try:
+                    from financial.services.role_registry import AccountRoleRegistry
+                    default_ar = AccountRoleRegistry.get_account_code("AR_CONTROL_ACCOUNT") or "11010"
+                    default_ap = AccountRoleRegistry.get_account_code("AP_CONTROL_ACCOUNT") or "21010"
+                    output_tax_acc = AccountRoleRegistry.get_account_code("OUTPUT_TAX_ACCOUNT") or "22010"
+                    input_tax_acc = AccountRoleRegistry.get_account_code("INPUT_TAX_ACCOUNT") or "11050"
+                    
+                    mapping = TaxAccountMapping.objects.filter(tax_code=tax_code_obj).first()
+                    if mapping and mapping.debit_account and mapping.credit_account:
+                        dr_acc = mapping.debit_account.code
+                        cr_acc = mapping.credit_account.code
+                    elif decision.accounting_position == "OUTPUT":
+                        dr_acc = customer.financial_account.code if (customer and hasattr(customer, 'financial_account') and customer.financial_account) else default_ar
+                        cr_acc = output_tax_acc
+                    elif decision.accounting_position == "INPUT":
+                        dr_acc = input_tax_acc
+                        cr_acc = supplier.financial_account.code if (supplier and hasattr(supplier, 'financial_account') and supplier.financial_account) else default_ap
+                    else:
+                        dr_acc = input_tax_acc
+                        cr_acc = output_tax_acc
+
                     command = TaxAccountingCommand(
                         command_id=str(uuid.uuid4()),
                         correlation_id=str(correlation_id),
@@ -335,7 +361,7 @@ class TaxDeterminationService:
                         posting_date=timezone.now().date(),
                         user=user
                     )
-                    journal_entry = create_tax_posting(command)
+                    posted_journal_entry = create_tax_posting(command)
                 except Exception as e:
                     logger.warning(f"Could not post tax GL entry: {e}")
 
@@ -351,11 +377,11 @@ class TaxDeterminationService:
                 currency=currency,
                 exchange_rate=exchange_rate,
                 functional_tax_amount=func_tax,
-                audit_status="POSTED" if journal_entry else "CALCULATED",
+                audit_status="POSTED" if posted_journal_entry else "CALCULATED",
                 processed_event_id=event_id,
                 correlation_id=correlation_id,
                 audit_hash="",
-                journal_entry=journal_entry
+                journal_entry=posted_journal_entry
             )
             audit.save()
 
@@ -403,6 +429,11 @@ class TaxDeterminationService:
                         valid_to=ex_cert.valid_to,
                         exemption_reason=ex_cert.exemption_reason
                     )
+                    # Update quota tracking if defined
+                    if ex_cert.max_quota_amount is not None:
+                        TaxExemptionCertificate.objects.filter(pk=ex_cert.id).update(
+                            utilized_amount=models.F('utilized_amount') + decision.taxable_amount
+                        )
                 except TaxExemptionCertificate.DoesNotExist:
                     pass
 
@@ -477,3 +508,126 @@ class TaxDeterminationService:
             timestamp=audit.created_at.isoformat()
         )
         return audit.audit_hash == expected_hash
+
+    @classmethod
+    def seed_egyptian_tax_presets(cls) -> Dict[str, Any]:
+        """
+        توليد القواعد والأكواد الضريبية المعيارية للجمهورية المصرية بضغطة زر واحدة (One-Click Preset Generator)
+        """
+        presets = [
+            {
+                "code": "VAT14",
+                "name": "ضريبة القيمة المضافة العامة 14%",
+                "tax_type": "VAT",
+                "tax_nature": "OUTPUT",
+                "rate": Decimal("14.0000"),
+                "recoverability_percentage": Decimal("100.00"),
+                "eta_tax_type": "T1",
+                "is_default": True
+            },
+            {
+                "code": "VAT14_IN",
+                "name": "ضريبة القيمة المضافة على المشتريات (مدخلات) 14%",
+                "tax_type": "VAT",
+                "tax_nature": "INPUT",
+                "rate": Decimal("14.0000"),
+                "recoverability_percentage": Decimal("100.00"),
+                "eta_tax_type": "T1"
+            },
+            {
+                "code": "VAT_NON_REC",
+                "name": "ضريبة مدخلات غير قابلة للاسترداد (سيارات وضيافة) 14%",
+                "tax_type": "VAT",
+                "tax_nature": "NON_RECOVERABLE",
+                "rate": Decimal("14.0000"),
+                "recoverability_percentage": Decimal("0.00"),
+                "is_recoverable": False,
+                "eta_tax_type": "T1"
+            },
+            {
+                "code": "TABLE_05",
+                "name": "ضريبة الجدول (سلع وخدمات خاصة) 5%",
+                "tax_type": "EXCISE",
+                "tax_nature": "OUTPUT",
+                "rate": Decimal("5.0000"),
+                "recoverability_percentage": Decimal("100.00"),
+                "eta_tax_type": "T2"
+            },
+            {
+                "code": "ZERO_RATED",
+                "name": "ضريبة بسعر صفر (صادرات ومناطق حرة) 0%",
+                "tax_type": "ZERO_RATED",
+                "tax_nature": "OUTPUT",
+                "rate": Decimal("0.0000"),
+                "recoverability_percentage": Decimal("100.00"),
+                "eta_tax_type": "T1"
+            },
+            {
+                "code": "EXEMPT",
+                "name": "معفى من الضريبة بنص القانون 0%",
+                "tax_type": "EXEMPT",
+                "tax_nature": "OUTPUT",
+                "rate": Decimal("0.0000"),
+                "recoverability_percentage": Decimal("100.00"),
+                "eta_tax_type": "T1"
+            },
+            {
+                "code": "WHT_01",
+                "name": "خصم وتحصيل - توريدات ومقاولات (1%)",
+                "tax_type": "WITHHOLDING",
+                "tax_nature": "WITHHOLDING",
+                "rate": Decimal("1.0000"),
+                "recoverability_percentage": Decimal("100.00"),
+                "eta_tax_type": "T4",
+                "is_default": True
+            },
+            {
+                "code": "WHT_03",
+                "name": "خصم وتحصيل - خدمات (3%)",
+                "tax_type": "WITHHOLDING",
+                "tax_nature": "WITHHOLDING",
+                "rate": Decimal("3.0000"),
+                "recoverability_percentage": Decimal("100.00"),
+                "eta_tax_type": "T4"
+            },
+            {
+                "code": "WHT_05",
+                "name": "خصم وتحصيل - مهن حرة واستشارات (5%)",
+                "tax_type": "WITHHOLDING",
+                "tax_nature": "WITHHOLDING",
+                "rate": Decimal("5.0000"),
+                "recoverability_percentage": Decimal("100.00"),
+                "eta_tax_type": "T4"
+            }
+        ]
+
+        created_count = 0
+        updated_count = 0
+        for p in presets:
+            obj, created = TaxCode.objects.update_or_create(code=p["code"], defaults=p)
+            if created:
+                created_count += 1
+            else:
+                updated_count += 1
+
+        # دمج وحذف الأكواد القديمة المكررة لضمان نظافة وتوحيد جدول الضرائب
+        legacy_mappings = [
+            ("VAT0", "ZERO_RATED"),
+            ("WHT1", "WHT_01"),
+        ]
+
+        from product.models.product_core import Product
+        for old_code, target_code in legacy_mappings:
+            old_obj = TaxCode.objects.filter(code=old_code).first()
+            target_obj = TaxCode.objects.filter(code=target_code).first()
+            if old_obj and target_obj and old_obj.id != target_obj.id:
+                # تحديث أي مراجع تشير للكود القديم
+                Product.objects.filter(tax_code=old_obj).update(tax_code=target_obj)
+                TaxRule.objects.filter(tax_code=old_obj).update(tax_code=target_obj)
+                TaxDeterminationAudit.objects.filter(tax_code=old_obj).update(tax_code=target_obj)
+                TaxCalculationLine.objects.filter(tax_code=old_obj).update(tax_code=target_obj)
+                TaxAccountMapping.objects.filter(tax_code=old_obj).update(tax_code=target_obj)
+                TaxRateHistory.objects.filter(tax_code=old_obj).update(tax_code=target_obj)
+                old_obj.delete()
+
+        return {"status": "success", "created_count": created_count, "updated_count": updated_count, "total_presets": len(presets)}

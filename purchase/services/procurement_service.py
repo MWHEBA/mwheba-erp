@@ -57,12 +57,52 @@ class ProcurementService:
         order_date,
         items_data: List[Dict[str, Any]],
         user,
-        currency: str = "EGP",
-        exchange_rate: Decimal = Decimal("1.0000")
+        currency=None,
+        exchange_rate: Decimal = Decimal("1.000000"),
+        discount: Decimal = Decimal("0.00"),
+        discount_type: str = "fixed",
+        vat_active: bool = False,
+        vat_rate: Decimal = Decimal("14.00"),
+        wht_active: bool = False,
+        wht_rate: Decimal = Decimal("1.00"),
+        adjustment_name: Optional[str] = None,
+        adjustment_type: str = "add",
+        adjustment_amount: Decimal = Decimal("0.00"),
+        cost_center=None,
+        work_order=None,
+        payment_terms: Optional[str] = None,
+        notes: Optional[str] = None,
+        custom_fields: Optional[List[Any]] = None,
+        delivery_due_date=None,
+        cost_source_policy: str = "PO_PRICE"
     ) -> PurchaseOrder:
         """
-        إنشاء أمر شراء جديد (مسودة)
+        إنشاء أمر شراء جديد (مسودة) مع دعم كامل للمعايير المحاسبية IAS 2 و IAS 21
         """
+        from financial.models import Currency
+
+        # Resolve Currency instance
+        currency_obj = None
+        if isinstance(currency, Currency):
+            currency_obj = currency
+        elif isinstance(currency, int):
+            currency_obj = Currency.objects.filter(pk=currency).first()
+        elif isinstance(currency, str) and currency:
+            currency_obj = Currency.objects.filter(code__iexact=currency).first()
+            if not currency_obj:
+                currency_obj, _ = Currency.objects.get_or_create(
+                    code=currency.upper(),
+                    defaults={"name": currency.upper(), "symbol": currency.upper(), "is_functional": (currency.upper() == "EGP")}
+                )
+
+        if not currency_obj:
+            currency_obj = Currency.objects.filter(is_functional=True).first()
+            if not currency_obj:
+                currency_obj, _ = Currency.objects.get_or_create(
+                    code="EGP",
+                    defaults={"name": "جنيه مصري", "symbol": "ج.م", "is_functional": True}
+                )
+
         with transaction.atomic():
             po_num = cls.generate_po_number(date=order_date, warehouse=warehouse)
             po = PurchaseOrder.objects.create(
@@ -70,18 +110,26 @@ class ProcurementService:
                 supplier=supplier,
                 warehouse=warehouse,
                 order_date=order_date,
-                currency=currency,
-                exchange_rate=exchange_rate,
+                delivery_due_date=delivery_due_date,
+                currency=currency_obj,
+                exchange_rate=exchange_rate or Decimal("1.000000"),
+                cost_source_policy=cost_source_policy,
                 status="DRAFT",
+                cost_center=cost_center,
+                work_order=work_order,
+                payment_terms=payment_terms,
+                notes=notes,
+                custom_fields=custom_fields or [],
                 created_by=user
             )
 
-            total_amt = Decimal("0.00")
+            subtotal_amt = Decimal("0.00")
             for item in items_data:
                 product = item["product"]
                 ordered_qty = Decimal(str(item["ordered_qty"]))
                 unit_price = Decimal(str(item["unit_price"]))
-                line_total = (ordered_qty * unit_price).quantize(Decimal("0.01"))
+                item_discount = Decimal(str(item.get("discount", "0.00")))
+                line_total = ((ordered_qty * unit_price) - item_discount).quantize(Decimal("0.01"))
 
                 PurchaseOrderItem.objects.create(
                     purchase_order=po,
@@ -90,15 +138,56 @@ class ProcurementService:
                     unit=item.get("unit") or getattr(product, 'unit', None),
                     ordered_qty=ordered_qty,
                     unit_price=unit_price,
+                    discount=item_discount,
                     total_price=line_total
                 )
-                total_amt += line_total
+                subtotal_amt += line_total
 
-            po.total_amount = total_amt
-            po.functional_amount = (total_amt * exchange_rate).quantize(Decimal("0.01"))
-            po.save(update_fields=["total_amount", "functional_amount"])
+            # الحسابات المالية الدقيقة
+            po.subtotal = subtotal_amt
+            po.discount = Decimal(str(discount or "0.00"))
+            po.discount_type = discount_type or "fixed"
 
-            logger.info(f"PurchaseOrder created: #{po_num} with total {total_amt} {currency}.")
+            # خصم المستند
+            if po.discount_type == "percentage":
+                doc_discount_amt = (subtotal_amt * (po.discount / Decimal("100.00"))).quantize(Decimal("0.01"))
+            else:
+                doc_discount_amt = po.discount
+
+            net_commercial = max(Decimal("0.00"), subtotal_amt - doc_discount_amt)
+
+            # ضريبة القيمة المضافة VAT
+            po.tax_active = bool(vat_active)
+            po.vat_active = bool(vat_active)
+            po.vat_rate = Decimal(str(vat_rate or "14.00"))
+            if po.vat_active:
+                po.tax_amount = (net_commercial * (po.vat_rate / Decimal("100.00"))).quantize(Decimal("0.01"))
+            else:
+                po.tax_amount = Decimal("0.00")
+
+            # ضريبة الخصم والإضافة WHT
+            po.wht_active = bool(wht_active)
+            po.wht_rate = Decimal(str(wht_rate or "1.00"))
+            if po.wht_active:
+                po.wht_amount = (net_commercial * (po.wht_rate / Decimal("100.00"))).quantize(Decimal("0.01"))
+            else:
+                po.wht_amount = Decimal("0.00")
+
+            # التسويات الإضافية
+            po.adjustment_name = adjustment_name
+            po.adjustment_type = adjustment_type or "add"
+            po.adjustment_amount = Decimal(str(adjustment_amount or "0.00"))
+            adj_val = po.adjustment_amount if po.adjustment_type == "add" else -po.adjustment_amount
+
+            # الإجمالي النهائي بالعملتين
+            grand_total = (net_commercial + po.tax_amount - po.wht_amount + adj_val).quantize(Decimal("0.01"))
+            po.total_amount = grand_total
+            po.total_foreign = grand_total
+            po.functional_amount = (grand_total * po.exchange_rate).quantize(Decimal("0.01"))
+
+            po.save()
+
+            logger.info(f"PurchaseOrder created: #{po_num} with total {grand_total} {currency_obj}.")
             return po
 
     @classmethod

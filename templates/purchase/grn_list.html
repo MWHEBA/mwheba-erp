@@ -58,11 +58,11 @@
 
   <!-- Search and Filter Section -->
   <div class="section-container mb-4">
-    <h5 class="section-title" data-bs-toggle="collapse" data-bs-target="#filterSection" aria-expanded="true">
+    <h5 class="section-title cursor-pointer {% if not request.GET.supplier and not request.GET.warehouse and not request.GET.status and not request.GET.date_from and not request.GET.date_to %}collapsed{% endif %}" data-bs-toggle="collapse" data-bs-target="#filterSection" aria-expanded="{% if request.GET.supplier or request.GET.warehouse or request.GET.status or request.GET.date_from or request.GET.date_to %}true{% else %}false{% endif %}">
       <i class="fas fa-filter me-2"></i>{% trans "تصفية وبحث" %}
       <i class="fas fa-chevron-down float-end"></i>
     </h5>
-    <div class="collapse show" id="filterSection">
+    <div class="collapse {% if request.GET.supplier or request.GET.warehouse or request.GET.status or request.GET.date_from or request.GET.date_to %}show{% endif %}" id="filterSection">
       <form method="GET" action="" class="row g-3">
         <div class="col-md-3">
           <label for="supplier" class="form-label">{% trans "المورد" %}</label>

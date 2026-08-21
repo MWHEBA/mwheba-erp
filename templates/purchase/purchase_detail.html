@@ -386,9 +386,11 @@
 
 {% block content %}
 {% csrf_token %}
-<div class="container-fluid">
     <!-- Page Header المركزي -->
     {% include "shared/page_header.html" %}
+
+    <!-- شريط دورة حياة المستند المحوكم -->
+    {% include "components/document_lifecycle_stepper.html" with current_step=4 doc_created_at=purchase.created_at doc_approved_by=purchase.created_by.get_full_name journal_entry=purchase.journal_entry journal_entry_id=purchase.journal_entry_id %}
     
     <div class="row">
         <div class="col-12">
@@ -548,9 +550,10 @@
                                         {% endif %}
                                         <th class="text-center">{{ purchase.is_service_invoice|yesno:"الخدمة,المنتج" }}</th>
                                         <th style="width: 100px;" class="text-center">{% trans "الكمية" %}</th>
-                                        <th style="width: 150px;" class="text-center">{% trans "سعر الوحدة" %}</th>
-                                        <th style="width: 150px;" class="text-center">{% trans "الخصم" %}</th>
-                                        <th style="width: 150px;" class="text-center">{% trans "الإجمالي" %}</th>
+                                        <th style="width: 130px;" class="text-center">{% trans "سعر الوحدة" %}</th>
+                                        <th style="width: 110px;" class="text-center">{% trans "الخصم" %}</th>
+                                        <th style="width: 120px;" class="text-center">{% trans "الضريبة" %}</th>
+                                        <th style="width: 140px;" class="text-center">{% trans "الإجمالي" %}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -584,6 +587,7 @@
                                         </td>
                                         <td class="text-center">{{ item.unit_price|smart_float:2 }} {{ purchase|get_currency_symbol:currency_symbol }}</td>
                                         <td class="text-center">{% if item.discount and item.discount > 0 %}{{ item.discount|smart_float:2 }} {{ purchase|get_currency_symbol:currency_symbol }}{% else %}-{% endif %}</td>
+                                        <td class="text-center">{% if item.tax_amount and item.tax_amount > 0 %}<span class="badge bg-light text-dark border">{{ item.tax_amount|smart_float:2 }}</span>{% else %}-{% endif %}</td>
                                         <td class="fw-bold text-center">{{ item.total|smart_float:2 }} {{ purchase|get_currency_symbol:currency_symbol }}</td>
                                     </tr>
                                     {% endfor %}

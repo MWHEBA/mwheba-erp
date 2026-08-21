@@ -1,0 +1,90 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load custom_filters %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Page Header المركزي الموحد -->
+  {% include "shared/page_header.html" %}
+
+  <div class="section-container">
+    <h5 class="section-title"><i class="fas fa-gavel me-2"></i>{% trans "قواعد وسياسات احتساب وتطبيق الضرائب" %}</h5>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle custom-table mb-0">
+        <thead>
+          <tr>
+            <th style="width: 50px;">#</th>
+            <th>{% trans "كود القاعدة" %}</th>
+            <th>{% trans "اسم القاعدة" %}</th>
+            <th class="text-center">{% trans "الأولوية" %}</th>
+            <th class="text-center">{% trans "نطاق التطبيق" %}</th>
+            <th class="text-center">{% trans "قيمة النطاق" %}</th>
+            <th class="text-center">{% trans "كود الضريبة المطبق" %}</th>
+            <th>{% trans "الهيئة / النطاق" %}</th>
+            <th class="text-center">{% trans "الحالة" %}</th>
+            <th class="text-end">{% trans "الإجراءات" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in rules %}
+          <tr>
+            <td class="text-muted">{{ forloop.counter }}</td>
+            <td class="fw-bold text-primary">{{ r.code }}</td>
+            <td>
+              <div class="fw-semibold text-dark">{{ r.name }}</div>
+            </td>
+            <td class="text-center"><span class="badge bg-light text-dark border">{{ r.priority }}</span></td>
+            <td class="text-center"><span class="badge bg-light text-dark border">{{ r.get_rule_scope_display }}</span></td>
+            <td class="text-center text-muted">{{ r.scope_value|default:"(عام)" }}</td>
+            <td class="text-center"><span class="badge bg-success-subtle text-success border border-success-subtle">{{ r.tax_code.code }} ({{ r.tax_code.rate|smart_float:2 }}%)</span></td>
+            <td>{{ r.jurisdiction.name|default:"مصلحة الضرائب المصرية" }}</td>
+            <td class="text-center">
+              {% if r.is_active %}
+              <span class="badge bg-success-subtle text-success">{% trans "نشط" %}</span>
+              {% else %}
+              <span class="badge bg-danger-subtle text-danger">{% trans "معطل" %}</span>
+              {% endif %}
+            </td>
+            <td class="text-end">
+              <div class="btn-group btn-group-sm" role="group">
+                <a href="{% url 'financial:tax_rule_update' r.pk %}" class="btn btn-outline-primary" title="{% trans 'تعديل' %}">
+                  <i class="fas fa-edit"></i>
+                </a>
+                <form method="post" action="{% url 'financial:tax_rule_delete' r.pk %}" class="d-inline" data-confirm="{% trans 'هل أنت متأكد من حذف هذه القاعدة الضريبية؟' %}" onsubmit="return confirm(this.getAttribute('data-confirm'));">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn-outline-danger" title="{% trans 'حذف' %}">
+                    <i class="fas fa-trash-alt"></i>
+                  </button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="10" class="text-center py-5 text-muted">
+              <i class="fas fa-gavel fa-3x mb-3 d-block text-secondary opacity-50"></i>
+              <h6>{% trans "لا توجد قواعد ضريبية مخصصة حتى الآن." %}</h6>
+              <p class="small">{% trans "يطبق النظام افتراضياً أكواد الضرائب المرتبطة بكل صنف وشهادات الإعفاء المسجلة." %}</p>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% if page_obj.has_other_pages %}
+    <div class="p-3 border-top" id="pagination-wrapper">
+      {% include "partials/pagination.html" %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

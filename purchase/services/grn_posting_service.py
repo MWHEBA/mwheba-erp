@@ -71,7 +71,7 @@ class GRNPostingService:
         تحديد كود وحساب GRNI الاستحقاقي عبر AccountRoleRegistry والبحث الهرمي
         """
         grni_acc = AccountRoleRegistry.get_account_by_role("GRNI_CLEARING")
-        if grni_acc and getattr(grni_acc, "is_active", True) and getattr(grni_acc, "is_leaf", True):
+        if grni_acc and getattr(grni_acc, "is_active", True):
             return grni_acc
 
         from financial.models import ChartOfAccounts
@@ -79,7 +79,7 @@ class GRNPostingService:
         if hasattr(ChartOfAccounts, "is_leaf"):
             leaf_accounts = leaf_accounts.filter(is_leaf=True)
 
-        existing = leaf_accounts.filter(code__in=["20150", "20150_GRNI"]).first()
+        existing = leaf_accounts.filter(code__in=["21210", "20150", "20150_GRNI"]).first()
         if existing:
             return existing
 
@@ -98,17 +98,20 @@ class GRNPostingService:
             grn = GoodsReceivedNote.objects.select_for_update().get(pk=grn_id)
 
             if grn.status in ["POSTED", "REVERSED"]:
-                raise FinancialCoreError(f"إذن الاستلام #{grn.grn_number} مرحل بالفعل أو معكوس ولا يمكن ترحيله مرة أخرى.")
+                raise FinancialCoreError(f"لا يمكن ترحيل إذن استلام بحالة {grn.get_status_display()}.")
 
-            if not grn.items.exists():
-                raise FinancialCoreError("لا يمكن ترحيل إذن استلام لا يحتوي على بنود.")
+            # استدعاء خدمة التحقق
+            from .grn_validation_service import GRNValidationService
+            GRNValidationService.validate_grn_for_posting(grn)
 
-            total_grn_cost = Decimal("0.00")
+            movement_service = MovementService()
             stock_movements_count = 0
             lines_data = []
+            total_grn_cost = Decimal("0.00")
+
+            from governance.services.accounting_gateway import AccountingGateway, JournalEntryLineData
 
             # 1. إمرار حركات المخزون وتجميع قيود الأستاذ لكل بند
-            movement_service = MovementService()
             for item in grn.items.select_related("product", "po_item").all():
                 received_qty = item.received_qty
                 if received_qty <= Decimal("0.0000"):
@@ -148,36 +151,44 @@ class GRNPostingService:
 
                 # تحديد كود وحساب أصل المخزون هرمياً لكل منتج
                 inv_acc = cls.resolve_inventory_account(item.product, grn.warehouse)
-                lines_data.append({
-                    "account": inv_acc,
-                    "account_code": inv_acc.code if inv_acc else "10400",
-                    "debit": line_cost,
-                    "credit": Decimal("0.00"),
-                    "description": f"GRN Inventory Receipt: {item.product.name} ({received_qty} @ {unit_price})"
-                })
+                inv_code = inv_acc.code if inv_acc else "11310"
+                lines_data.append(JournalEntryLineData(
+                    account_code=str(inv_code),
+                    debit=line_cost,
+                    credit=Decimal("0.00"),
+                    description=f"GRN Inventory Receipt: {item.product.name} ({received_qty} @ {unit_price})"
+                ))
 
                 total_grn_cost += line_cost
 
-            # 2. إضافة الطرف الدائن لحساب 20150_GRNI
+            # 2. إضافة الطرف الدائن لحساب وسيط البضاعة GRNI (21210)
             grni_acc = cls.resolve_grni_account()
-            lines_data.append({
-                "account": grni_acc,
-                "account_code": grni_acc.code if grni_acc else "20150_GRNI",
-                "debit": Decimal("0.00"),
-                "credit": total_grn_cost,
-                "description": f"GRNI Credit Accrual for GRN #{grn.grn_number}"
-            })
+            grni_code = grni_acc.code if grni_acc else "21210"
+            lines_data.append(JournalEntryLineData(
+                account_code=str(grni_code),
+                debit=Decimal("0.00"),
+                credit=total_grn_cost,
+                description=f"GRNI Credit Accrual for GRN #{grn.grn_number}"
+            ))
 
-            # 3. إنشاء وتأكيد قيد الأستاذ المالي
-            draft_entry = LedgerCoreService.create_draft_entry(
-                date=timezone.now().date(),
-                description=f"GRN Inventory Asset Receipt #{grn.grn_number}",
-                reference=f"GRN-{grn.id}",
-                entry_type="GENERAL",
-                created_by=user,
-                lines_data=lines_data
+            # 3. إنشاء وتأكيد قيد الأستاذ المالي عبر AccountingGateway المركزية
+            gateway = AccountingGateway()
+            idempotency_key = gateway.generate_idempotency_key(
+                module="purchase",
+                model="GoodsReceivedNote",
+                object_id=grn.id,
+                operation="post"
             )
-            journal_entry = LedgerCoreService.post_entry(draft_entry.id, user=user)
+            journal_entry = gateway.create_journal_entry(
+                source_module="purchase",
+                source_model="GoodsReceivedNote",
+                source_id=grn.id,
+                lines=lines_data,
+                idempotency_key=idempotency_key,
+                user=user,
+                description=f"GRN Inventory Asset Receipt #{grn.grn_number}",
+                reference=f"GRN-{grn.grn_number}"
+            )
 
             # 4. تحديث حالة إذن الاستلام
             old_status = grn.status
@@ -185,7 +196,7 @@ class GRNPostingService:
             grn.journal_entry = journal_entry
             grn.save(update_fields=["status", "journal_entry"])
 
-            # 5. تحديث حالة أمر الشراء المرتط
+            # 5. تحديث حالة أمر الشراء المرتبط
             if grn.purchase_order:
                 po = grn.purchase_order
                 total_ordered = po.items.aggregate(sum_ord=Sum("ordered_qty"))["sum_ord"] or Decimal("0.0000")
