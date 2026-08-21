@@ -100,14 +100,84 @@
             <td class="text-muted small">{{ req.created_at|date:"Y-m-d H:i" }}</td>
             <td class="text-center">
               {% if req.status == 'PENDING' %}
-                <div class="btn-group btn-group-sm">
-                  <button class="btn btn-outline-success" title="{% trans "اعتماد" %}">
-                    <i class="fas fa-check me-1"></i>{% trans "اعتماد" %}
-                  </button>
-                  <button class="btn btn-outline-danger" title="{% trans "رفض" %}">
-                    <i class="fas fa-times me-1"></i>{% trans "رفض" %}
-                  </button>
-                </div>
+                {% if req.requested_by_id == request.user.id and not request.user.is_superuser %}
+                  <span class="badge bg-light text-muted border px-2 py-1" title="{% trans "لا يمكنك اعتماد طلبك الخاص وفق مبدأ فصل المهام SOD" %}">
+                    <i class="fas fa-user-lock me-1"></i>{% trans "طلبك الخاص" %}
+                  </span>
+                {% else %}
+                  <div class="btn-group btn-group-sm">
+                    <button type="button" class="btn btn-outline-success" data-bs-toggle="modal" data-bs-target="#approveModal{{ req.id }}" title="{% trans "اعتماد" %}">
+                      <i class="fas fa-check me-1"></i>{% trans "اعتماد" %}
+                    </button>
+                    <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#rejectModal{{ req.id }}" title="{% trans "رفض" %}">
+                      <i class="fas fa-times me-1"></i>{% trans "رفض" %}
+                    </button>
+                  </div>
+
+                  <!-- Approve Modal -->
+                  <div class="modal fade" id="approveModal{{ req.id }}" tabindex="-1" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered">
+                      <div class="modal-content border-0 shadow-lg">
+                        <form method="post" action="{% url 'financial:approval_approve' req.id %}">
+                          {% csrf_token %}
+                          <div class="modal-header bg-light border-bottom px-4 py-3">
+                            <h5 class="modal-title fw-bold text-dark mb-0">
+                              <i class="fas fa-check-circle text-success me-2"></i>{% trans "تأكيد اعتماد الطلب" %} #{{ req.id }}
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                          </div>
+                          <div class="modal-body p-4 text-start">
+                            <p class="text-muted mb-3">
+                              {% trans "هل أنت متأكد من اعتماد هذا الطلب؟ سيتم الإفراج عن المستند وتحديث حالته وحجز المخزون آلياً." %}
+                            </p>
+                            <div class="mb-3">
+                              <label class="form-label fw-semibold text-dark">{% trans "ملاحظات الاعتماد (اختياري)" %}:</label>
+                              <textarea name="comments" class="form-control" rows="3" placeholder="{% trans "أدخل أي ملاحظات للموافقة..." %}"></textarea>
+                            </div>
+                          </div>
+                          <div class="modal-footer bg-light border-top px-4 py-3">
+                            <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+                            <button type="submit" class="btn btn-success px-4 fw-bold">
+                              <i class="fas fa-check me-1"></i>{% trans "تأكيد الاعتماد" %}
+                            </button>
+                          </div>
+                        </form>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Reject Modal -->
+                  <div class="modal fade" id="rejectModal{{ req.id }}" tabindex="-1" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered">
+                      <div class="modal-content border-0 shadow-lg">
+                        <form method="post" action="{% url 'financial:approval_reject' req.id %}">
+                          {% csrf_token %}
+                          <div class="modal-header bg-light border-bottom px-4 py-3">
+                            <h5 class="modal-title fw-bold text-dark mb-0">
+                              <i class="fas fa-times-circle text-danger me-2"></i>{% trans "رفض طلب الاعتماد" %} #{{ req.id }}
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                          </div>
+                          <div class="modal-body p-4 text-start">
+                            <p class="text-danger mb-3">
+                              {% trans "هل أنت متأكد من رفض هذا الطلب؟ سيتم إيقاف المعاملة وإشعار مقدم الطلب." %}
+                            </p>
+                            <div class="mb-3">
+                              <label class="form-label fw-semibold text-dark">{% trans "سبب الرفض (إجباري)" %}:</label>
+                              <textarea name="comments" class="form-control" rows="3" required placeholder="{% trans "اكتب سبب الرفض هنا..." %}"></textarea>
+                            </div>
+                          </div>
+                          <div class="modal-footer bg-light border-top px-4 py-3">
+                            <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+                            <button type="submit" class="btn btn-danger px-4 fw-bold">
+                              <i class="fas fa-times me-1"></i>{% trans "تأكيد الرفض" %}
+                            </button>
+                          </div>
+                        </form>
+                      </div>
+                    </div>
+                  </div>
+                {% endif %}
               {% else %}
                 <span class="text-muted small">{% trans "مكتمل" %}</span>
               {% endif %}

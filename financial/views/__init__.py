@@ -246,6 +246,8 @@ opening_balance_create = opening_balance_wizard
 # من approval_views.py
 from .approval_views import (
     approval_inbox,
+    approval_approve,
+    approval_reject,
 )
 
 # من currency_views.py

@@ -324,6 +324,37 @@ def purchase_create(request, supplier_id=None):
         except PurchaseOrder.DoesNotExist:
             pass
 
+    # قراءة إذن الاستلام إذا تم تمريره للتحويل (GRN to Purchase Invoice Flow)
+    from_grn_id = request.GET.get('from_grn')
+    selected_grn = None
+    if from_grn_id and not is_duplicate:
+        from purchase.models.procurement_models import GoodsReceivedNote
+        try:
+            selected_grn = GoodsReceivedNote.objects.prefetch_related('items__product', 'supplier', 'purchase_order').get(id=from_grn_id)
+            selected_supplier = selected_grn.supplier
+            if selected_grn.purchase_order:
+                selected_po = selected_grn.purchase_order
+                selected_work_order = selected_po.work_order
+            is_duplicate = True
+            duplicate_from = f"إذن استلام البضاعة #{selected_grn.grn_number}"
+
+            grn_items_list = []
+            for item in selected_grn.items.all():
+                qty = float(item.received_qty - item.billed_qty if item.received_qty > item.billed_qty else item.received_qty)
+                grn_items_list.append({
+                    "product_id": item.product_id,
+                    "name": item.product.name,
+                    "code": item.product.sku or "",
+                    "quantity": qty,
+                    "unit_price": float(item.unit_price),
+                    "discount": 0.0,
+                    "total": float(Decimal(str(qty)) * item.unit_price),
+                    "unit": item.product.unit.name if getattr(item.product, 'unit', None) else ""
+                })
+            duplicate_items = json.dumps(grn_items_list)
+        except GoodsReceivedNote.DoesNotExist:
+            pass
+
     if supplier_id and not selected_supplier:
         try:
             selected_supplier = Supplier.objects.get(id=supplier_id, is_active=True)

@@ -53,18 +53,58 @@ def landed_cost_list(request):
 
 
 
+from purchase.services.landed_cost_allocation_service import LandedCostAllocationService
+from purchase.models.procurement_models import GoodsReceivedNote
+
+
 @login_required
 def landed_cost_create(request):
-    """إنشاء مستند تكاليف إضافية جديد (شحن / جمارك / خدمات تشغيل)"""
+    """إنشاء وتوزيع مستند تكاليف إضافية (شحن / جمارك / خدمات تشغيل) وفق IAS 2"""
     if request.method == "POST":
+        grn_id = request.POST.get("grn_id")
+        freight_amount = Decimal(request.POST.get("freight_amount", "0.00") or "0.00")
+        customs_amount = Decimal(request.POST.get("customs_amount", "0.00") or "0.00")
+        other_fees = Decimal(request.POST.get("other_fees", "0.00") or "0.00")
+        allocation_method = request.POST.get("allocation_method", "VALUE")
         shipment_ref = request.POST.get("shipment_reference", "")
         supplier_id = request.POST.get("supplier")
-        allocation_method = request.POST.get("allocation_method", "VALUE")
-        total_cost = Decimal(request.POST.get("total_landed_cost", "0.00"))
+
+        total_cost = freight_amount + customs_amount + other_fees
+        if total_cost <= Decimal("0.00"):
+            total_cost = Decimal(request.POST.get("total_landed_cost", "0.00") or "0.00")
 
         supplier = Supplier.objects.filter(pk=supplier_id).first() if supplier_id else None
-
         voucher_num = f"LCV-{timezone.now().strftime('%Y%m%d%H%M%S')}"
+
+        if grn_id:
+            try:
+                res = LandedCostAllocationService.allocate_landed_costs(
+                    grn_id=int(grn_id),
+                    freight_amount=freight_amount,
+                    customs_amount=customs_amount,
+                    other_fees=other_fees,
+                    allocation_method=allocation_method,
+                    user=request.user
+                )
+                if res.get("status") == "ALLOCATED":
+                    doc = LandedCostDocument.objects.create(
+                        voucher_number=voucher_num,
+                        shipment_reference=shipment_ref,
+                        supplier=supplier,
+                        allocation_method=allocation_method,
+                        total_landed_cost=total_cost,
+                        journal_entry_id=res.get("journal_entry_id"),
+                        created_by=request.user,
+                        status="POSTED"
+                    )
+                    messages.success(request, _(f"تم توزيع التكاليف الإضافية بنجاح على إذن الاستلام وتوليد القيد المحاسبي #{res.get('journal_entry_id')}."))
+                    return redirect("purchase:grn_detail", pk=grn_id)
+                else:
+                    messages.error(request, _(f"تعذر التوزيع: {res.get('message')}"))
+                    return redirect("purchase:grn_detail", pk=grn_id)
+            except Exception as e:
+                messages.error(request, _(f"حدث خطأ أثناء توزيع التكاليف: {str(e)}"))
+                return redirect("purchase:grn_detail", pk=grn_id)
 
         doc = LandedCostDocument.objects.create(
             voucher_number=voucher_num,

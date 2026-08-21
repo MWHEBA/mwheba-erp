@@ -801,9 +801,16 @@ class PayrollService:
         
         # الحصول على حساب مصروف الأجور والرواتب
         from financial.services.role_registry import AccountRoleRegistry
-        salary_expense_account = AccountRoleRegistry.get_account("SALARY_EXPENSE") or ChartOfAccounts.objects.filter(code="50200", is_active=True).first()
+        try:
+            salary_expense_account = AccountRoleRegistry.get_account("SALARY_EXPENSE")
+        except Exception:
+            salary_expense_account = None
+
         if not salary_expense_account:
-            raise ValueError("حساب مصروف الرواتب (50200) غير موجود أو غير نشط.")
+            salary_expense_account = ChartOfAccounts.objects.filter(code__in=["52100", "50200", "5020"], is_active=True).first()
+
+        if not salary_expense_account:
+            raise ValueError("حساب مصروف الرواتب (50200 / 52100) غير موجود أو غير نشط.")
         
         # الحصول على التصنيف المالي للرواتب
         try:

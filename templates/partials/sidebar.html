@@ -42,23 +42,10 @@
                 {% is_module_enabled 'customers_sales' as customers_sales_enabled %}
                 {% if customers_sales_enabled %}
                 <li class="sidebar-item">
-                    <a href="#customerMenu" class="sidebar-link collapsed {% if active_menu == 'customers' %}active{% endif %}" data-bs-toggle="collapse" aria-expanded="false">
+                    <a href="{% url 'client:customer_list' %}" class="sidebar-link {% if active_menu == 'customers' %}active{% endif %}">
                         <i class="fas fa-users sidebar-icon"></i>
                         <span class="sidebar-text">{% trans "العملاء" %}</span>
-                        <i class="fas fa-chevron-down sidebar-arrow"></i>
                     </a>
-                    <ul class="collapse list-unstyled submenu {% if active_menu == 'customers' %}show{% endif %}" id="customerMenu">
-                        <li>
-                            <a href="{% url 'client:customer_list' %}" class="submenu-link">
-                                <i class="fas fa-list me-2"></i>{% trans "قائمة العملاء" %}
-                            </a>
-                        </li>
-                        <li>
-                            <a href="{% url 'client:customer_add' %}" class="submenu-link">
-                                <i class="fas fa-user-plus me-2"></i>{% trans "إضافة عميل" %}
-                            </a>
-                        </li>
-                    </ul>
                 </li>
 
                 <!-- المبيعات -->
@@ -76,23 +63,16 @@
                             </a>
                         </li>
                         <li>
-                            <a href="{% url 'sale:sale_create' %}" class="submenu-link">
-                                <i class="fas fa-plus-circle me-2"></i>{% trans "إضافة فاتورة" %}
+                            <a href="{% url 'sale:sales_order_list' %}" class="submenu-link">
+                                <i class="fas fa-file-contract me-2"></i>{% trans "أوامر البيع (Sales Orders)" %}
                             </a>
                         </li>
                         
                         <!-- عروض الأسعار -->
                         {% if enable_quotations %}
-                        <div class="nav-divider"></div>
-                        <li class="submenu-title">عروض الأسعار</li>
                         <li>
                             <a href="{% url 'sale:quotation_list' %}" class="submenu-link">
                                 <i class="fas fa-file-signature me-2"></i>{% trans "عروض الأسعار" %}
-                            </a>
-                        </li>
-                        <li>
-                            <a href="{% url 'sale:quotation_create' %}" class="submenu-link">
-                                <i class="fas fa-plus-square me-2"></i>{% trans "إضافة عرض سعر" %}
                             </a>
                         </li>
                         {% endif %}
@@ -111,6 +91,21 @@
                                 <i class="fas fa-file-invoice-dollar me-2"></i>{% trans "الإشعارات الدائنة" %}
                             </a>
                         </li>
+
+                        <div class="nav-divider"></div>
+
+                        <!-- سياسات وقوائم الأسعار -->
+                        <li class="submenu-title">سياسات وقوائم الأسعار</li>
+                        <li>
+                            <a href="{% url 'sale:price_list_list' %}" class="submenu-link">
+                                <i class="fas fa-tags me-2"></i>{% trans "قوائم الأسعار" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'sale:discount_rule_list' %}" class="submenu-link">
+                                <i class="fas fa-percentage me-2"></i>{% trans "قواعد الخصم التلقائي" %}
+                            </a>
+                        </li>
                     </ul>
                 </li>
                 {% endif %}
@@ -119,23 +114,10 @@
                 {% is_module_enabled 'work_orders' as work_orders_enabled %}
                 {% if work_orders_enabled %}
                 <li class="sidebar-item">
-                    <a href="#workOrderMenu" class="sidebar-link collapsed {% if active_menu == 'work_orders' %}active{% endif %}" data-bs-toggle="collapse" aria-expanded="false">
+                    <a href="{% url 'work_order:work_order_list' %}" class="sidebar-link {% if active_menu == 'work_orders' %}active{% endif %}">
                         <i class="fas fa-tasks sidebar-icon"></i>
                         <span class="sidebar-text">{% trans "أوامر الشغل" %}</span>
-                        <i class="fas fa-chevron-down sidebar-arrow"></i>
                     </a>
-                    <ul class="collapse list-unstyled submenu {% if active_menu == 'work_orders' %}show{% endif %}" id="workOrderMenu">
-                        <li>
-                            <a href="{% url 'work_order:work_order_list' %}" class="submenu-link">
-                                <i class="fas fa-list me-2"></i>{% trans "قائمة أوامر الشغل" %}
-                            </a>
-                        </li>
-                        <li>
-                            <a href="{% url 'work_order:work_order_create' %}" class="submenu-link">
-                                <i class="fas fa-plus me-2"></i>{% trans "إضافة أمر شغل" %}
-                            </a>
-                        </li>
-                    </ul>
                 </li>
                 {% endif %}
 
@@ -153,11 +135,6 @@
                         <li>
                             <a href="{% url 'supplier:supplier_list' %}" class="submenu-link">
                                 <i class="fas fa-list me-2"></i>{% trans "قائمة الموردين" %}
-                            </a>
-                        </li>
-                        <li>
-                            <a href="{% url 'supplier:supplier_add' %}" class="submenu-link">
-                                <i class="fas fa-user-plus me-2"></i>{% trans "إضافة مورد" %}
                             </a>
                         </li>
                         
@@ -189,11 +166,6 @@
                                 <i class="fas fa-file-contract me-2"></i>{% trans "أوامر الشراء (PO)" %}
                             </a>
                         </li>
-                        <li>
-                            <a href="{% url 'purchase:po_create' %}" class="submenu-link">
-                                <i class="fas fa-plus-circle me-2"></i>{% trans "إنشاء أمر شراء" %}
-                            </a>
-                        </li>
 
                         <div class="nav-divider"></div>
 
@@ -202,11 +174,6 @@
                         <li>
                             <a href="{% url 'purchase:purchase_list' %}" class="submenu-link">
                                 <i class="fas fa-file-invoice me-2"></i>{% trans "فواتير المشتريات" %}
-                            </a>
-                        </li>
-                        <li>
-                            <a href="{% url 'purchase:purchase_create' %}" class="submenu-link">
-                                <i class="fas fa-plus-circle me-2"></i>{% trans "إضافة فاتورة" %}
                             </a>
                         </li>
                         
@@ -306,6 +273,11 @@
                         <div class="nav-divider"></div>
                         
                         <li class="submenu-title">أذون المخزن</li>
+                        <li>
+                            <a href="{% url 'sale:delivery_note_list' %}" class="submenu-link text-primary fw-bold">
+                                <i class="fas fa-shipping-fast me-2"></i>إذون تسليم وصرف البضاعة
+                            </a>
+                        </li>
                         <li>
                             <a href="{% url 'purchase:grn_list' %}" class="submenu-link text-success fw-bold">
                                 <i class="fas fa-truck-loading me-2"></i>استلام بضائع مشتريات (GRN)

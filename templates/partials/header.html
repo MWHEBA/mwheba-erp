@@ -157,6 +157,20 @@
                     </div>
                 </div>
             </div>
+            <!-- صندوق الموافقات الإدارية -->
+            {% if perms.governance.approve_workflow or perms.users.ادارة_المالية or user.is_superuser or user.is_admin %}
+            <div class="approvals-inbox-header">
+                <a href="{% url 'financial:approval_inbox' %}" class="btn-icon notification-btn text-decoration-none" title="{% trans "صندوق موافقات المؤسسة" %}">
+                    <i class="fas fa-user-check"></i>
+                    {% if pending_approvals_count > 0 %}
+                    <span class="bg-warning text-dark badge-counter notification-badge">
+                        {{ pending_approvals_count }}
+                    </span>
+                    {% endif %}
+                </a>
+            </div>
+            {% endif %}
+
             <!-- التنبيهات -->
             <div class="notifications dropdown">
                 <button class="btn-icon notification-btn" type="button" id="notificationsDropdown" data-bs-toggle="dropdown" aria-expanded="false">

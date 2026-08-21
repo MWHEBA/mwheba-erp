@@ -68,6 +68,12 @@
       {% endif %}
 
       {% if grn.status == "POSTED" %}
+        <a href="{% url 'purchase:purchase_create' %}?from_grn={{ grn.pk }}" class="btn btn-primary fw-bold">
+          <i class="fas fa-file-invoice me-1"></i> {% trans "تحويل لفاتورة مشتريات" %}
+        </a>
+        <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#landedCostModal">
+          <i class="fas fa-ship me-1"></i> {% trans "تحميل مصاريف إضافية وجمارك" %}
+        </button>
         <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#reverseModal">
           <i class="fas fa-undo me-1"></i> {% trans "عكس الإذن والقيد (Reversal)" %}
         </button>
@@ -217,6 +223,58 @@
         <div class="modal-footer bg-light border-top px-4 py-3">
           <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">إلغاء</button>
           <button type="submit" class="btn btn-danger px-4 fw-bold">تأكيد وعكس الإذن والقيد</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Landed Cost Modal -->
+<div class="modal fade" id="landedCostModal" tabindex="-1" aria-labelledby="landedCostModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header bg-light border-bottom px-4 py-3">
+        <h5 class="modal-title fw-bold text-dark mb-0" id="landedCostModalLabel">
+          <i class="fas fa-ship text-primary me-2"></i>{% trans "تحميل مصاريف إضافية وجمارك (Landed Cost)" %}
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form method="POST" action="{% url 'purchase:landed_cost_create' %}">
+        {% csrf_token %}
+        <input type="hidden" name="grn_id" value="{{ grn.pk }}">
+        <div class="modal-body p-4">
+          <p class="text-muted small mb-3">
+            {% trans "سيقوم النظام بتوزيع مبالغ الشحن والجمارك على تكلفة بنود المخزون الفعلي في هذا الإذن وتوليد قيد التسوية المحاسبي وفق معيار IAS 2." %}
+          </p>
+          <div class="mb-3">
+            <label class="form-label fw-semibold text-dark">{% trans "مصاريف الشحن والنقل" %}</label>
+            <input type="number" step="0.01" name="freight_amount" class="form-control" placeholder="0.00" value="0.00">
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold text-dark">{% trans "الرسوم الجمركية والضرائب غير المستردة" %}</label>
+            <input type="number" step="0.01" name="customs_amount" class="form-control" placeholder="0.00" value="0.00">
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold text-dark">{% trans "مصاريف تفريغ وخدمات أخرى" %}</label>
+            <input type="number" step="0.01" name="other_fees" class="form-control" placeholder="0.00" value="0.00">
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold text-dark">{% trans "طريقة توزيع التكاليف" %}</label>
+            <select name="allocation_method" class="form-select">
+              <option value="VALUE" selected>{% trans "حسب القيمة المالية للبند (موصى به)" %}</option>
+              <option value="QUANTITY">{% trans "حسب الكمية المستلمة" %}</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold text-dark">{% trans "مرجع الشحنة / رقم البوليصة" %}</label>
+            <input type="text" name="shipment_reference" class="form-control" placeholder="مثال: BL-2026-098">
+          </div>
+        </div>
+        <div class="modal-footer bg-light border-top px-4 py-3">
+          <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+          <button type="submit" class="btn btn-primary px-4 fw-bold">
+            <i class="fas fa-check me-1"></i>{% trans "توزيع وترحيل التكلفة والقيد" %}
+          </button>
         </div>
       </form>
     </div>

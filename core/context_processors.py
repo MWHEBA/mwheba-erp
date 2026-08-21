@@ -101,10 +101,20 @@ def global_settings(request):
     except (ValueError, TypeError):
         settings_dict["default_tax_rate"] = 14.0
 
+    pending_approvals_count = 0
+    if getattr(request, 'user', None) and request.user.is_authenticated:
+        if request.user.is_superuser or getattr(request.user, 'is_admin', False) or request.user.has_perm('users.ادارة_المالية') or request.user.has_perm('governance.approve_workflow'):
+            try:
+                from financial.models.approval import EnterpriseApprovalRequest
+                pending_approvals_count = EnterpriseApprovalRequest.objects.filter(status="PENDING").count()
+            except Exception:
+                pending_approvals_count = 0
+
     return {
         "settings": settings_dict,
         "SITE_NAME": settings_dict.get("site_name", "موهبة ERP"),
         "maintenance_mode": maintenance_value,
+        "pending_approvals_count": pending_approvals_count,
     }
 
 

@@ -111,6 +111,7 @@ class ApprovalService:
                 req.approved_at = timezone.now()
                 req.comments = comments or req.comments
                 req.save()
+                cls._dispatch_approval_event(req, user)
 
             EnterpriseApprovalAuditLog.objects.create(
                 approval_request=req,
@@ -121,6 +122,43 @@ class ApprovalService:
             )
 
             return req
+
+    @classmethod
+    def _dispatch_approval_event(cls, req: EnterpriseApprovalRequest, user) -> None:
+        """تحديث المستند الأصلي آلياً عند اكتمال الاعتماد"""
+        try:
+            if req.module == "SALES" and req.reference_id:
+                from sale.models.sales_order import SalesOrder
+                from sale.services.inventory_reservation_service import InventoryReservationService
+                so = SalesOrder.objects.filter(pk=int(req.reference_id)).first()
+                if so and so.status == "PENDING_APPROVAL":
+                    so.status = "APPROVED"
+                    so.approved_by = user
+                    so.approved_at = timezone.now()
+                    so.save(update_fields=["status", "approved_by", "approved_at"])
+                    # حجز المخزون تلقائياً
+                    InventoryReservationService.reserve_sales_order_lines(so.id, user=user)
+
+            elif req.module == "PURCHASE" and req.reference_id:
+                from purchase.models.procurement_models import PurchaseOrder
+                po = PurchaseOrder.objects.filter(pk=int(req.reference_id)).first()
+                if po and po.status in ["SUBMITTED", "PENDING"]:
+                    po.status = "APPROVED"
+                    po.approved_by = user
+                    po.approved_at = timezone.now()
+                    po.save(update_fields=["status", "approved_by", "approved_at"])
+
+            elif req.module == "CREDIT" and req.reference_id:
+                from client.models import CustomerCreditStatusHistory
+                CustomerCreditStatusHistory.objects.create(
+                    customer_id=int(req.reference_id),
+                    old_status="OVER_LIMIT_PENDING",
+                    new_status="ACTIVE_OVERRIDE",
+                    reason=f"Enterprise Approval #{req.id}: {req.comments or 'Approved by management'}",
+                    created_by=user
+                )
+        except Exception as e:
+            logger.error(f"Failed to dispatch approval event for req #{req.id}: {e}", exc_info=True)
 
     @classmethod
     def reject_request(cls, request_id: int, user, comments: str = "") -> EnterpriseApprovalRequest:
@@ -148,6 +186,8 @@ class ApprovalService:
                 comments=comments
             )
 
+            cls._dispatch_rejection_event(req, user)
+
             EnterpriseApprovalAuditLog.objects.create(
                 approval_request=req,
                 old_status=old_stat,
@@ -157,6 +197,26 @@ class ApprovalService:
             )
 
             return req
+
+    @classmethod
+    def _dispatch_rejection_event(cls, req: EnterpriseApprovalRequest, user) -> None:
+        """تحديث المستند الأصلي آلياً عند رفض الطلب"""
+        try:
+            if req.module == "SALES" and req.reference_id:
+                from sale.models.sales_order import SalesOrder
+                so = SalesOrder.objects.filter(pk=int(req.reference_id)).first()
+                if so and so.status == "PENDING_APPROVAL":
+                    so.status = "REJECTED"
+                    so.save(update_fields=["status"])
+
+            elif req.module == "PURCHASE" and req.reference_id:
+                from purchase.models.procurement_models import PurchaseOrder
+                po = PurchaseOrder.objects.filter(pk=int(req.reference_id)).first()
+                if po and po.status in ["SUBMITTED", "PENDING"]:
+                    po.status = "REJECTED"
+                    po.save(update_fields=["status"])
+        except Exception as e:
+            logger.error(f"Failed to dispatch rejection event for req #{req.id}: {e}", exc_info=True)
 
     @classmethod
     def is_approved(cls, module: str, reference_id: str) -> bool:

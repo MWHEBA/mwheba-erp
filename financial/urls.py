@@ -480,6 +480,8 @@ urlpatterns = [
     path("opening-balances/<int:pk>/import-excel/", views.opening_balance_import_excel_action, name="opening_balance_import_excel_action"),
     path("opening-balances/<int:pk>/retry-inventory-sync/", views.opening_balance_retry_inventory_sync_action, name="opening_balance_retry_inventory_sync_action"),
     path("approvals/", views.approval_inbox, name="approval_inbox"),
+    path("approvals/<int:pk>/approve/", views.approval_approve, name="approval_approve"),
+    path("approvals/<int:pk>/reject/", views.approval_reject, name="approval_reject"),
 
     # دليل العملات وأسعار الصرف وإعادة التقييم الدوري (IAS 21)
     path("currencies/", views.currency_list, name="currency_list"),
