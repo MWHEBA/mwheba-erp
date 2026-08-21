@@ -1,7 +1,7 @@
 """
 Django Management Command: setup_accounting_system
-يقوم بإنشاء وتهيئة الهيكل المحاسبي المعياري النقي رباعي المستويات (Pure 4-Level Standard COA)
-للأنظمة الجديدة بالكامل وبأعلى معايير الحوكمة المالية والنظام المزدوج.
+يقوم بإنشاء وتهيئة الهيكل المحاسبي والمالي والضريبي المعياري المتكامل (Master Enterprise Accounting Engine)
+للأنظمة الجديدة بالكامل وبأعلى معايير الحوكمة المالية الدولية IAS / IFRS.
 """
 from django.core.management.base import BaseCommand
 from django.db import transaction
@@ -9,21 +9,34 @@ from django.utils import timezone
 from datetime import date
 from decimal import Decimal
 import logging
+import calendar
 
-from financial.models import AccountType, ChartOfAccounts, FiscalYear, AccountingPeriod, Currency
-from financial.services.role_registry import AccountRoleRegistry, AccountRoleNames
+from financial.models import (
+    AccountType,
+    ChartOfAccounts,
+    FiscalYear,
+    AccountingPeriod,
+    Currency,
+    ExchangeRate,
+    TaxJurisdiction,
+    TaxCode,
+    TaxAccountMapping,
+    CostCenter,
+    FinancialCategory,
+    FinancialSubcategory,
+)
 
 logger = logging.getLogger(__name__)
 
 
 class Command(BaseCommand):
-    help = "تهيئة النظام المحاسبي الشامل وإنشاء شجرة الحسابات المعيارية الرباعية النقية (Pure 4-Level Standard COA)"
+    help = "تهيئة النظام المالي والمحاسبي والضريبي الشامل وإنشاء شجرة الحسابات والتصنيفات والعملات"
 
     def add_arguments(self, parser):
         parser.add_argument(
             "--force",
             action="store_true",
-            help="تحديث الحسابات حتى لو كانت موجودة",
+            help="تحديث البيانات حتى لو كانت موجودة مسبقاً",
         )
         parser.add_argument(
             "--year",
@@ -36,23 +49,32 @@ class Command(BaseCommand):
         force = options.get("force", False)
         year = options.get("year", timezone.now().year)
 
-        self.stdout.write(self.style.HTTP_INFO("[*] Starting Pure 4-Level COA Setup..."))
+        self.stdout.write(self.style.HTTP_INFO("[*] Starting Enterprise Financial & Accounting Provisioning..."))
 
         try:
             with transaction.atomic():
-                # 1. إنشاء العملات الأساسية
+                # 1. إنشاء العملات وأسعار الصرف التاريخية
                 egp, usd, eur, sar = self.setup_currencies()
 
-                # 2. إنشاء أنواع الحسابات الرئيسية
+                # 2. إنشاء أنواع الحسابات الرئيسية الخمسة
                 account_types = self.setup_account_types(force)
 
-                # 3. إنشاء شجرة الحسابات المعيارية الرباعية
-                self.setup_chart_of_accounts(account_types, egp, force)
+                # 3. إنشاء شجرة الحسابات المعيارية الرباعية النقية (105 حساباً)
+                account_map = self.setup_chart_of_accounts(account_types, egp, force)
 
-                # 4. إنشاء السنة المالية والفترات المحاسبية
+                # 4. تهيئة المحرك الضريبي وأكواد الضرائب والربط المحاسبي
+                self.setup_tax_engine(account_map, force)
+
+                # 5. تهيئة مركز التكلفة الجذري الافتراضي
+                self.setup_cost_centers(force)
+
+                # 6. زراعة التصنيفات المالية الشاملة ومراكز تكلفة الموارد البشرية
+                self.setup_financial_categories(account_map, force)
+
+                # 7. إنشاء السنة المالية والفترات المحاسبية الـ 12
                 self.setup_fiscal_structure(year)
 
-                self.stdout.write(self.style.SUCCESS("\n[+] Pure 4-Level Standard COA Setup COMPLETED SUCCESSFULLY (100%)!"))
+                self.stdout.write(self.style.SUCCESS("\n[+] Enterprise Accounting & Tax Setup COMPLETED SUCCESSFULLY (100%)!"))
 
         except Exception as e:
             self.stdout.write(self.style.ERROR(f"\n[-] Error in setup_accounting_system: {str(e)}"))
@@ -60,8 +82,8 @@ class Command(BaseCommand):
             raise
 
     def setup_currencies(self):
-        """إنشاء العملات الافتراضية للنظام"""
-        self.stdout.write("[*] Setting up default currencies...")
+        """إنشاء العملات الافتراضية وتسجيل أسعار الصرف الاسترشادية وفق معيار IAS 21"""
+        self.stdout.write("[*] Setting up currencies & exchange rates (IAS 21)...")
         egp, _ = Currency.objects.get_or_create(
             code="EGP",
             defaults={"name": "جنيه مصري", "symbol": "ج.م", "is_functional": True}
@@ -78,7 +100,23 @@ class Command(BaseCommand):
             code="SAR",
             defaults={"name": "ريال سعودي", "symbol": "ر.س", "is_functional": False}
         )
-        self.stdout.write("  [+] Currencies ready (Functional: EGP)")
+
+        # تسجيل أسعار صرف استرشادية ابتدائية
+        initial_rates = [
+            (usd, egp, Decimal("50.000000")),
+            (eur, egp, Decimal("53.000000")),
+            (sar, egp, Decimal("13.300000")),
+        ]
+        today = timezone.now().date()
+        for from_curr, to_curr, rate_val in initial_rates:
+            ExchangeRate.objects.get_or_create(
+                from_currency=from_curr,
+                to_currency=to_curr,
+                effective_date=today,
+                defaults={"rate": rate_val, "source": "INITIAL_SEED"}
+            )
+
+        self.stdout.write("  [+] Currencies & initial exchange rates verified (Functional: EGP)")
         return egp, usd, eur, sar
 
     def setup_account_types(self, force=False):
@@ -108,7 +146,7 @@ class Command(BaseCommand):
         return res
 
     def setup_chart_of_accounts(self, account_types, egp, force=False):
-        """إنشاء شجرة الحسابات المعيارية الرباعية النقية (111 حساب)"""
+        """إنشاء شجرة الحسابات المعيارية الرباعية النقية (105 حساباً)"""
         self.stdout.write("[*] Building Pure 4-Level Master COA Tree...")
 
         # بيانات الشجرة المعيارية النقية
@@ -130,8 +168,7 @@ class Command(BaseCommand):
             ("42", "إيرادات أخرى ومتنوعة", "4", "REVENUE", 2, False, False, False),
             ("43", "أرباح فروق العملة", "4", "REVENUE", 2, False, False, False),
             ("51", "تكلفة المبيعات والنشاط", "5", "EXPENSE", 2, False, False, False),
-            ("52", "المصروفات البيعية والتسويقية", "5", "EXPENSE", 2, False, False, False),
-            ("53", "المصروفات العمومية والإدارية", "5", "EXPENSE", 2, False, False, False),
+            ("52", "المصروفات البيعية والتسويقية والعمومية", "5", "EXPENSE", 2, False, False, False),
             ("54", "المصروفات والأعباء التمويلية والخسائر الأخرى", "5", "EXPENSE", 2, False, False, False),
 
             # المستوى 3
@@ -182,7 +219,7 @@ class Command(BaseCommand):
             ("52400", "كهرباء ومياه واتصالات", "52", "EXPENSE", 3, True, False, False),
             ("52500", "أدوات مكتبية ومطبوعات", "52", "EXPENSE", 3, True, False, False),
             ("52600", "صيانة ونظافة وضيافة", "52", "EXPENSE", 3, True, False, False),
-            ("52700", "أتعاب واستشارات مهنية", "52", "EXPENSE", 3, True, False, False),
+            ("52700", "أتعاب واستشارات مهنية ورسوم حكومية", "52", "EXPENSE", 3, True, False, False),
             ("52800", "إهلاك الأصول الثابتة", "52", "EXPENSE", 3, True, False, False),
             ("52900", "دعاية وإعلان وتسويق", "52", "EXPENSE", 3, True, False, False),
             ("54100", "عمولات ومصاريف بنكية", "54", "EXPENSE", 3, True, False, False),
@@ -260,6 +297,284 @@ class Command(BaseCommand):
             account_map[code] = acc
 
         self.stdout.write(f"  [+] Pure 4-Level Standard COA verified ({len(account_map)} accounts)")
+        return account_map
+
+    def setup_tax_engine(self, account_map, force=False):
+        """تهيئة المحرك الضريبي، الهيئات وأكواد الضرائب والربط المحاسبي"""
+        self.stdout.write("[*] Setting up Enterprise Tax Determination Engine...")
+
+        # 1. الهيئة الضريبية الافتراضية
+        jurisdiction, _ = TaxJurisdiction.objects.get_or_create(
+            code="EG-ETA",
+            defaults={
+                "name": "مصلحة الضرائب المصرية",
+                "country": "Egypt",
+                "tax_authority": "مصلحة الضرائب المصرية",
+                "is_active": True,
+            }
+        )
+
+        # 2. أكواد الضرائب المعيارية
+        tax_codes_data = [
+            {
+                "code": "VAT14",
+                "name": "ضريبة القيمة المضافة 14%",
+                "tax_type": "VAT",
+                "tax_nature": "OUTPUT",
+                "rate": Decimal("14.0000"),
+                "recoverability_percentage": Decimal("100.00"),
+                "is_recoverable": True,
+            },
+            {
+                "code": "WHT1",
+                "name": "ضريبة الخصم والإضافة 1%",
+                "tax_type": "WITHHOLDING",
+                "tax_nature": "WITHHOLDING",
+                "rate": Decimal("1.0000"),
+                "recoverability_percentage": Decimal("100.00"),
+                "is_recoverable": True,
+            },
+            {
+                "code": "VAT0",
+                "name": "ضريبة بسعر صفر 0%",
+                "tax_type": "ZERO_RATED",
+                "tax_nature": "OUTPUT",
+                "rate": Decimal("0.0000"),
+                "recoverability_percentage": Decimal("100.00"),
+                "is_recoverable": True,
+            },
+            {
+                "code": "EXEMPT",
+                "name": "معفى من الضريبة",
+                "tax_type": "EXEMPT",
+                "tax_nature": "OUTPUT",
+                "rate": Decimal("0.0000"),
+                "recoverability_percentage": Decimal("0.00"),
+                "is_recoverable": False,
+            },
+        ]
+
+        tax_code_objs = {}
+        for tc_data in tax_codes_data:
+            tc_obj, _ = TaxCode.objects.get_or_create(
+                code=tc_data["code"],
+                defaults={
+                    "name": tc_data["name"],
+                    "tax_type": tc_data["tax_type"],
+                    "tax_nature": tc_data["tax_nature"],
+                    "rate": tc_data["rate"],
+                    "recoverability_percentage": tc_data["recoverability_percentage"],
+                    "is_recoverable": tc_data["is_recoverable"],
+                    "is_active": True,
+                }
+            )
+            tax_code_objs[tc_data["code"]] = tc_obj
+
+        # 3. خرائط ربط الحسابات للضرائب (Tax Account Mapping)
+        vat14 = tax_code_objs.get("VAT14")
+        wht1 = tax_code_objs.get("WHT1")
+
+        if vat14:
+            # ربط ضريبة مخرجات المبيعات (21310)
+            if "21310" in account_map:
+                TaxAccountMapping.objects.get_or_create(
+                    tax_code=vat14,
+                    currency="EGP",
+                    tax_nature="OUTPUT",
+                    defaults={
+                        "output_tax_account": account_map["21310"],
+                        "credit_account": account_map["21310"],
+                    }
+                )
+            # ربط ضريبة مدخلات المشتريات (11510)
+            if "11510" in account_map:
+                TaxAccountMapping.objects.get_or_create(
+                    tax_code=vat14,
+                    currency="EGP",
+                    tax_nature="INPUT",
+                    defaults={
+                        "input_tax_account": account_map["11510"],
+                        "debit_account": account_map["11510"],
+                    }
+                )
+
+        if wht1:
+            # ربط ضريبة الخصم والإضافة (21330)
+            if "21330" in account_map:
+                TaxAccountMapping.objects.get_or_create(
+                    tax_code=wht1,
+                    currency="EGP",
+                    tax_nature="WITHHOLDING",
+                    defaults={
+                        "withholding_tax_account": account_map["21330"],
+                        "credit_account": account_map["21330"],
+                    }
+                )
+
+        self.stdout.write("  [+] Tax Jurisdiction, Tax Codes & Account Mappings verified")
+
+    def setup_cost_centers(self, force=False):
+        """إنشاء مركز التكلفة الجذري الافتراضي"""
+        self.stdout.write("[*] Setting up Root Cost Center...")
+        CostCenter.objects.get_or_create(
+            code="CC01",
+            defaults={
+                "name": "المركز الرئيسي / الإدارة العامة",
+                "cost_center_policy": "OPTIONAL",
+                "tree_path": "/1/",
+                "is_system": True,
+                "is_active": True,
+            }
+        )
+        self.stdout.write("  [+] Default Root Cost Center verified (CC01)")
+
+    def setup_financial_categories(self, account_map, force=False):
+        """زراعة الـ 8 تصنيفات مالية الشاملة وتصنيفاتها الفرعية ومراكز تكلفة الموارد البشرية"""
+        self.stdout.write("[*] Setting up 8 Master Financial Categories & Cost Centers...")
+
+        categories_data = [
+            {
+                "code": "products",
+                "name": "منتجات وبضائع تجارية",
+                "description": "إيرادات وتكاليف المنتجات والبضائع والخامات التجارية",
+                "revenue_code": "41100",
+                "expense_code": "51100",
+                "display_order": 1,
+                "subcategories": [
+                    {"code": "goods", "name": "بضائع تامة الصنع", "order": 1},
+                    {"code": "raw_materials", "name": "خامات ومواد أولية", "order": 2},
+                    {"code": "spare_parts", "name": "قطع غيار ومستلزمات تشغيل", "order": 3},
+                ],
+            },
+            {
+                "code": "services",
+                "name": "خدمات وأعمال تشغيلية",
+                "description": "إيرادات وتكاليف تقديم الخدمات والتشغيل للغير والاستشارات",
+                "revenue_code": "41200",
+                "expense_code": "51200",
+                "display_order": 2,
+                "subcategories": [
+                    {"code": "operational_services", "name": "خدمات تشغيلية وتنفيذية", "order": 1},
+                    {"code": "maintenance_support", "name": "خدمات صيانة ودعم فني", "order": 2},
+                    {"code": "consulting", "name": "استشارات وخدمات مهنية", "order": 3},
+                ],
+            },
+            {
+                "code": "refunds",
+                "name": "مردودات ومسموحات وخصومات",
+                "description": "مردودات ومسموحات المبيعات والخصومات الممنوحة للعملاء",
+                "revenue_code": "41910",
+                "expense_code": None,
+                "display_order": 3,
+                "subcategories": [
+                    {"code": "sales_returns", "name": "مردودات مبيعات", "order": 1},
+                    {"code": "sales_allowances", "name": "مسموحات وخصومات مبيعات", "order": 2},
+                ],
+            },
+            {
+                "code": "other_revenue",
+                "name": "إيرادات متنوعة وأخرى",
+                "description": "إيرادات تشغيلية وأرباح بيع أصول ومخلفات وإيرادات متنوعة",
+                "revenue_code": "49110",
+                "expense_code": None,
+                "display_order": 4,
+                "subcategories": [
+                    {"code": "scrap_sales", "name": "مبيعات عوادم ومخلفات", "order": 1},
+                    {"code": "misc_revenue", "name": "إيرادات متنوعة وأخرى", "order": 2},
+                ],
+            },
+            {
+                "code": "payroll_hr",
+                "name": "رواتب وأجور ومستحقات العاملين",
+                "description": "الرواتب والأجور والبدلات والتأمينات ومراكز تكلفة أقسام الموارد البشرية",
+                "revenue_code": None,
+                "expense_code": "52100",
+                "display_order": 5,
+                "subcategories": [
+                    {"code": "hr_management", "name": "رواتب الإدارة العامة", "order": 1},
+                    {"code": "hr_sales", "name": "رواتب المبيعات والتسويق", "order": 2},
+                    {"code": "hr_operations", "name": "رواتب التشغيل والإنتاج", "order": 3},
+                    {"code": "hr_finance", "name": "رواتب الإدارة المالية والمخازن", "order": 4},
+                    {"code": "hr_insurance", "name": "تأمينات اجتماعية - حصة المنشأة", "order": 5},
+                ],
+            },
+            {
+                "code": "taxes_government",
+                "name": "ضرائب ورسوم وتراخيص حكومية",
+                "description": "المصروفات والرسوم الحكومية والتراخيص والضرائب المستحقة",
+                "revenue_code": None,
+                "expense_code": "52700",
+                "display_order": 6,
+                "subcategories": [
+                    {"code": "vat_settlement", "name": "تسويات ضريبة القيمة المضافة", "order": 1},
+                    {"code": "payroll_tax", "name": "ضريبة كسب العمل والرواتب", "order": 2},
+                    {"code": "withholding_tax", "name": "ضرائب خصم وتحصيل", "order": 3},
+                    {"code": "govt_fees", "name": "رسوم وتراخيص واشتراكات حكومية", "order": 4},
+                ],
+            },
+            {
+                "code": "selling_expenses",
+                "name": "مصروفات بيعية وتسويقية",
+                "description": "تكاليف الحملات الإعلانية والتسويق وعمولات البيع وشحن وتوزيع البضائع",
+                "revenue_code": None,
+                "expense_code": "52900",
+                "display_order": 7,
+                "subcategories": [
+                    {"code": "marketing_advertising", "name": "دعاية وإعلان وترويج", "order": 1},
+                    {"code": "shipping_delivery", "name": "شحن ونقل وتوزيع للعملاء", "order": 2},
+                ],
+            },
+            {
+                "code": "admin_expenses",
+                "name": "مصروفات عمومية وإدارية",
+                "description": "الإيجارات والمرافق والأدوات المكتبية والضيافة والصيانة العامة",
+                "revenue_code": None,
+                "expense_code": "52300",
+                "display_order": 8,
+                "subcategories": [
+                    {"code": "rent_utilities", "name": "إيجارات ومرافق وخدمات", "order": 1},
+                    {"code": "office_supplies", "name": "أدوات ومستلزمات مكتبية", "order": 2},
+                    {"code": "hospitality", "name": "ضيافة ونظافة وصيانة عامة", "order": 3},
+                ],
+            },
+        ]
+
+        for cat_data in categories_data:
+            rev_acc = account_map.get(cat_data["revenue_code"]) if cat_data["revenue_code"] else None
+            exp_acc = account_map.get(cat_data["expense_code"]) if cat_data["expense_code"] else None
+
+            cat_obj, created = FinancialCategory.objects.get_or_create(
+                code=cat_data["code"],
+                defaults={
+                    "name": cat_data["name"],
+                    "description": cat_data["description"],
+                    "default_revenue_account": rev_acc,
+                    "default_expense_account": exp_acc,
+                    "display_order": cat_data["display_order"],
+                    "is_active": True,
+                }
+            )
+            if not created and force:
+                cat_obj.name = cat_data["name"]
+                cat_obj.description = cat_data["description"]
+                cat_obj.default_revenue_account = rev_acc
+                cat_obj.default_expense_account = exp_acc
+                cat_obj.display_order = cat_data["display_order"]
+                cat_obj.save()
+
+            # زراعة التصنيفات الفرعية
+            for sub in cat_data.get("subcategories", []):
+                FinancialSubcategory.objects.get_or_create(
+                    parent_category=cat_obj,
+                    code=sub["code"],
+                    defaults={
+                        "name": sub["name"],
+                        "display_order": sub["order"],
+                        "is_active": True,
+                    }
+                )
+
+        self.stdout.write(f"  [+] 8 Master Financial Categories & HR Cost Centers verified")
 
     def setup_fiscal_structure(self, year):
         """إنشاء السنة المالية والفترات المحاسبية الـ 12"""
@@ -278,7 +593,6 @@ class Command(BaseCommand):
         )
 
         # إنشاء فترات الشهور الـ 12
-        import calendar
         for month in range(1, 13):
             m_start = date(year, month, 1)
             _, last_day = calendar.monthrange(year, month)
@@ -288,10 +602,11 @@ class Command(BaseCommand):
                 fiscal_year=fy,
                 period_number=month,
                 defaults={
-                    "name": f"فترة شهر {month:02d}-{year}",
+                    "name": f"فترة {month:02d}/{year}",
                     "start_date": m_start,
                     "end_date": m_end,
                     "status": "open",
                 }
             )
-        self.stdout.write("  [+] Fiscal year and 12 monthly periods ready and open for posting")
+
+        self.stdout.write(f"  [+] Fiscal Year FY{year} and 12 Monthly Periods verified (Status: OPEN)")

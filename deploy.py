@@ -1019,7 +1019,7 @@ class DeploymentManager:
 
         # أوامر أول deploy فقط
         setup_commands = [
-            (f"{pip} install -r {self.remote_path}/requirements.txt",
+            (f"cd {self.remote_path} && {pip} install -r requirements.txt",
              "تثبيت متطلبات المشروع لأول مرة (pip install)"),
         ]
 
@@ -1031,14 +1031,16 @@ class DeploymentManager:
             ))
 
         setup_commands += [
-            (f"{venv} {manage} migrate --noinput",
+            (f"cd {self.remote_path} && {venv} manage.py migrate --noinput",
              "عمل ميجريشن لقاعدة البيانات (migrate)"),
-            (f"{venv} {manage} collectstatic --noinput",
+            (f"cd {self.remote_path} && {venv} manage.py collectstatic --noinput",
              "تجميع الملفات الثابتة (collectstatic)"),
-            (f"{venv} {manage} loaddata core/fixtures/system_modules.json",
+            (f"cd {self.remote_path} && {venv} manage.py loaddata core/fixtures/system_modules.json",
              "تحميل موديولات النظام (loaddata system_modules)"),
-            (f"{venv} {manage} loaddata core/fixtures/system_settings_final.json",
+            (f"cd {self.remote_path} && {venv} manage.py loaddata core/fixtures/system_settings_final.json",
              "تحميل إعدادات النظام (loaddata system_settings)"),
+            (f"cd {self.remote_path} && {venv} manage.py init_modules",
+             "تحديث وتأكيد موديولات النظام (init_modules)"),
         ]
 
         if first_deploy:
@@ -1131,13 +1133,13 @@ class DeploymentManager:
         # تجهيز قائمة الأوامر للتشغيل
         exec_commands = []
         if run_pip:
-            exec_commands.append((f"{pip} install -r {self.remote_path}/requirements.txt", "تثبيت متطلبات المشروع (pip install)"))
+            exec_commands.append((f"cd {self.remote_path} && {pip} install -r requirements.txt", "تثبيت متطلبات المشروع (pip install)"))
         if run_migrate:
-            exec_commands.append((f"{venv} {manage} migrate --noinput", "عمل ميجريشن لقاعدة البيانات (migrate)"))
+            exec_commands.append((f"cd {self.remote_path} && {venv} manage.py migrate --noinput", "عمل ميجريشن لقاعدة البيانات (migrate)"))
         if run_collectstatic:
-            exec_commands.append((f"{venv} {manage} collectstatic --noinput", "تجميع الملفات الثابتة (collectstatic)"))
+            exec_commands.append((f"cd {self.remote_path} && {venv} manage.py collectstatic --noinput", "تجميع الملفات الثابتة (collectstatic)"))
         if run_init_modules:
-            exec_commands.append((f"{venv} {manage} init_modules", "تحديث وتأكيد موديولات النظام (init_modules)"))
+            exec_commands.append((f"cd {self.remote_path} && {venv} manage.py init_modules", "تحديث وتأكيد موديولات النظام (init_modules)"))
 
         # تنفيذ الأوامر
         if exec_commands or run_reload:

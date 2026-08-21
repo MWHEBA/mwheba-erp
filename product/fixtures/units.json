@@ -20,5 +20,60 @@
       "created_at": "2024-01-01T00:00:00Z",
       "updated_at": "2024-01-01T00:00:00Z"
     }
+  },
+  {
+    "model": "product.unit",
+    "pk": 3,
+    "fields": {
+      "name": "متر",
+      "symbol": "م",
+      "is_active": true,
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "product.unit",
+    "pk": 4,
+    "fields": {
+      "name": "كيلوجرام",
+      "symbol": "كجم",
+      "is_active": true,
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "product.unit",
+    "pk": 5,
+    "fields": {
+      "name": "ساعة/خدمة",
+      "symbol": "ساعة",
+      "is_active": true,
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "product.unit",
+    "pk": 6,
+    "fields": {
+      "name": "طقم",
+      "symbol": "طقم",
+      "is_active": true,
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "product.unit",
+    "pk": 7,
+    "fields": {
+      "name": "فرخ",
+      "symbol": "فرخ",
+      "is_active": true,
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z"
+    }
   }
 ]

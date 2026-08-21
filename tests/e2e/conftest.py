@@ -120,20 +120,12 @@ def warehouse_user(db):
 
 @pytest.fixture(scope='session')
 def setup_chart_of_accounts(django_db_setup, django_db_blocker):
-    """تحميل شجرة الحسابات من fixtures النظام"""
+    """تهيئة المنظومة المالية والشجرة المعيارية الشاملة للاختبارات"""
     with django_db_blocker.unblock():
-        from financial.models import ChartOfAccounts, AccountType, AccountingPeriod
-        from datetime import date
-        
-        # تحميل الحسابات المحاسبية من fixtures النظام
+        from django.core.management import call_command
         try:
-            call_command('loaddata', 'financial/fixtures/chart_of_accounts.json', verbosity=0)
-        except:
-            pass
-        
-        try:
-            call_command('loaddata', 'financial/fixtures/financial_categories.json', verbosity=0)
-        except:
+            call_command('setup_accounting_system', force=True, verbosity=0)
+        except Exception:
             pass
         
         # إنشاء أنواع الحسابات الأساسية والحسابات إذا لم تكن موجودة

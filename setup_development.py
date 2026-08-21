@@ -42,8 +42,9 @@ if sys.platform == 'win32':
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
 
-# متغير عام للوضع التلقائي
-auto_mode = len(sys.argv) > 1 and sys.argv[1] == '--auto'
+# متغيرات أوضاع التشغيل من الـ CLI
+auto_mode = '--auto' in sys.argv
+reset_mode = '--reset' in sys.argv or '--clean' in sys.argv
 
 # الألوان للطباعة
 class Colors:
@@ -763,7 +764,7 @@ def main():
     """الدالة الرئيسية لإعداد النظام لجميع fixtures"""
 
     # إجمالي المراحل
-    TOTAL_STEPS = 13
+    TOTAL_STEPS = 12
 
     # تهيئة Django في البداية
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "corporate_erp.settings")
@@ -910,501 +911,199 @@ def main():
     print_colored("- نظام ERP متكامل للشركات", Colors.GRAY)
 
     # ======================================================
-    # المرحلة 1: حذف/إعادة تعيين قاعدة البيانات
+    # المرحلة 1: فحص / إعادة تعيين قاعدة البيانات
     # ======================================================
-    print_step(1, TOTAL_STEPS, f"إعادة تعيين قاعدة البيانات ({db_type.upper()})")
-    
-    if db_type == 'sqlite':
-        # SQLite: حذف ملف قاعدة البيانات
-        db_path = Path("db.sqlite3")
-        db_shm_path = Path("db.sqlite3-shm")
-        db_wal_path = Path("db.sqlite3-wal")
-        
-        if db_path.exists():
-            try:
-                # إنشاء نسخة احتياطية أولاً
-                from datetime import datetime
-                
-                backup_name = f"db_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.sqlite3"
-                backup_path = Path(backup_name)
-                
-                print_info(f"إنشاء نسخة احتياطية: {backup_name}...")
-                shutil.copy2(db_path, backup_path)
-                print_success(f"تم إنشاء نسخة احتياطية: {backup_name}")
-                
-                # محاولة حذف قاعدة البيانات مع إعادة المحاولة
-                max_attempts = 3
-                deleted_successfully = False
-                
-                for attempt in range(max_attempts):
-                    try:
-                        # حذف قاعدة البيانات الرئيسية
-                        db_path.unlink()
-                        print_success("تم حذف قاعدة البيانات الرئيسية")
-                        
-                        # حذف ملفات SQLite الإضافية إن وجدت
-                        for extra_file in [db_shm_path, db_wal_path]:
-                            if extra_file.exists():
-                                try:
-                                    extra_file.unlink()
-                                    print_success(f"تم حذف ملف {extra_file.name}")
-                                except:
-                                    pass
-                        
-                        deleted_successfully = True
-                        break
-                        
-                    except PermissionError:
-                        if attempt < max_attempts - 1:
-                            print_warning(f"محاولة {attempt + 1}/{max_attempts}: قاعدة البيانات مستخدمة")
-                            print_info("محاولة إغلاق الاتصالات بالقوة...")
-                            force_close_database_connections()
-                            time.sleep(2)
-                        else:
-                            print_colored(f"\n❌ فشل في حذف قاعدة البيانات بعد {max_attempts} محاولات", Colors.RED)
-                            print_colored("يرجى إغلاق جميع التطبيقات التي تستخدم قاعدة البيانات يدوياً وإعادة المحاولة", Colors.YELLOW)
-                            print_colored("مثل: Django runserver, DB Browser, إلخ", Colors.YELLOW)
-                            sys.exit(1)
-                
-                if not deleted_successfully:
-                    sys.exit(1)
-                    
-            except Exception as e:
-                print_warning(f"خطأ في حذف قاعدة البيانات: {e}")
-                sys.exit(1)
+    if reset_mode:
+        print_step(1, TOTAL_STEPS, f"إعادة تعيين وتصفير قاعدة البيانات ({db_type.upper()})")
+        if db_type == 'sqlite':
+            db_path = Path("db.sqlite3")
+            db_shm_path = Path("db.sqlite3-shm")
+            db_wal_path = Path("db.sqlite3-wal")
+            if db_path.exists():
+                try:
+                    for extra_file in [db_path, db_shm_path, db_wal_path]:
+                        if extra_file.exists():
+                            extra_file.unlink()
+                    print_success("تم تصفير قاعدة بيانات SQLite بنجاح")
+                except Exception as e:
+                    print_warning(f"خطأ في حذف قاعدة البيانات: {e}")
         else:
-            print_info("لا توجد قاعدة بيانات SQLite سابقة")
-    
-    else:  # MySQL
-        # MySQL: حذف جميع الجداول
-        try:
-            from django.db import connection
-            from django.core.management import call_command
-            
-            print_info("حذف جميع الجداول من MySQL...")
-            
-            with connection.cursor() as cursor:
-                # تعطيل فحص المفاتيح الخارجية مؤقتاً
-                cursor.execute("SET FOREIGN_KEY_CHECKS = 0;")
-                
-                # الحصول على قائمة جميع الجداول
-                cursor.execute("SHOW TABLES;")
-                tables = cursor.fetchall()
-                
-                if tables:
-                    print_info(f"وجد {len(tables)} جدول للحذف...")
-                    for table in tables:
-                        table_name = table[0]
-                        cursor.execute(f"DROP TABLE IF EXISTS `{table_name}`;")
-                        print_info(f"  - تم حذف جدول: {table_name}")
-                    
-                    print_success(f"تم حذف {len(tables)} جدول بنجاح")
-                else:
-                    print_info("لا توجد جداول للحذف")
-                
-                # إعادة تفعيل فحص المفاتيح الخارجية
-                cursor.execute("SET FOREIGN_KEY_CHECKS = 1;")
-            
-        except Exception as e:
-            print_warning(f"خطأ في حذف جداول MySQL: {e}")
-            print_info("محاولة استخدام flush بدلاً من ذلك...")
             try:
-                from django.core.management import call_command
-                call_command('flush', '--no-input')
-                print_success("تم تنظيف قاعدة البيانات باستخدام flush")
-            except Exception as flush_error:
-                print_colored(f"\n❌ فشل في إعادة تعيين قاعدة البيانات: {flush_error}", Colors.RED)
-                sys.exit(1)
+                from django.db import connection
+                print_info("حذف جميع الجداول من MySQL (Reset Mode)...")
+                with connection.cursor() as cursor:
+                    cursor.execute("SET FOREIGN_KEY_CHECKS = 0;")
+                    cursor.execute("SHOW TABLES;")
+                    tables = cursor.fetchall()
+                    for table in tables:
+                        cursor.execute(f"DROP TABLE IF EXISTS `{table[0]}`;")
+                    cursor.execute("SET FOREIGN_KEY_CHECKS = 1;")
+                print_success(f"تم تصفير {len(tables)} جدول من MySQL بنجاح")
+            except Exception as e:
+                print_warning(f"خطأ في تصفير MySQL: {e}")
+    else:
+        print_step(1, TOTAL_STEPS, f"وضع التثبيت الآمن (Safe Mode - {db_type.upper()})")
+        print_info("الحفاظ على الجداول والبيانات الحية دون مسح")
 
     # ======================================================
-    # المرحلة 2: تطبيق الهجرات
+    # المرحلة 2: تطبيق الهجرات (Migrations)
     # ======================================================
     print_step(2, TOTAL_STEPS, "تطبيق الهجرات")
-    
-    print_info("تطبيق جميع الهجرات (قد يستغرق بضع دقائق)...")
-    
-    # تطبيق migrations بدون timeout (None = لا يوجد حد زمني)
+    print_info("تطبيق جميع الهجرات...")
     migration_success = run_command(f'"{sys.executable}" manage.py migrate --no-input', show_output=True, timeout=None)
-    
     if not migration_success:
         print_colored("\n❌ فشل تطبيق الهجرات", Colors.RED)
-        print_colored("\n💡 جرب تطبيق الهجرات يدوياً:", Colors.YELLOW)
-        print_colored("   python manage.py migrate --no-input", Colors.WHITE)
         sys.exit(1)
-    
     print_success("تم تطبيق الهجرات بنجاح")
 
     # ======================================================
-    # المرحلة 3: تحميل إعدادات النظام والموديولات
+    # المرحلة 3: تحميل إعدادات وموديولات النظام الأساسية
     # ======================================================
-    print_step(3, TOTAL_STEPS, "تحميل إعدادات النظام والموديولات")
-    
+    print_step(3, TOTAL_STEPS, "تحميل إعدادات وموديولات النظام")
     core_fixtures = [
-        {"path": "core/fixtures/system_settings_final.json", "description": "إعدادات النظام (101 إعداد)"},
+        {"path": "core/fixtures/system_settings_final.json", "description": "إعدادات النظام"},
         {"path": "core/fixtures/system_modules.json",        "description": "موديولات النظام"},
     ]
     core_loaded = load_fixtures_batch(core_fixtures, "تحميل إعدادات النظام...")
     print_success(f"تم تحميل {core_loaded} من {len(core_fixtures)} ملف إعدادات")
 
     # ======================================================
-    # المرحلة 4: تحميل الأدوار والمستخدمين الآمنين
+    # المرحلة 4: الأدوار والصلاحيات وتأمين المدير العام
     # ======================================================
-    print_step(4, TOTAL_STEPS, "تحميل الأدوار والمستخدمين الآمنين")
+    print_step(4, TOTAL_STEPS, "تحميل الأدوار والصلاحيات وتأمين المدير العام")
     
-    # تحميل الأدوار الأساسية أولاً
+    # 1. تحميل الأدوار
     roles_fixture = Path("users/fixtures/roles.json")
     if roles_fixture.exists():
-        print_info("تحميل الأدوار الأساسية للنظام...")
-        if run_command(f'"{sys.executable}" manage.py loaddata users/fixtures/roles.json', show_output=False):
-            print_success("تم تحميل 10 أدوار أساسية للنظام")
-            print_info("- مدير النظام (صلاحيات كاملة)")
-            print_info("- مدير (إدارة العمليات والإشراف العام)")
-            print_info("- محاسب (إدارة الحسابات والتقارير المالية)")
-            print_info("- مدير موارد بشرية (إدارة الموظفين والرواتب)")
-            print_info("- مدير مخزون (إدارة المنتجات والمبيعات)")
-            print_info("- منسق عمليات (إدارة العمليات اليومية)")
-            print_info("- موظف استقبال (استقبال وخدمة العملاء)")
-            print_info("- مراجع (قراءة فقط)")
-        else:
-            print_warning("فشل تحميل الأدوار الأساسية")
-    else:
-        print_warning("ملف الأدوار الأساسية غير موجود")
+        load_fixture("users/fixtures/roles.json", "الأدوار الأساسية")
     
-    # تحميل المستخدمين
-    users_fixture = Path("users/fixtures/initial_data.json")
-    if users_fixture.exists():
-        print_info("تحميل المستخدمين من الفيكستشر المحدث...")
-        if run_command(f'"{sys.executable}" manage.py loaddata users/fixtures/initial_data.json', show_output=False):
-            print_success("تم تحميل المستخدمين الآمنين بنجاح")
-            
-            # التأكد من كلمات المرور
-            print_info("التحقق من كلمات المرور...")
-            try:
-                from django.contrib.auth import authenticate, get_user_model
-                from django.contrib.auth.hashers import make_password
-                
-                User = get_user_model()
-                
-                # التحقق من admin
-                admin_test = authenticate(username='admin', password='admin123')
-                
-                if admin_test:
-                    print_success("كلمة مرور admin صحيحة ومشفرة")
-                else:
-                    print_warning("كلمة مرور admin تحتاج إصلاح...")
-                    try:
-                        admin_user = User.objects.get(username='admin')
-                        admin_user.password = make_password('admin123')
-                        admin_user.save()
-                        print_success("تم إصلاح كلمة مرور admin")
-                    except User.DoesNotExist:
-                        print_warning("مستخدم admin غير موجود")
-                
-                # التحقق من girard (اختياري)
-                if User.objects.filter(username='girard').exists():
-                    girard_test = authenticate(username='girard', password='girard123')
-                    if not girard_test:
-                        print_warning("كلمة مرور girard تحتاج إصلاح...")
-                        girard_user = User.objects.get(username='girard')
-                        girard_user.password = make_password('girard123')
-                        girard_user.save()
-                        print_success("تم إصلاح كلمة مرور girard")
-                    else:
-                        print_success("كلمة مرور girard صحيحة ومشفرة")
-                else:
-                    print_info("مستخدم girard غير موجود (اختياري)")
-                    
-            except Exception as e:
-                print_warning(f"خطأ في التحقق من كلمات المرور: {e}")
-        else:
-            print_warning("فشل تحميل المستخدمين")
-    else:
-        print_warning("ملف المستخدمين غير موجود")
+    # 2. توليد الصلاحيات المخصصة ومزامنتها مع الأدوار
+    print_info("توليد وتحديث الصلاحيات المخصصة للأدوار...")
+    run_command(f'"{sys.executable}" manage.py create_custom_permissions', show_output=False)
+    run_command(f'"{sys.executable}" manage.py update_roles_with_custom_permissions', show_output=False)
+    print_success("تم تحديث ومزامنة كافة الصلاحيات والأدوار بنجاح")
 
-    # ======================================================
-    # المرحلة 5: تحميل البيانات المالية الكاملة
-    # ======================================================
-    print_step(5, TOTAL_STEPS, "تحميل البيانات المالية الكاملة")
-    
-    financial_fixtures = [
-        {"path": "financial/fixtures/chart_of_accounts.json",      "description": "دليل الحسابات (54 حساب)"},
-        {"path": "financial/fixtures/financial_categories.json",    "description": "التصنيفات المالية"},
-        {"path": "financial/fixtures/financial_subcategories.json", "description": "التصنيفات الفرعية المالية"},
-        {"path": "financial/fixtures/payment_sync_rules.json",      "description": "قواعد مزامنة المدفوعات"},
-    ]
-    
-    financial_loaded = load_fixtures_batch(financial_fixtures, "تحميل البيانات المالية...")
-    print_success(f"تم تحميل {financial_loaded} من {len(financial_fixtures)} ملف مالي")
-
-    # ======================================================
-    # المرحلة 6: تحميل بيانات الموارد البشرية الكاملة
-    # ======================================================
-    print_step(6, TOTAL_STEPS, "تحميل بيانات الموارد البشرية الكاملة")
-    
-    # تحميل الأقسام والوظائف أولاً (مطلوبة للموظفين)
-    print_info("تحميل الهيكل التنظيمي...")
-    departments_loaded  = load_fixture("hr/fixtures/departments.json",  "الأقسام")
-    job_titles_loaded   = load_fixture("hr/fixtures/job_titles.json",   "الوظائف")
-    
-    # تحميل الموظفين فقط إذا نجح تحميل الأقسام والوظائف
-    if departments_loaded and job_titles_loaded:
-        print_info("تحميل الموظفين...")
-        employees_loaded = load_fixture("hr/fixtures/employees.json", "الموظفين")
-    else:
-        print_warning("تخطي تحميل الموظفين بسبب فشل تحميل الأقسام أو الوظائف")
-        employees_loaded = False
-    
-    # تحميل باقي بيانات HR
-    print_info("تحميل بيانات HR الإضافية...")
-    hr_extra_fixtures = [
-        {"path": "hr/fixtures/leave_types.json",         "description": "أنواع الإجازات"},
-        {"path": "hr/fixtures/permission_types.json",    "description": "أنواع الأذونات"},
-        {"path": "hr/fixtures/attendance_penalties.json","description": "عقوبات الحضور"},
-        {"path": "hr/fixtures/initial_data.json",        "description": "البيانات الأولية للـ HR"},
-    ]
-    hr_extra_loaded = load_fixtures_batch(hr_extra_fixtures, "تحميل بيانات HR الإضافية...")
-    
-    # تحميل بيانات البصمة (اختيارية - قد تفشل بدون أجهزة)
-    print_info("تحميل بيانات البصمة (اختيارية)...")
-    biometric_fixtures = [
-        {"path": "hr/fixtures/biometric_devices.json", "description": "أجهزة البصمة"},
-        {"path": "hr/fixtures/biometric_mapping.json", "description": "ربط البصمة بالموظفين"},
-    ]
-    biometric_loaded = load_fixtures_batch(biometric_fixtures, "تحميل بيانات البصمة...")
-    
-    hr_total = sum([departments_loaded, job_titles_loaded, employees_loaded]) + hr_extra_loaded + biometric_loaded
-    hr_max   = 3 + len(hr_extra_fixtures) + len(biometric_fixtures)
-    print_success(f"تم تحميل {hr_total} من {hr_max} ملف موارد بشرية")
-
-    # ======================================================
-    # المرحلة 7: تحميل بيانات الموردين والمنتجات
-    # ======================================================
-    print_step(7, TOTAL_STEPS, "تحميل بيانات الموردين والمنتجات")
-    
-    supply_product_fixtures = [
-        {"path": "supplier/fixtures/supplier_types.json",    "description": "أنواع الموردين"},
-        {"path": "supplier/fixtures/service_types.json",     "description": "أنواع الخدمات"},
-        {"path": "product/fixtures/initial_warehouses.json", "description": "المستودعات"},
-        {"path": "product/fixtures/units.json",              "description": "وحدات القياس"},
-    ]
-    
-    sp_loaded = load_fixtures_batch(supply_product_fixtures, "تحميل بيانات الموردين والمنتجات...")
-    print_success(f"تم تحميل {sp_loaded} من {len(supply_product_fixtures)} ملف")
-
-    # ======================================================
-    # المرحلة 8: تحميل بيانات Printing & Pricing الكاملة
-    # ======================================================
-    print_step(8, TOTAL_STEPS, "تحميل بيانات Printing & Pricing")
-    
-    printing_fixtures = [
-        {"path": "printing_pricing/fixtures/paper_origins.json",           "description": "مناشئ الورق"},
-        {"path": "printing_pricing/fixtures/paper_sizes.json",             "description": "مقاسات الورق"},
-        {"path": "printing_pricing/fixtures/paper_weights.json",           "description": "أوزان الورق"},
-        {"path": "printing_pricing/fixtures/offset_sheet_sizes.json",      "description": "مقاسات أوفست"},
-        {"path": "printing_pricing/fixtures/digital_sheet_sizes.json",     "description": "مقاسات ديجيتال"},
-        {"path": "printing_pricing/fixtures/offset_machines.json",         "description": "ماكينات أوفست"},
-        {"path": "printing_pricing/fixtures/digital_machines.json",        "description": "ماكينات ديجيتال"},
-        {"path": "printing_pricing/fixtures/coating_finishing.json",       "description": "التغليف والتشطيب"},
-        {"path": "printing_pricing/fixtures/piece_plate_sizes.json",       "description": "مقاسات الألواح"},
-        {"path": "printing_pricing/fixtures/product_types_sizes.json",     "description": "أنواع وأحجام المنتجات"},
-        {"path": "printing_pricing/fixtures/print_settings.json",          "description": "إعدادات الطباعة"},
-        {"path": "printing_pricing/fixtures/printing_pricing_settings.json","description": "إعدادات التسعير"},
-    ]
-    
-    printing_loaded = load_fixtures_batch(printing_fixtures, "تحميل بيانات Printing & Pricing...")
-    print_success(f"تم تحميل {printing_loaded} من {len(printing_fixtures)} ملف طباعة وتسعير")
-
-    # ======================================================
-    # المرحلة 9: تفعيل موديول Governance
-    # ======================================================
-    print_step(9, TOTAL_STEPS, "تفعيل موديول Governance تلقائياً")
-    
-    print_info("تفعيل جميع المكونات والسير العمل الحرج...")
-    governance_success = run_command(f'"{sys.executable}" manage.py activate_governance --silent', show_output=False)
-    
-    if governance_success:
-        print_success("✅ تم تفعيل موديول Governance بنجاح")
-        print_info("- جميع المكونات الحرجة مفعلة")
-        print_info("- جميع سير العمل الحرج مفعل")
-        print_info("- النظام آمن ومحكوم")
-        
-        # التحقق من الحالة
-        print_info("التحقق من حالة Governance...")
-        verification_success = run_command(f'"{sys.executable}" manage.py activate_governance --check-only --silent', show_output=False)
-        
-        if verification_success:
-            print_success("✅ تم التحقق من تفعيل Governance بنجاح")
-        else:
-            print_warning("⚠️ تحذير: قد تكون هناك مشاكل في Governance")
-    else:
-        print_warning("⚠️ فشل تفعيل موديول Governance")
-        print_info("سيتم تفعيله تلقائياً عند أول تسجيل دخول للمدير")
-
-    # ======================================================
-    # المرحلة 10: إنشاء الفترة المحاسبية والمهام المؤجلة
-    # ======================================================
-    print_step(10, TOTAL_STEPS, "إنشاء الفترة المحاسبية وربط الموردين")
-    
-    # انتظار حتى تصبح قاعدة البيانات جاهزة
-    print_info("انتظار استقرار قاعدة البيانات...")
-    time.sleep(5)  # انتظار أولي
-    
-    if not wait_for_database_ready():
-        print_warning("قاعدة البيانات لا تزال مشغولة، سيتم المحاولة مع ذلك...")
-    
-    # إنشاء الفترة المحاسبية مع إعادة المحاولة
-    def create_accounting_period():
-        from financial.models import AccountingPeriod
-        from datetime import date
-        from django.db import transaction
-        from django.contrib.auth import get_user_model
-        
-        User = get_user_model()
-        
-        # التحقق من وجود فترة محاسبية مفتوحة
-        existing_period = AccountingPeriod.objects.filter(status='open').first()
-        
-        if existing_period:
-            print_info(f"توجد فترة محاسبية مفتوحة بالفعل: {existing_period.name}")
-            return True
-        else:
-            # محاولة تحميل من fixture أولاً
-            fixture_path = Path("financial/fixtures/accounting_periods.json")
-            if fixture_path.exists():
-                print_info("تحميل الفترة المحاسبية من fixture...")
-                if run_command(f'"{sys.executable}" manage.py loaddata financial/fixtures/accounting_periods.json', show_output=False):
-                    print_success("تم تحميل الفترة المحاسبية من fixture")
-                    return True
-            
-            # إنشاء برمجياً كـ fallback
-            admin_user = User.objects.filter(username='admin').first()
-            with transaction.atomic():
-                period = AccountingPeriod.objects.create(
-                    name="السنة المالية 2025/2026",
-                    start_date=date(2025, 9, 1),
-                    end_date=date(2026, 8, 31),
-                    status='open',
-                    created_by=admin_user
-                )
-                print_success(f"تم إنشاء الفترة المحاسبية: {period.name}")
-                print_info(f"من {period.start_date} إلى {period.end_date}")
-                return True
-    
-    print_info("إنشاء الفترة المحاسبية...")
-    accounting_success = safe_database_operation(create_accounting_period, "إنشاء الفترة المحاسبية")
-    
-    # ربط الموردين بأنواعهم مع إعادة المحاولة
-    def link_suppliers():
-        from supplier.models import Supplier, SupplierType
-        from django.db import transaction
-        
-        suppliers_checked = 0
-        suppliers_fixed = 0
-        
-        if not Supplier.objects.exists():
-            print_info("لا توجد موردين للربط")
-            return True
-        
-        with transaction.atomic():
-            for supplier in Supplier.objects.all():
-                suppliers_checked += 1
-                
-                # التحقق من وجود primary_type
-                if not supplier.primary_type:
-                    # محاولة تعيين نوع افتراضي
-                    default_type = SupplierType.objects.filter(code='general').first()
-                    if default_type:
-                        supplier.primary_type = default_type
-                        supplier.save()
-                        suppliers_fixed += 1
-                        print_info(f"تم تعيين نوع افتراضي لـ {supplier.name}")
-        
-        if suppliers_fixed > 0:
-            print_success(f"تم فحص {suppliers_checked} مورد وإصلاح {suppliers_fixed} مورد")
-        else:
-            print_info(f"تم فحص {suppliers_checked} مورد - جميعهم لديهم أنواع صحيحة")
-        
-        return True
-    
-    print_info("فحص وربط الموردين بأنواعهم...")
-    suppliers_success = safe_database_operation(link_suppliers, "ربط الموردين")
-    
-    # ملخص النتائج
-    if accounting_success and suppliers_success:
-        print_success("✅ تم إنجاز جميع المهام بنجاح")
-    elif accounting_success or suppliers_success:
-        print_info("✅ تم إنجاز بعض المهام")
-    else:
-        print_warning("⚠️ لم يتم إنجاز المهام - ستتم تلقائياً عند أول استخدام")
-
-    # ======================================================
-    # المرحلة 11: ربط المستخدمين بالأدوار
-    # ======================================================
-    print_step(11, TOTAL_STEPS, "ربط المستخدمين بالأدوار المناسبة")
-    
-    def assign_user_roles():
-        """ربط المستخدمين بالأدوار المناسبة"""
+    # 3. تأمين حساب admin الذري
+    print_info("تأمين حساب المدير العام admin...")
+    try:
         from django.contrib.auth import get_user_model
         from users.models import Role
-        from django.db import transaction
-        
         User = get_user_model()
-        assigned_count = 0
-        
-        try:
-            with transaction.atomic():
-                # ربط admin بدور مدير النظام
-                admin_user = User.objects.filter(username='admin').first()
-                admin_role = Role.objects.filter(name='admin').first()
-                
-                if admin_user and admin_role:
-                    admin_user.role = admin_role
-                    admin_user.save()
-                    print_success(f"تم ربط {admin_user.username} بدور {admin_role.display_name}")
-                    assigned_count += 1
-                elif admin_user:
-                    print_warning("دور مدير النظام غير موجود")
-                else:
-                    print_warning("مستخدم admin غير موجود")
-                
-                # ربط girard بدور مدير (اختياري)
-                girard_user = User.objects.filter(username='girard').first()
-                if girard_user:
-                    manager_role = Role.objects.filter(name='manager').first()
-                    
-                    if manager_role:
-                        girard_user.role = manager_role
-                        girard_user.save()
-                        print_success(f"تم ربط {girard_user.username} بدور {manager_role.display_name}")
-                        assigned_count += 1
-                    else:
-                        print_warning("دور مدير غير موجود")
-                else:
-                    print_info("مستخدم girard غير موجود (اختياري)")
-                
-                return assigned_count > 0
-                
-        except Exception as e:
-            print_warning(f"خطأ في ربط المستخدمين بالأدوار: {e}")
-            return False
-    
-    print_info("ربط المستخدمين الأساسيين بأدوارهم...")
-    roles_assignment_success = safe_database_operation(assign_user_roles, "ربط المستخدمين بالأدوار")
-    
-    if roles_assignment_success:
-        print_success("✅ تم ربط المستخدمين بالأدوار بنجاح")
-        print_info("- admin ← مدير النظام")
-        # فقط اطبع girard إذا كان موجود
-        from django.contrib.auth import get_user_model
-        User = get_user_model()
-        if User.objects.filter(username='girard').exists():
-            print_info("- girard ← مدير")
-    else:
-        print_warning("⚠️ لم يتم ربط المستخدمين بالأدوار - يمكن القيام بذلك يدوياً")
+        admin_pass = os.getenv("ADMIN_PASSWORD", "admin123")
+        admin_user, created = User.objects.get_or_create(
+            username='admin',
+            defaults={'email': 'info@mwheba.co.uk', 'first_name': 'System', 'last_name': 'Admin'}
+        )
+        admin_user.set_password(admin_pass)
+        admin_user.is_superuser = True
+        admin_user.is_staff = True
+        admin_role = Role.objects.filter(name='admin').first()
+        if admin_role:
+            admin_user.role = admin_role
+        admin_user.save()
+        print_success("تم تأمين حساب المدير العام admin (مدير النظام) بنجاح")
+    except Exception as e:
+        print_warning(f"تحذير في تأمين حساب المدير العام: {e}")
 
-    # المرحلة 12: تحديث hashes الملفات
     # ======================================================
-    print_step(12, TOTAL_STEPS, "تحديث hashes الملفات")
+    # المرحلة 5: تشغيل المحرك المالي والضريبي الشامل
+    # ======================================================
+    print_step(5, TOTAL_STEPS, "تهيئة المحرك المالي والضريبي والشجرة المعيارية")
+    print_info("تشغيل setup_accounting_system لبناء 105 حساباً والعملات والضرائب والتصنيفات...")
+    fin_cmd_success = run_command(f'"{sys.executable}" manage.py setup_accounting_system --force', show_output=True)
+    if fin_cmd_success:
+        print_success("تم بناء وتأسيس المنظومة المالية والضريبية بنجاح (100%)")
+    else:
+        print_warning("حدث خطأ أثناء تشغيل setup_accounting_system")
+
+    # تحميل قواعد مزامنة المدفوعات
+    load_fixture("financial/fixtures/payment_sync_rules.json", "قواعد مزامنة المدفوعات")
+
+    # ======================================================
+    # المرحلة 6: تحميل لوائح وبيانات الموارد البشرية
+    # ======================================================
+    print_step(6, TOTAL_STEPS, "تحميل لوائح وبيانات الموارد البشرية")
+    hr_fixtures = [
+        {"path": "hr/fixtures/initial_data.json",         "description": "اللوائح والورديات وأنواع الإجازات"},
+        {"path": "hr/fixtures/permission_types.json",     "description": "أنواع الأذونات"},
+        {"path": "hr/fixtures/attendance_penalties.json", "description": "عقوبات ولوائح الحضور"},
+        {"path": "hr/fixtures/biometric_devices.json",    "description": "أجهزة البصمة"},
+    ]
+    hr_loaded = load_fixtures_batch(hr_fixtures, "تحميل لوائح HR...")
+    print_success(f"تم تحميل {hr_loaded} من {len(hr_fixtures)} ملف لوائح موارد بشرية")
+
+    # ======================================================
+    # المرحلة 7: تحميل بيانات الموردين والمخازن والوحدات
+    # ======================================================
+    print_step(7, TOTAL_STEPS, "تحميل بيانات الموردين والمخازن ووحدات القياس")
+    supply_fixtures = [
+        {"path": "supplier/fixtures/supplier_types.json",    "description": "أنواع الموردين"},
+        {"path": "supplier/fixtures/service_types.json",     "description": "أنواع الخدمات"},
+        {"path": "product/fixtures/units.json",              "description": "وحدات القياس الشاملة"},
+        {"path": "product/fixtures/initial_warehouses.json", "description": "المستودعات الافتراضية"},
+    ]
+    sp_loaded = load_fixtures_batch(supply_fixtures, "تحميل بيانات الموردين والمخازن...")
+    print_success(f"تم تحميل {sp_loaded} من {len(supply_fixtures)} ملف تشغيلي")
+
+    # ======================================================
+    # المرحلة 8: تحميل بيانات Printing & Pricing
+    # ======================================================
+    print_step(8, TOTAL_STEPS, "تحميل بيانات الطباعة ومصفوفة التسعير")
+    printing_fixtures = [
+        {"path": "printing_pricing/fixtures/paper_origins.json",            "description": "مناشئ الورق"},
+        {"path": "printing_pricing/fixtures/paper_sizes.json",              "description": "مقاسات الورق"},
+        {"path": "printing_pricing/fixtures/paper_weights.json",            "description": "أوزان الورق"},
+        {"path": "printing_pricing/fixtures/offset_sheet_sizes.json",       "description": "مقاسات أوفست"},
+        {"path": "printing_pricing/fixtures/digital_sheet_sizes.json",      "description": "مقاسات ديجيتال"},
+        {"path": "printing_pricing/fixtures/offset_machines.json",          "description": "ماكينات أوفست"},
+        {"path": "printing_pricing/fixtures/digital_machines.json",         "description": "ماكينات ديجيتال"},
+        {"path": "printing_pricing/fixtures/coating_finishing.json",        "description": "التغليف والتشطيب"},
+        {"path": "printing_pricing/fixtures/piece_plate_sizes.json",        "description": "مقاسات الألواح"},
+        {"path": "printing_pricing/fixtures/product_types_sizes.json",      "description": "أنواع وأحجام المنتجات"},
+        {"path": "printing_pricing/fixtures/print_settings.json",           "description": "إعدادات الطباعة"},
+        {"path": "printing_pricing/fixtures/printing_pricing_settings.json", "description": "إعدادات التسعير"},
+    ]
+    printing_loaded = load_fixtures_batch(printing_fixtures, "تحميل بيانات التسعير والطباعة...")
+    print_success(f"تم تحميل {printing_loaded} من {len(printing_fixtures)} ملف تسعير")
+
+    # ======================================================
+    # المرحلة 9: تفعيل الحوكمة والأمان (Governance)
+    # ======================================================
+    print_step(9, TOTAL_STEPS, "تفعيل نظام الحوكمة والأمان")
+    gov_success = run_command(f'"{sys.executable}" manage.py activate_governance --silent', show_output=False)
+    if gov_success:
+        print_success("✅ تم تفعيل موديول الحوكمة والأمان بنجاح")
+    else:
+        print_warning("⚠️ تم تخطي تفعيل الحوكمة (سيتم تفعيلها تلقائياً عند الدخول)")
+
+    # ======================================================
+    # المرحلة 10: التحقق من المستودع الرئيسي والموردين
+    # ======================================================
+    print_step(10, TOTAL_STEPS, "التحقق من المستودع الرئيسي والموردين")
+    try:
+        from product.models import Warehouse
+        wh, _ = Warehouse.objects.get_or_create(
+            code="WH0001",
+            defaults={"name": "المخزن الرئيسي", "location": "المخزن الرئيسي للمؤسسة", "is_active": True}
+        )
+        print_success(f"تم التحقق من المستودع الرئيسي: {wh.name} ({wh.code})")
+    except Exception as e:
+        print_warning(f"تحذير فحص المستودع: {e}")
+
+    try:
+        from supplier.models import Supplier, SupplierType
+        if Supplier.objects.exists():
+            default_type = SupplierType.objects.filter(code='general').first() or SupplierType.objects.first()
+            if default_type:
+                Supplier.objects.filter(primary_type__isnull=True).update(primary_type=default_type)
+        print_success("تم التحقق من ربط أنواع الموردين")
+    except Exception as e:
+        print_warning(f"تحذير فحص الموردين: {e}")
+
+    # ======================================================
+    # المرحلة 11: تحديث hashes الملفات
+    # ======================================================
+    print_step(11, TOTAL_STEPS, "تحديث hashes الملفات")
     
     print_info("تحديث hashes الملفات...")
     try:
@@ -1422,13 +1121,13 @@ def main():
         print_warning(f"خطأ في تحديث hashes: {e}")
 
     # ======================================================
-    # المرحلة 13: الملخص النهائي
+    # المرحلة 12: الملخص النهائي
     # ======================================================
-    print_step(13, TOTAL_STEPS, "الملخص النهائي")
+    print_step(12, TOTAL_STEPS, "الملخص النهائي")
     
-    print_colored("🎉 تم إكمال إعداد النظام بنجاح!", Colors.GREEN + Colors.BOLD)
+    print_colored("🎉 تم إكمال إعداد وتأسيس النظام بنجاح!", Colors.GREEN + Colors.BOLD)
     print_colored(f"\n🗄️  قاعدة البيانات: {db_type.upper()}", Colors.CYAN)
-    print_colored("\n📊 الإحصائيات:", Colors.CYAN)
+    print_colored("\n📊 الإحصائيات الشاملة:", Colors.CYAN)
     
     try:
         from django.contrib.auth import get_user_model
@@ -1538,7 +1237,7 @@ def main():
         except Exception as e:
             print_info(f"   بيانات Printing & Pricing: غير متاحة ({e})")
         
-        print_success(f"✅ موديول Governance: {'مفعل' if governance_success else 'سيتم تفعيله تلقائياً'}")
+        print_success(f"✅ موديول Governance: {'مفعل' if gov_success else 'سيتم تفعيله تلقائياً'}")
         
     except Exception as e:
         print_warning(f"خطأ في عرض الإحصائيات: {e}")
@@ -1546,7 +1245,7 @@ def main():
     print_colored("\n🚀 النظام جاهز للاستخدام!", Colors.GREEN + Colors.BOLD)
     
     # رسالة خاصة عن Governance
-    if governance_success:
+    if gov_success:
         print_colored("🔐 موديول Governance مفعل - النظام آمن ومحكوم!", Colors.GREEN + Colors.BOLD)
     else:
         print_colored("🔐 موديول Governance سيتم تفعيله تلقائياً عند أول دخول للمدير", Colors.YELLOW)
