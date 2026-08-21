@@ -1,0 +1,78 @@
+{% load i18n %}
+{% load custom_filters %}
+
+{% if sales_orders %}
+<div class="table-responsive">
+  <table class="table table-hover table-striped text-center align-middle mb-0" id="sales-orders-table">
+    <thead class="table-light">
+      <tr>
+        <th>{% trans "رقم الأمر" %}</th>
+        <th>{% trans "التاريخ" %}</th>
+        <th>{% trans "العميل" %}</th>
+        <th>{% trans "المخزن" %}</th>
+        <th>{% trans "المبلغ الإجمالي" %}</th>
+        <th>{% trans "حالة الأمر" %}</th>
+        <th>{% trans "عرض السعر المرتبط" %}</th>
+        <th>{% trans "الإجراءات" %}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for order in sales_orders %}
+      <tr class="clickable-row" data-href="{% url 'sale:sales_order_detail' order.pk %}" style="cursor: pointer;">
+        <td class="fw-bold text-primary">{{ order.order_number }}</td>
+        <td>{{ order.order_date|date:"Y-m-d" }}</td>
+        <td class="fw-bold">{{ order.customer.name }}</td>
+        <td><span class="badge bg-light text-dark border">{{ order.warehouse.name }}</span></td>
+        <td class="fw-bold text-success">{{ order.total_amount|floatformat:2 }} {{ order.currency }}</td>
+        <td>
+          {% if order.status == 'DRAFT' %}
+            <span class="badge bg-secondary">{% trans "مسودة" %}</span>
+          {% elif order.status == 'PENDING_APPROVAL' %}
+            <span class="badge bg-warning text-dark">{% trans "بانتظار الاعتماد" %}</span>
+          {% elif order.status == 'APPROVED' or order.status == 'CONFIRMED' %}
+            <span class="badge bg-info text-white">{% trans "معتمد" %}</span>
+          {% elif order.status == 'PARTIALLY_DELIVERED' %}
+            <span class="badge bg-primary">{% trans "مسلم جزئياً" %}</span>
+          {% elif order.status == 'DELIVERED' or order.status == 'COMPLETED' %}
+            <span class="badge bg-success">{% trans "مكتمل التسليم" %}</span>
+          {% elif order.status == 'CANCELLED' %}
+            <span class="badge bg-danger">{% trans "ملغي" %}</span>
+          {% else %}
+            <span class="badge bg-light text-dark">{{ order.get_status_display }}</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if order.quotation_reference %}
+            <a href="{% url 'sale:quotation_detail' order.quotation_reference.pk %}" class="badge bg-light text-primary border text-decoration-none" onclick="event.stopPropagation();">
+              <i class="fas fa-file-signature me-1"></i>{{ order.quotation_reference.quotation_number }}
+            </a>
+          {% else %}
+            <span class="text-muted">-</span>
+          {% endif %}
+        </td>
+        <td class="col-actions" onclick="event.stopPropagation();">
+          <div class="btn-group btn-group-sm">
+            <a href="{% url 'sale:sales_order_detail' order.pk %}" class="btn btn-outline-secondary" title="{% trans 'عرض التفاصيل' %}">
+              <i class="fas fa-eye"></i>
+            </a>
+            {% if order.status in 'APPROVED,CONFIRMED,PARTIALLY_DELIVERED' %}
+            <a href="{% url 'sale:delivery_note_create' %}?so_id={{ order.pk }}" class="btn btn-outline-info" title="{% trans 'إصدار إذن تسليم' %}">
+              <i class="fas fa-truck"></i>
+            </a>
+            <a href="{% url 'sale:sales_order_convert_to_sale' order.pk %}" class="btn btn-outline-primary" title="{% trans 'إصدار فاتورة' %}">
+              <i class="fas fa-file-invoice-dollar"></i>
+            </a>
+            {% endif %}
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="alert alert-info text-center my-4 py-4">
+  <i class="fas fa-clipboard-list fa-3x mb-3 text-muted"></i>
+  <p class="mb-0 fs-5">{% trans "لا توجد أوامر بيع مطابقة للبحث." %}</p>
+</div>
+{% endif %}

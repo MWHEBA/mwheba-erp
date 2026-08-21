@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  {% include "shared/page_header.html" %}
+
+  <div class="section-container">
+    <h5 class="section-title"><i class="fas fa-percentage me-2"></i>{% trans "قواعد وسياسات الخصومات" %}</h5>
+    
+    {% if rules %}
+    <div class="table-responsive">
+      <table class="table table-hover table-striped text-center align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>#</th>
+            <th>{% trans "اسم القاعدة" %}</th>
+            <th>{% trans "نوع القاعدة" %}</th>
+            <th>{% trans "العميل المستهدف" %}</th>
+            <th>{% trans "فئة المنتج" %}</th>
+            <th>{% trans "نسبة الخصم %" %}</th>
+            <th>{% trans "قيمة الخصم" %}</th>
+            <th>{% trans "الحد الأدنى للطلب" %}</th>
+            <th>{% trans "الأولوية" %}</th>
+            <th>{% trans "الحالة" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in rules %}
+          <tr>
+            <td>{{ forloop.counter }}</td>
+            <td class="fw-bold text-start text-primary">{{ r.rule_name }}</td>
+            <td><span class="badge bg-light text-dark border">{{ r.get_rule_type_display }}</span></td>
+            <td>{{ r.customer.name|default:"جميع العملاء" }}</td>
+            <td>{{ r.category.name|default:"جميع الفئات" }}</td>
+            <td class="fw-bold text-success">{{ r.discount_percentage }}%</td>
+            <td>{{ r.value|floatformat:2 }} EGP</td>
+            <td>{{ r.min_order_amount|floatformat:2 }} EGP</td>
+            <td><span class="badge bg-secondary">{{ r.priority }}</span></td>
+            <td>
+              {% if r.is_active %}
+                <span class="badge bg-success">{% trans "نشطة" %}</span>
+              {% else %}
+                <span class="badge bg-secondary">{% trans "معطلة" %}</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="alert alert-info text-center my-4 py-4">
+      <i class="fas fa-percentage fa-3x mb-3 text-muted"></i>
+      <p class="mb-0 fs-5">{% trans "لا توجد قواعد خصم مسجلة حتى الآن." %}</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

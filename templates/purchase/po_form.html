@@ -158,6 +158,8 @@
                                                     <option value="{{ s.id }}" 
                                                         {% if form.supplier.value == s.id|stringformat:'s' or selected_supplier.id == s.id or form.instance.supplier_id == s.id %}selected{% endif %}
                                                         data-currency="{{ s.default_currency.id|default:'' }}"
+                                                        data-currency-code="{{ s.default_currency.code|default:'' }}"
+                                                        data-delivery-time="{{ s.delivery_time_days|default:0 }}"
                                                         data-payment-terms="{{ s.payment_terms|default:'' }}"
                                                         data-min-order="{{ s.min_order_amount|default:0 }}"
                                                     >
@@ -248,6 +250,7 @@
                 {% if po and po.items.exists %}
                     {% for item in po.items.all %}
                     <div class="item-row row g-2 align-items-center">
+                        <input type="hidden" name="item_id[]" class="item-id-input" value="{% if not is_duplicate %}{{ item.id }}{% endif %}">
                         <div class="col-12 col-md-2">
                             <label class="form-label form-label-sm product-code-label">الكود / الباركود</label>
                             <input type="text" class="form-control form-control-sm product-code-input" placeholder="الكود / الباركود" value="{{ item.product.sku|default:'' }}">
@@ -255,10 +258,17 @@
                         <div class="col-12 col-md-3">
                             <div class="product-header-row d-flex align-items-center justify-content-between mb-1">
                                 <label class="form-label form-label-sm product-label required-field mb-0">{% trans "المنتج / الصنف" %}</label>
-                                <span class="stock-info">مخزون: {{ item.product.total_stock|smart_float|default:'0' }}</span>
+                                <div>
+                                    {% if item.received_qty and item.received_qty > 0 %}
+                                    <span class="badge bg-light text-success border me-1" title="{% trans 'تم استلام جزء من هذا البند بالفعل' %}">
+                                        <i class="fas fa-check-circle me-1"></i>{% trans "مستلم:" %} {{ item.received_qty|smart_float }}
+                                    </span>
+                                    {% endif %}
+                                    <span class="stock-info">مخزون: {{ item.product.total_stock|smart_float|default:'0' }}</span>
+                                </div>
                             </div>
                             <button type="button" class="product-picker-btn" data-row-index="{{ forloop.counter0 }}">
-                                <span class="selected-text">{{ item.product.name }}</span>
+                                <span class="selected-text">{{ item.product.name }}{% if item.variant %} - {{ item.variant.name }}{% endif %}</span>
                                 <i class="fas fa-th-large text-muted small"></i>
                             </button>
                             <input type="hidden" name="product[]" class="product-id-input" value="{{ item.product.id }}" data-price="{{ item.unit_price }}" data-cost="{{ item.product.cost_price }}" required>
@@ -267,7 +277,7 @@
                         </div>
                         <div class="col-6 col-md-2">
                             <label class="form-label form-label-sm required-field">الكمية المطلوبة</label>
-                            <input type="number" name="quantity[]" class="form-control form-control-sm quantity" min="0.0001" step="0.01" value="{{ item.ordered_qty|smart_float }}" required>
+                            <input type="number" name="quantity[]" class="form-control form-control-sm quantity" min="{% if item.received_qty and item.received_qty > 0 %}{{ item.received_qty|smart_float }}{% else %}0.0001{% endif %}" step="0.0001" value="{{ item.ordered_qty|smart_float }}" required>
                         </div>
                         <div class="col-6 col-md-2">
                             <label class="form-label form-label-sm required-field">سعر الشراء</label>
@@ -284,8 +294,12 @@
                                 <span class="input-group-text px-1">{{ currency_symbol }}</span>
                             </div>
                         </div>
-                        {% if not forloop.first %}
-                        <a href="javascript:void(0)" class="remove-item" title="إزالة البند">
+                        {% if item.received_qty and item.received_qty > 0 %}
+                        <span class="text-muted p-1" title="{% trans 'لا يمكن حذف بند تم تسجيل استلامات مخزنية عليه' %}">
+                            <i class="fas fa-lock opacity-50"></i>
+                        </span>
+                        {% elif not forloop.first or po.items.count > 1 %}
+                        <a href="javascript:void(0)" class="remove-item" title="{% trans 'إزالة البند' %}">
                             <i class="fas fa-times-circle"></i>
                         </a>
                         {% endif %}
@@ -293,6 +307,7 @@
                     {% endfor %}
                 {% else %}
                 <div class="item-row row g-2 align-items-center">
+                    <input type="hidden" name="item_id[]" class="item-id-input" value="">
                     <div class="col-12 col-md-2">
                         <label class="form-label form-label-sm product-code-label">الكود / الباركود</label>
                         <input type="text" class="form-control form-control-sm product-code-input" placeholder="الكود / الباركود">
@@ -312,7 +327,7 @@
                     </div>
                     <div class="col-6 col-md-2">
                         <label class="form-label form-label-sm required-field">الكمية المطلوبة</label>
-                        <input type="number" name="quantity[]" class="form-control form-control-sm quantity" min="0.0001" step="0.01" value="1" required>
+                        <input type="number" name="quantity[]" class="form-control form-control-sm quantity" min="0.0001" step="0.0001" value="1" required>
                     </div>
                     <div class="col-6 col-md-2">
                         <label class="form-label form-label-sm required-field">سعر الشراء</label>
@@ -580,17 +595,33 @@ $(document).ready(function() {
     let currentCurrencySymbol = '{{ currency_symbol }}';
     let defaultVatRate = parseFloat('{{ settings.default_tax_rate|default:"14" }}') || 14.0;
 
-    // 2. تحديث الحسابات اللحظية الموحدة (150ms Debounced Calculation Engine)
+    // 2. تهيئة محرك اختيار المنتجات الموحد ProductPicker في وضع المشتريات
+    ProductPicker.init({
+        type: 'purchase',
+        priceField: 'cost_price',
+        currencySymbol: currentCurrencySymbol,
+        enableMultiSelect: true,
+        getWarehouseId: function() { return $('#id_warehouse').val() || ''; },
+        getSupplierId: function() { return $('#id_supplier').val() || ''; },
+        getInvoiceId: function() { return '{{ po.id|default:"0" }}'; },
+        onProductSelect: function($row, product, matchType) {
+            triggerCalculations();
+        }
+    });
+
+    // 3. تحديث الحسابات اللحظية الموحدة (Debounced Calculation Engine)
     let calcTimer = null;
     function triggerCalculations() {
         clearTimeout(calcTimer);
-        calcTimer = setTimeout(calculateTotals, 100);
+        calcTimer = setTimeout(calculateTotals, 80);
     }
+    window.triggerCalculations = triggerCalculations;
+    window.calculateTotals = calculateTotals;
 
     function calculateTotals() {
         let subtotal = 0;
 
-        $('.item-row').each(function() {
+        $('#items-container .item-row').each(function() {
             let row = $(this);
             let qty = parseFloat(row.find('.quantity').val()) || 0;
             let price = parseFloat(row.find('.unit-price').val()) || 0;
@@ -646,6 +677,17 @@ $(document).ready(function() {
         let grandTotal = Math.max(0, netCommercial + vatAmount - whtAmount + netAdj);
         $('#grand-total').text(grandTotal.toFixed(2) + ' ' + currentCurrencySymbol);
 
+        // فحص الحد الأدنى لطلب المورد
+        let $supOption = $('#id_supplier').find(':selected');
+        let minOrder = parseFloat($supOption.data('min-order') || 0);
+        if (minOrder > 0 && grandTotal > 0 && grandTotal < minOrder) {
+            if ($('#min-order-alert').length === 0) {
+                $('#grand-total').after('<div id="min-order-alert" class="small text-danger mt-1"><i class="fas fa-exclamation-triangle me-1"></i>الحد الأدنى لطلب هذا المورد هو ' + minOrder.toFixed(2) + ' ' + currentCurrencySymbol + '</div>');
+            }
+        } else {
+            $('#min-order-alert').remove();
+        }
+
         // المعادل بالعملة الوظيفية IAS 21
         let exchangeRate = parseFloat($('#id_exchange_rate').val()) || 1.0;
         let isForeign = parseFloat($('#id_currency').find(':selected').data('is-foreign') || 0) === 1;
@@ -663,87 +705,56 @@ $(document).ready(function() {
         triggerCalculations();
     });
 
-    // 3. إضافة وحذف أسطر البنود
-    $('#add-item').on('click', function() {
-        let index = $('.item-row').length;
-        let newRow = `
-        <div class="item-row row g-2 align-items-center">
-            <div class="col-12 col-md-2">
-                <label class="form-label form-label-sm product-code-label">الكود / الباركود</label>
-                <input type="text" class="form-control form-control-sm product-code-input" placeholder="الكود / الباركود">
-            </div>
-            <div class="col-12 col-md-3">
-                <div class="product-header-row d-flex align-items-center justify-content-between mb-1">
-                    <label class="form-label form-label-sm product-label required-field mb-0">{% trans "المنتج / الصنف" %}</label>
-                    <span class="stock-info d-none"></span>
-                </div>
-                <button type="button" class="product-picker-btn" data-row-index="${index}">
-                    <span class="placeholder-text text-muted">{% trans "اختر المنتج..." %}</span>
-                    <i class="fas fa-th-large text-muted small"></i>
-                </button>
-                <input type="hidden" name="product[]" class="product-id-input" required>
-                <input type="hidden" name="variant[]" class="variant-id-input">
-                <input type="hidden" name="unit[]" class="unit-id-input">
-            </div>
-            <div class="col-6 col-md-2">
-                <label class="form-label form-label-sm required-field">الكمية المطلوبة</label>
-                <input type="number" name="quantity[]" class="form-control form-control-sm quantity" min="0.0001" step="0.01" value="1" required>
-            </div>
-            <div class="col-6 col-md-2">
-                <label class="form-label form-label-sm required-field">سعر الشراء</label>
-                <input type="number" step="0.0001" name="unit_price[]" class="form-control form-control-sm unit-price" placeholder="0.00" required>
-            </div>
-            <div class="col-6 col-md-1">
-                <label class="form-label form-label-sm">الخصم</label>
-                <input type="number" name="discount[]" class="form-control form-control-sm item-discount" min="0" step="0.01" value="0">
-            </div>
-            <div class="col-6 col-md-2">
-                <label class="form-label form-label-sm">الإجمالي</label>
-                <div class="input-group input-group-sm">
-                    <input type="text" class="form-control form-control-sm item-total" readonly>
-                    <span class="input-group-text px-1">${currentCurrencySymbol}</span>
-                </div>
-            </div>
-            <a href="javascript:void(0)" class="remove-item" title="إزالة البند">
-                <i class="fas fa-times-circle"></i>
-            </a>
-        </div>`;
-        $('#items-container').append(newRow);
-    });
-
     $(document).on('click', '.remove-item', function() {
         $(this).closest('.item-row').remove();
         triggerCalculations();
     });
 
-    // 4. فتح منتقي الأصناف
-    $(document).on('click', '.product-picker-btn', function() {
-        let btn = $(this);
-        let row = btn.closest('.item-row');
-        if (window.openProductPicker) {
-            window.openProductPicker(function(selectedProduct) {
-                row.find('.product-id-input').val(selectedProduct.id);
-                row.find('.selected-text, .placeholder-text').text(selectedProduct.name).removeClass('placeholder-text text-muted').addClass('selected-text');
-                row.find('.product-code-input').val(selectedProduct.sku || '');
-                row.find('.unit-price').val(selectedProduct.cost_price || selectedProduct.price || '0.00');
-                if (selectedProduct.stock !== undefined) {
-                    row.find('.stock-info').text('مخزون: ' + selectedProduct.stock).removeClass('d-none');
-                }
-                triggerCalculations();
-            });
-        }
-    });
-
-    // 5. مزامنة بيانات المورد عند تغييره
+    // 4. ذكاء المورد والتغيير المتأخر
+    let lastSupplierId = $('#id_supplier').val();
     $('#id_supplier').on('change', function() {
         let opt = $(this).find(':selected');
+        let supId = $(this).val();
+        if (!supId) return;
+
+        // تحديث شروط السداد
         let paymentTerms = opt.data('payment-terms');
         if (paymentTerms && !$('#id_payment_terms').val()) {
             $('#id_payment_terms').val(paymentTerms);
         }
+
+        // احتساب تاريخ التوريد المتوقع آلياً
+        let deliveryDays = parseInt(opt.data('delivery-time') || 0);
+        if (deliveryDays > 0) {
+            let orderDateVal = $('#id_order_date').val();
+            let baseDate = orderDateVal ? new Date(orderDateVal) : new Date();
+            if (!isNaN(baseDate.getTime())) {
+                baseDate.setDate(baseDate.getDate() + deliveryDays);
+                let yyyy = baseDate.getFullYear();
+                let mm = String(baseDate.getMonth() + 1).padStart(2, '0');
+                let dd = String(baseDate.getDate()).padStart(2, '0');
+                $('#id_delivery_due_date').val(yyyy + '-' + mm + '-' + dd);
+            }
+        }
+
+        // مزامنة العملة الافتراضية
+        let defaultCurrId = opt.data('currency');
+        if (defaultCurrId && defaultCurrId !== $('#id_currency').val()) {
+            $('#id_currency').val(defaultCurrId).trigger('change');
+        }
+
+        // تنبيه عند تغيير المورد مع وجود بنود
+        let hasRows = $('#items-container .product-id-input').filter(function() { return !!$(this).val(); }).length > 0;
+        if (hasRows && lastSupplierId && lastSupplierId !== supId) {
+            if (window.showNotification) {
+                window.showNotification('تم تغيير المورد؛ يرجى مراجعة أسعار البنود أو إعادة تسعيرها بسعر المورد الجديد.', 'info');
+            }
+        }
+        lastSupplierId = supId;
+        triggerCalculations();
     });
 
-    // 6. مودال إضافة مورد جديد سريع
+    // 5. مودال إضافة مورد جديد سريع (Rule 8 & Rule 10 Compliant)
     $('#btn-add-supplier-modal').on('click', function() {
         $('#addSupplierModal').modal('show');
     });
@@ -752,7 +763,9 @@ $(document).ready(function() {
         let name = $('#quick_supplier_name').val().trim();
         let phone = $('#quick_supplier_phone').val().trim();
         if (!name) {
-            alert('يرجى كتابة اسم المورد');
+            if (window.showNotification) {
+                window.showNotification('يرجى كتابة اسم المورد', 'warning');
+            }
             return;
         }
 
@@ -776,7 +789,10 @@ $(document).ready(function() {
                         window.showNotification('تمت إضافة المورد بنجاح', 'success');
                     }
                 } else {
-                    alert(res.message || (res.errors ? JSON.stringify(res.errors) : 'حدث خطأ أثناء إضافة المورد'));
+                    let msg = res.message || (res.errors ? JSON.stringify(res.errors) : 'حدث خطأ أثناء إضافة المورد');
+                    if (window.showNotification) {
+                        window.showNotification(msg, 'danger');
+                    }
                 }
             },
             error: function() {

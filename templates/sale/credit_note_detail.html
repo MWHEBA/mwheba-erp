@@ -16,12 +16,18 @@
         <h5 class="mb-0 fw-bold text-primary">{{ credit_note.credit_note_number }}</h5>
         {% if credit_note.status == 'POSTED' %}
         <span class="badge bg-success p-2"><i class="fas fa-check-circle me-1"></i>{% trans "مرحل مالياً للدفاتر" %}</span>
+        {% elif credit_note.status == 'CANCELLED' %}
+        <span class="badge bg-danger p-2"><i class="fas fa-ban me-1"></i>{% trans "ملغي ومعكوس" %}</span>
         {% else %}
         <span class="badge bg-primary p-2">{% trans "معتمد ومعد للترحيل" %}</span>
         {% endif %}
       </div>
-      <div>
-        {% if credit_note.status != 'POSTED' %}
+      <div class="d-flex gap-2">
+        {% if credit_note.status == 'POSTED' %}
+        <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#reverseCreditNoteModal">
+          <i class="fas fa-undo me-1"></i>{% trans "عكس الإشعار الدائن" %}
+        </button>
+        {% elif credit_note.status != 'CANCELLED' %}
         <a href="{% url 'sale:credit_note_post' credit_note.id %}" class="btn btn-success">
           <i class="fas fa-file-export me-1"></i>{% trans "ترحيل للدفاتر المحاسبية" %}
         </a>
@@ -83,4 +89,41 @@
     </div>
   </div>
 </div>
+
+<!-- Modal عكس الإشعار الدائن -->
+{% if credit_note.status == 'POSTED' %}
+<div class="modal fade" id="reverseCreditNoteModal" tabindex="-1" aria-labelledby="reverseCreditNoteModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header bg-light border-bottom px-4 py-3">
+        <h5 class="modal-title fw-bold text-dark mb-0" id="reverseCreditNoteModalLabel">
+          <i class="fas fa-undo text-danger me-2"></i>{% trans "عكس الإشعار الدائن وتوليد قيد العكس" %}
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form method="POST" action="{% url 'sale:credit_note_reverse' credit_note.id %}">
+        {% csrf_token %}
+        <div class="modal-body p-4">
+          <p class="text-danger fw-bold mb-2">
+            <i class="fas fa-exclamation-triangle me-1"></i>{% trans "تحذير حوكمة محاسبية:" %}
+          </p>
+          <p class="text-muted small mb-3">
+            {% trans "سيتم إلغاء أثر الإشعار الدائن المحاسبي وتوليد قيد عكسي مدين للعميل ودائن للمردودات والضرائب، مع تسجيل حدث تدقيق غير قابل للتعديل." %}
+          </p>
+          <div class="mb-3">
+            <label for="reversal-reason" class="form-label fw-bold required">{% trans "سبب العكس / الإلغاء" %}</label>
+            <textarea class="form-control" id="reversal-reason" name="reason" rows="3" placeholder="{% trans 'اكتب سبب عكس الإشعار بالتفصيل...' %}" required></textarea>
+          </div>
+        </div>
+        <div class="modal-footer bg-light border-top px-4 py-3">
+          <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+          <button type="submit" class="btn btn-danger px-4 fw-bold">
+            <i class="fas fa-undo me-1"></i>{% trans "تأكيد العكس وترحيل القيد" %}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
 {% endblock %}

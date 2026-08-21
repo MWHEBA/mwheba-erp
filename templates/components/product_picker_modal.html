@@ -2,25 +2,25 @@
 <!-- مودال اختيار المنتج / الخدمة الموحد -->
 <div class="modal fade" id="productPickerModal" tabindex="-1" aria-labelledby="productPickerModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
-        <div class="modal-content" style="border-radius: var(--border-radius, 8px);">
-            <div class="modal-header border-bottom pb-3 bg-primary text-white">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: var(--border-radius, 8px);">
+            <div class="modal-header bg-light border-bottom px-4 py-3">
                 <div class="d-flex align-items-center justify-content-between w-100 me-3">
-                    <h5 class="modal-title fw-bold text-white mb-0" id="productPickerModalLabel">
-                        <i class="fas fa-boxes me-2"></i>{% trans "اختر المنتج / الخدمة" %}
+                    <h5 class="modal-title fw-bold text-dark mb-0" id="productPickerModalLabel">
+                        <i class="fas fa-boxes text-primary me-2"></i>{% trans "اختر المنتج / الخدمة" %}
                     </h5>
                     <!-- خيارات التصفية بنوع البند -->
                     <div class="btn-group btn-group-sm" role="group" id="pickerTypeGroup">
                         <input type="radio" class="btn-check" name="picker-type" id="type-all" value="all" checked>
-                        <label class="btn btn-outline-light" for="type-all">{% trans "الكل" %}</label>
+                        <label class="btn btn-outline-secondary" for="type-all">{% trans "الكل" %}</label>
 
                         <input type="radio" class="btn-check" name="picker-type" id="type-products" value="products">
-                        <label class="btn btn-outline-light" for="type-products">{% trans "المنتجات" %}</label>
+                        <label class="btn btn-outline-secondary" for="type-products">{% trans "المنتجات" %}</label>
 
                         <input type="radio" class="btn-check" name="picker-type" id="type-services" value="services">
-                        <label class="btn btn-outline-light" for="type-services">{% trans "الخدمات" %}</label>
+                        <label class="btn btn-outline-secondary" for="type-services">{% trans "الخدمات" %}</label>
                     </div>
                 </div>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             
             <div class="modal-body p-3">
@@ -64,10 +64,21 @@
                 </div>
 
                 <!-- شبكة المنتجات -->
-                <div id="products-grid" class="row g-2 overflow-auto p-1 align-content-start" style="height: 420px; max-height: 420px;">
+                <div id="products-grid" class="row g-2 overflow-auto p-1 align-content-start" style="height: 400px; max-height: 400px;">
                     <div class="no-results text-center py-5 text-muted">
                         <span class="spinner-border spinner-border-sm me-2"></span>{% trans "جاري التحميل..." %}
                     </div>
+                </div>
+            </div>
+            <div class="modal-footer bg-light border-top px-4 py-2 d-flex justify-content-between align-items-center">
+                <div>
+                    <span id="picker-selected-count" class="badge bg-primary fs-6 fw-normal d-none">0 محدد</span>
+                </div>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+                    <button type="button" class="btn btn-primary px-4 fw-bold d-none" id="btn-picker-add-selected">
+                        <i class="fas fa-plus-circle me-1"></i>{% trans "إضافة الأصناف المحددة" %}
+                    </button>
                 </div>
             </div>
         </div>

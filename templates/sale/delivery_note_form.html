@@ -1,0 +1,122 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{{ page_title|default:"إصدار إذن تسليم جديد" }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/select2.min.css' %}">
+<style>
+  .select2-container--default .select2-selection--single {
+    height: calc(1.5em + .75rem + 2px);
+    border: 1px solid var(--border-color, #ced4da);
+    border-radius: .25rem;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Page Header -->
+  {% include "shared/page_header.html" %}
+
+  <form method="POST" action="" id="delivery-note-form">
+    {% csrf_token %}
+
+    <!-- اختيار أمر البيع -->
+    <div class="section-container mb-4">
+      <h5 class="section-title"><i class="fas fa-info-circle me-2"></i>{% trans "بيانات أمر البيع والتسليم" %}</h5>
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label for="sales_order" class="form-label required">{% trans "أمر البيع المعتمد" %}</label>
+          <select class="form-select select2" id="sales_order" name="sales_order" data-base-url="{% url 'sale:delivery_note_create' %}" required>
+            <option value="">{% trans "اختر أمر البيع..." %}</option>
+            {% for o in available_orders %}
+            <option value="{{ o.id }}" {% if sales_order and sales_order.id == o.id %}selected{% endif %}>
+              #{{ o.order_number }} - {{ o.customer.name }} ({{ o.warehouse.name }})
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label for="delivery_date" class="form-label required">{% trans "تاريخ التسليم" %}</label>
+          <input type="date" class="form-control" id="delivery_date" name="delivery_date" value="{% now 'Y-m-d' %}" required>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">{% trans "المخزن المنفذ" %}</label>
+          <input type="text" class="form-control" value="{{ sales_order.warehouse.name|default:'-' }}" readonly disabled>
+        </div>
+      </div>
+    </div>
+
+    <!-- جدول بنود التسليم -->
+    {% if sales_order %}
+    <div class="section-container mb-4">
+      <h5 class="section-title"><i class="fas fa-boxes me-2"></i>{% trans "تحديد الكميات المسلمة من المخزن" %}</h5>
+      <div class="table-responsive">
+        <table class="table table-bordered table-striped text-center align-middle" id="delivery-items-table">
+          <thead class="table-light">
+            <tr>
+              <th>#</th>
+              <th style="width: 35%;">{% trans "المنتج / الصنف" %}</th>
+              <th style="width: 15%;">{% trans "الكمية المطلوبة" %}</th>
+              <th style="width: 15%;">{% trans "المسلم سابقاً" %}</th>
+              <th style="width: 15%;">{% trans "المتبقي للتسليم" %}</th>
+              <th style="width: 20%;">{% trans "الكمية المراد تسليمها الآن" %}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in sales_order.items.all %}
+            {% with remaining=item.ordered_qty|add:"0" %}
+            <tr>
+              <td>{{ forloop.counter }}</td>
+              <td class="text-start fw-bold">
+                {{ item.product.name }} ({{ item.product.sku }})
+                <input type="hidden" name="so_item_id[]" value="{{ item.id }}">
+              </td>
+              <td>{{ item.ordered_qty }}</td>
+              <td>{{ item.delivered_qty }}</td>
+              <td class="fw-bold text-primary">{{ item.ordered_qty|add:"0" }}</td>
+              <td>
+                <input type="number" step="0.01" class="form-control text-center fw-bold" name="delivered_qty[]" 
+                       value="{{ item.ordered_qty }}" min="0" max="{{ item.ordered_qty }}" required>
+              </td>
+            </tr>
+            {% endwith %}
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- أزرار الحفظ -->
+    <div class="d-flex justify-content-end gap-2 mb-4">
+      <a href="{% url 'sale:delivery_note_list' %}" class="btn btn-secondary px-4">{% trans "إلغاء" %}</a>
+      <button type="submit" class="btn btn-primary px-5 fw-bold"><i class="fas fa-truck me-2"></i>{% trans "تأكيد التسليم وترحيل المخزون والتكلفة" %}</button>
+    </div>
+    {% else %}
+    <div class="alert alert-warning text-center my-4 py-4">
+      <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
+      <p class="mb-0 fs-5">{% trans "يرجى اختيار أمر بيع معتمد لعرض بنوده وتحديد الكميات المراد تسليمها." %}</p>
+    </div>
+    {% endif %}
+  </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/select2.min.js' %}"></script>
+<script>
+  $(document).ready(function() {
+    $('.select2').select2({ dir: "rtl", language: "ar", width: "100%" });
+
+    $('#sales_order').on('change', function() {
+      const soId = $(this).val();
+      const baseUrl = $(this).data('base-url');
+      if (soId && baseUrl) {
+        window.location.href = baseUrl + '?so_id=' + encodeURIComponent(soId);
+      }
+    });
+  });
+</script>
+{% endblock %}

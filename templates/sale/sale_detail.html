@@ -494,6 +494,46 @@
                                 <div class="party-value">{{ sale.get_payment_method_display }}</div>
                             </div>
                             <div class="party-info">
+                                <div class="party-label">{% trans "مركز التكلفة:" %}</div>
+                                <div class="party-value">
+                                    {% if sale.cost_center %}
+                                        <span class="badge bg-primary-subtle text-primary border"><i class="fas fa-sitemap me-1"></i>{{ sale.cost_center.name }}</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary-subtle text-secondary">غير محدد</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% if sale.sales_order %}
+                            <div class="party-info">
+                                <div class="party-label">{% trans "أمر البيع المرتبط:" %}</div>
+                                <div class="party-value">
+                                    <a href="{% url 'sale:sales_order_detail' sale.sales_order.id %}" class="text-primary fw-bold">
+                                        <i class="fas fa-file-contract me-1"></i> {{ sale.sales_order.number }}
+                                    </a>
+                                </div>
+                            </div>
+                            {% endif %}
+                            {% if sale.delivery_note %}
+                            <div class="party-info">
+                                <div class="party-label">{% trans "إذن التسليم المرتبط:" %}</div>
+                                <div class="party-value">
+                                    <a href="{% url 'sale:delivery_note_detail' sale.delivery_note.id %}" class="text-info fw-bold">
+                                        <i class="fas fa-truck-loading me-1"></i> {{ sale.delivery_note.number }}
+                                    </a>
+                                </div>
+                            </div>
+                            {% endif %}
+                            {% if sale.journal_entry %}
+                            <div class="party-info">
+                                <div class="party-label">{% trans "القيد المحاسبي:" %}</div>
+                                <div class="party-value">
+                                    <a href="{% url 'financial:journal_entry_detail' sale.journal_entry.id %}" class="badge bg-success-subtle text-success border text-decoration-none">
+                                        <i class="fas fa-book me-1"></i> {{ sale.journal_entry.number }}
+                                    </a>
+                                </div>
+                            </div>
+                            {% endif %}
+                            <div class="party-info">
                                 <div class="party-label">{% trans "التصنيف المالي:" %}</div>
                                 <div class="party-value">
                                     {% if sale.financial_category %}
@@ -535,6 +575,7 @@
                                         <th>{% trans "الكود / الباركود" %}</th>
                                         {% endif %}
                                         <th>{% trans "المنتج" %}</th>
+                                        <th style="width: 120px;">{% trans "مركز التكلفة" %}</th>
                                         <th style="width: 100px;">{% trans "الكمية" %}</th>
                                         <th style="width: 130px;">{% trans "سعر الوحدة" %}</th>
                                         <th style="width: 110px;">{% trans "الخصم" %}</th>
@@ -560,6 +601,15 @@
                                         </td>
                                         {% endif %}
                                         <td class="fw-bold">{{ item.product.name }}</td>
+                                        <td>
+                                            {% if item.cost_center %}
+                                                <span class="badge bg-light text-dark border">{{ item.cost_center.name }}</span>
+                                            {% elif sale.cost_center %}
+                                                <span class="badge bg-light text-muted border">{{ sale.cost_center.name }}</span>
+                                            {% else %}
+                                                <span class="text-muted">-</span>
+                                            {% endif %}
+                                        </td>
                                         <td class="fw-bold">
                                             {{ item.quantity|smart_float }}
                                             {% if item.product.unit %}

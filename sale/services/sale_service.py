@@ -84,6 +84,9 @@ class SaleService:
                 currency=currency_obj,
                 exchange_rate=sys_rate,
                 payment_method=data.get('payment_method', 'credit'),
+                cost_center_id=data.get('cost_center_id') or data.get('cost_center'),
+                sales_order_id=data.get('sales_order_id'),
+                delivery_note_id=data.get('delivery_note_id'),
                 subtotal=Decimal('0'),
                 discount=Decimal(data.get('discount', 0)),
                 discount_type=data.get('discount_type', 'fixed'),
@@ -137,8 +140,9 @@ class SaleService:
                 sale.save(update_fields=['journal_entry'])
                 logger.info(f"✅ تم ربط القيد المحاسبي: {journal_entry.number} بالفاتورة: {sale.number}")
             
-            # 5. إنشاء حركات المخزون عبر MovementService
-            SaleService._create_stock_movements(sale, user)
+            # 5. إنشاء حركات المخزون عبر MovementService (فقط إذا لم تكن البضاعة مسلمة مسبقاً بإذن تسليم)
+            if not sale.delivery_note_id:
+                SaleService._create_stock_movements(sale, user)
 
             # 6. تحديث رصيد العميل دفترياً والأستاذ المساعد
             if sale.customer:
@@ -157,15 +161,17 @@ class SaleService:
     @staticmethod
     def _add_sale_item(sale, item_data, user):
         """
-        إضافة بند لفاتورة المبيعات
+        إضافة بند لفاتورة المبيعات مع تخصيص مركز التكلفة
         """
+        cc_id = item_data.get('cost_center_id') or item_data.get('cost_center') or sale.cost_center_id
         item = SaleItem.objects.create(
             sale=sale,
             product_id=item_data['product_id'],
-            quantity=Decimal(item_data['quantity']),
-            unit_price=Decimal(item_data['unit_price']),
-            discount=Decimal(item_data.get('discount', 0)),
-            total=Decimal(item_data['quantity']) * Decimal(item_data['unit_price']) - Decimal(item_data.get('discount', 0))
+            quantity=Decimal(str(item_data['quantity'])),
+            unit_price=Decimal(str(item_data['unit_price'])),
+            discount=Decimal(str(item_data.get('discount', 0))),
+            cost_center_id=cc_id if cc_id else None,
+            total=Decimal(str(item_data['quantity'])) * Decimal(str(item_data['unit_price'])) - Decimal(str(item_data.get('discount', 0)))
         )
         logger.info(f"✅ تم إضافة بند: {item.product.name} للفاتورة: {sale.number}")
         return item
@@ -266,6 +272,8 @@ class SaleService:
             sale.tax = Decimal(str(data['tax']))
         if 'notes' in data:
             sale.notes = data['notes']
+        if 'cost_center_id' in data or 'cost_center' in data:
+            sale.cost_center_id = data.get('cost_center_id') or data.get('cost_center')
         if 'financial_category_id' in data:
             sale.financial_category_id = data['financial_category_id']
         sale.save()
@@ -410,41 +418,53 @@ class SaleService:
                 logger.error(error_msg)
                 raise ValidationError(error_msg)
 
-            # تقسيم الإجمالي النهائي بين المنتجات والخدمات بالتناسب مع الـ subtotal لكل فئة
-            physical_subtotal = Decimal('0')
-            service_subtotal = Decimal('0')
-            for item in sale.items.all():
-                if item.product.is_service:
-                    service_subtotal += item.total
-                else:
-                    physical_subtotal += item.total
-                    
-            total_items_subtotal = physical_subtotal + service_subtotal
-            if total_items_subtotal > 0:
-                physical_ratio = physical_subtotal / total_items_subtotal
-                service_ratio = service_subtotal / total_items_subtotal
-            else:
-                physical_ratio = Decimal('1')
-                service_ratio = Decimal('0')
-                
-            # حساب صافي الإيراد (المبلغ قبل الضريبة والخصم)
+            # 1. جلب قائمة البنود وحساب الإجماليات الفرعية
+            items_list = list(sale.items.select_related('product', 'cost_center').all())
+            total_items_subtotal = sum(item.total for item in items_list)
+            
+            # صافي الإيراد الحقيقي (المجموع الفرعي مطروحاً منه الخصم)
             net_revenue_total = max(Decimal('0'), sale.subtotal - sale.discount)
             
-            # إذا كانت هناك ضرائب (VAT/WHT) نوزع صافي الإيراد على المنتجات والخدمات
-            has_taxes = (getattr(sale, 'vat_active', False) and sale.tax and sale.tax > Decimal('0')) or (getattr(sale, 'wht_active', False) and sale.wht_amount and sale.wht_amount > Decimal('0'))
+            # نسبة توزيع الخصم العام بالتناسب مع كل بند لمنع تضخيم إيرادات مراكز التكلفة
+            discount_ratio = (net_revenue_total / total_items_subtotal) if total_items_subtotal > Decimal('0') else Decimal('1')
             
-            revenue_base = net_revenue_total if has_taxes else sale.total
-            physical_revenue_total = (revenue_base * physical_ratio).quantize(Decimal('0.01'))
-            service_revenue_total = (revenue_base - physical_revenue_total).quantize(Decimal('0.01'))
+            # 2. تجميع الإيرادات وتكلفة المبيعات حسب (حساب الإيراد / التكلفة، مركز التكلفة)
+            revenue_groups = {}  # key: (account_code, cost_center_id) -> Decimal amount
+            cogs_groups = {}     # key: (cogs_account_code, cost_center_id) -> Decimal amount
+            total_cogs = Decimal('0')
+            
+            for item in items_list:
+                effective_cc_id = item.cost_center_id or sale.cost_center_id
+                item_net_rev = (item.total * discount_ratio).quantize(Decimal('0.01'))
+                
+                if item.product.is_service:
+                    rev_code = services_revenue_account.code
+                else:
+                    rev_code = sales_revenue_account.code
+                    # حساب تكلفة البضاعة المباعة للبند
+                    if item.product.cost_price and item.product.cost_price > Decimal('0'):
+                        item_cogs = (item.product.cost_price * item.quantity).quantize(Decimal('0.01'))
+                        cogs_groups[effective_cc_id] = cogs_groups.get(effective_cc_id, Decimal('0')) + item_cogs
+                        total_cogs += item_cogs
+                
+                group_key = (rev_code, effective_cc_id)
+                revenue_groups[group_key] = revenue_groups.get(group_key, Decimal('0')) + item_net_rev
+            
+            # ضبط فروق التقريب في صافي الإيرادات
+            sum_allocated_rev = sum(revenue_groups.values())
+            rev_diff = net_revenue_total - sum_allocated_rev
+            if rev_diff != Decimal('0') and revenue_groups:
+                first_key = next(iter(revenue_groups))
+                revenue_groups[first_key] += rev_diff
             
             # إعداد بيانات القيد باستخدام JournalEntryLineData
             lines = []
             customer_name = getattr(sale.customer, 'name', '')
             cust_suffix = f" - {customer_name}" if customer_name else ""
-
-            if sale.total > 0:
+            
+            # مدين: العملاء / الخزينة / البنك (بصافي المستحق على الفاتورة)
+            if sale.total > Decimal('0'):
                 lines.append(
-                    # مدين: العملاء/الخزينة/البنك
                     JournalEntryLineData(
                         account_code=debit_account.code,
                         debit=sale.total,
@@ -452,54 +472,54 @@ class SaleService:
                         description=f'مبيعات - فاتورة {sale.number}{cust_suffix}'
                     )
                 )
-
-            # مدين: ضريبة الخصم والإضافة (WHT محجوزة لدى العميل) إذا كانت مفعلة
+            
+            # مدين: ضريبة الخصم والإضافة (WHT 1% محجوزة لدى العميل) إذا كانت مفعلة
             if getattr(sale, 'wht_active', False) and sale.wht_amount and sale.wht_amount > Decimal('0'):
                 wht_account = None
                 try:
                     wht_account = AccountRoleRegistry.get_account("CUSTOMER_WHT_RECEIVABLE")
                 except Exception:
-                    wht_account = ChartOfAccounts.objects.filter(code__in=['11520', '11500'], is_active=True).first()
+                    wht_account = ChartOfAccounts.objects.filter(code__in=['11520', '11500', '1150'], is_active=True).first()
                 
+                if not wht_account:
+                    try:
+                        wht_account = ChartOfAccounts.objects.create(
+                            code='11520',
+                            name='ضريبة أ.ت.ص مدينة (WHT)',
+                            account_type='asset',
+                            is_active=True
+                        )
+                    except Exception:
+                        wht_account = None
+
                 if wht_account:
                     lines.append(
                         JournalEntryLineData(
                             account_code=wht_account.code,
                             debit=sale.wht_amount,
                             credit=Decimal('0'),
-                            description=f'ضريبة مخصومة ومحجوزة لدى الغير - فاتورة {sale.number}{cust_suffix}'
+                            description=f'ضريبة مخصومة ومحجوزة لدى الغير (WHT) - فاتورة {sale.number}{cust_suffix}'
                         )
                     )
 
-            # دائن: إيرادات المنتجات المادية
-            if physical_revenue_total > 0:
-                lines.append(
-                    JournalEntryLineData(
-                        account_code=sales_revenue_account.code,
-                        debit=Decimal('0'),
-                        credit=physical_revenue_total,
-                        description=f'مبيعات منتجات - فاتورة {sale.number}{cust_suffix}'
-                    )
-                )
-
-            # دائن: إيرادات الخدمات
-            if service_revenue_total > 0:
-                lines.append(
-                    JournalEntryLineData(
-                        account_code=services_revenue_account.code,
-                        debit=Decimal('0'),
-                        credit=service_revenue_total,
-                        description=f'مبيعات خدمات - فاتورة {sale.number}{cust_suffix}'
-                    )
-                )
-
-            # دائن: ضريبة القيمة المضافة (مخرجات) إذا كانت مفعلة
+            # دائن: ضريبة القيمة المضافة (VAT 14% مخرجات) إذا كانت مفعلة
             if getattr(sale, 'vat_active', False) and sale.tax and sale.tax > Decimal('0'):
                 vat_account = None
                 try:
                     vat_account = AccountRoleRegistry.get_account("VAT_OUTPUT")
                 except Exception:
-                    vat_account = ChartOfAccounts.objects.filter(code__in=['21310', '21300'], is_active=True).first()
+                    vat_account = ChartOfAccounts.objects.filter(code__in=['21310', '21300', '2130'], is_active=True).first()
+                
+                if not vat_account:
+                    try:
+                        vat_account = ChartOfAccounts.objects.create(
+                            code='21310',
+                            name='ضريبة القيمة المضافة مخرجات',
+                            account_type='liability',
+                            is_active=True
+                        )
+                    except Exception:
+                        vat_account = None
 
                 if vat_account:
                     lines.append(
@@ -511,28 +531,70 @@ class SaleService:
                         )
                     )
                 else:
-                    # في حالة عدم وجود حساب ضريبة مخرجات (مثلاً في بيئة اختبار مبسطة) تضاف للإيراد
-                    if physical_revenue_total > 0:
-                        lines[1].credit += sale.tax
-                    elif service_revenue_total > 0:
-                        lines[2].credit += sale.tax
+                    # في حالة تعذر إيجاد حساب الضريبة تضاف لأول سطر إيراد لضمان توازن القيد التام
+                    if revenue_groups:
+                        first_k = next(iter(revenue_groups))
+                        revenue_groups[first_k] += sale.tax
 
-            # مدين ودائن قيد التكلفة (فقط للمنتجات المادية وعندما تكون التكلفة أكبر من صفر)
-            if cost_of_goods_sold > 0:
-                lines.append(
-                    JournalEntryLineData(
-                        account_code=cogs_account.code,
-                        debit=cost_of_goods_sold,
-                        credit=Decimal('0'),
-                        description=f'تكلفة مبيعات - فاتورة {sale.number}{cust_suffix}'
+            # دائن: سطور الإيرادات المفككة حسب كل مركز تكلفة
+            for (rev_code, cc_id), rev_amt in revenue_groups.items():
+                if rev_amt > Decimal('0'):
+                    is_srv = (rev_code == services_revenue_account.code)
+                    desc_type = 'مبيعات خدمات' if is_srv else 'مبيعات منتجات'
+                    lines.append(
+                        JournalEntryLineData(
+                            account_code=rev_code,
+                            debit=Decimal('0'),
+                            credit=rev_amt,
+                            description=f'{desc_type} - فاتورة {sale.number}{cust_suffix}',
+                            cost_center=str(cc_id) if cc_id else None
+                        )
                     )
-                )
+            
+            # معالجة مبلغ التسوية (Adjustment Amount) إذا وجد
+            if hasattr(sale, 'adjustment_amount') and sale.adjustment_amount and sale.adjustment_amount != Decimal('0'):
+                adj_account = None
+                try:
+                    adj_account = AccountRoleRegistry.get_account("OTHER_INCOME_ACCOUNT" if sale.adjustment_amount > 0 else "OTHER_EXPENSE_ACCOUNT")
+                except Exception:
+                    adj_account = ChartOfAccounts.objects.filter(code__in=['42000', '52000'], is_active=True).first()
+                
+                if adj_account:
+                    if sale.adjustment_amount > 0:
+                        lines.append(JournalEntryLineData(
+                            account_code=adj_account.code,
+                            debit=Decimal('0'),
+                            credit=sale.adjustment_amount,
+                            description=f'{sale.adjustment_name or "تسوية مضافة"} - فاتورة {sale.number}{cust_suffix}'
+                        ))
+                    else:
+                        lines.append(JournalEntryLineData(
+                            account_code=adj_account.code,
+                            debit=abs(sale.adjustment_amount),
+                            credit=Decimal('0'),
+                            description=f'{sale.adjustment_name or "تسوية مخصومة"} - فاتورة {sale.number}{cust_suffix}'
+                        ))
+
+            # حماية Double-COGS Guard: مدين ودائن قيد التكلفة فقط إذا لم تكن البضاعة مسلمة مسبقاً بإذن تسليم
+            is_pre_delivered = bool(sale.delivery_note_id or (sale.sales_order and sale.sales_order.delivery_notes.filter(status='DELIVERED').exists()))
+            if not is_pre_delivered and total_cogs > Decimal('0'):
+                for cc_id, cogs_amt in cogs_groups.items():
+                    if cogs_amt > Decimal('0'):
+                        lines.append(
+                            JournalEntryLineData(
+                                account_code=cogs_account.code,
+                                debit=cogs_amt,
+                                credit=Decimal('0'),
+                                description=f'تكلفة مبيعات - فاتورة {sale.number}{cust_suffix}',
+                                cost_center=str(cc_id) if cc_id else None
+                            )
+                        )
                 lines.append(
                     JournalEntryLineData(
                         account_code=inventory_account.code,
                         debit=Decimal('0'),
-                        credit=cost_of_goods_sold,
-                        description=f'تكلفة مبيعات - فاتورة {sale.number}{cust_suffix}'
+                        credit=total_cogs,
+                        description=f'تكلفة مبيعات مخزون - فاتورة {sale.number}{cust_suffix}'
                     )
                 )
             

@@ -67,6 +67,9 @@ def _extract_posted_items(request):
                         except (ValueError, TypeError):
                             d = Decimal("0")
                         
+                        item_cost_centers = request.POST.getlist("item_cost_center[]")
+                        item_cc = int(item_cost_centers[i]) if (i < len(item_cost_centers) and item_cost_centers[i] and str(item_cost_centers[i]).isdigit()) else ""
+                        
                         product_code = getattr(prod_obj, 'code', None) or getattr(prod_obj, 'sku', '') or ""
                         posted_items.append({
                             "id": prod_obj.id,
@@ -77,6 +80,7 @@ def _extract_posted_items(request):
                             "unit_price": float(p),
                             "price": float(p),
                             "discount": float(d),
+                            "cost_center": item_cc,
                             "is_service": prod_obj.is_service,
                             "unit": prod_obj.unit.name if prod_obj.unit else "",
                         })
@@ -187,6 +191,7 @@ def sale_create(request, customer_id=None):
                     'customer_id': form.cleaned_data['customer'].id,
                     'warehouse_id': form.cleaned_data['warehouse'].id,
                     'salesman': form.cleaned_data.get('salesman'),
+                    'cost_center_id': form.cleaned_data.get('cost_center').id if form.cleaned_data.get('cost_center') else (request.POST.get('cost_center') or None),
                     'discount': discount_amount,
                     'discount_type': discount_type,
                     'adjustment_name': adjustment_name,
@@ -226,6 +231,7 @@ def sale_create(request, customer_id=None):
                 quantities = request.POST.getlist("quantity[]")
                 unit_prices = request.POST.getlist("unit_price[]")
                 discounts = request.POST.getlist("discount[]")
+                cost_centers = request.POST.getlist("item_cost_center[]")
                 
                 # التحقق من أن مندوب المبيعات لم يغير أسعار المنتجات
                 if request.user.user_type == "sales_rep" and not request.user.is_superuser and not request.user.is_admin:
@@ -239,11 +245,13 @@ def sale_create(request, customer_id=None):
 
                 for i in range(len(product_ids)):
                     if product_ids[i]:
+                        item_cc = int(cost_centers[i]) if (i < len(cost_centers) and cost_centers[i] and str(cost_centers[i]).isdigit()) else sale_data.get('cost_center_id')
                         sale_data['items'].append({
                             'product_id': int(product_ids[i]),
                             'quantity': Decimal(quantities[i]),
                             'unit_price': Decimal(unit_prices[i].replace(',', '')),
                             'discount': Decimal(discounts[i] if discounts[i] else '0'),
+                            'cost_center_id': item_cc,
                         })
                 
                 # إنشاء الفاتورة مع معالجة الدفعة في وحدة تزامنية قواعد بيانات (Atomic Transaction)
@@ -1233,6 +1241,7 @@ def sale_edit(request, pk):
                     'date': form.cleaned_data.get('date', sale.date),
                     'customer_id': form.cleaned_data['customer'].pk,
                     'warehouse_id': form.cleaned_data['warehouse'].pk,
+                    'cost_center_id': form.cleaned_data.get('cost_center').id if form.cleaned_data.get('cost_center') else (request.POST.get('cost_center') or None),
                     'discount': form.cleaned_data.get('discount', 0) or Decimal('0'),
                     'discount_type': form.cleaned_data.get('discount_type', 'fixed'),
                     'adjustment_name': form.cleaned_data.get('adjustment_name'),
@@ -1250,14 +1259,17 @@ def sale_edit(request, pk):
                 quantities = request.POST.getlist("quantity[]")
                 unit_prices = request.POST.getlist("unit_price[]")
                 discounts = request.POST.getlist("discount[]")
+                cost_centers = request.POST.getlist("item_cost_center[]")
 
                 for i in range(len(product_ids)):
                     if product_ids[i]:
+                        item_cc = int(cost_centers[i]) if (i < len(cost_centers) and cost_centers[i] and str(cost_centers[i]).isdigit()) else sale_data.get('cost_center_id')
                         sale_data['items'].append({
                             'product_id': int(product_ids[i]),
                             'quantity': Decimal(quantities[i]),
                             'unit_price': Decimal(unit_prices[i].replace(',', '')),
                             'discount': Decimal(discounts[i] if discounts[i] else '0'),
+                            'cost_center_id': item_cc,
                         })
 
                 updated_sale = SaleService.update_sale(sale=sale, data=sale_data, user=request.user)
@@ -1277,11 +1289,14 @@ def sale_edit(request, pk):
         product_code = getattr(item.product, 'code', None) or getattr(item.product, 'sku', '')
         duplicate_items.append({
             "id": item.product.id,
+            "product_id": item.product.id,
             "code": product_code,
             "name": item.product.name,
             "quantity": float(item.quantity),
             "price": float(item.unit_price),
+            "unit_price": float(item.unit_price),
             "discount": float(item.discount or 0),
+            "cost_center": item.cost_center_id or "",
             "is_service": item.product.is_service,
             "unit": item.product.unit.name if item.product.unit else "",
         })
@@ -1831,12 +1846,15 @@ def sale_duplicate(request, pk):
     duplicate_items = json.dumps([
         {
             "product_id": item.product.id,
+            "id": item.product.id,
             "code": getattr(item.product, 'code', None) or getattr(item.product, 'sku', '') or getattr(item.product, 'barcode', '') or "",
             "name": item.product.name,
             "quantity": float(item.quantity),
             "unit_price": float(item.unit_price),
+            "price": float(item.unit_price),
             "discount": float(item.discount),
             "total": float(item.total),
+            "cost_center": item.cost_center_id or "",
             "is_service": item.product.is_service,
         }
         for item in original.items.all()
@@ -1846,6 +1864,7 @@ def sale_duplicate(request, pk):
         "date": timezone.now().date(),
         "customer": original.customer,
         "warehouse": original.warehouse,
+        "cost_center": original.cost_center_id,
         "discount": discount_val,
         "discount_type": discount_type,
         "adjustment_name": adj_name,
@@ -2083,6 +2102,7 @@ from .credit_note_views import (
     credit_note_create,
     credit_note_detail,
     credit_note_post,
+    credit_note_reverse,
 )
 
 
@@ -2136,4 +2156,33 @@ def allocate_prepaid_balance(request, pk):
         messages.error(request, f"خطأ أثناء التخصيص: {str(e)}")
 
     return redirect("sale:sale_detail", pk=sale.pk)
+
+
+# ==================== أوامر البيع وإذون التسليم ====================
+from .sales_order_views import (
+    sales_order_list,
+    sales_order_create,
+    sales_order_detail,
+    sales_order_confirm,
+    sales_order_cancel,
+    sales_order_convert_to_sale,
+)
+
+from .delivery_note_views import (
+    delivery_note_list,
+    delivery_note_create,
+    delivery_note_detail,
+    delivery_note_convert_to_sale,
+)
+
+from .pricing_policy_views import (
+    price_list_list,
+    price_list_detail,
+    price_list_create,
+    price_list_edit,
+    discount_rule_list,
+    discount_rule_create,
+)
+
+
 

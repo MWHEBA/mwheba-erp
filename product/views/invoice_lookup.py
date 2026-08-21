@@ -18,9 +18,11 @@ class ProductPriceSource(models.TextChoices):
 @login_required
 def invoice_product_lookup(request):
     """
-    API للبحث الفوري عن المنتجات باستخدام الكود أو الباركود أو الاسم
-    محدث لدعم فلترة وترتيب وتحديد مصدر الأسعار بالعملات المخصصة
+    API للبحث الفوري عن المنتجات والمتغيرات باستخدام الكود أو الباركود أو الاسم
+    محدث لدعم فلترة وترتيب وتحديد مصدر الأسعار بالعملات المخصصة، وباركود المتغيرات، وآخر سعر شراء للمورد (LPP)
     """
+    from ..models import ProductVariant
+
     query = request.GET.get("q", "").strip()
     warehouse_id = request.GET.get("warehouse_id") or request.GET.get("warehouse")
     product_type = request.GET.get("type", "sale") # sale, purchase, service, products, services
@@ -28,6 +30,7 @@ def invoice_product_lookup(request):
     invoice_id = request.GET.get("invoice_id")
     product_ids = request.GET.get("product_ids")
     currency_id = request.GET.get("currency_id") or request.GET.get("currency")
+    supplier_id = request.GET.get("supplier_id") or request.GET.get("supplier")
 
     if exact and not query and not product_ids:
         return JsonResponse({"products": []})
@@ -69,27 +72,32 @@ def invoice_product_lookup(request):
             else: # both
                 qs = Product.objects.filter(is_bundle=False)
 
-        # 2. تصفية المنتجات غير النشطة إلا لو كانت مضافة للفاتورة الحالية الجاري تعديلها
+        # 2. تصفية المنتجات غير النشطة إلا لو كانت مضافة للفاتورة/أمر الشراء الحالي الجاري تعديله
         active_filter = Q(is_active=True)
         if invoice_id and invoice_id != "0":
             item_product_ids = []
             if product_type == "purchase":
                 try:
                     from purchase.models import PurchaseItem
-                    item_product_ids = list(PurchaseItem.objects.filter(purchase_id=invoice_id).values_list("product_id", flat=True))
-                except ImportError:
+                    item_product_ids.extend(list(PurchaseItem.objects.filter(purchase_id=invoice_id).values_list("product_id", flat=True)))
+                except Exception:
+                    pass
+                try:
+                    from purchase.models.procurement_models import PurchaseOrderItem
+                    item_product_ids.extend(list(PurchaseOrderItem.objects.filter(purchase_order_id=invoice_id).values_list("product_id", flat=True)))
+                except Exception:
                     pass
             else:
                 try:
                     from sale.models import SaleItem
-                    item_product_ids = list(SaleItem.objects.filter(sale_id=invoice_id).values_list("product_id", flat=True))
-                except ImportError:
+                    item_product_ids.extend(list(SaleItem.objects.filter(sale_id=invoice_id).values_list("product_id", flat=True)))
+                except Exception:
                     pass
                 try:
                     from sale.models import QuotationItem
                     quot_ids = list(QuotationItem.objects.filter(quotation_id=invoice_id).values_list("product_id", flat=True))
                     item_product_ids.extend(quot_ids)
-                except ImportError:
+                except Exception:
                     pass
             
             if item_product_ids:
@@ -97,18 +105,34 @@ def invoice_product_lookup(request):
 
         qs = qs.filter(active_filter)
 
-        # 3. مطابقة الكود/الباركود/الاسم أو تصفية بأرقام تعريف معينة
+        # 3. مطابقة الكود/الباركود/الاسم بما يشمل باركودات المتغيرات (ProductVariant)
+        variant_matches = {}
+        matched_variant_product_ids = set()
+
+        if query:
+            # البحث في المتغيرات
+            v_qs = ProductVariant.objects.filter(is_active=True)
+            if exact:
+                v_qs = v_qs.filter(Q(sku__iexact=query) | Q(barcode__iexact=query))
+            else:
+                v_qs = v_qs.filter(Q(sku__icontains=query) | Q(barcode__icontains=query) | Q(name__icontains=query))
+            
+            for v in v_qs.select_related("product")[:20]:
+                variant_matches[v.id] = v
+                matched_variant_product_ids.add(v.product_id)
+
         if product_ids:
             ids = [int(x) for x in product_ids.split(",") if x.isdigit()]
             qs = qs.filter(id__in=ids)
         elif exact:
-            qs = qs.filter(Q(sku__iexact=query) | Q(barcode__iexact=query))
+            qs = qs.filter(Q(sku__iexact=query) | Q(barcode__iexact=query) | Q(id__in=matched_variant_product_ids))
         elif query:
             qs = qs.filter(
                 Q(name__icontains=query) |
                 Q(name_en__icontains=query) |
                 Q(sku__icontains=query) |
-                Q(barcode__icontains=query)
+                Q(barcode__icontains=query) |
+                Q(id__in=matched_variant_product_ids)
             )
 
         # 4. جلب كميات المخزون
@@ -126,18 +150,49 @@ def invoice_product_lookup(request):
             ).values("product_id").annotate(total_qty=Sum("quantity"))
             stock_map = {str(s["product_id"]): float(s["total_qty"] or 0) for s in stocks}
 
-        # 5. بناء الاستجابة بحد أقصى 50 نتيجة للبحث السريع
+        # 5. جلب آخر سعر شراء للمورد (Supplier Last Purchase Price - LPP) بـ Subquery مجمعة واحدة
+        supplier_lpp_map = {}
+        if supplier_id and product_type == "purchase":
+            try:
+                from purchase.models import PurchaseItem
+                from purchase.models.procurement_models import PurchaseOrderItem
+
+                # آخر أسعار فواتير الشراء
+                pi_prices = (
+                    PurchaseItem.objects.filter(purchase__supplier_id=supplier_id, product__in=qs)
+                    .order_by("product_id", "-purchase__date", "-id")
+                    .values("product_id", "unit_price")
+                )
+                for row in pi_prices:
+                    p_id = str(row["product_id"])
+                    if p_id not in supplier_lpp_map:
+                        supplier_lpp_map[p_id] = float(row["unit_price"])
+
+                # آخر أسعار أوامر الشراء
+                po_prices = (
+                    PurchaseOrderItem.objects.filter(purchase_order__supplier_id=supplier_id, product__in=qs)
+                    .order_by("product_id", "-purchase_order__order_date", "-id")
+                    .values("product_id", "unit_price")
+                )
+                for row in po_prices:
+                    p_id = str(row["product_id"])
+                    if p_id not in supplier_lpp_map:
+                        supplier_lpp_map[p_id] = float(row["unit_price"])
+            except Exception as e:
+                logger.warning(f"Failed to fetch supplier LPP: {e}")
+
+        # 6. بناء الاستجابة بحد أقصى 50 نتيجة
         show_all_param = request.GET.get("show_all", "false") == "true"
         show_all = show_all_param or exact or product_ids or (product_type in ["service", "services", "purchase"])
         
-        # Prefetch currency prices for efficiency
-        qs = qs.prefetch_related('currency_prices__currency')
+        # Prefetch currency prices and variants for efficiency
+        qs = qs.prefetch_related('currency_prices__currency', 'variants').select_related('category', 'unit')
 
         raw_results = []
         is_foreign = (currency_obj and not currency_obj.is_functional)
         curr_code = currency_obj.code if currency_obj else None
 
-        for p in qs.select_related('category', 'unit').order_by("name"):
+        for p in qs.order_by("name"):
             stock_qty = stock_map.get(str(p.id), 0.0)
             if not show_all and stock_qty <= 0 and not p.is_service:
                 continue
@@ -145,6 +200,11 @@ def invoice_product_lookup(request):
             curr_prices = p.get_currency_prices_dict()
             selling_p = float(p.selling_price) if p.selling_price else 0.0
             cost_p = float(p.cost_price) if p.cost_price else 0.0
+
+            # تطبيق سعر المورد الأخير إن وجد
+            if product_type == "purchase" and str(p.id) in supplier_lpp_map:
+                cost_p = supplier_lpp_map[str(p.id)]
+
             price_source = ProductPriceSource.PRODUCT_CURRENCY_PRICE.value
             display_price = selling_p if product_type != "purchase" else cost_p
 
@@ -159,35 +219,73 @@ def invoice_product_lookup(request):
                     display_price = 0.0
                     price_source = ProductPriceSource.NEW_PRICE.value
 
-            raw_results.append({
+            # تجهيز قائمة المتغيرات المرتبطة
+            variants_data = []
+            for v in p.variants.filter(is_active=True):
+                v_cost = float(v.cost_price) if v.cost_price else cost_p
+                v_sell = float(v.selling_price) if v.selling_price else selling_p
+                variants_data.append({
+                    "id": v.id,
+                    "name": v.name,
+                    "sku": v.sku,
+                    "barcode": v.barcode or "",
+                    "cost_price": v_cost,
+                    "selling_price": v_sell,
+                    "stock": getattr(v, "stock", 0)
+                })
+
+            base_item = {
                 "id": p.id,
                 "name": p.name,
                 "name_en": p.name_en or "",
                 "description": p.description or "",
                 "description_en": p.description_en or "",
                 "code": p.sku,
-                "barcode": p.barcode,
+                "barcode": p.barcode or "",
                 "selling_price": display_price if product_type != "purchase" else selling_p,
                 "cost_price": display_price if product_type == "purchase" else cost_p,
                 "currency_prices": curr_prices,
                 "stock": stock_qty,
                 "is_service": p.is_service,
+                "unit_id": p.unit_id if p.unit else None,
                 "unit_name": p.unit.name if p.unit else "",
+                "unit_symbol": p.unit.symbol if p.unit and hasattr(p.unit, 'symbol') else (p.unit.name if p.unit else ""),
                 "unit_name_en": (p.unit.name_en if p.unit and p.unit.name_en else p.unit.name) if p.unit else "",
                 "category_id": p.category_id,
                 "category_name": p.category.name if p.category else "",
                 "category_name_en": p.category.name_en if p.category and p.category.name_en else "",
+                "reorder_point": getattr(p, "reorder_point", 0) or 0,
                 "price_source": price_source,
                 "has_currency_price": (price_source == ProductPriceSource.PRODUCT_CURRENCY_PRICE.value),
-            })
+                "variants": variants_data,
+                "has_variants": bool(variants_data),
+            }
+
+            # إذا كانت هناك متغيرات مطابقة خصيصاً بالباركود/الكود، نضيف كرت المتغير كبند محدد
+            matched_v_for_p = [v for v in variant_matches.values() if v.product_id == p.id]
+            if matched_v_for_p and (exact or query):
+                for mv in matched_v_for_p:
+                    mv_cost = float(mv.cost_price) if mv.cost_price else cost_p
+                    mv_sell = float(mv.selling_price) if mv.selling_price else selling_p
+                    v_item = dict(base_item)
+                    v_item["name"] = f"{p.name} - {mv.name}"
+                    v_item["variant_id"] = mv.id
+                    v_item["variant_name"] = mv.name
+                    v_item["code"] = mv.sku
+                    v_item["barcode"] = mv.barcode or ""
+                    v_item["cost_price"] = mv_cost if product_type == "purchase" else base_item["cost_price"]
+                    v_item["selling_price"] = mv_sell if product_type != "purchase" else base_item["selling_price"]
+                    raw_results.append(v_item)
+
+            raw_results.append(base_item)
 
         # ترتيب النتائج: المنتجات المسعرة بالعملة أولاً، ثم المنتجات غير المسعرة ثانياً
         if is_foreign:
-            raw_results.sort(key=lambda x: (0 if x["has_currency_price"] else 1, x["name"]))
+            raw_results.sort(key=lambda x: (0 if x.get("has_currency_price") else 1, x["name"]))
 
         results = raw_results[:50]
         return JsonResponse({"products": results, "is_foreign": is_foreign})
 
     except Exception as e:
-        logger.error(f"Error in invoice product lookup API: {str(e)}")
+        logger.error(f"Error in invoice product lookup API: {str(e)}", exc_info=True)
         return JsonResponse({"error": str(e)}, status=500)

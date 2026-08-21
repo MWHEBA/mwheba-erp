@@ -1,0 +1,151 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/select2.min.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  {% include "shared/page_header.html" %}
+
+  <form method="POST" action="">
+    {% csrf_token %}
+
+    <div class="section-container mb-4">
+      <h5 class="section-title"><i class="fas fa-info-circle me-2"></i>{% trans "بيانات قائمة الأسعار" %}</h5>
+      <div class="row g-3">
+        <div class="col-md-4">
+          <label for="name" class="form-label required">{% trans "اسم قائمة الأسعار" %}</label>
+          <input type="text" class="form-control" id="name" name="name" value="{{ price_list.name }}" required>
+        </div>
+        <div class="col-md-2">
+          <label for="currency" class="form-label">{% trans "العملة" %}</label>
+          <select class="form-select" id="currency" name="currency">
+            <option value="EGP" {% if price_list.currency == 'EGP' %}selected{% endif %}>EGP</option>
+            <option value="USD" {% if price_list.currency == 'USD' %}selected{% endif %}>USD</option>
+            <option value="EUR" {% if price_list.currency == 'EUR' %}selected{% endif %}>EUR</option>
+            <option value="SAR" {% if price_list.currency == 'SAR' %}selected{% endif %}>SAR</option>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label for="effective_from" class="form-label required">{% trans "تاريخ بدء السريان" %}</label>
+          <input type="date" class="form-control" id="effective_from" name="effective_from" value="{{ price_list.effective_from|date:'Y-m-d'|default:'' }}" required>
+        </div>
+        <div class="col-md-3">
+          <label for="effective_to" class="form-label">{% trans "تاريخ نهاية السريان (اختياري)" %}</label>
+          <input type="date" class="form-control" id="effective_to" name="effective_to" value="{{ price_list.effective_to|date:'Y-m-d'|default:'' }}">
+        </div>
+        <div class="col-12 mt-2">
+          <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" id="is_active" name="is_active" {% if price_list.is_active or not price_list %}checked{% endif %}>
+            <label class="form-check-label fw-bold" for="is_active">{% trans "قائمة أسعار نشطة" %}</label>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- بنود قائمة الأسعار -->
+    <div class="section-container mb-4">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="section-title mb-0"><i class="fas fa-boxes me-2"></i>{% trans "أسعار المنتجات المحددة" %}</h5>
+        <button type="button" class="btn btn-outline-primary btn-sm" id="btn-add-item">
+          <i class="fas fa-plus me-1"></i>{% trans "إضافة منتج" %}
+        </button>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table table-bordered table-striped text-center align-middle" id="price-items-table">
+          <thead class="table-light">
+            <tr>
+              <th style="width: 45%;">{% trans "المنتج / الصنف" %}</th>
+              <th style="width: 25%;">{% trans "سعر الوحدة في القائمة" %}</th>
+              <th style="width: 20%;">{% trans "الحد الأدنى للكمية" %}</th>
+              <th style="width: 10%;">{% trans "حذف" %}</th>
+            </tr>
+          </thead>
+          <tbody id="price-items-tbody">
+            {% if items %}
+              {% for it in items %}
+              <tr class="item-row">
+                <td>
+                  <select class="form-select select2-prod" name="product[]" required>
+                    <option value="{{ it.product.id }}" selected>{{ it.product.name }} ({{ it.product.sku }})</option>
+                  </select>
+                </td>
+                <td>
+                  <input type="number" step="0.01" class="form-control text-center" name="price[]" value="{{ it.unit_price }}" min="0" required>
+                </td>
+                <td>
+                  <input type="number" step="0.01" class="form-control text-center" name="min_qty[]" value="{{ it.min_quantity }}" min="0.01" required>
+                </td>
+                <td>
+                  <button type="button" class="btn btn-sm btn-outline-danger btn-remove-row"><i class="fas fa-trash"></i></button>
+                </td>
+              </tr>
+              {% endfor %}
+            {% else %}
+              <tr class="item-row">
+                <td>
+                  <select class="form-select select2-prod" name="product[]" required>
+                    <option value="">{% trans "اختر المنتج..." %}</option>
+                    {% for p in products %}
+                    <option value="{{ p.id }}">{{ p.name }} ({{ p.sku }})</option>
+                    {% endfor %}
+                  </select>
+                </td>
+                <td>
+                  <input type="number" step="0.01" class="form-control text-center" name="price[]" value="0.00" min="0" required>
+                </td>
+                <td>
+                  <input type="number" step="0.01" class="form-control text-center" name="min_qty[]" value="1.00" min="0.01" required>
+                </td>
+                <td>
+                  <button type="button" class="btn btn-sm btn-outline-danger btn-remove-row"><i class="fas fa-trash"></i></button>
+                </td>
+              </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- أزرار الحفظ -->
+    <div class="d-flex justify-content-end gap-2 mb-4">
+      <a href="{% url 'sale:price_list_list' %}" class="btn btn-secondary px-4">{% trans "إلغاء" %}</a>
+      <button type="submit" class="btn btn-primary px-5 fw-bold"><i class="fas fa-save me-2"></i>{% trans "حفظ قائمة الأسعار" %}</button>
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/select2.min.js' %}"></script>
+<script>
+  $(document).ready(function() {
+    function initSelect2(elem) {
+      elem.find('.select2-prod').select2({ dir: "rtl", language: "ar", width: "100%" });
+    }
+    initSelect2($('body'));
+
+    $('#btn-add-item').on('click', function() {
+      const firstRow = $('.item-row:first').clone();
+      firstRow.find('input').val('1.00');
+      firstRow.find('input[name="price[]"]').val('0.00');
+      firstRow.find('.select2-container').remove();
+      firstRow.find('select').val('');
+      $('#price-items-tbody').append(firstRow);
+      initSelect2(firstRow);
+    });
+
+    $(document).on('click', '.btn-remove-row', function() {
+      if ($('.item-row').length > 1) {
+        $(this).closest('tr').remove();
+      }
+    });
+  });
+</script>
+{% endblock %}

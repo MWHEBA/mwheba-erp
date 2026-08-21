@@ -98,6 +98,34 @@ class Sale(models.Model):
     notes = models.TextField(_("ملاحظات"), blank=True, null=True)
     custom_fields = models.JSONField(_("الحقول الإضافية"), default=list, blank=True, help_text=_("مصفوفة الحقول الإضافية المخصصة"))
 
+    # مركز التكلفة الرئيسي
+    cost_center = models.ForeignKey(
+        "financial.CostCenter",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name=_("مركز التكلفة الرئيسي"),
+        related_name="sales",
+    )
+
+    # ربط بأمر البيع وإذن التسليم
+    sales_order = models.ForeignKey(
+        "sale.SalesOrder",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name=_("أمر البيع المرتبط"),
+        related_name="sales_invoices_direct",
+    )
+    delivery_note = models.ForeignKey(
+        "sale.DeliveryNote",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name=_("إذن التسليم المرتبط"),
+        related_name="sales_invoices_direct",
+    )
+
     # التصنيف المالي
     financial_category = models.ForeignKey(
         'financial.FinancialCategory',

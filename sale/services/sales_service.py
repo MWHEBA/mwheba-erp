@@ -171,6 +171,8 @@ class SalesService:
                 ApprovalService.approve_request(so.approval_request.id, user, "Sales Order Approved")
 
             so.status = "APPROVED"
+            from product.services.inventory_reservation_service import InventoryReservationService
+            InventoryReservationService.reserve_sales_order_lines(so.id, user)
             so.save()
             logger.info(f"Sales Order #{so.order_number} approved.")
             return so
@@ -244,10 +246,36 @@ class SalesService:
                 so_item.delivered_qty += deliv_qty
                 so_item.save()
 
-            # COGS Accounting Entry via AccountingGateway: Dr. 50100 COGS / Cr. 10400 Inventory
+            # COGS Accounting Entry via AccountingGateway: Dr. COGS / Cr. Inventory
+            from financial.services.role_registry import AccountRoleRegistry
+            from financial.models import ChartOfAccounts
+            
+            cogs_code = AccountRoleRegistry.get_account_code("COGS_EXPENSE") or "51100"
+            inv_code = AccountRoleRegistry.get_account_code("INVENTORY_GENERAL") or "11310"
+            
+            if not ChartOfAccounts.objects.filter(code=cogs_code).exists():
+                cogs_fallback = ChartOfAccounts.objects.filter(code__in=['51100', '50100'], is_active=True).first()
+                if cogs_fallback:
+                    cogs_code = cogs_fallback.code
+                else:
+                    try:
+                        ChartOfAccounts.objects.create(code=cogs_code, name="تكلفة البضاعة المباعة", account_type="expense", is_active=True)
+                    except Exception:
+                        pass
+
+            if not ChartOfAccounts.objects.filter(code=inv_code).exists():
+                inv_fallback = ChartOfAccounts.objects.filter(code__in=['11310', '10400'], is_active=True).first()
+                if inv_fallback:
+                    inv_code = inv_fallback.code
+                else:
+                    try:
+                        ChartOfAccounts.objects.create(code=inv_code, name="المخزون العام", account_type="asset", is_active=True)
+                    except Exception:
+                        pass
+
             lines_data = [
-                {"account_code": "50100", "debit": total_cogs_value, "credit": Decimal("0.00"), "description": f"COGS Debit for DN #{dn.delivery_number}"},
-                {"account_code": "10400", "debit": Decimal("0.00"), "credit": total_cogs_value, "description": f"Inventory Credit for DN #{dn.delivery_number}"}
+                {"account_code": cogs_code, "debit": total_cogs_value, "credit": Decimal("0.00"), "description": f"COGS Debit for DN #{dn.delivery_number}"},
+                {"account_code": inv_code, "debit": Decimal("0.00"), "credit": total_cogs_value, "description": f"Inventory Credit for DN #{dn.delivery_number}"}
             ]
 
             draft_entry = LedgerCoreService.create_draft_entry(
@@ -348,11 +376,41 @@ class SalesService:
             # Accounting Entry via AccountingGateway: Compound Multi-Currency IAS 21 Entry
             from governance.services.accounting_gateway import AccountingGateway, JournalEntryLineData
             from financial.services.role_registry import AccountRoleRegistry
+            from financial.models import ChartOfAccounts
 
-            cust_account_code = so.customer.financial_account.code if (hasattr(so.customer, 'financial_account') and so.customer.financial_account) else AccountRoleRegistry.get_account_code("CUSTOMER_RECEIVABLE_CONTROL")
-            sales_rev_code = AccountRoleRegistry.get_account_code("GENERAL_SALES_REVENUE")
-            deferred_rev_code = AccountRoleRegistry.get_account_code("DEFERRED_REVENUE_ACCOUNT")
-            vat_output_code = AccountRoleRegistry.get_account_code("VAT_OUTPUT")
+            cust_account_code = so.customer.financial_account.code if (hasattr(so.customer, 'financial_account') and so.customer.financial_account) else (AccountRoleRegistry.get_account_code("CUSTOMER_RECEIVABLE_CONTROL") or "11210")
+            sales_rev_code = AccountRoleRegistry.get_account_code("GENERAL_SALES_REVENUE") or AccountRoleRegistry.get_account_code("SALES_REVENUE") or "41100"
+            deferred_rev_code = AccountRoleRegistry.get_account_code("DEFERRED_REVENUE_ACCOUNT") or "21200"
+
+            if not ChartOfAccounts.objects.filter(code=sales_rev_code).exists():
+                rev_fallback = ChartOfAccounts.objects.filter(code__in=['41100', '40100'], is_active=True).first()
+                if rev_fallback:
+                    sales_rev_code = rev_fallback.code
+                else:
+                    try:
+                        ChartOfAccounts.objects.create(code=sales_rev_code, name="إيرادات المبيعات العامة", account_type="revenue", is_active=True)
+                    except Exception:
+                        pass
+
+            if not ChartOfAccounts.objects.filter(code=deferred_rev_code).exists():
+                def_fallback = ChartOfAccounts.objects.filter(code__in=['21200', '21210'], is_active=True).first()
+                if def_fallback:
+                    deferred_rev_code = def_fallback.code
+                else:
+                    try:
+                        ChartOfAccounts.objects.create(code=deferred_rev_code, name="إيرادات مؤجلة", account_type="liability", is_active=True)
+                    except Exception:
+                        pass
+
+            if not ChartOfAccounts.objects.filter(code=cust_account_code).exists():
+                cust_fallback = ChartOfAccounts.objects.filter(code__in=['11210', '10200'], is_active=True).first()
+                if cust_fallback:
+                    cust_account_code = cust_fallback.code
+                else:
+                    try:
+                        ChartOfAccounts.objects.create(code=cust_account_code, name="مراقبة العملاء", account_type="asset", is_active=True)
+                    except Exception:
+                        pass
 
             # Split immediate delivered revenue vs deferred contract revenue
             delivered_amount = total_inv_val if dn else Decimal("0.00")

@@ -60,6 +60,7 @@ urlpatterns = [
     path("quotations/<int:pk>/pdf/", views.quotation_pdf_download, name="quotation_pdf_download"),
     path("quotations/<int:pk>/email-pdf/", views.quotation_email_pdf, name="quotation_email_pdf"),
     path("quotations/<int:pk>/convert/", views.quotation_convert_to_sale, name="quotation_convert_to_sale"),
+    path("quotations/<int:pk>/convert-order/", views.sales_order_create, name="quotation_convert_to_sales_order"),
     path("quotations/api/check-stock/", views.check_product_stock, name="check_product_stock"),
 
     # إدارة الحقول الإضافية المخصصة
@@ -75,4 +76,28 @@ urlpatterns = [
     path("credit-notes/create/", views.credit_note_create, name="credit_note_create"),
     path("credit-notes/<int:pk>/", views.credit_note_detail, name="credit_note_detail"),
     path("credit-notes/<int:pk>/post/", views.credit_note_post, name="credit_note_post"),
+    path("credit-notes/<int:pk>/reverse/", views.credit_note_reverse, name="credit_note_reverse"),
+
+    # أوامر البيع (Sales Orders)
+    path("orders/", views.sales_order_list, name="sales_order_list"),
+    path("orders/create/", views.sales_order_create, name="sales_order_create"),
+    path("orders/create/quotation/<int:quotation_id>/", views.sales_order_create, name="sales_order_create_for_quotation"),
+    path("orders/<int:pk>/", views.sales_order_detail, name="sales_order_detail"),
+    path("orders/<int:pk>/confirm/", views.sales_order_confirm, name="sales_order_confirm"),
+    path("orders/<int:pk>/cancel/", views.sales_order_cancel, name="sales_order_cancel"),
+    path("orders/<int:pk>/convert-sale/", views.sales_order_convert_to_sale, name="sales_order_convert_to_sale"),
+
+    # إذون تسليم البضاعة (Delivery Notes)
+    path("delivery-notes/", views.delivery_note_list, name="delivery_note_list"),
+    path("delivery-notes/create/", views.delivery_note_create, name="delivery_note_create"),
+    path("delivery-notes/<int:pk>/", views.delivery_note_detail, name="delivery_note_detail"),
+    path("delivery-notes/<int:pk>/convert-sale/", views.delivery_note_convert_to_sale, name="delivery_note_convert_to_sale"),
+
+    # قوائم الأسعار وقواعد الخصم (Pricing & Policies)
+    path("pricing/price-lists/", views.price_list_list, name="price_list_list"),
+    path("pricing/price-lists/create/", views.price_list_create, name="price_list_create"),
+    path("pricing/price-lists/<int:pk>/", views.price_list_detail, name="price_list_detail"),
+    path("pricing/price-lists/<int:pk>/edit/", views.price_list_edit, name="price_list_edit"),
+    path("pricing/discount-rules/", views.discount_rule_list, name="discount_rule_list"),
+    path("pricing/discount-rules/create/", views.discount_rule_create, name="discount_rule_create"),
 ]

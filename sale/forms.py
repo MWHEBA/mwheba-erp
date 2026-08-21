@@ -110,6 +110,7 @@ class SaleForm(forms.ModelForm):
             "customer",
             "warehouse",
             "salesman",
+            "cost_center",
             "date",
             "number",
             "discount",
@@ -169,6 +170,10 @@ class SaleForm(forms.ModelForm):
             required=False,
             widget=forms.HiddenInput()
         )
+
+        from financial.models import CostCenter
+        self.fields['cost_center'].queryset = CostCenter.objects.filter(is_active=True).order_by('code')
+        self.fields['cost_center'].required = False
 
         # تعيين تاريخ اليوم كافتراضي بالتنسيق الصحيح
         if not self.initial.get("date"):

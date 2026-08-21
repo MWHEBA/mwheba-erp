@@ -1,0 +1,168 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load custom_filters %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Page Header المركزي -->
+  {% include "shared/page_header.html" %}
+
+  <!-- كروت الملخص -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-3 col-sm-6">
+      <div class="stats-card stats-card-info h-100">
+        <div class="stats-card-body d-flex align-items-center">
+          <div class="stats-card-icon me-3">
+            <i class="fas fa-user fa-2x"></i>
+          </div>
+          <div>
+            <div class="stats-card-title text-muted">{% trans "العميل" %}</div>
+            <div class="stats-card-value fw-bold fs-5">{{ dn.customer.name }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3 col-sm-6">
+      <div class="stats-card stats-card-warning h-100">
+        <div class="stats-card-body d-flex align-items-center">
+          <div class="stats-card-icon me-3">
+            <i class="fas fa-warehouse fa-2x"></i>
+          </div>
+          <div>
+            <div class="stats-card-title text-muted">{% trans "المخزن المنفذ" %}</div>
+            <div class="stats-card-value fw-bold fs-5">{{ dn.warehouse.name }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3 col-sm-6">
+      <div class="stats-card stats-card-success h-100">
+        <div class="stats-card-body d-flex align-items-center">
+          <div class="stats-card-icon me-3">
+            <i class="fas fa-clipboard-list fa-2x"></i>
+          </div>
+          <div>
+            <div class="stats-card-title text-muted">{% trans "أمر البيع المرتبط" %}</div>
+            <div class="stats-card-value fw-bold fs-5">
+              {% if dn.sales_order %}
+                <a href="{% url 'sale:sales_order_detail' dn.sales_order.pk %}" class="text-decoration-none text-primary">
+                  #{{ dn.sales_order.order_number }}
+                </a>
+              {% else %}
+                -
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3 col-sm-6">
+      <div class="stats-card stats-card-primary h-100">
+        <div class="stats-card-body d-flex align-items-center">
+          <div class="stats-card-icon me-3">
+            <i class="fas fa-traffic-light fa-2x"></i>
+          </div>
+          <div>
+            <div class="stats-card-title text-muted">{% trans "حالة الإذن" %}</div>
+            <div class="stats-card-value fw-bold fs-5">
+              {% if dn.status == 'DELIVERED' or dn.status == 'CONFIRMED' %}
+                <span class="badge bg-success">{% trans "تم التسليم" %}</span>
+              {% elif dn.status == 'INVOICED' %}
+                <span class="badge bg-primary">{% trans "مفوتر" %}</span>
+              {% else %}
+                <span class="badge bg-secondary">{{ dn.get_status_display }}</span>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- جدول بنود البضاعة المسلمة -->
+  <div class="section-container mb-4">
+    <h5 class="section-title"><i class="fas fa-boxes me-2"></i>{% trans "بنود البضاعة المسلمة من المخزن" %}</h5>
+    <div class="table-responsive">
+      <table class="table table-hover table-striped text-center align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>#</th>
+            <th>{% trans "المنتج / الصنف" %}</th>
+            <th>{% trans "الكمية المسلمة" %}</th>
+            <th>{% trans "تكلفة الوحدة عند الصرف" %}</th>
+            <th>{% trans "إجمالي التكلفة" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in items %}
+          <tr>
+            <td>{{ forloop.counter }}</td>
+            <td class="text-start fw-bold">{{ item.so_item.product.name }} ({{ item.so_item.product.sku }})</td>
+            <td class="fw-bold fs-6">{{ item.delivered_qty }}</td>
+            <td>{{ item.unit_cost|floatformat:2 }} EGP</td>
+            <td class="fw-bold text-danger">{{ item.delivered_qty|floatformat:2 }} EGP</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- القيد المحاسبي المرتبط لتكلفة المبيعات -->
+  {% if cogs_entry %}
+  <div class="section-container mb-4">
+    <h5 class="section-title"><i class="fas fa-calculator me-2"></i>{% trans "قيد تكلفة البضاعة المباعة والمخزون" %}</h5>
+    <div class="p-3 bg-light rounded border">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <span class="fw-bold fs-6">
+          {% trans "رقم القيد:" %} <a href="{% url 'financial:journal_entry_detail' cogs_entry.pk %}" class="text-primary fw-bold">#{{ cogs_entry.number|default:cogs_entry.pk }}</a>
+        </span>
+        <span class="badge bg-success">{% trans "قيد مرحل آلياً" %}</span>
+      </div>
+      <p class="text-muted mb-0 small">
+        <i class="fas fa-shield-alt text-success me-1"></i>
+        {% trans "تم تسجيل قيد التكلفة (مدين تكلفة مبيعات 50100 / دائن أصول مخزون 10400) عند تسليم البضاعة. الفاتورة الناتجة عن هذا الإذن ستكبح قيد التكلفة تلقائياً لمنع التكرار المحاسبي." %}
+      </p>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- فواتير المبيعات المنشأة من هذا الإذن -->
+  {% if linked_sales %}
+  <div class="section-container mb-4">
+    <h5 class="section-title"><i class="fas fa-file-invoice-dollar me-2"></i>{% trans "فواتير المبيعات المنشأة من إذن التسليم" %}</h5>
+    <div class="table-responsive">
+      <table class="table table-hover table-striped text-center align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>{% trans "رقم الفاتورة" %}</th>
+            <th>{% trans "التاريخ" %}</th>
+            <th>{% trans "المبلغ الإجمالي" %}</th>
+            <th>{% trans "حالة الفاتورة" %}</th>
+            <th>{% trans "الإجراءات" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in linked_sales %}
+          <tr>
+            <td class="fw-bold text-primary">{{ s.number }}</td>
+            <td>{{ s.date|date:"Y-m-d" }}</td>
+            <td class="fw-bold text-success">{{ s.total_amount|floatformat:2 }} {{ s.currency }}</td>
+            <td><span class="badge bg-{{ s.status }}">{{ s.get_status_display }}</span></td>
+            <td>
+              <a href="{% url 'sale:sale_detail' s.pk %}" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-eye me-1"></i>{% trans "عرض الفاتورة" %}
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

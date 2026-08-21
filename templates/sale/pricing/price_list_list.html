@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  {% include "shared/page_header.html" %}
+
+  <div class="section-container">
+    <h5 class="section-title"><i class="fas fa-tags me-2"></i>{% trans "قوائم أسعار المبيعات المعتمدة" %}</h5>
+    
+    {% if price_lists %}
+    <div class="table-responsive">
+      <table class="table table-hover table-striped text-center align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>#</th>
+            <th>{% trans "اسم القائمة" %}</th>
+            <th>{% trans "العملة" %}</th>
+            <th>{% trans "فئة العملاء" %}</th>
+            <th>{% trans "تاريخ السريان" %}</th>
+            <th>{% trans "عدد البنود" %}</th>
+            <th>{% trans "الحالة" %}</th>
+            <th>{% trans "الإجراءات" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for pl in price_lists %}
+          <tr>
+            <td>{{ forloop.counter }}</td>
+            <td class="fw-bold text-start">
+              <a href="{% url 'sale:price_list_detail' pl.pk %}" class="text-primary text-decoration-none">
+                {{ pl.name }}
+              </a>
+            </td>
+            <td><span class="badge bg-light text-dark border">{{ pl.currency }}</span></td>
+            <td>{{ pl.customer_type|default:"الكل" }}</td>
+            <td>{{ pl.effective_from|date:"Y-m-d" }}</td>
+            <td><span class="badge bg-info text-white">{{ pl.items_count }}</span></td>
+            <td>
+              {% if pl.is_active %}
+                <span class="badge bg-success">{% trans "نشطة" %}</span>
+              {% else %}
+                <span class="badge bg-secondary">{% trans "معطلة" %}</span>
+              {% endif %}
+            </td>
+            <td>
+              <div class="btn-group btn-group-sm">
+                <a href="{% url 'sale:price_list_detail' pl.pk %}" class="btn btn-outline-secondary" title="{% trans 'عرض التفاصيل' %}">
+                  <i class="fas fa-eye"></i>
+                </a>
+                <a href="{% url 'sale:price_list_edit' pl.pk %}" class="btn btn-outline-primary" title="{% trans 'تعديل' %}">
+                  <i class="fas fa-edit"></i>
+                </a>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="alert alert-info text-center my-4 py-4">
+      <i class="fas fa-tags fa-3x mb-3 text-muted"></i>
+      <p class="mb-0 fs-5">{% trans "لا توجد قوائم أسعار مسجلة حتى الآن." %}</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

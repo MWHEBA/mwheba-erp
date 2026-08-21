@@ -652,6 +652,28 @@
             </div>
           </a>
           
+          <!-- تحويل إلى أمر بيع -->
+          <a href="{% url 'sale:sales_order_create_for_quotation' quotation.id %}" class="list-group-item list-group-item-action d-flex align-items-center">
+            <div class="me-3">
+              <i class="fas fa-clipboard-list fa-2x text-primary"></i>
+            </div>
+            <div>
+              <div class="fw-bold">{% trans "تحويل إلى أمر بيع (Sales Order)" %}</div>
+              <small class="text-muted">{% trans "بدء دورة المستندات والاعتماد المخزني وإصدار إذن التسليم" %}</small>
+            </div>
+          </a>
+
+          <!-- تحويل مباشر لفاتورة مبيعات -->
+          <a href="#" data-bs-dismiss="modal" data-bs-toggle="modal" data-bs-target="#convertInvoiceModal" class="list-group-item list-group-item-action d-flex align-items-center">
+            <div class="me-3">
+              <i class="fas fa-file-invoice-dollar fa-2x text-success"></i>
+            </div>
+            <div>
+              <div class="fw-bold">{% trans "تحويل إلى فاتورة مبيعات مباشرة" %}</div>
+              <small class="text-muted">{% trans "إصدار فاتورة بيع وخصم المخزون المحاسبي فورياً" %}</small>
+            </div>
+          </a>
+
           <!-- حذف عرض السعر -->
           <a href="{% url 'sale:quotation_delete' quotation.id %}" id="delete-quotation-link" class="list-group-item list-group-item-action d-flex align-items-center">
             <div class="me-3">
@@ -664,6 +686,43 @@
           </a>
         </div>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- مودال تحويل عرض السعر إلى فاتورة مبيعات مباشرة -->
+<div class="modal fade" id="convertInvoiceModal" tabindex="-1" aria-labelledby="convertInvoiceModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header bg-light border-bottom px-4 py-3">
+        <h5 class="modal-title fw-bold text-dark mb-0" id="convertInvoiceModalLabel">
+          <i class="fas fa-file-invoice-dollar text-success me-2"></i>{% trans "تحويل عرض السعر إلى فاتورة بيع" %}
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form method="POST" action="{% url 'sale:quotation_convert_to_sale' quotation.id %}">
+        {% csrf_token %}
+        <div class="modal-body p-4">
+          <p class="text-muted mb-3">{% trans "يرجى اختيار المخزن الذي سيتم صرف البضاعة وخصم المخزون منه لإصدار الفاتورة:" %}</p>
+          <div class="mb-3">
+            <label for="modal-warehouse" class="form-label fw-bold">{% trans "المخزن المنفذ" %}</label>
+            <select class="form-select" id="modal-warehouse" name="warehouse" required>
+              {% for w in warehouses %}
+              <option value="{{ w.id }}" {% if quotation.warehouse_id == w.id %}selected{% endif %}>{{ w.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="alert alert-info py-2 mb-0 small">
+            <i class="fas fa-info-circle me-1"></i>{% trans "سيتم فحص الأرصدة المخزنية للتأكد من كفاية الكميات قبل إنشاء الفاتورة." %}
+          </div>
+        </div>
+        <div class="modal-footer bg-light border-top px-4 py-3">
+          <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+          <button type="submit" class="btn btn-success px-4 fw-bold">
+            <i class="fas fa-check me-1"></i>{% trans "تأكيد التحويل وإصدار الفاتورة" %}
+          </button>
+        </div>
+      </form>
     </div>
   </div>
 </div>

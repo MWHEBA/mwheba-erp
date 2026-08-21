@@ -11,7 +11,9 @@
             priceField: 'selling_price',
             currencySymbol: 'ج.م',
             getWarehouseId: function() { return $('#id_warehouse').val() || ''; },
+            getSupplierId: function() { return $('#id_supplier').val() || ''; },
             getInvoiceId: function() { return '0'; },
+            enableMultiSelect: false,
             onProductSelect: null // function($row, product, matchType) {}
         },
         _activePickerRow: null,
@@ -97,16 +99,19 @@
             var isPurchase = (opts.type === 'purchase');
             var isServiceType = (opts.allowedItemTypes === 'services');
             
-            var labelProductText = isServiceType ? 'الخدمة' : (isPurchase ? 'المنتج / الخدمة' : 'المنتج / الخدمة');
-            var priceFieldName = isPurchase ? 'unit_cost[]' : 'unit_price[]';
+            var labelProductText = isServiceType ? 'الخدمة' : (isPurchase ? 'المنتج / الصنف' : 'المنتج / الخدمة');
+            var priceFieldName = 'unit_price[]';
 
-            var productId = itemData.id || itemData.product_id || '';
+            var itemId = itemData.item_id || itemData.id || '';
+            var productId = itemData.product_id || (itemData.product ? itemData.product.id : (itemData.id && !itemData.product_id ? itemData.id : ''));
+            var variantId = itemData.variant_id || (itemData.variant ? itemData.variant.id : '');
+            var unitId = itemData.unit_id || (itemData.unit ? itemData.unit.id : '');
             var productCode = itemData.code || itemData.sku || '';
             var unitPrice = (itemData.price !== undefined && itemData.price !== null) ? itemData.price : (itemData.unit_price || itemData.unit_cost || 0);
-            var qty = itemData.quantity || 1;
+            var qty = itemData.quantity || itemData.ordered_qty || 1;
             var itemDisc = itemData.discount || 0;
 
-            var productName = itemData.name || (productId ? 'منتج #' + productId : 'اختر المنتج / الخدمة');
+            var productName = itemData.name || (productId ? 'منتج #' + productId : 'اختر المنتج...');
             var productStock = itemData.stock || 0;
             var productPrice = unitPrice;
             var isService = itemData.is_service === true || itemData.is_service === "true";
@@ -128,28 +133,31 @@
                 }
             }
 
-            var itemTotal = itemData.total !== undefined ? itemData.total : ((qty * unitPrice) - itemDisc);
+            var itemTotal = itemData.total !== undefined ? itemData.total : (itemData.total_price !== undefined ? itemData.total_price : ((qty * unitPrice) - itemDisc));
 
             var removeBtn = (opts.showRemoveButton !== false)
                 ? '<a href="javascript:void(0)" class="remove-item" title="إزالة البند"><i class="fas fa-times-circle"></i></a>'
                 : '';
 
             var $row = $('<div class="item-row row g-2 align-items-center">' +
+                '<input type="hidden" name="item_id[]" class="item-id-input" value="' + itemId + '">' +
                 '<div class="col-12 col-md-2">' +
                     '<label class="form-label form-label-sm product-code-label">الكود / الباركود</label>' +
                     '<input type="text" class="form-control form-control-sm product-code-input" placeholder="الكود / الباركود" value="' + productCode + '">' +
                 '</div>' +
                 '<div class="col-12 col-md-3">' +
-                    '<div class="product-header-row d-flex align-items-center mb-2">' +
+                    '<div class="product-header-row d-flex align-items-center mb-1 justify-content-between">' +
                         '<label class="form-label form-label-sm product-label product-header required-field mb-0">' + labelProductText + '</label>' +
                         '<span class="stock-info"></span>' +
                     '</div>' +
-                    '<button type="button" class="product-picker-btn"><span class="' + (productId ? 'selected-text' : 'placeholder-text') + '">' + productName + '</span><i class="fas fa-th-large text-muted small"></i></button>' +
+                    '<button type="button" class="product-picker-btn"><span class="' + (productId ? 'selected-text' : 'placeholder-text text-muted') + '">' + productName + '</span><i class="fas fa-th-large text-muted small"></i></button>' +
                     '<input type="hidden" name="product[]" class="product-id-input" value="' + productId + '" data-price="' + productPrice + '" data-stock="' + productStock + '" data-is-service="' + isService + '" required>' +
+                    '<input type="hidden" name="variant[]" class="variant-id-input" value="' + variantId + '">' +
+                    '<input type="hidden" name="unit[]" class="unit-id-input" value="' + unitId + '">' +
                 '</div>' +
-                '<div class="col-6 col-md-1"><label class="form-label form-label-sm required-field">الكمية</label><input type="number" name="quantity[]" class="form-control form-control-sm quantity" min="1" step="1" value="' + qty + '" required></div>' +
-                '<div class="col-6 col-md-2"><label class="form-label form-label-sm required-field">' + (isPurchase ? 'سعر التكلفة' : 'سعر الوحدة') + '</label><input type="text" inputmode="decimal" name="' + priceFieldName + '" class="form-control form-control-sm unit-price" value="' + unitPrice + '" required ' + priceReadonly + '></div>' +
-                '<div class="col-6 col-md-2"><label class="form-label form-label-sm">الخصم</label><input type="number" name="discount[]" class="form-control form-control-sm item-discount" min="0" value="' + itemDisc + '"></div>' +
+                '<div class="col-6 col-md-2"><label class="form-label form-label-sm required-field">' + (isPurchase ? 'الكمية المطلوبة' : 'الكمية') + '</label><input type="number" name="quantity[]" class="form-control form-control-sm quantity" min="0.0001" step="0.0001" value="' + qty + '" required></div>' +
+                '<div class="col-6 col-md-2"><label class="form-label form-label-sm required-field">' + (isPurchase ? 'سعر الشراء' : 'سعر الوحدة') + '</label><input type="number" step="0.0001" name="' + priceFieldName + '" class="form-control form-control-sm unit-price" value="' + unitPrice + '" required ' + priceReadonly + '></div>' +
+                '<div class="col-6 col-md-1"><label class="form-label form-label-sm">الخصم</label><input type="number" name="discount[]" class="form-control form-control-sm item-discount" min="0" step="0.01" value="' + itemDisc + '"></div>' +
                 '<div class="col-6 col-md-2"><label class="form-label form-label-sm">الإجمالي</label><div class="input-group input-group-sm"><input type="text" class="form-control form-control-sm item-total" value="' + itemTotal + '" readonly><span class="input-group-text px-1">' + currencySymbol + '</span></div></div>' +
                 removeBtn +
             '</div>');
@@ -158,7 +166,8 @@
                 this.renderStockState($row, {
                     stock: productStock,
                     is_service: isService,
-                    quantity: qty
+                    quantity: qty,
+                    unit_name: itemData.unit_name || ''
                 }, isPurchase ? 'purchase' : 'sale');
             }
 
@@ -392,7 +401,12 @@
             });
 
             // 6. اختيار منتج من شبكة الكروت في المودال
-            $(document).off('click.productPicker', '.product-card').on('click.productPicker', '.product-card', function() {
+            $(document).off('click.productPicker', '.product-card').on('click.productPicker', '.product-card', function(e) {
+                // إذا تم النقر على checkbox التحديد المتعدد، لا نغلق المودال
+                if ($(e.target).is('.picker-card-checkbox') || $(e.target).closest('.picker-checkbox-wrapper').length) {
+                    return;
+                }
+
                 var $card = $(this);
                 if (!self._activePickerRow) return;
 
@@ -402,7 +416,11 @@
                     code: $card.data('code') || '',
                     price: $card.data('price'),
                     stock: parseFloat($card.data('stock') || 0),
-                    is_service: $card.data('is-service') === true || $card.data('is-service') === "true"
+                    is_service: $card.data('is-service') === true || $card.data('is-service') === "true",
+                    variant_id: $card.data('variant-id') || '',
+                    unit_id: $card.data('unit-id') || '',
+                    unit_name: $card.data('unit-name') || '',
+                    reorder_point: $card.data('reorder-point') || 0
                 };
 
                 self.applyProductToRow(self._activePickerRow, product, 'modal');
@@ -422,6 +440,78 @@
                 }, 300);
             });
 
+            // 6.b التحديد المتعدد في المودال (Bulk Multi-Select)
+            $(document).off('change.pickerBulkCheck', '.picker-card-checkbox').on('change.pickerBulkCheck', '.picker-card-checkbox', function() {
+                var checkedCount = $('.picker-card-checkbox:checked').length;
+                var $btn = $('#btn-picker-add-selected');
+                var $countBadge = $('#picker-selected-count');
+
+                if (checkedCount > 0) {
+                    $btn.removeClass('d-none').html('<i class="fas fa-plus-circle me-1"></i>إضافة (' + checkedCount + ') أصناف');
+                    $countBadge.removeClass('d-none').text(checkedCount + ' محدد');
+                } else {
+                    $btn.addClass('d-none');
+                    $countBadge.addClass('d-none');
+                }
+            });
+
+            $(document).off('click.pickerAddSelected', '#btn-picker-add-selected').on('click.pickerAddSelected', '#btn-picker-add-selected', function(e) {
+                e.preventDefault();
+                var $checked = $('.picker-card-checkbox:checked');
+                if (!$checked.length) return;
+
+                var $container = $('#items-container');
+                var isFirstRow = true;
+
+                $checked.each(function() {
+                    var $cb = $(this);
+                    var $card = $cb.closest('.product-card');
+                    var pData = {
+                        id: $card.data('id'),
+                        name: $card.data('name'),
+                        code: $card.data('code') || '',
+                        price: $card.data('price'),
+                        stock: parseFloat($card.data('stock') || 0),
+                        is_service: $card.data('is-service') === true || $card.data('is-service') === "true",
+                        variant_id: $card.data('variant-id') || '',
+                        unit_id: $card.data('unit-id') || '',
+                        unit_name: $card.data('unit-name') || '',
+                        quantity: 1
+                    };
+
+                    var $targetRow = null;
+                    if (isFirstRow && self._activePickerRow) {
+                        $targetRow = self._activePickerRow;
+                        isFirstRow = false;
+                    } else {
+                        // التحقق مما إذا كان الصف الأخير فارغاً
+                        var $lastRow = $container.find('.item-row:last-child');
+                        if ($lastRow.length && !$lastRow.find('.product-id-input').val()) {
+                            $targetRow = $lastRow;
+                        } else {
+                            $targetRow = self.renderRow({}, { showRemoveButton: true });
+                            $container.append($targetRow);
+                        }
+                    }
+
+                    self.applyProductToRow($targetRow, pData, 'modal');
+                });
+
+                var modalEl = document.getElementById('productPickerModal');
+                if (modalEl) {
+                    var modal = bootstrap.Modal.getInstance(modalEl);
+                    if (modal) modal.hide();
+                }
+
+                self._activePickerRow = null;
+                if (typeof window.calculateTotals === 'function') {
+                    window.calculateTotals();
+                }
+                if (typeof window.bindEventHandlers === 'function') {
+                    window.bindEventHandlers();
+                }
+            });
+
             // 7. تغيير إعداد إظهار كافة المنتجات ومزامنة المفتاحين (في الشاشة والمودال)
             $(document).off('change.productPicker', '.show-all-products-toggle, #show-all-products, #modal-show-all-products, #page-show-all-products').on('change.productPicker', '.show-all-products-toggle, #show-all-products, #modal-show-all-products, #page-show-all-products', function() {
                 var isChecked = $(this).is(':checked');
@@ -431,14 +521,21 @@
                 }
             });
 
-            // 8. ضغط Enter في حقول (الكمية، سعر الوحدة، التكلفة، أو الخصم) يضيف بنداً جديداً فوراً
-            $(document).off('keydown.enterAddItem', '#items-container .quantity, #items-container .unit-price, #items-container .unit-cost, #items-container .item-discount')
-                .on('keydown.enterAddItem', '#items-container .quantity, #items-container .unit-price, #items-container .unit-cost, #items-container .item-discount', function(e) {
-                    if (e.which === 13 || e.key === 'Enter') {
-                        e.preventDefault();
-                        $('#add-item').trigger('click');
-                    }
-                });
+            // 8. مسار الكيبورد السريع (Fast-Lane Keyboard Flow)
+            $(document).off('keydown.enterFocusNext', '#items-container .quantity').on('keydown.enterFocusNext', '#items-container .quantity', function(e) {
+                if (e.which === 13 || e.key === 'Enter') {
+                    e.preventDefault();
+                    var $row = $(this).closest('.item-row');
+                    $row.find('.unit-price').focus().select();
+                }
+            });
+
+            $(document).off('keydown.enterFocusNewRow', '#items-container .unit-price, #items-container .item-discount').on('keydown.enterFocusNewRow', '#items-container .unit-price, #items-container .item-discount', function(e) {
+                if (e.which === 13 || e.key === 'Enter') {
+                    e.preventDefault();
+                    $('#add-item').trigger('click');
+                }
+            });
 
             // 9. التنقل بالأسهم و Enter و Escape في حقل الكود / الباركود والقائمة المنسدلة
             $(document).off('keydown.enterCodeInput keydown.codeInputNav', '.product-code-input').on('keydown.codeInputNav', '.product-code-input', function(e) {
@@ -510,16 +607,17 @@
                         self._activeType = 'all';
                         self._searchTerm = '';
                         $('#picker-search').val('');
-                        self.loadModalProducts();
                         var modalEl = document.getElementById('productPickerModal');
                         if (modalEl) {
-                            var modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+                            var modal = bootstrap.Modal.getOrCreateInstance(modalEl);
                             modal.show();
+                            self.loadModalProducts();
                         }
-                    } else {
-                        // كود مكتوب -> مطابقة فورية ومباشرة
-                        self.performCodeLookup($row, $input, query, false, true);
+                        return;
                     }
+
+                    // إجراء بحث صريح فوري والتطابق السريع
+                    self.performCodeLookup($row, query, true);
                 }
             });
 
@@ -538,7 +636,7 @@
 
                 clearTimeout(self._lookupTimeout);
                 self._lookupTimeout = setTimeout(function() {
-                    self.performCodeLookup($row, $input, query);
+                    self.performCodeLookup($row, query, false);
                 }, 300);
             });
 
@@ -549,7 +647,7 @@
                 var $row = $input.closest('.item-row');
 
                 if (query !== '' && !$input.hasClass('is-valid')) {
-                    self.performCodeLookup($row, $input, query, true);
+                    self.performCodeLookup($row, query, true, true);
                 }
             });
 
@@ -617,16 +715,19 @@
             });
         },
 
-        // تنفيذ طلب البحث المباشر والقائمة السريعة بالكود / الباركود
-        performCodeLookup: function($row, $input, query, isBlur, isExactRequest) {
+        // البحث الفوري عن الكود / الباركود
+        performCodeLookup: function($row, query, isExactRequest, isBlur) {
             var self = this;
+            var $input = $row.find('.product-code-input');
             var warehouseId = self.options.getWarehouseId();
             var invoiceId = self.options.getInvoiceId();
             var currencyId = $('#id_currency').val() || '';
+            var supplierId = self.options.getSupplierId();
+
             var lookupType = (self.options.type === 'purchase') ? 'purchase' : 'sale';
 
-            // إغلاق أي قائمة سريعة سابقة
-            $('.code-lookup-dropdown').remove();
+            // إزالة أي قائمة بحث منسدلة سابقة
+            $input.parent().find('.code-lookup-dropdown').remove();
 
             if (query.length < 2 && !isExactRequest) {
                 return;
@@ -642,6 +743,7 @@
                     warehouse_id: warehouseId,
                     invoice_id: invoiceId,
                     currency_id: currencyId,
+                    supplier_id: supplierId,
                     type: lookupType
                 },
                 success: function(response) {
@@ -650,8 +752,10 @@
                     if (products.length === 0) {
                         if (isBlur) {
                             $input.addClass('is-invalid');
-                            if (typeof toastr !== 'undefined') {
-                                toastr.warning('كود المنتج غير صحيح أو غير متوفر في هذا المخزن');
+                            if (typeof window.showNotification === 'function') {
+                                window.showNotification('كود الصنف غير صحيح أو غير متوفر', 'warning');
+                            } else if (typeof toastr !== 'undefined') {
+                                toastr.warning('كود الصنف غير صحيح أو غير متوفر');
                             }
                         }
                         return;
@@ -663,19 +767,28 @@
                                (p.barcode && p.barcode.toLowerCase() === query.toLowerCase());
                     });
 
-                    if (isExactRequest && exactMatch) {
-                        var price = self.resolveProductPrice(exactMatch);
+                    if (isExactRequest && (exactMatch || products.length === 1)) {
+                        var targetProduct = exactMatch || products[0];
+                        var price = self.resolveProductPrice(targetProduct);
                         var product = {
-                            id: exactMatch.id,
-                            name: exactMatch.name,
-                            code: exactMatch.code || exactMatch.sku || query,
+                            id: targetProduct.id,
+                            name: targetProduct.name,
+                            code: targetProduct.code || targetProduct.sku || query,
                             price: price,
-                            stock: exactMatch.stock,
-                            is_service: exactMatch.is_service === true || exactMatch.is_service === "true"
+                            stock: targetProduct.stock,
+                            is_service: targetProduct.is_service === true || targetProduct.is_service === "true",
+                            variant_id: targetProduct.variant_id || '',
+                            unit_id: targetProduct.unit_id || '',
+                            unit_name: targetProduct.unit_name || '',
+                            reorder_point: targetProduct.reorder_point || 0
                         };
 
                         $input.removeClass('is-invalid').addClass('is-valid');
                         self.applyProductToRow($row, product, 'input');
+                        setTimeout(function() {
+                            var $qtyInput = $row.find('.quantity');
+                            if ($qtyInput.length) $qtyInput.focus().select();
+                        }, 100);
                         return;
                     }
 
@@ -696,7 +809,10 @@
                             'data-code="' + (p.code || p.sku || '') + '" ' +
                             'data-price="' + price + '" ' +
                             'data-stock="' + p.stock + '" ' +
-                            'data-is-service="' + p.is_service + '">' +
+                            'data-is-service="' + p.is_service + '" ' +
+                            'data-variant-id="' + (p.variant_id || '') + '" ' +
+                            'data-unit-id="' + (p.unit_id || '') + '" ' +
+                            'data-unit-name="' + (p.unit_name || '') + '">' +
                             '<div><span class="code-badge">' + (p.code || p.sku || 'بدون كود') + '</span> <strong class="ms-1">' + p.name + '</strong></div>' +
                             '<span class="badge bg-light text-dark border">' + displayPrice + ' ' + self.options.currencySymbol + '</span>' +
                             '</li>');
@@ -721,7 +837,10 @@
                             code: $item.data('code'),
                             price: $item.data('price'),
                             stock: parseFloat($item.data('stock') || 0),
-                            is_service: $item.data('is-service') === true || $item.data('is-service') === "true"
+                            is_service: $item.data('is-service') === true || $item.data('is-service') === "true",
+                            variant_id: $item.data('variant-id') || '',
+                            unit_id: $item.data('unit-id') || '',
+                            unit_name: $item.data('unit-name') || ''
                         };
 
                         $input.removeClass('is-invalid');
@@ -755,13 +874,22 @@
                 .attr('data-stock', product.stock)
                 .attr('data-is-service', product.is_service);
 
+            if (product.variant_id) {
+                $row.find('.variant-id-input').val(product.variant_id);
+            }
+            if (product.unit_id) {
+                $row.find('.unit-id-input').val(product.unit_id);
+            }
+
             $row.find('.unit-price').val(product.price !== '' && product.price !== undefined ? (typeof smartFloat === 'function' ? smartFloat(product.price) : product.price) : '');
 
             var isService = product.is_service === true || product.is_service === 'true' || product.is_service === 1;
             self.renderStockState($row, {
                 stock: product.stock,
                 is_service: isService,
-                quantity: parseFloat($row.find('.quantity').val()) || 1
+                quantity: parseFloat($row.find('.quantity').val()) || 1,
+                unit_name: product.unit_name || '',
+                reorder_point: product.reorder_point || 0
             }, self.options.type);
 
             if (typeof self.options.onProductSelect === 'function') {
@@ -777,6 +905,8 @@
         clearRowProductData: function($row) {
             $row.find('.product-picker-btn').html('<span class="placeholder-text">اختر المنتج</span><i class="fas fa-th-large text-muted small"></i>');
             $row.find('.product-id-input').val('').removeAttr('data-price data-stock data-is-service');
+            $row.find('.variant-id-input').val('');
+            $row.find('.unit-id-input').val('');
             $row.find('.product-code-input').removeClass('is-valid is-invalid').val('');
             $row.find('.unit-price').val('');
             this.renderStockState($row, null);
@@ -797,8 +927,9 @@
         loadModalProducts: function() {
             var self = this;
             var warehouseId = self.options.getWarehouseId();
+            var supplierId = self.options.getSupplierId();
             var invoiceId = self.options.getInvoiceId();
-            var showAll = $('#show-all-products').is(':checked');
+            var showAll = $('#modal-show-all-products').is(':checked') || $('#show-all-products').is(':checked');
 
             clearTimeout(self._modalSearchTimeout);
             self._modalSearchTimeout = setTimeout(function() {
@@ -819,6 +950,7 @@
                         q: self._searchTerm,
                         exact: 'false',
                         warehouse_id: warehouseId,
+                        supplier_id: supplierId,
                         invoice_id: invoiceId,
                         currency_id: currencyId,
                         type: lookupType,
@@ -837,19 +969,26 @@
                         }
 
                         $grid.empty();
+                        $('#picker-selected-count').addClass('d-none');
+                        $('#btn-picker-add-selected').addClass('d-none');
+
                         if (products.length === 0) {
                             $grid.html('<div class="no-results text-center py-5 text-muted"><i class="fas fa-box-open fa-2x mb-2 d-block"></i>لا توجد نتائج</div>');
                             return;
                         }
 
+                        var isPurchase = (self.options.type === 'purchase');
+
                         products.forEach(function(p) {
                             var price = (self.options.priceField === 'cost_price') ? p.cost_price : p.selling_price;
                             var isService = p.is_service === true || p.is_service === "true" || p.is_service === "True" || p.is_service === 1;
-                            var stockClass = (!isService && p.stock <= 0) ? 'out-of-stock' : '';
+                            var stockClass = (!isService && p.stock <= 0 && !isPurchase) ? 'out-of-stock' : '';
                             var stockLabel = '';
 
                             if (isService) {
                                 stockLabel = '<span class="product-stock text-success"><i class="fas fa-tools"></i> خدمة</span>';
+                            } else if (isPurchase) {
+                                stockLabel = '<span class="product-stock text-muted">مخزون: ' + p.stock + (p.unit_name ? ' ' + p.unit_name : '') + '</span>';
                             } else {
                                 stockLabel = p.stock <= 0
                                     ? '<span class="product-stock low-stock">غير متوفر</span>'
@@ -868,8 +1007,14 @@
                             }
 
                             var codeBadge = p.code ? '<div class="product-code text-muted small font-monospace mb-1" style="font-size: 0.75rem;"><i class="fas fa-barcode me-1 opacity-75"></i>' + p.code + '</div>' : '<div class="product-code text-muted small mb-1" style="font-size: 0.75rem;">&nbsp;</div>';
+                            
+                            var multiSelectCheckbox = self.options.enableMultiSelect
+                                ? '<div class="picker-checkbox-wrapper position-absolute top-0 start-0 m-2"><input type="checkbox" class="form-check-input picker-card-checkbox" data-product-id="' + p.id + '"></div>'
+                                : '';
+
                             var $card = $('<div class="col-md-3 col-sm-4 col-6">' +
-                                '<div class="product-card ' + stockClass + '" data-id="' + p.id + '" data-price="' + price + '" data-stock="' + p.stock + '" data-name="' + p.name + '" data-is-service="' + isService + '" data-code="' + (p.code || '') + '">' +
+                                '<div class="product-card position-relative ' + stockClass + '" data-id="' + p.id + '" data-price="' + price + '" data-stock="' + p.stock + '" data-name="' + p.name + '" data-is-service="' + isService + '" data-code="' + (p.code || '') + '" data-variant-id="' + (p.variant_id || '') + '" data-unit-id="' + (p.unit_id || '') + '" data-unit-name="' + (p.unit_name || '') + '" data-reorder-point="' + (p.reorder_point || 0) + '">' +
+                                    multiSelectCheckbox +
                                     '<div class="product-name">' + p.name + '</div>' +
                                     codeBadge +
                                     '<div class="product-footer">' +
@@ -885,38 +1030,26 @@
             }, 300);
         },
 
-        // تحديث إظهار وتفعيل التبويبات حسب نتائج المنتجات المتاحة
+        // تحديث تبويبات التصنيفات بناءً على نتائج البحث
         updateCategoryTabs: function(products) {
-            var self = this;
-            var $tabs = $('#categoryTabs');
-            var catMap = {};
-            (products || []).forEach(function(p) {
+            var categories = {};
+            products.forEach(function(p) {
                 if (p.category_id && p.category_name) {
-                    catMap[String(p.category_id)] = p.category_name;
+                    categories[p.category_id] = p.category_name;
                 }
             });
 
-            // إضافة التبويبات المفقودة ديناميكياً في حالة عدم وجودها مسبقاً في القالب
-            Object.keys(catMap).forEach(function(catId) {
-                if ($tabs.find('.nav-link[data-category="' + catId + '"]').length === 0) {
-                    var $li = $('<li class="nav-item" role="presentation">' +
-                        '<a class="nav-link btn-sm" data-category="' + catId + '" href="javascript:void(0)">' + catMap[catId] + '</a>' +
-                    '</li>');
-                    $tabs.append($li);
-                }
-            });
-
-            $tabs.find('.nav-link[data-category]').each(function() {
-                var $tab = $(this);
-                var catId = String($tab.data('category'));
-                if (catId === 'all') {
-                    $tab.parent().show();
-                    return;
-                }
-                if (catMap[catId]) {
-                    $tab.parent().show();
-                } else {
-                    $tab.parent().hide();
+            var $tabs = $('#categoryTabs');
+            var self = this;
+            $tabs.find('.nav-item').each(function() {
+                var $tab = $(this).find('.nav-link');
+                var catId = $tab.data('category');
+                if (catId !== 'all') {
+                    if (categories[catId]) {
+                        $(this).show();
+                    } else {
+                        $(this).hide();
+                    }
                     if ($tab.hasClass('active')) {
                         $tab.removeClass('active');
                         $tabs.find('.nav-link[data-category="all"]').addClass('active');
@@ -940,22 +1073,32 @@
 
             var isService = data.is_service === true || data.is_service === 'true' || data.is_service === 1;
             if (isService) {
-                $stockContainer.html('<span class="text-success small"><i class="fas fa-tools"></i> خدمة</span>')
+                $stockContainer.html('<span class="text-success small"><i class="fas fa-tools me-1"></i>خدمة</span>')
                                .attr('title', 'صنف خدمي - لا يتطلب مخزون');
                 $headerRow.addClass('has-stock-info');
                 return;
             }
 
-            var stock = parseInt(data.stock !== undefined ? data.stock : 0);
+            var stock = parseFloat(data.stock !== undefined ? data.stock : 0);
             if (isNaN(stock)) stock = 0;
             var qty = parseFloat(data.quantity !== undefined ? data.quantity : ($row.find('.quantity').val() || 0));
             if (isNaN(qty)) qty = 0;
+            var unitName = data.unit_name || '';
 
+            if (docType === 'purchase') {
+                // وضع المشتريات: عرض هادئ وإرشادي لرصيد المخزون الحالي
+                $stockContainer.html('<span class="badge bg-light text-secondary border px-2 py-1" style="font-size: 0.75rem;">المخزون الحالي: ' + stock + (unitName ? ' ' + unitName : '') + '</span>')
+                               .attr('title', 'الرصيد المتوفر حالياً في المخزن المحدد');
+                $headerRow.addClass('has-stock-info');
+                return;
+            }
+
+            // وضع المبيعات
             if (stock <= 0) {
                 $stockContainer.html('<span class="stock-warning">لا يوجد مخزون</span>')
                                .attr('title', 'الرصيد المتاح حالياً هو 0');
             } else if (qty > stock) {
-                $stockContainer.html('<span class="stock-warning">الكمية أكبر من المخزون المتاح (' + stock + ')</span>')
+                $stockContainer.html('<span class="stock-warning">الكمية أكبر من المخزون (' + stock + ')</span>')
                                .attr('title', 'الكمية المطلوبة (' + qty + ') أكبر من المخزون المتاح (' + stock + ')');
             } else if (stock <= 5) {
                 $stockContainer.html('<span class="stock-warning">المخزون المتاح: ' + stock + ' (منخفض)</span>')
@@ -983,6 +1126,7 @@
         loadInitialStock: function() {
             var self = this;
             var warehouseId = self.options.getWarehouseId();
+            var supplierId = self.options.getSupplierId();
             var invoiceId = self.options.getInvoiceId();
             var productIds = [];
 

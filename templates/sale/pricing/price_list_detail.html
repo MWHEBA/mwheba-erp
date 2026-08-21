@@ -1,0 +1,112 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  {% include "shared/page_header.html" %}
+
+  <!-- كروت المعلومات -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-3 col-sm-6">
+      <div class="stats-card stats-card-info h-100">
+        <div class="stats-card-body d-flex align-items-center">
+          <div class="stats-card-icon me-3">
+            <i class="fas fa-tag fa-2x"></i>
+          </div>
+          <div>
+            <div class="stats-card-title text-muted">{% trans "اسم القائمة" %}</div>
+            <div class="stats-card-value fw-bold fs-5">{{ price_list.name }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3 col-sm-6">
+      <div class="stats-card stats-card-success h-100">
+        <div class="stats-card-body d-flex align-items-center">
+          <div class="stats-card-icon me-3">
+            <i class="fas fa-coins fa-2x"></i>
+          </div>
+          <div>
+            <div class="stats-card-title text-muted">{% trans "العملة" %}</div>
+            <div class="stats-card-value fw-bold fs-5">{{ price_list.currency }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3 col-sm-6">
+      <div class="stats-card stats-card-warning h-100">
+        <div class="stats-card-body d-flex align-items-center">
+          <div class="stats-card-icon me-3">
+            <i class="fas fa-calendar-alt fa-2x"></i>
+          </div>
+          <div>
+            <div class="stats-card-title text-muted">{% trans "سارية من" %}</div>
+            <div class="stats-card-value fw-bold fs-5">{{ price_list.effective_from|date:"Y-m-d" }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3 col-sm-6">
+      <div class="stats-card stats-card-primary h-100">
+        <div class="stats-card-body d-flex align-items-center">
+          <div class="stats-card-icon me-3">
+            <i class="fas fa-check-circle fa-2x"></i>
+          </div>
+          <div>
+            <div class="stats-card-title text-muted">{% trans "الحالة" %}</div>
+            <div class="stats-card-value fw-bold fs-5">
+              {% if price_list.is_active %}
+                <span class="badge bg-success">{% trans "نشطة" %}</span>
+              {% else %}
+                <span class="badge bg-secondary">{% trans "معطلة" %}</span>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- جدول بنود قائمة الأسعار -->
+  <div class="section-container">
+    <h5 class="section-title"><i class="fas fa-boxes me-2"></i>{% trans "أسعار المنتجات في القائمة" %}</h5>
+    
+    {% if items %}
+    <div class="table-responsive">
+      <table class="table table-hover table-striped text-center align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>#</th>
+            <th>{% trans "كود المنتج (SKU)" %}</th>
+            <th class="text-start">{% trans "اسم المنتج" %}</th>
+            <th>{% trans "سعر البيع في القائمة" %}</th>
+            <th>{% trans "الحد الأدنى للكمية" %}</th>
+            <th>{% trans "سعر البيع الافتراضي للمنتج" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in items %}
+          <tr>
+            <td>{{ forloop.counter }}</td>
+            <td class="fw-bold text-muted">{{ item.product.sku }}</td>
+            <td class="text-start fw-bold text-primary">{{ item.product.name }}</td>
+            <td class="fw-bold fs-6 text-success">{{ item.unit_price|floatformat:2 }} {{ price_list.currency }}</td>
+            <td>{{ item.min_quantity }}</td>
+            <td class="text-muted">{{ item.product.selling_price|floatformat:2 }} EGP</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="alert alert-info text-center my-4 py-4">
+      <i class="fas fa-box-open fa-2x mb-2 text-muted"></i>
+      <p class="mb-0 fs-5">{% trans "لا توجد بنود منتجات مسجلة في قائمة الأسعار هذه بعد." %}</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

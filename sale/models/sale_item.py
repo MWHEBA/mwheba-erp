@@ -28,6 +28,14 @@ class SaleItem(models.Model):
     discount = models.DecimalField(
         _("الخصم"), max_digits=12, decimal_places=2, default=0
     )
+    cost_center = models.ForeignKey(
+        "financial.CostCenter",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name=_("مركز التكلفة"),
+        related_name="sale_items",
+    )
     total = models.DecimalField(_("الإجمالي"), max_digits=12, decimal_places=2)
 
     class Meta:

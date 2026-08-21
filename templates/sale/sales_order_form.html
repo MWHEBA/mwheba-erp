@@ -1,0 +1,216 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{{ page_title|default:"إنشاء أمر بيع جديد" }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/select2.min.css' %}">
+<style>
+  .select2-container--default .select2-selection--single {
+    height: calc(1.5em + .75rem + 2px);
+    border: 1px solid var(--border-color, #ced4da);
+    border-radius: .25rem;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Page Header -->
+  {% include "shared/page_header.html" %}
+
+  <form method="POST" action="" id="sales-order-form">
+    {% csrf_token %}
+
+    <!-- رأس أمر البيع -->
+    <div class="section-container mb-4">
+      <h5 class="section-title"><i class="fas fa-info-circle me-2"></i>{% trans "بيانات أمر البيع الأساسية" %}</h5>
+      <div class="row g-3">
+        <div class="col-md-4">
+          <label for="customer" class="form-label required">{% trans "العميل" %}</label>
+          <select class="form-select select2" id="customer" name="customer" required>
+            <option value="">{% trans "اختر العميل..." %}</option>
+            {% for c in customers %}
+            <option value="{{ c.id }}" {% if quotation and quotation.customer_id == c.id %}selected{% endif %}>
+              {{ c.name }} {% if c.phone %}({{ c.phone }}){% endif %}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label for="warehouse" class="form-label required">{% trans "المخزن المستهدف" %}</label>
+          <select class="form-select select2" id="warehouse" name="warehouse" required>
+            {% for w in warehouses %}
+            <option value="{{ w.id }}">{{ w.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label for="order_date" class="form-label required">{% trans "تاريخ أمر البيع" %}</label>
+          <input type="date" class="form-control" id="order_date" name="order_date" value="{% now 'Y-m-d' %}" required>
+        </div>
+        <div class="col-md-2">
+          <label for="currency" class="form-label">{% trans "العملة" %}</label>
+          <select class="form-select" id="currency" name="currency">
+            <option value="EGP" selected>EGP</option>
+            <option value="USD">USD</option>
+            <option value="EUR">EUR</option>
+            <option value="SAR">SAR</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- بنود أمر البيع -->
+    <div class="section-container mb-4">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="section-title mb-0"><i class="fas fa-boxes me-2"></i>{% trans "بنود أمر البيع" %}</h5>
+        <button type="button" class="btn btn-outline-primary btn-sm" id="btn-add-item">
+          <i class="fas fa-plus me-1"></i>{% trans "إضافة بند" %}
+        </button>
+      </div>
+
+      <div class="table-responsive">
+        <table class="table table-bordered table-striped text-center align-middle" id="items-table">
+          <thead class="table-light">
+            <tr>
+              <th style="width: 35%;">{% trans "المنتج / الصنف" %}</th>
+              <th style="width: 15%;">{% trans "الكمية" %}</th>
+              <th style="width: 18%;">{% trans "سعر الوحدة" %}</th>
+              <th style="width: 12%;">{% trans "نسبة الخصم %" %}</th>
+              <th style="width: 15%;">{% trans "الإجمالي" %}</th>
+              <th style="width: 5%;">{% trans "حذف" %}</th>
+            </tr>
+          </thead>
+          <tbody id="items-tbody">
+            {% if quotation %}
+              {% for q_item in quotation.items.all %}
+              <tr class="item-row">
+                <td>
+                  <select class="form-select select2-product product-select" name="product[]" required>
+                    <option value="{{ q_item.product.id }}" data-price="{{ q_item.unit_price }}" selected>{{ q_item.product.name }}</option>
+                  </select>
+                </td>
+                <td>
+                  <input type="number" step="0.01" class="form-control text-center item-qty" name="quantity[]" value="{{ q_item.quantity }}" min="0.01" required>
+                </td>
+                <td>
+                  <input type="number" step="0.01" class="form-control text-center item-price" name="unit_price[]" value="{{ q_item.unit_price }}" min="0" required>
+                </td>
+                <td>
+                  <input type="number" step="0.01" class="form-control text-center item-discount" name="discount[]" value="{{ q_item.discount }}" min="0" max="100">
+                </td>
+                <td class="fw-bold text-primary item-total">0.00</td>
+                <td>
+                  <button type="button" class="btn btn-sm btn-outline-danger btn-remove-row"><i class="fas fa-trash"></i></button>
+                </td>
+              </tr>
+              {% endfor %}
+            {% else %}
+              <tr class="item-row">
+                <td>
+                  <select class="form-select select2-product product-select" name="product[]" required>
+                    <option value="">{% trans "اختر المنتج..." %}</option>
+                    {% for p in products %}
+                    <option value="{{ p.id }}" data-price="{{ p.selling_price }}">{{ p.name }} ({{ p.sku }})</option>
+                    {% endfor %}
+                  </select>
+                </td>
+                <td>
+                  <input type="number" step="0.01" class="form-control text-center item-qty" name="quantity[]" value="1.00" min="0.01" required>
+                </td>
+                <td>
+                  <input type="number" step="0.01" class="form-control text-center item-price" name="unit_price[]" value="0.00" min="0" required>
+                </td>
+                <td>
+                  <input type="number" step="0.01" class="form-control text-center item-discount" name="discount[]" value="0.00" min="0" max="100">
+                </td>
+                <td class="fw-bold text-primary item-total">0.00</td>
+                <td>
+                  <button type="button" class="btn btn-sm btn-outline-danger btn-remove-row"><i class="fas fa-trash"></i></button>
+                </td>
+              </tr>
+            {% endif %}
+          </tbody>
+          <tfoot>
+            <tr class="table-light">
+              <td colspan="4" class="text-end fw-bold fs-5">{% trans "المبلغ الإجمالي لأمر البيع:" %}</td>
+              <td class="fw-bold fs-5 text-success" id="grand-total">0.00</td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+
+    <!-- أزرار الحفظ -->
+    <div class="d-flex justify-content-end gap-2 mb-4">
+      <a href="{% url 'sale:sales_order_list' %}" class="btn btn-secondary px-4">{% trans "إلغاء" %}</a>
+      <button type="submit" class="btn btn-primary px-5 fw-bold"><i class="fas fa-save me-2"></i>{% trans "حفظ أمر البيع" %}</button>
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/select2.min.js' %}"></script>
+<script>
+  $(document).ready(function() {
+    $('.select2').select2({ dir: "rtl", language: "ar", width: "100%" });
+
+    function initRowSelect2(elem) {
+      elem.find('.select2-product').select2({ dir: "rtl", language: "ar", width: "100%" });
+    }
+    initRowSelect2($('body'));
+
+    function calculateTotals() {
+      let grandTotal = 0;
+      $('.item-row').each(function() {
+        const qty = parseFloat($(this).find('.item-qty').val()) || 0;
+        const price = parseFloat($(this).find('.item-price').val()) || 0;
+        const disc = parseFloat($(this).find('.item-discount').val()) || 0;
+
+        const lineTotal = qty * price * (1 - (disc / 100));
+        $(this).find('.item-total').text(lineTotal.toFixed(2));
+        grandTotal += lineTotal;
+      });
+      $('#grand-total').text(grandTotal.toFixed(2));
+    }
+
+    $(document).on('change', '.product-select', function() {
+      const price = $(this).find(':selected').data('price') || 0;
+      $(this).closest('tr').find('.item-price').val(price);
+      calculateTotals();
+    });
+
+    $(document).on('input', '.item-qty, .item-price, .item-discount', function() {
+      calculateTotals();
+    });
+
+    $('#btn-add-item').on('click', function() {
+      const firstRow = $('.item-row:first').clone();
+      firstRow.find('input').val('0');
+      firstRow.find('.item-qty').val('1.00');
+      firstRow.find('.item-discount').val('0.00');
+      firstRow.find('.item-total').text('0.00');
+      firstRow.find('.select2-container').remove();
+      firstRow.find('.product-select').val('');
+      $('#items-tbody').append(firstRow);
+      initRowSelect2(firstRow);
+      calculateTotals();
+    });
+
+    $(document).on('click', '.btn-remove-row', function() {
+      if ($('.item-row').length > 1) {
+        $(this).closest('tr').remove();
+        calculateTotals();
+      } else {
+        alert('{% trans "يجب أن يحتوي أمر البيع على بند واحد على الأقل." %}');
+      }
+    });
+
+    calculateTotals();
+  });
+</script>
+{% endblock %}

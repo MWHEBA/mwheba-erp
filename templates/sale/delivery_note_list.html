@@ -1,0 +1,186 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load custom_filters %}
+
+{% block title %}{{ page_title|default:"إذون تسليم البضاعة" }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/select2.min.css' %}">
+<style>
+  .select2-container--default .select2-selection--single {
+    height: calc(1.5em + .75rem + 2px);
+    border: 1px solid var(--border-color, #ced4da);
+    border-radius: .25rem;
+  }
+  .select2-container--default .select2-selection--single .select2-selection__arrow {
+    height: calc(1.5em + .75rem + 2px);
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Page Header المركزي -->
+  {% include "shared/page_header.html" %}
+
+  <!-- كروت الإحصائيات KPI Cards -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-4 col-sm-6">
+      <div class="stats-card stats-card-info h-100">
+        <div class="stats-card-body d-flex align-items-center">
+          <div class="stats-card-icon me-3">
+            <i class="fas fa-truck fa-2x"></i>
+          </div>
+          <div>
+            <div class="stats-card-title text-muted">{% trans "إجمالي إذون التسليم" %}</div>
+            <div class="stats-card-value fw-bold fs-4">{{ stats.total_count }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4 col-sm-6">
+      <div class="stats-card stats-card-success h-100">
+        <div class="stats-card-body d-flex align-items-center">
+          <div class="stats-card-icon me-3">
+            <i class="fas fa-check-double fa-2x"></i>
+          </div>
+          <div>
+            <div class="stats-card-title text-muted">{% trans "إذون تم تسليمها" %}</div>
+            <div class="stats-card-value fw-bold fs-4">{{ stats.delivered_count }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4 col-sm-6">
+      <div class="stats-card stats-card-primary h-100">
+        <div class="stats-card-body d-flex align-items-center">
+          <div class="stats-card-icon me-3">
+            <i class="fas fa-file-invoice-dollar fa-2x"></i>
+          </div>
+          <div>
+            <div class="stats-card-title text-muted">{% trans "إذون مفوترة بالكامل" %}</div>
+            <div class="stats-card-value fw-bold fs-4">{{ stats.invoiced_count }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- تصفية وبحث قابلة للطي -->
+  <div class="section-container mb-4">
+    <h5 class="section-title" data-bs-toggle="collapse" data-bs-target="#filterSection" aria-expanded="false" style="cursor: pointer;">
+      <i class="fas fa-filter me-2"></i>{% trans "تصفية وبحث" %}
+      <i class="fas fa-chevron-down float-end"></i>
+    </h5>
+    <div class="collapse" id="filterSection">
+      <div class="filter-section p-3">
+        <form method="GET" action="" id="filter-form" class="row g-3">
+          <div class="col-md-3">
+            <label for="search" class="form-label">{% trans "بحث برقم الإذن أو العميل أو أمر البيع" %}</label>
+            <input type="text" class="form-control" id="search" name="search" placeholder="{% trans 'بحث...' %}" value="{{ request.GET.search }}">
+          </div>
+          <div class="col-md-3">
+            <label for="customer" class="form-label">{% trans "العميل" %}</label>
+            <select class="form-select select2-filter" id="customer" name="customer">
+              <option value="">{% trans "جميع العملاء" %}</option>
+              {% for customer in customers %}
+              <option value="{{ customer.id }}" {% if request.GET.customer == customer.id|stringformat:"i" %}selected{% endif %}>
+                {{ customer.name }}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-2">
+            <label for="warehouse" class="form-label">{% trans "المخزن" %}</label>
+            <select class="form-select" id="warehouse" name="warehouse">
+              <option value="">{% trans "جميع المخازن" %}</option>
+              {% for wh in warehouses %}
+              <option value="{{ wh.id }}" {% if request.GET.warehouse == wh.id|stringformat:"i" %}selected{% endif %}>
+                {{ wh.name }}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-2">
+            <label for="status" class="form-label">{% trans "الحالة" %}</label>
+            <select class="form-select" id="status" name="status">
+              <option value="">{% trans "الكل" %}</option>
+              <option value="DRAFT" {% if request.GET.status == 'DRAFT' %}selected{% endif %}>{% trans "مسودة" %}</option>
+              <option value="DELIVERED" {% if request.GET.status == 'DELIVERED' %}selected{% endif %}>{% trans "تم التسليم" %}</option>
+              <option value="INVOICED" {% if request.GET.status == 'INVOICED' %}selected{% endif %}>{% trans "مفوتر" %}</option>
+            </select>
+          </div>
+          <div class="col-md-2 d-flex gap-2 align-items-end">
+            <button type="submit" class="btn btn-primary w-100">
+              <i class="fas fa-search me-1"></i>{% trans "تطبيق" %}
+            </button>
+            <a href="{% url 'sale:delivery_note_list' %}" class="btn btn-outline-secondary" title="{% trans 'إعادة تعيين' %}">
+              <i class="fas fa-undo"></i>
+            </a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- جدول إذون التسليم -->
+  <div class="section-container">
+    <h5 class="section-title"><i class="fas fa-list me-2"></i>{% trans "سجل إذون تسليم البضاعة" %}</h5>
+    <div id="delivery-notes-table-container">
+      {% include "sale/partials/delivery_note_table.html" %}
+    </div>
+
+    <!-- الترقيم SSR Pagination -->
+    <div id="pagination-wrapper" class="mt-3">
+      {% include "partials/pagination.html" with page_obj=page_obj %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/select2.min.js' %}"></script>
+<script>
+  $(document).ready(function() {
+    $('.select2-filter').select2({
+      dir: "rtl",
+      language: "ar",
+      width: "100%"
+    });
+
+    function initTableEvents() {
+      $('.clickable-row').on('click', function(e) {
+        if ($(e.target).closest('a, button, .col-actions, .btn').length === 0) {
+          window.location.href = $(this).data('href');
+        }
+      });
+    }
+    initTableEvents();
+
+    window.doSearch = function() {
+      const form = $('#filter-form');
+      const url = form.attr('action') || window.location.pathname;
+      const data = form.serialize();
+
+      $.ajax({
+        url: url,
+        data: data,
+        headers: {'X-Requested-With': 'XMLHttpRequest'},
+        success: function(response) {
+          if (response.table_html) {
+            $('#delivery-notes-table-container').html(response.table_html);
+            $('#pagination-wrapper').html(response.pagination_html);
+            initTableEvents();
+            window.history.replaceState({}, '', url + '?' + data);
+          }
+        }
+      });
+    };
+
+    $('#filter-form input, #filter-form select').on('change', function() {
+      window.doSearch();
+    });
+  });
+</script>
+{% endblock %}

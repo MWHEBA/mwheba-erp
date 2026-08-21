@@ -2519,19 +2519,21 @@ def create_credit_note_posting(command) -> JournalEntry:
     from financial.services.role_registry import AccountRoleRegistry
 
     doc_num = getattr(command, "document_number", getattr(command, "credit_note_number", "N/A"))
-    total_amt = getattr(command, "total_amount", getattr(command, "amount", Decimal("0.00")))
-    tax_amt = getattr(command, "tax_amount", Decimal("0.00"))
-    subtotal_amt = getattr(command, "subtotal_amount", total_amt - tax_amt)
+    subtotal_amt = Decimal(str(getattr(command, "subtotal_amount", getattr(command, "amount", Decimal("0.00"))))).quantize(Decimal("0.01"))
+    tax_amt = Decimal(str(getattr(command, "tax_amount", Decimal("0.00")))).quantize(Decimal("0.01"))
+    total_amt = Decimal(str(getattr(command, "total_amount", subtotal_amt + tax_amt))).quantize(Decimal("0.01"))
 
     sales_ret_acc = getattr(command, "revenue_account", None) or AccountRoleRegistry.get_account_by_role("SALES_RETURNS_ACCOUNT")
     tax_acc = getattr(command, "vat_account", None) or AccountRoleRegistry.get_account_by_role("OUTPUT_TAX_ACCOUNT")
     ar_acc = getattr(command, "customer_account", None) or AccountRoleRegistry.get_account_by_role("AR_CONTROL_ACCOUNT")
 
-    lines = [
-        {"account": sales_ret_acc, "debit": subtotal_amt, "credit": 0, "description": f"مرتجع/إشعار دائن #{doc_num}"},
-        {"account": tax_acc, "debit": tax_amt, "credit": 0, "description": f"عكس ضريبة مخرجات إشعار دائن #{doc_num}"},
-        {"account": ar_acc, "debit": 0, "credit": total_amt, "description": f"تخفيض حساب العميل إشعار دائن #{doc_num}"},
-    ]
+    lines = []
+    if subtotal_amt > 0:
+        lines.append({"account": sales_ret_acc, "debit": subtotal_amt, "credit": 0, "description": f"مرتجع/إشعار دائن #{doc_num}"})
+    if tax_amt > 0:
+        lines.append({"account": tax_acc, "debit": tax_amt, "credit": 0, "description": f"عكس ضريبة مخرجات إشعار دائن #{doc_num}"})
+    if total_amt > 0:
+        lines.append({"account": ar_acc, "debit": 0, "credit": total_amt, "description": f"تخفيض حساب العميل إشعار دائن #{doc_num}"})
 
     return LegacyAccountingAdapter.post_journal_entry(
         description=f"قيد ترحيل إشعار دائن #{doc_num}",
@@ -2555,12 +2557,15 @@ def create_credit_note_reversal_posting(command) -> JournalEntry:
     ar_acc = AccountRoleRegistry.get_account_by_role("AR_CONTROL_ACCOUNT")
 
     cn = command.original_credit_note
+    doc_num = getattr(cn, "credit_note_number", "N/A")
 
-    lines = [
-        {"account": ar_acc, "debit": cn.total_amount, "credit": 0, "description": f"إعادة زيادة حساب العميل (عكس إشعار دائن #{cn.credit_note_number})"},
-        {"account": sales_ret_acc, "debit": 0, "credit": cn.subtotal_amount, "description": f"عكس مسببات إشعار دائن #{cn.credit_note_number}"},
-        {"account": tax_acc, "debit": 0, "credit": cn.tax_amount, "description": f"إعادة اثبات ضريبة المخرجات"},
-    ]
+    lines = []
+    if cn.total_amount > 0:
+        lines.append({"account": ar_acc, "debit": cn.total_amount, "credit": 0, "description": f"إعادة زيادة حساب العميل (عكس إشعار دائن #{doc_num})"})
+    if cn.subtotal_amount > 0:
+        lines.append({"account": sales_ret_acc, "debit": 0, "credit": cn.subtotal_amount, "description": f"عكس مسببات إشعار دائن #{doc_num}"})
+    if cn.tax_amount > 0:
+        lines.append({"account": tax_acc, "debit": 0, "credit": cn.tax_amount, "description": f"إعادة اثبات ضريبة المخرجات"})
 
     return LegacyAccountingAdapter.post_journal_entry(
         description=f"قيد عكس إشعار دائن #{cn.credit_note_number}",

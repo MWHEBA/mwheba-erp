@@ -95,12 +95,17 @@ class SalesReversalService:
                     unit_p = item.delivery_item.so_item.unit_price if hasattr(item.delivery_item, 'so_item') else Decimal("0.00")
                     line_sub = (qty * unit_p).quantize(Decimal("0.01"))
                     
-                    # Dynamically resolve product tax rate
+                    # Dynamically resolve product tax rate (fallback to standard default VAT 14%)
                     rate_val = Decimal("14.0000")
-                    if hasattr(item.product, 'tax_code') and item.product.tax_code:
+                    if getattr(item.product, 'tax_code', None):
                         rate_val = item.product.tax_code.rate
-                    elif hasattr(item.product, 'tax_rate') and item.product.tax_rate is not None:
+                    elif getattr(item.product, 'tax_rate', None) is not None and Decimal(str(item.product.tax_rate)) > Decimal("0.00"):
                         rate_val = Decimal(str(item.product.tax_rate))
+                    else:
+                        from financial.models import TaxCode
+                        default_tax = TaxCode.objects.filter(is_default=True, is_active=True).first() or TaxCode.objects.filter(code__in=["T1", "VAT14", "VAT_14", "VAT"]).first()
+                        if default_tax:
+                            rate_val = default_tax.rate
 
                     line_vat = (line_sub * (rate_val / Decimal("100.00"))).quantize(Decimal("0.01"))
                     line_tot = line_sub + line_vat
@@ -303,8 +308,83 @@ class SalesReversalService:
                 timestamp=audit.created_at.isoformat()
             )
 
+            logger.info(f"CreditNoteAudit #{audit.id} posted for CreditNote #{cn.credit_note_number} (Hash: {hash_val[:8]}...).")
+            return audit
+
+    @classmethod
+    def reverse_credit_note(
+        cls,
+        credit_note_id: int,
+        reason: str = "Credit Note Reversal",
+        user=None
+    ) -> CreditNoteAudit:
+        """
+        عكس إشعار دائن مرحل وفق الحوكمة المحاسبية والأثر الرجعي FIN-SAL-005
+        """
+        with transaction.atomic():
+            cn = CreditNote.objects.select_for_update().get(pk=credit_note_id)
+            if cn.status != "POSTED":
+                raise FinancialCoreError(f"Cannot reverse Credit Note #{cn.credit_note_number} in status {cn.status}. Must be POSTED.")
+
+            event_id = uuid.uuid4()
+            correlation_id = uuid.uuid4()
+
+            class CreditNoteReversalCommand:
+                def __init__(self, original_credit_note, reason, user):
+                    self.original_credit_note = original_credit_note
+                    self.reason = reason
+                    self.user = user
+
+            reversal_command = CreditNoteReversalCommand(
+                original_credit_note=cn,
+                reason=reason,
+                user=user
+            )
+
+            journal_entry = create_credit_note_reversal_posting(reversal_command)
+
+            subledger_entry = CustomerSubledgerService.register_open_item_transaction(
+                customer=cn.customer,
+                transaction_type="DEBIT_NOTE",
+                transaction_number=f"REV-{cn.credit_note_number}",
+                issue_date=timezone.now().date(),
+                due_date=timezone.now().date(),
+                currency=cn.currency,
+                foreign_amount=cn.total_amount,
+                exchange_rate=cn.exchange_rate,
+                functional_amount=cn.total_amount,
+                journal_entry=journal_entry
+            )
+
+            old_stat = cn.status
+            cn.status = "CANCELLED"
+            cn.save()
+
+            audit = CreditNoteAudit(
+                credit_note=cn,
+                event_type="CREDIT_NOTE_REVERSED",
+                old_status=old_stat,
+                new_status="CANCELLED",
+                journal_reference=f"REV-CN-{cn.credit_note_number}",
+                customer_transaction_reference=str(subledger_entry.id) if subledger_entry else "",
+                correlation_id=correlation_id,
+                processed_event_id=event_id,
+                audit_hash="",
+                journal_entry=journal_entry
+            )
+            audit.save()
+
+            hash_val = cls.generate_canonical_credit_note_hash(
+                correlation_id=str(correlation_id),
+                processed_event_id=event_id,
+                credit_note_number=cn.credit_note_number,
+                total_amount=cn.total_amount,
+                timestamp=audit.created_at.isoformat()
+            )
+
             CreditNoteAudit.objects.filter(pk=audit.id).update(audit_hash=hash_val)
             audit.audit_hash = hash_val
 
-            logger.info(f"CreditNoteAudit #{audit.id} posted for CreditNote #{cn.credit_note_number} (Hash: {hash_val[:8]}...).")
+            logger.info(f"CreditNote #{cn.credit_note_number} reversed successfully.")
             return audit
+

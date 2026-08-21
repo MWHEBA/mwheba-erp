@@ -124,6 +124,7 @@ def po_create(request):
     from financial.models import Currency, CostCenter
     from core.models import SystemSetting
     from work_order.models import WorkOrder
+    from product.models import Category
 
     # قراءة أمر الشغل إذا تم تمريره
     work_order_id = request.GET.get("work_order") or request.POST.get("work_order")
@@ -193,7 +194,7 @@ def po_create(request):
 
         product_ids = request.POST.getlist("product[]") or request.POST.getlist("product_id[]")
         quantities = request.POST.getlist("quantity[]")
-        unit_prices = request.POST.getlist("unit_price[]")
+        unit_prices = request.POST.getlist("unit_price[]") or request.POST.getlist("unit_cost[]")
         item_discounts = request.POST.getlist("discount[]") or request.POST.getlist("item_discount[]")
         variants = request.POST.getlist("variant[]")
         units = request.POST.getlist("unit[]")
@@ -285,26 +286,32 @@ def po_create(request):
                 po.total_amount = grand_total
                 po.total_foreign = grand_total
                 po.functional_amount = (grand_total * po.exchange_rate).quantize(Decimal("0.01"))
+                po.save()
                 action = request.POST.get("action", "save_draft")
                 if action == "submit_approval":
                     po.status = "SUBMITTED"
+                    po.save()
                     messages.success(request, _(f"تم إنشاء أمر الشراء #{po.order_number} وتقديمه للاعتماد بنجاح."))
                 else:
                     po.status = "DRAFT"
-                    messages.success(request, _(f"تم حفظ مسودة أمر الشراء #{po.order_number} بنجاح."))
-                po.save()
+                    messages.success(request, _(f"تم إنشاء مسودة أمر الشراء #{po.order_number} بنجاح."))
                 return redirect("purchase:po_detail", pk=po.id)
+        except FinancialCoreError as e:
+            messages.error(request, str(e))
+            return redirect("purchase:po_create")
         except Exception as e:
-            messages.error(request, _(f"حدث خطأ أثناء حفظ أمر الشراء: {str(e)}"))
+            messages.error(request, _(f"حدث خطأ غير متوقع أثناء حفظ أمر الشراء: {e}"))
             return redirect("purchase:po_create")
 
     suppliers = Supplier.objects.filter(is_active=True).order_by("name")
-    warehouses = Warehouse.objects.filter(is_active=True) if hasattr(Warehouse, "is_active") else Warehouse.objects.all()
-    products = Product.objects.filter(is_active=True).select_related("unit")
-    cost_centers = CostCenter.objects.filter(is_active=True).order_by("code") if hasattr(CostCenter, "is_active") else CostCenter.objects.all()
+    warehouses = Warehouse.objects.filter(is_active=True).order_by("name")
+    products = Product.objects.filter(is_active=True).order_by("name")
+    product_categories = Category.objects.filter(is_active=True).order_by("name")
+    cost_centers = CostCenter.objects.filter(is_active=True).order_by("code")
     currencies = Currency.objects.filter(is_active=True).order_by("-is_functional", "code")
-    functional_currency = Currency.objects.filter(is_functional=True).first()
     active_currencies = currencies
+    functional_currency = Currency.objects.filter(is_functional=True).first()
+    
     enable_tax = SystemSetting.get_setting("enable_tax", True)
     if isinstance(enable_tax, str):
         enable_tax = enable_tax.lower() in ["true", "1", "yes", "نعم"]
@@ -312,19 +319,21 @@ def po_create(request):
     breadcrumb_items = [
         {"title": _("الرئيسية"), "url": reverse("core:dashboard"), "icon": "fa-home"},
         {"title": _("أوامر الشراء"), "url": reverse("purchase:po_list"), "icon": "fa-file-invoice"},
-        {"title": _("إنشاء أمر شراء"), "active": True}
+        {"title": _("إنشاء جديد"), "active": True}
     ]
-    currency_symbol = functional_currency.symbol if functional_currency and functional_currency.symbol else "ج.م"
+    currency_symbol = duplicate_po.currency.symbol if duplicate_po and duplicate_po.currency and duplicate_po.currency.symbol else (functional_currency.symbol if functional_currency else "ج.م")
     selected_curr_id = duplicate_po.currency_id if duplicate_po else (functional_currency.id if functional_currency else None)
-    selected_curr_is_foreign = bool(duplicate_po and duplicate_po.currency and not duplicate_po.currency.is_functional)
+    selected_curr_is_foreign = bool(duplicate_po.currency and not duplicate_po.currency.is_functional) if duplicate_po else False
     selected_ex_rate = str(duplicate_po.exchange_rate) if duplicate_po else "1.000000"
     context = {
         "po": duplicate_po,
+        "is_duplicate": bool(duplicate_po),
         "form": form,
         "suppliers": suppliers,
         "selected_supplier": selected_supplier,
         "warehouses": warehouses,
         "products": products,
+        "product_categories": product_categories,
         "cost_centers": cost_centers,
         "currencies": currencies,
         "active_currencies": active_currencies,
@@ -349,6 +358,7 @@ def po_edit(request, pk):
     from purchase.forms import PurchaseOrderForm
     from financial.models import Currency, CostCenter
     from core.models import SystemSetting
+    from product.models import Category
 
     po = get_object_or_404(
         PurchaseOrder.objects.select_related("supplier", "warehouse", "currency", "cost_center")
@@ -365,7 +375,7 @@ def po_edit(request, pk):
     if request.method == "POST":
         supplier_id = request.POST.get("supplier")
         warehouse_id = request.POST.get("warehouse") or None
-        order_date = request.POST.get("order_date") or timezone.now().date()
+        order_date = request.POST.get("order_date") or po.order_date
         delivery_due_date = request.POST.get("delivery_due_date") or None
         currency_id = request.POST.get("currency")
         exchange_rate_val = Decimal(str(request.POST.get("exchange_rate") or "1.000000"))
@@ -386,9 +396,10 @@ def po_edit(request, pk):
         adjustment_type = request.POST.get("adjustment_type", "add")
         adjustment_amount_val = Decimal(str(request.POST.get("adjustment_amount") or "0.00"))
 
+        item_ids = request.POST.getlist("item_id[]")
         product_ids = request.POST.getlist("product[]") or request.POST.getlist("product_id[]")
         quantities = request.POST.getlist("quantity[]")
-        unit_prices = request.POST.getlist("unit_price[]")
+        unit_prices = request.POST.getlist("unit_price[]") or request.POST.getlist("unit_cost[]")
         item_discounts = request.POST.getlist("discount[]") or request.POST.getlist("item_discount[]")
         variants = request.POST.getlist("variant[]")
         units = request.POST.getlist("unit[]")
@@ -403,9 +414,9 @@ def po_edit(request, pk):
         currency_obj = Currency.objects.filter(pk=currency_id).first() if currency_id else Currency.objects.filter(is_functional=True).first()
         cost_center = CostCenter.objects.filter(pk=cost_center_id).first() if cost_center_id else None
 
-        custom_fields_data = []
+        custom_fields_data = po.custom_fields
         try:
-            cf_json = request.POST.get("custom_fields_json", "[]")
+            cf_json = request.POST.get("custom_fields_json")
             if cf_json:
                 custom_fields_data = json.loads(cf_json)
         except Exception:
@@ -425,18 +436,18 @@ def po_edit(request, pk):
                 po.notes = notes
                 po.custom_fields = custom_fields_data
 
-                existing_items = {item.product_id: item for item in po.items.all()}
-                submitted_product_ids = set()
+                existing_items = {item.id: item for item in po.items.all()}
+                submitted_item_ids = set()
                 subtotal_amt = Decimal("0.00")
 
                 for i in valid_indices:
                     p_id = int(product_ids[i])
-                    if p_id in submitted_product_ids:
-                        continue
-                    submitted_product_ids.add(p_id)
                     product = Product.objects.filter(pk=p_id).first()
                     if not product:
                         continue
+
+                    raw_item_id = item_ids[i] if i < len(item_ids) and item_ids[i] else None
+                    item_id_val = int(raw_item_id) if raw_item_id and str(raw_item_id).isdigit() else None
 
                     qty = Decimal(str(quantities[i] if i < len(quantities) and quantities[i] else "1.0000"))
                     price = Decimal(str(unit_prices[i] if i < len(unit_prices) and unit_prices[i] else "0.00"))
@@ -446,10 +457,12 @@ def po_edit(request, pk):
                     unit_obj = Unit.objects.filter(pk=unit_id).first() if unit_id else getattr(product, "unit", None)
                     line_total = max(Decimal("0.00"), (qty * price) - line_disc).quantize(Decimal("0.01"))
 
-                    if p_id in existing_items:
-                        item = existing_items[p_id]
+                    if item_id_val and item_id_val in existing_items:
+                        item = existing_items[item_id_val]
+                        submitted_item_ids.add(item.id)
                         if qty < item.received_qty:
                             raise FinancialCoreError(_(f"لا يمكن تقليل كمية الصنف {product.name} عن الكمية المستلمة بالفعل ({item.received_qty})."))
+                        item.product = product
                         item.ordered_qty = qty
                         item.unit_price = price
                         item.discount = line_disc
@@ -458,7 +471,7 @@ def po_edit(request, pk):
                         item.variant_id = variant_id
                         item.save()
                     else:
-                        PurchaseOrderItem.objects.create(
+                        new_item = PurchaseOrderItem.objects.create(
                             purchase_order=po,
                             product=product,
                             variant_id=variant_id,
@@ -468,12 +481,13 @@ def po_edit(request, pk):
                             discount=line_disc,
                             total_price=line_total
                         )
+                        submitted_item_ids.add(new_item.id)
                     subtotal_amt += line_total
 
-                for p_id, item in existing_items.items():
-                    if p_id not in submitted_product_ids:
+                for it_id, item in existing_items.items():
+                    if it_id not in submitted_item_ids:
                         if item.received_qty > 0:
-                            raise FinancialCoreError(_(f"لا يمكن حذف الصنف {item.product.name} لوجود استلامات مخزنية مسجلة عليه."))
+                            raise FinancialCoreError(_(f"لا يمكن حذف الصنف {item.product.name} لوجود استلامات مخزنية مسجلة عليه ({item.received_qty})."))
                         item.delete()
 
                 po.subtotal = subtotal_amt
@@ -496,31 +510,39 @@ def po_edit(request, pk):
                 po.total_amount = grand_total
                 po.total_foreign = grand_total
                 po.functional_amount = (grand_total * po.exchange_rate).quantize(Decimal("0.01"))
+                po.save()
+
                 action = request.POST.get("action", "save_draft")
                 if action == "submit_approval":
                     po.status = "SUBMITTED"
                     po.approved_by = None
+                    po.save()
                     messages.success(request, _(f"تم تحديث أمر الشراء #{po.order_number} وإعادة تقديمه للاعتماد."))
                 else:
                     if po.status == "APPROVED":
                         po.status = "DRAFT"
                         po.approved_by = None
+                        po.save()
                         messages.warning(request, _(f"تم تعديل أمر الشراء #{po.order_number} وإعادته لحالة المسودة لإعادة اعتماده."))
                     else:
                         messages.success(request, _(f"تم تحديث أمر الشراء #{po.order_number} بنجاح."))
-                po.save()
                 return redirect("purchase:po_detail", pk=po.id)
+        except FinancialCoreError as e:
+            messages.error(request, str(e))
+            return redirect("purchase:po_edit", pk=po.id)
         except Exception as e:
-            messages.error(request, _(f"حدث خطأ أثناء التعديل: {str(e)}"))
+            messages.error(request, _(f"حدث خطأ غير متوقع أثناء تحديث أمر الشراء: {e}"))
             return redirect("purchase:po_edit", pk=po.id)
 
     suppliers = Supplier.objects.filter(is_active=True).order_by("name")
-    warehouses = Warehouse.objects.filter(is_active=True) if hasattr(Warehouse, "is_active") else Warehouse.objects.all()
-    products = Product.objects.filter(is_active=True).select_related("unit")
-    cost_centers = CostCenter.objects.filter(is_active=True).order_by("code") if hasattr(CostCenter, "is_active") else CostCenter.objects.all()
+    warehouses = Warehouse.objects.filter(is_active=True).order_by("name")
+    products = Product.objects.filter(is_active=True).order_by("name")
+    product_categories = Category.objects.filter(is_active=True).order_by("name")
+    cost_centers = CostCenter.objects.filter(is_active=True).order_by("code")
     currencies = Currency.objects.filter(is_active=True).order_by("-is_functional", "code")
-    functional_currency = Currency.objects.filter(is_functional=True).first()
     active_currencies = currencies
+    functional_currency = Currency.objects.filter(is_functional=True).first()
+    
     enable_tax = SystemSetting.get_setting("enable_tax", True)
     if isinstance(enable_tax, str):
         enable_tax = enable_tax.lower() in ["true", "1", "yes", "نعم"]
@@ -535,11 +557,13 @@ def po_edit(request, pk):
     is_foreign = bool(po.currency and not po.currency.is_functional)
     context = {
         "po": po,
+        "is_duplicate": False,
         "form": form,
         "suppliers": suppliers,
         "selected_supplier": po.supplier,
         "warehouses": warehouses,
         "products": products,
+        "product_categories": product_categories,
         "cost_centers": cost_centers,
         "currencies": currencies,
         "active_currencies": active_currencies,

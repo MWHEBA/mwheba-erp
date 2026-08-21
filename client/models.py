@@ -466,7 +466,6 @@ class CustomerCreditStatusHistory(models.Model):
     created_at = models.DateTimeField(_("تاريخ التعديل"), auto_now_add=True)
 
     class Meta:
-        managed = False
         verbose_name = _("سجل حالة الائتمان")
         verbose_name_plural = _("سجلات حالة الائتمان")
         ordering = ["-created_at"]

@@ -277,3 +277,22 @@ def credit_note_post(request, pk):
         messages.error(request, _("تعذر ترحيل الإشعار الدائن: {}").format(str(e)))
 
     return redirect("sale:credit_note_detail", pk=credit_note.pk)
+
+
+@login_required
+def credit_note_reverse(request, pk):
+    """
+    عكس الإشعار الدائن المرحل وفق الحوكمة المحاسبية والأثر الرجعي
+    """
+    credit_note = get_object_or_404(CreditNote, pk=pk)
+    if request.method == "POST":
+        reason = request.POST.get("reason", "Credit note cancellation and reversal")
+        try:
+            SalesReversalService.reverse_credit_note(credit_note.id, reason=reason, user=request.user)
+            messages.success(request, _("تم عكس الإشعار الدائن رقم {} وتوليد قيد العكس بنجاح").format(credit_note.credit_note_number))
+        except Exception as e:
+            logger.error(f"Error reversing credit note: {str(e)}")
+            messages.error(request, _("تعذر عكس الإشعار الدائن: {}").format(str(e)))
+
+    return redirect("sale:credit_note_detail", pk=credit_note.pk)
+
