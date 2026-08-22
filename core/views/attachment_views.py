@@ -11,7 +11,7 @@ from core.services.file_security_service import FileSecurityValidator
 @login_required
 def secure_attachment_download_view(request, pk):
     """
-    بوابة التنزيل التدفقية المباشرة والمحمية بالصلاحيات (Secure Streamed Download Gateway)
+    بوابة التحميل التدفقية المباشرة والمحمية بالصلاحيات (Secure Streamed Download Gateway)
     /core/attachments/<pk>/download/
     """
     attachment = get_object_or_404(Attachment, pk=pk, deleted_at__isnull=True)
@@ -20,7 +20,7 @@ def secure_attachment_download_view(request, pk):
     # 1. فحص الصلاحية الخاصة بالفئة إن وجدت
     if category.permission_required:
         if not request.user.has_perm(category.permission_required):
-            return HttpResponseForbidden(_("ليس لديك الصلاحية المطلوبة لتنزيل هذا المستند."))
+            return HttpResponseForbidden(_("ليس لديك الصلاحية المطلوبة لتحميل هذا المستند."))
 
     blob = attachment.file_blob
     file_path = blob.file.path
@@ -33,7 +33,7 @@ def secure_attachment_download_view(request, pk):
         if not FileSecurityValidator.verify_file_integrity(file_path, blob.sha256_hash):
             return HttpResponseForbidden(_("فشل فحص سلامة البصمة الرقمية للمستند (SHA-256 Mismatch)."))
 
-    # 3. توثيق حركة التنزيل في سجلات التدقيق
+    # 3. توثيق حركة التحميل في سجلات التدقيق
     AttachmentAuditLog.objects.create(
         attachment=attachment,
         action='DOWNLOADED',

@@ -759,7 +759,7 @@ def quotation_print(request, pk):
 @login_required
 def quotation_pdf_download(request, pk):
     """
-    تصدير/تنزيل عرض سعر مباشرة كـ PDF بنسق نقي
+    تصدير/تحميل عرض سعر مباشرة كـ PDF بنسق نقي
     """
     from django.template.loader import render_to_string
     from utils.pdf_utils import generate_pdf_from_html, generate_guaranteed_pdf_response

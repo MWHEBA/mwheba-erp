@@ -1,20 +1,20 @@
 {% load i18n %}
 {% comment %}
-  مكون السحب والإفلات الموحد للمرفقات المتعددة (Enterprise Multi-File Drag & Drop Uploader Component)
-  المعلمات المقبولة:
-  - uploader_id: معرف فريد للمكون (مثال: 'journal_uploader')
-  - category_code: كود فئة المستند الحوكمية (مثال: 'JOURNAL_ENTRY')
-  - label: النص التوضيحي المكتوب فوق المكون
-  - input_name: اسم حقل الملفات (الافتراضي: 'attachments')
-  - existing_attachments: قائمة المرفقات الحالية المربوطة بالكائن (اختياري)
-  - can_delete: السماح بحذف المرفقات الحالية (الافتراضي: True)
+مكون السحب والإفلات الموحد للمرفقات المتعددة (Enterprise Multi-File Drag & Drop Uploader Component)
+المعلمات المقبولة:
+- uploader_id: معرف فريد للمكون (مثال: 'journal_uploader')
+- category_code: كود فئة المستند الحوكمية (مثال: 'JOURNAL_ENTRY')
+- label: النص التوضيحي المكتوب فوق المكون
+- input_name: اسم حقل الملفات (الافتراضي: 'attachments')
+- existing_attachments: قائمة المرفقات الحالية المربوطة بالكائن (اختياري)
+- can_delete: السماح بحذف المرفقات الحالية (الافتراضي: True)
 {% endcomment %}
 
 <div class="mb-3 dms-uploader-container" id="container_{{ uploader_id|default:'default_uploader' }}">
     {% if label %}
-        <label class="form-label fw-semibold text-secondary mb-1">
-            <i class="fas fa-paperclip me-1"></i>{{ label }}
-        </label>
+    <label class="form-label fw-semibold text-secondary mb-1">
+        <i class="fas fa-paperclip me-1"></i>{{ label }}
+    </label>
     {% endif %}
 
     <!-- عرض المرفقات الحالية المسجلة مسبقاً إن وجدت -->
@@ -23,40 +23,39 @@
         <div class="d-flex flex-column gap-2">
             {% for att in existing_attachments %}
             <div class="existing-attachment-card d-flex align-items-center justify-content-between bg-white border rounded-2 p-2 shadow-sm"
-                 id="attachment_row_{{ att.pk }}">
+                id="attachment_row_{{ att.pk }}">
                 <div class="d-flex align-items-center gap-2 overflow-hidden flex-grow-1">
-                    <div class="file-icon-badge bg-light rounded-2 p-2 d-flex align-items-center justify-content-center" style="width: 36px; height: 36px;">
+                    <div class="file-icon-badge bg-light rounded-2 p-2 d-flex align-items-center justify-content-center"
+                        style="width: 36px; height: 36px;">
                         {% if ".pdf" in att.original_name|lower %}
-                            <i class="fas fa-file-pdf text-danger fs-5"></i>
-                        {% elif ".png" in att.original_name|lower or ".jpg" in att.original_name|lower or ".jpeg" in att.original_name|lower %}
-                            <i class="fas fa-file-image text-info fs-5"></i>
+                        <i class="fas fa-file-pdf text-danger fs-5"></i>
+                        {% elif ".png" in att.original_name|lower or ".jpg" in att.original_name|lower or ".jpeg" in
+                        att.original_name|lower %}
+                        <i class="fas fa-file-image text-info fs-5"></i>
                         {% elif ".xls" in att.original_name|lower or ".csv" in att.original_name|lower %}
-                            <i class="fas fa-file-excel text-success fs-5"></i>
+                        <i class="fas fa-file-excel text-success fs-5"></i>
                         {% elif ".doc" in att.original_name|lower %}
-                            <i class="fas fa-file-word text-primary fs-5"></i>
+                        <i class="fas fa-file-word text-primary fs-5"></i>
                         {% else %}
-                            <i class="fas fa-file-alt text-secondary fs-5"></i>
+                        <i class="fas fa-file-alt text-secondary fs-5"></i>
                         {% endif %}
                     </div>
                     <div class="file-details overflow-hidden" style="max-width: 75%;">
-                        <div class="file-name text-truncate fw-semibold text-dark fs-7" dir="ltr">{{ att.original_name }}</div>
+                        <div class="file-name text-truncate fw-semibold text-dark fs-7" dir="ltr">{{ att.original_name
+                            }}</div>
                         <small class="text-muted fs-8">
                             {{ att.file_blob.file_size|filesizeformat }} &bull; {{ att.created_at|date:"Y-m-d H:i" }}
                         </small>
                     </div>
                 </div>
                 <div class="d-flex align-items-center gap-1">
-                    <a href="{% url 'core:secure_attachment_download' att.pk %}" 
-                       class="btn btn-sm btn-outline-primary px-2 py-1 fs-8" 
-                       title="تنزيل الملف"
-                       target="_blank">
+                    <a href="{% url 'core:secure_attachment_download' att.pk %}"
+                        class="btn btn-sm btn-outline-primary px-2 py-1 fs-8" title="تحميل الملف" target="_blank">
                         <i class="fas fa-download"></i>
                     </a>
                     {% if can_delete|default:True %}
-                    <button type="button" 
-                            class="btn btn-sm btn-outline-danger px-2 py-1 fs-8" 
-                            onclick="deleteExistingAttachment('{{ att.pk }}')"
-                            title="حذف المرفق">
+                    <button type="button" class="btn btn-sm btn-outline-danger px-2 py-1 fs-8"
+                        onclick="deleteExistingAttachment('{{ att.pk }}')" title="حذف المرفق">
                         <i class="fas fa-trash-alt"></i>
                     </button>
                     {% endif %}
@@ -69,132 +68,131 @@
 
     <!-- منطقة السحب والإفلات لإضافة مرفقات جديدة -->
     <div class="dms-dropzone border border-2 border-dashed rounded-3 p-3 text-center bg-light position-relative transition-all"
-         id="dropzone_{{ uploader_id|default:'default_uploader' }}"
-         style="border-color: var(--bs-border-color, #dee2e6) !important; min-height: 100px;">
-        
-        <input type="file" 
-               class="d-none" 
-               id="file_input_{{ uploader_id|default:'default_uploader' }}"
-               name="{{ input_name|default:'attachments' }}"
-               multiple
-               data-category="{{ category_code|default:'JOURNAL_ENTRY' }}">
+        id="dropzone_{{ uploader_id|default:'default_uploader' }}"
+        style="border-color: var(--bs-border-color, #dee2e6) !important; min-height: 100px;">
+
+        <input type="file" class="d-none" id="file_input_{{ uploader_id|default:'default_uploader' }}"
+            name="{{ input_name|default:'attachments' }}" multiple
+            data-category="{{ category_code|default:'JOURNAL_ENTRY' }}">
 
         <!-- واجهة الإفلات البدائية -->
         <div class="dropzone-prompt d-flex flex-column align-items-center justify-content-center h-100 cursor-pointer py-2"
-             id="prompt_{{ uploader_id|default:'default_uploader' }}">
+            id="prompt_{{ uploader_id|default:'default_uploader' }}">
             <i class="fas fa-cloud-upload-alt text-primary fs-2 mb-1"></i>
-            <span class="fs-7 text-dark fw-medium">اسحب وأسقط الملفات هنا، أو <span class="text-primary text-decoration-underline">استعرض الجهاز</span></span>
-            <small class="text-muted fs-8 mt-1">يمكن اختيار عدة ملفات (PDF, PNG, JPG, DOCX, XLSX - الحد الأقصى لكل ملف: 15MB)</small>
+            <span class="fs-7 text-dark fw-medium">اسحب وأسقط الملفات هنا، أو <span
+                    class="text-primary text-decoration-underline">استعرض الجهاز</span></span>
+            <small class="text-muted fs-8 mt-1">يمكن اختيار عدة ملفات (PDF, PNG, JPG, DOCX, XLSX - الحد الأقصى لكل ملف:
+                15MB)</small>
         </div>
 
         <!-- قائمة معاينة الملفات المختارة الجديدة -->
         <div class="file-preview-container d-none flex-column gap-2 mt-2 text-start"
-             id="preview_list_{{ uploader_id|default:'default_uploader' }}">
+            id="preview_list_{{ uploader_id|default:'default_uploader' }}">
         </div>
     </div>
 </div>
 
 <script>
-(function() {
-    const uploaderId = "{{ uploader_id|default:'default_uploader' }}";
-    
-    function initUploader() {
-        const dropzone = document.getElementById('dropzone_' + uploaderId);
-        const fileInput = document.getElementById('file_input_' + uploaderId);
-        const prompt = document.getElementById('prompt_' + uploaderId);
-        const previewList = document.getElementById('preview_list_' + uploaderId);
+    (function () {
+        const uploaderId = "{{ uploader_id|default:'default_uploader' }}";
 
-        if (!dropzone || !fileInput) return;
+        function initUploader() {
+            const dropzone = document.getElementById('dropzone_' + uploaderId);
+            const fileInput = document.getElementById('file_input_' + uploaderId);
+            const prompt = document.getElementById('prompt_' + uploaderId);
+            const previewList = document.getElementById('preview_list_' + uploaderId);
 
-        // مصفوفة الاحتفاظ بالملفات المختارة حديثاً
-        let selectedFiles = [];
+            if (!dropzone || !fileInput) return;
 
-        prompt.addEventListener('click', function () {
-            fileInput.click();
-        });
+            // مصفوفة الاحتفاظ بالملفات المختارة حديثاً
+            let selectedFiles = [];
 
-        ['dragenter', 'dragover'].forEach(eventName => {
-            dropzone.addEventListener(eventName, (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                dropzone.classList.add('border-primary', 'bg-primary-subtle');
-            }, false);
-        });
+            prompt.addEventListener('click', function () {
+                fileInput.click();
+            });
 
-        ['dragleave', 'drop'].forEach(eventName => {
-            dropzone.addEventListener(eventName, (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                dropzone.classList.remove('border-primary', 'bg-primary-subtle');
-            }, false);
-        });
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropzone.addEventListener(eventName, (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    dropzone.classList.add('border-primary', 'bg-primary-subtle');
+                }, false);
+            });
 
-        dropzone.addEventListener('drop', (e) => {
-            const dt = e.dataTransfer;
-            const files = dt.files;
-            if (files && files.length > 0) {
-                addFiles(Array.from(files));
-            }
-        });
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropzone.addEventListener(eventName, (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    dropzone.classList.remove('border-primary', 'bg-primary-subtle');
+                }, false);
+            });
 
-        fileInput.addEventListener('change', function () {
-            if (this.files && this.files.length > 0) {
-                addFiles(Array.from(this.files));
-            }
-        });
-
-        function addFiles(newFiles) {
-            newFiles.forEach(f => {
-                // تجنب التكرار بنفس الاسم والحجم
-                if (!selectedFiles.some(existing => existing.name === f.name && existing.size === f.size)) {
-                    selectedFiles.push(f);
+            dropzone.addEventListener('drop', (e) => {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+                if (files && files.length > 0) {
+                    addFiles(Array.from(files));
                 }
             });
-            syncInputFiles();
-            renderPreviews();
-        }
 
-        function removeFile(index) {
-            selectedFiles.splice(index, 1);
-            syncInputFiles();
-            renderPreviews();
-        }
+            fileInput.addEventListener('change', function () {
+                if (this.files && this.files.length > 0) {
+                    addFiles(Array.from(this.files));
+                }
+            });
 
-        function syncInputFiles() {
-            const dt = new DataTransfer();
-            selectedFiles.forEach(f => dt.items.add(f));
-            fileInput.files = dt.files;
-        }
-
-        function getFileIconClass(filename) {
-            const name = filename.toLowerCase();
-            if (name.endsWith('.pdf')) return 'fas fa-file-pdf text-danger';
-            if (name.endsWith('.png') || name.endsWith('.jpg') || name.endsWith('.jpeg')) return 'fas fa-file-image text-info';
-            if (name.endsWith('.xlsx') || name.endsWith('.xls') || name.endsWith('.csv')) return 'fas fa-file-excel text-success';
-            if (name.endsWith('.docx') || name.endsWith('.doc')) return 'fas fa-file-word text-primary';
-            return 'fas fa-file-alt text-secondary';
-        }
-
-        function renderPreviews() {
-            previewList.innerHTML = '';
-            if (selectedFiles.length === 0) {
-                previewList.classList.add('d-none');
-                previewList.classList.remove('d-flex');
-                prompt.classList.remove('d-none');
-                return;
+            function addFiles(newFiles) {
+                newFiles.forEach(f => {
+                    // تجنب التكرار بنفس الاسم والحجم
+                    if (!selectedFiles.some(existing => existing.name === f.name && existing.size === f.size)) {
+                        selectedFiles.push(f);
+                    }
+                });
+                syncInputFiles();
+                renderPreviews();
             }
 
-            previewList.classList.remove('d-none');
-            previewList.classList.add('d-flex');
+            function removeFile(index) {
+                selectedFiles.splice(index, 1);
+                syncInputFiles();
+                renderPreviews();
+            }
 
-            selectedFiles.forEach((file, index) => {
-                const sizeStr = file.size > 1024 * 1024 
-                    ? (file.size / (1024 * 1024)).toFixed(2) + ' MB'
-                    : (file.size / 1024).toFixed(1) + ' KB';
+            function syncInputFiles() {
+                const dt = new DataTransfer();
+                selectedFiles.forEach(f => dt.items.add(f));
+                fileInput.files = dt.files;
+            }
 
-                const card = document.createElement('div');
-                card.className = 'file-preview-item d-flex align-items-center justify-content-between bg-white border rounded-2 p-2 shadow-sm';
-                card.innerHTML = `
+            function getFileIconClass(filename) {
+                const name = filename.toLowerCase();
+                if (name.endsWith('.pdf')) return 'fas fa-file-pdf text-danger';
+                if (name.endsWith('.png') || name.endsWith('.jpg') || name.endsWith('.jpeg')) return 'fas fa-file-image text-info';
+                if (name.endsWith('.xlsx') || name.endsWith('.xls') || name.endsWith('.csv')) return 'fas fa-file-excel text-success';
+                if (name.endsWith('.docx') || name.endsWith('.doc')) return 'fas fa-file-word text-primary';
+                return 'fas fa-file-alt text-secondary';
+            }
+
+            function renderPreviews() {
+                previewList.innerHTML = '';
+                if (selectedFiles.length === 0) {
+                    previewList.classList.add('d-none');
+                    previewList.classList.remove('d-flex');
+                    prompt.classList.remove('d-none');
+                    return;
+                }
+
+                previewList.classList.remove('d-none');
+                previewList.classList.add('d-flex');
+
+                selectedFiles.forEach((file, index) => {
+                    const sizeStr = file.size > 1024 * 1024
+                        ? (file.size / (1024 * 1024)).toFixed(2) + ' MB'
+                        : (file.size / 1024).toFixed(1) + ' KB';
+
+                    const card = document.createElement('div');
+                    card.className = 'file-preview-item d-flex align-items-center justify-content-between bg-white border rounded-2 p-2 shadow-sm';
+                    card.innerHTML = `
                     <div class="d-flex align-items-center gap-2 overflow-hidden flex-grow-1">
                         <div class="file-icon-badge bg-light rounded-2 p-2 d-flex align-items-center justify-content-center" style="width: 36px; height: 36px;">
                             <i class="${getFileIconClass(file.name)} fs-5"></i>
@@ -209,78 +207,78 @@
                     </button>
                 `;
 
-                card.querySelector('button').addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    removeFile(index);
+                    card.querySelector('button').addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        removeFile(index);
+                    });
+
+                    previewList.appendChild(card);
                 });
+            }
+        }
 
-                previewList.appendChild(card);
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initUploader);
+        } else {
+            initUploader();
+        }
+    })();
+
+    function deleteExistingAttachment(attId, uploaderId) {
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                title: 'حذف المرفق',
+                text: 'هل أنت متأكد من رغبتك في حذف هذا المرفق نهائياً؟',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#dc3545',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: '<i class="fas fa-trash-alt me-1"></i>نعم، حذف',
+                cancelButtonText: 'إلغاء'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    executeAttachmentDelete(attId);
+                }
             });
+        } else if (confirm('هل أنت متأكد من حذف هذا المرفق؟')) {
+            executeAttachmentDelete(attId);
         }
     }
 
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initUploader);
-    } else {
-        initUploader();
+    function executeAttachmentDelete(attId) {
+        const csrfToken = typeof getCsrfToken === 'function' ? getCsrfToken() : (document.querySelector('[name=csrfmiddlewaretoken]')?.value || '');
+        fetch(`/core/attachments/${attId}/delete/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrfToken,
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    const row = document.getElementById('attachment_row_' + attId);
+                    if (row) {
+                        row.remove();
+                    }
+                    if (typeof toastr !== 'undefined') {
+                        toastr.success(data.message || 'تم حذف المرفق بنجاح');
+                    }
+                } else {
+                    if (typeof toastr !== 'undefined') {
+                        toastr.error(data.message || 'حدث خطأ أثناء حذف المرفق');
+                    } else {
+                        alert(data.message);
+                    }
+                }
+            })
+            .catch(() => {
+                if (typeof toastr !== 'undefined') {
+                    toastr.error('حدث خطأ في الاتصال بالخادم');
+                } else {
+                    alert('حدث خطأ في الاتصال بالخادم');
+                }
+            });
     }
-})();
-
-function deleteExistingAttachment(attId, uploaderId) {
-    if (typeof Swal !== 'undefined') {
-        Swal.fire({
-            title: 'حذف المرفق',
-            text: 'هل أنت متأكد من رغبتك في حذف هذا المرفق نهائياً؟',
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#dc3545',
-            cancelButtonColor: '#6c757d',
-            confirmButtonText: '<i class="fas fa-trash-alt me-1"></i>نعم، حذف',
-            cancelButtonText: 'إلغاء'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                executeAttachmentDelete(attId);
-            }
-        });
-    } else if (confirm('هل أنت متأكد من حذف هذا المرفق؟')) {
-        executeAttachmentDelete(attId);
-    }
-}
-
-function executeAttachmentDelete(attId) {
-    const csrfToken = typeof getCsrfToken === 'function' ? getCsrfToken() : (document.querySelector('[name=csrfmiddlewaretoken]')?.value || '');
-    fetch(`/core/attachments/${attId}/delete/`, {
-        method: 'POST',
-        headers: {
-            'X-CSRFToken': csrfToken,
-            'Content-Type': 'application/json',
-            'X-Requested-With': 'XMLHttpRequest'
-        }
-    })
-    .then(r => r.json())
-    .then(data => {
-        if (data.success) {
-            const row = document.getElementById('attachment_row_' + attId);
-            if (row) {
-                row.remove();
-            }
-            if (typeof toastr !== 'undefined') {
-                toastr.success(data.message || 'تم حذف المرفق بنجاح');
-            }
-        } else {
-            if (typeof toastr !== 'undefined') {
-                toastr.error(data.message || 'حدث خطأ أثناء حذف المرفق');
-            } else {
-                alert(data.message);
-            }
-        }
-    })
-    .catch(() => {
-        if (typeof toastr !== 'undefined') {
-            toastr.error('حدث خطأ في الاتصال بالخادم');
-        } else {
-            alert('حدث خطأ في الاتصال بالخادم');
-        }
-    });
-}
 </script>

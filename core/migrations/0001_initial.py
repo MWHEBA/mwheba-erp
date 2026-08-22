@@ -230,7 +230,7 @@ class Migration(migrations.Migration):
                         choices=[
                             ("UPLOADED", "رفع"),
                             ("VIEWED", "عرض"),
-                            ("DOWNLOADED", "تنزيل"),
+                            ("DOWNLOADED", "تحميل"),
                             ("REPLACED", "استبدال / تحديث إصدار"),
                             ("DELETED", "حذف ناعم"),
                             ("RESTORED", "استعادة"),

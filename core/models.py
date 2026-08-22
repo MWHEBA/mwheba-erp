@@ -1474,7 +1474,7 @@ class AttachmentAuditLog(models.Model):
     ACTION_CHOICES = (
         ('UPLOADED', _('رفع')),
         ('VIEWED', _('عرض')),
-        ('DOWNLOADED', _('تنزيل')),
+        ('DOWNLOADED', _('تحميل')),
         ('REPLACED', _('استبدال / تحديث إصدار')),
         ('DELETED', _('حذف ناعم')),
         ('RESTORED', _('استعادة')),

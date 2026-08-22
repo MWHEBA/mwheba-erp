@@ -111,7 +111,7 @@ def supplier_list(request):
     page_obj = pagination_data['page_obj']
 
     from financial.services.partner_exposure_service import BusinessPartnerExposureService
-    from core.presenters.currency_exposure_presenter import CurrencyExposurePresenter
+    from core.presenters.currency_exposure_presenter import CurrencyExposurePresenter, get_currency_symbol
 
     page_supplier_ids = [s.pk for s in page_obj]
     exposure_map = BusinessPartnerExposureService.get_open_balances("supplier", page_supplier_ids)
@@ -128,6 +128,9 @@ def supplier_list(request):
     for s in page_obj:
         cnt = services_counts.get(s.pk, 0)
         s.services_count = f'<span class="badge bg-{"warning text-dark" if cnt > 0 else "secondary"}">{cnt}</span>'
+        curr_code = s.default_currency.code if s.default_currency else "EGP"
+        curr_symbol = (s.default_currency.symbol if s.default_currency and s.default_currency.symbol else "") or get_currency_symbol(curr_code)
+        s.currency_display = f'<span class="badge bg-light text-dark border">{curr_symbol}</span>'
         supplier_dtos = exposure_map.get(s.pk, [])
         s.actual_balance_display = CurrencyExposurePresenter.render_html_badges(supplier_dtos)
 
@@ -156,6 +159,13 @@ def supplier_list(request):
             "format": "html",
         },
         {"key": "phone", "label": "رقم الهاتف", "sortable": False},
+        {
+            "key": "currency_display",
+            "label": "العملة",
+            "sortable": False,
+            "format": "html",
+            "class": "text-center",
+        },
         {
             "key": "is_preferred",
             "label": "مفضل",

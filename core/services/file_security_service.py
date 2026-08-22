@@ -38,7 +38,7 @@ class FileSecurityValidator:
     @staticmethod
     def verify_file_integrity(file_path: str, expected_hash: str) -> bool:
         """
-        التحقق من سلامة البصمة الرقمية للملف عند التنزيل
+        التحقق من سلامة البصمة الرقمية للملف عند التحميل
         """
         hasher = hashlib.sha256()
         with open(file_path, 'rb') as f:

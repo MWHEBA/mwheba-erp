@@ -11,101 +11,76 @@
 <div class="container-fluid">
     {% include "shared/page_header.html" %}
 
-    <!-- سكشن المعلومات الأساسية والمؤشرات -->
+    <!-- شريط كروت الإحصائيات والمؤشرات المالية (Detail KPI Summary Cards) -->
     <div class="row g-3 mb-4">
-        <div class="col-md-3">
-            <div class="stats-card stats-card-info">
-                <div class="stats-card-body">
-                    <div class="stats-card-icon"><i class="fas fa-barcode"></i></div>
-                    <div class="stats-card-title">{% trans "رقم الدفعة" %}</div>
-                    <div class="stats-card-value text-primary" style="font-size: 1.1rem;">{{ batch.batch_number }}</div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="stats-card stats-card-info">
-                <div class="stats-card-body">
-                    <div class="stats-card-icon"><i class="fas fa-calendar-alt"></i></div>
-                    <div class="stats-card-title">{% trans "السنة المالية" %}</div>
-                    <div class="stats-card-value" style="font-size: 1.1rem;">{{ batch.fiscal_year.name }}</div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="stats-card {% if batch.status == 'posted' %}stats-card-success{% elif batch.status == 'reversed' %}stats-card-danger{% else %}stats-card-warning{% endif %}">
-                <div class="stats-card-body">
-                    <div class="stats-card-icon"><i class="fas fa-shield-alt"></i></div>
-                    <div class="stats-card-title">{% trans "الحالة المحاسبية" %}</div>
-                    <div class="stats-card-value" style="font-size: 1.1rem;">
-                        {% if batch.status == 'posted' %}
-                            🔒 {% trans "مرحلة ومقفلة" %}
-                        {% elif batch.status == 'reversed' %}
-                            ↩️ {% trans "معكوسة" %}
-                        {% else %}
-                            {% trans "مسودة / تحت التدقيق" %}
-                        {% endif %}
+        <div class="col-xl-3 col-md-6">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body py-3 d-flex align-items-center justify-content-between">
+                    <div>
+                        <span class="text-muted fs-8 d-block mb-1">{% trans "إجمالي المدين" %}</span>
+                        <h5 class="fw-bold text-success mb-0" id="summary-debit">
+                            {{ total_debit|floatformat:2 }} <small class="fs-8 text-muted">EGP</small>
+                        </h5>
+                    </div>
+                    <div class="p-3 bg-success-subtle text-success rounded-circle">
+                        <i class="fas fa-arrow-down fs-5"></i>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="stats-card stats-card-success">
-                <div class="stats-card-body">
-                    <div class="stats-card-icon"><i class="fas fa-file-invoice"></i></div>
-                    <div class="stats-card-title">{% trans "قيد اليومية / المزامنة" %}</div>
-                    <div class="stats-card-value" style="font-size: 1.1rem;">
-                        {% if batch.journal_entry %}
-                            <a href="{% url 'financial:journal_entries_detail' batch.journal_entry.pk %}" class="text-decoration-none text-success fw-bold me-2" title="{% trans "عرض تفاصيل قيد اليومية" %}">
-                                <i class="fas fa-external-link-alt me-1 fs-6"></i>{{ batch.journal_entry.number }}
-                            </a>
-                        {% else %}
-                            <span class="text-muted">{% trans "لم يُولد بعد" %}</span>
-                        {% endif %}
-                        {% if batch.inventory_sync_status == 'FAILED' %}
-                            <button type="button" class="btn btn-sm btn-outline-danger ms-2" id="btn-retry-inv-sync" title="{% trans "إعادة محاولة مزامنة المخزون" %}">
-                                <i class="fas fa-sync me-1"></i>{% trans "إعادة مزامنة المخزون" %}
-                            </button>
-                        {% elif batch.inventory_sync_status == 'COMPLETED' %}
-                            <span class="badge bg-success ms-1"><i class="fas fa-boxes me-1"></i>{% trans "المخزون مزامن" %}</span>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
 
-    <!-- سكشن شريط التوازن المباشر Live Balance Status Bar -->
-    <div class="section-container mb-4">
-        <h5 class="section-title"><i class="fas fa-balance-scale me-2"></i>{% trans "شريط التوازن والترحيل النهائي" %}</h5>
-        <div class="row align-items-center">
-            <div class="col-md-3 text-center border-end">
-                <div class="text-muted small">{% trans "إجمالي المدين (عملة وظيفية)" %}</div>
-                <div class="fs-4 fw-bold text-success" id="summary-debit">{{ total_debit|floatformat:2 }}</div>
-            </div>
-            <div class="col-md-3 text-center border-end">
-                <div class="text-muted small">{% trans "إجمالي الدائن (عملة وظيفية)" %}</div>
-                <div class="fs-4 fw-bold text-primary" id="summary-credit">{{ total_credit|floatformat:2 }}</div>
-            </div>
-            <div class="col-md-3 text-center border-end">
-                <div class="text-muted small">{% trans "الفارق والتوازن" %}</div>
-                <div class="fs-4 fw-bold {% if is_balanced %}text-success{% else %}text-danger{% endif %}" id="summary-diff">
-                    {{ balance_diff|floatformat:2 }}
+        <div class="col-xl-3 col-md-6">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body py-3 d-flex align-items-center justify-content-between">
+                    <div>
+                        <span class="text-muted fs-8 d-block mb-1">{% trans "إجمالي الدائن" %}</span>
+                        <h5 class="fw-bold text-primary mb-0" id="summary-credit">
+                            {{ total_credit|floatformat:2 }} <small class="fs-8 text-muted">EGP</small>
+                        </h5>
+                    </div>
+                    <div class="p-3 bg-primary-subtle text-primary rounded-circle">
+                        <i class="fas fa-arrow-up fs-5"></i>
+                    </div>
                 </div>
             </div>
-            <div class="col-md-3 text-center">
-                {% if batch.status == 'posted' %}
-                    <button type="button" class="btn btn-outline-danger w-100" data-bs-toggle="modal" data-bs-target="#reverseBatchModal">
-                        <i class="fas fa-undo me-1"></i>{% trans "إلغاء وعكس الدفعة" %}
-                    </button>
-                {% elif batch.status == 'reversed' %}
-                    <button type="button" class="btn btn-secondary w-100" disabled>
-                        <i class="fas fa-lock me-1"></i>{% trans "الدفعة معكوسة" %}
-                    </button>
-                {% else %}
-                    <button type="button" class="btn btn-success w-100" id="btn-post-batch" {% if not is_balanced %}disabled{% endif %}>
-                        <i class="fas fa-check-circle me-1"></i>{% trans "ترحيل وتأكيد القيد الافتتاحي" %}
-                    </button>
-                {% endif %}
+        </div>
+
+        <div class="col-xl-3 col-md-6">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body py-3 d-flex align-items-center justify-content-between">
+                    <div>
+                        <span class="text-muted fs-8 d-block mb-1">{% trans "فارق التوازن" %}</span>
+                        <h5 class="fw-bold {% if is_balanced %}text-success{% else %}text-danger{% endif %} mb-0" id="summary-diff">
+                            {{ balance_diff|floatformat:2 }} <small class="fs-8 text-muted">EGP</small>
+                        </h5>
+                        <small class="d-block mt-1">
+                            {% if is_balanced %}
+                            <span class="text-success fw-bold fs-8"><i class="fas fa-check-circle me-1"></i>{% trans "متزن وجاهز للترحيل" %}</span>
+                            {% else %}
+                            <span class="text-danger fw-bold fs-8"><i class="fas fa-exclamation-triangle me-1"></i>{% trans "غير متزن" %}</span>
+                            {% endif %}
+                        </small>
+                    </div>
+                    <div class="p-3 {% if is_balanced %}bg-success-subtle text-success{% else %}bg-danger-subtle text-danger{% endif %} rounded-circle">
+                        <i class="fas fa-balance-scale fs-5"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body py-3 d-flex align-items-center justify-content-between">
+                    <div>
+                        <span class="text-muted fs-8 d-block mb-1">{% trans "عدد أسطر الدفعة" %}</span>
+                        <h5 class="fw-bold text-dark mb-0" id="summary-count">
+                            {{ lines|length }} <small class="fs-8 text-muted">{% trans "سطر" %}</small>
+                        </h5>
+                    </div>
+                    <div class="p-3 bg-info-subtle text-info rounded-circle">
+                        <i class="fas fa-list-ol fs-5"></i>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -115,12 +90,12 @@
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h5 class="section-title mb-0"><i class="fas fa-list me-2"></i>{% trans "أسطر الأرصدة الافتتاحية" %}</h5>
             {% if batch.status == 'draft' %}
-            <div>
-                <button type="button" class="btn btn-sm btn-primary me-2" data-bs-toggle="modal" data-bs-target="#addLineModal">
+            <div class="d-flex gap-2">
+                <button type="button" class="btn btn-primary btn-sm px-3" data-bs-toggle="modal" data-bs-target="#addLineModal">
                     <i class="fas fa-plus me-1"></i>{% trans "إضافة سطر جديد" %}
                 </button>
-                <button type="button" class="btn btn-sm btn-outline-success" data-bs-toggle="modal" data-bs-target="#importExcelModal">
-                    <i class="fas fa-file-excel me-1"></i>{% trans "استيراد من Excel" %}
+                <button type="button" class="btn btn-success btn-sm px-3" id="btn-post-batch" {% if not is_balanced %}disabled title="{% trans 'يجب أن تكون الدفعة متزنة للترحيل' %}"{% endif %}>
+                    <i class="fas fa-check-circle me-1"></i>{% trans "ترحيل وتأكيد الدفعة" %}
                 </button>
             </div>
             {% endif %}
@@ -131,8 +106,8 @@
                     <tr>
                         <th>#</th>
                         <th>{% trans "نوع السطر" %}</th>
-                        <th>{% trans "الحساب المحاسبي" %}</th>
-                        <th>{% trans "البيان / الكائن الفرعي" %}</th>
+                        <th class="text-start ps-3">{% trans "الحساب المحاسبي" %}</th>
+                        <th class="text-start">{% trans "البيان / الكائن الفرعي" %}</th>
                         <th>{% trans "العملة" %}</th>
                         <th>{% trans "مدين (أجنبي)" %}</th>
                         <th>{% trans "دائن (أجنبي)" %}</th>
@@ -151,21 +126,21 @@
                         <td>
                             <span class="badge bg-secondary px-2 py-1">{{ line.get_line_type_display }}</span>
                         </td>
-                        <td class="fw-bold">{{ line.account.code }} - {{ line.account.name }}</td>
-                        <td>
+                        <td class="fw-bold text-start ps-3">{{ line.account.code }} - {{ line.account.name }}</td>
+                        <td class="text-start">
                             {% if line.customer %}
-                                <span class="badge bg-info text-dark"><i class="fas fa-user me-1"></i>{{ line.customer.name }}</span>
+                            <span class="badge bg-info text-dark"><i class="fas fa-user me-1"></i>{{ line.customer.name }}</span>
                             {% elif line.supplier %}
-                                <span class="badge bg-warning text-dark"><i class="fas fa-truck me-1"></i>{{ line.supplier.name }}</span>
+                            <span class="badge bg-warning text-dark"><i class="fas fa-truck me-1"></i>{{ line.supplier.name }}</span>
                             {% elif line.treasury_account %}
-                                <span class="badge bg-primary"><i class="fas fa-university me-1"></i>{{ line.treasury_account.name }}</span>
+                            <span class="badge bg-primary"><i class="fas fa-university me-1"></i>{{ line.treasury_account.name }}</span>
                             {% elif line.inventory_snapshot_id %}
-                                <span class="badge bg-dark"><i class="fas fa-boxes me-1"></i>Snapshot: {{ line.inventory_snapshot_id }}</span>
+                            <span class="badge bg-dark"><i class="fas fa-boxes me-1"></i>Snapshot: {{ line.inventory_snapshot_id }}</span>
                             {% else %}
-                                <span class="text-muted">-</span>
+                            <span class="text-muted">-</span>
                             {% endif %}
                         </td>
-                        <td>{{ line.currency.code|default:"EGP" }}</td>
+                        <td><span class="badge bg-light text-dark border">{{ line.currency.code|default:"EGP" }}</span></td>
                         <td>{{ line.debit_foreign|floatformat:2 }}</td>
                         <td>{{ line.credit_foreign|floatformat:2 }}</td>
                         <td>{{ line.exchange_rate|floatformat:4 }}</td>
@@ -173,17 +148,25 @@
                         <td class="fw-bold text-primary">{{ line.credit|floatformat:2 }}</td>
                         {% if batch.status == 'draft' %}
                         <td>
-                            <button type="button" class="btn btn-sm btn-outline-danger btn-delete-line" data-id="{{ line.id }}">
-                                <i class="fas fa-trash-alt"></i>
-                            </button>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <button type="button" class="btn btn-outline-danger btn-delete-line" data-id="{{ line.id }}" title="{% trans 'حذف السطر' %}">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                            </div>
                         </td>
                         {% endif %}
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="11" class="text-center py-4 text-muted">
-                            <i class="fas fa-folder-open fa-2x mb-2 d-block"></i>
-                            {% trans "لا توجد أسطر مسجلة في هذه الدفعة بعد. استخدم زر إضافة سطر أو استيراد من Excel للإدخال." %}
+                        <td colspan="11" class="text-center py-5 text-muted">
+                            <i class="fas fa-folder-open fa-3x mb-3 d-block text-secondary opacity-50"></i>
+                            <div class="fw-bold mb-1">{% trans "لا توجد أسطر مسجلة في هذه الدفعة بعد" %}</div>
+                            <small class="d-block mb-3">{% trans "يمكنك إضافة أسطر يدوياً أو استيراد ملف Excel جاهز." %}</small>
+                            {% if batch.status == 'draft' %}
+                            <button type="button" class="btn btn-primary btn-sm px-3" data-bs-toggle="modal" data-bs-target="#addLineModal">
+                                <i class="fas fa-plus me-1"></i>{% trans "إضافة سطر جديد" %}
+                            </button>
+                            {% endif %}
                         </td>
                     </tr>
                     {% endfor %}
@@ -194,16 +177,18 @@
 </div>
 
 <!-- Modal إضافة سطر جديد -->
-<div class="modal fade" id="addLineModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content border-0 shadow">
-            <div class="modal-header bg-primary text-white">
-                <h5 class="modal-title"><i class="fas fa-plus-circle me-2"></i>{% trans "إضافة سطر رصيد افتتاحي" %}</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+<div class="modal fade" id="addLineModal" tabindex="-1" aria-labelledby="addLineModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-light border-bottom px-4 py-3">
+                <h5 class="modal-title fw-bold text-dark mb-0" id="addLineModalLabel">
+                    <i class="fas fa-plus-circle text-primary me-2"></i>{% trans "إضافة سطر رصيد افتتاحي" %}
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form id="form-add-line" method="POST" action="{% url 'financial:opening_balance_add_line_action' batch.pk %}">
                 {% csrf_token %}
-                <div class="modal-body">
+                <div class="modal-body p-4">
                     <div class="row g-3">
                         <div class="col-md-6">
                             <label class="form-label fw-bold">{% trans "نوع السطر" %} <span class="text-danger">*</span></label>
@@ -217,7 +202,7 @@
                         </div>
                         <div class="col-md-6">
                             <label class="form-label fw-bold">{% trans "الحساب المحاسبي" %} <span class="text-danger">*</span></label>
-                            <select class="form-select select2-filter" id="account_id" name="account_id" required>
+                            <select class="form-select select2-modal" id="account_id" name="account_id" required>
                                 <option value="">{% trans "اختر الحساب المحاسبي..." %}</option>
                                 {% for acc in accounts %}
                                 <option value="{{ acc.id }}">{{ acc.code }} - {{ acc.name }}</option>
@@ -228,7 +213,7 @@
                         <!-- الحقول الديناميكية للأستاذ الفرعي -->
                         <div class="col-md-6 d-none" id="group-customer">
                             <label class="form-label fw-bold">{% trans "العميل" %} <span class="text-danger">*</span></label>
-                            <select class="form-select" name="customer_id">
+                            <select class="form-select select2-modal" id="customer_id" name="customer_id">
                                 <option value="">{% trans "اختر العميل..." %}</option>
                                 {% for cust in customers %}
                                 <option value="{{ cust.id }}">{{ cust.name }}</option>
@@ -238,7 +223,7 @@
 
                         <div class="col-md-6 d-none" id="group-supplier">
                             <label class="form-label fw-bold">{% trans "المورد" %} <span class="text-danger">*</span></label>
-                            <select class="form-select" name="supplier_id">
+                            <select class="form-select select2-modal" id="supplier_id" name="supplier_id">
                                 <option value="">{% trans "اختر المورد..." %}</option>
                                 {% for supp in suppliers %}
                                 <option value="{{ supp.id }}">{{ supp.name }}</option>
@@ -248,7 +233,7 @@
 
                         <div class="col-md-6 d-none" id="group-treasury">
                             <label class="form-label fw-bold">{% trans "حساب الخزينة / البنك الفرعي" %} <span class="text-danger">*</span></label>
-                            <select class="form-select" name="treasury_account_id">
+                            <select class="form-select select2-modal" id="treasury_account_id" name="treasury_account_id">
                                 <option value="">{% trans "اختر حساب الخزينة/البنك..." %}</option>
                                 {% for acc in accounts %}
                                 <option value="{{ acc.id }}">{{ acc.name }}</option>
@@ -266,8 +251,8 @@
                         </div>
 
                         <div class="col-md-4">
-                            <label class="form-label">{% trans "العملة الأجنبية (اختياري)" %}</label>
-                            <select class="form-select" name="currency_id">
+                            <label class="form-label fw-bold">{% trans "العملة الأجنبية (اختياري)" %}</label>
+                            <select class="form-select select2-modal" id="currency_id" name="currency_id">
                                 <option value="">EGP ({% trans "عملة محليّة" %})</option>
                                 {% for curr in currencies %}
                                 <option value="{{ curr.id }}">{{ curr.code }} - {{ curr.name }}</option>
@@ -275,18 +260,20 @@
                             </select>
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label">{% trans "المبلغ الأجنبي (مدين/دائن)" %}</label>
+                            <label class="form-label fw-bold">{% trans "المبلغ الأجنبي (مدين/دائن)" %}</label>
                             <input type="number" step="0.01" class="form-control" name="debit_foreign" value="0.00" min="0">
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label">{% trans "سعر الصرف" %}</label>
+                            <label class="form-label fw-bold">{% trans "سعر الصرف" %}</label>
                             <input type="number" step="0.000001" class="form-control" name="exchange_rate" value="1.000000">
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
-                    <button type="submit" class="btn btn-primary">{% trans "حفظ السطر" %}</button>
+                <div class="modal-footer bg-light border-top px-4 py-3">
+                    <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+                    <button type="submit" class="btn btn-primary px-4 fw-bold" id="btn-submit-add-line">
+                        <i class="fas fa-save me-1"></i>{% trans "حفظ السطر" %}
+                    </button>
                 </div>
             </form>
         </div>
@@ -294,16 +281,18 @@
 </div>
 
 <!-- Modal استيراد من Excel -->
-<div class="modal fade" id="importExcelModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content border-0 shadow">
-            <div class="modal-header bg-success text-white">
-                <h5 class="modal-title"><i class="fas fa-file-excel me-2"></i>{% trans "استيراد الأرصدة الافتتاحية من Excel" %}</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+<div class="modal fade" id="importExcelModal" tabindex="-1" aria-labelledby="importExcelModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-light border-bottom px-4 py-3">
+                <h5 class="modal-title fw-bold text-dark mb-0" id="importExcelModalLabel">
+                    <i class="fas fa-file-excel text-success me-2"></i>{% trans "استيراد الأرصدة الافتتاحية من Excel" %}
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form id="form-import-excel" method="POST" action="{% url 'financial:opening_balance_import_excel_action' batch.pk %}" enctype="multipart/form-data">
                 {% csrf_token %}
-                <div class="modal-body">
+                <div class="modal-body p-4">
                     <p class="text-muted small mb-3">
                         {% trans "يرجى رفع ملف Excel أو CSV يحتوي على أسطر الأرصدة الافتتاحية. يمكنك تنزيل النموذج المعتمد المنسق للتعرف على الأعمدة." %}
                     </p>
@@ -317,9 +306,11 @@
                         <input type="file" class="form-control" name="excel_file" accept=".xlsx, .xls, .csv" required>
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
-                    <button type="submit" class="btn btn-success">{% trans "بدء الاستيراد" %}</button>
+                <div class="modal-footer bg-light border-top px-4 py-3">
+                    <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+                    <button type="submit" class="btn btn-success px-4 fw-bold" id="btn-submit-import-excel">
+                        <i class="fas fa-file-import me-1"></i>{% trans "بدء الاستيراد" %}
+                    </button>
                 </div>
             </form>
         </div>
@@ -327,25 +318,29 @@
 </div>
 
 <!-- Modal إلغاء وعكس الدفعة -->
-<div class="modal fade" id="reverseBatchModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content border-0 shadow">
-            <div class="modal-header bg-danger text-white">
-                <h5 class="modal-title"><i class="fas fa-undo me-2"></i>{% trans "تأكيد إلغاء وعكس الدفعة الافتتاحية" %}</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+<div class="modal fade" id="reverseBatchModal" tabindex="-1" aria-labelledby="reverseBatchModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-light border-bottom px-4 py-3">
+                <h5 class="modal-title fw-bold text-dark mb-0" id="reverseBatchModalLabel">
+                    <i class="fas fa-undo text-danger me-2"></i>{% trans "تأكيد إلغاء وعكس الدفعة الافتتاحية" %}
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body">
+            <div class="modal-body p-4">
                 <p class="text-muted small">
                     {% trans "سيؤدي هذا الإجراء إلى إنشاء قيد يومية عكسي موثق وإلغاء/عكس بنود الأرصدة الفرعية للعملاء والموردين المرتبطة بهذه الدفعة." %}
                 </p>
                 <div class="mb-3">
                     <label class="form-label fw-bold">{% trans "سبب الإلغاء والعكس الإجباري" %} <span class="text-danger">*</span></label>
-                    <textarea class="form-control" id="reversal-reason-input" rows="3" required placeholder="{% trans "يرجى توضيح سبب إلغاء الدفعة الافتتاحية..." %}"></textarea>
+                    <textarea class="form-control" id="reversal-reason-input" rows="3" required placeholder="{% trans 'يرجى توضيح سبب إلغاء الدفعة الافتتاحية...' %}"></textarea>
                 </div>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
-                <button type="button" class="btn btn-danger" id="btn-confirm-reverse">{% trans "تأكيد العكس النهائي" %}</button>
+            <div class="modal-footer bg-light border-top px-4 py-3">
+                <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+                <button type="button" class="btn btn-danger px-4 fw-bold" id="btn-confirm-reverse">
+                    <i class="fas fa-undo me-1"></i>{% trans "تأكيد العكس النهائي" %}
+                </button>
             </div>
         </div>
     </div>
@@ -353,6 +348,16 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // تفعيل Select2 داخل المودال عند الفتح
+    $('#addLineModal').on('shown.bs.modal', function () {
+        $('#account_id, #customer_id, #supplier_id, #treasury_account_id, #currency_id').select2({
+            dropdownParent: $('#addLineModal'),
+            dir: 'rtl',
+            language: 'ar',
+            width: '100%'
+        });
+    });
+
     const lineTypeSelect = document.getElementById('line_type');
     if (lineTypeSelect) {
         lineTypeSelect.addEventListener('change', function() {
@@ -367,6 +372,9 @@ document.addEventListener('DOMContentLoaded', function() {
     if (formAddLine) {
         formAddLine.addEventListener('submit', function(e) {
             e.preventDefault();
+            const submitBtn = document.getElementById('btn-submit-add-line');
+            if (submitBtn) submitBtn.disabled = true;
+
             const formData = new FormData(this);
             fetch(this.action, {
                 method: 'POST',
@@ -375,12 +383,35 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(res => res.json())
             .then(data => {
                 if (data.success) {
-                    location.reload();
+                    const modalEl = document.getElementById('addLineModal');
+                    const modalInstance = bootstrap.Modal.getInstance(modalEl);
+                    if (modalInstance) modalInstance.hide();
+
+                    if (window.showNotification) {
+                        window.showNotification(data.message || '{% trans "تمت إضافة السطر بنجاح" %}', 'success');
+                    } else if (typeof toastr !== 'undefined') {
+                        toastr.success(data.message || '{% trans "تمت إضافة السطر بنجاح" %}');
+                    }
+                    setTimeout(() => location.reload(), 3100);
                 } else {
-                    alert(data.error || '{% trans "حدث خطأ أثناء إضافة السطر" %}');
+                    if (submitBtn) submitBtn.disabled = false;
+                    Swal.fire({
+                        icon: 'error',
+                        title: '{% trans "خطأ" %}',
+                        text: data.error || '{% trans "حدث خطأ أثناء إضافة السطر" %}',
+                        confirmButtonText: '{% trans "حسناً" %}'
+                    });
                 }
             })
-            .catch(err => alert('{% trans "فشل الاتصال بالخادم" %}'));
+            .catch(err => {
+                if (submitBtn) submitBtn.disabled = false;
+                Swal.fire({
+                    icon: 'error',
+                    title: '{% trans "خطأ" %}',
+                    text: '{% trans "فشل الاتصال بالخادم" %}',
+                    confirmButtonText: '{% trans "حسناً" %}'
+                });
+            });
         });
     }
 
@@ -388,6 +419,9 @@ document.addEventListener('DOMContentLoaded', function() {
     if (formImportExcel) {
         formImportExcel.addEventListener('submit', function(e) {
             e.preventDefault();
+            const submitBtn = document.getElementById('btn-submit-import-excel');
+            if (submitBtn) submitBtn.disabled = true;
+
             const formData = new FormData(this);
             fetch(this.action, {
                 method: 'POST',
@@ -396,76 +430,143 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(res => res.json())
             .then(data => {
                 if (data.success) {
-                    location.reload();
+                    const modalEl = document.getElementById('importExcelModal');
+                    const modalInstance = bootstrap.Modal.getInstance(modalEl);
+                    if (modalInstance) modalInstance.hide();
+
+                    if (window.showNotification) {
+                        window.showNotification(data.message || '{% trans "تم استيراد الأرصدة بنجاح" %}', 'success');
+                    } else if (typeof toastr !== 'undefined') {
+                        toastr.success(data.message || '{% trans "تم استيراد الأرصدة بنجاح" %}');
+                    }
+                    setTimeout(() => location.reload(), 3100);
                 } else {
-                    alert(data.error || '{% trans "حدث خطأ أثناء الاستيراد" %}');
+                    if (submitBtn) submitBtn.disabled = false;
+                    Swal.fire({
+                        icon: 'error',
+                        title: '{% trans "خطأ في الاستيراد" %}',
+                        text: data.error || '{% trans "حدث خطأ أثناء الاستيراد" %}',
+                        confirmButtonText: '{% trans "حسناً" %}'
+                    });
                 }
             })
-            .catch(err => alert('{% trans "فشل الاتصال بالخادم" %}'));
+            .catch(err => {
+                if (submitBtn) submitBtn.disabled = false;
+                Swal.fire({
+                    icon: 'error',
+                    title: '{% trans "خطأ" %}',
+                    text: '{% trans "فشل الاتصال بالخادم" %}',
+                    confirmButtonText: '{% trans "حسناً" %}'
+                });
+            });
         });
     }
 
     document.querySelectorAll('.btn-delete-line').forEach(btn => {
         btn.addEventListener('click', function() {
-            if (!confirm('{% trans "هل أنت تأكد من حذف هذا السطر؟" %}')) return;
             const lineId = this.getAttribute('data-id');
-            const url = '{% url "financial:opening_balance_delete_line_action" batch.pk 0 %}'.replace('0', lineId);
-            fetch(url, {
-                method: 'POST',
-                headers: { 'X-CSRFToken': '{{ csrf_token }}' }
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.success) location.reload();
-                else alert(data.error || '{% trans "حدث خطأ أثناء الحذف" %}');
+            Swal.fire({
+                title: '{% trans "تأكيد الحذف" %}',
+                text: '{% trans "هل أنت متأكد من حذف هذا السطر من الدفعة؟" %}',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: '{% trans "نعم، احذف" %}',
+                cancelButtonText: '{% trans "إلغاء" %}',
+                customClass: {
+                    confirmButton: 'btn btn-danger px-4',
+                    cancelButton: 'btn btn-secondary px-3'
+                }
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    const url = '{% url "financial:opening_balance_delete_line_action" batch.pk 0 %}'.replace('0', lineId);
+                    fetch(url, {
+                        method: 'POST',
+                        headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success) {
+                            if (window.showNotification) {
+                                window.showNotification(data.message || '{% trans "تم حذف السطر بنجاح" %}', 'success');
+                            } else if (typeof toastr !== 'undefined') {
+                                toastr.success(data.message || '{% trans "تم حذف السطر بنجاح" %}');
+                            }
+                            setTimeout(() => location.reload(), 3100);
+                        } else {
+                            Swal.fire({
+                                icon: 'error',
+                                title: '{% trans "خطأ" %}',
+                                text: data.error || '{% trans "حدث خطأ أثناء الحذف" %}',
+                                confirmButtonText: '{% trans "حسناً" %}'
+                            });
+                        }
+                    })
+                    .catch(err => {
+                        Swal.fire({
+                            icon: 'error',
+                            title: '{% trans "خطأ" %}',
+                            text: '{% trans "فشل الاتصال بالخادم" %}',
+                            confirmButtonText: '{% trans "حسناً" %}'
+                        });
+                    });
+                }
             });
         });
     });
 
-    const btnRetryInvSync = document.getElementById('btn-retry-inv-sync');
-    if (btnRetryInvSync) {
-        btnRetryInvSync.addEventListener('click', function() {
-            btnRetryInvSync.disabled = true;
-            fetch('{% url "financial:opening_balance_retry_inventory_sync_action" batch.pk %}', {
-                method: 'POST',
-                headers: { 'X-CSRFToken': '{{ csrf_token }}' }
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.success) location.reload();
-                else {
-                    alert(data.error || '{% trans "فشلت إعادة محاولة مزامنة المخزون" %}');
-                    btnRetryInvSync.disabled = false;
-                }
-            });
-        });
-    }
-
     const btnPost = document.getElementById('btn-post-batch');
     if (btnPost) {
         btnPost.addEventListener('click', function() {
-            if (!confirm('{% trans "هل أنت تأكد من ترحيل وتأكيد الدفعة الافتتاحية الآن؟" %}')) return;
-
-            btnPost.disabled = true;
-            fetch('{% url "financial:opening_balance_post_action" batch.pk %}', {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': '{{ csrf_token }}',
-                    'Content-Type': 'application/json'
+            Swal.fire({
+                title: '{% trans "تأكيد ترحيل الدفعة" %}',
+                text: '{% trans "هل أنت متأكد من ترحيل وتأكيد الدفعة وتوليد قيد اليومية الافتتاحي ومزامنة المخزون؟ لن يمكن تعديل الأسطر بعد الترحيل." %}',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: '{% trans "نعم، ترحيل وتأكيد" %}',
+                cancelButtonText: '{% trans "إلغاء" %}',
+                customClass: {
+                    confirmButton: 'btn btn-success px-4',
+                    cancelButton: 'btn btn-secondary px-3'
                 }
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.success) {
-                    location.reload();
-                } else {
-                    alert(data.error || '{% trans "حدث خطأ أثناء الترحيل" %}');
-                    btnPost.disabled = false;
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    btnPost.disabled = true;
+                    fetch('{% url "financial:opening_balance_post_action" batch.pk %}', {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': '{{ csrf_token }}',
+                            'Content-Type': 'application/json'
+                        }
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success) {
+                            if (window.showNotification) {
+                                window.showNotification(data.message || '{% trans "تم ترحيل الدفعة وتوليد قيد اليومية بنجاح" %}', 'success');
+                            } else if (typeof toastr !== 'undefined') {
+                                toastr.success(data.message || '{% trans "تم ترحيل الدفعة وتوليد قيد اليومية بنجاح" %}');
+                            }
+                            setTimeout(() => location.reload(), 3100);
+                        } else {
+                            btnPost.disabled = false;
+                            Swal.fire({
+                                icon: 'error',
+                                title: '{% trans "خطأ في الترحيل" %}',
+                                text: data.error || '{% trans "حدث خطأ أثناء الترحيل" %}',
+                                confirmButtonText: '{% trans "حسناً" %}'
+                            });
+                        }
+                    })
+                    .catch(err => {
+                        btnPost.disabled = false;
+                        Swal.fire({
+                            icon: 'error',
+                            title: '{% trans "خطأ" %}',
+                            text: '{% trans "فشل الاتصال بالخادم" %}',
+                            confirmButtonText: '{% trans "حسناً" %}'
+                        });
+                    });
                 }
-            })
-            .catch(err => {
-                alert('{% trans "فشل الاتصال بالخادم" %}');
-                btnPost.disabled = false;
             });
         });
     }
@@ -475,7 +576,12 @@ document.addEventListener('DOMContentLoaded', function() {
         btnReverse.addEventListener('click', function() {
             const reason = document.getElementById('reversal-reason-input').value.trim();
             if (!reason) {
-                alert('{% trans "يرجى تقديم سبب لإلغاء وعكس الدفعة." %}');
+                Swal.fire({
+                    icon: 'warning',
+                    title: '{% trans "تنبيه" %}',
+                    text: '{% trans "يرجى توضيح سبب إلغاء وعكس الدفعة الافتتاحية." %}',
+                    confirmButtonText: '{% trans "حسناً" %}'
+                });
                 return;
             }
 
@@ -493,15 +599,34 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(res => res.json())
             .then(data => {
                 if (data.success) {
-                    location.reload();
+                    const modalEl = document.getElementById('reverseBatchModal');
+                    const modalInstance = bootstrap.Modal.getInstance(modalEl);
+                    if (modalInstance) modalInstance.hide();
+
+                    if (window.showNotification) {
+                        window.showNotification(data.message || '{% trans "تم عكس الدفعة وإنشاء القيد العكسي بنجاح" %}', 'success');
+                    } else if (typeof toastr !== 'undefined') {
+                        toastr.success(data.message || '{% trans "تم عكس الدفعة وإنشاء القيد العكسي بنجاح" %}');
+                    }
+                    setTimeout(() => location.reload(), 3100);
                 } else {
-                    alert(data.error || '{% trans "حدث خطأ أثناء العكس" %}');
                     btnReverse.disabled = false;
+                    Swal.fire({
+                        icon: 'error',
+                        title: '{% trans "خطأ في العكس" %}',
+                        text: data.error || '{% trans "حدث خطأ أثناء العكس" %}',
+                        confirmButtonText: '{% trans "حسناً" %}'
+                    });
                 }
             })
             .catch(err => {
-                alert('{% trans "فشل الاتصال بالخادم" %}');
                 btnReverse.disabled = false;
+                Swal.fire({
+                    icon: 'error',
+                    title: '{% trans "خطأ" %}',
+                    text: '{% trans "فشل الاتصال بالخادم" %}',
+                    confirmButtonText: '{% trans "حسناً" %}'
+                });
             });
         });
     }

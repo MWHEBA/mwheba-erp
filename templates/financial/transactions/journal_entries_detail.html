@@ -42,18 +42,20 @@
                         <span class="text-muted fs-8 d-block mb-1">حالة القيد الحالية</span>
                         <div class="mb-1">
                             {% if journal_entry.status == 'draft' %}
-                                <span class="badge bg-warning text-dark px-3 py-2"><i class="fas fa-pencil-alt me-1"></i>مسودة</span>
+                            <span class="badge bg-warning text-dark px-3 py-2"><i
+                                    class="fas fa-pencil-alt me-1"></i>مسودة</span>
                             {% elif journal_entry.status == 'posted' %}
-                                <span class="badge bg-success px-3 py-2"><i class="fas fa-check-circle me-1"></i>مرحّل</span>
+                            <span class="badge bg-success px-3 py-2"><i
+                                    class="fas fa-check-circle me-1"></i>مرحّل</span>
                             {% else %}
-                                <span class="badge bg-secondary px-3 py-2">{{ journal_entry.get_status_display }}</span>
+                            <span class="badge bg-secondary px-3 py-2">{{ journal_entry.get_status_display }}</span>
                             {% endif %}
                         </div>
                         <small class="text-muted fs-8">
                             {% if journal_entry.accounting_period %}
-                                الفترة: {{ journal_entry.accounting_period.name }}
+                            الفترة: {{ journal_entry.accounting_period.name }}
                             {% else %}
-                                غير محددة
+                            غير محددة
                             {% endif %}
                         </small>
                     </div>
@@ -90,9 +92,11 @@
                         </h5>
                         <small class="d-block mt-1">
                             {% if total_debits == total_credits %}
-                                <span class="text-success fw-bold fs-8"><i class="fas fa-check-circle me-1"></i>متوازن</span>
+                            <span class="text-success fw-bold fs-8"><i
+                                    class="fas fa-check-circle me-1"></i>متوازن</span>
                             {% else %}
-                                <span class="text-danger fw-bold fs-8"><i class="fas fa-exclamation-triangle me-1"></i>غير متوازن</span>
+                            <span class="text-danger fw-bold fs-8"><i class="fas fa-exclamation-triangle me-1"></i>غير
+                                متوازن</span>
                             {% endif %}
                         </small>
                     </div>
@@ -114,7 +118,8 @@
                 <p class="mb-0 fs-7">
                     هذا قيد عكسي تم إنشاؤه لعكس القيد الأصلي
                     {% if journal_entry.original_entry_reversed.first %}
-                    <a href="{% url 'financial:journal_entries_detail' journal_entry.original_entry_reversed.first.pk %}" class="alert-link">
+                    <a href="{% url 'financial:journal_entries_detail' journal_entry.original_entry_reversed.first.pk %}"
+                        class="alert-link">
                         {{ journal_entry.original_entry_reversed.first.number }}
                     </a>
                     {% endif %}
@@ -123,7 +128,7 @@
         </div>
     </div>
     {% endif %}
-    
+
     {% if journal_entry.reversed_entry %}
     <div class="alert alert-info mb-4">
         <div class="d-flex align-items-center">
@@ -132,7 +137,8 @@
                 <h6 class="alert-heading mb-1 fw-bold">تم عكس هذا القيد</h6>
                 <p class="mb-0 fs-7">
                     تم إنشاء قيد عكسي لهذا القيد:
-                    <a href="{% url 'financial:journal_entries_detail' journal_entry.reversed_entry.pk %}" class="alert-link">
+                    <a href="{% url 'financial:journal_entries_detail' journal_entry.reversed_entry.pk %}"
+                        class="alert-link">
                         {{ journal_entry.reversed_entry.number }}
                     </a>
                 </p>
@@ -149,7 +155,7 @@
                     <h5 class="card-title mb-0 fw-bold">
                         <i class="fas fa-list me-2 text-primary"></i>بنود القيد المحاسبي ومراكز التكلفة
                         {% if journal_entry.lines.exists %}
-                            <small class="text-muted fs-7">({{ journal_entry.lines.count }} بند)</small>
+                        <small class="text-muted fs-7">({{ journal_entry.lines.count }} بند)</small>
                         {% endif %}
                     </h5>
                 </div>
@@ -171,53 +177,67 @@
                                 <tr>
                                     <td class="text-center">
                                         {% if line.account %}
-                                            <a href="{% url 'financial:account_detail' line.account.pk %}" class="text-decoration-none fw-bold">
-                                                {{ line.account.code }} - {{ line.account.name }}
-                                            </a>
+                                        <a href="{% url 'financial:account_detail' line.account.pk %}"
+                                            class="text-decoration-none fw-bold">
+                                            {{ line.account.code }} - {{ line.account.name }}
+                                        </a>
                                         {% else %}
-                                            <span class="text-muted">حساب محذوف</span>
+                                        <span class="text-muted">حساب محذوف</span>
                                         {% endif %}
                                     </td>
                                     <td class="text-center fs-8 text-muted">{{ line.description|default:"-" }}</td>
                                     <td class="text-center">
-                                         {% if line.cost_center %}
-                                             <a href="{% url 'financial:cost_center_detail' line.cost_center.pk %}" class="badge bg-primary-subtle text-primary border border-primary-subtle text-decoration-none px-2 py-1 fs-7 fw-medium">
-                                                 <i class="fas fa-sitemap me-1"></i>{{ line.cost_center.code }} - {{ line.cost_center.name }}
-                                             </a>
-                                         {% elif line.cost_allocations.exists %}
-                                             <div class="d-inline-flex flex-column align-items-center gap-1">
-                                                 <span class="badge bg-info-subtle text-info border border-info-subtle px-2 py-1 fs-7 fw-medium">
-                                                     <i class="fas fa-chart-pie me-1"></i>توزيع متعدد ({{ line.cost_allocations.count }})
-                                                 </span>
-                                                 <div class="small text-start border rounded-2 p-2 bg-light w-100" style="max-width: 260px;">
-                                                     {% for alloc in line.cost_allocations.all %}
-                                                         <div class="d-flex justify-content-between align-items-center fs-8 border-bottom pb-1 mb-1">
-                                                             <a href="{% url 'financial:cost_center_detail' alloc.cost_center.pk %}" class="fw-semibold text-primary text-decoration-none">
-                                                                 <i class="fas fa-sitemap me-1 fs-9"></i>{{ alloc.cost_center.code }} - {{ alloc.cost_center.name }}
-                                                             </a>
-                                                             <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle ms-1">{{ alloc.percentage }}% ({{ alloc.amount|smart_float }})</span>
-                                                         </div>
-                                                     {% endfor %}
-                                                 </div>
-                                             </div>
-                                         {% elif line.cost_center_name_snapshot %}
-                                             <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1 fs-7 fw-medium">{{ line.cost_center_code_snapshot }} - {{ line.cost_center_name_snapshot }}</span>
-                                         {% else %}
-                                             <span class="text-muted fs-8">غير محدد</span>
-                                         {% endif %}
+                                        {% if line.cost_center %}
+                                        <a href="{% url 'financial:cost_center_detail' line.cost_center.pk %}"
+                                            class="badge bg-primary-subtle text-primary border border-primary-subtle text-decoration-none px-2 py-1 fs-7 fw-medium">
+                                            <i class="fas fa-sitemap me-1"></i>{{ line.cost_center.code }} - {{
+                                            line.cost_center.name }}
+                                        </a>
+                                        {% elif line.cost_allocations.exists %}
+                                        <div class="d-inline-flex flex-column align-items-center gap-1">
+                                            <span
+                                                class="badge bg-info-subtle text-info border border-info-subtle px-2 py-1 fs-7 fw-medium">
+                                                <i class="fas fa-chart-pie me-1"></i>توزيع متعدد ({{
+                                                line.cost_allocations.count }})
+                                            </span>
+                                            <div class="small text-start border rounded-2 p-2 bg-light w-100"
+                                                style="max-width: 260px;">
+                                                {% for alloc in line.cost_allocations.all %}
+                                                <div
+                                                    class="d-flex justify-content-between align-items-center fs-8 border-bottom pb-1 mb-1">
+                                                    <a href="{% url 'financial:cost_center_detail' alloc.cost_center.pk %}"
+                                                        class="fw-semibold text-primary text-decoration-none">
+                                                        <i class="fas fa-sitemap me-1 fs-9"></i>{{
+                                                        alloc.cost_center.code }} - {{ alloc.cost_center.name }}
+                                                    </a>
+                                                    <span
+                                                        class="badge bg-secondary-subtle text-secondary border border-secondary-subtle ms-1">{{
+                                                        alloc.percentage }}% ({{ alloc.amount|smart_float }})</span>
+                                                </div>
+                                                {% endfor %}
+                                            </div>
+                                        </div>
+                                        {% elif line.cost_center_name_snapshot %}
+                                        <span
+                                            class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1 fs-7 fw-medium">{{
+                                            line.cost_center_code_snapshot }} - {{ line.cost_center_name_snapshot
+                                            }}</span>
+                                        {% else %}
+                                        <span class="text-muted fs-8">غير محدد</span>
+                                        {% endif %}
                                     </td>
                                     <td class="text-center">
                                         {% if line.debit > 0 %}
-                                            <span class="text-success fw-bold">{{ line.debit|smart_float }}</span>
+                                        <span class="text-success fw-bold">{{ line.debit|smart_float }}</span>
                                         {% else %}
-                                            -
+                                        -
                                         {% endif %}
                                     </td>
                                     <td class="text-center">
                                         {% if line.credit > 0 %}
-                                            <span class="text-danger fw-bold">{{ line.credit|smart_float }}</span>
+                                        <span class="text-danger fw-bold">{{ line.credit|smart_float }}</span>
                                         {% else %}
-                                            -
+                                        -
                                         {% endif %}
                                     </td>
                                 </tr>
@@ -257,11 +277,13 @@
                     <div class="row g-3">
                         <div class="col-md-6">
                             <label class="text-muted fs-8 d-block mb-1">البيان الأساسي للقيد</label>
-                            <p class="text-dark bg-light p-3 rounded mb-0 fs-7">{{ journal_entry.description|default:"لا يوجد بيان متاح." }}</p>
+                            <p class="text-dark bg-light p-3 rounded mb-0 fs-7">{{ journal_entry.description|default:"لا
+                                يوجد بيان متاح." }}</p>
                         </div>
                         <div class="col-md-6">
                             <label class="text-muted fs-8 d-block mb-1">الملاحظات التوضيحية</label>
-                            <p class="text-dark bg-light p-3 rounded mb-0 fs-7">{{ journal_entry.notes|default:"لا توجد ملاحظات إضافية." }}</p>
+                            <p class="text-dark bg-light p-3 rounded mb-0 fs-7">{{ journal_entry.notes|default:"لا توجد
+                                ملاحظات إضافية." }}</p>
                         </div>
 
                         {% if journal_entry.reference or source_payment_url or source_invoice %}
@@ -269,38 +291,44 @@
                             <label class="text-muted fs-8 d-block mb-2">المرجع والمستندات المصدرية المربوطة</label>
                             <div class="d-flex flex-wrap align-items-center gap-2">
                                 {% if journal_entry.reference %}
-                                    <span class="badge bg-secondary fs-7 px-3 py-2 clickable-reference" 
-                                          data-reference="{{ journal_entry.reference }}" 
-                                          data-journal-id="{{ journal_entry.id }}"
-                                          style="cursor: pointer;">
-                                        <i class="fas fa-hashtag me-1"></i>{{ journal_entry.reference }}
-                                    </span>
+                                <span class="badge bg-secondary fs-7 px-3 py-2 clickable-reference"
+                                    data-reference="{{ journal_entry.reference }}"
+                                    data-journal-id="{{ journal_entry.id }}" style="cursor: pointer;">
+                                    <i class="fas fa-hashtag me-1"></i>{{ journal_entry.reference }}
+                                </span>
                                 {% endif %}
 
                                 {% if source_payment_url %}
-                                    <a href="{{ source_payment_url }}" class="btn btn-outline-primary btn-sm" target="_blank">
-                                        <i class="fas fa-money-bill-wave me-1"></i>عرض القيد / الدفعة
-                                    </a>
+                                <a href="{{ source_payment_url }}" class="btn btn-outline-primary btn-sm"
+                                    target="_blank">
+                                    <i class="fas fa-money-bill-wave me-1"></i>عرض القيد / الدفعة
+                                </a>
                                 {% endif %}
 
                                 {% if source_invoice and invoice_type == 'purchase' %}
-                                    <a href="{% url 'purchase:purchase_detail' source_invoice.pk %}" class="btn btn-outline-primary btn-sm">
-                                        <i class="fas fa-shopping-cart me-1"></i>فاتورة مشتريات: {{ source_invoice.number }}
-                                    </a>
+                                <a href="{% url 'purchase:purchase_detail' source_invoice.pk %}"
+                                    class="btn btn-outline-primary btn-sm">
+                                    <i class="fas fa-shopping-cart me-1"></i>فاتورة مشتريات: {{ source_invoice.number }}
+                                </a>
                                 {% elif source_invoice and invoice_type == 'sale' %}
-                                    <a href="{% url 'sale:sale_detail' source_invoice.pk %}" class="btn btn-outline-primary btn-sm">
-                                        <i class="fas fa-file-invoice me-1"></i>فاتورة مبيعات: {{ source_invoice.number }}
-                                    </a>
+                                <a href="{% url 'sale:sale_detail' source_invoice.pk %}"
+                                    class="btn btn-outline-primary btn-sm">
+                                    <i class="fas fa-file-invoice me-1"></i>فاتورة مبيعات: {{ source_invoice.number }}
+                                </a>
                                 {% endif %}
 
-                                {% if journal_entry.source_module == 'sale' and journal_entry.source_model == 'SalesInvoice' and journal_entry.source_id %}
-                                    <a href="{% url 'sale:sales_invoice_detail' journal_entry.source_id %}" class="btn btn-outline-success btn-sm">
-                                        <i class="fas fa-receipt me-1"></i>فاتورة مبيعات معتمدة
-                                    </a>
-                                {% elif journal_entry.source_module == 'purchase' and journal_entry.source_model == 'GoodsReceivedNote' and journal_entry.source_id %}
-                                    <a href="{% url 'purchase:grn_detail' journal_entry.source_id %}" class="btn btn-outline-warning btn-sm">
-                                        <i class="fas fa-truck-loading me-1"></i>إذن استلام مشتريات (GRN)
-                                    </a>
+                                {% if journal_entry.source_module == 'sale' and journal_entry.source_model ==
+                                'SalesInvoice' and journal_entry.source_id %}
+                                <a href="{% url 'sale:sales_invoice_detail' journal_entry.source_id %}"
+                                    class="btn btn-outline-success btn-sm">
+                                    <i class="fas fa-receipt me-1"></i>فاتورة مبيعات معتمدة
+                                </a>
+                                {% elif journal_entry.source_module == 'purchase' and journal_entry.source_model ==
+                                'GoodsReceivedNote' and journal_entry.source_id %}
+                                <a href="{% url 'purchase:grn_detail' journal_entry.source_id %}"
+                                    class="btn btn-outline-warning btn-sm">
+                                    <i class="fas fa-truck-loading me-1"></i>إذن استلام مشتريات (GRN)
+                                </a>
                                 {% endif %}
                             </div>
                         </div>
@@ -311,12 +339,15 @@
                             <label class="text-muted fs-8 d-block mb-1">الطرف التجاري المرتبط (العميل / المورد)</label>
                             <div class="d-flex align-items-center gap-2">
                                 {% if invoice_type == 'sale' %}
-                                    <span class="fw-bold text-dark fs-7"><i class="fas fa-user-tie text-info me-2"></i>{{ source_party.name }}</span>
+                                <span class="fw-bold text-dark fs-7"><i class="fas fa-user-tie text-info me-2"></i>{{
+                                    source_party.name }}</span>
                                 {% elif invoice_type == 'purchase' %}
-                                    <span class="fw-bold text-dark fs-7"><i class="fas fa-truck text-warning me-2"></i>{{ source_party.name }}</span>
-                                    <a href="{% url 'supplier:supplier_detail' source_party.pk %}" class="btn btn-outline-warning btn-sm">
-                                        <i class="fas fa-eye me-1"></i>عرض بيانات المورد
-                                    </a>
+                                <span class="fw-bold text-dark fs-7"><i class="fas fa-truck text-warning me-2"></i>{{
+                                    source_party.name }}</span>
+                                <a href="{% url 'supplier:supplier_detail' source_party.pk %}"
+                                    class="btn btn-outline-warning btn-sm">
+                                    <i class="fas fa-eye me-1"></i>عرض بيانات المورد
+                                </a>
                                 {% endif %}
                             </div>
                         </div>
@@ -331,57 +362,60 @@
             <div class="card mb-4">
                 <div class="card-header border-bottom py-3">
                     <h6 class="card-title mb-0 fw-bold">
-                        <i class="fas fa-paperclip me-2 text-primary"></i>المرفقات المؤيدة للقيد ({{ attachments|length }})
+                        <i class="fas fa-paperclip me-2 text-primary"></i>المرفقات المؤيدة للقيد ({{ attachments|length
+                        }})
                     </h6>
                 </div>
                 <div class="card-body p-2">
                     {% if attachments %}
-                        <div class="d-flex flex-column gap-2" id="detail_attachments_list">
-                            {% for att in attachments %}
-                                <div class="d-flex align-items-center justify-content-between bg-light border rounded-2 p-2" id="attachment_row_{{ att.pk }}">
-                                    <div class="d-flex align-items-center overflow-hidden me-2">
-                                        <div class="file-icon-badge bg-white rounded-2 p-2 me-2 d-flex align-items-center justify-content-center border" style="width: 36px; height: 36px;">
-                                            {% if ".pdf" in att.original_name|lower %}
-                                                <i class="fas fa-file-pdf text-danger fs-5"></i>
-                                            {% elif ".png" in att.original_name|lower or ".jpg" in att.original_name|lower or ".jpeg" in att.original_name|lower %}
-                                                <i class="fas fa-file-image text-info fs-5"></i>
-                                            {% elif ".xls" in att.original_name|lower or ".csv" in att.original_name|lower %}
-                                                <i class="fas fa-file-excel text-success fs-5"></i>
-                                            {% elif ".doc" in att.original_name|lower %}
-                                                <i class="fas fa-file-word text-primary fs-5"></i>
-                                            {% else %}
-                                                <i class="fas fa-file-alt text-secondary fs-5"></i>
-                                            {% endif %}
-                                        </div>
-                                        <div class="overflow-hidden">
-                                            <span class="fw-semibold text-dark fs-7 d-block text-truncate" dir="ltr" title="{{ att.original_name }}">{{ att.original_name }}</span>
-                                            <small class="text-muted fs-8">{{ att.file_blob.file_size|filesizeformat }} &bull; {{ att.created_at|date:"Y-m-d H:i" }}</small>
-                                        </div>
-                                    </div>
-                                    <div class="d-flex align-items-center gap-1 flex-shrink-0">
-                                        <a href="{% url 'core:secure_attachment_download' att.pk %}" 
-                                           class="btn btn-sm btn-outline-primary px-2 py-1 fs-8" 
-                                           title="تنزيل المرفق" 
-                                           target="_blank">
-                                            <i class="fas fa-download"></i>
-                                        </a>
-                                        {% if journal_entry.status == 'draft' and not journal_entry.is_period_locked %}
-                                        <button type="button" 
-                                                class="btn btn-sm btn-outline-danger px-2 py-1 fs-8" 
-                                                onclick="deleteAttachmentFromDetail('{{ att.pk }}')"
-                                                title="حذف المرفق">
-                                            <i class="fas fa-trash-alt"></i>
-                                        </button>
-                                        {% endif %}
-                                    </div>
+                    <div class="d-flex flex-column gap-2" id="detail_attachments_list">
+                        {% for att in attachments %}
+                        <div class="d-flex align-items-center justify-content-between bg-light border rounded-2 p-2"
+                            id="attachment_row_{{ att.pk }}">
+                            <div class="d-flex align-items-center overflow-hidden me-2">
+                                <div class="file-icon-badge bg-white rounded-2 p-2 me-2 d-flex align-items-center justify-content-center border"
+                                    style="width: 36px; height: 36px;">
+                                    {% if ".pdf" in att.original_name|lower %}
+                                    <i class="fas fa-file-pdf text-danger fs-5"></i>
+                                    {% elif ".png" in att.original_name|lower or ".jpg" in att.original_name|lower or
+                                    ".jpeg" in att.original_name|lower %}
+                                    <i class="fas fa-file-image text-info fs-5"></i>
+                                    {% elif ".xls" in att.original_name|lower or ".csv" in att.original_name|lower %}
+                                    <i class="fas fa-file-excel text-success fs-5"></i>
+                                    {% elif ".doc" in att.original_name|lower %}
+                                    <i class="fas fa-file-word text-primary fs-5"></i>
+                                    {% else %}
+                                    <i class="fas fa-file-alt text-secondary fs-5"></i>
+                                    {% endif %}
                                 </div>
-                            {% endfor %}
+                                <div class="overflow-hidden">
+                                    <span class="fw-semibold text-dark fs-7 d-block text-truncate" dir="ltr"
+                                        title="{{ att.original_name }}">{{ att.original_name }}</span>
+                                    <small class="text-muted fs-8">{{ att.file_blob.file_size|filesizeformat }} &bull;
+                                        {{ att.created_at|date:"Y-m-d H:i" }}</small>
+                                </div>
+                            </div>
+                            <div class="d-flex align-items-center gap-1 flex-shrink-0">
+                                <a href="{% url 'core:secure_attachment_download' att.pk %}"
+                                    class="btn btn-sm btn-outline-primary px-2 py-1 fs-8" title="تحميل المرفق"
+                                    target="_blank">
+                                    <i class="fas fa-download"></i>
+                                </a>
+                                {% if journal_entry.status == 'draft' and not journal_entry.is_period_locked %}
+                                <button type="button" class="btn btn-sm btn-outline-danger px-2 py-1 fs-8"
+                                    onclick="deleteAttachmentFromDetail('{{ att.pk }}')" title="حذف المرفق">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                                {% endif %}
+                            </div>
                         </div>
+                        {% endfor %}
+                    </div>
                     {% else %}
-                        <div class="text-center text-muted py-4">
-                            <i class="fas fa-paperclip fs-4 d-block mb-2 opacity-50"></i>
-                            <span class="fs-8">لا توجد مرفقات مؤيدة لهذا القيد</span>
-                        </div>
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-paperclip fs-4 d-block mb-2 opacity-50"></i>
+                        <span class="fs-8">لا توجد مرفقات مؤيدة لهذا القيد</span>
+                    </div>
                     {% endif %}
                 </div>
             </div>
@@ -396,21 +430,26 @@
                 <div class="card-body fs-8">
                     <div class="d-flex justify-content-between mb-2">
                         <span class="text-muted">تاريخ الإنشاء:</span>
-                        <span class="fw-semibold text-dark">{{ journal_entry.created_at|date:"Y-m-d h:i" }} {% if journal_entry.created_at|date:"A" == "AM" %}ص{% else %}م{% endif %}</span>
+                        <span class="fw-semibold text-dark">{{ journal_entry.created_at|date:"Y-m-d h:i" }} {% if
+                            journal_entry.created_at|date:"A" == "AM" %}ص{% else %}م{% endif %}</span>
                     </div>
                     <div class="d-flex justify-content-between mb-2">
                         <span class="text-muted">القائم بالإنشاء:</span>
-                        <span class="fw-semibold text-dark">{{ journal_entry.created_by.get_full_name|default:journal_entry.created_by.username|default:"نظام آلي" }}</span>
+                        <span class="fw-semibold text-dark">{{
+                            journal_entry.created_by.get_full_name|default:journal_entry.created_by.username|default:"نظام
+                            آلي" }}</span>
                     </div>
                     {% if journal_entry.status == 'posted' and journal_entry.posted_at %}
                     <div class="d-flex justify-content-between mb-2">
                         <span class="text-muted">تاريخ الترحيل:</span>
-                        <span class="fw-semibold text-success">{{ journal_entry.posted_at|date:"Y-m-d h:i" }} {% if journal_entry.posted_at|date:"A" == "AM" %}ص{% else %}م{% endif %}</span>
+                        <span class="fw-semibold text-success">{{ journal_entry.posted_at|date:"Y-m-d h:i" }} {% if
+                            journal_entry.posted_at|date:"A" == "AM" %}ص{% else %}م{% endif %}</span>
                     </div>
                     {% endif %}
                     <div class="d-flex justify-content-between">
                         <span class="text-muted">آخر تحديث:</span>
-                        <span class="fw-semibold text-dark">{{ journal_entry.updated_at|date:"Y-m-d h:i" }} {% if journal_entry.updated_at|date:"A" == "AM" %}ص{% else %}م{% endif %}</span>
+                        <span class="fw-semibold text-dark">{{ journal_entry.updated_at|date:"Y-m-d h:i" }} {% if
+                            journal_entry.updated_at|date:"A" == "AM" %}ص{% else %}م{% endif %}</span>
                     </div>
                 </div>
             </div>
@@ -419,164 +458,164 @@
 </div>
 
 <script>
-function getCsrfToken() {
-    const tokenInput = document.querySelector('[name=csrfmiddlewaretoken]');
-    if (tokenInput && tokenInput.value) {
-        return tokenInput.value;
-    }
-    if (document.cookie && document.cookie !== '') {
-        const cookies = document.cookie.split(';');
-        for (let i = 0; i < cookies.length; i++) {
-            const cookie = cookies[i].trim();
-            if (cookie.substring(0, 10) === 'csrftoken=') {
-                return decodeURIComponent(cookie.substring(10));
+    function getCsrfToken() {
+        const tokenInput = document.querySelector('[name=csrfmiddlewaretoken]');
+        if (tokenInput && tokenInput.value) {
+            return tokenInput.value;
+        }
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, 10) === 'csrftoken=') {
+                    return decodeURIComponent(cookie.substring(10));
+                }
             }
         }
+        return '';
     }
-    return '';
-}
 
-function editJournalEntry(pk) {
-    Swal.fire({
-        title: 'تعديل القيد المحاسبي',
-        text: 'هذا القيد مرحل حالياً. سيتم إلغاء ترحيله وإعادته لحالة المسودة لفتحه للتعديل، هل تريد المتابعة؟',
-        icon: 'question',
-        showCancelButton: true,
-        confirmButtonColor: '#ffc107',
-        cancelButtonColor: '#6c757d',
-        confirmButtonText: '<i class="fas fa-edit me-1 text-dark"></i>نعم، إلغاء الترحيل وتعديل',
-        cancelButtonText: 'إلغاء',
-        customClass: {
-            confirmButton: 'text-dark fw-bold'
-        }
-    }).then((result) => {
-        if (result.isConfirmed) {
-            window.location.href = `/financial/journal-entries/${pk}/edit/`;
-        }
-    });
-}
+    function editJournalEntry(pk) {
+        Swal.fire({
+            title: 'تعديل القيد المحاسبي',
+            text: 'هذا القيد مرحل حالياً. سيتم إلغاء ترحيله وإعادته لحالة المسودة لفتحه للتعديل، هل تريد المتابعة؟',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#ffc107',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: '<i class="fas fa-edit me-1 text-dark"></i>نعم، إلغاء الترحيل وتعديل',
+            cancelButtonText: 'إلغاء',
+            customClass: {
+                confirmButton: 'text-dark fw-bold'
+            }
+        }).then((result) => {
+            if (result.isConfirmed) {
+                window.location.href = `/financial/journal-entries/${pk}/edit/`;
+            }
+        });
+    }
 
-function deleteJournalEntry(pk, status) {
-    const isPosted = status === 'posted';
-    const title = isPosted ? 'إلغاء ترحيل وحذف القيد' : 'حذف القيد المسودة';
-    const text = isPosted 
-        ? 'تحذير: هذا القيد مرحل حالياً. سيتم إلغاء أثره المالي وحذفه نهائياً من سجلات النظام. هل أنت متأكد؟'
-        : 'هل أنت متأكد من رغبتك في حذف هذا القيد نهائياً؟';
+    function deleteJournalEntry(pk, status) {
+        const isPosted = status === 'posted';
+        const title = isPosted ? 'إلغاء ترحيل وحذف القيد' : 'حذف القيد المسودة';
+        const text = isPosted
+            ? 'تحذير: هذا القيد مرحل حالياً. سيتم إلغاء أثره المالي وحذفه نهائياً من سجلات النظام. هل أنت متأكد؟'
+            : 'هل أنت متأكد من رغبتك في حذف هذا القيد نهائياً؟';
 
-    Swal.fire({
-        title: title,
-        text: text,
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#dc3545',
-        cancelButtonColor: '#6c757d',
-        confirmButtonText: '<i class="fas fa-trash-alt me-1"></i>نعم، حذف القيد',
-        cancelButtonText: 'إلغاء'
-    }).then((result) => {
-        if (result.isConfirmed) {
-            const csrfToken = getCsrfToken();
-            fetch(`/financial/journal-entries/${pk}/delete/`, {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': csrfToken,
-                    'Content-Type': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    toastr.success(data.message || 'تم حذف القيد بنجاح');
-                    setTimeout(() => {
-                        window.location.href = data.redirect_url || '/financial/journal-entries/';
-                    }, 1500);
-                } else {
-                    toastr.error(data.message || 'حدث خطأ أثناء حذف القيد');
-                }
-            })
-            .catch(() => {
-                toastr.error('حدث خطأ في الاتصال بالخادم');
-            });
-        }
-    });
-}
+        Swal.fire({
+            title: title,
+            text: text,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#dc3545',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: '<i class="fas fa-trash-alt me-1"></i>نعم، حذف القيد',
+            cancelButtonText: 'إلغاء'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                const csrfToken = getCsrfToken();
+                fetch(`/financial/journal-entries/${pk}/delete/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': csrfToken,
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            toastr.success(data.message || 'تم حذف القيد بنجاح');
+                            setTimeout(() => {
+                                window.location.href = data.redirect_url || '/financial/journal-entries/';
+                            }, 1500);
+                        } else {
+                            toastr.error(data.message || 'حدث خطأ أثناء حذف القيد');
+                        }
+                    })
+                    .catch(() => {
+                        toastr.error('حدث خطأ في الاتصال بالخادم');
+                    });
+            }
+        });
+    }
 
-function postJournalEntry(pk) {
-    Swal.fire({
-        title: 'ترحيل القيد المحاسبي',
-        text: 'هل أنت متأكد من ترحيل هذا القيد؟ سيتم قفل بنوده واعتماد أثره المالي.',
-        icon: 'question',
-        showCancelButton: true,
-        confirmButtonColor: '#28a745',
-        cancelButtonColor: '#6c757d',
-        confirmButtonText: '<i class="fas fa-check me-1"></i>نعم، ترحيل القيد',
-        cancelButtonText: 'إلغاء'
-    }).then((result) => {
-        if (result.isConfirmed) {
-            const csrfToken = getCsrfToken();
-            fetch(`/financial/journal-entries/${pk}/post/`, {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': csrfToken,
-                    'Content-Type': 'application/json',
-                },
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    toastr.success(data.message || 'تم ترحيل القيد بنجاح');
-                    setTimeout(() => location.reload(), 3100);
-                } else {
-                    toastr.error(data.message || 'حدث خطأ أثناء ترحيل القيد');
-                }
-            })
-            .catch(() => {
-                toastr.error('حدث خطأ في الاتصال بالخادم');
-            });
-        }
-    });
-}
+    function postJournalEntry(pk) {
+        Swal.fire({
+            title: 'ترحيل القيد المحاسبي',
+            text: 'هل أنت متأكد من ترحيل هذا القيد؟ سيتم قفل بنوده واعتماد أثره المالي.',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#28a745',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: '<i class="fas fa-check me-1"></i>نعم، ترحيل القيد',
+            cancelButtonText: 'إلغاء'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                const csrfToken = getCsrfToken();
+                fetch(`/financial/journal-entries/${pk}/post/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': csrfToken,
+                        'Content-Type': 'application/json',
+                    },
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            toastr.success(data.message || 'تم ترحيل القيد بنجاح');
+                            setTimeout(() => location.reload(), 3100);
+                        } else {
+                            toastr.error(data.message || 'حدث خطأ أثناء ترحيل القيد');
+                        }
+                    })
+                    .catch(() => {
+                        toastr.error('حدث خطأ في الاتصال بالخادم');
+                    });
+            }
+        });
+    }
 
-function unpostJournalEntry(pk) {
-    Swal.fire({
-        title: 'إلغاء ترحيل القيد',
-        text: 'هل أنت متأكد من إلغاء ترحيل هذا القيد؟ سيتم إعادته لحالة المسودة لتتمكن من تعديله أو حذفه.',
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#f0ad4e',
-        cancelButtonColor: '#6c757d',
-        confirmButtonText: '<i class="fas fa-undo me-1"></i>نعم، إلغاء الترحيل',
-        cancelButtonText: 'إلغاء'
-    }).then((result) => {
-        if (result.isConfirmed) {
-            const csrfToken = getCsrfToken();
-            fetch(`/financial/journal-entries/${pk}/unpost/`, {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': csrfToken,
-                    'Content-Type': 'application/json',
-                },
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    toastr.success(data.message || 'تم إلغاء الترحيل بنجاح');
-                    setTimeout(() => location.reload(), 3100);
-                } else {
-                    toastr.error(data.message || 'حدث خطأ أثناء إلغاء الترحيل');
-                }
-            })
-            .catch(() => {
-                toastr.error('حدث خطأ في الاتصال بالخادم');
-            });
-        }
-    });
-}
+    function unpostJournalEntry(pk) {
+        Swal.fire({
+            title: 'إلغاء ترحيل القيد',
+            text: 'هل أنت متأكد من إلغاء ترحيل هذا القيد؟ سيتم إعادته لحالة المسودة لتتمكن من تعديله أو حذفه.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#f0ad4e',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: '<i class="fas fa-undo me-1"></i>نعم، إلغاء الترحيل',
+            cancelButtonText: 'إلغاء'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                const csrfToken = getCsrfToken();
+                fetch(`/financial/journal-entries/${pk}/unpost/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': csrfToken,
+                        'Content-Type': 'application/json',
+                    },
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            toastr.success(data.message || 'تم إلغاء الترحيل بنجاح');
+                            setTimeout(() => location.reload(), 3100);
+                        } else {
+                            toastr.error(data.message || 'حدث خطأ أثناء إلغاء الترحيل');
+                        }
+                    })
+                    .catch(() => {
+                        toastr.error('حدث خطأ في الاتصال بالخادم');
+                    });
+            }
+        });
+    }
 
-function reverseJournalEntry(pk) {
-    Swal.fire({
-        title: 'إنشاء قيد عكسي',
-        html: `
+    function reverseJournalEntry(pk) {
+        Swal.fire({
+            title: 'إنشاء قيد عكسي',
+            html: `
             <p class="text-muted mb-3">سيتم إنشاء قيد جديد يعكس أثر هذا القيد تماماً ويُرحَّل تلقائياً.</p>
             <div class="text-start">
                 <label class="form-label fw-bold">سبب العكس <span class="text-danger">*</span></label>
@@ -584,97 +623,97 @@ function reverseJournalEntry(pk) {
                           placeholder="مثال: خطأ في الحساب، تصحيح قيد سابق..."></textarea>
             </div>
         `,
-        icon: 'question',
-        showCancelButton: true,
-        confirmButtonColor: '#dc3545',
-        cancelButtonColor: '#6c757d',
-        confirmButtonText: '<i class="fas fa-exchange-alt me-1"></i>إنشاء القيد العكسي',
-        cancelButtonText: 'إلغاء',
-        preConfirm: () => {
-            const reason = document.getElementById('reversal-reason').value.trim();
-            if (!reason) {
-                Swal.showValidationMessage('يجب إدخال سبب العكس');
-                return false;
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#dc3545',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: '<i class="fas fa-exchange-alt me-1"></i>إنشاء القيد العكسي',
+            cancelButtonText: 'إلغاء',
+            preConfirm: () => {
+                const reason = document.getElementById('reversal-reason').value.trim();
+                if (!reason) {
+                    Swal.showValidationMessage('يجب إدخال سبب العكس');
+                    return false;
+                }
+                return reason;
             }
-            return reason;
-        }
-    }).then((result) => {
-        if (result.isConfirmed) {
-            const csrfToken = getCsrfToken();
-            fetch(`/financial/journal-entries/${pk}/reverse/`, {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': csrfToken,
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ reason: result.value }),
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    Swal.fire({
-                        title: 'تم بنجاح',
-                        html: `تم إنشاء القيد العكسي <strong>${data.reversal_number}</strong> وترحيله بنجاح.`,
-                        icon: 'success',
-                        confirmButtonText: 'عرض القيد العكسي',
-                        showCancelButton: true,
-                        cancelButtonText: 'البقاء هنا',
-                    }).then((r) => {
-                        if (r.isConfirmed) {
-                            window.location.href = `/financial/journal-entries/${data.reversal_pk}/`;
+        }).then((result) => {
+            if (result.isConfirmed) {
+                const csrfToken = getCsrfToken();
+                fetch(`/financial/journal-entries/${pk}/reverse/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': csrfToken,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ reason: result.value }),
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            Swal.fire({
+                                title: 'تم بنجاح',
+                                html: `تم إنشاء القيد العكسي <strong>${data.reversal_number}</strong> وترحيله بنجاح.`,
+                                icon: 'success',
+                                confirmButtonText: 'عرض القيد العكسي',
+                                showCancelButton: true,
+                                cancelButtonText: 'البقاء هنا',
+                            }).then((r) => {
+                                if (r.isConfirmed) {
+                                    window.location.href = `/financial/journal-entries/${data.reversal_pk}/`;
+                                } else {
+                                    location.reload();
+                                }
+                            });
                         } else {
-                            location.reload();
+                            toastr.error(data.message || 'حدث خطأ أثناء إنشاء القيد العكسي');
                         }
+                    })
+                    .catch(() => {
+                        toastr.error('حدث خطأ في الاتصال بالخادم');
                     });
-                } else {
-                    toastr.error(data.message || 'حدث خطأ أثناء إنشاء القيد العكسي');
-                }
-            })
-            .catch(() => {
-                toastr.error('حدث خطأ في الاتصال بالخادم');
-            });
-        }
-    });
-}
+            }
+        });
+    }
 
-function deleteAttachmentFromDetail(attId) {
-    Swal.fire({
-        title: 'حذف المرفق',
-        text: 'هل أنت متأكد من رغبتك في حذف هذا المرفق نهائياً؟',
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#dc3545',
-        cancelButtonColor: '#6c757d',
-        confirmButtonText: '<i class="fas fa-trash-alt me-1"></i>نعم، حذف',
-        cancelButtonText: 'إلغاء'
-    }).then((result) => {
-        if (result.isConfirmed) {
-            const csrfToken = getCsrfToken();
-            fetch(`/core/attachments/${attId}/delete/`, {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': csrfToken,
-                    'Content-Type': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            })
-            .then(r => r.json())
-            .then(data => {
-                if (data.success) {
-                    const row = document.getElementById('attachment_row_' + attId);
-                    if (row) {
-                        row.remove();
+    function deleteAttachmentFromDetail(attId) {
+        Swal.fire({
+            title: 'حذف المرفق',
+            text: 'هل أنت متأكد من رغبتك في حذف هذا المرفق نهائياً؟',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#dc3545',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: '<i class="fas fa-trash-alt me-1"></i>نعم، حذف',
+            cancelButtonText: 'إلغاء'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                const csrfToken = getCsrfToken();
+                fetch(`/core/attachments/${attId}/delete/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': csrfToken,
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
                     }
-                    toastr.success(data.message || 'تم حذف المرفق بنجاح');
-                } else {
-                    toastr.error(data.message || 'حدث خطأ أثناء حذف المرفق');
-                }
-            })
-            .catch(() => {
-                toastr.error('حدث خطأ في الاتصال بالخادم');
-            });
-        }
-    });
-}
+                })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.success) {
+                            const row = document.getElementById('attachment_row_' + attId);
+                            if (row) {
+                                row.remove();
+                            }
+                            toastr.success(data.message || 'تم حذف المرفق بنجاح');
+                        } else {
+                            toastr.error(data.message || 'حدث خطأ أثناء حذف المرفق');
+                        }
+                    })
+                    .catch(() => {
+                        toastr.error('حدث خطأ في الاتصال بالخادم');
+                    });
+            }
+        });
+    }
 </script>
 {% endblock %}

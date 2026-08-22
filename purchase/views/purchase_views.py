@@ -1343,7 +1343,7 @@ def purchase_print(request, pk):
 @login_required
 def purchase_pdf_download(request, pk):
     """
-    تصدير/تنزيل فاتورة مشتريات مباشرة كـ PDF بنسق نقي
+    تصدير/تحميل فاتورة مشتريات مباشرة كـ PDF بنسق نقي
     """
     from django.template.loader import render_to_string
     from utils.pdf_utils import generate_pdf_from_html, generate_guaranteed_pdf_response

@@ -32,7 +32,7 @@ def customer_list(request):
     has_debt = request.GET.get('has_debt', '')
     search = request.GET.get('search', '')
 
-    customers_qs = Customer.objects.all().order_by('-created_at')
+    customers_qs = Customer.objects.select_related('default_currency').all().order_by('-created_at')
 
     if status == 'active':
         customers_qs = customers_qs.filter(is_active=True)
@@ -58,8 +58,8 @@ def customer_list(request):
         return export_queryset_to_excel(
             customers_qs,
             filename="customers_export.xlsx",
-            fields=["code", "name", "phone", "address", "balance", "is_active"],
-            headers=["الكود", "اسم العميل", "رقم الهاتف", "العنوان", "المديونية", "نشط"]
+            fields=["code", "name", "phone", "address", "default_currency__code", "balance", "is_active"],
+            headers=["الكود", "اسم العميل", "رقم الهاتف", "العنوان", "العملة", "المديونية", "نشط"]
         )
 
     active_customers = Customer.objects.filter(is_active=True).count()
@@ -79,6 +79,13 @@ def customer_list(request):
         {"key": "code", "label": "الكود", "sortable": True},
         {"key": "phone", "label": "رقم الهاتف", "sortable": False},
         {"key": "address", "label": "العنوان", "sortable": False},
+        {
+            "key": "currency_display",
+            "label": "العملة",
+            "sortable": False,
+            "format": "html",
+            "class": "text-center",
+        },
         {
             "key": "actual_balance_display",
             "label": "المديونية",
@@ -125,12 +132,15 @@ def customer_list(request):
     page_obj = pagination_data['page_obj']
     
     from financial.services.partner_exposure_service import BusinessPartnerExposureService
-    from core.presenters.currency_exposure_presenter import CurrencyExposurePresenter
+    from core.presenters.currency_exposure_presenter import CurrencyExposurePresenter, get_currency_symbol
 
     page_customer_ids = [c.pk for c in page_obj]
     exposure_map = BusinessPartnerExposureService.get_open_balances("customer", page_customer_ids)
 
     for c in page_obj:
+        curr_code = c.default_currency.code if c.default_currency else "EGP"
+        curr_symbol = (c.default_currency.symbol if c.default_currency and c.default_currency.symbol else "") or get_currency_symbol(curr_code)
+        c.currency_display = f'<span class="badge bg-light text-dark border">{curr_symbol}</span>'
         customer_dtos = exposure_map.get(c.pk, [])
         c.actual_balance_display = CurrencyExposurePresenter.render_html_badges(customer_dtos)
 

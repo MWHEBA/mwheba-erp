@@ -15,8 +15,7 @@ from financial.models.chart_of_accounts import ChartOfAccounts
 from financial.models.currency import Currency
 from financial.services.opening_balance_service import OpeningBalancePostingService
 from financial.exceptions import ImmutableLedgerError
-
-
+from django.core.exceptions import ValidationError
 from django.urls import reverse
 
 @login_required
@@ -111,6 +110,61 @@ def opening_balance_wizard(request, pk=None):
     except Exception:
         suppliers = []
 
+    header_buttons = []
+    if batch.status == 'draft':
+        header_buttons.append({
+            'toggle': 'modal',
+            'target': '#importExcelModal',
+            'icon': 'fa-file-excel',
+            'text': _("استيراد من Excel"),
+            'class': 'btn-outline-success',
+        })
+        header_buttons.append({
+            'url': reverse('financial:opening_balance_download_template'),
+            'icon': 'fa-download',
+            'text': _("تحميل نموذج Excel"),
+            'class': 'btn-outline-secondary',
+        })
+    elif batch.status == 'posted':
+        header_buttons.append({
+            'toggle': 'modal',
+            'target': '#reverseBatchModal',
+            'icon': 'fa-undo',
+            'text': _("إلغاء وعكس الدفعة"),
+            'class': 'btn-outline-danger',
+        })
+        if batch.journal_entry:
+            header_buttons.append({
+                'url': reverse('financial:journal_entries_detail', args=[batch.journal_entry.pk]),
+                'icon': 'fa-file-invoice',
+                'text': _("عرض قيد اليومية"),
+                'class': 'btn-outline-primary',
+            })
+
+    header_badges = [
+        {'text': f"{_('السنة المالية')}: {batch.fiscal_year.name}", 'class': 'bg-light text-dark border', 'icon': 'fa-calendar-alt'},
+    ]
+    if batch.status == 'posted':
+        header_badges.append({'text': _("مرحلة ومقفلة"), 'class': 'bg-success text-white', 'icon': 'fa-lock'})
+        if batch.journal_entry:
+            header_badges.append({
+                'url': reverse('financial:journal_entries_detail', args=[batch.journal_entry.pk]),
+                'text': f"{_('قيد اليومية')}: #{batch.journal_entry.number}",
+                'class': 'bg-primary text-white',
+                'icon': 'fa-receipt'
+            })
+    elif batch.status == 'reversed':
+        header_badges.append({'text': _("معكوسة"), 'class': 'bg-danger text-white', 'icon': 'fa-undo'})
+        if batch.reversal_journal_entry:
+            header_badges.append({
+                'url': reverse('financial:journal_entries_detail', args=[batch.reversal_journal_entry.pk]),
+                'text': f"{_('القيد العكسي')}: #{batch.reversal_journal_entry.number}",
+                'class': 'bg-danger text-white',
+                'icon': 'fa-receipt'
+            })
+    else:
+        header_badges.append({'text': _("مسودة / تحت التدقيق"), 'class': 'bg-warning text-dark', 'icon': 'fa-edit'})
+
     return render(request, 'financial/opening_balance_wizard.html', {
         'batch': batch,
         'lines': lines,
@@ -131,6 +185,8 @@ def opening_balance_wizard(request, pk=None):
             {'title': _("الأرصدة الافتتاحية"), 'url': reverse('financial:opening_balance_list'), 'icon': 'fa-balance-scale'},
             {'title': batch.batch_number, 'active': True}
         ],
+        'header_buttons': header_buttons,
+        'header_badges': header_badges,
     })
 
 
