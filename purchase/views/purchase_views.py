@@ -134,7 +134,7 @@ def purchase_list(request):
         },
         {
             "key": "created_at",
-            "label": _("التاريخ والوقت"),
+            "label": _("التاريخ"),
             "sortable": True,
             "class": "text-center",
             "format": "datetime_12h",

@@ -388,6 +388,19 @@ class OpeningBalancePostingService:
         except Exception:
             pass
 
+    @staticmethod
+    def _get_opening_transaction_number(batch_number, line_id):
+        if not batch_number:
+            return f"OPN-{line_id}"
+        batch_str = str(batch_number).strip()
+        if batch_str.startswith("OPB"):
+            return f"OPN{batch_str[3:]}-{line_id}"
+        elif batch_str.startswith("OPN-"):
+            return f"OPN{batch_str[4:]}-{line_id}"
+        elif batch_str.startswith("OPN"):
+            return f"{batch_str}-{line_id}"
+        return f"OPN-{batch_str}-{line_id}"
+
     @classmethod
     def _create_customer_opening_item(cls, line, journal_entry, user):
         try:
@@ -397,11 +410,12 @@ class OpeningBalancePostingService:
             foreign_val = (line.debit_foreign or line.credit_foreign) if is_foreign else func_val
             is_debit = line.debit >= line.credit
             tx_type = "INVOICE" if is_debit else "ADVANCE"
+            txn_number = cls._get_opening_transaction_number(line.batch.batch_number, line.id)
 
             CustomerTransaction.objects.create(
                 customer=line.customer,
                 transaction_type=tx_type,
-                transaction_number=f"OPN-{line.batch.batch_number}-{line.id}",
+                transaction_number=txn_number,
                 issue_date=line.batch.opening_date,
                 due_date=line.batch.opening_date,
                 currency=line.currency.code if line.currency else 'EGP',
@@ -425,6 +439,7 @@ class OpeningBalancePostingService:
             is_foreign = bool(line.currency and not line.currency.is_functional)
             func_val = abs(line.debit - line.credit)
             foreign_val = (line.debit_foreign or line.credit_foreign) if is_foreign else func_val
+            txn_number = cls._get_opening_transaction_number(line.batch.batch_number, line.id)
 
             # Close and zero-out the original opening transaction to prevent ghost open balances
             CustomerTransaction.objects.filter(
@@ -441,7 +456,7 @@ class OpeningBalancePostingService:
             CustomerTransaction.objects.create(
                 customer=line.customer,
                 transaction_type="CREDIT_NOTE",
-                transaction_number=f"REV-OPN-{line.batch.batch_number}-{line.id}",
+                transaction_number=f"REV-{txn_number}",
                 issue_date=timezone.now().date(),
                 due_date=timezone.now().date(),
                 currency=line.currency.code if line.currency else 'EGP',
@@ -467,11 +482,12 @@ class OpeningBalancePostingService:
             foreign_val = (line.debit_foreign or line.credit_foreign) if is_foreign else func_val
             is_credit = line.credit >= line.debit
             tx_type = "BILL" if is_credit else "ADVANCE"
+            txn_number = cls._get_opening_transaction_number(line.batch.batch_number, line.id)
 
             SupplierTransaction.objects.create(
                 supplier=line.supplier,
                 transaction_type=tx_type,
-                transaction_number=f"OPN-{line.batch.batch_number}-{line.id}",
+                transaction_number=txn_number,
                 issue_date=line.batch.opening_date,
                 due_date=line.batch.opening_date,
                 currency=line.currency.code if line.currency else 'EGP',
@@ -493,11 +509,15 @@ class OpeningBalancePostingService:
             is_foreign = bool(line.currency and not line.currency.is_functional)
             func_val = abs(line.credit - line.debit)
             foreign_val = (line.debit_foreign or line.credit_foreign) if is_foreign else func_val
+            txn_number = cls._get_opening_transaction_number(line.batch.batch_number, line.id)
 
             # Close and zero-out the original opening transaction to prevent ghost open balances
             SupplierTransaction.objects.filter(
                 supplier=line.supplier,
-                transaction_number=f"OPN-{line.batch.batch_number}-{line.id}"
+                transaction_number__in=[
+                    txn_number,
+                    f"OPN-{line.batch.batch_number}-{line.id}"
+                ]
             ).update(
                 status="CLOSED",
                 open_amount=Decimal('0.00'),
@@ -508,7 +528,7 @@ class OpeningBalancePostingService:
             SupplierTransaction.objects.create(
                 supplier=line.supplier,
                 transaction_type='DEBIT_NOTE',
-                transaction_number=f"REV-OPN-{line.batch.batch_number}-{line.id}",
+                transaction_number=f"REV-{txn_number}",
                 issue_date=timezone.now().date(),
                 due_date=timezone.now().date(),
                 currency=line.currency.code if line.currency else 'EGP',

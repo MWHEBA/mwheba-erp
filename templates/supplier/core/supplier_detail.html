@@ -131,13 +131,6 @@
           </button>
         </li>
         <li class="nav-item" role="presentation">
-          <button class="nav-link fw-semibold px-3" id="journal-tab" data-bs-toggle="tab"
-            data-bs-target="#journal-tab-pane" type="button" role="tab" aria-controls="journal-tab-pane"
-            aria-selected="false">
-            <i class="fas fa-book me-2"></i>{% trans "القيود المحاسبية" %}
-          </button>
-        </li>
-        <li class="nav-item" role="presentation">
           <button class="nav-link fw-semibold px-3" id="statement-tab" data-bs-toggle="tab"
             data-bs-target="#statement-tab-pane" type="button" role="tab" aria-controls="statement-tab-pane"
             aria-selected="false">
@@ -588,35 +581,6 @@
           {% endwith %}
         </div>
 
-        <!-- تاب القيود المحاسبية -->
-        <div class="tab-pane fade" id="journal-tab-pane" role="tabpanel" aria-labelledby="journal-tab" tabindex="0">
-          <div class="d-flex justify-content-between align-items-center mb-3">
-            <h5 class="mb-0"><i class="fas fa-book me-2"></i>{% trans "القيود المحاسبية المرتبطة" %}</h5>
-            {% if financial_account %}
-            <a href="{% url 'financial:account_detail' financial_account.pk %}" class="btn btn-sm btn-outline-success">
-              <i class="fas fa-link me-1"></i>{% trans "عرض الحساب المحاسبي" %}
-            </a>
-            {% endif %}
-          </div>
-
-          <!-- استخدام النظام المحسن للجداول -->
-          {% with table_id="supplier-journal-table" %}
-          {% with headers=journal_headers %}
-          {% with data=journal_entries %}
-          {% with action_buttons=journal_action_buttons %}
-          {% with empty_message="لا توجد قيود محاسبية مسجلة لهذا المورد" %}
-          {% with clickable_rows=journal_clickable row_click_url="/financial/journal-entries/0/" %}
-          {% with show_export=True export_filename="supplier_journal_entries" %}
-          {% include "components/data_table.html" %}
-          {% endwith %}
-          {% endwith %}
-          {% endwith %}
-          {% endwith %}
-          {% endwith %}
-          {% endwith %}
-          {% endwith %}
-        </div>
-
         <!-- تاب كشف الحساب -->
         <div class="tab-pane fade" id="statement-tab-pane" role="tabpanel" aria-labelledby="statement-tab" tabindex="0">
           <div class="d-flex justify-content-between align-items-center mb-3">
@@ -633,13 +597,37 @@
             </div>
           </div>
 
-          <!-- استخدام النظام المحسن للجداول -->
+          <!-- شريط فلترة العملات لكشف الحساب -->
+          {% if available_currencies and available_currencies|length > 1 %}
+          <div class="currency-filter-toolbar mb-3 p-2 bg-light border rounded d-flex flex-wrap align-items-center justify-content-between gap-2">
+            <div class="d-flex align-items-center gap-2">
+              <span class="small fw-bold text-muted"><i class="fas fa-coins me-1 text-warning"></i>{% trans "عرض كشف الحساب بعملة:" %}</span>
+              <div class="btn-group btn-group-sm" role="group">
+                <a href="?currency=ALL" class="btn {% if active_currency == 'ALL' or not active_currency %}btn-primary fw-bold{% else %}btn-outline-secondary{% endif %}">
+                  {% trans "الكل (موحد بالجنيه)" %}
+                </a>
+                {% for curr in available_currencies %}
+                <a href="?currency={{ curr }}" class="btn {% if active_currency == curr %}btn-primary fw-bold{% else %}btn-outline-secondary{% endif %}">
+                  {{ curr }}
+                </a>
+                {% endfor %}
+              </div>
+            </div>
+            <div class="text-muted small">
+              <i class="fas fa-info-circle me-1"></i>{% trans "يتم احتساب الرصيد التراكمي صافياً بحسب العملة المحددة" %}
+            </div>
+          </div>
+          {% endif %}
+
+          <!-- استخدام النظام المحسن للجداول مع النقر المباشر على الحركات -->
           {% with table_id="supplier-statement-table" %}
           {% with headers=statement_headers %}
           {% with data=transactions %}
           {% with empty_message="لا توجد معاملات مالية مسجلة" %}
+          {% with clickable_rows=True row_click_field="url" %}
           {% with show_export=True export_filename="supplier_statement" %}
           {% include "components/data_table.html" %}
+          {% endwith %}
           {% endwith %}
           {% endwith %}
           {% endwith %}

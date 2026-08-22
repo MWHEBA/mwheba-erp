@@ -572,7 +572,7 @@ class CreditAuditLog(models.Model):
     reason = models.TextField(_("السبب / الملاحظات"))
     related_document = models.CharField(_("المستند المرتبط"), max_length=100, blank=True, null=True)
     user = models.ForeignKey("users.User", on_delete=models.SET_NULL, null=True, blank=True, verbose_name=_("المستخدم"))
-    timestamp = models.DateTimeField(_("التاريخ والوقت"), auto_now_add=True)
+    timestamp = models.DateTimeField(_("التاريخ"), auto_now_add=True)
 
     class Meta:
         verbose_name = _("تدقيق حوكمة الائتمان")

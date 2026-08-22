@@ -1,0 +1,19 @@
+{% load custom_filters %}
+{% load utils_extras %}
+{% load i18n %}
+<div class="transaction-amount text-center">
+  {% if object.foreign_debit and object.foreign_debit > 0 and object.currency and object.currency != 'EGP' %}
+    <div class="text-success fw-bold">
+      {{ object.foreign_debit|smart_float }} <small class="text-muted fs-8">{{ object.currency_symbol|default:object.currency }}</small>
+    </div>
+    {% if object.exchange_rate and object.exchange_rate != 1 %}
+      <small class="text-muted fs-8 d-block">({{ value|smart_float }} ج.م @ {{ object.exchange_rate|smart_float }})</small>
+    {% else %}
+      <small class="text-muted fs-8 d-block">({{ value|smart_float }} ج.م)</small>
+    {% endif %}
+  {% elif value and value > 0 %}
+    <span class="text-success fw-bold">{{ value|smart_float }} ج.م</span>
+  {% else %}
+    <span class="text-muted">-</span>
+  {% endif %}
+</div>

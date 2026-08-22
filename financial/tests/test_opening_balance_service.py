@@ -19,7 +19,7 @@ User = get_user_model()
 @pytest.fixture
 def setup_data(db):
     uid = uuid.uuid4().hex[:6]
-    user = User.objects.create_user(username=f"cfo_{uid}", password="password123")
+    user = User.objects.create_user(username=f"cfo_{uid}", email=f"cfo_{uid}@example.com", password="password123")
     fiscal_year = FiscalYear.objects.create(
         name=f"2026_{uid}",
         year_code=f"Y26_{uid}",

@@ -468,30 +468,35 @@ document.addEventListener('DOMContentLoaded', function() {
                 const row = e.target.closest('tr[data-clickable="true"]');
                 if (!row) return;
                 
-                if (e.target.closest('.col-actions, .btn, a, button, input, select, textarea')) return;
+                // Allow interactive action controls to handle their own clicks
+                if (e.target.closest('.col-actions, .btn, button, input, select, textarea, .dropdown-menu')) return;
                 if (row.getAttribute('data-empty') === 'true') return;
                 
+                const url = row.getAttribute('data-url');
                 const itemId = row.getAttribute('data-id');
                 
-                if (rowClickField) {
-                    const url = row.getAttribute('data-url');
-                    if (url && (url.startsWith('/') || url.startsWith(window.location.origin))) {
-                        window.location.href = url;
-                    }
-                } else if (rowClickUrl) {
-                    if (itemId && itemId !== '0' && /^\d+$/.test(itemId)) {
-                        const url = rowClickUrl.replace('/0/', `/${encodeURIComponent(itemId)}/`);
-                        if (url.startsWith('/') || url.startsWith(window.location.origin)) {
-                            window.location.href = url;
-                        }
+                if (url && url !== '#' && (url.startsWith('/') || url.startsWith('http') || url.startsWith(window.location.origin))) {
+                    window.location.href = url;
+                    return;
+                }
+                
+                if (rowClickUrl && itemId && itemId !== '0' && /^\d+$/.test(itemId)) {
+                    const dynamicUrl = rowClickUrl.replace('/0/', `/${encodeURIComponent(itemId)}/`);
+                    if (dynamicUrl.startsWith('/') || dynamicUrl.startsWith('http') || dynamicUrl.startsWith(window.location.origin)) {
+                        window.location.href = dynamicUrl;
+                        return;
                     }
                 }
             });
             
             const clickableRows = tableBody.querySelectorAll('tr[data-clickable="true"]');
             clickableRows.forEach(row => {
+                const url = row.getAttribute('data-url');
                 const itemId = row.getAttribute('data-id');
-                if (itemId && itemId !== '0' && row.getAttribute('data-empty') !== 'true') {
+                const hasUrl = url && url !== '#' && (url.startsWith('/') || url.startsWith('http'));
+                const hasId = rowClickUrl && itemId && itemId !== '0';
+                
+                if ((hasUrl || hasId || isClickableRows) && row.getAttribute('data-empty') !== 'true') {
                     row.style.cursor = 'pointer';
                     row.title = 'انقر لعرض التفاصيل';
                     
@@ -737,14 +742,32 @@ function toggleTableColumn(tableId, columnIndex, show) {
     gap: 0.35rem;
     color: inherit;
     text-decoration: none;
+    transition: var(--transition-all);
 }
-th.text-end .table-sort-link,
-.table-sort-link.text-end {
-    justify-content: center;
-}
+
 th.text-center .table-sort-link,
-.table-sort-link.text-center {
-    justify-content: center;
+.table-sort-link.text-center,
+.transaction-table thead th.text-center .table-sort-link {
+    display: inline-flex !important;
+    justify-content: center !important;
+    width: 100% !important;
+    text-align: center !important;
+}
+
+th.text-start .table-sort-link,
+.table-sort-link.text-start,
+.transaction-table thead th.text-start .table-sort-link {
+    display: inline-flex !important;
+    justify-content: flex-start !important;
+    text-align: start !important;
+}
+
+th.text-end .table-sort-link,
+.table-sort-link.text-end,
+.transaction-table thead th.text-end .table-sort-link {
+    display: inline-flex !important;
+    justify-content: flex-end !important;
+    text-align: end !important;
 }
 
 /* Export Controls */
@@ -768,14 +791,16 @@ th.text-center .table-sort-link,
 
 /* Clickable Rows Enhancement */
 tr[data-clickable="true"] {
-    transition: background-color 0.2s ease;
+    cursor: pointer !important;
+    transition: background-color 0.15s ease-in-out;
 }
 
-tr[data-clickable="true"]:hover {
+tr[data-clickable="true"]:hover > td,
+tr[data-clickable="true"]:hover > th {
     background-color: var(--bs-light, #f8f9fa) !important;
 }
 
-tr[data-clickable="true"][style*="cursor: pointer"] {
+tr[data-clickable="true"] {
     user-select: none;
 }
 

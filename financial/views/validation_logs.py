@@ -118,7 +118,7 @@ def validation_logs_list(request):
     
     # رؤوس الجدول
     table_headers = [
-        {'key': 'timestamp', 'label': 'التاريخ والوقت', 'sortable': True, 'width': '12%', 'format': 'datetime'},
+        {'key': 'timestamp', 'label': 'التاريخ', 'sortable': True, 'width': '12%', 'format': 'datetime'},
         {'key': 'user', 'label': 'المستخدم', 'sortable': True, 'width': '10%'},
         {'key': 'entity_type', 'label': 'نوع الكيان', 'sortable': True, 'width': '10%', 'class': 'text-center'},
         {'key': 'entity_name', 'label': 'اسم الكيان', 'sortable': True, 'width': '15%'},

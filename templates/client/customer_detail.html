@@ -20,71 +20,61 @@
   <!-- Page Header المركزي -->
   {% include "shared/page_header.html" %}
 
-  <!-- Overview Cards -->
-  <div class="section-container">
-    <h5 class="section-title" data-bs-toggle="collapse" data-bs-target="#overviewCollapse" aria-expanded="false"
-      style="cursor: pointer;">
-      <i class="fas fa-chart-bar me-2"></i>{% trans "نظرة عامة" %}
-      <i class="fas fa-chevron-down float-end"></i>
-    </h5>
-    <div class="collapse" id="overviewCollapse">
-      <div class="row p-4 g-3">
-        <div class="col-md-4 col-lg-3">
-          <div class="stats-card stats-card-primary">
-            <div class="stats-card-header"></div>
-            <div class="stats-card-body">
-              <div class="stats-card-icon">
-                <i class="fas fa-money-bill-wave"></i>
-              </div>
-              <div class="stats-card-title">{% trans "إجمالي المدفوعات" %}</div>
-              <div class="stats-card-value">{{ total_payments|smart_float:2 }}</div>
-              <div class="stats-card-unit">{% currency_symbol %}</div>
-            </div>
+  <!-- Overview Cards (Rule 7 Compliant - Direct Grid Row) -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-6 col-lg-3">
+      <div class="stats-card stats-card-primary">
+        <div class="stats-card-header"></div>
+        <div class="stats-card-body">
+          <div class="stats-card-icon">
+            <i class="fas fa-money-bill-wave"></i>
           </div>
+          <div class="stats-card-title">{% trans "إجمالي المدفوعات" %}</div>
+          <div class="stats-card-value">{{ total_payments|smart_float:2 }}</div>
+          <div class="stats-card-unit">{% currency_symbol %}</div>
         </div>
+      </div>
+    </div>
 
-        <div class="col-md-4 col-lg-3">
-          <div class="stats-card stats-card-success">
-            <div class="stats-card-header"></div>
-            <div class="stats-card-body">
-              <div class="stats-card-icon">
-                <i class="fas fa-shopping-cart"></i>
-              </div>
-              <div class="stats-card-title">{% trans "إجمالي المبيعات" %}</div>
-              <div class="stats-card-value">{{ total_sales|smart_float:2 }}</div>
-              <div class="stats-card-unit">{% currency_symbol %}</div>
-            </div>
+    <div class="col-md-6 col-lg-3">
+      <div class="stats-card stats-card-success">
+        <div class="stats-card-header"></div>
+        <div class="stats-card-body">
+          <div class="stats-card-icon">
+            <i class="fas fa-shopping-cart"></i>
           </div>
+          <div class="stats-card-title">{% trans "إجمالي المبيعات" %}</div>
+          <div class="stats-card-value">{{ total_sales|smart_float:2 }}</div>
+          <div class="stats-card-unit">{% currency_symbol %}</div>
         </div>
+      </div>
+    </div>
 
-        <div class="col-md-4 col-lg-3">
-          <div class="stats-card stats-card-danger">
-            <div class="stats-card-header"></div>
-            <div class="stats-card-body">
-              <div class="stats-card-icon">
-                <i class="fas fa-box"></i>
-              </div>
-              <div class="stats-card-title">{% trans "إجمالي المنتجات" %}</div>
-              <div class="stats-card-value">{{ total_products|default:"0" }}</div>
-              <div class="stats-card-unit" style="font-weight: 600;">{% trans "منتج" %}</div>
-            </div>
+    <div class="col-md-6 col-lg-3">
+      <div class="stats-card stats-card-warning">
+        <div class="stats-card-header"></div>
+        <div class="stats-card-body">
+          <div class="stats-card-icon">
+            <i class="fas fa-wallet"></i>
           </div>
+          <div class="stats-card-title">{% trans "الاستحقاق الحالي (الرصيد)" %}</div>
+          <div class="stats-card-value">{{ customer.balance|smart_float:2 }}</div>
+          <div class="stats-card-unit">{% currency_symbol %}</div>
         </div>
+      </div>
+    </div>
 
-        <div class="col-md-4 col-lg-3">
-          <div class="stats-card stats-card-info">
-            <div class="stats-card-header"></div>
-            <div class="stats-card-body">
-              <div class="stats-card-icon">
-                <i class="fas fa-file-invoice"></i>
-              </div>
-              <div class="stats-card-title">{% trans "إجمالي الفواتير" %}</div>
-              <div class="stats-card-value">{{ invoices_count|default:"0" }}</div>
-              <div class="stats-card-unit" style="font-weight: 600;">{% trans "فاتورة" %}</div>
-            </div>
+    <div class="col-md-6 col-lg-3">
+      <div class="stats-card stats-card-info">
+        <div class="stats-card-header"></div>
+        <div class="stats-card-body">
+          <div class="stats-card-icon">
+            <i class="fas fa-file-invoice"></i>
           </div>
+          <div class="stats-card-title">{% trans "إجمالي الفواتير" %}</div>
+          <div class="stats-card-value">{{ invoices_count|default:"0" }}</div>
+          <div class="stats-card-unit" style="font-weight: 600;">{% trans "فاتورة" %}</div>
         </div>
-
       </div>
     </div>
   </div>
@@ -126,13 +116,6 @@
             aria-selected="false">
             <i class="fas fa-money-bill-wave me-2"></i>{% trans "المدفوعات" %}
             <span class="badge rounded-pill bg-light text-secondary border ms-1">{{ payments|length|default:"0" }}</span>
-          </button>
-        </li>
-        <li class="nav-item" role="presentation">
-          <button class="nav-link fw-semibold px-3" id="journal-tab" data-bs-toggle="tab"
-            data-bs-target="#journal-tab-pane" type="button" role="tab" aria-controls="journal-tab-pane"
-            aria-selected="false">
-            <i class="fas fa-book me-2"></i>{% trans "القيود المحاسبية" %}
           </button>
         </li>
         <li class="nav-item" role="presentation">
@@ -516,35 +499,6 @@
           {% endwith %}
         </div>
 
-        <!-- تاب القيود المحاسبية -->
-        <div class="tab-pane fade" id="journal-tab-pane" role="tabpanel" aria-labelledby="journal-tab" tabindex="0">
-          <div class="d-flex justify-content-between align-items-center mb-3">
-            <h5 class="mb-0"><i class="fas fa-book me-2"></i>{% trans "القيود المحاسبية المرتبطة" %}</h5>
-            {% if financial_account %}
-            <a href="{% url 'financial:account_detail' financial_account.pk %}" class="btn btn-sm btn-outline-success">
-              <i class="fas fa-link me-1"></i>{% trans "عرض الحساب المحاسبي" %}
-            </a>
-            {% endif %}
-          </div>
-
-          <!-- استخدام النظام المحسن للجداول -->
-          {% with table_id="customer-journal-table" %}
-          {% with headers=journal_headers %}
-          {% with data=journal_entries %}
-          {% with action_buttons=journal_action_buttons %}
-          {% with empty_message="لا توجد قيود محاسبية مرتبطة" %}
-          {% with clickable_rows=journal_clickable row_click_url="/financial/journal-entries/0/" %}
-          {% with show_export=True export_filename="customer_journal_entries" %}
-          {% include "components/data_table.html" %}
-          {% endwith %}
-          {% endwith %}
-          {% endwith %}
-          {% endwith %}
-          {% endwith %}
-          {% endwith %}
-          {% endwith %}
-        </div>
-
         <!-- تاب كشف الحساب -->
         <div class="tab-pane fade" id="statement-tab-pane" role="tabpanel" aria-labelledby="statement-tab" tabindex="0">
           <div class="d-flex justify-content-between align-items-center mb-3">
@@ -561,13 +515,37 @@
             </div>
           </div>
 
-          <!-- استخدام النظام المحسن للجداول -->
+          <!-- شريط فلترة العملات لكشف الحساب -->
+          {% if available_currencies and available_currencies|length > 1 %}
+          <div class="currency-filter-toolbar mb-3 p-2 bg-light border rounded d-flex flex-wrap align-items-center justify-content-between gap-2">
+            <div class="d-flex align-items-center gap-2">
+              <span class="small fw-bold text-muted"><i class="fas fa-coins me-1 text-warning"></i>{% trans "عرض كشف الحساب بعملة:" %}</span>
+              <div class="btn-group btn-group-sm" role="group">
+                <a href="?currency=ALL" class="btn {% if active_currency == 'ALL' or not active_currency %}btn-primary fw-bold{% else %}btn-outline-secondary{% endif %}">
+                  {% trans "الكل (موحد بالجنيه)" %}
+                </a>
+                {% for curr in available_currencies %}
+                <a href="?currency={{ curr }}" class="btn {% if active_currency == curr %}btn-primary fw-bold{% else %}btn-outline-secondary{% endif %}">
+                  {{ curr }}
+                </a>
+                {% endfor %}
+              </div>
+            </div>
+            <div class="text-muted small">
+              <i class="fas fa-info-circle me-1"></i>{% trans "يتم احتساب الرصيد التراكمي صافياً بحسب العملة المحددة" %}
+            </div>
+          </div>
+          {% endif %}
+
+          <!-- استخدام النظام المحسن للجداول مع النقر المباشر على الحركات -->
           {% with table_id="customer-statement-table" %}
           {% with headers=statement_headers %}
           {% with data=transactions %}
           {% with empty_message="لا توجد معاملات مالية مسجلة" %}
+          {% with clickable_rows=True row_click_field="url" %}
           {% with show_export=True export_filename="customer_statement" %}
           {% include "components/data_table.html" %}
+          {% endwith %}
           {% endwith %}
           {% endwith %}
           {% endwith %}

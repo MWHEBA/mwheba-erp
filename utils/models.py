@@ -26,7 +26,7 @@ class SystemLog(models.Model):
         null=True, blank=True, verbose_name=_("عنوان IP")
     )
     timestamp = models.DateTimeField(
-        auto_now_add=True, verbose_name=_("التاريخ والوقت")
+        auto_now_add=True, verbose_name=_("التاريخ")
     )
 
     class Meta:

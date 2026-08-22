@@ -1379,7 +1379,7 @@ def transaction_list(request):
         },
         {
             "key": "created_at",
-            "label": "التاريخ والوقت",
+            "label": "التاريخ",
             "sortable": True,
             "format": "datetime_12h",
             "class": "text-center",

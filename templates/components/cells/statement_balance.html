@@ -1,5 +1,17 @@
 {% load custom_filters %}
+{% load utils_extras %}
 {% load i18n %}
-<span class="transaction-amount {% if value > 0 %}negative{% else %}positive{% endif %}">
-  <strong>{{ value|currency }}</strong>
-</span>
+<div class="transaction-amount text-center">
+  {% if object.foreign_balance is not None and object.currency and object.currency != 'EGP' %}
+    <div class="fw-bold {% if object.foreign_balance > 0 %}text-danger{% elif object.foreign_balance < 0 %}text-success{% else %}text-muted{% endif %}">
+      {{ object.foreign_balance|smart_float }} <small class="text-muted fs-8">{{ object.currency_symbol|default:object.currency }}</small>
+    </div>
+    <small class="text-muted fs-8 d-block">({{ value|smart_float }} ج.م)</small>
+  {% elif value is not None %}
+    <span class="fw-bold {% if value > 0 %}text-danger{% elif value < 0 %}text-success{% else %}text-muted{% endif %}">
+      {{ value|smart_float }} ج.م
+    </span>
+  {% else %}
+    <span class="text-muted">0.00 ج.م</span>
+  {% endif %}
+</div>

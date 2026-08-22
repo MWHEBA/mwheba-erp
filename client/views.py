@@ -410,9 +410,9 @@ def customer_detail(request, pk):
 
 
 
-    # جلب فواتير البيع المرتبطة بالعميل
+    # جلب فواتير البيع المؤكدة المرتبطة بالعميل
     from sale.models import Sale
-    invoices = Sale.objects.with_list_details().filter(customer=customer).order_by("-date")
+    invoices = Sale.objects.with_list_details().filter(customer=customer, status="confirmed").order_by("-date")
     invoices_count = invoices.count()
 
     # جلب طلبات التسعير المرتبطة بالعميل (مؤقتاً معطل)
@@ -550,6 +550,8 @@ def customer_detail(request, pk):
     # تجهيز بيانات المعاملات لكشف الحساب
     transactions = []
 
+    from core.presenters.currency_exposure_presenter import get_currency_symbol
+
     # 1. جلب الأرصدة الافتتاحية من الأستاذ المساعد للعميل
     from client.models import CustomerTransaction
     op_txns = CustomerTransaction.objects.filter(
@@ -558,12 +560,13 @@ def customer_detail(request, pk):
     )
     for op_tx in op_txns:
         curr_code = op_tx.currency or "EGP"
-        curr_sym = "ج.م" if curr_code == "EGP" else curr_code
+        curr_sym = get_currency_symbol(curr_code)
         is_inv = (op_tx.transaction_type == "INVOICE")
         debit_val = op_tx.functional_amount if is_inv else Decimal("0.00")
         credit_val = op_tx.functional_amount if not is_inv else Decimal("0.00")
         f_debit = op_tx.foreign_amount if is_inv else Decimal("0.00")
         f_credit = op_tx.foreign_amount if not is_inv else Decimal("0.00")
+        ledger_url = (reverse("financial:ledger_report") + f"?account={customer.financial_account.id}") if customer.financial_account else "#"
         transactions.append({
             "date": op_tx.issue_date,
             "created_at": op_tx.created_at,
@@ -578,16 +581,20 @@ def customer_detail(request, pk):
             "foreign_credit": f_credit,
             "exchange_rate": op_tx.exchange_rate,
             "balance": Decimal("0.00"),
+            "foreign_balance": Decimal("0.00"),
+            "url": ledger_url,
         })
 
+    # 2. جلب فواتير البيع المؤكدة
     for invoice in invoices:
         curr_code = invoice.currency.code if invoice.currency else "EGP"
-        curr_sym = invoice.currency.symbol if (invoice.currency and invoice.currency.symbol) else ("ج.م" if curr_code == "EGP" else curr_code)
+        curr_sym = (invoice.currency.symbol if (invoice.currency and invoice.currency.symbol) else None) or get_currency_symbol(curr_code)
         rate = invoice.exchange_rate or Decimal("1.000000")
         func_total = getattr(invoice, 'total_functional', None) or (invoice.total * rate).quantize(Decimal("0.01"))
+        inv_url = reverse("sale:sale_detail", kwargs={"pk": invoice.id})
         transactions.append(
             {
-                "date": invoice.created_at,
+                "date": invoice.created_at or invoice.date,
                 "reference": invoice.number,
                 "invoice_id": invoice.id,
                 "type": "invoice",
@@ -600,37 +607,211 @@ def customer_detail(request, pk):
                 "foreign_credit": Decimal("0.00"),
                 "exchange_rate": rate,
                 "balance": Decimal("0.00"),
+                "foreign_balance": Decimal("0.00"),
+                "url": inv_url,
             }
         )
 
-    for payment_item in payments:
-        curr_obj = payment_item.get("currency")
-        curr_code = curr_obj.code if hasattr(curr_obj, 'code') else (str(curr_obj) if curr_obj else "EGP")
-        curr_sym = payment_item.get("currency_symbol") or ("ج.م" if curr_code == "EGP" else curr_code)
-        amt = Decimal(str(payment_item["amount"] or "0.00"))
-        transactions.append(
-            {
-                "date": payment_item["created_at"] or payment_item["payment_date"],
-                "reference": payment_item["reference_number"],
-                "type": "payment",
-                "description": f"{payment_item['type_display']} ({payment_item['payment_method']})",
+    # 3. جلب الإشعارات الدائنة المالية المعتمدة والمرحلة
+    try:
+        from sale.models import CreditNote
+        credit_notes = CreditNote.objects.filter(
+            customer=customer,
+            status__in=['POSTED', 'PARTIALLY_APPLIED', 'FULLY_APPLIED', 'APPROVED']
+        )
+        for cn in credit_notes:
+            curr_code = cn.currency or "EGP"
+            curr_sym = get_currency_symbol(curr_code)
+            rate = cn.exchange_rate or Decimal("1.000000")
+            func_total = (cn.total_amount * rate).quantize(Decimal("0.01"))
+            cn_url = reverse("sale:credit_note_detail", kwargs={"pk": cn.id})
+            transactions.append({
+                "date": cn.created_at,
+                "reference": cn.credit_note_number,
+                "type": "credit_note",
+                "description": f"إشعار دائن رقم {cn.credit_note_number} ({cn.get_source_type_display()})",
                 "currency": curr_code,
                 "currency_symbol": curr_sym,
                 "debit": Decimal("0.00"),
-                "credit": amt,
+                "credit": func_total,
                 "foreign_debit": Decimal("0.00"),
-                "foreign_credit": amt if curr_code != "EGP" else Decimal("0.00"),
+                "foreign_credit": cn.total_amount if curr_code != "EGP" else Decimal("0.00"),
+                "exchange_rate": rate,
                 "balance": Decimal("0.00"),
-            }
-        )
+                "foreign_balance": Decimal("0.00"),
+                "url": cn_url,
+            })
+    except Exception as e:
+        logger.warning(f"Error loading CreditNotes for customer statement: {e}")
 
-    transactions.sort(key=lambda x: str(x["date"] or ""))
+    # 4. جلب المدفوعات النقدية والبنكية مع استبعاد سدادات الرصيد المسبق الداخلية
+    for sp in sale_payments:
+        if sp.payment_method == "prepaid_balance" or getattr(sp, "source_type", None) == "PREPAID_BALANCE":
+            continue
+
+        inv_curr = sp.sale.currency.code if (sp.sale and sp.sale.currency) else "EGP"
+        pay_curr = sp.payment_currency.code if sp.payment_currency else (sp.currency.code if sp.currency else inv_curr)
+        curr_code = inv_curr if inv_curr != "EGP" else pay_curr
+        curr_sym = get_currency_symbol(curr_code)
+        rate = sp.payment_exchange_rate or (sp.sale.exchange_rate if sp.sale else Decimal("1.000000")) or Decimal("1.000000")
+
+        settled_val = getattr(sp, 'amount_settled_invoice_currency', None)
+        if not settled_val or settled_val <= Decimal("0.00"):
+            settled_val = sp.amount
+        func_val = getattr(sp, 'amount_functional', None)
+        if not func_val or func_val <= Decimal("0.00"):
+            func_val = (settled_val * rate).quantize(Decimal("0.01"))
+
+        pay_url = reverse("sale:payment_detail", kwargs={"pk": sp.id})
+        transactions.append({
+            "date": sp.created_at or sp.payment_date,
+            "reference": sp.reference_number or f"PAY-{sp.id}",
+            "type": "payment",
+            "description": f"سداد فاتورة ({sp.sale.number if sp.sale else '-'}) - {sp.source_display_info if hasattr(sp, 'source_display_info') else sp.get_payment_method_display()}",
+            "currency": curr_code,
+            "currency_symbol": curr_sym,
+            "debit": Decimal("0.00"),
+            "credit": func_val,
+            "foreign_debit": Decimal("0.00"),
+            "foreign_credit": settled_val if curr_code != "EGP" else Decimal("0.00"),
+            "exchange_rate": rate,
+            "balance": Decimal("0.00"),
+            "foreign_balance": Decimal("0.00"),
+            "url": pay_url,
+        })
+
+    for cp in advance_payments:
+        curr_code = cp.currency.code if cp.currency else "EGP"
+        curr_sym = get_currency_symbol(curr_code)
+        rate = getattr(cp, 'exchange_rate', Decimal("1.000000")) or Decimal("1.000000")
+        amt = Decimal(str(cp.amount or "0.00"))
+        func_amt = (amt * rate).quantize(Decimal("0.01"))
+        cp_url = (reverse("financial:ledger_report") + f"?account={customer.financial_account.id}") if customer.financial_account else "#"
+
+        transactions.append({
+            "date": cp.created_at or cp.payment_date,
+            "reference": cp.reference_number or f"CP-{cp.id}",
+            "type": "payment",
+            "description": f"دفعة مقدمة تحت الحساب ({cp.source_display_info if hasattr(cp, 'source_display_info') else 'رصيد مسبق'})",
+            "currency": curr_code,
+            "currency_symbol": curr_sym,
+            "debit": Decimal("0.00"),
+            "credit": func_amt,
+            "foreign_debit": Decimal("0.00"),
+            "foreign_credit": amt if curr_code != "EGP" else Decimal("0.00"),
+            "exchange_rate": rate,
+            "balance": Decimal("0.00"),
+            "foreign_balance": Decimal("0.00"),
+            "url": cp_url,
+        })
+
+    # 5. جلب قيود التسوية اليدوية المباشرة على حساب العميل (Direct Manual JVs)
+    if financial_account:
+        try:
+            from financial.models.journal_entry import JournalEntryLine
+            manual_lines = JournalEntryLine.objects.filter(
+                account=financial_account,
+                journal_entry__status='posted'
+            ).exclude(
+                journal_entry__reference__istartswith='SALE-'
+            ).exclude(
+                journal_entry__reference__istartswith='PAY-'
+            ).exclude(
+                journal_entry__reference__istartswith='OPN-'
+            ).exclude(
+                journal_entry__reference__istartswith='REV-'
+            ).select_related('journal_entry')
+
+            for jl in manual_lines:
+                curr_code = str(jl.currency or "EGP")
+                curr_sym = get_currency_symbol(curr_code)
+                rate = jl.exchange_rate or Decimal("1.000000")
+                func_dr = jl.debit or Decimal("0.00")
+                func_cr = jl.credit or Decimal("0.00")
+                f_dr = jl.foreign_debit if (jl.foreign_debit and jl.foreign_debit > 0) else (func_dr if curr_code != "EGP" else Decimal("0.00"))
+                f_cr = jl.foreign_credit if (jl.foreign_credit and jl.foreign_credit > 0) else (func_cr if curr_code != "EGP" else Decimal("0.00"))
+                jv_url = reverse("financial:journal_entry_detail", kwargs={"pk": jl.journal_entry.id})
+
+                transactions.append({
+                    "date": jl.journal_entry.date,
+                    "reference": jl.journal_entry.number or f"JV-{jl.journal_entry.id}",
+                    "type": "manual_jv",
+                    "description": f"تسوية قيد يومية: {jl.description or jl.journal_entry.description or jl.journal_entry.number}",
+                    "currency": curr_code,
+                    "currency_symbol": curr_sym,
+                    "debit": func_dr,
+                    "credit": func_cr,
+                    "foreign_debit": f_dr,
+                    "foreign_credit": f_cr,
+                    "exchange_rate": rate,
+                    "balance": Decimal("0.00"),
+                    "foreign_balance": Decimal("0.00"),
+                    "url": jv_url,
+                })
+        except Exception as e:
+            logger.warning(f"Error loading manual JVs for customer statement: {e}")
+
+    # 6. استخراج كافة العملات المتاحة وتحديد العملة النشطة
+    all_currencies_set = set()
+    for t in transactions:
+        if t.get("currency"):
+            all_currencies_set.add(t["currency"])
+    
+    available_currencies = sorted(list(all_currencies_set))
+    
+    req_curr = request.GET.get("currency", "").strip().upper()
+    if req_curr and (req_curr in available_currencies or req_curr == "ALL"):
+        active_currency = req_curr
+    elif len(available_currencies) == 1 and available_currencies[0] != "EGP":
+        active_currency = available_currencies[0]
+    elif len(available_currencies) == 1 and available_currencies[0] == "EGP":
+        active_currency = "EGP"
+    else:
+        active_currency = "ALL"
+
+    # 7. تصفية الحركات حسب العملة النشطة
+    if active_currency not in ["ALL", ""]:
+        filtered_transactions = [t for t in transactions if t.get("currency") == active_currency]
+    else:
+        filtered_transactions = transactions
+
+    # 8. الترتيب الزمني الهرمي لحركات اليوم الواحد
+    def get_txn_sort_key(t):
+        t_date = t.get("date")
+        if hasattr(t_date, "strftime"):
+            date_str = t_date.strftime("%Y-%m-%d")
+            time_str = t_date.strftime("%H:%M:%S") if hasattr(t_date, "hour") else "00:00:00"
+        else:
+            d_str = str(t_date or "")[:19]
+            date_str = d_str[:10]
+            time_str = d_str[11:19] if len(d_str) >= 19 else "00:00:00"
+
+        t_type = t.get("type")
+        if t_type in ["opening_balance", "balance_bf"]:
+            priority = 1
+        elif t_type in ["invoice", "purchase"]:
+            priority = 2
+        elif t_type == "manual_jv":
+            priority = 3
+        elif t_type == "payment":
+            priority = 4
+        else:
+            priority = 5
+
+        return (date_str, priority, time_str, str(t.get("reference", "")))
+
+    filtered_transactions.sort(key=get_txn_sort_key)
+
+    # 9. احتساب الرصيد التراكمي المزدوج بأمان
     running_balance = Decimal("0.00")
-    for transaction in transactions:
-        running_balance = running_balance + Decimal(str(transaction["debit"])) - Decimal(str(transaction["credit"]))
-        transaction["balance"] = running_balance
+    running_foreign_balance = Decimal("0.00")
+    for t in filtered_transactions:
+        running_balance = running_balance + Decimal(str(t["debit"])) - Decimal(str(t["credit"]))
+        running_foreign_balance = running_foreign_balance + Decimal(str(t.get("foreign_debit", 0))) - Decimal(str(t.get("foreign_credit", 0)))
+        t["balance"] = running_balance
+        t["foreign_balance"] = running_foreign_balance
 
-    transactions.reverse()
+    filtered_transactions.reverse()
 
     # تعريف أعمدة جدول الفواتير للنظام المحسن
     invoices_headers = [
@@ -643,7 +824,7 @@ def customer_detail(request, pk):
         },
         {
             "key": "created_at",
-            "label": "التاريخ والوقت",
+            "label": "التاريخ",
             "sortable": True,
             "class": "text-center",
             "format": "datetime_12h",
@@ -716,7 +897,7 @@ def customer_detail(request, pk):
         },
         {
             "key": "created_at",
-            "label": "تاريخ ووقت الدفع",
+            "label": "التاريخ",
             "sortable": True,
             "class": "text-center",
             "format": "datetime_12h",
@@ -767,7 +948,7 @@ def customer_detail(request, pk):
         },
         {
             "key": "created_at",
-            "label": "التاريخ والوقت",
+            "label": "التاريخ",
             "sortable": True,
             "class": "text-center",
             "format": "datetime_12h",
@@ -812,7 +993,7 @@ def customer_detail(request, pk):
     statement_headers = [
         {
             "key": "date",
-            "label": "التاريخ والوقت",
+            "label": "التاريخ",
             "sortable": True,
             "class": "text-center",
             "format": "datetime_12h",
@@ -838,14 +1019,14 @@ def customer_detail(request, pk):
             "key": "description",
             "label": "الوصف",
             "sortable": True,
-            "class": "text-start",
+            "class": "text-center",
         },
         {
             "key": "debit",
             "label": "مدين",
             "sortable": True,
             "class": "text-center",
-            "template": "components/cells/statement_amount.html",
+            "template": "components/cells/statement_debit.html",
             "width": "120px",
         },
         {
@@ -853,7 +1034,7 @@ def customer_detail(request, pk):
             "label": "دائن",
             "sortable": True,
             "class": "text-center",
-            "template": "components/cells/statement_amount.html",
+            "template": "components/cells/statement_credit.html",
             "width": "120px",
         },
         {
@@ -985,8 +1166,9 @@ def customer_detail(request, pk):
         "total_payments": total_payments,
         "total_sales": total_sales,
         "total_products": total_products,
-        "last_transaction_date": last_transaction_date,
-        "transactions": transactions,
+        "transactions": filtered_transactions,
+        "available_currencies": available_currencies,
+        "active_currency": active_currency,
         "journal_entries": journal_entries,
         "journal_entries_count": journal_entries_count,
         "financial_account": financial_account,

@@ -439,7 +439,7 @@ def biometric_log_list(request):
 
     # إعداد headers للجدول الموحد
     headers = [
-        {'key': 'timestamp', 'label': 'التاريخ والوقت', 'sortable': True, 'width': '15%', 'template': 'components/cells/biometric_log_timestamp.html'},
+        {'key': 'timestamp', 'label': 'التاريخ', 'sortable': True, 'width': '15%', 'template': 'components/cells/biometric_log_timestamp.html'},
         {'key': 'device', 'label': 'الماكينة', 'sortable': True, 'width': '15%', 'template': 'components/cells/biometric_log_device.html'},
         {'key': 'user_id', 'label': 'معرف المستخدم', 'sortable': False, 'width': '12%', 'class': 'text-center', 'template': 'components/cells/biometric_log_user_id.html'},
         {'key': 'employee', 'label': 'الموظف', 'sortable': True, 'width': '20%', 'class': 'text-center', 'template': 'components/cells/biometric_log_employee.html'},

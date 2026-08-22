@@ -914,7 +914,7 @@ def sale_list(request):
         },
         {
             'key': 'created_at',
-            'label': 'التاريخ والوقت',
+            'label': 'التاريخ',
             'sortable': True,
             'class': 'text-center',
             'format': 'datetime_12h',

@@ -712,7 +712,7 @@ function exportTableToExcel(tableId, filename) {
         
         // إضافة العناوين
         data.push([
-            'التاريخ والوقت',
+            'التاريخ',
             'المستخدم',
             'العملية',
             'النوع',
@@ -753,7 +753,7 @@ function exportTableToCSV(tableId, filename) {
         let csvContent = '\uFEFF'; // BOM للدعم العربي
         
         // إضافة العناوين
-        csvContent += 'التاريخ والوقت,المستخدم,العملية,النوع,الوصف,IP Address\n';
+        csvContent += 'التاريخ,المستخدم,العملية,النوع,الوصف,IP Address\n';
         
         // إضافة البيانات
         timelineItems.forEach(item => {

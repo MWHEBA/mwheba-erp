@@ -1,18 +1,38 @@
 {% load i18n %}
+<div class="text-center">
 {% if value %}
   {% if object.type == 'purchase' %}
-    <a href="{% url 'purchase:purchase_detail' object.purchase_id %}" class="text-primary text-decoration-none fw-bold">
+    <span class="badge bg-info-subtle text-info border border-info-subtle fw-bold">
       <i class="fas fa-shopping-cart me-1"></i>{{ value }}
-    </a>
-  {% comment %}
+    </span>
   {% elif object.type == 'invoice' %}
-    <a href="{% url 'sale:sale_detail' object.invoice_id %}" class="text-success text-decoration-none fw-bold">
+    <span class="badge bg-success-subtle text-success border border-success-subtle fw-bold">
       <i class="fas fa-file-invoice-dollar me-1"></i>{{ value }}
-    </a>
-  {% endcomment %}
+    </span>
+  {% elif object.type == 'payment' %}
+    <span class="badge bg-primary-subtle text-primary border border-primary-subtle fw-bold">
+      <i class="fas fa-money-bill me-1"></i>{{ value }}
+    </span>
+  {% elif object.type == 'credit_note' %}
+    <span class="badge bg-info-subtle text-info border border-info-subtle fw-bold">
+      <i class="fas fa-undo me-1"></i>{{ value }}
+    </span>
+  {% elif object.type == 'purchase_return' %}
+    <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle fw-bold">
+      <i class="fas fa-reply me-1"></i>{{ value }}
+    </span>
+  {% elif object.type == 'opening_balance' %}
+    <span class="badge bg-warning text-dark border fw-bold">
+      <i class="fas fa-flag me-1"></i>{{ value }}
+    </span>
+  {% elif object.type == 'manual_jv' %}
+    <span class="badge bg-dark-subtle text-dark border border-dark-subtle fw-bold">
+      <i class="fas fa-calculator me-1"></i>{{ value }}
+    </span>
   {% else %}
-    <span class="badge bg-secondary">{{ value }}</span>
+    <span class="badge bg-light text-secondary border fw-bold">{{ value }}</span>
   {% endif %}
 {% else %}
   <span class="text-muted">-</span>
 {% endif %}
+</div>

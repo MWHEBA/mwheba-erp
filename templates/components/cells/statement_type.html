@@ -1,19 +1,35 @@
 {% load i18n %}
 {% if object.type == 'purchase' %}
-  <span class="badge bg-info">
+  <span class="badge bg-info-subtle text-info border border-info-subtle">
     <i class="fas fa-shopping-cart me-1"></i>{% trans "فاتورة شراء" %}
   </span>
 {% elif object.type == 'invoice' %}
-  <span class="badge bg-success">
+  <span class="badge bg-success-subtle text-success border border-success-subtle">
     <i class="fas fa-file-invoice-dollar me-1"></i>{% trans "فاتورة بيع" %}
   </span>
 {% elif object.type == 'payment' %}
-  <span class="badge bg-primary">
-    <i class="fas fa-money-bill-wave me-1"></i>{% trans "دفعة" %}
+  <span class="badge bg-primary-subtle text-primary border border-primary-subtle">
+    <i class="fas fa-money-bill-wave me-1"></i>{% trans "سداد / دفعة" %}
+  </span>
+{% elif object.type == 'credit_note' %}
+  <span class="badge bg-info-subtle text-info border border-info-subtle">
+    <i class="fas fa-undo me-1"></i>{% trans "إشعار دائن" %}
+  </span>
+{% elif object.type == 'purchase_return' %}
+  <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle">
+    <i class="fas fa-reply me-1"></i>{% trans "مرتجع مشتريات" %}
   </span>
 {% elif object.type == 'opening_balance' %}
   <span class="badge bg-warning text-dark border">
     <i class="fas fa-flag me-1"></i>{% trans "رصيد افتتاحي" %}
+  </span>
+{% elif object.type == 'balance_bf' %}
+  <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">
+    <i class="fas fa-history me-1"></i>{% trans "رصيد ما قبله" %}
+  </span>
+{% elif object.type == 'manual_jv' %}
+  <span class="badge bg-dark-subtle text-dark border border-dark-subtle">
+    <i class="fas fa-calculator me-1"></i>{% trans "تسوية محاسبية" %}
   </span>
 {% else %}
   <span class="badge bg-secondary">{{ object.type }}</span>

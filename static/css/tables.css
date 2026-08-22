@@ -126,11 +126,18 @@
 .transaction-table thead th a {
     color: var(--white);
     position: relative;
-    display: flex;
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
     width: 100%;
     height: 100%;
     text-decoration: none;
     transition: var(--transition-colors);
+}
+
+.transaction-table thead th.text-center a,
+.transaction-table thead th a.text-center {
+    justify-content: center;
 }
 
 .transaction-table thead th a:hover {
