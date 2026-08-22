@@ -145,16 +145,51 @@ class OpeningBalancePostingService:
             line_objects = []
             for line in lines:
                 curr_code = line.currency.code if line.currency else 'EGP'
+                posting_account = line.account
+
+                if line.line_type == 'AR' and line.customer:
+                    line_desc = f"رصيد افتتاحي - عميل: {line.customer.name}"
+                    if line.customer.financial_account:
+                        posting_account = line.customer.financial_account
+                    elif not posting_account or not getattr(posting_account, 'is_leaf', True) or getattr(posting_account, 'is_control_account', False):
+                        from client.services.customer_service import CustomerService
+                        posting_account = CustomerService.create_financial_account_for_customer(line.customer, user=user)
+                    if line.account_id != posting_account.id:
+                        line.account = posting_account
+                        line.save(update_fields=['account'])
+                elif line.line_type == 'AP' and line.supplier:
+                    line_desc = f"رصيد افتتاحي - مورد: {line.supplier.name}"
+                    if line.supplier.financial_account:
+                        posting_account = line.supplier.financial_account
+                    elif not posting_account or not getattr(posting_account, 'is_leaf', True) or getattr(posting_account, 'is_control_account', False):
+                        from supplier.services.supplier_service import SupplierService
+                        posting_account = SupplierService.create_financial_account_for_supplier(line.supplier, user=user)
+                    if line.account_id != posting_account.id:
+                        line.account = posting_account
+                        line.save(update_fields=['account'])
+                elif line.line_type == 'TREASURY' and line.treasury_account:
+                    line_desc = f"رصيد افتتاحي - خزينة/بنك: {line.treasury_account.name}"
+                    posting_account = line.treasury_account
+                elif line.line_type == 'EQUITY':
+                    line_desc = f"رصيد افتتاحي - حقوق ملكية: {line.account.name}"
+                elif line.line_type == 'INVENTORY':
+                    line_desc = f"رصيد افتتاحي - مخزون أول المدة: {line.account.name}"
+                else:
+                    line_desc = f"رصيد افتتاحي: {line.account.name}"
+
+                if not posting_account.can_post_entries():
+                    raise ValidationError(_("الحساب ({}) هو حساب أب رئيسي أو غير نشط ولا يمكن إدراج قيود عليه.").format(posting_account.name))
+
                 jl = JournalEntryLine(
                     journal_entry=journal_entry,
-                    account=line.account,
+                    account=posting_account,
                     debit=line.debit,
                     credit=line.credit,
                     currency=curr_code,
                     foreign_debit=line.debit_foreign if line.currency else Decimal('0.00'),
                     foreign_credit=line.credit_foreign if line.currency else Decimal('0.00'),
                     exchange_rate=line.exchange_rate,
-                    description=f"رصيد افتتاحي: {line.get_line_type_display()}"
+                    description=line_desc
                 )
                 line_objects.append(jl)
 
@@ -164,9 +199,12 @@ class OpeningBalancePostingService:
                     cls._create_supplier_opening_item(line, journal_entry, user)
 
             if rounding_line_needed:
+                r_acc = rounding_line_needed['account']
+                if not r_acc.can_post_entries():
+                    raise ValidationError(_("حساب فروق التقريب ({}) غير متاح لإدراج قيود عليه.").format(r_acc.name))
                 line_objects.append(JournalEntryLine(
                     journal_entry=journal_entry,
-                    account=rounding_line_needed['account'],
+                    account=r_acc,
                     debit=rounding_line_needed['debit'],
                     credit=rounding_line_needed['credit'],
                     currency='EGP',
@@ -354,85 +392,136 @@ class OpeningBalancePostingService:
     def _create_customer_opening_item(cls, line, journal_entry, user):
         try:
             from client.models import CustomerTransaction
-            amt = abs(line.debit - line.credit)
+            is_foreign = bool(line.currency and not line.currency.is_functional)
+            func_val = abs(line.debit - line.credit)
+            foreign_val = (line.debit_foreign or line.credit_foreign) if is_foreign else func_val
+            is_debit = line.debit >= line.credit
+            tx_type = "INVOICE" if is_debit else "ADVANCE"
+
             CustomerTransaction.objects.create(
                 customer=line.customer,
-                transaction_type="INVOICE",
-                transaction_number=f"OPN-{line.batch.batch_number}",
+                transaction_type=tx_type,
+                transaction_number=f"OPN-{line.batch.batch_number}-{line.id}",
                 issue_date=line.batch.opening_date,
                 due_date=line.batch.opening_date,
                 currency=line.currency.code if line.currency else 'EGP',
+                foreign_amount=foreign_val,
                 exchange_rate=line.exchange_rate,
-                functional_amount=amt,
-                open_amount=amt,
-                open_amount_functional=amt,
+                functional_amount=func_val,
+                open_amount_foreign=foreign_val,
+                open_amount_functional=func_val,
+                open_amount=func_val,
                 reference_type="OPENING_BALANCE",
-                reference_id=str(line.batch.id)
+                reference_id=str(line.batch.id),
+                status="OPEN"
             )
-        except Exception:
-            pass
+        except Exception as e:
+            logger.error(f"Failed to create CustomerTransaction for opening line {line.id}: {e}")
 
     @classmethod
     def _reverse_customer_opening_item(cls, line, reversal_jv, user):
         try:
             from client.models import CustomerTransaction
-            amt = abs(line.debit - line.credit)
+            is_foreign = bool(line.currency and not line.currency.is_functional)
+            func_val = abs(line.debit - line.credit)
+            foreign_val = (line.debit_foreign or line.credit_foreign) if is_foreign else func_val
+
+            # Close and zero-out the original opening transaction to prevent ghost open balances
+            CustomerTransaction.objects.filter(
+                customer=line.customer,
+                reference_type="OPENING_BALANCE",
+                reference_id=str(line.batch.id)
+            ).update(
+                status="CLOSED",
+                open_amount=Decimal('0.00'),
+                open_amount_functional=Decimal('0.00'),
+                open_amount_foreign=Decimal('0.00')
+            )
+
             CustomerTransaction.objects.create(
                 customer=line.customer,
                 transaction_type="CREDIT_NOTE",
-                transaction_number=f"REV-OPN-{line.batch.batch_number}",
+                transaction_number=f"REV-OPN-{line.batch.batch_number}-{line.id}",
                 issue_date=timezone.now().date(),
                 due_date=timezone.now().date(),
                 currency=line.currency.code if line.currency else 'EGP',
+                foreign_amount=foreign_val,
                 exchange_rate=line.exchange_rate,
-                functional_amount=amt,
-                open_amount=amt,
-                open_amount_functional=amt,
+                functional_amount=func_val,
+                open_amount_foreign=Decimal('0.00'),
+                open_amount_functional=Decimal('0.00'),
+                open_amount=Decimal('0.00'),
                 reference_type="OPENING_BALANCE_REVERSAL",
-                reference_id=str(line.batch.id)
+                reference_id=str(line.batch.id),
+                status="CLOSED"
             )
-        except Exception:
-            pass
+        except Exception as e:
+            logger.error(f"Failed to reverse CustomerTransaction for opening line {line.id}: {e}")
 
     @classmethod
     def _create_supplier_opening_item(cls, line, journal_entry, user):
         try:
             from supplier.models import SupplierTransaction
+            is_foreign = bool(line.currency and not line.currency.is_functional)
+            func_val = abs(line.credit - line.debit)
+            foreign_val = (line.debit_foreign or line.credit_foreign) if is_foreign else func_val
+            is_credit = line.credit >= line.debit
+            tx_type = "BILL" if is_credit else "ADVANCE"
+
             SupplierTransaction.objects.create(
                 supplier=line.supplier,
-                transaction_type='BILL',
-                transaction_number=f"OPN-{line.batch.batch_number}",
+                transaction_type=tx_type,
+                transaction_number=f"OPN-{line.batch.batch_number}-{line.id}",
                 issue_date=line.batch.opening_date,
                 due_date=line.batch.opening_date,
-                original_amount=abs(line.credit - line.debit),
-                open_amount=abs(line.credit - line.debit),
-                currency=line.currency,
+                currency=line.currency.code if line.currency else 'EGP',
+                foreign_amount=foreign_val,
                 exchange_rate=line.exchange_rate,
-                reference_type="OPENING_BALANCE",
-                reference_id=str(line.batch.id)
+                functional_amount=func_val,
+                open_amount_foreign=foreign_val,
+                open_amount_functional=func_val,
+                open_amount=func_val,
+                status="OPEN"
             )
-        except Exception:
-            pass
+        except Exception as e:
+            logger.error(f"Failed to create SupplierTransaction for opening line {line.id}: {e}")
 
     @classmethod
     def _reverse_supplier_opening_item(cls, line, reversal_jv, user):
         try:
             from supplier.models import SupplierTransaction
+            is_foreign = bool(line.currency and not line.currency.is_functional)
+            func_val = abs(line.credit - line.debit)
+            foreign_val = (line.debit_foreign or line.credit_foreign) if is_foreign else func_val
+
+            # Close and zero-out the original opening transaction to prevent ghost open balances
+            SupplierTransaction.objects.filter(
+                supplier=line.supplier,
+                transaction_number=f"OPN-{line.batch.batch_number}-{line.id}"
+            ).update(
+                status="CLOSED",
+                open_amount=Decimal('0.00'),
+                open_amount_functional=Decimal('0.00'),
+                open_amount_foreign=Decimal('0.00')
+            )
+
             SupplierTransaction.objects.create(
                 supplier=line.supplier,
                 transaction_type='DEBIT_NOTE',
-                transaction_number=f"REV-OPN-{line.batch.batch_number}",
+                transaction_number=f"REV-OPN-{line.batch.batch_number}-{line.id}",
                 issue_date=timezone.now().date(),
                 due_date=timezone.now().date(),
-                original_amount=abs(line.credit - line.debit),
-                open_amount=abs(line.credit - line.debit),
-                currency=line.currency,
+                currency=line.currency.code if line.currency else 'EGP',
+                foreign_amount=foreign_val,
                 exchange_rate=line.exchange_rate,
-                reference_type="OPENING_BALANCE_REVERSAL",
-                reference_id=str(line.batch.id)
+                functional_amount=func_val,
+                open_amount_foreign=Decimal('0.00'),
+                open_amount_functional=Decimal('0.00'),
+                open_amount=Decimal('0.00'),
+                status="CLOSED"
             )
-        except Exception:
-            pass
+        except Exception as e:
+            logger.error(f"Failed to reverse SupplierTransaction for opening line {line.id}: {e}")
 
 
 # Aliases for backward compatibility

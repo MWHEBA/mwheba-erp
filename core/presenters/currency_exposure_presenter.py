@@ -135,12 +135,12 @@ class CurrencyExposurePresenter:
         """
         view_models = cls.build_view_models(dto_list)
         if not view_models:
-            return '<span class="text-muted font-monospace">-</span>'
+            return '<span class="text-muted">-</span>'
 
         html_badges = []
         for vm in view_models:
             badge_str = (
-                f'<span class="badge {vm.variant} font-monospace me-1 mb-1 p-2 shadow-sm" '
+                f'<span class="badge {vm.variant} me-1 mb-1 p-2 shadow-sm" '
                 f'title="{vm.label}: {vm.formatted_amount} {vm.currency_symbol}">'
                 f'<i class="{vm.icon} me-1"></i>{vm.formatted_amount} {vm.currency_symbol}'
                 f'</span>'

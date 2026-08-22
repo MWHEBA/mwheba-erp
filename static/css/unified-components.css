@@ -1417,10 +1417,9 @@ html[dir="rtl"] [dir="ltr"] .input-group > :not(:first-child):not(:last-child) {
    SECTION 6: CARDS, STATS & CHARTS SYSTEM
    ================================================================= */
 
-/* --- 6.1 Stats Cards (Unified & Enhanced) --- */
+/* --- 6.1 Stats & KPI Cards (Corporate Standard) --- */
 .stats-card,
-.unified-stats-card,
-.unified-stats-card-enhanced {
+.unified-stats-card {
     border-radius: var(--border-radius-lg);
     background: var(--bg-card);
     overflow: hidden;
@@ -1431,74 +1430,86 @@ html[dir="rtl"] [dir="ltr"] .input-group > :not(:first-child):not(:last-child) {
     border: 1px solid var(--border-color);
     position: relative;
     transition: var(--transition-all);
-    z-index: 1;
 }
 
 .stats-card:hover,
-.unified-stats-card:hover,
-.unified-stats-card-enhanced:hover {
+.unified-stats-card:hover {
     transform: translateY(-2px);
     box-shadow: var(--shadow-md);
 }
 
+.stats-card-clickable,
+.stats-card-link .stats-card {
+    cursor: pointer;
+}
+
+.stats-card.active-kpi-card {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px var(--primary-soft);
+}
+
 .stats-card-header {
-    padding: 0;
-    position: relative;
-    height: 8px;
-    overflow: hidden;
+    display: none !important;
 }
 
 .stats-card-body {
-    padding: var(--spacing-5);
+    padding: 0.85rem 1.25rem;
     flex: 1;
     display: flex;
-    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.stats-card-info-content {
+    flex: 1;
+    min-width: 0;
 }
 
 .stats-card-icon,
 .unified-stats-card-icon {
-    width: clamp(35px, 10vw, 45px);
-    height: clamp(35px, 10vw, 45px);
-    border-radius: var(--border-radius-lg);
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    position: absolute;
-    left: var(--spacing-5);
-    top: var(--spacing-5);
-    font-size: clamp(1rem, 2.5vw, 1.25rem);
-    box-shadow: var(--shadow-xs);
-    z-index: 2;
+    font-size: 1.15rem;
+    flex-shrink: 0;
+    position: static !important;
+    box-shadow: none;
     transition: var(--transition-all);
 }
 
 .stats-card-title,
 .unified-stats-card-title {
-    font-size: var(--font-size-base);
-    font-weight: var(--font-weight-semibold);
-    color: var(--text-secondary);
-    padding-left: 55px; /* Safety distance to prevent text overlap */
-    margin-bottom: var(--spacing-1);
-    line-height: var(--line-height-tight);
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    padding: 0 !important;
+    margin-bottom: 0.25rem;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .stats-card-value,
 .unified-stats-card-value {
-    font-size: 1.5rem;
-    font-weight: var(--font-weight-bold);
+    font-size: 1.25rem;
+    font-weight: 700;
     line-height: 1.2;
-    margin-bottom: var(--spacing-2);
-    margin-top: var(--spacing-2);
+    margin: 0;
     color: var(--text-dark);
 }
 
 .stats-card-trend {
-    margin-top: auto;
+    margin-top: 0.25rem;
     display: flex;
     align-items: center;
-    gap: var(--spacing-1);
-    font-size: var(--font-size-sm);
-    font-weight: var(--font-weight-medium);
+    gap: 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 600;
 }
 
 .stats-card-trend.up,
@@ -1516,92 +1527,28 @@ html[dir="rtl"] [dir="ltr"] .input-group > :not(:first-child):not(:last-child) {
 }
 
 .stats-card-unit {
-    font-size: var(--font-size-sm);
-    font-weight: var(--font-weight-medium);
-    color: var(--text-secondary);
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    margin-right: 0.25rem;
 }
 
 .stats-card-subtitle {
-    font-size: var(--font-size-xs);
-    color: var(--text-secondary);
-    margin-top: var(--spacing-1);
-    opacity: 0.8;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 0.2rem;
 }
 
 .stats-card-value-group {
     display: flex;
     align-items: baseline;
-    gap: var(--spacing-2);
-    margin-bottom: var(--spacing-3);
-}
-
-.stats-horizontal-content {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-4);
+    gap: 0.25rem;
 }
 
 .stats-card-link {
     display: block;
     height: 100%;
     text-decoration: none;
-}
-
-.stats-card-link:hover .stats-card {
-    border-color: var(--primary-color);
-}
-
-.stats-card-sm .stats-card-body {
-    padding: var(--spacing-3);
-}
-
-.stats-card-sm .stats-card-icon {
-    width: 2.5rem;
-    height: 2.5rem;
-    font-size: var(--font-size-base);
-}
-
-.stats-card-sm .stats-card-value {
-    font-size: 1.25rem;
-}
-
-.stats-card-lg .stats-card-body {
-    padding: var(--spacing-6);
-}
-
-.stats-card-lg .stats-card-icon {
-    width: 3.5rem;
-    height: 3.5rem;
-    font-size: 1.5rem;
-}
-
-.stats-card-lg .stats-card-value {
-    font-size: 2.25rem;
-}
-
-.stats-card-primary .stats-card-header,
-.unified-stats-card-enhanced.primary::before {
-    background-color: var(--primary-color);
-}
-
-.stats-card-success .stats-card-header,
-.unified-stats-card-enhanced.success::before {
-    background-color: var(--success-color);
-}
-
-.stats-card-danger .stats-card-header,
-.unified-stats-card-enhanced.danger::before {
-    background-color: var(--danger-color);
-}
-
-.stats-card-info .stats-card-header,
-.unified-stats-card-enhanced.info::before {
-    background-color: var(--info-color);
-}
-
-.stats-card-warning .stats-card-header,
-.unified-stats-card-enhanced.warning::before {
-    background-color: var(--warning-color);
 }
 
 .stats-card-primary .stats-card-icon {
@@ -2811,20 +2758,20 @@ html[dir="rtl"] .border-right-danger {
 
     .stats-card-icon,
     .unified-stats-card-icon {
-        width: 40px;
-        height: 40px;
-        font-size: var(--font-size-lg);
+        width: 38px;
+        height: 38px;
+        font-size: 1rem;
     }
     
     .stats-card-title,
     .unified-stats-card-title {
-        padding-left: 50px;
-        font-size: var(--font-size-sm);
+        font-size: 0.75rem;
+        padding: 0 !important;
     }
     
     .stats-card-value,
     .unified-stats-card-value {
-        font-size: var(--font-size-xl);
+        font-size: 1.15rem;
     }
 
     .filter-section {
@@ -2897,27 +2844,25 @@ html[dir="rtl"] .border-right-danger {
     }
 
     .stats-card-body {
-        padding: var(--spacing-3);
+        padding: 0.75rem 1rem;
     }
     
     .stats-card-icon,
     .unified-stats-card-icon {
-        width: 35px;
-        height: 35px;
-        font-size: var(--font-size-base);
-        left: var(--spacing-3);
-        top: var(--spacing-3);
+        width: 36px;
+        height: 36px;
+        font-size: 0.95rem;
     }
     
     .stats-card-title,
     .unified-stats-card-title {
-        padding-left: 45px;
-        font-size: 0.8rem;
+        font-size: 0.75rem;
+        padding: 0 !important;
     }
     
     .stats-card-value,
     .unified-stats-card-value {
-        font-size: var(--font-size-lg);
+        font-size: 1.1rem;
     }
     
     .filter-section .d-flex {

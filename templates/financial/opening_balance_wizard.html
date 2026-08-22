@@ -1,179 +1,49 @@
 {% extends "base.html" %}
-{% load i18n static %}
+{% load i18n custom_filters %}
 
-{% block title %}{{ page_title }} | {% trans "MWHEBA ERP" %}{% endblock %}
+{% block title %}{{ page_title }} | {% trans "نظام الحسابات" %}{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+<style>
+.unified-tabs-nav {
+    border-bottom: 2px solid var(--border-color);
+}
+.unified-tabs-link {
+    font-weight: 600;
+    color: var(--text-muted);
+    border: none;
+    padding: 0.75rem 1.25rem;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+}
+.unified-tabs-link.active {
+    color: var(--primary-color) !important;
+    border-bottom: 2px solid var(--primary-color) !important;
+    background: transparent !important;
+}
+.scenario-card {
+    transition: all 0.2s ease-in-out;
+    cursor: pointer;
+}
+.scenario-card:hover, .scenario-card.active {
+    border-color: var(--primary-color) !important;
+    background-color: var(--primary-soft) !important;
+}
+.scenario-card input[type="radio"]:checked + label {
+    color: var(--primary-color) !important;
+}
+</style>
 {% endblock %}
 
 {% block content %}
 <div class="container-fluid">
     {% include "shared/page_header.html" %}
 
-    <!-- شريط كروت الإحصائيات والمؤشرات المالية (Detail KPI Summary Cards) -->
-    <div class="row g-3 mb-4">
-        <div class="col-xl-3 col-md-6">
-            <div class="card h-100 border-0 shadow-sm">
-                <div class="card-body py-3 d-flex align-items-center justify-content-between">
-                    <div>
-                        <span class="text-muted fs-8 d-block mb-1">{% trans "إجمالي المدين" %}</span>
-                        <h5 class="fw-bold text-success mb-0" id="summary-debit">
-                            {{ total_debit|floatformat:2 }} <small class="fs-8 text-muted">EGP</small>
-                        </h5>
-                    </div>
-                    <div class="p-3 bg-success-subtle text-success rounded-circle">
-                        <i class="fas fa-arrow-down fs-5"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-xl-3 col-md-6">
-            <div class="card h-100 border-0 shadow-sm">
-                <div class="card-body py-3 d-flex align-items-center justify-content-between">
-                    <div>
-                        <span class="text-muted fs-8 d-block mb-1">{% trans "إجمالي الدائن" %}</span>
-                        <h5 class="fw-bold text-primary mb-0" id="summary-credit">
-                            {{ total_credit|floatformat:2 }} <small class="fs-8 text-muted">EGP</small>
-                        </h5>
-                    </div>
-                    <div class="p-3 bg-primary-subtle text-primary rounded-circle">
-                        <i class="fas fa-arrow-up fs-5"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-xl-3 col-md-6">
-            <div class="card h-100 border-0 shadow-sm">
-                <div class="card-body py-3 d-flex align-items-center justify-content-between">
-                    <div>
-                        <span class="text-muted fs-8 d-block mb-1">{% trans "فارق التوازن" %}</span>
-                        <h5 class="fw-bold {% if is_balanced %}text-success{% else %}text-danger{% endif %} mb-0" id="summary-diff">
-                            {{ balance_diff|floatformat:2 }} <small class="fs-8 text-muted">EGP</small>
-                        </h5>
-                        <small class="d-block mt-1">
-                            {% if is_balanced %}
-                            <span class="text-success fw-bold fs-8"><i class="fas fa-check-circle me-1"></i>{% trans "متزن وجاهز للترحيل" %}</span>
-                            {% else %}
-                            <span class="text-danger fw-bold fs-8"><i class="fas fa-exclamation-triangle me-1"></i>{% trans "غير متزن" %}</span>
-                            {% endif %}
-                        </small>
-                    </div>
-                    <div class="p-3 {% if is_balanced %}bg-success-subtle text-success{% else %}bg-danger-subtle text-danger{% endif %} rounded-circle">
-                        <i class="fas fa-balance-scale fs-5"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-xl-3 col-md-6">
-            <div class="card h-100 border-0 shadow-sm">
-                <div class="card-body py-3 d-flex align-items-center justify-content-between">
-                    <div>
-                        <span class="text-muted fs-8 d-block mb-1">{% trans "عدد أسطر الدفعة" %}</span>
-                        <h5 class="fw-bold text-dark mb-0" id="summary-count">
-                            {{ lines|length }} <small class="fs-8 text-muted">{% trans "سطر" %}</small>
-                        </h5>
-                    </div>
-                    <div class="p-3 bg-info-subtle text-info rounded-circle">
-                        <i class="fas fa-list-ol fs-5"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+    <!-- شريط كروت الإحصائيات والمؤشرات المالية (Stats KPI Cards) -->
+    {% include "financial/partials/opening_balance_summary_cards_partial.html" %}
 
     <!-- سكشن جدول أسطر الأرصدة الافتتاحية -->
-    <div class="section-container">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h5 class="section-title mb-0"><i class="fas fa-list me-2"></i>{% trans "أسطر الأرصدة الافتتاحية" %}</h5>
-            {% if batch.status == 'draft' %}
-            <div class="d-flex gap-2">
-                <button type="button" class="btn btn-primary btn-sm px-3" data-bs-toggle="modal" data-bs-target="#addLineModal">
-                    <i class="fas fa-plus me-1"></i>{% trans "إضافة سطر جديد" %}
-                </button>
-                <button type="button" class="btn btn-success btn-sm px-3" id="btn-post-batch" {% if not is_balanced %}disabled title="{% trans 'يجب أن تكون الدفعة متزنة للترحيل' %}"{% endif %}>
-                    <i class="fas fa-check-circle me-1"></i>{% trans "ترحيل وتأكيد الدفعة" %}
-                </button>
-            </div>
-            {% endif %}
-        </div>
-        <div class="table-responsive">
-            <table class="table table-hover align-middle text-center mb-0">
-                <thead class="table-light">
-                    <tr>
-                        <th>#</th>
-                        <th>{% trans "نوع السطر" %}</th>
-                        <th class="text-start ps-3">{% trans "الحساب المحاسبي" %}</th>
-                        <th class="text-start">{% trans "البيان / الكائن الفرعي" %}</th>
-                        <th>{% trans "العملة" %}</th>
-                        <th>{% trans "مدين (أجنبي)" %}</th>
-                        <th>{% trans "دائن (أجنبي)" %}</th>
-                        <th>{% trans "سعر الصرف" %}</th>
-                        <th>{% trans "مدين (وظيفي)" %}</th>
-                        <th>{% trans "دائن (وظيفي)" %}</th>
-                        {% if batch.status == 'draft' %}
-                        <th>{% trans "خيارات" %}</th>
-                        {% endif %}
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for line in lines %}
-                    <tr>
-                        <td>{{ forloop.counter }}</td>
-                        <td>
-                            <span class="badge bg-secondary px-2 py-1">{{ line.get_line_type_display }}</span>
-                        </td>
-                        <td class="fw-bold text-start ps-3">{{ line.account.code }} - {{ line.account.name }}</td>
-                        <td class="text-start">
-                            {% if line.customer %}
-                            <span class="badge bg-info text-dark"><i class="fas fa-user me-1"></i>{{ line.customer.name }}</span>
-                            {% elif line.supplier %}
-                            <span class="badge bg-warning text-dark"><i class="fas fa-truck me-1"></i>{{ line.supplier.name }}</span>
-                            {% elif line.treasury_account %}
-                            <span class="badge bg-primary"><i class="fas fa-university me-1"></i>{{ line.treasury_account.name }}</span>
-                            {% elif line.inventory_snapshot_id %}
-                            <span class="badge bg-dark"><i class="fas fa-boxes me-1"></i>Snapshot: {{ line.inventory_snapshot_id }}</span>
-                            {% else %}
-                            <span class="text-muted">-</span>
-                            {% endif %}
-                        </td>
-                        <td><span class="badge bg-light text-dark border">{{ line.currency.code|default:"EGP" }}</span></td>
-                        <td>{{ line.debit_foreign|floatformat:2 }}</td>
-                        <td>{{ line.credit_foreign|floatformat:2 }}</td>
-                        <td>{{ line.exchange_rate|floatformat:4 }}</td>
-                        <td class="fw-bold text-success">{{ line.debit|floatformat:2 }}</td>
-                        <td class="fw-bold text-primary">{{ line.credit|floatformat:2 }}</td>
-                        {% if batch.status == 'draft' %}
-                        <td>
-                            <div class="btn-group btn-group-sm" role="group">
-                                <button type="button" class="btn btn-outline-danger btn-delete-line" data-id="{{ line.id }}" title="{% trans 'حذف السطر' %}">
-                                    <i class="fas fa-trash-alt"></i>
-                                </button>
-                            </div>
-                        </td>
-                        {% endif %}
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="11" class="text-center py-5 text-muted">
-                            <i class="fas fa-folder-open fa-3x mb-3 d-block text-secondary opacity-50"></i>
-                            <div class="fw-bold mb-1">{% trans "لا توجد أسطر مسجلة في هذه الدفعة بعد" %}</div>
-                            <small class="d-block mb-3">{% trans "يمكنك إضافة أسطر يدوياً أو استيراد ملف Excel جاهز." %}</small>
-                            {% if batch.status == 'draft' %}
-                            <button type="button" class="btn btn-primary btn-sm px-3" data-bs-toggle="modal" data-bs-target="#addLineModal">
-                                <i class="fas fa-plus me-1"></i>{% trans "إضافة سطر جديد" %}
-                            </button>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
+    {% include "financial/partials/opening_balance_lines_table_partial.html" %}
 </div>
 
 <!-- Modal إضافة سطر جديد -->
@@ -194,13 +64,14 @@
                             <label class="form-label fw-bold">{% trans "نوع السطر" %} <span class="text-danger">*</span></label>
                             <select class="form-select" id="line_type" name="line_type" required>
                                 <option value="GL">{% trans "حساب عام (GL)" %}</option>
+                                <option value="EQUITY">{% trans "حقوق الملكية / الطرف الموازن (EQUITY)" %}</option>
                                 <option value="AR">{% trans "رصيد عميل (AR)" %}</option>
                                 <option value="AP">{% trans "رصيد مورد (AP)" %}</option>
                                 <option value="TREASURY">{% trans "خزينة / بنك (TREASURY)" %}</option>
                                 <option value="INVENTORY">{% trans "مخزون أول المدة (INVENTORY)" %}</option>
                             </select>
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-md-6" id="group-account">
                             <label class="form-label fw-bold">{% trans "الحساب المحاسبي" %} <span class="text-danger">*</span></label>
                             <select class="form-select select2-modal" id="account_id" name="account_id" required>
                                 <option value="">{% trans "اختر الحساب المحاسبي..." %}</option>
@@ -232,48 +103,67 @@
                         </div>
 
                         <div class="col-md-6 d-none" id="group-treasury">
-                            <label class="form-label fw-bold">{% trans "حساب الخزينة / البنك الفرعي" %} <span class="text-danger">*</span></label>
+                            <label class="form-label fw-bold">{% trans "حساب الخزينة / البنك" %} <span class="text-danger">*</span></label>
                             <select class="form-select select2-modal" id="treasury_account_id" name="treasury_account_id">
                                 <option value="">{% trans "اختر حساب الخزينة/البنك..." %}</option>
-                                {% for acc in accounts %}
-                                <option value="{{ acc.id }}">{{ acc.name }}</option>
+                                {% for acc in treasury_accounts %}
+                                <option value="{{ acc.id }}">
+                                    {% if acc.is_cash_account %}[{% trans "خزينة" %}]{% else %}[{% trans "بنك" %}]{% endif %} {{ acc.code }} - {{ acc.name }} {% if acc.currency %}({{ acc.currency.code }}){% endif %}
+                                </option>
                                 {% endfor %}
                             </select>
                         </div>
 
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold">{% trans "مدين (عملة وظيفية - EGP)" %}</label>
-                            <input type="number" step="0.01" class="form-control" name="debit" value="0.00" min="0">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold">{% trans "دائن (عملة وظيفية - EGP)" %}</label>
-                            <input type="number" step="0.01" class="form-control" name="credit" value="0.00" min="0">
+                        <!-- اختيار العملة وسعر الصرف التفاعلي -->
+                        <div class="col-md-12 border-top pt-3">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">{% trans "عملة المعاملة" %} <span class="text-danger">*</span></label>
+                                    <select class="form-select select2-modal" id="currency_id" name="currency_id">
+                                        <option value="">{{ functional_currency.code }} ({{ functional_currency.name }} - {% trans "العملة المحلية الأساسية" %})</option>
+                                        {% for curr in currencies %}
+                                        {% if not curr.is_functional %}
+                                        <option value="{{ curr.id }}">{{ curr.code }} - {{ curr.name }}</option>
+                                        {% endif %}
+                                        {% endfor %}
+                                    </select>
+                                </div>
+
+                                <div class="col-md-6 d-none" id="group-exchange-rate">
+                                    <label class="form-label fw-bold">{% trans "سعر الصرف الاسترشادي" %} ({{ functional_currency.symbol|default:functional_currency.code }}) <span class="text-danger">*</span></label>
+                                    <input type="number" step="0.000001" class="form-control fw-bold" id="exchange_rate" name="exchange_rate" value="1.000000">
+                                    <small class="text-muted fs-8 d-block mt-1">{% trans "سعر صرف استرشادي يمكنك تعديله إن لزم الأمر" %}</small>
+                                </div>
+                            </div>
                         </div>
 
-                        <div class="col-md-4">
-                            <label class="form-label fw-bold">{% trans "العملة الأجنبية (اختياري)" %}</label>
-                            <select class="form-select select2-modal" id="currency_id" name="currency_id">
-                                <option value="">EGP ({% trans "عملة محليّة" %})</option>
-                                {% for curr in currencies %}
-                                <option value="{{ curr.id }}">{{ curr.code }} - {{ curr.name }}</option>
-                                {% endfor %}
-                            </select>
+                        <!-- المبالغ مباشرة بالعملة المختارة -->
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold text-success">
+                                <i class="fas fa-arrow-down me-1"></i>{% trans "مدين" %} (<span id="label-curr-debit">{{ functional_currency.symbol|default:functional_currency.code }}</span>)
+                            </label>
+                            <input type="number" step="0.01" class="form-control text-success fw-bold" id="input_debit" name="debit" value="0.00" min="0">
+                            <small class="text-muted fs-8 d-none" id="hint-local-debit"></small>
                         </div>
-                        <div class="col-md-4">
-                            <label class="form-label fw-bold">{% trans "المبلغ الأجنبي (مدين/دائن)" %}</label>
-                            <input type="number" step="0.01" class="form-control" name="debit_foreign" value="0.00" min="0">
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label fw-bold">{% trans "سعر الصرف" %}</label>
-                            <input type="number" step="0.000001" class="form-control" name="exchange_rate" value="1.000000">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold text-primary">
+                                <i class="fas fa-arrow-up me-1"></i>{% trans "دائن" %} (<span id="label-curr-credit">{{ functional_currency.symbol|default:functional_currency.code }}</span>)
+                            </label>
+                            <input type="number" step="0.01" class="form-control text-primary fw-bold" id="input_credit" name="credit" value="0.00" min="0">
+                            <small class="text-muted fs-8 d-none" id="hint-local-credit"></small>
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer bg-light border-top px-4 py-3">
+                <div class="modal-footer bg-light border-top px-4 py-3 d-flex justify-content-between">
                     <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
-                    <button type="submit" class="btn btn-primary px-4 fw-bold" id="btn-submit-add-line">
-                        <i class="fas fa-save me-1"></i>{% trans "حفظ السطر" %}
-                    </button>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-outline-primary px-3 fw-bold" id="btn-submit-add-another">
+                            <i class="fas fa-plus me-1"></i>{% trans "حفظ وإضافة سطر آخر" %}
+                        </button>
+                        <button type="submit" class="btn btn-primary px-4 fw-bold" id="btn-submit-add-line">
+                            <i class="fas fa-save me-1"></i>{% trans "حفظ وإغلاق" %}
+                        </button>
+                    </div>
                 </div>
             </form>
         </div>
@@ -293,17 +183,21 @@
             <form id="form-import-excel" method="POST" action="{% url 'financial:opening_balance_import_excel_action' batch.pk %}" enctype="multipart/form-data">
                 {% csrf_token %}
                 <div class="modal-body p-4">
-                    <p class="text-muted small mb-3">
-                        {% trans "يرجى رفع ملف Excel أو CSV يحتوي على أسطر الأرصدة الافتتاحية. يمكنك تنزيل النموذج المعتمد المنسق للتعرف على الأعمدة." %}
-                    </p>
-                    <div class="mb-3">
-                        <a href="{% url 'financial:opening_balance_download_template' %}" class="btn btn-sm btn-outline-primary w-100">
-                            <i class="fas fa-download me-1"></i>{% trans "تنزيل نموذج ملف Excel المعتمد v1.0" %}
-                        </a>
+                    <div class="alert alert-info border-0 rounded-3 d-flex align-items-center mb-3">
+                        <i class="fas fa-info-circle fs-4 me-3 text-info"></i>
+                        <div>
+                            <div class="fw-bold">{% trans "تنبيه هام حول ملف الاستيراد" %}</div>
+                            <small>{% trans "يرجى الالتزام بالأعمدة المعيارية، وعدم تكرار أرقام الحسابات في نفس الملف." %}</small>
+                        </div>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label fw-bold">{% trans "اختر ملف Excel / CSV" %} <span class="text-danger">*</span></label>
+                        <label class="form-label fw-bold">{% trans "ملف البيانات (.xlsx أو .csv)" %} <span class="text-danger">*</span></label>
                         <input type="file" class="form-control" name="excel_file" accept=".xlsx, .xls, .csv" required>
+                    </div>
+                    <div class="text-start">
+                        <a href="{% url 'financial:opening_balance_download_template' %}" class="btn btn-sm btn-outline-secondary">
+                            <i class="fas fa-download me-1"></i>{% trans "تحميل القالب المعياري للاستيراد" %}
+                        </a>
                     </div>
                 </div>
                 <div class="modal-footer bg-light border-top px-4 py-3">
@@ -346,9 +240,188 @@
     </div>
 </div>
 
+<!-- Modal مساعد الموازنة والمطابقة الذكي للأرصدة الافتتاحية -->
+<div class="modal fade" id="smartBalanceModal" tabindex="-1" aria-labelledby="smartBalanceModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered" style="max-width: 880px;">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-light border-bottom px-4 py-3">
+                <h5 class="modal-title fw-bold text-dark mb-0" id="smartBalanceModalLabel">
+                    <i class="fas fa-bolt text-primary me-2"></i>{% trans "مساعد الموازنة والمطابقة الذكي للأرصدة الافتتاحية" %}
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <!-- شريط تنبيه وتوضيح الفارق المالي -->
+                <div class="alert alert-light border d-flex align-items-center justify-content-between mb-4 p-3 rounded-3" id="smart-balance-alert-box">
+                    <div class="d-flex align-items-center">
+                        <div class="rounded-circle d-flex align-items-center justify-content-center me-3 flex-shrink-0" style="width: 48px; height: 48px; min-width: 48px; background-color: var(--primary-soft); color: var(--primary-color);">
+                            <i class="fas fa-balance-scale fs-5"></i>
+                        </div>
+                        <div>
+                            <div class="fw-bold fs-6 text-dark" id="smart-balance-diff-text">{% trans "جاري فحص الفارق المالي للدفعة..." %}</div>
+                            <small class="text-muted" id="smart-balance-direction-hint">{% trans "يقوم المحرك الذكي بتحليل اتجاه الفارق واقتراح أفضل سيناريو للموازنة." %}</small>
+                        </div>
+                    </div>
+                    <div class="text-end">
+                        <span class="fs-4 fw-bold text-primary" id="smart-balance-diff-val">0</span>
+                    </div>
+                </div>
+
+                <!-- تبويبات نمط الموازنة الموحدة للنظام -->
+                <div class="tabs-container mb-3">
+                    <ul class="nav nav-tabs unified-tabs-nav" id="smart-balance-tabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link unified-tabs-link active" id="tab-single-btn" data-bs-toggle="tab" data-bs-target="#tab-single" type="button" role="tab">
+                                <i class="fas fa-check-circle me-1"></i>{% trans "موازنة كاملة (100%)" %}
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link unified-tabs-link" id="tab-split-btn" data-bs-toggle="tab" data-bs-target="#tab-split" type="button" role="tab">
+                                <i class="fas fa-columns me-1"></i>{% trans "توزيع الفارق (رأس مال + أرباح مرحلة)" %}
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="tab-content">
+                    <!-- نمط الموازنة الكاملة في حساب واحد -->
+                    <div class="tab-pane fade show active" id="tab-single" role="tabpanel">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold text-dark">{% trans "اختر السيناريو المحاسبي المناسب للموازنة:" %}</label>
+                            <div class="row g-3" id="smart-scenarios-container">
+                                <!-- سيتم تعبئتها ديناميكياً عبر JavaScript -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- نمط التوزيع على حسابين (Split) -->
+                    <div class="tab-pane fade" id="tab-split" role="tabpanel">
+                        <div class="p-3 bg-light rounded border">
+                            <p class="text-muted small mb-3">
+                                <i class="fas fa-info-circle me-1 text-primary"></i>
+                                {% trans "يمكنك توجيه جزء محدد من الفارق لحساب رأس المال وتوجيه باقي الفارق تلقائياً لحساب الأرباح المبقاة." %}
+                            </p>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">{% trans "حساب رأس المال" %}</label>
+                                    <select class="form-select" id="split-capital-account"></select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">{% trans "حصة رأس المال المطلوبة" %} ({{ functional_currency.symbol|default:functional_currency.code }})</label>
+                                    <input type="number" step="0.01" class="form-control fw-bold" id="split-capital-amount" value="0.00" min="0">
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">{% trans "حساب الأرباح المبقاة" %}</label>
+                                    <select class="form-select" id="split-retained-account"></select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">{% trans "حصة الأرباح المبقاة المتبقية" %} ({{ functional_currency.symbol|default:functional_currency.code }})</label>
+                                    <input type="number" step="0.01" class="form-control fw-bold bg-white text-primary" id="split-retained-amount" value="0.00" readonly>
+                                    <small class="text-muted fs-8">{% trans "يتم احتسابها تلقائياً = إجمالي الفارق - حصة رأس المال" %}</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer bg-light border-top px-4 py-3">
+                <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+                <button type="button" class="btn btn-primary px-4 fw-bold" id="btn-apply-smart-balance">
+                    <i class="fas fa-check-circle me-1"></i>{% trans "تطبيق الموازنة الفورية" %}
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script id="currency-rates-data" type="application/json">{{ currency_rates_json|default:'{}'|safe }}</script>
+<script id="account-currencies-data" type="application/json">{{ account_currencies_json|default:'{}'|safe }}</script>
+<script id="control-accounts-data" type="application/json">{{ control_account_ids_json|default:'[]'|safe }}</script>
+<script id="equity-accounts-data" type="application/json">{{ equity_account_ids_json|default:'[]'|safe }}</script>
+<script id="functional-currency-data" type="application/json">{"code": "{{ functional_currency.code }}", "symbol": "{{ functional_currency.symbol|default:functional_currency.code }}", "rounding_tolerance": {{ functional_currency.rounding_tolerance|default:0.05 }}}</script>
+
 <script>
+const functionalCurrencyData = JSON.parse(document.getElementById('functional-currency-data')?.textContent || '{}');
+const defaultCurrencySymbol = functionalCurrencyData.symbol || functionalCurrencyData.code || '';
+
+function formatSmartCurrency(val, symbol = defaultCurrencySymbol) {
+    const num = parseFloat(val) || 0;
+    const isInteger = (num % 1 === 0);
+    const formatted = num.toLocaleString('en-US', {
+        minimumFractionDigits: isInteger ? 0 : 2,
+        maximumFractionDigits: 2
+    });
+    return symbol ? `${formatted} ${symbol}` : formatted;
+}
+
 document.addEventListener('DOMContentLoaded', function() {
-    // تفعيل Select2 داخل المودال عند الفتح
+    const controlAccountIds = new Set(JSON.parse(document.getElementById('control-accounts-data')?.textContent || '[]'));
+    const equityAccountIds = new Set(JSON.parse(document.getElementById('equity-accounts-data')?.textContent || '[]'));
+    const lineTypeSelect = document.getElementById('line_type');
+
+    // تخزين القائمة الأصلية الكاملة للحسابات لإعادة الفلترة الحقيقية في DOM
+    const allAccountOptions = [];
+    const initialAccountSelect = document.getElementById('account_id');
+    if (initialAccountSelect) {
+        for (let i = 0; i < initialAccountSelect.options.length; i++) {
+            const opt = initialAccountSelect.options[i];
+            allAccountOptions.push({
+                value: opt.value,
+                text: opt.textContent,
+                isPlaceholder: !opt.value,
+                isControl: controlAccountIds.has(String(opt.value)),
+                isEquity: equityAccountIds.has(String(opt.value))
+            });
+        }
+    }
+
+    function filterAccountsForLineType(val) {
+        const accountSelect = document.getElementById('account_id');
+        if (!accountSelect) return;
+
+        const isGL = (val === 'GL');
+        const isEquity = (val === 'EQUITY');
+
+        accountSelect.innerHTML = '';
+
+        allAccountOptions.forEach(item => {
+            if (item.isPlaceholder) {
+                const optEl = document.createElement('option');
+                optEl.value = item.value;
+                optEl.textContent = item.text;
+                accountSelect.appendChild(optEl);
+                return;
+            }
+
+            let shouldInclude = false;
+            if (isEquity) {
+                shouldInclude = item.isEquity;
+            } else if (isGL) {
+                shouldInclude = (!item.isControl && !item.isEquity);
+            } else {
+                shouldInclude = true;
+            }
+
+            if (shouldInclude) {
+                const optEl = document.createElement('option');
+                optEl.value = item.value;
+                optEl.textContent = item.text;
+                accountSelect.appendChild(optEl);
+            }
+        });
+
+        $('#account_id').val('').trigger('change');
+        if ($('#account_id').data('select2')) {
+            $('#account_id').select2({
+                dropdownParent: $('#addLineModal'),
+                dir: 'rtl',
+                language: 'ar',
+                width: '100%'
+            });
+        }
+    }
+
     $('#addLineModal').on('shown.bs.modal', function () {
         $('#account_id, #customer_id, #supplier_id, #treasury_account_id, #currency_id').select2({
             dropdownParent: $('#addLineModal'),
@@ -356,15 +429,286 @@ document.addEventListener('DOMContentLoaded', function() {
             language: 'ar',
             width: '100%'
         });
+        if (lineTypeSelect) {
+            filterAccountsForLineType(lineTypeSelect.value);
+        }
     });
 
-    const lineTypeSelect = document.getElementById('line_type');
+    if (lineTypeSelect) {
+        filterAccountsForLineType(lineTypeSelect.value || 'GL');
+    }
+
     if (lineTypeSelect) {
         lineTypeSelect.addEventListener('change', function() {
             const val = this.value;
-            document.getElementById('group-customer').classList.toggle('d-none', val !== 'AR');
-            document.getElementById('group-supplier').classList.toggle('d-none', val !== 'AP');
-            document.getElementById('group-treasury').classList.toggle('d-none', val !== 'TREASURY');
+            const groupAccount = document.getElementById('group-account');
+            const groupCustomer = document.getElementById('group-customer');
+            const groupSupplier = document.getElementById('group-supplier');
+            const groupTreasury = document.getElementById('group-treasury');
+
+            const isGL = (val === 'GL');
+            const isEquity = (val === 'EQUITY');
+            const isGLorInventoryOrEquity = (val === 'GL' || val === 'INVENTORY' || isEquity);
+            const isAR = (val === 'AR');
+            const isAP = (val === 'AP');
+            const isTreasury = (val === 'TREASURY');
+
+            if (groupAccount) groupAccount.classList.toggle('d-none', !isGLorInventoryOrEquity);
+            if (groupCustomer) groupCustomer.classList.toggle('d-none', !isAR);
+            if (groupSupplier) groupSupplier.classList.toggle('d-none', !isAP);
+            if (groupTreasury) groupTreasury.classList.toggle('d-none', !isTreasury);
+
+            filterAccountsForLineType(val);
+
+            const accountSelect = document.getElementById('account_id');
+            const customerSelect = document.getElementById('customer_id');
+            const supplierSelect = document.getElementById('supplier_id');
+            const treasurySelect = document.getElementById('treasury_account_id');
+
+            if (accountSelect) accountSelect.required = isGLorInventoryOrEquity;
+            if (customerSelect) customerSelect.required = isAR;
+            if (supplierSelect) supplierSelect.required = isAP;
+            if (treasurySelect) treasurySelect.required = isTreasury;
+
+            if (isEquity) {
+                currencySelect.val('').trigger('change');
+                if (groupExchangeRate) groupExchangeRate.classList.add('d-none');
+
+                const totalDebit = parseFloat(document.getElementById('summary-debit')?.textContent.replace(/[^0-9.-]+/g, '') || 0);
+                const totalCredit = parseFloat(document.getElementById('summary-credit')?.textContent.replace(/[^0-9.-]+/g, '') || 0);
+                const diff = totalDebit - totalCredit;
+
+                if (diff > 0) {
+                    if (inputCredit) inputCredit.value = diff.toFixed(2);
+                    if (inputDebit) inputDebit.value = '0.00';
+                } else if (diff < 0) {
+                    if (inputDebit) inputDebit.value = Math.abs(diff).toFixed(2);
+                    if (inputCredit) inputCredit.value = '0.00';
+                }
+                updateEquivalentHints();
+            }
+        });
+    }
+
+    // =========================================================
+    // المنطق التفاعلي للعملات وأسعار الصرف والمبالغ
+    // =========================================================
+    const currencyRatesEl = document.getElementById('currency-rates-data');
+    const accountCurrenciesEl = document.getElementById('account-currencies-data');
+    const currencyRates = currencyRatesEl ? JSON.parse(currencyRatesEl.textContent || '{}') : {};
+    const accountCurrencies = accountCurrenciesEl ? JSON.parse(accountCurrenciesEl.textContent || '{}') : {};
+
+    const currencySelect = $('#currency_id');
+    const groupExchangeRate = document.getElementById('group-exchange-rate');
+    const exchangeRateInput = document.getElementById('exchange_rate');
+    const inputDebit = document.getElementById('input_debit');
+    const inputCredit = document.getElementById('input_credit');
+    const labelCurrDebit = document.getElementById('label-curr-debit');
+    const labelCurrCredit = document.getElementById('label-curr-credit');
+    const hintLocalDebit = document.getElementById('hint-local-debit');
+    const hintLocalCredit = document.getElementById('hint-local-credit');
+
+    function updateCurrencyUI() {
+        const currId = currencySelect.val();
+        const currData = currencyRates[currId];
+
+        if (currData && !currData.is_functional) {
+            if (groupExchangeRate) groupExchangeRate.classList.remove('d-none');
+            if (labelCurrDebit) labelCurrDebit.textContent = currData.code;
+            if (labelCurrCredit) labelCurrCredit.textContent = currData.code;
+            if (currData.rate && exchangeRateInput) {
+                exchangeRateInput.value = parseFloat(currData.rate).toFixed(6);
+            }
+        } else {
+            if (groupExchangeRate) groupExchangeRate.classList.add('d-none');
+            if (labelCurrDebit) labelCurrDebit.textContent = defaultCurrencySymbol;
+            if (labelCurrCredit) labelCurrCredit.textContent = defaultCurrencySymbol;
+            if (exchangeRateInput) exchangeRateInput.value = '1.000000';
+        }
+        updateEquivalentHints();
+    }
+
+    function updateEquivalentHints() {
+        const currId = currencySelect.val();
+        const currData = currencyRates[currId];
+        const isForeign = (currData && !currData.is_functional);
+        const rate = parseFloat(exchangeRateInput ? exchangeRateInput.value : 1) || 1;
+
+        if (isForeign && rate > 0) {
+            const debitVal = parseFloat(inputDebit ? inputDebit.value : 0) || 0;
+            const creditVal = parseFloat(inputCredit ? inputCredit.value : 0) || 0;
+
+            if (debitVal > 0 && hintLocalDebit) {
+                const eq = formatSmartCurrency(debitVal * rate);
+                hintLocalDebit.innerHTML = '<i class="fas fa-calculator me-1"></i>{% trans "المعادل بالعملة المحلية:" %} <span class="fw-bold text-success">' + eq + '</span>';
+                hintLocalDebit.classList.remove('d-none');
+            } else if (hintLocalDebit) {
+                hintLocalDebit.classList.add('d-none');
+            }
+
+            if (creditVal > 0 && hintLocalCredit) {
+                const eq = formatSmartCurrency(creditVal * rate);
+                hintLocalCredit.innerHTML = '<i class="fas fa-calculator me-1"></i>{% trans "المعادل بالعملة المحلية:" %} <span class="fw-bold text-primary">' + eq + '</span>';
+                hintLocalCredit.classList.remove('d-none');
+            } else if (hintLocalCredit) {
+                hintLocalCredit.classList.add('d-none');
+            }
+        } else {
+            if (hintLocalDebit) hintLocalDebit.classList.add('d-none');
+            if (hintLocalCredit) hintLocalCredit.classList.add('d-none');
+        }
+    }
+
+    currencySelect.on('change', updateCurrencyUI);
+    if (exchangeRateInput) exchangeRateInput.addEventListener('input', updateEquivalentHints);
+    if (inputDebit) {
+        inputDebit.addEventListener('input', function() {
+            if (parseFloat(this.value) > 0 && inputCredit) {
+                inputCredit.value = '0.00';
+            }
+            updateEquivalentHints();
+        });
+    }
+    if (inputCredit) {
+        inputCredit.addEventListener('input', function() {
+            if (parseFloat(this.value) > 0 && inputDebit) {
+                inputDebit.value = '0.00';
+            }
+            updateEquivalentHints();
+        });
+    }
+
+    $('#treasury_account_id').on('change', function() {
+        const accId = $(this).val();
+        if (accId && accountCurrencies[accId]) {
+            const targetCurrId = accountCurrencies[accId];
+            if (targetCurrId) {
+                currencySelect.val(targetCurrId).trigger('change');
+            }
+        }
+    });
+
+    $('#account_id').on('change', function() {
+        const accId = $(this).val();
+        if (accId && accountCurrencies[accId]) {
+            const targetCurrId = accountCurrencies[accId];
+            if (targetCurrId) {
+                currencySelect.val(targetCurrId).trigger('change');
+            }
+        }
+    });
+
+    // =========================================================
+    // التحديث التفاعلي الفوري (Dynamic Partial Updates)
+    // =========================================================
+    function updateDynamicSections(data) {
+        if (data.summary_html) {
+            const summaryWrapper = document.getElementById('opening-balance-summary-wrapper');
+            if (summaryWrapper) {
+                summaryWrapper.outerHTML = data.summary_html;
+            }
+        }
+        if (data.table_html) {
+            const tableWrapper = document.getElementById('opening-balance-table-wrapper');
+            if (tableWrapper) {
+                tableWrapper.outerHTML = data.table_html;
+            }
+        }
+    }
+
+    // إضافة سطر تفاعلياً (حفظ وإغلاق / حفظ وإضافة سطر آخر)
+    function handleAddLineSubmit(keepModalOpen) {
+        const formAddLine = document.getElementById('form-add-line');
+        if (!formAddLine) return;
+
+        const debitVal = parseFloat(document.getElementById('input_debit')?.value || 0) || 0;
+        const creditVal = parseFloat(document.getElementById('input_credit')?.value || 0) || 0;
+
+        if (debitVal <= 0 && creditVal <= 0) {
+            Swal.fire({
+                icon: 'warning',
+                title: '{% trans "تنبيه" %}',
+                text: '{% trans "يجب إدخال مبلغ أكبر من الصفر في خانة المدين أو الدائن." %}',
+                confirmButtonText: '{% trans "حسناً" %}'
+            });
+            return;
+        }
+
+        if (debitVal > 0 && creditVal > 0) {
+            Swal.fire({
+                icon: 'warning',
+                title: '{% trans "تنبيه" %}',
+                text: '{% trans "لا يمكن أن يكون السطر مديناً ودائناً في نفس الوقت. يرجى إدخال أحدهما فقط." %}',
+                confirmButtonText: '{% trans "حسناً" %}'
+            });
+            return;
+        }
+
+        const submitBtn = document.getElementById('btn-submit-add-line');
+        const addAnotherBtn = document.getElementById('btn-submit-add-another');
+        if (submitBtn) submitBtn.disabled = true;
+        if (addAnotherBtn) addAnotherBtn.disabled = true;
+
+        const formData = new FormData(formAddLine);
+        fetch(formAddLine.action, {
+            method: 'POST',
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (submitBtn) submitBtn.disabled = false;
+            if (addAnotherBtn) addAnotherBtn.disabled = false;
+
+            if (data.success) {
+                updateDynamicSections(data);
+
+                if (window.showNotification) {
+                    window.showNotification(data.message || '{% trans "تمت إضافة السطر بنجاح" %}', 'success');
+                } else if (typeof toastr !== 'undefined') {
+                    toastr.success(data.message || '{% trans "تمت إضافة السطر بنجاح" %}');
+                }
+
+                if (keepModalOpen) {
+                    // تصفير الحقول للإدخال الفوري للسطر التالي دون إغلاق المودال
+                    if (inputDebit) inputDebit.value = '0.00';
+                    if (inputCredit) inputCredit.value = '0.00';
+                    $('#account_id').val('').trigger('change');
+                    $('#customer_id').val('').trigger('change');
+                    $('#supplier_id').val('').trigger('change');
+                    $('#treasury_account_id').val('').trigger('change');
+                    updateEquivalentHints();
+
+                    // تحويل الفوكس لاختيار الحساب فوراً
+                    setTimeout(() => {
+                        $('#account_id').select2('open');
+                    }, 100);
+                } else {
+                    const modalEl = document.getElementById('addLineModal');
+                    const modalInstance = bootstrap.Modal.getInstance(modalEl);
+                    if (modalInstance) modalInstance.hide();
+
+                    if (inputDebit) inputDebit.value = '0.00';
+                    if (inputCredit) inputCredit.value = '0.00';
+                    $('#account_id').val('').trigger('change');
+                }
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: '{% trans "خطأ" %}',
+                    text: data.error || '{% trans "حدث خطأ أثناء إضافة السطر" %}',
+                    confirmButtonText: '{% trans "حسناً" %}'
+                });
+            }
+        })
+        .catch(err => {
+            if (submitBtn) submitBtn.disabled = false;
+            if (addAnotherBtn) addAnotherBtn.disabled = false;
+            Swal.fire({
+                icon: 'error',
+                title: '{% trans "خطأ" %}',
+                text: '{% trans "فشل الاتصال بالخادم" %}',
+                confirmButtonText: '{% trans "حسناً" %}'
+            });
         });
     }
 
@@ -372,49 +716,19 @@ document.addEventListener('DOMContentLoaded', function() {
     if (formAddLine) {
         formAddLine.addEventListener('submit', function(e) {
             e.preventDefault();
-            const submitBtn = document.getElementById('btn-submit-add-line');
-            if (submitBtn) submitBtn.disabled = true;
-
-            const formData = new FormData(this);
-            fetch(this.action, {
-                method: 'POST',
-                body: formData
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.success) {
-                    const modalEl = document.getElementById('addLineModal');
-                    const modalInstance = bootstrap.Modal.getInstance(modalEl);
-                    if (modalInstance) modalInstance.hide();
-
-                    if (window.showNotification) {
-                        window.showNotification(data.message || '{% trans "تمت إضافة السطر بنجاح" %}', 'success');
-                    } else if (typeof toastr !== 'undefined') {
-                        toastr.success(data.message || '{% trans "تمت إضافة السطر بنجاح" %}');
-                    }
-                    setTimeout(() => location.reload(), 3100);
-                } else {
-                    if (submitBtn) submitBtn.disabled = false;
-                    Swal.fire({
-                        icon: 'error',
-                        title: '{% trans "خطأ" %}',
-                        text: data.error || '{% trans "حدث خطأ أثناء إضافة السطر" %}',
-                        confirmButtonText: '{% trans "حسناً" %}'
-                    });
-                }
-            })
-            .catch(err => {
-                if (submitBtn) submitBtn.disabled = false;
-                Swal.fire({
-                    icon: 'error',
-                    title: '{% trans "خطأ" %}',
-                    text: '{% trans "فشل الاتصال بالخادم" %}',
-                    confirmButtonText: '{% trans "حسناً" %}'
-                });
-            });
+            handleAddLineSubmit(false);
         });
     }
 
+    const btnSubmitAddAnother = document.getElementById('btn-submit-add-another');
+    if (btnSubmitAddAnother) {
+        btnSubmitAddAnother.addEventListener('click', function(e) {
+            e.preventDefault();
+            handleAddLineSubmit(true);
+        });
+    }
+
+    // استيراد ملف Excel
     const formImportExcel = document.getElementById('form-import-excel');
     if (formImportExcel) {
         formImportExcel.addEventListener('submit', function(e) {
@@ -462,9 +776,12 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    document.querySelectorAll('.btn-delete-line').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const lineId = this.getAttribute('data-id');
+    // تفويض نقر حذف السطر تفاعلياً (Event Delegation)
+    document.addEventListener('click', function(e) {
+        const deleteBtn = e.target.closest('.btn-delete-line');
+        if (deleteBtn) {
+            e.preventDefault();
+            const lineId = deleteBtn.getAttribute('data-id');
             Swal.fire({
                 title: '{% trans "تأكيد الحذف" %}',
                 text: '{% trans "هل أنت متأكد من حذف هذا السطر من الدفعة؟" %}',
@@ -486,12 +803,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     .then(res => res.json())
                     .then(data => {
                         if (data.success) {
+                            updateDynamicSections(data);
                             if (window.showNotification) {
                                 window.showNotification(data.message || '{% trans "تم حذف السطر بنجاح" %}', 'success');
                             } else if (typeof toastr !== 'undefined') {
                                 toastr.success(data.message || '{% trans "تم حذف السطر بنجاح" %}');
                             }
-                            setTimeout(() => location.reload(), 3100);
                         } else {
                             Swal.fire({
                                 icon: 'error',
@@ -511,12 +828,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     });
                 }
             });
-        });
+        }
     });
 
-    const btnPost = document.getElementById('btn-post-batch');
-    if (btnPost) {
-        btnPost.addEventListener('click', function() {
+    // ترحيل وتأكيد الدفعة
+    document.addEventListener('click', function(e) {
+        const btnPost = e.target.closest('#btn-post-batch');
+        if (btnPost) {
+            e.preventDefault();
             Swal.fire({
                 title: '{% trans "تأكيد ترحيل الدفعة" %}',
                 text: '{% trans "هل أنت متأكد من ترحيل وتأكيد الدفعة وتوليد قيد اليومية الافتتاحي ومزامنة المخزون؟ لن يمكن تعديل الأسطر بعد الترحيل." %}',
@@ -568,24 +887,27 @@ document.addEventListener('DOMContentLoaded', function() {
                     });
                 }
             });
-        });
-    }
+        }
+    });
 
-    const btnReverse = document.getElementById('btn-confirm-reverse');
-    if (btnReverse) {
-        btnReverse.addEventListener('click', function() {
-            const reason = document.getElementById('reversal-reason-input').value.trim();
+    // إلغاء وعكس الدفعة الافتتاحية
+    const btnConfirmReverse = document.getElementById('btn-confirm-reverse');
+    if (btnConfirmReverse) {
+        btnConfirmReverse.addEventListener('click', function() {
+            const reasonInput = document.getElementById('reversal-reason-input');
+            const reason = reasonInput ? reasonInput.value.trim() : '';
+
             if (!reason) {
                 Swal.fire({
                     icon: 'warning',
                     title: '{% trans "تنبيه" %}',
-                    text: '{% trans "يرجى توضيح سبب إلغاء وعكس الدفعة الافتتاحية." %}',
+                    text: '{% trans "يجب توضيح سبب إلغاء وعكس الدفعة الافتتاحية." %}',
                     confirmButtonText: '{% trans "حسناً" %}'
                 });
                 return;
             }
 
-            btnReverse.disabled = true;
+            btnConfirmReverse.disabled = true;
             const formData = new FormData();
             formData.append('reason', reason);
 
@@ -599,32 +921,406 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(res => res.json())
             .then(data => {
                 if (data.success) {
-                    const modalEl = document.getElementById('reverseBatchModal');
-                    const modalInstance = bootstrap.Modal.getInstance(modalEl);
-                    if (modalInstance) modalInstance.hide();
+                    const reverseModal = bootstrap.Modal.getInstance(document.getElementById('reverseBatchModal'));
+                    if (reverseModal) reverseModal.hide();
 
                     if (window.showNotification) {
-                        window.showNotification(data.message || '{% trans "تم عكس الدفعة وإنشاء القيد العكسي بنجاح" %}', 'success');
+                        window.showNotification(data.message || '{% trans "تم إلغاء وعكس الدفعة بنجاح" %}', 'success');
                     } else if (typeof toastr !== 'undefined') {
-                        toastr.success(data.message || '{% trans "تم عكس الدفعة وإنشاء القيد العكسي بنجاح" %}');
+                        toastr.success(data.message || '{% trans "تم إلغاء وعكس الدفعة بنجاح" %}');
                     }
                     setTimeout(() => location.reload(), 3100);
                 } else {
-                    btnReverse.disabled = false;
+                    btnConfirmReverse.disabled = false;
                     Swal.fire({
                         icon: 'error',
-                        title: '{% trans "خطأ في العكس" %}',
-                        text: data.error || '{% trans "حدث خطأ أثناء العكس" %}',
+                        title: '{% trans "خطأ" %}',
+                        text: data.error || '{% trans "حدث خطأ أثناء عكس الدفعة" %}',
                         confirmButtonText: '{% trans "حسناً" %}'
                     });
                 }
             })
             .catch(err => {
-                btnReverse.disabled = false;
+                btnConfirmReverse.disabled = false;
                 Swal.fire({
                     icon: 'error',
                     title: '{% trans "خطأ" %}',
                     text: '{% trans "فشل الاتصال بالخادم" %}',
+                    confirmButtonText: '{% trans "حسناً" %}'
+                });
+            });
+        });
+    }
+
+    // =========================================================
+    // إدارة مساعد الموازنة والمطابقة الذكي (Smart Balancing Controller)
+    // =========================================================
+    const smartBalanceModalEl = document.getElementById('smartBalanceModal');
+    let currentBalancingData = null;
+
+    function getSmartBalanceModalInstance() {
+        if (!smartBalanceModalEl) return null;
+        return bootstrap.Modal.getInstance(smartBalanceModalEl) || new bootstrap.Modal(smartBalanceModalEl);
+    }
+
+    document.addEventListener('click', function(e) {
+        const btnOpen = e.target.closest('#btn-open-smart-balance');
+        if (btnOpen) {
+            e.preventDefault();
+            const modalInstance = getSmartBalanceModalInstance();
+            if (modalInstance) {
+                modalInstance.show();
+                loadSmartBalancingOptions();
+            }
+        }
+    });
+
+    function loadSmartBalancingOptions() {
+        const container = document.getElementById('smart-scenarios-container');
+        const btnApply = document.getElementById('btn-apply-smart-balance');
+        if (btnApply) btnApply.disabled = true;
+
+        if (container) {
+            container.innerHTML = `
+                <div class="text-center py-4 text-muted">
+                    <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
+                    {% trans "جاري فحص وتحليل الدفعة واقتراح أفضل السيناريوهات..." %}
+                </div>
+            `;
+        }
+
+        fetch('{% url "financial:opening_balance_get_balancing_options" batch.pk %}')
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                currentBalancingData = data.data;
+                renderBalancingAnalysis(data.data);
+            } else {
+                if (container) {
+                    container.innerHTML = `<div class="alert alert-danger mb-0">${data.error || '{% trans "فشل جلب خيارات الموازنة" %}'}</div>`;
+                }
+            }
+        })
+        .catch(err => {
+            if (container) {
+                container.innerHTML = `<div class="alert alert-danger mb-0">{% trans "فشل الاتصال بالخادم لجلب خيارات الموازنة." %}</div>`;
+            }
+        });
+    }
+
+    function renderBalancingAnalysis(analysis) {
+        const diffValEl = document.getElementById('smart-balance-diff-val');
+        const diffTextEl = document.getElementById('smart-balance-diff-text');
+        const directionHintEl = document.getElementById('smart-balance-direction-hint');
+        const btnApply = document.getElementById('btn-apply-smart-balance');
+        const container = document.getElementById('smart-scenarios-container');
+        const tabSplitBtn = document.getElementById('tab-split-btn');
+
+        const totalDiff = parseFloat(analysis.abs_diff ?? analysis.abs_difference ?? 0) || 0;
+        const currSymbol = analysis.currency_symbol || defaultCurrencySymbol;
+        const tolerance = parseFloat(analysis.rounding_tolerance || functionalCurrencyData.rounding_tolerance || 0.05);
+
+        if (diffValEl) {
+            diffValEl.textContent = formatSmartCurrency(totalDiff, currSymbol);
+        }
+
+        // شريط توجيه الفارق المالي
+        if (diffTextEl) {
+            if (analysis.is_balanced || totalDiff <= tolerance) {
+                diffTextEl.innerHTML = `<span class="badge bg-success me-1">{% trans "الدفعة متزنة" %}</span> {% trans "الفارق ضمن حدود التقريب المسموح بها نظامياً" %} (&le; ${tolerance} ${currSymbol})`;
+            } else if (analysis.direction === 'CREDIT_NEEDED' || analysis.direction === 'CREDIT') {
+                diffTextEl.innerHTML = '<span class="badge bg-success me-1">{% trans "الجانب المدين أكبر (فائض أصول)" %}</span> {% trans "الدفعة تحتاج لطرف دائن في حقوق الملكية للموازنة" %}';
+            } else if (analysis.direction === 'DEBIT_NEEDED' || analysis.direction === 'DEBIT') {
+                diffTextEl.innerHTML = '<span class="badge bg-primary me-1">{% trans "الجانب الدائن أكبر (عجز مالي)" %}</span> {% trans "الدفعة تحتاج لطرف مدين (خسائر مرحلة / مسحوبات) للموازنة" %}';
+            } else {
+                diffTextEl.innerHTML = '{% trans "تحليل الفارق المالي للدفعة" %}';
+            }
+        }
+
+        if (directionHintEl) {
+            if (analysis.is_balanced || totalDiff <= 0.05) {
+                directionHintEl.textContent = '{% trans "يمكن ترحيل الدفعة فوراً وسيتم توجيه فروق التقريب لحساب الفروق المعياري." %}';
+            } else {
+                directionHintEl.textContent = '{% trans "يقوم المحرك الذكي باقتراح أفضل الحسابات المتوافقة مع معايير الحوكمة المالية." %}';
+            }
+        }
+
+        // إخفاء أو إظهار تبويب التوزيع المزدوج (Split) حسب حالة الدفعة
+        if (tabSplitBtn) {
+            const splitSupported = Boolean(analysis.split_supported);
+            tabSplitBtn.parentElement.classList.toggle('d-none', !splitSupported);
+            if (!splitSupported) {
+                const singleTabLink = document.getElementById('tab-single-btn');
+                if (singleTabLink && typeof bootstrap !== 'undefined' && bootstrap.Tab) {
+                    const tabInstance = bootstrap.Tab.getInstance(singleTabLink) || new bootstrap.Tab(singleTabLink);
+                    tabInstance.show();
+                }
+            }
+        }
+
+        if (!container) return;
+
+        // حالة الدفعة المتزنة بالفعل
+        if (analysis.is_balanced || totalDiff <= 0.05) {
+            container.innerHTML = `
+                <div class="col-12">
+                    <div class="alert alert-success d-flex align-items-center mb-0 p-3 rounded-3">
+                        <i class="fas fa-check-circle fs-4 me-3 text-success"></i>
+                        <div>
+                            <div class="fw-bold">{% trans "الدفعة الافتتاحية متزنة بالفعل!" %}</div>
+                            <small>{% trans "لا يتطلب الأمر إضافة سطور موازنة جديدة. يمكنك إغلاق هذه النافذة وترحيل الدفعة مباشرة." %}</small>
+                        </div>
+                    </div>
+                </div>
+            `;
+            if (btnApply) btnApply.disabled = true;
+            return;
+        }
+
+        if (!analysis.scenarios || analysis.scenarios.length === 0) {
+            container.innerHTML = `
+                <div class="col-12">
+                    <div class="alert alert-warning mb-0">
+                        <i class="fas fa-exclamation-triangle me-2"></i>{% trans "لم يتم العثور على حسابات حقوق ملكية مهيأة في الدليل المحاسبي. يرجى مراجعة شجرة الحسابات أولاً." %}
+                    </div>
+                </div>
+            `;
+            if (btnApply) btnApply.disabled = true;
+            return;
+        }
+
+        if (btnApply) btnApply.disabled = false;
+
+        let html = '';
+        analysis.scenarios.forEach((sc, idx) => {
+            const isChecked = (idx === 0) ? 'checked' : '';
+            const activeClass = (idx === 0) ? 'active' : '';
+            const isRecommendedBadge = sc.is_recommended ? '<span class="badge bg-success ms-2">{% trans "موصى به محاسبياً" %}</span>' : '';
+            const descText = sc.description || sc.desc || '';
+
+            let partnerDropdownHtml = '';
+            if (sc.is_partner_selector && sc.partner_accounts && sc.partner_accounts.length > 1) {
+                const optionsHtml = sc.partner_accounts.map(p => `<option value="${p.id}" ${p.id == sc.account_id ? 'selected' : ''}>${p.code} - ${p.name}</option>`).join('');
+                partnerDropdownHtml = `
+                    <div class="mt-2 pt-2 border-top">
+                        <label class="form-label fs-8 fw-bold text-dark mb-1">{% trans "اختر الشريك المستهدف:" %}</label>
+                        <select class="form-select form-select-sm partner-account-select" data-card-idx="${idx}">
+                            ${optionsHtml}
+                        </select>
+                    </div>
+                `;
+            }
+
+            html += `
+                <div class="col-md-6">
+                    <div class="card scenario-card border h-100 p-3 ${activeClass}" data-account-id="${sc.account_id}" data-card-idx="${idx}">
+                        <div class="form-check">
+                            <input class="form-check-input scenario-radio" type="radio" name="balancing_scenario_account" id="scenario_radio_${idx}" value="${sc.account_id}" ${isChecked}>
+                            <label class="form-check-label fw-bold d-block cursor-pointer" for="scenario_radio_${idx}">
+                                ${sc.title} ${isRecommendedBadge}
+                            </label>
+                        </div>
+                        <div class="fs-7 text-muted ps-4 mt-2">
+                            <div class="account-code-display mb-1"><i class="fas fa-hashtag me-1"></i>{% trans "كود الحساب:" %} <span class="fw-bold text-dark">${sc.account_code}</span></div>
+                            <div class="text-secondary"><i class="fas fa-info-circle me-1"></i>${descText}</div>
+                            ${partnerDropdownHtml}
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        container.innerHTML = html;
+
+        // تفويض النقر على كروت السيناريوهات
+        document.querySelectorAll('.scenario-card').forEach(card => {
+            card.addEventListener('click', function(e) {
+                if (e.target.closest('.partner-account-select')) return;
+                const radio = this.querySelector('input[type="radio"]');
+                if (radio) {
+                    radio.checked = true;
+                    document.querySelectorAll('.scenario-card').forEach(c => c.classList.remove('active'));
+                    this.classList.add('active');
+                }
+            });
+        });
+
+        // ربط القائمة المنسدلة للشركاء
+        document.querySelectorAll('.partner-account-select').forEach(sel => {
+            sel.addEventListener('change', function(e) {
+                e.stopPropagation();
+                const card = this.closest('.scenario-card');
+                const radio = card ? card.querySelector('input[type="radio"]') : null;
+                const selectedVal = this.value;
+
+                if (radio) {
+                    radio.value = selectedVal;
+                    radio.checked = true;
+                    document.querySelectorAll('.scenario-card').forEach(c => c.classList.remove('active'));
+                    if (card) card.classList.add('active');
+                }
+            });
+        });
+
+        // تنقية وتعبئة خيارات التوزيع المزدوج (Split) من مصفوفة equity_accounts
+        const capitalSelect = document.getElementById('split-capital-account');
+        const retainedSelect = document.getElementById('split-retained-account');
+        const equityList = analysis.equity_accounts || [];
+
+        if (capitalSelect && retainedSelect && equityList.length > 0) {
+            capitalSelect.innerHTML = '';
+            retainedSelect.innerHTML = '';
+
+            equityList.forEach(acc => {
+                const opt1 = new Option(`${acc.code} - ${acc.name}`, acc.id);
+                const opt2 = new Option(`${acc.code} - ${acc.name}`, acc.id);
+                capitalSelect.add(opt1);
+                retainedSelect.add(opt2);
+            });
+
+            if (analysis.default_capital_account_id) {
+                capitalSelect.value = analysis.default_capital_account_id;
+            }
+            if (analysis.default_retained_account_id) {
+                retainedSelect.value = analysis.default_retained_account_id;
+            } else if (equityList.length > 1) {
+                retainedSelect.selectedIndex = 1;
+            }
+
+            const splitCapitalInput = document.getElementById('split-capital-amount');
+            const splitRetainedInput = document.getElementById('split-retained-amount');
+
+            if (splitCapitalInput && splitRetainedInput) {
+                splitCapitalInput.max = totalDiff;
+                splitCapitalInput.value = (totalDiff * 0.75).toFixed(2);
+                splitRetainedInput.value = (totalDiff * 0.25).toFixed(2);
+
+                splitCapitalInput.addEventListener('input', function() {
+                    let capVal = parseFloat(this.value) || 0;
+                    if (capVal < 0) capVal = 0;
+                    if (capVal > totalDiff) capVal = totalDiff;
+                    this.value = capVal;
+                    splitRetainedInput.value = Math.max(0, totalDiff - capVal).toFixed(2);
+                });
+            }
+        }
+    }
+
+    const btnApplySmartBalance = document.getElementById('btn-apply-smart-balance');
+    if (btnApplySmartBalance) {
+        btnApplySmartBalance.addEventListener('click', function() {
+            const activeTab = document.querySelector('#smart-balance-tabs .nav-link.active');
+            const isSplit = (activeTab && activeTab.id === 'tab-split-btn');
+
+            let payload = {};
+            if (isSplit) {
+                const capAccId = document.getElementById('split-capital-account')?.value;
+                const capAmt = parseFloat(document.getElementById('split-capital-amount')?.value || 0);
+                const retAccId = document.getElementById('split-retained-account')?.value;
+                const retAmt = parseFloat(document.getElementById('split-retained-amount')?.value || 0);
+
+                if (!capAccId || !retAccId) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: '{% trans "تنبيه" %}',
+                        text: '{% trans "يرجى تحديد حساب رأس المال وحساب الأرباح المبقاة." %}',
+                        confirmButtonText: '{% trans "حسناً" %}'
+                    });
+                    return;
+                }
+
+                if (capAccId === retAccId) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: '{% trans "تنبيه" %}',
+                        text: '{% trans "لا يمكن اختيار نفس الحساب لكلا حصتي التوزيع." %}',
+                        confirmButtonText: '{% trans "حسناً" %}'
+                    });
+                    return;
+                }
+
+                if (capAmt <= 0 && retAmt <= 0) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: '{% trans "تنبيه" %}',
+                        text: '{% trans "يرجى تحديد مبالغ صحيحة للتوزيع." %}',
+                        confirmButtonText: '{% trans "حسناً" %}'
+                    });
+                    return;
+                }
+
+                payload = {
+                    mode: 'SPLIT',
+                    data: {
+                        capital_account_id: capAccId,
+                        capital_amount: capAmt,
+                        retained_account_id: retAccId,
+                        retained_amount: retAmt
+                    }
+                };
+            } else {
+                const selectedRadio = document.querySelector('input[name="balancing_scenario_account"]:checked');
+                if (!selectedRadio) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: '{% trans "تنبيه" %}',
+                        text: '{% trans "يرجى اختيار أحد السيناريوهات المحاسبية للموازنة." %}',
+                        confirmButtonText: '{% trans "حسناً" %}'
+                    });
+                    return;
+                }
+
+                payload = {
+                    mode: 'SINGLE',
+                    data: {
+                        account_id: selectedRadio.value,
+                        action_type: 'AUTO'
+                    }
+                };
+            }
+
+            btnApplySmartBalance.disabled = true;
+            const originalBtnText = btnApplySmartBalance.innerHTML;
+            btnApplySmartBalance.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status"></span> {% trans "جاري تطبيق الموازنة..." %}';
+
+            fetch('{% url "financial:opening_balance_apply_balancing_action" batch.pk %}', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            })
+            .then(res => res.json())
+            .then(data => {
+                btnApplySmartBalance.disabled = false;
+                btnApplySmartBalance.innerHTML = originalBtnText;
+
+                if (data.success) {
+                    const modalInstance = getSmartBalanceModalInstance();
+                    if (modalInstance) modalInstance.hide();
+
+                    updateDynamicSections(data);
+                    if (window.showNotification) {
+                        window.showNotification(data.message || '{% trans "تمت موازنة الدفعة بنجاح" %}', 'success');
+                    } else if (typeof toastr !== 'undefined') {
+                        toastr.success(data.message || '{% trans "تمت موازنة الدفعة بنجاح" %}');
+                    }
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: '{% trans "خطأ في الموازنة" %}',
+                        text: data.error || '{% trans "فشلت عملية الموازنة" %}',
+                        confirmButtonText: '{% trans "حسناً" %}'
+                    });
+                }
+            })
+            .catch(err => {
+                btnApplySmartBalance.disabled = false;
+                btnApplySmartBalance.innerHTML = originalBtnText;
+                Swal.fire({
+                    icon: 'error',
+                    title: '{% trans "خطأ" %}',
+                    text: '{% trans "فشل الاتصال بالخادم أثناء الموازنة." %}',
                     confirmButtonText: '{% trans "حسناً" %}'
                 });
             });

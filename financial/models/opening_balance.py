@@ -180,6 +180,7 @@ class OpeningBalanceLine(models.Model):
         ('AP', _('رصيد مورد')),
         ('TREASURY', _('خزينة/بنك')),
         ('INVENTORY', _('مخزون أول المدة')),
+        ('EQUITY', _('حقوق الملكية / الطرف الموازن')),
     ]
 
     batch = models.ForeignKey(OpeningBalanceBatch, related_name='lines', on_delete=models.CASCADE, verbose_name=_("الدفعة"))
@@ -208,16 +209,31 @@ class OpeningBalanceLine(models.Model):
 
     def clean(self):
         super().clean()
-        # 1. Validation based on line_type
+        # 0. Validation for debit vs credit mutual exclusivity & positive amount
+        if self.debit < 0 or self.credit < 0:
+            raise ValidationError(_("المبالغ لا يمكن أن تكون بالسالب."))
+        if self.debit == 0 and self.credit == 0:
+            raise ValidationError(_("يجب إدخال مبلغ أكبر من الصفر في خانة المدين أو الدائن."))
+        if self.debit > 0 and self.credit > 0:
+            raise ValidationError(_("لا يمكن أن يكون السطر مديناً ودائناً في نفس الوقت. يرجى إدخال أحدهما فقط."))
+
+        # 1. Validation for Leaf / Postable Account
+        if self.account_id and self.account:
+            if not self.account.is_active:
+                raise ValidationError(_("الحساب المحاسبي ({}) غير نشط ولا يمكن استخدامه.").format(self.account.name))
+            if not self.account.is_leaf or (self.account.pk and self.account.children.exists()):
+                raise ValidationError(_("الحساب ({}) هو حساب أب رئيسي مجمع ولا يمكن القيد عليه مباشرة. يرجى اختيار حساب نهائي فرعي (Leaf Account).").format(self.account.name))
+
+        # 2. Validation based on line_type
         if self.line_type == 'AR' and not self.customer_id:
             raise ValidationError(_("يجب تحديد العميل عند اختيار نوع السطر رصيد عميل (AR)."))
         if self.line_type == 'AP' and not self.supplier_id:
             raise ValidationError(_("يجب تحديد المورد عند اختيار نوع السطر رصيد مورد (AP)."))
         if self.line_type == 'TREASURY' and not self.treasury_account_id:
             raise ValidationError(_("يجب تحديد حساب الخزينة/البنك عند اختيار نوع السطر (TREASURY)."))
-        if self.line_type == 'GL':
+        if self.line_type in ['GL', 'EQUITY']:
             if self.customer_id or self.supplier_id or self.treasury_account_id:
-                raise ValidationError(_("أسطر الحسابات العامة (GL) لا ترتبط بكائنات فرعية مباشرة."))
+                raise ValidationError(_("أسطر الحسابات العامة وحقوق الملكية لا ترتبط بكائنات فرعية مباشرة."))
             # Control Account check for GL lines
             if self.account_id and hasattr(self.account, 'code'):
                 from financial.services.role_registry import AccountRoleRegistry

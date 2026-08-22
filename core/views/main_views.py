@@ -754,7 +754,7 @@ def system_reset(request):
             return redirect("core:system_reset")
         
         try:
-            summary = SystemResetService.reset_test_transactions()
+            summary = SystemResetService.reset_test_transactions(user=request.user)
             total_deleted = sum(summary.values())
             success_msg = f"تم تفريغ وتصفير الحركات والمعاملات بنجاح ({total_deleted} سجل). تم الحفاظ على الإعدادات وشجرة الحسابات والمستخدمين."
             

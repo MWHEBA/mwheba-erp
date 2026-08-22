@@ -1,5 +1,7 @@
 import json
 from decimal import Decimal
+from django.db import models
+from django.db.models import Q
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, permission_required
 from django.contrib import messages
@@ -92,8 +94,8 @@ def opening_balance_wizard(request, pk=None):
     total_debit = sum((l.debit for l in lines), Decimal('0.00'))
     total_credit = sum((l.credit for l in lines), Decimal('0.00'))
     balance_diff = total_debit - total_credit
-    # Empty batch cannot be balanced
-    is_balanced = (lines.exists() and balance_diff == Decimal('0.00'))
+    # Empty batch cannot be balanced. Tolerates penny difference <= 0.05 EGP (Rule 3)
+    is_balanced = (lines.exists() and abs(balance_diff) <= Decimal('0.05'))
 
     accounts = ChartOfAccounts.objects.filter(is_active=True, is_leaf=True).order_by('code')
     currencies = Currency.objects.filter(is_active=True)
@@ -109,6 +111,46 @@ def opening_balance_wizard(request, pk=None):
         suppliers = Supplier.objects.filter(is_active=True)
     except Exception:
         suppliers = []
+
+    from financial.services.role_registry import AccountRoleRegistry, AccountRoleNames
+    from client.models import Customer
+    from supplier.models import Supplier
+
+    control_codes = set()
+    for role_name in [
+        AccountRoleNames.CUSTOMER_RECEIVABLE_CONTROL,
+        AccountRoleNames.SUPPLIER_PAYABLE_CONTROL,
+        AccountRoleNames.CUSTOMER_ADVANCE_LIABILITY,
+        AccountRoleNames.SUPPLIER_ADVANCE_ASSET,
+        AccountRoleNames.DEFAULT_CASH_DRAWER,
+        AccountRoleNames.DEFAULT_BANK_ACCOUNT,
+        AccountRoleNames.INVENTORY_GENERAL,
+    ]:
+        try:
+            code = AccountRoleRegistry.resolve_role_code(role_name)
+            if code:
+                control_codes.add(code)
+        except Exception:
+            pass
+
+    customer_acc_ids = set(Customer.objects.filter(financial_account__isnull=False).values_list('financial_account_id', flat=True))
+    supplier_acc_ids = set(Supplier.objects.filter(financial_account__isnull=False).values_list('financial_account_id', flat=True))
+
+    control_account_ids = [
+        str(acc.id) for acc in accounts 
+        if acc.code in control_codes 
+        or acc.id in customer_acc_ids
+        or acc.id in supplier_acc_ids
+        or getattr(acc, 'is_control_account', False)
+        or getattr(acc, 'is_cash_account', False)
+        or getattr(acc, 'is_bank_account', False)
+    ]
+
+    treasury_accounts = ChartOfAccounts.objects.filter(
+        models.Q(is_cash_account=True) | models.Q(is_bank_account=True),
+        is_active=True,
+        is_leaf=True
+    ).order_by('code')
 
     header_buttons = []
     if batch.status == 'draft':
@@ -141,11 +183,9 @@ def opening_balance_wizard(request, pk=None):
                 'class': 'btn-outline-primary',
             })
 
-    header_badges = [
-        {'text': f"{_('السنة المالية')}: {batch.fiscal_year.name}", 'class': 'bg-light text-dark border', 'icon': 'fa-calendar-alt'},
-    ]
+    header_badges = []
     if batch.status == 'posted':
-        header_badges.append({'text': _("مرحلة ومقفلة"), 'class': 'bg-success text-white', 'icon': 'fa-lock'})
+        header_badges.append({'text': _("مرحلة نهائياً"), 'class': 'bg-success text-white', 'icon': 'fa-check-circle'})
         if batch.journal_entry:
             header_badges.append({
                 'url': reverse('financial:journal_entries_detail', args=[batch.journal_entry.pk]),
@@ -165,6 +205,36 @@ def opening_balance_wizard(request, pk=None):
     else:
         header_badges.append({'text': _("مسودة / تحت التدقيق"), 'class': 'bg-warning text-dark', 'icon': 'fa-edit'})
 
+    import json
+    from financial.services.exchange_rate_service import ExchangeRateService
+
+    functional_currency = Currency.objects.filter(is_functional=True).first() or Currency.objects.filter(is_active=True).first()
+    func_code = functional_currency.code if functional_currency else ""
+
+    currency_rates = {}
+    for c in currencies:
+        try:
+            r = float(ExchangeRateService.get_rate(c.code, func_code, date=batch.opening_date))
+        except Exception:
+            r = 1.0
+        currency_rates[str(c.id)] = {
+            'code': c.code,
+            'name': c.name,
+            'symbol': c.symbol or c.code,
+            'is_functional': c.is_functional,
+            'rate': r
+        }
+
+    account_currencies = {
+        str(acc.id): str(acc.currency_id) if acc.currency_id else ""
+        for acc in accounts
+    }
+
+    equity_account_ids = [
+        str(acc.id) for acc in accounts
+        if (acc.account_type and str(acc.account_type.category).lower() == 'equity') or str(acc.code).startswith('3')
+    ]
+
     return render(request, 'financial/opening_balance_wizard.html', {
         'batch': batch,
         'lines': lines,
@@ -173,9 +243,15 @@ def opening_balance_wizard(request, pk=None):
         'balance_diff': balance_diff,
         'is_balanced': is_balanced,
         'accounts': accounts,
+        'treasury_accounts': treasury_accounts,
         'currencies': currencies,
+        'functional_currency': functional_currency,
         'customers': customers,
         'suppliers': suppliers,
+        'currency_rates_json': json.dumps(currency_rates),
+        'account_currencies_json': json.dumps(account_currencies),
+        'control_account_ids_json': json.dumps(control_account_ids),
+        'equity_account_ids_json': json.dumps(equity_account_ids),
         'page_title': f"دفعة الأرصدة الافتتاحية: {batch.batch_number}",
         'page_subtitle': _("تدقيق وتأكيد التوازن ومطابقة الدفاتر"),
         'page_icon': "fas fa-calculator",
@@ -188,6 +264,41 @@ def opening_balance_wizard(request, pk=None):
         'header_buttons': header_buttons,
         'header_badges': header_badges,
     })
+
+
+@login_required
+def _get_opening_balance_rendered_response(request, batch, message=""):
+    """دالة مساعدة لحساب المجاميع وتوليد HTML البارتشال للجداول والكروت تفاعلياً"""
+    from django.template.loader import render_to_string
+    lines = batch.lines.select_related('account', 'customer', 'supplier', 'treasury_account', 'currency').all()
+    total_debit = sum((l.debit for l in lines), Decimal('0.00'))
+    total_credit = sum((l.credit for l in lines), Decimal('0.00'))
+    balance_diff = abs(total_debit - total_credit)
+    is_balanced = (balance_diff <= Decimal('0.05') and len(lines) > 0 and (total_debit > 0 or total_credit > 0))
+
+    context = {
+        'batch': batch,
+        'lines': lines,
+        'total_debit': total_debit,
+        'total_credit': total_credit,
+        'balance_diff': balance_diff,
+        'is_balanced': is_balanced,
+    }
+
+    summary_html = render_to_string('financial/partials/opening_balance_summary_cards_partial.html', context, request=request)
+    table_html = render_to_string('financial/partials/opening_balance_lines_table_partial.html', context, request=request)
+
+    return {
+        'success': True,
+        'message': message,
+        'summary_html': summary_html,
+        'table_html': table_html,
+        'is_balanced': is_balanced,
+        'lines_count': len(lines),
+        'total_debit': str(total_debit),
+        'total_credit': str(total_credit),
+        'balance_diff': str(balance_diff),
+    }
 
 
 @login_required
@@ -205,13 +316,60 @@ def opening_balance_add_line_action(request, pk):
         credit = Decimal(request.POST.get('credit', '0.00'))
 
         currency_id = request.POST.get('currency_id') or None
-        debit_foreign = Decimal(request.POST.get('debit_foreign', '0.00'))
-        credit_foreign = Decimal(request.POST.get('credit_foreign', '0.00'))
         exchange_rate = Decimal(request.POST.get('exchange_rate', '1.000000'))
-
         customer_id = request.POST.get('customer_id') or None
         supplier_id = request.POST.get('supplier_id') or None
         treasury_account_id = request.POST.get('treasury_account_id') or None
+
+        if line_type == 'EQUITY':
+            currency_id = None
+            debit_foreign = Decimal('0.00')
+            credit_foreign = Decimal('0.00')
+            exchange_rate = Decimal('1.000000')
+        elif currency_id:
+            from financial.models.currency import Currency
+            curr = Currency.objects.filter(pk=currency_id).first()
+            if curr and not curr.is_functional:
+                debit_foreign = debit
+                credit_foreign = credit
+                debit = (debit_foreign * exchange_rate).quantize(Decimal('0.01'))
+                credit = (credit_foreign * exchange_rate).quantize(Decimal('0.01'))
+            else:
+                currency_id = None
+                debit_foreign = Decimal('0.00')
+                credit_foreign = Decimal('0.00')
+                exchange_rate = Decimal('1.000000')
+        else:
+            debit_foreign = Decimal('0.00')
+            credit_foreign = Decimal('0.00')
+            exchange_rate = Decimal('1.000000')
+
+        # Auto-resolve account_id based on line_type
+        if line_type == 'AR' and customer_id:
+            from client.models import Customer
+            from client.services.customer_service import CustomerService
+            customer = Customer.objects.filter(pk=customer_id).first()
+            if customer:
+                if not customer.financial_account_id:
+                    acc = CustomerService.create_financial_account_for_customer(customer, user=request.user)
+                    account_id = acc.id
+                else:
+                    account_id = customer.financial_account_id
+        elif line_type == 'AP' and supplier_id:
+            from supplier.models import Supplier
+            from supplier.services.supplier_service import SupplierService
+            supplier = Supplier.objects.filter(pk=supplier_id).first()
+            if supplier:
+                if not supplier.financial_account_id:
+                    acc = SupplierService.create_financial_account_for_supplier(supplier, user=request.user)
+                    account_id = acc.id
+                else:
+                    account_id = supplier.financial_account_id
+        elif line_type == 'TREASURY' and treasury_account_id:
+            account_id = treasury_account_id
+        elif line_type == 'INVENTORY' and not account_id:
+            from financial.services.role_registry import AccountRoleRegistry
+            account_id = AccountRoleRegistry.get_account("INVENTORY_GENERAL").id
 
         line = OpeningBalanceLine(
             batch=batch,
@@ -223,15 +381,15 @@ def opening_balance_add_line_action(request, pk):
             debit_foreign=debit_foreign,
             credit_foreign=credit_foreign,
             exchange_rate=exchange_rate,
-            customer_id=customer_id,
-            supplier_id=supplier_id,
-            treasury_account_id=treasury_account_id
+            customer_id=customer_id if line_type == 'AR' else None,
+            supplier_id=supplier_id if line_type == 'AP' else None,
+            treasury_account_id=treasury_account_id if line_type == 'TREASURY' else None
         )
         line.full_clean()
         line.save()
 
-        messages.success(request, _("تمت إضافة سطر الرصيد الافتتاحي بنجاح."))
-        return JsonResponse({'success': True, 'message': _("تمت إضافة السطر بنجاح")})
+        resp = _get_opening_balance_rendered_response(request, batch, message=_("تمت إضافة السطر بنجاح"))
+        return JsonResponse(resp)
     except ValidationError as e:
         msg = e.message_dict if hasattr(e, 'message_dict') else (e.message if hasattr(e, 'message') else str(e))
         return JsonResponse({'success': False, 'error': str(msg)}, status=400)
@@ -249,8 +407,8 @@ def opening_balance_delete_line_action(request, pk, line_pk):
 
     line = get_object_or_404(OpeningBalanceLine, pk=line_pk, batch=batch)
     line.delete()
-    messages.success(request, _("تم حذف سطر الرصيد الافتتاحي."))
-    return JsonResponse({'success': True, 'message': _("تم الحذف بنجاح")})
+    resp = _get_opening_balance_rendered_response(request, batch, message=_("تم حذف سطر الرصيد الافتتاحي بنجاح."))
+    return JsonResponse(resp)
 
 
 @login_required
@@ -268,7 +426,7 @@ def opening_balance_import_excel_action(request, pk):
     try:
         from financial.services.excel_import_service import ExcelImportService
         raw_rows = ExcelImportService.parse(file_obj)
-        valid_rows, invalid_rows = ExcelImportService.validate_rows(raw_rows)
+        valid_rows, invalid_rows = ExcelImportService.validate_rows(raw_rows, batch=batch)
 
         if not valid_rows:
             return JsonResponse({'success': False, 'error': _("لم يتم العثور على صفوف صحيحة للاستيراد. يرجى مراجعة أكواد الحسابات والمبالغ.")}, status=400)
@@ -345,4 +503,43 @@ def opening_balance_reverse_action(request, pk):
         return JsonResponse({'success': False, 'error': msg}, status=400)
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@login_required
+def opening_balance_get_balancing_options(request, pk):
+    """جلب خيارات وتحليلات الموازنة الذكية عبر AJAX"""
+    batch = get_object_or_404(OpeningBalanceBatch, pk=pk)
+    try:
+        from financial.services.opening_balance_balancing_service import SmartBalancingService
+        analysis = SmartBalancingService.get_balancing_analysis(batch)
+        return JsonResponse({'success': True, 'data': analysis})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@login_required
+@require_POST
+def opening_balance_apply_balancing_action(request, pk):
+    """تطبيق الموازنة الذكية (كاملة أو Split أو دمج) عبر AJAX"""
+    batch = get_object_or_404(OpeningBalanceBatch, pk=pk)
+    if batch.status in ['posted', 'reversed']:
+        return JsonResponse({'success': False, 'error': _("لا يمكن موازنة دفعة مرحلة أو معكوسة.")}, status=400)
+
+    try:
+        import json
+        payload = json.loads(request.body.decode('utf-8')) if request.body else {}
+        mode = payload.get('mode', 'SINGLE')
+        data = payload.get('data', {})
+
+        from financial.services.opening_balance_balancing_service import SmartBalancingService
+        result = SmartBalancingService.apply_balancing(batch, mode, data, request.user)
+        resp = _get_opening_balance_rendered_response(request, batch, message=result.get('message', _("تمت موازنة الدفعة بنجاح.")))
+        resp.update(result)
+        return JsonResponse(resp)
+    except (ValidationError, ImmutableLedgerError) as e:
+        msg = e.message if hasattr(e, 'message') else str(e)
+        return JsonResponse({'success': False, 'error': msg}, status=400)
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
 

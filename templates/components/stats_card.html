@@ -1,77 +1,53 @@
 {% comment %}
-========================================
-مكون بطاقة الإحصائيات الموحد
-Unified Stats Card Component
-========================================
+=================================================================
+مكون بطاقة الإحصائيات والمؤشرات الموحد (Unified Stats & KPI Card)
+=================================================================
 
-الاستخدام | Usage:
-{% include "components/stats_card.html" with icon="fas fa-users" title="إجمالي العناصر" value=150 unit="عنصر" variant="primary" %}
+الاستخدام:
+{% include "components/stats_card.html" with title="إجمالي المدين" value=total_debit unit="EGP" icon="fa-arrow-down" color="success" value_id="summary-debit" %}
 
-المعاملات | Parameters:
-- icon: أيقونة FontAwesome (مطلوب | Required)
-- title: عنوان البطاقة (مطلوب | Required)
-- value: القيمة الإحصائية (مطلوب | Required)
-- unit: وحدة القياس (اختياري | Optional)
-- variant: نوع اللون (مطلوب | Required): primary, success, info, warning, danger, secondary
-- url: رابط للبطاقة القابلة للنقر (اختياري | Optional)
-
-أمثلة | Examples:
-
-1. بطاقة بسيطة | Simple card:
-{% include "components/stats_card.html" with icon="fas fa-users" title="إجمالي العناصر" value=150 unit="عنصر" variant="primary" %}
-
-2. بطاقة قابلة للنقر | Clickable card:
-{% include "components/stats_card.html" with icon="fas fa-chart-line" title="المشتريات" value=50000 unit=currency_symbol variant="success" url="/purchases/" %}
-
-3. بطاقة بدون وحدة | Card without unit:
-{% include "components/stats_card.html" with icon="fas fa-bell" title="الإشعارات" value=42 variant="warning" %}
-
-الألوان المدعومة | Supported Variants:
-- primary: اللون الأساسي (أزرق)
-- success: النجاح (أخضر)
-- info: المعلومات (أزرق فاتح)
-- warning: التحذير (أصفر/برتقالي)
-- danger: الخطر (أحمر)
-- secondary: ثانوي (رمادي)
-
-المتطلبات | Requirements:
-- Requirements 4.1: Standardized card layouts with consistent spacing
-- Requirements 4.2: Support different color variants
-- Requirements 4.3: Include icon, title, value, and optional unit fields
-- Requirements 4.5: Responsive grid layouts
-
-========================================
+المعاملات المدعومة:
+- title: عنوان الكارت (مطلوب)
+- value: القيمة الإحصائية أو المالية (مطلوب)
+- unit: وحدة القياس أو العملة (اختياري)
+- icon: أيقونة FontAwesome مثل 'fa-users' أو 'fa-arrow-down' (اختياري)
+- color / variant: اللون القياسي (primary, success, danger, warning, info, secondary) (افتراضي: primary)
+- value_id: معرف DOM لتحديثات الـ AJAX اللحظية (اختياري)
+- value_class: تصنيفات إضافية للقيمة (اختياري)
+- status_text / trend_text: نص مؤشر الحالة أو الاتجاه (اختياري)
+- status_icon: أيقونة مؤشر الحالة (اختياري)
+- status_color / trend: لون مؤشر الحالة (اختياري)
+- url: رابط عند النقر على الكارت (اختياري)
+- card_class: فئات إضافية للحاوية (اختياري)
+- col_class: فئات عمود الشبكة (افتراضي: 'col-xl-3 col-md-6')
+=================================================================
 {% endcomment %}
-
-{% load custom_filters %}
-
-<div class="stats-card stats-card-{{ variant|default:'primary' }}{% if url %} stats-card-clickable{% endif %}"
-     role="{% if url %}button{% else %}region{% endif %}"
-     {% if url %}onclick="window.location.href='{{ url }}'"{% endif %}
-     {% if url %}style="cursor: pointer;"{% endif %}
-     aria-label="إحصائية {{ title }}">
-    
-    <!-- Card Header - Colored bar at top -->
-    <div class="stats-card-header"></div>
-    
-    <!-- Card Body - Main content -->
-    <div class="stats-card-body">
-        <!-- Icon -->
-        {% if icon %}
-        <div class="stats-card-icon">
-            <i class="{{ icon }}" aria-hidden="true"></i>
+{% with card_color=color|default:variant|default:'primary' %}
+<div class="{{ col_class|default:'col-xl-3 col-md-6' }}">
+    {% if url %}<a href="{{ url }}" class="stats-card-link">{% endif %}
+    <div class="stats-card stats-card-{{ card_color }}{% if url %} stats-card-clickable{% endif %} {{ card_class }}"
+         role="{% if url %}button{% else %}region{% endif %}"
+         aria-label="إحصائية {{ title }}">
+        <div class="stats-card-body">
+            <div class="stats-card-info-content">
+                <div class="stats-card-title">{{ title }}</div>
+                <div class="stats-card-value text-{{ card_color }} {{ value_class }}" {% if value_id %}id="{{ value_id }}"{% endif %}>
+                    {{ value }} {% if unit %}<small class="stats-card-unit">{{ unit }}</small>{% endif %}
+                </div>
+                {% if status_text or trend_text %}
+                <div class="stats-card-trend text-{{ status_color|default:trend|default:card_color }}">
+                    {% if status_icon %}<i class="fas {{ status_icon }} me-1"></i>{% endif %}
+                    {{ status_text|default:trend_text }}
+                </div>
+                {% endif %}
+            </div>
+            {% if icon %}
+            <div class="stats-card-icon">
+                <i class="fas {{ icon }}"></i>
+            </div>
+            {% endif %}
         </div>
-        {% endif %}
-        
-        <!-- Title -->
-        <div class="stats-card-title">{{ title }}</div>
-        
-        <!-- Value -->
-        <div class="stats-card-value">{{ value|default:0|floatformat:0 }}</div>
-        
-        <!-- Unit (optional) -->
-        {% if unit %}
-        <div class="stats-card-unit">{{ unit }}</div>
-        {% endif %}
     </div>
+    {% if url %}</a>{% endif %}
 </div>
+{% endwith %}

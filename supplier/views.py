@@ -670,7 +670,43 @@ def supplier_detail(request, pk):
     # تجهيز بيانات المعاملات لكشف الحساب
     transactions = []
 
+    # 1. جلب الأرصدة الافتتاحية من الأستاذ المساعد للمورد
+    from supplier.models import SupplierTransaction
+    op_txns = SupplierTransaction.objects.filter(
+        supplier=supplier,
+        transaction_number__startswith="OPN-"
+    )
+    for op_tx in op_txns:
+        curr_code = op_tx.currency or "EGP"
+        curr_sym = "ج.م" if curr_code == "EGP" else curr_code
+        is_bill = (op_tx.transaction_type == "BILL")
+        # في محاسبة الموردين: فاتورة الشراء دائن (مستحقات للمورد) والسداد/الدفعة مدين
+        credit_val = op_tx.functional_amount if is_bill else Decimal("0.00")
+        debit_val = op_tx.functional_amount if not is_bill else Decimal("0.00")
+        f_credit = op_tx.foreign_amount if is_bill else Decimal("0.00")
+        f_debit = op_tx.foreign_amount if not is_bill else Decimal("0.00")
+        transactions.append({
+            "date": op_tx.issue_date,
+            "created_at": op_tx.created_at,
+            "reference": op_tx.transaction_number,
+            "type": "opening_balance",
+            "description": f"رصيد افتتاحي مرحل ({op_tx.transaction_number})",
+            "currency": curr_code,
+            "currency_symbol": curr_sym,
+            "debit": debit_val,
+            "credit": credit_val,
+            "foreign_debit": f_debit,
+            "foreign_credit": f_credit,
+            "exchange_rate": op_tx.exchange_rate,
+            "balance": Decimal("0.00"),
+        })
+
     for purchase in purchases:
+        curr_code = purchase.currency.code if (hasattr(purchase, 'currency') and purchase.currency) else (getattr(purchase, 'currency', None) or "EGP")
+        curr_sym = purchase.currency.symbol if (hasattr(purchase, 'currency') and purchase.currency and purchase.currency.symbol) else ("ج.م" if curr_code == "EGP" else curr_code)
+        raw_rate = getattr(purchase, 'exchange_rate', Decimal("1.000000")) or Decimal("1.000000")
+        rate = Decimal(str(raw_rate))
+        func_total = getattr(purchase, 'total_functional', None) or (Decimal(str(purchase.total)) * rate).quantize(Decimal("0.01"))
         transactions.append(
             {
                 "date": purchase.created_at,
@@ -678,32 +714,45 @@ def supplier_detail(request, pk):
                 "purchase_id": purchase.id,
                 "type": "purchase",
                 "description": f"فاتورة شراء رقم {purchase.number}",
-                "debit": purchase.total,
-                "credit": 0,
-                "balance": 0,
+                "currency": curr_code,
+                "currency_symbol": curr_sym,
+                "debit": Decimal("0.00"),
+                "credit": func_total,
+                "foreign_debit": Decimal("0.00"),
+                "foreign_credit": purchase.total if curr_code != "EGP" else Decimal("0.00"),
+                "exchange_rate": rate,
+                "balance": Decimal("0.00"),
             }
         )
 
     for pay_item in payments_list:
+        curr_obj = pay_item.get("currency")
+        curr_code = curr_obj.code if hasattr(curr_obj, 'code') else (str(curr_obj) if curr_obj else "EGP")
+        curr_sym = pay_item.get("currency_symbol") or ("ج.م" if curr_code == "EGP" else curr_code)
+        amt = Decimal(str(pay_item["amount"] or "0.00"))
         transactions.append(
             {
                 "date": pay_item["created_at"] or pay_item["payment_date"],
                 "reference": pay_item["reference_number"],
                 "type": "payment",
                 "description": f"{pay_item['type_display']} ({pay_item['payment_method']})",
-                "debit": 0,
-                "credit": pay_item["amount"],
-                "balance": 0,
+                "currency": curr_code,
+                "currency_symbol": curr_sym,
+                "debit": amt,
+                "credit": Decimal("0.00"),
+                "foreign_debit": amt if curr_code != "EGP" else Decimal("0.00"),
+                "foreign_credit": Decimal("0.00"),
+                "balance": Decimal("0.00"),
             }
         )
 
     # ترتيب المعاملات حسب التاريخ (من الأقدم للأحدث)
     transactions.sort(key=lambda x: str(x["date"] or ""))
 
-    # حساب الرصيد التراكمي
-    running_balance = 0
+    # حساب الرصيد التراكمي للمورد (دائن - مدين)
+    running_balance = Decimal("0.00")
     for transaction in transactions:
-        running_balance = running_balance + transaction["debit"] - transaction["credit"]
+        running_balance = running_balance + Decimal(str(transaction["credit"])) - Decimal(str(transaction["debit"]))
         transaction["balance"] = running_balance
 
     # عكس ترتيب المعاملات (من الأحدث للأقدم) للعرض

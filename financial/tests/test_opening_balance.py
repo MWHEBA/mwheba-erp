@@ -21,7 +21,7 @@ class TestOpeningBalanceService:
 
     @pytest.fixture
     def setup_opening_balance_data(self):
-        user = User.objects.create_user(username="op_balance_user", password="password123")
+        user = User.objects.create_user(username="op_balance_user", email="op_balance_user@example.com", password="password123")
         today = timezone.now().date()
 
         fiscal_year = FiscalYear.objects.create(

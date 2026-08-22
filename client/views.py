@@ -550,7 +550,41 @@ def customer_detail(request, pk):
     # تجهيز بيانات المعاملات لكشف الحساب
     transactions = []
 
+    # 1. جلب الأرصدة الافتتاحية من الأستاذ المساعد للعميل
+    from client.models import CustomerTransaction
+    op_txns = CustomerTransaction.objects.filter(
+        customer=customer,
+        reference_type="OPENING_BALANCE"
+    )
+    for op_tx in op_txns:
+        curr_code = op_tx.currency or "EGP"
+        curr_sym = "ج.م" if curr_code == "EGP" else curr_code
+        is_inv = (op_tx.transaction_type == "INVOICE")
+        debit_val = op_tx.functional_amount if is_inv else Decimal("0.00")
+        credit_val = op_tx.functional_amount if not is_inv else Decimal("0.00")
+        f_debit = op_tx.foreign_amount if is_inv else Decimal("0.00")
+        f_credit = op_tx.foreign_amount if not is_inv else Decimal("0.00")
+        transactions.append({
+            "date": op_tx.issue_date,
+            "created_at": op_tx.created_at,
+            "reference": op_tx.transaction_number,
+            "type": "opening_balance",
+            "description": f"رصيد افتتاحي مرحل ({op_tx.transaction_number})",
+            "currency": curr_code,
+            "currency_symbol": curr_sym,
+            "debit": debit_val,
+            "credit": credit_val,
+            "foreign_debit": f_debit,
+            "foreign_credit": f_credit,
+            "exchange_rate": op_tx.exchange_rate,
+            "balance": Decimal("0.00"),
+        })
+
     for invoice in invoices:
+        curr_code = invoice.currency.code if invoice.currency else "EGP"
+        curr_sym = invoice.currency.symbol if (invoice.currency and invoice.currency.symbol) else ("ج.م" if curr_code == "EGP" else curr_code)
+        rate = invoice.exchange_rate or Decimal("1.000000")
+        func_total = getattr(invoice, 'total_functional', None) or (invoice.total * rate).quantize(Decimal("0.01"))
         transactions.append(
             {
                 "date": invoice.created_at,
@@ -558,29 +592,42 @@ def customer_detail(request, pk):
                 "invoice_id": invoice.id,
                 "type": "invoice",
                 "description": f"فاتورة بيع رقم {invoice.number}",
-                "debit": invoice.total,
-                "credit": 0,
-                "balance": 0,
+                "currency": curr_code,
+                "currency_symbol": curr_sym,
+                "debit": func_total,
+                "credit": Decimal("0.00"),
+                "foreign_debit": invoice.total if curr_code != "EGP" else Decimal("0.00"),
+                "foreign_credit": Decimal("0.00"),
+                "exchange_rate": rate,
+                "balance": Decimal("0.00"),
             }
         )
 
     for payment_item in payments:
+        curr_obj = payment_item.get("currency")
+        curr_code = curr_obj.code if hasattr(curr_obj, 'code') else (str(curr_obj) if curr_obj else "EGP")
+        curr_sym = payment_item.get("currency_symbol") or ("ج.م" if curr_code == "EGP" else curr_code)
+        amt = Decimal(str(payment_item["amount"] or "0.00"))
         transactions.append(
             {
                 "date": payment_item["created_at"] or payment_item["payment_date"],
                 "reference": payment_item["reference_number"],
                 "type": "payment",
                 "description": f"{payment_item['type_display']} ({payment_item['payment_method']})",
-                "debit": 0,
-                "credit": payment_item["amount"],
-                "balance": 0,
+                "currency": curr_code,
+                "currency_symbol": curr_sym,
+                "debit": Decimal("0.00"),
+                "credit": amt,
+                "foreign_debit": Decimal("0.00"),
+                "foreign_credit": amt if curr_code != "EGP" else Decimal("0.00"),
+                "balance": Decimal("0.00"),
             }
         )
 
     transactions.sort(key=lambda x: str(x["date"] or ""))
-    running_balance = 0
+    running_balance = Decimal("0.00")
     for transaction in transactions:
-        running_balance = running_balance + transaction["debit"] - transaction["credit"]
+        running_balance = running_balance + Decimal(str(transaction["debit"])) - Decimal(str(transaction["credit"]))
         transaction["balance"] = running_balance
 
     transactions.reverse()

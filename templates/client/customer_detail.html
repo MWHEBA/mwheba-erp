@@ -365,7 +365,7 @@
                       <div>
                         <div class="text-muted small">{% trans "الحساب المحاسبي المرتبط في دليل الحسابات" %}</div>
                         {% if customer.financial_account %}
-                          <span class="fw-bold text-dark font-monospace">{{ customer.financial_account.code }}</span> - 
+                          <span class="fw-bold text-dark">{{ customer.financial_account.code }}</span> - 
                           <span class="fw-bold text-dark">{{ customer.financial_account.name }}</span>
                           <span class="badge bg-success-subtle text-success border border-success-subtle ms-2">{% trans "مربوط ونشط" %}</span>
                         {% else %}
@@ -375,6 +375,9 @@
                     </div>
                     {% if customer.financial_account %}
                       <div class="d-flex gap-2">
+                        <a href="{% url 'financial:ledger_report' %}?account={{ customer.financial_account.id }}" class="btn btn-sm btn-outline-primary" target="_blank">
+                          <i class="fas fa-book-open me-1"></i>{% trans "دفتر الأستاذ" %}
+                        </a>
                         <a href="{% url 'client:customer_change_account' customer.pk %}" class="btn btn-sm btn-outline-secondary">
                           <i class="fas fa-exchange-alt me-1"></i>{% trans "تغيير الحساب" %}
                         </a>
@@ -546,9 +549,16 @@
         <div class="tab-pane fade" id="statement-tab-pane" role="tabpanel" aria-labelledby="statement-tab" tabindex="0">
           <div class="d-flex justify-content-between align-items-center mb-3">
             <h5 class="mb-0"><i class="fas fa-file-alt me-2"></i>{% trans "كشف حساب العميل" %}</h5>
-            <button class="btn btn-sm btn-outline-primary" onclick="window.print()">
-              <i class="fas fa-print me-1"></i>{% trans "طباعة" %}
-            </button>
+            <div class="d-flex gap-2">
+              {% if customer.financial_account %}
+              <a href="{% url 'financial:ledger_report' %}?account={{ customer.financial_account.id }}" class="btn btn-sm btn-outline-secondary" target="_blank">
+                <i class="fas fa-book-open me-1"></i>{% trans "كشف الأستاذ العام (GL)" %}
+              </a>
+              {% endif %}
+              <button class="btn btn-sm btn-outline-primary" onclick="window.print()">
+                <i class="fas fa-print me-1"></i>{% trans "طباعة" %}
+              </button>
+            </div>
           </div>
 
           <!-- استخدام النظام المحسن للجداول -->

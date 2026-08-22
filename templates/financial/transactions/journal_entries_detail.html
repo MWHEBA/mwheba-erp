@@ -21,32 +21,30 @@
     <!-- شريط الإحصائيات الرئيسي (KPI Summary Bar) -->
     <div class="row g-3 mb-4">
         <div class="col-xl-3 col-md-6">
-            <div class="card h-100">
-                <div class="card-body py-3 d-flex align-items-center justify-content-between">
-                    <div>
-                        <span class="text-muted fs-8 d-block mb-1">رقم وتاريخ القيد</span>
-                        <h6 class="fw-bold text-dark mb-0">{{ journal_entry.number }}</h6>
+            <div class="stats-card stats-card-primary">
+                <div class="stats-card-body">
+                    <div class="stats-card-info-content">
+                        <div class="stats-card-title">رقم وتاريخ القيد</div>
+                        <div class="stats-card-value text-dark mb-1">{{ journal_entry.number }}</div>
                         <small class="text-muted fs-8">{{ journal_entry.date|date:"Y-m-d" }}</small>
                     </div>
-                    <div class="p-3 bg-primary-subtle text-primary rounded-circle">
-                        <i class="fas fa-file-invoice-dollar fs-5"></i>
+                    <div class="stats-card-icon">
+                        <i class="fas fa-file-invoice-dollar"></i>
                     </div>
                 </div>
             </div>
         </div>
 
         <div class="col-xl-3 col-md-6">
-            <div class="card h-100">
-                <div class="card-body py-3 d-flex align-items-center justify-content-between">
-                    <div>
-                        <span class="text-muted fs-8 d-block mb-1">حالة القيد الحالية</span>
+            <div class="stats-card stats-card-info">
+                <div class="stats-card-body">
+                    <div class="stats-card-info-content">
+                        <div class="stats-card-title">حالة القيد الحالية</div>
                         <div class="mb-1">
                             {% if journal_entry.status == 'draft' %}
-                            <span class="badge bg-warning text-dark px-3 py-2"><i
-                                    class="fas fa-pencil-alt me-1"></i>مسودة</span>
+                            <span class="badge bg-warning text-dark px-3 py-2"><i class="fas fa-pencil-alt me-1"></i>مسودة</span>
                             {% elif journal_entry.status == 'posted' %}
-                            <span class="badge bg-success px-3 py-2"><i
-                                    class="fas fa-check-circle me-1"></i>مرحّل</span>
+                            <span class="badge bg-success px-3 py-2"><i class="fas fa-check-circle me-1"></i>مرحّل</span>
                             {% else %}
                             <span class="badge bg-secondary px-3 py-2">{{ journal_entry.get_status_display }}</span>
                             {% endif %}
@@ -59,49 +57,47 @@
                             {% endif %}
                         </small>
                     </div>
-                    <div class="p-3 bg-info-subtle text-info rounded-circle">
-                        <i class="fas fa-shield-alt fs-5"></i>
+                    <div class="stats-card-icon">
+                        <i class="fas fa-shield-alt"></i>
                     </div>
                 </div>
             </div>
         </div>
 
         <div class="col-xl-3 col-md-6">
-            <div class="card h-100">
-                <div class="card-body py-3 d-flex align-items-center justify-content-between">
-                    <div>
-                        <span class="text-muted fs-8 d-block mb-1">إجمالي الحركات المدينة</span>
-                        <h5 class="fw-bold text-success mb-0">
-                            {{ total_debits|smart_float }} <small class="fs-8 text-muted">{{ currency_symbol }}</small>
-                        </h5>
+            <div class="stats-card stats-card-success">
+                <div class="stats-card-body">
+                    <div class="stats-card-info-content">
+                        <div class="stats-card-title">إجمالي الحركات المدينة</div>
+                        <div class="stats-card-value text-success">
+                            {{ total_debits|smart_float }} <small class="stats-card-unit">{{ currency_symbol }}</small>
+                        </div>
                     </div>
-                    <div class="p-3 bg-success-subtle text-success rounded-circle">
-                        <i class="fas fa-arrow-down-left fs-5"></i>
+                    <div class="stats-card-icon">
+                        <i class="fas fa-arrow-down"></i>
                     </div>
                 </div>
             </div>
         </div>
 
         <div class="col-xl-3 col-md-6">
-            <div class="card h-100">
-                <div class="card-body py-3 d-flex align-items-center justify-content-between">
-                    <div>
-                        <span class="text-muted fs-8 d-block mb-1">إجمالي الحركات الدائنة والتوازن</span>
-                        <h5 class="fw-bold text-danger mb-0">
-                            {{ total_credits|smart_float }} <small class="fs-8 text-muted">{{ currency_symbol }}</small>
-                        </h5>
-                        <small class="d-block mt-1">
+            <div class="stats-card {% if total_debits == total_credits %}stats-card-success{% else %}stats-card-danger{% endif %}">
+                <div class="stats-card-body">
+                    <div class="stats-card-info-content">
+                        <div class="stats-card-title">إجمالي الحركات الدائنة والتوازن</div>
+                        <div class="stats-card-value {% if total_debits == total_credits %}text-success{% else %}text-danger{% endif %}">
+                            {{ total_credits|smart_float }} <small class="stats-card-unit">{{ currency_symbol }}</small>
+                        </div>
+                        <div class="stats-card-trend {% if total_debits == total_credits %}text-success{% else %}text-danger{% endif %}">
                             {% if total_debits == total_credits %}
-                            <span class="text-success fw-bold fs-8"><i
-                                    class="fas fa-check-circle me-1"></i>متوازن</span>
+                            <i class="fas fa-check-circle me-1"></i>متوازن
                             {% else %}
-                            <span class="text-danger fw-bold fs-8"><i class="fas fa-exclamation-triangle me-1"></i>غير
-                                متوازن</span>
+                            <i class="fas fa-exclamation-triangle me-1"></i>غير متوازن
                             {% endif %}
-                        </small>
+                        </div>
                     </div>
-                    <div class="p-3 bg-danger-subtle text-danger rounded-circle">
-                        <i class="fas fa-arrow-up-right fs-5"></i>
+                    <div class="stats-card-icon">
+                        <i class="fas fa-balance-scale"></i>
                     </div>
                 </div>
             </div>
@@ -277,13 +273,11 @@
                     <div class="row g-3">
                         <div class="col-md-6">
                             <label class="text-muted fs-8 d-block mb-1">البيان الأساسي للقيد</label>
-                            <p class="text-dark bg-light p-3 rounded mb-0 fs-7">{{ journal_entry.description|default:"لا
-                                يوجد بيان متاح." }}</p>
+                            <p class="text-dark bg-light p-3 rounded mb-0 fs-7">{{ journal_entry.description|default:"لا يوجد بيان متاح." }}</p>
                         </div>
                         <div class="col-md-6">
                             <label class="text-muted fs-8 d-block mb-1">الملاحظات التوضيحية</label>
-                            <p class="text-dark bg-light p-3 rounded mb-0 fs-7">{{ journal_entry.notes|default:"لا توجد
-                                ملاحظات إضافية." }}</p>
+                            <p class="text-dark bg-light p-3 rounded mb-0 fs-7">{{ journal_entry.notes|default:"لا توجد ملاحظات إضافية." }}</p>
                         </div>
 
                         {% if journal_entry.reference or source_payment_url or source_invoice %}
@@ -299,34 +293,27 @@
                                 {% endif %}
 
                                 {% if source_payment_url %}
-                                <a href="{{ source_payment_url }}" class="btn btn-outline-primary btn-sm"
-                                    target="_blank">
+                                <a href="{{ source_payment_url }}" class="btn btn-outline-primary btn-sm" target="_blank">
                                     <i class="fas fa-money-bill-wave me-1"></i>عرض القيد / الدفعة
                                 </a>
                                 {% endif %}
 
                                 {% if source_invoice and invoice_type == 'purchase' %}
-                                <a href="{% url 'purchase:purchase_detail' source_invoice.pk %}"
-                                    class="btn btn-outline-primary btn-sm">
+                                <a href="{% url 'purchase:purchase_detail' source_invoice.pk %}" class="btn btn-outline-primary btn-sm">
                                     <i class="fas fa-shopping-cart me-1"></i>فاتورة مشتريات: {{ source_invoice.number }}
                                 </a>
                                 {% elif source_invoice and invoice_type == 'sale' %}
-                                <a href="{% url 'sale:sale_detail' source_invoice.pk %}"
-                                    class="btn btn-outline-primary btn-sm">
+                                <a href="{% url 'sale:sale_detail' source_invoice.pk %}" class="btn btn-outline-primary btn-sm">
                                     <i class="fas fa-file-invoice me-1"></i>فاتورة مبيعات: {{ source_invoice.number }}
                                 </a>
                                 {% endif %}
 
-                                {% if journal_entry.source_module == 'sale' and journal_entry.source_model ==
-                                'SalesInvoice' and journal_entry.source_id %}
-                                <a href="{% url 'sale:sales_invoice_detail' journal_entry.source_id %}"
-                                    class="btn btn-outline-success btn-sm">
+                                {% if journal_entry.source_module == 'sale' and journal_entry.source_model == 'SalesInvoice' and journal_entry.source_id %}
+                                <a href="{% url 'sale:sales_invoice_detail' journal_entry.source_id %}" class="btn btn-outline-success btn-sm">
                                     <i class="fas fa-receipt me-1"></i>فاتورة مبيعات معتمدة
                                 </a>
-                                {% elif journal_entry.source_module == 'purchase' and journal_entry.source_model ==
-                                'GoodsReceivedNote' and journal_entry.source_id %}
-                                <a href="{% url 'purchase:grn_detail' journal_entry.source_id %}"
-                                    class="btn btn-outline-warning btn-sm">
+                                {% elif journal_entry.source_module == 'purchase' and journal_entry.source_model == 'GoodsReceivedNote' and journal_entry.source_id %}
+                                <a href="{% url 'purchase:grn_detail' journal_entry.source_id %}" class="btn btn-outline-warning btn-sm">
                                     <i class="fas fa-truck-loading me-1"></i>إذن استلام مشتريات (GRN)
                                 </a>
                                 {% endif %}
@@ -339,13 +326,10 @@
                             <label class="text-muted fs-8 d-block mb-1">الطرف التجاري المرتبط (العميل / المورد)</label>
                             <div class="d-flex align-items-center gap-2">
                                 {% if invoice_type == 'sale' %}
-                                <span class="fw-bold text-dark fs-7"><i class="fas fa-user-tie text-info me-2"></i>{{
-                                    source_party.name }}</span>
+                                <span class="fw-bold text-dark fs-7"><i class="fas fa-user-tie text-info me-2"></i>{{ source_party.name }}</span>
                                 {% elif invoice_type == 'purchase' %}
-                                <span class="fw-bold text-dark fs-7"><i class="fas fa-truck text-warning me-2"></i>{{
-                                    source_party.name }}</span>
-                                <a href="{% url 'supplier:supplier_detail' source_party.pk %}"
-                                    class="btn btn-outline-warning btn-sm">
+                                <span class="fw-bold text-dark fs-7"><i class="fas fa-truck text-warning me-2"></i>{{ source_party.name }}</span>
+                                <a href="{% url 'supplier:supplier_detail' source_party.pk %}" class="btn btn-outline-warning btn-sm">
                                     <i class="fas fa-eye me-1"></i>عرض بيانات المورد
                                 </a>
                                 {% endif %}
@@ -362,8 +346,7 @@
             <div class="card mb-4">
                 <div class="card-header border-bottom py-3">
                     <h6 class="card-title mb-0 fw-bold">
-                        <i class="fas fa-paperclip me-2 text-primary"></i>المرفقات المؤيدة للقيد ({{ attachments|length
-                        }})
+                        <i class="fas fa-paperclip me-2 text-primary"></i>المرفقات المؤيدة للقيد ({{ attachments|length }})
                     </h6>
                 </div>
                 <div class="card-body p-2">
@@ -430,26 +413,21 @@
                 <div class="card-body fs-8">
                     <div class="d-flex justify-content-between mb-2">
                         <span class="text-muted">تاريخ الإنشاء:</span>
-                        <span class="fw-semibold text-dark">{{ journal_entry.created_at|date:"Y-m-d h:i" }} {% if
-                            journal_entry.created_at|date:"A" == "AM" %}ص{% else %}م{% endif %}</span>
+                        <span class="fw-semibold text-dark">{{ journal_entry.created_at|date:"Y-m-d h:i" }} {% if journal_entry.created_at|date:"A" == "AM" %}ص{% else %}م{% endif %}</span>
                     </div>
                     <div class="d-flex justify-content-between mb-2">
                         <span class="text-muted">القائم بالإنشاء:</span>
-                        <span class="fw-semibold text-dark">{{
-                            journal_entry.created_by.get_full_name|default:journal_entry.created_by.username|default:"نظام
-                            آلي" }}</span>
+                        <span class="fw-semibold text-dark">{{ journal_entry.created_by.get_full_name|default:journal_entry.created_by.username|default:"نظام آلي" }}</span>
                     </div>
                     {% if journal_entry.status == 'posted' and journal_entry.posted_at %}
                     <div class="d-flex justify-content-between mb-2">
                         <span class="text-muted">تاريخ الترحيل:</span>
-                        <span class="fw-semibold text-success">{{ journal_entry.posted_at|date:"Y-m-d h:i" }} {% if
-                            journal_entry.posted_at|date:"A" == "AM" %}ص{% else %}م{% endif %}</span>
+                        <span class="fw-semibold text-success">{{ journal_entry.posted_at|date:"Y-m-d h:i" }} {% if journal_entry.posted_at|date:"A" == "AM" %}ص{% else %}م{% endif %}</span>
                     </div>
                     {% endif %}
                     <div class="d-flex justify-content-between">
                         <span class="text-muted">آخر تحديث:</span>
-                        <span class="fw-semibold text-dark">{{ journal_entry.updated_at|date:"Y-m-d h:i" }} {% if
-                            journal_entry.updated_at|date:"A" == "AM" %}ص{% else %}م{% endif %}</span>
+                        <span class="fw-semibold text-dark">{{ journal_entry.updated_at|date:"Y-m-d h:i" }} {% if journal_entry.updated_at|date:"A" == "AM" %}ص{% else %}م{% endif %}</span>
                     </div>
                 </div>
             </div>

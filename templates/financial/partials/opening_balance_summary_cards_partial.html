@@ -1,0 +1,82 @@
+{% load i18n custom_filters %}
+<div class="row g-3 mb-4" id="opening-balance-summary-wrapper">
+    <div class="col-xl-3 col-md-6">
+        <div class="stats-card stats-card-success">
+            <div class="stats-card-body">
+                <div class="stats-card-info-content">
+                    <div class="stats-card-title">{% trans "إجمالي المدين" %}</div>
+                    <div class="stats-card-value text-success" id="summary-debit">
+                        {{ total_debit|currency }}
+                    </div>
+                </div>
+                <div class="stats-card-icon">
+                    <i class="fas fa-arrow-down"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6">
+        <div class="stats-card stats-card-primary">
+            <div class="stats-card-body">
+                <div class="stats-card-info-content">
+                    <div class="stats-card-title">{% trans "إجمالي الدائن" %}</div>
+                    <div class="stats-card-value text-primary" id="summary-credit">
+                        {{ total_credit|currency }}
+                    </div>
+                </div>
+                <div class="stats-card-icon">
+                    <i class="fas fa-arrow-up"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6">
+        <div class="stats-card {% if not lines %}stats-card-info{% elif is_balanced %}stats-card-success{% else %}stats-card-danger{% endif %}">
+            <div class="stats-card-body">
+                <div class="stats-card-info-content">
+                    <div class="stats-card-title">{% trans "فارق التوازن" %}</div>
+                    <div class="stats-card-value {% if not lines %}text-dark{% elif is_balanced %}text-success{% else %}text-danger{% endif %}" id="summary-diff">
+                        {{ balance_diff|currency }}
+                    </div>
+                    <div class="stats-card-trend {% if not lines %}text-muted{% elif is_balanced %}text-success{% else %}text-danger{% endif %}" id="summary-diff-trend">
+                        {% if not lines %}
+                        <i class="fas fa-info-circle me-1"></i>{% trans "دفعة فارغة (بانتظار إضافة أسطر)" %}
+                        {% elif is_balanced %}
+                        <i class="fas fa-check-circle me-1"></i>{% trans "متزن وجاهز للترحيل" %}
+                        {% else %}
+                        <i class="fas fa-exclamation-triangle me-1"></i>{% trans "غير متزن" %}
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="stats-card-icon">
+                    <i class="fas fa-balance-scale"></i>
+                </div>
+            </div>
+            {% if lines and not is_balanced and batch.status == 'draft' %}
+            <div class="px-3 pb-3">
+                <button type="button" class="btn btn-outline-primary btn-sm w-100 py-1" id="btn-open-smart-balance">
+                    <i class="fas fa-bolt me-1"></i>{% trans "مساعد الموازنة والمطابقة الذكي" %}
+                </button>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6">
+        <div class="stats-card stats-card-info">
+            <div class="stats-card-body">
+                <div class="stats-card-info-content">
+                    <div class="stats-card-title">{% trans "عدد أسطر الدفعة" %}</div>
+                    <div class="stats-card-value text-dark" id="summary-count">
+                        {{ lines|length }} <small class="stats-card-unit">{% trans "سطر" %}</small>
+                    </div>
+                </div>
+                <div class="stats-card-icon">
+                    <i class="fas fa-list-ol"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

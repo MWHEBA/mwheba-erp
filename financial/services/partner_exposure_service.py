@@ -90,7 +90,9 @@ class BusinessPartnerExposureService:
                 supplier_id__in=partner_ids
             ).exclude(payment_status="paid").select_related("currency")
 
+            purchase_numbers = set()
             for p in purchases:
+                purchase_numbers.add(p.number)
                 pid = p.supplier_id
                 curr = p.currency.code if p.currency else "EGP"
                 due = p.amount_due if hasattr(p, "amount_due") and p.amount_due > Decimal("0.00") else (p.total - (p.amount_paid or Decimal("0.00")))
@@ -107,11 +109,11 @@ class BusinessPartnerExposureService:
                 partner_currency_map[pid][curr]["foreign"] += due
                 partner_currency_map[pid][curr]["functional"] += open_func
 
-            # تجميع المعاملات المفتوحة المعتمدة من SupplierTransaction لمزيد من التغطية
+            # تجميع المعاملات المفتوحة المعتمدة من SupplierTransaction غير المرتبطة بفواتير مشتريات لمنع الازدواجية
             txns_qs = SupplierTransaction.objects.filter(
                 supplier_id__in=partner_ids,
                 open_amount__gt=Decimal("0.00")
-            ).values("supplier_id", "currency").annotate(
+            ).exclude(transaction_number__in=purchase_numbers).values("supplier_id", "currency").annotate(
                 total_open_foreign=Sum("open_amount_foreign"),
                 total_open_functional=Sum("open_amount_functional")
             )
@@ -124,7 +126,10 @@ class BusinessPartnerExposureService:
                 if pid not in partner_currency_map:
                     partner_currency_map[pid] = {}
                 if curr not in partner_currency_map[pid]:
-                    partner_currency_map[pid][curr] = {"foreign": open_foreign, "functional": open_func}
+                    partner_currency_map[pid][curr] = {"foreign": Decimal("0.00"), "functional": Decimal("0.00")}
+
+                partner_currency_map[pid][curr]["foreign"] += open_foreign
+                partner_currency_map[pid][curr]["functional"] += open_func
 
             # تجميع النتائج لجميع الموردين المطلوبة
             for pid in partner_ids:
@@ -135,17 +140,18 @@ class BusinessPartnerExposureService:
                     for curr, val in curr_data.items():
                         open_foreign = val["foreign"]
                         open_func = val["functional"]
-                        if open_foreign > Decimal("0.00"):
+                        val_to_use = open_foreign if (open_foreign > Decimal("0.00") or curr != "EGP") else open_func
+                        if val_to_use > Decimal("0.00") or open_func > Decimal("0.00"):
                             dto = PartnerExposureDTO(
                                 partner_id=pid,
                                 partner_type="supplier",
                                 currency=curr,
                                 debit=Decimal("0.00"),
-                                credit=open_foreign,
-                                net_balance=open_foreign,
-                                functional_net_balance=open_func,
+                                credit=val_to_use,
+                                net_balance=val_to_use,
+                                functional_net_balance=open_func if open_func > Decimal("0.00") else val_to_use,
                                 nature="PAYABLE",
-                                raw_balance=-open_foreign
+                                raw_balance=-val_to_use
                             )
                             results[pid].append(dto)
 
@@ -180,7 +186,9 @@ class BusinessPartnerExposureService:
                 customer_id__in=partner_ids
             ).exclude(payment_status="paid").select_related("currency")
 
+            sale_numbers = set()
             for s in sales:
+                sale_numbers.add(s.number)
                 pid = s.customer_id
                 curr = s.currency.code if s.currency else "EGP"
                 due = s.amount_due if hasattr(s, "amount_due") and s.amount_due > Decimal("0.00") else (s.total - (s.amount_paid or Decimal("0.00")))
@@ -197,11 +205,11 @@ class BusinessPartnerExposureService:
                 partner_currency_map[pid][curr]["foreign"] += due
                 partner_currency_map[pid][curr]["functional"] += open_func
 
-            # تجميع المعاملات المفتوحة المعتمدة من CustomerTransaction
+            # تجميع المعاملات المفتوحة المعتمدة من CustomerTransaction غير المرتبطة بفواتير مبيعات لمنع الازدواجية
             txns_qs = CustomerTransaction.objects.filter(
                 customer_id__in=partner_ids,
                 open_amount__gt=Decimal("0.00")
-            ).values("customer_id", "currency").annotate(
+            ).exclude(transaction_number__in=sale_numbers).values("customer_id", "currency").annotate(
                 total_open_foreign=Sum("open_amount_foreign"),
                 total_open_functional=Sum("open_amount_functional")
             )
@@ -214,7 +222,10 @@ class BusinessPartnerExposureService:
                 if pid not in partner_currency_map:
                     partner_currency_map[pid] = {}
                 if curr not in partner_currency_map[pid]:
-                    partner_currency_map[pid][curr] = {"foreign": open_foreign, "functional": open_func}
+                    partner_currency_map[pid][curr] = {"foreign": Decimal("0.00"), "functional": Decimal("0.00")}
+
+                partner_currency_map[pid][curr]["foreign"] += open_foreign
+                partner_currency_map[pid][curr]["functional"] += open_func
 
             for pid in partner_ids:
                 customer = customers_map.get(pid)
@@ -224,17 +235,18 @@ class BusinessPartnerExposureService:
                     for curr, val in curr_data.items():
                         open_foreign = val["foreign"]
                         open_func = val["functional"]
-                        if open_foreign > Decimal("0.00"):
+                        val_to_use = open_foreign if (open_foreign > Decimal("0.00") or curr != "EGP") else open_func
+                        if val_to_use > Decimal("0.00") or open_func > Decimal("0.00"):
                             dto = PartnerExposureDTO(
                                 partner_id=pid,
                                 partner_type="customer",
                                 currency=curr,
-                                debit=open_foreign,
+                                debit=val_to_use,
                                 credit=Decimal("0.00"),
-                                net_balance=open_foreign,
-                                functional_net_balance=open_func,
+                                net_balance=val_to_use,
+                                functional_net_balance=open_func if open_func > Decimal("0.00") else val_to_use,
                                 nature="RECEIVABLE",
-                                raw_balance=open_foreign
+                                raw_balance=val_to_use
                             )
                             results[pid].append(dto)
 

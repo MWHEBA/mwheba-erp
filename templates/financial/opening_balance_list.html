@@ -13,39 +13,47 @@
 
     <!-- KPI إحصائيات الأرصدة الافتتاحية الموحدة -->
     <div class="row g-3 mb-4">
-        <div class="col-md-3">
+        <div class="col-xl-3 col-md-6">
             <div class="stats-card stats-card-info">
                 <div class="stats-card-body">
+                    <div class="stats-card-info-content">
+                        <div class="stats-card-title">{% trans "إجمالي الدفعات" %}</div>
+                        <div class="stats-card-value">{{ total_count }}</div>
+                    </div>
                     <div class="stats-card-icon"><i class="fas fa-layer-group"></i></div>
-                    <div class="stats-card-title">{% trans "إجمالي الدفعات" %}</div>
-                    <div class="stats-card-value">{{ total_count }}</div>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
+        <div class="col-xl-3 col-md-6">
             <div class="stats-card stats-card-warning">
                 <div class="stats-card-body">
+                    <div class="stats-card-info-content">
+                        <div class="stats-card-title">{% trans "تحت الإعداد والتدقيق" %}</div>
+                        <div class="stats-card-value text-warning">{{ draft_count }}</div>
+                    </div>
                     <div class="stats-card-icon"><i class="fas fa-edit"></i></div>
-                    <div class="stats-card-title">{% trans "تحت الإعداد والتدقيق" %}</div>
-                    <div class="stats-card-value">{{ draft_count }}</div>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
+        <div class="col-xl-3 col-md-6">
             <div class="stats-card stats-card-success">
                 <div class="stats-card-body">
+                    <div class="stats-card-info-content">
+                        <div class="stats-card-title">{% trans "مرحلة ومقفلة" %}</div>
+                        <div class="stats-card-value text-success">{{ posted_count }}</div>
+                    </div>
                     <div class="stats-card-icon"><i class="fas fa-lock"></i></div>
-                    <div class="stats-card-title">{% trans "مرحلة ومقفلة" %}</div>
-                    <div class="stats-card-value">{{ posted_count }}</div>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
+        <div class="col-xl-3 col-md-6">
             <div class="stats-card stats-card-danger">
                 <div class="stats-card-body">
+                    <div class="stats-card-info-content">
+                        <div class="stats-card-title">{% trans "دفعات معكوسة" %}</div>
+                        <div class="stats-card-value text-danger">{{ reversed_count }}</div>
+                    </div>
                     <div class="stats-card-icon"><i class="fas fa-undo"></i></div>
-                    <div class="stats-card-title">{% trans "دفعات معكوسة" %}</div>
-                    <div class="stats-card-value">{{ reversed_count }}</div>
                 </div>
             </div>
         </div>

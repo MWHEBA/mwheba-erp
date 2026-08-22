@@ -60,7 +60,12 @@ except Exception:
 
 from .fiscal_year import FiscalYear
 from .closing_engine_models import FiscalYearClosingRun, PeriodModuleLock, ClosingRule
-from .opening_balance import OpeningBalanceBatch, OpeningBalanceLine
+from .opening_balance import (
+    OpeningBalanceBatch,
+    OpeningBalanceLine,
+    ControlAccountOverrideRequest,
+    OpeningBalanceImportBatch,
+)
 from .allocation import PaymentAllocation, AllocationStatus
 from .bank_reconciliation import BankStatementBatch, BankStatementLine, BankReconciliationMatch
 from .currency import Currency, ExchangeRate
@@ -106,6 +111,8 @@ __all__ = [
     "JournalEntryLine",
     "OpeningBalanceBatch",
     "OpeningBalanceLine",
+    "ControlAccountOverrideRequest",
+    "OpeningBalanceImportBatch",
     "JournalEntryTemplate",
     "JournalEntryTemplateLine",
     # نموذج تدقيق التحقق من المعاملات المالية
