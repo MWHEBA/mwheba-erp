@@ -1006,7 +1006,7 @@
                                 priceDisplayHtml = '<span class="product-price">' + displayPrice + ' ' + self.options.currencySymbol + badgeHtml + '</span>';
                             }
 
-                            var codeBadge = p.code ? '<div class="product-code text-muted small font-monospace mb-1" style="font-size: 0.75rem;"><i class="fas fa-barcode me-1 opacity-75"></i>' + p.code + '</div>' : '<div class="product-code text-muted small mb-1" style="font-size: 0.75rem;">&nbsp;</div>';
+                            var codeBadge = p.code ? '<div class="product-code text-muted small mb-1" style="font-size: 0.75rem;"><i class="fas fa-barcode me-1 opacity-75"></i>' + p.code + '</div>' : '<div class="product-code text-muted small mb-1" style="font-size: 0.75rem;">&nbsp;</div>';
                             
                             var multiSelectCheckbox = self.options.enableMultiSelect
                                 ? '<div class="picker-checkbox-wrapper position-absolute top-0 start-0 m-2"><input type="checkbox" class="form-check-input picker-card-checkbox" data-product-id="' + p.id + '"></div>'

@@ -12,7 +12,7 @@
     {% if item.children %}onclick="toggleAccountChildren('{{ item.id }}')" style="cursor: pointer;"{% endif %}>
     
     <!-- كود الحساب -->
-    <td class="text-center font-monospace fw-bold">
+    <td class="text-center fw-bold">
         {{ item.code }}
     </td>
     
@@ -54,13 +54,13 @@
     </td>
     
     <!-- الرصيد (نهائي أو مجمع للأب) -->
-    <td class="text-end font-monospace">
+    <td class="text-end">
         {% if item.is_leaf %}
             <div class="fw-bold {% if item.balance > 0 %}text-success{% elif item.balance < 0 %}text-danger{% else %}text-muted{% endif %}">
                 {{ item.balance|smart_float }} <small class="text-muted fw-normal">{{ currency_symbol }}</small>
             </div>
             {% if item.is_foreign and item.foreign_balance is not None %}
-                <div class="small text-muted font-monospace" title="الرصيد بالعملة الأصلية">
+                <div class="small text-muted" title="الرصيد بالعملة الأصلية">
                     {{ item.foreign_balance|smart_float }} {{ item.currency_symbol }}
                 </div>
             {% endif %}

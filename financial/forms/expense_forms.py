@@ -103,7 +103,7 @@ class ExpenseForm(forms.Form):
             ("3", "خدمات وصيانة (3%)"),
             ("5", "مهن حرة واستشارات (5%)"),
         ),
-        widget=forms.Select(attrs={"class": "form-select font-monospace"}),
+        widget=forms.Select(attrs={"class": "form-select"}),
     )
 
     # حالة الترحيل

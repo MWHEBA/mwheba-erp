@@ -25,7 +25,7 @@
                         <i class="fas fa-chart-line"></i>
                     </div>
                     <div class="stats-card-title">{% trans "صافي فروق التقييم" %}</div>
-                    <div class="stats-card-value font-monospace">
+                    <div class="stats-card-value">
                         {% if run %}{{ run.total_unrealized_gain_loss }}{% else %}{{ preview.total_unrealized_gain_loss|default:"0.00" }}{% endif %}
                         <small class="fs-6 text-muted">EGP</small>
                     </div>
@@ -134,10 +134,10 @@
                                 <small class="text-muted ms-1">({{ line.source_id }})</small>
                             </td>
                             <td><span class="badge bg-light text-dark border">{{ line.currency.code }}</span></td>
-                            <td class="text-end font-monospace fw-bold">{{ line.open_foreign_amount }}</td>
-                            <td class="text-end font-monospace">{{ line.new_rate }}</td>
-                            <td class="text-end font-monospace">{{ line.new_functional_value }}</td>
-                            <td class="text-end font-monospace {% if line.unrealized_difference >= 0 %}text-success{% else %}text-danger{% endif %} fw-bold">
+                            <td class="text-end fw-bold">{{ line.open_foreign_amount }}</td>
+                            <td class="text-end">{{ line.new_rate }}</td>
+                            <td class="text-end">{{ line.new_functional_value }}</td>
+                            <td class="text-end {% if line.unrealized_difference >= 0 %}text-success{% else %}text-danger{% endif %} fw-bold">
                                 {% if line.unrealized_difference > 0 %}+{% endif %}{{ line.unrealized_difference }}
                             </td>
                         </tr>
@@ -152,10 +152,10 @@
                                 <small class="text-muted ms-1">(عقد #{{ item.transaction_id }})</small>
                             </td>
                             <td><span class="badge bg-light text-dark border">{{ item.currency }}</span></td>
-                            <td class="text-end font-monospace fw-bold">{{ item.open_foreign }}</td>
-                            <td class="text-end font-monospace">{{ item.closing_rate }}</td>
-                            <td class="text-end font-monospace">{{ item.closing_functional }}</td>
-                            <td class="text-end font-monospace {% if item.unrealized_diff >= 0 %}text-success{% else %}text-danger{% endif %} fw-bold">
+                            <td class="text-end fw-bold">{{ item.open_foreign }}</td>
+                            <td class="text-end">{{ item.closing_rate }}</td>
+                            <td class="text-end">{{ item.closing_functional }}</td>
+                            <td class="text-end {% if item.unrealized_diff >= 0 %}text-success{% else %}text-danger{% endif %} fw-bold">
                                 {% if item.unrealized_diff > 0 %}+{% endif %}{{ item.unrealized_diff }}
                             </td>
                         </tr>
@@ -170,10 +170,10 @@
                                 <small class="text-muted ms-1">(فاتورة #{{ item.transaction_id }})</small>
                             </td>
                             <td><span class="badge bg-light text-dark border">{{ item.currency }}</span></td>
-                            <td class="text-end font-monospace fw-bold">{{ item.open_foreign }}</td>
-                            <td class="text-end font-monospace">{{ item.closing_rate }}</td>
-                            <td class="text-end font-monospace">{{ item.closing_functional }}</td>
-                            <td class="text-end font-monospace {% if item.unrealized_diff >= 0 %}text-success{% else %}text-danger{% endif %} fw-bold">
+                            <td class="text-end fw-bold">{{ item.open_foreign }}</td>
+                            <td class="text-end">{{ item.closing_rate }}</td>
+                            <td class="text-end">{{ item.closing_functional }}</td>
+                            <td class="text-end {% if item.unrealized_diff >= 0 %}text-success{% else %}text-danger{% endif %} fw-bold">
                                 {% if item.unrealized_diff > 0 %}+{% endif %}{{ item.unrealized_diff }}
                             </td>
                         </tr>
@@ -185,13 +185,13 @@
                             <td><span class="badge bg-success">خزينة / بنك</span></td>
                             <td>
                                 <span class="fw-bold text-dark">{{ item.account_name }}</span> 
-                                <small class="text-muted font-monospace ms-1">({{ item.account_code }})</small>
+                                <small class="text-muted ms-1">({{ item.account_code }})</small>
                             </td>
                             <td><span class="badge bg-light text-dark border">{{ item.currency }}</span></td>
-                            <td class="text-end font-monospace fw-bold">{{ item.open_foreign }}</td>
-                            <td class="text-end font-monospace">{{ item.closing_rate }}</td>
-                            <td class="text-end font-monospace">{{ item.closing_functional }}</td>
-                            <td class="text-end font-monospace {% if item.unrealized_diff >= 0 %}text-success{% else %}text-danger{% endif %} fw-bold">
+                            <td class="text-end fw-bold">{{ item.open_foreign }}</td>
+                            <td class="text-end">{{ item.closing_rate }}</td>
+                            <td class="text-end">{{ item.closing_functional }}</td>
+                            <td class="text-end {% if item.unrealized_diff >= 0 %}text-success{% else %}text-danger{% endif %} fw-bold">
                                 {% if item.unrealized_diff > 0 %}+{% endif %}{{ item.unrealized_diff }}
                             </td>
                         </tr>

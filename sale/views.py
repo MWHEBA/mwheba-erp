@@ -1610,7 +1610,7 @@ def sale_return_list(request):
         else:
             status_badge = '<span class="badge bg-secondary">مسودة</span>'
 
-        sale_num_html = f'<a href="/sales/{ret.sale.id}/" class="text-primary font-monospace fw-bold">{ret.sale.number}</a>' if ret.sale else '-'
+        sale_num_html = f'<a href="/sales/{ret.sale.id}/" class="text-primary fw-bold">{ret.sale.number}</a>' if ret.sale else '-'
         actions_html = f'<a href="/sales/returns/{ret.id}/" class="btn btn-sm btn-outline-primary" title="عرض"><i class="fas fa-eye"></i></a>'
 
         sale_returns_data.append({

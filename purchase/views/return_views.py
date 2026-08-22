@@ -301,7 +301,7 @@ def purchase_return_list(request):
         else:
             status_badge = '<span class="badge bg-secondary">مسودة</span>'
 
-        purchase_num_html = f'<a href="/purchase/{ret.purchase.id}/" class="text-primary font-monospace fw-bold">{ret.purchase.number}</a>' if ret.purchase else '-'
+        purchase_num_html = f'<a href="/purchase/{ret.purchase.id}/" class="text-primary fw-bold">{ret.purchase.number}</a>' if ret.purchase else '-'
         actions_html = f'<a href="/purchases/returns/{ret.id}/" class="btn btn-sm btn-outline-primary" title="عرض"><i class="fas fa-eye"></i></a>'
 
         purchase_returns_data.append({

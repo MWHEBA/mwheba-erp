@@ -235,7 +235,7 @@
                 <a href="{% url 'financial:cost_center_detail' child.pk %}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
                   <div>
                     <span class="fw-semibold text-dark">{{ child.name }}</span>
-                    <small class="text-muted d-block font-monospace fs-8">{{ child.code }}</small>
+                    <small class="text-muted d-block fs-8">{{ child.code }}</small>
                   </div>
                   <i class="fas fa-chevron-left text-muted"></i>
                 </a>
@@ -274,7 +274,7 @@
               </label>
               <div class="input-group">
                 <span class="input-group-text bg-light text-muted"><i class="fas fa-lock text-secondary"></i></span>
-                <input type="text" class="form-control bg-light font-monospace fw-bold" id="child_code_preview" name="code" value="{{ suggested_child_code }}" readonly>
+                <input type="text" class="form-control bg-light fw-bold" id="child_code_preview" name="code" value="{{ suggested_child_code }}" readonly>
               </div>
               <small class="text-muted fs-9">مشتق تسلسلياً وتلقائياً من كود المركز الأب ({{ cost_center.code }})</small>
             </div>
@@ -326,7 +326,7 @@
               <label for="edit_code" class="form-label fw-bold text-dark mb-1">كود مركز التكلفة</label>
               <div class="input-group">
                 <span class="input-group-text bg-light text-muted"><i class="fas fa-lock text-secondary"></i></span>
-                <input type="text" class="form-control bg-light font-monospace fw-bold" id="edit_code" value="{{ cost_center.code }}" readonly>
+                <input type="text" class="form-control bg-light fw-bold" id="edit_code" value="{{ cost_center.code }}" readonly>
               </div>
               <small class="text-muted fs-9">الكود ثابت ومحمي لمنع الإخلال بالسلامة المرجعية</small>
             </div>

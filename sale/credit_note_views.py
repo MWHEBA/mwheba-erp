@@ -79,8 +79,8 @@ def credit_note_list(request):
         else:
             status_badge = '<span class="badge bg-secondary">مسودة</span>'
 
-        cn_num_html = f'<a href="/sales/credit-notes/{cn.id}/" class="text-primary font-monospace fw-bold">{cn.credit_note_number}</a>'
-        sale_num_html = f'<a href="/sales/{cn.sale.id}/" class="text-primary font-monospace">{cn.sale.number}</a>' if cn.sale else '-'
+        cn_num_html = f'<a href="/sales/credit-notes/{cn.id}/" class="text-primary fw-bold">{cn.credit_note_number}</a>'
+        sale_num_html = f'<a href="/sales/{cn.sale.id}/" class="text-primary">{cn.sale.number}</a>' if cn.sale else '-'
         actions_html = f'<a href="/sales/credit-notes/{cn.id}/" class="btn btn-sm btn-outline-primary" title="عرض"><i class="fas fa-eye"></i></a>'
 
         credit_notes_data.append({

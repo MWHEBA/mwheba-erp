@@ -44,7 +44,7 @@
                   <i class="fas fa-hashtag me-1 text-info"></i>كود الحساب <span class="text-danger">*</span>
                 </label>
                 <input type="text" 
-                       class="form-control font-monospace" 
+                       class="form-control" 
                        id="id_code" 
                        name="code" 
                        value="{{ account.code }}" 
@@ -115,7 +115,7 @@
                   <i class="fas fa-credit-card me-1 text-info"></i>رقم الحساب البنكي
                 </label>
                 <input type="text" 
-                       class="form-control font-monospace" 
+                       class="form-control" 
                        id="id_account_number" 
                        name="account_number" 
                        value="{{ account.account_number|default:'' }}" 
@@ -127,7 +127,7 @@
                   <i class="fas fa-globe me-1 text-secondary"></i>رقم الآيبان (IBAN)
                 </label>
                 <input type="text" 
-                       class="form-control font-monospace" 
+                       class="form-control" 
                        id="id_iban" 
                        name="iban" 
                        value="{{ account.iban|default:'' }}" 
@@ -139,7 +139,7 @@
                   <i class="fas fa-exchange-alt me-1 text-warning"></i>كود السويفت (SWIFT / BIC)
                 </label>
                 <input type="text" 
-                       class="form-control font-monospace" 
+                       class="form-control" 
                        id="id_swift_code" 
                        name="swift_code" 
                        value="{{ account.swift_code|default:'' }}" 
