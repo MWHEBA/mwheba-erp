@@ -83,21 +83,8 @@
       <div class="card-body">
         {% include "components/data_table.html" with table_id="employees-table" headers=table_headers data=employees clickable_rows=True row_click_url="/hr/employees/0/" primary_key="pk" empty_message="لا توجد موظفين متاحين" %}
       </div>
-      <div class="card-footer bg-light">
-        <div class="d-flex justify-content-between align-items-center">
-          <div class="text-muted">
-            <i class="fas fa-info-circle me-1"></i>
-            عدد الموظفين: <strong>{{ employees|length }}</strong>
-          </div>
-          <div class="export-buttons">
-            <a href="?{{ request.GET.urlencode }}&export=csv" class="btn btn-sm btn-outline-success">
-              <i class="fas fa-file-csv me-1"></i>تصدير CSV
-            </a>
-            <a href="?{{ request.GET.urlencode }}&export=xlsx" class="btn btn-sm btn-outline-primary">
-              <i class="fas fa-file-excel me-1"></i>تصدير Excel
-            </a>
-          </div>
-        </div>
+      <div id="pagination-wrapper">
+        {% include "partials/pagination.html" with page_obj=page_obj %}
       </div>
   </div>
 </div>

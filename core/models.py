@@ -95,9 +95,19 @@ class SystemSetting(models.Model):
         return settings_dict
 
     @classmethod
-    def invalidate_cache(cls):
+    def invalidate_all_system_caches(cls):
+        """
+        تفريغ كافة الكاشات المرتبطة بالإعدادات، المنشأة، والعملات دفعة واحدة
+        """
         from django.core.cache import cache
         cache.delete('global_settings_dict_v2')
+        cache.delete('company_info_v1')
+        cache.delete('default_currency_symbol')
+        cache.delete('default_currency_symbol_en')
+
+    @classmethod
+    def invalidate_cache(cls):
+        cls.invalidate_all_system_caches()
 
     @classmethod
     def get_setting(cls, key, default=None):
@@ -250,7 +260,7 @@ class SystemSetting(models.Model):
         """
         الحصول على المنطقة الزمنية من الإعدادات
         """
-        return cls.get_setting('timezone', 'Africa/Cairo')
+        return cls.get_setting('system_timezone') or cls.get_setting('timezone', 'Africa/Cairo')
 
 
 class DashboardStat(models.Model):
@@ -376,7 +386,7 @@ class Notification(models.Model):
     class Meta:
         verbose_name = _("إشعار")
         verbose_name_plural = _("الإشعارات")
-        ordering = ["-created_at"]
+        ordering = ["-created_at", "-id"]
 
     def __str__(self):
         return f"{self.title} ({self.user.username})"

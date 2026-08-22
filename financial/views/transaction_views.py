@@ -1465,10 +1465,10 @@ def transaction_list(request):
     current_order_by = request.GET.get("order_by", "")
     current_order_dir = request.GET.get("order_dir", "")
     
-    # إعداد الترقيم الصفحي
-    paginator = Paginator(journal_entries, 25)
-    page_number = request.GET.get("page")
-    page_obj = paginator.get_page(page_number)
+    # إعداد الترقيم الصفحي SSR
+    from core.utils import paginate_queryset
+    pagination_context = paginate_queryset(journal_entries, request, default_per_page=25)
+    page_obj = pagination_context["page_obj"]
 
     # أزرار الإجراءات
     page_actions = [
@@ -1491,6 +1491,8 @@ def transaction_list(request):
     context = {
         "transactions": page_obj,  # استخدام transactions للتوافق مع template
         "journal_entries": page_obj,
+        "page_obj": page_obj,
+        **pagination_context,
         "headers": headers,
         "action_buttons": action_buttons,
         "accounts": accounts,

@@ -73,10 +73,10 @@ def delivery_note_list(request):
         "invoiced_count": all_dns.filter(status="INVOICED").count(),
     }
 
-    # الترقيم
-    paginator = Paginator(queryset, 25)
-    page_number = request.GET.get("page")
-    page_obj = paginator.get_page(page_number)
+    # الترقيم الموحد SSR
+    from core.utils import paginate_queryset
+    pagination_context = paginate_queryset(queryset, request)
+    page_obj = pagination_context["page_obj"]
 
     # Header & Breadcrumbs
     breadcrumb_items = [
@@ -96,7 +96,7 @@ def delivery_note_list(request):
 
     context = {
         "page_title": _("إذون تسليم البضاعة"),
-        "page_obj": page_obj,
+        **pagination_context,
         "delivery_notes": page_obj.object_list,
         "stats": stats,
         "customers": Customer.objects.filter(is_active=True).only("id", "name"),
@@ -107,7 +107,7 @@ def delivery_note_list(request):
 
     if request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.GET.get("ajax"):
         table_html = render_to_string("sale/partials/delivery_note_table.html", context, request=request)
-        pagination_html = render_to_string("partials/pagination.html", {"page_obj": page_obj}, request=request)
+        pagination_html = render_to_string("partials/pagination.html", context, request=request)
         return JsonResponse({
             "table_html": table_html,
             "pagination_html": pagination_html,

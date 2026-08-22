@@ -3,7 +3,7 @@
 {% load app_tags %}
 
 {% comment %}
-مكون ترقيم الصفحات الموحد - Unified SSR Pagination Component
+مكون شريط أسفل الجدول والترقيم الموحد - Unified SSR Pagination & Excel Export Component
 
 الاستخدام القياسي:
 {% include "partials/pagination.html" with page_obj=page_obj %}
@@ -15,129 +15,147 @@
 - show_per_page: إظهار قائمة خيارات عدد العناصر (اختياري، افتراضي True)
 - show_info: إظهار ملخص عدد العناصر المعروضة (اختياري، افتراضي True)
 - show_first_last: إظهار أزرار الصفحة الأولى والأخيرة (اختياري، افتراضي True)
+- show_export: إظهار زر التصدير الحصري لإكسل (اختياري، افتراضي True)
 {% endcomment %}
 
 {% with p_param=page_param|default:"page" %}
 {% if page_obj and page_obj.paginator and page_obj.paginator.count > 0 %}
 <div class="pagination-container d-flex flex-wrap justify-content-between align-items-center gap-3 py-2 px-3 border-top bg-light-subtle rounded-bottom" id="pagination-wrapper">
-    <!-- قائمة اختيار عدد العناصر في الصفحة -->
-    {% if show_per_page|default:True %}
-    <div class="per-page-container d-flex align-items-center gap-2">
-        <label for="per_page_select_{{ p_param }}" class="form-label mb-0 text-muted small fw-medium">{% trans "عرض:" %}</label>
-        <select id="per_page_select_{{ p_param }}" name="per_page" class="form-select form-select-sm per-page-select" style="width: auto; min-width: 80px;" data-page-param="{{ p_param }}">
-            <option value="10" {% if page_obj.paginator.per_page == 10 %}selected{% endif %}>10</option>
-            <option value="25" {% if page_obj.paginator.per_page == 25 or not page_obj.paginator.per_page %}selected{% endif %}>25</option>
-            <option value="50" {% if page_obj.paginator.per_page == 50 %}selected{% endif %}>50</option>
-            <option value="100" {% if page_obj.paginator.per_page == 100 %}selected{% endif %}>100</option>
-        </select>
-        <span class="text-muted small">{% trans "عنصر/صفحة" %}</span>
+    <!-- الجانب الأيمن: محدد عدد السطور + ملخص البيانات -->
+    <div class="d-flex align-items-center gap-3 flex-wrap">
+        <!-- 1. قائمة اختيار عدد العناصر في الصفحة -->
+        {% if show_per_page|default:True %}
+        <div class="per-page-container d-flex align-items-center gap-2">
+            <label for="per_page_select_{{ p_param }}" class="form-label mb-0 text-muted small fw-medium">{% trans "عرض:" %}</label>
+            <select id="per_page_select_{{ p_param }}" name="per_page" class="form-select form-select-sm per-page-select" style="width: auto; min-width: 80px;" data-page-param="{{ p_param }}">
+                <option value="10" {% if page_obj.paginator.per_page == 10 %}selected{% endif %}>10</option>
+                <option value="25" {% if page_obj.paginator.per_page == 25 or not page_obj.paginator.per_page %}selected{% endif %}>25</option>
+                <option value="50" {% if page_obj.paginator.per_page == 50 %}selected{% endif %}>50</option>
+                <option value="100" {% if page_obj.paginator.per_page == 100 %}selected{% endif %}>100</option>
+            </select>
+            <span class="text-muted small">{% trans "عنصر/صفحة" %}</span>
+        </div>
+        {% endif %}
+
+        <!-- 2. ملخص السطور -->
+        {% if show_info|default:True %}
+        <div class="pagination-info text-muted small border-start ps-3">
+            {% trans "عرض" %} <strong class="text-dark">{{ page_obj.start_index }}</strong> - <strong class="text-dark">{{ page_obj.end_index }}</strong> {% trans "من إجمالي" %} <strong class="text-primary">{{ page_obj.paginator.count }}</strong> {% trans "عنصر" %}
+        </div>
+        {% endif %}
     </div>
-    {% endif %}
 
-    <!-- ملخص الترقيم في المنتصف/اليسار -->
-    {% if show_info|default:True %}
-    <div class="pagination-info text-muted small">
-        {% trans "عرض" %} <strong class="text-dark">{{ page_obj.start_index }}</strong> - <strong class="text-dark">{{ page_obj.end_index }}</strong> {% trans "من إجمالي" %} <strong class="text-primary">{{ page_obj.paginator.count }}</strong> {% trans "عنصر" %}
-    </div>
-    {% endif %}
-
-    <!-- أزرار التصفح والصفحات -->
-    {% if page_obj.has_other_pages %}
-    <nav aria-label="{% trans 'ترقيم الصفحات' %}" class="pagination-nav">
-        <ul class="pagination pagination-sm mb-0 justify-content-{{ align|default:'center' }}">
-            <!-- زر الصفحة الأولى -->
-            {% if show_first_last|default:True %}
-                {% if page_obj.has_previous %}
-                <li class="page-item">
-                    <a class="page-link" href="?{% url_replace request p_param 1 %}" aria-label="{% trans 'الصفحة الأولى' %}" title="{% trans 'الصفحة الأولى' %}">
-                        <span aria-hidden="true">&laquo;&laquo;</span>
-                    </a>
-                </li>
-                {% else %}
-                <li class="page-item disabled">
-                    <span class="page-link" aria-hidden="true">&laquo;&laquo;</span>
-                </li>
-                {% endif %}
-            {% endif %}
-
-            <!-- زر الصفحة السابقة -->
-            {% if page_obj.has_previous %}
-            <li class="page-item">
-                <a class="page-link" href="?{% url_replace request p_param page_obj.previous_page_number %}" aria-label="{% trans 'الصفحة السابقة' %}" title="{% trans 'الصفحة السابقة' %}">
-                    <span aria-hidden="true">&laquo;</span>
-                </a>
-            </li>
-            {% else %}
-            <li class="page-item disabled">
-                <span class="page-link" aria-hidden="true">&laquo;</span>
-            </li>
-            {% endif %}
-
-            <!-- أرقام الصفحات المختصرة (Elided Range) -->
-            {% if elided_page_range %}
-                {% for page_num in elided_page_range %}
-                    {% if page_num == page_obj.number %}
-                    <li class="page-item active" aria-current="page">
-                        <span class="page-link fw-bold">{{ page_num }}</span>
-                    </li>
-                    {% elif page_num == '...' or page_num == page_obj.paginator.ELLIPSIS %}
-                    <li class="page-item disabled">
-                        <span class="page-link text-muted">&hellip;</span>
+    <!-- الجانب الأيسر: أزرار التصفح والصفحات + زر تصدير Excel -->
+    <div class="d-flex align-items-center gap-3 flex-wrap">
+        <!-- 3. أزرار التصفح والصفحات (تظهر فقط عند وجود أكثر من صفحة) -->
+        {% if page_obj.has_other_pages %}
+        <nav aria-label="{% trans 'ترقيم الصفحات' %}" class="pagination-nav">
+            <ul class="pagination pagination-sm mb-0 justify-content-{{ align|default:'center' }}">
+                <!-- زر الصفحة الأولى -->
+                {% if show_first_last|default:True %}
+                    {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?{% url_replace request p_param 1 %}" aria-label="{% trans 'الصفحة الأولى' %}" title="{% trans 'الصفحة الأولى' %}">
+                            <span aria-hidden="true">&laquo;&laquo;</span>
+                        </a>
                     </li>
                     {% else %}
-                    <li class="page-item">
-                        <a class="page-link" href="?{% url_replace request p_param page_num %}">{{ page_num }}</a>
-                    </li>
-                    {% endif %}
-                {% endfor %}
-            {% else %}
-                {% for page_num in page_obj.paginator.page_range %}
-                    {% if page_obj.number == page_num %}
-                    <li class="page-item active" aria-current="page">
-                        <span class="page-link fw-bold">{{ page_num }}</span>
-                    </li>
-                    {% elif page_num > page_obj.number|add:'-3' and page_num < page_obj.number|add:'3' or page_num == 1 or page_num == page_obj.paginator.num_pages %}
-                    <li class="page-item">
-                        <a class="page-link" href="?{% url_replace request p_param page_num %}">{{ page_num }}</a>
-                    </li>
-                    {% elif page_num == page_obj.number|add:'-3' or page_num == page_obj.number|add:'3' %}
                     <li class="page-item disabled">
-                        <span class="page-link text-muted">&hellip;</span>
+                        <span class="page-link" aria-hidden="true">&laquo;&laquo;</span>
                     </li>
                     {% endif %}
-                {% endfor %}
-            {% endif %}
+                {% endif %}
 
-            <!-- زر الصفحة التالية -->
-            {% if page_obj.has_next %}
-            <li class="page-item">
-                <a class="page-link" href="?{% url_replace request p_param page_obj.next_page_number %}" aria-label="{% trans 'الصفحة التالية' %}" title="{% trans 'الصفحة التالية' %}">
-                    <span aria-hidden="true">&raquo;</span>
-                </a>
-            </li>
-            {% else %}
-            <li class="page-item disabled">
-                <span class="page-link" aria-hidden="true">&raquo;</span>
-            </li>
-            {% endif %}
-
-            <!-- زر الصفحة الأخيرة -->
-            {% if show_first_last|default:True %}
-                {% if page_obj.has_next %}
+                <!-- زر الصفحة السابقة -->
+                {% if page_obj.has_previous %}
                 <li class="page-item">
-                    <a class="page-link" href="?{% url_replace request p_param page_obj.paginator.num_pages %}" aria-label="{% trans 'الصفحة الأخيرة' %}" title="{% trans 'الصفحة الأخيرة' %}">
-                        <span aria-hidden="true">&raquo;&raquo;</span>
+                    <a class="page-link" href="?{% url_replace request p_param page_obj.previous_page_number %}" aria-label="{% trans 'الصفحة السابقة' %}" title="{% trans 'الصفحة السابقة' %}">
+                        <span aria-hidden="true">&laquo;</span>
                     </a>
                 </li>
                 {% else %}
                 <li class="page-item disabled">
-                    <span class="page-link" aria-hidden="true">&raquo;&raquo;</span>
+                    <span class="page-link" aria-hidden="true">&laquo;</span>
                 </li>
                 {% endif %}
-            {% endif %}
-        </ul>
-    </nav>
-    {% endif %}
+
+                <!-- أرقام الصفحات المختصرة (Elided Range) -->
+                {% if elided_page_range %}
+                    {% for page_num in elided_page_range %}
+                        {% if page_num == page_obj.number %}
+                        <li class="page-item active" aria-current="page">
+                            <span class="page-link fw-bold">{{ page_num }}</span>
+                        </li>
+                        {% elif page_num == '...' or page_num == page_obj.paginator.ELLIPSIS %}
+                        <li class="page-item disabled">
+                            <span class="page-link text-muted">&hellip;</span>
+                        </li>
+                        {% else %}
+                        <li class="page-item">
+                            <a class="page-link" href="?{% url_replace request p_param page_num %}">{{ page_num }}</a>
+                        </li>
+                        {% endif %}
+                    {% endfor %}
+                {% else %}
+                    {% for page_num in page_obj.paginator.page_range %}
+                        {% if page_obj.number == page_num %}
+                        <li class="page-item active" aria-current="page">
+                            <span class="page-link fw-bold">{{ page_num }}</span>
+                        </li>
+                        {% elif page_num > page_obj.number|add:'-3' and page_num < page_obj.number|add:'3' or page_num == 1 or page_num == page_obj.paginator.num_pages %}
+                        <li class="page-item">
+                            <a class="page-link" href="?{% url_replace request p_param page_num %}">{{ page_num }}</a>
+                        </li>
+                        {% elif page_num == page_obj.number|add:'-3' or page_num == page_obj.number|add:'3' %}
+                        <li class="page-item disabled">
+                            <span class="page-link text-muted">&hellip;</span>
+                        </li>
+                        {% endif %}
+                    {% endfor %}
+                {% endif %}
+
+                <!-- زر الصفحة التالية -->
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?{% url_replace request p_param page_obj.next_page_number %}" aria-label="{% trans 'الصفحة التالية' %}" title="{% trans 'الصفحة التالية' %}">
+                        <span aria-hidden="true">&raquo;</span>
+                    </a>
+                </li>
+                {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link" aria-hidden="true">&raquo;</span>
+                </li>
+                {% endif %}
+
+                <!-- زر الصفحة الأخيرة -->
+                {% if show_first_last|default:True %}
+                    {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?{% url_replace request p_param page_obj.paginator.num_pages %}" aria-label="{% trans 'الصفحة الأخيرة' %}" title="{% trans 'الصفحة الأخيرة' %}">
+                            <span aria-hidden="true">&raquo;&raquo;</span>
+                        </a>
+                    </li>
+                    {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link" aria-hidden="true">&raquo;&raquo;</span>
+                    </li>
+                    {% endif %}
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+
+        <!-- 4. زر التصدير الحصري لإكسل المعتمد كلياً على الفلاتر النشطة -->
+        {% if show_export|default:True %}
+        <div class="table-export-controls d-flex align-items-center border-start ps-3">
+            <a href="?{% url_replace request 'export' 'excel' %}" 
+               class="btn btn-sm btn-outline-success btn-export-all-excel" 
+               title="{% trans 'تصدير كافة السجلات المفلترة كملف Excel' %}">
+                <i class="fas fa-file-excel me-1 text-success" aria-hidden="true"></i>{% trans "تصدير Excel" %}
+            </a>
+        </div>
+        {% endif %}
+    </div>
 </div>
 {% endif %}
 {% endwith %}

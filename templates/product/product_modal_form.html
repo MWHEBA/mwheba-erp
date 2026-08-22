@@ -99,6 +99,14 @@
             <div class="col-md-6 mb-3">
                 {{ form.selling_price|as_crispy_field }}
             </div>
+
+            <div class="col-md-6 mb-3">
+                {{ form.tax_code|as_crispy_field }}
+            </div>
+
+            <div class="col-md-6 mb-3">
+                {{ form.tax_rate|as_crispy_field }}
+            </div>
             
             <div class="col-md-6 mb-3">
                 {{ form.min_stock|as_crispy_field }}
@@ -152,6 +160,13 @@ $(document).ready(function() {
     $('#id_unit').select2({
         theme: 'bootstrap-5',
         placeholder: "{% trans 'اختر وحدة القياس' %}",
+        allowClear: true,
+        dropdownParent: $('#productModal')
+    });
+
+    $('#id_tax_code').select2({
+        theme: 'bootstrap-5',
+        placeholder: "{% trans 'اختر كود الضريبة' %}",
         allowClear: true,
         dropdownParent: $('#productModal')
     });

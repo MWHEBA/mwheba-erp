@@ -1,4 +1,4 @@
-﻿"""
+"""
 Views إدارة الإجازات
 """
 from .base_imports import *
@@ -64,15 +64,15 @@ def leave_list(request):
     
     # جلب الموظفين وأنواع الإجازات للفلاتر
     employees = Employee.objects.filter(status='active', is_insurance_only=False)
-    leave_types = LeaveType.objects.filter(is_active=True)
-    
-    # Pagination - 50 إجازة لكل صفحة
-    paginator = Paginator(leaves, 50)
-    page = request.GET.get('page', 1)
-    leaves_page = paginator.get_page(page)
+    # Pagination SSR
+    from core.utils import paginate_queryset
+    pagination_context = paginate_queryset(leaves, request, default_per_page=50)
+    leaves_page = pagination_context["page_obj"]
     
     context = {
         'leaves': leaves_page,
+        'page_obj': leaves_page,
+        **pagination_context,
         'employees': employees,
         'leave_types': leave_types,
         'total_leaves': total_leaves,

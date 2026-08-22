@@ -39,11 +39,11 @@
     <!-- محتوى الصفحة -->
     <div class="card border-0 shadow-sm">
         <div class="card-body">
-            <form method="post" novalidate enctype="multipart/form-data" id="companySettingsForm">
+            <form method="post" novalidate enctype="multipart/form-data" id="companySettingsForm" autocomplete="off">
                 {% csrf_token %}
                 
                 <!-- Tabs Navigation -->
-                <ul class="nav nav-tabs mb-4" id="companyTabs" role="tablist">
+                <ul class="nav nav-tabs border-bottom mb-4" id="companyTabs" role="tablist">
                     <li class="nav-item" role="presentation">
                         <button class="nav-link active" id="basic-tab" data-bs-toggle="tab" data-bs-target="#basic" type="button" role="tab">
                             <i class="fas fa-building me-1"></i> معلومات أساسية
@@ -1066,6 +1066,161 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
+    // ==========================================
+    // Scoped Export & Import (Company Settings)
+    // ==========================================
+    const exportCompanyBtn = document.getElementById('exportCompanyBtn');
+    if (exportCompanyBtn) {
+        exportCompanyBtn.addEventListener('click', function() {
+            const form = document.getElementById('companySettingsForm');
+            const formData = new FormData(form);
+            const settingsData = {};
+
+            for (let [key, value] of formData.entries()) {
+                if (key !== 'csrfmiddlewaretoken' && key !== 'active_tab' && !key.startsWith('company_logo') && key !== 'company_stamp') {
+                    settingsData[key] = value;
+                }
+            }
+
+            form.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+                settingsData[cb.name] = cb.checked;
+            });
+
+            const exportPayload = {
+                meta: {
+                    system: "MWHEBA ERP",
+                    version: "2.0",
+                    scope: "company_settings",
+                    exported_at: new Date().toISOString(),
+                    description: "إعدادات وبيانات المنشأة والألوان"
+                },
+                settings: settingsData
+            };
+
+            const dataStr = JSON.stringify(exportPayload, null, 2);
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `company_settings_${new Date().toISOString().split('T')[0]}.json`;
+            link.click();
+            URL.revokeObjectURL(url);
+
+            if (typeof window.showNotification === 'function') {
+                window.showNotification('تم تصدير إعدادات المنشأة بنجاح ✅', 'success');
+            }
+        });
+    }
+
+    const importFileInput = document.getElementById('importCompanyFileInput');
+    const applyImportBtn = document.getElementById('applyCompanyImportBtn');
+    const importPreview = document.getElementById('importCompanyPreview');
+    const importPreviewContent = document.getElementById('importCompanyPreviewContent');
+    let parsedImportData = null;
+
+    if (importFileInput && applyImportBtn) {
+        importFileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) {
+                applyImportBtn.disabled = true;
+                importPreview.classList.add('d-none');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                try {
+                    const json = JSON.parse(event.target.result);
+                    let settingsObj = json.settings || json;
+                    const scope = json.meta ? json.meta.scope : 'legacy';
+
+                    if (scope !== 'company_settings' && scope !== 'legacy') {
+                        if (typeof window.showNotification === 'function') {
+                            window.showNotification(`الملف المرفوع خاص بـ (${scope}) ولا يتطابق مع شاشة إعدادات المنشأة!`, 'warning');
+                        }
+                    }
+
+                    parsedImportData = settingsObj;
+                    const keysCount = Object.keys(settingsObj).length;
+
+                    importPreviewContent.innerHTML = `
+                        <div>النطاق: <strong>${scope === 'company_settings' ? 'إعدادات المنشأة (مطابق)' : 'ملف إعدادات قديم'}</strong></div>
+                        <div>عدد الإعدادات الجاهزة: <strong>${keysCount}</strong></div>
+                    `;
+                    importPreview.classList.remove('d-none');
+                    applyImportBtn.disabled = false;
+                } catch (err) {
+                    if (typeof window.showNotification === 'function') {
+                        window.showNotification('فشل قراءة ملف JSON، يرجى التأكد من صحة الملف', 'error');
+                    }
+                    applyImportBtn.disabled = true;
+                    importPreview.classList.add('d-none');
+                }
+            };
+            reader.readAsText(file);
+        });
+
+        applyImportBtn.addEventListener('click', function() {
+            if (!parsedImportData) return;
+            const form = document.getElementById('companySettingsForm');
+
+            for (let [key, value] of Object.entries(parsedImportData)) {
+                const field = form.elements[key];
+                if (field) {
+                    if (field.type === 'checkbox') {
+                        field.checked = (value === 'true' || value === true || value === 'on');
+                    } else if (field.type !== 'file') {
+                        field.value = value;
+                        if (field.classList.contains('color-hex-input') || field.type === 'color') {
+                            field.dispatchEvent(new Event('input'));
+                        }
+                    }
+                }
+            }
+
+            const modalEl = document.getElementById('importCompanyModal');
+            bootstrap.Modal.getInstance(modalEl).hide();
+
+            if (typeof window.showNotification === 'function') {
+                window.showNotification('تم تطبيق الإعدادات المستوردة على النموذج بنجاح. لا تنسَ الضغط على "حفظ" لتثبيتها ✅', 'success');
+            }
+        });
+    }
+
 });
 </script>
+
+<!-- Scoped Import Modal for Company Settings (Rule #8) -->
+<div class="modal fade" id="importCompanyModal" tabindex="-1" aria-labelledby="importCompanyModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-light border-bottom px-4 py-3">
+                <h5 class="modal-title fw-bold text-dark mb-0" id="importCompanyModalLabel">
+                    <i class="fas fa-file-import text-primary me-2"></i>استيراد إعدادات المنشأة (JSON)
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="alert alert-info py-2 px-3 mb-3 small">
+                    <i class="fas fa-info-circle me-1"></i>
+                    يرجى اختيار ملف JSON تم تصديره مسبقاً من شاشة إعدادات المنشأة.
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">ملف الإعدادات:</label>
+                    <input type="file" class="form-control" id="importCompanyFileInput" accept=".json">
+                </div>
+                <div id="importCompanyPreview" class="d-none p-3 bg-light border rounded mb-3 small">
+                    <div class="fw-bold text-dark mb-1"><i class="fas fa-check-circle text-success me-1"></i>ملخص الملف:</div>
+                    <div id="importCompanyPreviewContent"></div>
+                </div>
+            </div>
+            <div class="modal-footer bg-light border-top px-4 py-3">
+                <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">إلغاء</button>
+                <button type="button" class="btn btn-primary px-4 fw-bold" id="applyCompanyImportBtn" disabled>
+                    <i class="fas fa-check me-1"></i>تطبيق الإعدادات
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

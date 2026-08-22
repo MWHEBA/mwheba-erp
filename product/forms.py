@@ -94,13 +94,7 @@ class ProductForm(forms.ModelForm):
             "selling_price",
             "tax_rate",
             "tax_code",
-            "default_supplier",
             "min_stock",
-            "item_type",
-            "uniform_size",
-            "uniform_gender",
-            "educational_subject",
-            "suitable_for_grades",
             "is_service",
             "is_active",
             "is_featured",
@@ -110,19 +104,14 @@ class ProductForm(forms.ModelForm):
             "name_en": forms.TextInput(attrs={"placeholder": "الاسم (English)"}),
             "description": forms.Textarea(attrs={"rows": 3, "placeholder": "الوصف (عربي)"}),
             "description_en": forms.Textarea(attrs={"rows": 3, "placeholder": "الوصف (English)"}),
-            "cost_price": forms.NumberInput(attrs={"step": "0.01"}),
-            "selling_price": forms.NumberInput(attrs={"step": "0.01"}),
-            "tax_rate": forms.NumberInput(attrs={"step": "0.5", "min": "0", "max": "100", "placeholder": "0.00"}),
-            "tax_code": forms.TextInput(attrs={"placeholder": "كود الضريبة"}),
+            "cost_price": forms.NumberInput(attrs={"step": "0.01", "min": "0", "id": "id_cost_price"}),
+            "selling_price": forms.NumberInput(attrs={"step": "0.01", "min": "0", "id": "id_selling_price"}),
+            "tax_rate": forms.NumberInput(attrs={"step": "0.01", "min": "0", "max": "100", "placeholder": "0.00", "id": "id_tax_rate"}),
+            "tax_code": forms.Select(attrs={"class": "form-select select2-tax-code", "id": "id_tax_code"}),
             "sku": forms.TextInput(attrs={
                 "placeholder": "سيتم توليده تلقائياً إذا ترك فارغاً",
                 "readonly": False
             }),
-            "item_type": forms.Select(attrs={"class": "form-select"}),
-            "uniform_size": forms.TextInput(attrs={"placeholder": "مثل: S, M, L, XL, 32"}),
-            "uniform_gender": forms.Select(attrs={"class": "form-select"}),
-            "educational_subject": forms.TextInput(attrs={"placeholder": "مثل: رياضيات، كيمياء"}),
-            "suitable_for_grades": forms.TextInput(attrs={"placeholder": "مثل: المرحلة الابتدائية"}),
         }
         
     def __init__(self, *args, **kwargs):
@@ -130,6 +119,12 @@ class ProductForm(forms.ModelForm):
         is_service = kwargs.pop('is_service', None)
         
         super().__init__(*args, **kwargs)
+        
+        from financial.models.tax import TaxCode
+        
+        # تهيئة قائمة أكواد الضرائب المعيارية
+        self.fields['tax_code'].queryset = TaxCode.objects.filter(is_active=True).order_by('-is_default', 'tax_type', 'code')
+        self.fields['tax_code'].empty_label = _("--- بدون كود ضريبي مخصص (معفى/يدوي) ---")
         
         # تحديد إذا كان العنصر خدمة
         if is_service is not None:
@@ -139,6 +134,22 @@ class ProductForm(forms.ModelForm):
         is_service_value = self.instance.is_service if self.instance.pk else (is_service or False)
         item_type = "الخدمة" if is_service_value else "المنتج"
         
+        # تعيين القيم الافتراضية للضريبة عند إضافة عنصر جديد
+        if not self.instance.pk and not self.data:
+            default_tax = TaxCode.objects.filter(tax_type='VAT', is_default=True, is_active=True).first()
+            if not default_tax:
+                default_tax = TaxCode.objects.filter(rate=Decimal('14.00'), is_active=True).first()
+            
+            if default_tax:
+                self.fields['tax_code'].initial = default_tax.pk
+                self.fields['tax_rate'].initial = default_tax.rate
+            else:
+                self.fields['tax_rate'].initial = Decimal('14.00')
+        elif self.instance.pk and self.instance.tax_code:
+            # في حالة التعديل، التأكد من أن نسبة الضريبة تظهر نسبة الكود
+            if self.instance.tax_rate is None or self.instance.tax_rate == 0:
+                self.fields['tax_rate'].initial = self.instance.tax_code.rate
+        
         # تحديث labels ديناميكياً
         self.fields['name'].label = f"اسم {item_type} (عربي)"
         self.fields['name_en'].label = f"اسم {item_type} (English)"
@@ -147,15 +158,9 @@ class ProductForm(forms.ModelForm):
         self.fields['sku'].label = f"كود {item_type}"
         self.fields['barcode'].label = "الباركود"
         self.fields['cost_price'].label = "سعر التكلفة"
-        self.fields['selling_price'].label = "سعر البيع"
+        self.fields['selling_price'].label = "سعر البيع (بدون ضريبة)"
         self.fields['tax_rate'].label = "نسبة الضريبة (%)"
-        self.fields['tax_code'].label = "كود الضريبة"
-        self.fields['default_supplier'].label = "المورد الافتراضي"
-        self.fields['item_type'].label = "تصنيف نوع الاستخدام"
-        self.fields['uniform_size'].label = "مقاس الزي"
-        self.fields['uniform_gender'].label = "الجنس المخصص"
-        self.fields['educational_subject'].label = "التخصص / المادة"
-        self.fields['suitable_for_grades'].label = "الفئة المستهدفة / الصفوف"
+        self.fields['tax_code'].label = "كود الضريبة المعياري (ETA)"
         
         # تحديث help texts و placeholders
         self.fields['name'].widget.attrs['placeholder'] = f"اسم {item_type} (عربي)"
@@ -164,17 +169,13 @@ class ProductForm(forms.ModelForm):
         self.fields['description_en'].widget.attrs['placeholder'] = f"وصف {item_type} (English)"
         self.fields['sku'].help_text = f"سيتم توليد كود {item_type} تلقائياً بناءً على التصنيف إذا ترك فارغاً"
         self.fields['name'].help_text = f"أدخل اسم {item_type} (عربي) بوضوح"
+        self.fields['tax_code'].help_text = "كود وتصنيف الضريبة المعياري المعتمد لدى منظومة الفاتورة الإلكترونية"
+        self.fields['tax_rate'].help_text = "نسبة الضريبة المطبقة على الصنف (تُملأ تلقائياً عند اختيار كود الضريبة)"
         
         # جعل الحقول غير الإلزامية اختيارية
         self.fields['sku'].required = False
         self.fields['tax_rate'].required = False
         self.fields['tax_code'].required = False
-        self.fields['default_supplier'].required = False
-        self.fields['item_type'].required = False
-        self.fields['uniform_size'].required = False
-        self.fields['uniform_gender'].required = False
-        self.fields['educational_subject'].required = False
-        self.fields['suitable_for_grades'].required = False
         
         # جعل وحدة القياس وسعر التكلفة اختيارية للخدمات
         if is_service_value:
@@ -270,11 +271,37 @@ class ProductForm(forms.ModelForm):
             
         return min_stock if min_stock is not None else 0
 
+    def clean_tax_rate(self):
+        """التحقق من صحة نسبة الضريبة"""
+        tax_rate = self.cleaned_data.get('tax_rate')
+        if tax_rate is None or tax_rate == '':
+            return Decimal('0.00')
+        if tax_rate < Decimal('0.00'):
+            raise forms.ValidationError(_("نسبة الضريبة لا يمكن أن تكون سالبة."))
+        if tax_rate > Decimal('100.00'):
+            raise forms.ValidationError(_("نسبة الضريبة لا يمكن أن تتجاوز 100%."))
+        return tax_rate.quantize(Decimal('0.01'))
+
     def clean(self):
-        """التحقق من صحة البيانات المترابطة"""
+        """التحقق من صحة البيانات المترابطة ومزامنة الضريبة"""
         cleaned_data = super().clean()
         cost_price = cleaned_data.get("cost_price")
         selling_price = cleaned_data.get("selling_price")
+        tax_code = cleaned_data.get("tax_code")
+        tax_rate = cleaned_data.get("tax_rate")
+        
+        # مزامنة معدل الضريبة مع كود الضريبة المعتمد
+        if tax_code:
+            cleaned_data["tax_rate"] = (tax_code.rate or Decimal("0.00")).quantize(Decimal("0.01"))
+        elif tax_rate is not None:
+            cleaned_data["tax_rate"] = tax_rate.quantize(Decimal("0.01"))
+            if tax_rate > Decimal("0.00"):
+                from financial.models.tax import TaxCode
+                matching_code = TaxCode.objects.filter(rate=tax_rate, is_active=True).first()
+                if matching_code:
+                    cleaned_data["tax_code"] = matching_code
+        else:
+            cleaned_data["tax_rate"] = Decimal("0.00")
         
         # التحقق من أن سعر البيع أكبر من سعر التكلفة
         if cost_price and selling_price and selling_price <= cost_price:

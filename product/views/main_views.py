@@ -754,13 +754,10 @@ def service_list(request):
             'categories_count': service_categories_count,
         }
 
-        # Pagination
-        paginator = Paginator(services, 25)
-        page_number = request.GET.get('page', 1)
-        try:
-            page_obj = paginator.page(page_number)
-        except (PageNotAnInteger, EmptyPage):
-            page_obj = paginator.page(1)
+        # Pagination SSR
+        from core.utils import paginate_queryset
+        pagination_context = paginate_queryset(services, request)
+        page_obj = pagination_context["page_obj"]
 
         # تحضير بيانات الجدول
         table_data = []
@@ -778,7 +775,8 @@ def service_list(request):
             status_html = '<span class="badge bg-success">نشط</span>' if service.is_active else '<span class="badge bg-danger">غير نشط</span>'
 
             row_data = {
-                "id": service.id,
+                "id": service.pk,
+                "detail_url": detail_url,
                 "image": image_html,
                 "name_with_sku": name_html,
                 "name": service.name,
@@ -817,17 +815,18 @@ def service_list(request):
             }, request=request)
             pagination_html = render_to_string('partials/pagination.html', {
                 'page_obj': page_obj,
-                'align': 'center',
-            }, request=request) if paginator.num_pages > 1 else ''
+                **pagination_context,
+            }, request=request)
             return JsonResponse({
                 'table_html': table_html,
                 'pagination_html': pagination_html,
-                'count': paginator.count,
+                'count': pagination_context["total_count"],
             })
 
         context = {
             "products": page_obj,
             "page_obj": page_obj,
+            **pagination_context,
             "table_data": table_data,
             "filter_form": filter_form,
             "product_headers": service_headers,
@@ -2643,14 +2642,9 @@ def stock_list(request):
     products = Product.objects.filter(is_active=True).select_related("category")
 
     # ترقيم الصفحات
-    paginator = Paginator(stocks, 20)
-    page = request.GET.get("page")
-    try:
-        stocks = paginator.page(page)
-    except PageNotAnInteger:
-        stocks = paginator.page(1)
-    except EmptyPage:
-        stocks = paginator.page(paginator.num_pages)
+    from core.utils import paginate_queryset
+    pagination_context = paginate_queryset(stocks, request)
+    page_obj = pagination_context["page_obj"]
 
     # تعريف أعمدة جدول المخزون
     stock_headers = [
@@ -2704,7 +2698,9 @@ def stock_list(request):
     ]
 
     context = {
-        "stocks": stocks,
+        "stocks": page_obj,
+        "page_obj": page_obj,
+        **pagination_context,
         "stock_headers": stock_headers,
         "stock_actions": stock_actions,
         "primary_key": "id",
@@ -3077,16 +3073,10 @@ def stock_movement_list(request):
     receipt_vouchers = sum(1 for m in all_movements if hasattr(m, 'voucher_type') and m.voucher_type == "receipt")
     issue_vouchers = sum(1 for m in all_movements if hasattr(m, 'voucher_type') and m.voucher_type == "issue")
     
-    # Pagination
-    from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
-    paginator = Paginator(all_movements, 30)
-    page = request.GET.get("page")
-    try:
-        movements = paginator.page(page)
-    except PageNotAnInteger:
-        movements = paginator.page(1)
-    except EmptyPage:
-        movements = paginator.page(paginator.num_pages)
+    # Pagination SSR
+    from core.utils import paginate_queryset
+    pagination_context = paginate_queryset(all_movements, request, default_per_page=25)
+    movements = pagination_context["page_obj"]
 
     # إحصائيات (تم حسابها أعلاه من القوائم المدمجة)
 
@@ -3098,6 +3088,8 @@ def stock_movement_list(request):
         "active_menu": "product",
         "title": "حركات المخزون",
         "movements": movements,
+        "page_obj": movements,
+        **pagination_context,
         "warehouses": warehouses,
         "products": products,
         "total_movements": total_movements,

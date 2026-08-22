@@ -13,6 +13,7 @@ from django.db import transaction
 from django.http import JsonResponse
 from decimal import Decimal
 
+from core.utils import UnifiedPaginationMixin
 from product.models.inventory_movement import InventoryMovement
 from product.models.stock_management import Stock, Warehouse
 from product.models.product_core import Product
@@ -92,12 +93,11 @@ class GetAvailableProductsView(LoginRequiredMixin, View):
             return JsonResponse({'products': [], 'error': str(e)})
 
 
-class ReceiptVoucherListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
+class ReceiptVoucherListView(LoginRequiredMixin, PermissionRequiredMixin, UnifiedPaginationMixin, ListView):
     """قائمة أذون الاستلام"""
     model = InventoryMovement
     template_name = 'product/vouchers/receipt_voucher_list.html'
     context_object_name = 'vouchers'
-    paginate_by = 20
     permission_required = 'product.view_inventorymovement'
     
     def get_queryset(self):
@@ -123,6 +123,7 @@ class ReceiptVoucherListView(LoginRequiredMixin, PermissionRequiredMixin, ListVi
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        page_items = context.get('page_obj') or context.get('vouchers')
         context.update({
             'active_menu': 'product',
             'title': 'أذون الاستلام الداخلية والتسويات',
@@ -148,7 +149,7 @@ class ReceiptVoucherListView(LoginRequiredMixin, PermissionRequiredMixin, ListVi
             ],
             'warehouses': Warehouse.objects.filter(is_active=True),
             'table_headers': self._get_table_headers(),
-            'table_data': self._prepare_table_data(),
+            'table_data': self._prepare_table_data(page_items),
             'primary_key': 'id',
         })
         return context
@@ -166,9 +167,11 @@ class ReceiptVoucherListView(LoginRequiredMixin, PermissionRequiredMixin, ListVi
             {'key': 'actions', 'label': 'الإجراءات', 'width': '10%', 'class': 'text-center'}
         ]
     
-    def _prepare_table_data(self):
+    def _prepare_table_data(self, vouchers=None):
+        if vouchers is None:
+            vouchers = self.get_queryset()
         table_data = []
-        for voucher in self.get_queryset()[:self.paginate_by]:
+        for voucher in vouchers:
             actions = [
                 {'url': reverse('product:receipt_voucher_detail', args=[voucher.pk]), 
                  'icon': 'fas fa-eye', 'label': 'عرض', 'class': 'btn-outline-info btn-sm'}
@@ -373,12 +376,11 @@ class ReceiptVoucherApproveView(LoginRequiredMixin, PermissionRequiredMixin, Vie
         return redirect('product:receipt_voucher_detail', pk=pk)
 
 
-class IssueVoucherListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
+class IssueVoucherListView(LoginRequiredMixin, PermissionRequiredMixin, UnifiedPaginationMixin, ListView):
     """قائمة أذون الصرف"""
     model = InventoryMovement
     template_name = 'product/vouchers/issue_voucher_list.html'
     context_object_name = 'vouchers'
-    paginate_by = 20
     permission_required = 'product.view_inventorymovement'
     
     def get_queryset(self):
@@ -402,6 +404,7 @@ class IssueVoucherListView(LoginRequiredMixin, PermissionRequiredMixin, ListView
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        page_items = context.get('page_obj') or context.get('vouchers')
         context.update({
             'active_menu': 'product',
             'title': 'أذون الصرف',
@@ -421,7 +424,7 @@ class IssueVoucherListView(LoginRequiredMixin, PermissionRequiredMixin, ListView
             ],
             'warehouses': Warehouse.objects.filter(is_active=True),
             'table_headers': self._get_table_headers(),
-            'table_data': self._prepare_table_data(),
+            'table_data': self._prepare_table_data(page_items),
             'primary_key': 'id',
         })
         return context
@@ -439,9 +442,11 @@ class IssueVoucherListView(LoginRequiredMixin, PermissionRequiredMixin, ListView
             {'key': 'actions', 'label': 'الإجراءات', 'width': '10%', 'class': 'text-center'}
         ]
     
-    def _prepare_table_data(self):
+    def _prepare_table_data(self, vouchers=None):
+        if vouchers is None:
+            vouchers = self.get_queryset()
         table_data = []
-        for voucher in self.get_queryset()[:self.paginate_by]:
+        for voucher in vouchers:
             actions = [
                 {'url': reverse('product:issue_voucher_detail', args=[voucher.pk]), 
                  'icon': 'fas fa-eye', 'label': 'عرض', 'class': 'btn-outline-info btn-sm'}

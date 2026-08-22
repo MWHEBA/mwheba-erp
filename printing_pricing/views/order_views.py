@@ -10,19 +10,20 @@ from django.db.models import Q, Sum, Count
 from django.core.paginator import Paginator
 from decimal import Decimal
 
+from core.utils import UnifiedPaginationMixin
 from ..models import PrintingOrder, OrderMaterial, OrderService, OrderSummary
 from ..forms import PrintingOrderForm, OrderSearchForm
 from client.models import Customer
 
 
-class OrderListView(LoginRequiredMixin, ListView):
+class OrderListView(UnifiedPaginationMixin, LoginRequiredMixin, ListView):
     """
     عرض قائمة طلبات التسعير
     """
     model = PrintingOrder
     template_name = 'printing_pricing/orders/order_list.html'
     context_object_name = 'orders'
-    paginate_by = 20
+    default_per_page = 25
     
     def get_queryset(self):
         """تخصيص الاستعلام مع البحث والفلترة"""

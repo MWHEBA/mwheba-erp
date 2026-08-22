@@ -131,12 +131,14 @@ def inventory_report(request):
         ]
 
     # ترقيم الصفحات
-    paginator = Paginator(stocks, 50)
-    page_number = request.GET.get("page")
-    page_obj = paginator.get_page(page_number)
+    from core.utils import paginate_queryset
+    pagination_context = paginate_queryset(stocks, request)
+    page_obj = pagination_context["page_obj"]
 
     context = {
         "page_obj": page_obj,
+        "stocks": page_obj.object_list,
+        **pagination_context,
         "stats": report_data["stats"],
         "warehouses": Warehouse.objects.filter(is_active=True),
         "categories": Category.objects.filter(is_active=True),
@@ -198,12 +200,14 @@ def movement_report(request):
 
     # ترقيم الصفحات
     movements = report_data["movements"]
-    paginator = Paginator(movements, 50)
-    page_number = request.GET.get("page")
-    page_obj = paginator.get_page(page_number)
+    from core.utils import paginate_queryset
+    pagination_context = paginate_queryset(movements, request)
+    page_obj = pagination_context["page_obj"]
 
     context = {
         "page_obj": page_obj,
+        "movements": page_obj.object_list,
+        **pagination_context,
         "stats": report_data["stats"],
         "products": Product.objects.filter(is_active=True).order_by("name"),
         "warehouses": Warehouse.objects.filter(is_active=True),
@@ -414,12 +418,14 @@ def notifications_list(request):
     stats = NotificationService.get_notification_stats(user=request.user)
 
     # ترقيم الصفحات
-    paginator = Paginator(notifications, 20)
-    page_number = request.GET.get("page")
-    page_obj = paginator.get_page(page_number)
+    from core.utils import paginate_queryset
+    pagination_context = paginate_queryset(notifications, request)
+    page_obj = pagination_context["page_obj"]
 
     context = {
         "page_obj": page_obj,
+        "notifications": page_obj.object_list,
+        **pagination_context,
         "stats": stats,
     }
 
@@ -484,12 +490,14 @@ def abc_analysis_report(request):
     if category_id:
         analysis_data = [item for item in analysis_data if item.get('category') == category_id]
     
-    paginator = Paginator(analysis_data, 50)
-    page_number = request.GET.get("page")
-    page_obj = paginator.get_page(page_number)
+    from core.utils import paginate_queryset
+    pagination_context = paginate_queryset(analysis_data, request)
+    page_obj = pagination_context["page_obj"]
 
     context = {
         "analysis_data": page_obj,
+        "page_obj": page_obj,
+        **pagination_context,
         "summary": report_data.get("summary", {}),
         "date_from": report_data.get("date_from"),
         "date_to": report_data.get("date_to"),
@@ -556,14 +564,15 @@ def inventory_turnover_report(request):
         analysis_data = [item for item in analysis_data if item.get('category') == category_filter]
 
     # ترقيم الصفحات
-    paginator = Paginator(analysis_data, 25)
-    page_number = request.GET.get("page")
-    page_obj = paginator.get_page(page_number)
+    from core.utils import paginate_queryset
+    pagination_context = paginate_queryset(analysis_data, request)
+    page_obj = pagination_context["page_obj"]
 
     context = {
         "page_obj": page_obj,
         "analysis_data": page_obj,  # للتوافق
         "turnover_data": analysis_data,  # للتوافق مع Template القديم
+        **pagination_context,
         "summary": report_data.get("summary", {}),
         "date_from": report_data.get("date_from"),
         "date_to": report_data.get("date_to"),
@@ -637,9 +646,9 @@ def reorder_point_report(request):
         analysis_data = [item for item in analysis_data if item.get('status') == status_filter]
 
     # ترقيم الصفحات
-    paginator = Paginator(analysis_data, 25)
-    page_number = request.GET.get("page")
-    page_obj = paginator.get_page(page_number)
+    from core.utils import paginate_queryset
+    pagination_context = paginate_queryset(analysis_data, request, default_per_page=25)
+    page_obj = pagination_context["page_obj"]
 
     # فصل البيانات للعرض السريع
     critical_items = [p for p in analysis_data if p["status"] == "out_of_stock"][:5]
@@ -649,6 +658,7 @@ def reorder_point_report(request):
         "page_obj": page_obj,
         "analysis_data": page_obj,  # للتوافق
         "reorder_data": analysis_data,  # للتوافق مع Template القديم
+        **pagination_context,
         "summary": report_data.get("summary", {}),
         "critical_items": critical_items,
         "low_stock_items": low_stock_items,
@@ -777,12 +787,14 @@ def reservation_list_disabled(request):
             )
 
         # ترقيم الصفحات
-        paginator = Paginator(queryset.order_by("-reserved_at"), 25)
-        page_number = request.GET.get("page")
-        page_obj = paginator.get_page(page_number)
+        from core.utils import paginate_queryset
+        pagination_context = paginate_queryset(queryset.order_by("-reserved_at"), request)
+        page_obj = pagination_context["page_obj"]
 
         context = {
             "page_obj": page_obj,
+            "reservations": page_obj.object_list,
+            **pagination_context,
             "warehouses": Warehouse.objects.filter(is_active=True),
             "filters": {
                 "warehouse_id": warehouse_id,
@@ -895,13 +907,14 @@ def batch_list_disabled(request):
                     expiry_date__lte=today + timedelta(days=30),
                 )
 
-        # ترقيم الصفحات
-        paginator = Paginator(queryset.order_by("expiry_date", "batch_number"), 25)
-        page_number = request.GET.get("page")
-        page_obj = paginator.get_page(page_number)
+        # ترقيم الصفحات SSR
+        from core.utils import paginate_queryset
+        pagination_context = paginate_queryset(queryset.order_by("expiry_date", "batch_number"), request, default_per_page=25)
+        page_obj = pagination_context["page_obj"]
 
         context = {
             "page_obj": page_obj,
+            **pagination_context,
             "warehouses": Warehouse.objects.filter(is_active=True),
             "filters": {
                 "warehouse_id": warehouse_id,

@@ -274,10 +274,10 @@ def purchase_return_list(request):
     confirmed_returns_count = PurchaseReturn.objects.filter(status="confirmed").count()
     draft_returns_count = PurchaseReturn.objects.filter(status="draft").count()
 
-    # Pagination
-    paginator = Paginator(queryset, 20)
-    page_number = request.GET.get("page")
-    page_obj = paginator.get_page(page_number)
+    # Pagination SSR
+    from core.utils import paginate_queryset
+    pagination_context = paginate_queryset(queryset, request)
+    page_obj = pagination_context["page_obj"]
 
     curr_sym = SystemSetting.get_currency_symbol()
 
@@ -318,6 +318,8 @@ def purchase_return_list(request):
 
     context = {
         "returns": page_obj,
+        "page_obj": page_obj,
+        **pagination_context,
         "purchase_returns_data": purchase_returns_data,
         "return_headers": return_headers,
         "total_returns_count": total_returns_count,

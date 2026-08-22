@@ -227,14 +227,19 @@
         </div>
     </div>
 
+    <!-- بيانات إحصائيات الرسم البياني -->
+    <div id="chart-summary-data" 
+         data-critical="{{ summary.critical_count|default:'0' }}"
+         data-low="{{ summary.low_count|default:'0' }}"
+         data-normal="{{ summary.normal_count|default:'0' }}"
+         data-overstock="{{ summary.overstock_count|default:'0' }}"
+         class="d-none"></div>
+
     <!-- جدول تفاصيل نقاط الطلب -->
     <div class="section-container">
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h5 class="section-title mb-0"><i class="fas fa-table me-2"></i>تفاصيل نقاط إعادة الطلب</h5>
             <div class="actions-container">
-                <button type="button" class="btn btn-sm btn-outline-success me-2" onclick="exportTableCSV()">
-                    <i class="fas fa-file-csv me-1"></i>CSV
-                </button>
                 <button type="button" class="btn btn-sm btn-success" onclick="exportTableExcel()">
                     <i class="fas fa-file-excel me-1"></i>Excel
                 </button>
@@ -292,13 +297,15 @@
                             <td class="text-center">-</td>
                             <td class="text-center">
                                 <div class="progress progress-stock">
-                                    <div class="progress-bar 
-                                        {% if item.stock_percentage <= 25 %}bg-danger progress-bar-animated
-                                        {% elif item.stock_percentage <= 50 %}bg-warning
-                                        {% elif item.stock_percentage <= 100 %}bg-success
-                                        {% else %}bg-info{% endif %}" 
-                                        style="width: {{ item.stock_percentage|smart_float }}%">
-                                    </div>
+                                    {% if item.stock_percentage <= 25 %}
+                                        <div class="progress-bar bg-danger progress-bar-animated" data-percentage="{{ item.stock_percentage|default:0 }}"></div>
+                                    {% elif item.stock_percentage <= 50 %}
+                                        <div class="progress-bar bg-warning" data-percentage="{{ item.stock_percentage|default:0 }}"></div>
+                                    {% elif item.stock_percentage <= 100 %}
+                                        <div class="progress-bar bg-success" data-percentage="{{ item.stock_percentage|default:0 }}"></div>
+                                    {% else %}
+                                        <div class="progress-bar bg-info" data-percentage="{{ item.stock_percentage|default:0 }}"></div>
+                                    {% endif %}
                                 </div>
                                 <small class="text-muted">{{ item.stock_percentage|smart_float }}%</small>
                             </td>
@@ -383,135 +390,56 @@
   // تصدير تقرير نقطة إعادة الطلب إلى Excel
   function exportReorderReport() {
     try {
-      let data = [];
-      
-      // العنوان
-      data.push(['تقرير نقطة إعادة الطلب']);
-      data.push(['تاريخ التقرير: ' + new Date().toLocaleDateString('ar-EG')]);
-      data.push([]);
-      
-      // الإحصائيات
-      data.push(['الإحصائيات:']);
-      data.push(['حالة حرجة', '{{ summary.critical_count|default:"0" }}', 'منتج']);
-      data.push(['مخزون منخفض', '{{ summary.low_count|default:"0" }}', 'منتج']);
-      data.push(['مخزون طبيعي', '{{ summary.normal_count|default:"0" }}', 'منتج']);
-      data.push(['مخزون زائد', '{{ summary.overstock_count|default:"0" }}', 'منتج']);
-      data.push([]);
-      
-      // Headers
-      data.push(['الأولوية', 'كود المنتج', 'اسم المنتج', 'المخزون الحالي', 'نقطة الطلب', 'الحد الأقصى', 'مستوى المخزون %', 'أيام التوريد', 'الكمية المقترحة', 'الحالة']);
-      
-      // إضافة بيانات المنتجات
-      {% for item in reorder_data %}
-      data.push([
-        '{% if item.urgency == "critical" %}عاجل{% elif item.urgency == "high" %}عالي{% elif item.urgency == "medium" %}متوسط{% else %}منخفض{% endif %}',
-        '{{ item.product.code }}',
-        '{{ item.product.name }}',
-        '{{ item.current_stock|smart_float }}',
-        '{{ item.reorder_point|smart_float }}',
-        '-',
-        '{{ item.stock_percentage|smart_float }}%',
-        '{% if item.days_supply %}{{ item.days_supply|smart_float }} يوم{% else %}غير محدد{% endif %}',
-        '{% if item.suggested_quantity > 0 %}{{ item.suggested_quantity|smart_float }}{% else %}غير مطلوب{% endif %}',
-        '{% if item.current_stock <= 0 %}نفذ{% elif item.current_stock <= item.reorder_point %}حرج{% elif item.current_stock <= item.reorder_point_threshold %}منخفض{% else %}طبيعي{% endif %}'
-      ]);
-      {% endfor %}
-      
-      // إنشاء ملف Excel
-      const ws = XLSX.utils.aoa_to_sheet(data);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'تقرير نقطة إعادة الطلب');
+      const table = document.getElementById('dataTable');
+      if (!table) return;
+
+      const wb = XLSX.utils.table_to_book(table, { sheet: 'نقاط إعادة الطلب' });
       XLSX.writeFile(wb, 'تقرير_نقطة_إعادة_الطلب_' + new Date().toISOString().split('T')[0] + '.xlsx');
       
-      if (typeof toastr !== 'undefined') { toastr.success('تم تصدير تقرير نقطة إعادة الطلب إلى Excel بنجاح'); };
+      if (typeof toastr !== 'undefined') { 
+        toastr.success('تم تصدير تقرير نقطة إعادة الطلب إلى Excel بنجاح'); 
+      }
     } catch (error) {
       console.error('خطأ في تصدير Excel:', error);
-      if (typeof toastr !== 'undefined') { toastr.error('حدث خطأ أثناء تصدير Excel'); };
-    }
-  }
-  
-  // تصدير الجدول إلى CSV
-  function exportTableCSV() {
-    try {
-      const table = document.getElementById('dataTable');
-      let csv = [];
-      
-      // Headers
-      const headers = [];
-      table.querySelectorAll('thead th').forEach(th => {
-        headers.push(th.textContent.trim());
-      });
-      csv.push(headers.join(','));
-      
-      // Rows
-      table.querySelectorAll('tbody tr').forEach(tr => {
-        if (tr.cells.length > 1) { // تجنب صف الحالة الفارغة
-          const row = [];
-          tr.querySelectorAll('td').forEach((td, index) => {
-            if (index < headers.length - 1) { // تجنب عمود الإجراءات
-              let text = td.textContent.trim();
-              row.push('"' + text.replace(/"/g, '""') + '"');
-            }
-          });
-          if (row.length > 0) {
-            csv.push(row.join(','));
-          }
-        }
-      });
-      
-      // تحميل الملف
-      const blob = new Blob([csv.join('\n')], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.download = 'تقرير_نقطة_إعادة_الطلب_' + new Date().toISOString().split('T')[0] + '.csv';
-      link.click();
-      
-      if (typeof toastr !== 'undefined') { toastr.success('تم تصدير الجدول إلى CSV بنجاح'); };
-    } catch (error) {
-      console.error('خطأ في تصدير CSV:', error);
-      if (typeof toastr !== 'undefined') { toastr.error('حدث خطأ أثناء تصدير CSV'); };
+      if (typeof toastr !== 'undefined') { 
+        toastr.error('حدث خطأ أثناء تصدير Excel'); 
+      }
     }
   }
   
   // تصدير الجدول إلى Excel
   function exportTableExcel() {
-    exportReorderReport(); // استخدام نفس دالة التصدير الشاملة
+    exportReorderReport();
   }
   
   // تصدير الرسم البياني
   function exportChart(chartId) {
     try {
       const canvas = document.getElementById(chartId);
+      if (!canvas) return;
       const link = document.createElement('a');
       link.href = canvas.toDataURL('image/png');
       link.download = 'رسم_بياني_نقاط_الطلب_' + new Date().toISOString().split('T')[0] + '.png';
       link.click();
       
-      if (typeof toastr !== 'undefined') { toastr.success('تم تصدير الرسم البياني بنجاح'); };
+      if (typeof toastr !== 'undefined') { 
+        toastr.success('تم تصدير الرسم البياني بنجاح'); 
+      }
     } catch (error) {
       console.error('خطأ في تصدير الرسم البياني:', error);
-      if (typeof toastr !== 'undefined') { toastr.error('حدث خطأ أثناء تصدير الرسم البياني'); };
+      if (typeof toastr !== 'undefined') { 
+        toastr.error('حدث خطأ أثناء تصدير الرسم البياني'); 
+      }
     }
-  }
-  
-  // دالة إظهار الإشعارات
-  // Removed: Using toastr library directly alert-dismissible fade show position-fixed" 
-             style="top: 20px; right: 20px; z-index: 9999; min-width: 300px;">
-            <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'} me-2"></i>
-            ${message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-    `);
-    
-    $('body').append(notification);
-    
-    // إزالة الإشعار تلقائياً بعد 5 ثوان
-    setTimeout(() => {
-        notification.alert('close');
-    }, 5000);
   }
 
   // الرسم البياني
+  const chartSummaryEl = document.getElementById('chart-summary-data');
+  const criticalCount = chartSummaryEl ? Number(chartSummaryEl.dataset.critical || 0) : 0;
+  const lowCount = chartSummaryEl ? Number(chartSummaryEl.dataset.low || 0) : 0;
+  const normalCount = chartSummaryEl ? Number(chartSummaryEl.dataset.normal || 0) : 0;
+  const overstockCount = chartSummaryEl ? Number(chartSummaryEl.dataset.overstock || 0) : 0;
+
   const ctx = document.getElementById('stockChart').getContext('2d');
   const stockChart = new Chart(ctx, {
       type: 'bar',
@@ -519,12 +447,7 @@
           labels: ['حرج', 'منخفض', 'طبيعي', 'زائد'],
           datasets: [{
               label: 'عدد المنتجات',
-              data: [
-                  {{ summary.critical_count|default:"0" }},
-                  {{ summary.low_count|default:"0" }},
-                  {{ summary.normal_count|default:"0" }},
-                  {{ summary.overstock_count|default:"0" }}
-              ],
+              data: [criticalCount, lowCount, normalCount, overstockCount],
               backgroundColor: [
                   '#dc3545',
                   '#ffc107',
@@ -567,6 +490,12 @@
   });
 
   $(document).ready(function() {
+    // تعيين عرض أشرطة التقدم
+    document.querySelectorAll('.progress-bar[data-percentage]').forEach(function(el) {
+      const pct = parseFloat(el.dataset.percentage) || 0;
+      el.style.width = Math.min(100, Math.max(0, pct)) + '%';
+    });
+
     // تهيئة الجدول
     initGlobalTable('dataTable', {
         order: [], // ترتيب من السيرفر المباشر

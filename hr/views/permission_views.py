@@ -1,4 +1,4 @@
-﻿"""
+"""
 Views إدارة الأذونات
 """
 from .base_imports import *
@@ -105,15 +105,15 @@ def permission_list(request):
 
     # جلب الموظفين وأنواع الأذونات للفلاتر
     employees = Employee.objects.filter(status='active', is_insurance_only=False)
-    permission_types = PermissionType.objects.filter(is_active=True)
-    
-    # Pagination - 30 إذن لكل صفحة
-    paginator = Paginator(permissions, 30)
-    page = request.GET.get('page', 1)
-    permissions_page = paginator.get_page(page)
+    # Pagination SSR
+    from core.utils import paginate_queryset
+    pagination_context = paginate_queryset(permissions, request, default_per_page=25)
+    permissions_page = pagination_context["page_obj"]
     
     context = {
         'permissions': permissions_page,
+        'page_obj': permissions_page,
+        **pagination_context,
         'employees': employees,
         'permission_types': permission_types,
         'total_permissions': total_permissions,

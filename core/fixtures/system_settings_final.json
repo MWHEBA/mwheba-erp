@@ -18,7 +18,7 @@
     "pk": 2,
     "fields": {
       "key": "company_name_en",
-      "value": "Mwheba Foundation",
+      "value": "MWHEBA Agency",
       "data_type": "string",
       "description": "اسم الشركة بالإنجليزية",
       "group": "general",

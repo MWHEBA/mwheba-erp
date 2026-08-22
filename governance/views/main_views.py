@@ -81,17 +81,11 @@ class AuditManagementView(GovernanceBaseView):
         ).count()
         success_rate = ((total_operations - failed_operations) / total_operations * 100) if total_operations > 0 else 100
         
-        # Get all audit logs with pagination
+        # Get all audit logs with pagination SSR
+        from core.utils import paginate_queryset
         audit_list = AuditTrail.objects.select_related('user').order_by('-timestamp')
-        paginator = Paginator(audit_list, 50)  # 50 records per page
-        
-        page = self.request.GET.get('page', 1)
-        try:
-            recent_audits = paginator.page(page)
-        except PageNotAnInteger:
-            recent_audits = paginator.page(1)
-        except EmptyPage:
-            recent_audits = paginator.page(paginator.num_pages)
+        audit_pagination = paginate_queryset(audit_list, self.request, default_per_page=50)
+        recent_audits = audit_pagination["page_obj"]
         
         # Get quarantined items
         quarantine_records = QuarantineRecord.objects.select_related(
@@ -423,17 +417,11 @@ class SecurityCenterView(GovernanceBaseView):
             'blocked_ips': BlockedIP.objects.filter(is_active=True).count(),
         })
         
-        # Recent incidents with pagination
+        # Recent incidents with pagination SSR
+        from core.utils import paginate_queryset
         incidents_list = SecurityIncident.objects.select_related('user', 'resolved_by').order_by('-detected_at')
-        page = self.request.GET.get('page', 1)
-        paginator = Paginator(incidents_list, 10)  # 10 items per page
-        
-        try:
-            recent_incidents = paginator.page(page)
-        except PageNotAnInteger:
-            recent_incidents = paginator.page(1)
-        except EmptyPage:
-            recent_incidents = paginator.page(paginator.num_pages)
+        incidents_pagination = paginate_queryset(incidents_list, self.request, default_per_page=25)
+        recent_incidents = incidents_pagination["page_obj"]
         
         # Active sessions
         active_sessions = ActiveSession.objects.filter(is_active=True).select_related('user').order_by('-last_activity')[:10]

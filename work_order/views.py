@@ -37,12 +37,15 @@ def work_order_list(request):
         queryset = queryset.filter(status=status)
         
     customer_id = request.GET.get('customer')
-    if customer_id:
-        queryset = queryset.filter(customer_id=customer_id)
+    from core.utils import paginate_queryset
+    pagination_context = paginate_queryset(queryset, request)
+    page_obj = pagination_context["page_obj"]
 
     from .forms import WorkOrderForm
     context = {
-        "work_orders": queryset,
+        "work_orders": page_obj.object_list,
+        "page_obj": page_obj,
+        **pagination_context,
         "customers": Customer.objects.filter(is_active=True),
         "status_choices": WorkOrder.STATUS_CHOICES,
         "selected_status": status,

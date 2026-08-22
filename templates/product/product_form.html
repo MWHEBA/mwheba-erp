@@ -1,6 +1,8 @@
 {% extends 'base.html' %}
 {% load static %}
 {% load i18n %}
+{% load utils_extras %}
+{% load custom_filters %}
 {% load crispy_forms_tags %}
 
 {% block title %}{{ page_title|default:"إضافة منتج جديد" }}{% endblock %}
@@ -75,6 +77,59 @@
         display: flex;
         justify-content: center;
         gap: 0.5rem;
+    }
+
+    /* لوحة المعاملة الضريبية المعيارية والحساب اللحظي */
+    .tax-config-panel {
+        background-color: var(--gray-50, #f9fafb);
+        border: 1px solid var(--border-color, #e5e7eb);
+        border-radius: var(--border-radius, 8px);
+        padding: 1.25rem;
+        margin-top: 1rem;
+    }
+
+    .tax-preset-btn {
+        font-size: 0.8125rem;
+        padding: 0.35rem 0.75rem;
+        border-radius: 6px;
+        transition: all 0.15s ease-in-out;
+    }
+
+    .tax-preset-btn.active {
+        background-color: var(--primary, #1e40af);
+        color: var(--white, #ffffff);
+        border-color: var(--primary, #1e40af);
+    }
+
+    .tax-summary-box {
+        background-color: var(--white, #ffffff);
+        border: 1px solid var(--border-color, #e5e7eb);
+        border-radius: 6px;
+        padding: 1rem;
+    }
+
+    .tax-summary-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.35rem 0;
+        font-size: 0.875rem;
+        border-bottom: 1px dashed var(--gray-200, #e5e7eb);
+    }
+
+    .tax-summary-item:last-child {
+        border-bottom: none;
+        padding-top: 0.5rem;
+    }
+
+    .tax-summary-label {
+        color: var(--text-muted, #6b7280);
+        font-weight: 500;
+    }
+
+    .tax-summary-value {
+        font-weight: 700;
+        color: var(--text-dark, #1f2937);
     }
 </style>
 {% endblock %}
@@ -228,71 +283,212 @@
 
                 <!-- 2. التسعير والضرائب والموردين -->
                 <div class="form-section-card" id="pricing-stock-card">
-                    <div class="form-section-header">
+                    <div class="form-section-header d-flex justify-content-between align-items-center">
                         <h6 class="form-section-title">
-                            <i class="fas fa-dollar-sign text-success"></i>
-                            <span id="pricing-title">الأسعار والضرائب والمورد</span>
+                            <i class="fas fa-calculator text-success"></i>
+                            <span id="pricing-title">الأسعار والضرائب والمورد الافتراضي</span>
                         </h6>
+                        <span class="badge bg-light text-muted border"><i class="fas fa-shield-alt text-success me-1"></i>منظومة الفاتورة والضرائب (ETA)</span>
                     </div>
                     <div class="form-section-body">
+                        <!-- صف الأسعار والمخزون الأساسي -->
                         <div class="row g-3">
                             <div class="col-md-4">
-                                {{ form.cost_price|as_crispy_field }}
+                                <label class="form-label fw-medium" for="{{ form.cost_price.id_for_label }}">
+                                    سعر التكلفة{% if not form.instance.is_service and not is_service %} <span class="text-danger">*</span>{% endif %}
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="fas fa-coins text-muted"></i></span>
+                                    <input type="number"
+                                           name="{{ form.cost_price.html_name }}"
+                                           id="{{ form.cost_price.id_for_label }}"
+                                           value="{{ form.cost_price.value|default:'' }}"
+                                           class="form-control{% if form.cost_price.errors %} is-invalid{% endif %}"
+                                           step="0.01" min="0" placeholder="0.00">
+                                    <span class="input-group-text text-muted small">ج.م</span>
+                                </div>
+                                {% if form.cost_price.errors %}
+                                    <div class="invalid-feedback d-block">{{ form.cost_price.errors.0 }}</div>
+                                {% endif %}
+                                <small class="text-muted d-block mt-1">سعر شراء الوحدة أو تكلفة الإنتاج المباشرة.</small>
                             </div>
+
                             <div class="col-md-4">
-                                {{ form.selling_price|as_crispy_field }}
+                                <label class="form-label fw-medium" for="{{ form.selling_price.id_for_label }}">
+                                    سعر البيع الأساسي (بدون ضريبة) <span class="text-danger">*</span>
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="fas fa-tag text-success"></i></span>
+                                    <input type="number"
+                                           name="{{ form.selling_price.html_name }}"
+                                           id="{{ form.selling_price.id_for_label }}"
+                                           value="{{ form.selling_price.value|default:'' }}"
+                                           class="form-control fw-bold{% if form.selling_price.errors %} is-invalid{% endif %}"
+                                           step="0.01" min="0" required placeholder="0.00">
+                                    <span class="input-group-text text-muted small">ج.م</span>
+                                </div>
+                                {% if form.selling_price.errors %}
+                                    <div class="invalid-feedback d-block">{{ form.selling_price.errors.0 }}</div>
+                                {% endif %}
+                                <small class="text-muted d-block mt-1">السعر المعتمد قبل احتساب الضريبة.</small>
                             </div>
+
                             <div class="col-md-4" id="min-stock-field-col">
-                                {{ form.min_stock|as_crispy_field }}
+                                <label class="form-label fw-medium" for="{{ form.min_stock.id_for_label }}">
+                                    الحد الأدنى للمخزون
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="fas fa-boxes text-muted"></i></span>
+                                    <input type="number"
+                                           name="{{ form.min_stock.html_name }}"
+                                           id="{{ form.min_stock.id_for_label }}"
+                                           value="{{ form.min_stock.value|default:'0' }}"
+                                           class="form-control{% if form.min_stock.errors %} is-invalid{% endif %}"
+                                           min="0" step="1" placeholder="0">
+                                </div>
+                                {% if form.min_stock.errors %}
+                                    <div class="invalid-feedback d-block">{{ form.min_stock.errors.0 }}</div>
+                                {% endif %}
+                                <small class="text-muted d-block mt-1">تنبيه إعادة الطلب عند انخفاض الرصيد.</small>
                             </div>
-                            
-                            <!-- الضرائب والمورد -->
-                            <div class="col-md-4">
-                                {{ form.tax_rate|as_crispy_field }}
+                        </div>
+
+                        <!-- لوحة إدارة المعاملة الضريبية المعيارية -->
+                        <div class="tax-config-panel">
+                            <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 pb-2 border-bottom">
+                                <div>
+                                    <h6 class="fw-bold mb-0 text-dark">
+                                        <i class="fas fa-percentage text-primary me-2"></i>المعاملة الضريبية والربط المحاسبي (ETA)
+                                    </h6>
+                                    <small class="text-muted">تحديد كود الضريبة المعتمد ونسبتها وتأثيرها على سعر البيع النهائي</small>
+                                </div>
+
+                                <!-- أزرار الاختيار السريع للوضع الضريبي -->
+                                <div class="btn-group btn-group-sm mt-2 mt-md-0" role="group" id="tax-presets-group">
+                                    <button type="button" class="btn btn-outline-secondary tax-preset-btn active" data-type="VAT" data-rate="14">
+                                        <i class="fas fa-check-circle me-1 text-success"></i>قيمة مضافة (14%)
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary tax-preset-btn" data-type="EXEMPT" data-rate="0">
+                                        <i class="fas fa-ban me-1 text-info"></i>معفى من الضريبة (0%)
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary tax-preset-btn" data-type="ZERO_RATED" data-rate="0">
+                                        <i class="fas fa-dot-circle me-1 text-secondary"></i>سعر صفر (0%)
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary tax-preset-btn" data-type="CUSTOM">
+                                        <i class="fas fa-sliders-h me-1 text-warning"></i>مخصص
+                                    </button>
+                                </div>
                             </div>
-                            <div class="col-md-4">
-                                {{ form.tax_code|as_crispy_field }}
+
+                            <div class="row g-3">
+                                <!-- كود الضريبة المعياري (ETA) -->
+                                <div class="col-md-7">
+                                    <label class="form-label fw-medium" for="{{ form.tax_code.id_for_label }}">
+                                        كود الضريبة المعياري (ETA){% if form.tax_code.field.required %} <span class="text-danger">*</span>{% endif %}
+                                    </label>
+                                    <div class="input-group">
+                                        <select name="{{ form.tax_code.html_name }}"
+                                                id="{{ form.tax_code.id_for_label }}"
+                                                class="form-select select2-tax-code{% if form.tax_code.errors %} is-invalid{% endif %}">
+                                            <option value="" data-rate="0" data-type="EXEMPT" data-eta="T2">--- بدون كود ضريبي مخصص (معفى/يدوي) ---</option>
+                                            {% for tc in form.fields.tax_code.queryset %}
+                                                <option value="{{ tc.pk }}"
+                                                        data-rate="{{ tc.rate|smart_float }}"
+                                                        data-type="{{ tc.tax_type }}"
+                                                        data-eta="{{ tc.eta_tax_type|default:'' }}"
+                                                        {% if form.tax_code.value|stringformat:"s" == tc.pk|stringformat:"s" %}selected{% endif %}>
+                                                    {{ tc.code }} - {{ tc.name }} ({{ tc.rate|smart_float }}%){% if tc.eta_tax_type %} [ETA: {{ tc.eta_tax_type }}]{% endif %}
+                                                </option>
+                                            {% endfor %}
+                                        </select>
+                                        <a href="{% url 'financial:tax_code_list' %}" target="_blank" class="btn btn-outline-secondary" title="إدارة أكواد الضرائب">
+                                            <i class="fas fa-external-link-alt"></i>
+                                        </a>
+                                    </div>
+                                    {% if form.tax_code.errors %}
+                                        <div class="invalid-feedback d-block">{{ form.tax_code.errors.0 }}</div>
+                                    {% endif %}
+                                    <small class="text-muted d-block mt-1">تحديد نوع الضريبة للربط مع منظومة الفاتورة الإلكترونية وقوائم الإقرار.</small>
+                                </div>
+
+                                <!-- نسبة الضريبة % -->
+                                <div class="col-md-5">
+                                    <label class="form-label fw-medium" for="{{ form.tax_rate.id_for_label }}">
+                                        نسبة الضريبة المطبقة (%)
+                                    </label>
+                                    <div class="input-group">
+                                        <input type="number"
+                                               name="{{ form.tax_rate.html_name }}"
+                                               id="{{ form.tax_rate.id_for_label }}"
+                                               value="{{ form.tax_rate.value|default:'0' }}"
+                                               class="form-control{% if form.tax_rate.errors %} is-invalid{% endif %}"
+                                               step="0.01" min="0" max="100" placeholder="0.00">
+                                        <span class="input-group-text fw-bold">%</span>
+                                    </div>
+                                    {% if form.tax_rate.errors %}
+                                        <div class="invalid-feedback d-block">{{ form.tax_rate.errors.0 }}</div>
+                                    {% endif %}
+                                    <small class="text-muted d-block mt-1">تُحدّث تلقائياً ومطابقة لكود الضريبة المختار.</small>
+                                </div>
                             </div>
-                            <div class="col-md-4">
-                                {{ form.default_supplier|as_crispy_field }}
+
+                            <!-- لوحة التحليل والحساب اللحظي المالي والضريبي -->
+                            <div class="row g-3 mt-2">
+                                <!-- ملخص الحسابات اللحظية -->
+                                <div class="col-md-7">
+                                    <div class="tax-summary-box">
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <span class="small fw-bold text-dark"><i class="fas fa-receipt me-1 text-primary"></i>تفاصيل السعر والضريبة اللحظية</span>
+                                            <span class="badge bg-primary text-white" id="tax-status-badge">خاضع للقيمة المضافة (14%)</span>
+                                        </div>
+                                        
+                                        <div class="tax-summary-item">
+                                            <span class="tax-summary-label">سعر البيع الأساسي (بدون ضريبة):</span>
+                                            <span class="tax-summary-value" id="summary-net-price">0.00 ج.م</span>
+                                        </div>
+                                        <div class="tax-summary-item">
+                                            <span class="tax-summary-label">مبلغ الضريبة المقدر (<span id="summary-tax-rate">14</span>%):</span>
+                                            <span class="tax-summary-value text-primary" id="summary-tax-amount">+ 0.00 ج.م</span>
+                                        </div>
+                                        <div class="tax-summary-item">
+                                            <span class="tax-summary-label fw-bold text-dark">سعر البيع النهائي (شامل الضريبة):</span>
+                                            <span class="tax-summary-value text-success fs-6" id="summary-gross-price">0.00 ج.م</span>
+                                        </div>
+                                        <div class="tax-summary-item">
+                                            <span class="tax-summary-label">هامش الربح التقديري (قبل الضريبة):</span>
+                                            <span class="tax-summary-value" id="summary-profit-margin">0.00 ج.م (0.0%)</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- حاسبة السعر الشامل العكسية (Smart Inclusive Price Calculator) -->
+                                <div class="col-md-5">
+                                    <div class="tax-summary-box h-100 d-flex flex-column justify-content-between">
+                                        <div>
+                                            <span class="small fw-bold text-dark d-block mb-1">
+                                                <i class="fas fa-calculator me-1 text-success"></i>حاسبة السعر الشامل العكسية
+                                            </span>
+                                            <small class="text-muted d-block mb-2">
+                                                إذا كان السعر المتفق عليه يشمل الضريبة، أدخل الإجمالي وسيتم استخراج السعر الصافي تلقائياً:
+                                            </small>
+                                            <div class="input-group input-group-sm mb-2">
+                                                <input type="number" id="calc-inclusive-input" class="form-control" placeholder="السعر شامل الضريبة" step="0.01" min="0">
+                                                <button type="button" class="btn btn-outline-primary" id="btn-apply-inclusive-price">
+                                                    <i class="fas fa-arrow-left me-1"></i>تطبيق كصافي
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <small class="text-muted text-center border-top pt-2" id="calc-inclusive-hint">
+                                            معادلة الاستخراج: السعر الصافي = الإجمالي ÷ (1 + نسبة الضريبة)
+                                        </small>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- 3. المواصفات التخصصية ونوع الاستخدام -->
-                <div class="form-section-card">
-                    <div class="form-section-header">
-                        <h6 class="form-section-title">
-                            <i class="fas fa-layer-group text-primary"></i>المواصفات التخصصية ونوع الاستخدام
-                        </h6>
-                    </div>
-                    <div class="form-section-body">
-                        <div class="row g-3">
-                            <div class="col-md-6">
-                                {{ form.item_type|as_crispy_field }}
-                            </div>
-                            <div class="col-md-6">
-                                {{ form.suitable_for_grades|as_crispy_field }}
-                            </div>
-                            
-                            <!-- حقول الزي الرسمي (مشروطة) -->
-                            <div class="col-md-6 {% if form.item_type.value != 'uniform' %}d-none{% endif %}" id="col-uniform-size">
-                                {{ form.uniform_size|as_crispy_field }}
-                            </div>
-                            <div class="col-md-6 {% if form.item_type.value != 'uniform' %}d-none{% endif %}" id="col-uniform-gender">
-                                {{ form.uniform_gender|as_crispy_field }}
-                            </div>
-
-                            <!-- حقول المواد التعليمية (مشروطة) -->
-                            <div class="col-12 {% if form.item_type.value != 'educational' %}d-none{% endif %}" id="col-edu-subject">
-                                {{ form.educational_subject|as_crispy_field }}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 4. في حالة التعديل: أسعار العملات الأجنبية (IAS 21) وأسعار الموردين -->
+                <!-- 3. في حالة التعديل: أسعار العملات الأجنبية (IAS 21) وأسعار الموردين -->
                 {% if form.instance.pk %}
                 <div class="form-section-card">
                     <div class="form-section-header d-flex justify-content-between align-items-center">
@@ -547,16 +743,6 @@
 {% block extra_js %}
 <script>
     $(document).ready(function() {
-        // إدارة التبديل الديناميكي لحقول نوع الاستخدام
-        $('#id_item_type').on('change', function() {
-            var val = $(this).val();
-            var isUniform = (val === 'uniform');
-            var isEdu = (val === 'educational');
-
-            $('#col-uniform-size, #col-uniform-gender').toggleClass('d-none', !isUniform);
-            $('#col-edu-subject').toggleClass('d-none', !isEdu);
-        }).trigger('change');
-
         // إدارة الصور إذا كان في وضع التعديل
         if ($('#product-images').length) {
             $('#add-image-btn').click(function() {
@@ -717,6 +903,168 @@
                 complete: function() { $btn.prop('disabled', false).text('حفظ الوحدة'); }
             });
         });
+
+            // =========================================================================
+            // إدارة الحسابات والضرائب اللحظية والتكامل مع منظومة الفاتورة الإلكترونية
+            // =========================================================================
+
+            // تهيئة Select2 لكود الضريبة والموردين
+            if ($.fn.select2) {
+                $('.select2-tax-code').select2({
+                    width: '100%',
+                    dir: 'rtl',
+                    language: 'ar',
+                    placeholder: '--- اختر كود الضريبة المعتمد ---',
+                    allowClear: true
+                });
+            }
+
+            function updateTaxCalculations() {
+                var costPrice = parseFloat($('#id_cost_price').val()) || 0;
+                var netSellingPrice = parseFloat($('#id_selling_price').val()) || 0;
+                var taxRate = parseFloat($('#id_tax_rate').val()) || 0;
+
+                // حساب مبلغ الضريبة والسعر الإجمالي
+                var taxAmount = (netSellingPrice * taxRate) / 100.0;
+                var grossSellingPrice = netSellingPrice + taxAmount;
+
+                // حساب هامش الربح قبل الضريبة
+                var profit = netSellingPrice - costPrice;
+                var profitPercent = netSellingPrice > 0 ? ((profit / netSellingPrice) * 100.0) : 0;
+
+                // تحديث واجهة المستخدم
+                $('#summary-net-price').text(netSellingPrice.toFixed(2) + ' ج.م');
+                $('#summary-tax-rate').text(taxRate.toFixed(2).replace(/\.00$/, ''));
+                $('#summary-tax-amount').text((taxAmount >= 0 ? '+ ' : '') + taxAmount.toFixed(2) + ' ج.م');
+                $('#summary-gross-price').text(grossSellingPrice.toFixed(2) + ' ج.م');
+
+                var profitHtml = '';
+                if (profit < 0) {
+                    profitHtml = '<span class="text-danger">' + profit.toFixed(2) + ' ج.م (' + profitPercent.toFixed(1) + '%) [خسارة]</span>';
+                } else {
+                    profitHtml = '<span class="text-success">' + profit.toFixed(2) + ' ج.م (' + profitPercent.toFixed(1) + '%)</span>';
+                }
+                $('#summary-profit-margin').html(profitHtml);
+
+                // تحديث شارة الحالة الضريبية
+                var $badge = $('#tax-status-badge');
+                if (taxRate > 0) {
+                    $badge.removeClass('bg-secondary bg-info bg-warning').addClass('bg-primary text-white')
+                          .html('<i class="fas fa-check-circle me-1"></i>خاضع للضريبة (' + taxRate.toFixed(1).replace(/\.0$/, '') + '%)');
+                } else {
+                    $badge.removeClass('bg-primary bg-warning').addClass('bg-info text-white')
+                          .html('<i class="fas fa-ban me-1"></i>معفى من الضريبة (0%)');
+                }
+
+                // مزامنة أزرار الاختيار السريع (Presets)
+                syncPresetButtons(taxRate);
+            }
+
+            function syncPresetButtons(taxRate) {
+                var selectedOption = $('#id_tax_code option:selected');
+                var taxType = selectedOption.data('type') || '';
+
+                $('.tax-preset-btn').removeClass('active');
+
+                if (taxType === 'VAT' && Math.abs(taxRate - 14) < 0.01) {
+                    $('.tax-preset-btn[data-type="VAT"]').addClass('active');
+                } else if (taxType === 'EXEMPT' || (taxRate === 0 && taxType !== 'ZERO_RATED')) {
+                    $('.tax-preset-btn[data-type="EXEMPT"]').addClass('active');
+                } else if (taxType === 'ZERO_RATED' || (taxRate === 0 && taxType === 'ZERO_RATED')) {
+                    $('.tax-preset-btn[data-type="ZERO_RATED"]').addClass('active');
+                } else {
+                    $('.tax-preset-btn[data-type="CUSTOM"]').addClass('active');
+                }
+            }
+
+            // عند تغيير كود الضريبة من القائمة
+            $('#id_tax_code').on('change', function() {
+                var $selected = $(this).find('option:selected');
+                var rate = $selected.data('rate');
+
+                if (rate !== undefined && rate !== null && rate !== '') {
+                    $('#id_tax_rate').val(parseFloat(rate) || 0);
+                }
+                updateTaxCalculations();
+            });
+
+            // عند النقر على أزرار الاختيار السريع للوضع الضريبي
+            $('.tax-preset-btn').on('click', function(e) {
+                e.preventDefault();
+                var presetType = $(this).data('type');
+                var presetRate = $(this).data('rate');
+
+                $('.tax-preset-btn').removeClass('active');
+                $(this).addClass('active');
+
+                if (presetType === 'VAT') {
+                    // البحث عن كود ضريبة القيمة المضافة 14%
+                    var $vatOption = $('#id_tax_code option').filter(function() {
+                        return $(this).data('type') === 'VAT' && parseFloat($(this).data('rate')) === 14;
+                    }).first();
+
+                    if ($vatOption.length) {
+                        $('#id_tax_code').val($vatOption.val()).trigger('change');
+                    } else {
+                        $('#id_tax_rate').val('14.00');
+                        updateTaxCalculations();
+                    }
+                } else if (presetType === 'EXEMPT') {
+                    // البحث عن كود الإعفاء
+                    var $exemptOption = $('#id_tax_code option').filter(function() {
+                        return $(this).data('type') === 'EXEMPT' || parseFloat($(this).data('rate')) === 0;
+                    }).first();
+
+                    if ($exemptOption.length) {
+                        $('#id_tax_code').val($exemptOption.val()).trigger('change');
+                    } else {
+                        $('#id_tax_rate').val('0.00');
+                        updateTaxCalculations();
+                    }
+                } else if (presetType === 'ZERO_RATED') {
+                    // البحث عن كود السعر صفر
+                    var $zeroOption = $('#id_tax_code option').filter(function() {
+                        return $(this).data('type') === 'ZERO_RATED';
+                    }).first();
+
+                    if ($zeroOption.length) {
+                        $('#id_tax_code').val($zeroOption.val()).trigger('change');
+                    } else {
+                        $('#id_tax_rate').val('0.00');
+                        updateTaxCalculations();
+                    }
+                } else if (presetType === 'CUSTOM') {
+                    $('#id_tax_rate').focus().select();
+                }
+            });
+
+            // عند تعديل أي حقل من حقول الأسعار أو نسبة الضريبة
+            $('#id_cost_price, #id_selling_price, #id_tax_rate').on('input change keyup', function() {
+                updateTaxCalculations();
+            });
+
+            // تطبيق السعر من حاسبة السعر الشامل العكسية
+            $('#btn-apply-inclusive-price').on('click', function(e) {
+                e.preventDefault();
+                var inclusiveVal = parseFloat($('#calc-inclusive-input').val()) || 0;
+                var taxRate = parseFloat($('#id_tax_rate').val()) || 0;
+
+                if (inclusiveVal <= 0) {
+                    alert('يرجى إدخال سعر إجمالي صحيح أكبر من الصفر');
+                    return;
+                }
+
+                // حساب السعر الصافي: الإجمالي / (1 + نسبة الضريبة / 100)
+                var calculatedNet = inclusiveVal / (1.0 + (taxRate / 100.0));
+                $('#id_selling_price').val(calculatedNet.toFixed(2)).trigger('input');
+
+                if (typeof toastr !== 'undefined') {
+                    toastr.success('تم احتساب وتطبيق السعر الأساسي الصافي: ' + calculatedNet.toFixed(2) + ' ج.م');
+                }
+            });
+
+            // تشغيل الحسابات الأولية عند تحميل الصفحة
+            updateTaxCalculations();
     });
 </script>
 {% endblock %}

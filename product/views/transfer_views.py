@@ -13,6 +13,7 @@ from django.http import JsonResponse
 from decimal import Decimal
 import logging
 
+from core.utils import UnifiedPaginationMixin
 from product.models.inventory_movement import InventoryMovement
 from product.models.stock_management import Stock, Warehouse
 from product.models.product_core import Product
@@ -22,12 +23,12 @@ from product.services.transfer_service import TransferService
 logger = logging.getLogger(__name__)
 
 
-class TransferVoucherListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
+class TransferVoucherListView(UnifiedPaginationMixin, LoginRequiredMixin, PermissionRequiredMixin, ListView):
     """قائمة أذون التحويل المخزني"""
     model = InventoryMovement
     template_name = 'product/vouchers/transfer_voucher_list.html'
     context_object_name = 'vouchers'
-    paginate_by = 20
+    default_per_page = 25
     permission_required = 'product.view_inventorymovement'
     
     def get_queryset(self):

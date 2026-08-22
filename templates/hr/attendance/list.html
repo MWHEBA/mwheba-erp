@@ -70,46 +70,7 @@
 
   <!-- جدول الحضور المحلل -->
   <div class="section-container">
-    <!-- زر تصدير Excel الكامل (كل النتائج بدون pagination) -->
-    <div class="mb-2 text-end">
-      <a href="{% url 'hr:attendance_export_excel' %}?date_from={{ date_from }}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if request.GET.department %}&department={{ request.GET.department }}{% endif %}{% if request.GET.employee %}&employee={{ request.GET.employee }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}"
-         class="btn btn-sm btn-outline-success">
-        <i class="fas fa-file-excel me-1"></i>تصدير Excel (كل النتائج)
-      </a>
-    </div>
     {% include 'components/data_table.html' with table_id="attendance-table" headers=headers data=attendance_data primary_key="id" empty_message="لا توجد سجلات حضور" %}
-    
-    <!-- Pagination -->
-    {% if paginator.num_pages > 1 %}
-    <nav aria-label="Page navigation" class="mt-3">
-      <ul class="pagination justify-content-center">
-        {% if page_obj.has_previous %}
-          <li class="page-item">
-            <a class="page-link" href="?page=1{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if request.GET.department %}&department={{ request.GET.department }}{% endif %}{% if request.GET.employee %}&employee={{ request.GET.employee }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">الأولى</a>
-          </li>
-          <li class="page-item">
-            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if request.GET.department %}&department={{ request.GET.department }}{% endif %}{% if request.GET.employee %}&employee={{ request.GET.employee }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">السابقة</a>
-          </li>
-        {% endif %}
-        
-        <li class="page-item active">
-          <span class="page-link">صفحة {{ page_obj.number }} من {{ paginator.num_pages }}</span>
-        </li>
-        
-        {% if page_obj.has_next %}
-          <li class="page-item">
-            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if request.GET.department %}&department={{ request.GET.department }}{% endif %}{% if request.GET.employee %}&employee={{ request.GET.employee }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">التالية</a>
-          </li>
-          <li class="page-item">
-            <a class="page-link" href="?page={{ paginator.num_pages }}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if request.GET.department %}&department={{ request.GET.department }}{% endif %}{% if request.GET.employee %}&employee={{ request.GET.employee }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">الأخيرة</a>
-          </li>
-        {% endif %}
-      </ul>
-      <p class="text-center text-muted">
-        عرض {{ page_obj.start_index }} - {{ page_obj.end_index }} من إجمالي {{ paginator.count }} سجل
-      </p>
-    </nav>
-    {% endif %}
   </div>
 
   <!-- Modal موحد لعرض الحركات -->

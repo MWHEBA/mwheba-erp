@@ -119,36 +119,9 @@
     </div>
 
     <!-- Django Pagination -->
-    {% if leaves.has_other_pages %}
-    <div class="d-flex justify-content-between align-items-center mt-3">
-        <small class="text-muted">
-            عرض {{ leaves.start_index }} - {{ leaves.end_index }} من {{ leaves.paginator.count }} إجازة
-        </small>
-        <nav>
-            <ul class="pagination pagination-sm mb-0">
-                {% if leaves.has_previous %}
-                <li class="page-item">
-                    <a class="page-link" href="?{% if request.GET.employee %}employee={{ request.GET.employee }}&{% endif %}{% if request.GET.status %}status={{ request.GET.status }}&{% endif %}{% if request.GET.leave_type %}leave_type={{ request.GET.leave_type }}&{% endif %}{% if request.GET.from_date %}from_date={{ request.GET.from_date }}&{% endif %}{% if request.GET.to_date %}to_date={{ request.GET.to_date }}&{% endif %}page={{ leaves.previous_page_number }}">السابق</a>
-                </li>
-                {% endif %}
-                {% for num in leaves.paginator.page_range %}
-                    {% if leaves.number == num %}
-                    <li class="page-item active"><span class="page-link">{{ num }}</span></li>
-                    {% elif num > leaves.number|add:"-3" and num < leaves.number|add:"3" %}
-                    <li class="page-item">
-                        <a class="page-link" href="?{% if request.GET.employee %}employee={{ request.GET.employee }}&{% endif %}{% if request.GET.status %}status={{ request.GET.status }}&{% endif %}{% if request.GET.leave_type %}leave_type={{ request.GET.leave_type }}&{% endif %}{% if request.GET.from_date %}from_date={{ request.GET.from_date }}&{% endif %}{% if request.GET.to_date %}to_date={{ request.GET.to_date }}&{% endif %}page={{ num }}">{{ num }}</a>
-                    </li>
-                    {% endif %}
-                {% endfor %}
-                {% if leaves.has_next %}
-                <li class="page-item">
-                    <a class="page-link" href="?{% if request.GET.employee %}employee={{ request.GET.employee }}&{% endif %}{% if request.GET.status %}status={{ request.GET.status }}&{% endif %}{% if request.GET.leave_type %}leave_type={{ request.GET.leave_type }}&{% endif %}{% if request.GET.from_date %}from_date={{ request.GET.from_date }}&{% endif %}{% if request.GET.to_date %}to_date={{ request.GET.to_date }}&{% endif %}page={{ leaves.next_page_number }}">التالي</a>
-                </li>
-                {% endif %}
-            </ul>
-        </nav>
+    <div id="pagination-wrapper">
+      {% include 'partials/pagination.html' with page_obj=page_obj|default:leaves align='center' %}
     </div>
-    {% endif %}
   </div>
 </div>
 {% endblock %}

@@ -562,16 +562,18 @@ def activity_log(request):
     # ترتيب
     activities = activities.order_by("-timestamp")
     
-    # ترقيم الصفحات
-    paginator = Paginator(activities, 50)
-    page_number = request.GET.get('page', 1)
-    page_obj = paginator.get_page(page_number)
+    # ترقيم الصفحات SSR
+    from core.utils import paginate_queryset
+    pagination_context = paginate_queryset(activities, request, default_per_page=50)
+    page_obj = pagination_context["page_obj"]
     
     # جلب قائمة المستخدمين للفلترة
     users = User.objects.filter(is_active=True).order_by('username')
 
     context = {
         "page_obj": page_obj,
+        "activities": page_obj.object_list,
+        **pagination_context,
         "users": users,
         "selected_user": user_filter or '',
         "selected_action": action_filter or '',

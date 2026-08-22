@@ -68,10 +68,10 @@ def po_list(request):
     completed_count = orders.filter(status__in=["FULLY_RECEIVED", "COMPLETED"]).count()
     total_value = orders.aggregate(val=Sum("total_amount"))["val"] or Decimal("0.00")
 
-    # Pagination
-    paginator = Paginator(orders, 20)
-    page_number = request.GET.get("page")
-    page_obj = paginator.get_page(page_number)
+    # Pagination SSR
+    from core.utils import paginate_queryset
+    pagination_context = paginate_queryset(orders, request)
+    page_obj = pagination_context["page_obj"]
 
     suppliers = Supplier.objects.filter(is_active=True)
     warehouses = Warehouse.objects.filter(is_active=True) if hasattr(Warehouse, "is_active") else Warehouse.objects.all()
@@ -94,6 +94,7 @@ def po_list(request):
     context = {
         "orders": page_obj,
         "page_obj": page_obj,
+        **pagination_context,
         "suppliers": suppliers,
         "warehouses": warehouses,
         "total_count": total_count,
@@ -111,7 +112,7 @@ def po_list(request):
 
     if request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.GET.get("ajax"):
         table_html = render_to_string("purchase/partials/po_table_partial.html", context, request=request)
-        pagination_html = render_to_string("partials/pagination.html", {"page_obj": page_obj}, request=request)
+        pagination_html = render_to_string("partials/pagination.html", context, request=request)
         return JsonResponse({"table_html": table_html, "pagination_html": pagination_html})
 
     return render(request, "purchase/po_list.html", context)

@@ -8,7 +8,6 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.utils.translation import gettext as _
 from django.urls import reverse
-from django.core.paginator import Paginator
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from django.utils import timezone
@@ -59,13 +58,14 @@ def tax_code_list(request):
     vat_count = TaxCode.objects.filter(tax_type="VAT").count()
     wht_count = TaxCode.objects.filter(tax_type="WITHHOLDING").count()
 
-    paginator = Paginator(tax_codes_qs, 20)
-    page_number = request.GET.get('page', 1)
-    page_obj = paginator.get_page(page_number)
+    from core.utils import paginate_queryset
+    pagination_context = paginate_queryset(tax_codes_qs, request)
+    page_obj = pagination_context["page_obj"]
 
     return render(request, 'financial/tax_code_list.html', {
         'page_obj': page_obj,
         'tax_codes': page_obj.object_list,
+        **pagination_context,
         'total_count': total_count,
         'active_count': active_count,
         'vat_count': vat_count,
@@ -184,13 +184,14 @@ def tax_seed_presets(request):
 @login_required
 def tax_rules_list(request):
     """عرض قائمة قواعد احتساب وسياسات الضرائب التلقائية"""
-    rules_qs = TaxRule.objects.select_related('tax_code', 'jurisdiction').all().order_by('priority')
-    paginator = Paginator(rules_qs, 20)
-    page_obj = paginator.get_page(request.GET.get('page', 1))
+    from core.utils import paginate_queryset
+    pagination_context = paginate_queryset(rules_qs, request)
+    page_obj = pagination_context["page_obj"]
 
     return render(request, 'financial/tax_rules_list.html', {
         'page_obj': page_obj,
         'rules': page_obj.object_list,
+        **pagination_context,
         'page_title': _("قواعد احتساب الضرائب"),
         'page_subtitle': _("تحديد سياسات التطبيق التلقائي والأولويات حسب النطاق"),
         'page_icon': "fas fa-gavel",
@@ -294,12 +295,14 @@ def tax_exemptions_list(request):
     exemptions_qs = TaxExemptionCertificate.objects.select_related(
         'customer', 'supplier', 'tax_code'
     ).all().order_by('-valid_to')
-    paginator = Paginator(exemptions_qs, 20)
-    page_obj = paginator.get_page(request.GET.get('page', 1))
+    from core.utils import paginate_queryset
+    pagination_context = paginate_queryset(exemptions_qs, request)
+    page_obj = pagination_context["page_obj"]
 
     return render(request, 'financial/tax_exemptions_list.html', {
         'page_obj': page_obj,
         'exemptions': page_obj.object_list,
+        **pagination_context,
         'page_title': _("شهادات الإعفاء الضريبي"),
         'page_subtitle': _("إدارة شهادات الإعفاء للعملاء والموردين ومتابعة السقف المالي"),
         'page_icon': "fas fa-id-card",
@@ -428,12 +431,14 @@ def tax_audit_list(request):
     posted_count = TaxDeterminationAudit.objects.filter(audit_status="POSTED").count()
     reversed_count = TaxDeterminationAudit.objects.filter(audit_status="REVERSED").count()
 
-    paginator = Paginator(audits_qs, 20)
-    page_obj = paginator.get_page(request.GET.get('page', 1))
+    from core.utils import paginate_queryset
+    pagination_context = paginate_queryset(audits_qs, request)
+    page_obj = pagination_context["page_obj"]
 
     return render(request, 'financial/tax_audit_list.html', {
         'page_obj': page_obj,
         'audits': page_obj.object_list,
+        **pagination_context,
         'total_taxable_sum': total_taxable_sum,
         'total_functional_tax': total_functional_tax,
         'posted_count': posted_count,
@@ -483,13 +488,14 @@ def tax_audit_verify_ajax(request, pk):
 @login_required
 def tax_events_list(request):
     """عرض سجل الأحداث الضريبية المستقل Domain Events"""
-    events_qs = TaxEvent.objects.all().order_by('-processed_at')
-    paginator = Paginator(events_qs, 25)
-    page_obj = paginator.get_page(request.GET.get('page', 1))
+    from core.utils import paginate_queryset
+    pagination_context = paginate_queryset(events_qs, request)
+    page_obj = pagination_context["page_obj"]
 
     return render(request, 'financial/tax_events_list.html', {
         'page_obj': page_obj,
         'events': page_obj.object_list,
+        **pagination_context,
         'page_title': _("سجل الأحداث الضريبية"),
         'page_subtitle': _("تتبع الأحداث الضريبية المستقلة والتسويات المرتبطة بالـ UUID"),
         'page_icon': "fas fa-stream",

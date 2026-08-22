@@ -457,35 +457,6 @@ def test_email_settings(request):
         })
 
 
-@login_required
-@require_http_methods(["GET"])
-def get_system_info(request):
-    """
-    API endpoint لجلب معلومات النظام المحدثة
-    """
-    try:
-        disk_usage = psutil.disk_usage('/')
-        memory = psutil.virtual_memory()
-        cpu_percent = psutil.cpu_percent(interval=1)
-        
-        return JsonResponse({
-            "success": True,
-            "data": {
-                "cpu": f"{cpu_percent}%",
-                "memory": f"{memory.percent}%",
-                "disk": f"{disk_usage.percent}%",
-                "memory_used": f"{memory.used / (1024**3):.1f} GB",
-                "memory_total": f"{memory.total / (1024**3):.1f} GB",
-                "disk_used": f"{disk_usage.used / (1024**3):.1f} GB",
-                "disk_total": f"{disk_usage.total / (1024**3):.1f} GB",
-            }
-        })
-    except Exception as e:
-        return JsonResponse({
-            "success": False,
-            "message": str(e)
-        })
-
 
 @login_required
 @require_POST

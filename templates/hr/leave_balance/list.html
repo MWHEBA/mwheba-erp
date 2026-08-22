@@ -140,6 +140,11 @@
             </div>
             {% endfor %}
         </div>
+        
+        <!-- الترقيم والتنقل الموحد -->
+        <div id="pagination-wrapper">
+          {% include "partials/pagination.html" with page_obj=page_obj %}
+        </div>
         {% else %}
           {% include 'partials/empty_state.html' with message="لا توجد أرصدة للسنة المحددة" icon="chart-pie" %}
         {% endif %}

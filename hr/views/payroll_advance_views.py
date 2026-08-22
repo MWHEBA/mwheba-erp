@@ -165,13 +165,15 @@ def payroll_list(request):
         }
         payroll.status_display = status_badges.get(payroll.status, '<span class="badge bg-secondary">غير محدد</span>')
     
-    # Pagination - 50 راتب لكل صفحة
-    paginator = Paginator(payrolls, 50)
-    page = request.GET.get('page', 1)
-    payrolls_page = paginator.get_page(page)
+    # Pagination SSR
+    from core.utils import paginate_queryset
+    pagination_context = paginate_queryset(payrolls, request, default_per_page=50)
+    payrolls_page = pagination_context["page_obj"]
     
     context = {
         'payrolls': payrolls_page,
+        'page_obj': payrolls_page,
+        **pagination_context,
         'table_headers': table_headers,
         'table_actions': table_actions,
         'currency_symbol': 'ج.م',

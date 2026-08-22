@@ -2,7 +2,7 @@ from django.urls import path
 from . import api
 from .views import (
     # Main views
-    dashboard, company_settings, system_settings, get_current_time,
+    dashboard, company_settings, operations_settings, system_settings, get_current_time,
     system_reset, notifications_list, notification_settings, whatsapp_settings,
     whatsapp_webhook,
     # Logs views
@@ -34,6 +34,7 @@ urlpatterns = [
     
     # مسارات الإعدادات
     path("settings/company/", company_settings, name="company_settings"),
+    path("settings/operations/", operations_settings, name="operations_settings"),
     path("settings/system/", system_settings, name="system_settings"),
     path("settings/modules/", module_management, name="module_management"),
     
@@ -73,6 +74,5 @@ urlpatterns = [
     path('api/dashboard/stats/', api.get_dashboard_stats, name='dashboard_stats'),
     path('api/dashboard/activity/', api.get_recent_activity, name='recent_activity'),
     path('api/test-email/', api.test_email_settings, name='test_email_settings'),
-    path('api/system-info/', api.get_system_info, name='get_system_info'),
     path('api/upload-company-logo/', api.upload_company_logo, name='upload_company_logo'),
 ]

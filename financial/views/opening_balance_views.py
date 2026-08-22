@@ -29,9 +29,9 @@ def opening_balance_list(request):
     if status_filter:
         batches_qs = batches_qs.filter(status=status_filter)
 
-    paginator = Paginator(batches_qs, 25)
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
+    from core.utils import paginate_queryset
+    pagination_context = paginate_queryset(batches_qs, request)
+    page_obj = pagination_context["page_obj"]
 
     # حساب إحصائيات المؤشرات الرقمية KPI
     total_count = batches_qs.count()
@@ -42,6 +42,7 @@ def opening_balance_list(request):
     return render(request, 'financial/opening_balance_list.html', {
         'page_obj': page_obj,
         'batches': page_obj.object_list,
+        **pagination_context,
         'total_count': total_count,
         'draft_count': draft_count,
         'posted_count': posted_count,

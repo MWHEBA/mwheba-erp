@@ -188,11 +188,7 @@
 
     <!-- Django Pagination -->
     <div id="pagination-wrapper">
-      {% if paginator.num_pages > 1 %}
-      <div class="card-footer bg-white border-0 py-3 mt-3">
-        {% include 'partials/pagination.html' with page_obj=page_obj align='center' %}
-      </div>
-      {% endif %}
+      {% include 'partials/pagination.html' with page_obj=page_obj align='center' %}
     </div>
   </div>
 </div>
@@ -229,13 +225,6 @@
     adjustTableSize();
     $(window).resize(adjustTableSize);
 
-    // تصدير الجدول إلى CSV
-    $('.btn-export-table').on('click', function() {
-      const tableId = $(this).data('table');
-      const filename = $(this).data('filename');
-      exportTableToCSV(tableId, filename);
-    });
-    
     // تصدير الجدول إلى Excel
     $('.btn-export-excel').on('click', function() {
       const tableId = $(this).data('table');

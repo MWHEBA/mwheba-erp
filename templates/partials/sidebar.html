@@ -841,13 +841,18 @@
                     </a>
                     <ul class="collapse list-unstyled submenu {% if active_menu == 'settings' %}show{% endif %}" id="settingsMenu">
                         <li>
-                            <a href="{% url 'core:system_settings' %}" class="submenu-link">
-                                <i class="fas fa-sliders-h me-2"></i>{% trans "إعدادات النظام" %}
+                            <a href="{% url 'core:company_settings' %}" class="submenu-link">
+                                <i class="fas fa-building me-2"></i>{% trans "إعدادات المنشـأة" %}
                             </a>
                         </li>
                         <li>
-                            <a href="{% url 'core:company_settings' %}" class="submenu-link">
-                                <i class="fas fa-building me-2"></i>{% trans "إعدادات الشركة" %}
+                            <a href="{% url 'core:operations_settings' %}" class="submenu-link">
+                                <i class="fas fa-sliders-h me-2"></i>{% trans "سياسات التشغيل" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'core:system_settings' %}" class="submenu-link">
+                                <i class="fas fa-cogs me-2"></i>{% trans "إعدادات النظام" %}
                             </a>
                         </li>
                         <li>

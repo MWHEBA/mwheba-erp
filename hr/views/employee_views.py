@@ -128,7 +128,18 @@ def employee_list(request):
         (hasattr(request.user, 'role') and request.user.role and
          request.user.role.permissions.filter(codename='delete_employee').exists())
 
-    for employee in employees:
+    # معالجة التصدير (تصدير كامل النتائج المفلترة إلى Excel)
+    export_format = request.GET.get('export', '')
+    if export_format in ['excel', 'xlsx']:
+        from .employee_import import export_employees
+        return export_employees(employees, 'xlsx')
+    
+    # Pagination SSR
+    from core.utils import paginate_queryset
+    pagination_context = paginate_queryset(employees, request, default_per_page=25)
+    page_obj = pagination_context["page_obj"]
+
+    for employee in page_obj:
         # عرض الصورة في عمود منفصل
         if employee.photo:
             employee.photo_display = f'<img src="{employee.photo.url}" class="rounded-circle" width="40" height="40">'
@@ -196,14 +207,10 @@ def employee_list(request):
                     {'onclick': f'reinstateEmployee({employee.pk}, "{employee.get_full_name_ar()}")', 'icon': 'fas fa-undo', 'label': 'إعادة للخدمة', 'class': 'btn-outline-success btn-sm'}
                 )
     
-    # معالجة التصدير
-    export_format = request.GET.get('export', '')
-    if export_format in ['csv', 'xlsx']:
-        from .employee_import import export_employees
-        return export_employees(employees, export_format)
-    
     context = {
-        'employees': employees,
+        'employees': page_obj,
+        'page_obj': page_obj,
+        **pagination_context,
         'departments': departments,
         'job_titles': job_titles,
         'total_employees': total_employees,

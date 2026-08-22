@@ -76,17 +76,15 @@ def price_manager(request):
 
         if search:
             qs = qs.filter(Q(name__icontains=search) | Q(sku__icontains=search))
-        paginator   = Paginator(qs, 50)
-        page_number = request.GET.get('page', 1)
-        items       = paginator.get_page(page_number)
     else:
         if search:
             qs = qs.filter(Q(name__icontains=search) | Q(sku__icontains=search))
-            paginator   = Paginator(qs, 50)
-            page_number = request.GET.get('page', 1)
-            items       = paginator.get_page(page_number)
         else:
-            items = Product.objects.none()
+            qs = Product.objects.none()
+
+    from core.utils import paginate_queryset
+    pagination_context = paginate_queryset(qs, request, default_per_page=50)
+    items = pagination_context["page_obj"]
 
     back_url = reverse('product:service_list') if is_service else reverse('product:product_list')
     title    = 'تحديث أسعار الخدمات' if is_service else 'تحديث أسعار المنتجات'
@@ -94,7 +92,8 @@ def price_manager(request):
     context = {
         'title': title,
         'items': items,
-        'paginator': paginator,
+        'page_obj': items,
+        **pagination_context,
         'categories': categories,
         'selected_category': category_id,
         'item_type': item_type,
@@ -121,9 +120,9 @@ def price_manager(request):
         )
         pagination_html = render_to_string(
             'partials/pagination.html',
-            {'page_obj': items, 'align': 'center'},
+            context,
             request=request,
-        ) if paginator and paginator.num_pages > 1 else ''
+        )
         return JsonResponse({'table_html': table_html, 'pagination_html': pagination_html})
 
     return render(request, 'product/price_manager.html', context)

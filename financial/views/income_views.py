@@ -135,14 +135,16 @@ def income_list(request):
     # إعداد بيانات محسنة لكل قيد
     enhanced_entries = prepare_list_context(income_entries, 'income')
 
-    # إعداد الترقيم الصفحي
-    paginator = Paginator(enhanced_entries, 25)
-    page_number = request.GET.get("page")
-    page_obj = paginator.get_page(page_number)
+    # إعداد الترقيم الصفحي SSR
+    from core.utils import paginate_queryset
+    pagination_context = paginate_queryset(enhanced_entries, request, default_per_page=25)
+    page_obj = pagination_context["page_obj"]
 
     context = {
         "incomes": page_obj,  # للتوافق مع template
         "journal_entries": page_obj,
+        "page_obj": page_obj,
+        **pagination_context,
         "income_headers": headers,
         "income_actions": action_buttons,
         "primary_key": "id",

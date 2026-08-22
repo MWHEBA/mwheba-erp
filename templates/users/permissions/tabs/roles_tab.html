@@ -63,35 +63,9 @@
         {% endfor %}
         
         <!-- Pagination -->
-        {% if roles.has_other_pages %}
-        <nav aria-label="صفحات الأدوار">
-            <ul class="pagination justify-content-center">
-                {% if roles.has_previous %}
-                    <li class="page-item">
-                        <a class="page-link" href="?tab=roles&page={{ roles.previous_page_number }}{% if search %}&search={{ search }}{% endif %}">السابق</a>
-                    </li>
-                {% endif %}
-                
-                {% for num in roles.paginator.page_range %}
-                    {% if roles.number == num %}
-                        <li class="page-item active">
-                            <span class="page-link">{{ num }}</span>
-                        </li>
-                    {% elif num > roles.number|add:'-3' and num < roles.number|add:'3' %}
-                        <li class="page-item">
-                            <a class="page-link" href="?tab=roles&page={{ num }}{% if search %}&search={{ search }}{% endif %}">{{ num }}</a>
-                        </li>
-                    {% endif %}
-                {% endfor %}
-                
-                {% if roles.has_next %}
-                    <li class="page-item">
-                        <a class="page-link" href="?tab=roles&page={{ roles.next_page_number }}{% if search %}&search={{ search }}{% endif %}">التالي</a>
-                    </li>
-                {% endif %}
-            </ul>
-        </nav>
-        {% endif %}
+        <div id="pagination-wrapper">
+          {% include 'partials/pagination.html' with page_obj=page_obj|default:roles align='center' show_export=False %}
+        </div>
     {% else %}
         <div class="text-center py-5">
             <i class="fas fa-user-tag fa-4x text-muted mb-3"></i>

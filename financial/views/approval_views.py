@@ -22,13 +22,14 @@ def approval_inbox(request):
     approved_count = EnterpriseApprovalRequest.objects.filter(status="APPROVED").count()
     rejected_count = EnterpriseApprovalRequest.objects.filter(status="REJECTED").count()
 
-    paginator = Paginator(requests_qs, 25)
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
+    from core.utils import paginate_queryset
+    pagination_context = paginate_queryset(requests_qs, request)
+    page_obj = pagination_context["page_obj"]
 
     return render(request, 'financial/approval_inbox.html', {
         'page_obj': page_obj,
         'requests_list': page_obj.object_list,
+        **pagination_context,
         'status_filter': status_filter,
         'pending_count': pending_count,
         'approved_count': approved_count,

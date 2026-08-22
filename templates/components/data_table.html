@@ -446,26 +446,6 @@
 </div>
 {% endif %}
 
-{% if show_export|default:False and data %}
-<!-- أزرار التصدير المزدوجة المحسنة -->
-<div class="table-export-controls mt-3">
-    <div class="d-flex justify-content-end align-items-center gap-2">
-        <a href="?{% url_replace request 'export' 'excel' %}" 
-           class="btn btn-sm btn-success" 
-           title="{% trans 'تصدير كافة السجلات المفلترة كملف Excel' %}">
-            <i class="fas fa-file-excel me-1" aria-hidden="true"></i>{% trans "تصدير الكل (Excel)" %}
-        </a>
-        <button type="button" 
-                class="btn btn-sm btn-outline-secondary btn-export-excel" 
-                data-table="{{ table_id|default:'data-table' }}" 
-                data-filename="{{ export_filename|default:'table_data' }}"
-                title="{% trans 'تصدير الصفحة المعروضة حالياً' %}">
-            <i class="fas fa-table me-1" aria-hidden="true"></i>{% trans "تصدير الصفحة الحالية" %}
-        </button>
-    </div>
-</div>
-{% endif %}
-
 <!-- Enhanced Data Table JavaScript -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {

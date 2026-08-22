@@ -143,35 +143,9 @@
         {% endfor %}
         
         <!-- Pagination -->
-        {% if users.has_other_pages %}
-        <nav aria-label="صفحات المستخدمين" class="mt-4">
-            <ul class="pagination justify-content-center">
-                {% if users.has_previous %}
-                    <li class="page-item">
-                        <a class="page-link" href="?tab=users&page={{ users.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if role_filter %}&role={{ role_filter }}{% endif %}">السابق</a>
-                    </li>
-                {% endif %}
-                
-                {% for num in users.paginator.page_range %}
-                    {% if users.number == num %}
-                        <li class="page-item active">
-                            <span class="page-link">{{ num }}</span>
-                        </li>
-                    {% elif num > users.number|add:'-3' and num < users.number|add:'3' %}
-                        <li class="page-item">
-                            <a class="page-link" href="?tab=users&page={{ num }}{% if search %}&search={{ search }}{% endif %}{% if role_filter %}&role={{ role_filter }}{% endif %}">{{ num }}</a>
-                        </li>
-                    {% endif %}
-                {% endfor %}
-                
-                {% if users.has_next %}
-                    <li class="page-item">
-                        <a class="page-link" href="?tab=users&page={{ users.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if role_filter %}&role={{ role_filter }}{% endif %}">التالي</a>
-                    </li>
-                {% endif %}
-            </ul>
-        </nav>
-        {% endif %}
+        <div id="pagination-wrapper">
+          {% include 'partials/pagination.html' with page_obj=page_obj|default:users align='center' show_export=False %}
+        </div>
     {% else %}
         <div class="text-center py-5">
             <i class="fas fa-users fa-4x text-muted mb-3"></i>

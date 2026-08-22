@@ -617,6 +617,41 @@ def render_paginated_response(request, template_name, context, table_template_na
     return render(request, template_name, context)
 
 
+class UnifiedPaginationMixin:
+    """
+    Mixin لتوحيد الترقيم في Class-Based Views (CBVs) مع دعم per_page والترقيم الذكي الموحد
+    """
+    paginate_by = 25
+    default_per_page = 25
+    max_per_page = 100
+    page_kwarg = "page"
+
+    def get_paginate_by(self, queryset):
+        raw_per_page = self.request.GET.get('per_page')
+        try:
+            per_page = int(raw_per_page) if raw_per_page else self.default_per_page
+        except (ValueError, TypeError):
+            per_page = self.default_per_page
+
+        if per_page not in [10, 25, 50, 100]:
+            per_page = self.default_per_page
+        return min(per_page, self.max_per_page)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        paginator = context.get('paginator')
+        page_obj = context.get('page_obj')
+        if paginator and page_obj:
+            try:
+                elided = list(paginator.get_elided_page_range(page_obj.number, on_each_side=2, on_ends=1))
+            except Exception:
+                elided = list(paginator.page_range)
+            context['elided_page_range'] = elided
+            context['per_page'] = self.get_paginate_by(self.get_queryset())
+            context['page_param'] = self.page_kwarg
+        return context
+
+
 def generate_unique_slug(model, title, slug_field="slug", instance=None):
     """
     توليد slug فريد للنموذج

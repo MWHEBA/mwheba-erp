@@ -501,41 +501,9 @@
           </div>
 
           <!-- Pagination -->
-          {% if page_obj.has_other_pages %}
-          <nav aria-label="صفحات سجل التدقيق" class="mt-4">
-            <ul class="pagination justify-content-center">
-              {% if page_obj.has_previous %}
-                <li class="page-item">
-                  <a class="page-link" href="?page=1{% if request.GET.urlencode %}&{{ request.GET.urlencode }}{% endif %}">{% trans "الأولى" %}</a>
-                </li>
-                <li class="page-item">
-                  <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.urlencode %}&{{ request.GET.urlencode }}{% endif %}">{% trans "السابقة" %}</a>
-                </li>
-              {% endif %}
-
-              {% for num in page_obj.paginator.page_range %}
-                {% if page_obj.number == num %}
-                  <li class="page-item active">
-                    <span class="page-link">{{ num }}</span>
-                  </li>
-                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
-                  <li class="page-item">
-                    <a class="page-link" href="?page={{ num }}{% if request.GET.urlencode %}&{{ request.GET.urlencode }}{% endif %}">{{ num }}</a>
-                  </li>
-                {% endif %}
-              {% endfor %}
-
-              {% if page_obj.has_next %}
-                <li class="page-item">
-                  <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.urlencode %}&{{ request.GET.urlencode }}{% endif %}">{% trans "التالية" %}</a>
-                </li>
-                <li class="page-item">
-                  <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if request.GET.urlencode %}&{{ request.GET.urlencode }}{% endif %}">{% trans "الأخيرة" %}</a>
-                </li>
-              {% endif %}
-            </ul>
-          </nav>
-          {% endif %}
+          <div id="pagination-wrapper">
+            {% include 'partials/pagination.html' with page_obj=page_obj align='center' show_export=False %}
+          </div>
         {% else %}
           <div class="empty-state">
             <div class="empty-state-icon">

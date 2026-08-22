@@ -1,0 +1,466 @@
+{% extends "base.html" %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{{ title }} | {{ site_name|default:"موهبة ERP" }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    {% include "shared/page_header.html" %}
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body">
+            <!-- Tabs Navigation -->
+            <ul class="nav nav-tabs border-bottom mb-4" id="operationsSettingsTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="invoices-tab" data-bs-toggle="tab" data-bs-target="#invoices" type="button" role="tab">
+                        <i class="fas fa-file-invoice me-2 text-primary"></i>سياسات بنود الفواتير
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="quotations-tab" data-bs-toggle="tab" data-bs-target="#quotations" type="button" role="tab">
+                        <i class="fas fa-file-contract me-2 text-info"></i>عروض الأسعار
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="terms-tab" data-bs-toggle="tab" data-bs-target="#terms" type="button" role="tab">
+                        <i class="fas fa-paragraph me-2 text-warning"></i>الشروط والأحكام الافتراضية
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="printing-tab" data-bs-toggle="tab" data-bs-target="#printing" type="button" role="tab">
+                        <i class="fas fa-print me-2 text-success"></i>نماذج الطباعة والحراري
+                    </button>
+                </li>
+            </ul>
+
+            <!-- Main Settings Form -->
+            <form method="post" action="{% url 'core:operations_settings' %}" id="operationsSettingsForm" autocomplete="off">
+                {% csrf_token %}
+                <input type="hidden" name="active_tab" id="activeTabInput" value="invoices">
+
+                <div class="tab-content" id="operationsSettingsTabContent">
+                    <!-- 1. بنود الفواتير والحقول المخصصة -->
+                    <div class="tab-pane fade show active" id="invoices" role="tabpanel">
+                        <div class="card border mb-4">
+                            <div class="card-header bg-light py-3">
+                                <h6 class="fw-bold mb-0 text-dark">
+                                    <i class="fas fa-sliders-h text-primary me-2"></i>سياسات بنود الفواتير والأصناف
+                                </h6>
+                            </div>
+                            <div class="card-body p-4">
+                                <div class="row g-4">
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold">{{ form.sale_invoice_item_types.label }}</label>
+                                        {{ form.sale_invoice_item_types }}
+                                        <div class="form-text text-muted">تحديد إمكانية إضافة منتجات مخزنية، خدمات غير مخزنية، أو كلاهما في فواتير المبيعات.</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold">{{ form.purchase_invoice_item_types.label }}</label>
+                                        {{ form.purchase_invoice_item_types }}
+                                        <div class="form-text text-muted">تحديد نوع البنود المسموح شراؤها وإدراجها في فواتير الشراء وأوامر التوريد.</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold">{{ form.invoice_product_code_display.label }}</label>
+                                        {{ form.invoice_product_code_display }}
+                                        <div class="form-text text-muted">طريقة إظهار كود الصنف أو الباركود في جدول بنود الفاتورة وشاشات الطباعة.</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card border mb-4">
+                            <div class="card-header bg-light py-3 d-flex justify-content-between align-items-center">
+                                <h6 class="fw-bold mb-0 text-dark">
+                                    <i class="fas fa-th-list text-primary me-2"></i>الحقول الإضافية المخصصة (Custom Fields)
+                                </h6>
+                                <a href="{% url 'sale:custom_field_list' %}" class="btn btn-outline-primary btn-sm" target="_blank">
+                                    <i class="fas fa-sliders-h me-1"></i>إدارة تعاريف الحقول الإضافية
+                                </a>
+                            </div>
+                            <div class="card-body p-4">
+                                <div class="row g-4">
+                                    <div class="col-md-6">
+                                        <div class="form-check form-switch mt-2">
+                                            {{ form.enable_custom_fields }}
+                                            <label class="form-check-label fw-bold" for="{{ form.enable_custom_fields.id_for_label }}">
+                                                {{ form.enable_custom_fields.label }}
+                                            </label>
+                                        </div>
+                                        <div class="form-text text-muted">تفعيل إمكانية استخدام الحقول الإضافية (مثل: رقم الشاسيه، تاريخ انتهاء الصلاحية، إلخ) بالفواتير.</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold">{{ form.custom_fields_display_mode.label }}</label>
+                                        {{ form.custom_fields_display_mode }}
+                                        <div class="form-text text-muted">التحكم في طريقة ظهور قسم الحقول المخصصة في واجهة إنشاء الفاتورة وعرض السعر.</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 2. عروض الأسعار -->
+                    <div class="tab-pane fade" id="quotations" role="tabpanel">
+                        <div class="card border mb-4">
+                            <div class="card-header bg-light py-3">
+                                <h6 class="fw-bold mb-0 text-dark">
+                                    <i class="fas fa-file-contract text-info me-2"></i>إعدادات وسياسات عروض الأسعار
+                                </h6>
+                            </div>
+                            <div class="card-body p-4">
+                                <div class="row g-4">
+                                    <div class="col-md-6">
+                                        <div class="form-check form-switch mt-2">
+                                            {{ form.enable_quotations }}
+                                            <label class="form-check-label fw-bold" for="{{ form.enable_quotations.id_for_label }}">
+                                                {{ form.enable_quotations.label }}
+                                            </label>
+                                        </div>
+                                        <div class="form-text text-muted">تشغيل أو تعطيل موديول عروض الأسعار وإمكانية تحويلها المباشر لفواتير مبيعات.</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold">{{ form.default_quotation_validity_days.label }}</label>
+                                        {{ form.default_quotation_validity_days }}
+                                        <div class="form-text text-muted">عدد الأيام الافتراضية المضافة تلقائياً لتاريخ استحقاق عرض السعر عند إنشائه.</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 3. الشروط والأحكام الافتراضية مع المحرر المتقدم -->
+                    <div class="tab-pane fade" id="terms" role="tabpanel">
+                        <div class="card border mb-4">
+                            <div class="card-header bg-light py-3">
+                                <h6 class="fw-bold mb-0 text-dark">
+                                    <i class="fas fa-file-signature text-warning me-2"></i>شروط وملاحظات فواتير المبيعات الافتراضية
+                                </h6>
+                            </div>
+                            <div class="card-body p-4">
+                                <div class="row g-4">
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold" for="id_default_sale_invoice_notes">{{ form.default_sale_invoice_notes.label }}</label>
+                                        {% include "partials/editor.html" with id="id_default_sale_invoice_notes" name="default_sale_invoice_notes" value=form.default_sale_invoice_notes.value|default:'' placeholder="أدخل الملاحظات والشروط الافتراضية لفواتير المبيعات..." height=160 toolbar="basic" %}
+                                        <div class="form-text text-muted mt-1">تظهر تلقائياً في أسفل فواتير المبيعات باللغة العربية.</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold" for="id_default_sale_invoice_notes_en">{{ form.default_sale_invoice_notes_en.label }}</label>
+                                        {% include "partials/editor.html" with id="id_default_sale_invoice_notes_en" name="default_sale_invoice_notes_en" value=form.default_sale_invoice_notes_en.value|default:'' placeholder="Enter default sales invoice terms in English..." height=160 toolbar="basic" dir="ltr" %}
+                                        <div class="form-text text-muted mt-1">Displayed at the bottom of sales invoices in English print templates.</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card border mb-4">
+                            <div class="card-header bg-light py-3">
+                                <h6 class="fw-bold mb-0 text-dark">
+                                    <i class="fas fa-file-contract text-warning me-2"></i>شروط وملاحظات عروض الأسعار الافتراضية
+                                </h6>
+                            </div>
+                            <div class="card-body p-4">
+                                <div class="row g-4">
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold" for="id_default_quotation_notes">{{ form.default_quotation_notes.label }}</label>
+                                        {% include "partials/editor.html" with id="id_default_quotation_notes" name="default_quotation_notes" value=form.default_quotation_notes.value|default:'' placeholder="أدخل الملاحظات والشروط الافتراضية لعروض الأسعار..." height=160 toolbar="basic" %}
+                                        <div class="form-text text-muted mt-1">تظهر تلقائياً في أسفل عروض الأسعار باللغة العربية.</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold" for="id_default_quotation_notes_en">{{ form.default_quotation_notes_en.label }}</label>
+                                        {% include "partials/editor.html" with id="id_default_quotation_notes_en" name="default_quotation_notes_en" value=form.default_quotation_notes_en.value|default:'' placeholder="Enter default quotation terms in English..." height=160 toolbar="basic" dir="ltr" %}
+                                        <div class="form-text text-muted mt-1">Displayed at the bottom of quotations in English print templates.</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 4. نماذج الطباعة والحراري -->
+                    <div class="tab-pane fade" id="printing" role="tabpanel">
+                        <div class="card border mb-4">
+                            <div class="card-header bg-light py-3">
+                                <h6 class="fw-bold mb-0 text-dark">
+                                    <i class="fas fa-language text-success me-2"></i>لغة الطباعة والمسميات الإنجليزية
+                                </h6>
+                            </div>
+                            <div class="card-body p-4">
+                                <div class="row g-4">
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-bold">{{ form.default_print_language.label }}</label>
+                                        {{ form.default_print_language }}
+                                        <div class="form-text text-muted">اللغة الافتراضية المستخدمة عند فتح شاشات طباعة الفواتير وعروض الأسعار.</div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-bold">{{ form.invoice_title_sale_en.label }}</label>
+                                        {{ form.invoice_title_sale_en }}
+                                        <div class="form-text text-muted">العنوان المطبوع في أعلى فاتورة المبيعات باللغة الإنجليزية (مثال: TAX INVOICE).</div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-bold">{{ form.invoice_title_quotation_en.label }}</label>
+                                        {{ form.invoice_title_quotation_en }}
+                                        <div class="form-text text-muted">العنوان المطبوع في أعلى عرض السعر باللغة الإنجليزية (مثال: QUOTATION).</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card border mb-4">
+                            <div class="card-header bg-light py-3">
+                                <h6 class="fw-bold mb-0 text-dark">
+                                    <i class="fas fa-receipt text-success me-2"></i>الطباعة الحرارية المباشرة (POS Thermal Printing)
+                                </h6>
+                            </div>
+                            <div class="card-body p-4">
+                                <div class="row g-4">
+                                    <div class="col-md-6">
+                                        <div class="form-check form-switch mt-2">
+                                            {{ form.enable_thermal_printing }}
+                                            <label class="form-check-label fw-bold" for="{{ form.enable_thermal_printing.id_for_label }}">
+                                                {{ form.enable_thermal_printing.label }}
+                                            </label>
+                                        </div>
+                                        <div class="form-text text-muted">تفعيل زر الطباعة الحرارية المباشرة (فواتير الكاشير والإيصالات) في تفاصيل الفواتير.</div>
+                                    </div>
+                                    <div class="col-md-6" id="thermalPaperWidthContainer">
+                                        <label class="form-label fw-bold">{{ form.receipt_paper_width.label }}</label>
+                                        {{ form.receipt_paper_width }}
+                                        <div class="form-text text-muted">مقاس عرض ورق الطابعة الحرارية المستخدمة (80 مم قياسي أو 58 مم صغير).</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Submit Toolbar -->
+                <div class="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
+                    <a href="{% url 'core:dashboard' %}" class="btn btn-secondary px-4">إلغاء</a>
+                    <button type="submit" class="btn btn-primary px-5 fw-bold">
+                        <i class="fas fa-save me-2"></i>حفظ سياسات التشغيل
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Scoped Import Modal (Rule #8) -->
+<div class="modal fade" id="importOperationsModal" tabindex="-1" aria-labelledby="importOperationsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-light border-bottom px-4 py-3">
+                <h5 class="modal-title fw-bold text-dark mb-0" id="importOperationsModalLabel">
+                    <i class="fas fa-file-import text-primary me-2"></i>استيراد سياسات التشغيل (JSON)
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="alert alert-info py-2 px-3 mb-3 small">
+                    <i class="fas fa-info-circle me-1"></i>
+                    يرجى اختيار ملف JSON تم تصديره مسبقاً من شاشة سياسات التشغيل.
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">ملف الإعدادات:</label>
+                    <input type="file" class="form-control" id="importOperationsFileInput" accept=".json">
+                </div>
+                <div id="importPreview" class="d-none p-3 bg-light border rounded mb-3 small">
+                    <div class="fw-bold text-dark mb-1"><i class="fas fa-check-circle text-success me-1"></i>ملخص الملف:</div>
+                    <div id="importPreviewContent"></div>
+                </div>
+            </div>
+            <div class="modal-footer bg-light border-top px-4 py-3">
+                <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">إلغاء</button>
+                <button type="button" class="btn btn-primary px-4 fw-bold" id="applyOperationsImportBtn" disabled>
+                    <i class="fas fa-check me-1"></i>تطبيق الإعدادات
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    let formChanged = false;
+
+    // 1. إدارة التبويب النشط والمزامنة
+    const urlParams = new URLSearchParams(window.location.search);
+    const activeTab = urlParams.get('tab') || localStorage.getItem('activeOperationsTab') || 'invoices';
+    const targetTabTrigger = document.querySelector(`#operationsSettingsTabs button[data-bs-target="#${activeTab}"]`);
+    if (targetTabTrigger) {
+        bootstrap.Tab.getOrCreateInstance(targetTabTrigger).show();
+        document.getElementById('activeTabInput').value = activeTab;
+    }
+
+    document.querySelectorAll('#operationsSettingsTabs button[data-bs-toggle="tab"]').forEach(trigger => {
+        trigger.addEventListener('shown.bs.tab', function(e) {
+            const targetId = e.target.getAttribute('data-bs-target').replace('#', '');
+            document.getElementById('activeTabInput').value = targetId;
+            localStorage.setItem('activeOperationsTab', targetId);
+        });
+    });
+
+    // 2. إظهار/إخفاء مقاس الورق الحراري ديناميكياً
+    const thermalSwitch = document.getElementById('{{ form.enable_thermal_printing.id_for_label }}');
+    const paperWidthContainer = document.getElementById('thermalPaperWidthContainer');
+    function toggleThermalOptions() {
+        if (thermalSwitch && paperWidthContainer) {
+            paperWidthContainer.style.opacity = thermalSwitch.checked ? '1' : '0.5';
+        }
+    }
+    if (thermalSwitch) {
+        thermalSwitch.addEventListener('change', toggleThermalOptions);
+        toggleThermalOptions();
+    }
+
+    // 3. تحذير التغييرات غير المحفوظة
+    const form = document.getElementById('operationsSettingsForm');
+    if (form) {
+        form.addEventListener('change', () => formChanged = true);
+        form.addEventListener('input', () => formChanged = true);
+        form.addEventListener('submit', () => {
+            formChanged = false;
+            if (typeof tinymce !== 'undefined') tinymce.triggerSave();
+        });
+
+        window.addEventListener('beforeunload', function(e) {
+            if (formChanged) {
+                e.preventDefault();
+                e.returnValue = 'توجد تعديلات غير محفوظة، هل أنت متأكد من المغادرة؟';
+                return e.returnValue;
+            }
+        });
+    }
+
+    // 4. تصدير سياسات التشغيل (Scoped Export)
+    const exportBtn = document.getElementById('exportOperationsBtn');
+    if (exportBtn) {
+        exportBtn.addEventListener('click', function() {
+            if (typeof tinymce !== 'undefined') tinymce.triggerSave();
+            const formData = new FormData(form);
+            const settingsData = {};
+
+            for (let [key, value] of formData.entries()) {
+                if (key !== 'csrfmiddlewaretoken' && key !== 'active_tab') {
+                    settingsData[key] = value;
+                }
+            }
+
+            form.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+                settingsData[cb.name] = cb.checked;
+            });
+
+            const exportPayload = {
+                meta: {
+                    system: "MWHEBA ERP",
+                    version: "2.0",
+                    scope: "operations_settings",
+                    exported_at: new Date().toISOString(),
+                    description: "إعدادات سياسات التشغيل والفواتير والطباعة"
+                },
+                settings: settingsData
+            };
+
+            const dataStr = JSON.stringify(exportPayload, null, 2);
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `operations_settings_${new Date().toISOString().split('T')[0]}.json`;
+            link.click();
+            URL.revokeObjectURL(url);
+
+            if (typeof window.showNotification === 'function') {
+                window.showNotification('تم تصدير سياسات التشغيل بنجاح ✅', 'success');
+            }
+        });
+    }
+
+    // 5. استيراد سياسات التشغيل (Scoped Import)
+    const importFileInput = document.getElementById('importOperationsFileInput');
+    const applyImportBtn = document.getElementById('applyOperationsImportBtn');
+    const importPreview = document.getElementById('importPreview');
+    const importPreviewContent = document.getElementById('importPreviewContent');
+    let parsedImportData = null;
+
+    if (importFileInput && applyImportBtn) {
+        importFileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) {
+                applyImportBtn.disabled = true;
+                importPreview.classList.add('d-none');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                try {
+                    const json = JSON.parse(event.target.result);
+                    let settingsObj = json.settings || json;
+                    const scope = json.meta ? json.meta.scope : 'legacy';
+
+                    if (scope !== 'operations_settings' && scope !== 'legacy') {
+                        if (typeof window.showNotification === 'function') {
+                            window.showNotification(`الملف المرفوع خاص بـ (${scope}) ولا يتطابق مع شاشة سياسات التشغيل!`, 'warning');
+                        }
+                    }
+
+                    parsedImportData = settingsObj;
+                    const keysCount = Object.keys(settingsObj).length;
+
+                    importPreviewContent.innerHTML = `
+                        <div>النطاق: <strong>${scope === 'operations_settings' ? 'سياسات التشغيل (مطابق)' : 'ملف إعدادات قديم'}</strong></div>
+                        <div>عدد الإعدادات الجاهزة: <strong>${keysCount}</strong></div>
+                    `;
+                    importPreview.classList.remove('d-none');
+                    applyImportBtn.disabled = false;
+                } catch (err) {
+                    if (typeof window.showNotification === 'function') {
+                        window.showNotification('فشل قراءة ملف JSON، يرجى التأكد من صحة الملف', 'error');
+                    }
+                    applyImportBtn.disabled = true;
+                    importPreview.classList.add('d-none');
+                }
+            };
+            reader.readAsText(file);
+        });
+
+        applyImportBtn.addEventListener('click', function() {
+            if (!parsedImportData) return;
+
+            for (let [key, value] of Object.entries(parsedImportData)) {
+                const field = form.elements[key];
+                if (field) {
+                    if (field.type === 'checkbox') {
+                        field.checked = (value === 'true' || value === true || value === 'on');
+                    } else {
+                        field.value = value;
+                        // مزامنة محرر النصوص المتقدم TinyMCE
+                        if (typeof tinymce !== 'undefined') {
+                            const editorInstance = tinymce.get(field.id || key);
+                            if (editorInstance) {
+                                editorInstance.setContent(value || '');
+                            }
+                        }
+                        // مزامنة قوائم Select2
+                        if (window.jQuery && $(field).hasClass('select2-hidden-accessible')) {
+                            $(field).val(value).trigger('change');
+                        }
+                    }
+                }
+            }
+
+            toggleThermalOptions();
+            const modalEl = document.getElementById('importOperationsModal');
+            bootstrap.Modal.getInstance(modalEl).hide();
+
+            if (typeof window.showNotification === 'function') {
+                window.showNotification('تم تطبيق الإعدادات المستوردة على النموذج بنجاح. لا تنسَ الضغط على "حفظ" لتثبيتها ✅', 'success');
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

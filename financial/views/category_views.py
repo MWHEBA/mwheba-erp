@@ -8,17 +8,17 @@ from django.urls import reverse_lazy
 from django.contrib import messages
 from django.utils.translation import gettext_lazy as _
 from django.db.models import Q
+from core.utils import UnifiedPaginationMixin
 
 from ..models.categories import FinancialCategory
 from ..models.chart_of_accounts import ChartOfAccounts
 
 
-class CategoryListView(LoginRequiredMixin, ListView):
+class CategoryListView(LoginRequiredMixin, UnifiedPaginationMixin, ListView):
     """قائمة التصنيفات المالية"""
     model = FinancialCategory
     template_name = 'financial/categories/list.html'
     context_object_name = 'categories'
-    paginate_by = 20
     
     def get_queryset(self):
         queryset = FinancialCategory.objects.select_related(

@@ -1,4 +1,4 @@
-﻿"""
+"""
 Views إدارة أرصدة الإجازات
 """
 from .base_imports import *
@@ -167,9 +167,16 @@ def leave_balance_list(request):
             'title': 'تحويل الأيام المتبقية لمقابل مالي على الراتب',
         })
     
+    # الترقيم SSR
+    from core.utils import paginate_queryset
+    pagination_context = paginate_queryset(grouped_balances, request, default_per_page=25)
+    page_obj = pagination_context["page_obj"]
+
     context = {
         'balances': balances,
-        'grouped_balances': grouped_balances,
+        'grouped_balances': page_obj,
+        'page_obj': page_obj,
+        **pagination_context,
         'stats': stats,
         'current_year': current_year,
         'selected_year': int(year),

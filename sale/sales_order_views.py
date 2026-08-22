@@ -74,10 +74,10 @@ def sales_order_list(request):
         "delivered_count": all_orders.filter(status__in=["DELIVERED", "PARTIALLY_DELIVERED", "COMPLETED"]).count(),
     }
 
-    # الترقيم
-    paginator = Paginator(queryset, 25)
-    page_number = request.GET.get("page")
-    page_obj = paginator.get_page(page_number)
+    # الترقيم الموحد SSR
+    from core.utils import paginate_queryset
+    pagination_context = paginate_queryset(queryset, request)
+    page_obj = pagination_context["page_obj"]
 
     # Header & Breadcrumbs
     breadcrumb_items = [
@@ -97,7 +97,7 @@ def sales_order_list(request):
 
     context = {
         "page_title": _("أوامر البيع"),
-        "page_obj": page_obj,
+        **pagination_context,
         "sales_orders": page_obj.object_list,
         "stats": stats,
         "customers": Customer.objects.filter(is_active=True).only("id", "name"),
@@ -108,7 +108,7 @@ def sales_order_list(request):
 
     if request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.GET.get("ajax"):
         table_html = render_to_string("sale/partials/sales_order_table.html", context, request=request)
-        pagination_html = render_to_string("partials/pagination.html", {"page_obj": page_obj}, request=request)
+        pagination_html = render_to_string("partials/pagination.html", context, request=request)
         return JsonResponse({
             "table_html": table_html,
             "pagination_html": pagination_html,

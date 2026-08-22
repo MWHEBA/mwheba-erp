@@ -2094,9 +2094,9 @@ def bank_reconciliation_list(request):
     completed_count = qs.filter(status='completed').count()
 
     # SSR Pagination
-    paginator = Paginator(qs, 15)
-    page_number = request.GET.get('page', 1)
-    page_obj = paginator.get_page(page_number)
+    from core.utils import paginate_queryset
+    pagination_context = paginate_queryset(qs, request, default_per_page=25)
+    page_obj = pagination_context["page_obj"]
 
     accounts = list(ChartOfAccounts.objects.filter(is_active=True, is_leaf=True))
     for acc in accounts:
@@ -2549,9 +2549,9 @@ def cash_account_movements(request, pk):
     
     movements_with_balance.reverse()
 
-    paginator = Paginator(movements_with_balance, 25)
-    page_number = request.GET.get("page")
-    page_obj = paginator.get_page(page_number)
+    from core.utils import paginate_queryset
+    pagination_context = paginate_queryset(movements_with_balance, request, default_per_page=25)
+    page_obj = pagination_context["page_obj"]
 
     from django.db.models import Sum
 
@@ -3659,14 +3659,15 @@ def payment_list(request):
         # تعريف أزرار الإجراءات - معطلة مؤقتاً
         payment_actions = []
         
-        # الترقيم
-        paginator = Paginator(payments, 25)
-        page_number = request.GET.get("page")
-        page_obj = paginator.get_page(page_number)
+        # الترقيم SSR
+        from core.utils import paginate_queryset
+        pagination_context = paginate_queryset(payments, request, default_per_page=25)
+        page_obj = pagination_context["page_obj"]
 
         context = {
             "payments": page_obj,
             "page_obj": page_obj,
+            **pagination_context,
             "payment_headers": payment_headers,
             "payment_actions": payment_actions,
             "summary": {
@@ -4010,10 +4011,10 @@ def partner_transactions_list(request):
         status='completed'
     ).aggregate(total=models.Sum('amount'))['total'] or Decimal('0')
     
-    # الترقيم الصفحي
-    paginator = Paginator(transactions_queryset, 25)
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
+    # الترقيم الصفحي SSR
+    from core.utils import paginate_queryset
+    pagination_context = paginate_queryset(transactions_queryset, request, default_per_page=25)
+    page_obj = pagination_context["page_obj"]
     
     # حساب صافي الرصيد
     net_balance = total_contributions - total_withdrawals
@@ -4021,6 +4022,8 @@ def partner_transactions_list(request):
     context = {
         'partner_account': partner_account,
         'transactions': page_obj,
+        'page_obj': page_obj,
+        **pagination_context,
         'total_contributions': total_contributions,
         'total_withdrawals': total_withdrawals,
         'net_balance': net_balance,

@@ -550,37 +550,72 @@ if (typeof window.exportTableToExcel === 'undefined') {
 
 /**
  * Setup export button event listeners
- * Automatically binds click events to export buttons
+ * Automatically binds click events to export buttons (Excel only)
  */
 function setupExportButtons() {
-    // CSV export buttons
+    // Excel export buttons
     document.addEventListener('click', function(e) {
-        if (e.target.classList.contains('btn-export-table')) {
-            const tableId = e.target.getAttribute('data-table');
-            const filename = e.target.getAttribute('data-filename') || 'export.csv';
-            window.GlobalTableManager.exportToCSV(tableId, filename);
-        }
-        
-        // Excel export buttons
-        if (e.target.classList.contains('btn-export-excel')) {
-            const tableId = e.target.getAttribute('data-table');
-            const filename = e.target.getAttribute('data-filename') || 'export.xlsx';
-            window.GlobalTableManager.exportToExcel(tableId, filename);
+        if (e.target.closest('.btn-export-excel')) {
+            const btn = e.target.closest('.btn-export-excel');
+            const tableId = btn.getAttribute('data-table');
+            const filename = btn.getAttribute('data-filename') || 'export.xlsx';
+            if (window.GlobalTableManager && typeof window.GlobalTableManager.exportToExcel === 'function') {
+                window.GlobalTableManager.exportToExcel(tableId, filename);
+            }
         }
     });
 }
 
 /**
- * Setup unified pagination event listeners & popstate handling
+ * Sync export link with current URL search parameters
+ */
+function syncExportLink() {
+    const exportLinks = document.querySelectorAll('.btn-export-all-excel');
+    if (!exportLinks.length) return;
+    
+    const url = new URL(window.location.href);
+    url.searchParams.set('export', 'excel');
+    url.searchParams.delete('page'); // Export full dataset regardless of page
+    
+    exportLinks.forEach(link => {
+        link.href = '?' + url.searchParams.toString();
+    });
+}
+
+/**
+ * Setup unified pagination event listeners, popstate handling & keyboard shortcuts
  */
 function setupUnifiedPaginationListeners() {
-    // Event Delegation لتغيير عدد العناصر (per-page-select)
+    // 1. تطبيق تفضيل المستخدم المحفوظ في localStorage لكل جدول
+    try {
+        const storageKey = 'per_page_' + window.location.pathname;
+        const savedPerPage = localStorage.getItem(storageKey);
+        if (savedPerPage) {
+            const selects = document.querySelectorAll('.per-page-select');
+            selects.forEach(select => {
+                if (!new URL(window.location.href).searchParams.has('per_page')) {
+                    select.value = savedPerPage;
+                }
+            });
+        }
+    } catch (err) {
+        console.debug('localStorage not accessible', err);
+    }
+
+    // 2. Event Delegation لتغيير عدد العناصر (per-page-select) وحفظه في localStorage
     document.addEventListener('change', function(e) {
         if (e.target && e.target.classList.contains('per-page-select')) {
             const select = e.target;
             const perPage = select.value;
             const pageParam = select.getAttribute('data-page-param') || 'page';
             
+            try {
+                const storageKey = 'per_page_' + window.location.pathname;
+                localStorage.setItem(storageKey, perPage);
+            } catch (err) {
+                console.debug('localStorage write error', err);
+            }
+
             const url = new URL(window.location.href);
             url.searchParams.set('per_page', perPage);
             url.searchParams.set(pageParam, '1'); // Reset to page 1 on per_page change
@@ -593,7 +628,7 @@ function setupUnifiedPaginationListeners() {
         }
     });
 
-    // Event Delegation لحدث popstate في المتصفح (زر Back / Forward)
+    // 3. Event Delegation لحدث popstate في المتصفح (زر Back / Forward)
     window.addEventListener('popstate', function() {
         if (typeof window.doSearch === 'function') {
             const url = new URL(window.location.href);
@@ -602,6 +637,29 @@ function setupUnifiedPaginationListeners() {
             window.location.reload();
         }
     });
+
+    // 4. اختصارات لوحة المفاتيح للمحاسبين للتنقل السريع بين الصفحات (Alt + Arrows)
+    document.addEventListener('keydown', function(e) {
+        if (e.altKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+            // تجنب تداخل الاختصار أثناء الكتابة داخل الحقول النصية
+            if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) return;
+            
+            const isRTL = document.documentElement.dir === 'rtl' || document.body.dir === 'rtl';
+            const isNext = (isRTL && e.key === 'ArrowLeft') || (!isRTL && e.key === 'ArrowRight');
+            
+            const targetLink = isNext 
+                ? document.querySelector('.pagination-nav .page-item:not(.disabled) a[aria-label*="التالية"], .pagination-nav .page-item:not(.disabled) a[title*="التالية"]')
+                : document.querySelector('.pagination-nav .page-item:not(.disabled) a[aria-label*="السابقة"], .pagination-nav .page-item:not(.disabled) a[title*="السابقة"]');
+            
+            if (targetLink) {
+                e.preventDefault();
+                targetLink.click();
+            }
+        }
+    });
+
+    // 5. مزامنة رابط التصدير الأولي
+    syncExportLink();
 }
 
 if (document.readyState === 'loading') {

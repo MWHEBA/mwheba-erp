@@ -1583,10 +1583,10 @@ def sale_return_list(request):
     confirmed_returns_count = SaleReturn.objects.filter(status="confirmed").count()
     draft_returns_count = SaleReturn.objects.filter(status="draft").count()
 
-    # Pagination
-    paginator = Paginator(queryset, 20)
-    page_number = request.GET.get("page")
-    page_obj = paginator.get_page(page_number)
+    # الترقيم الموحد SSR
+    from core.utils import paginate_queryset
+    pagination_context = paginate_queryset(queryset, request)
+    page_obj = pagination_context["page_obj"]
 
     curr_sym = SystemSetting.get_currency_symbol()
 
@@ -1627,6 +1627,8 @@ def sale_return_list(request):
 
     context = {
         "returns": page_obj,
+        "page_obj": page_obj,
+        **pagination_context,
         "sale_returns_data": sale_returns_data,
         "return_headers": return_headers,
         "total_returns_count": total_returns_count,
@@ -1673,9 +1675,7 @@ def sale_return_list(request):
             'show_length_menu': False,
             'sortable': False
         }, request=request)
-        pagination_html = render_to_string('partials/pagination.html', {
-            'page_obj': page_obj
-        }, request=request)
+        pagination_html = render_to_string('partials/pagination.html', context, request=request)
         return JsonResponse({
             'table_html': table_html,
             'pagination_html': pagination_html
@@ -1952,12 +1952,17 @@ def custom_field_list(request):
 
     from sale.models import CustomFieldDefinition
     from sale.forms import CustomFieldDefinitionForm
+    from core.utils import paginate_queryset
     
     fields_list = CustomFieldDefinition.objects.all().order_by("sort_order", "id")
+    pagination_context = paginate_queryset(fields_list, request, default_per_page=25)
+    page_obj = pagination_context["page_obj"]
     form = CustomFieldDefinitionForm()
 
     context = {
-        "fields_list": fields_list,
+        "fields_list": page_obj,
+        "page_obj": page_obj,
+        **pagination_context,
         "form": form,
         "page_title": _("إدارة الحقول الإضافية المخصصة"),
         "page_subtitle": _("تخصيص الحقول الاختيارية لعروض الأسعار وفواتير البيع"),
@@ -2182,6 +2187,19 @@ from .pricing_policy_views import (
     price_list_edit,
     discount_rule_list,
     discount_rule_create,
+)
+
+from .quotation_views import (
+    quotation_list,
+    quotation_create,
+    quotation_detail,
+    quotation_edit,
+    quotation_delete,
+    quotation_print,
+    quotation_pdf_download,
+    quotation_email_pdf,
+    quotation_convert_to_sale,
+    check_product_stock,
 )
 
 

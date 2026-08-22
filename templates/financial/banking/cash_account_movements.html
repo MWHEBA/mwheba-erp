@@ -469,35 +469,9 @@
           </div>
 
           <!-- Pagination -->
-          {% if movements.has_other_pages %}
-            <nav aria-label="Page navigation">
-              <ul class="pagination justify-content-center">
-                {% if movements.has_previous %}
-                  <li class="page-item">
-                    <a class="page-link" href="?page={{ movements.previous_page_number }}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if search %}&search={{ search }}{% endif %}{% if category_filter %}&category={{ category_filter }}{% endif %}">السابق</a>
-                  </li>
-                {% endif %}
-                
-                {% for num in movements.paginator.page_range %}
-                  {% if movements.number == num %}
-                    <li class="page-item active">
-                      <span class="page-link">{{ num }}</span>
-                    </li>
-                  {% elif num > movements.number|add:'-3' and num < movements.number|add:'3' %}
-                    <li class="page-item">
-                      <a class="page-link" href="?page={{ num }}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if search %}&search={{ search }}{% endif %}{% if category_filter %}&category={{ category_filter }}{% endif %}">{{ num }}</a>
-                    </li>
-                  {% endif %}
-                {% endfor %}
-                
-                {% if movements.has_next %}
-                  <li class="page-item">
-                    <a class="page-link" href="?page={{ movements.next_page_number }}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if search %}&search={{ search }}{% endif %}{% if category_filter %}&category={{ category_filter }}{% endif %}">التالي</a>
-                  </li>
-                {% endif %}
-              </ul>
-            </nav>
-          {% endif %}
+          <div id="pagination-wrapper">
+            {% include 'partials/pagination.html' with page_obj=page_obj|default:movements align='center' %}
+          </div>
         {% else %}
           <div class="text-center py-5">
             <div class="empty-state">

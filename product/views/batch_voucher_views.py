@@ -9,18 +9,19 @@ from django.urls import reverse, reverse_lazy
 from django.db import transaction
 from django.http import JsonResponse
 from django.utils import timezone
+from core.utils import UnifiedPaginationMixin
 from product.models import BatchVoucher, BatchVoucherItem, Product
 from product.models import Category
 from product.forms import BatchVoucherForm
 from product.services.batch_voucher_service import BatchVoucherService
 
 
-class BatchVoucherListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
+class BatchVoucherListView(UnifiedPaginationMixin, LoginRequiredMixin, PermissionRequiredMixin, ListView):
     """قائمة الأذون الجماعية"""
     model = BatchVoucher
     template_name = 'product/batch_vouchers/batch_voucher_list.html'
     context_object_name = 'vouchers'
-    paginate_by = 20
+    default_per_page = 25
     permission_required = 'product.view_batchvoucher'
     
     def get_queryset(self):

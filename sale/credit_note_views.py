@@ -52,12 +52,9 @@ def credit_note_list(request):
     # الكروت الإحصائية
     total_credit_notes_count = CreditNote.objects.count()
     total_credit_notes_amount = CreditNote.objects.aggregate(total=Sum('total_amount'))['total'] or 0
-    posted_credit_notes_count = CreditNote.objects.filter(status='POSTED').count()
-    draft_credit_notes_count = CreditNote.objects.filter(status='DRAFT').count()
-
-    paginator = Paginator(queryset, 20)
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
+    from core.utils import paginate_queryset
+    pagination_context = paginate_queryset(queryset, request)
+    page_obj = pagination_context["page_obj"]
 
     curr_sym = SystemSetting.get_currency_symbol()
 
@@ -103,6 +100,7 @@ def credit_note_list(request):
 
     context = {
         "page_obj": page_obj,
+        **pagination_context,
         "credit_notes": page_obj,
         "credit_notes_data": credit_notes_data,
         "cn_headers": cn_headers,

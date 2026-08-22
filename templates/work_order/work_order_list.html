@@ -96,7 +96,7 @@
           <tbody>
             {% for order in work_orders %}
             <tr class="clickable-row" data-href="{% url 'work_order:work_order_detail' order.id %}" style="cursor: pointer;">
-              <td>{{ forloop.counter }}</td>
+              <td>{{ page_obj.start_index|add:forloop.counter0 }}</td>
               <td class="fw-bold text-primary">{{ order.number }}</td>
               <td class="fw-bold text-start" onclick="event.stopPropagation();">
                 <a href="{% url 'client:customer_detail' pk=order.customer.id %}" class="text-decoration-none text-dark hover-primary d-flex align-items-center">
@@ -139,6 +139,8 @@
           </tbody>
         </table>
       </div>
+      <!-- الترقيم الموحد وشريط أسفل الجدول -->
+      {% include "partials/pagination.html" with page_obj=page_obj %}
 
       {% else %}
         <div class="empty-table-notice text-center py-5" style="border: 2px dashed #ccc; background-color: #f8f9fa; border-radius: 0.5rem;">

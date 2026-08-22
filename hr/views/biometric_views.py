@@ -1,4 +1,4 @@
-﻿"""
+"""
 Views إدارة أجهزة البصمة
 """
 from .base_imports import *
@@ -378,16 +378,10 @@ def biometric_log_list(request):
     # الترتيب
     logs = logs.order_by('-timestamp')
     
-    # Pagination - 50 سجل في الصفحة
-    paginator = Paginator(logs, 50)
-    page = request.GET.get('page', 1)
-    
-    try:
-        logs_page = paginator.page(page)
-    except PageNotAnInteger:
-        logs_page = paginator.page(1)
-    except EmptyPage:
-        logs_page = paginator.page(paginator.num_pages)
+    # Pagination SSR
+    from core.utils import paginate_queryset
+    pagination_context = paginate_queryset(logs, request, default_per_page=50)
+    logs_page = pagination_context["page_obj"]
     
     devices = BiometricDevice.objects.filter(is_active=True)
     employees = Employee.objects.filter(status='active', is_insurance_only=False).order_by('name')
@@ -418,20 +412,23 @@ def biometric_log_list(request):
                     employee_id=emp_id,
                     timestamp__gte=day_start,
                     timestamp__lte=day_end,
-                ).values_list('id', 'timestamp').order_by('timestamp')
+                ).order_by('timestamp').values_list('id', 'timestamp')
             )
             all_day_logs_map[(emp_id, log_date)] = all_day  # [(id, timestamp), ...]
 
-        # بناء display_log_type map: log_id → 'check_in' | 'check_out' | 'intermediate'
+        # تحديد check_in / check_out / intermediate
         display_type_map = {}
         for (emp_id, log_date), sorted_logs in all_day_logs_map.items():
-            for idx, (log_id, _) in enumerate(sorted_logs):
-                if idx == 0:
-                    display_type_map[log_id] = 'check_in'
-                elif idx == len(sorted_logs) - 1:
-                    display_type_map[log_id] = 'check_out'
-                else:
-                    display_type_map[log_id] = 'intermediate'
+            if len(sorted_logs) == 1:
+                display_type_map[sorted_logs[0][0]] = 'check_in'
+            else:
+                for idx, (log_id, _) in enumerate(sorted_logs):
+                    if idx == 0:
+                        display_type_map[log_id] = 'check_in'
+                    elif idx == len(sorted_logs) - 1:
+                        display_type_map[log_id] = 'check_out'
+                    else:
+                        display_type_map[log_id] = 'intermediate'
 
         # إضافة display_log_type لكل log في الصفحة
         for log in logs_page:
@@ -453,11 +450,11 @@ def biometric_log_list(request):
     
     context = {
         'logs': logs_page,
+        'page_obj': logs_page,
+        **pagination_context,
         'devices': devices,
         'employees': employees,
         'headers': headers,
-        'paginator': paginator,
-        'page_obj': logs_page,
         'date_from': date_from if date_from else '',
         'date_to': date_to if date_to else '',
         

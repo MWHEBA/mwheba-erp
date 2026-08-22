@@ -396,6 +396,39 @@ class Product(models.Model):
         return self.created_by
     
     @property
+    def effective_tax_rate(self):
+        """نسبة الضريبة الفعلية المطبقة على المنتج أو الخدمة"""
+        from decimal import Decimal
+        if self.tax_code and self.tax_code.rate is not None:
+            return self.tax_code.rate
+        return self.tax_rate if self.tax_rate is not None else Decimal("0.00")
+
+    @property
+    def estimated_tax_amount(self):
+        """قيمة الضريبة التقديرية على سعر البيع"""
+        from decimal import Decimal
+        rate = self.effective_tax_rate
+        if not rate or rate <= Decimal("0.00") or not self.selling_price:
+            return Decimal("0.00")
+        return (self.selling_price * rate / Decimal("100")).quantize(Decimal("0.01"))
+
+    @property
+    def selling_price_with_tax(self):
+        """سعر البيع الإجمالي شامل ضريبة القيمة المضافة"""
+        from decimal import Decimal
+        if not self.selling_price:
+            return Decimal("0.00")
+        return (self.selling_price + self.estimated_tax_amount).quantize(Decimal("0.01"))
+
+    @property
+    def is_tax_exempt(self):
+        """هل الصنف معفى من الضريبة"""
+        from decimal import Decimal
+        if self.tax_code and self.tax_code.tax_type in ["EXEMPT", "ZERO_RATED"]:
+            return True
+        return self.effective_tax_rate == Decimal("0.00")
+    
+    @property
     def current_stock(self):
         """
         حساب المخزون الحالي في جميع المخازن

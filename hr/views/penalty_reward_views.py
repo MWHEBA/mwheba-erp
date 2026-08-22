@@ -1,4 +1,4 @@
-﻿"""
+"""
 Views الجزاءات والمكافآت
 """
 from .base_imports import *
@@ -60,12 +60,14 @@ def penalty_reward_list(request):
 
     employees = Employee.objects.filter(status='active', is_insurance_only=False).order_by('name')
 
-    paginator = Paginator(qs, 30)
-    page = request.GET.get('page', 1)
-    items_page = paginator.get_page(page)
+    from core.utils import paginate_queryset
+    pagination_context = paginate_queryset(qs, request, default_per_page=25)
+    items_page = pagination_context["page_obj"]
 
     context = {
         'items': items_page,
+        'page_obj': items_page,
+        **pagination_context,
         'employees': employees,
         'total_penalties': total_penalties,
         'total_rewards': total_rewards,

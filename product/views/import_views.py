@@ -107,13 +107,15 @@ def product_import(request):
             'warehouse_id': warehouse_id,
         }
 
-        from django.core.paginator import Paginator
-        paginator = Paginator(result['preview_rows'], 50)
-        page_obj = paginator.get_page(request.GET.get('page', 1))
+        from core.utils import paginate_queryset
+        pagination_context = paginate_queryset(result['preview_rows'], request, default_per_page=50)
+        page_obj = pagination_context['page_obj']
 
         ctx = _base_context({
             'preview': result,
             'preview_rows_page': page_obj,
+            'page_obj': page_obj,
+            **pagination_context,
             'filename': uploaded_file.name,
             'update_existing': update_existing,
             'selected_warehouse_id': warehouse_id,
@@ -123,10 +125,10 @@ def product_import(request):
     # ── GET: pagination or upload form ────────────────────────────────────────
     pending = request.session.get(SESSION_KEY)
     if pending and request.GET.get('page'):
-        from django.core.paginator import Paginator
+        from core.utils import paginate_queryset
         rows = pending['rows']
-        paginator = Paginator(rows, 50)
-        page_obj = paginator.get_page(request.GET.get('page', 1))
+        pagination_context = paginate_queryset(rows, request, default_per_page=50)
+        page_obj = pagination_context['page_obj']
 
         valid_count  = sum(1 for r in rows if r['action'] == 'new')
         update_count = sum(1 for r in rows if r['action'] == 'update')

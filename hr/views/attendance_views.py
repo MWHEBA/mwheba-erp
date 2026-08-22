@@ -1,4 +1,4 @@
-﻿"""
+"""
 Views إدارة الحضور
 """
 from .base_imports import *
@@ -143,16 +143,10 @@ def attendance_list(request):
     
     attendances = attendances.order_by('-date', 'employee__name')
     
-    # Pagination - 50 سجل في الصفحة
-    paginator = Paginator(attendances, 50)
-    page = request.GET.get('page', 1)
-    
-    try:
-        attendances_page = paginator.page(page)
-    except PageNotAnInteger:
-        attendances_page = paginator.page(1)
-    except EmptyPage:
-        attendances_page = paginator.page(paginator.num_pages)
+    # Pagination SSR
+    from core.utils import paginate_queryset
+    pagination_context = paginate_queryset(attendances, request, default_per_page=50)
+    attendances_page = pagination_context["page_obj"]
     
     # تحضير البيانات للعرض - فقط للصفحة الحالية
     attendance_data = []
@@ -251,8 +245,8 @@ def attendance_list(request):
         'departments': departments,
         'employees': employees,
         'status_filter': status_filter or '',
-        'paginator': paginator,
         'page_obj': attendances_page,
+        **pagination_context,
         
         # بيانات الهيدر الموحد
         'page_title': 'سجل الحضور',
@@ -545,16 +539,10 @@ def attendance_summary_list(request):
     
     summaries = summaries.order_by('-is_approved', 'employee__name')
     
-    # Pagination
-    paginator = Paginator(summaries, 50)
-    page = request.GET.get('page', 1)
-    
-    try:
-        summaries_page = paginator.page(page)
-    except PageNotAnInteger:
-        summaries_page = paginator.page(1)
-    except EmptyPage:
-        summaries_page = paginator.page(paginator.num_pages)
+    # Pagination SSR
+    from core.utils import paginate_queryset
+    pagination_context = paginate_queryset(summaries, request, default_per_page=50)
+    summaries_page = pagination_context["page_obj"]
     
     # جلب الإجازات المعتمدة للشهر دفعة واحدة لتجنب N+1
     from hr.utils.payroll_helpers import get_payroll_period
@@ -650,8 +638,8 @@ def attendance_summary_list(request):
         'exempt_count': exempt_count,
         'departments': departments,
         'employees': employees_qs,
-        'paginator': paginator,
         'page_obj': summaries_page,
+        **pagination_context,
         'exempt_type': exempt_type,
         
         # بيانات الهيدر الموحد

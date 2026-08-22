@@ -29,9 +29,9 @@ def landed_cost_list(request):
     if allocation_method:
         docs = docs.filter(allocation_method=allocation_method)
 
-    paginator = Paginator(docs, 25)
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
+    from core.utils import paginate_queryset
+    pagination_context = paginate_queryset(docs, request)
+    page_obj = pagination_context["page_obj"]
 
     suppliers = Supplier.objects.filter(is_active=True)
 
@@ -44,10 +44,19 @@ def landed_cost_list(request):
         }
     ]
 
+    breadcrumb_items = [
+        {'title': _('الرئيسية'), 'url': reverse('core:dashboard'), 'icon': 'fa-home'},
+        {'title': _('المشتريات'), 'url': reverse('purchase:purchase_list'), 'icon': 'fa-shopping-bag'},
+        {'title': _('مستندات التكاليف الإضافية (Landed Cost)'), 'active': True}
+    ]
+
     return render(request, 'purchase/landed_cost_list.html', {
         'page_obj': page_obj,
+        'docs': page_obj.object_list,
+        **pagination_context,
         'suppliers': suppliers,
         'header_buttons': header_buttons,
+        'breadcrumb_items': breadcrumb_items,
         'title': _('مستندات التكاليف الإضافية (Landed Cost)'),
     })
 

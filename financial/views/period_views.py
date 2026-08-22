@@ -44,9 +44,9 @@ def accounting_periods_list(request):
     current_period = AccountingPeriod.objects.filter(status='open').first()
 
     # الترقيم SSR Pagination
-    paginator = Paginator(periods_qs, 15)
-    page_number = request.GET.get('page', 1)
-    page_obj = paginator.get_page(page_number)
+    from core.utils import paginate_queryset
+    pagination_context = paginate_queryset(periods_qs, request)
+    page_obj = pagination_context["page_obj"]
 
     fiscal_years = FiscalYear.objects.all().order_by('-start_date')
 
@@ -54,6 +54,15 @@ def accounting_periods_list(request):
         "page_title": "الفترات المحاسبية",
         "page_subtitle": "إدارة الفترات المحاسبية والإغلاق المالي المؤسسي",
         "page_icon": "fas fa-calendar-alt",
+        "periods": page_obj,
+        "page_obj": page_obj,
+        **pagination_context,
+        "fiscal_years": fiscal_years,
+        "open_periods_count": open_periods_count,
+        "closed_periods_count": closed_periods_count,
+        "soft_closed_count": soft_closed_count,
+        "active_year_code": active_fiscal_year.year_code if active_fiscal_year else None,
+        "current_period_name": current_period.name if current_period else None,
         "breadcrumb_items": [
             {"title": "الرئيسية", "url": reverse("core:dashboard"), "icon": "fas fa-home"},
             {"title": "الإدارة المالية", "url": reverse("financial:chart_of_accounts_list"), "icon": "fas fa-money-bill-wave"},
@@ -222,9 +231,9 @@ def fiscal_years_list(request):
     closed_years_count = FiscalYear.objects.filter(status='closed').count()
     active_year = FiscalYear.objects.filter(status='open').first()
 
-    paginator = Paginator(fiscal_years_qs, 10)
-    page_number = request.GET.get('page', 1)
-    page_obj = paginator.get_page(page_number)
+    from core.utils import paginate_queryset
+    pagination_context = paginate_queryset(fiscal_years_qs, request)
+    page_obj = pagination_context["page_obj"]
 
     context = {
         "page_title": "السنوات المالية",
@@ -245,6 +254,7 @@ def fiscal_years_list(request):
         ],
         "fiscal_years": page_obj,
         "page_obj": page_obj,
+        **pagination_context,
         "total_years_count": total_years_count,
         "open_years_count": open_years_count,
         "closed_years_count": closed_years_count,

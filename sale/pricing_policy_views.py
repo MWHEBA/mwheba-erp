@@ -30,6 +30,10 @@ def price_list_list(request):
     """
     price_lists = PriceList.objects.annotate(items_count=Count("items")).order_by("-is_active", "name")
 
+    from core.utils import paginate_queryset
+    pagination_context = paginate_queryset(price_lists, request)
+    page_obj = pagination_context["page_obj"]
+
     breadcrumb_items = [
         {"title": _("الرئيسية"), "url": reverse("core:dashboard"), "icon": "fa-home"},
         {"title": _("إدارة المبيعات"), "url": reverse("sale:sale_list"), "icon": "fa-shopping-cart"},
@@ -53,7 +57,9 @@ def price_list_list(request):
 
     context = {
         "page_title": _("قوائم أسعار المبيعات"),
-        "price_lists": price_lists,
+        "price_lists": page_obj.object_list,
+        "page_obj": page_obj,
+        **pagination_context,
         "breadcrumb_items": breadcrumb_items,
         "header_buttons": header_buttons,
     }
@@ -223,6 +229,10 @@ def discount_rule_list(request):
     """
     rules = DiscountRule.objects.select_related("customer", "category").order_by("-is_active", "priority")
 
+    from core.utils import paginate_queryset
+    pagination_context = paginate_queryset(rules, request)
+    page_obj = pagination_context["page_obj"]
+
     breadcrumb_items = [
         {"title": _("الرئيسية"), "url": reverse("core:dashboard"), "icon": "fa-home"},
         {"title": _("إدارة المبيعات"), "url": reverse("sale:sale_list"), "icon": "fa-shopping-cart"},
@@ -246,7 +256,9 @@ def discount_rule_list(request):
 
     context = {
         "page_title": _("قواعد وسياسات الخصم"),
-        "rules": rules,
+        "rules": page_obj.object_list,
+        "page_obj": page_obj,
+        **pagination_context,
         "breadcrumb_items": breadcrumb_items,
         "header_buttons": header_buttons,
     }

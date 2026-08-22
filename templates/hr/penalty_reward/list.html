@@ -147,23 +147,9 @@
         </div>
 
         <!-- Pagination -->
-        {% if items.has_other_pages %}
-        <nav class="mt-3">
-          <ul class="pagination justify-content-center">
-            {% if items.has_previous %}
-            <li class="page-item">
-              <a class="page-link" href="?page={{ items.previous_page_number }}{% if request.GET.employee %}&employee={{ request.GET.employee }}{% endif %}{% if request.GET.category %}&category={{ request.GET.category }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">السابق</a>
-            </li>
-            {% endif %}
-            <li class="page-item disabled"><span class="page-link">{{ items.number }} / {{ items.paginator.num_pages }}</span></li>
-            {% if items.has_next %}
-            <li class="page-item">
-              <a class="page-link" href="?page={{ items.next_page_number }}{% if request.GET.employee %}&employee={{ request.GET.employee }}{% endif %}{% if request.GET.category %}&category={{ request.GET.category }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">التالي</a>
-            </li>
-            {% endif %}
-          </ul>
-        </nav>
-        {% endif %}
+        <div id="pagination-wrapper">
+          {% include 'partials/pagination.html' with page_obj=page_obj|default:items align='center' %}
+        </div>
 
         {% else %}
         {% include 'partials/empty_state.html' with message="لا توجد جزاءات أو مكافآت" icon="gavel" %}

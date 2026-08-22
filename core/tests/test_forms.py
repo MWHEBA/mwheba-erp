@@ -361,7 +361,6 @@ class SettingsFormTest(TestCase):
             "tax_rate": 14.0,
             "timezone": "Africa/Cairo",
             "language": "ar",
-            "items_per_page": 20,
         }
         form = SettingsForm(data=form_data)
         self.assertTrue(form.is_valid())
@@ -377,7 +376,6 @@ class SettingsFormTest(TestCase):
             "tax_rate": 120.0,  # نسبة ضريبة غير صالحة (أكبر من 100)
             "timezone": "Africa/Cairo",
             "language": "ar",
-            "items_per_page": 20,
         }
         form = SettingsForm(data=form_data)
         self.assertFalse(form.is_valid())
@@ -394,7 +392,6 @@ class SettingsFormTest(TestCase):
             "tax_rate": 14.0,
             "timezone": "Africa/Cairo",
             "language": "ar",
-            "items_per_page": 20,
         }
         form = SettingsForm(data=form_data)
         self.assertFalse(form.is_valid())
@@ -411,7 +408,6 @@ class SettingsFormTest(TestCase):
             "tax_rate": 14.0,
             "timezone": "Invalid/Timezone",  # منطقة زمنية غير صالحة
             "language": "ar",
-            "items_per_page": 20,
         }
         form = SettingsForm(data=form_data)
         self.assertFalse(form.is_valid())
@@ -426,7 +422,6 @@ class SettingsFormTest(TestCase):
             "currency": "INVALID",  # عملة غير صحيحة
             "decimal_places": -1,  # قيمة سالبة
             "tax_rate": -5.0,  # نسبة سالبة
-            "items_per_page": 0,  # صفر عناصر
         }
         
         try:
@@ -435,7 +430,7 @@ class SettingsFormTest(TestCase):
             if hasattr(form, 'is_valid'):
                 self.assertFalse(form.is_valid())
                 # التحقق من وجود أخطاء في الحقول المتوقعة
-                expected_errors = ['site_name', 'currency', 'decimal_places', 'tax_rate', 'items_per_page']
+                expected_errors = ['site_name', 'currency', 'decimal_places', 'tax_rate']
                 for field in expected_errors:
                     if field in form.fields:
                         self.assertTrue(field in form.errors or form.is_valid())
@@ -452,7 +447,6 @@ class SettingsFormTest(TestCase):
             "currency": "USD",
             "decimal_places": 0,  # أقل قيمة
             "tax_rate": 0.0,  # أقل نسبة
-            "items_per_page": 1,  # أقل عدد عناصر
         }
         
         try:
@@ -470,7 +464,6 @@ class SettingsFormTest(TestCase):
             "currency": "EUR",
             "decimal_places": 4,  # أقصى قيمة
             "tax_rate": 100.0,  # أقصى نسبة
-            "items_per_page": 100,  # أقصى عدد عناصر
         }
         
         try:

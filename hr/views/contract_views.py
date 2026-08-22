@@ -1,4 +1,4 @@
-﻿"""
+"""
 Views إدارة العقود - النظام الموحد
 دمج: contract_views.py + contract_form_views.py + contract_unified_views.py
 """
@@ -116,10 +116,10 @@ def contract_list(request):
         ).count(),
     }
 
-    # Pagination على مستوى الداتابيز
-    paginator      = Paginator(contracts, 30)
-    page           = request.GET.get('page', 1)
-    contracts_page = paginator.get_page(page)
+    # Pagination على مستوى الداتابيز SSR
+    from core.utils import paginate_queryset
+    pagination_context = paginate_queryset(contracts, request, default_per_page=25)
+    contracts_page = pagination_context["page_obj"]
 
     # جلب الأجر التأميني فقط للصفحة الحالية
     from hr.models.contract_salary_component import ContractSalaryComponent
@@ -183,7 +183,7 @@ def contract_list(request):
         **{f'{k}_contracts': v for k, v in stats.items()},
         'show_stats':     True,
         'page_obj':       contracts_page,
-        'paginator':      paginator,
+        **pagination_context,
         'employees':      Employee.objects.filter(status='active', is_insurance_only=False).only('id', 'name', 'employee_number'),
 
         'page_title':    'العقود',

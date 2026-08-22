@@ -294,13 +294,15 @@ def _get_roles_tab_data(request):
                 Q(description__icontains=search)
             )
         
-        # Pagination
-        paginator = Paginator(roles, 10)
-        page_number = request.GET.get('page')
-        roles_page = paginator.get_page(page_number)
+        # Pagination SSR
+        from core.utils import paginate_queryset
+        roles_pagination = paginate_queryset(roles, request, default_per_page=25)
+        roles_page = roles_pagination["page_obj"]
         
         return {
             'roles': roles_page,
+            'roles_pagination': roles_pagination,
+            'page_obj': roles_page,
             'search': search,
             'total_roles': roles.count(),
         }
@@ -345,16 +347,18 @@ def _get_users_tab_data(request):
     if role_filter == 'no_role':
         users_data = [u for u in users_data if u['user'].role is None]
     
-    # Pagination
-    paginator = Paginator(users_data, 15)
-    page_number = request.GET.get('page')
-    users_page = paginator.get_page(page_number)
+    # Pagination SSR
+    from core.utils import paginate_queryset
+    users_pagination = paginate_queryset(users_data, request, default_per_page=25)
+    users_page = users_pagination["page_obj"]
     
     # Get roles for filter dropdown
     available_roles = Role.objects.filter(is_active=True).order_by('display_name')
     
     return {
         'users': users_page,
+        'users_pagination': users_pagination,
+        'page_obj': users_page,
         'search': search,
         'role_filter': role_filter,
         'has_permissions_filter': has_permissions,
@@ -390,14 +394,16 @@ def _get_monitoring_tab_data(request):
         except Exception:
             recent_changes = []
         
-        # Pagination for changes
-        paginator = Paginator(recent_changes, 20)
-        page_number = request.GET.get('page')
-        changes_page = paginator.get_page(page_number)
+        # Pagination SSR for changes
+        from core.utils import paginate_queryset
+        changes_pagination = paginate_queryset(recent_changes, request, default_per_page=25)
+        changes_page = changes_pagination["page_obj"]
         
         return {
             'monitoring_data': monitoring_data,
             'recent_changes': changes_page,
+            'changes_pagination': changes_pagination,
+            'page_obj': changes_page,
             'days_filter': days,
             'total_changes': len(recent_changes),
             'system_health': monitoring_data.get('system_health', {}),

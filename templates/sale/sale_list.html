@@ -194,13 +194,6 @@
     });
   });
   
-  // تصدير الجدول إلى CSV
-  $('.btn-export-table').on('click', function() {
-    const tableId = $(this).data('table');
-    const filename = $(this).data('filename');
-    exportTableToCSV(tableId, filename);
-  });
-  
   // تصدير الجدول إلى Excel
   $('.btn-export-excel').on('click', function() {
     const tableId = $(this).data('table');

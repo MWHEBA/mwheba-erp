@@ -242,13 +242,15 @@ def dashboard(request):
 @login_required
 def company_settings(request):
     """
-    عرض وتعديل إعدادات الشركة
+    عرض وتعديل إعدادات المنشـأة
     """
     from core.models import SystemSetting
     from django.contrib import messages
+    from django.db import transaction
+    from django.core.files.storage import default_storage
     
-    # التحقق من صلاحيات المستخدم
-    if not request.user.is_admin and not request.user.is_superuser:
+    # التحقق الموحد من صلاحيات المشرفين
+    if not (request.user.is_superuser or getattr(request.user, 'is_admin', False) or request.user.is_staff):
         return render(
             request,
             "core/permission_denied.html",
@@ -257,7 +259,6 @@ def company_settings(request):
 
     # معالجة حفظ الإعدادات عند POST
     if request.method == "POST":
-        # قائمة الحقول المطلوب حفظها
         settings_fields = [
             "company_name", "company_name_en", "company_address_en", "company_tax_number",
             "company_commercial_register", "company_country",
@@ -276,42 +277,61 @@ def company_settings(request):
             "color_sidebar_bg", "color_header_bg",
         ]
         
-        # تحسين الأداء: جلب جميع الإعدادات الحالية بطلب واحد لتجنب استعلامات قاعدة البيانات المتكررة
-        existing_settings = {s.key: s for s in SystemSetting.objects.filter(key__in=settings_fields)}
-        
-        # حفظ كل إعداد فقط إذا تم تعديله
-        for field in settings_fields:
-            if field == "enable_company_stamp":
-                value = "true" if "enable_company_stamp" in request.POST else "false"
-            else:
-                value = request.POST.get(field, "").strip()
-            
-            if field in existing_settings:
-                setting = existing_settings[field]
-                # حفظ التعديل فقط إذا كانت القيمة مختلفة أو غير نشط
-                if setting.value != value or not setting.is_active:
-                    setting.value = value
-                    setting.is_active = True
-                    setting.save()
-            else:
-                data_type = "boolean" if field == "enable_company_stamp" else "string"
-                SystemSetting.objects.create(
+        with transaction.atomic():
+            for field in settings_fields:
+                if field == "enable_company_stamp":
+                    value = "true" if "enable_company_stamp" in request.POST else "false"
+                    data_type = "boolean"
+                else:
+                    value = request.POST.get(field, "").strip()
+                    data_type = "string"
+                
+                SystemSetting.objects.update_or_create(
                     key=field,
-                    value=value,
-                    data_type=data_type,
-                    is_active=True
+                    defaults={"value": value, "data_type": data_type, "group": "general", "is_active": True}
                 )
 
-        # مسح الـ cache عشان التغييرات تظهر فوراً في جميع الصفحات
-        try:
-            from django.core.cache import cache
-            cache.delete('global_settings_dict_v2')
-            cache.delete('company_info_v1')
-        except Exception as e:
-            logger.error(f"Error clearing global settings cache: {e}")
+            # الحفاظ على التوافق الخلفي لمفاتيح الضرائب والسجل التجاري
+            tax_num = request.POST.get("company_tax_number", "").strip()
+            if tax_num:
+                SystemSetting.objects.update_or_create(
+                    key="tax_number",
+                    defaults={"value": tax_num, "data_type": "string", "group": "general", "is_active": True}
+                )
+            cr_num = request.POST.get("company_commercial_register", "").strip()
+            if cr_num:
+                SystemSetting.objects.update_or_create(
+                    key="commercial_register",
+                    defaults={"value": cr_num, "data_type": "string", "group": "general", "is_active": True}
+                )
 
-        messages.success(request, "تم حفظ إعدادات الشركة بنجاح")
-        return redirect("core:company_settings")
+            # معالجة رفع ملفات الميديا (الشعارات والختم) مع التحقق الأمني
+            allowed_extensions = ['png', 'jpg', 'jpeg', 'svg', 'webp']
+            max_size_bytes = 2 * 1024 * 1024  # 2MB
+            
+            for file_key in ['company_logo', 'company_logo_light', 'company_logo_mini', 'company_stamp']:
+                if file_key in request.FILES:
+                    uploaded_file = request.FILES[file_key]
+                    ext = uploaded_file.name.split('.')[-1].lower()
+                    if ext not in allowed_extensions:
+                        messages.warning(request, f"امتداد الملف {uploaded_file.name} غير مدعوم. الصيغ المسموحة: {', '.join(allowed_extensions)}")
+                        continue
+                    if uploaded_file.size > max_size_bytes:
+                        messages.warning(request, f"حجم الملف {uploaded_file.name} يتجاوز الحد الأقصى (2 ميجابايت)")
+                        continue
+                    
+                    file_path = default_storage.save(f"company/{file_key}_{uploaded_file.name}", uploaded_file)
+                    SystemSetting.objects.update_or_create(
+                        key=file_key,
+                        defaults={"value": file_path, "data_type": "string", "group": "general", "is_active": True}
+                    )
+
+            # تفريغ الكاش الموحد فوراً
+            SystemSetting.invalidate_all_system_caches()
+
+        messages.success(request, "تم حفظ إعدادات المنشـأة بنجاح ✅")
+        active_tab = request.POST.get("active_tab", "basic")
+        return redirect(f"{reverse('core:company_settings')}?tab={active_tab}")
 
     # جلب الإعدادات الحالية
     settings_dict = {}
@@ -319,38 +339,43 @@ def company_settings(request):
         settings_dict[setting.key] = setting.value
 
     # التحقق من وجود ملفات الشعارات والختم فعلياً على الـ storage
-    from django.core.files.storage import default_storage
     for logo_key in ['company_logo', 'company_logo_light', 'company_logo_mini', 'company_stamp']:
         if logo_key in settings_dict and settings_dict[logo_key]:
             if not default_storage.exists(settings_dict[logo_key]):
-                settings_dict[logo_key] = ""  # مسح المسار لو الملف مش موجود
+                settings_dict[logo_key] = ""
 
     # إعداد الهيدر
     header_buttons = [
         {
-            'url': reverse('core:dashboard'),
-            'icon': 'fa-arrow-right',
-            'text': 'العودة للوحة التحكم',
+            'id': 'exportCompanyBtn',
+            'icon': 'fa-file-export',
+            'text': 'تصدير الإعدادات',
             'class': 'btn-outline-secondary'
+        },
+        {
+            'toggle': 'modal',
+            'target': '#importCompanyModal',
+            'icon': 'fa-file-import',
+            'text': 'استيراد الإعدادات',
+            'class': 'btn-outline-primary'
         }
     ]
 
-    # مسار التنقل
+    # مسار التنقل الموحد (Rule #6)
     breadcrumb_items = [
         {'title': 'الرئيسية', 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},
         {'title': 'الإعدادات', 'icon': 'fas fa-cog'},
-        {'title': 'إعدادات الشركة', 'active': True}
+        {'title': 'إعدادات المنشـأة', 'active': True}
     ]
 
     context = {
-        "title": "إعدادات الشركة",
-        "subtitle": "إدارة معلومات الشركة والبيانات الأساسية",
+        "title": "إعدادات المنشـأة",
+        "subtitle": "إدارة معلومات المنشـأة، البيانات القانونية، الهوية البصرية والمستندات",
         "icon": "fas fa-building",
         "header_buttons": header_buttons,
         "breadcrumb_items": breadcrumb_items,
         "settings": settings_dict,
-        "MEDIA_URL": settings.MEDIA_URL,  # مضمون دايماً صح
-        # نبعت كل قيمة منفصلة عشان الـ template يقدر يوصلها مباشرة
+        "MEDIA_URL": settings.MEDIA_URL,
         "company_name": settings_dict.get("company_name", ""),
         "company_name_en": settings_dict.get("company_name_en", ""),
         "company_tax_number": settings_dict.get("company_tax_number", ""),
@@ -371,6 +396,8 @@ def company_settings(request):
         "company_logo": settings_dict.get("company_logo", ""),
         "company_logo_light": settings_dict.get("company_logo_light", ""),
         "company_logo_mini": settings_dict.get("company_logo_mini", ""),
+        "company_stamp": settings_dict.get("company_stamp", ""),
+        "enable_company_stamp": settings_dict.get("enable_company_stamp", "true") == "true",
         # ألوان الـ CSS
         "color_primary": settings_dict.get("color_primary", "#04578d"),
         "color_primary_dark": settings_dict.get("color_primary_dark", "#033d64"),
@@ -396,24 +423,133 @@ def company_settings(request):
 
 
 @login_required
-def system_settings(request):
+def operations_settings(request):
     """
-    عرض وتعديل إعدادات النظام
+    عرض وتعديل سياسات التشغيل والفواتير والطباعة وعروض الأسعار
     """
     from core.models import SystemSetting
-    from core.forms import SystemSettingsForm
+    from core.forms import OperationsSettingsForm
     from django.contrib import messages
-    from django.core.cache import cache
-    
-    # التحقق من صلاحيات المستخدم
-    if not request.user.is_admin and not request.user.is_superuser:
+    from django.db import transaction
+
+    # التحقق الموحد من صلاحيات المشرفين
+    if not (request.user.is_superuser or getattr(request.user, 'is_admin', False) or request.user.is_staff):
         return render(
             request,
             "core/permission_denied.html",
             {"title": "غير مصرح", "message": "ليس لديك صلاحية للوصول إلى هذه الصفحة"},
         )
 
-    # التثبت من وجود أي عمليات مالية أو تجارية بالنظام للقفل المحاسبي
+    # جلب الإعدادات الحالية
+    settings_dict = {}
+    for setting in SystemSetting.objects.all():
+        settings_dict[setting.key] = setting.value
+
+    # تهيئة البيانات الافتراضية للفورم
+    initial_data = {
+        'sale_invoice_item_types': settings_dict.get('sale_invoice_item_types', 'both'),
+        'purchase_invoice_item_types': settings_dict.get('purchase_invoice_item_types', 'both'),
+        'invoice_product_code_display': settings_dict.get('invoice_product_code_display', 'sku'),
+        'enable_custom_fields': settings_dict.get('enable_custom_fields', 'true') == 'true',
+        'custom_fields_display_mode': settings_dict.get('custom_fields_display_mode', 'expanded'),
+        'enable_quotations': settings_dict.get('enable_quotations', 'true') == 'true',
+        'default_quotation_validity_days': int(settings_dict.get('default_quotation_validity_days', 15)) if settings_dict.get('default_quotation_validity_days') else 15,
+        'default_sale_invoice_notes': settings_dict.get('default_sale_invoice_notes', settings_dict.get('invoice_notes', '')),
+        'default_sale_invoice_notes_en': settings_dict.get('default_sale_invoice_notes_en', ''),
+        'default_quotation_notes': settings_dict.get('default_quotation_notes', ''),
+        'default_quotation_notes_en': settings_dict.get('default_quotation_notes_en', ''),
+        'default_print_language': settings_dict.get('default_print_language', 'ar'),
+        'invoice_title_sale_en': settings_dict.get('invoice_title_sale_en', 'TAX INVOICE'),
+        'invoice_title_quotation_en': settings_dict.get('invoice_title_quotation_en', 'QUOTATION'),
+        'enable_thermal_printing': settings_dict.get('enable_thermal_printing') == 'true',
+        'receipt_paper_width': settings_dict.get('receipt_paper_width', '80'),
+    }
+
+    if request.method == "POST":
+        form = OperationsSettingsForm(request.POST)
+        if form.is_valid():
+            with transaction.atomic():
+                for key, value in form.cleaned_data.items():
+                    if isinstance(value, bool):
+                        db_value = 'true' if value else 'false'
+                        data_type = 'boolean'
+                    elif value is None:
+                        db_value = ''
+                        data_type = 'string'
+                    else:
+                        db_value = str(value)
+                        data_type = 'integer' if isinstance(value, int) else 'string'
+
+                    SystemSetting.objects.update_or_create(
+                        key=key,
+                        defaults={"value": db_value, "group": "sales", "data_type": data_type, "is_active": True}
+                    )
+
+                # تفريغ الكاش الموحد فوراً
+                SystemSetting.invalidate_all_system_caches()
+
+            messages.success(request, "تم حفظ سياسات التشغيل بنجاح ✅")
+            active_tab = request.POST.get("active_tab", "invoices")
+            return redirect(f"{reverse('core:operations_settings')}?tab={active_tab}")
+        else:
+            messages.error(request, "حدث خطأ أثناء حفظ السياسات، يرجى مراجعة الحقول")
+    else:
+        form = OperationsSettingsForm(initial=initial_data)
+
+    header_buttons = [
+        {
+            'id': 'exportOperationsBtn',
+            'icon': 'fa-file-export',
+            'text': 'تصدير السياسات',
+            'class': 'btn-outline-secondary'
+        },
+        {
+            'toggle': 'modal',
+            'target': '#importOperationsModal',
+            'icon': 'fa-file-import',
+            'text': 'استيراد السياسات',
+            'class': 'btn-outline-primary'
+        }
+    ]
+
+    breadcrumb_items = [
+        {'title': 'الرئيسية', 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},
+        {'title': 'الإعدادات', 'icon': 'fas fa-cog'},
+        {'title': 'سياسات التشغيل', 'active': True}
+    ]
+
+    context = {
+        "title": "سياسات التشغيل",
+        "subtitle": "إدارة سياسات الفواتير، المبيعات، الشراء، عروض الأسعار ونماذج الطباعة",
+        "icon": "fas fa-sliders-h",
+        "header_buttons": header_buttons,
+        "breadcrumb_items": breadcrumb_items,
+        "settings": settings_dict,
+        "form": form,
+    }
+
+    return render(request, "core/operations_settings.html", context)
+
+
+@login_required
+def system_settings(request):
+    """
+    عرض وتعديل إعدادات النظام والبنية التحتية والأمان
+    """
+    from core.models import SystemSetting
+    from core.forms import SystemSettingsForm
+    from django.contrib import messages
+    from django.db import transaction
+    
+    # التحقق الموحد من صلاحيات المشرفين
+    if not (request.user.is_superuser or getattr(request.user, 'is_admin', False) or request.user.is_staff):
+        return render(
+            request,
+            "core/permission_denied.html",
+            {"title": "غير مصرح", "message": "ليس لديك صلاحية للوصول إلى هذه الصفحة"},
+        )
+
+    # التثبت من وجود أي عمليات مالية أو تجارية بالنظام للقفل المحاسبي (IAS 21)
     from financial.models import JournalEntry, Currency
     from sale.models.sale import Sale
     from sale.models.quotation import Quotation
@@ -443,165 +579,109 @@ def system_settings(request):
 
     # تهيئة البيانات الافتراضية للفورم
     initial_data = {
+        'site_name': settings_dict.get('site_name', 'موهبة ERP'),
         'language': settings_dict.get('language', 'ar'),
-        'timezone': settings_dict.get('system_timezone', 'Africa/Cairo'),
+        'timezone': settings_dict.get('system_timezone') or settings_dict.get('timezone', 'Africa/Cairo'),
         'date_format': settings_dict.get('date_format', 'd/m/Y'),
+        'time_format': settings_dict.get('time_format', '12'),
         'default_currency': func_curr.id if func_curr else None,
-        'default_currency_en': func_curr.code if func_curr else 'EGP',
-        'default_tax_rate': settings_dict.get('default_tax_rate', '14'),
-        'default_print_language': settings_dict.get('default_print_language', 'ar'),
-        'company_address_en': settings_dict.get('company_address_en', ''),
-        'invoice_notes': settings_dict.get('invoice_notes', ''),
-        'default_sale_invoice_notes': settings_dict.get('default_sale_invoice_notes', settings_dict.get('invoice_notes', '')),
-        'default_sale_invoice_notes_en': settings_dict.get('default_sale_invoice_notes_en', ''),
-        'default_quotation_notes': settings_dict.get('default_quotation_notes', ''),
-        'default_quotation_notes_en': settings_dict.get('default_quotation_notes_en', ''),
-        'invoice_title_sale_en': settings_dict.get('invoice_title_sale_en', 'TAX INVOICE'),
-        'invoice_title_quotation_en': settings_dict.get('invoice_title_quotation_en', 'QUOTATION'),
         'maintenance_mode': settings_dict.get('maintenance_mode') == 'true',
+        'maintenance_message': settings_dict.get('maintenance_message', ''),
         'session_timeout': int(settings_dict.get('session_timeout', 60)) if settings_dict.get('session_timeout') else 60,
         'enable_two_factor': settings_dict.get('enable_two_factor') == 'true',
         'password_policy': settings_dict.get('password_policy', 'medium'),
         'failed_login_attempts': int(settings_dict.get('failed_login_attempts', 5)) if settings_dict.get('failed_login_attempts') else 5,
-        'account_lockout_time': int(settings_dict.get('account_lockout_time', 15)) if settings_dict.get('account_lockout_time') else 15,
+        'account_lockout_time': int(settings_dict.get('account_lockout_time', 30)) if settings_dict.get('account_lockout_time') else 30,
         'email_host': settings_dict.get('email_host', ''),
-        'email_port': int(settings_dict.get('email_port', 587)) if settings_dict.get('email_port') else None,
+        'email_port': int(settings_dict.get('email_port', 587)) if settings_dict.get('email_port') else 587,
         'email_username': settings_dict.get('email_username', ''),
         'email_password': settings_dict.get('email_password', ''),
         'email_encryption': settings_dict.get('email_encryption', 'tls'),
         'email_from': settings_dict.get('email_from', ''),
-        'receipt_paper_width': settings_dict.get('receipt_paper_width', '80'),
-        'sale_invoice_item_types': settings_dict.get('sale_invoice_item_types', 'both'),
-        'invoice_product_code_display': settings_dict.get('invoice_product_code_display', 'sku'),
-        'enable_quotations': settings_dict.get('enable_quotations') == 'true',
-        'enable_custom_fields': settings_dict.get('enable_custom_fields', 'true') == 'true',
-        'custom_fields_display_mode': settings_dict.get('custom_fields_display_mode', 'expanded'),
-        'enable_thermal_printing': settings_dict.get('enable_thermal_printing') == 'true',
+        'daftra_enabled': settings_dict.get('daftra_enabled') == 'true',
+        'daftra_domain': settings_dict.get('daftra_domain', ''),
+        'daftra_api_key': settings_dict.get('daftra_api_key', ''),
     }
 
-    # معالجة حفظ الإعدادات عند POST
     if request.method == "POST":
         form = SystemSettingsForm(request.POST, is_locked=has_transactions)
         if form.is_valid():
-            # تجميع الحقول والبيانات لحفظها بشكل محسن
-            target_settings = {}
-            for key, value in form.cleaned_data.items():
-                db_key = key
-                if key == 'timezone':
-                    db_key = 'system_timezone'
-                elif key == 'default_currency':
-                    if not has_transactions and value:
-                        try:
-                            if hasattr(value, 'is_functional'):
-                                value.is_functional = True
-                                value.save()
-                                from financial.services.partner_advance_service import PartnerAdvanceService
-                                PartnerAdvanceService.rebuild_all_snapshots()
-                        except Exception as e:
-                            logger.error(f"Error promoting functional currency: {e}")
-                    continue
-                elif key == 'default_currency_en':
-                    continue
-                
-                # تحويل القيم المنطقية وغيرها إلى نصوص مناسبة لقاعدة البيانات
-                if isinstance(value, bool):
-                    db_value = 'true' if value else 'false'
-                elif value is None:
-                    db_value = ''
-                else:
-                    db_value = str(value)
-                
-                target_settings[db_key] = db_value
+            with transaction.atomic():
+                for key, value in form.cleaned_data.items():
+                    # حماية كلمات المرور من المسح إذا تم ترك الحقل فارغاً
+                    if key in ('email_password', 'daftra_api_key') and not value:
+                        continue
 
-            # حفظ الحقول الإضافية غير الموجودة في الفورم مباشرة
-            for field in ["site_name", "site_name_en", "time_format", "items_per_page"]:
-                val = request.POST.get(field)
-                if val is not None:
-                    target_settings[field] = val
+                    if key == 'timezone':
+                        SystemSetting.objects.update_or_create(
+                            key='system_timezone',
+                            defaults={"value": str(value), "group": "system", "data_type": "string", "is_active": True}
+                        )
+                        SystemSetting.objects.update_or_create(
+                            key='timezone',
+                            defaults={"value": str(value), "group": "system", "data_type": "string", "is_active": True}
+                        )
+                        continue
+                    elif key == 'default_currency':
+                        if not has_transactions and value:
+                            try:
+                                if hasattr(value, 'is_functional'):
+                                    value.is_functional = True
+                                    value.save()
+                                    from financial.services.partner_advance_service import PartnerAdvanceService
+                                    PartnerAdvanceService.rebuild_all_snapshots()
+                            except Exception as e:
+                                logger.error(f"Error promoting functional currency: {e}")
+                        continue
 
-            # حفظ إعدادات دفترة
-            daftra_enabled = 'true' if request.POST.get('daftra_enabled') else 'false'
-            target_settings["daftra_enabled"] = daftra_enabled
-            target_settings["daftra_domain"] = request.POST.get("daftra_domain", "").strip()
-            target_settings["daftra_api_key"] = request.POST.get("daftra_api_key", "").strip()
-
-            # جلب جميع الإعدادات الحالية بطلب واحد لتجنب الاستعلامات المتكررة
-            all_keys = list(target_settings.keys())
-            existing_settings = {s.key: s for s in SystemSetting.objects.filter(key__in=all_keys)}
-
-            # حفظ التعديلات فقط
-            for db_key, db_value in target_settings.items():
-                if db_key in existing_settings:
-                    setting = existing_settings[db_key]
-                    if setting.value != db_value or not setting.is_active:
-                        setting.value = db_value
-                        setting.is_active = True
-                        setting.save()
-                else:
-                    # بناء الديفلتس لإعدادات دفترة أو إعدادات عامة أو المبيعات
-                    if db_key.startswith("daftra_"):
-                        group_val = "system"
-                        desc_val = f"إعداد دفترة - {db_key}"
-                    elif db_key == "sale_invoice_item_types":
-                        group_val = "sales"
-                        desc_val = "أنواع بنود فاتورة المبيعات المسموحة"
-                    elif db_key == "invoice_product_code_display":
-                        group_val = "sales"
-                        desc_val = "عرض كود/موديل المنتج في الفواتير والطباعة"
-                    elif db_key == "enable_quotations":
-                        group_val = "sales"
-                        desc_val = "تفعيل ميزة عروض الأسعار"
-                    elif db_key == "enable_thermal_printing":
-                        group_val = "sales"
-                        desc_val = "تفعيل إمكانية الطباعة الحرارية للفواتير"
-                    elif db_key == "default_sale_invoice_notes":
-                        group_val = "sales"
-                        desc_val = "ملاحظات وشروط فواتير المبيعات الافتراضية"
-                    elif db_key == "default_quotation_notes":
-                        group_val = "sales"
-                        desc_val = "ملاحظات وشروط عروض الأسعار الافتراضية"
+                    if isinstance(value, bool):
+                        db_value = 'true' if value else 'false'
+                        data_type = 'boolean'
+                    elif value is None:
+                        db_value = ''
+                        data_type = 'string'
                     else:
-                        group_val = "general"
-                        desc_val = ""
-                    
-                    data_type_val = "string"
-                    
-                    SystemSetting.objects.create(
-                        key=db_key,
-                        value=db_value,
-                        group=group_val,
-                        data_type=data_type_val,
-                        description=desc_val,
-                        is_active=True
+                        db_value = str(value)
+                        data_type = 'integer' if isinstance(value, int) else 'string'
+
+                    # تحديد المجموعة بدقة
+                    if key.startswith('email_') or key.startswith('daftra_') or key in ('maintenance_mode', 'maintenance_message', 'session_timeout', 'failed_login_attempts', 'account_lockout_time', 'enable_two_factor', 'password_policy'):
+                        group_val = 'system'
+                    else:
+                        group_val = 'general'
+
+                    SystemSetting.objects.update_or_create(
+                        key=key,
+                        defaults={"value": db_value, "group": group_val, "data_type": data_type, "is_active": True}
                     )
 
-            # حذف الكاش لتحديث الإعدادات العامة فوراً
-            try:
-                cache.delete('global_settings_dict_v2')
-                cache.delete('company_info_v1')
-                cache.delete('default_currency_symbol')
-                cache.delete('default_currency_symbol_en')
-            except Exception as e:
-                logger.error(f"Error clearing global settings cache: {e}")
+                # تفريغ الكاش الموحد فوراً
+                SystemSetting.invalidate_all_system_caches()
 
-            messages.success(request, "تم حفظ إعدادات النظام بنجاح")
-            return redirect("core:system_settings")
+            messages.success(request, "تم حفظ إعدادات النظام بنجاح ✅")
+            active_tab = request.POST.get("active_tab", "general")
+            return redirect(f"{reverse('core:system_settings')}?tab={active_tab}")
         else:
-            messages.error(request, "حدث خطأ أثناء حفظ الإعدادات، يرجى التحقق من الحقول")
+            messages.error(request, "حدث خطأ أثناء حفظ الإعدادات، يرجى مراجعة الحقول")
     else:
         form = SystemSettingsForm(initial=initial_data, is_locked=has_transactions)
 
-    # إعداد الهيدر
     header_buttons = [
         {
-            'url': reverse('core:dashboard'),
-            'icon': 'fa-arrow-right',
-            'text': 'العودة للوحة التحكم',
+            'id': 'exportSystemBtn',
+            'icon': 'fa-file-export',
+            'text': 'تصدير الإعدادات',
             'class': 'btn-outline-secondary'
+        },
+        {
+            'toggle': 'modal',
+            'target': '#importSystemModal',
+            'icon': 'fa-file-import',
+            'text': 'استيراد الإعدادات',
+            'class': 'btn-outline-primary'
         }
     ]
 
-    # مسار التنقل
     breadcrumb_items = [
         {'title': 'الرئيسية', 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},
         {'title': 'الإعدادات', 'icon': 'fas fa-cog'},
@@ -617,7 +697,7 @@ def system_settings(request):
 
     context = {
         "title": "إعدادات النظام",
-        "subtitle": "إدارة إعدادات النظام العامة",
+        "subtitle": "إدارة إعدادات النظام العامة، البنية التحتية، الأمان والتكامل",
         "icon": "fas fa-cogs",
         "header_buttons": header_buttons,
         "breadcrumb_items": breadcrumb_items,

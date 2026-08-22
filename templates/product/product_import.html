@@ -347,26 +347,9 @@
             </table>
         </div>
 
-        {% if preview_rows_page.paginator.num_pages > 1 %}
-        <nav aria-label="معاينة الصفحات" class="mt-3">
-            <ul class="pagination justify-content-center">
-                {% if preview_rows_page.has_previous %}
-                <li class="page-item"><a class="page-link" href="?page=1">الأولى</a></li>
-                <li class="page-item"><a class="page-link" href="?page={{ preview_rows_page.previous_page_number }}">السابقة</a></li>
-                {% endif %}
-                <li class="page-item active">
-                    <span class="page-link">
-                        صفحة {{ preview_rows_page.number }} من {{ preview_rows_page.paginator.num_pages }}
-                        <small class="text-muted">({{ preview_rows_page.start_index }}-{{ preview_rows_page.end_index }} من {{ preview_rows_page.paginator.count }})</small>
-                    </span>
-                </li>
-                {% if preview_rows_page.has_next %}
-                <li class="page-item"><a class="page-link" href="?page={{ preview_rows_page.next_page_number }}">التالية</a></li>
-                <li class="page-item"><a class="page-link" href="?page={{ preview_rows_page.paginator.num_pages }}">الأخيرة</a></li>
-                {% endif %}
-            </ul>
-        </nav>
-        {% endif %}
+        <div id="pagination-wrapper">
+          {% include 'partials/pagination.html' with page_obj=page_obj|default:preview_rows_page align='center' show_export=False %}
+        </div>
     </div>
 
     <div class="d-flex justify-content-between align-items-center">

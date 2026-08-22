@@ -68,9 +68,9 @@ def quotation_list(request):
     if date_to:
         quotations_qs = quotations_qs.filter(date__lte=date_to)
 
-    paginator = Paginator(quotations_qs, 25)
-    page_number = request.GET.get('page', 1)
-    page_obj = paginator.get_page(page_number)
+    from core.utils import paginate_queryset
+    pagination_context = paginate_queryset(quotations_qs, request)
+    page_obj = pagination_context["page_obj"]
 
     customers = Customer.objects.filter(is_active=True).order_by('name')
     from django.contrib.auth import get_user_model
@@ -85,8 +85,7 @@ def quotation_list(request):
 
     context = {
         "quotations": page_obj,
-        "page_obj": page_obj,
-        "paginator": paginator,
+        **pagination_context,
         "customers": customers,
         "salesmen": salesmen,
         "total_quotes_count": total_quotes_count,

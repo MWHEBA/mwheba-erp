@@ -41,9 +41,9 @@ def grn_list(request):
     if date_to:
         grns = grns.filter(received_date__date__lte=date_to)
 
-    paginator = Paginator(grns, 25)
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
+    from core.utils import paginate_queryset
+    pagination_context = paginate_queryset(grns, request)
+    page_obj = pagination_context["page_obj"]
 
     suppliers = Supplier.objects.filter(is_active=True)
     warehouses = Warehouse.objects.filter(is_active=True) if hasattr(Warehouse, 'is_active') else Warehouse.objects.all()
@@ -72,6 +72,8 @@ def grn_list(request):
 
     return render(request, 'purchase/grn_list.html', {
         'page_obj': page_obj,
+        'grns': page_obj.object_list,
+        **pagination_context,
         'suppliers': suppliers,
         'warehouses': warehouses,
         'grni_summary': grni_summary,

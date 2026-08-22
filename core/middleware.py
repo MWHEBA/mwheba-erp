@@ -70,7 +70,7 @@ class MaintenanceModeMiddleware(MiddlewareMixin):
             r"^/maintenance/",
             r"^/static/",
             r"^/media/",
-            r"^/settings/system/$",  # السماح بالوصول لصفحة الإعدادات لإلغاء وضع الصيانة
+            r"^/settings/.*",  # السماح بالوصول لكافة صفحات الإعدادات لإلغاء وضع الصيانة أو تعديل السياسات
         ]
         # إضافة URLs مخصصة من الإعدادات
         if hasattr(settings, "MAINTENANCE_ALLOWED_URLS"):

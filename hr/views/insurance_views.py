@@ -187,9 +187,16 @@ def insurance_payment_list(request):
         models.Q(is_cash_account=True) | models.Q(is_bank_account=True)
     ).order_by('code')
 
+    # الترقيم SSR
+    from core.utils import paginate_queryset
+    pagination_context = paginate_queryset(table_data, request, default_per_page=25)
+    page_obj = pagination_context["page_obj"]
+
     context = {
         'table_headers': table_headers,
-        'table_data': table_data,
+        'table_data': page_obj,
+        'page_obj': page_obj,
+        **pagination_context,
         'total_pending': total_pending,
         'total_paid': total_paid,
         'selected_month': month_str,

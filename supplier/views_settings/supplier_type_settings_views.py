@@ -27,9 +27,10 @@ def supplier_type_settings_list(request):
     """عرض صفحة إعدادات الموردين الموحدة — أنواع الموردين + أنواع خدمات التسعير"""
 
     # ── أنواع الموردين ──────────────────────────────────────────
+    from core.utils import paginate_queryset
     supplier_types = SupplierTypeSettings.objects.all().order_by('display_order', 'name')
-    paginator  = Paginator(supplier_types, 20)
-    page_obj   = paginator.get_page(request.GET.get('page'))
+    pagination_context = paginate_queryset(supplier_types, request, default_per_page=25)
+    page_obj = pagination_context["page_obj"]
 
     # ── أنواع خدمات التسعير ─────────────────────────────────────
     from supplier.models import ServiceType
@@ -52,6 +53,7 @@ def supplier_type_settings_list(request):
     context = {
         'page_obj':      page_obj,
         'supplier_types': page_obj.object_list,
+        **pagination_context,
         'service_types':  service_types,
         'stats':          stats,
         'page_title':    'إعدادات الموردين',

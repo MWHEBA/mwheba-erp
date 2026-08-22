@@ -138,11 +138,7 @@
             {% include "product/partials/price_manager_table.html" %}
         </div>
         <div id="pagination-wrapper">
-            {% if paginator and paginator.num_pages > 1 %}
-            <div class="card-footer">
-                {% include "partials/pagination.html" with page_obj=items align="center" %}
-            </div>
-            {% endif %}
+            {% include "partials/pagination.html" with page_obj=items align="center" %}
         </div>
     </div>
 
