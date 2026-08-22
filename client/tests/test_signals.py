@@ -30,8 +30,8 @@ class CustomerSignalsTest(TestCase):
         )
         
         self.customers_parent, _ = ChartOfAccounts.objects.get_or_create(
-            code='11030',
-            defaults={'name': 'العملاء', 'name_en': 'Customers', 'account_type': asset_type, 'is_active': True, 'is_leaf': False}
+            code='11210',
+            defaults={'name': 'العملاء', 'name_en': 'Customers', 'account_type': asset_type, 'is_active': True, 'is_leaf': False, 'is_control_account': True}
         )
         
     # ==================== اختبارات create_customer_account_signal ====================
@@ -51,7 +51,7 @@ class CustomerSignalsTest(TestCase):
         
         # التحقق من إنشاء الحساب
         self.assertIsNotNone(customer.financial_account)
-        self.assertTrue(customer.financial_account.code.startswith('1103'))
+        self.assertTrue(customer.financial_account.code.startswith(('11210', '112')))
         self.assertEqual(customer.financial_account.parent, self.customers_parent)
         self.assertIn(customer.name, customer.financial_account.name)
         
@@ -131,7 +131,7 @@ class CustomerSignalsTest(TestCase):
         
     @override_settings(AUTO_CREATE_CUSTOMER_ACCOUNTS=True)
     @patch('client.signals.logger')
-    @patch('client.services.customer_service.CustomerService.create_financial_account_for_customer')
+    @patch('financial.services.subledger_account_service.SubledgerAccountService.create_customer_account')
     def test_signal_logs_error_on_exception(self, mock_create_account, mock_logger):
         """اختبار تسجيل الخطأ عند فشل إنشاء الحساب"""
         # إعداد الـ mock ليرمي استثناء
@@ -175,12 +175,12 @@ class CustomerSignalsTest(TestCase):
         
         # التحقق من إنشاء الحساب
         self.assertIsNotNone(customer.financial_account)
-        self.assertTrue(customer.financial_account.code.startswith('1103'))
+        self.assertTrue(customer.financial_account.code.startswith(('11210', '112')))
         
     # ==================== اختبارات delete_customer_account_signal ====================
     
     def test_signal_deletes_account_on_customer_delete(self):
-        """اختبار حذف الحساب المحاسبي عند حذف العميل"""
+        """اختبار تعطيل الحساب المحاسبي بأمان عند حذف العميل"""
         # إنشاء عميل
         customer = Customer.objects.create(
             name='عميل للحذف',
@@ -194,9 +194,10 @@ class CustomerSignalsTest(TestCase):
         # حذف العميل
         customer.delete()
         
-        # التحقق من حذف الحساب
+        # التحقق من تعطيل الحساب لحماية سجلات القيود
         if account_code:
-            self.assertFalse(ChartOfAccounts.objects.filter(code=account_code).exists())
+            account = ChartOfAccounts.objects.get(code=account_code)
+            self.assertFalse(account.is_active)
         
     def test_signal_no_error_if_no_account(self):
         """اختبار عدم حدوث خطأ عند حذف عميل بدون حساب"""
@@ -214,7 +215,7 @@ class CustomerSignalsTest(TestCase):
             success = True
         except Exception:
             success = False
-            
+        
         self.assertTrue(success)
 
 
@@ -234,8 +235,8 @@ class CustomerSignalsIntegrationTest(TestCase):
         )
         
         ChartOfAccounts.objects.get_or_create(
-            code='11030',
-            defaults={'name': 'مدينو العملاء', 'name_en': 'Customers Receivables', 'account_type': asset_type, 'is_active': True, 'is_leaf': False}
+            code='11210',
+            defaults={'name': 'العملاء', 'name_en': 'Customers', 'account_type': asset_type, 'is_active': True, 'is_leaf': False, 'is_control_account': True}
         )
         
     @override_settings(AUTO_CREATE_CUSTOMER_ACCOUNTS=True)
@@ -255,8 +256,8 @@ class CustomerSignalsIntegrationTest(TestCase):
         
         # التحقق من إنشاء 3 حسابات فرعية
         customer_accounts = ChartOfAccounts.objects.filter(
-            code__startswith='1103',
-            parent__code='11030'
+            code__startswith='11210',
+            parent__code='11210'
         )
         self.assertEqual(customer_accounts.count(), 3)
         

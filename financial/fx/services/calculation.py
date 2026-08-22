@@ -239,19 +239,22 @@ class FXCalculationService:
 
     @classmethod
     def _get_or_create_ar_account(cls):
-        acc = ChartOfAccounts.objects.filter(
-            is_leaf=True,
-            is_active=True
-        ).filter(
-            models.Q(code__in=["1101001", "1103001", "11010_AR", "120100"]) |
-            models.Q(name__icontains="عملاء") |
-            models.Q(name__icontains="مدينون")
-        ).first()
+        from financial.services.role_registry import AccountRoleRegistry
+        acc = AccountRoleRegistry.get_account_by_role("CUSTOMER_RECEIVABLE_CONTROL")
+        if not acc or not acc.is_leaf:
+            acc = ChartOfAccounts.objects.filter(
+                is_leaf=True,
+                is_active=True
+            ).filter(
+                models.Q(code__startswith="11210") |
+                models.Q(code__in=["11210", "11210001", "1101001", "1103001"]) |
+                models.Q(name__icontains="عملاء")
+            ).first()
         if not acc:
             acc_type = AccountType.objects.filter(category="asset").first() or AccountType.objects.first()
             acc = ChartOfAccounts.objects.create(
-                code="11010_AR",
-                name="حساب ذمم العملاء والتقييم المحاسبي",
+                code="11210001",
+                name="حساب ذمم العملاء الافتراضي",
                 account_type=acc_type,
                 is_active=True,
                 is_leaf=True
@@ -260,19 +263,22 @@ class FXCalculationService:
 
     @classmethod
     def _get_or_create_ap_account(cls):
-        acc = ChartOfAccounts.objects.filter(
-            is_leaf=True,
-            is_active=True
-        ).filter(
-            models.Q(code__in=["2101001", "2103001", "21010_AP", "220100"]) |
-            models.Q(name__icontains="موردين") |
-            models.Q(name__icontains="دائنون")
-        ).first()
+        from financial.services.role_registry import AccountRoleRegistry
+        acc = AccountRoleRegistry.get_account_by_role("SUPPLIER_PAYABLE_CONTROL")
+        if not acc or not acc.is_leaf:
+            acc = ChartOfAccounts.objects.filter(
+                is_leaf=True,
+                is_active=True
+            ).filter(
+                models.Q(code__startswith="21110") |
+                models.Q(code__in=["21110", "21110001", "2101001", "20100"]) |
+                models.Q(name__icontains="موردين")
+            ).first()
         if not acc:
             acc_type = AccountType.objects.filter(category="liability").first() or AccountType.objects.first()
             acc = ChartOfAccounts.objects.create(
-                code="21010_AP",
-                name="حساب ذمم الموردين والتقييم المحاسبي",
+                code="21110001",
+                name="حساب ذمم الموردين الافتراضي",
                 account_type=acc_type,
                 is_active=True,
                 is_leaf=True

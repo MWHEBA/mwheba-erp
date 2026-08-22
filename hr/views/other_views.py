@@ -1,4 +1,4 @@
-﻿"""
+"""
 Views متنوعة للموارد البشرية
 """
 from .base_imports import *
@@ -187,7 +187,7 @@ def hr_settings(request):
         'senior_annual_days':      SystemSetting.get_setting('leave_senior_annual_days', 30),
         'senior_emergency_days':   SystemSetting.get_setting('leave_senior_emergency_days', 10),
         # دورة الإجازات
-        'year_reference':          SystemSetting.get_setting('leave_year_reference', 'academic_year'),
+        'year_reference':          SystemSetting.get_setting('leave_year_reference', 'calendar_year'),
         # تحويل الرصيد لمالي
         'encashment_enabled':      SystemSetting.get_setting('leave_encashment_enabled', False),
     }
@@ -313,7 +313,7 @@ def leave_policy_settings(request):
         'senior_service_years':   s('leave_senior_service_years', 10),
         'senior_annual_days':     s('leave_senior_annual_days', 30),
         'senior_emergency_days':  s('leave_senior_emergency_days', 10),
-        'year_reference':         s('leave_year_reference', 'academic_year'),
+        'year_reference':         s('leave_year_reference', 'calendar_year'),
         'encashment_enabled':     s('leave_encashment_enabled', False),
     }
 

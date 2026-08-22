@@ -97,7 +97,8 @@ def create_test_data():
                 "code": "VIP001",
                 "email": "vip@test.com",
                 "phone": "+201111111111",
-                "client_type": "vip",
+                "client_type": "individual",
+                "is_vip": True,
                 "credit_limit": Decimal("100000.00"),
             },
         ]
@@ -133,19 +134,19 @@ def show_test_statistics():
         # عدد العملاء
         total_customers = Customer.objects.count()
         active_customers = Customer.objects.filter(is_active=True).count()
+        vip_customers = Customer.objects.filter(is_vip=True).count()
         print(f"📌 إجمالي العملاء: {total_customers}")
         print(f"✅ العملاء النشطين: {active_customers}")
+        print(f"⭐ عملاء مميزين (VIP): {vip_customers}")
 
         # العملاء حسب النوع
         individual_count = Customer.objects.filter(client_type="individual").count()
         company_count = Customer.objects.filter(client_type="company").count()
-        vip_count = Customer.objects.filter(client_type="vip").count()
         government_count = Customer.objects.filter(client_type="government").count()
 
-        print(f"\n📋 توزيع العملاء حسب النوع:")
+        print(f"\n📋 توزيع العملاء حسب الكيان القانوني:")
         print(f"   - أفراد: {individual_count}")
         print(f"   - شركات: {company_count}")
-        print(f"   - VIP: {vip_count}")
         print(f"   - جهات حكومية: {government_count}")
 
         # المدفوعات

@@ -1642,10 +1642,10 @@ def cash_flow_statement(request):
 @login_required
 def customer_supplier_balances_report(request, account_type):
     """
-    تقرير أرصدة أولياء الأمور والموردين
+    تقرير أرصدة العملاء والموردين
     account_type: 'customers' أو 'suppliers'
     """
-    from ..services.parent_supplier_balances_service import ParentSupplierBalancesService
+    from ..services.customer_supplier_balances_service import CustomerSupplierBalancesService
     from django.http import HttpResponse
     
     # تحديد تاريخ التقرير
@@ -1667,7 +1667,7 @@ def customer_supplier_balances_report(request, account_type):
             if account_type == "customers":
                 report_data = balances_service.generate_customer_balances_report()
                 report_type = 'ar'
-                filename = f'parent_balances_{as_of_date}.xlsx'
+                filename = f'customer_balances_{as_of_date}.xlsx'
             else:
                 report_data = balances_service.generate_supplier_balances_report()
                 report_type = 'ap'
@@ -1699,7 +1699,7 @@ def customer_supplier_balances_report(request, account_type):
         
         # تحديد العنوان والأيقونة حسب النوع
         if account_type == "customers":
-            page_title = "تقرير أرصدة أولياء الأمور"
+            page_title = "تقرير أرصدة العملاء"
             page_icon = "fas fa-users"
         else:
             page_title = "تقرير أرصدة الموردين"

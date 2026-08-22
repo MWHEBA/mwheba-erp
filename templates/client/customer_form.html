@@ -7,6 +7,17 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/components.css' %}">
+<style>
+  .customer-account-card {
+    background-color: var(--bs-light, #f8f9fa);
+    border: 1px solid var(--border-color, #dee2e6);
+    border-radius: var(--border-radius-sm, 6px);
+    padding: 1rem;
+  }
+  .customer-account-badge {
+    font-size: 0.85rem;
+  }
+</style>
 {% endblock %}
 
 {% block content %}
@@ -14,121 +25,478 @@
     <!-- Page Header المركزي -->
     {% include "shared/page_header.html" %}
 
-    <div class="section-container">
-        <h5 class="section-title">
-            <i class="fas fa-user-edit me-2"></i>
-            {% if customer %}
-                {% trans "تعديل بيانات العميل" %}
-            {% else %}
-                {% trans "نموذج إضافة عميل جديد" %}
-            {% endif %}
-        </h5>
-        <div class="row">
-            <div class="col-md-10 mx-auto">
-                        <form method="post" novalidate>
-                            {% csrf_token %}
-                            
-                            <div class="row">
-                                <div class="col-md-6">
-                                    {{ form.name|as_crispy_field }}
-                                </div>
-                                <div class="col-md-6">
-                                    {{ form.code|as_crispy_field }}
-                                </div>
-                            </div>
-                            
-                            <div class="row">
-                                <div class="col-md-6">
-                                    {{ form.phone|as_crispy_field }}
-                                </div>
-                                <div class="col-md-6">
-                                    {{ form.email|as_crispy_field }}
-                                </div>
-                            </div>
-                            
-                            <div class="row">
-                                <div class="col-md-6">
-                                    {{ form.address|as_crispy_field }}
-                                </div>
-                                <div class="col-md-6">
-                                    {{ form.credit_limit|as_crispy_field }}
-                                </div>
-                            </div>
-                            
-                            <div class="row">
-                                <div class="col-md-6">
-                                    {{ form.default_currency|as_crispy_field }}
-                                </div>
-                                <div class="col-md-6">
-                                    {{ form.tax_number|as_crispy_field }}
-                                </div>
-                            </div>
-                            
-                            <div class="form-group">
-                                {{ form.notes|as_crispy_field }}
-                            </div>
-                            
-                            <div class="d-flex justify-content-between mt-4">
-                                <a href="{% url 'client:customer_list' %}" class="btn btn-secondary">
-                                    <i class="fas fa-times me-2"></i>{% trans "إلغاء" %}
-                                </a>
-                                <button type="submit" class="btn btn-primary">
-                                    <i class="fas fa-save me-2"></i>
-                                    {% if customer %}
-                                        {% trans "حفظ التغييرات" %}
-                                    {% else %}
-                                        {% trans "إضافة العميل" %}
-                                    {% endif %}
-                                </button>
-                            </div>
-                        </form>
+    <form method="post" id="customer-form" novalidate>
+        {% csrf_token %}
+
+        {% if form.non_field_errors %}
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            {% for error in form.non_field_errors %}
+                <div>{{ error }}</div>
+            {% endfor %}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endif %}
+
+        <!-- 1. البيانات الأساسية والهوية القانونية -->
+        <div class="section-container mb-4">
+            <h5 class="section-title">
+                <i class="fas fa-id-card me-2"></i>{% trans "البيانات الأساسية والهوية القانونية" %}
+            </h5>
+            <div class="p-3">
+                <div class="row g-3">
+                    <div class="col-md-6 col-lg-4">
+                        <label for="id_name" class="form-label requiredField" id="label_name">
+                            {% trans "اسم العميل" %} <span class="text-danger">*</span>
+                        </label>
+                        {{ form.name }}
+                        {% if form.name.errors %}
+                            <div class="invalid-feedback d-block">{{ form.name.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="col-md-6 col-lg-4">
+                        <label for="id_code" class="form-label requiredField">
+                            {% trans "كود العميل" %} <span class="text-danger">*</span>
+                        </label>
+                        <div class="input-group" id="code-input-group">
+                            {{ form.code }}
+                            <button type="button" class="btn btn-outline-secondary" id="toggle-customer-code" title="{% trans 'تعديل الكود' %}">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                        </div>
+                        {% if form.code.errors %}
+                            <div class="invalid-feedback d-block">{{ form.code.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="col-md-6 col-lg-4">
+                        <label for="id_client_type" class="form-label">
+                            {% trans "نوع العميل (الكيان القانوني)" %}
+                        </label>
+                        {{ form.client_type }}
+                        {% if form.client_type.errors %}
+                            <div class="invalid-feedback d-block">{{ form.client_type.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="col-md-6 col-lg-4" id="container_commercial_registry">
+                        <label for="id_commercial_registry" class="form-label">
+                            {% trans "السجل التجاري" %}
+                        </label>
+                        {{ form.commercial_registry }}
+                        {% if form.commercial_registry.errors %}
+                            <div class="invalid-feedback d-block">{{ form.commercial_registry.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="col-md-6 col-lg-4" id="container_tax_number">
+                        <label for="id_tax_number" class="form-label">
+                            {% trans "الرقم الضريبي" %}
+                        </label>
+                        {{ form.tax_number }}
+                        {% if form.tax_number.errors %}
+                            <div class="invalid-feedback d-block">{{ form.tax_number.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="col-md-6 col-lg-4" id="container_national_id">
+                        <label for="id_national_id" class="form-label">
+                            {% trans "الرقم القومي (للأفراد 14 رقماً)" %}
+                        </label>
+                        {{ form.national_id }}
+                        {% if form.national_id.errors %}
+                            <div class="invalid-feedback d-block">{{ form.national_id.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="col-md-6 col-lg-4 d-flex align-items-center mt-4">
+                        <div class="form-check form-switch pt-2">
+                            {{ form.is_active }}
+                            <label class="form-check-label fw-semibold ms-2" for="id_is_active">
+                                {% trans "تفعيل حساب العميل في النظام" %}
+                            </label>
+                        </div>
+                        {% if form.is_active.errors %}
+                            <div class="invalid-feedback d-block">{{ form.is_active.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="col-md-6 col-lg-4 d-flex align-items-center mt-4">
+                        <div class="form-check form-switch pt-2">
+                            {{ form.is_vip }}
+                            <label class="form-check-label fw-semibold ms-2 text-dark" for="id_is_vip">
+                                <i class="fas fa-star text-warning me-1"></i>{% trans "عميل مميز (VIP)" %}
+                            </label>
+                        </div>
+                        {% if form.is_vip.errors %}
+                            <div class="invalid-feedback d-block">{{ form.is_vip.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+                </div>
             </div>
         </div>
-    </div>
+
+        <!-- 2. بيانات الاتصال والعناوين -->
+        <div class="section-container mb-4">
+            <h5 class="section-title">
+                <i class="fas fa-address-book me-2"></i>{% trans "بيانات الاتصال والعنوان" %}
+            </h5>
+            <div class="p-3">
+                <div class="row g-3">
+                    <div class="col-md-6 col-lg-4" id="container_contact_person">
+                        <label for="id_contact_person" class="form-label">
+                            <i class="fas fa-user-tie me-1 text-primary"></i>{% trans "الشخص المسؤول / المفوض للتواصل" %}
+                        </label>
+                        {{ form.contact_person }}
+                        {% if form.contact_person.errors %}
+                            <div class="invalid-feedback d-block">{{ form.contact_person.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="col-md-6 col-lg-4">
+                        <label for="id_phone_primary" class="form-label">
+                            <i class="fas fa-phone-alt me-1 text-primary"></i>{% trans "الهاتف الأساسي (واتساب)" %}
+                        </label>
+                        {{ form.phone_primary }}
+                        {{ form.phone }}
+                        {% if form.phone_primary.errors %}
+                            <div class="invalid-feedback d-block">{{ form.phone_primary.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="col-md-6 col-lg-4">
+                        <label for="id_phone_secondary" class="form-label">
+                            <i class="fas fa-phone me-1 text-secondary"></i>{% trans "هاتف إضافي / ثانوي" %}
+                        </label>
+                        {{ form.phone_secondary }}
+                        {% if form.phone_secondary.errors %}
+                            <div class="invalid-feedback d-block">{{ form.phone_secondary.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="col-md-6 col-lg-4">
+                        <label for="id_email" class="form-label">
+                            <i class="fas fa-envelope me-1 text-info"></i>{% trans "البريد الإلكتروني" %}
+                        </label>
+                        {{ form.email }}
+                        {% if form.email.errors %}
+                            <div class="invalid-feedback d-block">{{ form.email.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="col-md-6 col-lg-4">
+                        <label for="id_country" class="form-label">
+                            <i class="fas fa-globe me-1 text-secondary"></i>{% trans "الدولة" %}
+                        </label>
+                        {{ form.country }}
+                        {% if form.country.errors %}
+                            <div class="invalid-feedback d-block">{{ form.country.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="col-md-6 col-lg-4">
+                        <label for="id_city" class="form-label">
+                            <i class="fas fa-city me-1 text-secondary"></i>{% trans "المدينة / المحافظة" %}
+                        </label>
+                        {{ form.city }}
+                        {% if form.city.errors %}
+                            <div class="invalid-feedback d-block">{{ form.city.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="col-12">
+                        <label for="id_address" class="form-label">
+                            <i class="fas fa-map-marker-alt me-1 text-danger"></i>{% trans "العنوان التفصيلي وموقع التوصيل" %}
+                        </label>
+                        {{ form.address }}
+                        {% if form.address.errors %}
+                            <div class="invalid-feedback d-block">{{ form.address.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. الإعدادات المالية وحوكمة الائتمان -->
+        <div class="section-container mb-4">
+            <h5 class="section-title">
+                <i class="fas fa-shield-alt me-2"></i>{% trans "الإعدادات المالية وحوكمة الائتمان (FIN-AR-001)" %}
+            </h5>
+            <div class="p-3">
+                <div class="row g-3">
+                    <div class="col-md-6 col-lg-3">
+                        <label for="id_default_currency" class="form-label">
+                            <i class="fas fa-money-bill me-1 text-success"></i>{% trans "العملة الافتراضية للمعاملات" %}
+                        </label>
+                        {{ form.default_currency }}
+                        <small class="text-muted d-block mt-1">{% trans "العملة الافتراضية لفواتير وعروض أسعار العميل" %}</small>
+                        {% if form.default_currency.errors %}
+                            <div class="invalid-feedback d-block">{{ form.default_currency.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="col-md-6 col-lg-3">
+                        <label for="id_credit_limit" class="form-label">
+                            <i class="fas fa-credit-card me-1 text-warning"></i>{% trans "الحد الائتماني المرخص" %}
+                        </label>
+                        {{ form.credit_limit }}
+                        <small class="text-muted d-block mt-1">{% trans "الحد الأقصى للمديونية المسموح بها" %}</small>
+                        {% if form.credit_limit.errors %}
+                            <div class="invalid-feedback d-block">{{ form.credit_limit.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="col-md-6 col-lg-3">
+                        <label for="id_default_payment_term" class="form-label">
+                            <i class="fas fa-file-contract me-1 text-primary"></i>{% trans "شروط الدفع المعيارية" %}
+                        </label>
+                        {{ form.default_payment_term }}
+                        {% if form.default_payment_term.errors %}
+                            <div class="invalid-feedback d-block">{{ form.default_payment_term.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="col-md-6 col-lg-3">
+                        <label for="id_grace_period_days" class="form-label">
+                            <i class="fas fa-hourglass-half me-1 text-secondary"></i>{% trans "أيام السماح الإضافية" %}
+                        </label>
+                        {{ form.grace_period_days }}
+                        {% if form.grace_period_days.errors %}
+                            <div class="invalid-feedback d-block">{{ form.grace_period_days.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="col-md-6 col-lg-3">
+                        <label for="id_credit_status" class="form-label">
+                            <i class="fas fa-traffic-light me-1"></i>{% trans "حالة الائتمان" %}
+                        </label>
+                        {{ form.credit_status }}
+                        {% if form.credit_status.errors %}
+                            <div class="invalid-feedback d-block">{{ form.credit_status.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="col-md-6 col-lg-3">
+                        <label for="id_risk_category" class="form-label">
+                            <i class="fas fa-chart-line me-1"></i>{% trans "تصنيف المخاطر" %}
+                        </label>
+                        {{ form.risk_category }}
+                        {% if form.risk_category.errors %}
+                            <div class="invalid-feedback d-block">{{ form.risk_category.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="col-md-6 col-lg-3">
+                        <label for="id_next_review_date" class="form-label">
+                            <i class="fas fa-calendar-check me-1"></i>{% trans "تاريخ المراجعة الائتمانية" %}
+                        </label>
+                        {{ form.next_review_date }}
+                        {% if form.next_review_date.errors %}
+                            <div class="invalid-feedback d-block">{{ form.next_review_date.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="col-md-6 col-lg-3">
+                        <label for="id_credit_change_reason" class="form-label">
+                            <i class="fas fa-clipboard-check me-1 text-primary"></i>{% trans "مبرر تعديل الائتمان" %}
+                        </label>
+                        {{ form.credit_change_reason }}
+                        {% if form.credit_change_reason.errors %}
+                            <div class="invalid-feedback d-block">{{ form.credit_change_reason.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+
+                    <!-- بطاقة الحساب المحاسبي التفاعلية -->
+                    <div class="col-12 mt-3">
+                        <div class="customer-account-card">
+                            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                                <div>
+                                    <h6 class="fw-bold mb-1 text-dark">
+                                        <i class="fas fa-book text-primary me-2"></i>{% trans "الحساب المحاسبي في دليل الحسابات" %}
+                                    </h6>
+                                    {% if customer and customer.financial_account %}
+                                        <div class="text-secondary small">
+                                            <span class="badge bg-light text-dark border me-2">{{ customer.financial_account.code }}</span>
+                                            <span class="fw-semibold text-dark">{{ customer.financial_account.name }}</span>
+                                            <span class="badge bg-success-subtle text-success border border-success-subtle ms-2 customer-account-badge">
+                                                <i class="fas fa-check-circle me-1"></i>{% trans "مرتبط ونشط" %}
+                                            </span>
+                                        </div>
+                                    {% elif customer %}
+                                        <div class="text-warning small">
+                                            <i class="fas fa-exclamation-triangle me-1"></i>
+                                            {% trans "العميل غير مرتبط بحساب محاسبي في شجرة الحسابات حالياً." %}
+                                        </div>
+                                    {% else %}
+                                        <div class="text-muted small">
+                                            <i class="fas fa-info-circle me-1"></i>
+                                            {% trans "سيتم إنشاء الحساب المحاسبي في شجرة الحسابات تلقائياً تحت حساب مراقبة مديني العملاء فور حفظ العميل." %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+
+                                {% if customer %}
+                                <div class="d-flex gap-2">
+                                    {% if customer.financial_account %}
+                                        <a href="{% url 'client:customer_change_account' customer.pk %}" class="btn btn-sm btn-outline-secondary">
+                                            <i class="fas fa-exchange-alt me-1"></i>{% trans "تغيير الحساب المحاسبي" %}
+                                        </a>
+                                    {% else %}
+                                        <a href="{% url 'client:customer_change_account' customer.pk %}" class="btn btn-sm btn-primary">
+                                            <i class="fas fa-plus me-1"></i>{% trans "إنشاء / ربط حساب محاسبي" %}
+                                        </a>
+                                    {% endif %}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. إدارة علاقات العملاء (CRM) والملاحظات -->
+        <div class="section-container mb-4">
+            <h5 class="section-title">
+                <i class="fas fa-comments me-2"></i>{% trans "إدارة علاقات العملاء (CRM) والملاحظات" %}
+            </h5>
+            <div class="p-3">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label for="id_contact_frequency" class="form-label">
+                            <i class="fas fa-sync-alt me-1 text-secondary"></i>{% trans "معدل تكرار التواصل المطلوب" %}
+                        </label>
+                        {{ form.contact_frequency }}
+                        {% if form.contact_frequency.errors %}
+                            <div class="invalid-feedback d-block">{{ form.contact_frequency.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="col-md-6">
+                        <label for="id_last_contact_date" class="form-label">
+                            <i class="fas fa-clock me-1 text-secondary"></i>{% trans "تاريخ آخر تواصل مع العميل" %}
+                        </label>
+                        {{ form.last_contact_date }}
+                        {% if form.last_contact_date.errors %}
+                            <div class="invalid-feedback d-block">{{ form.last_contact_date.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="col-12">
+                        <label for="id_notes" class="form-label">
+                            <i class="fas fa-sticky-note me-1 text-secondary"></i>{% trans "ملاحظات إضافية وشروط خاصة" %}
+                        </label>
+                        {{ form.notes }}
+                        {% if form.notes.errors %}
+                            <div class="invalid-feedback d-block">{{ form.notes.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- أزرار الحفظ والإلغاء -->
+        <div class="d-flex justify-content-between align-items-center mb-5 pb-3">
+            <a href="{% if customer %}{% url 'client:customer_detail' customer.pk %}{% else %}{% url 'client:customer_list' %}{% endif %}" class="btn btn-secondary px-4">
+                <i class="fas fa-times me-2"></i>{% trans "إلغاء والعودة" %}
+            </a>
+            <button type="submit" class="btn btn-primary px-5 fw-bold shadow-sm">
+                <i class="fas fa-save me-2"></i>
+                {% if customer %}
+                    {% trans "حفظ التغييرات" %}
+                {% else %}
+                    {% trans "إضافة العميل" %}
+                {% endif %}
+            </button>
+        </div>
+    </form>
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // 1. إدارة قفل وتعديل كود العميل
         const codeInput = document.getElementById('id_code');
-        if (codeInput) {
-            // Create an input-group wrapper
-            const wrapper = document.createElement('div');
-            wrapper.className = 'input-group';
-            
-            // Insert wrapper before codeInput in DOM
-            codeInput.parentNode.insertBefore(wrapper, codeInput);
-            
-            // Move codeInput into the wrapper
-            wrapper.appendChild(codeInput);
-            
-            // Create edit button
-            const button = document.createElement('button');
-            button.type = 'button';
-            button.className = 'btn btn-outline-secondary';
-            button.id = 'toggle-customer-code';
-            button.innerHTML = '<i class="fas fa-edit"></i>';
-            
-            // Append button to wrapper
-            wrapper.appendChild(button);
-            
-            // Add click listener
-            button.addEventListener('click', function() {
+        const toggleCodeBtn = document.getElementById('toggle-customer-code');
+
+        if (codeInput && toggleCodeBtn) {
+            toggleCodeBtn.addEventListener('click', function() {
                 if (codeInput.hasAttribute('readonly')) {
                     codeInput.removeAttribute('readonly');
                     codeInput.focus();
-                    button.innerHTML = '<i class="fas fa-lock"></i>';
-                    button.classList.remove('btn-outline-secondary');
-                    button.classList.add('btn-outline-primary');
+                    toggleCodeBtn.innerHTML = '<i class="fas fa-lock text-primary"></i>';
+                    toggleCodeBtn.classList.remove('btn-outline-secondary');
+                    toggleCodeBtn.classList.add('btn-outline-primary');
                 } else {
                     codeInput.setAttribute('readonly', 'readonly');
-                    button.innerHTML = '<i class="fas fa-edit"></i>';
-                    button.classList.remove('btn-outline-primary');
-                    button.classList.add('btn-outline-secondary');
+                    toggleCodeBtn.innerHTML = '<i class="fas fa-edit"></i>';
+                    toggleCodeBtn.classList.remove('btn-outline-primary');
+                    toggleCodeBtn.classList.add('btn-outline-secondary');
                 }
             });
         }
+
+        // 2. التبديل التفاعلي بين حقول الشركات والأفراد
+        function updateClientTypeVisibility() {
+            const clientTypeVal = $('#id_client_type').val() || (document.getElementById('id_client_type') ? document.getElementById('id_client_type').value : 'individual');
+            const labelName = document.getElementById('label_name');
+            const inputName = document.getElementById('id_name');
+            const contactPersonContainer = document.getElementById('container_contact_person');
+            const commercialRegContainer = document.getElementById('container_commercial_registry');
+            const nationalIdContainer = document.getElementById('container_national_id');
+            const taxNumberContainer = document.getElementById('container_tax_number');
+
+            if (clientTypeVal === 'individual') {
+                // الأفراد: اسم العميل الشخصي + الرقم القومي فقط
+                if (labelName) labelName.innerHTML = '{% trans "اسم العميل (الاسم الكامل)" %} <span class="text-danger">*</span>';
+                if (inputName) inputName.placeholder = '{% trans "الاسم الرباعي للعميل" %}';
+                if (contactPersonContainer) contactPersonContainer.style.display = 'none';
+                if (commercialRegContainer) commercialRegContainer.style.display = 'none';
+                if (nationalIdContainer) nationalIdContainer.style.display = 'block';
+                if (taxNumberContainer) taxNumberContainer.style.display = 'none';
+            } else if (clientTypeVal === 'company') {
+                // الشركات والمنشآت: اسم الشركة أو المنشأة + السجل التجاري والبطاقة الضريبية + جهة الاتصال
+                if (labelName) labelName.innerHTML = '{% trans "اسم الشركة / المنشأة" %} <span class="text-danger">*</span>';
+                if (inputName) inputName.placeholder = '{% trans "الاسم التجاري أو القانوني للشركة أو المنشأة" %}';
+                if (contactPersonContainer) contactPersonContainer.style.display = 'block';
+                if (commercialRegContainer) commercialRegContainer.style.display = 'block';
+                if (nationalIdContainer) nationalIdContainer.style.display = 'none';
+                if (taxNumberContainer) taxNumberContainer.style.display = 'block';
+            } else if (clientTypeVal === 'government') {
+                // الجهات الحكومية: اسم الجهة + الرقم الضريبي + جهة الاتصال
+                if (labelName) labelName.innerHTML = '{% trans "اسم الجهة الحكومية" %} <span class="text-danger">*</span>';
+                if (inputName) inputName.placeholder = '{% trans "اسم الهيئة أو الوزارة أو القطاع الحكومي" %}';
+                if (contactPersonContainer) contactPersonContainer.style.display = 'block';
+                if (commercialRegContainer) commercialRegContainer.style.display = 'none';
+                if (nationalIdContainer) nationalIdContainer.style.display = 'none';
+                if (taxNumberContainer) taxNumberContainer.style.display = 'block';
+            } else {
+                if (labelName) labelName.innerHTML = '{% trans "اسم العميل / المؤسسة" %} <span class="text-danger">*</span>';
+                if (contactPersonContainer) contactPersonContainer.style.display = 'block';
+                if (commercialRegContainer) commercialRegContainer.style.display = 'block';
+                if (nationalIdContainer) nationalIdContainer.style.display = 'block';
+                if (taxNumberContainer) taxNumberContainer.style.display = 'block';
+            }
+        }
+
+        // 3. تهيئة Select2 لدعم اللغة العربية وربط أحداث التغيير
+        if (typeof $ !== 'undefined' && $.fn.select2) {
+            $('.select2-filter').select2({
+                dir: 'rtl',
+                language: 'ar',
+                width: '100%'
+            });
+
+            // ربط حدث التغيير لـ Select2 و Native Change
+            $('#id_client_type').on('change select2:select select2:clear', function() {
+                updateClientTypeVisibility();
+            });
+        }
+
+        // تشغيل الفحص عند تحميل الصفحة
+        updateClientTypeVisibility();
     });
 </script>
 {% endblock %} 

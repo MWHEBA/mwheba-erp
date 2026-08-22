@@ -877,38 +877,6 @@ def phone_to_whatsapp(phone):
 
 
 @register.filter
-def activity_type_icon(activity_type):
-    """
-    إرجاع أيقونة FontAwesome مناسبة لنوع النشاط
-    Usage: {{ activity_type|activity_type_icon }}
-    """
-    icons = {
-        'party': 'birthday-cake',
-        'trip': 'bus',
-        'course': 'graduation-cap',
-        'session': 'chalkboard-teacher',
-        'exhibition': 'palette'
-    }
-    return icons.get(activity_type, 'calendar-alt')
-
-@register.filter
-def format_activity_count(count, active_count=0):
-    """
-    تنسيق عدد الأنشطة مع عرض العدد النشط
-    Usage: {{ activities_count|format_activity_count:active_activities_count }}
-    """
-    if not count:
-        count = 0
-    
-    html = f'<span class="badge bg-info">{count} نشاط</span>'
-    
-    if active_count and active_count > 0:
-        html += f'<br><small class="text-success">{active_count} نشط</small>'
-    
-    return mark_safe(html)
-
-
-@register.filter
 def format_code_badge(code):
     """
     تنسيق الكود كـ badge

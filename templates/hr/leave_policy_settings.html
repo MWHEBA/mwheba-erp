@@ -110,11 +110,11 @@
                         <div class="col-md-4 mb-3">
                             <label class="form-label">مرجع بداية دورة الإجازات</label>
                             <select name="leave_year_reference" class="form-select">
-                                <option value="academic_year" {% if leave_settings.year_reference == 'academic_year' %}selected{% endif %}>
-                                    السنة المالية (افتراضي)
+                                <option value="calendar_year" {% if leave_settings.year_reference == 'calendar_year' or leave_settings.year_reference == 'academic_year' %}selected{% endif %}>
+                                    السنة الميلادية (افتراضي)
                                 </option>
                                 <option value="financial_year" {% if leave_settings.year_reference == 'financial_year' %}selected{% endif %}>
-                                    السنة الميلادية / المالية
+                                    السنة المالية
                                 </option>
                             </select>
                             <small class="text-muted">يحدد متى تبدأ وتنتهي دورة الإجازات للترحيل</small>

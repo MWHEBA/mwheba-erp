@@ -13,9 +13,8 @@ class Customer(models.Model):
 
     CLIENT_TYPES = (
         ("individual", _("فرد")),
-        ("company", _("شركة")),
+        ("company", _("شركة / منشأة")),
         ("government", _("جهة حكومية")),
-        ("vip", _("عميل مميز")),
     )
 
     CONTACT_FREQUENCY_CHOICES = (
@@ -35,6 +34,13 @@ class Customer(models.Model):
     )
 
     # معلومات الاتصال المحسنة (من النظام المرجعي)
+    contact_person = models.CharField(
+        _("الشخص المسؤول / جهة الاتصال"),
+        max_length=150,
+        blank=True,
+        null=True,
+        help_text=_("اسم الشخص المسؤول أو مندوب التواصل في المؤسسة أو الشركة"),
+    )
     phone = models.CharField(
         _("رقم الهاتف"), max_length=50, blank=True
     )
@@ -53,13 +59,20 @@ class Customer(models.Model):
     email = models.EmailField(_("البريد الإلكتروني"), blank=True, null=True)
 
     # معلومات العنوان المحسنة
-    address = models.TextField(_("العنوان"), blank=True, null=True)
-    city = models.CharField(
-        _("المدينة"),
+    country = models.CharField(
+        _("الدولة"),
         max_length=100,
         blank=True,
-        help_text=_("المدينة التي يقع فيها العميل"),
+        default="مصر",
+        help_text=_("دولة إقامة العميل أو مقر المنشأة"),
     )
+    city = models.CharField(
+        _("المدينة / المحافظة"),
+        max_length=100,
+        blank=True,
+        help_text=_("المدينة أو المحافظة التي يقع فيها العميل"),
+    )
+    address = models.TextField(_("العنوان"), blank=True, null=True)
 
     # المعلومات المالية والإدارية
     code = models.CharField(_("كود العميل"), max_length=20, unique=True)
@@ -73,6 +86,20 @@ class Customer(models.Model):
     tax_number = models.CharField(
         _("الرقم الضريبي"), max_length=50, blank=True, null=True
     )
+    national_id = models.CharField(
+        _("الرقم القومي (للأفراد)"),
+        max_length=14,
+        blank=True,
+        null=True,
+        help_text=_("الرقم القومي المكون من 14 رقماً للأفراد وفقاً لمنظومة الضرائب المصرية")
+    )
+    commercial_registry = models.CharField(
+        _("السجل التجاري"),
+        max_length=50,
+        blank=True,
+        null=True,
+        help_text=_("رقم السجل التجاري للشركات والمؤسسات")
+    )
     # العملة الافتراضية المعتمدة
     default_currency = models.ForeignKey(
         'financial.Currency',
@@ -84,13 +111,19 @@ class Customer(models.Model):
         help_text=_("العملة الافتراضية المعتمدة لفتح فواتير ومعاملات هذا العميل تلقائياً")
     )
 
-    # تصنيف العميل (من النظام المرجعي)
+    # تصنيف الكيان القانوني للعميل
     client_type = models.CharField(
-        _("نوع العميل"),
+        _("نوع العميل (الكيان القانوني)"),
         max_length=20,
         choices=CLIENT_TYPES,
         default="individual",
-        help_text=_("تصنيف العميل حسب النوع"),
+        help_text=_("تصنيف الكيان القانوني: فرد (شخص طبيعي) أو شركة أو جهة حكومية"),
+    )
+    # تمييز العميل (VIP)
+    is_vip = models.BooleanField(
+        _("عميل مميز (VIP)"),
+        default=False,
+        help_text=_("تمييز العميل كعميل ذو أولوية خاصة ومعاملة استثنائية"),
     )
 
     # معلومات إدارة العلاقات (CRM)
@@ -138,12 +171,19 @@ class Customer(models.Model):
         ordering = ["name"]
 
     def __str__(self):
-        # تجنب التكرار في العرض
-        if getattr(self, "company_name", None) and self.company_name != self.name:
+        if getattr(self, "contact_person", None) and self.contact_person:
+            return f"{self.name or ''} ({self.contact_person})"
+        if getattr(self, "company_name", None) and self.company_name and self.company_name != self.name:
             return f"{self.name or ''} ({self.company_name})"
         return str(self.name or f"Customer {self.pk or ''}")
 
     def save(self, *args, **kwargs):
+        # مزامنة رقم الهاتف الأساسي مع حقل phone القديم
+        if self.phone_primary and not self.phone:
+            self.phone = self.phone_primary
+        elif self.phone and not self.phone_primary:
+            self.phone_primary = self.phone
+
         if not self.default_currency_id:
             try:
                 from financial.services.exchange_rate_service import ExchangeRateService
@@ -153,6 +193,15 @@ class Customer(models.Model):
             except Exception:
                 pass
         super().save(*args, **kwargs)
+
+        # مزامنة اسم الحساب المحاسبي في شجرة الحسابات إذا تغير اسم العميل
+        if self.financial_account_id and self.name:
+            try:
+                if self.financial_account.name != self.name:
+                    from financial.models import ChartOfAccounts
+                    ChartOfAccounts.objects.filter(pk=self.financial_account_id).update(name=self.name)
+            except Exception:
+                pass
 
     @property
     def available_credit(self):
@@ -458,7 +507,7 @@ class CustomerCreditStatusHistory(models.Model):
     """
     سجل تتبع حالات الائتمان للعملاء
     """
-    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name="credit_status_histories", verbose_name=_("العميل"))
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, null=True, blank=True, related_name="credit_status_histories", verbose_name=_("العميل"))
     old_status = models.CharField(_("الحالة السابقة"), max_length=20)
     new_status = models.CharField(_("الحالة الجديدة"), max_length=20)
     reason = models.TextField(_("السبب / الملاحظات"), blank=True, null=True)

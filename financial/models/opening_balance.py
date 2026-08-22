@@ -104,7 +104,10 @@ class OpeningBalanceBatch(models.Model):
     def save(self, *args, **kwargs):
         if self.pk:
             old = OpeningBalanceBatch.objects.filter(pk=self.pk).first()
-            if old and old.status in ['posted', 'reversed'] and self.status in ['posted', 'reversed'] and old.status == self.status:
+            sync_fields = {'inventory_sync_status', 'inventory_sync_key', 'last_attempt_at', 'last_attempt_by', 'last_error', 'retry_count'}
+            update_fields = kwargs.get('update_fields')
+            is_sync_only = update_fields and set(update_fields).issubset(sync_fields)
+            if not is_sync_only and old and old.status in ['posted', 'reversed'] and self.status in ['posted', 'reversed'] and old.status == self.status:
                 raise ImmutableLedgerError(_("دفعة الأرصدة الافتتاحية المرحلة أو المعكوسة حصينة ولا يمكن تعديلها مباشرة."))
         self.clean()
         super().save(*args, **kwargs)
@@ -226,7 +229,7 @@ class OpeningBalanceLine(models.Model):
                         AccountRoleRegistry.resolve_role_code("DEFAULT_BANK_ACCOUNT"),
                         AccountRoleRegistry.resolve_role_code("INVENTORY_GENERAL"),
                     }
-                    if self.account.code in control_codes:
+                    if self.account.code in control_codes or getattr(self.account, 'is_control_account', False):
                         # Check override
                         has_override = ControlAccountOverrideRequest.objects.filter(
                             opening_batch_id=self.batch_id,

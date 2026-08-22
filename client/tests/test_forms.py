@@ -189,18 +189,17 @@ class CustomerFormTest(TestCase):
         self.assertTrue(form.is_valid())
         
     def test_negative_credit_limit(self):
-        """اختبار حد ائتمان سالب"""
+        """اختبار عدم قبول سقف ائتماني سالب"""
         form_data = {
-            'name': 'عميل',
+            'name': 'عميل بائتمان سالب',
             'code': 'NEG001',
             'credit_limit': '-1000.00',  # قيمة سالبة
             'is_active': True
         }
         
         form = CustomerForm(data=form_data)
-        # Django يسمح بالقيم السالبة في DecimalField
-        # لكن يمكن إضافة validator مخصص إذا لزم الأمر
-        self.assertTrue(form.is_valid())
+        self.assertFalse(form.is_valid())
+        self.assertIn('credit_limit', form.errors)
         
     # ==================== اختبارات الحقول الاختيارية ====================
     
@@ -234,18 +233,132 @@ class CustomerFormTest(TestCase):
         form = CustomerForm()
         
         self.assertIn('form-control', form.fields['name'].widget.attrs['class'])
-        self.assertIn('form-control', form.fields['phone'].widget.attrs['class'])
+        self.assertIn('form-control', form.fields['phone_primary'].widget.attrs['class'])
         self.assertIn('form-control', form.fields['email'].widget.attrs['class'])
         
     def test_phone_field_direction(self):
         """اختبار أن حقل الهاتف له اتجاه ltr"""
         form = CustomerForm()
-        self.assertEqual(form.fields['phone'].widget.attrs['dir'], 'ltr')
+        self.assertEqual(form.fields['phone_primary'].widget.attrs['dir'], 'ltr')
         
     def test_email_field_direction(self):
         """اختبار أن حقل البريد له اتجاه ltr"""
         form = CustomerForm()
         self.assertEqual(form.fields['email'].widget.attrs['dir'], 'ltr')
+
+    # ==================== اختبارات الهوية والرقم القومي ====================
+
+    def test_valid_national_id(self):
+        """اختبار صحة إدخال الرقم القومي المصري المكون من 14 رقماً"""
+        form_data = {
+            'name': 'عميل مصري',
+            'code': 'NID001',
+            'national_id': '29901011234567',
+            'is_active': True
+        }
+        form = CustomerForm(data=form_data)
+        self.assertTrue(form.is_valid())
+        customer = form.save()
+        self.assertEqual(customer.national_id, '29901011234567')
+
+    def test_invalid_national_id_fails(self):
+        """اختبار فشل التحقق عند إدخال رقم قومي غير صالح أو أقل من 14 رقماً"""
+        form_data = {
+            'name': 'عميل برقم غير صالح',
+            'code': 'NID002',
+            'national_id': '12345',  # غير صالح
+            'is_active': True
+        }
+        form = CustomerForm(data=form_data)
+        self.assertFalse(form.is_valid())
+        self.assertIn('national_id', form.errors)
+
+    # ==================== اختبارات حوكمة الائتمان ====================
+
+    def test_credit_profile_created_on_save(self):
+        """اختبار إنشاء وتحديث ملف حوكمة الائتمان تلقائياً عند حفظ النموذج"""
+        form_data = {
+            'name': 'عميل ائتماني',
+            'code': 'CRED001',
+            'credit_limit': '50000.00',
+            'credit_status': 'ACTIVE',
+            'risk_category': 'MEDIUM',
+            'grace_period_days': 15,
+            'is_active': True
+        }
+        form = CustomerForm(data=form_data, user=self.user)
+        self.assertTrue(form.is_valid())
+        customer = form.save(user=self.user)
+
+        from client.models import CustomerCreditProfile
+        profile = CustomerCreditProfile.objects.filter(customer=customer).first()
+        self.assertIsNotNone(profile)
+        self.assertEqual(profile.credit_limit, Decimal('50000.00'))
+        self.assertEqual(profile.credit_status, 'ACTIVE')
+        self.assertEqual(profile.risk_category, 'MEDIUM')
+        self.assertEqual(profile.grace_period_days, 15)
+
+    def test_credit_status_change_requires_reason(self):
+        """اختبار إلزامية إدخال مبرر تعديل الائتمان عند التحويل لحالة تحذير/حظر"""
+        from client.models import CustomerCreditProfile
+        customer = Customer.objects.create(
+            name='عميل قائم',
+            code='CRED002',
+            credit_limit=Decimal('10000.00')
+        )
+        CustomerCreditProfile.objects.create(
+            customer=customer,
+            credit_limit=Decimal('10000.00'),
+            credit_status='ACTIVE'
+        )
+
+        # تعديل الحالة إلى BLOCKED بدون مبرر
+        form_data = {
+            'name': 'عميل قائم',
+            'code': 'CRED002',
+            'credit_limit': '10000.00',
+            'credit_status': 'BLOCKED',
+            'is_active': True
+        }
+        form = CustomerForm(data=form_data, instance=customer, user=self.user)
+        self.assertFalse(form.is_valid())
+        self.assertIn('credit_change_reason', form.errors)
+
+        # إضافة المبرر
+        form_data['credit_change_reason'] = 'تعثر العميل في سداد الشيك رقم 102'
+        form_valid = CustomerForm(data=form_data, instance=customer, user=self.user)
+        self.assertTrue(form_valid.is_valid())
+        updated_cust = form_valid.save(user=self.user)
+        profile = CustomerCreditProfile.objects.get(customer=updated_cust)
+        self.assertEqual(profile.credit_status, 'BLOCKED')
+
+    def test_code_locked_when_customer_has_transactions(self):
+        """اختبار منع تعديل كود العميل عند وجود معاملات مسجلة له"""
+        from client.models import CustomerTransaction
+        from django.utils import timezone
+        customer = Customer.objects.create(
+            name='عميل ذو حركات',
+            code='TRX001'
+        )
+        CustomerTransaction.objects.create(
+            customer=customer,
+            transaction_type='INVOICE',
+            transaction_number='INV-001',
+            issue_date=timezone.now().date(),
+            due_date=timezone.now().date(),
+            functional_amount=Decimal('500.00'),
+            open_amount=Decimal('500.00'),
+            reference_id='INV-001'
+        )
+
+        form_data = {
+            'name': 'عميل ذو حركات',
+            'code': 'CHANGED_CODE',  # محاولة تغيير الكود
+            'is_active': True
+        }
+        form = CustomerForm(data=form_data, instance=customer, user=self.user)
+        self.assertFalse(form.is_valid())
+        self.assertIn('code', form.errors)
 
 
 class CustomerAccountChangeFormTest(TestCase):

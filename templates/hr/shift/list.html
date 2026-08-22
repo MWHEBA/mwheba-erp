@@ -16,15 +16,15 @@
 <div class="container-fluid">
   {% include "shared/page_header.html" %}
 
-  <!-- ورديات السنة المالية -->
+  <!-- الورديات الأساسية والتشغيلية -->
   <div class="section-container mb-4">
     <h5 class="section-title">
-      <i class="fas fa-calendar-alt me-2"></i>ورديات السنة المالية
-      <span class="badge bg-info ms-2">{{ stats.academic_year_shifts }}</span>
+      <i class="fas fa-calendar-alt me-2"></i>الورديات الأساسية والتشغيلية
+      <span class="badge bg-info ms-2">{{ stats.regular_shifts }}</span>
     </h5>
-    {% if academic_shifts %}
+    {% if regular_shifts %}
     <div class="table-responsive">
-      <table class="table table-hover" id="academicTable">
+      <table class="table table-hover" id="regularTable">
         <thead class="table-light">
           <tr>
             <th class="text-center">اسم الوردية</th>
@@ -37,26 +37,26 @@
           </tr>
         </thead>
         <tbody>
-          {% for shift in academic_shifts %}
+          {% for shift in regular_shifts %}
           {% include "hr/shift/_shift_row.html" %}
           {% endfor %}
         </tbody>
       </table>
     </div>
     {% else %}
-    {% include 'partials/empty_state.html' with message="لا توجد ورديات للسنة المالية" icon="calendar-alt" %}
+    {% include 'partials/empty_state.html' with message="لا توجد ورديات أساسية معرفة" icon="calendar-alt" %}
     {% endif %}
   </div>
 
-  <!-- ورديات النشاط الصيفي -->
+  <!-- الورديات الموسمية والمؤقتة -->
   <div class="section-container mb-4">
     <h5 class="section-title">
-      <i class="fas fa-sun me-2"></i>ورديات النشاط الصيفي
-      <span class="badge bg-warning text-dark ms-2">{{ stats.summer_shifts }}</span>
+      <i class="fas fa-sun me-2"></i>الورديات الموسمية والمؤقتة
+      <span class="badge bg-warning text-dark ms-2">{{ stats.seasonal_shifts }}</span>
     </h5>
-    {% if summer_shifts %}
+    {% if seasonal_shifts %}
     <div class="table-responsive">
-      <table class="table table-hover" id="summerTable">
+      <table class="table table-hover" id="seasonalTable">
         <thead class="table-light">
           <tr>
             <th class="text-center">اسم الوردية</th>
@@ -69,14 +69,14 @@
           </tr>
         </thead>
         <tbody>
-          {% for shift in summer_shifts %}
+          {% for shift in seasonal_shifts %}
           {% include "hr/shift/_shift_row.html" %}
           {% endfor %}
         </tbody>
       </table>
     </div>
     {% else %}
-    {% include 'partials/empty_state.html' with message="لا توجد ورديات للنشاط الصيفي" icon="sun" %}
+    {% include 'partials/empty_state.html' with message="لا توجد ورديات موسمية أو مؤقتة" icon="sun" %}
     {% endif %}
   </div>
 
@@ -87,7 +87,7 @@
 <script src="{% static 'js/global-table.js' %}"></script>
 <script>
 $(document).ready(function() {
-    ['academicTable', 'summerTable'].forEach(function(id) {
+    ['regularTable', 'seasonalTable'].forEach(function(id) {
         if ($('#' + id).length) {
             initGlobalTable(id, {
                 ordering: true,

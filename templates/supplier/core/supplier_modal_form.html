@@ -3,121 +3,152 @@
 
 <div id="django-supplier-modal-data" class="d-none"
      data-is-new="{% if not form.instance.pk %}true{% else %}false{% endif %}"
-     data-placeholder-primary-type="{% trans 'اختر نوع المورد' %}"
-     data-error-save-msg="{% trans 'حدث خطأ أثناء حفظ البيانات' %}"
+     data-placeholder-primary-type="{% trans 'اختر مجال التوريد' %}"
+     data-error-save-msg="{% trans 'حدث خطأ أثناء حفظ بيانات المورد' %}"
 ></div>
 
-<div class="modal-header py-2 px-3 border-bottom">
-    <h5 class="modal-title" style="color: var(--bs-white); font-weight: 600;">
-        <i class="fas fa-truck me-2 text-white"></i>
+<!-- Modal Header القياسي المتوافق مع Rule 8 -->
+<div class="modal-header bg-light border-bottom px-4 py-3">
+    <h5 class="modal-title fw-bold text-dark mb-0">
+        <i class="fas fa-truck text-primary me-2"></i>
         {% if form.instance.pk %}
-            {% trans "تعديل مورد" %}
+            {% trans "تعديل بيانات المورد" %}
         {% else %}
             {% trans "إضافة مورد جديد" %}
         {% endif %}
     </h5>
-    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
 </div>
 
-<form method="post" id="supplier-modal-form" action="{% url 'supplier:supplier_create_modal' %}">
+<form method="post" id="supplier-modal-form" action="{% url 'supplier:supplier_create_modal' %}" novalidate>
     {% csrf_token %}
     
-    <div class="modal-body">
-        <div class="row">
-            <!-- المعلومات الأساسية -->
-            <div class="col-12 mb-3">
-                <label for="{{ form.name.id_for_label }}" class="form-label">اسم المورد *</label>
+    <div class="modal-body p-4">
+        <div class="row g-3">
+            <!-- اسم المورد -->
+            <div class="col-md-8">
+                <label for="{{ form.name.id_for_label }}" class="form-label fw-semibold" id="modal_label_name">
+                    {% trans "اسم المورد / المنشأة" %} <span class="text-danger">*</span>
+                </label>
                 {{ form.name }}
-                {% if form.name.errors %}
-                    <div class="text-danger small">{{ form.name.errors.0 }}</div>
-                {% endif %}
+                <div class="invalid-feedback d-block" id="error_name"></div>
             </div>
-            
-            <div class="col-md-6 mb-3">
-                <label for="{{ form.code.id_for_label }}" class="form-label">كود المورد</label>
+
+            <!-- كود المورد -->
+            <div class="col-md-4">
+                <label for="{{ form.code.id_for_label }}" class="form-label fw-semibold">
+                    {% trans "كود المورد" %} <span class="text-danger">*</span>
+                </label>
                 <div class="input-group">
                     {{ form.code }}
-                    <button class="btn btn-outline-secondary" type="button" id="toggle-supplier-code-modal">
+                    <button class="btn btn-outline-secondary" type="button" id="toggle-supplier-code-modal" title="{% trans 'تعديل الكود' %}">
                         <i class="fas fa-edit"></i>
                     </button>
                 </div>
-                {% if form.code.errors %}
-                    <div class="text-danger small">{{ form.code.errors.0 }}</div>
-                {% endif %}
+                <div class="invalid-feedback d-block" id="error_code"></div>
             </div>
-            
-            <div class="col-md-6 mb-3">
-                <label for="{{ form.primary_type.id_for_label }}" class="form-label">نوع المورد *</label>
+
+            <!-- الكيان القانوني والضريبي -->
+            <div class="col-md-6">
+                <label for="{{ form.entity_type.id_for_label }}" class="form-label fw-semibold">
+                    {% trans "الكيان القانوني والضريبي" %}
+                </label>
+                {{ form.entity_type }}
+                <div class="invalid-feedback d-block" id="error_entity_type"></div>
+            </div>
+
+            <!-- مجال التوريد -->
+            <div class="col-md-6">
+                <label for="{{ form.primary_type.id_for_label }}" class="form-label fw-semibold">
+                    {% trans "مجال التوريد / نوع النشاط" %} <span class="text-danger">*</span>
+                </label>
                 {{ form.primary_type }}
-                {% if form.primary_type.errors %}
-                    <div class="text-danger small">{{ form.primary_type.errors.0 }}</div>
-                {% endif %}
+                <div class="invalid-feedback d-block" id="error_primary_type"></div>
             </div>
-            
-            <!-- معلومات التواصل -->
-            <div class="col-md-6 mb-3">
-                <label for="{{ form.phone.id_for_label }}" class="form-label">رقم الهاتف *</label>
+
+            <!-- الرقم الضريبي -->
+            <div class="col-md-6" id="modal_container_tax_number">
+                <label for="{{ form.tax_number.id_for_label }}" class="form-label fw-semibold">
+                    {% trans "الرقم الضريبي" %}
+                </label>
+                {{ form.tax_number }}
+                <div class="invalid-feedback d-block" id="error_tax_number"></div>
+            </div>
+
+            <!-- الرقم القومي للأفراد -->
+            <div class="col-md-6" id="modal_container_national_id">
+                <label for="{{ form.national_id.id_for_label }}" class="form-label fw-semibold">
+                    {% trans "الرقم القومي (للأفراد 14 رقماً)" %}
+                </label>
+                {{ form.national_id }}
+                <div class="invalid-feedback d-block" id="error_national_id"></div>
+            </div>
+
+            <!-- رقم الهاتف الأساسي -->
+            <div class="col-md-6">
+                <label for="{{ form.phone.id_for_label }}" class="form-label fw-semibold">
+                    {% trans "رقم الهاتف" %}
+                </label>
                 {{ form.phone }}
-                {% if form.phone.errors %}
-                    <div class="text-danger small">{{ form.phone.errors.0 }}</div>
-                {% endif %}
+                <div class="invalid-feedback d-block" id="error_phone"></div>
             </div>
-            
-            <div class="col-md-6 mb-3">
-                <label for="{{ form.whatsapp.id_for_label }}" class="form-label">واتساب</label>
-                {{ form.whatsapp }}
-                {% if form.whatsapp.errors %}
-                    <div class="text-danger small">{{ form.whatsapp.errors.0 }}</div>
-                {% endif %}
-            </div>
-            
-            <div class="col-12 mb-3">
-                <label for="{{ form.contact_person.id_for_label }}" class="form-label">الشخص المسؤول</label>
+
+            <!-- الشخص المسؤول -->
+            <div class="col-md-6" id="modal_container_contact_person">
+                <label for="{{ form.contact_person.id_for_label }}" class="form-label fw-semibold">
+                    {% trans "الشخص المسؤول للتواصل" %}
+                </label>
                 {{ form.contact_person }}
-                {% if form.contact_person.errors %}
-                    <div class="text-danger small">{{ form.contact_person.errors.0 }}</div>
-                {% endif %}
+                <div class="invalid-feedback d-block" id="error_contact_person"></div>
             </div>
-            
-            <div class="col-12 mb-3">
-                <label for="{{ form.address.id_for_label }}" class="form-label">العنوان</label>
-                {{ form.address }}
-                {% if form.address.errors %}
-                    <div class="text-danger small">{{ form.address.errors.0 }}</div>
-                {% endif %}
+
+            <!-- شروط السداد والعملة -->
+            <div class="col-md-6">
+                <label for="{{ form.default_currency.id_for_label }}" class="form-label fw-semibold">
+                    {% trans "العملة الافتراضية" %}
+                </label>
+                {{ form.default_currency }}
+                <div class="invalid-feedback d-block" id="error_default_currency"></div>
             </div>
-            
-            <!-- الخيارات -->
-            <div class="col-12">
-                <div class="form-check form-switch mb-2">
+
+            <div class="col-md-6">
+                <label for="{{ form.default_payment_term.id_for_label }}" class="form-label fw-semibold">
+                    {% trans "شروط السداد" %}
+                </label>
+                {{ form.default_payment_term }}
+                <div class="invalid-feedback d-block" id="error_default_payment_term"></div>
+            </div>
+
+            <!-- الخيارات النشطة -->
+            <div class="col-12 d-flex gap-4 pt-2">
+                <div class="form-check form-switch">
                     {{ form.is_active }}
-                    <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
+                    <label class="form-check-label fw-semibold ms-2" for="{{ form.is_active.id_for_label }}">
                         {% trans "مورد نشط" %}
                     </label>
                 </div>
                 
-                {% if form.is_preferred %}
                 <div class="form-check form-switch">
                     {{ form.is_preferred }}
-                    <label class="form-check-label" for="{{ form.is_preferred.id_for_label }}">
-                        <i class="fas fa-star text-warning"></i> {% trans "مورد مفضل" %}
+                    <label class="form-check-label fw-semibold ms-2 text-dark" for="{{ form.is_preferred.id_for_label }}">
+                        <i class="fas fa-star text-warning me-1"></i>{% trans "مورد معتمد / مفضل" %}
                     </label>
                 </div>
-                {% endif %}
             </div>
         </div>
     </div>
     
-    <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-            <i class="fas fa-times me-2"></i>{% trans "إلغاء" %}
+    <!-- Modal Footer القياسي المتوافق مع Rule 8 -->
+    <div class="modal-footer bg-light border-top px-4 py-3">
+        <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">
+            <i class="fas fa-times me-1"></i>{% trans "إلغاء" %}
         </button>
-        <button type="submit" class="btn btn-primary">
-            <i class="fas fa-save me-2"></i>
+        <button type="submit" class="btn btn-primary px-4 fw-bold" id="btn-save-supplier-modal">
+            <i class="fas fa-save me-1"></i>
             {% if form.instance.pk %}
                 {% trans "تحديث" %}
             {% else %}
-                {% trans "حفظ" %}
+                {% trans "حفظ المورد" %}
             {% endif %}
         </button>
     </div>
@@ -125,111 +156,139 @@
 
 <script>
 $(document).ready(function() {
-    // تنشيط Select2 للقوائم المنسدلة في المودال
-    $('#id_primary_type').select2({
-        theme: 'bootstrap-5',
-        placeholder: $('#django-supplier-modal-data').data('placeholder-primary-type'),
-        allowClear: false,
-        width: '100%',
-        dropdownParent: $('#supplierModal')
-    });
-    
+    const modalEl = $('#supplierModal');
 
-    // تفعيل تعديل كود المورد في المودال
+    // 1. تنشيط Select2 مع dropdownParent المتوافق مع Rule 8
+    $('#id_primary_type, #id_entity_type, #id_default_currency, #id_default_payment_term').select2({
+        dropdownParent: modalEl.length ? modalEl : $(document.body),
+        dir: 'rtl',
+        language: 'ar',
+        width: '100%'
+    });
+
+    // 2. التبديل التفاعلي لحقول الكيان القانوني في المودال
+    const entityTypeSelect = $('#id_entity_type');
+    const containerTax = $('#modal_container_tax_number');
+    const containerNational = $('#modal_container_national_id');
+    const containerContactPerson = $('#modal_container_contact_person');
+    const labelName = $('#modal_label_name');
+
+    function updateModalEntityFields(entityType) {
+        if (entityType === 'individual') {
+            containerNational.show();
+            containerContactPerson.hide();
+            labelName.html('{% trans "اسم المورد (الفرد)" %} <span class="text-danger">*</span>');
+        } else if (entityType === 'government') {
+            containerNational.hide();
+            containerContactPerson.show();
+            labelName.html('{% trans "اسم الجهة الحكومية" %} <span class="text-danger">*</span>');
+        } else {
+            containerNational.hide();
+            containerContactPerson.show();
+            labelName.html('{% trans "اسم الشركة / المنشأة" %} <span class="text-danger">*</span>');
+        }
+    }
+
+    if (entityTypeSelect.length) {
+        entityTypeSelect.on('change', function() {
+            updateModalEntityFields($(this).val());
+        });
+        updateModalEntityFields(entityTypeSelect.val());
+    }
+
+    // 3. تفعيل زر تعديل كود المورد
     $('#toggle-supplier-code-modal').on('click', function() {
         const codeInput = $('#id_code');
         if (codeInput.attr('readonly')) {
             codeInput.removeAttr('readonly');
             codeInput.focus();
-            $(this).html('<i class="fas fa-lock"></i>').removeClass('btn-outline-secondary').addClass('btn-outline-primary');
+            $(this).html('<i class="fas fa-lock-open"></i>').removeClass('btn-outline-secondary').addClass('btn-warning');
         } else {
             codeInput.attr('readonly', 'readonly');
-            $(this).html('<i class="fas fa-edit"></i>').removeClass('btn-outline-primary').addClass('btn-outline-secondary');
+            $(this).html('<i class="fas fa-edit"></i>').removeClass('btn-warning').addClass('btn-outline-secondary');
         }
     });
     
-    // معالجة إرسال النموذج
+    // 4. معالجة إرسال النموذج بتقنية AJAX والإشعار الموحد المتوافق مع Rule 10
     $('#supplier-modal-form').on('submit', function(e) {
         e.preventDefault();
         
-        const formData = new FormData(this);
+        const formEl = this;
+        const formData = new FormData(formEl);
+        const submitBtn = $('#btn-save-supplier-modal');
+        submitBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i> {% trans "جاري الحفظ..." %}');
         
+        // مسح الأخطاء السابقة
+        $('.invalid-feedback').text('');
+        $('.is-invalid').removeClass('is-invalid');
+
         $.ajax({
-            url: $(this).attr('action') || window.location.href,
+            url: $(formEl).attr('action') || window.location.href,
             type: 'POST',
             data: formData,
             processData: false,
             contentType: false,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            },
             success: function(response) {
                 if (response.success) {
-                    $('#supplierModal').modal('hide');
-                    // إعادة تحميل الصفحة أو تحديث الجدول
-                    if (typeof refreshSupplierTable === 'function') {
-                        refreshSupplierTable(response);
-                    } else {
-                        location.reload();
+                    if (modalEl.length) {
+                        modalEl.modal('hide');
                     }
                     
-                    // عرض رسالة نجاح
-                    if (response.message) {
-                        showSuccessMessage(response.message);
+                    const msg = response.message || '{% trans "تم حفظ بيانات المورد بنجاح" %}';
+                    if (typeof window.showNotification === 'function') {
+                        window.showNotification(msg, 'success', '{% trans "نجاح" %}');
+                    } else if (typeof window.showToastr === 'function') {
+                        window.showToastr(msg, 'success');
+                    }
+
+                    // دعم الإكمال التلقائي في شاشات أوامر الشراء والفواتير
+                    if (typeof window.onSupplierCreated === 'function') {
+                        window.onSupplierCreated(response);
+                    } else if (typeof refreshSupplierTable === 'function') {
+                        refreshSupplierTable(response);
+                    } else {
+                        setTimeout(function() {
+                            location.reload();
+                        }, 3100); // تأخير 3.1 ثانية لاكتمال حركة شريط تقدم التوست وفقاً لـ Rule 10
                     }
                 } else {
-                    // عرض الأخطاء
+                    submitBtn.prop('disabled', false).html('<i class="fas fa-save me-1"></i> {% trans "حفظ المورد" %}');
+                    
                     if (response.errors) {
-                        displayFormErrors(response.errors);
+                        for (const field in response.errors) {
+                            const errs = Array.isArray(response.errors[field]) ? response.errors[field] : [response.errors[field]];
+                            const fieldEl = $(`#id_${field}`);
+                            const errDiv = $(`#error_${field}`);
+                            
+                            if (fieldEl.length) {
+                                fieldEl.addClass('is-invalid');
+                            }
+                            if (errDiv.length) {
+                                errDiv.text(errs.join(', '));
+                            } else {
+                                if (typeof window.showNotification === 'function') {
+                                    window.showNotification(errs.join(', '), 'error', '{% trans "خطأ في التحقق" %}');
+                                }
+                            }
+                        }
                     } else if (response.error) {
-                        showErrorMessage(response.error);
+                        if (typeof window.showNotification === 'function') {
+                            window.showNotification(response.error, 'error', '{% trans "خطأ" %}');
+                        }
                     }
                 }
             },
             error: function(xhr, status, error) {
-                console.error('Error:', error);
-                showErrorMessage($('#django-supplier-modal-data').data('error-save-msg'));
+                submitBtn.prop('disabled', false).html('<i class="fas fa-save me-1"></i> {% trans "حفظ المورد" %}');
+                const errMsg = $('#django-supplier-modal-data').data('error-save-msg') || error;
+                if (typeof window.showNotification === 'function') {
+                    window.showNotification(errMsg, 'error', '{% trans "خطأ" %}');
+                }
             }
         });
     });
 });
-
-// دوال مساعدة لعرض الرسائل
-function showSuccessMessage(message) {
-    if (typeof Swal !== 'undefined') {
-        Swal.fire({
-            icon: 'success',
-            title: 'تمت العملية بنجاح',
-            text: message,
-            timer: 2000,
-            showConfirmButton: false
-        });
-    } else {
-        alert(message);
-    }
-}
-
-function showErrorMessage(message) {
-    if (typeof Swal !== 'undefined') {
-        Swal.fire({
-            icon: 'error',
-            title: 'خطأ',
-            text: message
-        });
-    } else {
-        alert(message);
-    }
-}
-
-function displayFormErrors(errors) {
-    // مسح الأخطاء السابقة
-    $('.invalid-feedback').remove();
-    $('.is-invalid').removeClass('is-invalid');
-    
-    // عرض الأخطاء الجديدة
-    for (const field in errors) {
-        const fieldElement = $(`#id_${field}`);
-        if (fieldElement.length) {
-            fieldElement.addClass('is-invalid');
-            fieldElement.after(`<div class="invalid-feedback">${errors[field].join(', ')}</div>`);
-        }
-    }
-}
 </script>

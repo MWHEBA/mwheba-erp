@@ -322,8 +322,8 @@ class PaymentSyncService:
                         financial_category = payment_obj.sale.financial_category
                     
                     entry = JournalEntryService.create_simple_entry(
-                        debit_account="10100",  # الخزنة
-                        credit_account="10300",  # مدينو أولياء الأمور
+                        debit_account="11110",  # الخزينة الرئيسية
+                        credit_account="11210",  # العملاء
                         amount=payment_obj.amount,
                         description=f"دفعة من العميل - فاتورة {payment_obj.sale.number}",
                         date=payment_obj.payment_date,
@@ -338,8 +338,8 @@ class PaymentSyncService:
                         financial_category = payment_obj.purchase.financial_category
                     
                     entry = JournalEntryService.create_simple_entry(
-                        debit_account="20100",  # الموردين
-                        credit_account="10100",  # الخزنة
+                        debit_account="21110",  # الموردين
+                        credit_account="11110",  # الخزينة الرئيسية
                         amount=payment_obj.amount,
                         description=f"دفعة للمورد - فاتورة {payment_obj.purchase.number}",
                         date=payment_obj.payment_date,
@@ -373,9 +373,9 @@ class PaymentSyncService:
             affected_accounts = []
 
             if hasattr(payment_obj, "sale"):
-                affected_accounts.extend(["10100", "10300"])  # الخزنة ومدينو أولياء الأمور
+                affected_accounts.extend(["11110", "11210"])  # الخزينة والعملاء
             elif hasattr(payment_obj, "purchase"):
-                affected_accounts.extend(["10100", "20100"])  # الخزنة والموردين
+                affected_accounts.extend(["11110", "21110"])  # الخزينة والموردين
 
             # إبطال كاش الحسابات المتأثرة
             for account_code in affected_accounts:
@@ -397,9 +397,9 @@ class PaymentSyncService:
             # تحديد الحسابات المتأثرة
             account_codes = []
             if hasattr(payment_obj, "sale"):
-                account_codes = ["10100", "10300"]
+                account_codes = ["11110", "11210"]
             elif hasattr(payment_obj, "purchase"):
-                account_codes = ["10100", "20100"]
+                account_codes = ["11110", "21110"]
 
             # تحديث كاش كل حساب
             for account_code in account_codes:

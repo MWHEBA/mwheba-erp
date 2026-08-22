@@ -8,6 +8,7 @@ from decimal import Decimal
 import logging
 
 from financial.mixins import MonetaryTransactionMixin
+from utils.validators import validate_national_id
 
 logger = logging.getLogger(__name__)
 
@@ -107,15 +108,40 @@ class SupplierType(models.Model):
         return self.color
 
 
-
-
-
 class Supplier(models.Model):
     """
     نموذج المورد
     """
+    ENTITY_TYPES = (
+        ("individual", _("فرد")),
+        ("company", _("شركة / منشأة")),
+        ("government", _("جهة حكومية")),
+    )
 
     name = models.CharField(_("اسم المورد"), max_length=255)
+    entity_type = models.CharField(
+        _("الكيان القانوني والضريبي"),
+        max_length=20,
+        choices=ENTITY_TYPES,
+        default="company",
+        blank=True,
+        help_text=_("الكيان القانوني والضريبي للمورد (فرد، شركة/منشأة، جهة حكومية)")
+    )
+    national_id = models.CharField(
+        _("الرقم القومي (للأفراد)"),
+        max_length=14,
+        blank=True,
+        null=True,
+        validators=[validate_national_id],
+        help_text=_("الرقم القومي المكون من 14 رقماً للأفراد والحرفيين وموردي الخدمات المستقلين")
+    )
+    commercial_registry = models.CharField(
+        _("السجل التجاري"),
+        max_length=50,
+        blank=True,
+        null=True,
+        help_text=_("رقم السجل التجاري للشركات والمنشآت")
+    )
     phone_regex = RegexValidator(
         regex=r"^\+?1?\d{9,15}$",
         message=_(
@@ -134,6 +160,29 @@ class Supplier(models.Model):
     balance = models.DecimalField(
         _("الرصيد الحالي"), max_digits=12, decimal_places=2, default=0
     )
+    credit_limit = models.DecimalField(
+        _("سقف التسهيلات الائتمانية"),
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        blank=True,
+        help_text=_("الحد الأقصى للتسهيلات الائتمانية الممنوحة من المورد لشركتنا")
+    )
+    default_payment_term = models.ForeignKey(
+        "client.PaymentTerm",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name=_("شروط السداد المعيارية"),
+        related_name="suppliers",
+        help_text=_("شروط ومهلة السداد المعيارية المتفق عليها مع المورد")
+    )
+    grace_period_days = models.IntegerField(
+        _("فترة السماح (أيام)"),
+        default=0,
+        blank=True,
+        help_text=_("أيام السماح الإضافية بعد تاريخ استحقاق الفاتورة")
+    )
     default_currency = models.ForeignKey(
         'financial.Currency',
         on_delete=models.SET_NULL,
@@ -146,6 +195,29 @@ class Supplier(models.Model):
     is_active = models.BooleanField(_("نشط"), default=True)
     tax_number = models.CharField(
         _("الرقم الضريبي"), max_length=50, blank=True, null=True
+    )
+
+    # بيانات التحويلات والحسابات البنكية للمورد
+    bank_name = models.CharField(
+        _("اسم البنك"),
+        max_length=100,
+        blank=True,
+        null=True,
+        help_text=_("اسم البنك الخاص بحساب المورد للتحويلات البنكية")
+    )
+    bank_account_number = models.CharField(
+        _("رقم الحساب / الآيبان (IBAN)"),
+        max_length=50,
+        blank=True,
+        null=True,
+        help_text=_("رقم الحساب البنكي أو الآيبان الدولي للمورد")
+    )
+    bank_beneficiary_name = models.CharField(
+        _("اسم المستفيد للتحويل البنكي"),
+        max_length=150,
+        blank=True,
+        null=True,
+        help_text=_("اسم المستفيد المطابق لبيانات الحساب البنكي")
     )
 
     # ربط مع دليل الحسابات
@@ -301,9 +373,17 @@ class Supplier(models.Model):
             else:
                 # Fallback: use timestamp-based code if all attempts fail
                 import time
-                self.code = f"SUP{int(time.time()) % 100000:05d}"
-        
+        if self.default_payment_term and hasattr(self.default_payment_term, 'name'):
+            self.payment_terms = self.default_payment_term.name
+
         super().save(*args, **kwargs)
+
+        # مزامنة اسم الحساب المحاسبي تلقائياً في شجرة الحسابات بالنمط القياسي
+        if self.financial_account:
+            expected_account_name = f"{self.name} - {self.code}"
+            if self.financial_account.name != expected_account_name:
+                self.financial_account.name = expected_account_name
+                self.financial_account.save(update_fields=["name"])
 
     @property
     def actual_balance(self):

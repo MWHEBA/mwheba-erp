@@ -230,10 +230,11 @@ class Command(BaseCommand):
 
             # المستوى 4 (الحسابات النهائية والحسابات الرقابية)
             ("11110", "الخزينة الرئيسية", "111", "ASSET", 4, True, True, False),
-            ("11120", "الخزائن الفرعية ومنافذ البيع", "111", "ASSET", 4, True, True, False),
+            ("11120", "الخزائن الفرعية ومنافذ البيع", "111", "ASSET", 4, False, False, False),
             ("11130", "العهد النقدية المستديمة والمؤقتة", "111", "ASSET", 4, True, False, False),
-            ("11160", "الحسابات الجارية بالبنوك - محلي", "111", "ASSET", 4, True, False, True),
-            ("11170", "الحسابات الجارية بالبنوك - أجنبي", "111", "ASSET", 4, True, False, True),
+            ("11160", "الحسابات الجارية بالبنوك - محلي", "111", "ASSET", 4, False, False, False),
+            ("11160001", "الحساب البنكي الرئيسي (جاري محلي)", "11160", "ASSET", 5, True, False, True),
+            ("11170", "الحسابات الجارية بالبنوك - أجنبي", "111", "ASSET", 4, False, False, False),
             ("11180", "ودائع نقدية قصيرة الأجل وتحت الطلب", "111", "ASSET", 4, True, False, False),
             ("11190", "نقدية في الطريق وشيكات برسم التحصيل", "111", "ASSET", 4, True, False, False),
             ("11210", "العملاء", "112", "ASSET", 4, False, False, False),
@@ -269,6 +270,7 @@ class Command(BaseCommand):
         for code, name, parent_code, type_code, level, is_leaf, is_cash, is_bank in MASTER_TREE:
             parent = account_map.get(parent_code) if parent_code else None
             account_type = account_types[type_code]
+            is_control = not is_leaf
 
             acc, created = ChartOfAccounts.objects.get_or_create(
                 code=code,
@@ -278,6 +280,7 @@ class Command(BaseCommand):
                     "account_type": account_type,
                     "level": level,
                     "is_leaf": is_leaf,
+                    "is_control_account": is_control,
                     "is_cash_account": is_cash,
                     "is_bank_account": is_bank,
                     "currency": egp,
@@ -290,6 +293,7 @@ class Command(BaseCommand):
                 acc.account_type = account_type
                 acc.level = level
                 acc.is_leaf = is_leaf
+                acc.is_control_account = is_control
                 acc.is_cash_account = is_cash
                 acc.is_bank_account = is_bank
                 acc.save()

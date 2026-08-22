@@ -403,7 +403,7 @@ class SalesService:
                         pass
 
             if not ChartOfAccounts.objects.filter(code=cust_account_code).exists():
-                cust_fallback = ChartOfAccounts.objects.filter(code__in=['11210', '10200'], is_active=True).first()
+                cust_fallback = ChartOfAccounts.objects.filter(code__in=['11210', '11030'], is_active=True).first()
                 if cust_fallback:
                     cust_account_code = cust_fallback.code
                 else:

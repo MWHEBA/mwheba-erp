@@ -50,7 +50,7 @@ class RolePermissionBackend:
         if user_obj.is_superuser or getattr(user_obj, 'is_admin', False):
             return True
 
-        # استخراج الـ codename من الـ perm (مثال: 'students.view_student' → 'view_student')
+        # استخراج الـ codename من الـ perm (مثال: 'client.view_customer' → 'view_customer')
         codename = perm.split('.')[-1] if '.' in perm else perm
 
         # التحقق من Role permissions

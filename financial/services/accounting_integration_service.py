@@ -29,14 +29,14 @@ class AccountingIntegrationService:
 
     # أكواد الحسابات الأساسية المطلوبة (حسب دليل الحسابات المعتمد)
     DEFAULT_ACCOUNTS = {
-        "sales_revenue": "40100",  # إيرادات الرسوم الأساسية
-        "cost_of_goods_sold": "50100",  # تكلفة الخدمات المقدمة
-        "inventory": "10400",  # المخزون
-        "accounts_receivable": "10300",  # ذمم العملاء
-        "accounts_payable": "20100",  # الموردون
-        "cash": "10100",  # الخزنة
-        "bank": "10200",  # البنك
-        "purchase_expense": "50100",  # تكلفة الخدمات المقدمة
+        "sales_revenue": "41100",  # إيرادات المبيعات العامة
+        "cost_of_goods_sold": "51100",  # تكلفة البضاعة المباعة
+        "inventory": "11310",  # مخزون البضائع التامة
+        "accounts_receivable": "11210",  # العملاء
+        "accounts_payable": "21110",  # الموردون
+        "cash": "11110",  # الخزينة الرئيسية
+        "bank": "11160001",  # الحساب البنكي الرئيسي
+        "purchase_expense": "51100",  # مصروفات المشتريات
     }
 
     @classmethod
@@ -234,8 +234,8 @@ class AccountingIntegrationService:
                 supplier_account = cls._get_supplier_account(purchase.supplier)
                 if not supplier_account:
                     logger.warning(f"⚠️ المورد {purchase.supplier.name} ليس له حساب محاسبي - سيتم إنشاؤه")
-                    from financial.services.supplier_parent_account_service import SupplierParentAccountService
-                    supplier_account = SupplierParentAccountService.get_or_create_supplier_account(
+                    from financial.services.subledger_account_service import SubledgerAccountService
+                    supplier_account = SubledgerAccountService.get_or_create_supplier_account(
                         purchase.supplier, user or purchase.created_by
                     )
                     
@@ -1215,217 +1215,28 @@ class AccountingIntegrationService:
         return accounts_data.get(account_key)
 
     @classmethod
-    def _get_supplier_account(cls, supplier) -> Optional[ChartOfAccounts]:
-        """الحصول على حساب المورد المحدد أو إنشاؤه"""
-        try:
-            if not supplier:
-                return None
-            if supplier.financial_account and supplier.financial_account.is_active:
-                return supplier.financial_account
-            
-            from financial.services.supplier_parent_account_service import SupplierParentAccountService
-            return SupplierParentAccountService.get_or_create_supplier_account(supplier)
-        except Exception as e:
-            logger.error(f"خطأ في الحصول على حساب المورد: {str(e)}")
+    def _get_supplier_account(cls, supplier, user=None) -> Optional[ChartOfAccounts]:
+        """الحصول على حساب المورد المحدد أو إنشاؤه عبر المحرك المركزي الموحد"""
+        if not supplier:
             return None
-            
-            # ثالثاً: محاولة إنشاء حساب جديد للمورد
-            try:
-                # البحث عن الحساب الأب للموردين
-                parent_account = ChartOfAccounts.objects.get(code="2010", is_active=True)
-                
-                # إنشاء رقم حساب جديد للمورد
-                last_supplier_account = ChartOfAccounts.objects.filter(
-                    code__startswith="20101"
-                ).order_by("-code").first()
-                
-                if last_supplier_account:
-                    try:
-                        last_number = int(last_supplier_account.code[5:])  # آخر 3 أرقام
-                        new_number = last_number + 1
-                    except (ValueError, IndexError):
-                        new_number = 1
-                else:
-                    new_number = 1
-                
-                new_code = f"20101{new_number:03d}"  # مثال: 20101001
-                
-                # إنشاء الحساب الجديد
-                liability_type, _ = AccountType.objects.get_or_create(
-                    category="liability",
-                    defaults={
-                        'code': 'LIABILITY',
-                        'name': 'خصوم',
-                        'nature': 'credit',
-                        'is_active': True
-                    }
-                )
-                new_account = ChartOfAccounts.objects.create(
-                    code=new_code,
-                    name=f"المورد - {supplier.name}",
-                    parent=parent_account,
-                    account_type=liability_type,
-                    is_active=True,
-                    is_leaf=True,
-                    created_by_id=1  # استخدام المستخدم الافتراضي
-                )
-                
-                # ربط الحساب الجديد بالمورد
-                supplier.financial_account = new_account
-                supplier.save(update_fields=['financial_account'])
-                
-                return new_account
-                
-            except Exception as e:
-                logger.warning(f"⚠️ فشل في إنشاء حساب جديد للمورد: {e}")
-            
-            # رابعاً: إرجاع None للاستخدام الحساب العام
-            logger.warning(f"⚠️ لم يتم العثور على حساب محدد للمورد {supplier.name}")
-            return None
-            
-        except Exception as e:
-            logger.error(f"❌ خطأ في الحصول على حساب المورد: {e}")
-            return None
+        from financial.services.subledger_account_service import SubledgerAccountService
+        return SubledgerAccountService.get_or_create_supplier_account(supplier, user=user)
 
     @classmethod
-    def _get_customer_account(cls, customer) -> Optional[ChartOfAccounts]:
-        """الحصول على حساب العميل المحدد أو إنشاؤه"""
-        try:
-            # أولاً: محاولة استخدام الحساب المالي المحدد للعميل
-            if customer.financial_account and customer.financial_account.is_active:
-                return customer.financial_account
-            
-            # ثانياً: البحث عن حساب فرعي للعميل في شجرة الحسابات
-            customer_sub_accounts = ChartOfAccounts.objects.filter(
-                name__icontains=customer.name,
-                is_active=True,
-                is_leaf=True,  # حساب نهائي
-                parent__code__startswith="110"  # تحت مجموعة العملاء
-            )
-            
-            if customer_sub_accounts.exists():
-                account = customer_sub_accounts.first()
-                return account
-            
-            # ثالثاً: محاولة إنشاء حساب جديد للعميل
-            try:
-                # البحث عن الحساب الأب للعملاء
-                parent_account = ChartOfAccounts.objects.get(code="1103", is_active=True)
-                
-                # إنشاء رقم حساب جديد للعميل
-                last_customer_account = ChartOfAccounts.objects.filter(
-                    code__startswith="10300"
-                ).order_by("-code").first()
-                
-                if last_customer_account:
-                    try:
-                        last_number = int(last_customer_account.code[5:])  # آخر 3 أرقام
-                        new_number = last_number + 1
-                    except (ValueError, IndexError):
-                        new_number = 1
-                else:
-                    new_number = 1
-                
-                new_code = f"10300{new_number:03d}"  # مثال: 10300001
-                
-                # إنشاء الحساب الجديد
-                asset_type, _ = AccountType.objects.get_or_create(
-                    category="asset",
-                    defaults={
-                        'code': 'ASSET',
-                        'name': 'أصول',
-                        'nature': 'debit',
-                        'is_active': True
-                    }
-                )
-                new_account = ChartOfAccounts.objects.create(
-                    code=new_code,
-                    name=f"العميل - {customer.name}",
-                    parent=parent_account,
-                    account_type=asset_type,
-                    is_active=True,
-                    is_leaf=True,
-                    created_by_id=1  # استخدام المستخدم الافتراضي
-                )
-                
-                # ربط الحساب الجديد بالعميل
-                customer.financial_account = new_account
-                customer.save(update_fields=['financial_account'])
-                
-                return new_account
-                
-            except Exception as e:
-                logger.warning(f"⚠️ فشل في إنشاء حساب جديد للعميل: {e}")
-            
-            # رابعاً: إرجاع None للاستخدام الحساب العام
-            logger.warning(f"⚠️ لم يتم العثور على حساب محدد للعميل {customer.name}")
+    def _get_customer_account(cls, customer, user=None) -> Optional[ChartOfAccounts]:
+        """الحصول على حساب العميل المحدد أو إنشاؤه عبر المحرك المركزي الموحد"""
+        if not customer:
             return None
-            
-        except Exception as e:
-            logger.error(f"❌ خطأ في الحصول على حساب العميل: {e}")
-            return None
+        from financial.services.subledger_account_service import SubledgerAccountService
+        return SubledgerAccountService.get_or_create_customer_account(customer, user=user)
 
     @classmethod
     def _create_customer_account(cls, customer, user: Optional[User] = None) -> Optional[ChartOfAccounts]:
-        """
-        إنشاء حساب محاسبي جديد للعميل تلقائياً
-        يستخدم نفس المنطق الموجود في client/views.py:customer_create_account
-        """
-        try:
-            # التحقق من أن العميل لا يملك حساب بالفعل
-            if customer.financial_account:
-                logger.warning(f"⚠️ العميل {customer.name} مربوط بالفعل بحساب محاسبي {customer.financial_account.code}")
-                return customer.financial_account
-            
-            # البحث عن حساب العملاء الرئيسي (10300)
-            customers_account = ChartOfAccounts.objects.filter(code="10300").first()
-            
-            if not customers_account:
-                logger.error("❌ لا يمكن العثور على حساب أولياء الأمور الرئيسي (10300) في النظام")
-                return None
-            
-            # إنشاء كود فريد للحساب الجديد
-            # البحث عن آخر حساب فرعي تحت حساب العملاء
-            # النمط المتوقع: 1030001, 1030002, 1030003...
-            last_customer_account = ChartOfAccounts.objects.filter(
-                parent=customers_account,
-                code__startswith='1030'
-            ).exclude(code='10300').order_by('-code').first()
-            
-            if last_customer_account:
-                last_number = int(last_customer_account.code[-4:])
-                new_number = last_number + 1
-            else:
-                new_number = 1
-            
-            new_code = f"1030{new_number:04d}"
-            
-            # إنشاء اسم مناسب للحساب
-            account_name = f"عميل - {customer.name}"
-            
-            # إنشاء الحساب الجديد
-            new_account = ChartOfAccounts.objects.create(
-                code=new_code,
-                name=account_name,
-                parent=customers_account,
-                account_type=customers_account.account_type,
-                is_active=True,
-                is_leaf=True,
-                description=f"حساب محاسبي للعميل: {customer.name} (كود العميل: {customer.code})",
-                created_by=user if user else None
-            )
-            
-            # ربط العميل بالحساب الجديد
-            customer.financial_account = new_account
-            customer.save(update_fields=['financial_account'])
-            
-            return new_account
-            
-        except Exception as e:
-            logger.error(f"❌ فشل في إنشاء حساب جديد للعميل {customer.name}: {e}")
-            import traceback
-            logger.error(traceback.format_exc())
+        """إنشاء حساب محاسبي جديد للعميل عبر المحرك المركزي الموحد"""
+        if not customer:
             return None
+        from financial.services.subledger_account_service import SubledgerAccountService
+        return SubledgerAccountService.create_customer_account(customer, user=user)
 
     @classmethod
     def _create_supplier_account(cls, supplier, user: Optional[User] = None) -> Optional[ChartOfAccounts]:
@@ -1927,53 +1738,6 @@ class AccountingIntegrationService:
             return Decimal("0.00")
 
     @classmethod
-    def _get_fee_revenue_account(cls, fee_category: str) -> Optional['ChartOfAccounts']:
-        """الحصول على حساب الإيرادات المناسب حسب نوع الرسوم"""
-        try:
-            from financial.models.chart_of_accounts import ChartOfAccounts
-            
-            # خريطة أنواع الرسوم إلى حسابات الإيرادات
-            fee_category_accounts = {
-                'academic': '40100',    # إيرادات الرسوم الأساسية
-                'tuition': '40100',     # إيرادات الرسوم الأساسية
-                'transport': '40300',   # إيرادات النقل
-                'bus': '40300',         # إيرادات النقل
-                'services': '40300',    # إيرادات خدمات النقل
-                'activities': '40400',  # إيرادات أخرى
-                'sports': '40400',      # إيرادات أخرى
-                'events': '40400',      # إيرادات أخرى
-                'products': '41100',    # إيرادات المنتجات
-                'materials': '41100',   # إيرادات المنتجات
-                'books': '41100',       # إيرادات المنتجات
-                'uniform': '41100',     # إيرادات المنتجات
-                'stationery': '41100',  # إيرادات المنتجات
-            }
-            
-            # البحث عن حساب مناسب للفئة
-            account_code = fee_category_accounts.get(fee_category.lower())
-            
-            if account_code:
-                account = ChartOfAccounts.objects.filter(
-                    code=account_code, 
-                    is_active=True
-                ).first()
-                
-                if account:
-                    return account
-                else:
-                    logger.warning(f"⚠️ الحساب {account_code} غير موجود أو غير نشط لفئة الرسوم {fee_category}")
-            else:
-                logger.warning(f"⚠️ لا يوجد حساب مخصص لفئة الرسوم {fee_category}")
-            
-            # إذا لم يوجد حساب مخصص، إرجاع None لاستخدام الحساب الافتراضي
-            return None
-            
-        except Exception as e:
-            logger.error(f"❌ خطأ في الحصول على حساب الإيرادات لفئة الرسوم {fee_category}: {str(e)}")
-            return None
-
-    @classmethod
-    @classmethod
     def create_reversal_entry(
         cls, 
         original_entry: JournalEntry, 
@@ -1982,15 +1746,15 @@ class AccountingIntegrationService:
         user: Optional[User] = None
     ) -> Optional[JournalEntry]:
         """
-        إنشاء قيد عكسي للتسوية المالية - تم تصحيح الخطأ المحاسبي
+        إنشاء قيد عكسي للتسوية المالية
         
         المبدأ المحاسبي الصحيح:
         - إذا كان البند الأصلي: من حـ/أ (مدين 100) إلى حـ/ب (دائن 100)
         - فالقيد العكسي يكون: من حـ/ب (مدين 100) إلى حـ/أ (دائن 100)
         
         مثال عملي:
-        القيد الأصلي: من حـ/ولي الأمر (مدين 150) إلى حـ/الإيرادات (دائن 150)
-        القيد العكسي: من حـ/الإيرادات (مدين 150) إلى حـ/ولي الأمر (دائن 150)
+        القيد الأصلي: من حـ/العميل (مدين 150) إلى حـ/الإيرادات (دائن 150)
+        القيد العكسي: من حـ/الإيرادات (مدين 150) إلى حـ/العميل (دائن 150)
         
         الوسائط:
             original_entry: القيد الأصلي المراد عكسه

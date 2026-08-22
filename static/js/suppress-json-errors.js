@@ -9,7 +9,7 @@
     // قائمة القيم المعروفة التي ليست JSON ولكن Bootstrap يحاول parse-ها
     const knownNonJsonValues = [
         'tab', 'pill', 'modal', 'collapse', 'dropdown', 'tooltip', 'popover',
-        '#academic', '#financial', '#activities', '#services', '#enrolled-activities',
+        '#overview', '#financial', '#operations', '#services', '#inventory',
         'show', 'hide', 'toggle', 'fade', 'active', 'static',
         // النصوص العربية الشائعة في tooltips
         'عرض الصلاحيات', 'تعيين دور', 'تعديل المستخدم', 'حذف', 'تعديل', 'عرض',

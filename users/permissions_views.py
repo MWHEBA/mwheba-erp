@@ -80,12 +80,12 @@ def _get_arabic_permission_name(permission):
             return 'إدارة العقود'
         elif action_part == 'employees':
             return 'إدارة الموظفين'
-        elif action_part == 'buses':
-            return 'إدارة وسائل النقل'
-        elif action_part == 'routes':
-            return 'إدارة المسارات'
-        elif action_part == 'enrollments':
-            return 'إدارة التسجيلات'
+        elif action_part == 'suppliers':
+            return 'إدارة الموردين'
+        elif action_part == 'customers':
+            return 'إدارة العملاء'
+        elif action_part == 'inventory':
+            return 'إدارة المخزون'
         elif action_part == 'emergencies':
             return 'إدارة حالات الطوارئ'
         else:

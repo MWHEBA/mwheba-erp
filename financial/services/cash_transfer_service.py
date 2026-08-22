@@ -46,11 +46,11 @@ class CashTransferService:
         from_acc = ChartOfAccounts.objects.select_for_update().get(pk=from_account_id)
         to_acc = ChartOfAccounts.objects.select_for_update().get(pk=to_account_id)
 
-        if not (from_acc.is_cash_account or from_acc.is_bank_account):
-            raise ValidationError(f"الحساب المصدر '{from_acc.name}' ليس حساباً نقدياً أو بنكياً.")
+        if not from_acc.is_leaf or from_acc.is_control_account or not (from_acc.is_cash_account or from_acc.is_bank_account):
+            raise ValidationError(f"الحساب المصدر '{from_acc.name}' ليس حساباً نقدياً أو بنكياً تشغيلياً (حساب طرفي).")
 
-        if not (to_acc.is_cash_account or to_acc.is_bank_account):
-            raise ValidationError(f"الحساب المستلم '{to_acc.name}' ليس حساباً نقدياً أو بنكياً.")
+        if not to_acc.is_leaf or to_acc.is_control_account or not (to_acc.is_cash_account or to_acc.is_bank_account):
+            raise ValidationError(f"الحساب المستلم '{to_acc.name}' ليس حساباً نقدياً أو بنكياً تشغيلياً (حساب طرفي).")
 
         transfer_date = transfer_date or timezone.now().date()
         func_curr = ExchangeRateService.get_functional_currency()

@@ -397,6 +397,118 @@ class BankReconciliationService:
     }
 
     @classmethod
+    def import_statement_batch(
+        cls,
+        bank_account_id: int,
+        statement_date,
+        opening_balance: Decimal,
+        closing_balance: Decimal,
+        lines_data: List[Dict[str, Any]],
+        user=None,
+        **kwargs
+    ) -> BankStatementBatch:
+        """استيراد دفعة كشف حساب بنكي برمجياً أو عبر ملف"""
+        with transaction.atomic():
+            bank_acc = ChartOfAccounts.objects.get(pk=bank_account_id)
+            batch_num = kwargs.get('batch_number') or f"STMT-{bank_acc.code}-{statement_date}-{uuid.uuid4().hex[:6]}"
+            batch = BankStatementBatch.objects.create(
+                batch_number=batch_num,
+                bank_account=bank_acc,
+                statement_date=statement_date,
+                opening_balance=opening_balance,
+                closing_balance=closing_balance,
+                created_by=user,
+                status='imported'
+            )
+            for item in lines_data:
+                BankStatementLine.objects.create(
+                    batch=batch,
+                    transaction_date=item.get('transaction_date', statement_date),
+                    reference_number=item.get('reference_number', ''),
+                    description=item.get('description', ''),
+                    debit=item.get('debit', Decimal('0.00')),
+                    credit=item.get('credit', Decimal('0.00')),
+                    is_matched=False
+                )
+            return batch
+
+    @classmethod
+    def auto_match_batch(cls, batch_id: int, user=None) -> Dict[str, int]:
+        """المطابقة الآلية التلقائية لدفعة كشف الحساب البنكي (Exact & Probable Engine)"""
+        with transaction.atomic():
+            batch = BankStatementBatch.objects.select_for_update().get(pk=batch_id)
+            exact_matches = 0
+            probable_matches = 0
+
+            for stmt_line in batch.lines.filter(is_matched=False):
+                stmt_amt = stmt_line.debit if stmt_line.debit > 0 else stmt_line.credit
+                candidates = BankCandidateEngine.get_candidates(batch.bank_account, stmt_line)
+                
+                matched_line = None
+                is_exact = False
+                for c in candidates:
+                    c_amt = c.debit if c.debit > 0 else c.credit
+                    if abs(c_amt - stmt_amt) <= Decimal('0.01'):
+                        ref_match = (
+                            c.journal_entry.reference and stmt_line.reference_number and
+                            str(c.journal_entry.reference).strip() == str(stmt_line.reference_number).strip()
+                        )
+                        date_match = (c.journal_entry.date == stmt_line.transaction_date)
+                        if ref_match and date_match:
+                            matched_line = c
+                            is_exact = True
+                            break
+                        elif matched_line is None:
+                            matched_line = c
+                            is_exact = False
+
+                if matched_line:
+                    if is_exact:
+                        BankReconciliationMatch.objects.create(
+                            statement_line=stmt_line,
+                            journal_line=matched_line,
+                            matched_amount=stmt_amt,
+                            match_type='EXACT',
+                            status='MATCHED',
+                            matched_by=user
+                        )
+                        stmt_line.is_matched = True
+                        stmt_line.save(update_fields=['is_matched'])
+                        exact_matches += 1
+                    else:
+                        BankReconciliationMatch.objects.create(
+                            statement_line=stmt_line,
+                            journal_line=matched_line,
+                            matched_amount=stmt_amt,
+                            match_type='PROBABLE',
+                            status='UNMATCHED',
+                            matched_by=user
+                        )
+                        probable_matches += 1
+
+            cls.update_batch_status(batch)
+            return {
+                'exact_matches': exact_matches,
+                'probable_matches_pending': probable_matches
+            }
+
+    @classmethod
+    def confirm_match(cls, match_id: int, user=None) -> BankReconciliationMatch:
+        """تأكيد المطابقة المرجحة من قبل المستخدم"""
+        with transaction.atomic():
+            match_obj = BankReconciliationMatch.objects.select_for_update().get(pk=match_id)
+            match_obj.status = 'MATCHED'
+            match_obj.matched_by = user
+            match_obj.save(update_fields=['status', 'matched_by'])
+
+            stmt_line = match_obj.statement_line
+            stmt_line.is_matched = True
+            stmt_line.save(update_fields=['is_matched'])
+
+            cls.update_batch_status(stmt_line.batch)
+            return match_obj
+
+    @classmethod
     def update_batch_status(cls, batch: BankStatementBatch) -> str:
         """تحديث آلة حالات الدفعة أوتوماتيكياً بحوكمة حارس الانتقالات"""
         total_lines = batch.lines.count()

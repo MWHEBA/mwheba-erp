@@ -13,8 +13,13 @@ class Shift(models.Model):
     """نموذج الورديات"""
     
     SHIFT_TYPE_CHOICES = [
+        ('regular', 'وردية أساسية (دائمة)'),
+        ('morning', 'وردية صباحية'),
+        ('evening', 'وردية مسائية'),
+        ('night', 'وردية ليلية'),
+        ('seasonal', 'وردية موسمية'),
         ('annual', 'سنة مالية'),
-        ('summer', 'نشاط صيفي'),
+        ('summer', 'مؤقتة'),
     ]
     
     name = models.CharField(max_length=100, verbose_name='اسم الوردية')

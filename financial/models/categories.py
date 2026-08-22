@@ -18,7 +18,7 @@ class FinancialCategory(models.Model):
         _("الرمز"),
         max_length=50,
         unique=True,
-        help_text=_("رمز فريد للتصنيف (مثال: tuition, transportation)")
+        help_text=_("رمز فريد للتصنيف (مثال: products, services, raw_materials)")
     )
     
     name = models.CharField(

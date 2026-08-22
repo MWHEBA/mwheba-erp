@@ -153,104 +153,278 @@
     </div>
     <div class="card-body p-3">
       <div class="tab-content" id="customerTabsContent">
-        <!-- تاب معلومات العميل -->
-        <div class="tab-pane fade show active" id="info-tab-pane" role="tabpanel" aria-labelledby="info-tab"
-          tabindex="0">
-          <div class="row g-4">
-            <div class="col-md-6 col-lg-4">
-              <div class="d-flex align-items-start">
-                <i class="fas fa-phone text-secondary mt-1 me-3"></i>
-                <div>
-                  <small class="text-muted d-block mb-1">{% trans "رقم الهاتف" %}</small>
-                  <span class="text-dark fw-semibold">{{ customer.phone|format_phone|default:"-" }}</span>
-                </div>
+        <!-- تاب معلومات العميل الشاملة -->
+        <div class="tab-pane fade show active" id="info-tab-pane" role="tabpanel" aria-labelledby="info-tab" tabindex="0">
+          
+          <!-- 1. الهوية القانونية والتجارية -->
+          <div class="card border mb-4 shadow-sm">
+            <div class="card-header bg-light border-bottom py-2 px-3 d-flex align-items-center justify-content-between">
+              <span class="fw-bold text-dark"><i class="fas fa-id-card text-primary me-2"></i>{% trans "الهوية القانونية والضريبية" %}</span>
+              <div>
+                {% if customer.is_active %}
+                  <span class="badge bg-success-subtle text-success border border-success-subtle"><i class="fas fa-check-circle me-1"></i>{% trans "نشط" %}</span>
+                {% else %}
+                  <span class="badge bg-danger-subtle text-danger border border-danger-subtle"><i class="fas fa-ban me-1"></i>{% trans "معطل" %}</span>
+                {% endif %}
+                {% if customer.is_vip %}
+                  <span class="badge bg-warning text-dark border ms-1"><i class="fas fa-star text-dark me-1"></i>{% trans "عميل مميز (VIP)" %}</span>
+                {% endif %}
               </div>
             </div>
-
-            <div class="col-md-6 col-lg-4">
-              <div class="d-flex align-items-start">
-                <i class="fas fa-envelope text-secondary mt-1 me-3"></i>
-                <div>
-                  <small class="text-muted d-block mb-1">{% trans "البريد الإلكتروني" %}</small>
-                  <span class="text-dark fw-semibold">{{ customer.email|default:"-" }}</span>
+            <div class="card-body p-3">
+              <div class="row g-3">
+                <div class="col-md-6 col-lg-3">
+                  <small class="text-muted d-block mb-1">{% trans "كود العميل" %}</small>
+                  <span class="text-dark fw-bold">{{ customer.code }}</span>
                 </div>
-              </div>
-            </div>
-
-            <div class="col-md-6 col-lg-4">
-              <div class="d-flex align-items-start">
-                <i class="fas fa-map-marker-alt text-secondary mt-1 me-3"></i>
-                <div>
-                  <small class="text-muted d-block mb-1">{% trans "العنوان" %}</small>
-                  <span class="text-dark fw-semibold">{{ customer.address|default:"-" }}{% if customer.city %} ({{ customer.city }}){% endif %}</span>
-                </div>
-              </div>
-            </div>
-
-            <div class="col-md-6 col-lg-4">
-              <div class="d-flex align-items-start">
-                <i class="fas fa-file-invoice text-secondary mt-1 me-3"></i>
-                <div>
-                  <small class="text-muted d-block mb-1">{% trans "الرقم الضريبي" %}</small>
-                  <span class="text-dark fw-semibold font-monospace">{{ customer.tax_number|default:"-" }}</span>
-                </div>
-              </div>
-            </div>
-
-            <div class="col-md-6 col-lg-4">
-              <div class="d-flex align-items-start">
-                <i class="fas fa-id-card text-secondary mt-1 me-3"></i>
-                <div>
-                  <small class="text-muted d-block mb-1">{% trans "الرقم القومي (للأفراد)" %}</small>
-                  <span class="text-dark fw-semibold font-monospace">{{ customer.national_id|default:"-" }}</span>
-                </div>
-              </div>
-            </div>
-
-            <div class="col-md-6 col-lg-4">
-              <div class="d-flex align-items-start">
-                <i class="fas fa-user-tie text-secondary mt-1 me-3"></i>
-                <div>
-                  <small class="text-muted d-block mb-1">{% trans "نوع العميل" %}</small>
+                <div class="col-md-6 col-lg-3">
+                  <small class="text-muted d-block mb-1">{% trans "نوع العميل (الكيان القانوني)" %}</small>
                   <span class="text-dark fw-semibold">{{ customer.get_client_type_display }}</span>
                 </div>
-              </div>
-            </div>
-
-            <div class="col-md-6 col-lg-4">
-              <div class="d-flex align-items-start">
-                <i class="fas fa-credit-card text-secondary mt-1 me-3"></i>
-                <div>
-                  <small class="text-muted d-block mb-1">{% trans "الحد الائتماني" %}</small>
-                  <span class="text-dark fw-semibold">{{ customer.credit_limit|smart_float }} {{ currency_symbol }}</span>
+                {% if customer.client_type == 'individual' or customer.national_id %}
+                <div class="col-md-6 col-lg-3">
+                  <small class="text-muted d-block mb-1">{% trans "الرقم القومي (للأفراد)" %}</small>
+                  <span class="text-dark fw-semibold">{{ customer.national_id|default:"-" }}</span>
+                </div>
+                {% endif %}
+                {% if customer.client_type != 'individual' or customer.tax_number %}
+                <div class="col-md-6 col-lg-3">
+                  <small class="text-muted d-block mb-1">{% trans "الرقم الضريبي" %}</small>
+                  <span class="text-dark fw-semibold">{{ customer.tax_number|default:"-" }}</span>
+                </div>
+                {% endif %}
+                {% if customer.client_type != 'individual' or customer.commercial_registry %}
+                <div class="col-md-6 col-lg-3">
+                  <small class="text-muted d-block mb-1">{% trans "السجل التجاري" %}</small>
+                  <span class="text-dark fw-semibold">{{ customer.commercial_registry|default:"-" }}</span>
+                </div>
+                {% endif %}
+                <div class="col-md-6 col-lg-3">
+                  <small class="text-muted d-block mb-1">{% trans "تاريخ التسجيل بالمنظومة" %}</small>
+                  <span class="text-secondary small">{{ customer.created_at|date:"Y-m-d H:i" }}</span>
                 </div>
               </div>
             </div>
+          </div>
 
-            <div class="col-md-6 col-lg-4">
-              <div class="d-flex align-items-start">
-                <i class="fas fa-certificate text-secondary mt-1 me-3"></i>
-                <div>
+          <!-- 2. بيانات الاتصال والعناوين -->
+          <div class="card border mb-4 shadow-sm">
+            <div class="card-header bg-light border-bottom py-2 px-3">
+              <span class="fw-bold text-dark"><i class="fas fa-address-book text-primary me-2"></i>{% trans "بيانات الاتصال والعناوين" %}</span>
+            </div>
+            <div class="card-body p-3">
+              <div class="row g-3">
+                {% if customer.contact_person %}
+                <div class="col-md-6 col-lg-4">
+                  <div class="d-flex align-items-start">
+                    <i class="fas fa-user-tie text-primary mt-1 me-2"></i>
+                    <div>
+                      <small class="text-muted d-block mb-1">{% trans "الشخص المسؤول / المفوض" %}</small>
+                      <span class="text-dark fw-semibold">{{ customer.contact_person }}</span>
+                    </div>
+                  </div>
+                </div>
+                {% endif %}
+
+                <div class="col-md-6 col-lg-4">
+                  <div class="d-flex align-items-start">
+                    <i class="fas fa-phone-alt text-success mt-1 me-2"></i>
+                    <div>
+                      <small class="text-muted d-block mb-1">{% trans "الهاتف الأساسي (واتساب)" %}</small>
+                      <span class="text-dark fw-semibold" dir="ltr">{{ customer.phone_primary|default:customer.phone|default:"-" }}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {% if customer.phone_secondary %}
+                <div class="col-md-6 col-lg-4">
+                  <div class="d-flex align-items-start">
+                    <i class="fas fa-phone text-secondary mt-1 me-2"></i>
+                    <div>
+                      <small class="text-muted d-block mb-1">{% trans "هاتف إضافي / ثانوي" %}</small>
+                      <span class="text-dark fw-semibold" dir="ltr">{{ customer.phone_secondary }}</span>
+                    </div>
+                  </div>
+                </div>
+                {% endif %}
+
+                <div class="col-md-6 col-lg-4">
+                  <div class="d-flex align-items-start">
+                    <i class="fas fa-envelope text-info mt-1 me-2"></i>
+                    <div>
+                      <small class="text-muted d-block mb-1">{% trans "البريد الإلكتروني" %}</small>
+                      <span class="text-dark fw-semibold">{{ customer.email|default:"-" }}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="col-md-6 col-lg-4">
+                  <div class="d-flex align-items-start">
+                    <i class="fas fa-globe text-secondary mt-1 me-2"></i>
+                    <div>
+                      <small class="text-muted d-block mb-1">{% trans "الدولة / المحافظة" %}</small>
+                      <span class="text-dark fw-semibold">
+                        {{ customer.country|default:"مصر" }}
+                        {% if customer.city %} - {{ customer.city }}{% endif %}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="col-12">
+                  <div class="d-flex align-items-start">
+                    <i class="fas fa-map-marker-alt text-danger mt-1 me-2"></i>
+                    <div>
+                      <small class="text-muted d-block mb-1">{% trans "العنوان التفصيلي وموقع التوصيل" %}</small>
+                      <span class="text-dark fw-semibold">{{ customer.address|default:"-" }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 3. الإعدادات المالية وحوكمة الائتمان (FIN-AR-001) -->
+          <div class="card border mb-4 shadow-sm">
+            <div class="card-header bg-light border-bottom py-2 px-3 d-flex align-items-center justify-content-between">
+              <span class="fw-bold text-dark"><i class="fas fa-shield-alt text-primary me-2"></i>{% trans "الإعدادات المالية وحوكمة الائتمان (FIN-AR-001)" %}</span>
+              {% if customer.credit_profile %}
+                {% if customer.credit_profile.credit_status == 'ACTIVE' %}
+                  <span class="badge bg-success-subtle text-success border border-success-subtle">{% trans "ائتمان نشط ومصرح" %}</span>
+                {% elif customer.credit_profile.credit_status == 'WARNING' %}
+                  <span class="badge bg-warning-subtle text-warning border border-warning-subtle">{% trans "تحذير ائتماني" %}</span>
+                {% elif customer.credit_profile.credit_status == 'ON_HOLD' %}
+                  <span class="badge bg-danger-subtle text-danger border border-danger-subtle">{% trans "ائتمان معلق" %}</span>
+                {% else %}
+                  <span class="badge bg-dark-subtle text-dark border border-dark-subtle">{% trans "محظور ائتمانياً" %}</span>
+                {% endif %}
+              {% endif %}
+            </div>
+            <div class="card-body p-3">
+              <div class="row g-3">
+                <div class="col-md-6 col-lg-3">
+                  <small class="text-muted d-block mb-1">{% trans "العملة الافتراضية" %}</small>
+                  <span class="text-dark fw-bold">{{ customer.default_currency.name|default:"الجنيه المصري (EGP)" }}</span>
+                </div>
+
+                <div class="col-md-6 col-lg-3">
+                  <small class="text-muted d-block mb-1">{% trans "سقف الائتمان المرخص" %}</small>
+                  <span class="text-primary fw-bold">{{ customer.credit_limit|smart_float }} {{ currency_symbol }}</span>
+                </div>
+
+                <div class="col-md-6 col-lg-3">
+                  <small class="text-muted d-block mb-1">{% trans "شروط الدفع المعيارية" %}</small>
+                  <span class="text-dark fw-semibold">
+                    {% if customer.credit_profile and customer.credit_profile.default_payment_term %}
+                      {{ customer.credit_profile.default_payment_term.name }}
+                    {% else %}
+                      {% trans "سداد فوري (نقدي)" %}
+                    {% endif %}
+                  </span>
+                </div>
+
+                <div class="col-md-6 col-lg-3">
+                  <small class="text-muted d-block mb-1">{% trans "فترة السماح الإضافية" %}</small>
+                  <span class="text-dark fw-semibold">
+                    {{ customer.credit_profile.grace_period_days|default:"0" }} {% trans "يوم" %}
+                  </span>
+                </div>
+
+                <div class="col-md-6 col-lg-3">
+                  <small class="text-muted d-block mb-1">{% trans "تصنيف المخاطر" %}</small>
+                  {% if customer.credit_profile and customer.credit_profile.risk_category == 'LOW' %}
+                    <span class="badge bg-success-subtle text-success border border-success-subtle">{% trans "منخفض المخاطر" %}</span>
+                  {% elif customer.credit_profile and customer.credit_profile.risk_category == 'MEDIUM' %}
+                    <span class="badge bg-warning-subtle text-warning border border-warning-subtle">{% trans "متوسط المخاطر" %}</span>
+                  {% elif customer.credit_profile and customer.credit_profile.risk_category == 'HIGH' %}
+                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle">{% trans "مرتفع المخاطر" %}</span>
+                  {% else %}
+                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">{% trans "غير محدد" %}</span>
+                  {% endif %}
+                </div>
+
+                <div class="col-md-6 col-lg-3">
+                  <small class="text-muted d-block mb-1">{% trans "تاريخ المراجعة الائتمانية" %}</small>
+                  <span class="text-dark fw-semibold">{{ customer.credit_profile.next_review_date|date:"Y-m-d"|default:"-" }}</span>
+                </div>
+
+                <div class="col-md-6 col-lg-3">
                   <small class="text-muted d-block mb-1">{% trans "شهادات الإعفاء الضريبي" %}</small>
-                  <a href="{% url 'financial:tax_exemptions_list' %}?search={{ customer.name }}" class="badge bg-light text-primary border text-decoration-none">
+                  <a href="{% url 'financial:tax_exemptions_list' %}?search={{ customer.name }}" class="badge bg-light text-primary border text-decoration-none py-2 px-3">
                     <i class="fas fa-search me-1"></i>{% trans "استعراض الإعفاءات" %}
                   </a>
                 </div>
+
+                <!-- بطاقة الحساب المحاسبي المرتبط في دليل الحسابات -->
+                <div class="col-12 mt-3">
+                  <div class="p-3 bg-light rounded border d-flex align-items-center justify-content-between flex-wrap gap-2">
+                    <div class="d-flex align-items-center">
+                      <div class="rounded-circle bg-white border p-2 me-3 d-flex align-items-center justify-content-center" style="width: 42px; height: 42px;">
+                        <i class="fas fa-book text-primary fs-5"></i>
+                      </div>
+                      <div>
+                        <div class="text-muted small">{% trans "الحساب المحاسبي المرتبط في دليل الحسابات" %}</div>
+                        {% if customer.financial_account %}
+                          <span class="fw-bold text-dark font-monospace">{{ customer.financial_account.code }}</span> - 
+                          <span class="fw-bold text-dark">{{ customer.financial_account.name }}</span>
+                          <span class="badge bg-success-subtle text-success border border-success-subtle ms-2">{% trans "مربوط ونشط" %}</span>
+                        {% else %}
+                          <span class="text-danger fw-semibold">{% trans "غير مرتبط بحساب في شجرة الحسابات" %}</span>
+                        {% endif %}
+                      </div>
+                    </div>
+                    {% if customer.financial_account %}
+                      <div class="d-flex gap-2">
+                        <a href="{% url 'client:customer_change_account' customer.pk %}" class="btn btn-sm btn-outline-secondary">
+                          <i class="fas fa-exchange-alt me-1"></i>{% trans "تغيير الحساب" %}
+                        </a>
+                      </div>
+                    {% endif %}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
 
-          {% if customer.notes %}
-          <div class="mt-4 pt-3 border-top">
-            <div class="d-flex align-items-start text-secondary">
-              <i class="fas fa-sticky-note me-2 mt-1"></i>
-              <div>
-                <small class="text-muted d-block mb-1">{% trans "ملاحظات" %}</small>
-                <p class="mb-0 text-dark small">{{ customer.notes }}</p>
+          <!-- 4. إدارة علاقات العملاء (CRM) والملاحظات -->
+          <div class="card border mb-3 shadow-sm">
+            <div class="card-header bg-light border-bottom py-2 px-3">
+              <span class="fw-bold text-dark"><i class="fas fa-comments text-primary me-2"></i>{% trans "إدارة علاقات العملاء (CRM) والملاحظات" %}</span>
+            </div>
+            <div class="card-body p-3">
+              <div class="row g-3">
+                <div class="col-md-6 col-lg-4">
+                  <small class="text-muted d-block mb-1">{% trans "معدل تكرار التواصل المطلوب" %}</small>
+                  <span class="text-dark fw-semibold">
+                    {% if customer.contact_frequency == 'weekly' %}
+                      {% trans "أسبوعي" %}
+                    {% elif customer.contact_frequency == 'monthly' %}
+                      {% trans "شهري" %}
+                    {% elif customer.contact_frequency == 'quarterly' %}
+                      {% trans "ربع سنوي" %}
+                    {% elif customer.contact_frequency == 'yearly' %}
+                      {% trans "سنوي" %}
+                    {% else %}
+                      {% trans "غير محدد" %}
+                    {% endif %}
+                  </span>
+                </div>
+
+                <div class="col-md-6 col-lg-4">
+                  <small class="text-muted d-block mb-1">{% trans "تاريخ آخر تواصل" %}</small>
+                  <span class="text-dark fw-semibold">{{ customer.last_contact_date|date:"Y-m-d H:i"|default:"-" }}</span>
+                </div>
+
+                <div class="col-12 mt-3">
+                  <small class="text-muted d-block mb-1">{% trans "ملاحظات إضافية وشروط خاصة" %}</small>
+                  <div class="p-3 bg-light rounded border text-dark">
+                    {{ customer.notes|default:_("لا توجد ملاحظات مسجلة لهذا العميل حالياً.") }}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-          {% endif %}
+
         </div>
 
         {% if enable_quotations %}

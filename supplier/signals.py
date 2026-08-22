@@ -64,15 +64,16 @@ def create_supplier_account_signal(sender, instance, created, **kwargs):
     if not getattr(settings, "AUTO_CREATE_SUPPLIER_ACCOUNTS", True):
         return
 
-    # إنشاء حساب فقط إذا لم يكن موجوداً
+    # إذا كان الحساب موجوداً بالفعل، نزامن التعديلات (الاسم والحالة)
     if instance.financial_account:
+        from financial.services.subledger_account_service import SubledgerAccountService
+        SubledgerAccountService.sync_entity_to_account(instance)
         return
     
     try:
-        # ✅ استخدام SupplierService الموحد بدلاً من SupplierParentAccountService
-        from supplier.services.supplier_service import SupplierService
+        from financial.services.subledger_account_service import SubledgerAccountService
         
-        account = SupplierService.create_financial_account_for_supplier(
+        account = SubledgerAccountService.create_supplier_account(
             supplier=instance,
             user=instance.created_by
         )
@@ -134,20 +135,21 @@ def create_supplier_account_signal(sender, instance, created, **kwargs):
 @governed_signal_handler(
     signal_name="delete_supplier_account",
     critical=True,
-    description="حذف حساب المورد المحاسبي عند حذف المورد"
+    description="تعطيل حساب المورد المحاسبي عند حذف المورد"
 )
 @receiver(post_delete, sender=Supplier)
 def delete_supplier_account_signal(sender, instance, **kwargs):
     """
-    حذف الحساب المحاسبي عند حذف المورد (اختياري)
+    تعطيل الحساب المحاسبي بدلاً من الحذف الصلب لحماية قيود اليومية التاريخية
     """
     if instance.financial_account:
         try:
-            account_code = instance.financial_account.code
-            instance.financial_account.delete()
-            logger.info(f"تم حذف الحساب المحاسبي {account_code} للمورد {instance.name}")
+            from financial.models import ChartOfAccounts
+            account_id = instance.financial_account_id
+            ChartOfAccounts.objects.filter(id=account_id).update(is_active=False)
+            logger.info(f"تم تعطيل الحساب المحاسبي للمورد {instance.name} بنجاح")
         except Exception as e:
-            logger.error(f"فشل حذف الحساب المحاسبي للمورد {instance.name}: {e}")
+            logger.error(f"فشل تعطيل الحساب المحاسبي للمورد {instance.name}: {e}")
 
 
 

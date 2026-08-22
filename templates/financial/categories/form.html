@@ -35,11 +35,11 @@
                                 <label for="{{ form.code.id_for_label }}" class="form-label">
                                     الرمز <span class="text-danger">*</span>
                                 </label>
-                                {% render_field form.code class="form-control" placeholder="مثال: tuition" %}
+                                {% render_field form.code class="form-control" placeholder="مثال: services" %}
                                 {% if form.code.errors %}
                                     <div class="text-danger small mt-1">{{ form.code.errors.0 }}</div>
                                 {% endif %}
-                                <small class="form-text text-muted">رمز فريد بالإنجليزية (مثال: tuition, transportation)</small>
+                                <small class="form-text text-muted">رمز فريد بالإنجليزية (مثال: services, products, raw_materials)</small>
                             </div>
                             
                             <div class="col-md-6 mb-3">

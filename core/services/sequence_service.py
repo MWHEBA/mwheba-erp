@@ -238,18 +238,23 @@ class SequenceService:
         try:
             with transaction.atomic():
                 # 1. Get or Create Rule
-                rule, created = DocumentSequenceRule.objects.get_or_create(
+                rule = DocumentSequenceRule.objects.filter(
                     company_code=company_code,
                     warehouse=warehouse,
                     document_type=document_type,
                     version=1,
-                    defaults={
-                        "prefix": cls.get_default_prefix(document_type),
-                        "padding": 4,
-                        "numbering_basis": "POSTING_DATE",
-                        "status": "ACTIVE",
-                    },
-                )
+                ).first()
+                if not rule:
+                    rule = DocumentSequenceRule.objects.create(
+                        company_code=company_code,
+                        warehouse=warehouse,
+                        document_type=document_type,
+                        version=1,
+                        prefix=cls.get_default_prefix(document_type),
+                        padding=4,
+                        numbering_basis="POSTING_DATE",
+                        status="ACTIVE",
+                    )
 
                 # 2. Get or Create Counter with Atomic Lock
                 counter = (
@@ -381,18 +386,23 @@ class SequenceService:
 
         numbers = []
         with transaction.atomic():
-            rule, _ = DocumentSequenceRule.objects.get_or_create(
+            rule = DocumentSequenceRule.objects.filter(
                 company_code=company_code,
                 warehouse=warehouse,
                 document_type=document_type,
                 version=1,
-                defaults={
-                    "prefix": cls.get_default_prefix(document_type),
-                    "padding": 4,
-                    "numbering_basis": "POSTING_DATE",
-                    "status": "ACTIVE",
-                },
-            )
+            ).first()
+            if not rule:
+                rule = DocumentSequenceRule.objects.create(
+                    company_code=company_code,
+                    warehouse=warehouse,
+                    document_type=document_type,
+                    version=1,
+                    prefix=cls.get_default_prefix(document_type),
+                    padding=4,
+                    numbering_basis="POSTING_DATE",
+                    status="ACTIVE",
+                )
 
             counter = (
                 DocumentSequenceCounter.objects.select_for_update()

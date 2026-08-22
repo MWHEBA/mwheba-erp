@@ -1,5 +1,4 @@
-# Forms package for supplier app
-
+from decimal import Decimal
 from django import forms
 from django.utils.translation import gettext_lazy as _
 from ..models import Supplier
@@ -12,7 +11,7 @@ except ImportError:
 
 class SupplierForm(forms.ModelForm):
     """
-    نموذج إضافة وتعديل المورد
+    نموذج إضافة وتعديل المورد المتكامل والشامل
     """
 
     class Meta:
@@ -20,22 +19,37 @@ class SupplierForm(forms.ModelForm):
         fields = [
             "name",
             "code",
+            "entity_type",
             "primary_type",
-            "default_currency",
-            "phone",
-            "email",
-            "whatsapp",
-            "website",
-            "contact_person",
-            "address",
+            "national_id",
+            "commercial_registry",
             "tax_number",
-            "working_hours",
             "is_preferred",
             "is_active",
+            "contact_person",
+            "phone",
+            "secondary_phone",
+            "whatsapp",
+            "email",
+            "website",
+            "country",
+            "city",
+            "address",
+            "default_currency",
+            "credit_limit",
+            "default_payment_term",
+            "grace_period_days",
+            "bank_name",
+            "bank_account_number",
+            "bank_beneficiary_name",
+            "working_hours",
+            "delivery_time_days",
+            "min_order_amount",
+            "supplier_rating",
         ]
         widgets = {
             "name": forms.TextInput(
-                attrs={"class": "form-control", "placeholder": "اسم المورد"}
+                attrs={"class": "form-control", "placeholder": "اسم المورد / المنشأة"}
             ),
             "code": forms.TextInput(
                 attrs={
@@ -43,17 +57,53 @@ class SupplierForm(forms.ModelForm):
                     "readonly": "readonly"
                 }
             ),
+            "entity_type": forms.Select(
+                attrs={"class": "form-select select2 select2-filter", "dir": "rtl"}
+            ),
             "primary_type": forms.Select(
-                attrs={"class": "form-control select2"}
+                attrs={"class": "form-select select2 select2-filter", "dir": "rtl"}
+            ),
+            "national_id": forms.TextInput(
+                attrs={
+                    "class": "form-control",
+                    "placeholder": "الرقم القومي (14 رقماً)",
+                    "maxlength": "14",
+                    "dir": "ltr",
+                }
+            ),
+            "commercial_registry": forms.TextInput(
+                attrs={
+                    "class": "form-control",
+                    "placeholder": "رقم السجل التجاري",
+                }
+            ),
+            "tax_number": forms.TextInput(
+                attrs={"class": "form-control", "placeholder": "الرقم الضريبي (مثال: 123-456-789)"}
             ),
             "default_currency": forms.Select(
                 attrs={"class": "form-select select2 select2-filter", "dir": "rtl"}
+            ),
+            "default_payment_term": forms.Select(
+                attrs={"class": "form-select select2 select2-filter", "dir": "rtl"}
+            ),
+            "credit_limit": forms.NumberInput(
+                attrs={"class": "form-control", "placeholder": "0.00", "step": "0.01"}
+            ),
+            "grace_period_days": forms.NumberInput(
+                attrs={"class": "form-control", "placeholder": "0", "min": "0"}
             ),
             "phone": forms.TextInput(
                 attrs={
                     "class": "form-control",
                     "dir": "ltr",
                     "placeholder": "+20123456789",
+                }
+            ),
+            "secondary_phone": forms.TextInput(
+                attrs={
+                    "class": "form-control",
+                    "dir": "ltr",
+                    "placeholder": "+20100000000",
                 }
             ),
             "whatsapp": forms.TextInput(
@@ -63,6 +113,13 @@ class SupplierForm(forms.ModelForm):
                     "placeholder": "+20123456789",
                 }
             ),
+            "email": forms.EmailInput(
+                attrs={
+                    "class": "form-control",
+                    "dir": "ltr",
+                    "placeholder": "supplier@example.com",
+                }
+            ),
             "website": forms.URLInput(
                 attrs={
                     "class": "form-control",
@@ -70,18 +127,30 @@ class SupplierForm(forms.ModelForm):
                     "placeholder": "https://example.com",
                 }
             ),
+            "country": forms.TextInput(
+                attrs={"class": "form-control", "placeholder": "مصر"}
+            ),
+            "city": forms.TextInput(
+                attrs={"class": "form-control", "placeholder": "القاهرة / الجيزة"}
+            ),
             "contact_person": forms.TextInput(
-                attrs={"class": "form-control", "placeholder": "اسم الشخص المسؤول"}
+                attrs={"class": "form-control", "placeholder": "اسم الشخص المسؤول / المفوض"}
             ),
             "address": forms.Textarea(
                 attrs={
                     "class": "form-control",
                     "rows": 3,
-                    "placeholder": "العنوان التفصيلي",
+                    "placeholder": "العنوان التفصيلي وموقع الاستلام أو التوريد",
                 }
             ),
-            "tax_number": forms.TextInput(
-                attrs={"class": "form-control", "placeholder": "الرقم الضريبي"}
+            "bank_name": forms.TextInput(
+                attrs={"class": "form-control", "placeholder": "مثال: البنك الأهلي المصري / بنك مصر / CIB"}
+            ),
+            "bank_account_number": forms.TextInput(
+                attrs={"class": "form-control", "placeholder": "رقم الحساب أو الآيبان الدولي (IBAN)", "dir": "ltr"}
+            ),
+            "bank_beneficiary_name": forms.TextInput(
+                attrs={"class": "form-control", "placeholder": "اسم المستفيد المطابق للحساب البنكي"}
             ),
             "working_hours": forms.TextInput(
                 attrs={
@@ -89,37 +158,89 @@ class SupplierForm(forms.ModelForm):
                     "placeholder": "مثال: من 9 صباحاً إلى 5 مساءً",
                 }
             ),
+            "delivery_time_days": forms.NumberInput(
+                attrs={"class": "form-control", "placeholder": "متوسط أيام التسليم", "min": "0"}
+            ),
+            "min_order_amount": forms.NumberInput(
+                attrs={"class": "form-control", "placeholder": "0.00", "step": "0.01"}
+            ),
+            "supplier_rating": forms.NumberInput(
+                attrs={"class": "form-control", "placeholder": "من 1.0 إلى 5.0", "step": "0.1", "min": "1", "max": "5"}
+            ),
             "is_preferred": forms.CheckboxInput(attrs={"class": "form-check-input"}),
             "is_active": forms.CheckboxInput(attrs={"class": "form-check-input"}),
         }
 
     def clean_code(self):
         """
-        التحقق من أن كود المورد فريد (إذا تم إدخاله)
+        التحقق من أن كود المورد فريد وقفل التعديل إذا كانت له حركات
         """
         code = self.cleaned_data.get("code")
-        
-        # If code is empty, it will be auto-generated in model save
         if not code:
             return code
             
         instance = getattr(self, "instance", None)
         if instance and instance.pk:
-            # في حالة التعديل، نتحقق فقط إذا تم تغيير الكود
             if Supplier.objects.exclude(pk=instance.pk).filter(code=code).exists():
                 raise forms.ValidationError(
                     _("هذا الكود مستخدم من قبل، الرجاء استخدام كود آخر")
                 )
+            # قفل الكود عند وجود حركات مشتريات أو دفعات
+            if instance.code and code != instance.code:
+                try:
+                    from purchase.models import Purchase
+                    from supplier.models.supplier_advance import SupplierAdvancePayment
+                    has_tx = (
+                        Purchase.objects.filter(supplier=instance).exists()
+                        or SupplierAdvancePayment.objects.filter(supplier=instance).exists()
+                    )
+                    if has_tx:
+                        raise forms.ValidationError(
+                            _("لا يمكن تعديل كود المورد لوجود حركات وفواتير مرتبطة به")
+                        )
+                except forms.ValidationError:
+                    raise
+                except Exception:
+                    pass
         else:
-            # في حالة الإضافة الجديدة
             if Supplier.objects.filter(code=code).exists():
                 raise forms.ValidationError(
                     _("هذا الكود مستخدم من قبل، الرجاء استخدام كود آخر")
                 )
         return code
 
+    def clean(self):
+        cleaned_data = super().clean()
+        entity_type = cleaned_data.get("entity_type")
+        national_id = cleaned_data.get("national_id")
+
+        if not entity_type:
+            cleaned_data["entity_type"] = "company"
+            
+        if cleaned_data.get("credit_limit") is None:
+            cleaned_data["credit_limit"] = Decimal("0.00")
+
+        if cleaned_data.get("grace_period_days") is None:
+            cleaned_data["grace_period_days"] = 0
+
+        if entity_type == "individual" and national_id:
+            from utils.validators import validate_national_id
+            result = validate_national_id(national_id, raise_exception=False)
+            if not result.get("is_valid", False):
+                error_msg = result.get("error_message") or _("الرقم القومي غير صحيح. يجب أن يتكون من 14 رقماً مصرياً صالحاً.")
+                self.add_error("national_id", error_msg)
+
+        return cleaned_data
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+        if "entity_type" in self.fields:
+            self.fields["entity_type"].required = False
+        if "credit_limit" in self.fields:
+            self.fields["credit_limit"].required = False
+        if "grace_period_days" in self.fields:
+            self.fields["grace_period_days"].required = False
 
         if not self.instance.pk and not self.initial.get("default_currency"):
             try:
@@ -131,18 +252,14 @@ class SupplierForm(forms.ModelForm):
                 pass
 
         # توليد كود تلقائي للمورد الجديد
-        if not self.instance.pk:
+        if not self.instance.pk and not self.initial.get("code"):
             last_supplier = Supplier.objects.filter(
                 code__startswith='SUP'
             ).order_by('-id').first()
             if last_supplier and last_supplier.code:
                 try:
-                    # Extract the numeric part of the code
                     digits = ''.join(filter(str.isdigit, last_supplier.code))
-                    if digits:
-                        new_number = int(digits) + 1
-                    else:
-                        new_number = 1
+                    new_number = int(digits) + 1 if digits else 1
                 except Exception:
                     new_number = 1
             else:
@@ -150,12 +267,9 @@ class SupplierForm(forms.ModelForm):
             
             self.initial['code'] = f'SUP{new_number:03d}'
         
-        # Make code field required (consistent with customer)
         self.fields['code'].required = True
 
-        # تحديث queryset لـ primary_type لعرض الأنواع النشطة فقط
         from ..models import SupplierType
-        
         active_types = SupplierType.objects.filter(
             is_active=True
         ).select_related('settings').order_by('display_order', 'name')
@@ -164,16 +278,9 @@ class SupplierForm(forms.ModelForm):
         self.fields["primary_type"].label_from_instance = lambda obj: obj.settings.name if obj.settings else obj.name
         self.fields["primary_type"].required = True
         self.fields["primary_type"].error_messages = {
-            'required': 'يجب اختيار نوع المورد',
-            'invalid_choice': 'الرجاء اختيار نوع صحيح من القائمة'
+            'required': 'يجب اختيار مجال التوريد',
+            'invalid_choice': 'الرجاء اختيار مجال توريد صحيح من القائمة'
         }
-        
-        # في حالة التعديل، نخلي حقل النوع read-only
-        if self.instance and self.instance.pk:
-            self.fields['primary_type'].disabled = True
-            self.fields['primary_type'].help_text = 'لا يمكن تعديل نوع المورد بعد الإنشاء'
-            self.fields['primary_type'].widget.attrs['class'] = 'form-control'
-            self.fields['primary_type'].widget.attrs['style'] = 'background-color: #e9ecef; cursor: not-allowed;'
 
     def save(self, commit=True):
         """حفظ المورد"""

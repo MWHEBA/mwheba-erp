@@ -145,9 +145,15 @@ class JournalEntry(models.Model):
         ("closing", _("إقفال")),
         ("opening", _("افتتاحي")),
         ("inventory", _("حركة مخزنية")),
+        ("sales_invoice", _("فاتورة مبيعات")),
+        ("customer_payment", _("تحصيل من عميل")),
+        ("purchase_invoice", _("فاتورة مشتريات")),
+        ("vendor_payment", _("سداد لمورد")),
+        ("sales_return", _("مردودات مبيعات")),
+        ("purchase_return", _("مردودات مشتريات")),
         ("fee", _("رسوم")),  # للتوافق مع القيود القديمة
         ("application_fee", _("رسوم تقديم")),
-        ("tuition_fee", _("رسوم أساسية")),
+        ("tuition_fee", _("إيرادات خدمات (سابق)")),
         ("bus_fee", _("رسوم نقل")),
         ("materials_fee", _("رسوم مواد ومستلزمات")),
         ("services_fee", _("رسوم خدمات")),
@@ -156,7 +162,7 @@ class JournalEntry(models.Model):
         ("product_delivery", _("تسليم منتجات")),
         ("delivery_fee", _("رسوم تسليم")),
         ("complementary_fee", _("رسوم مكملة")),
-        ("parent_payment", _("دفعة ولي أمر")),
+        ("parent_payment", _("تحصيل عميل (سابق)")),
         ("supplier_payment", _("دفعة مورد")),
         ("salary_payment", _("راتب موظف")),
         ("partner_contribution", _("مساهمة الشريك")),
@@ -1150,7 +1156,12 @@ class JournalEntry(models.Model):
         }
         
         # التحقق من وجود مفتاح منع التكرار للقيود الحساسة
-        if self.entry_type in ['automatic', 'application_fee', 'tuition_fee', 'product_delivery']:
+        sensitive_types = [
+            'automatic', 'customer_payment', 'vendor_payment', 
+            'sales_invoice', 'purchase_invoice', 'product_delivery', 
+            'application_fee', 'tuition_fee'
+        ]
+        if self.entry_type in sensitive_types:
             if not self.idempotency_key:
                 result['warnings'].append("القيد الحساس بدون مفتاح منع التكرار")
         

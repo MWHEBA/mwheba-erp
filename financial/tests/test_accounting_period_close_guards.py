@@ -28,10 +28,10 @@ class TestAccountingPeriodCloseGuards:
 
         customer = Customer.objects.create(name=f"Closed Period Customer {uid}", code=f"CUST-CLOSE-{uid}", credit_limit=Decimal("500000.00"))
 
-        asset_type, _ = AccountType.objects.get_or_create(code="ASSET", name="Assets", category="ASSET")
-        liab_type, _ = AccountType.objects.get_or_create(code="LIAB", name="Liabilities", category="LIABILITY")
-        rev_type, _ = AccountType.objects.get_or_create(code="REV", name="Revenues", category="REVENUE")
-        exp_type, _ = AccountType.objects.get_or_create(code="EXPENSE", name="Expenses", category="EXPENSE")
+        asset_type, _ = AccountType.objects.get_or_create(code="ASSET", defaults={"name": "Assets", "category": "asset", "nature": "debit"})
+        liab_type, _ = AccountType.objects.get_or_create(code="LIAB", defaults={"name": "Liabilities", "category": "liability", "nature": "credit"})
+        rev_type, _ = AccountType.objects.get_or_create(code="REV", defaults={"name": "Revenues", "category": "revenue", "nature": "credit"})
+        exp_type, _ = AccountType.objects.get_or_create(code="EXPENSE", defaults={"name": "Expenses", "category": "expense", "nature": "debit"})
 
         ChartOfAccounts.objects.get_or_create(code="10400", defaults={"name": "Inventory Asset", "account_type": asset_type, "is_active": True})
         ChartOfAccounts.objects.get_or_create(code="11010", defaults={"name": "Customer AR", "account_type": asset_type, "is_active": True})

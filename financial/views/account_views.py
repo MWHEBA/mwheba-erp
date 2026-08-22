@@ -335,46 +335,31 @@ def quick_add_cash_bank_account(request):
 
         func_curr = ExchangeRateService.get_functional_currency()
         base_code = func_curr.code if func_curr else "EGP"
+        is_foreign = bool(currency_obj and currency_obj.code != base_code)
 
         if account_type == "cash":
-            reference_account = ChartOfAccounts.objects.filter(
-                Q(code="10100") | Q(is_cash_account=True), is_active=True
-            ).order_by('code').first()
+            parent_account = ChartOfAccounts.objects.filter(code="11120", is_active=True).first()
+            if not parent_account:
+                parent_account = AccountRoleRegistry.get_account("CASH_CONTROL_ACCOUNT")
         else:
-            reference_account = ChartOfAccounts.objects.filter(
-                Q(code="10200") | Q(is_bank_account=True), is_active=True
-            ).order_by('code').first()
+            if is_foreign:
+                parent_account = ChartOfAccounts.objects.filter(code="11170", is_active=True).first()
+            else:
+                parent_account = ChartOfAccounts.objects.filter(code="11160", is_active=True).first()
+                if not parent_account:
+                    parent_account = AccountRoleRegistry.get_account("BANK_CONTROL_ACCOUNT")
 
-        if not reference_account:
+        if not parent_account:
             return JsonResponse({
                 "success": False,
-                "error": f"لم يتم العثور على حساب مرجعي لـ {'الخزينة' if account_type == 'cash' else 'البنك'}"
+                "error": f"لم يتم العثور على الحساب الرقابي لـ {'الخزينة' if account_type == 'cash' else 'البنك'}"
             }, status=400)
 
-        parent_account = reference_account.parent
-        account_type_obj = reference_account.account_type
+        account_type_obj = parent_account.account_type
 
-        # Generate code
-        if parent_account:
-            siblings = ChartOfAccounts.objects.filter(
-                parent=parent_account, code__startswith='10', is_active=True
-            ).values_list('code', flat=True).order_by('code')
-            existing_codes = set()
-            for code in siblings:
-                try:
-                    existing_codes.add(int(code))
-                except Exception:
-                    pass
-            suggested_code = None
-            for i in range(1, 100):
-                code_num = 10000 + (i * 100)
-                if code_num not in existing_codes:
-                    suggested_code = str(code_num)
-                    break
-            if not suggested_code:
-                suggested_code = get_next_available_code(account_type_obj.id, parent_account.id)
-        else:
-            suggested_code = get_next_available_code(account_type_obj.id, None)
+        # Generate code atomically
+        from financial.services.subledger_account_service import SubledgerAccountService
+        suggested_code, parent_account = SubledgerAccountService._generate_next_sub_code(parent_account)
 
         try:
             op_balance = Decimal(str(opening_balance_raw)) if opening_balance_raw else Decimal("0.00")
@@ -520,7 +505,7 @@ def cash_and_bank_accounts_list(request):
 
     try:
         accounts = (
-            ChartOfAccounts.objects.filter(is_active=True)
+            ChartOfAccounts.objects.filter(is_active=True, is_leaf=True)
             .filter(
                 Q(is_cash_account=True)
                 | Q(is_bank_account=True)
@@ -534,6 +519,7 @@ def cash_and_bank_accounts_list(request):
                     )
                 )
             )
+            .exclude(is_control_account=True)
             .select_related("account_type", "currency")
             .order_by("code")
         )
@@ -547,6 +533,7 @@ def cash_and_bank_accounts_list(request):
                 | Q(account_type__name__icontains="صندوق")
                 | Q(account_type__name__icontains="خزن")
             )
+            .exclude(is_control_account=True)
             .select_related("account_type", "currency")
             .order_by("code")
         )
@@ -898,8 +885,8 @@ def chart_of_accounts_list(request):
     }
 
     # فلتر مخصص بالنوع لو طلب
-    if type_filter == "parents":
-        root_accounts_display = [n for n in root_nodes if n["code"] == "10300" or any(c["code"].startswith("103") for c in n["children"])]
+    if type_filter == "parents" or type_filter == "customers":
+        root_accounts_display = [n for n in root_nodes if n["code"] in ["11210", "112", "11030", "10300"] or any(c["code"].startswith("112") for c in n["children"])]
     else:
         root_accounts_display = root_nodes
 

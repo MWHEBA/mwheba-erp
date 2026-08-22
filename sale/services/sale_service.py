@@ -941,9 +941,9 @@ class SaleService:
             
             # تحديد حساب الدائن حسب طريقة الدفع الأصلية
             if sale.payment_method == 'cash':
-                credit_account_code = AccountRoleRegistry.get_account_code("CASH_CONTROL_ACCOUNT")
+                credit_account_code = AccountRoleRegistry.get_account_code("DEFAULT_CASH_DRAWER")
             elif sale.payment_method == 'bank_transfer':
-                credit_account_code = AccountRoleRegistry.get_account_code("BANK_CONTROL_ACCOUNT")
+                credit_account_code = AccountRoleRegistry.get_account_code("DEFAULT_BANK_ACCOUNT")
             else:
                 # حساب العميل - التأكد من وجود الحساب المحاسبي
                 if not sale.customer.financial_account:

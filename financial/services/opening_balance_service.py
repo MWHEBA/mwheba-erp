@@ -1,6 +1,7 @@
+import logging
 import uuid
 from decimal import Decimal
-from django.db import transaction
+from django.db import models, transaction
 from django.utils import timezone
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext as _
@@ -10,6 +11,8 @@ from financial.models.journal_entry import JournalEntry, JournalEntryLine
 from financial.exceptions import ImmutableLedgerError
 from core.services.sequence_service import SequenceService
 from core.enums.document_types import DocumentType
+
+logger = logging.getLogger("financial.opening_balance_service")
 
 
 class RoundingTolerancePolicy:
@@ -56,9 +59,9 @@ class OpeningBalancePostingService:
             # 1. Lock batch inside atomic transaction
             batch = OpeningBalanceBatch.objects.select_for_update().get(pk=batch_id)
 
-            # Re-check status & idempotency
-            if batch.status == 'posted' and batch.journal_entry_id:
-                return batch
+            # Re-check status & immutability guard
+            if batch.status == 'posted':
+                raise ImmutableLedgerError(_("الدفعة مرحلة بالفعل ومحصنة ضد إعادة الترحيل."))
 
             if batch.status == 'reversed':
                 raise ImmutableLedgerError(_("الدفعة معكوسة بالفعل ولا يمكن ترحيلها."))
@@ -209,7 +212,7 @@ class OpeningBalancePostingService:
             batch.inventory_sync_key = sync_key
             batch.last_attempt_at = timezone.now()
             batch.last_attempt_by = user
-            batch.save()
+            batch.save(update_fields=['inventory_sync_status', 'inventory_sync_key', 'last_attempt_at', 'last_attempt_by'])
 
             # Attempt inventory snapshot processing
             inventory_lines = batch.lines.filter(line_type='INVENTORY')
@@ -223,7 +226,7 @@ class OpeningBalancePostingService:
                     logger.warning(f"Inventory processing delegated call error: {ie}")
 
             batch.inventory_sync_status = 'COMPLETED'
-            batch.save()
+            batch.save(update_fields=['inventory_sync_status'])
             return batch
         except Exception as e:
             logger.error(f"Inventory Opening Processing Failed for Batch {batch_id}: {e}")
@@ -433,6 +436,8 @@ class OpeningBalancePostingService:
 
 
 # Aliases for backward compatibility
+OpeningBalancePostingService.post_batch = OpeningBalancePostingService.post
+OpeningBalancePostingService.reverse_batch = OpeningBalancePostingService.reverse
 OpeningBalanceService = OpeningBalancePostingService
 OpeningBalanceValidationService = OpeningBalancePostingService
 

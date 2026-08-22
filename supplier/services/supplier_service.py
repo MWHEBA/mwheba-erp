@@ -28,9 +28,13 @@ class SupplierService:
 
     @staticmethod
     @transaction.atomic
-    def create_supplier(name, code=None, phone='', email='', address='', city='',
+    def create_supplier(name, code=None, entity_type="company", national_id=None,
+                       commercial_registry=None, phone='', email='', address='', city='',
                        country='مصر', contact_person='', tax_number='',
                        website='', whatsapp='', secondary_phone='',
+                       credit_limit=Decimal('0.00'), default_payment_term=None,
+                       grace_period_days=0, bank_name=None, bank_account_number=None,
+                       bank_beneficiary_name=None, default_currency=None,
                        working_hours='', is_preferred=False, is_active=True,
                        primary_type_id=None, primary_type_code=None,
                        user=None, create_financial_account=True):
@@ -100,6 +104,9 @@ class SupplierService:
             supplier = Supplier.objects.create(
                 name=name.strip(),
                 code=code if code else None,  # سيتم توليده تلقائياً في save()
+                entity_type=entity_type,
+                national_id=national_id,
+                commercial_registry=commercial_registry,
                 phone=phone,
                 email=email,
                 address=address,
@@ -107,6 +114,13 @@ class SupplierService:
                 country=country,
                 contact_person=contact_person,
                 tax_number=tax_number,
+                credit_limit=credit_limit or Decimal('0.00'),
+                default_payment_term=default_payment_term,
+                grace_period_days=grace_period_days or 0,
+                bank_name=bank_name,
+                bank_account_number=bank_account_number,
+                bank_beneficiary_name=bank_beneficiary_name,
+                default_currency=default_currency,
                 website=website,
                 whatsapp=whatsapp,
                 secondary_phone=secondary_phone,
@@ -134,9 +148,12 @@ class SupplierService:
 
     @staticmethod
     @transaction.atomic
-    def update_supplier(supplier, name=None, phone=None, email=None, address=None,
+    def update_supplier(supplier, name=None, entity_type=None, national_id=None,
+                       commercial_registry=None, phone=None, email=None, address=None,
                        city=None, country=None, contact_person=None, tax_number=None,
-                       website=None, whatsapp=None, secondary_phone=None,
+                       credit_limit=None, default_payment_term=None, grace_period_days=None,
+                       bank_name=None, bank_account_number=None, bank_beneficiary_name=None,
+                       default_currency=None, website=None, whatsapp=None, secondary_phone=None,
                        working_hours=None, is_preferred=None, is_active=None,
                        primary_type_id=None, user=None):
         """
@@ -159,6 +176,15 @@ class SupplierService:
                     raise ValidationError("اسم المورد لا يمكن أن يكون فارغاً")
                 supplier.name = name.strip()
             
+            if entity_type is not None:
+                supplier.entity_type = entity_type
+            
+            if national_id is not None:
+                supplier.national_id = national_id
+            
+            if commercial_registry is not None:
+                supplier.commercial_registry = commercial_registry
+            
             if phone is not None:
                 supplier.phone = phone
             
@@ -179,6 +205,27 @@ class SupplierService:
             
             if tax_number is not None:
                 supplier.tax_number = tax_number
+            
+            if credit_limit is not None:
+                supplier.credit_limit = credit_limit
+            
+            if default_payment_term is not None:
+                supplier.default_payment_term = default_payment_term
+            
+            if grace_period_days is not None:
+                supplier.grace_period_days = grace_period_days
+            
+            if bank_name is not None:
+                supplier.bank_name = bank_name
+            
+            if bank_account_number is not None:
+                supplier.bank_account_number = bank_account_number
+            
+            if bank_beneficiary_name is not None:
+                supplier.bank_beneficiary_name = bank_beneficiary_name
+            
+            if default_currency is not None:
+                supplier.default_currency = default_currency
             
             if website is not None:
                 supplier.website = website
@@ -277,76 +324,13 @@ class SupplierService:
             if supplier.financial_account:
                 logger.info(f"المورد {supplier.name} لديه حساب محاسبي بالفعل: {supplier.financial_account.code}")
                 return supplier.financial_account
-            
-            # الحصول على نوع حساب الموردين (Liability)
-            liability_type = AccountType.objects.filter(code='LIABILITY').first()
-            if not liability_type:
-                liability_type = AccountType.objects.create(
-                    code='LIABILITY',
-                    name='خصوم',
-                    nature='credit'
-                )
-            
-            from financial.services.role_registry import AccountRoleRegistry, RoleConfigurationError
-            import os
-            role_key = "SUPPLIER_PAYABLE_CONTROL" if "ACCOUNT_ROLE_SUPPLIER_PAYABLE_CONTROL" in os.environ else "AP_CONTROL_ACCOUNT"
-            try:
-                parent_account = AccountRoleRegistry.get_account(role_key)
-            except RoleConfigurationError as r_err:
-                ctrl_code = AccountRoleRegistry.resolve_role_code(role_key)
-                parent_account = ChartOfAccounts.objects.filter(code=ctrl_code, is_active=True).first()
-                if not parent_account:
-                    if not ctrl_code.isdigit():
-                        raise r_err
-                    parent_account, _ = ChartOfAccounts.objects.get_or_create(
-                        code=ctrl_code,
-                        defaults={
-                            'name': 'الموردون',
-                            'account_type': liability_type,
-                            'is_active': True
-                        }
-                    )
-            
-            ctrl_code = parent_account.code
-            prefix = ctrl_code[:4]
-            
-            # توليد كود فرعي للمورد
-            last_supplier_account = ChartOfAccounts.objects.filter(
-                code__startswith=prefix,
-                parent=parent_account
-            ).exclude(code=ctrl_code).order_by('-code').first()
-            
-            if last_supplier_account:
-                try:
-                    last_number = int(last_supplier_account.code[-4:])
-                    new_number = last_number + 1
-                except (ValueError, AttributeError, IndexError):
-                    new_number = 1
-            else:
-                new_number = 1
-            
-            # توليد الكود الجديد: prefix + 4 digits
-            account_code = f"{prefix}{new_number:04d}"
-            
-            # التأكد من عدم تكرار الكود
-            while ChartOfAccounts.objects.filter(code=account_code).exists():
-                new_number += 1
-                account_code = f"{prefix}{new_number:04d}"
-            
-            # إنشاء الحساب المحاسبي
-            financial_account = ChartOfAccounts.objects.create(
-                code=account_code,
-                name=f"{supplier.name} - {supplier.code}",
-                account_type=liability_type,
-                parent=parent_account,
-                is_active=True
-            )
-            
-            # ربط الحساب بالمورد - استخدام update() لتجنب تشغيل الـ signal
-            from supplier.models import Supplier
-            Supplier.objects.filter(pk=supplier.pk).update(financial_account=financial_account)
-            supplier.financial_account = financial_account  # Update in-memory instance
-            
+
+            from financial.services.subledger_account_service import SubledgerAccountService
+            financial_account = SubledgerAccountService.create_supplier_account(supplier, user=user)
+
+            if not financial_account:
+                raise ValueError(f"تعذر إنشاء حساب محاسبي للمورد {supplier.name}")
+
             # Record idempotency to prevent future duplicates
             IdempotencyService.check_and_record_operation(
                 operation_type='create_supplier_account',
@@ -360,10 +344,10 @@ class SupplierService:
                 user=user,
                 expires_in_hours=720  # 30 days
             )
-            
+
             logger.info(f"✅ تم إنشاء حساب محاسبي للمورد {supplier.name}: {financial_account.code}")
             return financial_account
-            
+
         except Exception as e:
             logger.error(f"❌ خطأ في إنشاء الحساب المحاسبي للمورد {supplier.name}: {str(e)}")
             raise

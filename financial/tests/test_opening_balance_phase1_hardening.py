@@ -19,8 +19,8 @@ User = get_user_model()
 @pytest.fixture
 def setup_phase1_data(db):
     uid = uuid.uuid4().hex[:6]
-    cfo = User.objects.create_user(username=f"cfo_user_{uid}", password="password123")
-    user = User.objects.create_user(username=f"user_{uid}", password="password123")
+    cfo = User.objects.create_user(username=f"cfo_user_{uid}", email=f"cfo_{uid}@test.com", password="password123")
+    user = User.objects.create_user(username=f"user_{uid}", email=f"user_{uid}@test.com", password="password123")
     
     fiscal_year = FiscalYear.objects.create(
         name=f"2026_P1_{uid}",
@@ -37,7 +37,13 @@ def setup_phase1_data(db):
     acc_capital = ChartOfAccounts.objects.create(code=f"301_{uid}", name="رأس المال", account_type=equity_type, is_leaf=True)
     
     # Control Account (AR Control Account 11010)
-    acc_ar_control = ChartOfAccounts.objects.create(code="11010", name="إجمالي العملاء", account_type=asset_type, is_leaf=True)
+    acc_ar_control = ChartOfAccounts.objects.create(
+        code="11010",
+        name="إجمالي العملاء",
+        account_type=asset_type,
+        is_leaf=True,
+        is_control_account=True
+    )
 
     batch = OpeningBalanceBatch.objects.create(
         fiscal_year=fiscal_year,

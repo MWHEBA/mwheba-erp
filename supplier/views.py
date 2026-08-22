@@ -30,21 +30,34 @@ def supplier_list(request):
     status = request.GET.get("status", "")
     search = request.GET.get("search", "")
     has_debt = request.GET.get("has_debt", "")
+    entity_type = request.GET.get("entity_type", "")
+    primary_type = request.GET.get("primary_type", "")
     order_by = request.GET.get("order_by", "balance")
     order_dir = request.GET.get("order_dir", "desc")
 
-    suppliers = Supplier.objects.select_related("primary_type__settings").all()
+    suppliers = Supplier.objects.select_related("primary_type__settings", "default_currency", "default_payment_term").all()
 
     if status == "active":
         suppliers = suppliers.filter(is_active=True)
     elif status == "inactive":
         suppliers = suppliers.filter(is_active=False)
 
+    if entity_type:
+        suppliers = suppliers.filter(entity_type=entity_type)
+
+    if primary_type:
+        suppliers = suppliers.filter(primary_type_id=primary_type)
+
     if search:
         suppliers = suppliers.filter(
             models.Q(name__icontains=search)
             | models.Q(code__icontains=search)
             | models.Q(phone__icontains=search)
+            | models.Q(secondary_phone__icontains=search)
+            | models.Q(tax_number__icontains=search)
+            | models.Q(national_id__icontains=search)
+            | models.Q(commercial_registry__icontains=search)
+            | models.Q(contact_person__icontains=search)
         )
 
     if has_debt == "1":
@@ -58,8 +71,18 @@ def supplier_list(request):
         return export_queryset_to_excel(
             suppliers,
             filename="suppliers_export.xlsx",
-            fields=["code", "name", "phone", "address", "balance", "is_preferred", "is_active"],
-            headers=["الكود", "اسم المورد", "رقم الهاتف", "العنوان", "الاستحقاق", "مفضل", "نشط"]
+            fields=[
+                "code", "name", "entity_type", "primary_type__name", "phone",
+                "contact_person", "tax_number", "national_id", "commercial_registry",
+                "bank_name", "bank_account_number", "balance", "credit_limit",
+                "is_preferred", "is_active"
+            ],
+            headers=[
+                "الكود", "اسم المورد", "الكيان القانوني", "مجال التوريد", "رقم الهاتف",
+                "الشخص المسؤول", "الرقم الضريبي", "الرقم القومي", "السجل التجاري",
+                "اسم البنك", "رقم الحساب/IBAN", "الاستحقاق الحالي", "سقف التسهيلات",
+                "مفضل", "نشط"
+            ]
         )
 
     active_suppliers = suppliers.filter(is_active=True).count()
@@ -308,7 +331,13 @@ def supplier_create_modal(request):
                         'success': True,
                         'message': f'تم إضافة المورد "{supplier.name}" بنجاح',
                         'supplier_id': supplier.id,
-                        'supplier_name': supplier.name
+                        'supplier_name': supplier.name,
+                        'supplier_code': supplier.code,
+                        'payment_terms': supplier.payment_terms or '',
+                        'default_currency_id': supplier.default_currency_id,
+                        'default_currency_symbol': supplier.default_currency.symbol if supplier.default_currency else '',
+                        'tax_number': supplier.tax_number or '',
+                        'entity_type': supplier.entity_type,
                     })
                 else:
                     messages.success(request, _("تم إضافة المورد بنجاح"))

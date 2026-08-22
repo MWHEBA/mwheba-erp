@@ -1,13 +1,13 @@
 <!-- مودال إنشاء حساب محاسبي للمورد -->
-<div class="modal-header">
-    <h5 class="modal-title">
+<div class="modal-header bg-light border-bottom px-4 py-3">
+    <h5 class="modal-title fw-bold text-dark mb-0">
         <i class="fas fa-plus-circle me-2 text-primary"></i>
         إنشاء حساب محاسبي جديد
     </h5>
-    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
 </div>
 
-<div class="modal-body">
+<div class="modal-body p-4">
     <!-- معلومات المورد -->
     <div class="alert alert-info border-0 mb-3">
         <h6 class="alert-heading mb-2">
@@ -29,16 +29,16 @@
             <i class="fas fa-chart-line me-2"></i>الحساب الجديد:
         </h6>
         <ul class="mb-0">
-            <li><strong>الكود:</strong> سيتم إنشاؤه تلقائياً (مثال: 2101007)</li>
-            <li><strong>الاسم:</strong> مورد - {{ supplier.name }}</li>
-            <li><strong>الحساب الأب:</strong> 21010 - حساب الموردين</li>
+            <li><strong>الكود:</strong> سيتم إنشاؤه تلقائياً (مثال: 21110001)</li>
+            <li><strong>الاسم:</strong> {{ supplier.name }} - {{ supplier.code }}</li>
+            <li><strong>الحساب الأب:</strong> 21110 - الموردون</li>
             <li><strong>النوع:</strong> حساب دائن (Liability)</li>
             <li><strong>الحالة:</strong> نشط وجاهز للاستخدام</li>
         </ul>
     </div>
 
     <!-- تأكيد العملية -->
-    <div class="alert alert-warning border-0">
+    <div class="alert alert-warning border-0 mb-0">
         <h6 class="alert-heading mb-2">
             <i class="fas fa-exclamation-triangle me-2"></i>تأكيد:
         </h6>
@@ -49,11 +49,11 @@
     </div>
 </div>
 
-<div class="modal-footer">
-    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+<div class="modal-footer bg-light border-top px-4 py-3">
+    <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">
         <i class="fas fa-times me-2"></i>إلغاء
     </button>
-    <button type="button" class="btn btn-primary" onclick="createSupplierAccount({{ supplier.pk }})">
+    <button type="button" class="btn btn-primary px-4 fw-bold" onclick="createSupplierAccount('{{ supplier.pk }}')">
         <i class="fas fa-plus-circle me-2"></i>إنشاء الحساب
     </button>
 </div>

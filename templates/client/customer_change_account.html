@@ -47,7 +47,7 @@
                                     غير مربوط بحساب محاسبي
                                 </p>
                                 <div class="mt-2">
-                                    <button type="button" class="btn btn-sm btn-primary" onclick="openCreateAccountModal({{ customer.pk }})">
+                                    <button type="button" class="btn btn-sm btn-primary" data-customer-id="{{ customer.pk }}" onclick="openCreateAccountModal(this.dataset.customerId)">
                                         <i class="fas fa-plus-circle me-1"></i>إنشاء حساب جديد
                                     </button>
                                 </div>
@@ -112,7 +112,7 @@
                                     <i class="fas fa-arrow-right me-2"></i>إلغاء
                                 </a>
                                 {% if not customer.financial_account %}
-                                    <button type="button" class="btn btn-primary ms-2" onclick="openCreateAccountModal({{ customer.pk }})">
+                                    <button type="button" class="btn btn-primary ms-2" data-customer-id="{{ customer.pk }}" onclick="openCreateAccountModal(this.dataset.customerId)">
                                         <i class="fas fa-plus-circle me-2"></i>إنشاء حساب جديد
                                     </button>
                                 {% endif %}

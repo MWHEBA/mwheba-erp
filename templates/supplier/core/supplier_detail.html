@@ -18,76 +18,64 @@
   <!-- Page Header المركزي -->
   {% include "shared/page_header.html" %}
 
-  <!-- Overview Cards -->
-  <div class="section-container">
-    <h5 class="section-title" data-bs-toggle="collapse" data-bs-target="#overviewCollapse" aria-expanded="false"
-      style="cursor: pointer;">
-      <i class="fas fa-chart-bar me-2"></i>{% trans "نظرة عامة" %}
-      <i class="fas fa-chevron-down float-end"></i>
-    </h5>
-    <div class="collapse" id="overviewCollapse">
-      <div class="row p-4 g-3">
-        <div class="col-md-4 col-lg-3">
-          <div class="stats-card stats-card-primary">
-            <div class="stats-card-header"></div>
-            <div class="stats-card-body">
-              <div class="stats-card-icon">
-                <i class="fas fa-money-bill-wave"></i>
-              </div>
-              <div class="stats-card-title">{% trans "إجمالي المدفوعات" %}</div>
-              <div class="stats-card-value">{{ total_payments|smart_float }}</div>
-              <div class="stats-card-unit">{% currency_symbol %}</div>
-            </div>
+  <!-- Overview Cards (Rule 7 Compliant - Direct Grid Row) -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-6 col-lg-3">
+      <div class="stats-card stats-card-primary">
+        <div class="stats-card-header"></div>
+        <div class="stats-card-body">
+          <div class="stats-card-icon">
+            <i class="fas fa-money-bill-wave"></i>
           </div>
+          <div class="stats-card-title">{% trans "إجمالي المدفوعات" %}</div>
+          <div class="stats-card-value">{{ total_payments|smart_float }}</div>
+          <div class="stats-card-unit">{% currency_symbol %}</div>
         </div>
+      </div>
+    </div>
 
-        <div class="col-md-4 col-lg-3">
-          <div class="stats-card stats-card-success">
-            <div class="stats-card-header"></div>
-            <div class="stats-card-body">
-              <div class="stats-card-icon">
-                <i class="fas fa-shopping-cart"></i>
-              </div>
-              <div class="stats-card-title">{% trans "إجمالي المشتريات" %}</div>
-              <div class="stats-card-value">{{ total_purchases|default:"0"|smart_float }}</div>
-              <div class="stats-card-unit">{% currency_symbol %}</div>
-            </div>
+    <div class="col-md-6 col-lg-3">
+      <div class="stats-card stats-card-success">
+        <div class="stats-card-header"></div>
+        <div class="stats-card-body">
+          <div class="stats-card-icon">
+            <i class="fas fa-shopping-cart"></i>
           </div>
+          <div class="stats-card-title">{% trans "إجمالي المشتريات" %}</div>
+          <div class="stats-card-value">{{ total_purchases|default:"0"|smart_float }}</div>
+          <div class="stats-card-unit">{% currency_symbol %}</div>
         </div>
+      </div>
+    </div>
 
-        <div class="col-md-4 col-lg-3">
-          <div class="stats-card stats-card-danger">
-            <div class="stats-card-header"></div>
-            <div class="stats-card-body">
-              <div class="stats-card-icon">
-                <i class="fas fa-box"></i>
-              </div>
-              <div class="stats-card-title">{% trans "إجمالي المنتجات" %}</div>
-              <div class="stats-card-value">{{ products_count|default:"0" }}</div>
-              <div class="stats-card-unit" style="font-weight: 600;">{% trans "منتج" %}</div>
-            </div>
+    <div class="col-md-6 col-lg-3">
+      <div class="stats-card stats-card-warning">
+        <div class="stats-card-header"></div>
+        <div class="stats-card-body">
+          <div class="stats-card-icon">
+            <i class="fas fa-wallet"></i>
           </div>
+          <div class="stats-card-title">{% trans "الاستحقاق الحالي (الرصيد)" %}</div>
+          <div class="stats-card-value">{{ supplier.balance|smart_float }}</div>
+          <div class="stats-card-unit">{% currency_symbol %}</div>
         </div>
+      </div>
+    </div>
 
-        <div class="col-md-4 col-lg-3">
-          <div class="stats-card stats-card-info">
-            <div class="stats-card-header"></div>
-            <div class="stats-card-body">
-              <div class="stats-card-icon">
-                <i class="fas fa-file-invoice"></i>
-              </div>
-              <div class="stats-card-title">{% trans "إجمالي الفواتير" %}</div>
-              <div class="stats-card-value">{{ purchases_count|default:"0" }}</div>
-              <div class="stats-card-unit" style="font-weight: 600;">{% trans "فاتورة" %}</div>
-            </div>
+    <div class="col-md-6 col-lg-3">
+      <div class="stats-card stats-card-info">
+        <div class="stats-card-header"></div>
+        <div class="stats-card-body">
+          <div class="stats-card-icon">
+            <i class="fas fa-file-invoice"></i>
           </div>
+          <div class="stats-card-title">{% trans "إجمالي الفواتير" %}</div>
+          <div class="stats-card-value">{{ purchases_count|default:"0" }}</div>
+          <div class="stats-card-unit" style="font-weight: 600;">{% trans "فاتورة" %}</div>
         </div>
-
       </div>
     </div>
   </div>
-
-
 
   <!-- نظام التابات -->
   <div class="section-container mb-4">
@@ -167,104 +155,313 @@
     </div>
     <div class="card-body p-3">
       <div class="tab-content" id="supplierTabsContent">
-        <!-- تاب معلومات المورد -->
-        <div class="tab-pane fade show active" id="info-tab-pane" role="tabpanel" aria-labelledby="info-tab"
-          tabindex="0">
-          <div class="row g-4">
-            <div class="col-md-6 col-lg-4">
-              <div class="d-flex align-items-start">
-                <i class="fas fa-phone text-secondary mt-1 me-3"></i>
-                <div>
-                  <small class="text-muted d-block mb-1">{% trans "رقم الهاتف" %}</small>
-                  <span class="text-dark fw-semibold">{{ supplier.phone|format_phone|default:"-" }}</span>
-                </div>
+        <!-- تاب معلومات المورد الشاملة -->
+        <div class="tab-pane fade show active" id="info-tab-pane" role="tabpanel" aria-labelledby="info-tab" tabindex="0">
+          
+          <!-- 1. الهوية القانونية والضريبية ومجال التوريد -->
+          <div class="card border mb-4 shadow-sm">
+            <div class="card-header bg-light border-bottom py-2 px-3 d-flex align-items-center justify-content-between">
+              <span class="fw-bold text-dark"><i class="fas fa-id-card text-primary me-2"></i>{% trans "الهوية القانونية والضريبية والنشاط" %}</span>
+              <div>
+                {% if supplier.is_active %}
+                  <span class="badge bg-success-subtle text-success border border-success-subtle"><i class="fas fa-check-circle me-1"></i>{% trans "نشط" %}</span>
+                {% else %}
+                  <span class="badge bg-danger-subtle text-danger border border-danger-subtle"><i class="fas fa-ban me-1"></i>{% trans "معطل" %}</span>
+                {% endif %}
+                {% if supplier.is_preferred %}
+                  <span class="badge bg-warning text-dark border ms-1"><i class="fas fa-star text-dark me-1"></i>{% trans "مورد معتمد / مفضل" %}</span>
+                {% endif %}
               </div>
             </div>
-
-            <div class="col-md-6 col-lg-4">
-              <div class="d-flex align-items-start">
-                <i class="fas fa-envelope text-secondary mt-1 me-3"></i>
-                <div>
-                  <small class="text-muted d-block mb-1">{% trans "البريد الإلكتروني" %}</small>
-                  <span class="text-dark fw-semibold">{{ supplier.email|default:"-" }}</span>
+            <div class="card-body p-3">
+              <div class="row g-3">
+                <div class="col-md-6 col-lg-3">
+                  <small class="text-muted d-block mb-1">{% trans "كود المورد" %}</small>
+                  <span class="text-dark fw-bold">{{ supplier.code }}</span>
                 </div>
-              </div>
-            </div>
-
-            <div class="col-md-6 col-lg-4">
-              <div class="d-flex align-items-start">
-                <i class="fas fa-map-marker-alt text-secondary mt-1 me-3"></i>
-                <div>
-                  <small class="text-muted d-block mb-1">{% trans "العنوان" %}</small>
-                  <span class="text-dark fw-semibold">{{ supplier.address|default:"-" }}{% if supplier.city %} ({{ supplier.city }}){% endif %}</span>
+                <div class="col-md-6 col-lg-3">
+                  <small class="text-muted d-block mb-1">{% trans "الكيان القانوني والضريبي" %}</small>
+                  <span class="text-dark fw-semibold">{{ supplier.get_entity_type_display|default:supplier.entity_type }}</span>
                 </div>
-              </div>
-            </div>
+                <div class="col-md-6 col-lg-3">
+                  <small class="text-muted d-block mb-1">{% trans "مجال التوريد / نوع النشاط" %}</small>
+                  <span class="badge bg-light text-dark border fw-semibold">
+                    <i class="{{ supplier.primary_type.icon|default:'fas fa-truck' }} me-1 text-primary"></i>
+                    {{ supplier.primary_type.name|default:"عام" }}
+                  </span>
+                </div>
+                <div class="col-md-6 col-lg-3">
+                  <small class="text-muted d-block mb-1">{% trans "تاريخ التسجيل" %}</small>
+                  <span class="text-secondary small">{{ supplier.created_at|date:"Y-m-d H:i" }}</span>
+                </div>
 
-            <div class="col-md-6 col-lg-4">
-              <div class="d-flex align-items-start">
-                <i class="fas fa-file-invoice text-secondary mt-1 me-3"></i>
-                <div>
+                {% if supplier.entity_type == 'individual' or supplier.national_id %}
+                <div class="col-md-6 col-lg-3">
+                  <small class="text-muted d-block mb-1">{% trans "الرقم القومي (للأفراد)" %}</small>
+                  <span class="text-dark fw-semibold">{{ supplier.national_id|default:"-" }}</span>
+                </div>
+                {% endif %}
+
+                {% if supplier.tax_number %}
+                <div class="col-md-6 col-lg-3">
                   <small class="text-muted d-block mb-1">{% trans "الرقم الضريبي" %}</small>
-                  <span class="text-dark fw-semibold font-monospace">{{ supplier.tax_number|default:"-" }}</span>
+                  <span class="text-dark fw-semibold">{{ supplier.tax_number|default:"-" }}</span>
+                </div>
+                {% endif %}
+
+                {% if supplier.commercial_registry %}
+                <div class="col-md-6 col-lg-3">
+                  <small class="text-muted d-block mb-1">{% trans "السجل التجاري" %}</small>
+                  <span class="text-dark fw-semibold">{{ supplier.commercial_registry|default:"-" }}</span>
+                </div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+
+          <!-- 2. بيانات الاتصال والعناوين -->
+          <div class="card border mb-4 shadow-sm">
+            <div class="card-header bg-light border-bottom py-2 px-3">
+              <span class="fw-bold text-dark"><i class="fas fa-address-book text-primary me-2"></i>{% trans "بيانات الاتصال والعناوين" %}</span>
+            </div>
+            <div class="card-body p-3">
+              <div class="row g-3">
+                {% if supplier.contact_person %}
+                <div class="col-md-6 col-lg-4">
+                  <div class="d-flex align-items-start">
+                    <i class="fas fa-user-tie text-primary mt-1 me-2"></i>
+                    <div>
+                      <small class="text-muted d-block mb-1">{% trans "الشخص المسؤول / المفوض" %}</small>
+                      <span class="text-dark fw-semibold">{{ supplier.contact_person }}</span>
+                    </div>
+                  </div>
+                </div>
+                {% endif %}
+
+                <div class="col-md-6 col-lg-4">
+                  <div class="d-flex align-items-start">
+                    <i class="fas fa-phone-alt text-success mt-1 me-2"></i>
+                    <div>
+                      <small class="text-muted d-block mb-1">{% trans "الهاتف الأساسي" %}</small>
+                      <span class="text-dark fw-semibold" dir="ltr">{{ supplier.phone|format_phone|default:"-" }}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {% if supplier.secondary_phone %}
+                <div class="col-md-6 col-lg-4">
+                  <div class="d-flex align-items-start">
+                    <i class="fas fa-phone text-secondary mt-1 me-2"></i>
+                    <div>
+                      <small class="text-muted d-block mb-1">{% trans "هاتف إضافي / ثانوي" %}</small>
+                      <span class="text-dark fw-semibold" dir="ltr">{{ supplier.secondary_phone }}</span>
+                    </div>
+                  </div>
+                </div>
+                {% endif %}
+
+                {% if supplier.whatsapp %}
+                <div class="col-md-6 col-lg-4">
+                  <div class="d-flex align-items-start">
+                    <i class="fab fa-whatsapp text-success mt-1 me-2"></i>
+                    <div>
+                      <small class="text-muted d-block mb-1">{% trans "الواتساب" %}</small>
+                      <span class="text-dark fw-semibold" dir="ltr">{{ supplier.whatsapp }}</span>
+                    </div>
+                  </div>
+                </div>
+                {% endif %}
+
+                <div class="col-md-6 col-lg-4">
+                  <div class="d-flex align-items-start">
+                    <i class="fas fa-envelope text-primary mt-1 me-2"></i>
+                    <div>
+                      <small class="text-muted d-block mb-1">{% trans "البريد الإلكتروني" %}</small>
+                      {% if supplier.email %}
+                        <a href="mailto:{{ supplier.email }}" class="text-primary text-decoration-none fw-semibold">{{ supplier.email }}</a>
+                      {% else %}
+                        <span class="text-muted">-</span>
+                      {% endif %}
+                    </div>
+                  </div>
+                </div>
+
+                {% if supplier.website %}
+                <div class="col-md-6 col-lg-4">
+                  <div class="d-flex align-items-start">
+                    <i class="fas fa-globe text-info mt-1 me-2"></i>
+                    <div>
+                      <small class="text-muted d-block mb-1">{% trans "الموقع الإلكتروني" %}</small>
+                      <a href="{{ supplier.website }}" target="_blank" class="text-info text-decoration-none fw-semibold">{{ supplier.website }}</a>
+                    </div>
+                  </div>
+                </div>
+                {% endif %}
+
+                <div class="col-md-6 col-lg-4">
+                  <div class="d-flex align-items-start">
+                    <i class="fas fa-map-marker-alt text-danger mt-1 me-2"></i>
+                    <div>
+                      <small class="text-muted d-block mb-1">{% trans "الدولة والمدينة" %}</small>
+                      <span class="text-dark fw-semibold">{{ supplier.country|default:"مصر" }}{% if supplier.city %} - {{ supplier.city }}{% endif %}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="col-md-12 col-lg-8">
+                  <div class="d-flex align-items-start">
+                    <i class="fas fa-location-arrow text-secondary mt-1 me-2"></i>
+                    <div>
+                      <small class="text-muted d-block mb-1">{% trans "العنوان التفصيلي وموقع الاستلام" %}</small>
+                      <span class="text-dark fw-semibold">{{ supplier.address|default:"-" }}</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
+          </div>
 
-            <div class="col-md-6 col-lg-4">
-              <div class="d-flex align-items-start">
-                <i class="fas fa-building text-secondary mt-1 me-3"></i>
-                <div>
-                  <small class="text-muted d-block mb-1">{% trans "مأمورية الضرائب" %}</small>
-                  <span class="text-dark fw-semibold">{{ supplier.tax_office|default:"-" }}</span>
-                </div>
-              </div>
+          <!-- 3. الإعدادات المالية والتسهيلات والبيانات البنكية -->
+          <div class="card border mb-4 shadow-sm">
+            <div class="card-header bg-light border-bottom py-2 px-3">
+              <span class="fw-bold text-dark"><i class="fas fa-coins text-success me-2"></i>{% trans "الإعدادات المالية وحوكمة التسهيلات والحسابات البنكية" %}</span>
             </div>
+            <div class="card-body p-3">
+              <div class="row g-3">
+                <div class="col-md-6 col-lg-3">
+                  <small class="text-muted d-block mb-1">{% trans "العملة الافتراضية" %}</small>
+                  <span class="badge bg-light text-dark border fw-bold">
+                    {{ supplier.default_currency.code|default:"EGP" }} ({{ supplier.default_currency.symbol|default:"ج.م" }})
+                  </span>
+                </div>
 
-            <div class="col-md-6 col-lg-4">
-              <div class="d-flex align-items-start">
-                <i class="fas fa-certificate text-secondary mt-1 me-3"></i>
-                <div>
+                <div class="col-md-6 col-lg-3">
+                  <small class="text-muted d-block mb-1">{% trans "سقف التسهيلات الائتمانية" %}</small>
+                  <span class="text-dark fw-bold">
+                    {{ supplier.credit_limit|smart_float }} {% currency_symbol %}
+                  </span>
+                </div>
+
+                <div class="col-md-6 col-lg-3">
+                  <small class="text-muted d-block mb-1">{% trans "شروط السداد المعيارية" %}</small>
+                  <span class="text-dark fw-semibold">
+                    {{ supplier.default_payment_term.name|default:supplier.payment_terms|default:"سداد فوري (نقدي)" }}
+                  </span>
+                </div>
+
+                <div class="col-md-6 col-lg-3">
+                  <small class="text-muted d-block mb-1">{% trans "فترة السماح الإضافية" %}</small>
+                  <span class="text-dark fw-semibold">{{ supplier.grace_period_days|default:"0" }} {% trans "أيام" %}</span>
+                </div>
+
+                <div class="col-md-6 col-lg-3">
+                  <small class="text-muted d-block mb-1">{% trans "الرصيد المتاح من الدفعات المقدمة" %}</small>
+                  <span class="text-success fw-bold">{{ supplier.available_prepaid_balance|smart_float }} {% currency_symbol %}</span>
+                </div>
+
+                <div class="col-md-6 col-lg-3">
                   <small class="text-muted d-block mb-1">{% trans "شهادات الإعفاء الضريبي" %}</small>
                   <a href="{% url 'financial:tax_exemptions_list' %}?search={{ supplier.name }}" class="badge bg-light text-primary border text-decoration-none">
                     <i class="fas fa-search me-1"></i>{% trans "استعراض الإعفاءات" %}
                   </a>
                 </div>
-              </div>
-            </div>
 
-            <div class="col-md-6 col-lg-4">
-              <div class="d-flex align-items-start">
-                <i class="fas fa-user-tie text-secondary mt-1 me-3"></i>
-                <div>
-                  <small class="text-muted d-block mb-1">{% trans "جهة الاتصال / النوع" %}</small>
-                  <span class="text-dark fw-semibold">{{ supplier.contact_person|default:supplier.primary_type.name|default:"-" }}</span>
+                {% if supplier.bank_name %}
+                <div class="col-md-6 col-lg-3">
+                  <small class="text-muted d-block mb-1">{% trans "اسم البنك" %}</small>
+                  <span class="text-dark fw-semibold"><i class="fas fa-university text-primary me-1"></i>{{ supplier.bank_name }}</span>
                 </div>
-              </div>
-            </div>
+                {% endif %}
 
-            <div class="col-md-6 col-lg-4">
-              <div class="d-flex align-items-start">
-                <i class="fas fa-credit-card text-secondary mt-1 me-3"></i>
-                <div>
-                  <small class="text-muted d-block mb-1">{% trans "الحد الائتماني" %}</small>
-                  <span class="text-dark fw-semibold">{{ supplier.credit_limit|smart_float }} {% currency_symbol %}</span>
+                {% if supplier.bank_account_number %}
+                <div class="col-md-6 col-lg-3">
+                  <small class="text-muted d-block mb-1">{% trans "رقم الحساب / الآيبان (IBAN)" %}</small>
+                  <span class="text-dark fw-semibold" dir="ltr">{{ supplier.bank_account_number }}</span>
+                </div>
+                {% endif %}
+
+                {% if supplier.bank_beneficiary_name %}
+                <div class="col-md-6 col-lg-6">
+                  <small class="text-muted d-block mb-1">{% trans "اسم المستفيد الرسمي للتحويل البنكي" %}</small>
+                  <span class="text-dark fw-semibold">{{ supplier.bank_beneficiary_name }}</span>
+                </div>
+                {% endif %}
+
+                <!-- بطاقة الحساب في دليل الحسابات -->
+                <div class="col-12 mt-3">
+                  <div class="p-3 bg-light rounded border">
+                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                      <div>
+                        <h6 class="mb-1 text-dark fw-bold">
+                          <i class="fas fa-project-diagram text-primary me-2"></i>{% trans "الحساب المحاسبي بدليل الحسابات (شجرة الحسابات)" %}
+                        </h6>
+                        <small class="text-muted">{% trans "حساب مراقبة التزامات الموردين والاستحقاقات" %}</small>
+                      </div>
+                      <div>
+                        {% if supplier.financial_account %}
+                          <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2">
+                            <i class="fas fa-check-circle me-1"></i>{{ supplier.financial_account.code }} - {{ supplier.financial_account.name }}
+                          </span>
+                          <a href="{% url 'supplier:supplier_change_account' supplier.pk %}" class="btn btn-sm btn-outline-primary ms-2">
+                            <i class="fas fa-exchange-alt me-1"></i>{% trans "تغيير الحساب" %}
+                          </a>
+                        {% else %}
+                          <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-3 py-2">
+                            <i class="fas fa-exclamation-triangle me-1"></i>{% trans "غير مربوط بحساب محاسبي" %}
+                          </span>
+                          <a href="{% url 'supplier:supplier_create_account' supplier.pk %}" class="btn btn-sm btn-primary ms-2">
+                            <i class="fas fa-plus me-1"></i>{% trans "إنشاء الحساب الآن" %}
+                          </a>
+                        {% endif %}
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
 
-          {% if supplier.notes %}
-          <div class="mt-4 pt-3 border-top">
-            <div class="d-flex align-items-start text-secondary">
-              <i class="fas fa-sticky-note me-2 mt-1"></i>
-              <div>
-                <small class="text-muted d-block mb-1">{% trans "ملاحظات" %}</small>
-                <p class="mb-0 text-dark small">{{ supplier.notes }}</p>
+          <!-- 4. بيانات التشغيل والتقييم والملاحظات -->
+          <div class="card border mb-4 shadow-sm">
+            <div class="card-header bg-light border-bottom py-2 px-3">
+              <span class="fw-bold text-dark"><i class="fas fa-cogs text-secondary me-2"></i>{% trans "بيانات التشغيل والتقييم والملاحظات" %}</span>
+            </div>
+            <div class="card-body p-3">
+              <div class="row g-3">
+                <div class="col-md-6 col-lg-3">
+                  <small class="text-muted d-block mb-1">{% trans "ساعات العمل والتسليم" %}</small>
+                  <span class="text-dark fw-semibold">{{ supplier.working_hours|default:"-" }}</span>
+                </div>
+
+                <div class="col-md-6 col-lg-3">
+                  <small class="text-muted d-block mb-1">{% trans "متوسط مدة التسليم" %}</small>
+                  <span class="text-dark fw-semibold">{{ supplier.delivery_time_days|default:"-" }} {% if supplier.delivery_time_days %}{% trans "أيام" %}{% endif %}</span>
+                </div>
+
+                <div class="col-md-6 col-lg-3">
+                  <small class="text-muted d-block mb-1">{% trans "الحد الأدنى للطلب" %}</small>
+                  <span class="text-dark fw-semibold">{{ supplier.min_order_amount|smart_float }} {% currency_symbol %}</span>
+                </div>
+
+                <div class="col-md-6 col-lg-3">
+                  <small class="text-muted d-block mb-1">{% trans "تقييم المورد" %}</small>
+                  {% if supplier.supplier_rating %}
+                    <span class="badge bg-warning text-dark border"><i class="fas fa-star text-dark me-1"></i>{{ supplier.supplier_rating }} / 5.0</span>
+                  {% else %}
+                    <span class="text-muted">-</span>
+                  {% endif %}
+                </div>
+
+                {% if supplier.notes %}
+                <div class="col-12 mt-2 pt-2 border-top">
+                  <small class="text-muted d-block mb-1">{% trans "ملاحظات إدارية" %}</small>
+                  <p class="mb-0 text-dark small">{{ supplier.notes }}</p>
+                </div>
+                {% endif %}
               </div>
             </div>
           </div>
-          {% endif %}
+
         </div>
 
         <!-- تاب أوامر الشراء -->

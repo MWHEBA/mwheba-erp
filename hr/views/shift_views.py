@@ -1,4 +1,4 @@
-﻿"""
+"""
 Views إدارة الورديات
 """
 from .base_imports import *
@@ -17,20 +17,20 @@ __all__ = [
 def shift_list(request):
     """قائمة الورديات"""
     all_shifts = Shift.objects.prefetch_related('employees').all().order_by('start_time')
-    academic_shifts = all_shifts.filter(shift_type='academic_year')
-    summer_shifts = all_shifts.filter(shift_type='summer')
+    regular_shifts = all_shifts.filter(shift_type__in=['regular', 'morning', 'evening', 'night', 'annual', 'academic_year'])
+    seasonal_shifts = all_shifts.filter(shift_type__in=['seasonal', 'summer'])
 
     # إحصائيات
     stats = {
         'total_shifts': all_shifts.count(),
         'active_shifts': all_shifts.filter(is_active=True).count(),
-        'academic_year_shifts': academic_shifts.count(),
-        'summer_shifts': summer_shifts.count(),
+        'regular_shifts': regular_shifts.count(),
+        'seasonal_shifts': seasonal_shifts.count(),
     }
 
     context = {
-        'academic_shifts': academic_shifts,
-        'summer_shifts': summer_shifts,
+        'regular_shifts': regular_shifts,
+        'seasonal_shifts': seasonal_shifts,
         'stats': stats,
         
         # بيانات الهيدر

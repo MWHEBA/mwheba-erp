@@ -29,15 +29,16 @@ def create_customer_account_signal(sender, instance, created, **kwargs):
     if not getattr(settings, "AUTO_CREATE_CUSTOMER_ACCOUNTS", True):
         return
 
-    # إنشاء حساب فقط إذا لم يكن موجوداً
+    # إذا كان الحساب موجوداً بالفعل، نزامن التعديلات (الاسم والحالة)
     if instance.financial_account:
+        from financial.services.subledger_account_service import SubledgerAccountService
+        SubledgerAccountService.sync_entity_to_account(instance)
         return
     
     try:
-        from .services import CustomerService
+        from financial.services.subledger_account_service import SubledgerAccountService
         
-        service = CustomerService()
-        account = service.create_financial_account_for_customer(
+        account = SubledgerAccountService.create_customer_account(
             customer=instance,
             user=instance.created_by
         )
@@ -60,15 +61,16 @@ def create_customer_account_signal(sender, instance, created, **kwargs):
 @receiver(post_delete, sender=Customer)
 def delete_customer_account_signal(sender, instance, **kwargs):
     """
-    حذف الحساب المحاسبي عند حذف العميل (اختياري)
+    تعطيل الحساب المحاسبي بدلاً من الحذف الصلب لحماية قيود اليومية التاريخية
     """
     if instance.financial_account:
         try:
-            account_code = instance.financial_account.code
-            instance.financial_account.delete()
-            logger.info(f"تم حذف الحساب المحاسبي {account_code} للعميل {instance.name}")
+            from financial.models import ChartOfAccounts
+            account_id = instance.financial_account_id
+            ChartOfAccounts.objects.filter(id=account_id).update(is_active=False)
+            logger.info(f"تم تعطيل الحساب المحاسبي للعميل {instance.name} بنجاح")
         except Exception as e:
-            logger.error(f"فشل حذف الحساب المحاسبي للعميل {instance.name}: {e}")
+            logger.error(f"فشل تعطيل الحساب المحاسبي للعميل {instance.name}: {e}")
 
 
 # ⚠️ تم نقل مزامنة الأستاذ المساعد CustomerTransaction إلى خط التدفق الخدمي الصريح (PartnerSubledgerService)

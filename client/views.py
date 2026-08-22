@@ -188,36 +188,24 @@ def customer_list(request):
 @login_required
 def customer_add(request):
     """
-    إضافة عميل جديد - Updated to use CustomerService
+    إضافة عميل جديد - متكامل مع CustomerForm و CustomerService
     """
     if request.method == "POST":
-        form = CustomerForm(request.POST)
+        form = CustomerForm(request.POST, user=request.user)
         if form.is_valid():
             try:
-                # استخدام CustomerService لإنشاء العميل
-                # الحساب المحاسبي سيتم إنشاؤه تلقائياً عبر post_save signal
-                customer = customer_service.create_customer(
-                    name=form.cleaned_data['name'],
-                    code=form.cleaned_data['code'],
-                    user=request.user,
-                    phone=form.cleaned_data.get('phone', ''),
-                    email=form.cleaned_data.get('email', ''),
-                    address=form.cleaned_data.get('address', ''),
-                    credit_limit=form.cleaned_data.get('credit_limit', 0),
-                    tax_number=form.cleaned_data.get('tax_number', ''),
-                    notes=form.cleaned_data.get('notes', '')
-                )
+                customer = form.save(user=request.user)
                 messages.success(request, _("تم إضافة العميل بنجاح"))
                 return redirect("client:customer_detail", pk=customer.pk)
             except Exception as e:
                 messages.error(request, f"خطأ في إضافة العميل: {str(e)}")
     else:
-        form = CustomerForm()
+        form = CustomerForm(user=request.user)
 
     context = {
         "form": form,
         "page_title": "إضافة عميل جديد",
-        "page_subtitle": "إضافة عميل جديد إلى قاعدة بيانات النظام",
+        "page_subtitle": "إضافة عميل جديد إلى قاعدة بيانات النظام مع ضبط الهوية وشروط الائتمان",
         "page_icon": "fas fa-user-plus",
         "header_buttons": [
             {
@@ -248,38 +236,40 @@ def customer_add(request):
 @login_required
 def customer_edit(request, pk):
     """
-    تعديل بيانات عميل - Updated to use CustomerService
+    تعديل بيانات عميل - متكامل مع حوكمة الائتمان ودليل الحسابات
     """
     customer = get_object_or_404(Customer, pk=pk)
 
     if request.method == "POST":
-        form = CustomerForm(request.POST, instance=customer)
+        form = CustomerForm(request.POST, instance=customer, user=request.user)
         if form.is_valid():
             try:
-                # استخدام CustomerService لتحديث العميل
-                update_fields = {
-                    key: value for key, value in form.cleaned_data.items()
-                    if key != 'financial_account'  # لا نحدث الحساب المالي هنا
-                }
-                customer_service.update_customer(
-                    customer=customer,
-                    user=request.user,
-                    **update_fields
-                )
+                customer = form.save(user=request.user)
                 messages.success(request, _("تم تعديل بيانات العميل بنجاح"))
                 return redirect("client:customer_detail", pk=customer.pk)
             except Exception as e:
                 messages.error(request, f"خطأ في تعديل العميل: {str(e)}")
     else:
-        form = CustomerForm(instance=customer)
+        form = CustomerForm(instance=customer, user=request.user)
+
+    from client.models import CustomerCreditProfile
+    credit_profile = CustomerCreditProfile.objects.filter(customer=customer).first()
 
     context = {
         "form": form,
         "customer": customer,
+        "financial_account": customer.financial_account,
+        "credit_profile": credit_profile,
         "page_title": f"تعديل بيانات العميل: {customer.name}",
-        "page_subtitle": "تعديل بيانات العميل وإدارة حساباته",
+        "page_subtitle": "تعديل بيانات العميل والهوية وإدارة حساباته وشروط الائتمان",
         "page_icon": "fas fa-user-edit",
         "header_buttons": [
+            {
+                "url": reverse("client:customer_detail", kwargs={"pk": customer.pk}),
+                "icon": "fa-eye",
+                "text": "عرض التفاصيل",
+                "class": "btn-outline-primary",
+            },
             {
                 "url": reverse("client:customer_list"),
                 "icon": "fa-arrow-right",
@@ -1221,27 +1211,19 @@ def customer_add_ajax(request):
     إضافة عميل جديد عبر AJAX وتوليد الكود تلقائياً
     """
     if request.method == "POST":
-        form = CustomerForm(request.POST)
+        form = CustomerForm(request.POST, user=request.user)
         if form.is_valid():
             try:
-                customer = customer_service.create_customer(
-                    name=form.cleaned_data['name'],
-                    code=form.cleaned_data['code'],
-                    user=request.user,
-                    phone=form.cleaned_data.get('phone', ''),
-                    email=form.cleaned_data.get('email', ''),
-                    address=form.cleaned_data.get('address', ''),
-                    credit_limit=form.cleaned_data.get('credit_limit', 0),
-                    tax_number=form.cleaned_data.get('tax_number', ''),
-                    notes=form.cleaned_data.get('notes', '')
-                )
+                customer = form.save(user=request.user)
                 return JsonResponse({
                     'success': True,
                     'customer': {
                         'id': customer.pk,
                         'name': customer.name,
                         'phone': customer.phone,
-                        'code': customer.code
+                        'code': customer.code,
+                        'currency_id': customer.default_currency_id,
+                        'currency_code': customer.default_currency.code if customer.default_currency else 'EGP'
                     },
                     'message': _('تم إضافة العميل بنجاح')
                 })

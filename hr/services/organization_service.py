@@ -221,12 +221,6 @@ class OrganizationService:
             logger.error(f"فشل في الحصول على موظفي القسم: {e}")
             return []
     
-    # Alias للتوافق مع الكود القديم
-    @staticmethod
-    def get_teachers_by_grade_level(grade_level=None):
-        """Deprecated: استخدم get_staff_by_division بدلاً منه"""
-        return OrganizationService.get_staff_by_division(grade_level)
-    
     @staticmethod
     def get_staff_attendance_summary(date_from=None, date_to=None):
         """

@@ -20,16 +20,16 @@ User = get_user_model()
 
 class JournalEntryService:
     """
-    خدمة إنشاء القيود المحاسبية للرسوم والمدفوعات
+    خدمة إنشاء القيود المحاسبية للعمليات والمدفوعات
     """
     
     # أكواد الحسابات الأساسية للنظام (mapped to existing accounts in fixtures)
     SYSTEM_ACCOUNTS = {
-        "tuition_revenue": "40100",      # إيرادات الرسوم الأساسية (pk 8)
-        "other_revenue": "40400",        # إيرادات أخرى (pk 35)
-        "parents_receivable": "10300",   # ذمم العملاء (pk 3)
-        "cash": "10100",                 # الخزنة (pk 1)
-        "bank": "10200",                 # البنك (pk 2)
+        "sales_revenue": "41100",        # إيرادات المبيعات والخدمات
+        "other_revenue": "41990",        # إيرادات أخرى
+        "customer_control": "11210",     # العملاء
+        "cash": "11110",                 # الخزينة الرئيسية
+        "bank": "11160001",              # الحساب البنكي الرئيسي
     }
     
     def _get_system_accounts(self) -> dict:
@@ -51,17 +51,8 @@ class JournalEntryService:
             return None
     
     def _get_revenue_account_for_fee_type(self, fee_category: str, accounts: dict) -> ChartOfAccounts:
-        """تحديد حساب الإيراد حسب نوع الرسوم"""
-        revenue_mapping = {
-            'tuition': 'tuition_revenue',
-            'bus': 'bus_revenue',
-            'summer': 'activity_revenue',
-            'activity': 'activity_revenue',
-            'application': 'application_revenue',
-        }
-        
-        account_key = revenue_mapping.get(fee_category, 'other_revenue')
-        return accounts.get(account_key, accounts.get('tuition_revenue'))
+        """تحديد حساب الإيراد"""
+        return accounts.get("sales_revenue") or accounts.get("other_revenue")
     
     def _get_receiving_account_for_payment_method(self, payment_method: str, accounts: dict) -> ChartOfAccounts:
         """تحديد حساب الاستلام حسب طريقة الدفع - النظام الجديد فقط"""
@@ -458,26 +449,29 @@ class JournalEntryService:
                         "type": "revenue",
                         "description": "إيرادات متنوعة أخرى",
                     },
-                    "10301": {
-                        "name": "ذمم العملاء",
-                        "name_en": "Clients Receivable",
+                    "11210001": {
+                        "name": "عميل افتراضي",
+                        "name_en": "Default Client",
                         "type": "asset",
-                        "description": "المبالغ المستحقة من العملاء",
+                        "description": "حساب عميل افتراضي",
                     },
                 }
                 
+                from financial.models import AccountType
+
                 for code, data in system_accounts_data.items():
                     if not ChartOfAccounts.objects.filter(code=code).exists():
                         # البحث عن الحساب الأب
-                        parent_code = code[:3] + "0" if len(code) == 5 else code[:2] + "00"
+                        parent_code = code[:3] + "0" if len(code) == 5 else code[:4]
                         parent_account = ChartOfAccounts.objects.filter(code=parent_code).first()
+                        acc_type = AccountType.objects.filter(category=data["type"]).first() or AccountType.objects.first()
                         
                         ChartOfAccounts.objects.create(
                             code=code,
                             name=data["name"],
                             name_en=data.get("name_en"),
                             parent=parent_account,
-                            account_type=data["type"],
+                            account_type=acc_type,
                             is_leaf=True,
                             is_active=True,
                             description=data.get("description", ""),

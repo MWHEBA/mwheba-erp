@@ -56,39 +56,31 @@ class CustomerService:
         code: str,
         user: User,
         phone: str = '',
+        phone_primary: str = '',
+        phone_secondary: str = '',
         email: str = '',
         address: str = '',
+        country: str = 'مصر',
         city: str = '',
         company_name: str = '',
+        contact_person: str = '',
         client_type: str = 'individual',
+        is_vip: bool = False,
+        national_id: str = '',
+        commercial_registry: str = '',
         credit_limit: Decimal = Decimal('0'),
         tax_number: str = '',
-        notes: str = ''
+        default_currency=None,
+        contact_frequency: str = '',
+        last_contact_date=None,
+        notes: str = '',
+        is_active: bool = True,
+        **extra_fields
     ) -> Customer:
         """
-        Create a new customer.
+        Create a new customer with full identity, CRM, and credit profile support.
         
         Financial account creation is handled automatically by the post_save signal.
-        
-        Args:
-            name: Customer name
-            code: Customer code (must be unique)
-            user: User creating the customer
-            phone: Phone number
-            email: Email address
-            address: Address
-            city: City
-            company_name: Company name (if applicable)
-            client_type: Type of client (individual, company, government, vip)
-            credit_limit: Credit limit
-            tax_number: Tax number
-            notes: Additional notes
-            
-        Returns:
-            Customer: The created customer instance
-            
-        Raises:
-            ValidationError: If validation fails
         """
         operation_start = timezone.now()
         
@@ -105,24 +97,60 @@ class CustomerService:
                 if Customer.objects.filter(code=code).exists():
                     raise ValidationError(f"Customer code '{code}' already exists")
                 
+                primary_phone = phone_primary or phone
+                
                 # Create customer (signal will create financial account automatically)
                 customer = Customer(
                     name=name,
                     code=code,
-                    phone=phone,
+                    phone=primary_phone,
+                    phone_primary=primary_phone,
+                    phone_secondary=phone_secondary,
                     email=email,
+                    country=country,
                     address=address,
                     city=city,
                     company_name=company_name,
+                    contact_person=contact_person,
                     client_type=client_type,
+                    is_vip=is_vip,
+                    national_id=national_id,
+                    commercial_registry=commercial_registry,
                     credit_limit=credit_limit,
                     tax_number=tax_number,
+                    default_currency=default_currency,
+                    contact_frequency=contact_frequency,
+                    last_contact_date=last_contact_date,
                     notes=notes,
                     created_by=user,
-                    is_active=True
+                    is_active=is_active
                 )
                 customer.save()
                 
+                # Create default credit profile
+                from client.models import CustomerCreditProfile
+                default_payment_term = extra_fields.get('default_payment_term')
+                grace_period_days = extra_fields.get('grace_period_days', 0)
+                credit_status = extra_fields.get('credit_status', 'ACTIVE')
+                risk_category = extra_fields.get('risk_category', 'LOW')
+                next_review_date = extra_fields.get('next_review_date')
+                curr_code = customer.default_currency.code if customer.default_currency else "EGP"
+                
+                CustomerCreditProfile.objects.get_or_create(
+                    customer=customer,
+                    defaults={
+                        "credit_limit": customer.credit_limit or Decimal("0.00"),
+                        "currency": curr_code,
+                        "default_payment_term": default_payment_term,
+                        "grace_period_days": grace_period_days,
+                        "credit_status": credit_status,
+                        "risk_category": risk_category,
+                        "next_review_date": next_review_date,
+                        "approved_by": user,
+                        "approval_date": timezone.now().date(),
+                    }
+                )
+
                 # Refresh to get the financial_account created by signal
                 customer.refresh_from_db()
                 
@@ -211,74 +239,12 @@ class CustomerService:
                     )
         
         try:
-            from financial.models import AccountType
-            from financial.services.role_registry import AccountRoleRegistry, AccountRoleNames
+            from financial.services.subledger_account_service import SubledgerAccountService
+            account = SubledgerAccountService.create_customer_account(customer, user=user)
 
-            # Resolve control account via AccountRoleRegistry
-            try:
-                customers_parent = AccountRoleRegistry.get_account(AccountRoleNames.CUSTOMER_RECEIVABLE_CONTROL)
-            except Exception:
-                customers_parent = ChartOfAccounts.objects.filter(code__in=['11030', '1103']).first()
-            
-            if not customers_parent:
-                # Create main customers account if not exists
-                asset_type = AccountType.objects.filter(code='RECEIVABLES').first()
-                if not asset_type:
-                    asset_type = AccountType.objects.filter(code='ASSET').first()
-                if not asset_type:
-                    asset_type, _ = AccountType.objects.get_or_create(
-                        code='ASSET',
-                        defaults={'name': 'أصول', 'name_en': 'Assets', 'category': 'asset', 'nature': 'debit'}
-                    )
-                
-                customers_parent = ChartOfAccounts.objects.create(
-                    code='11030',
-                    name='مدينو العملاء',
-                    name_en='Customers Receivables',
-                    account_type=asset_type,
-                    is_active=True,
-                    is_leaf=False
-                )
-                logger.info(f"Created main customers account: {customers_parent.code}")
-            
-            ctrl_code = customers_parent.code
-            prefix = ctrl_code[:4]
-            
-            # Generate account code under control account prefix
-            last_customer_account = ChartOfAccounts.objects.filter(
-                code__startswith=prefix,
-                parent=customers_parent
-            ).exclude(code=ctrl_code).order_by('-code').first()
-            
-            if last_customer_account:
-                try:
-                    last_number = int(last_customer_account.code[len(prefix):])
-                    new_number = last_number + 1
-                except (ValueError, AttributeError, IndexError):
-                    new_number = 1
-            else:
-                new_number = 1
-            
-            # Generate new code (prefix + 4 digits)
-            next_code = f"{prefix}{new_number:04d}"
-            
-            # Ensure code uniqueness
-            while ChartOfAccounts.objects.filter(code=next_code).exists():
-                new_number += 1
-                next_code = f"{prefix}{new_number:04d}"
-            
-            # Create the account
-            account = ChartOfAccounts.objects.create(
-                code=next_code,
-                name=f"{customer.name} - {customer.code}",
-                name_en=f"{customer.name} - {customer.code}",
-                parent=customers_parent,
-                account_type=customers_parent.account_type,
-                is_active=True,
-                is_leaf=True,
-                description=f"Customer account for {customer.name}"
-            )
-            
+            if not account:
+                raise ValueError(f"تعذر إنشاء حساب محاسبي للعميل {customer.name}")
+
             # Record idempotency to prevent future duplicates
             IdempotencyService.check_and_record_operation(
                 operation_type='create_customer_account',
@@ -292,12 +258,12 @@ class CustomerService:
                 user=user,
                 expires_in_hours=720  # 30 days
             )
-            
+
             logger.info(
                 f"✅ Financial account created for customer {customer.code}: "
                 f"{account.code} - {account.name}"
             )
-            
+
             return account
             
         except Exception as e:

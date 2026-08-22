@@ -67,9 +67,10 @@ class TestAccountRoleRegistryAndContextProcessors:
         supp_type, _ = SupplierType.objects.get_or_create(code="COMP_TEST", defaults={"name": "Company Test"})
         monkeypatch.setenv("ACCOUNT_ROLE_SUPPLIER_PAYABLE_CONTROL", "NON_EXISTENT_999")
 
+        import random
         unique_code = f"SUPP_NO_CTRL_{uuid.uuid4().hex[:6]}"
         supplier = Supplier(
-            id=88888,
+            id=random.randint(500000, 999999),
             name="مورد مفقود الحساب",
             code=unique_code,
             primary_type=supp_type
@@ -179,7 +180,7 @@ class TestAccountRoleRegistryAndContextProcessors:
     def test_inactive_account_raises_configuration_error(self, setup_asset_and_liability_types):
         asset_type, _ = setup_asset_and_liability_types
         acc, _ = ChartOfAccounts.objects.get_or_create(
-            code="11160",
+            code="11160001",
             defaults={"name": "Inactive Bank Account", "account_type": asset_type}
         )
         acc.is_active = False

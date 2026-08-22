@@ -5,8 +5,11 @@
 {% load utils_extras %}
 
 {% block extra_css %}
-<!-- سيتم تحميل Select2 CSS ديناميكياً -->
+<!-- Select2 CSS -->
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
 {% endblock %}
+
 {% block title %}{{ page_title }}{% endblock %}
 
 {% block content %}
@@ -17,44 +20,44 @@
     <!-- بطاقة معلومات المورد -->
     <div class="row mb-4">
         <div class="col-12">
-            <div class="card shadow-sm border-0">
-                <div class="card-header bg-success text-white">
-                    <h6 class="card-title mb-0">
-                        <i class="fas fa-truck me-2"></i>معلومات المورد
+            <div class="card shadow-sm border">
+                <div class="card-header bg-light border-bottom py-2 px-3">
+                    <h6 class="card-title mb-0 fw-bold text-dark">
+                        <i class="fas fa-truck text-primary me-2"></i>{% trans "معلومات المورد" %}
                     </h6>
                 </div>
-                <div class="card-body">
-                    <div class="row">
+                <div class="card-body p-3">
+                    <div class="row g-3">
                         <div class="col-md-3">
-                            <strong>اسم المورد:</strong>
-                            <p class="mb-0">{{ supplier.name }}</p>
+                            <small class="text-muted d-block mb-1">{% trans "اسم المورد" %}</small>
+                            <span class="fw-bold text-dark">{{ supplier.name }}</span>
                         </div>
                         <div class="col-md-3">
-                            <strong>كود المورد:</strong>
-                            <p class="mb-0">{{ supplier.code }}</p>
+                            <small class="text-muted d-block mb-1">{% trans "كود المورد" %}</small>
+                            <span class="fw-bold text-dark">{{ supplier.code }}</span>
                         </div>
                         <div class="col-md-3">
-                            <strong>الحساب المحاسبي الحالي:</strong>
+                            <small class="text-muted d-block mb-1">{% trans "الحساب المحاسبي الحالي" %}</small>
                             {% if supplier.financial_account %}
-                                <p class="mb-0 text-success">
+                                <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2">
                                     <i class="fas fa-check-circle me-1"></i>
                                     {{ supplier.financial_account.code }} - {{ supplier.financial_account.name }}
-                                </p>
+                                </span>
                             {% else %}
-                                <p class="mb-0 text-warning">
+                                <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-3 py-2">
                                     <i class="fas fa-exclamation-triangle me-1"></i>
-                                    غير مربوط بحساب محاسبي
-                                </p>
+                                    {% trans "غير مربوط بحساب محاسبي" %}
+                                </span>
                                 <div class="mt-2">
-                                    <button type="button" class="btn btn-sm btn-primary" onclick="openCreateAccountModal({{ supplier.pk }})">
-                                        <i class="fas fa-plus-circle me-1"></i>إنشاء حساب جديد
+                                    <button type="button" class="btn btn-sm btn-primary" data-supplier-id="{{ supplier.pk }}" onclick="openCreateAccountModal(this.dataset.supplierId)">
+                                        <i class="fas fa-plus-circle me-1"></i>{% trans "إنشاء حساب جديد" %}
                                     </button>
                                 </div>
                             {% endif %}
                         </div>
                         <div class="col-md-3">
-                            <strong>الرصيد الحالي:</strong>
-                            <p class="mb-0">{{ supplier.actual_balance|currency }}</p>
+                            <small class="text-muted d-block mb-1">{% trans "الرصيد الحالي" %}</small>
+                            <span class="fw-bold text-dark">{{ supplier.actual_balance|currency }}</span>
                         </div>
                     </div>
                 </div>
@@ -65,23 +68,23 @@
     <!-- نموذج تغيير الحساب -->
     <div class="row">
         <div class="col-lg-8 col-md-10 mx-auto">
-            <div class="card shadow-sm border-0">
-                <div class="card-header bg-gradient-success text-white">
-                    <h6 class="card-title mb-0">
-                        <i class="fas fa-exchange-alt me-2"></i>تغيير الحساب المحاسبي
+            <div class="card shadow-sm border">
+                <div class="card-header bg-light border-bottom py-2 px-3">
+                    <h6 class="card-title mb-0 fw-bold text-dark">
+                        <i class="fas fa-exchange-alt text-primary me-2"></i>{% trans "تغيير الحساب المحاسبي" %}
                     </h6>
                 </div>
-                <div class="card-body">
+                <div class="card-body p-4">
                     <form method="post">
                         {% csrf_token %}
                         
                         <div class="mb-4">
                             <label for="{{ form.financial_account.id_for_label }}" class="form-label fw-bold">
-                                <i class="fas fa-chart-line me-2 text-success"></i>{{ form.financial_account.label }}
+                                <i class="fas fa-chart-line me-2 text-primary"></i>{{ form.financial_account.label }}
                             </label>
                             {{ form.financial_account }}
                             {% if form.financial_account.help_text %}
-                                <div class="form-text">{{ form.financial_account.help_text }}</div>
+                                <div class="form-text mt-1 text-muted">{{ form.financial_account.help_text }}</div>
                             {% endif %}
                             {% if form.financial_account.errors %}
                                 <div class="text-danger mt-1">
@@ -93,31 +96,31 @@
                         </div>
 
                         <!-- تنبيه مهم -->
-                        <div class="alert alert-info border-0" role="alert">
-                            <h6 class="alert-heading">
-                                <i class="fas fa-info-circle me-2"></i>ملاحظة مهمة:
+                        <div class="alert alert-info border-0 mb-4" role="alert">
+                            <h6 class="alert-heading fw-bold">
+                                <i class="fas fa-info-circle me-2"></i>{% trans "ملاحظة مهمة:" %}
                             </h6>
-                            <p class="mb-0">
-                                • الحسابات المتاحة: <strong>حساب الموردين والحسابات الفرعية منه فقط</strong><br>
-                                • سيتم تحديث الربط فوراً بعد الحفظ<br>
-                                • النظام يمنع اختيار أي حسابات أخرى خارج نطاق الموردين
+                            <p class="mb-0 small">
+                                • {% trans "الحسابات المتاحة: حساب مراقبة الموردين والحسابات الفرعية منه فقط" %}<br>
+                                • {% trans "سيتم تحديث الربط وترحيل الحركات المستقبلية للحساب الجديد فور الحفظ" %}<br>
+                                • {% trans "النظام يمنع اختيار أي حسابات أخرى خارج نطاق الموردين حفاظاً على توازن ميزان المراجعة" %}
                             </p>
                         </div>
 
                         <!-- أزرار الإجراءات -->
                         <div class="d-flex justify-content-between">
                             <div>
-                                <a href="{% url 'supplier:supplier_detail' supplier.pk %}" class="btn btn-secondary">
-                                    <i class="fas fa-arrow-right me-2"></i>إلغاء
+                                <a href="{% url 'supplier:supplier_detail' supplier.pk %}" class="btn btn-secondary px-3">
+                                    <i class="fas fa-arrow-right me-1"></i>{% trans "إلغاء" %}
                                 </a>
                                 {% if not supplier.financial_account %}
-                                    <button type="button" class="btn btn-primary ms-2" onclick="openCreateAccountModal({{ supplier.pk }})">
-                                        <i class="fas fa-plus-circle me-2"></i>إنشاء حساب جديد
+                                    <button type="button" class="btn btn-primary ms-2" data-supplier-id="{{ supplier.pk }}" onclick="openCreateAccountModal(this.dataset.supplierId)">
+                                        <i class="fas fa-plus-circle me-1"></i>{% trans "إنشاء حساب جديد" %}
                                     </button>
                                 {% endif %}
                             </div>
-                            <button type="submit" class="btn btn-success">
-                                <i class="fas fa-save me-2"></i>حفظ التغييرات
+                            <button type="submit" class="btn btn-primary px-4 fw-bold">
+                                <i class="fas fa-save me-1"></i>{% trans "حفظ التغييرات" %}
                             </button>
                         </div>
                     </form>
@@ -129,64 +132,29 @@
 
 <!-- مودال إنشاء حساب محاسبي -->
 <div class="modal fade" id="createAccountModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content" id="createAccountModalContent">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg" id="createAccountModalContent">
             <!-- سيتم تحميل المحتوى هنا -->
         </div>
     </div>
 </div>
 
-<!-- جميع الستايلات موجودة في unified-components.css و components.css -->
 {% block extra_js %}
+<!-- Select2 JS -->
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
 <script>
-// انتظار تحميل الصفحة بالكامل
-window.addEventListener('load', function() {
-    // تحميل Select2 بعد تحميل jQuery
-    if (typeof jQuery !== 'undefined') {
-        // تحميل Select2 CSS
-        const select2CSS = document.createElement('link');
-        select2CSS.rel = 'stylesheet';
-        select2CSS.href = 'https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css';
-        document.head.appendChild(select2CSS);
-        
-        const select2ThemeCSS = document.createElement('link');
-        select2ThemeCSS.rel = 'stylesheet';
-        select2ThemeCSS.href = 'https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css';
-        document.head.appendChild(select2ThemeCSS);
-        
-        // تحميل Select2 JS
-        const select2Script = document.createElement('script');
-        select2Script.src = 'https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js';
-        select2Script.onload = function() {
-            // تفعيل Select2 بعد تحميله
-            jQuery(document).ready(function($) {
-                $('.select2-search').select2({
-                    theme: 'bootstrap-5',
-                    dir: 'rtl',
-                    language: {
-                        noResults: function() {
-                            return "لا توجد نتائج";
-                        },
-                        searching: function() {
-                            return "جاري البحث...";
-                        },
-                        inputTooShort: function() {
-                            return "اكتب للبحث";
-                        },
-                        loadingMore: function() {
-                            return "جاري تحميل المزيد...";
-                        }
-                    },
-                    placeholder: function() {
-                        return $(this).data('placeholder');
-                    },
-                    allowClear: true,
-                    width: '100%'
-                });
-            });
-        };
-        document.head.appendChild(select2Script);
-    }
+$(document).ready(function() {
+    $('.select2-search').select2({
+        theme: 'bootstrap-5',
+        dir: 'rtl',
+        language: 'ar',
+        placeholder: function() {
+            return $(this).data('placeholder') || '{% trans "ابحث عن الحساب المحاسبي..." %}';
+        },
+        allowClear: true,
+        width: '100%'
+    });
 });
 
 // فتح مودال إنشاء حساب محاسبي
@@ -206,13 +174,16 @@ function openCreateAccountModal(supplierId) {
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('حدث خطأ في تحميل المودال');
+        if (typeof window.showNotification === 'function') {
+            window.showNotification('{% trans "حدث خطأ في تحميل المودال" %}', 'error', '{% trans "خطأ" %}');
+        }
     });
 }
 
 // إنشاء حساب محاسبي للمورد
 function createSupplierAccount(supplierId) {
-    const modal = bootstrap.Modal.getInstance(document.getElementById('createAccountModal'));
+    const modalEl = document.getElementById('createAccountModal');
+    const modal = bootstrap.Modal.getInstance(modalEl);
     
     fetch(`/supplier/${supplierId}/create-account/`, {
         method: 'POST',
@@ -224,27 +195,24 @@ function createSupplierAccount(supplierId) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            modal.hide();
-            // عرض رسالة النجاح
-            const alertDiv = document.createElement('div');
-            alertDiv.className = 'alert alert-success alert-dismissible fade show';
-            alertDiv.innerHTML = `
-                <i class="fas fa-check-circle me-2"></i>${data.message}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            `;
-            document.querySelector('.container-fluid').insertBefore(alertDiv, document.querySelector('.container-fluid').firstChild);
-            
-            // إعادة تحميل الصفحة بعد ثانيتين
+            if (modal) modal.hide();
+            if (typeof window.showNotification === 'function') {
+                window.showNotification(data.message, 'success', '{% trans "نجاح" %}');
+            }
             setTimeout(() => {
                 location.reload();
-            }, 2000);
+            }, 3100);
         } else {
-            alert(data.message);
+            if (typeof window.showNotification === 'function') {
+                window.showNotification(data.message || '{% trans "خطأ في إنشاء الحساب" %}', 'error', '{% trans "خطأ" %}');
+            }
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('حدث خطأ أثناء إنشاء الحساب');
+        if (typeof window.showNotification === 'function') {
+            window.showNotification('{% trans "حدث خطأ أثناء إنشاء الحساب" %}', 'error', '{% trans "خطأ" %}');
+        }
     });
 }
 </script>

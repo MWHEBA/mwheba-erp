@@ -283,10 +283,10 @@ def journal_entries_list(request):
                     bank_accounts = ['بنك', 'البنك', 'مصرف']
                     has_bank = any(bank_word in acc_name for acc_name in account_names for bank_word in bank_accounts)
                     
-                    # التحقق من وجود حسابات أولياء الأمور/موردين
-                    parent_accounts = ['العملاء', 'عميل', 'مدينون', 'أولياء الأمور', 'ولي أمر']
+                    # التحقق من وجود حسابات العملاء/موردين
+                    customer_accounts = ['العملاء', 'عميل', 'مدينون']
                     supplier_accounts = ['الموردون', 'مورد', 'دائنون']
-                    has_parent = any(parent_word in acc_name for acc_name in account_names for parent_word in parent_accounts)
+                    has_customer = any(cust_word in acc_name for acc_name in account_names for cust_word in customer_accounts)
                     has_supplier = any(supp_word in acc_name for acc_name in account_names for supp_word in supplier_accounts)
                     
                     # التحقق من حسابات الإيرادات والمصروفات والمخزون
@@ -304,20 +304,20 @@ def journal_entries_list(request):
                         entry_type = "إيراد بنكي"
                     elif has_bank and (line1.credit > 0 and 'بنك' in line1.account.name) or (line2.credit > 0 and 'بنك' in line2.account.name):
                         entry_type = "مصروف بنكي"
-                    # فواتير المبيعات: أولياء الأمور (مدين) + إيرادات (دائن)
-                    elif has_parent and has_revenue:
+                    # فواتير المبيعات: العملاء (مدين) + إيرادات (دائن)
+                    elif has_customer and has_revenue:
                         entry_type = "فاتورة مبيعات"
                     # فواتير المشتريات: مصروفات/مخزون (مدين) + موردون (دائن)
                     elif has_supplier and has_expense:
                         entry_type = "فاتورة مشتريات"
                     # فواتير المشتريات البديلة: موردون (دائن) + أي حساب آخر (مدين)
-                    elif has_supplier and not (has_cash or has_bank or has_parent):
+                    elif has_supplier and not (has_cash or has_bank or has_customer):
                         entry_type = "فاتورة مشتريات"
-                    # فواتير المبيعات البديلة: أولياء الأمور (مدين) + أي حساب آخر (دائن)
-                    elif has_parent and not (has_cash or has_bank or has_supplier):
+                    # فواتير المبيعات البديلة: العملاء (مدين) + أي حساب آخر (دائن)
+                    elif has_customer and not (has_cash or has_bank or has_supplier):
                         entry_type = "فاتورة مبيعات"
-                    elif has_parent and (has_cash or has_bank):
-                        entry_type = "تحصيل من ولي أمر"
+                    elif has_customer and (has_cash or has_bank):
+                        entry_type = "تحصيل من عميل"
                     elif has_supplier and (has_cash or has_bank):
                         entry_type = "دفع لمورد"
                     else:
@@ -343,9 +343,11 @@ def journal_entries_list(request):
                 'automatic': ('fa-robot', 'primary'),
                 'sales_invoice': ('fa-file-invoice', 'primary'),
                 'sale': ('fa-file-invoice', 'primary'),
+                'customer_payment': ('fa-hand-holding-usd', 'success'),
                 'sales_return': ('fa-undo', 'warning'),
                 'purchase_invoice': ('fa-file-invoice-dollar', 'info'),
                 'purchase': ('fa-file-invoice-dollar', 'info'),
+                'vendor_payment': ('fa-money-check-alt', 'danger'),
                 'purchase_return': ('fa-undo-alt', 'warning'),
                 'receipt_voucher': ('fa-receipt', 'success'),
                 'payment_voucher': ('fa-money-bill-wave', 'danger'),
@@ -353,17 +355,9 @@ def journal_entries_list(request):
                 'closing': ('fa-door-closed', 'dark'),
                 'opening': ('fa-door-open', 'success'),
                 'inventory': ('fa-boxes', 'info'),
-                'fee': ('fa-file-invoice-dollar', 'primary'),  # للتوافق مع القيود القديمة
-                'application_fee': ('fa-file-invoice', 'primary'),
-                'tuition_fee': ('fa-graduation-cap', 'primary'),
-                'bus_fee': ('fa-bus', 'primary'),
-                'materials_fee': ('fa-book', 'primary'),
-                'services_fee': ('fa-concierge-bell', 'primary'),
-                'activity_fee': ('fa-running', 'primary'),
-                'admin_fee': ('fa-user-tie', 'primary'),
+                'fee': ('fa-file-invoice-dollar', 'primary'),
                 'product_delivery': ('fa-truck', 'info'),
                 'delivery_fee': ('fa-shipping-fast', 'info'),
-                'complementary_fee': ('fa-plus-circle', 'primary'),
                 'parent_payment': ('fa-hand-holding-usd', 'success'),
                 'supplier_payment': ('fa-money-check-alt', 'danger'),
                 'salary_payment': ('fa-money-bill-wave', 'warning'),

@@ -7,8 +7,8 @@ class FinancialDashboard {
     constructor(options = {}) {
         this.options = {
             theme: options.theme || 'default',
-            academic_year: options.academic_year || '',
-            parent_filter: options.parent_filter || '',
+            fiscal_year: options.fiscal_year || '',
+            customer_filter: options.customer_filter || '',
             animation: options.animation !== false,
             responsive: options.responsive !== false
         };

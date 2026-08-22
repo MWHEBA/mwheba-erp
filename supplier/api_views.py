@@ -37,7 +37,7 @@ def supplier_list_api(request):
     API لإرجاع قائمة الموردين النشطين
     """
     try:
-        suppliers = Supplier.objects.filter(is_active=True).order_by("name")
+        suppliers = Supplier.objects.filter(is_active=True).select_related("default_currency", "default_payment_term", "primary_type").order_by("name")
 
         suppliers_data = []
         for supplier in suppliers:
@@ -46,8 +46,18 @@ def supplier_list_api(request):
                     "id": supplier.id,
                     "name": supplier.name,
                     "code": supplier.code,
-                    "phone": supplier.phone,
-                    "balance": float(supplier.balance) if supplier.balance else 0,
+                    "entity_type": supplier.entity_type,
+                    "primary_type_name": supplier.primary_type.name if supplier.primary_type else "",
+                    "tax_number": supplier.tax_number or "",
+                    "national_id": supplier.national_id or "",
+                    "phone": supplier.phone or "",
+                    "payment_terms": supplier.payment_terms or (supplier.default_payment_term.name if supplier.default_payment_term else ""),
+                    "default_currency_id": supplier.default_currency_id,
+                    "default_currency_code": supplier.default_currency.code if supplier.default_currency else "",
+                    "default_currency_symbol": supplier.default_currency.symbol if supplier.default_currency else "",
+                    "credit_limit": float(supplier.credit_limit) if supplier.credit_limit else 0.0,
+                    "is_preferred": supplier.is_preferred,
+                    "balance": float(supplier.balance) if supplier.balance else 0.0,
                 }
             )
 

@@ -576,20 +576,16 @@ class AdvancedReportsService:
         تقرير أرصدة العملاء والموردين
         """
         # تحديد نوع الحساب
+        from financial.services.role_registry import AccountRoleRegistry
         if account_type == "customers":
-            base_account_code = "10300"  # مدينو أولياء الأمور
+            base_account = AccountRoleRegistry.get_account_by_role('CUSTOMER_RECEIVABLE_CONTROL') or ChartOfAccounts.objects.filter(code__in=['11210', '10300'], is_active=True).first()
             title = "تقرير أرصدة العملاء"
         else:
-            base_account_code = "20100"  # الموردين
+            base_account = AccountRoleRegistry.get_account_by_role('SUPPLIER_PAYABLE_CONTROL') or ChartOfAccounts.objects.filter(code__in=['21110', '20100'], is_active=True).first()
             title = "تقرير أرصدة الموردين"
 
-        # الحصول على الحساب الأساسي
-        try:
-            base_account = ChartOfAccounts.objects.get(
-                code=base_account_code, is_active=True
-            )
-        except ChartOfAccounts.DoesNotExist:
-            return {"error": f"الحساب {base_account_code} غير موجود"}
+        if not base_account:
+            return {"error": "لم يتم العثور على حساب الرقابة المطلوب"}
 
         # تحليل فترات الاستحقاق
         due_periods = [
