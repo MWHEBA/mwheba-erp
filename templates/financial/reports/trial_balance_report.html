@@ -524,15 +524,15 @@
                                     data-name="{{ item.name }}"
                                     data-group-key="{{ cat_key }}">
                                     <!-- الكود -->
-                                    <td class="text-center font-monospace small">
+                                    <td class="text-center small">
                                         {% if item.level == 1 %}
-                                            <span class="badge bg-primary text-white font-monospace px-2 py-1">{{ item.code }}</span>
+                                            <span class="badge bg-primary text-white px-2 py-1">{{ item.code }}</span>
                                         {% elif item.level == 2 %}
-                                            <span class="badge bg-white text-primary border border-primary font-monospace px-2 py-1">{{ item.code }}</span>
+                                            <span class="badge bg-white text-primary border border-primary px-2 py-1">{{ item.code }}</span>
                                         {% elif item.level == 3 %}
-                                            <span class="badge bg-light text-dark border font-monospace">{{ item.code }}</span>
+                                            <span class="badge bg-light text-dark border">{{ item.code }}</span>
                                         {% else %}
-                                            <span class="text-muted font-monospace small">{{ item.code }}</span>
+                                            <span class="text-muted small">{{ item.code }}</span>
                                         {% endif %}
                                     </td>
 
@@ -662,15 +662,15 @@
                                 data-leaf="{{ item.is_leaf|yesno:'1,0' }}"
                                 data-code="{{ item.code }}"
                                 data-name="{{ item.name }}">
-                                <td class="text-center font-monospace small">
+                                <td class="text-center small">
                                     {% if item.level == 1 %}
-                                        <span class="badge bg-primary text-white font-monospace px-2 py-1">{{ item.code }}</span>
+                                        <span class="badge bg-primary text-white px-2 py-1">{{ item.code }}</span>
                                     {% elif item.level == 2 %}
-                                        <span class="badge bg-white text-primary border border-primary font-monospace px-2 py-1">{{ item.code }}</span>
+                                        <span class="badge bg-white text-primary border border-primary px-2 py-1">{{ item.code }}</span>
                                     {% elif item.level == 3 %}
-                                        <span class="badge bg-light text-dark border font-monospace">{{ item.code }}</span>
+                                        <span class="badge bg-light text-dark border">{{ item.code }}</span>
                                     {% else %}
-                                        <span class="text-muted font-monospace small">{{ item.code }}</span>
+                                        <span class="text-muted small">{{ item.code }}</span>
                                     {% endif %}
                                 </td>
                                 <td class="text-end">

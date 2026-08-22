@@ -532,7 +532,7 @@
 
           <!-- صافي الربح / الخسارة -->
           <tr class="account-row tb-level-1 parent-row" data-id="net_income" data-level="1" data-code="NET-INC" data-name="صافي الربح أو الخسارة للفترة">
-            <td class="text-center font-monospace small"><span class="badge bg-primary text-white font-monospace px-2 py-1">P&L</span></td>
+            <td class="text-center small"><span class="badge bg-primary text-white px-2 py-1">P&L</span></td>
             <td class="text-end indent-1 fw-bold">
               <i class="fas fa-file-invoice-dollar text-primary me-1"></i>
               {% trans "صافي الربح / (الخسارة) للفترة (Net Income)" %}
@@ -562,7 +562,7 @@
 
           {% for item in cf.non_cash_adjustments.items %}
             <tr class="account-row tb-level-2" data-id="non-cash-{{ item.code }}" data-level="2" data-code="{{ item.code }}" data-name="{{ item.name }}">
-              <td class="text-center font-monospace small"><span class="badge bg-white text-primary border border-primary font-monospace px-2 py-1">{{ item.code }}</span></td>
+              <td class="text-center small"><span class="badge bg-white text-primary border border-primary px-2 py-1">{{ item.code }}</span></td>
               <td class="text-end indent-2">
                 <i class="fas fa-calculator text-muted me-1"></i>
                 {{ item.name }}
@@ -595,8 +595,8 @@
                 data-level="2"
                 data-code="{{ wc.code }}"
                 data-name="{{ wc.name }}">
-              <td class="text-center font-monospace small">
-                <span class="badge bg-light text-dark border font-monospace">{{ wc.code }}</span>
+              <td class="text-center small">
+                <span class="badge bg-light text-dark border">{{ wc.code }}</span>
               </td>
               <td class="text-end indent-2">
                 {% if wc.nodes %}
@@ -630,8 +630,8 @@
                   data-level="3"
                   data-code="{{ node.code }}"
                   data-name="{{ node.name }}">
-                <td class="text-center font-monospace small">
-                  <span class="text-muted font-monospace small">{{ node.code }}</span>
+                <td class="text-center small">
+                  <span class="text-muted small">{{ node.code }}</span>
                 </td>
                 <td class="text-end indent-3">
                   <span class="expand-btn me-1"><i class="fas fa-circle text-muted" style="font-size: 4px;"></i></span>
@@ -659,7 +659,7 @@
 
           <!-- إجمالي الأنشطة التشغيلية -->
           <tr class="tb-row-subtotal">
-            <td class="text-center font-monospace">1-TOTAL</td>
+            <td class="text-center">1-TOTAL</td>
             <td class="fw-bold ps-3">
               <span class="text-primary">{% trans "صافي التدفقات النقدية من الأنشطة التشغيلية (Operating Cash Flow)" %}</span>
             </td>
@@ -691,7 +691,7 @@
 
           <!-- مدفوعات شراء الأصول الثابتة -->
           <tr class="account-row tb-level-2" data-id="capex-purchases" data-level="2" data-code="121-CAPEX" data-name="المدفوعات النقدية لشراء أصول ثابتة">
-            <td class="text-center font-monospace small"><span class="badge bg-light text-dark border font-monospace">121</span></td>
+            <td class="text-center small"><span class="badge bg-light text-dark border">121</span></td>
             <td class="text-end indent-2">
               <i class="fas fa-minus-circle text-danger me-1"></i>
               {% trans "المدفوعات النقدية لشراء وتطوير أصول ثابتة ومعدات (CAPEX)" %}
@@ -708,7 +708,7 @@
 
           <!-- متحصلات بيع الأصول الثابتة -->
           <tr class="account-row tb-level-2" data-id="capex-disposals" data-level="2" data-code="121-SALE" data-name="المتحصلات النقدية من بيع أصول ثابتة">
-            <td class="text-center font-monospace small"><span class="badge bg-light text-dark border font-monospace">121</span></td>
+            <td class="text-center small"><span class="badge bg-light text-dark border">121</span></td>
             <td class="text-end indent-2">
               <i class="fas fa-plus-circle text-success me-1"></i>
               {% trans "المتحصلات النقدية من بيع واستبعاد أصول ثابتة واستثمارات" %}
@@ -725,7 +725,7 @@
 
           <!-- إجمالي الأنشطة الاستثمارية -->
           <tr class="tb-row-subtotal">
-            <td class="text-center font-monospace">2-TOTAL</td>
+            <td class="text-center">2-TOTAL</td>
             <td class="fw-bold ps-3">
               <span class="text-primary">{% trans "صافي التدفقات النقدية من الأنشطة الاستثمارية (Investing Cash Flow)" %}</span>
             </td>
@@ -757,7 +757,7 @@
 
           <!-- زيادة رأس المال -->
           <tr class="account-row tb-level-2" data-id="equity-capital" data-level="2" data-code="311" data-name="زيادة رأس المال والمساهمات النقدية">
-            <td class="text-center font-monospace small"><span class="badge bg-light text-dark border font-monospace">311</span></td>
+            <td class="text-center small"><span class="badge bg-light text-dark border">311</span></td>
             <td class="text-end indent-2">
               <i class="fas fa-landmark text-primary me-1"></i>
               {% trans "زيادة رأس المال المدفوع والمساهمات النقدية" %}
@@ -774,7 +774,7 @@
 
           <!-- القروض والتسهيلات -->
           <tr class="account-row tb-level-2" data-id="debt-loans" data-level="2" data-code="221/216" data-name="صافي حركة القروض والتسهيلات">
-            <td class="text-center font-monospace small"><span class="badge bg-light text-dark border font-monospace">221/216</span></td>
+            <td class="text-center small"><span class="badge bg-light text-dark border">221/216</span></td>
             <td class="text-end indent-2">
               <i class="fas fa-building-columns text-info me-1"></i>
               {% trans "المتحصلات من / (سداد) القروض والتسهيلات الائتمانية البنكية" %}
@@ -793,7 +793,7 @@
 
           <!-- التوزيعات النقدية ومسحوبات الشركاء -->
           <tr class="account-row tb-level-2" data-id="dividends-withdrawals" data-level="2" data-code="312/215" data-name="توزيعات الأرباح ومسحوبات الشركاء">
-            <td class="text-center font-monospace small"><span class="badge bg-light text-dark border font-monospace">312/215</span></td>
+            <td class="text-center small"><span class="badge bg-light text-dark border">312/215</span></td>
             <td class="text-end indent-2">
               <i class="fas fa-money-bill-transfer text-danger me-1"></i>
               {% trans "التوزيعات النقدية للأرباح ومسحوبات الشركاء" %}
@@ -812,7 +812,7 @@
 
           <!-- إجمالي الأنشطة التمويلية -->
           <tr class="tb-row-subtotal">
-            <td class="text-center font-monospace">3-TOTAL</td>
+            <td class="text-center">3-TOTAL</td>
             <td class="fw-bold ps-3">
               <span class="text-primary">{% trans "صافي التدفقات النقدية من الأنشطة التمويلية (Financing Cash Flow)" %}</span>
             </td>
@@ -844,7 +844,7 @@
 
           <!-- أثر تغير أسعار صرف العملات الأجنبية (IAS 7.28) -->
           <tr class="account-row tb-level-2" data-id="fx-effect" data-level="2" data-code="IAS-7.28" data-name="أثر تغيرات أسعار صرف العملات الأجنبية على النقدية">
-            <td class="text-center font-monospace small"><span class="badge bg-light text-dark border font-monospace">FX</span></td>
+            <td class="text-center small"><span class="badge bg-light text-dark border">FX</span></td>
             <td class="text-end indent-2">
               <i class="fas fa-coins text-warning me-1"></i>
               {% trans "أثر تغيرات أسعار صرف العملات الأجنبية على النقدية وما في حكمها (IAS 7.28)" %}
@@ -863,7 +863,7 @@
 
           <!-- صافي التغير في النقدية وما في حكمها خلال الفترة -->
           <tr class="tb-row-subtotal">
-            <td class="text-center font-monospace">NET-CHG</td>
+            <td class="text-center">NET-CHG</td>
             <td class="fw-bold ps-3">
               <span class="text-dark">{% trans "صافي التغير في النقدية وما في حكمها خلال الفترة" %}</span>
             </td>
@@ -887,7 +887,7 @@
 
           <!-- رصيد النقدية وما في حكمها أول الفترة -->
           <tr class="account-row tb-level-1 parent-row" data-id="beg-cash" data-level="1" data-code="111-BEG" data-name="رصيد النقدية أول الفترة">
-            <td class="text-center font-monospace small"><span class="badge bg-light text-dark border font-monospace">111</span></td>
+            <td class="text-center small"><span class="badge bg-light text-dark border">111</span></td>
             <td class="text-end indent-1 fw-bold">
               <i class="fas fa-clock-rotate-left text-muted me-1"></i>
               {% trans "رصيد النقدية وما في حكمها في بداية الفترة" %} ({{ date_from|date:"d/m/Y" }})

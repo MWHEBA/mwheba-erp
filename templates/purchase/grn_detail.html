@@ -146,11 +146,11 @@
                 <small class="text-muted d-block">كود: {{ item.product.code }}</small>
               {% endif %}
             </td>
-            <td class="text-center font-monospace fw-bold fs-6">{{ item.received_qty }}</td>
-            <td class="text-end font-monospace">
+            <td class="text-center fw-bold fs-6">{{ item.received_qty }}</td>
+            <td class="text-end">
               {{ item.unit_price|floatformat:2 }} {{ grn.currency.code|default:grn.currency|default:currency_symbol }}
             </td>
-            <td class="text-end font-monospace fw-bold">
+            <td class="text-end fw-bold">
               {{ item.total_cost|floatformat:2 }} {{ grn.currency.code|default:grn.currency|default:currency_symbol }}
             </td>
           </tr>

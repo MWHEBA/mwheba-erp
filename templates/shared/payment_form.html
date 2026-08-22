@@ -277,7 +277,7 @@
                   <i class="fas fa-exchange-alt me-1 text-warning"></i>سعر صرف السداد:
                 </label>
                 <div class="input-group input-group-sm">
-                  <input type="number" step="0.000001" min="0.000001" class="form-control text-start font-monospace fw-bold" id="payment_exchange_rate" name="payment_exchange_rate" value="{{ invoice.exchange_rate|clean_rate|default:'1' }}">
+                  <input type="number" step="0.000001" min="0.000001" class="form-control text-start fw-bold" id="payment_exchange_rate" name="payment_exchange_rate" value="{{ invoice.exchange_rate|clean_rate|default:'1' }}">
                   <button type="button" class="btn btn-outline-secondary" id="btn_refresh_payment_rate" title="تحديث سعر الصرف اللحظي من البنك المركزي">
                     <i class="fas fa-sync-alt" id="icon_refresh_payment_rate"></i>
                   </button>
@@ -336,7 +336,7 @@
               <tbody>
                 {% for pmt in invoice.payments.all %}
                 <tr>
-                  <td class="text-center fw-bold font-monospace">
+                  <td class="text-center fw-bold">
                     <a href="{% if is_purchase %}{% url 'purchase:payment_detail' pmt.id %}{% else %}{% url 'sale:payment_detail' pmt.id %}{% endif %}" class="text-primary text-decoration-none">
                       {{ pmt.payment_code|default:pmt.id }}
                     </a>

@@ -86,7 +86,7 @@
           {% for doc in page_obj %}
           <tr>
             <td>
-              <span class="fw-bold font-monospace text-primary">{{ doc.voucher_number }}</span>
+              <span class="fw-bold text-primary">{{ doc.voucher_number }}</span>
             </td>
             <td>{{ doc.shipment_reference|default:"-" }}</td>
             <td>{{ doc.supplier.name|default:"-" }}</td>
@@ -101,7 +101,7 @@
                 {{ doc.allocation_method }}
               {% endif %}
             </td>
-            <td class="text-end font-monospace fw-bold">{{ doc.total_landed_cost|floatformat:2 }} {{ doc.currency.code|default:currency_symbol|default:"EGP" }}</td>
+            <td class="text-end fw-bold">{{ doc.total_landed_cost|floatformat:2 }} {{ doc.currency.code|default:currency_symbol|default:"EGP" }}</td>
             <td class="text-center">
               {% if doc.status == "POSTED" %}
                 <span class="badge bg-success-subtle text-success border border-success-subtle">{% trans "مرحل وموزع" %}</span>
