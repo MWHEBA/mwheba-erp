@@ -10,19 +10,6 @@
 {% block title %}{{ page_title|default:"فواتير المبيعات" }}{% endblock %}
 
 {% block extra_css %}
-<!-- جميع الستايلات موجودة في components.css -->
-<link rel="stylesheet" href="{% static 'css/select2.min.css' %}">
-<style>
-  .select2-container--default .select2-selection--single {
-    height: calc(1.5em + .75rem + 2px);
-    border: 1px solid #ced4da;
-    border-radius: .25rem;
-  }
-
-  .select2-container--default .select2-selection--single .select2-selection__arrow {
-    height: calc(1.5em + .75rem + 2px);
-  }
-</style>
 {% endblock %}
 
 {% block content %}
@@ -117,11 +104,8 @@
 {% endblock %}
 
 {% block extra_js %}
-<!-- مكتبة SheetJS لتصدير البيانات إلى Excel بدعم كامل للغة العربية -->
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <!-- استخدام مكتبة DataTables من ملف datatables.min.js الموجود -->
 <script src="{% static 'js/global-table.js' %}"></script>
-<script src="{% static 'js/select2.min.js' %}"></script>
 <script>
   function initTableEvents() {
     // جعل الصف كامل قابل للنقر للانتقال للتفاصيل

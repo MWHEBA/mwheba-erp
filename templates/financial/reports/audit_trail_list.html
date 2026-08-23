@@ -732,6 +732,11 @@ function exportTableToExcel(tableId, filename) {
             data.push([timestamp, user, action, entityType, description, ipAddress]);
         });
         
+        if (typeof XLSX === 'undefined' || XLSX.isFallback) {
+            exportTimelineToCSV(filename);
+            return;
+        }
+
         // إنشاء ملف Excel
         const ws = XLSX.utils.aoa_to_sheet(data);
         const wb = XLSX.utils.book_new();
@@ -741,8 +746,8 @@ function exportTableToExcel(tableId, filename) {
         // إظهار رسالة نجاح
         if (typeof toastr !== 'undefined') { toastr.success('تم تصدير البيانات إلى Excel بنجاح'); };
     } catch (error) {
-        console.error('خطأ في تصدير Excel:', error);
-        if (typeof toastr !== 'undefined') { toastr.error('حدث خطأ أثناء تصدير البيانات'); };
+        console.warn('خطأ في تصدير Excel، جاري التصدير كـ CSV:', error);
+        exportTimelineToCSV(filename);
     }
 }
 
@@ -831,13 +836,6 @@ function confirmNavigation(linkElement) {
 }
 
 $(document).ready(function() {
-    // تحميل مكتبة XLSX للتصدير
-    if (typeof XLSX === 'undefined') {
-        const script = document.createElement('script');
-        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
-        document.head.appendChild(script);
-    }
-    
     // Auto-refresh every 60 seconds
     setInterval(function() {
         if ($('.timeline-item').length > 0) {

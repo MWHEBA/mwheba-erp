@@ -2,6 +2,7 @@
 Sales Order Views - Enterprise Lifecycle Management
 إدارة أوامر البيع - دورة حياة المستندات والموافقات والربط مع المخازن
 """
+import json
 import logging
 from decimal import Decimal
 from django.shortcuts import render, redirect, get_object_or_404
@@ -12,6 +13,7 @@ from django.utils import timezone
 from django.utils.translation import gettext as _
 from django.urls import reverse
 from django.core.paginator import Paginator
+from django.db import transaction
 from django.db.models import Q, Sum
 from django.template.loader import render_to_string
 from django.http import JsonResponse
@@ -20,10 +22,12 @@ from sale.models.sales_models import SalesOrder, SalesOrderItem, DeliveryNote, S
 from sale.models import Sale
 from sale.models.quotation import Quotation
 from sale.models.pricing import PriceList
+from sale.services import SaleService
 from sale.services.sales_service import SalesService
 from product.models.product_core import Product
 from product.models.stock_management import Warehouse
 from client.models import Customer
+from core.models import SystemSetting
 from financial.exceptions import FinancialCoreError
 
 logger = logging.getLogger(__name__)

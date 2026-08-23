@@ -380,30 +380,59 @@
 {% endblock %}
 
 {% block extra_js %}
-<!-- مكتبة Chart.js للرسوم البيانية -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<!-- مكتبة SheetJS لتصدير البيانات إلى Excel بدعم كامل للغة العربية -->
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="{% static 'js/chart.min.js' %}"></script>
 <!-- استخدام مكتبة DataTables من ملف global-table.js الموجود -->
 <script src="{% static 'js/global-table.js' %}"></script>
 <script>
-  // تصدير تقرير نقطة إعادة الطلب إلى Excel
+  // تصدير تقرير نقطة إعادة الطلب إلى Excel أو CSV
   function exportReorderReport() {
-    try {
-      const table = document.getElementById('dataTable');
-      if (!table) return;
+    const table = document.getElementById('dataTable');
+    if (!table) return;
 
+    if (typeof XLSX === 'undefined' || XLSX.isFallback) {
+      if (typeof exportTableToCSV === 'function') {
+        exportTableToCSV('dataTable', 'تقرير_نقطة_إعادة_الطلب_' + new Date().toISOString().split('T')[0] + '.csv');
+      } else {
+        let csv = [];
+        for (let row of table.rows) {
+          let rowData = [];
+          for (let cell of row.cells) {
+            rowData.push('"' + cell.innerText.replace(/"/g, '""').trim() + '"');
+          }
+          csv.push(rowData.join(','));
+        }
+        let blob = new Blob(['\ufeff' + csv.join('\n')], { type: 'text/csv;charset=utf-8;' });
+        let link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = 'تقرير_نقطة_إعادة_الطلب_' + new Date().toISOString().split('T')[0] + '.csv';
+        link.click();
+      }
+      if (typeof toastr !== 'undefined') { toastr.success('تم تصدير البيانات بنجاح'); }
+      return;
+    }
+
+    try {
       const wb = XLSX.utils.table_to_book(table, { sheet: 'نقاط إعادة الطلب' });
       XLSX.writeFile(wb, 'تقرير_نقطة_إعادة_الطلب_' + new Date().toISOString().split('T')[0] + '.xlsx');
-      
       if (typeof toastr !== 'undefined') { 
         toastr.success('تم تصدير تقرير نقطة إعادة الطلب إلى Excel بنجاح'); 
       }
     } catch (error) {
-      console.error('خطأ في تصدير Excel:', error);
-      if (typeof toastr !== 'undefined') { 
-        toastr.error('حدث خطأ أثناء تصدير Excel'); 
+      console.warn('خطأ في تصدير Excel، جاري التصدير كـ CSV:', error);
+      let csv = [];
+      for (let row of table.rows) {
+        let rowData = [];
+        for (let cell of row.cells) {
+          rowData.push('"' + cell.innerText.replace(/"/g, '""').trim() + '"');
+        }
+        csv.push(rowData.join(','));
       }
+      let blob = new Blob(['\ufeff' + csv.join('\n')], { type: 'text/csv;charset=utf-8;' });
+      let link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = 'تقرير_نقطة_إعادة_الطلب_' + new Date().toISOString().split('T')[0] + '.csv';
+      link.click();
+      if (typeof toastr !== 'undefined') { toastr.success('تم تصدير البيانات بنجاح'); }
     }
   }
   

@@ -3056,41 +3056,43 @@ html[dir="rtl"] .border-right-danger {
 
 .header-subcard .form-control,
 .header-subcard .form-select {
-    font-size: 0.85rem;
-    padding: 0.375rem 0.65rem;
-    border-radius: var(--border-radius-sm, 6px);
+    font-size: var(--font-size-base);
+    height: var(--form-input-height);
+    min-height: var(--form-input-height);
+    padding: 0.4rem 0.85rem;
+    border-radius: var(--border-radius);
     border-color: var(--border-color);
-    transition: var(--transition-all, all 0.15s ease-in-out);
+    transition: var(--transition-all);
 }
 
 .header-subcard .form-control:focus,
 .header-subcard .form-select:focus {
     border-color: var(--primary-color);
-    box-shadow: 0 0 0 0.15rem rgba(var(--primary-rgb, 13, 110, 253), 0.15);
+    box-shadow: 0 0 0 0.2rem var(--primary-focus);
 }
 
 /* Select2 RTL Height & Style Normalization */
 .header-subcard .select2-container--default .select2-selection--single,
 .header-subcard .select2-container--bootstrap-5 .select2-selection {
-    min-height: 38px !important;
-    height: 38px !important;
+    min-height: var(--form-input-height) !important;
+    height: var(--form-input-height) !important;
     border-color: var(--border-color) !important;
-    border-radius: var(--border-radius-sm, 6px) !important;
-    font-size: 0.85rem !important;
+    border-radius: var(--border-radius) !important;
+    font-size: var(--font-size-base) !important;
     display: flex !important;
     align-items: center !important;
 }
 
 .header-subcard .select2-container--default .select2-selection--single .select2-selection__rendered {
-    line-height: 36px !important;
-    padding-right: 0.65rem !important;
-    padding-left: 1.5rem !important;
-    color: var(--text-primary, #212529) !important;
+    line-height: calc(var(--form-input-height) - 2px) !important;
+    padding-right: 0.85rem !important;
+    padding-left: 2.25rem !important;
+    color: var(--text-color) !important;
 }
 
 .header-subcard .select2-container--default .select2-selection--single .select2-selection__arrow {
-    height: 36px !important;
-    left: 8px !important;
+    height: calc(var(--form-input-height) - 2px) !important;
+    left: 10px !important;
     right: auto !important;
 }
 

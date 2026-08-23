@@ -55,8 +55,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
     <link rel="stylesheet" href="{% static 'css/toastr-override.css' %}">
     
-    <!-- Select2 CSS -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css">
+    <!-- Select2 CSS (RTL Theme & Local Core) -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.rtl.min.css">
     
     <!-- DataTables CSS -->
@@ -230,7 +229,6 @@
     
     <script src="{% static 'js/sweetalert2.all.min.js' %}"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
-    <script src="{% static 'js/select2.min.js' %}"></script>
     
     <!-- DataTables JS -->
     <script src="{% static 'js/datatables.min.js' %}"></script>
@@ -252,7 +250,8 @@
     <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/plugins/monthSelect/index.js"></script>
     <script src="{% static 'js/flatpickr-init.js' %}"></script>
     
-    <!-- Select2 JS -->
+    <!-- Select2 Core & Arabic Search Engine Pipeline -->
+    <script src="{% static 'js/select2.min.js' %}"></script>
     <script src="{% static 'django_select2/django_select2.js' %}"></script>
     <script src="{% static 'js/arabic-search.js' %}"></script>
     
@@ -283,6 +282,128 @@
         if (typeof toastr !== 'undefined' && typeof DEFAULT_TOASTR_OPTIONS !== 'undefined') {
             toastr.options = DEFAULT_TOASTR_OPTIONS;
         }
+
+        // المحرك المركزي الشامل لتهيئة وتزامن Select2 في كامل النظام
+        window.initAppSelect2 = function(context) {
+            if (typeof jQuery === 'undefined' || !jQuery.fn.select2) return;
+            
+            var $scope = context ? $(context) : $(document);
+            
+            // البحث عن القوائم مع استثناء القوالب الفارغة والتسميات العائمة والبحث عن بعد
+            $scope.find('select.select2-init, select.select2, select.select2-filter')
+                  .not('[id*="__prefix__"]')
+                  .not('#empty-form select, .empty-form select, template select')
+                  .not('.custom-select2, [data-custom-template], [data-ajax--url], .django-select2, .form-floating select')
+                  .each(function() {
+                var $el = $(this);
+                if ($el.hasClass('select2-hidden-accessible') || $el.hasClass('no-select2')) return;
+                
+                var modalParent = $el.closest('.modal');
+                var placeholder = $el.attr('data-placeholder') || $el.find('option[value=""]').text() || 'اختر...';
+                
+                // احترام العرض المخصص لو كان محدد بـ style أو data-width
+                var widthVal = $el.attr('data-width') || ($el.attr('style') && $el.attr('style').includes('width') ? 'style' : '100%');
+                
+                // الذكاء التشغيلي: إخفاء البحث للقوائم التي تحتوي على 6 خيارات أو أقل
+                var optionsCount = $el.find('option').length;
+                var minResults = (optionsCount <= 6) ? Infinity : 0;
+                if ($el.attr('data-minimum-results-for-search') !== undefined) {
+                    var customMin = $el.attr('data-minimum-results-for-search');
+                    minResults = (customMin === 'Infinity' || customMin === '-1') ? Infinity : parseInt(customMin);
+                }
+                
+                $el.select2({
+                    dir: 'rtl',
+                    language: 'ar',
+                    width: widthVal,
+                    dropdownParent: modalParent.length ? modalParent : $(document.body),
+                    placeholder: placeholder,
+                    allowClear: !$el.prop('required'),
+                    minimumResultsForSearch: minResults,
+                    selectOnClose: true,
+                    escapeMarkup: function(m) { return m; }
+                });
+                
+                // تزامن حدث change الأصلي لضمان عمل المعادلات والـ AJAX والبحث اللحظي doSearch
+                $el.on('select2:select select2:clear', function(e) {
+                    $el.trigger('change');
+                    if (typeof window.doSearch === 'function' && $el.hasClass('select2-filter')) {
+                        window.doSearch();
+                    }
+                });
+                
+                // ربط MutationObserver لتحديث واجهة Select2 تلقائياً عند تغيير الـ options بـ AJAX أو تعديل disabled أو Autofill
+                if (window.MutationObserver && !this._selectObserverAttached) {
+                    this._selectObserverAttached = true;
+                    var observer = new MutationObserver(function(mutations) {
+                        $el.trigger('change.select2');
+                    });
+                    observer.observe(this, { childList: true, attributes: true, attributeFilter: ['disabled', 'value'] });
+                }
+            });
+        };
+
+        // توفير توافقية خلفية لدوال safeInitSelect2 القديمة
+        window.safeInitSelect2 = function(selector, options) {
+            var $el = $(selector);
+            if ($el.length) {
+                if ($el.hasClass('select2-hidden-accessible')) $el.select2('destroy');
+                window.initAppSelect2($el.parent());
+            }
+            return $el;
+        };
+
+        $(document).ready(function() {
+            window.initAppSelect2();
+            
+            // إعادة التهيئة التلقائية داخل المودالات عند فتحها
+            $(document).on('shown.bs.modal', function(e) {
+                window.initAppSelect2(e.target);
+            });
+            
+            // إعادة ضبط الأبعاد التلقائية داخل التبويبات عند تنشيطها
+            $(document).on('shown.bs.tab', function(e) {
+                var targetSelector = $(e.target).attr('data-bs-target') || $(e.target).attr('href');
+                if (targetSelector) {
+                    window.initAppSelect2($(targetSelector));
+                }
+            });
+            
+            // إغلاق أي قائمة مفتوحة بنظافة عند تغيير أبعاد الشاشة
+            $(window).on('resize.select2 orientationchange.select2', function() {
+                $('select.select2-hidden-accessible').select2('close');
+            });
+            
+            // حماية زر ESC داخل حقل البحث لمنع إغلاق المودال بالخطأ وفقدان البيانات
+            $(document).on('keydown', '.select2-search__field', function(e) {
+                if (e.key === 'Escape' || e.keyCode === 27) {
+                    e.stopPropagation();
+                }
+            });
+            
+            // مزامنة واجهة Select2 عند تفريغ النموذج (Form Reset)
+            $(document).on('reset', 'form', function() {
+                var $form = $(this);
+                setTimeout(function() {
+                    $form.find('select.select2-hidden-accessible').trigger('change.select2');
+                }, 10);
+            });
+            
+            // حماية إرسال بيانات الحقول المعطلة disabled إلى خادم Django في طلبات POST
+            $(document).on('submit', 'form', function() {
+                $(this).find('select:disabled').each(function() {
+                    var name = $(this).attr('name');
+                    var val = $(this).val();
+                    if (name && val !== null && val !== undefined && !$(this).closest('form').find('input[type="hidden"][name="' + name + '"]').length) {
+                        $('<input>').attr({
+                            type: 'hidden',
+                            name: name,
+                            value: val
+                        }).appendTo($(this).closest('form'));
+                    }
+                });
+            });
+        });
     </script>
     
     {% block extra_js %}{% endblock %}

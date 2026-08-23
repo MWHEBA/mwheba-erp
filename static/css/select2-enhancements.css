@@ -1,79 +1,100 @@
-﻿/**
- * ========================================
- * Select2 Unified Styles for Corporate ERP
- * ========================================
- * 
- * ملف موحد لجميع تنسيقات Select2 في النظام
- * يطابق تماماً تنسيق form-control العادي
- * 
- * الأقسام:
- * 1. Basic Select2 Styles (التنسيقات الأساسية)
- * 2. RTL Support (دعم العربية)
- * 3. Focus & Disabled States (حالات التركيز والتعطيل)
- * 4. Dropdown Styles (تنسيق القائمة المنسدلة)
- * 5. Search Field (حقل البحث)
- * 6. Results & Options (النتائج والخيارات)
- * 7. Multiple Selection (الاختيار المتعدد)
- * 8. Special Components (مكونات خاصة)
- * ========================================
+/**
+ * ==========================================================================
+ * Select2 Unified Enhancements for Corporate ERP
+ * ==========================================================================
+ * توحيد ومطابقة Select2 بنسبة 100% مع معايير النظام القياسية
+ * الالتزام الكامل بمتغيرات :root للألوان (بدون hardcoded hex أو rgb)
+ * ألوان مسطحة Flat Colors فقط بدون تدرجات
  */
 
-/* ========================================
-   1. BASIC SELECT2 STYLES (التنسيقات الأساسية)
-   ======================================== */
-
-
-/* تنسيق Select2 ليطابق form-control العادي */
+/* ==========================================================================
+   1. الحاوية الأساسية وحقل الاختيار (Single Selection)
+   ========================================================================== */
 .select2-container--default .select2-selection--single,
 .select2-container--bootstrap-5 .select2-selection--single {
     height: var(--form-input-height) !important;
-    padding: var(--form-input-padding) !important;
+    min-height: var(--form-input-height) !important;
+    padding: 0.4rem 0.85rem 0.4rem 2.25rem !important;
     font-size: var(--font-size-base) !important;
+    font-family: var(--font-family-sans) !important;
     line-height: var(--line-height-normal) !important;
     color: var(--text-color) !important;
     background-color: var(--form-input-bg) !important;
-    border: var(--form-input-border) !important;
+    border: 1px solid var(--border-color) !important;
     border-radius: var(--border-radius) !important;
-    font-family: var(--font-family-sans) !important;
     box-sizing: border-box !important;
+    display: flex !important;
+    align-items: center !important;
+    transition: var(--transition-all) !important;
+}
+
+.select2-container--default .select2-selection--single .select2-selection__rendered,
+.select2-container--bootstrap-5 .select2-selection--single .select2-selection__rendered {
+    color: var(--text-color) !important;
+    padding-right: 0 !important;
+    padding-left: 0 !important;
+    line-height: calc(var(--form-input-height) - 2px) !important;
+    direction: rtl !important;
+    text-align: right !important;
+    user-select: text !important;
 }
 
 .select2-container--default .select2-selection--single .select2-selection__placeholder,
 .select2-container--bootstrap-5 .select2-selection--single .select2-selection__placeholder {
-    color: var(--text-light) !important;
+    color: var(--text-muted) !important;
 }
 
-/* ========================================
-   2. RTL SUPPORT (دعم العربية)
-   ======================================== */
-
+/* ==========================================================================
+   2. اتجاه ومواضع السهم وزر المسح (RTL Arrow & Clear Button)
+   ========================================================================== */
 .select2-container--default .select2-selection--single .select2-selection__arrow,
 .select2-container--bootstrap-5 .select2-selection--single .select2-selection__arrow {
     height: calc(var(--form-input-height) - 2px) !important;
     top: 1px !important;
-    left: 1px !important;
+    left: 10px !important;
     right: auto !important;
+    width: 14px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
 }
 
-.select2-container--bootstrap-5 .select2-selection {
-    direction: rtl;
-    text-align: right;
+.select2-container--default .select2-selection--single .select2-selection__arrow b,
+.select2-container--bootstrap-5 .select2-selection--single .select2-selection__arrow b {
+    border-color: var(--secondary-color) transparent transparent transparent !important;
 }
 
+.select2-container--default.select2-container--open .select2-selection--single .select2-selection__arrow b,
+.select2-container--bootstrap-5.select2-container--open .select2-selection--single .select2-selection__arrow b {
+    border-color: transparent transparent var(--secondary-color) transparent !important;
+}
+
+/* زر المسح Clear ❌ بجانب السهم على مسافة 28px لمنع التداخل */
+.select2-container--default .select2-selection__clear,
 .select2-container--bootstrap-5 .select2-selection__clear,
-.select2-container--bootstrap-5 .select2-selection--multiple .select2-selection__clear,
+.select2-container--default .select2-selection--single .select2-selection__clear,
 .select2-container--bootstrap-5 .select2-selection--single .select2-selection__clear {
-    right: unset;
-    left: 20px;
+    right: auto !important;
+    left: 28px !important;
+    color: var(--secondary-color) !important;
+    font-size: 16px !important;
+    line-height: var(--form-input-height) !important;
+    cursor: pointer !important;
+    font-weight: bold !important;
 }
 
-/* ========================================
-   3. FOCUS & DISABLED STATES (حالات التركيز والتعطيل)
-   ======================================== */
+.select2-container--default .select2-selection__clear:hover,
+.select2-container--bootstrap-5 .select2-selection__clear:hover {
+    color: var(--danger-color) !important;
+}
 
+/* ==========================================================================
+   3. حالات التركيز والتعطيل والتحقق (Focus, Disabled & Invalid States)
+   ========================================================================== */
 .select2-container--default.select2-container--focus .select2-selection--single,
 .select2-container--bootstrap-5.select2-container--focus .select2-selection--single,
-.select2-container--open .select2-selection--single {
+.select2-container--default.select2-container--open .select2-selection--single,
+.select2-container--bootstrap-5.select2-container--open .select2-selection--single {
     border-color: var(--primary-color) !important;
     outline: 0 !important;
     box-shadow: 0 0 0 0.2rem var(--primary-focus) !important;
@@ -82,41 +103,67 @@
 .select2-container--default.select2-container--disabled .select2-selection--single,
 .select2-container--bootstrap-5.select2-container--disabled .select2-selection--single {
     background-color: var(--form-input-bg-disabled) !important;
+    color: var(--text-muted) !important;
     cursor: not-allowed !important;
+    opacity: 0.75 !important;
 }
 
-/* ========================================
-   4. DROPDOWN STYLES (تنسيق القائمة المنسدلة)
-   ======================================== */
+/* حالة الخطأ في التحقق */
+select.is-invalid + .select2-container .select2-selection,
+.was-validated select:invalid + .select2-container .select2-selection {
+    border-color: var(--danger-color) !important;
+    box-shadow: 0 0 0 0.2rem var(--danger-soft) !important;
+}
 
+/* ==========================================================================
+   4. القائمة المنسدلة وحقل البحث (Dropdown & Search Field)
+   ========================================================================== */
 .select2-dropdown {
-    border: var(--form-input-border) !important;
+    border: 1px solid var(--border-color) !important;
     border-radius: var(--border-radius) !important;
     box-shadow: var(--shadow-md) !important;
+    background-color: var(--bg-surface) !important;
     direction: rtl !important;
+    z-index: 1065 !important;
 }
 
-/* ========================================
-   5. SEARCH FIELD (حقل البحث)
-   ======================================== */
+.select2-search--dropdown {
+    padding: 0.4rem 0.5rem !important;
+}
 
 .select2-container--default .select2-search--dropdown .select2-search__field,
 .select2-search--dropdown .select2-search__field {
-    padding: var(--form-input-padding) !important;
+    padding: 0.4rem 0.75rem !important;
     font-size: var(--font-size-base) !important;
-    border: var(--form-input-border) !important;
-    border-radius: var(--border-radius) !important;
-    direction: rtl;
-    text-align: right;
+    font-family: var(--font-family-sans) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: var(--border-radius-sm) !important;
+    direction: rtl !important;
+    text-align: right !important;
+    color: var(--text-color) !important;
+    background-color: var(--form-input-bg) !important;
+    outline: none !important;
 }
 
-/* ========================================
-   6. RESULTS & OPTIONS (النتائج والخيارات)
-   ======================================== */
+/* إخفاء زر الإلغاء الافتراضي في متصفحات WebKit لمنع الاصطدام مع الـ RTL */
+.select2-search__field::-webkit-search-cancel-button,
+.select2-search__field::-webkit-search-decoration {
+    -webkit-appearance: none !important;
+    display: none !important;
+}
 
+.select2-search--dropdown .select2-search__field:focus {
+    border-color: var(--primary-color) !important;
+    outline: 0 !important;
+    box-shadow: 0 0 0 0.2rem var(--primary-focus) !important;
+}
+
+/* ==========================================================================
+   5. النتائج والخيارات والمجموعات (Results, Options & Optgroups)
+   ========================================================================== */
 .select2-container--default .select2-results__option,
 .select2-container--bootstrap-5 .select2-results__option {
-    padding: var(--spacing-2) var(--spacing-3) !important;
+    padding: 0.45rem 0.85rem !important;
     font-size: var(--font-size-base) !important;
     color: var(--text-color) !important;
     text-align: right !important;
@@ -124,7 +171,7 @@
 
 .select2-container--default .select2-results__option--highlighted[aria-selected],
 .select2-container--bootstrap-5 .select2-results__option--highlighted {
-    background-color: rgb(1 87 138 / 45%) !important;
+    background-color: var(--primary-soft) !important;
     color: var(--primary-color) !important;
 }
 
@@ -134,27 +181,38 @@
     color: var(--white) !important;
 }
 
-.select2-container--bootstrap-5 .select2-results__option--highlighted .text-muted {
-    color: rgba(255, 255, 255, 0.8) !important;
+/* المجموعات optgroup */
+.select2-container--default .select2-results__group,
+.select2-container--bootstrap-5 .select2-results__group {
+    font-size: var(--font-size-sm) !important;
+    font-weight: 700 !important;
+    color: var(--text-color) !important;
+    background-color: var(--bg-light) !important;
+    padding: 6px 12px !important;
+    border-bottom: 1px solid var(--border-color) !important;
+    text-align: right !important;
+    cursor: default !important;
 }
 
 .select2-results__message {
-    padding: var(--spacing-3);
-    text-align: center;
-    color: var(--text-light);
+    padding: 0.6rem !important;
+    text-align: center !important;
+    color: var(--text-muted) !important;
 }
 
-/* ========================================
-   7. MULTIPLE SELECTION (الاختيار المتعدد)
-   ======================================== */
-
+/* ==========================================================================
+   6. الاختيار المتعدد (Multiple Selection)
+   ========================================================================== */
 .select2-container--default .select2-selection--multiple,
 .select2-container--bootstrap-5 .select2-selection--multiple {
     min-height: var(--form-input-height) !important;
-    padding: calc(var(--spacing-1) - 1px) var(--spacing-2) !important;
-    border: var(--form-input-border) !important;
+    padding: 2px 6px !important;
+    border: 1px solid var(--border-color) !important;
     border-radius: var(--border-radius) !important;
     background-color: var(--form-input-bg) !important;
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
 }
 
 .select2-container--default .select2-selection--multiple .select2-selection__choice,
@@ -163,14 +221,17 @@
     border: 1px solid var(--primary-color) !important;
     color: var(--primary-color) !important;
     border-radius: var(--border-radius-sm) !important;
-    padding: var(--spacing-1) var(--spacing-2) !important;
-    margin: var(--spacing-1) !important;
+    padding: 2px 8px !important;
+    margin: 2px 4px !important;
+    font-size: var(--font-size-sm) !important;
+    font-weight: 500 !important;
 }
 
 .select2-container--default .select2-selection--multiple .select2-selection__choice__remove,
 .select2-container--bootstrap-5 .select2-selection--multiple .select2-selection__choice__remove {
     color: var(--primary-color) !important;
-    margin-left: var(--spacing-1) !important;
+    margin-left: 6px !important;
+    font-weight: bold !important;
 }
 
 .select2-container--default .select2-selection--multiple .select2-selection__choice__remove:hover,
@@ -178,6 +239,25 @@
     color: var(--danger-color) !important;
 }
 
-/* ========================================
-   8. SPECIAL COMPONENTS (مكونات خاصة)
-   ======================================== */
+/* ==========================================================================
+   7. التناسق داخل Input Groups والتبويبات
+   ========================================================================== */
+.input-group > .select2-container {
+    flex: 1 1 auto !important;
+    width: 1% !important;
+    min-width: 0 !important;
+}
+
+.input-group > .select2-container:not(:last-child) .select2-selection {
+    border-top-left-radius: 0 !important;
+    border-bottom-left-radius: 0 !important;
+}
+
+.input-group > .select2-container:not(:first-child) .select2-selection {
+    border-top-right-radius: 0 !important;
+    border-bottom-right-radius: 0 !important;
+}
+
+.tab-pane .select2-container {
+    width: 100% !important;
+}

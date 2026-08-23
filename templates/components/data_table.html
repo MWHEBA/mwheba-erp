@@ -605,8 +605,8 @@ function exportTableToExcel(tableId, filename) {
     const table = document.getElementById(tableId);
     if (!table) return;
     
-    // Check if SheetJS is available
-    if (typeof XLSX === 'undefined') {
+    // Check if SheetJS is available and not a fallback stub
+    if (typeof XLSX === 'undefined' || XLSX.isFallback) {
         console.warn('SheetJS library not loaded, falling back to CSV export');
         exportTableToCSV(tableId, filename);
         return;
@@ -624,6 +624,10 @@ function exportTableToExcel(tableId, filename) {
         
         // Create workbook from table
         const wb = XLSX.utils.table_to_book(tableClone, {sheet: "البيانات"});
+        if (!wb) {
+            exportTableToCSV(tableId, filename);
+            return;
+        }
         
         // Add .xlsx extension if not present
         const finalFilename = filename.includes('.xlsx') ? filename : (filename + '.xlsx');
@@ -636,10 +640,8 @@ function exportTableToExcel(tableId, filename) {
             toastr.success('تم تصدير البيانات بنجاح');
         }
     } catch (error) {
-        console.error('Error exporting to Excel:', error);
-        if (typeof toastr !== 'undefined') {
-            toastr.error('حدث خطأ أثناء التصدير');
-        }
+        console.warn('Error exporting to Excel, falling back to CSV:', error);
+        exportTableToCSV(tableId, filename);
     }
 }
 

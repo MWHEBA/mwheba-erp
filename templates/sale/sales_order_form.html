@@ -8,9 +8,6 @@
 {% block title %}{{ page_title|default:"إنشاء أمر بيع جديد" }}{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
-<link rel="stylesheet" href="{% static 'css/forms.css' %}">
-<link rel="stylesheet" href="{% static 'css/select2.min.css' %}">
 {% endblock %}
 
 {% block content %}
@@ -195,23 +192,15 @@
                                          <label class="form-label">
                                              <i class="fas fa-map-marker-alt text-primary me-1"></i>{% trans "عنوان التسليم الفعلي" %}
                                          </label>
-                                         <input type="text" name="shipping_address" class="form-control" placeholder="{% trans 'موقع العميل أو موقع المشروع للتسليم...' %}" value="{{ so.shipping_address|default:selected_customer.address|default:'' }}">
+                                         <input type="text" name="shipping_address" class="form-control" placeholder="{% trans 'موقع العميل أو موقع المشروع للتسليم...' %}" value="{% if so and so.shipping_address %}{{ so.shipping_address }}{% elif selected_customer and selected_customer.address %}{{ selected_customer.address }}{% endif %}">
                                      </div>
                                  </div>
                              </div>
                          </div>
-                     </div>ate" name="order_date" id="id_order_date" class="form-control" value="{% if quotation %}{{ quotation.date|date:'Y-m-d' }}{% else %}{% now 'Y-m-d' %}{% endif %}" required>
-                                    </div>
-
-                                    <!-- العملة وسعر الصرف الموحد (IAS 21) -->
-                                    {% include "components/currency_header.html" %}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+                     </div>
+                 </div>
+             </div>
+         </div>
 
         <!-- القسم الثاني: بنود أمر البيع والمنتجات -->
         <div class="section-container mb-4">
@@ -485,7 +474,6 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'js/select2.min.js' %}"></script>
 <script src="{% static 'js/product_picker.js' %}"></script>
 <script>
     $(document).ready(function() {

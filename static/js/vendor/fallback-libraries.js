@@ -54,6 +54,7 @@ if (typeof QRCode === 'undefined') {
 // إنشاء كائن XLSX بديل إذا لم يكن متوفراً
 if (typeof XLSX === 'undefined') {
     window.XLSX = {
+        isFallback: true,
         utils: {
             table_to_book: function(table, options) {
                 console.warn('XLSX غير متوفر - استخدام تصدير CSV بدلاً من ذلك');
@@ -72,8 +73,7 @@ if (typeof XLSX === 'undefined') {
             }
         },
         writeFile: function(wb, filename) {
-            console.warn('XLSX غير متوفر - لا يمكن تصدير Excel');
-            alert('تصدير Excel غير متوفر حالياً. يرجى استخدام تصدير CSV.');
+            console.warn('XLSX غير متوفر - يتم التصدير إلى CSV');
         }
     };
 }

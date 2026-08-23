@@ -17,6 +17,7 @@
 - legend: إظهار وسيلة الإيضاح (اختياري، افتراضي True)
 - responsive: هل الرسم البياني متجاوب (اختياري، افتراضي True)
 {% endcomment %}
+{% load static %}
 
 <div class="chart-wrapper mb-4 {{ class }}">
     {% if title %}
@@ -27,10 +28,18 @@
         <p class="chart-description text-muted">{{ description }}</p>
     {% endif %}
     
-    <div class="chart-container" style="position: relative; width: {{ width|default:'100%' }}; height: {{ height|default:'300px' }};">
+    <div class="chart-container" style="position: relative; width: 100%; min-height: 300px;">
         <canvas id="{{ id }}"></canvas>
     </div>
 </div>
+
+<script id="chart-data-{{ id }}" type="application/json">
+{{ data|safe }}
+</script>
+
+<script id="chart-options-{{ id }}" type="application/json">
+{{ options|default:"{}"|safe }}
+</script>
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
@@ -42,7 +51,7 @@
             if (!document.getElementById('chart-js')) {
                 const script = document.createElement('script');
                 script.id = 'chart-js';
-                script.src = 'https://cdn.jsdelivr.net/npm/chart.js@3.7.0/dist/chart.min.js';
+                script.src = "{% static 'js/chart.min.js' %}";
                 script.onload = initChart;
                 document.head.appendChild(script);
             }
@@ -50,24 +59,35 @@
         
         function initChart() {
             // تكوين الرسم البياني بالاعتبارات العربية
-            Chart.defaults.font.family = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+            Chart.defaults.font.family = "'Tajawal', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
             Chart.defaults.font.size = 14;
             Chart.defaults.color = '#666';
             
             // الحصول على سياق الرسم البياني
-            const ctx = document.getElementById('{{ id }}').getContext('2d');
+            const canvas = document.getElementById('{{ id }}');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
             
-            // بيانات الرسم البياني
-            const chartData = {{ data|safe }};
+            // بيانات وخيارات الرسم البياني
+            let chartData = {};
+            let chartOptions = {};
+            try {
+                const dataScript = document.getElementById('chart-data-{{ id }}');
+                if (dataScript) chartData = JSON.parse(dataScript.textContent || '{}');
+                const optScript = document.getElementById('chart-options-{{ id }}');
+                if (optScript) chartOptions = JSON.parse(optScript.textContent || '{}');
+            } catch(e) {
+                console.error('Error parsing chart JSON data:', e);
+            }
             
             // خيارات الرسم البياني الأساسية
             const defaultOptions = {
-                responsive: {{ responsive|default:True|lower }},
+                responsive: true,
                 maintainAspectRatio: false,
                 locale: 'en-US',
                 plugins: {
                     legend: {
-                        display: {{ legend|default:True|lower }},
+                        display: true,
                         position: 'top',
                         rtl: true,
                         labels: {
@@ -81,20 +101,16 @@
                         bodyAlign: 'right',
                         footerAlign: 'right',
                         callbacks: {
-                            // تنسيق الأرقام في التوولتيب
                             label: function(context) {
                                 let label = context.dataset.label || '';
                                 if (label) {
                                     label += ': ';
                                 }
-                                
-                                if (context.parsed.y !== null) {
-                                    // تنسيق الأرقام باستخدام دالة formatNumber
+                                if (context.parsed.y !== null && context.parsed.y !== undefined) {
                                     const num = context.parsed.y;
                                     if (typeof formatNumber === 'function') {
                                         label += formatNumber(num);
                                     } else {
-                                        // الاحتفاظ بالطريقة الاحتياطية
                                         if (num >= 1000000) {
                                             label += (num / 1000000).toFixed(1) + ' مليون';
                                         } else if (num >= 1000) {
@@ -104,7 +120,6 @@
                                         }
                                     }
                                 }
-                                
                                 return label;
                             }
                         }
@@ -117,25 +132,22 @@
             };
             
             // دمج الخيارات المخصصة
-            const chartOptions = {{ options|default:"{}" }};
             const finalOptions = Object.assign({}, defaultOptions, chartOptions);
+            const chartType = "{{ type }}";
             
             // تحسين تصميم أنواع معينة من الرسوم البيانية
-            if ("{{ type }}" === "bar") {
+            if (chartType === "bar") {
                 if (!finalOptions.scales) {
                     finalOptions.scales = {};
                 }
-                
                 if (!finalOptions.scales.y) {
                     finalOptions.scales.y = {
                         beginAtZero: true,
                         ticks: {
                             callback: function(value) {
-                                // استخدام دالة formatNumber لتنسيق أرقام المحور
                                 if (typeof formatNumber === 'function' && value !== 0) {
                                     return formatNumber(value);
                                 }
-                                // الطريقة الاحتياطية
                                 if (value >= 1000000) {
                                     return (value / 1000000).toFixed(1) + 'م';
                                 } else if (value >= 1000) {
@@ -146,14 +158,12 @@
                         }
                     };
                 }
-            } else if (["pie", "doughnut"].includes("{{ type }}")) {
-                // تحسين الألوان الافتراضية للرسوم الدائرية
+            } else if (["pie", "doughnut"].includes(chartType)) {
                 if (!chartData.datasets || !chartData.datasets[0].backgroundColor) {
                     const defaultColors = [
                         '#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b',
                         '#5a5c69', '#6f42c1', '#fd7e14', '#20c9a6', '#858796'
                     ];
-                    
                     if (chartData.datasets && chartData.datasets[0]) {
                         chartData.datasets[0].backgroundColor = defaultColors;
                     }
@@ -162,7 +172,7 @@
             
             // إنشاء الرسم البياني
             new Chart(ctx, {
-                type: "{{ type }}",
+                type: chartType,
                 data: chartData,
                 options: finalOptions
             });

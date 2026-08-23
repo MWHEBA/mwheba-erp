@@ -285,13 +285,13 @@
                         
                         <li class="submenu-title">أذون المخزن</li>
                         <li>
-                            <a href="{% url 'sale:delivery_note_list' %}" class="submenu-link text-primary fw-bold">
-                                <i class="fas fa-shipping-fast me-2"></i>إذون تسليم وصرف البضاعة
+                            <a href="{% url 'sale:delivery_note_list' %}" class="submenu-link">
+                                <i class="fas fa-shipping-fast me-2"></i>{% trans "إذون تسليم وصرف البضاعة" %}
                             </a>
                         </li>
                         <li>
-                            <a href="{% url 'purchase:grn_list' %}" class="submenu-link text-success fw-bold">
-                                <i class="fas fa-truck-loading me-2"></i>استلام بضائع مشتريات (GRN)
+                            <a href="{% url 'purchase:grn_list' %}" class="submenu-link">
+                                <i class="fas fa-truck-loading me-2"></i>{% trans "استلام بضائع مشتريات (GRN)" %}
                             </a>
                         </li>
                         <li>

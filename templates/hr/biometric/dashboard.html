@@ -190,7 +190,11 @@
                         </div>
                         <div class="progress" style="height: 8px;">
                             <div class="progress-bar bg-success" 
-                                 style="width: {{ online_percentage }}%">
+                                 role="progressbar" 
+                                 aria-valuenow="{{ online_percentage|default:0 }}" 
+                                 aria-valuemin="0" 
+                                 aria-valuemax="100" 
+                                 data-width="{{ online_percentage|default:0 }}">
                             </div>
                         </div>
                     </div>
@@ -205,7 +209,11 @@
                         </div>
                         <div class="progress" style="height: 8px;">
                             <div class="progress-bar bg-danger" 
-                                 style="width: {{ offline_percentage }}%">
+                                 role="progressbar" 
+                                 aria-valuenow="{{ offline_percentage|default:0 }}" 
+                                 aria-valuemin="0" 
+                                 aria-valuemax="100" 
+                                 data-width="{{ offline_percentage|default:0 }}">
                             </div>
                         </div>
                     </div>
@@ -251,7 +259,7 @@
                             <strong>{{ week_total }}</strong>
                         </div>
                         <div class="progress" style="height: 6px;">
-                            <div class="progress-bar bg-primary" style="width: 100%"></div>
+                            <div class="progress-bar bg-primary" role="progressbar" style="width: 100%;"></div>
                         </div>
                     </div>
                     
@@ -262,7 +270,11 @@
                         </div>
                         <div class="progress" style="height: 6px;">
                             <div class="progress-bar bg-success" 
-                                 style="width: {{ week_linked_percentage }}%">
+                                 role="progressbar" 
+                                 aria-valuenow="{{ week_linked_percentage|default:0 }}" 
+                                 aria-valuemin="0" 
+                                 aria-valuemax="100" 
+                                 data-width="{{ week_linked_percentage|default:0 }}">
                             </div>
                         </div>
                     </div>
@@ -274,7 +286,11 @@
                         </div>
                         <div class="progress" style="height: 6px;">
                             <div class="progress-bar bg-info" 
-                                 style="width: {{ week_processed_percentage }}%">
+                                 role="progressbar" 
+                                 aria-valuenow="{{ week_processed_percentage|default:0 }}" 
+                                 aria-valuemin="0" 
+                                 aria-valuemax="100" 
+                                 data-width="{{ week_processed_percentage|default:0 }}">
                             </div>
                         </div>
                     </div>
@@ -421,18 +437,46 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+<script src="{% static 'js/chart.min.js' %}"></script>
+
+<script id="data-daily-stats" type="application/json">{{ daily_stats|safe }}</script>
+<div id="biometric-metrics" 
+     data-linked="{{ linked_logs|default:0 }}" 
+     data-unlinked="{{ unlinked_logs|default:0 }}" 
+     data-processed="{{ processed_logs|default:0 }}" 
+     data-unprocessed="{{ unprocessed_logs|default:0 }}" 
+     class="d-none"></div>
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // تطبيق نسب أشرطة التقدم
+    document.querySelectorAll('.progress-bar[data-width]').forEach(function(bar) {
+        bar.style.width = (bar.getAttribute('data-width') || '0') + '%';
+    });
+
+    const metricsEl = document.getElementById('biometric-metrics');
+    const linkedLogs = metricsEl ? parseFloat(metricsEl.dataset.linked || '0') : 0;
+    const unlinkedLogs = metricsEl ? parseFloat(metricsEl.dataset.unlinked || '0') : 0;
+    const processedLogs = metricsEl ? parseFloat(metricsEl.dataset.processed || '0') : 0;
+    const unprocessedLogs = metricsEl ? parseFloat(metricsEl.dataset.unprocessed || '0') : 0;
+
+    let dailyData = [];
+    try {
+        const statsEl = document.getElementById('data-daily-stats');
+        if (statsEl) dailyData = JSON.parse(statsEl.textContent || '[]');
+    } catch(e) {
+        dailyData = [];
+    }
+
     // نسبة الربط
-    const linkCtx = document.getElementById('linkProgressChart');
-    if (linkCtx) {
-        new Chart(linkCtx, {
+    const linkCanvas = document.getElementById('linkProgressChart');
+    if (linkCanvas) {
+        new Chart(linkCanvas.getContext('2d'), {
             type: 'doughnut',
             data: {
                 labels: ['مربوطة', 'غير مربوطة'],
                 datasets: [{
-                    data: [{{ linked_logs }}, {{ unlinked_logs }}],
+                    data: [linkedLogs, unlinkedLogs],
                     backgroundColor: ['#28a745', '#dc3545'],
                     borderWidth: 0
                 }]
@@ -451,14 +495,14 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // نسبة المعالجة
-    const processCtx = document.getElementById('processProgressChart');
-    if (processCtx) {
-        new Chart(processCtx, {
+    const processCanvas = document.getElementById('processProgressChart');
+    if (processCanvas) {
+        new Chart(processCanvas.getContext('2d'), {
             type: 'doughnut',
             data: {
                 labels: ['معالجة', 'غير معالجة'],
                 datasets: [{
-                    data: [{{ processed_logs }}, {{ unprocessed_logs }}],
+                    data: [processedLogs, unprocessedLogs],
                     backgroundColor: ['#17a2b8', '#ffc107'],
                     borderWidth: 0
                 }]
@@ -477,18 +521,16 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // الرسم البياني الأسبوعي
-    const weeklyCtx = document.getElementById('weeklyChart');
-    if (weeklyCtx) {
-        const dailyData = {{ daily_stats|safe }};
-        
-        new Chart(weeklyCtx, {
+    const weeklyCanvas = document.getElementById('weeklyChart');
+    if (weeklyCanvas && Array.isArray(dailyData)) {
+        new Chart(weeklyCanvas.getContext('2d'), {
             type: 'line',
             data: {
-                labels: dailyData.map(d => d.date_display),
+                labels: dailyData.map(function(d) { return d.date_display; }),
                 datasets: [
                     {
                         label: 'إجمالي السجلات',
-                        data: dailyData.map(d => d.total),
+                        data: dailyData.map(function(d) { return d.total; }),
                         borderColor: '#007bff',
                         backgroundColor: 'rgba(0, 123, 255, 0.1)',
                         tension: 0.4,
@@ -496,7 +538,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     },
                     {
                         label: 'مربوطة',
-                        data: dailyData.map(d => d.linked),
+                        data: dailyData.map(function(d) { return d.linked; }),
                         borderColor: '#28a745',
                         backgroundColor: 'rgba(40, 167, 69, 0.1)',
                         tension: 0.4,
@@ -504,7 +546,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     },
                     {
                         label: 'معالجة',
-                        data: dailyData.map(d => d.processed),
+                        data: dailyData.map(function(d) { return d.processed; }),
                         borderColor: '#17a2b8',
                         backgroundColor: 'rgba(23, 162, 184, 0.1)',
                         tension: 0.4,

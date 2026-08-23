@@ -108,18 +108,99 @@ label:not(.form-check-label):not(.btn) {
     resize: vertical;
 }
 
-/* Select specific styles */
-.form-select {
-    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e");
-    background-repeat: no-repeat;
-    background-position: left 0.75rem center;
-    background-size: 16px 12px;
-    padding-left: 2.25rem;
+/* ==========================================================================
+   التنسيق الموحد لجميع القوائم المنسدلة (Native Select Architecture)
+   ========================================================================== */
+select,
+.form-select,
+select.form-control {
+    height: var(--form-input-height) !important;
+    min-height: var(--form-input-height) !important;
+    padding: 0.4rem 0.85rem 0.4rem 2.25rem !important;
+    font-size: var(--font-size-base) !important;
+    font-family: var(--font-family-sans) !important;
+    line-height: var(--line-height-normal) !important;
+    color: var(--text-color) !important;
+    background-color: var(--form-input-bg) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: var(--border-radius) !important;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23667788' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e") !important;
+    background-repeat: no-repeat !important;
+    background-position: left 0.85rem center !important;
+    background-size: 14px 10px !important;
+    appearance: none !important;
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+    box-sizing: border-box !important;
+    transition: var(--transition-all) !important;
 }
 
-html[dir="rtl"] .form-select {
-    background-position: left 0.75rem center;
-    padding-right: 0.5rem;
+html[dir="rtl"] select,
+html[dir="rtl"] .form-select,
+html[dir="rtl"] select.form-control {
+    background-position: left 0.85rem center !important;
+    padding-left: 2.25rem !important;
+    padding-right: 0.85rem !important;
+}
+
+/* حالة التركيز (Focus State) */
+select:focus,
+.form-select:focus,
+select.form-control:focus {
+    border-color: var(--primary-color) !important;
+    outline: 0 !important;
+    box-shadow: 0 0 0 0.2rem var(--primary-focus) !important;
+}
+
+/* حالة التعطيل (Disabled) */
+select:disabled,
+.form-select:disabled,
+select.form-control:disabled {
+    background-color: var(--form-input-bg-disabled) !important;
+    color: var(--text-muted) !important;
+    cursor: not-allowed !important;
+    opacity: 0.75 !important;
+}
+
+/* الحجم الصغير (داخل الجداول والفلاتر المصغرة) */
+select.form-select-sm,
+.form-select-sm,
+.table select {
+    height: 2rem !important;
+    min-height: 2rem !important;
+    padding: 0.25rem 0.6rem 0.25rem 1.75rem !important;
+    font-size: var(--font-size-sm) !important;
+    background-position: left 0.5rem center !important;
+}
+
+/* حالة التسميات العائمة في بوتستراب 5 */
+.form-floating > select.form-select {
+    height: calc(3.5rem + 2px) !important;
+    padding-top: 1.625rem !important;
+    padding-bottom: 0.625rem !important;
+}
+
+/* حالة الخطأ والتحقق (Validation State) */
+select.is-invalid,
+.form-select.is-invalid,
+.was-validated select:invalid {
+    border-color: var(--danger-color) !important;
+    box-shadow: 0 0 0 0.2rem var(--danger-soft) !important;
+}
+
+/* سهم القائمة مع الثيمات الداكنة أو الخلفيات الغامقة */
+[data-theme="dark"] select,
+.bg-dark select,
+.table-dark select {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23d1d5db' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e") !important;
+}
+
+/* نصوص المساعدة والتنبيهات */
+.form-text,
+.invalid-feedback {
+    width: 100% !important;
+    clear: both !important;
+    margin-top: 0.35rem !important;
 }
 
 /* ========================================
@@ -1249,6 +1330,26 @@ html[dir="rtl"] .form-floating > .form-select ~ label {
     padding: 2px 6px;
     border-radius: 4px;
     border: 1px solid var(--border-color, #dee2e6);
+}
+
+/* ==========================================================================
+   مظهر القوائم المنسدلة عند الطباعة الرسمية
+   ========================================================================== */
+@media print {
+    select,
+    .form-select,
+    select.form-control,
+    .select2-container {
+        background-image: none !important;
+        box-shadow: none !important;
+        border: none !important;
+        appearance: none !important;
+        -webkit-appearance: none !important;
+    }
+    .select2-selection__arrow,
+    .select2-selection__clear {
+        display: none !important;
+    }
 }
 
 

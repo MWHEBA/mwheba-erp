@@ -323,9 +323,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<!-- مكتبة SheetJS لتصدير البيانات إلى Excel بدعم كامل للغة العربية -->
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{% static 'js/chart.min.js' %}"></script>
 <!-- استخدام مكتبة DataTables من ملف global-table.js الموجود -->
 <script src="{% static 'js/global-table.js' %}"></script>
 <script>
@@ -465,17 +463,20 @@ function exportTableToCSV(tableId, filename) {
 }
 
 function exportTableToExcel(tableId, filename) {
-  const table = document.getElementById(tableId);
-  const wb = XLSX.utils.book_new();
-  
-  // تحويل الجدول إلى worksheet
-  const ws = XLSX.utils.table_to_sheet(table);
-  
-  // إضافة worksheet إلى workbook
-  XLSX.utils.book_append_sheet(wb, ws, 'تقرير دوران المخزون');
-  
-  // تحميل الملف
-  XLSX.writeFile(wb, filename);
+  if (typeof XLSX === 'undefined' || XLSX.isFallback) {
+    exportTableToCSV(tableId, (filename || 'تقرير_دوران_المخزون').replace(/\.xlsx$/i, '') + '.csv');
+    return;
+  }
+  try {
+    const table = document.getElementById(tableId);
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.table_to_sheet(table);
+    XLSX.utils.book_append_sheet(wb, ws, 'تقرير دوران المخزون');
+    XLSX.writeFile(wb, filename);
+  } catch (err) {
+    console.warn('Error exporting to Excel, falling back to CSV:', err);
+    exportTableToCSV(tableId, (filename || 'تقرير_دوران_المخزون').replace(/\.xlsx$/i, '') + '.csv');
+  }
 }
 </script>
 {% endblock %}

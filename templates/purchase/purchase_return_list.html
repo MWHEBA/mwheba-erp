@@ -7,17 +7,6 @@
 {% block title %}{{ page_title|default:"مرتجعات المشتريات" }}{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/select2.min.css' %}">
-<style>
-  .select2-container--default .select2-selection--single {
-    height: calc(1.5em + .75rem + 2px);
-    border: 1px solid var(--border-color);
-    border-radius: var(--border-radius);
-  }
-  .select2-container--default .select2-selection--single .select2-selection__arrow {
-    height: calc(1.5em + .75rem + 2px);
-  }
-</style>
 {% endblock %}
 
 {% block content %}

@@ -358,7 +358,6 @@ If custom_filters is available, it will be used for JSON parsing.
     {% endif %}
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <script>
 function formatInternationalPhone(phone) {
     if (!phone) return '';
@@ -411,23 +410,38 @@ function downloadDocumentPDF(pdfUrl, printUrl, docNumber) {
 function generateClientPDF(fileName) {
     let element = document.querySelector('.print-container') || document.querySelector('.invoice-card') || document.querySelector('.card') || document.body;
     
-    if (typeof html2pdf !== 'undefined' && element) {
-        let opt = {
-            margin:       [5, 5, 5, 5],
-            filename:     fileName,
-            image:        { type: 'jpeg', quality: 0.98 },
-            html2canvas:  { scale: 2, useCORS: true, logging: false },
-            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-        };
-        html2pdf().set(opt).from(element).save().then(function() {
-            showToastNotification("{% if is_english %}PDF downloaded successfully!{% else %}تم تحميل الـ PDF بنجاح!{% endif %}");
-        }).catch(function() {
+    function doRender() {
+        if (typeof html2pdf !== 'undefined' && element) {
+            let opt = {
+                margin:       [5, 5, 5, 5],
+                filename:     fileName,
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2, useCORS: true, logging: false },
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+            html2pdf().set(opt).from(element).save().then(function() {
+                showToastNotification("{% if is_english %}PDF downloaded successfully!{% else %}تم تحميل الـ PDF بنجاح!{% endif %}");
+            }).catch(function() {
+                let targetUrl = window.location.pathname.replace(/\/$/, '') + '/pdf/';
+                window.open(targetUrl, '_blank');
+            });
+        } else {
             let targetUrl = window.location.pathname.replace(/\/$/, '') + '/pdf/';
             window.open(targetUrl, '_blank');
-        });
+        }
+    }
+
+    if (typeof html2pdf === 'undefined') {
+        let script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+        script.onload = doRender;
+        script.onerror = function() {
+            let targetUrl = window.location.pathname.replace(/\/$/, '') + '/pdf/';
+            window.open(targetUrl, '_blank');
+        };
+        document.head.appendChild(script);
     } else {
-        let targetUrl = window.location.pathname.replace(/\/$/, '') + '/pdf/';
-        window.open(targetUrl, '_blank');
+        doRender();
     }
 }
 
