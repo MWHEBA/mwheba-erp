@@ -752,12 +752,12 @@ def sale_list(request):
     # تصفية حسب نص البحث
     search_query = request.GET.get("search") or request.GET.get("q")
     if search_query:
-        search_query = search_query.strip()
-        sales_query = sales_query.filter(
-            models.Q(number__icontains=search_query) |
-            models.Q(customer__name__icontains=search_query) |
-            models.Q(notes__icontains=search_query) |
-            models.Q(custom_fields__icontains=search_query)
+        from utils.search import smart_search_filter
+        sales_query = smart_search_filter(
+            sales_query,
+            search_query.strip(),
+            text_fields=["customer__name", "customer__company_name", "notes", "custom_fields"],
+            code_fields=["number", "customer__code", "customer__phone"]
         )
 
     # تصفية حسب العميل

@@ -217,12 +217,12 @@ def product_list(request):
 
         # تطبيق الفلاتر
         if search_query:
-            products = products.filter(
-                Q(name__icontains=search_query) |
-                Q(name_en__icontains=search_query) |
-                Q(sku__icontains=search_query) |
-                Q(description__icontains=search_query) |
-                Q(description_en__icontains=search_query)
+            from utils.search import smart_search_filter
+            products = smart_search_filter(
+                products,
+                search_query,
+                text_fields=['name', 'name_en', 'description', 'description_en'],
+                code_fields=['sku', 'barcode']
             )
         if status == "active":
             products = products.filter(is_active=True)

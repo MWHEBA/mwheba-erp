@@ -32,6 +32,7 @@ def supplier_list(request):
     status = request.GET.get("status", "")
     search = request.GET.get("search", "")
     has_debt = request.GET.get("has_debt", "")
+    currency_id = request.GET.get("currency", "")
     entity_type = request.GET.get("entity_type", "")
     primary_type = request.GET.get("primary_type", "")
     order_by = request.GET.get("order_by", "balance")
@@ -44,6 +45,9 @@ def supplier_list(request):
     elif status == "inactive":
         suppliers = suppliers.filter(is_active=False)
 
+    if currency_id:
+        suppliers = suppliers.filter(default_currency_id=currency_id)
+
     if entity_type:
         suppliers = suppliers.filter(entity_type=entity_type)
 
@@ -51,21 +55,33 @@ def supplier_list(request):
         suppliers = suppliers.filter(primary_type_id=primary_type)
 
     if search:
-        suppliers = suppliers.filter(
-            models.Q(name__icontains=search)
-            | models.Q(code__icontains=search)
-            | models.Q(phone__icontains=search)
-            | models.Q(secondary_phone__icontains=search)
-            | models.Q(tax_number__icontains=search)
-            | models.Q(national_id__icontains=search)
-            | models.Q(commercial_registry__icontains=search)
-            | models.Q(contact_person__icontains=search)
+        from utils.search import smart_search_filter
+        suppliers = smart_search_filter(
+            suppliers,
+            search,
+            text_fields=['name', 'contact_person', 'address'],
+            code_fields=['code', 'phone', 'secondary_phone', 'tax_number', 'national_id', 'commercial_registry']
         )
 
     if has_debt == "1":
         suppliers = suppliers.filter(balance__gt=0)
     elif has_debt == "0":
         suppliers = suppliers.filter(balance__lte=0)
+
+    # جلب العملات والتصنيفات المستخدمة فقط في الموردين
+    from financial.models.currency import Currency
+    used_currency_ids = Supplier.objects.exclude(default_currency__isnull=True).values_list('default_currency_id', flat=True).distinct()
+    currencies = Currency.objects.filter(id__in=used_currency_ids).order_by('name')
+
+    used_type_ids = Supplier.objects.exclude(primary_type__isnull=True).values_list('primary_type_id', flat=True).distinct()
+    supplier_types = SupplierType.objects.filter(id__in=used_type_ids).order_by('name')
+    if not supplier_types.exists():
+        supplier_types = SupplierType.objects.filter(is_active=True).order_by('name')
+
+    used_entity_types = Supplier.objects.exclude(entity_type__isnull=True).exclude(entity_type='').values_list('entity_type', flat=True).distinct()
+    entity_types = [choice for choice in Supplier.ENTITY_TYPES if choice[0] in used_entity_types]
+    if not entity_types:
+        entity_types = Supplier.ENTITY_TYPES
 
     # التصدير المزدوج: تصدير كافة البيانات المفلترة من الباك إند
     if request.GET.get('export') == 'excel':
@@ -237,6 +253,8 @@ def supplier_list(request):
         "total_debt": total_debt,
         "total_purchases": total_purchases,
         "supplier_types": supplier_types,
+        "currencies": currencies,
+        "entity_types": entity_types,
         "show_export": True,
         # بيانات الهيدر
         "page_title": "قائمة الموردين",

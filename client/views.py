@@ -31,6 +31,8 @@ def customer_list(request):
     status = request.GET.get('status', '')
     has_debt = request.GET.get('has_debt', '')
     search = request.GET.get('search', '')
+    currency_id = request.GET.get('currency', '')
+    client_type = request.GET.get('client_type', '')
 
     customers_qs = Customer.objects.select_related('default_currency').all().order_by('-created_at')
 
@@ -39,18 +41,35 @@ def customer_list(request):
     elif status == 'inactive':
         customers_qs = customers_qs.filter(is_active=False)
 
+    if currency_id:
+        customers_qs = customers_qs.filter(default_currency_id=currency_id)
+
+    if client_type:
+        customers_qs = customers_qs.filter(client_type=client_type)
+
     if search:
-        customers_qs = customers_qs.filter(
-            Q(name__icontains=search) |
-            Q(phone_primary__icontains=search) |
-            Q(phone__icontains=search) |
-            Q(code__icontains=search)
+        from utils.search import smart_search_filter
+        customers_qs = smart_search_filter(
+            customers_qs,
+            search,
+            text_fields=['name', 'company_name', 'contact_person', 'address', 'city'],
+            code_fields=['code', 'phone', 'phone_primary', 'phone_secondary', 'tax_number', 'national_id', 'commercial_registry']
         )
 
     if has_debt == '1':
         customers_qs = customers_qs.filter(balance__gt=0)
     elif has_debt == '0':
         customers_qs = customers_qs.filter(balance__lte=0)
+
+    # جلب العملات والتصنيفات المستخدمة فقط في العملاء
+    from financial.models.currency import Currency
+    used_currency_ids = Customer.objects.exclude(default_currency__isnull=True).values_list('default_currency_id', flat=True).distinct()
+    currencies = Currency.objects.filter(id__in=used_currency_ids).order_by('name')
+
+    used_client_types = Customer.objects.exclude(client_type__isnull=True).exclude(client_type='').values_list('client_type', flat=True).distinct()
+    client_types = [choice for choice in Customer.CLIENT_TYPES if choice[0] in used_client_types]
+    if not client_types:
+        client_types = Customer.CLIENT_TYPES
 
     # التصدير المزدوج: تصدير كافة البيانات المفلترة من الباك إند
     if request.GET.get('export') == 'excel':
@@ -172,6 +191,8 @@ def customer_list(request):
         'active_customers': active_customers,
         'inactive_customers': inactive_customers,
         'total_debt': total_debt,
+        'currencies': currencies,
+        'client_types': client_types,
         'show_export': True,
         'page_title': "قائمة العملاء",
         'page_subtitle': "إدارة العملاء وعرض بياناتهم ومعاملاتهم المالية",

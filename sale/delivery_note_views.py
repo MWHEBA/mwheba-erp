@@ -58,10 +58,12 @@ def delivery_note_list(request):
         queryset = queryset.filter(delivery_date__lte=date_to)
 
     if search_query:
-        queryset = queryset.filter(
-            Q(delivery_number__icontains=search_query) |
-            Q(customer__name__icontains=search_query) |
-            Q(sales_order__order_number__icontains=search_query)
+        from utils.search import smart_search_filter
+        queryset = smart_search_filter(
+            queryset,
+            search_query,
+            text_fields=['customer__name', 'customer__company_name'],
+            code_fields=['delivery_number', 'sales_order__order_number', 'customer__code', 'customer__phone']
         )
 
     # حساب الإحصائيات العامة

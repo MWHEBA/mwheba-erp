@@ -1,0 +1,322 @@
+{% load i18n %}
+{% load static %}
+
+<!-- Enterprise Corporate Unified Modal for Entity Deletion & Archiving (Rule 8) -->
+<div class="modal fade" id="entityDeleteArchiveModal" tabindex="-1" aria-labelledby="entityDeleteArchiveModalLabel" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <!-- Modal Header -->
+            <div class="modal-header bg-light border-bottom px-4 py-3">
+                <h5 class="modal-title fw-bold text-dark mb-0" id="entityDeleteArchiveModalLabel">
+                    <i class="fas fa-trash-alt text-danger me-2" id="entityModalIcon"></i>
+                    <span id="entityModalTitle">{% trans "تأكيد الإجراء" %}</span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{% trans 'إغلاق' %}"></button>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="modal-body p-4">
+                <!-- Loading State Spinner -->
+                <div id="entityModalLoading" class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">{% trans "جاري التحقق من سجلات الكيان..." %}</span>
+                    </div>
+                    <p class="text-muted mt-2 mb-0 small">{% trans "جاري فحص الحسابات والعمليات المرتبطة..." %}</p>
+                </div>
+
+                <!-- Content Container (Shown after pre-check) -->
+                <div id="entityModalContent" style="display: none;">
+                    <!-- Alert Notice Box -->
+                    <div class="alert mb-3" id="entityModalAlert" role="alert">
+                        <div class="d-flex align-items-start">
+                            <i class="fas fa-exclamation-triangle fa-lg me-2 mt-1" id="entityAlertIcon"></i>
+                            <div>
+                                <strong id="entityAlertTitle"></strong>
+                                <div class="small mt-1" id="entityAlertMessage"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Entity Information Card -->
+                    <div class="card bg-light border-0 mb-3">
+                        <div class="card-body p-3">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <span class="text-muted small">{% trans "الاسم / البيان:" %}</span>
+                                <strong id="entityInfoName" class="text-dark"></strong>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center mb-1" id="entityCodeRow">
+                                <span class="text-muted small">{% trans "الكود:" %}</span>
+                                <code id="entityInfoCode" class="bg-white px-2 py-0.5 rounded border"></code>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center" id="entityDebtRow" style="display: none;">
+                                <span class="text-muted small">{% trans "الرصيد / المديونية:" %}</span>
+                                <span id="entityInfoDebt" class="badge"></span>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center mt-1" id="entityPrepaidRow" style="display: none;">
+                                <span class="text-muted small">{% trans "الرصيد المسبق المتاح:" %}</span>
+                                <span id="entityInfoPrepaid" class="badge bg-success-subtle text-success border border-success-subtle"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Transaction Summary Breakdown (For Archived entities) -->
+                    <div id="entityTransactionsBreakdown" class="mb-3" style="display: none;">
+                        <h6 class="fw-bold text-secondary small mb-2">
+                            <i class="fas fa-link me-1"></i> {% trans "سجل المعاملات والارتباطات القائمة:" %}
+                        </h6>
+                        <div class="d-flex flex-wrap gap-2" id="entityBreakdownBadges">
+                            <!-- Badges injected dynamically via JS -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="modal-footer bg-light border-top px-4 py-3">
+                <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i> {% trans "إلغاء" %}
+                </button>
+                <button type="button" class="btn px-4 fw-bold" id="entityConfirmSubmitBtn" disabled>
+                    <i class="fas fa-check me-1" id="entitySubmitIcon"></i>
+                    <span id="entitySubmitText">{% trans "تأكيد" %}</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+window.EntityDeleteArchiveController = (function() {
+    let currentConfig = {
+        entityType: '',
+        entityId: null,
+        deleteUrl: '',
+        tableContainerId: '',
+        summaryContainerId: '',
+        paginationContainerId: '',
+        canDelete: false,
+        onSuccess: null
+    };
+
+    function getCsrfToken() {
+        const tokenInput = document.querySelector('[name=csrfmiddlewaretoken]');
+        if (tokenInput) return tokenInput.value;
+        const cookie = document.cookie.split('; ').find(row => row.startsWith('csrftoken='));
+        return cookie ? cookie.split('=')[1] : '';
+    }
+
+    function openModal(options) {
+        currentConfig = Object.assign({}, currentConfig, options);
+
+        const modalEl = document.getElementById('entityDeleteArchiveModal');
+        if (!modalEl) return;
+        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+
+        // Reset UI State to Loading
+        document.getElementById('entityModalLoading').style.display = 'block';
+        document.getElementById('entityModalContent').style.display = 'none';
+        document.getElementById('entityConfirmSubmitBtn').disabled = true;
+
+        modal.show();
+
+        // Perform AJAX Pre-check
+        const precheckUrl = currentConfig.deleteUrl + (currentConfig.deleteUrl.includes('?') ? '&' : '?') + 'precheck=1';
+        
+        fetch(precheckUrl, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (!data.success) {
+                if (window.showNotification) {
+                    window.showNotification(data.message || 'فشل فحص الكيان', 'error');
+                }
+                modal.hide();
+                return;
+            }
+
+            renderModalContent(data);
+        })
+        .catch(err => {
+            console.error('Error pre-checking entity:', err);
+            if (window.showNotification) {
+                window.showNotification('حدث خطأ أثناء فحص سجلات الكيان', 'error');
+            }
+            modal.hide();
+        });
+    }
+
+    function renderModalContent(data) {
+        document.getElementById('entityModalLoading').style.display = 'none';
+        document.getElementById('entityModalContent').style.display = 'block';
+
+        const nameEl = document.getElementById('entityInfoName');
+        const codeEl = document.getElementById('entityInfoCode');
+        const codeRow = document.getElementById('entityCodeRow');
+        const debtRow = document.getElementById('entityDebtRow');
+        const debtEl = document.getElementById('entityInfoDebt');
+        const prepaidRow = document.getElementById('entityPrepaidRow');
+        const prepaidEl = document.getElementById('entityInfoPrepaid');
+        const breakdownDiv = document.getElementById('entityTransactionsBreakdown');
+        const badgesContainer = document.getElementById('entityBreakdownBadges');
+        const alertBox = document.getElementById('entityModalAlert');
+        const alertTitle = document.getElementById('entityAlertTitle');
+        const alertMsg = document.getElementById('entityAlertMessage');
+        const alertIcon = document.getElementById('entityAlertIcon');
+        const modalIcon = document.getElementById('entityModalIcon');
+        const modalTitle = document.getElementById('entityModalTitle');
+        const submitBtn = document.getElementById('entityConfirmSubmitBtn');
+        const submitIcon = document.getElementById('entitySubmitIcon');
+        const submitText = document.getElementById('entitySubmitText');
+
+        nameEl.textContent = data.name || '-';
+        if (data.code) {
+            codeEl.textContent = data.code;
+            codeRow.style.display = 'flex';
+        } else {
+            codeRow.style.display = 'none';
+        }
+
+        if (data.debt_display) {
+            debtEl.innerHTML = data.debt_display;
+            debtEl.className = 'badge ' + (data.has_debt ? 'bg-danger' : 'bg-secondary');
+            debtRow.style.display = 'flex';
+        } else {
+            debtRow.style.display = 'none';
+        }
+
+        if (data.prepaid_display) {
+            prepaidEl.innerHTML = data.prepaid_display;
+            prepaidRow.style.display = 'flex';
+        } else {
+            prepaidRow.style.display = 'none';
+        }
+
+        currentConfig.canDelete = data.can_delete;
+
+        if (data.can_delete) {
+            // HARD DELETE MODE
+            modalIcon.className = 'fas fa-trash-alt text-danger me-2';
+            modalTitle.textContent = 'تأكيد الحذف النهائي';
+            alertBox.className = 'alert alert-danger mb-3';
+            alertIcon.className = 'fas fa-trash-alt fa-lg me-2 mt-1 text-danger';
+            alertTitle.textContent = 'تحذير: حذف نهائي من قاعدة البيانات';
+            alertMsg.textContent = 'هذا السجل جديد وخالٍ تماماً من أي معاملات سابقة. سيتم مسح السجل وتطهير الحساب المالي المرتبط من شجرة الحسابات نهائياً.';
+            
+            submitBtn.className = 'btn btn-danger px-4 fw-bold';
+            submitIcon.className = 'fas fa-trash-alt me-1';
+            submitText.textContent = 'تأكيد الحذف النهائي';
+            breakdownDiv.style.display = 'none';
+        } else {
+            // SOFT ARCHIVE MODE
+            modalIcon.className = 'fas fa-archive text-warning me-2';
+            modalTitle.textContent = 'أرشفة وتعطيل السجل';
+            alertBox.className = 'alert alert-warning mb-3';
+            alertIcon.className = 'fas fa-info-circle fa-lg me-2 mt-1 text-warning';
+            alertTitle.textContent = 'تنبيه: لا يمكن الحذف الجذري لحماية القيود المحاسبية';
+            alertMsg.textContent = 'هذا السجل مرتبط بمعاملات محاسبية أو فواتير سابقة. سيتم تعطيله وأرشفته فوراً لمنع استخدامه في المعاملات الجديدة مع بقاء دفاتره سليمة.';
+            
+            submitBtn.className = 'btn btn-warning text-dark px-4 fw-bold';
+            submitIcon.className = 'fas fa-archive me-1';
+            submitText.textContent = 'أرشفة وتعطيل السجل';
+
+            // Populate Breakdown Badges
+            badgesContainer.innerHTML = '';
+            if (data.transactions_summary && Array.isArray(data.transactions_summary)) {
+                data.transactions_summary.forEach(item => {
+                    const badge = document.createElement('span');
+                    badge.className = 'badge bg-white text-dark border p-2';
+                    badge.innerHTML = `<i class="${item.icon || 'fas fa-circle'} text-primary me-1"></i> ${item.label}: <strong>${item.count}</strong>`;
+                    badgesContainer.appendChild(badge);
+                });
+                breakdownDiv.style.display = 'block';
+            } else {
+                breakdownDiv.style.display = 'none';
+            }
+        }
+
+        submitBtn.disabled = false;
+    }
+
+    function submitAction() {
+        const submitBtn = document.getElementById('entityConfirmSubmitBtn');
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status"></span> جاري التنفيذ...';
+
+        const formData = new FormData();
+        formData.append('csrfmiddlewaretoken', getCsrfToken());
+        formData.append('action', currentConfig.canDelete ? 'delete' : 'archive');
+
+        fetch(currentConfig.deleteUrl, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': getCsrfToken()
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            const modalEl = document.getElementById('entityDeleteArchiveModal');
+            const modal = bootstrap.Modal.getInstance(modalEl);
+            if (modal) modal.hide();
+
+            if (data.success) {
+                if (window.showNotification) {
+                    window.showNotification(data.message || 'تمت العملية بنجاح', data.action === 'deleted' ? 'success' : 'warning');
+                } else if (window.toastr) {
+                    window.toastr[data.action === 'deleted' ? 'success' : 'warning'](data.message);
+                }
+
+                // Dynamic AJAX Swapping
+                if (data.table_html && currentConfig.tableContainerId) {
+                    const tContainer = document.getElementById(currentConfig.tableContainerId);
+                    if (tContainer) tContainer.innerHTML = data.table_html;
+                }
+                if (data.summary_html && currentConfig.summaryContainerId) {
+                    const sContainer = document.getElementById(currentConfig.summaryContainerId);
+                    if (sContainer) sContainer.innerHTML = data.summary_html;
+                }
+                if (data.pagination_html && currentConfig.paginationContainerId) {
+                    const pContainer = document.getElementById(currentConfig.paginationContainerId);
+                    if (pContainer) pContainer.innerHTML = data.pagination_html;
+                }
+
+                if (typeof currentConfig.onSuccess === 'function') {
+                    currentConfig.onSuccess(data);
+                } else if (window.doSearch && !data.table_html) {
+                    window.doSearch();
+                } else if (!data.table_html && data.redirect_url) {
+                    window.location.href = data.redirect_url;
+                }
+            } else {
+                if (window.showNotification) {
+                    window.showNotification(data.message || 'فشلت العملية', 'error');
+                }
+            }
+        })
+        .catch(err => {
+            console.error('Error submitting delete/archive:', err);
+            if (window.showNotification) {
+                window.showNotification('حدث خطأ أثناء تنفيذ الإجراء', 'error');
+            }
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'إعادة المحاولة';
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const submitBtn = document.getElementById('entityConfirmSubmitBtn');
+        if (submitBtn) {
+            submitBtn.addEventListener('click', submitAction);
+        }
+    });
+
+    return {
+        open: openModal
+    };
+})();
+</script>

@@ -427,11 +427,14 @@ class JournalEntry(models.Model):
         if src_mod in ['inventory', 'product'] or 'stock' in src_model or 'movement' in src_model:
             return _("حركة مخزون")
             
-        # 3. استنتاج من المرجع والوصف
+        # 3. استنتاج من المرجع والوصف والمصدر
         ref = (self.reference or '').upper()
+        ref_type = (getattr(self, 'reference_type', '') or '').upper()
         desc = (self.description or '')
         desc_upper = desc.upper()
         
+        if src_mod == 'opening_balance' or ref_type == 'OPENING_BALANCE' or ref.startswith('OPB') or ref.startswith('OPN') or 'افتتاحي' in desc or 'رصيد افتتاحي' in desc:
+            return _("قيد افتتاحي")
         if 'GRN-REV' in ref or 'GRN REVERSAL' in desc_upper:
             return _("عكس إذن استلام (GRN)")
         if 'GRN' in ref or 'GRN ' in desc_upper or 'GOODS RECEIPT' in desc_upper:
@@ -454,10 +457,10 @@ class JournalEntry(models.Model):
             return _("تقييم فروق عملة")
         if 'تسوية' in desc:
             return _("قيد تسوية")
-        if self.entry_type == 'manual':
-            return _("قيد يدوي")
         if self.entry_type == 'opening':
             return _("قيد افتتاحي")
+        if self.entry_type == 'manual':
+            return _("قيد يدوي")
         if self.entry_type == 'reversal':
             return _("قيد عكسي")
 

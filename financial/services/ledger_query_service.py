@@ -158,7 +158,31 @@ class LedgerQueryService:
             filters = Q(account=account)
             is_consolidated = False
 
-        # 4. حساب رصيد الافتتاح قبل start_date
+        category = getattr(getattr(account, 'account_type', None), 'category', 'asset')
+        is_debit_nature = str(category).lower() in ['asset', 'expense']
+
+        is_opening_q = (
+            Q(journal_entry__entry_type='opening') |
+            Q(journal_entry__source_module='OPENING_BALANCE') |
+            Q(journal_entry__reference_type='OPENING_BALANCE') |
+            Q(journal_entry__reference__startswith='OPB') |
+            Q(journal_entry__reference__startswith='OPN')
+        )
+
+        # 4. استعلام حركات الفترة والقيود
+        if not include_unposted:
+            filters &= Q(journal_entry__status='posted')
+
+        if start_date:
+            filters &= Q(journal_entry__date__gte=start_date)
+        if end_date:
+            filters &= Q(journal_entry__date__lte=end_date)
+        if cost_center:
+            filters &= Q(cost_center_id=cost_center if isinstance(cost_center, int) else getattr(cost_center, 'id', cost_center))
+        if currency:
+            filters &= Q(currency=currency)
+
+        # 5. حساب رصيد الافتتاح (شاملاً القيود الافتتاحية)
         opening_balance = Decimal('0.00')
         opening_balance_foreign = Decimal('0.00')
         if start_date:
@@ -172,35 +196,62 @@ class LedgerQueryService:
             )
             opening_balance = op_data['balance']
             opening_balance_foreign = op_data['foreign_balance']
+
+            # إضافة أي قيود افتتاحية مسجلة داخل الفترة إلى رصيد الافتتاح
+            op_lines_in_period = JournalEntryLine.objects.filter(filters & is_opening_q).aggregate(
+                op_debit=Sum('debit'),
+                op_credit=Sum('credit'),
+                op_f_debit=Sum('foreign_debit'),
+                op_f_credit=Sum('foreign_credit'),
+                op_t_debit=Sum('transaction_debit'),
+                op_t_credit=Sum('transaction_credit'),
+            )
+            op_deb = op_lines_in_period['op_debit'] or Decimal('0.00')
+            op_crd = op_lines_in_period['op_credit'] or Decimal('0.00')
+            op_f_deb = (op_lines_in_period['op_f_debit'] or Decimal('0.00')) or (op_lines_in_period['op_t_debit'] or Decimal('0.00'))
+            op_f_crd = (op_lines_in_period['op_f_credit'] or Decimal('0.00')) or (op_lines_in_period['op_t_credit'] or Decimal('0.00'))
+
+            if is_debit_nature:
+                opening_balance += (op_deb - op_crd)
+                opening_balance_foreign += (op_f_deb - op_f_crd)
+            else:
+                opening_balance += (op_crd - op_deb)
+                opening_balance_foreign += (op_f_crd - op_f_deb)
         else:
-            # الرصيد الافتتاحي الأساسي
+            initial_op_local = Decimal('0.00')
+            initial_op_foreign = Decimal('0.00')
             for acc in target_accounts:
-                opening_balance += (acc.opening_balance or Decimal('0.00'))
-                opening_balance_foreign += (acc.opening_balance_foreign or Decimal('0.00'))
+                initial_op_local += (acc.opening_balance or Decimal('0.00'))
+                initial_op_foreign += (acc.opening_balance_foreign or Decimal('0.00'))
 
-        # 5. استعلام حركات الفترة الحالية
-        if not include_unposted:
-            filters &= Q(journal_entry__status='posted')
+            op_lines_agg = JournalEntryLine.objects.filter(filters & is_opening_q).aggregate(
+                op_debit=Sum('debit'),
+                op_credit=Sum('credit'),
+                op_f_debit=Sum('foreign_debit'),
+                op_f_credit=Sum('foreign_credit'),
+                op_t_debit=Sum('transaction_debit'),
+                op_t_credit=Sum('transaction_credit'),
+            )
+            op_deb = op_lines_agg['op_debit'] or Decimal('0.00')
+            op_crd = op_lines_agg['op_credit'] or Decimal('0.00')
+            op_f_deb = (op_lines_agg['op_f_debit'] or Decimal('0.00')) or (op_lines_agg['op_t_debit'] or Decimal('0.00'))
+            op_f_crd = (op_lines_agg['op_f_credit'] or Decimal('0.00')) or (op_lines_agg['op_t_credit'] or Decimal('0.00'))
 
-        if start_date:
-            filters &= Q(journal_entry__date__gte=start_date)
-        if end_date:
-            filters &= Q(journal_entry__date__lte=end_date)
-        if cost_center:
-            filters &= Q(cost_center_id=cost_center if isinstance(cost_center, int) else getattr(cost_center, 'id', cost_center))
-        if currency:
-            filters &= Q(currency=currency)
+            if is_debit_nature:
+                opening_balance = initial_op_local + (op_deb - op_crd)
+                opening_balance_foreign = initial_op_foreign + (op_f_deb - op_f_crd)
+            else:
+                opening_balance = initial_op_local + (op_crd - op_deb)
+                opening_balance_foreign = initial_op_foreign + (op_f_crd - op_f_deb)
 
-        lines = JournalEntryLine.objects.filter(filters).select_related(
+        # استبعاد القيود الافتتاحية من حركات الفترة التشغيلية لضمان عدم تكرارها
+        lines = JournalEntryLine.objects.filter(filters).exclude(is_opening_q).select_related(
             'account',
             'journal_entry',
             'journal_entry__reversed_by_entry',
             'journal_entry__original_entry',
             'cost_center'
         ).order_by('journal_entry__date', 'journal_entry__id', 'id')
-
-        category = getattr(getattr(account, 'account_type', None), 'category', 'asset')
-        is_debit_nature = str(category).lower() in ['asset', 'expense']
 
         transactions = []
         running_balance = opening_balance

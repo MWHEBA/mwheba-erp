@@ -43,7 +43,13 @@ def cost_centers_list_view(request):
     policy_filter = request.GET.get('policy', '').strip()
 
     if search_query:
-        queryset = queryset.filter(code__icontains=search_query) | queryset.filter(name__icontains=search_query)
+        from utils.search import smart_search_filter
+        queryset = smart_search_filter(
+            queryset,
+            search_query,
+            text_fields=['name', 'description'],
+            code_fields=['code']
+        )
 
     if policy_filter in ['OPTIONAL', 'REQUIRED', 'FORBIDDEN']:
         queryset = queryset.filter(cost_center_policy=policy_filter)

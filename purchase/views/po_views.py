@@ -54,11 +54,14 @@ def po_list(request):
     if date_to:
         orders = orders.filter(order_date__lte=date_to)
 
-    search_query = request.GET.get("q", "").strip()
+    search_query = request.GET.get("q") or request.GET.get("search")
     if search_query:
-        orders = orders.filter(
-            Q(order_number__icontains=search_query) |
-            Q(supplier__name__icontains=search_query)
+        from utils.search import smart_search_filter
+        orders = smart_search_filter(
+            orders,
+            search_query.strip(),
+            text_fields=["supplier__name", "supplier__contact_person", "notes"],
+            code_fields=["order_number", "supplier__code", "supplier__phone"]
         )
 
     # KPI Statistics

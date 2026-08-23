@@ -49,7 +49,13 @@ def tax_code_list(request):
     tax_type_filter = request.GET.get('tax_type', '').strip()
 
     if search_query:
-        tax_codes_qs = tax_codes_qs.filter(name__icontains=search_query) | tax_codes_qs.filter(code__icontains=search_query)
+        from utils.search import smart_search_filter
+        tax_codes_qs = smart_search_filter(
+            tax_codes_qs,
+            search_query,
+            text_fields=['name', 'description'],
+            code_fields=['code']
+        )
     if tax_type_filter:
         tax_codes_qs = tax_codes_qs.filter(tax_type=tax_type_filter)
 

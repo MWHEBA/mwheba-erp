@@ -135,8 +135,12 @@ def journal_entries_list(request):
             journal_entries_list = journal_entries_list.filter(status=status)
 
         if search:
-            journal_entries_list = journal_entries_list.filter(
-                Q(reference__icontains=search) | Q(description__icontains=search)
+            from utils.search import smart_search_filter
+            journal_entries_list = smart_search_filter(
+                journal_entries_list,
+                search,
+                text_fields=["description", "reference"],
+                code_fields=["reference", "journal_entry_number"]
             )
 
         if date_from:
@@ -1959,11 +1963,13 @@ def get_entries_with_filters_optimized(filters=None, page_size=25):
         
         # البحث النصي
         if 'search' in filters and filters['search']:
+            from utils.search import smart_search_filter
             search_term = filters['search']
-            queryset = queryset.filter(
-                Q(number__icontains=search_term) |
-                Q(reference__icontains=search_term) |
-                Q(description__icontains=search_term)
+            queryset = smart_search_filter(
+                queryset,
+                search_term,
+                text_fields=["description", "reference"],
+                code_fields=["number", "reference"]
             )
         
         # فلتر الحساب

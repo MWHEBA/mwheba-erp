@@ -128,7 +128,7 @@ class OpeningBalancePostingService:
             journal_entry = JournalEntry.objects.create(
                 number=jv_number,
                 date=batch.opening_date,
-                entry_type='manual',
+                entry_type='opening',
                 status='posted',
                 description=f"قيد افتتاحي للدفعة {batch.batch_number} - {batch.description}".strip(),
                 reference=batch.batch_number,

@@ -30,6 +30,17 @@ def purchase_list(request):
     """
     purchases_query = Purchase.objects.with_list_details().all().order_by("-date", "-id")
 
+    # تصفية حسب نص البحث
+    search = request.GET.get("search") or request.GET.get("q")
+    if search:
+        from utils.search import smart_search_filter
+        purchases_query = smart_search_filter(
+            purchases_query,
+            search.strip(),
+            text_fields=["supplier__name", "supplier__contact_person", "notes"],
+            code_fields=["number", "supplier__code", "supplier__phone"]
+        )
+
     # تصفية حسب المورد
     supplier = request.GET.get("supplier")
     if supplier:

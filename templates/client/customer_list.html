@@ -19,36 +19,54 @@
   
   <!-- تصفية وبحث -->
   <div class="section-container mb-4">
-    <h5 class="section-title" data-bs-toggle="collapse" data-bs-target="#filterSection" aria-expanded="{% if request.GET.search or request.GET.status or request.GET.has_debt %}true{% else %}false{% endif %}" style="cursor: pointer;">
+    <h5 class="section-title" data-bs-toggle="collapse" data-bs-target="#filterSection" aria-expanded="{% if request.GET.search or request.GET.status or request.GET.has_debt or request.GET.currency or request.GET.client_type %}true{% else %}false{% endif %}" style="cursor: pointer;">
       <i class="fas fa-filter me-2"></i>{% trans "تصفية وبحث" %}
-      {% if request.GET.search or request.GET.status or request.GET.has_debt %}<span class="badge bg-primary ms-2">فعّال</span>{% endif %}
+      {% if request.GET.search or request.GET.status or request.GET.has_debt or request.GET.currency or request.GET.client_type %}<span class="badge bg-primary ms-2">فعّال</span>{% endif %}
       <i class="fas fa-chevron-down float-end"></i>
     </h5>
-    <div class="collapse {% if request.GET.search or request.GET.status or request.GET.has_debt %}show{% endif %}" id="filterSection">
+    <div class="collapse {% if request.GET.search or request.GET.status or request.GET.has_debt or request.GET.currency or request.GET.client_type %}show{% endif %}" id="filterSection">
       <div class="filter-section mb-4">
-        <form method="GET" action="{% url 'client:customer_list' %}" class="d-flex flex-nowrap gap-2 align-items-end">
-          <div class="flex-grow-1">
+        <form method="GET" action="{% url 'client:customer_list' %}" class="row g-2 align-items-end">
+          <div class="col-md-3 col-sm-6">
             <label for="search" class="form-label">{% trans "بحث" %}</label>
             <input type="text" class="form-control" id="search" name="search" value="{{ request.GET.search }}" placeholder="اسم أو هاتف أو كود العميل">
           </div>
-          <div class="flex-shrink-0">
-            <label for="has_debt" class="form-label">المديونية</label>
-            <select class="form-select" id="has_debt" name="has_debt" style="min-width:150px">
-              <option value="">الكل</option>
+          <div class="col-md-2 col-sm-6">
+            <label for="client_type" class="form-label">{% trans "التصنيف" %}</label>
+            <select class="form-select" id="client_type" name="client_type">
+              <option value="">{% trans "كل التصنيفات" %}</option>
+              {% for val, label in client_types %}
+              <option value="{{ val }}" {% if request.GET.client_type == val %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-2 col-sm-6">
+            <label for="currency" class="form-label">{% trans "العملة" %}</label>
+            <select class="form-select" id="currency" name="currency">
+              <option value="">{% trans "كل العملات" %}</option>
+              {% for curr in currencies %}
+              <option value="{{ curr.id }}" {% if request.GET.currency == curr.id|stringformat:"s" %}selected{% endif %}>{{ curr.name }} ({{ curr.code }})</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-2 col-sm-6">
+            <label for="has_debt" class="form-label">{% trans "المديونية" %}</label>
+            <select class="form-select" id="has_debt" name="has_debt">
+              <option value="">{% trans "الكل" %}</option>
               <option value="1" {% if request.GET.has_debt == '1' %}selected{% endif %}>عليهم مديونية</option>
               <option value="0" {% if request.GET.has_debt == '0' %}selected{% endif %}>بدون مديونية</option>
             </select>
           </div>
-          <div class="flex-shrink-0">
+          <div class="col-md-1 col-sm-6">
             <label for="status" class="form-label">{% trans "الحالة" %}</label>
-            <select class="form-select" id="status" name="status" style="min-width:120px">
+            <select class="form-select" id="status" name="status">
               <option value="">{% trans "الكل" %}</option>
               <option value="active" {% if request.GET.status == 'active' %}selected{% endif %}>{% trans "نشط" %}</option>
               <option value="inactive" {% if request.GET.status == 'inactive' %}selected{% endif %}>{% trans "غير نشط" %}</option>
             </select>
           </div>
-          <div class="flex-shrink-0 d-flex gap-2 align-self-end">
-            <button type="submit" class="btn btn-primary">
+          <div class="col-md-2 col-sm-6 d-flex gap-2">
+            <button type="submit" class="btn btn-primary flex-grow-1">
               <i class="fas fa-search me-1"></i>{% trans "بحث" %}
             </button>
             <a href="{% url 'client:customer_list' %}" class="btn btn-outline-secondary">
@@ -108,6 +126,7 @@
   $(document).ready(function() {
     initTable();
 
+    let debounceTimer;
     // Global Ajax search function
     window.doSearch = function(customQueryStr) {
       let queryString = '';
@@ -116,6 +135,8 @@
       } else {
         const params = new URLSearchParams({
           search: $('#search').val() || '',
+          client_type: $('#client_type').val() || '',
+          currency: $('#currency').val() || '',
           has_debt: $('#has_debt').val() || '',
           status: $('#status').val() || '',
           page: 1
@@ -144,7 +165,7 @@
       debounceTimer = setTimeout(function() { window.doSearch(); }, 400);
     });
 
-    $('#has_debt, #status').on('change', function() {
+    $('#client_type, #currency, #has_debt, #status').on('change', function() {
       window.doSearch();
     });
 

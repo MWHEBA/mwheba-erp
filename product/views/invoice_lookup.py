@@ -110,12 +110,14 @@ def invoice_product_lookup(request):
         matched_variant_product_ids = set()
 
         if query:
+            from utils.search import build_smart_search_query
             # البحث في المتغيرات
             v_qs = ProductVariant.objects.filter(is_active=True)
             if exact:
                 v_qs = v_qs.filter(Q(sku__iexact=query) | Q(barcode__iexact=query))
             else:
-                v_qs = v_qs.filter(Q(sku__icontains=query) | Q(barcode__icontains=query) | Q(name__icontains=query))
+                v_query = build_smart_search_query(query, text_fields=["name"], code_fields=["sku", "barcode"])
+                v_qs = v_qs.filter(v_query)
             
             for v in v_qs.select_related("product")[:20]:
                 variant_matches[v.id] = v
@@ -127,13 +129,11 @@ def invoice_product_lookup(request):
         elif exact:
             qs = qs.filter(Q(sku__iexact=query) | Q(barcode__iexact=query) | Q(id__in=matched_variant_product_ids))
         elif query:
-            qs = qs.filter(
-                Q(name__icontains=query) |
-                Q(name_en__icontains=query) |
-                Q(sku__icontains=query) |
-                Q(barcode__icontains=query) |
-                Q(id__in=matched_variant_product_ids)
-            )
+            from utils.search import build_smart_search_query
+            prod_query = build_smart_search_query(query, text_fields=["name", "name_en", "description"], code_fields=["sku", "barcode"])
+            if matched_variant_product_ids:
+                prod_query |= Q(id__in=matched_variant_product_ids)
+            qs = qs.filter(prod_query)
 
         # 4. جلب كميات المخزون
         stock_map = {}

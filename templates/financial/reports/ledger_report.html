@@ -226,17 +226,18 @@
                 <div class="col">
                     <div class="stats-card stats-card-info h-100">
                         <div class="stats-card-body">
+                            <div class="stats-card-info-content">
+                                <div class="stats-card-title">{% trans "الرصيد الافتتاحي" %}</div>
+                                {% if summary.is_foreign_account or selected_currency %}
+                                    <div class="stats-card-value">{{ summary.opening_balance_foreign|smart_float }} <small class="stats-card-unit fs-8">{{ summary.account_currency_symbol }}</small></div>
+                                    <div class="stats-card-subtitle text-muted">{{ summary.opening_balance|smart_float }} {{ summary.functional_currency_symbol }}</div>
+                                {% else %}
+                                    <div class="stats-card-value">{{ summary.opening_balance|smart_float }} <span class="stats-card-unit">{{ summary.functional_currency_symbol }}</span></div>
+                                {% endif %}
+                            </div>
                             <div class="stats-card-icon">
                                 <i class="fas fa-balance-scale"></i>
                             </div>
-                            <div class="stats-card-title">{% trans "الرصيد الافتتاحي" %}</div>
-                            {% if summary.is_foreign_account or selected_currency %}
-                                <div class="stats-card-value">{{ summary.opening_balance_foreign|smart_float }} <small class="fs-8">{{ summary.account_currency_symbol }}</small></div>
-                                <div class="stats-card-unit"><small class="text-muted">{{ summary.opening_balance|smart_float }} {{ summary.functional_currency_symbol }}</small></div>
-                            {% else %}
-                                <div class="stats-card-value">{{ summary.opening_balance|smart_float }}</div>
-                                <div class="stats-card-unit">{{ summary.functional_currency_symbol }}</div>
-                            {% endif %}
                         </div>
                     </div>
                 </div>
@@ -244,17 +245,18 @@
                 <div class="col">
                     <div class="stats-card stats-card-success h-100">
                         <div class="stats-card-body">
+                            <div class="stats-card-info-content">
+                                <div class="stats-card-title">{% trans "إجمالي المدين" %}</div>
+                                {% if summary.is_foreign_account or selected_currency %}
+                                    <div class="stats-card-value">{{ summary.total_foreign_debit|smart_float }} <small class="stats-card-unit fs-8">{{ summary.account_currency_symbol }}</small></div>
+                                    <div class="stats-card-subtitle text-muted">{{ summary.total_debit|smart_float }} {{ summary.functional_currency_symbol }}</div>
+                                {% else %}
+                                    <div class="stats-card-value">{{ summary.total_debit|smart_float }} <span class="stats-card-unit">{{ summary.functional_currency_symbol }}</span></div>
+                                {% endif %}
+                            </div>
                             <div class="stats-card-icon">
                                 <i class="fas fa-arrow-up"></i>
                             </div>
-                            <div class="stats-card-title">{% trans "إجمالي المدين" %}</div>
-                            {% if summary.is_foreign_account or selected_currency %}
-                                <div class="stats-card-value">{{ summary.total_foreign_debit|smart_float }} <small class="fs-8">{{ summary.account_currency_symbol }}</small></div>
-                                <div class="stats-card-unit"><small class="text-muted">{{ summary.total_debit|smart_float }} {{ summary.functional_currency_symbol }}</small></div>
-                            {% else %}
-                                <div class="stats-card-value">{{ summary.total_debit|smart_float }}</div>
-                                <div class="stats-card-unit">{{ summary.functional_currency_symbol }}</div>
-                            {% endif %}
                         </div>
                     </div>
                 </div>
@@ -262,17 +264,18 @@
                 <div class="col">
                     <div class="stats-card stats-card-danger h-100">
                         <div class="stats-card-body">
+                            <div class="stats-card-info-content">
+                                <div class="stats-card-title">{% trans "إجمالي الدائن" %}</div>
+                                {% if summary.is_foreign_account or selected_currency %}
+                                    <div class="stats-card-value">{{ summary.total_foreign_credit|smart_float }} <small class="stats-card-unit fs-8">{{ summary.account_currency_symbol }}</small></div>
+                                    <div class="stats-card-subtitle text-muted">{{ summary.total_credit|smart_float }} {{ summary.functional_currency_symbol }}</div>
+                                {% else %}
+                                    <div class="stats-card-value">{{ summary.total_credit|smart_float }} <span class="stats-card-unit">{{ summary.functional_currency_symbol }}</span></div>
+                                {% endif %}
+                            </div>
                             <div class="stats-card-icon">
                                 <i class="fas fa-arrow-down"></i>
                             </div>
-                            <div class="stats-card-title">{% trans "إجمالي الدائن" %}</div>
-                            {% if summary.is_foreign_account or selected_currency %}
-                                <div class="stats-card-value">{{ summary.total_foreign_credit|smart_float }} <small class="fs-8">{{ summary.account_currency_symbol }}</small></div>
-                                <div class="stats-card-unit"><small class="text-muted">{{ summary.total_credit|smart_float }} {{ summary.functional_currency_symbol }}</small></div>
-                            {% else %}
-                                <div class="stats-card-value">{{ summary.total_credit|smart_float }}</div>
-                                <div class="stats-card-unit">{{ summary.functional_currency_symbol }}</div>
-                            {% endif %}
                         </div>
                     </div>
                 </div>
@@ -280,17 +283,18 @@
                 <div class="col">
                     <div class="stats-card stats-card-warning h-100">
                         <div class="stats-card-body">
+                            <div class="stats-card-info-content">
+                                <div class="stats-card-title">{% trans "الرصيد الختامي" %}</div>
+                                {% if summary.is_foreign_account or selected_currency %}
+                                    <div class="stats-card-value">{{ summary.closing_balance_foreign|smart_float }} <small class="stats-card-unit fs-8">{{ summary.account_currency_symbol }}</small></div>
+                                    <div class="stats-card-subtitle text-muted">{{ summary.closing_balance|smart_float }} {{ summary.functional_currency_symbol }}</div>
+                                {% else %}
+                                    <div class="stats-card-value">{{ summary.closing_balance|smart_float }} <span class="stats-card-unit">{{ summary.functional_currency_symbol }}</span></div>
+                                {% endif %}
+                            </div>
                             <div class="stats-card-icon">
                                 <i class="fas fa-wallet"></i>
                             </div>
-                            <div class="stats-card-title">{% trans "الرصيد الختامي" %}</div>
-                            {% if summary.is_foreign_account or selected_currency %}
-                                <div class="stats-card-value">{{ summary.closing_balance_foreign|smart_float }} <small class="fs-8">{{ summary.account_currency_symbol }}</small></div>
-                                <div class="stats-card-unit"><small class="text-muted">{{ summary.closing_balance|smart_float }} {{ summary.functional_currency_symbol }}</small></div>
-                            {% else %}
-                                <div class="stats-card-value">{{ summary.closing_balance|smart_float }}</div>
-                                <div class="stats-card-unit">{{ summary.functional_currency_symbol }}</div>
-                            {% endif %}
                         </div>
                     </div>
                 </div>
@@ -298,12 +302,13 @@
                 <div class="col">
                     <div class="stats-card stats-card-info h-100">
                         <div class="stats-card-body">
+                            <div class="stats-card-info-content">
+                                <div class="stats-card-title">{% trans "عدد الحركات" %}</div>
+                                <div class="stats-card-value">{{ summary.transaction_count }} <span class="stats-card-unit">{% trans "حركة" %}</span></div>
+                            </div>
                             <div class="stats-card-icon">
                                 <i class="fas fa-list-ol"></i>
                             </div>
-                            <div class="stats-card-title">{% trans "عدد الحركات" %}</div>
-                            <div class="stats-card-value">{{ summary.transaction_count }}</div>
-                            <div class="stats-card-unit">{% trans "حركة" %}</div>
                         </div>
                     </div>
                 </div>

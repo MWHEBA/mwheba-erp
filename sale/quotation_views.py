@@ -51,10 +51,12 @@ def quotation_list(request):
     quotations_qs = Quotation.objects.with_list_details().all().order_by('-date', '-number')
 
     if search:
-        quotations_qs = quotations_qs.filter(
-            Q(number__icontains=search) |
-            Q(customer__name__icontains=search) |
-            Q(notes__icontains=search)
+        from utils.search import smart_search_filter
+        quotations_qs = smart_search_filter(
+            quotations_qs,
+            search,
+            text_fields=['customer__name', 'customer__company_name', 'notes'],
+            code_fields=['number', 'customer__code', 'customer__phone']
         )
     salesman_id = request.GET.get('salesman', '')
     if customer_id:

@@ -1455,19 +1455,26 @@ html[dir="rtl"] [dir="ltr"] .input-group > :not(:first-child):not(:last-child) {
 .stats-card-body {
     padding: 0.85rem 1.25rem;
     flex: 1;
-    display: flex;
+    display: grid;
+    grid-template-columns: 1fr auto;
     align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
+    gap: 0.2rem 0.75rem;
 }
 
 .stats-card-info-content {
-    flex: 1;
+    grid-column: 1;
+    grid-row: 1 / span 3;
+    display: flex;
+    flex-direction: column;
     min-width: 0;
 }
 
 .stats-card-icon,
 .unified-stats-card-icon {
+    grid-column: 2;
+    grid-row: 1 / span 3;
+    align-self: center;
+    justify-self: end;
     width: 44px;
     height: 44px;
     border-radius: 50%;
@@ -1483,24 +1490,37 @@ html[dir="rtl"] [dir="ltr"] .input-group > :not(:first-child):not(:last-child) {
 
 .stats-card-title,
 .unified-stats-card-title {
+    grid-column: 1;
+    grid-row: 1;
     font-size: 0.8rem;
     font-weight: 600;
     color: var(--text-muted);
     padding: 0 !important;
     margin-bottom: 0.25rem;
-    line-height: 1.2;
-    white-space: nowrap;
+    line-height: 1.25;
+    white-space: normal;
+    word-break: break-word;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
     overflow: hidden;
-    text-overflow: ellipsis;
+    min-height: 2.4em;
 }
 
 .stats-card-value,
 .unified-stats-card-value {
+    grid-column: 1;
+    grid-row: 2;
     font-size: 1.25rem;
     font-weight: 700;
     line-height: 1.2;
     margin: 0;
     color: var(--text-dark);
+    display: flex;
+    align-items: baseline;
+    gap: 0.25rem;
+    flex-wrap: wrap;
 }
 
 .stats-card-trend {
