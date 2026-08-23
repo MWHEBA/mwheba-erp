@@ -441,73 +441,8 @@
 {% include 'components/quick_product_modal.html' %}
 
 <!-- ===== Add Customer Modal ===== -->
-<div class="modal fade" id="addCustomerModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
-        <div class="modal-content border-0 shadow">
-            <div class="modal-header py-2 px-3 border-bottom">
-                <h6 class="modal-title mb-0" style="color: var(--bs-white); font-weight: 600;">
-                    <i class="fas fa-user-plus me-2 text-white"></i>{% trans "إضافة عميل جديد" %}
-                </h6>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <form id="ajax-add-customer-form">
-                {% csrf_token %}
-                <div class="modal-body p-4">
-                    <div id="modal-error-alert" class="alert alert-danger border-0 d-none" style="border-radius: 6px;">
-                        <ul class="mb-0" id="modal-error-list"></ul>
-                    </div>
-                    
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <label class="form-label">{% trans "كود العميل" %} <span class="text-danger">*</span></label>
-                            <div class="input-group">
-                                <input type="text" name="code" id="modal_customer_code" class="form-control bg-light" readonly required>
-                                <button class="btn btn-outline-secondary" type="button" id="toggle-customer-modal-code">
-                                    <i class="fas fa-edit"></i>
-                                </button>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">{% trans "اسم العميل" %} <span class="text-danger">*</span></label>
-                            <input type="text" name="name" class="form-control" placeholder="{% trans 'أدخل اسم العميل بالكامل' %}" required>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">{% trans "رقم الهاتف" %}</label>
-                            <input type="text" name="phone" class="form-control" placeholder="01xxxxxxxxx">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">{% trans "البريد الإلكتروني" %}</label>
-                            <input type="email" name="email" class="form-control" placeholder="email@example.com">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">{% trans "الحد الائتماني" %}</label>
-                            <input type="number" name="credit_limit" class="form-control" value="0" min="0" step="0.01">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">{% trans "الرقم الضريبي" %}</label>
-                            <input type="text" name="tax_number" class="form-control" placeholder="{% trans 'أدخل الرقم الضريبي' %}">
-                        </div>
-                        <div class="col-12">
-                            <label class="form-label">{% trans "العنوان" %}</label>
-                            <textarea name="address" class="form-control" rows="2" placeholder="{% trans 'أدخل عنوان العميل بالتفصيل' %}"></textarea>
-                        </div>
-                        <div class="col-12">
-                            <label class="form-label">{% trans "ملاحظات" %}</label>
-                            <textarea name="notes" class="form-control" rows="2" placeholder="{% trans 'أي ملاحظات إضافية عن العميل' %}"></textarea>
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer border-top py-2 px-3">
-                    <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
-                    <button type="submit" class="btn btn-primary px-3" id="btn-save-customer">
-                        <span class="spinner-border spinner-border-sm d-none me-1" id="save-customer-spinner" role="status" aria-hidden="true"></span>
-                        {% trans "حفظ العميل" %}
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
+{% include 'components/quick_customer_modal.html' %}
+
 {% endblock %}
 
 {% block extra_js %}
