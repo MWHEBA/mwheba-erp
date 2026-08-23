@@ -1,30 +1,39 @@
 {% load i18n %}
 {% load custom_filters %}
+{% load utils_extras %}
 
-{% if delivery_notes %}
 <div class="table-responsive">
-  <table class="table table-hover table-striped text-center align-middle mb-0" id="delivery-notes-table">
+  <table class="table table-hover align-middle mb-0 unified-table" id="delivery-notes-table">
     <thead class="table-light">
       <tr>
-        <th>{% trans "رقم إذن التسليم" %}</th>
+        <th class="ps-3">{% trans "رقم إذن التسليم" %}</th>
         <th>{% trans "تاريخ التسليم" %}</th>
         <th>{% trans "العميل" %}</th>
-        <th>{% trans "المخزن" %}</th>
+        <th>{% trans "المخزن المصدر" %}</th>
         <th>{% trans "أمر البيع المرتبط" %}</th>
+        <th>{% trans "السائق / الشاحنة" %}</th>
         <th>{% trans "الحالة" %}</th>
-        <th>{% trans "الإجراءات" %}</th>
+        <th class="text-end pe-3">{% trans "الإجراءات" %}</th>
       </tr>
     </thead>
     <tbody>
       {% for dn in delivery_notes %}
-      <tr class="clickable-row" data-href="{% url 'sale:delivery_note_detail' dn.pk %}" style="cursor: pointer;">
-        <td class="fw-bold text-primary">{{ dn.delivery_number }}</td>
+      <tr class="clickable-row" data-href="{% url 'sale:delivery_note_detail' dn.pk %}">
+        <td class="ps-3 fw-bold text-primary">
+          <i class="fas fa-truck me-1"></i>{{ dn.delivery_number }}
+        </td>
         <td>{{ dn.delivery_date|date:"Y-m-d" }}</td>
-        <td class="fw-bold">{{ dn.customer.name }}</td>
-        <td><span class="badge bg-light text-dark border">{{ dn.warehouse.name }}</span></td>
+        <td class="fw-semibold">
+          <a href="{% url 'client:customer_detail' dn.customer_id %}" class="text-decoration-none text-dark" onclick="event.stopPropagation();">
+            {{ dn.customer.name }}
+          </a>
+        </td>
+        <td>
+          <i class="fas fa-warehouse text-muted me-1"></i>{{ dn.warehouse.name }}
+        </td>
         <td>
           {% if dn.sales_order %}
-            <a href="{% url 'sale:sales_order_detail' dn.sales_order.pk %}" class="badge bg-light text-primary border text-decoration-none" onclick="event.stopPropagation();">
+            <a href="{% url 'sale:sales_order_detail' dn.sales_order.pk %}" class="badge bg-light text-primary border text-decoration-none" onclick="event.stopPropagation();" title="{% trans 'عرض تفاصيل أمر البيع' %}">
               <i class="fas fa-clipboard-list me-1"></i>{{ dn.sales_order.order_number }}
             </a>
           {% else %}
@@ -32,20 +41,32 @@
           {% endif %}
         </td>
         <td>
-          {% if dn.status == 'DRAFT' %}
-            <span class="badge bg-secondary">{% trans "مسودة" %}</span>
-          {% elif dn.status == 'DELIVERED' or dn.status == 'CONFIRMED' %}
-            <span class="badge bg-success">{% trans "تم التسليم" %}</span>
-          {% elif dn.status == 'INVOICED' %}
-            <span class="badge bg-primary">{% trans "مفوتر بالكامل" %}</span>
+          {% if dn.driver_name %}
+            <span class="small text-muted">{{ dn.driver_name }}{% if dn.truck_plate_number %} ({{ dn.truck_plate_number }}){% endif %}</span>
           {% else %}
-            <span class="badge bg-light text-dark">{{ dn.get_status_display }}</span>
+            <span class="text-muted">-</span>
           {% endif %}
         </td>
-        <td class="col-actions" onclick="event.stopPropagation();">
+        <td>
+          {% if dn.status == 'DRAFT' %}
+            <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle"><i class="fas fa-edit me-1"></i>{% trans "مسودة" %}</span>
+          {% elif dn.status == 'DELIVERED' or dn.status == 'CONFIRMED' %}
+            <span class="badge bg-success-subtle text-success border border-success-subtle"><i class="fas fa-check-double me-1"></i>{% trans "تم التسليم" %}</span>
+          {% elif dn.status == 'INVOICED' %}
+            <span class="badge bg-primary-subtle text-primary border border-primary-subtle"><i class="fas fa-file-invoice-dollar me-1"></i>{% trans "مفوتر بالكامل" %}</span>
+          {% elif dn.status == 'CANCELLED' %}
+            <span class="badge bg-danger-subtle text-danger border border-danger-subtle"><i class="fas fa-times-circle me-1"></i>{% trans "ملغى" %}</span>
+          {% else %}
+            <span class="badge bg-secondary">{{ dn.get_status_display }}</span>
+          {% endif %}
+        </td>
+        <td class="text-end pe-3 col-actions" onclick="event.stopPropagation();">
           <div class="btn-group btn-group-sm">
             <a href="{% url 'sale:delivery_note_detail' dn.pk %}" class="btn btn-outline-secondary" title="{% trans 'عرض التفاصيل' %}">
               <i class="fas fa-eye"></i>
+            </a>
+            <a href="{% url 'sale:delivery_note_print' dn.pk %}" target="_blank" class="btn btn-outline-dark" title="{% trans 'طباعة تصريح الخروج' %}">
+              <i class="fas fa-print"></i>
             </a>
             {% if dn.status in 'DELIVERED,CONFIRMED' %}
             <a href="{% url 'sale:delivery_note_convert_to_sale' dn.pk %}" class="btn btn-outline-primary" title="{% trans 'إصدار فاتورة مبيعات' %}">
@@ -55,13 +76,15 @@
           </div>
         </td>
       </tr>
+      {% empty %}
+      <tr>
+        <td colspan="8" class="text-center py-5 text-muted">
+          <i class="fas fa-truck fa-3x mb-3 text-secondary opacity-50 d-block"></i>
+          <h6>{% trans "لا توجد إذون تسليم بضاعة مطابقة لمعايير البحث." %}</h6>
+          <p class="small mb-0">{% trans "يمكنك إنشاء إذن تسليم جديد من أوامر البيع المعتمدة." %}</p>
+        </td>
+      </tr>
       {% endfor %}
     </tbody>
   </table>
 </div>
-{% else %}
-<div class="alert alert-info text-center my-4 py-4">
-  <i class="fas fa-truck fa-3x mb-3 text-muted"></i>
-  <p class="mb-0 fs-5">{% trans "لا توجد إذون تسليم بضاعة مطابقة للبحث." %}</p>
-</div>
-{% endif %}

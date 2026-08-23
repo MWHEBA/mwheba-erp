@@ -11,6 +11,13 @@ from financial.models.journal_entry import JournalEntry
 from sale.models.pricing import PriceList
 
 
+SHIPPING_METHOD_CHOICES = (
+    ("PICKUP", _("استلام من المخزن")),
+    ("COMPANY_FLEET", _("أسطول سيارات الشركة")),
+    ("COURIER", _("شركة شحن خارجية")),
+)
+
+
 class SalesOrder(models.Model):
     """
     FIN-SAL-001: Sales Order Model
@@ -34,15 +41,40 @@ class SalesOrder(models.Model):
     warehouse = models.ForeignKey(Warehouse, on_delete=models.PROTECT, related_name="sales_orders", verbose_name=_("المخزن"))
     order_date = models.DateField(_("تاريخ أمر البيع"))
     price_list = models.ForeignKey(PriceList, on_delete=models.SET_NULL, null=True, blank=True, verbose_name=_("قائمة الأسعار"))
+    salesman = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="sales_orders_assigned", verbose_name=_("مسؤول المبيعات"))
+    cost_center = models.ForeignKey("financial.CostCenter", on_delete=models.SET_NULL, null=True, blank=True, verbose_name=_("مركز التكلفة"))
     approval_request = models.ForeignKey("financial.EnterpriseApprovalRequest", on_delete=models.SET_NULL, null=True, blank=True, related_name="sales_orders", verbose_name=_("طلب الاعتماد المؤسسي"))
+
+    # اللوجستيات والشحن
+    expected_delivery_date = models.DateField(_("تاريخ التسليم المتوقع"), null=True, blank=True)
+    reservation_expiry_date = models.DateField(_("تاريخ انتهاء مهلة الحجز"), null=True, blank=True)
+    shipping_method = models.CharField(_("طريقة التوصيل"), max_length=20, choices=SHIPPING_METHOD_CHOICES, default="PICKUP")
+    shipping_address = models.TextField(_("عنوان التسليم الفعلي"), blank=True, null=True)
 
     # Multi-Currency Foundation (IAS 21)
     currency = models.CharField(_("العملة"), max_length=3, default="EGP")
     exchange_rate = models.DecimalField(_("سعر الصرف"), max_digits=12, decimal_places=6, default=Decimal("1.000000"))
 
+    # التفصيل المالي
+    subtotal = models.DecimalField(_("المجموع الفرعي"), max_digits=15, decimal_places=2, default=Decimal("0.00"))
+    discount_amount = models.DecimalField(_("قيمة الخصم"), max_digits=15, decimal_places=2, default=Decimal("0.00"))
+    discount_type = models.CharField(_("نوع الخصم"), max_length=10, default="fixed")
+    adjustment_name = models.CharField(_("اسم التسوية"), max_length=100, blank=True, null=True)
+    adjustment_amount = models.DecimalField(_("مبلغ التسوية"), max_digits=15, decimal_places=2, default=Decimal("0.00"))
+    tax_amount = models.DecimalField(_("الضريبة التقديرية (VAT)"), max_digits=15, decimal_places=2, default=Decimal("0.00"))
+    vat_rate = models.DecimalField(_("نسبة القيمة المضافة %"), max_digits=5, decimal_places=2, default=Decimal("14.00"))
+    wht_active = models.BooleanField(_("خصم المنبع نشط"), default=False)
+    wht_rate = models.DecimalField(_("نسبة خصم المنبع %"), max_digits=5, decimal_places=2, default=Decimal("1.00"))
+    wht_amount = models.DecimalField(_("مبلغ خصم المنبع"), max_digits=15, decimal_places=2, default=Decimal("0.00"))
+
     status = models.CharField(_("الحالة"), max_length=30, choices=STATUS_CHOICES, default="DRAFT")
     total_amount = models.DecimalField(_("الإجمالي بعملة الفاتورة"), max_digits=15, decimal_places=2, default=Decimal("0.00"))
     functional_amount = models.DecimalField(_("الإجمالي بالعملة الوظيفية"), max_digits=15, decimal_places=2, default=Decimal("0.00"))
+
+    # الشروط والدفعة المقدمة والحقول المخصصة
+    required_down_payment = models.DecimalField(_("الدفعة المقدمة المطلوبة"), max_digits=15, decimal_places=2, default=Decimal("0.00"))
+    notes = models.TextField(_("الشروط والملاحظات"), blank=True, null=True)
+    custom_fields = models.JSONField(_("الحقول الإضافية"), default=list, blank=True)
 
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="sales_orders_created", verbose_name=_("أنشئ بواسطة"))
     created_at = models.DateTimeField(_("تاريخ الإنشاء"), auto_now_add=True)
@@ -94,6 +126,12 @@ class DeliveryNote(models.Model):
     customer = models.ForeignKey(Customer, on_delete=models.PROTECT, related_name="delivery_notes", verbose_name=_("العميل"))
     warehouse = models.ForeignKey(Warehouse, on_delete=models.PROTECT, related_name="delivery_notes", verbose_name=_("المخزن"))
     delivery_date = models.DateField(_("تاريخ التسليم"))
+
+    # بيانات السائق والأسطول
+    driver_name = models.CharField(_("اسم السائق"), max_length=100, blank=True, null=True)
+    truck_plate_number = models.CharField(_("رقم لوحة الشاحنة"), max_length=50, blank=True, null=True)
+    driver_phone = models.CharField(_("هاتف السائق"), max_length=30, blank=True, null=True)
+    delivery_notes = models.TextField(_("ملاحظات التسليم والبوابة"), blank=True, null=True)
 
     status = models.CharField(_("الحالة"), max_length=20, choices=STATUS_CHOICES, default="DRAFT")
     journal_entry = models.ForeignKey(JournalEntry, on_delete=models.SET_NULL, null=True, blank=True, verbose_name=_("قيد التكلفة (COGS)"))

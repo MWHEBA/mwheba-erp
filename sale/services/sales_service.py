@@ -43,7 +43,25 @@ class SalesService:
         currency: str = "EGP",
         exchange_rate: Decimal = Decimal("1.000000"),
         price_list_id: Optional[int] = None,
-        quotation_reference: Optional[Quotation] = None
+        quotation_reference: Optional[Quotation] = None,
+        salesman=None,
+        cost_center=None,
+        expected_delivery_date=None,
+        reservation_expiry_date=None,
+        shipping_method: str = "PICKUP",
+        shipping_address: Optional[str] = None,
+        discount_amount: Decimal = Decimal("0.00"),
+        discount_type: str = "fixed",
+        adjustment_name: Optional[str] = None,
+        adjustment_amount: Decimal = Decimal("0.00"),
+        vat_rate: Decimal = Decimal("14.00"),
+        tax_amount: Optional[Decimal] = None,
+        wht_active: bool = False,
+        wht_rate: Decimal = Decimal("1.00"),
+        wht_amount: Optional[Decimal] = None,
+        required_down_payment: Decimal = Decimal("0.00"),
+        notes: Optional[str] = None,
+        custom_fields: Optional[List[Dict[str, Any]]] = None,
     ) -> SalesOrder:
         """
         إنشاء أمر بيع وتطبيق لقطات التسعير المحوكمة والتقييم لموافقات الاعتماد
@@ -66,13 +84,31 @@ class SalesService:
                 currency=currency,
                 exchange_rate=exchange_rate,
                 price_list_id=price_list_id,
+                salesman=salesman,
+                cost_center=cost_center,
+                expected_delivery_date=expected_delivery_date,
+                reservation_expiry_date=reservation_expiry_date,
+                shipping_method=shipping_method or "PICKUP",
+                shipping_address=shipping_address or "",
+                discount_amount=discount_amount or Decimal("0.00"),
+                discount_type=discount_type or "fixed",
+                adjustment_name=adjustment_name or "",
+                adjustment_amount=adjustment_amount or Decimal("0.00"),
+                vat_rate=vat_rate if vat_rate is not None else Decimal("14.00"),
+                wht_active=bool(wht_active),
+                wht_rate=wht_rate if wht_rate is not None else Decimal("1.00"),
+                required_down_payment=required_down_payment or Decimal("0.00"),
+                notes=notes or "",
+                custom_fields=custom_fields or [],
                 status="DRAFT",
                 created_by=user
             )
 
-            total_val = Decimal("0.00")
+            subtotal_val = Decimal("0.00")
             for item in items_data:
-                product = item["product"]
+                product = item.get("product")
+                if not product and item.get("product_id"):
+                    product = Product.objects.get(pk=item["product_id"])
                 qty = Decimal(str(item["ordered_qty"]))
 
                 # Get governed price snapshot from PricingService
@@ -95,7 +131,7 @@ class SalesService:
                 }
 
                 line_total = (qty * price * (Decimal("1.00") - (disc / Decimal("100.00")))).quantize(Decimal("0.01"))
-                total_val += line_total
+                subtotal_val += line_total
 
                 SalesOrderItem.objects.create(
                     sales_order=so,
@@ -109,7 +145,37 @@ class SalesService:
                     price_snapshot=price_snap_serializable
                 )
 
+            # Calculation of Net Totals
+            so.subtotal = subtotal_val
+
+            # Apply global discount
+            eff_discount = Decimal("0.00")
+            if so.discount_type == "percentage":
+                eff_discount = (subtotal_val * (so.discount_amount / Decimal("100.00"))).quantize(Decimal("0.01"))
+            else:
+                eff_discount = min(so.discount_amount, subtotal_val)
+
+            after_discount = max(Decimal("0.00"), subtotal_val - eff_discount)
+            after_adjustment = after_discount + so.adjustment_amount
+
+            # Taxes
+            if tax_amount is not None:
+                calc_vat = Decimal(str(tax_amount))
+            else:
+                calc_vat = (after_adjustment * (so.vat_rate / Decimal("100.00"))).quantize(Decimal("0.01")) if so.vat_rate else Decimal("0.00")
+
+            if wht_amount is not None:
+                calc_wht = Decimal(str(wht_amount))
+            elif so.wht_active and so.wht_rate:
+                calc_wht = (after_adjustment * (so.wht_rate / Decimal("100.00"))).quantize(Decimal("0.01"))
+            else:
+                calc_wht = Decimal("0.00")
+
+            total_val = (after_adjustment + calc_vat - calc_wht).quantize(Decimal("0.01"))
             func_val = (total_val * exchange_rate).quantize(Decimal("0.01"))
+
+            so.tax_amount = calc_vat
+            so.wht_amount = calc_wht
             so.total_amount = total_val
             so.functional_amount = func_val
 
@@ -293,7 +359,7 @@ class SalesService:
 
             # Consume Inventory Reservation (FIN-SAL-003)
             from product.services.inventory_reservation_service import InventoryReservationService
-            InventoryReservationService.consume_reservation_for_delivery(so.id, items_data, user)
+            InventoryReservationService.consume_reservation_for_delivery_note(so.id, items_data, user)
 
             # Update SO Status
             all_items = so.items.all()
@@ -582,3 +648,120 @@ class SalesService:
                 "delivery_note": dn,
                 "sales_invoice": inv
             }
+
+    @classmethod
+    def cancel_sales_order(cls, so_id: int, user, reason: str = "") -> SalesOrder:
+        """
+        إلغاء أمر البيع وفك حجز المخزون (Release ATP Inventory Reservations)
+        """
+        with transaction.atomic():
+            so = SalesOrder.objects.select_for_update().get(pk=so_id)
+            if so.status in ["CANCELLED", "FULLY_DELIVERED", "INVOICED"]:
+                raise FinancialCoreError(f"لا يمكن إلغاء أمر البيع رقم {so.order_number} وهو في حالة: {so.get_status_display()}")
+
+            if so.items.filter(delivered_qty__gt=0).exists():
+                raise FinancialCoreError(f"لا يمكن إلغاء أمر البيع رقم {so.order_number} نظراً لوجود بضاعة تم تسليمها بالفعل.")
+
+            # Release Inventory Reservations
+            from product.services.inventory_reservation_service import InventoryReservationService
+            InventoryReservationService.release_reservation_for_sales_order(
+                sales_order_id=so.id,
+                reason=reason or f"Order #{so.order_number} cancelled by user",
+                user=user
+            )
+
+            so.status = "CANCELLED"
+            so.save(update_fields=["status"])
+            logger.info(f"Sales Order #{so.order_number} successfully CANCELLED and ATP reservations released.")
+            return so
+
+    @classmethod
+    def cancel_delivery_note(cls, dn_id: int, user, reason: str = "") -> DeliveryNote:
+        """
+        إلغاء إذن التسليم المخزني وعكس قيد التكلفة (Reverse COGS) وإعادة البضاعة للمخزن
+        """
+        with transaction.atomic():
+            dn = DeliveryNote.objects.select_for_update().get(pk=dn_id)
+            if dn.status == "CANCELLED":
+                raise FinancialCoreError(f"إذن التسليم رقم {dn.delivery_number} ملغى بالفعل.")
+
+            # Check if any item has already been invoiced
+            so = dn.sales_order
+            for dn_item in dn.items.all():
+                if dn_item.so_item.invoiced_qty > Decimal("0.0000"):
+                    raise FinancialCoreError(f"لا يمكن إلغاء إذن التسليم رقم {dn.delivery_number} لوجود فواتير مبيعات مرتبطة بالبند {dn_item.so_item.product.name}.")
+
+            # 1. Reverse Stock Movement via MovementService
+            for dn_item in dn.items.all():
+                MovementService().process_movement(
+                    product_id=dn_item.so_item.product.id,
+                    quantity_change=dn_item.delivered_qty,
+                    movement_type="in",
+                    source_reference=f"CANCEL-DN-{dn.id}",
+                    idempotency_key=f"CANCEL-DN-STK-{dn.id}-{dn_item.id}",
+                    user=user,
+                    unit_cost=dn_item.unit_cost,
+                    warehouse_id=dn.warehouse.id
+                )
+                dn_item.so_item.delivered_qty -= dn_item.delivered_qty
+                dn_item.so_item.save(update_fields=["delivered_qty"])
+
+            # 2. Reverse COGS Journal Entry
+            if dn.journal_entry:
+                from financial.services.ledger_core_service import LedgerCoreService
+                try:
+                    LedgerCoreService.reverse_entry(
+                        entry_id=dn.journal_entry.id,
+                        user=user,
+                        reversal_reason=reason or f"إلغاء إذن تسليم رقم {dn.delivery_number}"
+                    )
+                except Exception as e:
+                    logger.warning(f"Could not reverse COGS entry #{dn.journal_entry.id}: {e}")
+
+            # 3. Update Statuses
+            dn.status = "CANCELLED"
+            dn.save(update_fields=["status"])
+
+            # Re-evaluate SO delivery status
+            so.refresh_from_db()
+            all_items = so.items.all()
+            if any(i.delivered_qty > Decimal("0.0000") for i in all_items):
+                so.status = "PARTIALLY_DELIVERED"
+            else:
+                so.status = "CONFIRMED" if so.status not in ["DRAFT", "PENDING_APPROVAL"] else so.status
+            so.save(update_fields=["status"])
+
+            logger.info(f"Delivery Note #{dn.delivery_number} CANCELLED, stock restored and COGS reversed.")
+            return dn
+
+    @classmethod
+    def rollback_invoice_quantities(cls, so_id: int, billed_items: List[Dict[str, Any]], user=None):
+        """
+        استعادة وتسوية الكميات المفوترة invoiced_qty عند إلغاء أو حذف فاتورة مبيعات
+        """
+        with transaction.atomic():
+            so = SalesOrder.objects.select_for_update().get(pk=so_id)
+            for item in billed_items:
+                so_item_id = item.get("so_item_id")
+                qty = Decimal(str(item.get("quantity", item.get("billed_qty", 0))))
+                if so_item_id and qty > 0:
+                    try:
+                        so_item = so.items.select_for_update().get(pk=so_item_id)
+                        so_item.invoiced_qty = max(Decimal("0.0000"), so_item.invoiced_qty - qty)
+                        so_item.save(update_fields=["invoiced_qty"])
+                    except SalesOrderItem.DoesNotExist:
+                        pass
+
+            # Re-evaluate SO Invoiced Status
+            all_items = so.items.all()
+            if all(i.invoiced_qty >= i.ordered_qty for i in all_items):
+                so.status = "INVOICED"
+            elif any(i.invoiced_qty > Decimal("0.0000") for i in all_items):
+                so.status = "PARTIALLY_INVOICED"
+            elif all(i.delivered_qty >= i.ordered_qty for i in all_items):
+                so.status = "FULLY_DELIVERED"
+            elif any(i.delivered_qty > Decimal("0.0000") for i in all_items):
+                so.status = "PARTIALLY_DELIVERED"
+            else:
+                so.status = "CONFIRMED"
+            so.save(update_fields=["status"])

@@ -121,6 +121,14 @@
         </li>
         {% endif %}
         <li class="nav-item" role="presentation">
+          <button class="nav-link fw-semibold px-3" id="sales-orders-tab" data-bs-toggle="tab"
+            data-bs-target="#sales-orders-tab-pane" type="button" role="tab" aria-controls="sales-orders-tab-pane"
+            aria-selected="false">
+            <i class="fas fa-clipboard-list me-2"></i>{% trans "أوامر البيع" %}
+            <span class="badge rounded-pill bg-light text-secondary border ms-1">{{ sales_orders_count|default:"0" }}</span>
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
           <button class="nav-link fw-semibold px-3" id="invoices-tab" data-bs-toggle="tab"
             data-bs-target="#invoices-tab-pane" type="button" role="tab" aria-controls="invoices-tab-pane"
             aria-selected="false">
@@ -470,6 +478,32 @@
           {% endwith %}
         </div>
         {% endif %}
+
+        <!-- تاب أوامر البيع والتوريد -->
+        <div class="tab-pane fade" id="sales-orders-tab-pane" role="tabpanel" aria-labelledby="sales-orders-tab" tabindex="0">
+          <div class="d-flex justify-content-end mb-3">
+            <a href="{% url 'sale:sales_order_create' %}?customer={{ customer.pk }}" class="btn btn-primary">
+              <i class="fas fa-plus me-1"></i>{% trans "إصدار أمر بيع جديد" %}
+            </a>
+          </div>
+
+          <!-- استخدام النظام المحسن للجداول -->
+          {% with table_id="customer-sales-orders-table" %}
+          {% with headers=sales_orders_headers %}
+          {% with data=sales_orders %}
+          {% with action_buttons=sales_orders_action_buttons %}
+          {% with empty_message="لا توجد أوامر بيع مسجلة لهذا العميل" %}
+          {% with clickable_rows=sales_orders_clickable row_click_url="/sales/orders/0/" %}
+          {% with show_export=True export_filename="customer_sales_orders" %}
+          {% include "components/data_table.html" %}
+          {% endwith %}
+          {% endwith %}
+          {% endwith %}
+          {% endwith %}
+          {% endwith %}
+          {% endwith %}
+          {% endwith %}
+        </div>
 
         <!-- تاب فواتير البيع -->
         <div class="tab-pane fade" id="invoices-tab-pane" role="tabpanel" aria-labelledby="invoices-tab" tabindex="0">

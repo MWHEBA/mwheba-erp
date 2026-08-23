@@ -83,6 +83,8 @@ urlpatterns = [
     path("orders/create/", views.sales_order_create, name="sales_order_create"),
     path("orders/create/quotation/<int:quotation_id>/", views.sales_order_create, name="sales_order_create_for_quotation"),
     path("orders/<int:pk>/", views.sales_order_detail, name="sales_order_detail"),
+    path("orders/<int:pk>/edit/", views.sales_order_edit, name="sales_order_edit"),
+    path("orders/<int:pk>/print/", views.sales_order_print, name="sales_order_print"),
     path("orders/<int:pk>/confirm/", views.sales_order_confirm, name="sales_order_confirm"),
     path("orders/<int:pk>/cancel/", views.sales_order_cancel, name="sales_order_cancel"),
     path("orders/<int:pk>/convert-sale/", views.sales_order_convert_to_sale, name="sales_order_convert_to_sale"),
@@ -91,6 +93,8 @@ urlpatterns = [
     path("delivery-notes/", views.delivery_note_list, name="delivery_note_list"),
     path("delivery-notes/create/", views.delivery_note_create, name="delivery_note_create"),
     path("delivery-notes/<int:pk>/", views.delivery_note_detail, name="delivery_note_detail"),
+    path("delivery-notes/<int:pk>/print/", views.delivery_note_print, name="delivery_note_print"),
+    path("delivery-notes/<int:pk>/cancel/", views.delivery_note_cancel, name="delivery_note_cancel"),
     path("delivery-notes/<int:pk>/convert-sale/", views.delivery_note_convert_to_sale, name="delivery_note_convert_to_sale"),
 
     # قوائم الأسعار وقواعد الخصم (Pricing & Policies)

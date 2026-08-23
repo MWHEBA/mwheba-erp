@@ -93,7 +93,7 @@
                                         <select name="price_list" id="id_price_list" class="form-select select2" dir="rtl">
                                             <option value="">-- {% trans "الأسعار القياسية (الكتالوج)" %} --</option>
                                             {% for pl in price_lists %}
-                                                <option value="{{ pl.id }}" data-currency="{{ pl.currency }}" {% if quotation and quotation.price_list_id == pl.id %}selected{% endif %}>
+                                                <option value="{{ pl.id }}" data-currency="{{ pl.currency }}" {% if quotation and quotation.price_list_id == pl.id or so and so.price_list_id == pl.id %}selected{% endif %}>
                                                     {{ pl.name }} ({{ pl.currency }})
                                                 </option>
                                             {% endfor %}
@@ -102,60 +102,105 @@
 
                                     <!-- مسؤول المبيعات -->
                                     <div class="col-12 col-md-6">
-                                        <label class="form-label">{% trans "مسؤول المبيعات" %}</label>
-                                        <div class="form-control bg-light d-flex align-items-center gap-2">
-                                            <i class="fas fa-user-tie text-primary"></i>
-                                            <span class="fw-medium text-dark">{{ quotation.salesman_display_name|default:request.user.get_full_name|default:request.user.username }}</span>
-                                        </div>
-                                        <input type="hidden" name="salesman" value="{{ request.user.id }}">
-                                    </div>
-
-                                    <!-- مركز التكلفة الرئيسي -->
-                                    <div class="col-12 col-md-6">
                                         <label class="form-label">
-                                            <i class="fas fa-project-diagram text-primary me-1"></i>{% trans "مركز التكلفة الرئيسي" %}
+                                            <i class="fas fa-user-tie text-primary me-1"></i>{% trans "مسؤول المبيعات" %}
                                         </label>
-                                        <select name="cost_center" id="id_cost_center" class="form-select select2" dir="rtl">
-                                            <option value="">-- {% trans "بدون مركز تكلفة" %} --</option>
-                                            {% for cc in cost_centers %}
-                                                <option value="{{ cc.id }}" {% if quotation and quotation.cost_center_id == cc.id %}selected{% endif %}>
-                                                    {{ cc.code }} - {{ cc.name }}
-                                                </option>
-                                            {% endfor %}
-                                        </select>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                                        <select name="salesman" id="id_salesman" class="form-select select2" dir="rtl">
+                                            <option value="">-- {% trans "اختر مسؤول المبيعات" %} --</option>
+                                             {% for s in salesmen %}
+                                                 <option value="{{ s.id }}" {% if so and so.salesman_id == s.id or not so and quotation and quotation.salesman_id == s.id or not so and not quotation and s.id == request.user.id %}selected{% endif %}>
+                                                     {{ s.get_full_name|default:s.username }}
+                                                 </option>
+                                             {% endfor %}
+                                         </select>
+                                     </div>
 
-                    <!-- العمود الأيسر: بيانات المستند والمخزن والمالية -->
-                    <div class="col-12 col-lg-6">
-                        <div class="header-subcard">
-                            <div class="header-subcard-header">
-                                <h6 class="header-subcard-title">
-                                    <i class="fas fa-file-invoice-dollar"></i> {% trans "بيانات المستند والمخزن والمالية" %}
-                                </h6>
-                            </div>
-                            <div class="header-subcard-body">
-                                <div class="row g-3">
-                                    <!-- المخزن المستهدف -->
-                                    <div class="col-12 col-md-6" id="warehouse-container">
-                                        <label class="form-label text-dark fw-medium">{% trans "المخزن المستهدف" %} <span class="text-danger">*</span></label>
-                                        <select name="warehouse" id="id_warehouse" class="form-control select2-init" required>
-                                            <option value="">{% trans "اختر المخزن" %}</option>
-                                            {% for warehouse in warehouses %}
-                                                <option value="{{ warehouse.id }}" {% if forloop.first %}selected{% endif %}>
-                                                    {{ warehouse.name }}
-                                                </option>
-                                            {% endfor %}
-                                        </select>
-                                    </div>
+                                     <!-- مركز التكلفة الرئيسي -->
+                                     <div class="col-12 col-md-6">
+                                         <label class="form-label">
+                                             <i class="fas fa-project-diagram text-primary me-1"></i>{% trans "مركز التكلفة الرئيسي" %}
+                                         </label>
+                                         <select name="cost_center" id="id_cost_center" class="form-select select2" dir="rtl">
+                                             <option value="">-- {% trans "بدون مركز تكلفة" %} --</option>
+                                             {% for cc in cost_centers %}
+                                                 <option value="{{ cc.id }}" {% if so and so.cost_center_id == cc.id or quotation and quotation.cost_center_id == cc.id %}selected{% endif %}>
+                                                     {{ cc.code }} - {{ cc.name }}
+                                                 </option>
+                                             {% endfor %}
+                                         </select>
+                                     </div>
 
-                                    <!-- تاريخ أمر البيع -->
-                                    <div class="col-12 col-md-6">
-                                        <label class="form-label text-dark fw-medium">{% trans "تاريخ أمر البيع" %} <span class="text-danger">*</span></label>
-                                        <input type="date" name="order_date" id="id_order_date" class="form-control" value="{% if quotation %}{{ quotation.date|date:'Y-m-d' }}{% else %}{% now 'Y-m-d' %}{% endif %}" required>
+                                     <!-- رصيد الدفعات المقدمة للعميل -->
+                                     <div class="col-12" id="customer-prepaid-container">
+                                         <div class="p-2 bg-light rounded border d-flex align-items-center justify-content-between">
+                                             <span class="small text-muted"><i class="fas fa-wallet text-success me-1"></i>{% trans "رصيد العربون / المقدم المتاح" %}:</span>
+                                             <span class="fw-bold text-success fs-6" id="customer-prepaid-val">{{ selected_customer.available_prepaid_balance|default:"0.00" }} {{ currency_symbol }}</span>
+                                         </div>
+                                     </div>
+                                 </div>
+                             </div>
+                         </div>
+                     </div>
+
+                     <!-- العمود الأيسر: بيانات المستند والمخزن واللوجستيات -->
+                     <div class="col-12 col-lg-6">
+                         <div class="header-subcard">
+                             <div class="header-subcard-header">
+                                 <h6 class="header-subcard-title">
+                                     <i class="fas fa-file-invoice-dollar"></i> {% trans "بيانات المستند والمخزن واللوجستيات" %}
+                                 </h6>
+                             </div>
+                             <div class="header-subcard-body">
+                                 <div class="row g-3">
+                                     <!-- المخزن المستهدف -->
+                                     <div class="col-12 col-md-6" id="warehouse-container">
+                                         <label class="form-label text-dark fw-medium">{% trans "المخزن المستهدف" %} <span class="text-danger">*</span></label>
+                                         <select name="warehouse" id="id_warehouse" class="form-control select2-init" required>
+                                             <option value="">{% trans "اختر المخزن" %}</option>
+                                             {% for warehouse in warehouses %}
+                                                 <option value="{{ warehouse.id }}" {% if so and so.warehouse_id == warehouse.id or default_warehouse and default_warehouse.id == warehouse.id %}selected{% endif %}>
+                                                     {{ warehouse.name }}
+                                                 </option>
+                                             {% endfor %}
+                                         </select>
+                                     </div>
+
+                                     <!-- تاريخ أمر البيع -->
+                                     <div class="col-12 col-md-6">
+                                         <label class="form-label text-dark fw-medium">{% trans "تاريخ أمر البيع" %} <span class="text-danger">*</span></label>
+                                         <input type="date" name="order_date" id="id_order_date" class="form-control" value="{% if so %}{{ so.order_date|date:'Y-m-d' }}{% elif quotation %}{{ quotation.date|date:'Y-m-d' }}{% else %}{% now 'Y-m-d' %}{% endif %}" required>
+                                     </div>
+
+                                     <!-- العملة وسعر الصرف الموحد (IAS 21) -->
+                                     {% include "components/currency_header.html" %}
+
+                                     <!-- اللوجستيات: تاريخ التسليم وطريقة الشحن -->
+                                     <div class="col-12 col-md-6">
+                                         <label class="form-label">
+                                             <i class="fas fa-calendar-alt text-primary me-1"></i>{% trans "تاريخ التسليم المتوقع" %}
+                                         </label>
+                                         <input type="date" name="expected_delivery_date" id="id_expected_delivery_date" class="form-control" value="{% if so and so.expected_delivery_date %}{{ so.expected_delivery_date|date:'Y-m-d' }}{% endif %}">
+                                     </div>
+                                     <div class="col-12 col-md-6">
+                                         <label class="form-label">
+                                             <i class="fas fa-truck text-primary me-1"></i>{% trans "طريقة التوصيل" %}
+                                         </label>
+                                         <select name="shipping_method" class="form-select select2">
+                                             <option value="PICKUP" {% if so and so.shipping_method == 'PICKUP' %}selected{% endif %}>{% trans "استلام من المخزن" %}</option>
+                                             <option value="COMPANY_FLEET" {% if so and so.shipping_method == 'COMPANY_FLEET' %}selected{% endif %}>{% trans "أسطول سيارات الشركة" %}</option>
+                                             <option value="COURIER" {% if so and so.shipping_method == 'COURIER' %}selected{% endif %}>{% trans "شركة شحن خارجية" %}</option>
+                                         </select>
+                                     </div>
+                                     <div class="col-12">
+                                         <label class="form-label">
+                                             <i class="fas fa-map-marker-alt text-primary me-1"></i>{% trans "عنوان التسليم الفعلي" %}
+                                         </label>
+                                         <input type="text" name="shipping_address" class="form-control" placeholder="{% trans 'موقع العميل أو موقع المشروع للتسليم...' %}" value="{{ so.shipping_address|default:selected_customer.address|default:'' }}">
+                                     </div>
+                                 </div>
+                             </div>
+                         </div>
+                     </div>ate" name="order_date" id="id_order_date" class="form-control" value="{% if quotation %}{{ quotation.date|date:'Y-m-d' }}{% else %}{% now 'Y-m-d' %}{% endif %}" required>
                                     </div>
 
                                     <!-- العملة وسعر الصرف الموحد (IAS 21) -->

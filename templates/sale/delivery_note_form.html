@@ -23,7 +23,7 @@
   <form method="POST" action="" id="delivery-note-form">
     {% csrf_token %}
 
-    <!-- اختيار أمر البيع -->
+    <!-- اختيار أمر البيع والبيانات اللوجستية -->
     <div class="section-container mb-4">
       <h5 class="section-title"><i class="fas fa-info-circle me-2"></i>{% trans "بيانات أمر البيع والتسليم" %}</h5>
       <div class="row g-3">
@@ -47,6 +47,26 @@
           <input type="text" class="form-control" value="{{ sales_order.warehouse.name|default:'-' }}" readonly disabled>
         </div>
       </div>
+
+      <!-- بيانات السائق والأسطول وتصريح الخروج -->
+      <div class="row g-3 mt-2 pt-3 border-top">
+        <div class="col-md-4">
+          <label for="driver_name" class="form-label">{% trans "اسم السائق / الناقل" %}</label>
+          <input type="text" class="form-control" id="driver_name" name="driver_name" placeholder="{% trans 'اسم السائق المكلف' %}">
+        </div>
+        <div class="col-md-4">
+          <label for="truck_plate_number" class="form-label">{% trans "رقم لوحة الشاحنة / السيارة" %}</label>
+          <input type="text" class="form-control" id="truck_plate_number" name="truck_plate_number" placeholder="{% trans 'مثال: أ ب ج 1234' %}">
+        </div>
+        <div class="col-md-4">
+          <label for="driver_phone" class="form-label">{% trans "هاتف السائق" %}</label>
+          <input type="text" class="form-control" id="driver_phone" name="driver_phone" placeholder="{% trans 'رقم التواصل' %}">
+        </div>
+        <div class="col-12">
+          <label for="delivery_notes" class="form-label">{% trans "ملاحظات التسليم وتصريح الخروج" %}</label>
+          <textarea class="form-control" id="delivery_notes" name="delivery_notes" rows="2" placeholder="{% trans 'تعليمات أمن البوابة أو موقع التسليم...' %}">{{ sales_order.shipping_address }}</textarea>
+        </div>
+      </div>
     </div>
 
     <!-- جدول بنود التسليم -->
@@ -67,22 +87,20 @@
           </thead>
           <tbody>
             {% for item in sales_order.items.all %}
-            {% with remaining=item.ordered_qty|add:"0" %}
             <tr>
               <td>{{ forloop.counter }}</td>
               <td class="text-start fw-bold">
-                {{ item.product.name }} ({{ item.product.sku }})
+                {{ item.product.name }} {% if item.product.code %}({{ item.product.code }}){% endif %}
                 <input type="hidden" name="so_item_id[]" value="{{ item.id }}">
               </td>
               <td>{{ item.ordered_qty }}</td>
               <td>{{ item.delivered_qty }}</td>
-              <td class="fw-bold text-primary">{{ item.ordered_qty|add:"0" }}</td>
+              <td class="fw-bold text-primary">{{ item.ordered_qty|sub:item.delivered_qty }}</td>
               <td>
                 <input type="number" step="0.01" class="form-control text-center fw-bold" name="delivered_qty[]" 
-                       value="{{ item.ordered_qty }}" min="0" max="{{ item.ordered_qty }}" required>
+                       value="{{ item.ordered_qty|sub:item.delivered_qty }}" min="0" max="{{ item.ordered_qty|sub:item.delivered_qty }}" required>
               </td>
             </tr>
-            {% endwith %}
             {% endfor %}
           </tbody>
         </table>

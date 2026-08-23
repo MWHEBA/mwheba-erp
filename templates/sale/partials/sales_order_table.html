@@ -1,63 +1,99 @@
 {% load i18n %}
 {% load custom_filters %}
+{% load utils_extras %}
 
-{% if sales_orders %}
 <div class="table-responsive">
-  <table class="table table-hover table-striped text-center align-middle mb-0" id="sales-orders-table">
+  <table class="table table-hover align-middle mb-0 unified-table" id="sales-orders-table">
     <thead class="table-light">
       <tr>
-        <th>{% trans "رقم الأمر" %}</th>
-        <th>{% trans "التاريخ" %}</th>
+        <th class="ps-3">{% trans "رقم أمر البيع" %}</th>
         <th>{% trans "العميل" %}</th>
-        <th>{% trans "المخزن" %}</th>
-        <th>{% trans "المبلغ الإجمالي" %}</th>
-        <th>{% trans "حالة الأمر" %}</th>
-        <th>{% trans "عرض السعر المرتبط" %}</th>
-        <th>{% trans "الإجراءات" %}</th>
+        <th>{% trans "المخزن المستهدف" %}</th>
+        <th>{% trans "مسؤول المبيعات" %}</th>
+        <th>{% trans "تاريخ الأمر" %}</th>
+        <th>{% trans "تاريخ التسليم المتوقع" %}</th>
+        <th>{% trans "القيمة الإجمالية" %}</th>
+        <th>{% trans "الحالة" %}</th>
+        <th>{% trans "عرض السعر" %}</th>
+        <th class="text-end pe-3">{% trans "الإجراءات" %}</th>
       </tr>
     </thead>
     <tbody>
       {% for order in sales_orders %}
-      <tr class="clickable-row" data-href="{% url 'sale:sales_order_detail' order.pk %}" style="cursor: pointer;">
-        <td class="fw-bold text-primary">{{ order.order_number }}</td>
+      <tr class="clickable-row" data-href="{% url 'sale:sales_order_detail' order.pk %}">
+        <td class="ps-3 fw-bold text-primary">
+          <i class="fas fa-clipboard-list me-1"></i>{{ order.order_number }}
+        </td>
+        <td class="fw-semibold">
+          <a href="{% url 'client:customer_detail' order.customer_id %}" class="text-decoration-none text-dark" onclick="event.stopPropagation();">
+            {{ order.customer.name }}
+          </a>
+        </td>
+        <td>
+          <i class="fas fa-warehouse text-muted me-1"></i>{{ order.warehouse.name }}
+        </td>
+        <td>
+          {% if order.salesman %}
+            <span class="small text-muted">{{ order.salesman.get_full_name|default:order.salesman.username }}</span>
+          {% else %}
+            <span class="text-muted">-</span>
+          {% endif %}
+        </td>
         <td>{{ order.order_date|date:"Y-m-d" }}</td>
-        <td class="fw-bold">{{ order.customer.name }}</td>
-        <td><span class="badge bg-light text-dark border">{{ order.warehouse.name }}</span></td>
-        <td class="fw-bold text-success">{{ order.total_amount|floatformat:2 }} {{ order.currency }}</td>
+        <td>
+          {% if order.expected_delivery_date %}
+            {{ order.expected_delivery_date|date:"Y-m-d" }}
+          {% else %}
+            <span class="text-muted">-</span>
+          {% endif %}
+        </td>
+        <td class="fw-bold">
+          {{ order.total_amount|smart_float:2 }} {% if order.currency and order.currency != 'EGP' %}{{ order.currency }}{% else %}{% currency_symbol %}{% endif %}
+        </td>
         <td>
           {% if order.status == 'DRAFT' %}
-            <span class="badge bg-secondary">{% trans "مسودة" %}</span>
+            <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle"><i class="fas fa-edit me-1"></i>{% trans "مسودة" %}</span>
           {% elif order.status == 'PENDING_APPROVAL' %}
-            <span class="badge bg-warning text-dark">{% trans "بانتظار الاعتماد" %}</span>
+            <span class="badge bg-warning-subtle text-warning border border-warning-subtle"><i class="fas fa-clock me-1"></i>{% trans "معلق الاعتماد" %}</span>
           {% elif order.status == 'APPROVED' or order.status == 'CONFIRMED' %}
-            <span class="badge bg-info text-white">{% trans "معتمد" %}</span>
+            <span class="badge bg-info-subtle text-info border border-info-subtle"><i class="fas fa-check-circle me-1"></i>{% trans "معتمد" %}</span>
           {% elif order.status == 'PARTIALLY_DELIVERED' %}
-            <span class="badge bg-primary">{% trans "مسلم جزئياً" %}</span>
-          {% elif order.status == 'DELIVERED' or order.status == 'COMPLETED' %}
-            <span class="badge bg-success">{% trans "مكتمل التسليم" %}</span>
+            <span class="badge bg-primary-subtle text-primary border border-primary-subtle"><i class="fas fa-truck-loading me-1"></i>{% trans "مسلم جزئياً" %}</span>
+          {% elif order.status == 'FULLY_DELIVERED' or order.status == 'DELIVERED' or order.status == 'COMPLETED' %}
+            <span class="badge bg-success-subtle text-success border border-success-subtle"><i class="fas fa-check-double me-1"></i>{% trans "مكتمل التسليم" %}</span>
+          {% elif order.status == 'PARTIALLY_INVOICED' or order.status == 'INVOICED' %}
+            <span class="badge bg-primary-subtle text-primary border border-primary-subtle"><i class="fas fa-file-invoice-dollar me-1"></i>{% trans "مفوتر" %}</span>
           {% elif order.status == 'CANCELLED' %}
-            <span class="badge bg-danger">{% trans "ملغي" %}</span>
+            <span class="badge bg-danger-subtle text-danger border border-danger-subtle"><i class="fas fa-times-circle me-1"></i>{% trans "ملغى" %}</span>
           {% else %}
-            <span class="badge bg-light text-dark">{{ order.get_status_display }}</span>
+            <span class="badge bg-secondary">{{ order.get_status_display }}</span>
           {% endif %}
         </td>
         <td>
           {% if order.quotation_reference %}
-            <a href="{% url 'sale:quotation_detail' order.quotation_reference.pk %}" class="badge bg-light text-primary border text-decoration-none" onclick="event.stopPropagation();">
-              <i class="fas fa-file-signature me-1"></i>{{ order.quotation_reference.quotation_number }}
+            <a href="{% url 'sale:quotation_detail' order.quotation_reference.pk %}" class="badge bg-light text-primary border text-decoration-none" onclick="event.stopPropagation();" title="{% trans 'عرض تفاصيل عرض السعر' %}">
+              <i class="fas fa-file-signature me-1"></i>{{ order.quotation_reference.quotation_number|default:order.quotation_reference.number }}
             </a>
           {% else %}
             <span class="text-muted">-</span>
           {% endif %}
         </td>
-        <td class="col-actions" onclick="event.stopPropagation();">
+        <td class="text-end pe-3 col-actions" onclick="event.stopPropagation();">
           <div class="btn-group btn-group-sm">
             <a href="{% url 'sale:sales_order_detail' order.pk %}" class="btn btn-outline-secondary" title="{% trans 'عرض التفاصيل' %}">
               <i class="fas fa-eye"></i>
             </a>
+            <a href="{% url 'sale:sales_order_print' order.pk %}" target="_blank" class="btn btn-outline-dark" title="{% trans 'طباعة العقد' %}">
+              <i class="fas fa-print"></i>
+            </a>
+            {% if order.status == 'DRAFT' %}
+            <a href="{% url 'sale:sales_order_edit' order.pk %}" class="btn btn-outline-secondary" title="{% trans 'تعديل' %}">
+              <i class="fas fa-edit"></i>
+            </a>
+            {% endif %}
             {% if order.status in 'APPROVED,CONFIRMED,PARTIALLY_DELIVERED' %}
-            <a href="{% url 'sale:delivery_note_create' %}?so_id={{ order.pk }}" class="btn btn-outline-info" title="{% trans 'إصدار إذن تسليم' %}">
-              <i class="fas fa-truck"></i>
+            <a href="{% url 'sale:delivery_note_create' %}?so_id={{ order.pk }}" class="btn btn-outline-success" title="{% trans 'إصدار إذن تسليم' %}">
+              <i class="fas fa-truck-loading"></i>
             </a>
             <a href="{% url 'sale:sales_order_convert_to_sale' order.pk %}" class="btn btn-outline-primary" title="{% trans 'إصدار فاتورة' %}">
               <i class="fas fa-file-invoice-dollar"></i>
@@ -66,13 +102,15 @@
           </div>
         </td>
       </tr>
+      {% empty %}
+      <tr>
+        <td colspan="10" class="text-center py-5 text-muted">
+          <i class="fas fa-clipboard-list fa-3x mb-3 text-secondary opacity-50 d-block"></i>
+          <h6>{% trans "لا توجد أوامر بيع مطابقة لمعايير البحث." %}</h6>
+          <p class="small mb-0">{% trans "يمكنك إنشاء أمر بيع جديد من الزر أعلاه." %}</p>
+        </td>
+      </tr>
       {% endfor %}
     </tbody>
   </table>
 </div>
-{% else %}
-<div class="alert alert-info text-center my-4 py-4">
-  <i class="fas fa-clipboard-list fa-3x mb-3 text-muted"></i>
-  <p class="mb-0 fs-5">{% trans "لا توجد أوامر بيع مطابقة للبحث." %}</p>
-</div>
-{% endif %}

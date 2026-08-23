@@ -148,10 +148,10 @@
             </td>
             <td class="text-center fw-bold fs-6">{{ item.received_qty }}</td>
             <td class="text-end">
-              {{ item.unit_price|floatformat:2 }} {{ grn.currency.code|default:grn.currency|default:currency_symbol }}
+              {{ item.unit_price|smart_float:2 }} {% if grn.currency and grn.currency != 'EGP' and grn.currency.code != 'EGP' %}{{ grn.currency.code|default:grn.currency }}{% else %}{% currency_symbol %}{% endif %}
             </td>
             <td class="text-end fw-bold">
-              {{ item.total_cost|floatformat:2 }} {{ grn.currency.code|default:grn.currency|default:currency_symbol }}
+              {{ item.total_cost|smart_float:2 }} {% if grn.currency and grn.currency != 'EGP' and grn.currency.code != 'EGP' %}{{ grn.currency.code|default:grn.currency }}{% else %}{% currency_symbol %}{% endif %}
             </td>
           </tr>
           {% empty %}

@@ -545,7 +545,7 @@ def quotation_detail(request, pk):
             ]
         }
     ])
-    if not quotation.converted_to_sale:
+    if not quotation.converted_to_sale and quotation.status != 'rejected':
         header_buttons.extend([
             {
                 "url": reverse("sale:sales_order_create_for_quotation", kwargs={"quotation_id": quotation.pk}),
@@ -561,16 +561,17 @@ def quotation_detail(request, pk):
                 "toggle": "modal",
                 "target": "#convertInvoiceModal",
             },
-            {
-                "url": "#",
-                "icon": "fa-ellipsis-v",
-                "text": "",
-                "class": "btn-outline-secondary",
-                "id": "actions-menu-btn",
-                "toggle": "modal",
-                "target": "#actionsModal",
-            }
         ])
+    if not quotation.converted_to_sale:
+        header_buttons.append({
+            "url": "#",
+            "icon": "fa-ellipsis-v",
+            "text": "",
+            "class": "btn-outline-secondary",
+            "id": "actions-menu-btn",
+            "toggle": "modal",
+            "target": "#actionsModal",
+        })
 
     context = {
         "quotation": quotation,

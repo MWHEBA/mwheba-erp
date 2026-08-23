@@ -58,15 +58,21 @@
                     <ul class="collapse list-unstyled submenu {% if active_menu == 'sales' %}show{% endif %}" id="salesMenu">
                         <!-- الفواتير -->
                         <li>
-                            <a href="{% url 'sale:sale_list' %}" class="submenu-link">
+                            <a href="{% url 'sale:sale_list' %}" class="submenu-link {% if active_submenu == 'sales_list' %}active{% endif %}">
                                 <i class="fas fa-file-invoice me-2"></i>{% trans "فواتير المبيعات" %}
                             </a>
                         </li>
                         <!-- أوامر البيع -->
                         {% if enable_sales_orders %}
                         <li>
-                            <a href="{% url 'sale:sales_order_list' %}" class="submenu-link">
-                                <i class="fas fa-file-contract me-2"></i>{% trans "أوامر البيع (Sales Orders)" %}
+                            <a href="{% url 'sale:sales_order_list' %}" class="submenu-link {% if active_submenu == 'sales_orders' or active_menu == 'sales_orders' %}active{% endif %}">
+                                <i class="fas fa-clipboard-list me-2"></i>{% trans "أوامر البيع" %}
+                            </a>
+                        </li>
+                        <!-- إذون تسليم البضاعة -->
+                        <li>
+                            <a href="{% url 'sale:delivery_note_list' %}" class="submenu-link {% if active_submenu == 'delivery_notes' or active_menu == 'delivery_notes' %}active{% endif %}">
+                                <i class="fas fa-truck me-2"></i>{% trans "إذون تسليم البضاعة" %}
                             </a>
                         </li>
                         {% endif %}
@@ -74,7 +80,7 @@
                         <!-- عروض الأسعار -->
                         {% if enable_quotations %}
                         <li>
-                            <a href="{% url 'sale:quotation_list' %}" class="submenu-link">
+                            <a href="{% url 'sale:quotation_list' %}" class="submenu-link {% if active_submenu == 'quotations' %}active{% endif %}">
                                 <i class="fas fa-file-signature me-2"></i>{% trans "عروض الأسعار" %}
                             </a>
                         </li>

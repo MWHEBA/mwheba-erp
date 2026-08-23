@@ -222,7 +222,7 @@ If custom_filters is available, it will be used for JSON parsing.
                     <div class="header-buttons-group" role="group" aria-label="إجراءات الصفحة">
                     {% with buttons=header_buttons %}
                         {% comment %}Handle both list objects and JSON strings{% endcomment %}
-                        {% if buttons and buttons|length > 0 and buttons.0.text %}
+                        {% if buttons and buttons|length > 0 %}
                             {% comment %}Direct list of button objects{% endcomment %}
                             {% for button in buttons %}
                                     {% if button.dropdown %}
@@ -311,65 +311,32 @@ If custom_filters is available, it will be used for JSON parsing.
                                             {% if button.icon %}<i class="fas {{ button.icon }} me-1" aria-hidden="true"></i>{% endif %}
                                             {{ button.text }}
                                         </button>
+                                    {% elif button.is_post %}
+                                        <form method="post" action="{{ button.url }}" class="d-inline" {% if button.confirm_message %}onsubmit="return confirm('{{ button.confirm_message|escapejs }}');"{% endif %}>
+                                            {% csrf_token %}
+                                            <button type="submit" 
+                                                    class="btn {{ button.class|default:'btn-primary' }} me-2"
+                                                    {% if button.id %}id="{{ button.id }}"{% endif %}
+                                                    {% if button.title %}title="{{ button.title }}"{% endif %}
+                                                    {% if button.disabled %}disabled{% endif %}
+                                                    aria-label="{{ button.text }}">
+                                                {% if button.icon %}<i class="fas {{ button.icon }} me-1" aria-hidden="true"></i>{% endif %}
+                                                {{ button.text }}
+                                            </button>
+                                        </form>
                                     {% else %}
                                         <a href="{{ button.url|default:'#' }}" 
                                            class="btn {{ button.class|default:'btn-primary' }} me-2"
                                            {% if button.id %}id="{{ button.id }}"{% endif %}
                                            {% if button.title %}title="{{ button.title }}"{% endif %}
+                                           {% if button.target %}target="{{ button.target }}"{% endif %}
                                            {% if button.toggle %}data-bs-toggle="{{ button.toggle }}"{% endif %}
-                                           {% if button.target %}data-bs-target="{{ button.target }}"{% endif %}
                                            {% if button.disabled %}aria-disabled="true" tabindex="-1"{% endif %}
                                            aria-label="{{ button.text }}">
                                             {% if button.icon %}<i class="fas {{ button.icon }} me-1" aria-hidden="true"></i>{% endif %}
                                             {{ button.text }}
                                         </a>
                                     {% endif %}
-                            {% endfor %}
-                        {% else %}
-                            {% comment %}Fallback for other formats or when custom_filters is available{% endcomment %}
-                            {% for button in buttons %}
-                                {% if button.is_badge %}
-                                    <span class="badge {{ button.class|default:'bg-primary' }} me-2"
-                                          {% if button.title %}title="{{ button.title }}"{% endif %}>
-                                        {% if button.icon %}<i class="fas {{ button.icon }} me-1" aria-hidden="true"></i>{% endif %}
-                                        {{ button.text }}
-                                    </span>
-                                {% elif button.form_id %}
-                                    <button type="submit" 
-                                            form="{{ button.form_id }}" 
-                                            class="btn {{ button.class|default:'btn-primary' }} me-2"
-                                            {% if button.id %}id="{{ button.id }}"{% endif %}
-                                            {% if button.title %}title="{{ button.title }}"{% endif %}
-                                            {% if button.disabled %}disabled{% endif %}
-                                            aria-label="{{ button.text }}">
-                                        {% if button.icon %}<i class="fas {{ button.icon }} me-1" aria-hidden="true"></i>{% endif %}
-                                        {{ button.text }}
-                                    </button>
-                                {% elif button.onclick %}
-                                    <button type="button" 
-                                            class="btn {{ button.class|default:'btn-primary' }} me-2"
-                                            onclick="{{ button.onclick }}"
-                                            {% if button.id %}id="{{ button.id }}"{% endif %}
-                                            {% if button.title %}title="{{ button.title }}"{% endif %}
-                                            {% if button.disabled %}disabled{% endif %}
-                                            aria-label="{{ button.text }}">
-                                        {% if button.icon %}<i class="fas {{ button.icon }} me-1" aria-hidden="true"></i>{% endif %}
-                                        {{ button.text }}
-                                    </button>
-                                {% else %}
-                                    <a href="{{ button.url|default:'#' }}" 
-                                       class="btn {{ button.class|default:'btn-primary' }} me-2"
-                                       {% if button.id %}id="{{ button.id }}"{% endif %}
-                                       {% if button.title %}title="{{ button.title }}"{% endif %}
-                                       {% if button.toggle %}data-bs-toggle="{{ button.toggle }}"{% endif %}
-                                       {% if button.target %}data-bs-target="{{ button.target }}"{% endif %}
-                                       {% if button.data_attrs %}{{ button.data_attrs|safe }}{% endif %}
-                                       {% if button.disabled %}aria-disabled="true" tabindex="-1"{% endif %}
-                                       aria-label="{{ button.text }}">
-                                        {% if button.icon %}<i class="fas {{ button.icon }} me-1" aria-hidden="true"></i>{% endif %}
-                                        {{ button.text }}
-                                    </a>
-                                {% endif %}
                             {% endfor %}
                         {% endif %}
                     {% endwith %}

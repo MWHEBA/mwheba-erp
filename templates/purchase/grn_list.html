@@ -22,7 +22,8 @@
         <div class="stats-card-body">
           <div class="stats-card-icon"><i class="fas fa-file-invoice-dollar"></i></div>
           <div class="stats-card-title">إجمالي المبالغ غير المفوترة (GRNI)</div>
-          <div class="stats-card-value">{{ grni_summary.total_open_grni_value|default:"0.00"|floatformat:2 }} {{ currency_symbol|default:"EGP" }}</div>
+          <div class="stats-card-value">{{ grni_summary.total_open_grni_value|default:"0.00"|smart_float:2 }}</div>
+          <div class="stats-card-unit">{% currency_symbol %}</div>
         </div>
       </div>
     </div>
@@ -31,7 +32,8 @@
         <div class="stats-card-body">
           <div class="stats-card-icon"><i class="fas fa-clock"></i></div>
           <div class="stats-card-title">تعتيق حديث (أقل من 30 يوم)</div>
-          <div class="stats-card-value">{{ grni_summary.aging_under_30_days|default:"0.00"|floatformat:2 }} {{ currency_symbol|default:"EGP" }}</div>
+          <div class="stats-card-value">{{ grni_summary.aging_under_30_days|default:"0.00"|smart_float:2 }}</div>
+          <div class="stats-card-unit">{% currency_symbol %}</div>
         </div>
       </div>
     </div>
@@ -40,7 +42,8 @@
         <div class="stats-card-body">
           <div class="stats-card-icon"><i class="fas fa-exclamation-circle"></i></div>
           <div class="stats-card-title">تعتيق متوسط (30 - 60 يوم)</div>
-          <div class="stats-card-value">{{ grni_summary.aging_30_to_60_days|default:"0.00"|floatformat:2 }} {{ currency_symbol|default:"EGP" }}</div>
+          <div class="stats-card-value">{{ grni_summary.aging_30_to_60_days|default:"0.00"|smart_float:2 }}</div>
+          <div class="stats-card-unit">{% currency_symbol %}</div>
         </div>
       </div>
     </div>
@@ -49,7 +52,8 @@
         <div class="stats-card-body">
           <div class="stats-card-icon"><i class="fas fa-exclamation-triangle"></i></div>
           <div class="stats-card-title">تعتيق متأخر (أكثر من 60 يوم)</div>
-          <div class="stats-card-value">{{ grni_summary.aging_over_60_days|default:"0.00"|floatformat:2 }} {{ currency_symbol|default:"EGP" }}</div>
+          <div class="stats-card-value">{{ grni_summary.aging_over_60_days|default:"0.00"|smart_float:2 }}</div>
+          <div class="stats-card-unit">{% currency_symbol %}</div>
         </div>
       </div>
     </div>

@@ -29,6 +29,9 @@ class InventoryReservationService:
             reservations = []
 
             for line in so.items.all():
+                if getattr(line.product, "is_service", False):
+                    continue
+
                 # Concurrency Lock on Product and Stock position
                 _ = Product.objects.select_for_update().get(pk=line.product_id)
                 try:
@@ -74,7 +77,7 @@ class InventoryReservationService:
             return reservations
 
     @classmethod
-    def consume_reservation_for_delivery(
+    def consume_reservation_for_delivery_note(
         cls,
         sales_order_id: int,
         delivery_items_data: List[Dict[str, Any]],
@@ -91,11 +94,14 @@ class InventoryReservationService:
                 so_item_id = item["so_item_id"]
                 deliv_qty = Decimal(str(item["delivered_qty"]))
 
-                res = InventoryReservation.objects.select_for_update().get(
-                    sales_order_id=sales_order_id,
-                    sales_order_line_id=so_item_id,
-                    reservation_status__in=["ACTIVE", "PARTIALLY_FULFILLED"]
-                )
+                try:
+                    res = InventoryReservation.objects.select_for_update().get(
+                        sales_order_id=sales_order_id,
+                        sales_order_line_id=so_item_id,
+                        reservation_status__in=["ACTIVE", "PARTIALLY_FULFILLED"]
+                    )
+                except InventoryReservation.DoesNotExist:
+                    continue
 
                 prev_qty = res.fulfilled_quantity
                 new_fulfilled = prev_qty + deliv_qty

@@ -1,0 +1,166 @@
+{% extends "shared/print_base.html" %}
+{% load i18n %}
+{% load custom_filters %}
+{% load utils_extras %}
+
+{% block page_title %}{% trans "طباعة أمر البيع والتوريد" %} - {{ so.order_number }}{% endblock %}
+
+{% block back_button %}
+<a href="{% url 'sale:sales_order_detail' so.id %}" class="btn btn-outline-light btn-sm">
+    <i class="fas fa-arrow-right me-1"></i> {% trans "العودة لتفاصيل الأمر" %}
+</a>
+{% endblock %}
+
+{% block document_title %}{% trans "أمر بيع وتوريد معتمد" %}{% endblock %}
+
+{% block party_info %}
+<div class="party-box">
+    <div class="party-title">{% trans "السادة / العميل" %}</div>
+    <div class="party-name">{{ so.customer.name }}</div>
+    {% if so.customer.phone %}
+    <div><strong>{% trans "الهاتف" %}:</strong> {{ so.customer.phone|format_phone }}</div>
+    {% endif %}
+    {% if so.customer.address %}
+    <div><strong>{% trans "العنوان" %}:</strong> {{ so.customer.address }}</div>
+    {% endif %}
+    {% if so.customer.tax_number %}
+    <div><strong>{% trans "الرقم الضريبي" %}:</strong> {{ so.customer.tax_number }}</div>
+    {% endif %}
+    {% if so.shipping_address %}
+    <div class="mt-1"><strong>{% trans "موقع التسليم" %}:</strong> {{ so.shipping_address }}</div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block number_label %}{% trans "رقم أمر البيع" %}{% endblock %}
+{% block number_value %}{{ so.order_number }}{% endblock %}
+
+{% block date_label %}{% trans "تاريخ أمر البيع" %}{% endblock %}
+{% block date_value %}
+{{ so.order_date|date:"d-m-Y" }}
+{% if so.expected_delivery_date %}
+<div style="font-size: 12px; color: var(--text-muted); font-weight: 600; margin-top: 3px;">
+    {% trans "تاريخ التوريد المتوقع" %}: {{ so.expected_delivery_date|date:"d-m-Y" }}
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_meta_info %}
+<div class="meta-row">
+    <span class="meta-label">{% trans "المخزن المنفذ" %}:</span>
+    <span class="meta-value">{{ so.warehouse.name }}</span>
+</div>
+{% if so.salesman %}
+<div class="meta-row">
+    <span class="meta-label">{% trans "مسؤول المبيعات" %}:</span>
+    <span class="meta-value">{{ so.salesman.get_full_name|default:so.salesman.username }}</span>
+</div>
+{% endif %}
+<div class="meta-row">
+    <span class="meta-label">{% trans "طريقة التوصيل" %}:</span>
+    <span class="meta-value">{{ so.get_shipping_method_display }}</span>
+</div>
+{% if so.currency and so.currency != "EGP" %}
+<div class="meta-row">
+    <span class="meta-label">{% trans "العملة / الصرف" %}:</span>
+    <span class="meta-value">{{ so.currency }} ({{ so.exchange_rate|smart_float:4 }})</span>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block items_rows %}
+{% for item in items %}
+<tr>
+    <td style="text-align: center;">{{ forloop.counter }}</td>
+    <td style="font-size: 13px; color: var(--text-muted); text-align: center; white-space: nowrap;">
+        {{ item.product.code|default:item.product.barcode|default:"-" }}
+    </td>
+    <td class="col-desc">
+        <div style="font-weight: 700;">{{ item.product.name }}</div>
+    </td>
+    <td style="text-align: center; font-weight: 700;">
+        {{ item.ordered_qty|smart_float:2 }} {{ item.product.unit.name|default:"" }}
+    </td>
+    <td style="text-align: right; white-space: nowrap;">
+        {{ item.unit_price|smart_float:2 }}
+    </td>
+    {% if so.discount_amount > 0 or item.discount_percentage > 0 %}
+    <td style="text-align: center;">
+        {% if item.discount_percentage > 0 %}{{ item.discount_percentage|smart_float:2 }}%{% else %}-{% endif %}
+    </td>
+    {% endif %}
+    <td style="text-align: right; font-weight: 700; white-space: nowrap;">
+        {{ item.line_total|smart_float:2 }}
+    </td>
+</tr>
+{% endfor %}
+{% endblock %}
+
+{% block summary_section %}
+<div class="summary-card">
+    <div class="summary-row">
+        <span>{% trans "المجموع الفرعي" %}:</span>
+        <span>{{ so.subtotal|smart_float:2 }} {{ so.currency }}</span>
+    </div>
+    {% if so.discount_amount > 0 %}
+    <div class="summary-row" style="color: var(--danger-color, #dc3545);">
+        <span>{% trans "قيمة الخصم" %} ({% if so.discount_type == 'percentage' %}{{ so.discount_amount }}%{% else %}{% trans "مبلغ ثابت" %}{% endif %}):</span>
+        <span>-{{ so.discount_amount|smart_float:2 }} {{ so.currency }}</span>
+    </div>
+    {% endif %}
+    {% if so.adjustment_amount != 0 %}
+    <div class="summary-row">
+        <span>{{ so.adjustment_name|default:_("تسوية إضافية") }}:</span>
+        <span>{{ so.adjustment_amount|smart_float:2 }} {{ so.currency }}</span>
+    </div>
+    {% endif %}
+    {% if so.tax_amount > 0 %}
+    <div class="summary-row">
+        <span>{% trans "ضريبة القيمة المضافة" %} ({{ so.vat_rate }}%):</span>
+        <span>+{{ so.tax_amount|smart_float:2 }} {{ so.currency }}</span>
+    </div>
+    {% endif %}
+    {% if so.wht_amount > 0 %}
+    <div class="summary-row" style="color: var(--warning-color, #ffc107);">
+        <span>{% trans "خصم أ.ت.ص (المنبع)" %} ({{ so.wht_rate }}%):</span>
+        <span>-{{ so.wht_amount|smart_float:2 }} {{ so.currency }}</span>
+    </div>
+    {% endif %}
+    <div class="summary-row total-row">
+        <span>{% trans "صافي إجمالي أمر البيع" %}:</span>
+        <span>{{ so.total_amount|smart_float:2 }} {{ so.currency }}</span>
+    </div>
+    {% if so.required_down_payment > 0 %}
+    <div class="summary-row mt-2" style="font-weight: 600; color: var(--primary-color);">
+        <span>{% trans "الدفعة المقدمة المشترطة للتنفيذ" %}:</span>
+        <span>{{ so.required_down_payment|smart_float:2 }} {{ so.currency }}</span>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block notes_section %}
+{% if so.notes %}
+<div class="notes-box mb-4">
+    <div class="fw-bold mb-1">{% trans "الشروط والأحكام وملاحظات التوريد" %}:</div>
+    <div style="white-space: pre-line;">{{ so.notes }}</div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block signatures %}
+<div class="signatures-grid mt-5">
+    <div class="signature-box text-center">
+        <div class="fw-bold mb-4">{% trans "إعداد مسؤول المبيعات" %}</div>
+        <div class="text-muted small">{{ so.salesman.get_full_name|default:so.created_by.get_full_name|default:so.created_by.username }}</div>
+    </div>
+    <div class="signature-box text-center">
+        <div class="fw-bold mb-4">{% trans "اعتماد الإدارة التجارية / المدير العام" %}</div>
+        <div class="text-muted small">..................................</div>
+    </div>
+    <div class="signature-box text-center">
+        <div class="fw-bold mb-4">{% trans "موافقة واستلام العميل (الختم والتوقيع)" %}</div>
+        <div class="text-muted small">{{ so.customer.name }}</div>
+    </div>
+</div>
+{% endblock %}

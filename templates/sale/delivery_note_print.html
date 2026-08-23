@@ -1,0 +1,131 @@
+{% extends "shared/print_base.html" %}
+{% load i18n %}
+{% load custom_filters %}
+{% load utils_extras %}
+
+{% block page_title %}{% trans "إذن تسليم وتصريح خروج بضاعة" %} - {{ dn.delivery_number }}{% endblock %}
+
+{% block back_button %}
+<a href="{% url 'sale:delivery_note_detail' dn.id %}" class="btn btn-outline-light btn-sm">
+    <i class="fas fa-arrow-right me-1"></i> {% trans "العودة لتفاصيل إذن التسليم" %}
+</a>
+{% endblock %}
+
+{% block document_title %}{% trans "إذن تسليم مخزني وتصريح خروج (Gate Pass)" %}{% endblock %}
+
+{% block party_info %}
+<div class="party-box">
+    <div class="party-title">{% trans "بيانات المستلم / العميل" %}</div>
+    <div class="party-name">{{ dn.customer.name }}</div>
+    {% if dn.customer.phone %}
+    <div><strong>{% trans "الهاتف" %}:</strong> {{ dn.customer.phone|format_phone }}</div>
+    {% endif %}
+    {% if dn.customer.address %}
+    <div><strong>{% trans "العنوان" %}:</strong> {{ dn.customer.address }}</div>
+    {% endif %}
+    {% if dn.sales_order.shipping_address %}
+    <div class="mt-1"><strong>{% trans "عنوان التسليم الفعلي" %}:</strong> {{ dn.sales_order.shipping_address }}</div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block number_label %}{% trans "رقم إذن التسليم" %}{% endblock %}
+{% block number_value %}{{ dn.delivery_number }}{% endblock %}
+
+{% block date_label %}{% trans "تاريخ التسليم" %}{% endblock %}
+{% block date_value %}{{ dn.delivery_date|date:"d-m-Y" }}{% endblock %}
+
+{% block extra_meta_info %}
+<div class="meta-row">
+    <span class="meta-label">{% trans "أمر البيع الأصلي" %}:</span>
+    <span class="meta-value fw-bold">{{ dn.sales_order.order_number }}</span>
+</div>
+<div class="meta-row">
+    <span class="meta-label">{% trans "المخزن المورد" %}:</span>
+    <span class="meta-value">{{ dn.warehouse.name }}</span>
+</div>
+{% if dn.driver_name %}
+<div class="meta-row">
+    <span class="meta-label">{% trans "اسم السائق" %}:</span>
+    <span class="meta-value">{{ dn.driver_name }}</span>
+</div>
+{% endif %}
+{% if dn.truck_plate_number %}
+<div class="meta-row">
+    <span class="meta-label">{% trans "رقم لوحة الشاحنة" %}:</span>
+    <span class="meta-value">{{ dn.truck_plate_number }}</span>
+</div>
+{% endif %}
+{% if dn.driver_phone %}
+<div class="meta-row">
+    <span class="meta-label">{% trans "هاتف السائق" %}:</span>
+    <span class="meta-value">{{ dn.driver_phone }}</span>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block items_rows %}
+{% for item in items %}
+<tr>
+    <td style="text-align: center;">{{ forloop.counter }}</td>
+    <td style="font-size: 13px; color: var(--text-muted); text-align: center; white-space: nowrap;">
+        {{ item.so_item.product.code|default:item.so_item.product.barcode|default:"-" }}
+    </td>
+    <td class="col-desc">
+        <div style="font-weight: 700;">{{ item.so_item.product.name }}</div>
+    </td>
+    <td style="text-align: center; font-weight: 700; font-size: 14px;">
+        {{ item.delivered_qty|smart_float:2 }} {{ item.so_item.product.unit.name|default:"" }}
+    </td>
+    <td style="text-align: center; color: var(--text-muted);">
+        {{ item.so_item.ordered_qty|smart_float:2 }}
+    </td>
+    <td style="text-align: center; font-weight: 600;">
+        {{ item.so_item.ordered_qty|sub:item.so_item.delivered_qty|smart_float:2 }}
+    </td>
+</tr>
+{% endfor %}
+{% endblock %}
+
+{% block summary_section %}
+<div class="summary-card">
+    <div class="summary-row">
+        <span>{% trans "إجمالي عدد البنود المسلمة" %}:</span>
+        <span class="fw-bold">{{ items.count }}</span>
+    </div>
+    <div class="summary-row total-row">
+        <span>{% trans "حالة التسليم" %}:</span>
+        <span class="badge bg-success text-white px-3 py-1">{{ dn.get_status_display }}</span>
+    </div>
+</div>
+{% endblock %}
+
+{% block notes_section %}
+{% if dn.delivery_notes or dn.sales_order.notes %}
+<div class="notes-box mb-4">
+    <div class="fw-bold mb-1">{% trans "ملاحظات التسليم والبوابة" %}:</div>
+    <div style="white-space: pre-line;">{{ dn.delivery_notes|default:dn.sales_order.notes }}</div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block signatures %}
+<div class="signatures-grid mt-5">
+    <div class="signature-box text-center">
+        <div class="fw-bold mb-4">{% trans "أمين المخزن (المسلّم)" %}</div>
+        <div class="text-muted small">{{ dn.created_by.get_full_name|default:dn.created_by.username }}</div>
+    </div>
+    <div class="signature-box text-center">
+        <div class="fw-bold mb-4">{% trans "السائق / الناقل" %}</div>
+        <div class="text-muted small">{{ dn.driver_name|default:".................................." }}</div>
+    </div>
+    <div class="signature-box text-center">
+        <div class="fw-bold mb-4">{% trans "أمن البوابة (تصريح الخروج)" %}</div>
+        <div class="text-muted small">..................................</div>
+    </div>
+    <div class="signature-box text-center">
+        <div class="fw-bold mb-4">{% trans "استلام العميل (الاسم والتوقيع والختم)" %}</div>
+        <div class="text-muted small">{{ dn.customer.name }}</div>
+    </div>
+</div>
+{% endblock %}

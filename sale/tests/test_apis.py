@@ -21,10 +21,11 @@ class SaleListAPITest(TestCase):
         """إعداد بيانات الاختبار"""
         self.client = Client()
         self.user = User.objects.create_user(
-            username='testuser',
+            username='testuser1',
+            email='testuser1@example.com',
             password='test123'
         )
-        self.client.login(username='testuser', password='test123')
+        self.client.login(username='testuser1', password='test123')
         
     def test_sale_list_view_loads(self):
         """اختبار تحميل قائمة المبيعات"""
@@ -48,10 +49,11 @@ class SaleDetailAPITest(TestCase):
         """إعداد بيانات الاختبار"""
         self.client = Client()
         self.user = User.objects.create_user(
-            username='testuser',
+            username='testuser2',
+            email='testuser2@example.com',
             password='test123'
         )
-        self.client.login(username='testuser', password='test123')
+        self.client.login(username='testuser2', password='test123')
         
     def test_sale_detail_with_invalid_id(self):
         """اختبار تفاصيل فاتورة غير موجودة"""
@@ -69,10 +71,11 @@ class SaleCreateAPITest(TestCase):
         """إعداد بيانات الاختبار"""
         self.client = Client()
         self.user = User.objects.create_user(
-            username='testuser',
+            username='testuser3',
+            email='testuser3@example.com',
             password='test123'
         )
-        self.client.login(username='testuser', password='test123')
+        self.client.login(username='testuser3', password='test123')
         
     def test_sale_create_view_loads(self):
         """اختبار تحميل صفحة إنشاء فاتورة"""
@@ -88,10 +91,11 @@ class SaleReturnAPITest(TestCase):
         """إعداد بيانات الاختبار"""
         self.client = Client()
         self.user = User.objects.create_user(
-            username='testuser',
+            username='testuser4',
+            email='testuser4@example.com',
             password='test123'
         )
-        self.client.login(username='testuser', password='test123')
+        self.client.login(username='testuser4', password='test123')
         
     def test_sale_return_list_view_loads(self):
         """اختبار تحميل قائمة المرتجعات"""

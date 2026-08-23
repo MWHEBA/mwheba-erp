@@ -90,6 +90,7 @@ def delivery_note_list(request):
     header_buttons = [
         {
             "url": reverse("sale:delivery_note_create"),
+            "text": _("إصدار إذن تسليم جديد"),
             "label": _("إصدار إذن تسليم جديد"),
             "icon": "fa-plus",
             "class": "btn-primary",
@@ -98,6 +99,8 @@ def delivery_note_list(request):
 
     context = {
         "page_title": _("إذون تسليم البضاعة"),
+        "page_icon": "fas fa-truck",
+        "page_subtitle": _("إدارة ومتابعة تسليم البضائع وأذونات الصرف المخزني"),
         **pagination_context,
         "delivery_notes": page_obj.object_list,
         "stats": stats,
@@ -105,6 +108,12 @@ def delivery_note_list(request):
         "warehouses": Warehouse.objects.filter(is_active=True).only("id", "name"),
         "breadcrumb_items": breadcrumb_items,
         "header_buttons": header_buttons,
+        "search_query": search_query or "",
+        "selected_customer": customer_id or "",
+        "selected_warehouse": warehouse_id or "",
+        "selected_status": status or "",
+        "selected_date_from": date_from or "",
+        "selected_date_to": date_to or "",
     }
 
     if request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.GET.get("ajax"):
@@ -133,6 +142,11 @@ def delivery_note_create(request):
 
     if request.method == "POST":
         delivery_date = request.POST.get("delivery_date") or timezone.now().date()
+        driver_name = request.POST.get("driver_name", "")
+        truck_plate_number = request.POST.get("truck_plate_number", "")
+        driver_phone = request.POST.get("driver_phone", "")
+        delivery_notes = request.POST.get("delivery_notes", "")
+
         so_item_ids = request.POST.getlist("so_item_id[]")
         delivered_qtys = request.POST.getlist("delivered_qty[]")
 
@@ -163,6 +177,13 @@ def delivery_note_create(request):
                 user=request.user
             )
 
+            # Update driver metadata
+            dn.driver_name = driver_name
+            dn.truck_plate_number = truck_plate_number
+            dn.driver_phone = driver_phone
+            dn.delivery_notes = delivery_notes
+            dn.save(update_fields=["driver_name", "truck_plate_number", "driver_phone", "delivery_notes"])
+
             messages.success(request, f"تم إصدار إذن التسليم #{dn.delivery_number} وترحيل حركة المخزون وقيد التكلفة بنجاح.")
             return redirect("sale:delivery_note_detail", pk=dn.pk)
 
@@ -185,6 +206,8 @@ def delivery_note_create(request):
 
     context = {
         "page_title": _("إصدار إذن تسليم بضاعة"),
+        "page_icon": "fas fa-truck-loading",
+        "page_subtitle": _("تسليم بضاعة من أمر بيع معتمد وتوليد قيد التكلفة"),
         "sales_order": sales_order,
         "available_orders": available_orders,
         "breadcrumb_items": breadcrumb_items,
@@ -207,7 +230,7 @@ def delivery_note_detail(request, pk):
     cogs_entry = JournalEntry.objects.filter(
         source_model="DeliveryNote",
         source_id=dn.id
-    ).first()
+    ).first() or dn.journal_entry
 
     # فواتير المبيعات المنشأة من هذا الإذن
     linked_sales = Sale.objects.filter(delivery_note=dn).order_by("-id")
@@ -218,17 +241,39 @@ def delivery_note_detail(request, pk):
         {"title": f"{_('إذن تسليم')} #{dn.delivery_number}", "active": True},
     ]
 
-    header_buttons = []
+    header_buttons = [
+        {
+            "url": reverse("sale:delivery_note_print", args=[dn.pk]),
+            "text": _("طباعة تصريح خروج (Gate Pass)"),
+            "label": _("طباعة تصريح خروج (Gate Pass)"),
+            "icon": "fa-print",
+            "class": "btn-outline-secondary",
+            "target": "_blank",
+        }
+    ]
+
     if dn.status in ["DELIVERED", "CONFIRMED"]:
         header_buttons.append({
             "url": reverse("sale:delivery_note_convert_to_sale", args=[dn.pk]),
+            "text": _("إصدار فاتورة مبيعات"),
             "label": _("إصدار فاتورة مبيعات"),
             "icon": "fa-file-invoice-dollar",
             "class": "btn-primary",
         })
+        header_buttons.append({
+            "url": reverse("sale:delivery_note_cancel", args=[dn.pk]),
+            "text": _("إلغاء إذن التسليم وعكس القيد"),
+            "label": _("إلغاء إذن التسليم وعكس القيد"),
+            "icon": "fa-times-circle",
+            "class": "btn-outline-danger",
+            "is_post": True,
+            "confirm_message": _("هل أنت متأكد من إلغاء إذن التسليم؟ سيتم إعادة البضاعة للمخزن وعكس قيد التكلفة فوراً."),
+        })
 
     context = {
         "page_title": f"{_('إذن تسليم')} #{dn.delivery_number}",
+        "page_icon": "fas fa-clipboard-check",
+        "page_subtitle": f"{_('تفاصيل إذن التسليم رقم')} {dn.delivery_number}",
         "dn": dn,
         "items": dn.items.all(),
         "cogs_entry": cogs_entry,
@@ -237,6 +282,43 @@ def delivery_note_detail(request, pk):
         "header_buttons": header_buttons,
     }
     return render(request, "sale/delivery_note_detail.html", context)
+
+
+@login_required
+@require_POST
+def delivery_note_cancel(request, pk):
+    """
+    إلغاء إذن التسليم المخزني وعكس قيد التكلفة COGS
+    """
+    dn = get_object_or_404(DeliveryNote, pk=pk)
+    try:
+        SalesService.cancel_delivery_note(dn.id, request.user, reason="إلغاء إذن تسليم يدوي")
+        messages.success(request, f"تم إلغاء إذن التسليم #{dn.delivery_number} وعكس قيد التكلفة وإعادة البضاعة للمخزن بنجاح.")
+    except Exception as e:
+        messages.error(request, f"خطأ أثناء إلغاء إذن التسليم: {str(e)}")
+    return redirect("sale:delivery_note_detail", pk=pk)
+
+
+@login_required
+def delivery_note_print(request, pk):
+    """
+    عرض قالب الطباعة الرسمي لتصريح الخروج وإذن التسليم (Official Gate Pass Print View)
+    """
+    from core.models import SystemSetting
+    dn = get_object_or_404(
+        DeliveryNote.objects.select_related("customer", "warehouse", "sales_order", "created_by")
+        .prefetch_related("items__so_item__product"),
+        pk=pk
+    )
+    context = {
+        "dn": dn,
+        "items": dn.items.all(),
+        "company_name": SystemSetting.get_setting("company_name", "موهبة"),
+        "company_address": SystemSetting.get_setting("company_address", ""),
+        "company_phone": SystemSetting.get_setting("company_phone", ""),
+        "company_tax_number": SystemSetting.get_setting("company_tax_number", ""),
+    }
+    return render(request, "sale/delivery_note_print.html", context)
 
 
 @login_required

@@ -82,6 +82,39 @@
     </div>
   </div>
 
+  <!-- بيانات السائق وتصريح الخروج -->
+  {% if dn.driver_name or dn.truck_plate_number or dn.driver_phone or dn.delivery_notes %}
+  <div class="section-container mb-4">
+    <h5 class="section-title"><i class="fas fa-truck-moving me-2"></i>{% trans "بيانات النقل وتصريح الخروج اللوجستي" %}</h5>
+    <div class="row g-3">
+      {% if dn.driver_name %}
+      <div class="col-md-4">
+        <span class="text-muted d-block small">{% trans "اسم السائق" %}</span>
+        <span class="fw-bold fs-6">{{ dn.driver_name }}</span>
+      </div>
+      {% endif %}
+      {% if dn.truck_plate_number %}
+      <div class="col-md-4">
+        <span class="text-muted d-block small">{% trans "رقم لوحة الشاحنة" %}</span>
+        <span class="fw-bold fs-6">{{ dn.truck_plate_number }}</span>
+      </div>
+      {% endif %}
+      {% if dn.driver_phone %}
+      <div class="col-md-4">
+        <span class="text-muted d-block small">{% trans "هاتف السائق" %}</span>
+        <span class="fw-bold fs-6">{{ dn.driver_phone }}</span>
+      </div>
+      {% endif %}
+      {% if dn.delivery_notes %}
+      <div class="col-12 mt-2 pt-2 border-top">
+        <span class="text-muted d-block small">{% trans "ملاحظات التسليم والبوابة" %}</span>
+        <span class="text-dark">{{ dn.delivery_notes }}</span>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
   <!-- جدول بنود البضاعة المسلمة -->
   <div class="section-container mb-4">
     <h5 class="section-title"><i class="fas fa-boxes me-2"></i>{% trans "بنود البضاعة المسلمة من المخزن" %}</h5>
@@ -100,10 +133,10 @@
           {% for item in items %}
           <tr>
             <td>{{ forloop.counter }}</td>
-            <td class="text-start fw-bold">{{ item.so_item.product.name }} ({{ item.so_item.product.sku }})</td>
+            <td class="text-start fw-bold">{{ item.so_item.product.name }} {% if item.so_item.product.code %}({{ item.so_item.product.code }}){% endif %}</td>
             <td class="fw-bold fs-6">{{ item.delivered_qty }}</td>
-            <td>{{ item.unit_cost|floatformat:2 }} EGP</td>
-            <td class="fw-bold text-danger">{{ item.delivered_qty|floatformat:2 }} EGP</td>
+            <td>{{ item.unit_cost|smart_float:2 }} {% currency_symbol %}</td>
+            <td class="fw-bold text-danger">{{ item.delivered_qty|mul:item.unit_cost|smart_float:2 }} {% currency_symbol %}</td>
           </tr>
           {% endfor %}
         </tbody>

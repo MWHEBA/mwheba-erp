@@ -137,6 +137,18 @@ def sale_create(request, customer_id=None):
             messages.error(request, "العميل المحدد غير موجود أو غير نشط")
             return redirect("sale:sale_list")
 
+    # قراءة أمر البيع إذا تم تمريره
+    so_id = request.GET.get('from_so') or request.POST.get('from_so') or request.POST.get('sales_order')
+    selected_so = None
+    if so_id:
+        from sale.models.sales_models import SalesOrder
+        try:
+            selected_so = SalesOrder.objects.prefetch_related('items__product').get(id=so_id)
+            if not selected_customer:
+                selected_customer = selected_so.customer
+        except SalesOrder.DoesNotExist:
+            pass
+
     # قراءة أمر الشغل إذا تم تمريره
     work_order_id = request.GET.get('work_order')
     selected_work_order = None
@@ -204,6 +216,7 @@ def sale_create(request, customer_id=None):
                     'exchange_rate': request.POST.get("exchange_rate", "1.0"),
                     'exchange_rate_override_reason': request.POST.get("exchange_rate_override_reason", ""),
                     'work_order_id': form.cleaned_data['work_order'].id if form.cleaned_data.get('work_order') else None,
+                    'sales_order_id': selected_so.id if selected_so else (request.POST.get('sales_order') or None),
                     'custom_fields': SaleService.parse_custom_fields(request.POST.get('custom_fields_json', '[]')),
                     'items': []
                 }
@@ -317,9 +330,44 @@ def sale_create(request, customer_id=None):
             initial_data["customer"] = selected_customer
         if selected_work_order:
             initial_data["work_order"] = selected_work_order
+        if selected_so:
+            initial_data["customer"] = selected_so.customer
+            initial_data["warehouse"] = selected_so.warehouse
+            initial_data["salesman"] = selected_so.salesman
+            initial_data["cost_center"] = selected_so.cost_center
+            initial_data["currency"] = selected_so.currency
+            initial_data["exchange_rate"] = selected_so.exchange_rate
+            initial_data["discount"] = selected_so.discount_amount
+            initial_data["discount_type"] = selected_so.discount_type
+            initial_data["adjustment_name"] = selected_so.adjustment_name
+            initial_data["adjustment_amount"] = selected_so.adjustment_amount
+            initial_data["vat_rate"] = selected_so.vat_rate
+            initial_data["wht_active"] = selected_so.wht_active
+            initial_data["wht_rate"] = selected_so.wht_rate
+            if selected_so.notes:
+                initial_data["notes"] = selected_so.notes
+
+            # Fill posted_items with SO lines
+            posted_items = []
+            for item in selected_so.items.all():
+                rem_qty = item.ordered_qty - item.invoiced_qty
+                if rem_qty <= Decimal("0.0000"):
+                    rem_qty = item.ordered_qty
+
+                posted_items.append({
+                    "product_id": item.product_id,
+                    "product_name": item.product.name,
+                    "product_code": getattr(item.product, "code", "") or getattr(item.product, "barcode", "") or "",
+                    "quantity": str(rem_qty),
+                    "unit_price": str(item.unit_price),
+                    "discount": str(item.discount_percentage),
+                    "unit_id": item.product.unit_id if hasattr(item.product, 'unit_id') else None,
+                    "unit_name": item.product.unit.name if hasattr(item.product, 'unit') and item.product.unit else "",
+                    "so_item_id": item.id
+                })
         
         warehouses = Warehouse.objects.filter(is_active=True).order_by("name")
-        if warehouses.exists():
+        if warehouses.exists() and "warehouse" not in initial_data:
             initial_data["warehouse"] = warehouses.first()
             
         form = SaleForm(initial=initial_data, user=request.user)
@@ -2167,6 +2215,8 @@ from .sales_order_views import (
     sales_order_list,
     sales_order_create,
     sales_order_detail,
+    sales_order_edit,
+    sales_order_print,
     sales_order_confirm,
     sales_order_cancel,
     sales_order_convert_to_sale,
@@ -2176,6 +2226,8 @@ from .delivery_note_views import (
     delivery_note_list,
     delivery_note_create,
     delivery_note_detail,
+    delivery_note_print,
+    delivery_note_cancel,
     delivery_note_convert_to_sale,
 )
 

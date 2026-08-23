@@ -131,13 +131,84 @@
         </tbody>
         <tfoot class="table-light">
           <tr>
-            <td colspan="7" class="text-end fw-bold fs-5">{% trans "الإجمالي الكلي:" %}</td>
+            <td colspan="7" class="text-end fw-bold">{% trans "المجموع الفرعي:" %}</td>
+            <td class="fw-bold">{{ so.subtotal|floatformat:2 }} {{ so.currency }}</td>
+          </tr>
+          {% if so.discount_amount > 0 %}
+          <tr class="text-danger">
+            <td colspan="7" class="text-end fw-bold">{% trans "قيمة الخصم:" %}</td>
+            <td class="fw-bold">-{{ so.discount_amount|floatformat:2 }} {{ so.currency }}</td>
+          </tr>
+          {% endif %}
+          {% if so.adjustment_amount != 0 %}
+          <tr>
+            <td colspan="7" class="text-end fw-bold">{{ so.adjustment_name|default:_("تسوية إضافية:") }}</td>
+            <td class="fw-bold">{{ so.adjustment_amount|floatformat:2 }} {{ so.currency }}</td>
+          </tr>
+          {% endif %}
+          {% if so.tax_amount > 0 %}
+          <tr class="text-primary">
+            <td colspan="7" class="text-end fw-bold">{% trans "ضريبة القيمة المضافة (VAT):" %}</td>
+            <td class="fw-bold">+{{ so.tax_amount|floatformat:2 }} {{ so.currency }}</td>
+          </tr>
+          {% endif %}
+          {% if so.wht_amount > 0 %}
+          <tr class="text-warning">
+            <td colspan="7" class="text-end fw-bold">{% trans "خصم أ.ت.ص (المنبع):" %}</td>
+            <td class="fw-bold">-{{ so.wht_amount|floatformat:2 }} {{ so.currency }}</td>
+          </tr>
+          {% endif %}
+          <tr class="table-active">
+            <td colspan="7" class="text-end fw-bold fs-5">{% trans "صافي إجمالي أمر البيع:" %}</td>
             <td class="fw-bold fs-5 text-success">{{ so.total_amount|floatformat:2 }} {{ so.currency }}</td>
           </tr>
         </tfoot>
       </table>
     </div>
   </div>
+
+  <!-- بيانات اللوجستيات والشحن والشروط -->
+  {% if so.expected_delivery_date or so.shipping_address or so.notes or so.salesman %}
+  <div class="section-container mb-4">
+    <h5 class="section-title"><i class="fas fa-truck-loading me-2"></i>{% trans "بيانات الشحن واللوجستيات والشروط" %}</h5>
+    <div class="row g-3">
+      {% if so.salesman %}
+      <div class="col-md-3">
+        <span class="text-muted d-block small">{% trans "مسؤول المبيعات" %}</span>
+        <span class="fw-bold">{{ so.salesman.get_full_name|default:so.salesman.username }}</span>
+      </div>
+      {% endif %}
+      {% if so.expected_delivery_date %}
+      <div class="col-md-3">
+        <span class="text-muted d-block small">{% trans "تاريخ التوريد المتوقع" %}</span>
+        <span class="fw-bold">{{ so.expected_delivery_date|date:"Y-m-d" }}</span>
+      </div>
+      {% endif %}
+      <div class="col-md-3">
+        <span class="text-muted d-block small">{% trans "طريقة التوصيل" %}</span>
+        <span class="fw-bold">{{ so.get_shipping_method_display }}</span>
+      </div>
+      {% if so.required_down_payment > 0 %}
+      <div class="col-md-3">
+        <span class="text-muted d-block small">{% trans "الدفعة المقدمة المشترطة" %}</span>
+        <span class="fw-bold text-primary">{{ so.required_down_payment|floatformat:2 }} {{ so.currency }}</span>
+      </div>
+      {% endif %}
+      {% if so.shipping_address %}
+      <div class="col-12 mt-2 pt-2 border-top">
+        <span class="text-muted d-block small">{% trans "موقع وعنوان التسليم الفعلي" %}</span>
+        <span class="text-dark">{{ so.shipping_address }}</span>
+      </div>
+      {% endif %}
+      {% if so.notes %}
+      <div class="col-12 mt-2 pt-2 border-top">
+        <span class="text-muted d-block small">{% trans "الشروط والملاحظات" %}</span>
+        <span class="text-dark" style="white-space: pre-line;">{{ so.notes }}</span>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
 
   <!-- إذون التسليم المرتبطة -->
   {% if delivery_notes %}

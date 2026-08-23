@@ -600,6 +600,23 @@ def customer_detail(request, pk):
             },
         ]
 
+    # جلب أوامر البيع المرتبطة بالعميل
+    from sale.models.sales_models import SalesOrder
+    sales_orders = SalesOrder.objects.filter(customer=customer).select_related("warehouse", "salesman").order_by("-order_date", "-id")
+    sales_orders_count = sales_orders.count()
+    sales_orders_headers = [
+        {"key": "id", "label": "#", "sortable": True, "class": "text-center", "width": "60px"},
+        {"key": "order_date", "label": "التاريخ", "sortable": True, "class": "text-center", "format": "date"},
+        {"key": "order_number", "label": "رقم الأمر", "sortable": True, "class": "text-center", "format": "reference", "variant": "highlight-code", "app": "sale"},
+        {"key": "warehouse__name", "label": "المخزن", "sortable": True, "class": "text-center"},
+        {"key": "total_amount", "label": "الإجمالي", "sortable": True, "class": "text-center", "format": "currency"},
+        {"key": "status", "label": "الحالة", "sortable": True, "class": "text-center", "format": "status"},
+    ]
+    sales_orders_action_buttons = [
+        {"url": "sale:sales_order_detail", "icon": "fa-eye", "class": "action-view", "label": "عرض أمر البيع"},
+        {"url": "sale:sales_order_print", "icon": "fa-print", "class": "action-print", "label": "طباعة"},
+    ]
+
     # حساب إجمالي المبيعات
     total_sales = invoices.aggregate(total=Sum("total"))["total"] or 0
 
@@ -1294,6 +1311,12 @@ def customer_detail(request, pk):
         "quotations_action_buttons": quotations_action_buttons,
         "quotations_clickable": True,
         "quotations_click_url": "sale:quotation_detail",
+        "sales_orders": sales_orders,
+        "sales_orders_count": sales_orders_count,
+        "sales_orders_headers": sales_orders_headers,
+        "sales_orders_action_buttons": sales_orders_action_buttons,
+        "sales_orders_clickable": True,
+        "sales_orders_click_url": "sale:sales_order_detail",
         # إعدادات الصفوف القابلة للنقر
         "invoices_clickable": True,
         "invoices_click_url": "sale:sale_detail",

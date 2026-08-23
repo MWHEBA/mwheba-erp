@@ -9,8 +9,10 @@ class CustomFieldDefinition(models.Model):
     """
     MODULE_CHOICES = (
         ('quotation', _('عروض الأسعار')),
+        ('sales_order', _('أوامر البيع')),
         ('sale', _('فواتير المبيعات')),
         ('both', _('عروض الأسعار وفواتير المبيعات')),
+        ('all', _('الكل (عروض الأسعار، أوامر البيع، والفواتير)')),
     )
 
     FIELD_TYPES = (
