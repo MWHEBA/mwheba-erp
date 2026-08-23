@@ -537,12 +537,12 @@
 <script>
     $(document).ready(function() {
         // ===== Select2 للمورد والمخزن والتصنيف المالي ومركز التكلفة ونوع الفاتورة وطريقة الدفع =====
-        $('#id_supplier').select2({ placeholder: "اختر المورد", width: '100%', allowClear: true });
-        $('#id_warehouse').select2({ placeholder: "اختر المخزن", width: '100%', allowClear: true });
-        $('#id_financial_category').select2({ placeholder: "اختر التصنيف المالي", width: '100%', allowClear: true });
-        $('#id_cost_center').select2({ placeholder: "اختر مركز التكلفة", width: '100%', allowClear: true });
-        $('#id_invoice_type').select2({ width: '100%', dir: 'rtl', minimumResultsForSearch: Infinity });
-        $('#id_payment_method').select2({ width: '100%', dir: 'rtl', placeholder: "اختر طريقة الدفع", allowClear: true });
+        $('select#id_supplier').select2({ placeholder: "اختر المورد", width: '100%', allowClear: true });
+        $('select#id_warehouse').select2({ placeholder: "اختر المخزن", width: '100%', allowClear: true });
+        $('select#id_financial_category').select2({ placeholder: "اختر التصنيف المالي", width: '100%', allowClear: true });
+        $('select#id_cost_center').select2({ placeholder: "اختر مركز التكلفة", width: '100%', allowClear: true });
+        $('select#id_invoice_type').select2({ width: '100%', dir: 'rtl', minimumResultsForSearch: Infinity });
+        $('select#id_payment_method').select2({ width: '100%', dir: 'rtl', placeholder: "اختر طريقة الدفع", allowClear: true });
 
         // حل مشكلة عدم القدرة على الكتابة في حقول SweetAlert عند فتحها من داخل مودال
         window.addEventListener('focusin', function(e) {

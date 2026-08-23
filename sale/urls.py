@@ -94,6 +94,7 @@ urlpatterns = [
     path("delivery-notes/<int:pk>/convert-sale/", views.delivery_note_convert_to_sale, name="delivery_note_convert_to_sale"),
 
     # قوائم الأسعار وقواعد الخصم (Pricing & Policies)
+    path("api/pricing/evaluate-cart/", views.evaluate_cart_api, name="api_evaluate_cart"),
     path("pricing/price-lists/", views.price_list_list, name="price_list_list"),
     path("pricing/price-lists/create/", views.price_list_create, name="price_list_create"),
     path("pricing/price-lists/<int:pk>/", views.price_list_detail, name="price_list_detail"),

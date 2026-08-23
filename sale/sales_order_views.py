@@ -19,6 +19,7 @@ from django.http import JsonResponse
 from sale.models.sales_models import SalesOrder, SalesOrderItem, DeliveryNote, SalesInvoice
 from sale.models import Sale
 from sale.models.quotation import Quotation
+from sale.models.pricing import PriceList
 from sale.services.sales_service import SalesService
 from product.models.product_core import Product
 from product.models.stock_management import Warehouse
@@ -114,6 +115,8 @@ def sales_order_list(request):
 
     context = {
         "page_title": _("أوامر البيع"),
+        "page_icon": "fas fa-clipboard-list",
+        "page_subtitle": _("إدارة أوامر البيع وتتبع دورة التسليم والفوترة"),
         **pagination_context,
         "sales_orders": page_obj.object_list,
         "stats": stats,
@@ -148,8 +151,28 @@ def sales_order_create(request, quotation_id=None):
         customer_id = request.POST.get("customer")
         warehouse_id = request.POST.get("warehouse")
         order_date = request.POST.get("order_date") or timezone.now().date()
-        currency = request.POST.get("currency", "EGP")
-        exchange_rate = Decimal(request.POST.get("exchange_rate", "1.000000"))
+        currency_val = request.POST.get("currency", "EGP")
+        exchange_rate_str = request.POST.get("exchange_rate", "1.000000")
+        try:
+            exchange_rate = Decimal(str(exchange_rate_str).replace(',', '').strip())
+        except Exception:
+            exchange_rate = Decimal("1.000000")
+
+        price_list_id = request.POST.get("price_list")
+        if price_list_id and str(price_list_id).isdigit():
+            price_list_id = int(price_list_id)
+        else:
+            price_list_id = None
+
+        from financial.models import Currency
+        currency_code = "EGP"
+        if currency_val:
+            if str(currency_val).isdigit():
+                curr_obj = Currency.objects.filter(id=int(currency_val)).first()
+                if curr_obj:
+                    currency_code = curr_obj.code
+            else:
+                currency_code = str(currency_val)
 
         product_ids = request.POST.getlist("product[]")
         quantities = request.POST.getlist("quantity[]")
@@ -165,9 +188,15 @@ def sales_order_create(request, quotation_id=None):
                 if product_ids[i] and str(product_ids[i]).isdigit():
                     p_id = int(product_ids[i])
                     prod = Product.objects.get(pk=p_id)
-                    qty = Decimal(str(quantities[i])) if i < len(quantities) and quantities[i] else Decimal("1")
-                    price = Decimal(str(unit_prices[i])) if i < len(unit_prices) and unit_prices[i] else prod.selling_price
-                    disc = Decimal(str(discounts[i])) if i < len(discounts) and discounts[i] else Decimal("0")
+                    qty_str = str(quantities[i]).replace(',', '').strip() if i < len(quantities) and quantities[i] else "1"
+                    qty = Decimal(qty_str) if qty_str else Decimal("1")
+                    price_str = str(unit_prices[i]).replace(',', '').strip() if i < len(unit_prices) and unit_prices[i] else str(prod.selling_price)
+                    price = Decimal(price_str) if price_str else prod.selling_price
+                    disc_str = str(discounts[i]).replace(',', '').strip() if i < len(discounts) and discounts[i] else "0"
+                    disc = Decimal(disc_str) if disc_str else Decimal("0")
+
+                    if qty <= 0:
+                        raise ValueError(_("الكمية يجب أن تكون أكبر من صفر (البند رقم {})").format(i + 1))
 
                     items_data.append({
                         "product": prod,
@@ -178,7 +207,7 @@ def sales_order_create(request, quotation_id=None):
 
             if not items_data:
                 messages.error(request, _("يجب إضافة بند واحد على الأقل في أمر البيع."))
-                return redirect("sale:sales_order_create")
+                return redirect(request.path)
 
             so = SalesService.create_sales_order(
                 customer=customer,
@@ -186,8 +215,9 @@ def sales_order_create(request, quotation_id=None):
                 order_date=order_date,
                 items_data=items_data,
                 user=request.user,
-                currency=currency,
+                currency=currency_code,
                 exchange_rate=exchange_rate,
+                price_list_id=price_list_id,
                 quotation_reference=quotation
             )
 
@@ -204,9 +234,41 @@ def sales_order_create(request, quotation_id=None):
             logger.error(f"Error creating sales order: {e}", exc_info=True)
             messages.error(request, f"خطأ أثناء إنشاء أمر البيع: {str(e)}")
 
-    customers = Customer.objects.filter(is_active=True).only("id", "name", "phone")
-    warehouses = Warehouse.objects.filter(is_active=True).only("id", "name")
-    products = Product.objects.filter(is_active=True).only("id", "name", "sku", "selling_price")
+    from financial.models import Currency, CostCenter
+    from financial.services.exchange_rate_service import ExchangeRateService
+    currencies = list(Currency.objects.filter(is_active=True).order_by("code"))
+    for c in currencies:
+        c.current_rate = ExchangeRateService.get_exchange_rate(c)
+
+    customers = Customer.objects.filter(is_active=True).order_by("name")
+    warehouses = Warehouse.objects.filter(is_active=True).order_by("name")
+    products = Product.objects.filter(is_active=True).order_by("name")
+    price_lists = PriceList.objects.filter(is_active=True).order_by("name")
+    cost_centers = CostCenter.objects.filter(is_active=True).order_by("code") if hasattr(CostCenter, "objects") else []
+
+    functional_curr = Currency.objects.filter(is_functional=True).first() or (currencies[0] if currencies else None)
+    selected_curr = None
+    if quotation and getattr(quotation, "currency", None):
+        if isinstance(quotation.currency, Currency):
+            selected_curr = quotation.currency
+        else:
+            selected_curr = Currency.objects.filter(code=str(quotation.currency)).first()
+    if not selected_curr:
+        selected_curr = functional_curr
+
+    current_rate = Decimal("1.000000")
+    if quotation and getattr(quotation, 'exchange_rate', None):
+        current_rate = quotation.exchange_rate
+    elif selected_curr:
+        current_rate = ExchangeRateService.get_exchange_rate(selected_curr) or Decimal("1.000000")
+
+    next_order_number = None
+    try:
+        from core.services.sequence_service import SequenceService
+        from core.enums.document_types import DocumentType
+        next_order_number = SequenceService.peek_next_number(DocumentType.SALES_ORDER)
+    except Exception as e:
+        logger.error(f"Error peeking next sales order number: {e}")
 
     breadcrumb_items = [
         {"title": _("الرئيسية"), "url": reverse("core:dashboard"), "icon": "fa-home"},
@@ -216,10 +278,24 @@ def sales_order_create(request, quotation_id=None):
 
     context = {
         "page_title": _("إنشاء أمر بيع جديد"),
+        "page_icon": "fas fa-cart-plus",
+        "page_subtitle": _("إنشاء وتأكيد أمر بيع جديد وحجز المخزون"),
         "customers": customers,
+        "selected_customer": quotation.customer if quotation else None,
         "warehouses": warehouses,
+        "default_warehouse": getattr(quotation, "warehouse", None) or (warehouses.first() if warehouses.exists() else None),
         "products": products,
+        "currencies": currencies,
+        "price_lists": price_lists,
+        "cost_centers": cost_centers,
         "quotation": quotation,
+        "selected_currency_id": selected_curr.id if selected_curr else None,
+        "selected_currency_is_foreign": not (selected_curr.is_functional) if selected_curr else False,
+        "current_exchange_rate": current_rate,
+        "functional_currency": functional_curr,
+        "currency_symbol": selected_curr.symbol if selected_curr and selected_curr.symbol else (selected_curr.code if selected_curr else "ج.م"),
+        "next_order_number": next_order_number,
+        "allowed_item_types": "both",
         "breadcrumb_items": breadcrumb_items,
     }
     return render(request, "sale/sales_order_form.html", context)
@@ -272,6 +348,8 @@ def sales_order_detail(request, pk):
 
     context = {
         "page_title": f"{_('أمر بيع')} #{so.order_number}",
+        "page_icon": "fas fa-clipboard-check",
+        "page_subtitle": f"{_('تفاصيل ومتابعة أمر البيع رقم')} {so.order_number}",
         "so": so,
         "items": so.items.all(),
         "delivery_notes": so.delivery_notes.all(),

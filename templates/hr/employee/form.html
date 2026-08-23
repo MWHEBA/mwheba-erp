@@ -316,7 +316,7 @@
 <script>
 $(document).ready(function() {
     // تفعيل Select2 للقوائم المنسدلة
-    $('#id_department').select2({
+    $('select#id_department').select2({
         placeholder: 'اختر القسم...',
         allowClear: true,
         dir: 'rtl',
@@ -328,7 +328,7 @@ $(document).ready(function() {
         width: '100%'
     });
     
-    $('#id_job_title').select2({
+    $('select#id_job_title').select2({
         placeholder: 'اختر الوظيفة...',
         allowClear: true,
         dir: 'rtl',
@@ -413,16 +413,22 @@ $(document).ready(function() {
         }
     });
     
+    // بيانات الموظف الحالية للتعديل
+    const currentEmployeeId = '{{ employee.id|default:"" }}';
+    const currentWorkEmail = '{{ employee.work_email|default:"" }}';
+    const currentPersonalEmail = '{{ employee.personal_email|default:"" }}';
+    const currentMobilePhone = '{{ employee.mobile_phone|default:"" }}';
+    const currentNationalId = '{{ employee.national_id|default:"" }}';
+    
     // التحقق من البريد الإلكتروني الوظيفي
     let emailCheckTimeout;
     $('#id_work_email').on('input', function() {
         const email = $(this).val();
         const field = $(this);
-        const currentEmail = '{% if employee %}{{ employee.work_email|default:'' }}{% endif %}';
         
         clearTimeout(emailCheckTimeout);
         
-        if (email && email.trim() !== '' && email !== currentEmail) {
+        if (email && email.trim() !== '' && email !== currentWorkEmail) {
             const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
             if (!emailRegex.test(email)) {
                 field.addClass('is-invalid').removeClass('is-valid');
@@ -430,12 +436,13 @@ $(document).ready(function() {
             } else {
                 // التحقق من التكرار عبر AJAX
                 emailCheckTimeout = setTimeout(function() {
+                    const reqData = { email: email };
+                    if (currentEmployeeId) {
+                        reqData.employee_id = currentEmployeeId;
+                    }
                     $.ajax({
                         url: '{% url "hr:check_employee_email" %}',
-                        data: { 
-                            email: email,
-                            {% if employee %}employee_id: {{ employee.id }}{% endif %}
-                        },
+                        data: reqData,
                         success: function(response) {
                             if (response.available) {
                                 field.removeClass('is-invalid').addClass('is-valid');
@@ -458,11 +465,10 @@ $(document).ready(function() {
     $('#id_personal_email').on('input', function() {
         const email = $(this).val();
         const field = $(this);
-        const currentEmail = '{% if employee %}{{ employee.personal_email|default:'' }}{% endif %}';
         
         clearTimeout(personalEmailCheckTimeout);
         
-        if (email && email.trim() !== '' && email !== currentEmail) {
+        if (email && email.trim() !== '' && email !== currentPersonalEmail) {
             const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
             if (!emailRegex.test(email)) {
                 field.addClass('is-invalid').removeClass('is-valid');
@@ -470,7 +476,6 @@ $(document).ready(function() {
             } else {
                 // التحقق من التكرار عبر AJAX (إذا كان متاح)
                 personalEmailCheckTimeout = setTimeout(function() {
-                    // يمكن إضافة AJAX للتحقق من تكرار البريد الشخصي إذا لزم الأمر
                     field.removeClass('is-invalid').addClass('is-valid');
                     field.siblings('.invalid-feedback').text('');
                 }, 500);
@@ -485,7 +490,6 @@ $(document).ready(function() {
     $('#id_mobile_phone').on('input', function() {
         let value = $(this).val().trim();
         const field = $(this);
-        const currentMobile = '{% if employee %}{{ employee.mobile_phone|default:'' }}{% endif %}';
         
         // إزالة المسافات والشرطات
         value = value.replace(/[\s-]/g, '');
@@ -501,15 +505,16 @@ $(document).ready(function() {
         clearTimeout(mobileCheckTimeout);
         
         if (normalizedValue.length === 11 && /^01[0-2,5]{1}[0-9]{8}$/.test(normalizedValue)) {
-            if (normalizedValue !== currentMobile) {
+            if (normalizedValue !== currentMobilePhone) {
                 // التحقق من التكرار عبر AJAX
                 mobileCheckTimeout = setTimeout(function() {
+                    const reqData = { mobile: normalizedValue };
+                    if (currentEmployeeId) {
+                        reqData.employee_id = currentEmployeeId;
+                    }
                     $.ajax({
                         url: '{% url "hr:check_employee_mobile" %}',
-                        data: { 
-                            mobile: normalizedValue,
-                            {% if employee %}employee_id: {{ employee.id }}{% endif %}
-                        },
+                        data: reqData,
                         success: function(response) {
                             if (response.available) {
                                 field.removeClass('is-invalid').addClass('is-valid');
@@ -537,7 +542,6 @@ $(document).ready(function() {
     $('#id_national_id').on('input', function() {
         const nationalId = $(this).val();
         const field = $(this);
-        const currentNationalId = '{% if employee %}{{ employee.national_id }}{% endif %}';
         
         clearTimeout(nationalIdCheckTimeout);
         
@@ -549,12 +553,13 @@ $(document).ready(function() {
             } else {
                 // التحقق من التكرار عبر AJAX
                 nationalIdCheckTimeout = setTimeout(function() {
+                    const reqData = { national_id: nationalId };
+                    if (currentEmployeeId) {
+                        reqData.employee_id = currentEmployeeId;
+                    }
                     $.ajax({
                         url: '{% url "hr:check_employee_national_id" %}',
-                        data: { 
-                            national_id: nationalId,
-                            {% if employee %}employee_id: {{ employee.id }}{% endif %}
-                        },
+                        data: reqData,
                         success: function(response) {
                             if (response.available) {
                                 field.removeClass('is-invalid').addClass('is-valid');

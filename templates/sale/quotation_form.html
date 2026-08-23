@@ -79,12 +79,28 @@
                                             <select name="customer" id="id_customer" class="form-control select2-init" required>
                                                 <option value="">{% trans "اختر العميل" %}</option>
                                                 {% for customer in customers %}
-                                                    <option value="{{ customer.id }}" {% if form.customer.value == customer.id|stringformat:'s' or selected_customer.id == customer.id %}selected{% endif %}>
+                                                    <option value="{{ customer.id }}" data-default-price-list="{{ customer.default_price_list_id|default:'' }}" {% if form.customer.value == customer.id|stringformat:'s' or selected_customer.id == customer.id %}selected{% endif %}>
                                                         {{ customer.name }}
                                                     </option>
                                                 {% endfor %}
                                             </select>
                                         {% endif %}
+                                    </div>
+
+                                    <!-- قائمة الأسعار -->
+                                    <div class="col-12 col-md-6">
+                                        <label class="form-label d-flex justify-content-between align-items-center">
+                                            <span>{% trans "قائمة الأسعار" %} <i class="fas fa-tags text-primary me-1"></i></span>
+                                            <span class="badge bg-light text-muted border" style="font-size: 0.72rem;">تسعير وخصم</span>
+                                        </label>
+                                        <select name="price_list" id="id_price_list" class="form-select select2" dir="rtl">
+                                            <option value="">-- {% trans "الأسعار القياسية (الكتالوج)" %} --</option>
+                                            {% for pl in price_lists %}
+                                                <option value="{{ pl.id }}" data-currency="{{ pl.currency }}" {% if form.price_list.value == pl.id|stringformat:'s' or quotation.price_list_id == pl.id %}selected{% endif %}>
+                                                    {{ pl.name }} ({{ pl.currency }})
+                                                </option>
+                                            {% endfor %}
+                                        </select>
                                     </div>
 
                                     <!-- مسؤول المبيعات -->
@@ -190,7 +206,10 @@
                             <input type="text" inputmode="decimal" name="unit_price[]" class="form-control form-control-sm unit-price" value="{{ item.unit_price|smart_float }}" required {% if user.user_type == 'sales_rep' and not user.is_superuser and not user.is_admin %}readonly{% endif %}>
                         </div>
                         <div class="col-6 col-md-2">
-                            <label class="form-label form-label-sm">الخصم</label>
+                            <div class="discount-header-row d-flex align-items-center mb-2 justify-content-center">
+                                <label class="form-label form-label-sm discount-label mb-0">الخصم</label>
+                                <span class="discount-rule-badge discount-rule-info"></span>
+                            </div>
                             <input type="number" name="discount[]" class="form-control form-control-sm item-discount" min="0" step="0.01" value="{{ item.discount|default:0 }}">
                         </div>
                         <div class="col-6 col-md-2">
@@ -233,7 +252,10 @@
                         <input type="text" inputmode="decimal" name="unit_price[]" class="form-control form-control-sm unit-price" required {% if user.user_type == 'sales_rep' and not user.is_superuser and not user.is_admin %}readonly{% endif %}>
                     </div>
                     <div class="col-6 col-md-2">
-                        <label class="form-label form-label-sm">الخصم</label>
+                        <div class="discount-header-row d-flex align-items-center mb-2 justify-content-center">
+                            <label class="form-label form-label-sm discount-label mb-0">الخصم</label>
+                            <span class="discount-rule-badge discount-rule-info"></span>
+                        </div>
                         <input type="number" name="discount[]" class="form-control form-control-sm item-discount" min="0" step="0.01" value="0">
                     </div>
                     <div class="col-6 col-md-2">
@@ -578,10 +600,10 @@
         }
 
         // ===== Select2 للعميل والمخزن ومسؤول المبيعات ومركز التكلفة =====
-        $('#id_customer').select2({ placeholder: "اختر العميل", width: '100%', allowClear: true });
-        $('#id_warehouse').select2({ placeholder: "اختر المخزن", width: '100%', allowClear: true });
-        $('#id_salesman').select2({ placeholder: "اختر مسؤول المبيعات", width: '100%', allowClear: true });
-        $('#id_cost_center').select2({ placeholder: "اختر مركز التكلفة", width: '100%', allowClear: true });
+        $('select#id_customer').select2({ placeholder: "اختر العميل", width: '100%', allowClear: true });
+        $('select#id_warehouse').select2({ placeholder: "اختر المخزن", width: '100%', allowClear: true });
+        $('select#id_salesman').select2({ placeholder: "اختر مسؤول المبيعات", width: '100%', allowClear: true });
+        $('select#id_cost_center').select2({ placeholder: "اختر مركز التكلفة", width: '100%', allowClear: true });
 
         const allowedItemTypes = $('#django-sales-form-data').data('allowed-item-types') || 'both';
         var placeholderText = "اختر المنتج / الخدمة";
@@ -720,6 +742,8 @@
             priceField: 'selling_price',
             currencySymbol: '{{ currency_symbol }}',
             getWarehouseId: function() { return $('#id_warehouse').val() || ''; },
+            getCustomerId: function() { return $('#id_customer').val() || ''; },
+            getPriceListId: function() { return $('#id_price_list').val() || ''; },
             getInvoiceId: function() { return $('#django-sales-form-data').data('sale-id') || '0'; },
             onProductSelect: function($row, product, matchType) {
                 calculateRowTotal($row);
@@ -753,6 +777,84 @@
                 calculateTotals();
             });
         }
+
+        // ===== إعادة تسعير السلة بالكامل عبر محرك التسعير (FIN-SAL-004) =====
+        function repriceCartItems() {
+            var items = [];
+            var $rows = $('#items-container .item-row');
+            $rows.each(function() {
+                var $row = $(this);
+                var pid = $row.find('.product-id-input').val();
+                if (pid) {
+                    items.push({
+                        product_id: parseInt(pid),
+                        quantity: parseFloat($row.find('.quantity').val()) || 1,
+                        unit_price: parseFloat(($row.find('.unit-price').val() || '0').replace(/,/g, '')) || 0,
+                        discount: parseFloat($row.find('.item-discount').val()) || 0,
+                        uom_id: $row.find('.unit-id-input').val() || null
+                    });
+                }
+            });
+
+            if (items.length === 0) return;
+
+            $.ajax({
+                url: '/sales/api/pricing/evaluate-cart/',
+                method: 'POST',
+                headers: { 'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val() },
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    customer_id: $('#id_customer').val() || null,
+                    price_list_id: $('#id_price_list').val() || null,
+                    currency_id: $('#id_currency').val() || null,
+                    exchange_rate: $('#id_exchange_rate').val() || 1.0,
+                    items: items
+                }),
+                success: function(res) {
+                    if (res && res.success && res.lines) {
+                        var lineIdx = 0;
+                        $rows.each(function() {
+                            var $row = $(this);
+                            var pid = $row.find('.product-id-input').val();
+                            if (pid && lineIdx < res.lines.length) {
+                                var line = res.lines[lineIdx];
+                                $row.find('.unit-price').val(typeof smartFloat === 'function' ? smartFloat(line.unit_price) : line.unit_price);
+                                $row.find('.item-discount').val(typeof smartFloat === 'function' ? smartFloat(line.discount) : line.discount);
+                                $row.find('.cost-warning-badge').remove();
+                                if (line.rule_name) {
+                                    if (typeof ProductPicker !== 'undefined' && typeof ProductPicker.renderDiscountRuleState === 'function') {
+                                        ProductPicker.renderDiscountRuleState($row, line.rule_name);
+                                    }
+                                } else {
+                                    if (typeof ProductPicker !== 'undefined' && typeof ProductPicker.renderDiscountRuleState === 'function') {
+                                        ProductPicker.renderDiscountRuleState($row, null);
+                                    }
+                                }
+                                if (line.is_below_cost) {
+                                    $row.find('.unit-price').after('<small class="cost-warning-badge text-danger d-block" style="font-size:0.7rem;"><i class="fas fa-exclamation-triangle me-1"></i>أقل من التكلفة</small>');
+                                }
+                                calculateRowTotal($row);
+                                lineIdx++;
+                            }
+                        });
+                        calculateTotals();
+                    }
+                }
+            });
+        }
+
+        $('#id_customer').on('change', function() {
+            var selectedOpt = $(this).find('option:selected');
+            var defaultPL = selectedOpt.data('default-price-list');
+            if (defaultPL) {
+                $('#id_price_list').val(defaultPL).trigger('change.select2');
+            }
+            repriceCartItems();
+        });
+
+        $('#id_price_list').on('change', function() {
+            repriceCartItems();
+        });
 
         bindEventHandlers();
 

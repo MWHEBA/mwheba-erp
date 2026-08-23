@@ -700,8 +700,10 @@
 <script src="{% static 'js/sweetalert2.all.min.js' %}"></script>
 <script>
 $(document).ready(function() {
-    let formIndex = {{ formset.total_form_count }};
-    const maxForms = {{ formset.max_num|default:1000 }};
+    let formIndex = parseInt('{{ formset.total_form_count|default:"0" }}', 10) || 0;
+    const maxForms = parseInt('{{ formset.max_num|default:"1000" }}', 10) || 1000;
+    const requiresConfirmation = '{{ requires_confirmation|yesno:"true,false" }}' === 'true';
+    const canModifySafely = '{{ usage_info.can_modify_safely|default:"true"|yesno:"true,false" }}' !== 'false';
         
     // تهيئة Select2 للحقول الموجودة
     initializeSelect2();
@@ -713,42 +715,42 @@ $(document).ready(function() {
     updateBundleSummary();
     
     // معالجة تأكيد التغييرات المدمرة
-    {% if requires_confirmation %}
-    // عرض تحذير عند تحميل الصفحة للتغييرات المدمرة
-    Swal.fire({
-        title: 'تحذير: تغييرات مدمرة',
-        html: `
-            <div class="text-start">
-                <p class="mb-3">{{ usage_info.warning_message|escapejs }}</p>
-                <div class="alert alert-warning">
-                    <strong>المخاطر المحتملة:</strong>
-                    <ul class="mb-0 mt-2">
-                        {% if 'existing_sales' in usage_info.destructive_changes %}
-                        <li>قد يؤثر على دقة تتبع المخزون للمبيعات السابقة</li>
-                        <li>قد يؤثر على التقارير المالية والمحاسبية</li>
-                        {% endif %}
-                        {% if 'pending_orders' in usage_info.destructive_changes %}
-                        <li>قد يؤثر على الطلبات المعلقة وتوفر المكونات</li>
-                        <li>قد يتطلب إعادة تقييم الطلبات المعلقة</li>
-                        {% endif %}
-                    </ul>
+    if (requiresConfirmation) {
+        // عرض تحذير عند تحميل الصفحة للتغييرات المدمرة
+        Swal.fire({
+            title: 'تحذير: تغييرات مدمرة',
+            html: `
+                <div class="text-start">
+                    <p class="mb-3">{{ usage_info.warning_message|escapejs }}</p>
+                    <div class="alert alert-warning">
+                        <strong>المخاطر المحتملة:</strong>
+                        <ul class="mb-0 mt-2">
+                            {% if 'existing_sales' in usage_info.destructive_changes %}
+                            <li>قد يؤثر على دقة تتبع المخزون للمبيعات السابقة</li>
+                            <li>قد يؤثر على التقارير المالية والمحاسبية</li>
+                            {% endif %}
+                            {% if 'pending_orders' in usage_info.destructive_changes %}
+                            <li>قد يؤثر على الطلبات المعلقة وتوفر المكونات</li>
+                            <li>قد يتطلب إعادة تقييم الطلبات المعلقة</li>
+                            {% endif %}
+                        </ul>
+                    </div>
                 </div>
-            </div>
-        `,
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonText: 'متابعة التعديل',
-        cancelButtonText: 'إلغاء',
-        confirmButtonColor: '#f39c12',
-        cancelButtonColor: '#6c757d',
-        reverseButtons: true
-    }).then((result) => {
-        if (!result.isConfirmed) {
-            // إذا ألغى المستخدم، العودة للقائمة
-            window.location.href = '{% url "product:bundle_list" %}';
-        }
-    });
-    {% endif %}
+            `,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'متابعة التعديل',
+            cancelButtonText: 'إلغاء',
+            confirmButtonColor: '#f39c12',
+            cancelButtonColor: '#6c757d',
+            reverseButtons: true
+        }).then((result) => {
+            if (!result.isConfirmed) {
+                // إذا ألغى المستخدم، العودة للقائمة
+                window.location.href = '{% url "product:bundle_list" %}';
+            }
+        });
+    }
     
     // معالجة إرسال النموذج مع تأكيد إضافي للتغييرات المدمرة
     $('#bundle-form').on('submit', function(e) {
@@ -796,28 +798,28 @@ $(document).ready(function() {
             return false;
         }
         
-        {% if requires_confirmation %}
-        // إذا كانت هناك تغييرات مدمرة، اطلب تأكيد إضافي
-        e.preventDefault();
-        
-        Swal.fire({
-            title: 'تأكيد نهائي',
-            text: 'هل أنت متأكد من تطبيق هذه التغييرات؟ لا يمكن التراجع عنها.',
-            icon: 'question',
-            showCancelButton: true,
-            confirmButtonText: 'نعم، تأكيد التغييرات',
-            cancelButtonText: 'إلغاء',
-            confirmButtonColor: '#dc3545',
-            cancelButtonColor: '#6c757d',
-            reverseButtons: true
-        }).then((result) => {
-            if (result.isConfirmed) {
-                // إرسال النموذج بدون منع الحدث
-                $(this)[0].submit();
-            }
-        });
-        {% else %}
-        {% endif %}
+        if (requiresConfirmation) {
+            // إذا كانت هناك تغييرات مدمرة، اطلب تأكيد إضافي
+            e.preventDefault();
+            
+            Swal.fire({
+                title: 'تأكيد نهائي',
+                text: 'هل أنت متأكد من تطبيق هذه التغييرات؟ لا يمكن التراجع عنها.',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'نعم، تأكيد التغييرات',
+                cancelButtonText: 'إلغاء',
+                confirmButtonColor: '#dc3545',
+                cancelButtonColor: '#6c757d',
+                reverseButtons: true
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    // إرسال النموذج بدون منع الحدث
+                    $(this)[0].submit();
+                }
+            });
+            return false;
+        }
     });
     
     // إضافة مكون جديد
@@ -841,47 +843,47 @@ $(document).ready(function() {
         const productName = componentRow.find('.component-select option:selected').text() || 'المكون';
         
         // تحذير إضافي إذا كان المنتج مستخدم في طلبات
-        {% if usage_info and not usage_info.can_modify_safely %}
-        Swal.fire({
-            title: 'تحذير: حذف مكون',
-            html: `
-                <div class="text-start">
-                    <p>هل تريد حذف المكون: <strong>${productName}</strong>؟</p>
-                    <div class="alert alert-warning">
-                        <strong>تحذير:</strong> هذا المنتج المجمع مستخدم في طلبات موجودة. 
-                        حذف المكونات قد يؤثر على دقة التقارير والمخزون.
+        if (!canModifySafely) {
+            Swal.fire({
+                title: 'تحذير: حذف مكون',
+                html: `
+                    <div class="text-start">
+                        <p>هل تريد حذف المكون: <strong>${productName}</strong>؟</p>
+                        <div class="alert alert-warning">
+                            <strong>تحذير:</strong> هذا المنتج المجمع مستخدم في طلبات موجودة. 
+                            حذف المكونات قد يؤثر على دقة التقارير والمخزون.
+                        </div>
                     </div>
-                </div>
-            `,
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonText: 'نعم، احذف المكون',
-            cancelButtonText: 'إلغاء',
-            confirmButtonColor: '#dc3545',
-            cancelButtonColor: '#6c757d',
-            reverseButtons: true
-        }).then((result) => {
-            if (result.isConfirmed) {
-                deleteComponent(componentRow, deleteInput);
-            }
-        });
-        {% else %}
-        Swal.fire({
-            title: 'تأكيد الحذف',
-            text: `هل تريد حذف المكون: ${productName}؟`,
-            icon: 'question',
-            showCancelButton: true,
-            confirmButtonText: 'نعم، احذف',
-            cancelButtonText: 'إلغاء',
-            confirmButtonColor: '#dc3545',
-            cancelButtonColor: '#6c757d',
-            reverseButtons: true
-        }).then((result) => {
-            if (result.isConfirmed) {
-                deleteComponent(componentRow, deleteInput);
-            }
-        });
-        {% endif %}
+                `,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'نعم، احذف المكون',
+                cancelButtonText: 'إلغاء',
+                confirmButtonColor: '#dc3545',
+                cancelButtonColor: '#6c757d',
+                reverseButtons: true
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    deleteComponent(componentRow, deleteInput);
+                }
+            });
+        } else {
+            Swal.fire({
+                title: 'تأكيد الحذف',
+                text: `هل تريد حذف المكون: ${productName}؟`,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'نعم، احذف',
+                cancelButtonText: 'إلغاء',
+                confirmButtonColor: '#dc3545',
+                cancelButtonColor: '#6c757d',
+                reverseButtons: true
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    deleteComponent(componentRow, deleteInput);
+                }
+            });
+        }
     });
     
     // تحديث الملخص عند تغيير الأسعار
@@ -1355,14 +1357,18 @@ $(document).ready(function() {
     }
     
     // تهيئة Select2 للحقول الأساسية
-    $('#id_category, #id_unit').select2({
+    $('select#id_category, select#id_unit').select2({
         theme: 'bootstrap-5',
         allowClear: true
     });
     
     // تحميل البدائل الموجودة (عند تعديل bundle موجود)
-    {% if existing_alternatives %}
-    const existingAlternatives = {{ existing_alternatives|safe }};
+    let existingAlternatives = {};
+    try {
+        existingAlternatives = JSON.parse('{{ existing_alternatives|default:"{}"|escapejs }}');
+    } catch (err) {
+        existingAlternatives = {};
+    }
     if (existingAlternatives && Object.keys(existingAlternatives).length > 0) {
         componentAlternatives = existingAlternatives;
         
@@ -1377,7 +1383,6 @@ $(document).ready(function() {
             }
         });
     }
-    {% endif %}
 });
 </script>
 {% endblock %}

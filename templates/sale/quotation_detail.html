@@ -455,6 +455,16 @@
                 </div>
                 {% endif %}
                 <div class="party-info">
+                  <div class="party-label">{% trans "قائمة الأسعار:" %}</div>
+                  <div class="party-value">
+                    {% if quotation.price_list %}
+                      <span class="badge bg-light text-primary border"><i class="fas fa-tags me-1"></i>{{ quotation.price_list.name }}</span>
+                    {% else %}
+                      <span class="text-muted">{% trans "الأسعار القياسية (الكتالوج)" %}</span>
+                    {% endif %}
+                  </div>
+                </div>
+                <div class="party-info">
                   <div class="party-label">{% trans "تاريخ الإنشاء:" %}</div>
                   <div class="party-value">{{ quotation.created_at|date:"d-m-Y h:i A" }}</div>
                 </div>

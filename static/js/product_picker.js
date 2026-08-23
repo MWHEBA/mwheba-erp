@@ -157,7 +157,13 @@
                 '</div>' +
                 '<div class="col-6 col-md-2"><label class="form-label form-label-sm required-field">' + (isPurchase ? 'الكمية المطلوبة' : 'الكمية') + '</label><input type="number" name="quantity[]" class="form-control form-control-sm quantity" min="0.0001" step="0.0001" value="' + qty + '" required></div>' +
                 '<div class="col-6 col-md-2"><label class="form-label form-label-sm required-field">' + (isPurchase ? 'سعر الشراء' : 'سعر الوحدة') + '</label><input type="number" step="0.0001" name="' + priceFieldName + '" class="form-control form-control-sm unit-price" value="' + unitPrice + '" required ' + priceReadonly + '></div>' +
-                '<div class="col-6 col-md-1"><label class="form-label form-label-sm">الخصم</label><input type="number" name="discount[]" class="form-control form-control-sm item-discount" min="0" step="0.01" value="' + itemDisc + '"></div>' +
+                '<div class="col-6 col-md-1">' +
+                    '<div class="discount-header-row d-flex align-items-center mb-1 justify-content-center">' +
+                        '<label class="form-label form-label-sm discount-label mb-0">الخصم</label>' +
+                        '<span class="discount-rule-info discount-rule-badge"></span>' +
+                    '</div>' +
+                    '<input type="number" name="discount[]" class="form-control form-control-sm item-discount" min="0" step="0.01" value="' + itemDisc + '">' +
+                '</div>' +
                 '<div class="col-6 col-md-2"><label class="form-label form-label-sm">الإجمالي</label><div class="input-group input-group-sm"><input type="text" class="form-control form-control-sm item-total" value="' + itemTotal + '" readonly><span class="input-group-text px-1">' + currencySymbol + '</span></div></div>' +
                 removeBtn +
             '</div>');
@@ -415,6 +421,11 @@
                     name: $card.data('name'),
                     code: $card.data('code') || '',
                     price: $card.data('price'),
+                    selling_price: $card.data('price'),
+                    discount_amount: parseFloat($card.data('discount-amount') || 0),
+                    discount_percentage: parseFloat($card.data('discount-percentage') || 0),
+                    rule_name: $card.data('rule-name') || '',
+                    is_below_cost: $card.data('is-below-cost') === true || $card.data('is-below-cost') === "true",
                     stock: parseFloat($card.data('stock') || 0),
                     is_service: $card.data('is-service') === true || $card.data('is-service') === "true",
                     variant_id: $card.data('variant-id') || '',
@@ -733,6 +744,9 @@
                 return;
             }
 
+            var customerId = (typeof self.options.getCustomerId === 'function') ? self.options.getCustomerId() : ($('#id_customer').val() || '');
+            var priceListId = (typeof self.options.getPriceListId === 'function') ? self.options.getPriceListId() : ($('#id_price_list').val() || '');
+
             $.ajax({
                 url: '/products/api/invoice-product-lookup/',
                 method: 'GET',
@@ -744,6 +758,8 @@
                     invoice_id: invoiceId,
                     currency_id: currencyId,
                     supplier_id: supplierId,
+                    customer_id: customerId,
+                    price_list_id: priceListId,
                     type: lookupType
                 },
                 success: function(response) {
@@ -868,9 +884,11 @@
                 $codeInput.removeClass('is-valid is-invalid');
             }
             
+            var effectivePrice = (product.selling_price !== undefined && product.selling_price !== null) ? product.selling_price : product.price;
+
             var $idInput = $row.find('.product-id-input');
             $idInput.val(product.id)
-                .attr('data-price', product.price)
+                .attr('data-price', effectivePrice)
                 .attr('data-stock', product.stock)
                 .attr('data-is-service', product.is_service);
 
@@ -881,7 +899,27 @@
                 $row.find('.unit-id-input').val(product.unit_id);
             }
 
-            $row.find('.unit-price').val(product.price !== '' && product.price !== undefined ? (typeof smartFloat === 'function' ? smartFloat(product.price) : product.price) : '');
+            $row.find('.unit-price').val(effectivePrice !== '' && effectivePrice !== undefined ? (typeof smartFloat === 'function' ? smartFloat(effectivePrice) : effectivePrice) : '');
+
+            // تطبيق الخصم التلقائي إن وجد
+            $row.find('.cost-warning-badge').remove();
+            var $discInput = $row.find('.item-discount, .discount, input[name="discount[]"]');
+            if (product.discount_amount !== undefined && parseFloat(product.discount_amount) > 0) {
+                if ($discInput.length) {
+                    $discInput.val(typeof smartFloat === 'function' ? smartFloat(product.discount_amount) : product.discount_amount);
+                }
+                if (product.rule_name) {
+                    self.renderDiscountRuleState($row, product.rule_name);
+                } else {
+                    self.renderDiscountRuleState($row, null);
+                }
+            } else if ($discInput.length) {
+                $discInput.val('0');
+                self.renderDiscountRuleState($row, null);
+            }
+            if (product.is_below_cost) {
+                $row.find('.unit-price').after('<small class="cost-warning-badge text-danger d-block" style="font-size:0.7rem;"><i class="fas fa-exclamation-triangle me-1"></i>أقل من التكلفة</small>');
+            }
 
             var isService = product.is_service === true || product.is_service === 'true' || product.is_service === 1;
             self.renderStockState($row, {
@@ -942,6 +980,8 @@
                 }
 
                 var currencyId = $('#id_currency').val() || '';
+                var customerId = (typeof self.options.getCustomerId === 'function') ? self.options.getCustomerId() : ($('#id_customer').val() || '');
+                var priceListId = (typeof self.options.getPriceListId === 'function') ? self.options.getPriceListId() : ($('#id_price_list').val() || '');
 
                 $.ajax({
                     url: '/products/api/invoice-product-lookup/',
@@ -951,6 +991,8 @@
                         exact: 'false',
                         warehouse_id: warehouseId,
                         supplier_id: supplierId,
+                        customer_id: customerId,
+                        price_list_id: priceListId,
                         invoice_id: invoiceId,
                         currency_id: currencyId,
                         type: lookupType,
@@ -1012,8 +1054,10 @@
                                 ? '<div class="picker-checkbox-wrapper position-absolute top-0 start-0 m-2"><input type="checkbox" class="form-check-input picker-card-checkbox" data-product-id="' + p.id + '"></div>'
                                 : '';
 
+                            var discAttr = ' data-discount-amount="' + (p.discount_amount || 0) + '" data-discount-percentage="' + (p.discount_percentage || 0) + '" data-rule-name="' + (p.rule_name || '') + '" data-is-below-cost="' + (p.is_below_cost ? 'true' : 'false') + '"';
+
                             var $card = $('<div class="col-md-3 col-sm-4 col-6">' +
-                                '<div class="product-card position-relative ' + stockClass + '" data-id="' + p.id + '" data-price="' + price + '" data-stock="' + p.stock + '" data-name="' + p.name + '" data-is-service="' + isService + '" data-code="' + (p.code || '') + '" data-variant-id="' + (p.variant_id || '') + '" data-unit-id="' + (p.unit_id || '') + '" data-unit-name="' + (p.unit_name || '') + '" data-reorder-point="' + (p.reorder_point || 0) + '">' +
+                                '<div class="product-card position-relative ' + stockClass + '" data-id="' + p.id + '" data-price="' + price + '" data-stock="' + p.stock + '" data-name="' + p.name + '" data-is-service="' + isService + '" data-code="' + (p.code || '') + '" data-variant-id="' + (p.variant_id || '') + '" data-unit-id="' + (p.unit_id || '') + '" data-unit-name="' + (p.unit_name || '') + '" data-reorder-point="' + (p.reorder_point || 0) + '"' + discAttr + '>' +
                                     multiSelectCheckbox +
                                     '<div class="product-name">' + p.name + '</div>' +
                                     codeBadge +
@@ -1108,6 +1152,23 @@
                                .attr('title', 'المخزون المتاح: ' + stock);
             }
             $headerRow.addClass('has-stock-info');
+        },
+
+        // الدالة المركزية لرسم وتحديث شارة قاعدة الخصم
+        renderDiscountRuleState: function($row, ruleName) {
+            var $badge = $row.find('.discount-rule-badge, .discount-rule-info');
+            var $headerRow = $row.find('.discount-header-row');
+            if (!$badge.length) return;
+
+            if (!ruleName) {
+                $badge.empty().removeAttr('title');
+                $headerRow.removeClass('has-discount-info');
+                return;
+            }
+
+            $badge.html('<i class="fas fa-tag me-1"></i>' + ruleName)
+                  .attr('title', 'قاعدة الخصم المطبقة: ' + ruleName);
+            $headerRow.addClass('has-discount-info');
         },
 
         // متوافقة مع الاستدعاءات السابقة

@@ -147,6 +147,8 @@ class JournalEntry(models.Model):
         ("inventory", _("حركة مخزنية")),
         ("sales_invoice", _("فاتورة مبيعات")),
         ("customer_payment", _("تحصيل من عميل")),
+        ("client_payment", _("تحصيل من عميل")),
+        ("service_payment", _("دفعة خدمات")),
         ("purchase_invoice", _("فاتورة مشتريات")),
         ("vendor_payment", _("سداد لمورد")),
         ("sales_return", _("مردودات مبيعات")),

@@ -150,7 +150,7 @@
 $(document).ready(function() {
     // تحسين عرض select2 للحسابات المحاسبية
     if (typeof $.fn.select2 !== 'undefined') {
-        $('#id_default_revenue_account, #id_default_expense_account').select2({
+        $('select#id_default_revenue_account, select#id_default_expense_account').select2({
             theme: 'bootstrap-5',
             placeholder: 'اختر حساب...',
             allowClear: true,

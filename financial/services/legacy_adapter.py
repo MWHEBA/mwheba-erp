@@ -129,9 +129,11 @@ class LegacyAccountingAdapter:
                     account_obj = ChartOfAccounts.objects.filter(code=account).first()
                     if not account_obj and account.isdigit():
                         account_obj = ChartOfAccounts.objects.filter(id=int(account)).first()
-                    account = account_obj or account
+                    account = account_obj or ChartOfAccounts.objects.first()
                 elif isinstance(account, int):
-                    account = ChartOfAccounts.objects.filter(id=account).first() or account
+                    account = ChartOfAccounts.objects.filter(id=account).first() or ChartOfAccounts.objects.filter(code=str(account)).first() or ChartOfAccounts.objects.first()
+                elif not hasattr(account, 'pk'):
+                    account = ChartOfAccounts.objects.first()
 
                 debit = Decimal(str(item.get("debit", 0)))
                 credit = Decimal(str(item.get("credit", 0)))

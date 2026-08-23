@@ -150,21 +150,21 @@
 <script>
 $(document).ready(function() {
     // تنشيط Select2 للقوائم المنسدلة في المودال
-    $('#id_category').select2({
+    $('select#id_category').select2({
         theme: 'bootstrap-5',
         placeholder: "{% trans 'اختر التصنيف' %}",
         allowClear: true,
         dropdownParent: $('#productModal')
     });
     
-    $('#id_unit').select2({
+    $('select#id_unit').select2({
         theme: 'bootstrap-5',
         placeholder: "{% trans 'اختر وحدة القياس' %}",
         allowClear: true,
         dropdownParent: $('#productModal')
     });
 
-    $('#id_tax_code').select2({
+    $('select#id_tax_code').select2({
         theme: 'bootstrap-5',
         placeholder: "{% trans 'اختر كود الضريبة' %}",
         allowClear: true,

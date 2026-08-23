@@ -1,4 +1,4 @@
-﻿{% extends 'base.html' %}
+{% extends 'base.html' %}
 {% load static %}
 {% load i18n %}
 {% load custom_filters %}
@@ -401,7 +401,7 @@
                             </div>
                         </div>
                         <div class="col-md-6" id="social_insurance_number_row"
-                             style="display: {% if form.instance.is_social_insurance_enrolled %}block{% else %}none{% endif %};">
+                             {% if not form.instance.is_social_insurance_enrolled %}style="display: none;"{% endif %}>
                             <label class="form-label">الرقم التأميني</label>
                             {{ form.social_insurance_number }}
                             {% if form.social_insurance_number.errors %}
@@ -707,11 +707,11 @@
                     <i class="fas fa-save me-2"></i>
                     حفظ التعديلات
                 </button>
-                <button type="button" class="btn btn-info me-2" onclick="window.contractActivationPreview.show({{ contract.pk }})">
+                <button type="button" class="btn btn-info me-2" onclick="window.contractActivationPreview.show('{{ contract.pk }}')">
                     <i class="fas fa-eye me-2"></i>
                     معاينة التفعيل
                 </button>
-                <button type="button" class="btn btn-warning me-2" onclick="previewAndFillTables({{ contract.pk }})">
+                <button type="button" class="btn btn-warning me-2" onclick="previewAndFillTables('{{ contract.pk }}')">
                     <i class="fas fa-fill-drip me-2"></i>
                     ملء الجداول من العقد
                 </button>
@@ -776,6 +776,74 @@
                             <span class="visually-hidden">جاري التحميل...</span>
                         </div>
                     </div>
+                </div>
+<!-- مودال تحليل بنود الموظف -->
+<div class="modal fade" id="employeeAnalysisModal" tabindex="-1" aria-labelledby="employeeAnalysisModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-light border-bottom px-4 py-3">
+                <h5 class="modal-title fw-bold text-dark mb-0">
+                    <i class="fas fa-chart-line text-primary me-2"></i>تحليل بنود الموظف الحالية
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <!-- قسم البنود مع Checkboxes -->
+                <div id="componentsList" style="display: none;">
+                    <!-- المستحقات -->
+                    <div class="mb-4">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h6 class="text-success mb-0">
+                                <i class="fas fa-plus-circle me-1"></i>المستحقات
+                            </h6>
+                            <button type="button" class="btn btn-sm btn-outline-success" 
+                                    onclick="toggleAllComponents('earning')">
+                                <i class="fas fa-check-square me-1"></i>تحديد الكل
+                            </button>
+                        </div>
+                        <div id="earningsList" class="border rounded p-3 bg-light"></div>
+                    </div>
+                    
+                    <!-- الاستقطاعات -->
+                    <div class="mb-4">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h6 class="text-danger mb-0">
+                                <i class="fas fa-minus-circle me-1"></i>الاستقطاعات
+                            </h6>
+                            <button type="button" class="btn btn-sm btn-outline-danger" 
+                                    onclick="toggleAllComponents('deduction')">
+                                <i class="fas fa-check-square me-1"></i>تحديد الكل
+                            </button>
+                        </div>
+                        <div id="deductionsList" class="border rounded p-3 bg-light"></div>
+                    </div>
+                </div>
+
+                <!-- رسالة التحميل -->
+                <div id="loadingMessage" class="text-center py-5">
+                    <div class="spinner-border text-info mb-3" role="status">
+                        <span class="visually-hidden">جاري التحميل...</span>
+                    </div>
+                    <h6 class="text-muted">جاري تحميل بنود الموظف...</h6>
+                    <p class="text-muted small">يرجى الانتظار</p>
+                </div>
+            </div>
+            <div class="modal-footer bg-light border-top px-4 py-3 d-flex justify-content-between">
+                <div>
+                    <button type="button" class="btn btn-secondary px-3 me-2" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-1"></i>إغلاق
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" onclick="refreshEmployeeAnalysis()">
+                        <i class="fas fa-sync-alt me-1"></i>تحديث
+                    </button>
+                </div>
+                <div>
+                    <button type="button" class="btn btn-outline-info me-2" onclick="openComponentsManager()">
+                        <i class="fas fa-cogs me-1"></i>إدارة البنود
+                    </button>
+                    <button type="button" class="btn btn-primary px-4 fw-bold" onclick="copySelectedComponents()">
+                        <i class="fas fa-copy me-1"></i>نسخ البنود المحددة
+                    </button>
                 </div>
             </div>
         </div>
@@ -876,10 +944,8 @@ $(document).ready(function() {
     }, 200);
     
     // تهيئة date pickers باستخدام النظام الموحد
-    const startDatePicker = MWHEBADatePicker.init("#id_start_date", {
-        {% if not contract %}
-        defaultDate: new Date(), // ✅ تاريخ اليوم للعقود الجديدة
-        {% endif %}
+    const isNewContract = !$('#id_start_date').val();
+    const startDateConfig = {
         onChange: function(selectedDates, dateStr, instance) {
             // إعادة حساب تاريخ النهاية عند تغيير تاريخ البداية
             const duration = $('#id_contract_duration').val();
@@ -887,14 +953,16 @@ $(document).ready(function() {
                 $('#id_contract_duration').trigger('change');
             }
         }
-    });
+    };
+    if (isNewContract) {
+        startDateConfig.defaultDate = new Date();
+    }
+    const startDatePicker = MWHEBADatePicker.init("#id_start_date", startDateConfig);
     
     // تعيين تاريخ اليوم للعقود الجديدة
-    {% if not contract %}
-    if (!$('#id_start_date').val()) {
+    if (isNewContract && !$('#id_start_date').val()) {
         startDatePicker.setDate(new Date(), true);
     }
-    {% endif %}
     
     // حساب آخر يوم في الشهر الحالي
     const today = new Date();
@@ -931,8 +999,7 @@ $(document).ready(function() {
     });
     
     // تعيين نوع العقد افتراضياً على "دائم" للعقود الجديدة
-    {% if not contract %}
-    if (!$('#id_contract_type').val()) {
+    if (isNewContract && !$('#id_contract_type').val()) {
         // البحث عن option "دائم" (permanent)
         $('#id_contract_type option').each(function() {
             if ($(this).text().includes('دائم') || $(this).val() === 'permanent') {
@@ -941,10 +1008,9 @@ $(document).ready(function() {
             }
         });
     }
-    {% endif %}
     
     // تفعيل Select2 لحقل الموظف
-    $('#id_employee').select2({
+    $('select#id_employee').select2({
         theme: 'bootstrap-5',
         language: 'ar',
         dir: 'rtl',
@@ -1935,141 +2001,22 @@ $(document).ready(function() {
         }
     }
 
-    // إنشاء SalaryComponentManager
-    $(document).ready(function() {
-        if (typeof SalaryComponentManager !== 'undefined') {
-            window.salaryManager = new SalaryComponentManager();
+    // تهيئة SalaryComponentManager
+    if (typeof SalaryComponentManager !== 'undefined') {
+        window.salaryManager = new SalaryComponentManager();
 
-            // تهيئة حالة التأمينات عند التعديل (لو الموظف مسجل بالفعل)
-            if ($('#id_is_social_insurance_enrolled').is(':checked')) {
-                $('#social_insurance_number_row').show();
-                const hasInsurableRow = $('[data-insurance="true"]').length > 0;
-                if (!hasInsurableRow) {
-                    window.salaryManager.addInsurableRow();
-                    window.salaryManager.addSocialInsuranceRow();
-                }
+        // تهيئة حالة التأمينات عند التعديل (لو الموظف مسجل بالفعل)
+        if ($('#id_is_social_insurance_enrolled').is(':checked')) {
+            $('#social_insurance_number_row').show();
+            const hasInsurableRow = $('[data-insurance="true"]').length > 0;
+            if (!hasInsurableRow) {
+                window.salaryManager.addInsurableRow();
+                window.salaryManager.addSocialInsuranceRow();
             }
-        } else {
-            console.error('SalaryComponentManager class not found');
         }
-    });
+    } else {
+        console.error('SalaryComponentManager class not found');
+    }
 });
 </script>
-
-        <!-- أزرار الحفظ -->
-        <div class="row mt-4">
-            <div class="col-12">
-                <div class="d-flex justify-content-between">
-                    <a href="{% url 'hr:contract_list' %}" class="btn btn-secondary">
-                        <i class="fas fa-arrow-left me-2"></i>العودة للقائمة
-                    </a>
-                    
-                    <div class="btn-group">
-                        {% if not contract %}
-                        <!-- للعقود الجديدة -->
-                        <button type="submit" name="action" value="save_draft" class="btn btn-outline-primary">
-                            <i class="fas fa-save me-2"></i>حفظ كمسودة
-                        </button>
-                        <button type="button" id="smartActivateBtn" class="btn btn-success" onclick="smartActivateContract()" style="display: none;">
-                            <i class="fas fa-rocket me-2"></i>حفظ وتفعيل بذكاء
-                        </button>
-                        <button type="submit" name="action" value="save_activate" id="normalActivateBtn" class="btn btn-success">
-                            <i class="fas fa-check-circle me-2"></i>حفظ وتفعيل
-                        </button>
-                        {% else %}
-                        <!-- للعقود الموجودة -->
-                        <button type="submit" name="action" value="save_draft" class="btn btn-primary">
-                            <i class="fas fa-save me-2"></i>حفظ التعديلات
-                        </button>
-                        {% if contract.status == 'draft' %}
-                        <button type="button" class="btn btn-info me-2" onclick="window.contractActivationPreview.show({{ contract.pk }})">
-                            <i class="fas fa-eye me-2"></i>معاينة التفعيل
-                        </button>
-                        {% endif %}
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-        </div>
-    </form>
-  </div>
-</div>
-
-<!-- مودال تحليل بنود الموظف -->
-<div class="modal fade" id="employeeAnalysisModal" tabindex="-1" aria-labelledby="employeeAnalysisModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header bg-white border-bottom">
-                <h5 class="modal-title text-primary">
-                    <i class="fas fa-chart-line me-2"></i>تحليل بنود الموظف الحالية
-                </h5>
-                <button type="button" class="btn-close text-primary" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-
-                <!-- قسم البنود مع Checkboxes -->
-                <div id="componentsList" style="display: none;">
-                    <!-- المستحقات -->
-                    <div class="mb-4">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <h6 class="text-success mb-0">
-                                <i class="fas fa-plus-circle me-1"></i>المستحقات
-                            </h6>
-                            <button type="button" class="btn btn-sm btn-outline-success" 
-                                    onclick="toggleAllComponents('earning')">
-                                <i class="fas fa-check-square me-1"></i>تحديد الكل
-                            </button>
-                        </div>
-                        <div id="earningsList" class="border rounded p-3 bg-light"></div>
-                    </div>
-                    
-                    <!-- الاستقطاعات -->
-                    <div class="mb-4">
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <h6 class="text-danger mb-0">
-                                <i class="fas fa-minus-circle me-1"></i>الاستقطاعات
-                            </h6>
-                            <button type="button" class="btn btn-sm btn-outline-danger" 
-                                    onclick="toggleAllComponents('deduction')">
-                                <i class="fas fa-check-square me-1"></i>تحديد الكل
-                            </button>
-                        </div>
-                        <div id="deductionsList" class="border rounded p-3 bg-light"></div>
-                    </div>
-                </div>
-
-                <!-- رسالة التحميل -->
-                <div id="loadingMessage" class="text-center py-5">
-                    <div class="spinner-border text-info mb-3" role="status">
-                        <span class="visually-hidden">جاري التحميل...</span>
-                    </div>
-                    <h6 class="text-muted">جاري تحميل بنود الموظف...</h6>
-                    <p class="text-muted small">يرجى الانتظار</p>
-                </div>
-            </div>
-            <div class="modal-footer d-flex justify-content-between">
-                <!-- أزرار اليمين -->
-                <div>
-                    <button type="button" class="btn btn-secondary me-2" data-bs-dismiss="modal">
-                        <i class="fas fa-times me-1"></i>إغلاق
-                    </button>
-                    <button type="button" class="btn btn-outline-secondary" onclick="refreshEmployeeAnalysis()">
-                        <i class="fas fa-sync-alt me-1"></i>تحديث
-                    </button>
-                </div>
-                
-                <!-- أزرار اليسار -->
-                <div>
-                    <button type="button" class="btn btn-outline-info me-2" onclick="openComponentsManager()">
-                        <i class="fas fa-cogs me-1"></i>إدارة البنود
-                    </button>
-                    <button type="button" class="btn btn-primary" onclick="copySelectedComponents()">
-                        <i class="fas fa-copy me-1"></i>نسخ البنود المحددة
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
 {% endblock %}

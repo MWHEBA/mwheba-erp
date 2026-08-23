@@ -171,11 +171,16 @@ urlpatterns = [
         views.journal_entries_detail,
         name="journal_entries_detail",
     ),
-    # alias للاختبارات
+    # alias للاختبارات والتوافق
     path(
         "journal-entry/<int:pk>/",
         views.journal_entries_detail,
         name="journal-entry-detail",
+    ),
+    path(
+        "journal-entries/<int:pk>/detail/",
+        views.journal_entries_detail,
+        name="journal_entry_detail",
     ),
     path(
         "journal-entries/<int:pk>/edit/",

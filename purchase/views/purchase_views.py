@@ -1315,7 +1315,7 @@ def get_purchase_print_context(request, pk):
     from django.utils import timezone
     today = timezone.now().date()
     year = timezone.now().year
-    currency_symbol_active = getattr(purchase, 'currency', None) or SystemSetting.get_currency_symbol()
+    currency_symbol_active = (getattr(purchase.currency, 'code', None) if is_english else (purchase.currency_symbol if hasattr(purchase, 'currency_symbol') else SystemSetting.get_currency_symbol())) or SystemSetting.get_currency_symbol()
     status_map = {
         'paid': 'مدفوع بالكامل' if not is_english else 'PAID',
         'unpaid': 'غير مدفوع' if not is_english else 'UNPAID',

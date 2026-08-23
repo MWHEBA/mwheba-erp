@@ -754,7 +754,7 @@
                 const formData = new FormData($('#image-form')[0]);
                 
                 $.ajax({
-                    url: '{% if form.instance.pk %}{% url "product:product_image_add" form.instance.pk %}{% endif %}',
+                    url: '{% if form.instance.pk %}{% url "product:product_image_upload" form.instance.pk %}{% endif %}',
                     type: 'POST',
                     data: formData,
                     processData: false,

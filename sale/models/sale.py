@@ -108,6 +108,16 @@ class Sale(models.Model):
         related_name="sales",
     )
 
+    # قائمة الأسعار المعتمدة
+    price_list = models.ForeignKey(
+        "sale.PriceList",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name=_("قائمة الأسعار"),
+        related_name="sales",
+    )
+
     # ربط بأمر البيع وإذن التسليم
     sales_order = models.ForeignKey(
         "sale.SalesOrder",

@@ -111,6 +111,17 @@ class Customer(models.Model):
         help_text=_("العملة الافتراضية المعتمدة لفتح فواتير ومعاملات هذا العميل تلقائياً")
     )
 
+    # قائمة الأسعار الافتراضية المعتمدة
+    default_price_list = models.ForeignKey(
+        'sale.PriceList',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name=_("قائمة الأسعار الافتراضية"),
+        related_name="customers_default_price_list",
+        help_text=_("قائمة الأسعار الافتراضية المعتمدة للعميل لتطبيقها تلقائياً في الفواتير وعروض الأسعار")
+    )
+
     # تصنيف الكيان القانوني للعميل
     client_type = models.CharField(
         _("نوع العميل (الكيان القانوني)"),

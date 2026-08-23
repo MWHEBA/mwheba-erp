@@ -44,11 +44,11 @@
       <div class="stepper-title fw-bold">{% trans "الدفتر العام" %}</div>
       <div class="stepper-subtitle small">
         {% if journal_entry %}
-          <a href="{% url 'financial:journal_entry_detail' journal_entry.id %}" class="btn btn-sm btn-outline-primary py-0 px-2 mt-1">
+          <a href="{% url 'financial:journal_entries_detail' journal_entry.id %}" class="btn btn-sm btn-outline-primary py-0 px-2 mt-1">
             <i class="fas fa-link me-1"></i>{{ journal_entry.number }}
           </a>
         {% elif journal_entry_id %}
-          <a href="{% url 'financial:journal_entry_detail' journal_entry_id %}" class="btn btn-sm btn-outline-primary py-0 px-2 mt-1">
+          <a href="{% url 'financial:journal_entries_detail' journal_entry_id %}" class="btn btn-sm btn-outline-primary py-0 px-2 mt-1">
             <i class="fas fa-link me-1"></i>{% trans "عرض القيد" %}
           </a>
         {% else %}

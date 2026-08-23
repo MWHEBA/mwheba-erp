@@ -487,6 +487,20 @@
                                 <div class="party-label">{% trans "الهاتف:" %}</div>
                                 <div class="party-value">{{ purchase.supplier.phone|default:"غير متوفر" }}</div>
                             </div>
+                            <div class="party-info">
+                                <div class="party-label">{% trans "التصنيف المالي:" %}</div>
+                                <div class="party-value">
+                                    {% if purchase.financial_category %}
+                                        <span class="badge bg-info">{{ purchase.financial_category.name }}</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">غير محدد</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="party-info">
+                                <div class="party-label">{% trans "العملة:" %}</div>
+                                <div class="party-value">{{ purchase.currency.name|default:purchase.currency_symbol }}</div>
+                            </div>
                         </div>
                         
                         <div class="invoice-party">
@@ -506,20 +520,6 @@
                             <div class="party-info">
                                 <div class="party-label">{% trans "طريقة الدفع:" %}</div>
                                 <div class="party-value">{{ purchase.get_payment_method_display }}</div>
-                            </div>
-                            <div class="party-info">
-                                <div class="party-label">{% trans "التصنيف المالي:" %}</div>
-                                <div class="party-value">
-                                    {% if purchase.financial_category %}
-                                        <span class="badge bg-info">{{ purchase.financial_category.name }}</span>
-                                    {% else %}
-                                        <span class="badge bg-secondary">غير محدد</span>
-                                    {% endif %}
-                                </div>
-                            </div>
-                            <div class="party-info">
-                                <div class="party-label">{% trans "العملة:" %}</div>
-                                <div class="party-value">{{ purchase.currency.name|default:purchase.currency_symbol }}</div>
                             </div>
                         </div>
                     </div>

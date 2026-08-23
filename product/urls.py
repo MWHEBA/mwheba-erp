@@ -40,6 +40,7 @@ urlpatterns = [
     path("<int:pk>/delete/", views.product_delete, name="product_delete"),
     path("<int:pk>/reactivate/", views.product_reactivate, name="product_reactivate"),
     path("<int:pk>/upload-image/", views.product_image_upload, name="product_image_upload"),
+    path("<int:pk>/add-image/", views.product_image_upload, name="product_image_add"),
     path("<int:pk>/update-currency-prices/", views.update_currency_prices, name="update_currency_prices"),
     
     # AJAX endpoints for bundle components

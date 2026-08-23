@@ -1410,7 +1410,18 @@ def product_delete(request, pk):
     )
     can_delete_permanently = not has_transactions
 
+    # فحص المخزون الحالي
+    from product.models.stock_management import Stock
+    from django.db.models import Sum
+    current_stock_qty = Stock.objects.filter(product=product).aggregate(total=Sum('quantity'))['total'] or Decimal('0')
+    has_stock = (not product.is_service and current_stock_qty > Decimal('0'))
+
     if request.method == "POST":
+        if has_stock:
+            unit_name = product.unit.name if product.unit else ""
+            messages.error(request, f"لا يمكن حذف أو تعطيل المنتج '{product.name}' لوجود رصيد متاح في المخزن ({current_stock_qty} {unit_name}). يرجى تصفية أو صرف المخزون أولاً.")
+            return redirect("product:product_detail", pk=product.pk)
+
         action = request.POST.get('action', 'deactivate')
         
         if action == 'delete' and can_delete_permanently:
@@ -1455,6 +1466,8 @@ def product_delete(request, pk):
 
     context = {
         "product": product,
+        "has_stock": has_stock,
+        "current_stock_qty": current_stock_qty,
         "can_delete_permanently": can_delete_permanently,
         "has_transactions": has_transactions,
         "transactions_info": transactions_info,

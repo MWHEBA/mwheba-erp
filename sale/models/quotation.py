@@ -36,6 +36,14 @@ class Quotation(models.Model):
         null=True,
         blank=True,
     )
+    price_list = models.ForeignKey(
+        "sale.PriceList",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name=_("قائمة الأسعار"),
+        related_name="quotations",
+    )
     date = models.DateField(_("تاريخ عرض السعر"), default=timezone.now)
     valid_until = models.DateField(_("تاريخ انتهاء الصلاحية"), null=True, blank=True)
     status = models.CharField(

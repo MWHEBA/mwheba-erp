@@ -23,7 +23,7 @@
       
       <div class="row g-4">
         <!-- اسم القاعدة -->
-        <div class="col-md-5">
+        <div class="col-md-4">
           <label for="rule_name" class="form-label fw-bold required">{% trans "اسم قاعدة الخصم" %}</label>
           <div class="input-group">
             <span class="input-group-text"><i class="fas fa-tag"></i></span>
@@ -40,14 +40,48 @@
               <option value="{{ key }}" {% if rule.rule_type == key %}selected{% endif %}>{{ val }}</option>
             {% endfor %}
           </select>
-          <div class="form-text text-muted">{% trans "تحديد كيفية احتساب الخصم (نسبة مئوية أو خصم بمبلغ مقطوع)." %}</div>
+          <div class="form-text text-muted">{% trans "تحديد كيفية احتساب الخصم (نسبة مئوية أو مبلغ مقطوع أو شريحة)." %}</div>
+        </div>
+
+        <!-- نطاق الخصم -->
+        <div class="col-md-4">
+          <label for="scope" class="form-label fw-bold required">{% trans "نطاق الخصم" %}</label>
+          <select class="form-select select2-simple" id="scope" name="scope" required>
+            {% for key, val in scope_choices %}
+              <option value="{{ key }}" {% if rule.scope == key %}selected{% endif %}>{{ val }}</option>
+            {% endfor %}
+          </select>
+          <div class="form-text text-muted">{% trans "خصم تجاري على مستوى البند أو خصم تسوية إجمالي للفاتورة." %}</div>
         </div>
 
         <!-- الأولوية -->
-        <div class="col-md-3">
+        <div class="col-md-4">
           <label for="priority" class="form-label fw-bold">{% trans "الأولوية" %}</label>
           <input type="number" class="form-control" id="priority" name="priority" value="{{ rule.priority|default:'10' }}" min="1">
-          <div class="form-text text-muted">{% trans "الرقم الأقل يطبق أولاً في حال تعدد القواعد." %}</div>
+          <div class="form-text text-muted">{% trans "الرقم الأعلى يطبق أولاً في حال تعدد القواعد المطابقة." %}</div>
+        </div>
+
+        <!-- طريقة تجميع الكميات -->
+        <div class="col-md-4">
+          <label for="aggregation_type" class="form-label fw-bold">{% trans "تجميع الكميات لفحص الشرائح" %}</label>
+          <select class="form-select select2-simple" id="aggregation_type" name="aggregation_type">
+            {% for key, val in aggregation_choices %}
+              <option value="{{ key }}" {% if rule.aggregation_type == key %}selected{% endif %}>{{ val }}</option>
+            {% endfor %}
+          </select>
+          <div class="form-text text-muted">{% trans "تجميع كميات نفس الفئة بالسلة أو احتساب كل سطر منفرداً." %}</div>
+        </div>
+
+        <!-- المنتج المحدد -->
+        <div class="col-md-4">
+          <label for="product" class="form-label fw-bold">{% trans "المنتج المحدد (اختياري)" %}</label>
+          <select class="form-select select2" id="product" name="product" dir="rtl">
+            <option value="">{% trans "جميع المنتجات (غير مخصص لمنتج بعينه)" %}</option>
+            {% for p in products %}
+              <option value="{{ p.id }}" {% if rule.product_id == p.id %}selected{% endif %}>{{ p.name }} ({{ p.sku }})</option>
+            {% endfor %}
+          </select>
+          <div class="form-text text-muted">{% trans "تخصيص الخصم لمنتج محدد بدقة." %}</div>
         </div>
 
         <!-- العميل المستهدف -->
@@ -94,14 +128,14 @@
           <div class="form-text text-muted">{% trans "قيمة نقدية ثابتة تُخصم من الإجمالي." %}</div>
         </div>
 
-        <!-- الحد الأدنى للطلب -->
+        <!-- الحد الأدنى للطلب / الكمية -->
         <div class="col-md-4">
-          <label for="min_order_amount" class="form-label fw-bold">{% trans "الحد الأدنى لقيمة الطلب" %}</label>
+          <label for="min_order_amount" class="form-label fw-bold">{% trans "الحد الأدنى للكمية / القيمة" %}</label>
           <div class="input-group">
             <input type="number" step="0.01" class="form-control" id="min_order_amount" name="min_order_amount" value="{{ rule.min_order_amount|default:'0.00' }}" min="0">
-            <span class="input-group-text">{% currency_symbol %}</span>
+            <span class="input-group-text">{% trans "كمية / قيمة" %}</span>
           </div>
-          <div class="form-text text-muted">{% trans "الحد الأدنى للفاتورة لتطبيق الخصم (0 = بدون حد أدنى)." %}</div>
+          <div class="form-text text-muted">{% trans "الحد الأدنى لتطبيق الخصم (0 = بدون شرط)." %}</div>
         </div>
 
         <!-- تاريخ السريان والانتهاء -->
@@ -148,7 +182,7 @@ document.addEventListener("DOMContentLoaded", function() {
     var percentageWrapper = document.getElementById("percentageWrapper");
     var fixedValueWrapper = document.getElementById("fixedValueWrapper");
 
-    if (ruleType === "PERCENTAGE") {
+    if (ruleType === "PERCENTAGE" || ruleType === "TIERED_QUANTITY") {
       percentageWrapper.style.opacity = "1";
       fixedValueWrapper.style.opacity = "0.5";
     } else {

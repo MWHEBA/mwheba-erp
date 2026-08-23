@@ -23,6 +23,19 @@ from client.models import Customer
 logger = logging.getLogger(__name__)
 
 
+def check_pricing_permissions(view_func):
+    """
+    التحقق من صلاحية المستخدم لإدارة قوائم الأسعار وقواعد الخصم (RBAC Guard)
+    """
+    def _wrapped(request, *args, **kwargs):
+        u = request.user
+        if not (u.is_superuser or u.is_staff or u.has_perm("sale.manage_pricing") or u.groups.filter(name__in=["Managers", "Admins", "CFO", "Sales Manager"]).exists()):
+            messages.error(request, _("عفواً، لا تملك الصلاحيات الإدارية الكافية للوصول لسياسات الأسعار والخصومات."))
+            return redirect("sale:sale_list")
+        return view_func(request, *args, **kwargs)
+    return _wrapped
+
+
 # ==================== قوائم الأسعار (Price Lists) ====================
 
 @login_required
@@ -367,11 +380,12 @@ def price_list_edit(request, pk):
 # ==================== قواعد الخصم (Discount Rules) ====================
 
 @login_required
+@check_pricing_permissions
 def discount_rule_list(request):
     """
     قائمة قواعد وسياسات الخصم مع الفلاتر والإحصائيات ودعم AJAX الموحد
     """
-    rules = DiscountRule.objects.select_related("customer", "category").order_by("-is_active", "priority", "-id")
+    rules = DiscountRule.objects.select_related("customer", "category", "product").order_by("-is_active", "priority", "-id")
 
     # فلاتر البحث
     q = request.GET.get("q") or request.GET.get("search")
@@ -379,7 +393,8 @@ def discount_rule_list(request):
         rules = rules.filter(
             Q(rule_name__icontains=q) |
             Q(customer__name__icontains=q) |
-            Q(category__name__icontains=q)
+            Q(category__name__icontains=q) |
+            Q(product__name__icontains=q)
         )
 
     rule_type = request.GET.get("rule_type")
@@ -436,6 +451,7 @@ def discount_rule_list(request):
 
     customers = Customer.objects.filter(is_active=True).only("id", "name").order_by("name")
     categories = Category.objects.all().order_by("name")
+    products = Product.objects.filter(is_active=True).only("id", "name", "sku").order_by("name")
 
     # إعداد headers للجدول الموحد
     discount_rule_headers = [
@@ -447,38 +463,38 @@ def discount_rule_list(request):
         },
         {
             'key': 'rule_name',
-            'label': _('اسم القاعدة'),
-            'class': 'text-start fw-bold',
+            'label': _('اسم القاعدة والنطاق'),
+            'class': 'text-start',
             'format': 'html',
-            'width': '20%'
+            'width': '22%'
         },
         {
             'key': 'rule_type',
             'label': _('نوع القاعدة'),
             'class': 'text-center',
             'format': 'html',
-            'width': '12%'
+            'width': '10%'
         },
         {
             'key': 'target',
-            'label': _('العميل / التصنيف المستهدف'),
+            'label': _('الهدف المستهدف'),
             'class': 'text-start',
             'format': 'html',
-            'width': '18%'
+            'width': '20%'
         },
         {
             'key': 'discount_value',
             'label': _('قيمة الخصم'),
             'class': 'text-center',
             'format': 'html',
-            'width': '12%'
+            'width': '10%'
         },
         {
             'key': 'min_order_amount',
-            'label': _('الحد الأدنى للطلب'),
+            'label': _('الحد الأدنى'),
             'class': 'text-center',
             'format': 'html',
-            'width': '12%'
+            'width': '10%'
         },
         {
             'key': 'validity_period',
@@ -492,7 +508,7 @@ def discount_rule_list(request):
             'label': _('الأولوية'),
             'class': 'text-center',
             'format': 'html',
-            'width': '5%'
+            'width': '6%'
         },
         {
             'key': 'status',
@@ -513,7 +529,8 @@ def discount_rule_list(request):
     # بناء بيانات الجدول الموحد
     rules_data = []
     for r in page_obj:
-        rule_name_html = f'<div class="fw-bold text-primary mb-0"><i class="fas fa-percentage me-1 text-muted"></i>{r.rule_name}</div>'
+        scope_badge = '<span class="badge bg-light text-secondary border ms-1">بند</span>' if r.scope == "ITEM" else '<span class="badge bg-info-subtle text-info border ms-1">فاتورة</span>'
+        rule_name_html = f'<div class="fw-bold text-primary mb-0"><i class="fas fa-percentage me-1 text-muted"></i>{r.rule_name} {scope_badge}</div>'
 
         if r.rule_type == "PERCENTAGE":
             rule_type_html = '<span class="badge bg-light text-primary border"><i class="fas fa-percent me-1"></i>نسبة مئوية</span>'
@@ -523,20 +540,22 @@ def discount_rule_list(request):
             discount_value_html = f'<span class="fw-bold text-success fs-6">{r.value:.2f} ج.م</span>'
         else:
             rule_type_html = '<span class="badge bg-light text-warning border"><i class="fas fa-layer-group me-1"></i>شريحة كمية</span>'
-            discount_value_html = f'<span class="fw-bold text-success fs-6">{r.value:.2f} ج.م</span>'
+            discount_value_html = f'<span class="fw-bold text-success fs-6">{r.discount_percentage}%</span>'
 
         target_parts = []
-        if r.customer:
-            target_parts.append(f'<div class="text-dark fw-semibold"><i class="fas fa-user text-muted me-1"></i>{r.customer.name}</div>')
+        if r.product:
+            target_parts.append(f'<div class="text-primary fw-semibold"><i class="fas fa-box text-muted me-1"></i>{r.product.name}</div>')
         if r.category:
-            target_parts.append(f'<div class="text-muted small"><i class="fas fa-tags text-muted me-1"></i>{r.category.name}</div>')
+            target_parts.append(f'<div class="text-dark small"><i class="fas fa-tags text-muted me-1"></i>{r.category.name}</div>')
+        if r.customer:
+            target_parts.append(f'<div class="text-muted small"><i class="fas fa-user text-muted me-1"></i>{r.customer.name}</div>')
         if not target_parts:
             target_html = '<span class="badge bg-light text-secondary border">كافة العملاء والأصناف</span>'
         else:
             target_html = "".join(target_parts)
 
         if r.min_order_amount > 0:
-            min_amount_html = f'<span class="fw-semibold text-dark">{r.min_order_amount:.2f} ج.م</span>'
+            min_amount_html = f'<span class="fw-semibold text-dark">{r.min_order_amount:.2f}</span>'
         else:
             min_amount_html = '<span class="text-muted">-</span>'
 
@@ -589,7 +608,7 @@ def discount_rule_list(request):
 
     context = {
         "page_title": _("قواعد وسياسات الخصم"),
-        "page_subtitle": _("إدارة سياسات وقواعد الخصم التلقائية الممنوحة للعملاء وفئات المنتجات"),
+        "page_subtitle": _("إدارة سياسات وقواعد الخصم التلقائية الممنوحة للعملاء وفئات ومنتجات المبيعات"),
         "page_icon": "fas fa-percentage",
         "rules": page_obj.object_list,
         "rules_data": rules_data,
@@ -598,6 +617,7 @@ def discount_rule_list(request):
         "stats": stats,
         "customers": customers,
         "categories": categories,
+        "products": products,
         "rule_types": DiscountRule.RULE_TYPES,
         **pagination_context,
         "breadcrumb_items": breadcrumb_items,
@@ -616,6 +636,7 @@ def discount_rule_list(request):
 
 
 @login_required
+@check_pricing_permissions
 def discount_rule_create(request):
     """
     إنشاء قاعدة خصم جديدة
@@ -623,8 +644,11 @@ def discount_rule_create(request):
     if request.method == "POST":
         rule_name = request.POST.get("rule_name")
         rule_type = request.POST.get("rule_type", "PERCENTAGE")
+        scope = request.POST.get("scope", "ITEM")
+        aggregation_type = request.POST.get("aggregation_type", "LINE_ONLY")
         customer_id = request.POST.get("customer") or None
         category_id = request.POST.get("category") or None
+        product_id = request.POST.get("product") or None
         discount_percentage = Decimal(request.POST.get("discount_percentage", "0.00") or "0.00")
         value = Decimal(request.POST.get("value", "0.00") or "0.00")
         min_order_amount = Decimal(request.POST.get("min_order_amount", "0.00") or "0.00")
@@ -637,8 +661,11 @@ def discount_rule_create(request):
             rule = DiscountRule.objects.create(
                 rule_name=rule_name,
                 rule_type=rule_type,
+                scope=scope,
+                aggregation_type=aggregation_type,
                 customer_id=customer_id,
                 category_id=category_id,
+                product_id=product_id,
                 discount_percentage=discount_percentage,
                 value=value,
                 min_order_amount=min_order_amount,
@@ -656,6 +683,7 @@ def discount_rule_create(request):
 
     customers = Customer.objects.filter(is_active=True).only("id", "name").order_by("name")
     categories = Category.objects.all().order_by("name")
+    products = Product.objects.filter(is_active=True).only("id", "name", "sku").order_by("name")
 
     breadcrumb_items = [
         {"title": _("الرئيسية"), "url": reverse("core:dashboard"), "icon": "fa-home"},
@@ -678,7 +706,10 @@ def discount_rule_create(request):
         "page_icon": "fas fa-percentage",
         "customers": customers,
         "categories": categories,
+        "products": products,
         "rule_types": DiscountRule.RULE_TYPES,
+        "scope_choices": DiscountRule.SCOPE_CHOICES,
+        "aggregation_choices": DiscountRule.AGGREGATION_CHOICES,
         "breadcrumb_items": breadcrumb_items,
         "header_buttons": header_buttons,
     }
@@ -686,6 +717,7 @@ def discount_rule_create(request):
 
 
 @login_required
+@check_pricing_permissions
 def discount_rule_edit(request, pk):
     """
     تعديل قاعدة خصم قائمة
@@ -695,8 +727,11 @@ def discount_rule_edit(request, pk):
     if request.method == "POST":
         rule.rule_name = request.POST.get("rule_name", rule.rule_name)
         rule.rule_type = request.POST.get("rule_type", rule.rule_type)
+        rule.scope = request.POST.get("scope", getattr(rule, "scope", "ITEM"))
+        rule.aggregation_type = request.POST.get("aggregation_type", getattr(rule, "aggregation_type", "LINE_ONLY"))
         rule.customer_id = request.POST.get("customer") or None
         rule.category_id = request.POST.get("category") or None
+        rule.product_id = request.POST.get("product") or None
         rule.discount_percentage = Decimal(request.POST.get("discount_percentage", "0.00") or "0.00")
         rule.value = Decimal(request.POST.get("value", "0.00") or "0.00")
         rule.min_order_amount = Decimal(request.POST.get("min_order_amount", "0.00") or "0.00")
@@ -715,6 +750,7 @@ def discount_rule_edit(request, pk):
 
     customers = Customer.objects.filter(is_active=True).only("id", "name").order_by("name")
     categories = Category.objects.all().order_by("name")
+    products = Product.objects.filter(is_active=True).only("id", "name", "sku").order_by("name")
 
     breadcrumb_items = [
         {"title": _("الرئيسية"), "url": reverse("core:dashboard"), "icon": "fa-home"},
@@ -738,7 +774,10 @@ def discount_rule_edit(request, pk):
         "rule": rule,
         "customers": customers,
         "categories": categories,
+        "products": products,
         "rule_types": DiscountRule.RULE_TYPES,
+        "scope_choices": DiscountRule.SCOPE_CHOICES,
+        "aggregation_choices": DiscountRule.AGGREGATION_CHOICES,
         "breadcrumb_items": breadcrumb_items,
         "header_buttons": header_buttons,
     }

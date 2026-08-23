@@ -836,7 +836,7 @@ def customer_detail(request, pk):
                 func_cr = jl.credit or Decimal("0.00")
                 f_dr = jl.foreign_debit if (jl.foreign_debit and jl.foreign_debit > 0) else (func_dr if curr_code != "EGP" else Decimal("0.00"))
                 f_cr = jl.foreign_credit if (jl.foreign_credit and jl.foreign_credit > 0) else (func_cr if curr_code != "EGP" else Decimal("0.00"))
-                jv_url = reverse("financial:journal_entry_detail", kwargs={"pk": jl.journal_entry.id})
+                jv_url = reverse("financial:journal_entries_detail", kwargs={"pk": jl.journal_entry.id})
 
                 transactions.append({
                     "date": jl.journal_entry.date,
@@ -1300,7 +1300,7 @@ def customer_detail(request, pk):
         "payments_clickable": True,
         "payments_click_url": "sale:payment_detail",
         "journal_clickable": True,
-        "journal_click_url": "financial:journal_entry_detail",
+        "journal_click_url": "financial:journal_entries_detail",
         # بيانات الهيدر
         "page_title": f"{customer.name}",
         "page_subtitle": "معلومات وبيانات العميل الكاملة",

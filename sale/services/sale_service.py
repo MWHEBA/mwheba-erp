@@ -81,6 +81,7 @@ class SaleService:
                 date=data.get('date', timezone.now().date()),
                 customer_id=data['customer_id'],
                 warehouse_id=data['warehouse_id'],
+                price_list_id=data.get('price_list_id') or data.get('price_list'),
                 currency=currency_obj,
                 exchange_rate=sys_rate,
                 payment_method=data.get('payment_method', 'credit'),
@@ -164,12 +165,31 @@ class SaleService:
         إضافة بند لفاتورة المبيعات مع تخصيص مركز التكلفة
         """
         cc_id = item_data.get('cost_center_id') or item_data.get('cost_center') or sale.cost_center_id
+        price_snapshot = item_data.get('price_snapshot')
+        if not price_snapshot:
+            from sale.services.pricing_service import PricingService
+            try:
+                prod = Product.objects.get(id=item_data['product_id'])
+                res = PricingService.get_sales_price(
+                    product=prod,
+                    customer=sale.customer,
+                    price_list=sale.price_list,
+                    currency=sale.currency,
+                    exchange_rate=sale.exchange_rate,
+                    quantity=Decimal(str(item_data['quantity'])),
+                    pricing_date=sale.date
+                )
+                price_snapshot = res.get('price_snapshot')
+            except Exception:
+                price_snapshot = {}
+
         item = SaleItem.objects.create(
             sale=sale,
             product_id=item_data['product_id'],
             quantity=Decimal(str(item_data['quantity'])),
             unit_price=Decimal(str(item_data['unit_price'])),
             discount=Decimal(str(item_data.get('discount', 0))),
+            price_snapshot=price_snapshot,
             cost_center_id=cc_id if cc_id else None,
             total=Decimal(str(item_data['quantity'])) * Decimal(str(item_data['unit_price'])) - Decimal(str(item_data.get('discount', 0)))
         )
@@ -274,6 +294,8 @@ class SaleService:
             sale.notes = data['notes']
         if 'cost_center_id' in data or 'cost_center' in data:
             sale.cost_center_id = data.get('cost_center_id') or data.get('cost_center')
+        if 'price_list_id' in data or 'price_list' in data:
+            sale.price_list_id = data.get('price_list_id') or data.get('price_list')
         if 'financial_category_id' in data:
             sale.financial_category_id = data['financial_category_id']
         sale.save()

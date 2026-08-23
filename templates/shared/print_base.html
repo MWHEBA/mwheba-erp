@@ -495,17 +495,30 @@
 
         .floating-company-stamp {
             position: absolute;
-            bottom: 0px;
+            bottom: -5px;
             left: 50%;
-            transform: translateX(-50%) rotate(-12deg);
-            width: 4cm;
-            height: auto;
-            max-height: 4.5cm;
-            object-fit: contain;
-            opacity: 0.88;
+            transform: translateX(-50%) rotate(-10deg);
+            width: 3.8cm;
+            height: 3.8cm;
+            max-height: 4.2cm;
+            color: var(--primary-color);
+            opacity: 0.85;
             mix-blend-mode: multiply;
             pointer-events: none;
             z-index: 10;
+        }
+
+        .corporate-stamp-seal {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .corporate-stamp-seal svg {
+            width: 100%;
+            height: 100%;
         }
 
         .signature-line {
@@ -743,15 +756,38 @@
                         </div>
                         <div class="signature-box stamp-box">
                             <div class="signature-label">{% if is_english %}Stamp & Signature{% else %}الختم والتوقيع{% endif %}</div>
-                            {% if settings.enable_company_stamp|default:True and company_stamp %}
-                            {% if "http" in company_stamp or "/media/" in company_stamp %}
-                            <img src="{{ company_stamp }}" id="printableCompanyStamp" class="floating-company-stamp"
-                                alt="ختم الشركة">
-                            {% else %}
-                            <img src="{{ MEDIA_URL }}{{ company_stamp }}" id="printableCompanyStamp"
-                                class="floating-company-stamp" alt="ختم الشركة">
-                            {% endif %}
-                            {% endif %}
+                            <div id="printableCompanyStamp" class="floating-company-stamp" style="display: block;">
+                                {% if company_stamp %}
+                                    {% if "http" in company_stamp or "/media/" in company_stamp %}
+                                        <img src="{{ company_stamp }}" style="width: 100%; height: 100%; object-fit: contain;" alt="ختم الشركة">
+                                    {% else %}
+                                        <img src="{{ MEDIA_URL }}{{ company_stamp }}" style="width: 100%; height: 100%; object-fit: contain;" alt="ختم الشركة">
+                                    {% endif %}
+                                {% else %}
+                                    <div class="corporate-stamp-seal">
+                                        <svg viewBox="0 0 200 200" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+                                            <circle cx="100" cy="100" r="92" fill="none" stroke="currentColor" stroke-width="3.5" stroke-dasharray="6 3" opacity="0.85"/>
+                                            <circle cx="100" cy="100" r="82" fill="none" stroke="currentColor" stroke-width="2" opacity="0.85"/>
+                                            <circle cx="100" cy="100" r="54" fill="none" stroke="currentColor" stroke-width="1.2" opacity="0.85"/>
+                                            <path id="curve-top-base" d="M 28,100 A 72,72 0 0,1 172,100" fill="none" stroke="none"/>
+                                            <path id="curve-bottom-base" d="M 172,100 A 72,72 0 0,1 28,100" fill="none" stroke="none"/>
+                                            <text font-size="12" font-weight="bold" fill="currentColor" opacity="0.9" text-anchor="middle">
+                                                <textPath href="#curve-top-base" startOffset="50%">{{ company_name }}</textPath>
+                                            </text>
+                                            <text font-size="10" font-weight="bold" fill="currentColor" opacity="0.9" text-anchor="middle">
+                                                <textPath href="#curve-bottom-base" startOffset="50%">{% if is_english %}OFFICIAL SEAL • VERIFIED{% else %}ختم معتمد • رسمي{% endif %}</textPath>
+                                            </text>
+                                            <text x="100" y="93" font-size="14" font-weight="900" fill="currentColor" opacity="0.95" text-anchor="middle" letter-spacing="1">
+                                                {% if is_english %}APPROVED{% else %}مـعـتـمـد{% endif %}
+                                            </text>
+                                            <line x1="60" y1="101" x2="140" y2="101" stroke="currentColor" stroke-width="1.5" opacity="0.85"/>
+                                            <text x="100" y="116" font-size="8.5" font-weight="bold" fill="currentColor" opacity="0.85" text-anchor="middle">
+                                                {% if company_tax_number %}{{ company_tax_number }}{% else %}MWHEBA ERP{% endif %}
+                                            </text>
+                                        </svg>
+                                    </div>
+                                {% endif %}
+                            </div>
                         </div>
                         {% endblock %}
                     </div>
@@ -764,18 +800,19 @@
 
     <script>
         function toggleCompanyStamp() {
-            const stampImg = document.getElementById('printableCompanyStamp');
+            const stampElem = document.getElementById('printableCompanyStamp');
             const stampBtn = document.getElementById('toggleStampBtn');
             const stampIcon = document.getElementById('stampToggleIcon');
             const stampText = document.getElementById('toggleStampText');
-            if (stampImg) {
-                if (stampImg.style.display === 'none') {
-                    stampImg.style.display = 'block';
+            if (stampElem) {
+                const isHidden = (window.getComputedStyle(stampElem).display === 'none' || stampElem.style.display === 'none');
+                if (isHidden) {
+                    stampElem.style.display = 'block';
                     if (stampText) stampText.innerText = "{% if is_english %}Stamp: ON{% else %}الختم: مفعّل{% endif %}";
                     if (stampIcon) stampIcon.className = "fas fa-toggle-on text-success me-1";
                     if (stampBtn) stampBtn.className = "btn btn-sm btn-light fw-bold";
                 } else {
-                    stampImg.style.display = 'none';
+                    stampElem.style.display = 'none';
                     if (stampText) stampText.innerText = "{% if is_english %}Stamp: OFF{% else %}الختم: معطّل{% endif %}";
                     if (stampIcon) stampIcon.className = "fas fa-toggle-off opacity-75 me-1";
                     if (stampBtn) stampBtn.className = "btn btn-sm btn-outline-light";

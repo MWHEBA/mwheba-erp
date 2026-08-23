@@ -36,6 +36,12 @@ class SaleItem(models.Model):
         verbose_name=_("مركز التكلفة"),
         related_name="sale_items",
     )
+    price_snapshot = models.JSONField(
+        _("لقطة تفاصيل السعر والخصم"),
+        default=dict,
+        blank=True,
+        help_text=_("تفاصيل وحيثيات احتساب السعر وقواعد الخصم المطبقة للتدقيق المالي")
+    )
     total = models.DecimalField(_("الإجمالي"), max_digits=12, decimal_places=2)
 
     class Meta:

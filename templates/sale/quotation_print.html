@@ -185,7 +185,7 @@
 {% endif %}
 
 {% if quotation.notes or default_notes %}
-<div class="terms-title">{% if is_english %}Terms & Conditions:{% else %}شروط وملاحظات عرض السعر:{% endif %}</div>
+<div class="terms-title">{% if is_english %}Terms & Conditions:{% else %}شروط وملاحظات:{% endif %}</div>
 <div class="terms-content">
     <div style="white-space: pre-line;">{{ quotation.notes|default:default_notes|safe }}</div>
 </div>
@@ -201,12 +201,37 @@
 </div>
 <div class="signature-box stamp-box">
     <div class="signature-label">{% if is_english %}Stamp & Signature{% else %}الختم والتوقيع{% endif %}</div>
-    {% if settings.enable_company_stamp|default:True and company_stamp %}
-        {% if "http" in company_stamp or "/media/" in company_stamp %}
-            <img src="{{ company_stamp }}" id="printableCompanyStamp" class="floating-company-stamp" alt="ختم الشركة">
+    <div id="printableCompanyStamp" class="floating-company-stamp" style="display: block;">
+        {% if company_stamp %}
+            {% if "http" in company_stamp or "/media/" in company_stamp %}
+                <img src="{{ company_stamp }}" style="width: 100%; height: 100%; object-fit: contain;" alt="ختم الشركة">
+            {% else %}
+                <img src="{{ MEDIA_URL }}{{ company_stamp }}" style="width: 100%; height: 100%; object-fit: contain;" alt="ختم الشركة">
+            {% endif %}
         {% else %}
-            <img src="{{ MEDIA_URL }}{{ company_stamp }}" id="printableCompanyStamp" class="floating-company-stamp" alt="ختم الشركة">
+            <div class="corporate-stamp-seal">
+                <svg viewBox="0 0 200 200" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="100" cy="100" r="92" fill="none" stroke="currentColor" stroke-width="3.5" stroke-dasharray="6 3" opacity="0.85"/>
+                    <circle cx="100" cy="100" r="82" fill="none" stroke="currentColor" stroke-width="2" opacity="0.85"/>
+                    <circle cx="100" cy="100" r="54" fill="none" stroke="currentColor" stroke-width="1.2" opacity="0.85"/>
+                    <path id="curve-top-quote" d="M 28,100 A 72,72 0 0,1 172,100" fill="none" stroke="none"/>
+                    <path id="curve-bottom-quote" d="M 172,100 A 72,72 0 0,1 28,100" fill="none" stroke="none"/>
+                    <text font-size="12" font-weight="bold" fill="currentColor" opacity="0.9" text-anchor="middle">
+                        <textPath href="#curve-top-quote" startOffset="50%">{{ company_name }}</textPath>
+                    </text>
+                    <text font-size="10" font-weight="bold" fill="currentColor" opacity="0.9" text-anchor="middle">
+                        <textPath href="#curve-bottom-quote" startOffset="50%">{% if is_english %}OFFICIAL SEAL • VERIFIED{% else %}ختم معتمد • رسمي{% endif %}</textPath>
+                    </text>
+                    <text x="100" y="93" font-size="14" font-weight="900" fill="currentColor" opacity="0.95" text-anchor="middle" letter-spacing="1">
+                        {% if is_english %}APPROVED{% else %}مـعـتـمـد{% endif %}
+                    </text>
+                    <line x1="60" y1="101" x2="140" y2="101" stroke="currentColor" stroke-width="1.5" opacity="0.85"/>
+                    <text x="100" y="116" font-size="8.5" font-weight="bold" fill="currentColor" opacity="0.85" text-anchor="middle">
+                        {% if company_tax_number %}{{ company_tax_number }}{% else %}MWHEBA ERP{% endif %}
+                    </text>
+                </svg>
+            </div>
         {% endif %}
-    {% endif %}
+    </div>
 </div>
 {% endblock %}

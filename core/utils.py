@@ -46,6 +46,12 @@ def format_currency(amount, currency_symbol=None, decimal_places=2, show_symbol=
         # إذا لم يتم تحديد رمز العملة، استخدم العملة الافتراضية
         if currency_symbol is None:
             currency_symbol = get_default_currency()
+        elif hasattr(currency_symbol, 'symbol') or hasattr(currency_symbol, 'code'):
+            currency_symbol = getattr(currency_symbol, 'symbol', None) or getattr(currency_symbol, 'code', None) or str(currency_symbol)
+        else:
+            currency_symbol = str(currency_symbol).strip()
+            if ' - ' in currency_symbol:
+                currency_symbol = currency_symbol.split(' - ')[0].strip()
         
         # إذا كان الرمز $ أو € أو £ ضعه قبل الرقم، وإلا بعده
         if currency_symbol in ['$', '€', '£']:

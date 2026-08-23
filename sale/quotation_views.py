@@ -16,6 +16,7 @@ from core.models import SystemSetting
 from client.models import Customer
 from product.models import Product, Warehouse, Stock
 from sale.models import Quotation, QuotationItem, Sale
+from sale.models.pricing import PriceList
 from sale.forms import QuotationForm
 from sale.services.sale_service import SaleService
 
@@ -184,18 +185,6 @@ def quotation_create(request, customer_id=None):
                             subtotal += qty * price
                             total_discount += item_disc
 
-                            # التحقق من إجمالي المخزون في جميع المخازن لإصدار تنبيه
-                            from django.db.models import Sum
-                            stock_sum = Stock.objects.filter(product=product, warehouse__is_active=True).aggregate(total_qty=Sum("quantity"))
-                            stock_qty = stock_sum.get("total_qty") or 0
-                            if not product.is_service and stock_qty < qty:
-                                messages.warning(
-                                    request,
-                                    _("تنبيه: المنتج '{}' غير متوفر بالكمية المطلوبة في الفروع/المخازن (المتوفر كلياً: {}، المطلوب: {})").format(
-                                        product.name, stock_qty, qty
-                                    )
-                                )
-
                     # تحديث قيم الإجماليات والعملة
                     quotation.subtotal = subtotal
                     quotation.discount = total_discount
@@ -284,6 +273,7 @@ def quotation_create(request, customer_id=None):
         "warehouses": warehouses,
         "products": products,
         "currencies": currencies,
+        "price_lists": PriceList.objects.filter(is_active=True).order_by("name"),
         "selected_customer": selected_customer,
         "default_warehouse": warehouses.first() if warehouses.exists() else None,
         "next_quotation_number": next_quotation_number,
@@ -371,18 +361,6 @@ def quotation_edit(request, pk):
                             subtotal += qty * price
                             total_discount += item_disc
 
-                            # التحقق من إجمالي المخزون في جميع المخازن لإصدار تنبيه
-                            from django.db.models import Sum
-                            stock_sum = Stock.objects.filter(product=product, warehouse__is_active=True).aggregate(total_qty=Sum("quantity"))
-                            stock_qty = stock_sum.get("total_qty") or 0
-                            if not product.is_service and stock_qty < qty:
-                                messages.warning(
-                                    request,
-                                    _("تنبيه: المنتج '{}' غير متوفر بالكمية المطلوبة في الفروع/المخازن (المتوفر كلياً: {}، المطلوب: {})").format(
-                                        product.name, stock_qty, qty
-                                    )
-                                )
-
                     # تحديث القيم والعملة
                     quotation.subtotal = subtotal
                     quotation.discount = total_discount
@@ -466,6 +444,7 @@ def quotation_edit(request, pk):
         "warehouses": warehouses,
         "products": products,
         "currencies": currencies,
+        "price_lists": PriceList.objects.filter(is_active=True).order_by("name"),
         "current_items_json": current_items_json,
         "custom_fields_json": json.dumps(custom_fields_merged),
         "custom_fields_display_mode": SystemSetting.get_setting('custom_fields_display_mode', 'expanded'),
@@ -674,6 +653,7 @@ def get_quotation_print_context(request, pk):
     company_phone = SystemSetting.objects.filter(key="company_phone").values_list("value", flat=True).first() or ""
     company_tax_number = SystemSetting.objects.filter(key="company_tax_number").values_list("value", flat=True).first() or ""
     company_logo = SystemSetting.objects.filter(key="company_logo").values_list("value", flat=True).first() or ""
+    company_stamp = SystemSetting.objects.filter(key="company_stamp").values_list("value", flat=True).first() or ""
     company_email = SystemSetting.objects.filter(key="company_email").values_list("value", flat=True).first() or ""
     company_website = SystemSetting.objects.filter(key="company_website").values_list("value", flat=True).first() or ""
 
@@ -682,7 +662,7 @@ def get_quotation_print_context(request, pk):
         company_address_active = SystemSetting.get_company_address_en() or company_address
         invoice_title_active = SystemSetting.get_invoice_title_quotation_en()
         default_notes = SystemSetting.get_quotation_notes_en()
-        currency_symbol_active = quotation.currency if (hasattr(quotation, 'currency') and quotation.currency and quotation.currency != 'ج.م') else SystemSetting.get_currency_symbol_en()
+        currency_symbol_active = getattr(quotation.currency, 'code', None) or SystemSetting.get_currency_symbol_en()
         status_map = {
             'draft': 'DRAFT',
             'sent': 'SENT',
@@ -697,7 +677,7 @@ def get_quotation_print_context(request, pk):
         company_address_active = company_address
         invoice_title_active = "عرض سعر / Quotation"
         default_notes = SystemSetting.get_setting('default_quotation_notes', '')
-        currency_symbol_active = getattr(quotation, 'currency', None) or SystemSetting.get_currency_symbol()
+        currency_symbol_active = quotation.currency_symbol if hasattr(quotation, 'currency_symbol') else SystemSetting.get_currency_symbol()
         status_map = {
             'draft': 'مسودة / DRAFT',
             'sent': 'تم الإرسال / SENT',
@@ -711,7 +691,7 @@ def get_quotation_print_context(request, pk):
         company_address_active = company_address
         invoice_title_active = "عرض سعر"
         default_notes = SystemSetting.get_setting('default_quotation_notes', '')
-        currency_symbol_active = getattr(quotation, 'currency', None) or SystemSetting.get_currency_symbol()
+        currency_symbol_active = quotation.currency_symbol if hasattr(quotation, 'currency_symbol') else SystemSetting.get_currency_symbol()
         status_map = {
             'draft': 'مسودة',
             'sent': 'تم الإرسال',
@@ -732,6 +712,7 @@ def get_quotation_print_context(request, pk):
         "company_phone": company_phone,
         "company_tax_number": company_tax_number,
         "company_logo": company_logo,
+        "company_stamp": company_stamp,
         "company_email": company_email,
         "company_website": company_website,
         "title": f"{invoice_title_active} - {quotation.number}",

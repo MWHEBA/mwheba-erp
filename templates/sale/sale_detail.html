@@ -452,9 +452,13 @@
                             <div class="party-info">
                                 <div class="party-label">{% trans "العميل:" %}</div>
                                 <div class="party-value">
+                                    {% if sale.customer %}
                                     <a href="{% url 'client:customer_detail' sale.customer.id %}" class="text-primary">
                                         <i class="fas fa-user-circle me-1"></i> {{ sale.customer.name }}
                                     </a>
+                                    {% else %}
+                                    <span class="text-muted">{% trans "عميل نقدي / غير محدد" %}</span>
+                                    {% endif %}
                                 </div>
                             </div>
                             <div class="party-info">
@@ -466,8 +470,18 @@
                                 <div class="party-value">{{ sale.customer.phone|default:"غير متوفر" }}</div>
                             </div>
                             <div class="party-info">
+                                <div class="party-label">{% trans "التصنيف المالي:" %}</div>
+                                <div class="party-value">
+                                    {% if sale.financial_category %}
+                                        <span class="badge bg-info">{{ sale.financial_category.name }}</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">غير محدد</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="party-info">
                                 <div class="party-label">{% trans "العملة:" %}</div>
-                                <div class="party-value">{{ sale.currency.name|default:sale.currency_symbol }}</div>
+                                <div class="party-value">{{ sale.currency.name|default:currency_symbol }}</div>
                             </div>
                         </div>
                         
@@ -475,7 +489,17 @@
                             <div class="party-title">
                                 <i class="fas fa-file-invoice me-2"></i> {% trans "معلومات الفاتورة" %}
                             </div>
-                            {% if not is_service_invoice %}
+                            <div class="party-info">
+                                <div class="party-label">{% trans "قائمة الأسعار:" %}</div>
+                                <div class="party-value">
+                                    {% if sale.price_list %}
+                                        <span class="badge bg-light text-primary border"><i class="fas fa-tags me-1"></i>{{ sale.price_list.name }}</span>
+                                    {% else %}
+                                        <span class="text-muted">{% trans "الأسعار القياسية (الكتالوج)" %}</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% if not is_service_invoice and sale.warehouse %}
                             <div class="party-info">
                                 <div class="party-label">{% trans "المخزن:" %}</div>
                                 <div class="party-value">
@@ -527,26 +551,12 @@
                             <div class="party-info">
                                 <div class="party-label">{% trans "القيد المحاسبي:" %}</div>
                                 <div class="party-value">
-                                    <a href="{% url 'financial:journal_entry_detail' sale.journal_entry.id %}" class="badge bg-success-subtle text-success border text-decoration-none">
+                                    <a href="{% url 'financial:journal_entries_detail' sale.journal_entry.id %}" class="badge bg-success-subtle text-success border text-decoration-none">
                                         <i class="fas fa-book me-1"></i> {{ sale.journal_entry.number }}
                                     </a>
                                 </div>
                             </div>
                             {% endif %}
-                            <div class="party-info">
-                                <div class="party-label">{% trans "التصنيف المالي:" %}</div>
-                                <div class="party-value">
-                                    {% if sale.financial_category %}
-                                        <span class="badge bg-info">{{ sale.financial_category.name }}</span>
-                                    {% else %}
-                                        <span class="badge bg-secondary">غير محدد</span>
-                                    {% endif %}
-                                </div>
-                            </div>
-                            <div class="party-info">
-                                <div class="party-label">{% trans "العملة:" %}</div>
-                                <div class="party-value">{{ sale.currency.name|default:currency_symbol }}</div>
-                            </div>
                             {% if sale.has_header_custom_fields %}
                             {% for field in sale.merged_custom_fields %}
                             {% if field.show_in_header and field.value %}

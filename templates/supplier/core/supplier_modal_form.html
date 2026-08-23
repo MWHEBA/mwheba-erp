@@ -159,7 +159,7 @@ $(document).ready(function() {
     const modalEl = $('#supplierModal');
 
     // 1. تنشيط Select2 مع dropdownParent المتوافق مع Rule 8
-    $('#id_primary_type, #id_entity_type, #id_default_currency, #id_default_payment_term').select2({
+    $('select#id_primary_type, select#id_entity_type, select#id_default_currency, select#id_default_payment_term').select2({
         dropdownParent: modalEl.length ? modalEl : $(document.body),
         dir: 'rtl',
         language: 'ar',

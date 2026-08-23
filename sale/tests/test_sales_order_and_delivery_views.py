@@ -70,6 +70,11 @@ class TestSalesOrderAndDeliveryViews:
             defaults={"status": "open"}
         )
 
+        from core.models import SystemSetting
+        SystemSetting.set_setting('enable_sales_orders', 'true')
+        SystemSetting.set_setting('enable_delivery_notes', 'true')
+        SystemSetting.set_setting('enable_quotations', 'true')
+
         Stock.objects.create(
             product=self.product,
             warehouse=self.warehouse,

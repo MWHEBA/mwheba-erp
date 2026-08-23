@@ -983,9 +983,66 @@ html[dir="rtl"] .form-floating > .form-select ~ label {
 }
 
 @media print {
-    .stock-info {
+    .stock-info,
+    .discount-rule-info,
+    .discount-rule-badge {
         display: none !important;
     }
+}
+
+/* ==========================================================================
+   شارة قاعدة الخصم (Discount Rule Badge) - مطابقة تماماً لـ stock-info
+   ========================================================================== */
+.discount-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+}
+
+.discount-header-row .discount-label {
+    flex-shrink: 0;
+    white-space: nowrap;
+    margin-bottom: 0 !important;
+    text-align: center !important;
+}
+
+/* عند ظهور شارة الخصم، ينتقل الليبل لليمين والشارة لليسار */
+.discount-header-row.has-discount-info,
+.discount-header-row:has(.discount-rule-info:not(:empty)),
+.discount-header-row:has(.discount-rule-badge:not(:empty)) {
+    justify-content: space-between !important;
+}
+
+.discount-header-row.has-discount-info .discount-label,
+.discount-header-row:has(.discount-rule-info:not(:empty)) .discount-label,
+.discount-header-row:has(.discount-rule-badge:not(:empty)) .discount-label {
+    text-align: right !important;
+}
+
+.discount-header-row .discount-rule-info:empty,
+.discount-header-row .discount-rule-badge:empty {
+    display: none !important;
+}
+
+.discount-header-row .discount-rule-info:not(:empty),
+.discount-header-row .discount-rule-badge:not(:empty),
+.discount-header-row.has-discount-info .discount-rule-info,
+.discount-header-row.has-discount-info .discount-rule-badge,
+.discount-rule-info,
+.discount-rule-badge {
+    display: inline-block;
+    flex-shrink: 1;
+    max-width: 65%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 11px;
+    line-height: 1.2;
+    text-align: left;
+    direction: ltr;
+    color: var(--success, #198754);
+    font-weight: 500;
 }
 
 /* إخفاء أيقونة ملحق الألوان المتصفح */

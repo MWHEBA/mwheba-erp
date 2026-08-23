@@ -33,6 +33,10 @@ class PriceList(models.Model):
         verbose_name = _("قائمة أسعار")
         verbose_name_plural = _("قوائم الأسعار")
         ordering = ["name"]
+        indexes = [
+            models.Index(fields=["is_active", "effective_from", "effective_to"]),
+            models.Index(fields=["customer_type", "is_active"]),
+        ]
 
     def __str__(self):
         return f"{self.name} ({self.currency})"
@@ -54,6 +58,10 @@ class PriceListItem(models.Model):
         verbose_name = _("سعر بند في القائمة")
         verbose_name_plural = _("أسعار البنود في القوائم")
         unique_together = ("price_list", "product", "min_quantity")
+        indexes = [
+            models.Index(fields=["price_list", "product", "is_active", "effective_date"]),
+            models.Index(fields=["product", "is_active"]),
+        ]
 
     def __str__(self):
         return f"{self.product.name} @ {self.unit_price} ({self.price_list.name})"
@@ -62,7 +70,7 @@ class PriceListItem(models.Model):
 class DiscountRule(models.Model):
     """
     FIN-SAL-004: Customer & Product Category Discount Rules
-    قواعد الخصم للعملاء وفئات المنتجات
+    قواعد الخصم للعملاء وفئات ومنتجات المبيعات
     """
     RULE_TYPES = (
         ("PERCENTAGE", _("نسبة مئوية")),
@@ -70,10 +78,23 @@ class DiscountRule(models.Model):
         ("TIERED_QUANTITY", _("شريحة كمية")),
     )
 
+    SCOPE_CHOICES = (
+        ("ITEM", _("خصم تجاري على مستوى البند")),
+        ("INVOICE", _("خصم تسوية إجمالي على الفاتورة")),
+    )
+
+    AGGREGATION_CHOICES = (
+        ("LINE_ONLY", _("على مستوى السطر المنفرد")),
+        ("CATEGORY_TOTAL", _("تجميع كميات نفس الفئة في السلة")),
+    )
+
     rule_name = models.CharField(_("اسم قاعدة الخصم"), max_length=100)
     rule_type = models.CharField(_("نوع القاعدة"), max_length=20, choices=RULE_TYPES, default="PERCENTAGE")
+    scope = models.CharField(_("نطاق الخصم"), max_length=20, choices=SCOPE_CHOICES, default="ITEM")
+    aggregation_type = models.CharField(_("طريقة تجميع الكميات"), max_length=20, choices=AGGREGATION_CHOICES, default="LINE_ONLY")
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE, null=True, blank=True, related_name="discount_rules", verbose_name=_("العميل (اختياري)"))
     category = models.ForeignKey(Category, on_delete=models.CASCADE, null=True, blank=True, related_name="discount_rules", verbose_name=_("فئة المنتج (اختياري)"))
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, null=True, blank=True, related_name="discount_rules", verbose_name=_("المنتج المحدد (اختياري)"))
     discount_percentage = models.DecimalField(_("نسبة الخصم %"), max_digits=5, decimal_places=2, default=Decimal("0.00"))
     value = models.DecimalField(_("قيمة الخصم الثابتة"), max_digits=15, decimal_places=2, default=Decimal("0.00"))
     min_order_amount = models.DecimalField(_("الحد الأدنى لقيمة الطلب"), max_digits=15, decimal_places=2, default=Decimal("0.00"))
@@ -85,9 +106,16 @@ class DiscountRule(models.Model):
     class Meta:
         verbose_name = _("قاعدة خصم")
         verbose_name_plural = _("قواعد الخصم")
+        indexes = [
+            models.Index(fields=["customer", "category", "product", "is_active", "effective_date"]),
+            models.Index(fields=["product", "is_active"]),
+            models.Index(fields=["category", "is_active"]),
+            models.Index(fields=["is_active", "priority"]),
+        ]
 
     def __str__(self):
-        return f"{self.rule_name} ({self.discount_percentage}%)"
+        target = self.product.name if self.product else (self.category.name if self.category else (self.customer.name if self.customer else _("عام لكافة العملاء")))
+        return f"{self.rule_name} [{target}] ({self.discount_percentage}%)"
 
 
 class PricingAuditLog(models.Model):

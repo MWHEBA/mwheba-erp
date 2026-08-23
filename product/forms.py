@@ -302,6 +302,20 @@ class ProductForm(forms.ModelForm):
             raise forms.ValidationError(_("نسبة الضريبة لا يمكن أن تتجاوز 100%."))
         return tax_rate.quantize(Decimal('0.01'))
 
+    def clean_is_active(self):
+        is_active = self.cleaned_data.get('is_active')
+        if not is_active and self.instance and self.instance.pk:
+            if not self.instance.is_service:
+                from product.models.stock_management import Stock
+                from django.db.models import Sum
+                total_stock = Stock.objects.filter(product=self.instance).aggregate(total=Sum('quantity'))['total'] or 0
+                if total_stock > 0:
+                    unit_name = self.instance.unit.name if self.instance.unit else ""
+                    raise forms.ValidationError(
+                        f"لا يمكن تعطيل المنتج لوجود رصيد متاح في المخزن ({total_stock} {unit_name}). يرجى تصفية أو صرف المخزون أولاً."
+                    )
+        return is_active
+
     def clean(self):
         """التحقق من صحة البيانات المترابطة ومزامنة الضريبة"""
         cleaned_data = super().clean()

@@ -1,216 +1,857 @@
 {% extends 'base.html' %}
 {% load static %}
 {% load i18n %}
+{% load crispy_forms_tags %}
+{% load custom_filters %}
+{% load utils_extras %}
 
 {% block title %}{{ page_title|default:"إنشاء أمر بيع جديد" }}{% endblock %}
 
 {% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+<link rel="stylesheet" href="{% static 'css/forms.css' %}">
 <link rel="stylesheet" href="{% static 'css/select2.min.css' %}">
-<style>
-  .select2-container--default .select2-selection--single {
-    height: calc(1.5em + .75rem + 2px);
-    border: 1px solid var(--border-color, #ced4da);
-    border-radius: .25rem;
-  }
-</style>
 {% endblock %}
 
 {% block content %}
 <div class="container-fluid">
-  <!-- Page Header -->
-  {% include "shared/page_header.html" %}
+    <div id="django-sales-form-data" class="d-none"
+         data-sale-id="{{ quotation.id|default:0 }}"
+         data-is-sales-rep-only="{% if user.user_type == 'sales_rep' and not user.is_superuser and not user.is_admin %}true{% else %}false{% endif %}"
+         data-currency-symbol="{{ currency_symbol }}"
+         data-allowed-item-types="{{ allowed_item_types|default:'both' }}"
+    ></div>
 
-  <form method="POST" action="" id="sales-order-form">
-    {% csrf_token %}
+    <script type="application/json" id="custom-fields-initial-json">
+      {% if custom_fields_json %}{{ custom_fields_json|safe }}{% else %}[]{% endif %}
+    </script>
 
-    <!-- رأس أمر البيع -->
-    <div class="section-container mb-4">
-      <h5 class="section-title"><i class="fas fa-info-circle me-2"></i>{% trans "بيانات أمر البيع الأساسية" %}</h5>
-      <div class="row g-3">
-        <div class="col-md-4">
-          <label for="customer" class="form-label required">{% trans "العميل" %}</label>
-          <select class="form-select select2" id="customer" name="customer" required>
-            <option value="">{% trans "اختر العميل..." %}</option>
-            {% for c in customers %}
-            <option value="{{ c.id }}" {% if quotation and quotation.customer_id == c.id %}selected{% endif %}>
-              {{ c.name }} {% if c.phone %}({{ c.phone }}){% endif %}
-            </option>
-            {% endfor %}
-          </select>
+    {% include "shared/page_header.html" %}
+
+    {% if quotation %}
+    <div class="alert alert-info border-0 shadow-sm mb-4 d-flex align-items-center justify-content-between">
+        <div class="d-flex align-items-center gap-3">
+            <i class="fas fa-link fa-2x text-primary"></i>
+            <div>
+                <h6 class="alert-heading fw-bold mb-1">{% trans "تحويل عرض سعر إلى أمر بيع" %}</h6>
+                <p class="mb-0 small text-dark">
+                    {% trans "يتم إنشاء أمر البيع الحالي بناءً على عرض السعر رقم:" %}
+                    <a href="{% url 'sale:quotation_detail' quotation.pk %}" class="fw-bold text-primary text-decoration-underline" target="_blank">
+                        {{ quotation.number }}
+                    </a>
+                </p>
+            </div>
         </div>
-        <div class="col-md-3">
-          <label for="warehouse" class="form-label required">{% trans "المخزن المستهدف" %}</label>
-          <select class="form-select select2" id="warehouse" name="warehouse" required>
-            {% for w in warehouses %}
-            <option value="{{ w.id }}">{{ w.name }}</option>
-            {% endfor %}
-          </select>
-        </div>
-        <div class="col-md-3">
-          <label for="order_date" class="form-label required">{% trans "تاريخ أمر البيع" %}</label>
-          <input type="date" class="form-control" id="order_date" name="order_date" value="{% now 'Y-m-d' %}" required>
-        </div>
-        <div class="col-md-2">
-          <label for="currency" class="form-label">{% trans "العملة" %}</label>
-          <select class="form-select" id="currency" name="currency">
-            <option value="EGP" selected>EGP</option>
-            <option value="USD">USD</option>
-            <option value="EUR">EUR</option>
-            <option value="SAR">SAR</option>
-          </select>
-        </div>
-      </div>
+        <span class="badge bg-primary px-3 py-2 fs-6">
+            <i class="fas fa-file-invoice me-1"></i>{% trans "بيانات مستوردة" %}
+        </span>
     </div>
+    {% endif %}
 
-    <!-- بنود أمر البيع -->
-    <div class="section-container mb-4">
-      <div class="d-flex justify-content-between align-items-center mb-3">
-        <h5 class="section-title mb-0"><i class="fas fa-boxes me-2"></i>{% trans "بنود أمر البيع" %}</h5>
-        <button type="button" class="btn btn-outline-primary btn-sm" id="btn-add-item">
-          <i class="fas fa-plus me-1"></i>{% trans "إضافة بند" %}
-        </button>
-      </div>
+    <form method="post" id="sales-order-form" novalidate>
+        {% csrf_token %}
 
-      <div class="table-responsive">
-        <table class="table table-bordered table-striped text-center align-middle" id="items-table">
-          <thead class="table-light">
-            <tr>
-              <th style="width: 35%;">{% trans "المنتج / الصنف" %}</th>
-              <th style="width: 15%;">{% trans "الكمية" %}</th>
-              <th style="width: 18%;">{% trans "سعر الوحدة" %}</th>
-              <th style="width: 12%;">{% trans "نسبة الخصم %" %}</th>
-              <th style="width: 15%;">{% trans "الإجمالي" %}</th>
-              <th style="width: 5%;">{% trans "حذف" %}</th>
-            </tr>
-          </thead>
-          <tbody id="items-tbody">
-            {% if quotation %}
-              {% for q_item in quotation.items.all %}
-              <tr class="item-row">
-                <td>
-                  <select class="form-select select2-product product-select" name="product[]" required>
-                    <option value="{{ q_item.product.id }}" data-price="{{ q_item.unit_price }}" selected>{{ q_item.product.name }}</option>
-                  </select>
-                </td>
-                <td>
-                  <input type="number" step="0.01" class="form-control text-center item-qty" name="quantity[]" value="{{ q_item.quantity }}" min="0.01" required>
-                </td>
-                <td>
-                  <input type="number" step="0.01" class="form-control text-center item-price" name="unit_price[]" value="{{ q_item.unit_price }}" min="0" required>
-                </td>
-                <td>
-                  <input type="number" step="0.01" class="form-control text-center item-discount" name="discount[]" value="{{ q_item.discount }}" min="0" max="100">
-                </td>
-                <td class="fw-bold text-primary item-total">0.00</td>
-                <td>
-                  <button type="button" class="btn btn-sm btn-outline-danger btn-remove-row"><i class="fas fa-trash"></i></button>
-                </td>
-              </tr>
-              {% endfor %}
-            {% else %}
-              <tr class="item-row">
-                <td>
-                  <select class="form-select select2-product product-select" name="product[]" required>
-                    <option value="">{% trans "اختر المنتج..." %}</option>
-                    {% for p in products %}
-                    <option value="{{ p.id }}" data-price="{{ p.selling_price }}">{{ p.name }} ({{ p.sku }})</option>
+        <!-- القسم الأول: بيانات أمر البيع والعميل والعملة والمخزن -->
+        <div class="section-container mb-4">
+            <h5 class="section-title"><i class="fas fa-file-invoice me-2"></i>{% trans "بيانات أمر البيع والعميل والعملة" %}</h5>
+            <div class="invoice-header-wrapper">
+                <div class="row g-3 align-items-stretch">
+                    <!-- العمود الأيمن: بيانات العميل والعمليات -->
+                    <div class="col-12 col-lg-6">
+                        <div class="header-subcard">
+                            <div class="header-subcard-header">
+                                <h6 class="header-subcard-title">
+                                    <i class="fas fa-user-tie"></i> {% trans "بيانات العميل والعمليات" %}
+                                </h6>
+                            </div>
+                            <div class="header-subcard-body">
+                                <div class="row g-3">
+                                    <!-- العميل -->
+                                    <div class="col-12 col-md-6">
+                                        <label class="form-label d-flex justify-content-between align-items-center w-100">
+                                            <span>{% trans "العميل" %} <span class="text-danger">*</span></span>
+                                            <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none" id="btn-add-customer-modal" style="color: var(--primary-color); font-size: 0.8rem;">
+                                                <i class="fas fa-plus-circle me-1"></i>{% trans "عميل جديد" %}
+                                            </button>
+                                        </label>
+                                        <select name="customer" id="id_customer" class="form-control select2-init" required>
+                                            <option value="">{% trans "اختر العميل" %}</option>
+                                            {% for customer in customers %}
+                                                <option value="{{ customer.id }}" data-default-price-list="{{ customer.default_price_list_id|default:'' }}" {% if quotation and quotation.customer_id == customer.id or selected_customer.id == customer.id %}selected{% endif %}>
+                                                    {{ customer.name }}
+                                                </option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+
+                                    <!-- قائمة الأسعار -->
+                                    <div class="col-12 col-md-6">
+                                        <label class="form-label d-flex justify-content-between align-items-center">
+                                            <span>{% trans "قائمة الأسعار" %} <i class="fas fa-tags text-primary me-1"></i></span>
+                                            <span class="badge bg-light text-muted border" style="font-size: 0.72rem;">{% trans "تسعير وخصم" %}</span>
+                                        </label>
+                                        <select name="price_list" id="id_price_list" class="form-select select2" dir="rtl">
+                                            <option value="">-- {% trans "الأسعار القياسية (الكتالوج)" %} --</option>
+                                            {% for pl in price_lists %}
+                                                <option value="{{ pl.id }}" data-currency="{{ pl.currency }}" {% if quotation and quotation.price_list_id == pl.id %}selected{% endif %}>
+                                                    {{ pl.name }} ({{ pl.currency }})
+                                                </option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+
+                                    <!-- مسؤول المبيعات -->
+                                    <div class="col-12 col-md-6">
+                                        <label class="form-label">{% trans "مسؤول المبيعات" %}</label>
+                                        <div class="form-control bg-light d-flex align-items-center gap-2">
+                                            <i class="fas fa-user-tie text-primary"></i>
+                                            <span class="fw-medium text-dark">{{ quotation.salesman_display_name|default:request.user.get_full_name|default:request.user.username }}</span>
+                                        </div>
+                                        <input type="hidden" name="salesman" value="{{ request.user.id }}">
+                                    </div>
+
+                                    <!-- مركز التكلفة الرئيسي -->
+                                    <div class="col-12 col-md-6">
+                                        <label class="form-label">
+                                            <i class="fas fa-project-diagram text-primary me-1"></i>{% trans "مركز التكلفة الرئيسي" %}
+                                        </label>
+                                        <select name="cost_center" id="id_cost_center" class="form-select select2" dir="rtl">
+                                            <option value="">-- {% trans "بدون مركز تكلفة" %} --</option>
+                                            {% for cc in cost_centers %}
+                                                <option value="{{ cc.id }}" {% if quotation and quotation.cost_center_id == cc.id %}selected{% endif %}>
+                                                    {{ cc.code }} - {{ cc.name }}
+                                                </option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- العمود الأيسر: بيانات المستند والمخزن والمالية -->
+                    <div class="col-12 col-lg-6">
+                        <div class="header-subcard">
+                            <div class="header-subcard-header">
+                                <h6 class="header-subcard-title">
+                                    <i class="fas fa-file-invoice-dollar"></i> {% trans "بيانات المستند والمخزن والمالية" %}
+                                </h6>
+                            </div>
+                            <div class="header-subcard-body">
+                                <div class="row g-3">
+                                    <!-- المخزن المستهدف -->
+                                    <div class="col-12 col-md-6" id="warehouse-container">
+                                        <label class="form-label text-dark fw-medium">{% trans "المخزن المستهدف" %} <span class="text-danger">*</span></label>
+                                        <select name="warehouse" id="id_warehouse" class="form-control select2-init" required>
+                                            <option value="">{% trans "اختر المخزن" %}</option>
+                                            {% for warehouse in warehouses %}
+                                                <option value="{{ warehouse.id }}" {% if forloop.first %}selected{% endif %}>
+                                                    {{ warehouse.name }}
+                                                </option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+
+                                    <!-- تاريخ أمر البيع -->
+                                    <div class="col-12 col-md-6">
+                                        <label class="form-label text-dark fw-medium">{% trans "تاريخ أمر البيع" %} <span class="text-danger">*</span></label>
+                                        <input type="date" name="order_date" id="id_order_date" class="form-control" value="{% if quotation %}{{ quotation.date|date:'Y-m-d' }}{% else %}{% now 'Y-m-d' %}{% endif %}" required>
+                                    </div>
+
+                                    <!-- العملة وسعر الصرف الموحد (IAS 21) -->
+                                    {% include "components/currency_header.html" %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- القسم الثاني: بنود أمر البيع والمنتجات -->
+        <div class="section-container mb-4">
+            <div class="section-title d-flex align-items-center justify-content-between">
+                <div><i class="fas fa-list me-2"></i>{% trans "بنود أمر البيع" %}</div>
+                <div class="form-check form-switch mb-0" title="إظهار المنتجات التي ليس لها مخزون في المخزن المحدد">
+                    <input class="form-check-input show-all-products-toggle" type="checkbox" id="page-show-all-products" role="switch">
+                    <label class="form-check-label small text-muted show-all-label mb-0" style="white-space: nowrap;" for="page-show-all-products">{% trans "إظهار المنتجات بدون مخزون" %}</label>
+                </div>
+            </div>
+            
+            <div id="items-container">
+                {% if quotation and quotation.items.exists %}
+                    {% for item in quotation.items.all %}
+                    <div class="item-row row g-2 align-items-center">
+                        <div class="col-12 col-md-2">
+                            <label class="form-label form-label-sm product-code-label">{% trans "الكود / الباركود" %}</label>
+                            <input type="text" class="form-control form-control-sm product-code-input" placeholder="{% trans 'الكود / الباركود' %}" value="{{ item.product.sku|default:'' }}">
+                        </div>
+                        <div class="col-12 col-md-3">
+                            <div class="product-header-row d-flex align-items-center mb-2">
+                                <label class="form-label form-label-sm product-label product-header required-field mb-0">{% if allowed_item_types == 'services' %}{% trans "الخدمة" %}{% elif allowed_item_types == 'products' %}{% trans "المنتج" %}{% else %}{% trans "المنتج / الخدمة" %}{% endif %}</label>
+                                <span class="stock-info"></span>
+                            </div>
+                            <button type="button" class="product-picker-btn" data-row-index="{{ forloop.counter0 }}">
+                                <span class="selected-text">{{ item.product.name }}</span>
+                                <i class="fas fa-th-large text-muted small"></i>
+                            </button>
+                            <input type="hidden" name="product[]" class="product-id-input" value="{{ item.product.id }}" data-price="{{ item.product.selling_price }}" data-stock="{{ item.product.stock }}" required>
+                        </div>
+                        <div class="col-6 col-md-1">
+                            <label class="form-label form-label-sm required-field">{% trans "الكمية" %}</label>
+                            <input type="number" name="quantity[]" class="form-control form-control-sm quantity" min="0.01" step="0.01" value="{{ item.quantity|smart_float }}" required>
+                        </div>
+                        <div class="col-6 col-md-2">
+                            <label class="form-label form-label-sm required-field">{% trans "سعر الوحدة" %}</label>
+                            <input type="text" inputmode="decimal" name="unit_price[]" class="form-control form-control-sm unit-price" value="{{ item.unit_price|smart_float }}" required>
+                        </div>
+                        <div class="col-6 col-md-2">
+                            <div class="discount-header-row d-flex align-items-center mb-2 justify-content-center">
+                                <label class="form-label form-label-sm discount-label mb-0">{% trans "الخصم" %}</label>
+                                <span class="discount-rule-badge discount-rule-info"></span>
+                            </div>
+                            <input type="number" name="discount[]" class="form-control form-control-sm item-discount" min="0" step="0.01" value="{{ item.discount|default:0 }}">
+                        </div>
+                        <div class="col-6 col-md-2">
+                            <label class="form-label form-label-sm">{% trans "الإجمالي" %}</label>
+                            <div class="input-group input-group-sm">
+                                <input type="text" class="form-control form-control-sm item-total" value="{{ item.total|smart_float }}" readonly>
+                                <span class="input-group-text px-1">{{ currency_symbol }}</span>
+                            </div>
+                        </div>
+                        {% if not forloop.first %}
+                        <a href="javascript:void(0)" class="remove-item" title="{% trans 'إزالة البند' %}">
+                            <i class="fas fa-times-circle"></i>
+                        </a>
+                        {% endif %}
+                    </div>
                     {% endfor %}
-                  </select>
-                </td>
-                <td>
-                  <input type="number" step="0.01" class="form-control text-center item-qty" name="quantity[]" value="1.00" min="0.01" required>
-                </td>
-                <td>
-                  <input type="number" step="0.01" class="form-control text-center item-price" name="unit_price[]" value="0.00" min="0" required>
-                </td>
-                <td>
-                  <input type="number" step="0.01" class="form-control text-center item-discount" name="discount[]" value="0.00" min="0" max="100">
-                </td>
-                <td class="fw-bold text-primary item-total">0.00</td>
-                <td>
-                  <button type="button" class="btn btn-sm btn-outline-danger btn-remove-row"><i class="fas fa-trash"></i></button>
-                </td>
-              </tr>
-            {% endif %}
-          </tbody>
-          <tfoot>
-            <tr class="table-light">
-              <td colspan="4" class="text-end fw-bold fs-5">{% trans "المبلغ الإجمالي لأمر البيع:" %}</td>
-              <td class="fw-bold fs-5 text-success" id="grand-total">0.00</td>
-              <td></td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
-    </div>
+                {% else %}
+                <div class="item-row row g-2 align-items-center">
+                    <div class="col-12 col-md-2">
+                        <label class="form-label form-label-sm product-code-label">{% trans "الكود / الباركود" %}</label>
+                        <input type="text" class="form-control form-control-sm product-code-input" placeholder="{% trans 'الكود / الباركود' %}">
+                    </div>
+                    <div class="col-12 col-md-3">
+                        <div class="product-header-row d-flex align-items-center mb-2">
+                            <label class="form-label form-label-sm product-label product-header required-field mb-0">{% if allowed_item_types == 'services' %}{% trans "الخدمة" %}{% elif allowed_item_types == 'products' %}{% trans "المنتج" %}{% else %}{% trans "المنتج / الخدمة" %}{% endif %}</label>
+                            <span class="stock-info"></span>
+                        </div>
+                        <button type="button" class="product-picker-btn" data-row-index="0">
+                            <span class="placeholder-text">{% if allowed_item_types == 'services' %}{% trans "اختر الخدمة" %}{% elif allowed_item_types == 'products' %}{% trans "اختر المنتج" %}{% else %}{% trans "اختر المنتج / الخدمة" %}{% endif %}</span>
+                            <i class="fas fa-th-large text-muted small"></i>
+                        </button>
+                        <input type="hidden" name="product[]" class="product-id-input" required>
+                    </div>
+                    <div class="col-6 col-md-1">
+                        <label class="form-label form-label-sm required-field">{% trans "الكمية" %}</label>
+                        <input type="number" name="quantity[]" class="form-control form-control-sm quantity" min="0.01" step="0.01" value="1" required>
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <label class="form-label form-label-sm required-field">{% trans "سعر الوحدة" %}</label>
+                        <input type="text" inputmode="decimal" name="unit_price[]" class="form-control form-control-sm unit-price" required>
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <div class="discount-header-row d-flex align-items-center mb-2 justify-content-center">
+                            <label class="form-label form-label-sm discount-label mb-0">{% trans "الخصم" %}</label>
+                            <span class="discount-rule-badge discount-rule-info"></span>
+                        </div>
+                        <input type="number" name="discount[]" class="form-control form-control-sm item-discount" min="0" step="0.01" value="0">
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <label class="form-label form-label-sm">{% trans "الإجمالي" %}</label>
+                        <div class="input-group input-group-sm">
+                            <input type="text" class="form-control form-control-sm item-total" readonly>
+                            <span class="input-group-text px-1">{{ currency_symbol }}</span>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
 
-    <!-- أزرار الحفظ -->
-    <div class="d-flex justify-content-end gap-2 mb-4">
-      <a href="{% url 'sale:sales_order_list' %}" class="btn btn-secondary px-4">{% trans "إلغاء" %}</a>
-      <button type="submit" class="btn btn-primary px-5 fw-bold"><i class="fas fa-save me-2"></i>{% trans "حفظ أمر البيع" %}</button>
-    </div>
-  </form>
+            <button type="button" id="add-item" class="btn btn-sm btn-primary add-more-btn mt-3">
+                <i class="fa fa-plus me-1"></i> {% trans "إضافة بند" %}
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-success add-more-btn mt-3 ms-2" id="btn-quote-new-product" onclick="if(window.openQuickProductModal) window.openQuickProductModal();">
+                <i class="fas fa-plus-circle me-1"></i> {% trans "صنف جديد" %}
+            </button>
+        </div>
+
+        <!-- القسم الثالث: الملخص المالي والخصومات -->
+        <div class="section-container mb-4">
+            <h5 class="section-title"><i class="fas fa-calculator me-2"></i>{% trans "الملخص المالي والخصومات" %}</h5>
+            <div class="row total-section g-4 align-items-stretch">
+                <div class="col-lg-8 col-md-12 d-flex flex-column">
+                    <!-- التبويبات الموحدة -->
+                    <ul class="nav nav-tabs border-bottom-0" id="quoteTotalSectionTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active fw-medium" id="quote-discount-tab" data-bs-toggle="tab" data-bs-target="#quote-tab-discount" type="button" role="tab" aria-controls="quote-tab-discount" aria-selected="true">
+                                <i class="fas fa-tag me-1 text-primary"></i> {% trans "الخصم والتسوية" %}
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link fw-medium" id="quote-tax-tab" data-bs-toggle="tab" data-bs-target="#quote-tab-tax" type="button" role="tab" aria-controls="quote-tab-tax" aria-selected="false">
+                                <i class="fas fa-file-invoice-dollar me-1 text-primary"></i> {% trans "الضرائب والخصومات" %}
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link fw-medium" id="quote-notes-tab" data-bs-toggle="tab" data-bs-target="#quote-tab-notes" type="button" role="tab" aria-controls="quote-tab-notes" aria-selected="false">
+                                <i class="fas fa-sticky-note me-1 text-primary"></i> {% trans "الملاحظات والشروط" %}
+                            </button>
+                        </li>
+                    </ul>
+                    <div class="tab-content p-3 bg-light border rounded-bottom flex-fill d-flex flex-column justify-content-between" id="quoteTotalSectionTabsContent">
+                        <!-- تبويب الخصم والتسوية -->
+                        <div class="tab-pane fade show active" id="quote-tab-discount" role="tabpanel" aria-labelledby="quote-discount-tab">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label text-dark fw-medium">{% trans "خصم على كامل أمر البيع" %}</label>
+                                    <div class="input-group">
+                                        <input type="number" step="0.01" name="discount" id="id_discount" class="form-control text-center" value="0" min="0" placeholder="0.00">
+                                        <select name="discount_type" id="id_discount_type" class="form-select px-2 text-center" style="max-width: 85px;">
+                                            <option value="fixed" selected>{{ currency_symbol }}</option>
+                                            <option value="percentage">%</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label text-dark fw-medium">{% trans "تسوية ماليّة إضافية (شحن/مصاريف)" %}</label>
+                                    <div class="input-group">
+                                        <input type="text" name="adjustment_name" id="id_adjustment_name" class="form-control" value="" placeholder="{% trans 'سبب التسوية (مثل: مصاريف شحن)...' %}">
+                                        <select name="adjustment_type" id="id_adjustment_type" class="form-select px-1 text-center" style="max-width: 70px;">
+                                            <option value="add" selected>+</option>
+                                            <option value="subtract">-</option>
+                                        </select>
+                                        <input type="number" step="0.01" name="adjustment_amount" id="id_adjustment_amount" class="form-control text-center" value="0" style="max-width: 110px;" placeholder="0.00">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- تبويب الضرائب والخصومات -->
+                        <div class="tab-pane fade" id="quote-tab-tax" role="tabpanel" aria-labelledby="quote-tax-tab">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <div class="card border-0 shadow-sm bg-white p-3 h-100">
+                                        <h6 class="fw-bold text-dark mb-2"><i class="fas fa-percent text-primary me-2"></i>{% trans "ضريبة القيمة المضافة (VAT)" %}</h6>
+                                        <div class="form-check form-switch pt-1">
+                                            <input class="form-check-input" type="checkbox" name="tax_active" id="id_tax_active" role="switch" {% if settings.enable_tax %}checked{% endif %}>
+                                            <label class="form-check-label text-dark fw-medium small" for="id_tax_active">{% trans "تفعيل ضريبة القيمة المضافة" %} ({{ settings.default_tax_rate|smart_float|default:'14' }}%)</label>
+                                        </div>
+                                        <small class="form-text text-muted mt-2">{% trans "تُحسب بنسبة" %} {{ settings.default_tax_rate|smart_float|default:'14' }}% {% trans "على الصافي التجاري للمستند." %}</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="card border-0 shadow-sm bg-white p-3 h-100">
+                                        <h6 class="fw-bold text-dark mb-2"><i class="fas fa-hand-holding-usd text-warning me-2"></i>{% trans "ضريبة الخصم والإضافة (WHT)" %}</h6>
+                                        <div class="d-flex align-items-center mb-2">
+                                            <div class="form-check form-switch me-2 pt-1">
+                                                <input class="form-check-input" type="checkbox" name="wht_active" id="id_wht_active" role="switch">
+                                                <label class="form-check-label text-dark fw-medium small" for="id_wht_active">{% trans "ضريبة الخصم والإضافة" %}</label>
+                                            </div>
+                                            <select name="wht_rate" id="id_wht_rate" class="form-select form-select-sm ms-auto text-center" style="width: fit-content;">
+                                                <option value="1.00" selected>1% (توريدات ومقاولات)</option>
+                                                <option value="3.00">3% (خدمات وصيانة)</option>
+                                                <option value="5.00">5% (مهن حرة واستشارات)</option>
+                                            </select>
+                                        </div>
+                                        <small class="form-text text-muted">{% trans "تُخصم من الصافي المستحق وتورد لمصلحة الضرائب." %}</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- تبويب الملاحظات والشروط -->
+                        <div class="tab-pane fade h-100" id="quote-tab-notes" role="tabpanel" aria-labelledby="quote-notes-tab">
+                            {% include "partials/editor.html" with id="id_notes" name="notes" value="" placeholder="أضف شروط التوريد، التسليم، أو أي تفاصيل أخرى..." height=180 toolbar="basic" %}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-4 col-md-12">
+                    <!-- رأس ملخص الإجماليات المتناسق -->
+                    <ul class="nav nav-tabs border-bottom-0" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <span class="nav-link active fw-medium" style="cursor: default;">
+                                <i class="fas fa-calculator me-1 text-primary"></i> {% trans "الملخص المالي" %}
+                            </span>
+                        </li>
+                    </ul>
+                    <div class="p-3 bg-light border rounded-bottom">
+                        <div class="row mb-2">
+                            <div class="col-6 text-end"><strong>{% trans "المجموع الفرعي:" %}</strong></div>
+                            <div class="col-6 text-end">
+                                <span id="subtotal">0</span>
+                            </div>
+                        </div>
+                        <div class="row mb-2">
+                            <div class="col-6 text-end"><strong>{% trans "الخصم الإجمالي:" %}</strong></div>
+                            <div class="col-6 text-end text-danger">
+                                <span id="discount-total">0</span>
+                            </div>
+                        </div>
+                        <div class="row mb-2" id="adjustment-total-row">
+                            <div class="col-6 text-end"><strong id="adjustment-label">{% trans "التسوية:" %}</strong></div>
+                            <div class="col-6 text-end">
+                                <span id="adjustment-total">0</span>
+                            </div>
+                        </div>
+                        <div class="row mb-2" id="tax-total-row">
+                            <div class="col-6 text-end"><strong>{% trans "القيمة المضافة" %} ({{ settings.default_tax_rate|smart_float|default:'14' }}%):</strong></div>
+                            <div class="col-6 text-end text-primary">
+                                <span id="tax-total">0</span>
+                            </div>
+                        </div>
+                        <div class="row mb-2" id="wht-total-row" style="display: none;">
+                            <div class="col-6 text-end"><strong id="wht-label">{% trans "خصم أرباح تجارية:" %}</strong></div>
+                            <div class="col-6 text-end text-warning">
+                                <span id="wht-total">0</span>
+                            </div>
+                        </div>
+                        <hr class="my-2">
+                        <div class="row">
+                            <div class="col-6 text-end"><strong class="fs-6 text-dark">{% trans "الصافي المطلوب حجز قيمته:" %}</strong></div>
+                            <div class="col-6 text-end">
+                                <span id="grand-total" class="fs-6 fw-bold text-success">0</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- أزرار الحفظ -->
+            <div class="text-center mt-4 pt-3 border-top">
+                <button type="submit" class="btn btn-primary me-2 px-4 fw-bold">
+                    <i class="fas fa-save me-1"></i> {% trans "حفظ أمر البيع" %}
+                </button>
+                <a href="{% url 'sale:sales_order_list' %}" class="btn btn-secondary px-4">
+                    {% trans "إلغاء" %}
+                </a>
+            </div>
+        </div>
+    </form>
 </div>
+
+<!-- ===== Product Picker Modal ===== -->
+{% include 'components/product_picker_modal.html' %}
+{% include 'components/quick_product_modal.html' %}
+
+<!-- ===== Add Customer Modal ===== -->
+{% include 'components/quick_customer_modal.html' %}
+
 {% endblock %}
 
 {% block extra_js %}
 <script src="{% static 'js/select2.min.js' %}"></script>
+<script src="{% static 'js/product_picker.js' %}"></script>
 <script>
-  $(document).ready(function() {
-    $('.select2').select2({ dir: "rtl", language: "ar", width: "100%" });
+    $(document).ready(function() {
+        // ===== smartFloat =====
+        function smartFloat(value) {
+            var num = parseFloat(String(value).replace(/,/g, ''));
+            if (isNaN(num)) return '0';
+            return num % 1 === 0
+                ? num.toLocaleString('en-US')
+                : num.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 2});
+        }
 
-    function initRowSelect2(elem) {
-      elem.find('.select2-product').select2({ dir: "rtl", language: "ar", width: "100%" });
-    }
-    initRowSelect2($('body'));
+        // ===== Select2 للعميل والمخزن ومسؤول المبيعات ومركز التكلفة =====
+        $('select#id_customer').select2({ placeholder: "اختر العميل", width: '100%', allowClear: true });
+        $('select#id_warehouse').select2({ placeholder: "اختر المخزن", width: '100%', allowClear: true });
+        $('select#id_salesman').select2({ placeholder: "اختر مسؤول المبيعات", width: '100%', allowClear: true });
+        $('select#id_cost_center').select2({ placeholder: "اختر مركز التكلفة", width: '100%', allowClear: true });
 
-    function calculateTotals() {
-      let grandTotal = 0;
-      $('.item-row').each(function() {
-        const qty = parseFloat($(this).find('.item-qty').val()) || 0;
-        const price = parseFloat($(this).find('.item-price').val()) || 0;
-        const disc = parseFloat($(this).find('.item-discount').val()) || 0;
+        const allowedItemTypes = $('#django-sales-form-data').data('allowed-item-types') || 'both';
+        var placeholderText = "اختر المنتج / الخدمة";
+        var labelProductText = "المنتج / الخدمة";
+        if (allowedItemTypes === 'services') {
+            placeholderText = "اختر الخدمة";
+            labelProductText = "الخدمة";
+        } else if (allowedItemTypes === 'products') {
+            placeholderText = "اختر المنتج";
+            labelProductText = "المنتج";
+        }
 
-        const lineTotal = qty * price * (1 - (disc / 100));
-        $(this).find('.item-total').text(lineTotal.toFixed(2));
-        grandTotal += lineTotal;
-      });
-      $('#grand-total').text(grandTotal.toFixed(2));
-    }
+        // ===== إضافة عميل جديد AJAX =====
+        var addCustomerModalEl = document.getElementById('addCustomerModal');
+        var addCustomerModal = addCustomerModalEl ? new bootstrap.Modal(addCustomerModalEl) : null;
 
-    $(document).on('change', '.product-select', function() {
-      const price = $(this).find(':selected').data('price') || 0;
-      $(this).closest('tr').find('.item-price').val(price);
-      calculateTotals();
-    });
+        $('#btn-add-customer-modal').on('click', function() {
+            if (!addCustomerModal) return;
+            
+            addCustomerModal.show();
 
-    $(document).on('input', '.item-qty, .item-price, .item-discount', function() {
-      calculateTotals();
-    });
+            $('#ajax-add-customer-form')[0].reset();
+            $('#modal_customer_code').val('جاري التحميل...').prop('readonly', true).addClass('bg-light');
+            $('#toggle-customer-modal-code').html('<i class="fas fa-edit"></i>').removeClass('btn-outline-primary').addClass('btn-outline-secondary');
+            $('#modal-error-alert').addClass('d-none');
+            $('#modal-error-list').empty();
+            $('#save-customer-spinner').addClass('d-none');
+            $('#btn-save-customer').prop('disabled', false);
 
-    $('#btn-add-item').on('click', function() {
-      const firstRow = $('.item-row:first').clone();
-      firstRow.find('input').val('0');
-      firstRow.find('.item-qty').val('1.00');
-      firstRow.find('.item-discount').val('0.00');
-      firstRow.find('.item-total').text('0.00');
-      firstRow.find('.select2-container').remove();
-      firstRow.find('.product-select').val('');
-      $('#items-tbody').append(firstRow);
-      initRowSelect2(firstRow);
-      calculateTotals();
-    });
+            $.ajax({
+                url: "{% url 'client:customer_add_ajax' %}",
+                type: "GET",
+                success: function(response) {
+                    if (response.success) {
+                        $('#modal_customer_code').val(response.code);
+                        setTimeout(function() {
+                            $('#addCustomerModal input[name="name"]').focus();
+                        }, 200);
+                    } else {
+                        toastr.error(response.message || 'فشل في تحميل كود العميل');
+                    }
+                },
+                error: function() {
+                    toastr.error('حدث خطأ في الاتصال بالخادم أثناء جلب كود العميل.');
+                }
+            });
+        });
 
-    $(document).on('click', '.btn-remove-row', function() {
-      if ($('.item-row').length > 1) {
-        $(this).closest('tr').remove();
+        $('#toggle-customer-modal-code').on('click', function() {
+            var codeInput = $('#modal_customer_code');
+            if (codeInput.prop('readonly')) {
+                codeInput.prop('readonly', false).removeClass('bg-light').focus();
+                $(this).html('<i class="fas fa-lock"></i>').removeClass('btn-outline-secondary').addClass('btn-outline-primary');
+            } else {
+                codeInput.prop('readonly', true).addClass('bg-light');
+                $(this).html('<i class="fas fa-edit"></i>').removeClass('btn-outline-primary').addClass('btn-outline-secondary');
+            }
+        });
+
+        $('#ajax-add-customer-form').on('submit', function(e) {
+            e.preventDefault();
+            
+            var $form = $(this);
+            var $submitBtn = $('#btn-save-customer');
+            var $spinner = $('#save-customer-spinner');
+            
+            $submitBtn.prop('disabled', true);
+            $spinner.removeClass('d-none');
+            $('#modal-error-alert').addClass('d-none');
+            $('#modal-error-list').empty();
+
+            $.ajax({
+                url: "{% url 'client:customer_add_ajax' %}",
+                type: "POST",
+                data: $form.serialize(),
+                success: function(response) {
+                    $submitBtn.prop('disabled', false);
+                    $spinner.addClass('d-none');
+                    
+                    if (response.success) {
+                        var newOption = new Option(response.customer.name, response.customer.id, true, true);
+                        $('#id_customer').append(newOption).trigger('change');
+                        addCustomerModal.hide();
+                        
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'تمت العملية بنجاح',
+                            text: response.message || 'تمت إضافة العميل وتحديده بنجاح.',
+                            timer: 2000,
+                            showConfirmButton: false
+                        });
+                    } else {
+                        if (response.errors) {
+                            var errorHtml = '';
+                            Object.keys(response.errors).forEach(function(field) {
+                                response.errors[field].forEach(function(errorMsg) {
+                                    errorHtml += '<li>' + errorMsg + '</li>';
+                                });
+                            });
+                            $('#modal-error-list').html(errorHtml);
+                            $('#modal-error-alert').removeClass('d-none');
+                        } else {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'خطأ',
+                                text: response.message || 'فشل في حفظ العميل.'
+                            });
+                        }
+                    }
+                },
+                error: function(xhr) {
+                    $submitBtn.prop('disabled', false);
+                    $spinner.addClass('d-none');
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'خطأ',
+                        text: 'حدث خطأ في الاتصال بالخادم أثناء حفظ العميل.'
+                    });
+                }
+            });
+        });
+
+        // ===== تهيئة مكون اختيار المنتجات والبحث الموحد =====
+        ProductPicker.init({
+            type: 'sale',
+            priceField: 'selling_price',
+            currencySymbol: '{{ currency_symbol }}',
+            getWarehouseId: function() { return $('#id_warehouse').val() || ''; },
+            getCustomerId: function() { return $('#id_customer').val() || ''; },
+            getPriceListId: function() { return $('#id_price_list').val() || ''; },
+            getInvoiceId: function() { return $('#django-sales-form-data').data('sale-id') || '0'; },
+            onProductSelect: function($row, product, matchType) {
+                calculateRowTotal($row);
+            }
+        });
+
+        // ===== ربط الأحداث وعمليات الحساب =====
+        function bindEventHandlers() {
+            $(document).off('input.itemCalc', '#items-container .quantity, #items-container .unit-price, #items-container .item-discount')
+                       .on('input.itemCalc', '#items-container .quantity, #items-container .unit-price, #items-container .item-discount', function() {
+                var row = $(this).closest('.item-row');
+                calculateRowTotal(row);
+
+                if ($(this).hasClass('quantity')) {
+                    var quantity = parseFloat($(this).val()) || 0;
+                    var prodInput = row.find('.product-id-input');
+                    var isService = prodInput.attr('data-is-service') === 'true' || 
+                                    prodInput.attr('data-is-service') === true || 
+                                    prodInput.data('is-service') === true;
+                    var stock = parseInt(prodInput.attr('data-stock') || 0);
+                    if (typeof window.renderStockState === 'function') {
+                        window.renderStockState(row, { stock: stock, is_service: isService, quantity: quantity }, 'sale');
+                    } else if (typeof window.renderStockInfo === 'function') {
+                        window.renderStockInfo(row, stock);
+                    }
+                }
+            });
+
+            $(document).off('input.calc change.calc', '#id_discount, #id_discount_type, #id_adjustment_name, #id_adjustment_type, #id_adjustment_amount, #id_tax_active, #id_wht_active, #id_wht_rate')
+                       .on('input.calc change.calc', '#id_discount, #id_discount_type, #id_adjustment_name, #id_adjustment_type, #id_adjustment_amount, #id_tax_active, #id_wht_active, #id_wht_rate', function() {
+                calculateTotals();
+            });
+        }
+
+        // ===== إعادة تسعير السلة بالكامل عبر محرك التسعير (FIN-SAL-004) =====
+        function repriceCartItems() {
+            var items = [];
+            var $rows = $('#items-container .item-row');
+            $rows.each(function() {
+                var $row = $(this);
+                var pid = $row.find('.product-id-input').val();
+                if (pid) {
+                    items.push({
+                        product_id: parseInt(pid),
+                        quantity: parseFloat($row.find('.quantity').val()) || 1,
+                        unit_price: parseFloat(($row.find('.unit-price').val() || '0').replace(/,/g, '')) || 0,
+                        discount: parseFloat($row.find('.item-discount').val()) || 0,
+                        uom_id: $row.find('.unit-id-input').val() || null
+                    });
+                }
+            });
+
+            if (items.length === 0) return;
+
+            $.ajax({
+                url: '/sales/api/pricing/evaluate-cart/',
+                method: 'POST',
+                headers: { 'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val() },
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    customer_id: $('#id_customer').val() || null,
+                    price_list_id: $('#id_price_list').val() || null,
+                    currency_id: $('#id_currency').val() || null,
+                    exchange_rate: $('#id_exchange_rate').val() || 1.0,
+                    items: items
+                }),
+                success: function(res) {
+                    if (res && res.success && res.lines) {
+                        var lineIdx = 0;
+                        $rows.each(function() {
+                            var $row = $(this);
+                            var pid = $row.find('.product-id-input').val();
+                            if (pid && lineIdx < res.lines.length) {
+                                var line = res.lines[lineIdx];
+                                $row.find('.unit-price').val(typeof smartFloat === 'function' ? smartFloat(line.unit_price) : line.unit_price);
+                                $row.find('.item-discount').val(typeof smartFloat === 'function' ? smartFloat(line.discount) : line.discount);
+                                $row.find('.cost-warning-badge').remove();
+                                if (line.rule_name) {
+                                    if (typeof ProductPicker !== 'undefined' && typeof ProductPicker.renderDiscountRuleState === 'function') {
+                                        ProductPicker.renderDiscountRuleState($row, line.rule_name);
+                                    }
+                                } else {
+                                    if (typeof ProductPicker !== 'undefined' && typeof ProductPicker.renderDiscountRuleState === 'function') {
+                                        ProductPicker.renderDiscountRuleState($row, null);
+                                    }
+                                }
+                                if (line.is_below_cost) {
+                                    $row.find('.unit-price').after('<small class="cost-warning-badge text-danger d-block" style="font-size:0.7rem;"><i class="fas fa-exclamation-triangle me-1"></i>أقل من التكلفة</small>');
+                                }
+                                calculateRowTotal($row);
+                                lineIdx++;
+                            }
+                        });
+                        calculateTotals();
+                    }
+                }
+            });
+        }
+
+        $('#id_customer').on('change', function() {
+            var selectedOpt = $(this).find('option:selected');
+            var defaultPL = selectedOpt.data('default-price-list');
+            if (defaultPL) {
+                $('#id_price_list').val(defaultPL).trigger('change.select2');
+            }
+            repriceCartItems();
+        });
+
+        $('#id_price_list').on('change', function() {
+            repriceCartItems();
+        });
+
+        bindEventHandlers();
+
+        function calculateRowTotal(row) {
+            var quantity  = parseFloat(row.find('.quantity').val()) || 0;
+            var unitPrice = parseFloat(row.find('.unit-price').val().replace(/,/g, '')) || 0;
+            var discount  = parseFloat(row.find('.item-discount').val()) || 0;
+            var total = Math.max(0, quantity * unitPrice - discount);
+            row.find('.item-total').val(smartFloat(total));
+            calculateTotals();
+        }
+
+        function calculateTotals() {
+            var subtotal = 0;
+            $('.item-total').each(function() {
+                subtotal += parseFloat($(this).val().replace(/,/g, '')) || 0;
+            });
+            
+            var discountInput = parseFloat($('#id_discount').val()) || 0;
+            var discountType = $('#id_discount_type').val() || 'fixed';
+            var discountTotal = 0;
+
+            if (discountType === 'percentage') {
+                $('#id_discount').attr('max', '100');
+                if (discountInput > 100) {
+                    discountInput = 100;
+                    $('#id_discount').val(100);
+                }
+                discountTotal = (subtotal * discountInput) / 100;
+            } else {
+                $('#id_discount').removeAttr('max');
+                if (subtotal > 0 && discountInput > subtotal) {
+                    discountInput = subtotal;
+                    $('#id_discount').val(subtotal);
+                }
+                discountTotal = discountInput;
+            }
+
+            var adjAmountRaw = parseFloat($('#id_adjustment_amount').val()) || 0;
+            var adjType = $('#id_adjustment_type').val() || 'add';
+            var adjTotal = (adjType === 'subtract') ? -Math.abs(adjAmountRaw) : Math.abs(adjAmountRaw);
+
+            var netSubtotal = Math.max(0, subtotal - discountTotal + adjTotal);
+            
+            var defaultTaxRate = parseFloat('{{ settings.default_tax_rate|default:14 }}') || 14;
+            var isTaxActive = $('#id_tax_active').is(':checked');
+            var vat = 0;
+            if (isTaxActive) {
+                vat = (netSubtotal * defaultTaxRate) / 100.0;
+                $('#tax-total-row').removeClass('text-muted opacity-50');
+            } else {
+                vat = 0;
+                $('#tax-total-row').addClass('text-muted opacity-50');
+            }
+
+            var isWhtActive = $('#id_wht_active').is(':checked');
+            var whtRate = parseFloat($('#id_wht_rate').val()) || 1.0;
+            var whtTotal = 0;
+            if (isWhtActive) {
+                whtTotal = (netSubtotal * whtRate) / 100.0;
+                $('#wht-total-row').show();
+            } else {
+                whtTotal = 0;
+                $('#wht-total-row').hide();
+            }
+
+            var grossTotal = netSubtotal + vat;
+            var grandTotal = Math.max(0, grossTotal - whtTotal);
+
+            var currencySymbol = (window.ProductPicker && window.ProductPicker.options && window.ProductPicker.options.currencySymbol) || $('#id_currency option:selected').data('symbol') || $('#id_currency option:selected').data('code') || '{{ currency_symbol }}';
+            $('#subtotal').text(smartFloat(subtotal) + ' ' + currencySymbol);
+
+            var discountText = smartFloat(discountTotal) + ' ' + currencySymbol;
+            if (discountType === 'percentage' && discountInput > 0) {
+                discountText += ' (' + discountInput + '%)';
+            }
+            $('#discount-total').text(discountText);
+
+            var adjText = (adjTotal >= 0 ? '+' : '') + smartFloat(adjTotal) + ' ' + currencySymbol;
+            $('#adjustment-total').text(adjText);
+            $('#tax-total').text(smartFloat(vat) + ' ' + currencySymbol);
+            $('#wht-total').text(smartFloat(whtTotal) + ' ' + currencySymbol + ' (' + whtRate + '%)');
+            $('#grand-total').text(smartFloat(grandTotal) + ' ' + currencySymbol);
+        }
+
+        window.calculateRowTotal = calculateRowTotal;
+        window.calculateTotals = calculateTotals;
+
+        bindEventHandlers();
+        $('.item-row').each(function() { calculateRowTotal($(this)); });
         calculateTotals();
-      } else {
-        alert('{% trans "يجب أن يحتوي أمر البيع على بند واحد على الأقل." %}');
-      }
-    });
 
-    calculateTotals();
-  });
+        // ===== التحقق قبل الإرسال =====
+        $('#sales-order-form').on('submit', function(e) {
+            if (typeof ProductPicker !== 'undefined' && typeof ProductPicker.sanitizeTrailingEmptyRows === 'function') {
+                ProductPicker.sanitizeTrailingEmptyRows();
+            }
+            var isValid = true;
+            var missingProduct = false;
+
+            if ($('.item-row').length < 1) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'خطأ',
+                    text: 'يجب إضافة بند واحد على الأقل لأمر البيع'
+                });
+                e.preventDefault();
+                return;
+            }
+
+            $('.item-row').each(function(index) {
+                var row = $(this);
+                var prod = row.find('.product-id-input').val();
+                var qty = parseFloat(row.find('.quantity').val()) || 0;
+                var price = parseFloat(row.find('.unit-price').val().replace(/,/g, '')) || 0;
+
+                if (!prod) {
+                    missingProduct = true;
+                    isValid = false;
+                    return false;
+                }
+                if (qty <= 0) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'خطأ',
+                        text: 'يجب أن تكون الكمية أكبر من صفر في البند رقم ' + (index + 1)
+                    });
+                    isValid = false;
+                    e.preventDefault();
+                    return false;
+                }
+                if (price <= 0) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'خطأ',
+                        text: 'يجب أن يكون سعر الوحدة أكبر من صفر في البند رقم ' + (index + 1)
+                    });
+                    isValid = false;
+                    e.preventDefault();
+                    return false;
+                }
+            });
+
+            if (missingProduct) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'خطأ',
+                    text: 'يرجى اختيار المنتج في كافة البنود'
+                });
+                e.preventDefault();
+                return;
+            }
+        });
+    });
 </script>
 {% endblock %}

@@ -15,6 +15,7 @@ from decimal import Decimal
 import logging
 
 from sale.models import Sale, SaleItem, SalePayment, SaleReturn, SaleReturnItem
+from sale.models.pricing import PriceList
 from sale.forms import SaleForm, SalePaymentForm, SaleReturnForm
 from sale.services import SaleService
 from product.models import Product, Warehouse, SerialNumber
@@ -198,6 +199,7 @@ def sale_create(request, customer_id=None):
                     'adjustment_amount': adj_amount,
                     'tax': Decimal(request.POST.get("tax", "0")),
                     'notes': form.cleaned_data.get('notes', ''),
+                    'price_list_id': form.cleaned_data.get('price_list').id if form.cleaned_data.get('price_list') else (request.POST.get('price_list') or None),
                     'currency_id': request.POST.get("currency"),
                     'exchange_rate': request.POST.get("exchange_rate", "1.0"),
                     'exchange_rate_override_reason': request.POST.get("exchange_rate_override_reason", ""),
@@ -364,6 +366,7 @@ def sale_create(request, customer_id=None):
         "customers": customers,
         "warehouses": warehouses,
         "currencies": Currency.objects.filter(is_active=True).order_by("code"),
+        "price_lists": PriceList.objects.filter(is_active=True).order_by("name"),
         "selected_customer": selected_customer,
         "customer_prepaid_balance": customer_prepaid_balance,
         "default_warehouse": warehouses.first() if warehouses.exists() else None,
@@ -664,7 +667,7 @@ def sale_detail(request, pk):
         "page_subtitle": _('العميل: <a href="{}" class="text-decoration-none fw-bold text-primary"><i class="fas fa-user-tie me-1"></i>{}</a>').format(
             reverse("client:customer_detail", kwargs={"pk": sale.customer.id}),
             sale.customer.name
-        ),
+        ) if sale.customer else _('العميل: <span class="text-muted">عميل نقدي / غير محدد</span>'),
         "page_icon": "fas fa-file-invoice-dollar",
         "header_buttons": ([{
             "url": reverse("sale:sale_add_payment", kwargs={"pk": sale.pk}),
@@ -716,12 +719,6 @@ def sale_detail(request, pk):
                 "target": "#actionsModal",
             },
         ],
-        "page_title": f"فاتورة مبيعات {sale.number}",
-        "page_subtitle": _('العميل: <a href="{}" class="text-decoration-none fw-bold text-primary"><i class="fas fa-user-tie me-1"></i>{}</a>').format(
-            reverse("client:customer_detail", kwargs={"pk": sale.customer.id}),
-            sale.customer.name
-        ),
-        "page_icon": "fas fa-file-invoice",
         "header_badges": [
             *([{"text": sale.work_order.number, "class": "bg-info text-white", "icon": "fas fa-tasks", "url": reverse("work_order:work_order_detail", kwargs={"pk": sale.work_order.pk})}] if hasattr(sale, 'work_order') and sale.work_order else []),
             *([{"text": sale.get_status_display(), "class": f"bg-{get_status_color(sale.status)} text-white", "icon": "fas fa-info-circle"}] if sale.status != 'confirmed' else []),
@@ -1015,6 +1012,7 @@ def get_sale_print_context(request, pk):
     company_phone = SystemSetting.objects.filter(key="company_phone").values_list("value", flat=True).first() or ""
     company_tax_number = SystemSetting.objects.filter(key="company_tax_number").values_list("value", flat=True).first() or ""
     company_logo = SystemSetting.objects.filter(key="company_logo").values_list("value", flat=True).first() or ""
+    company_stamp = SystemSetting.objects.filter(key="company_stamp").values_list("value", flat=True).first() or ""
     company_email = SystemSetting.objects.filter(key="company_email").values_list("value", flat=True).first() or ""
     company_website = SystemSetting.objects.filter(key="company_website").values_list("value", flat=True).first() or ""
 
@@ -1022,9 +1020,7 @@ def get_sale_print_context(request, pk):
         company_name_active = SystemSetting.get_setting('company_name_en') or SystemSetting.get_setting('site_name_en') or company_name
         company_address_active = SystemSetting.get_company_address_en() or company_address
         invoice_title_active = SystemSetting.get_invoice_title_sale_en()
-        default_notes = SystemSetting.get_sale_invoice_notes_en()
-        sale_currency = getattr(sale, 'currency', None)
-        currency_symbol_active = sale_currency if (sale_currency and sale_currency != 'ج.م') else SystemSetting.get_currency_symbol_en()
+        currency_symbol_active = getattr(sale.currency, 'code', None) or SystemSetting.get_currency_symbol_en()
         status_map = {
             'paid': 'PAID',
             'unpaid': 'UNPAID',
@@ -1037,7 +1033,7 @@ def get_sale_print_context(request, pk):
         company_address_active = company_address
         invoice_title_active = "فاتورة مبيعات / Sales Invoice"
         default_notes = SystemSetting.get_setting('default_sale_invoice_notes', '')
-        currency_symbol_active = getattr(sale, 'currency', None) or SystemSetting.get_currency_symbol()
+        currency_symbol_active = sale.currency_symbol if hasattr(sale, 'currency_symbol') else SystemSetting.get_currency_symbol()
         status_map = {
             'paid': 'مدفوع بالكامل / PAID',
             'unpaid': 'غير مدفوع / UNPAID',
@@ -1049,7 +1045,7 @@ def get_sale_print_context(request, pk):
         company_address_active = company_address
         invoice_title_active = "فاتورة مبيعات"
         default_notes = SystemSetting.get_setting('default_sale_invoice_notes', '')
-        currency_symbol_active = getattr(sale, 'currency', None) or SystemSetting.get_currency_symbol()
+        currency_symbol_active = sale.currency_symbol if hasattr(sale, 'currency_symbol') else SystemSetting.get_currency_symbol()
         status_map = {
             'paid': 'مدفوع بالكامل',
             'unpaid': 'غير مدفوع',
@@ -1069,6 +1065,7 @@ def get_sale_print_context(request, pk):
         "company_phone": company_phone,
         "company_tax_number": company_tax_number,
         "company_logo": company_logo,
+        "company_stamp": company_stamp,
         "company_email": company_email,
         "company_website": company_website,
         "title": f"{invoice_title_active} - {sale.number}",
@@ -1248,6 +1245,7 @@ def sale_edit(request, pk):
                     'adjustment_amount': form.cleaned_data.get('adjustment_amount', 0) or Decimal('0'),
                     'tax': form.cleaned_data.get('tax', 0) or Decimal('0'),
                     'notes': form.cleaned_data.get('notes', ''),
+                    'price_list_id': form.cleaned_data.get('price_list').id if form.cleaned_data.get('price_list') else (request.POST.get('price_list') or None),
                     'items': [],
                 }
                 
@@ -1333,6 +1331,7 @@ def sale_edit(request, pk):
         "warehouses": warehouses,
         "currencies": currencies_qs,
         "active_currencies": currencies_qs,
+        "price_lists": PriceList.objects.filter(is_active=True).order_by("name"),
         "selected_customer": sale.customer,
         "customer_prepaid_balance": customer_prepaid_balance,
         "duplicate_items": json.dumps(duplicate_items),
@@ -2203,6 +2202,10 @@ from .quotation_views import (
     quotation_email_pdf,
     quotation_convert_to_sale,
     check_product_stock,
+)
+
+from .pricing_api_views import (
+    evaluate_cart_api,
 )
 
 

@@ -31,6 +31,8 @@ def invoice_product_lookup(request):
     product_ids = request.GET.get("product_ids")
     currency_id = request.GET.get("currency_id") or request.GET.get("currency")
     supplier_id = request.GET.get("supplier_id") or request.GET.get("supplier")
+    customer_id = request.GET.get("customer_id") or request.GET.get("customer")
+    price_list_id = request.GET.get("price_list_id") or request.GET.get("price_list")
 
     if exact and not query and not product_ids:
         return JsonResponse({"products": []})
@@ -188,6 +190,17 @@ def invoice_product_lookup(request):
         # Prefetch currency prices and variants for efficiency
         qs = qs.prefetch_related('currency_prices__currency', 'variants').select_related('category', 'unit')
 
+        # تجهيز كاش التسعير للطلبات غير الشرائية
+        pricing_cache = None
+        if product_type != "purchase":
+            try:
+                from sale.services.pricing_service import PricingService
+                c_id_int = int(customer_id) if (customer_id and str(customer_id).isdigit()) else None
+                pl_id_int = int(price_list_id) if (price_list_id and str(price_list_id).isdigit()) else None
+                pricing_cache = PricingService.get_pricing_context_cache(customer_id=c_id_int, price_list_id=pl_id_int)
+            except Exception as e:
+                logger.warning(f"Failed to build pricing cache in lookup: {e}")
+
         raw_results = []
         is_foreign = (currency_obj and not currency_obj.is_functional)
         curr_code = currency_obj.code if currency_obj else None
@@ -200,6 +213,32 @@ def invoice_product_lookup(request):
             curr_prices = p.get_currency_prices_dict()
             selling_p = float(p.selling_price) if p.selling_price else 0.0
             cost_p = float(p.cost_price) if p.cost_price else 0.0
+            discount_amount = 0.0
+            discount_percentage = 0.0
+            rule_name = ""
+            rule_id = None
+            is_below_cost = False
+            price_snapshot = {}
+
+            # تطبيق محرك التسعير المركزي للمبيعات
+            if product_type != "purchase" and pricing_cache:
+                try:
+                    p_info = PricingService.get_sales_price(
+                        product_id=p.id,
+                        customer_id=c_id_int,
+                        price_list_id=pl_id_int,
+                        currency=curr_code or "EGP",
+                        context_cache=pricing_cache
+                    )
+                    selling_p = float(p_info["base_price"])
+                    discount_amount = float(p_info["discount_amount"])
+                    discount_percentage = float(p_info["discount_percentage"])
+                    rule_name = p_info["rule_name"]
+                    rule_id = p_info["rule_id"]
+                    is_below_cost = p_info["is_below_cost"]
+                    price_snapshot = p_info["price_snapshot"]
+                except Exception as ex:
+                    logger.debug(f"PricingService fallback for product {p.id}: {ex}")
 
             # تطبيق سعر المورد الأخير إن وجد
             if product_type == "purchase" and str(p.id) in supplier_lpp_map:
@@ -208,7 +247,7 @@ def invoice_product_lookup(request):
             price_source = ProductPriceSource.PRODUCT_CURRENCY_PRICE.value
             display_price = selling_p if product_type != "purchase" else cost_p
 
-            if is_foreign and curr_code:
+            if is_foreign and curr_code and (product_type == "purchase" or not pricing_cache or not pricing_cache.get("price_list_id")):
                 cp_data = curr_prices.get(curr_code)
                 price_key = "selling" if product_type != "purchase" else "cost"
                 explicit_val = cp_data.get(price_key) if cp_data else None
@@ -244,6 +283,12 @@ def invoice_product_lookup(request):
                 "barcode": p.barcode or "",
                 "selling_price": display_price if product_type != "purchase" else selling_p,
                 "cost_price": display_price if product_type == "purchase" else cost_p,
+                "discount_amount": discount_amount,
+                "discount_percentage": discount_percentage,
+                "rule_name": rule_name,
+                "rule_id": rule_id,
+                "is_below_cost": is_below_cost,
+                "price_snapshot": price_snapshot,
                 "currency_prices": curr_prices,
                 "stock": stock_qty,
                 "is_service": p.is_service,

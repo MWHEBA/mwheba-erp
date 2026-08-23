@@ -346,8 +346,9 @@ def journal_entries_list(request):
                 'manual': ('fa-edit', 'secondary'),
                 'automatic': ('fa-robot', 'primary'),
                 'sales_invoice': ('fa-file-invoice', 'primary'),
-                'sale': ('fa-file-invoice', 'primary'),
                 'customer_payment': ('fa-hand-holding-usd', 'success'),
+                'client_payment': ('fa-hand-holding-usd', 'success'),
+                'service_payment': ('fa-file-invoice-dollar', 'info'),
                 'sales_return': ('fa-undo', 'warning'),
                 'purchase_invoice': ('fa-file-invoice-dollar', 'info'),
                 'purchase': ('fa-file-invoice-dollar', 'info'),
@@ -467,7 +468,7 @@ def journal_entries_list(request):
                 category_display = f'<span class="badge bg-primary">{cat.name}</span>'
         
         # تحضير badge النوع مع الأيقونة - استخدام entry_type_display للحصول على الترجمة الصحيحة
-        display_text = entry._original.get_entry_type_display() if hasattr(entry._original, 'get_entry_type_display') else entry.entry_type
+        display_text = entry._original.get_entry_type_display_smart() if hasattr(entry._original, 'get_entry_type_display_smart') else (entry._original.get_entry_type_display() if hasattr(entry._original, 'get_entry_type_display') else entry.entry_type)
         entry_type_badge = f'<span class="badge bg-{entry.entry_type_color}"><i class="fas {entry.entry_type_icon} me-1"></i>{display_text}</span>'
 
         # أيقونة المرفقات إن وجد مرفق للقيد

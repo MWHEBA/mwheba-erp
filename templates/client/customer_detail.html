@@ -309,6 +309,17 @@
                 </div>
 
                 <div class="col-md-6 col-lg-3">
+                  <small class="text-muted d-block mb-1">{% trans "قائمة الأسعار الافتراضية" %}</small>
+                  <span class="text-dark fw-bold">
+                    {% if customer.default_price_list %}
+                      <i class="fas fa-tags text-primary me-1"></i>{{ customer.default_price_list.name }}
+                    {% else %}
+                      <span class="text-muted">{% trans "الأسعار القياسية (الكتالوج)" %}</span>
+                    {% endif %}
+                  </span>
+                </div>
+
+                <div class="col-md-6 col-lg-3">
                   <small class="text-muted d-block mb-1">{% trans "سقف الائتمان المرخص" %}</small>
                   <span class="text-primary fw-bold">{{ customer.credit_limit|smart_float }} {{ currency_symbol }}</span>
                 </div>

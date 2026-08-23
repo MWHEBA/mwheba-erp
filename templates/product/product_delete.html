@@ -25,7 +25,21 @@
                     </h5>
                 </div>
                 <div class="card-body">
-                    {% if can_delete_permanently %}
+                    {% if has_stock %}
+                        <div class="alert alert-danger mb-4">
+                            <div class="d-flex align-items-start">
+                                <i class="fas fa-ban fa-2x me-3 text-danger mt-1"></i>
+                                <div>
+                                    <h5 class="alert-heading fw-bold mb-1">إجراء محظور: لا يمكن حذف أو تعطيل المنتج</h5>
+                                    <p class="mb-0">
+                                        يوجد رصيد متاح حالياً لهذا المنتج في المخازن بإجمالي <strong>{{ current_stock_qty|smart_float }} {{ product.unit.name }}</strong>.
+                                        <br>
+                                        يمنع النظام بحزم حذف أو تعطيل أي صنف يحتوي على رصيد مخزني فعلي لتجنب إخفاء أو تجميد الأصول المخزنية في الدفاتر. يرجى صرف أو تصفية رصيد المخزون أولاً ليصبح صفراً قبل محاولة التعطيل أو الحذف.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    {% elif can_delete_permanently %}
                         <div class="alert alert-danger">
                             <i class="fas fa-exclamation-triangle me-2"></i>
                             <strong>تحذير:</strong> هل أنت متأكد من حذف 
@@ -126,8 +140,9 @@
                         
                         <div class="d-flex justify-content-between mt-4">
                             <a href="{% url 'product:product_list' %}" class="btn btn-outline-secondary">
-                                <i class="fas fa-arrow-right me-1"></i> رجوع
+                                <i class="fas fa-arrow-right me-1"></i> رجوع لقائمة المنتجات
                             </a>
+                            {% if not has_stock %}
                             <button type="submit" class="btn {% if can_delete_permanently %}btn-danger{% else %}btn-warning{% endif %}">
                                 <i class="fas {% if can_delete_permanently %}fa-trash-alt{% else %}fa-ban{% endif %} me-1"></i>
                                 {% if can_delete_permanently %}
@@ -136,6 +151,7 @@
                                     تعطيل المنتج
                                 {% endif %}
                             </button>
+                            {% endif %}
                         </div>
                     </form>
                 </div>
