@@ -2,25 +2,173 @@
 {% load static %}
 {% load i18n %}
 {% load custom_filters %}
+{% load utils_extras %}
+{% load app_tags %}
 
 {% block title %}{{ page_title }}{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+<style>
+.stepper-icon-circle {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  transition: var(--transition-all);
+}
+.stepper-icon-circle.step-completed {
+  background-color: var(--success-color);
+  color: var(--white);
+}
+.stepper-icon-circle.step-active {
+  background-color: var(--primary-color);
+  color: var(--white);
+  box-shadow: 0 0 0 4px var(--primary-soft);
+}
+.stepper-icon-circle.step-pending {
+  background-color: var(--gray-100);
+  color: var(--gray-500);
+  border: 2px solid var(--border-color);
+}
+.stepper-line {
+  height: 3px;
+  margin-top: -24px;
+  z-index: 1;
+}
+.stepper-line.line-completed {
+  background-color: var(--success-color);
+}
+.stepper-line.line-pending {
+  background-color: var(--border-color);
+}
+</style>
+{% endblock %}
+
+{% block messages %}
+  {% if messages %}
+    {% for message in messages %}
+      {% if 'Overselling' in message.message or 'رصيد كافٍ' in message.message or 'رصيد المخزون' in message.message or 'تجاوز رصيد' in message.message %}
+        <div class="d-none js-overselling-alert-data" data-message="{{ message.message }}"></div>
+      {% else %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show position-fixed django-message" 
+             style="top: 20px; right: 20px; z-index: 9999; min-width: 300px;" 
+             role="alert">
+          {% if message.tags == 'success' %}
+            <i class="fas fa-check-circle me-2"></i>
+          {% elif message.tags == 'info' %}
+            <i class="fas fa-info-circle me-2"></i>
+          {% elif message.tags == 'warning' %}
+            <i class="fas fa-exclamation-triangle me-2"></i>
+          {% elif message.tags == 'error' or message.tags == 'danger' %}
+            <i class="fas fa-exclamation-circle me-2"></i>
+          {% endif %}
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="إغلاق"></button>
+        </div>
+      {% endif %}
+    {% endfor %}
+  {% endif %}
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid">
-  <!-- Page Header المركزي -->
-  {% include "shared/page_header.html" %}
+  <!-- Page Header المركزي الموحد -->
+  {% include "shared/page_header.html" with title=page_title subtitle=page_subtitle icon=page_icon header_buttons=header_buttons breadcrumb_items=breadcrumb_items %}
 
-  <!-- كروت ملخص أمر البيع -->
+  <!-- شريط دورة حياة أمر البيع (Lifecycle Stepper) -->
+  <div class="section-container p-3 mb-4">
+    <div class="d-flex align-items-center justify-content-between position-relative">
+      <!-- 1. مسودة أمر البيع -->
+      <div class="stepper-step text-center flex-fill position-relative">
+        <div class="stepper-icon-circle mx-auto mb-2 {% if current_step >= 2 %}step-completed{% else %}step-active{% endif %}">
+          <i class="fas fa-file-alt"></i>
+        </div>
+        <div class="stepper-title fw-bold">{% trans "مسودة" %}</div>
+        <div class="stepper-subtitle text-muted small">
+          {% if so.status == 'PENDING_APPROVAL' %}
+            <span class="text-warning fw-bold">{% trans "بانتظار الاعتماد" %}</span>
+          {% else %}
+            {{ so.order_date|date:"Y-m-d" }}
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="stepper-line flex-fill {% if current_step >= 2 %}line-completed{% else %}line-pending{% endif %}"></div>
+
+      <!-- 2. الاعتماد والموافقة -->
+      <div class="stepper-step text-center flex-fill position-relative">
+        <div class="stepper-icon-circle mx-auto mb-2 {% if so.status == 'CANCELLED' %}step-danger{% elif current_step >= 2 %}step-completed{% else %}step-pending{% endif %}">
+          <i class="fas fa-check-double"></i>
+        </div>
+        <div class="stepper-title fw-bold">{% trans "معتمد" %}</div>
+        <div class="stepper-subtitle text-muted small">
+          {% if so.status == 'CANCELLED' %}
+            <span class="text-danger fw-bold">{% trans "ملغي" %}</span>
+          {% elif current_step >= 2 %}
+            <span class="text-success fw-bold">{% trans "تم الاعتماد" %}</span>
+          {% else %}
+            <span class="text-muted">{% trans "غير معتمد" %}</span>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="stepper-line flex-fill {% if current_step >= 3 %}line-completed{% else %}line-pending{% endif %}"></div>
+
+      <!-- 3. الصرف والتسليم المخزني -->
+      <div class="stepper-step text-center flex-fill position-relative">
+        <div class="stepper-icon-circle mx-auto mb-2 {% if current_step >= 3 %}step-completed{% elif current_step >= 2 %}step-active{% else %}step-pending{% endif %}">
+          <i class="fas fa-truck-loading"></i>
+        </div>
+        <div class="stepper-title fw-bold">{% trans "التسليم المخزني" %}</div>
+        <div class="stepper-subtitle text-muted small">
+          {% if total_delivered_qty >= total_ordered_qty and total_ordered_qty > 0 %}
+            <span class="text-success fw-bold">{% trans "مكتمل التسليم" %}</span>
+          {% elif total_delivered_qty > 0 %}
+            <span class="text-primary fw-bold">{{ delivery_progress }}%</span>
+          {% elif current_step >= 2 %}
+            <span class="text-muted">{% trans "جاهز للتسليم" %}</span>
+          {% else %}
+            <span class="text-muted">{% trans "قيد الانتظار" %}</span>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="stepper-line flex-fill {% if current_step >= 4 %}line-completed{% else %}line-pending{% endif %}"></div>
+
+      <!-- 4. الفوترة المكتملة -->
+      <div class="stepper-step text-center flex-fill position-relative">
+        <div class="stepper-icon-circle mx-auto mb-2 {% if current_step >= 4 %}step-completed{% elif current_step >= 2 %}step-active{% else %}step-pending{% endif %}">
+          <i class="fas fa-file-invoice-dollar"></i>
+        </div>
+        <div class="stepper-title fw-bold">{% trans "الفوترة" %}</div>
+        <div class="stepper-subtitle small">
+          {% if linked_sales %}
+            <span class="text-success fw-bold">{{ linked_sales.count }} {% trans "فاتورة" %}</span>
+          {% elif current_step >= 2 %}
+            <span class="text-muted">{% trans "جاهز للفوترة" %}</span>
+          {% else %}
+            <span class="text-muted">{% trans "غير مفوتر" %}</span>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- كروت التتبع والمؤشرات الرئيسية (KPI Cards) -->
   <div class="row g-3 mb-4">
     <div class="col-md-3 col-sm-6">
       <div class="stats-card stats-card-info h-100">
         <div class="stats-card-body d-flex align-items-center">
           <div class="stats-card-icon me-3">
-            <i class="fas fa-user fa-2x"></i>
+            <i class="fas fa-boxes"></i>
           </div>
           <div>
-            <div class="stats-card-title text-muted">{% trans "العميل" %}</div>
-            <div class="stats-card-value fw-bold fs-5">{{ so.customer.name }}</div>
+            <div class="stats-card-title text-muted">{% trans "الكمية المطلوبة" %}</div>
+            <div class="stats-card-value fw-bold fs-5">{{ total_ordered_qty|smart_float }}</div>
           </div>
         </div>
       </div>
@@ -29,11 +177,11 @@
       <div class="stats-card stats-card-success h-100">
         <div class="stats-card-body d-flex align-items-center">
           <div class="stats-card-icon me-3">
-            <i class="fas fa-dollar-sign fa-2x"></i>
+            <i class="fas fa-truck-loading"></i>
           </div>
           <div>
-            <div class="stats-card-title text-muted">{% trans "المبلغ الإجمالي" %}</div>
-            <div class="stats-card-value fw-bold fs-5 text-success">{{ so.total_amount|floatformat:2 }} {{ so.currency }}</div>
+            <div class="stats-card-title text-muted">{% trans "الكمية المسلمة" %}</div>
+            <div class="stats-card-value fw-bold fs-5 text-success">{{ total_delivered_qty|smart_float }}</div>
           </div>
         </div>
       </div>
@@ -42,11 +190,11 @@
       <div class="stats-card stats-card-warning h-100">
         <div class="stats-card-body d-flex align-items-center">
           <div class="stats-card-icon me-3">
-            <i class="fas fa-warehouse fa-2x"></i>
+            <i class="fas fa-hourglass-half"></i>
           </div>
           <div>
-            <div class="stats-card-title text-muted">{% trans "المخزن المستهدف" %}</div>
-            <div class="stats-card-value fw-bold fs-5">{{ so.warehouse.name }}</div>
+            <div class="stats-card-title text-muted">{% trans "المتبقي للتسليم" %}</div>
+            <div class="stats-card-value fw-bold fs-5 {% if total_remaining_qty > 0 %}text-warning{% else %}text-muted{% endif %}">{{ total_remaining_qty|smart_float }}</div>
           </div>
         </div>
       </div>
@@ -55,11 +203,313 @@
       <div class="stats-card stats-card-primary h-100">
         <div class="stats-card-body d-flex align-items-center">
           <div class="stats-card-icon me-3">
-            <i class="fas fa-traffic-light fa-2x"></i>
+            <i class="fas fa-file-invoice-dollar"></i>
           </div>
           <div>
-            <div class="stats-card-title text-muted">{% trans "حالة الأمر" %}</div>
-            <div class="stats-card-value fw-bold fs-5">
+            <div class="stats-card-title text-muted">{% trans "إجمالي أمر البيع" %}</div>
+            <div class="stats-card-value fw-bold fs-5 text-primary">{{ so.total_amount|smart_float:2 }} {{ so.currency }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    <!-- العمود الرئيسي: تفاصيل البنود والوثائق المرتبطة -->
+    <div class="col-lg-8">
+      <!-- جدول بنود أمر البيع والتتبع -->
+      <div class="section-container mb-4">
+        <h5 class="section-title"><i class="fas fa-boxes me-2 text-primary"></i>{% trans "بنود أمر البيع والتتبع اللوجستي" %}</h5>
+
+        <div class="d-flex align-items-center justify-content-between mb-2">
+          <span class="small text-muted">{% trans "نسبة إنجاز التسليم الفعلي من المخزن:" %}</span>
+          <span class="badge bg-primary-subtle text-primary border border-primary-subtle fw-bold">{{ delivery_progress }}%</span>
+        </div>
+
+        <div class="progress mb-3" style="height: 6px;">
+          <div class="progress-bar bg-primary" id="deliveryProgressBar" role="progressbar" data-progress="{{ delivery_progress|default:0 }}" aria-valuenow="{{ delivery_progress|default:0 }}" aria-valuemin="0" aria-valuemax="100"></div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0 text-center">
+            <thead class="table-light">
+              <tr>
+                <th style="width: 40px;">#</th>
+                <th class="text-start">{% trans "المنتج / الصنف" %}</th>
+                <th>{% trans "الوحدة" %}</th>
+                <th>{% trans "المطلوب" %}</th>
+                <th>{% trans "المسلم" %}</th>
+                <th>{% trans "المتبقي" %}</th>
+                <th>{% trans "المفوتر" %}</th>
+                <th class="text-end">{% trans "سعر الوحدة" %}</th>
+                <th>{% trans "الخصم" %}</th>
+                <th class="text-end">{% trans "الإجمالي" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in items %}
+              <tr>
+                <td>{{ forloop.counter }}</td>
+                <td class="text-start fw-bold">
+                  <div>{{ item.product.name }}</div>
+                  {% if item.product.sku %}
+                  <div class="small text-muted">{{ item.product.sku }}</div>
+                  {% endif %}
+                </td>
+                <td>{{ item.product.unit.name|default:"-" }}</td>
+                <td class="fw-bold">{{ item.ordered_qty|smart_float }}</td>
+                <td>
+                  {% if item.delivered_qty >= item.ordered_qty and item.ordered_qty > 0 %}
+                    <span class="badge bg-success">{{ item.delivered_qty|smart_float }}</span>
+                  {% elif item.delivered_qty > 0 %}
+                    <span class="badge bg-warning text-dark">{{ item.delivered_qty|smart_float }}</span>
+                  {% else %}
+                    <span class="badge bg-secondary">0</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% with remaining=item.ordered_qty|subtract:item.delivered_qty %}
+                    {% if remaining > 0 %}
+                      <span class="fw-bold text-warning">{{ remaining|smart_float }}</span>
+                    {% else %}
+                      <span class="text-muted">0</span>
+                    {% endif %}
+                  {% endwith %}
+                </td>
+                <td>
+                  {% if item.invoiced_qty >= item.ordered_qty and item.ordered_qty > 0 %}
+                    <span class="badge bg-success">{{ item.invoiced_qty|smart_float }}</span>
+                  {% elif item.invoiced_qty > 0 %}
+                    <span class="badge bg-info text-white">{{ item.invoiced_qty|smart_float }}</span>
+                  {% else %}
+                    <span class="badge bg-secondary">0</span>
+                  {% endif %}
+                </td>
+                <td class="text-end">{{ item.unit_price|smart_float:2 }}</td>
+                <td>
+                  {% if item.discount_percentage > 0 %}
+                    <span class="text-danger">{{ item.discount_percentage|smart_float:2 }}%</span>
+                  {% else %}
+                    <span class="text-muted">-</span>
+                  {% endif %}
+                </td>
+                <td class="text-end fw-bold text-success">{{ item.line_total|smart_float:2 }} {{ so.currency }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+            <tfoot class="table-light">
+              <tr>
+                <td colspan="9" class="text-end fw-bold">{% trans "المجموع الفرعي:" %}</td>
+                <td class="text-end fw-bold">{{ so.subtotal|smart_float:2 }} {{ so.currency }}</td>
+              </tr>
+              {% if so.discount_amount > 0 %}
+              <tr class="text-danger">
+                <td colspan="9" class="text-end fw-bold">{% trans "قيمة الخصم:" %}</td>
+                <td class="text-end fw-bold">-{{ so.discount_amount|smart_float:2 }} {{ so.currency }}</td>
+              </tr>
+              {% endif %}
+              {% if so.adjustment_amount != 0 %}
+              <tr>
+                <td colspan="9" class="text-end fw-bold">{{ so.adjustment_name|default:_("تسوية إضافية:") }}</td>
+                <td class="text-end fw-bold">{{ so.adjustment_amount|smart_float:2 }} {{ so.currency }}</td>
+              </tr>
+              {% endif %}
+              {% if so.tax_amount > 0 %}
+              <tr class="text-primary">
+                <td colspan="9" class="text-end fw-bold">{% trans "ضريبة القيمة المضافة (VAT):" %}</td>
+                <td class="text-end fw-bold">+{{ so.tax_amount|smart_float:2 }} {{ so.currency }}</td>
+              </tr>
+              {% endif %}
+              {% if so.wht_amount > 0 %}
+              <tr class="text-warning">
+                <td colspan="9" class="text-end fw-bold">{% trans "خصم أ.ت.ص (المنبع):" %}</td>
+                <td class="text-end fw-bold">-{{ so.wht_amount|smart_float:2 }} {{ so.currency }}</td>
+              </tr>
+              {% endif %}
+              <tr class="table-active">
+                <td colspan="9" class="text-end fw-bold fs-5">{% trans "صافي إجمالي أمر البيع:" %}</td>
+                <td class="text-end fw-bold fs-5 text-success">{{ so.total_amount|smart_float:2 }} {{ so.currency }}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+
+      <!-- إذون تسليم البضاعة المرتبطة -->
+      <div class="section-container mb-4">
+        <h5 class="section-title"><i class="fas fa-truck me-2 text-primary"></i>{% trans "إذون تسليم البضاعة المرتبطة" %}</h5>
+        {% if delivery_notes %}
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 text-center">
+              <thead class="table-light">
+                <tr>
+                  <th>{% trans "رقم إذن التسليم" %}</th>
+                  <th>{% trans "تاريخ التسليم" %}</th>
+                  <th>{% trans "المخزن" %}</th>
+                  <th>{% trans "السائق / اللوحة" %}</th>
+                  <th>{% trans "الحالة" %}</th>
+                  <th class="col-actions">{% trans "الإجراءات" %}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for dn in delivery_notes %}
+                <tr class="clickable-row" data-href="{% url 'sale:delivery_note_detail' dn.pk %}">
+                  <td class="fw-bold text-primary">{{ dn.delivery_number }}</td>
+                  <td>{{ dn.delivery_date|date:"Y-m-d" }}</td>
+                  <td>{{ dn.warehouse.name }}</td>
+                  <td>
+                    {% if dn.driver_name %}
+                      {{ dn.driver_name }} {% if dn.truck_plate_number %}({{ dn.truck_plate_number }}){% endif %}
+                    {% else %}
+                      <span class="text-muted">-</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if dn.status == 'DELIVERED' %}
+                      <span class="badge bg-success">{% trans "تم التسليم" %}</span>
+                    {% elif dn.status == 'CANCELLED' %}
+                      <span class="badge bg-danger">{% trans "ملغي" %}</span>
+                    {% else %}
+                      <span class="badge bg-secondary">{{ dn.get_status_display }}</span>
+                    {% endif %}
+                  </td>
+                  <td class="col-actions" onclick="event.stopPropagation();">
+                    <a href="{% url 'sale:delivery_note_detail' dn.pk %}" class="btn btn-sm btn-outline-secondary">
+                      <i class="fas fa-eye me-1"></i>{% trans "عرض" %}
+                    </a>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="text-center py-4 text-muted">
+            <i class="fas fa-truck-loading fa-2x mb-2 opacity-50 d-block"></i>
+            <p class="small mb-0">{% trans "لم يتم إصدار أي إذون تسليم بضاعة بعد على هذا الأمر." %}</p>
+          </div>
+        {% endif %}
+      </div>
+
+      <!-- فواتير المبيعات المرتبطة -->
+      <div class="section-container mb-4">
+        <h5 class="section-title"><i class="fas fa-file-invoice-dollar me-2 text-primary"></i>{% trans "فواتير المبيعات المرتبطة" %}</h5>
+        {% if linked_sales %}
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 text-center">
+              <thead class="table-light">
+                <tr>
+                  <th>{% trans "رقم الفاتورة" %}</th>
+                  <th>{% trans "تاريخ الفاتورة" %}</th>
+                  <th>{% trans "المبلغ الإجمالي" %}</th>
+                  <th>{% trans "حالة الفاتورة" %}</th>
+                  <th>{% trans "حالة السداد" %}</th>
+                  <th class="col-actions">{% trans "الإجراءات" %}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for s in linked_sales %}
+                <tr class="clickable-row" data-href="{% url 'sale:sale_detail' s.pk %}">
+                  <td class="fw-bold text-primary">{{ s.number }}</td>
+                  <td>{{ s.date|date:"Y-m-d" }}</td>
+                  <td class="fw-bold text-success">{{ s.total_amount|smart_float:2 }} {{ s.currency }}</td>
+                  <td><span class="badge bg-{{ s.status }}">{{ s.get_status_display }}</span></td>
+                  <td><span class="badge bg-{{ s.payment_status }}">{{ s.get_payment_status_display }}</span></td>
+                  <td class="col-actions" onclick="event.stopPropagation();">
+                    <a href="{% url 'sale:sale_detail' s.pk %}" class="btn btn-sm btn-outline-secondary">
+                      <i class="fas fa-eye me-1"></i>{% trans "عرض الفاتورة" %}
+                    </a>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="text-center py-4 text-muted">
+            <i class="fas fa-file-invoice fa-2x mb-2 opacity-50 d-block"></i>
+            <p class="small mb-0">{% trans "لم يتم إصدار فواتير مبيعات مرتبطة بأمر البيع هذا بعد." %}</p>
+          </div>
+        {% endif %}
+      </div>
+
+      <!-- الشروط والملاحظات والحقول الإضافية -->
+      {% if so.notes or so.custom_fields %}
+      <div class="section-container mb-4">
+        <h5 class="section-title"><i class="fas fa-sticky-note me-2 text-primary"></i>{% trans "الشروط والملاحظات" %}</h5>
+        {% if so.notes %}
+        <div class="text-dark" style="white-space: pre-line;">{{ so.notes }}</div>
+        {% endif %}
+        {% if so.custom_fields %}
+        <div class="row g-3 {% if so.notes %}mt-3 pt-3 border-top{% endif %}">
+          {% for cf in so.custom_fields %}
+          <div class="col-md-6">
+            <div class="p-2 border rounded bg-light">
+              <small class="text-muted d-block fw-bold">{{ cf.name }}</small>
+              <span class="text-dark fw-medium">{{ cf.value }}</span>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- العمود الجانبي: بيانات العميل، اللوجستيات، الإجراءات -->
+    <div class="col-lg-4">
+      <!-- بطاقة بيانات العميل -->
+      <div class="section-container mb-4">
+        <h5 class="section-title"><i class="fas fa-user me-2 text-primary"></i>{% trans "بيانات العميل" %}</h5>
+        <div class="d-flex flex-column gap-2 small">
+          <div class="d-flex justify-content-between border-bottom pb-2">
+            <span class="text-muted">{% trans "اسم العميل:" %}</span>
+            <span class="fw-bold">
+              <a href="{% url 'client:customer_detail' so.customer.id %}" class="text-primary text-decoration-none">
+                {{ so.customer.name }}
+              </a>
+            </span>
+          </div>
+          {% if so.customer.code %}
+          <div class="d-flex justify-content-between border-bottom pb-2">
+            <span class="text-muted">{% trans "كود العميل:" %}</span>
+            <span class="fw-semibold">{{ so.customer.code }}</span>
+          </div>
+          {% endif %}
+          {% if so.customer.phone %}
+          <div class="d-flex justify-content-between border-bottom pb-2">
+            <span class="text-muted">{% trans "الهاتف:" %}</span>
+            <span>{{ so.customer.phone }}</span>
+          </div>
+          {% endif %}
+          {% if so.customer.email %}
+          <div class="d-flex justify-content-between border-bottom pb-2">
+            <span class="text-muted">{% trans "البريد الإلكتروني:" %}</span>
+            <span>{{ so.customer.email }}</span>
+          </div>
+          {% endif %}
+          {% if so.customer.tax_number %}
+          <div class="d-flex justify-content-between border-bottom pb-2">
+            <span class="text-muted">{% trans "الرقم الضريبي:" %}</span>
+            <span>{{ so.customer.tax_number }}</span>
+          </div>
+          {% endif %}
+          {% if so.customer.address %}
+          <div class="d-flex justify-content-between pb-1">
+            <span class="text-muted">{% trans "العنوان:" %}</span>
+            <span class="text-end text-muted">{{ so.customer.address }}</span>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- بطاقة بيانات ومحددات أمر البيع -->
+      <div class="section-container mb-4">
+        <h5 class="section-title"><i class="fas fa-info-circle me-2 text-primary"></i>{% trans "بيانات ومحددات أمر البيع" %}</h5>
+        <div class="d-flex flex-column gap-2 small">
+          <div class="d-flex justify-content-between border-bottom pb-2">
+            <span class="text-muted">{% trans "حالة الأمر:" %}</span>
+            <span>
               {% if so.status == 'DRAFT' %}
                 <span class="badge bg-secondary">{% trans "مسودة" %}</span>
               {% elif so.status == 'PENDING_APPROVAL' %}
@@ -68,218 +518,296 @@
                 <span class="badge bg-info text-white">{% trans "معتمد" %}</span>
               {% elif so.status == 'PARTIALLY_DELIVERED' %}
                 <span class="badge bg-primary">{% trans "مسلم جزئياً" %}</span>
-              {% elif so.status == 'DELIVERED' or so.status == 'COMPLETED' %}
+              {% elif so.status == 'DELIVERED' or so.status == 'FULLY_DELIVERED' or so.status == 'COMPLETED' %}
                 <span class="badge bg-success">{% trans "مكتمل التسليم" %}</span>
               {% elif so.status == 'CANCELLED' %}
                 <span class="badge bg-danger">{% trans "ملغي" %}</span>
               {% else %}
                 <span class="badge bg-light text-dark">{{ so.get_status_display }}</span>
               {% endif %}
-            </div>
+            </span>
           </div>
+          <div class="d-flex justify-content-between border-bottom pb-2">
+            <span class="text-muted">{% trans "تاريخ أمر البيع:" %}</span>
+            <span class="fw-semibold">{{ so.order_date|date:"Y-m-d" }}</span>
+          </div>
+          <div class="d-flex justify-content-between border-bottom pb-2">
+            <span class="text-muted">{% trans "المخزن المستهدف:" %}</span>
+            <span class="fw-semibold">{{ so.warehouse.name }}</span>
+          </div>
+          {% if so.salesman %}
+          <div class="d-flex justify-content-between border-bottom pb-2">
+            <span class="text-muted">{% trans "مسؤول المبيعات:" %}</span>
+            <span class="fw-semibold text-primary">{{ so.salesman.get_full_name|default:so.salesman.username }}</span>
+          </div>
+          {% endif %}
+          {% if so.price_list %}
+          <div class="d-flex justify-content-between border-bottom pb-2">
+            <span class="text-muted">{% trans "قائمة الأسعار:" %}</span>
+            <span class="badge bg-light text-primary border">{{ so.price_list.name }}</span>
+          </div>
+          {% endif %}
+          {% if so.quotation_reference %}
+          <div class="d-flex justify-content-between border-bottom pb-2">
+            <span class="text-muted">{% trans "عرض السعر المرتبط:" %}</span>
+            <span>
+              <a href="{% url 'sale:quotation_detail' so.quotation_reference.id %}" class="text-primary fw-bold text-decoration-none">
+                #{{ so.quotation_reference.number }}
+              </a>
+            </span>
+          </div>
+          {% endif %}
+          {% if so.expected_delivery_date %}
+          <div class="d-flex justify-content-between border-bottom pb-2">
+            <span class="text-muted">{% trans "تاريخ التسليم المتوقع:" %}</span>
+            <span class="fw-semibold">{{ so.expected_delivery_date|date:"Y-m-d" }}</span>
+          </div>
+          {% endif %}
+          {% if so.reservation_expiry_date %}
+          <div class="d-flex justify-content-between border-bottom pb-2">
+            <span class="text-muted">{% trans "انتهاء مهلة الحجز:" %}</span>
+            <span class="text-warning fw-semibold">{{ so.reservation_expiry_date|date:"Y-m-d" }}</span>
+          </div>
+          {% endif %}
+          <div class="d-flex justify-content-between border-bottom pb-2">
+            <span class="text-muted">{% trans "طريقة التوصيل:" %}</span>
+            <span>{{ so.get_shipping_method_display }}</span>
+          </div>
+          {% if so.required_down_payment > 0 %}
+          <div class="d-flex justify-content-between border-bottom pb-2">
+            <span class="text-muted">{% trans "الدفعة المقدمة المشترطة:" %}</span>
+            <span class="fw-bold text-primary">{{ so.required_down_payment|smart_float:2 }} {{ so.currency }}</span>
+          </div>
+          {% endif %}
+          {% if so.shipping_address %}
+          <div class="d-flex justify-content-between border-bottom pb-2">
+            <span class="text-muted">{% trans "عنوان التسليم:" %}</span>
+            <span class="text-end text-muted">{{ so.shipping_address }}</span>
+          </div>
+          {% endif %}
+          <div class="d-flex justify-content-between border-bottom pb-2">
+            <span class="text-muted">{% trans "العملة وسعر الصرف:" %}</span>
+            <span>{{ so.currency }} (1 = {{ so.exchange_rate }})</span>
+          </div>
+          <div class="d-flex justify-content-between">
+            <span class="text-muted">{% trans "أنشئ بواسطة:" %}</span>
+            <span>{{ so.created_by.username|default:"-" }} ({{ so.created_at|date:"Y-m-d H:i" }})</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- بطاقة إجراءات الحوكمة وسير العمل -->
+      <div class="section-container mb-4">
+        <h5 class="section-title"><i class="fas fa-tasks me-2 text-primary"></i>{% trans "إجراءات وسير العمل الحاكم" %}</h5>
+        <div class="d-grid gap-2">
+          {% if so.status in 'DRAFT,PENDING_APPROVAL' %}
+            <form method="post" action="{% url 'sale:sales_order_confirm' so.pk %}">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-success w-100 fw-bold">
+                <i class="fas fa-check-circle me-1"></i>{% trans "اعتماد وتأكيد أمر البيع" %}
+              </button>
+            </form>
+            <a href="{% url 'sale:sales_order_edit' so.pk %}" class="btn btn-outline-primary w-100">
+              <i class="fas fa-edit me-1"></i>{% trans "تعديل أمر البيع" %}
+            </a>
+          {% endif %}
+
+          {% if so.status in 'APPROVED,CONFIRMED,PARTIALLY_DELIVERED' %}
+            <a href="{% url 'sale:delivery_note_create' %}?so_id={{ so.pk }}" class="btn btn-info text-white w-100 fw-bold">
+              <i class="fas fa-truck me-1"></i>{% trans "إصدار إذن تسليم مخزني" %}
+            </a>
+            <a href="{% url 'sale:sales_order_convert_to_sale' so.pk %}" class="btn btn-primary w-100 fw-bold">
+              <i class="fas fa-file-invoice-dollar me-1"></i>{% trans "إصدار فاتورة مبيعات" %}
+            </a>
+          {% endif %}
+
+          {% if so.status not in 'CANCELLED,FULLY_DELIVERED,INVOICED' %}
+            <button type="button" class="btn btn-outline-danger w-100" data-bs-toggle="modal" data-bs-target="#cancelOrderModal">
+              <i class="fas fa-times-circle me-1"></i>{% trans "إلغاء أمر البيع" %}
+            </button>
+          {% endif %}
+
+          <a href="{% url 'sale:sales_order_print' so.pk %}" target="_blank" class="btn btn-outline-secondary w-100">
+            <i class="fas fa-print me-1"></i>{% trans "طباعة المستند" %}
+          </a>
         </div>
       </div>
     </div>
   </div>
-
-  <!-- جدول بنود أمر البيع -->
-  <div class="section-container mb-4">
-    <h5 class="section-title"><i class="fas fa-boxes me-2"></i>{% trans "بنود أمر البيع" %}</h5>
-    <div class="table-responsive">
-      <table class="table table-hover table-striped text-center align-middle mb-0">
-        <thead class="table-light">
-          <tr>
-            <th>#</th>
-            <th>{% trans "المنتج / الصنف" %}</th>
-            <th>{% trans "الكمية المطلوبة" %}</th>
-            <th>{% trans "الكمية المسلمة" %}</th>
-            <th>{% trans "الكمية المفوترة" %}</th>
-            <th>{% trans "سعر الوحدة" %}</th>
-            <th>{% trans "الخصم %" %}</th>
-            <th>{% trans "إجمالي البند" %}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for item in items %}
-          <tr>
-            <td>{{ forloop.counter }}</td>
-            <td class="text-start fw-bold">{{ item.product.name }} ({{ item.product.sku }})</td>
-            <td class="fw-bold">{{ item.ordered_qty }}</td>
-            <td>
-              {% if item.delivered_qty >= item.ordered_qty %}
-                <span class="badge bg-success">{{ item.delivered_qty }}</span>
-              {% elif item.delivered_qty > 0 %}
-                <span class="badge bg-warning text-dark">{{ item.delivered_qty }}</span>
-              {% else %}
-                <span class="badge bg-secondary">0.00</span>
-              {% endif %}
-            </td>
-            <td>
-              {% if item.invoiced_qty >= item.ordered_qty %}
-                <span class="badge bg-success">{{ item.invoiced_qty }}</span>
-              {% elif item.invoiced_qty > 0 %}
-                <span class="badge bg-info text-white">{{ item.invoiced_qty }}</span>
-              {% else %}
-                <span class="badge bg-secondary">0.00</span>
-              {% endif %}
-            </td>
-            <td>{{ item.unit_price|floatformat:2 }}</td>
-            <td>{{ item.discount_percentage|floatformat:2 }}%</td>
-            <td class="fw-bold text-success">{{ item.line_total|floatformat:2 }} {{ so.currency }}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-        <tfoot class="table-light">
-          <tr>
-            <td colspan="7" class="text-end fw-bold">{% trans "المجموع الفرعي:" %}</td>
-            <td class="fw-bold">{{ so.subtotal|floatformat:2 }} {{ so.currency }}</td>
-          </tr>
-          {% if so.discount_amount > 0 %}
-          <tr class="text-danger">
-            <td colspan="7" class="text-end fw-bold">{% trans "قيمة الخصم:" %}</td>
-            <td class="fw-bold">-{{ so.discount_amount|floatformat:2 }} {{ so.currency }}</td>
-          </tr>
-          {% endif %}
-          {% if so.adjustment_amount != 0 %}
-          <tr>
-            <td colspan="7" class="text-end fw-bold">{{ so.adjustment_name|default:_("تسوية إضافية:") }}</td>
-            <td class="fw-bold">{{ so.adjustment_amount|floatformat:2 }} {{ so.currency }}</td>
-          </tr>
-          {% endif %}
-          {% if so.tax_amount > 0 %}
-          <tr class="text-primary">
-            <td colspan="7" class="text-end fw-bold">{% trans "ضريبة القيمة المضافة (VAT):" %}</td>
-            <td class="fw-bold">+{{ so.tax_amount|floatformat:2 }} {{ so.currency }}</td>
-          </tr>
-          {% endif %}
-          {% if so.wht_amount > 0 %}
-          <tr class="text-warning">
-            <td colspan="7" class="text-end fw-bold">{% trans "خصم أ.ت.ص (المنبع):" %}</td>
-            <td class="fw-bold">-{{ so.wht_amount|floatformat:2 }} {{ so.currency }}</td>
-          </tr>
-          {% endif %}
-          <tr class="table-active">
-            <td colspan="7" class="text-end fw-bold fs-5">{% trans "صافي إجمالي أمر البيع:" %}</td>
-            <td class="fw-bold fs-5 text-success">{{ so.total_amount|floatformat:2 }} {{ so.currency }}</td>
-          </tr>
-        </tfoot>
-      </table>
-    </div>
-  </div>
-
-  <!-- بيانات اللوجستيات والشحن والشروط -->
-  {% if so.expected_delivery_date or so.shipping_address or so.notes or so.salesman %}
-  <div class="section-container mb-4">
-    <h5 class="section-title"><i class="fas fa-truck-loading me-2"></i>{% trans "بيانات الشحن واللوجستيات والشروط" %}</h5>
-    <div class="row g-3">
-      {% if so.salesman %}
-      <div class="col-md-3">
-        <span class="text-muted d-block small">{% trans "مسؤول المبيعات" %}</span>
-        <span class="fw-bold">{{ so.salesman.get_full_name|default:so.salesman.username }}</span>
-      </div>
-      {% endif %}
-      {% if so.expected_delivery_date %}
-      <div class="col-md-3">
-        <span class="text-muted d-block small">{% trans "تاريخ التوريد المتوقع" %}</span>
-        <span class="fw-bold">{{ so.expected_delivery_date|date:"Y-m-d" }}</span>
-      </div>
-      {% endif %}
-      <div class="col-md-3">
-        <span class="text-muted d-block small">{% trans "طريقة التوصيل" %}</span>
-        <span class="fw-bold">{{ so.get_shipping_method_display }}</span>
-      </div>
-      {% if so.required_down_payment > 0 %}
-      <div class="col-md-3">
-        <span class="text-muted d-block small">{% trans "الدفعة المقدمة المشترطة" %}</span>
-        <span class="fw-bold text-primary">{{ so.required_down_payment|floatformat:2 }} {{ so.currency }}</span>
-      </div>
-      {% endif %}
-      {% if so.shipping_address %}
-      <div class="col-12 mt-2 pt-2 border-top">
-        <span class="text-muted d-block small">{% trans "موقع وعنوان التسليم الفعلي" %}</span>
-        <span class="text-dark">{{ so.shipping_address }}</span>
-      </div>
-      {% endif %}
-      {% if so.notes %}
-      <div class="col-12 mt-2 pt-2 border-top">
-        <span class="text-muted d-block small">{% trans "الشروط والملاحظات" %}</span>
-        <span class="text-dark" style="white-space: pre-line;">{{ so.notes }}</span>
-      </div>
-      {% endif %}
-    </div>
-  </div>
-  {% endif %}
-
-  <!-- إذون التسليم المرتبطة -->
-  {% if delivery_notes %}
-  <div class="section-container mb-4">
-    <h5 class="section-title"><i class="fas fa-truck me-2"></i>{% trans "إذون تسليم البضاعة المرتبطة" %}</h5>
-    <div class="table-responsive">
-      <table class="table table-hover table-striped text-center align-middle mb-0">
-        <thead class="table-light">
-          <tr>
-            <th>{% trans "رقم إذن التسليم" %}</th>
-            <th>{% trans "تاريخ التسليم" %}</th>
-            <th>{% trans "المخزن" %}</th>
-            <th>{% trans "الحالة" %}</th>
-            <th>{% trans "الإجراءات" %}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for dn in delivery_notes %}
-          <tr>
-            <td class="fw-bold text-primary">{{ dn.delivery_number }}</td>
-            <td>{{ dn.delivery_date|date:"Y-m-d" }}</td>
-            <td>{{ dn.warehouse.name }}</td>
-            <td><span class="badge bg-success">{% trans "تم التسليم" %}</span></td>
-            <td>
-              <a href="{% url 'sale:delivery_note_detail' dn.pk %}" class="btn btn-sm btn-outline-secondary">
-                <i class="fas fa-eye me-1"></i>{% trans "عرض" %}
-              </a>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </div>
-  {% endif %}
-
-  <!-- فواتير المبيعات المرتبطة -->
-  {% if linked_sales %}
-  <div class="section-container mb-4">
-    <h5 class="section-title"><i class="fas fa-file-invoice-dollar me-2"></i>{% trans "فواتير المبيعات المرتبطة" %}</h5>
-    <div class="table-responsive">
-      <table class="table table-hover table-striped text-center align-middle mb-0">
-        <thead class="table-light">
-          <tr>
-            <th>{% trans "رقم الفاتورة" %}</th>
-            <th>{% trans "تاريخ الفاتورة" %}</th>
-            <th>{% trans "المبلغ الإجمالي" %}</th>
-            <th>{% trans "حالة الفاتورة" %}</th>
-            <th>{% trans "حالة السداد" %}</th>
-            <th>{% trans "الإجراءات" %}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for s in linked_sales %}
-          <tr>
-            <td class="fw-bold text-primary">{{ s.number }}</td>
-            <td>{{ s.date|date:"Y-m-d" }}</td>
-            <td class="fw-bold text-success">{{ s.total_amount|floatformat:2 }} {{ s.currency }}</td>
-            <td><span class="badge bg-{{ s.status }}">{{ s.get_status_display }}</span></td>
-            <td><span class="badge bg-{{ s.payment_status }}">{{ s.get_payment_status_display }}</span></td>
-            <td>
-              <a href="{% url 'sale:sale_detail' s.pk %}" class="btn btn-sm btn-outline-secondary">
-                <i class="fas fa-eye me-1"></i>{% trans "عرض الفاتورة" %}
-              </a>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </div>
-  {% endif %}
 </div>
+
+<!-- Modal إلغاء أمر البيع بتصميم المؤسسة الموحد -->
+<div class="modal fade" id="cancelOrderModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header bg-light border-bottom px-4 py-3">
+        <h5 class="modal-title fw-bold text-dark mb-0">
+          <i class="fas fa-times-circle text-danger me-2"></i>{% trans "إلغاء أمر البيع" %}
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form method="post" action="{% url 'sale:sales_order_cancel' so.pk %}">
+        {% csrf_token %}
+        <div class="modal-body p-4">
+          <p class="text-danger fw-semibold mb-3">
+            {% trans "هل أنت متأكد من رغبتك في إلغاء أمر البيع هذا؟ سيتم فك حجز أي كميات مخزنية محجوزة له فوراً." %}
+          </p>
+          <div class="bg-light p-3 rounded border mb-0">
+            <div class="d-flex justify-content-between small">
+              <span class="text-muted">{% trans "رقم أمر البيع:" %}</span>
+              <span class="fw-bold">{{ so.order_number }}</span>
+            </div>
+            <div class="d-flex justify-content-between small mt-1">
+              <span class="text-muted">{% trans "العميل:" %}</span>
+              <span class="fw-bold">{{ so.customer.name }}</span>
+            </div>
+            <div class="d-flex justify-content-between small mt-1">
+              <span class="text-muted">{% trans "المبلغ الإجمالي:" %}</span>
+              <span class="fw-bold text-primary">{{ so.total_amount|smart_float:2 }} {{ so.currency }}</span>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer bg-light border-top px-4 py-3">
+          <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "تراجع" %}</button>
+          <button type="submit" class="btn btn-danger px-4 fw-bold">{% trans "تأكيد الإلغاء" %}</button>
+        </div>
+      </form>
+    </div>
+<form id="approveOrderForm" method="post" action="{% url 'sale:sales_order_confirm' so.pk %}" style="display: none;"
+      data-order-number="{{ so.order_number }}"
+      data-customer-name="{{ so.customer.name }}"
+      data-warehouse-name="{{ so.warehouse.name }}"
+      data-total-amount="{{ so.total_amount|smart_float:2 }} {{ so.currency }}">
+  {% csrf_token %}
+</form>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function confirmApproveOrder() {
+  var form = document.getElementById("approveOrderForm");
+  if (!form) return;
+  var orderNumber = form.getAttribute("data-order-number") || "";
+  var customerName = form.getAttribute("data-customer-name") || "";
+  var warehouseName = form.getAttribute("data-warehouse-name") || "";
+  var totalAmount = form.getAttribute("data-total-amount") || "";
+
+  if (typeof Swal !== "undefined") {
+    Swal.fire({
+      title: '<span style="font-size: 18px; font-weight: bold; color: var(--text-dark, #212529);">اعتماد أمر البيع وتأكيد الحجز</span>',
+      html:
+        '<div class="text-start p-2" style="direction: rtl; font-size: 14px; line-height: 1.6;">' +
+        '  <p class="mb-3 text-secondary">هل أنت متأكد من رغبتك في اعتماد أمر البيع رقم <strong class="text-dark">#' + orderNumber + '</strong>؟</p>' +
+        '  <div class="bg-light p-3 rounded border mb-0">' +
+        '    <div class="d-flex justify-content-between small mb-1">' +
+        '      <span class="text-muted">العميل:</span>' +
+        '      <span class="fw-bold text-dark">' + customerName + '</span>' +
+        '    </div>' +
+        '    <div class="d-flex justify-content-between small mb-1">' +
+        '      <span class="text-muted">المخزن المنفذ:</span>' +
+        '      <span class="fw-bold text-dark">' + warehouseName + '</span>' +
+        '    </div>' +
+        '    <div class="d-flex justify-content-between small">' +
+        '      <span class="text-muted">إجمالي المبلغ:</span>' +
+        '      <span class="fw-bold text-primary">' + totalAmount + '</span>' +
+        '    </div>' +
+        '  </div>' +
+        '  <div class="alert alert-info py-2 px-3 mt-3 mb-0 small" style="border-radius: 6px;">' +
+        '    <i class="fas fa-shield-alt me-1 text-primary"></i>' +
+        '    سيقوم النظام بحجز كميات الأصناف المطلوبة من المخزن لضمان توفرها للعميل.' +
+        '  </div>' +
+        '</div>',
+      icon: "question",
+      iconColor: "var(--bs-primary, #0d6efd)",
+      showCancelButton: true,
+      confirmButtonText: '<i class="fas fa-check me-1"></i> تأكيد الاعتماد والحجز',
+      cancelButtonText: "تراجع",
+      reverseButtons: true,
+      customClass: {
+        confirmButton: "btn btn-success px-4 mx-1 fw-bold",
+        cancelButton: "btn btn-secondary px-3 mx-1"
+      },
+      buttonsStyling: false
+    }).then(function(result) {
+      if (result.isConfirmed) {
+        form.submit();
+      }
+    });
+  } else {
+    if (confirm("هل أنت متأكد من اعتماد أمر البيع وحجز المخزون؟")) {
+      form.submit();
+    }
+  }
+}
+
+document.addEventListener("DOMContentLoaded", function() {
+  var progressBar = document.getElementById("deliveryProgressBar");
+  if (progressBar) {
+    var p = progressBar.getAttribute("data-progress") || "0";
+    progressBar.style.width = p + "%";
+  }
+
+  document.querySelectorAll(".clickable-row").forEach(function(row) {
+    row.style.cursor = "pointer";
+    row.addEventListener("click", function(e) {
+      if (!e.target.closest(".col-actions, .btn, a, button")) {
+        var href = this.getAttribute("data-href");
+        if (href) window.location.href = href;
+      }
+    });
+  });
+
+  // تحسين وتنسيق رسائل التنبيه والـ Overselling عبر SweetAlert2
+  var oversellingAlertEl = document.querySelector(".js-overselling-alert-data");
+  if (oversellingAlertEl && typeof Swal !== "undefined") {
+    // إزالة أي توستر أو رسالة زاوية لمنع الازدواجية
+    document.querySelectorAll(".django-message").forEach(function(el) {
+      if (el.textContent.includes("Overselling") || el.textContent.includes("رصيد كافٍ") || el.textContent.includes("المخزن")) {
+        el.remove();
+      }
+    });
+
+    var rawMsg = oversellingAlertEl.getAttribute("data-message") || "";
+    var cleanMsg = rawMsg.replace(/^.*Overselling Error:\s*/i, "").trim();
+    var editUrl = "{% url 'sale:sales_order_edit' so.pk %}";
+
+    Swal.fire({
+      icon: "info",
+      iconColor: "#0284c7",
+      title: '<span style="font-size: 19px; font-weight: 700; color: #0f172a;">موقف رصيد المخزون</span>',
+      html:
+        '<div class="text-start" style="direction: rtl; font-size: 14px; line-height: 1.7;">' +
+        '  <div class="p-3 bg-light border rounded mb-3">' +
+        '    <div class="text-dark fw-medium mb-0">' + cleanMsg + '</div>' +
+        '  </div>' +
+        '  <div class="border rounded p-3 bg-white mb-1">' +
+        '    <div class="small fw-bold text-dark mb-2"><i class="fas fa-tasks text-primary me-1"></i> خيارات المتابعة:</div>' +
+        '    <div class="d-flex align-items-start mb-2 small text-secondary">' +
+        '      <i class="fas fa-circle-check text-success mt-1 me-2" style="font-size: 13px;"></i>' +
+        '      <div><strong>تعديل الكمية:</strong> يمكنك تقليل الكمية لتتناسب مع الرصيد المتاح حالياً بالمخزن ثم اعتماد الأمر فوراً.</div>' +
+        '    </div>' +
+        '    <div class="d-flex align-items-start small text-secondary">' +
+        '      <i class="fas fa-circle-check text-primary mt-1 me-2" style="font-size: 13px;"></i>' +
+        '      <div><strong>تغذية المخزن:</strong> يمكنك إضافة رصيد للصنف (فاتورة مشتريات / إذن استلام) ثم إعادة الاعتماد.</div>' +
+        '    </div>' +
+        '  </div>' +
+        '</div>',
+      showCancelButton: true,
+      confirmButtonText: '<i class="fas fa-edit me-1"></i> تعديل أمر البيع',
+      cancelButtonText: 'إغلاق',
+      reverseButtons: true,
+      customClass: {
+        confirmButton: "btn btn-primary px-4 mx-1 fw-bold",
+        cancelButton: "btn btn-secondary px-3 mx-1"
+      },
+      buttonsStyling: false
+    }).then(function(result) {
+      if (result.isConfirmed) {
+        window.location.href = editUrl;
+      }
+    });
+  }
+});
+</script>
 {% endblock %}

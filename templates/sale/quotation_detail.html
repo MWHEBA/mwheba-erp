@@ -607,7 +607,7 @@
           </div>
           
           <!-- استمارة التحويل لفاتورة مبيعات آجل (بدون action-bar-buttons) -->
-          {% if not quotation.converted_to_sale %}
+          {% if not is_accepted_or_converted and quotation.status != 'rejected' %}
           <div class="action-bar mt-4">
             <div class="p-3 bg-white border rounded">
               <form method="post" action="{% url 'sale:quotation_convert_to_sale' quotation.id %}">
@@ -639,7 +639,7 @@
 </div>
 
 <!-- Actions Modal -->
-{% if not quotation.converted_to_sale %}
+{% if not is_accepted_or_converted and quotation.status != 'rejected' %}
 <div class="modal fade" id="actionsModal" tabindex="-1" aria-labelledby="actionsModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">

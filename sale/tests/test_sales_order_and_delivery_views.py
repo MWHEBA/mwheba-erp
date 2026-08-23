@@ -101,6 +101,7 @@ class TestSalesOrderAndDeliveryViews:
             "quantity[]": ["5.00"],
             "unit_price[]": ["1500.00"],
             "discount[]": ["0.00"],
+            "vat_rate": "0.00",
         }
         response = client.post(create_url, post_data)
         assert response.status_code == 302
@@ -113,6 +114,16 @@ class TestSalesOrderAndDeliveryViews:
         detail_res = client.get(detail_url)
         assert detail_res.status_code == 200
         assert so.order_number in detail_res.content.decode("utf-8")
+
+        # Test Arabic and English print views
+        print_url = reverse("sale:sales_order_print", kwargs={"pk": so.pk})
+        print_res_ar = client.get(print_url)
+        assert print_res_ar.status_code == 200
+        assert so.order_number in print_res_ar.content.decode("utf-8")
+
+        print_res_en = client.get(f"{print_url}?lang=en")
+        assert print_res_en.status_code == 200
+        assert so.order_number in print_res_en.content.decode("utf-8")
 
     def test_delivery_note_list_and_create_flow(self, client):
         client.force_login(self.user)

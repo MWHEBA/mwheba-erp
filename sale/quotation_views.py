@@ -477,6 +477,12 @@ def quotation_detail(request, pk):
     quotation = get_object_or_404(Quotation.objects.with_details(), pk=pk)
     items = quotation.items.all()
 
+    linked_so = quotation.sales_orders.exclude(status='CANCELLED').first() if hasattr(quotation, 'sales_orders') else None
+    if not linked_so and hasattr(quotation, 'sales_orders'):
+        linked_so = quotation.sales_orders.first()
+    linked_sale = quotation.converted_to_sale
+    is_accepted_or_converted = bool(quotation.status == 'accepted' or linked_sale or linked_so)
+
     # شارات الهيدر
     header_badges = [
         {"text": quotation.number, "class": "bg-primary", "icon": "fas fa-hashtag"},
@@ -489,12 +495,19 @@ def quotation_detail(request, pk):
             "icon": "fas fa-tasks",
             "url": reverse("work_order:work_order_detail", kwargs={"pk": quotation.work_order.pk})
         })
-    if quotation.converted_to_sale:
+    if linked_so:
         header_badges.append({
-            "text": _("محول لفاتورة: {}").format(quotation.converted_to_sale.number),
-            "class": "bg-success",
-            "icon": "fas fa-link",
-            "url": reverse("sale:sale_detail", kwargs={"pk": quotation.converted_to_sale.pk})
+            "text": _("أمر بيع: {}").format(linked_so.order_number),
+            "class": "bg-primary text-white",
+            "icon": "fas fa-clipboard-list",
+            "url": reverse("sale:sales_order_detail", kwargs={"pk": linked_so.pk})
+        })
+    if linked_sale:
+        header_badges.append({
+            "text": _("فاتورة: {}").format(linked_sale.number),
+            "class": "bg-success text-white",
+            "icon": "fas fa-file-invoice-dollar",
+            "url": reverse("sale:sale_detail", kwargs={"pk": linked_sale.pk})
         })
 
     # أزرار الهيدر
@@ -507,13 +520,31 @@ def quotation_detail(request, pk):
             "class": "btn-outline-info",
         })
 
-    header_buttons.extend([
-        *([{
+    if linked_so:
+        header_buttons.append({
+            "url": reverse("sale:sales_order_detail", kwargs={"pk": linked_so.pk}),
+            "icon": "fa-clipboard-list",
+            "text": _("عرض أمر البيع"),
+            "class": "btn-primary",
+        })
+
+    if linked_sale:
+        header_buttons.append({
+            "url": reverse("sale:sale_detail", kwargs={"pk": linked_sale.pk}),
+            "icon": "fa-file-invoice-dollar",
+            "text": _("عرض الفاتورة"),
+            "class": "btn-success",
+        })
+
+    if not is_accepted_or_converted:
+        header_buttons.append({
             "url": reverse("sale:quotation_edit", kwargs={"pk": quotation.pk}),
             "icon": "fa-edit",
             "text": _("تعديل"),
             "class": "btn-outline-secondary",
-        }] if not quotation.converted_to_sale else []),
+        })
+
+    header_buttons.extend([
         {
             "url": reverse("sale:quotation_print", kwargs={"pk": quotation.pk}),
             "icon": "fa-print",
@@ -545,7 +576,8 @@ def quotation_detail(request, pk):
             ]
         }
     ])
-    if not quotation.converted_to_sale and quotation.status != 'rejected':
+
+    if not is_accepted_or_converted and quotation.status != 'rejected':
         header_buttons.extend([
             {
                 "url": reverse("sale:sales_order_create_for_quotation", kwargs={"quotation_id": quotation.pk}),
@@ -561,21 +593,23 @@ def quotation_detail(request, pk):
                 "toggle": "modal",
                 "target": "#convertInvoiceModal",
             },
+            {
+                "url": "#",
+                "icon": "fa-ellipsis-v",
+                "text": "",
+                "class": "btn-outline-secondary",
+                "id": "actions-menu-btn",
+                "toggle": "modal",
+                "target": "#actionsModal",
+            }
         ])
-    if not quotation.converted_to_sale:
-        header_buttons.append({
-            "url": "#",
-            "icon": "fa-ellipsis-v",
-            "text": "",
-            "class": "btn-outline-secondary",
-            "id": "actions-menu-btn",
-            "toggle": "modal",
-            "target": "#actionsModal",
-        })
 
     context = {
         "quotation": quotation,
         "items": items,
+        "is_accepted_or_converted": is_accepted_or_converted,
+        "linked_so": linked_so,
+        "linked_sale": linked_sale,
         "warehouses": Warehouse.objects.filter(is_active=True).order_by('name'),
         "title": _("عرض سعر {}").format(quotation.number),
         "page_title": _("عرض سعر {}").format(quotation.number),

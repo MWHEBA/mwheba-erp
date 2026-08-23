@@ -47,8 +47,12 @@ class InventoryReservationService:
                 )
 
                 if not is_avail:
+                    atp_disp = str(int(atp_qty)) if atp_qty == int(atp_qty) else f"{atp_qty:.4f}".rstrip("0").rstrip(".")
+                    req_disp = str(int(line.ordered_qty)) if line.ordered_qty == int(line.ordered_qty) else f"{line.ordered_qty:.4f}".rstrip("0").rstrip(".")
+                    shortage = line.ordered_qty - atp_qty
+                    shortage_disp = str(int(shortage)) if shortage == int(shortage) else f"{shortage:.4f}".rstrip("0").rstrip(".")
                     raise FinancialCoreError(
-                        f"Overselling Error: Product '{line.product.name}' has available ATP {atp_qty} but requested {line.ordered_qty}."
+                        f"Overselling Error: لا يتوفر رصيد كافٍ بالمخزن ({so.warehouse.name}) للصنف «{line.product.name}». الرصيد المتاح: {atp_disp} | المطلوب: {req_disp} | العجز: {shortage_disp}"
                     )
 
                 res = InventoryReservation.objects.create(

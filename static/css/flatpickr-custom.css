@@ -66,22 +66,40 @@ span.flatpickr-weekday {
 }
 
 /* ========== قائمة الأشهر ========== */
-.flatpickr-current-month .flatpickr-monthDropdown-months {
-    background: unset;
-    margin: -1px 0 0 20px;
-}
-
-.flatpickr-current-month .flatpickr-monthDropdown-months .flatpickr-monthDropdown-month {
-    background-color: white;
-}
-
+.flatpickr-current-month .flatpickr-monthDropdown-months,
 select.flatpickr-monthDropdown-months {
+    background: transparent !important;
+    background-color: transparent !important;
+    background-image: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
     color: white !important;
+    height: auto !important;
+    min-height: auto !important;
+    padding: 0 4px !important;
+    margin: -1px 0 0 20px !important;
+    font-size: inherit !important;
+    font-weight: 700 !important;
+    cursor: pointer !important;
+    outline: none !important;
+    appearance: menulist !important;
+    -webkit-appearance: menulist !important;
+    -moz-appearance: menulist !important;
 }
 
+.flatpickr-current-month .flatpickr-monthDropdown-months:focus,
+select.flatpickr-monthDropdown-months:focus {
+    outline: none !important;
+    box-shadow: none !important;
+    border: none !important;
+    background: transparent !important;
+}
+
+.flatpickr-current-month .flatpickr-monthDropdown-months .flatpickr-monthDropdown-month,
 option.flatpickr-monthDropdown-month {
-    color: var(--primary-color);
-    background-color: white;
+    color: var(--primary-color) !important;
+    background-color: white !important;
 }
 
 option.flatpickr-monthDropdown-month:hover,

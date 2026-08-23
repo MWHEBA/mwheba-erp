@@ -3083,7 +3083,11 @@ html[dir="rtl"] .border-right-danger {
     align-items: center !important;
 }
 
-.header-subcard .select2-container--default .select2-selection--single .select2-selection__rendered {
+.header-subcard .select2-container--default .select2-selection--single .select2-selection__rendered,
+.header-subcard .select2-container--bootstrap-5 .select2-selection .select2-selection__rendered {
+    flex: 1 1 auto !important;
+    width: 100% !important;
+    min-width: 0 !important;
     line-height: calc(var(--form-input-height) - 2px) !important;
     padding-right: 0.85rem !important;
     padding-left: 2.25rem !important;

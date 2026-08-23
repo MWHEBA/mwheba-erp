@@ -171,7 +171,7 @@
                                      <!-- العملة وسعر الصرف الموحد (IAS 21) -->
                                      {% include "components/currency_header.html" %}
 
-                                     <!-- اللوجستيات: تاريخ التسليم وطريقة الشحن -->
+                                     <!-- اللوجستيات: تاريخ التسليم وطريقة الشحن وانتهاء الحجز -->
                                      <div class="col-12 col-md-6">
                                          <label class="form-label">
                                              <i class="fas fa-calendar-alt text-primary me-1"></i>{% trans "تاريخ التسليم المتوقع" %}
@@ -180,15 +180,21 @@
                                      </div>
                                      <div class="col-12 col-md-6">
                                          <label class="form-label">
+                                             <i class="fas fa-hourglass-half text-warning me-1"></i>{% trans "تاريخ انتهاء حجز المخزون" %}
+                                         </label>
+                                         <input type="date" name="reservation_expiry_date" id="id_reservation_expiry_date" class="form-control" value="{% if so and so.reservation_expiry_date %}{{ so.reservation_expiry_date|date:'Y-m-d' }}{% endif %}">
+                                     </div>
+                                     <div class="col-12 col-md-6">
+                                         <label class="form-label">
                                              <i class="fas fa-truck text-primary me-1"></i>{% trans "طريقة التوصيل" %}
                                          </label>
-                                         <select name="shipping_method" class="form-select select2">
+                                         <select name="shipping_method" id="id_shipping_method" class="form-select select2">
                                              <option value="PICKUP" {% if so and so.shipping_method == 'PICKUP' %}selected{% endif %}>{% trans "استلام من المخزن" %}</option>
                                              <option value="COMPANY_FLEET" {% if so and so.shipping_method == 'COMPANY_FLEET' %}selected{% endif %}>{% trans "أسطول سيارات الشركة" %}</option>
                                              <option value="COURIER" {% if so and so.shipping_method == 'COURIER' %}selected{% endif %}>{% trans "شركة شحن خارجية" %}</option>
                                          </select>
                                      </div>
-                                     <div class="col-12">
+                                     <div class="col-12 {% if not so or so.shipping_method == 'PICKUP' or not so.shipping_method %}d-none{% endif %}" id="shipping_address_container">
                                          <label class="form-label">
                                              <i class="fas fa-map-marker-alt text-primary me-1"></i>{% trans "عنوان التسليم الفعلي" %}
                                          </label>
@@ -213,12 +219,12 @@
             </div>
             
             <div id="items-container">
-                {% if quotation and quotation.items.exists %}
-                    {% for item in quotation.items.all %}
+                {% if so and so.items.exists %}
+                    {% for item in so.items.all %}
                     <div class="item-row row g-2 align-items-center">
                         <div class="col-12 col-md-2">
                             <label class="form-label form-label-sm product-code-label">{% trans "الكود / الباركود" %}</label>
-                            <input type="text" class="form-control form-control-sm product-code-input" placeholder="{% trans 'الكود / الباركود' %}" value="{{ item.product.sku|default:'' }}">
+                            <input type="text" class="form-control form-control-sm product-code-input" placeholder="{% trans 'الكود / الباركود' %}" value="{{ item.product.sku|default:item.product.barcode|default:'' }}">
                         </div>
                         <div class="col-12 col-md-3">
                             <div class="product-header-row d-flex align-items-center mb-2">
@@ -229,7 +235,54 @@
                                 <span class="selected-text">{{ item.product.name }}</span>
                                 <i class="fas fa-th-large text-muted small"></i>
                             </button>
-                            <input type="hidden" name="product[]" class="product-id-input" value="{{ item.product.id }}" data-price="{{ item.product.selling_price }}" data-stock="{{ item.product.stock }}" required>
+                            <input type="hidden" name="product[]" class="product-id-input" value="{{ item.product.id }}" data-price="{{ item.product.selling_price }}" data-stock="{{ item.product.stock }}" data-is-service="{% if item.product.is_service %}true{% else %}false{% endif %}" required>
+                        </div>
+                        <div class="col-6 col-md-1">
+                            <label class="form-label form-label-sm required-field">{% trans "الكمية" %}</label>
+                            <input type="number" name="quantity[]" class="form-control form-control-sm quantity" min="0.01" step="0.01" value="{{ item.ordered_qty|smart_float }}" required>
+                        </div>
+                        <div class="col-6 col-md-2">
+                            <label class="form-label form-label-sm required-field">{% trans "سعر الوحدة" %}</label>
+                            <input type="text" inputmode="decimal" name="unit_price[]" class="form-control form-control-sm unit-price" value="{{ item.unit_price|smart_float }}" required>
+                        </div>
+                        <div class="col-6 col-md-2">
+                            <div class="discount-header-row d-flex align-items-center mb-2 justify-content-center">
+                                <label class="form-label form-label-sm discount-label mb-0">{% trans "الخصم (%)" %}</label>
+                                <span class="discount-rule-badge discount-rule-info"></span>
+                            </div>
+                            <input type="number" name="discount[]" class="form-control form-control-sm item-discount" min="0" max="100" step="0.01" value="{{ item.discount_percentage|smart_float|default:'0' }}">
+                        </div>
+                        <div class="col-6 col-md-2">
+                            <label class="form-label form-label-sm">{% trans "الإجمالي" %}</label>
+                            <div class="input-group input-group-sm">
+                                <input type="text" class="form-control form-control-sm item-total" value="{{ item.line_total|smart_float }}" readonly>
+                                <span class="input-group-text px-1">{{ currency_symbol }}</span>
+                            </div>
+                        </div>
+                        {% if not forloop.first %}
+                        <a href="javascript:void(0)" class="remove-item" title="{% trans 'إزالة البند' %}">
+                            <i class="fas fa-times-circle"></i>
+                        </a>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                {% elif quotation and quotation.items.exists %}
+                    {% for item in quotation.items.all %}
+                    <div class="item-row row g-2 align-items-center">
+                        <div class="col-12 col-md-2">
+                            <label class="form-label form-label-sm product-code-label">{% trans "الكود / الباركود" %}</label>
+                            <input type="text" class="form-control form-control-sm product-code-input" placeholder="{% trans 'الكود / الباركود' %}" value="{{ item.product.sku|default:item.product.barcode|default:'' }}">
+                        </div>
+                        <div class="col-12 col-md-3">
+                            <div class="product-header-row d-flex align-items-center mb-2">
+                                <label class="form-label form-label-sm product-label product-header required-field mb-0">{% if allowed_item_types == 'services' %}{% trans "الخدمة" %}{% elif allowed_item_types == 'products' %}{% trans "المنتج" %}{% else %}{% trans "المنتج / الخدمة" %}{% endif %}</label>
+                                <span class="stock-info"></span>
+                            </div>
+                            <button type="button" class="product-picker-btn" data-row-index="{{ forloop.counter0 }}">
+                                <span class="selected-text">{{ item.product.name }}</span>
+                                <i class="fas fa-th-large text-muted small"></i>
+                            </button>
+                            <input type="hidden" name="product[]" class="product-id-input" value="{{ item.product.id }}" data-price="{{ item.product.selling_price }}" data-stock="{{ item.product.stock }}" data-is-service="{% if item.product.is_service %}true{% else %}false{% endif %}" required>
                         </div>
                         <div class="col-6 col-md-1">
                             <label class="form-label form-label-sm required-field">{% trans "الكمية" %}</label>
@@ -241,10 +294,10 @@
                         </div>
                         <div class="col-6 col-md-2">
                             <div class="discount-header-row d-flex align-items-center mb-2 justify-content-center">
-                                <label class="form-label form-label-sm discount-label mb-0">{% trans "الخصم" %}</label>
+                                <label class="form-label form-label-sm discount-label mb-0">{% trans "الخصم (%)" %}</label>
                                 <span class="discount-rule-badge discount-rule-info"></span>
                             </div>
-                            <input type="number" name="discount[]" class="form-control form-control-sm item-discount" min="0" step="0.01" value="{{ item.discount|default:0 }}">
+                            <input type="number" name="discount[]" class="form-control form-control-sm item-discount" min="0" max="100" step="0.01" value="{{ item.discount|smart_float|default:'0' }}">
                         </div>
                         <div class="col-6 col-md-2">
                             <label class="form-label form-label-sm">{% trans "الإجمالي" %}</label>
@@ -287,10 +340,10 @@
                     </div>
                     <div class="col-6 col-md-2">
                         <div class="discount-header-row d-flex align-items-center mb-2 justify-content-center">
-                            <label class="form-label form-label-sm discount-label mb-0">{% trans "الخصم" %}</label>
+                            <label class="form-label form-label-sm discount-label mb-0">{% trans "الخصم (%)" %}</label>
                             <span class="discount-rule-badge discount-rule-info"></span>
                         </div>
-                        <input type="number" name="discount[]" class="form-control form-control-sm item-discount" min="0" step="0.01" value="0">
+                        <input type="number" name="discount[]" class="form-control form-control-sm item-discount" min="0" max="100" step="0.01" value="0">
                     </div>
                     <div class="col-6 col-md-2">
                         <label class="form-label form-label-sm">{% trans "الإجمالي" %}</label>
@@ -341,22 +394,31 @@
                                 <div class="col-md-6">
                                     <label class="form-label text-dark fw-medium">{% trans "خصم على كامل أمر البيع" %}</label>
                                     <div class="input-group">
-                                        <input type="number" step="0.01" name="discount" id="id_discount" class="form-control text-center" value="0" min="0" placeholder="0.00">
+                                        <input type="number" step="0.01" name="discount" id="id_discount" class="form-control text-center" value="{% if so %}{{ so.discount_amount|smart_float }}{% else %}0{% endif %}" min="0" placeholder="0.00">
                                         <select name="discount_type" id="id_discount_type" class="form-select px-2 text-center" style="max-width: 85px;">
-                                            <option value="fixed" selected>{{ currency_symbol }}</option>
-                                            <option value="percentage">%</option>
+                                            <option value="fixed" {% if so and so.discount_type == 'fixed' %}selected{% elif not so %}selected{% endif %}>{{ currency_symbol }}</option>
+                                            <option value="percentage" {% if so and so.discount_type == 'percentage' %}selected{% endif %}>%</option>
                                         </select>
                                     </div>
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label text-dark fw-medium">{% trans "تسوية ماليّة إضافية (شحن/مصاريف)" %}</label>
                                     <div class="input-group">
-                                        <input type="text" name="adjustment_name" id="id_adjustment_name" class="form-control" value="" placeholder="{% trans 'سبب التسوية (مثل: مصاريف شحن)...' %}">
+                                        <input type="text" name="adjustment_name" id="id_adjustment_name" class="form-control" value="{% if so %}{{ so.adjustment_name|default:'' }}{% endif %}" placeholder="{% trans 'سبب التسوية (مثل: مصاريف شحن)...' %}">
                                         <select name="adjustment_type" id="id_adjustment_type" class="form-select px-1 text-center" style="max-width: 70px;">
-                                            <option value="add" selected>+</option>
-                                            <option value="subtract">-</option>
+                                            <option value="add" {% if not so or so.adjustment_amount >= 0 %}selected{% endif %}>+</option>
+                                            <option value="subtract" {% if so and so.adjustment_amount < 0 %}selected{% endif %}>-</option>
                                         </select>
-                                        <input type="number" step="0.01" name="adjustment_amount" id="id_adjustment_amount" class="form-control text-center" value="0" style="max-width: 110px;" placeholder="0.00">
+                                        <input type="number" step="0.01" name="adjustment_amount" id="id_adjustment_amount" class="form-control text-center" value="{% if so %}{{ so.adjustment_amount|smart_float }}{% else %}0{% endif %}" style="max-width: 110px;" placeholder="0.00">
+                                    </div>
+                                </div>
+                                <div class="col-md-6 mt-3">
+                                    <label class="form-label text-dark fw-medium">
+                                        <i class="fas fa-hand-holding-usd text-primary me-1"></i>{% trans "الدفعة المقدمة المشترطة (عربون)" %}
+                                    </label>
+                                    <div class="input-group">
+                                        <input type="number" step="0.01" name="required_down_payment" id="id_required_down_payment" class="form-control text-center" value="{% if so %}{{ so.required_down_payment|smart_float }}{% else %}0{% endif %}" min="0" placeholder="0.00">
+                                        <span class="input-group-text px-2">{{ currency_symbol }}</span>
                                     </div>
                                 </div>
                             </div>
@@ -368,7 +430,7 @@
                                     <div class="card border-0 shadow-sm bg-white p-3 h-100">
                                         <h6 class="fw-bold text-dark mb-2"><i class="fas fa-percent text-primary me-2"></i>{% trans "ضريبة القيمة المضافة (VAT)" %}</h6>
                                         <div class="form-check form-switch pt-1">
-                                            <input class="form-check-input" type="checkbox" name="tax_active" id="id_tax_active" role="switch" {% if settings.enable_tax %}checked{% endif %}>
+                                            <input class="form-check-input" type="checkbox" name="tax_active" id="id_tax_active" role="switch" {% if so %}{% if so.tax_amount > 0 or so.vat_rate > 0 %}checked{% endif %}{% elif settings.enable_tax %}checked{% endif %}>
                                             <label class="form-check-label text-dark fw-medium small" for="id_tax_active">{% trans "تفعيل ضريبة القيمة المضافة" %} ({{ settings.default_tax_rate|smart_float|default:'14' }}%)</label>
                                         </div>
                                         <small class="form-text text-muted mt-2">{% trans "تُحسب بنسبة" %} {{ settings.default_tax_rate|smart_float|default:'14' }}% {% trans "على الصافي التجاري للمستند." %}</small>
@@ -379,13 +441,13 @@
                                         <h6 class="fw-bold text-dark mb-2"><i class="fas fa-hand-holding-usd text-warning me-2"></i>{% trans "ضريبة الخصم والإضافة (WHT)" %}</h6>
                                         <div class="d-flex align-items-center mb-2">
                                             <div class="form-check form-switch me-2 pt-1">
-                                                <input class="form-check-input" type="checkbox" name="wht_active" id="id_wht_active" role="switch">
+                                                <input class="form-check-input" type="checkbox" name="wht_active" id="id_wht_active" role="switch" {% if so and so.wht_active %}checked{% endif %}>
                                                 <label class="form-check-label text-dark fw-medium small" for="id_wht_active">{% trans "ضريبة الخصم والإضافة" %}</label>
                                             </div>
                                             <select name="wht_rate" id="id_wht_rate" class="form-select form-select-sm ms-auto text-center" style="width: fit-content;">
-                                                <option value="1.00" selected>1% (توريدات ومقاولات)</option>
-                                                <option value="3.00">3% (خدمات وصيانة)</option>
-                                                <option value="5.00">5% (مهن حرة واستشارات)</option>
+                                                <option value="1.00" {% if not so or so.wht_rate == 1.00 %}selected{% endif %}>1% (توريدات ومقاولات)</option>
+                                                <option value="3.00" {% if so and so.wht_rate == 3.00 %}selected{% endif %}>3% (خدمات وصيانة)</option>
+                                                <option value="5.00" {% if so and so.wht_rate == 5.00 %}selected{% endif %}>5% (مهن حرة واستشارات)</option>
                                             </select>
                                         </div>
                                         <small class="form-text text-muted">{% trans "تُخصم من الصافي المستحق وتورد لمصلحة الضرائب." %}</small>
@@ -395,7 +457,7 @@
                         </div>
                         <!-- تبويب الملاحظات والشروط -->
                         <div class="tab-pane fade h-100" id="quote-tab-notes" role="tabpanel" aria-labelledby="quote-notes-tab">
-                            {% include "partials/editor.html" with id="id_notes" name="notes" value="" placeholder="أضف شروط التوريد، التسليم، أو أي تفاصيل أخرى..." height=180 toolbar="basic" %}
+                            {% include "partials/editor.html" with id="id_notes" name="notes" value=so.notes|default:"" placeholder="أضف شروط التوريد، التسليم، أو أي تفاصيل أخرى..." height=180 toolbar="basic" %}
                         </div>
                     </div>
                 </div>
@@ -726,6 +788,10 @@
             if (defaultPL) {
                 $('#id_price_list').val(defaultPL).trigger('change.select2');
             }
+            var custAddress = selectedOpt.data('address');
+            if (custAddress && !$('#id_shipping_address').val()) {
+                $('#id_shipping_address').val(custAddress);
+            }
             repriceCartItems();
         });
 
@@ -733,13 +799,29 @@
             repriceCartItems();
         });
 
+        function toggleShippingAddress() {
+            var method = $('#id_shipping_method').val();
+            if (method && method !== 'PICKUP') {
+                $('#shipping_address_container').removeClass('d-none');
+            } else {
+                $('#shipping_address_container').addClass('d-none');
+            }
+        }
+
+        $('#id_shipping_method').on('change', function() {
+            toggleShippingAddress();
+        });
+
+        toggleShippingAddress();
+
         bindEventHandlers();
 
         function calculateRowTotal(row) {
             var quantity  = parseFloat(row.find('.quantity').val()) || 0;
-            var unitPrice = parseFloat(row.find('.unit-price').val().replace(/,/g, '')) || 0;
-            var discount  = parseFloat(row.find('.item-discount').val()) || 0;
-            var total = Math.max(0, quantity * unitPrice - discount);
+            var unitPrice = parseFloat((row.find('.unit-price').val() || '0').replace(/,/g, '')) || 0;
+            var discountPct  = parseFloat(row.find('.item-discount').val()) || 0;
+            var lineSubtotal = quantity * unitPrice;
+            var total = Math.max(0, lineSubtotal * (1 - (discountPct / 100)));
             row.find('.item-total').val(smartFloat(total));
             calculateTotals();
         }

@@ -14,7 +14,7 @@
 .select2-container--bootstrap-5 .select2-selection--single {
     height: var(--form-input-height) !important;
     min-height: var(--form-input-height) !important;
-    padding: 0.4rem 0.85rem 0.4rem 2.25rem !important;
+    padding: 0.4rem 0.85rem 0.4rem 2.85rem !important;
     font-size: var(--font-size-base) !important;
     font-family: var(--font-family-sans) !important;
     line-height: var(--line-height-normal) !important;
@@ -25,6 +25,7 @@
     box-sizing: border-box !important;
     display: flex !important;
     align-items: center !important;
+    position: relative !important;
     transition: var(--transition-all) !important;
 }
 
@@ -74,13 +75,17 @@
 .select2-container--bootstrap-5 .select2-selection__clear,
 .select2-container--default .select2-selection--single .select2-selection__clear,
 .select2-container--bootstrap-5 .select2-selection--single .select2-selection__clear {
-    right: auto !important;
+    position: absolute !important;
     left: 28px !important;
+    right: auto !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
     color: var(--secondary-color) !important;
     font-size: 16px !important;
-    line-height: var(--form-input-height) !important;
+    line-height: 1 !important;
     cursor: pointer !important;
     font-weight: bold !important;
+    z-index: 2 !important;
 }
 
 .select2-container--default .select2-selection__clear:hover,
@@ -122,9 +127,14 @@ select.is-invalid + .select2-container .select2-selection,
     border: 1px solid var(--border-color) !important;
     border-radius: var(--border-radius) !important;
     box-shadow: var(--shadow-md) !important;
-    background-color: var(--bg-surface) !important;
+    background-color: var(--white) !important;
     direction: rtl !important;
     z-index: 1065 !important;
+}
+
+.select2-results,
+.select2-results__options {
+    background-color: var(--white) !important;
 }
 
 .select2-search--dropdown {

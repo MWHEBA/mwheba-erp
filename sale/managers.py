@@ -74,6 +74,9 @@ class QuotationQuerySet(models.QuerySet):
             'warehouse',
             'salesman',
             'created_by',
+            'converted_to_sale',
+        ).prefetch_related(
+            'sales_orders'
         )
 
 

@@ -96,7 +96,7 @@
               <th>{% trans "صالح حتى" %}</th>
               <th>{% trans "المبلغ" %}</th>
               <th>{% trans "الحالة" %}</th>
-              <th>{% trans "الفاتورة الناتجة" %}</th>
+              <th>{% trans "المستند الناتج" %}</th>
               <th class="col-actions text-center">{% trans "الإجراءات" %}</th>
             </tr>
           </thead>
@@ -133,8 +133,12 @@
               </td>
               <td>
                 {% if quote.converted_to_sale %}
-                  <a href="{% url 'sale:sale_detail' quote.converted_to_sale.pk %}" class="btn btn-xs btn-outline-success">
+                  <a href="{% url 'sale:sale_detail' quote.converted_to_sale.pk %}" class="btn btn-xs btn-outline-success" title="{% trans 'عرض الفاتورة' %}">
                     <i class="fas fa-file-invoice-dollar me-1"></i>{{ quote.converted_to_sale.number }}
+                  </a>
+                {% elif quote.sales_orders.first %}
+                  <a href="{% url 'sale:sales_order_detail' quote.sales_orders.first.pk %}" class="btn btn-xs btn-outline-primary" title="{% trans 'عرض أمر البيع' %}">
+                    <i class="fas fa-clipboard-list me-1"></i>{{ quote.sales_orders.first.order_number }}
                   </a>
                 {% else %}
                   <span class="text-muted">-</span>
@@ -142,15 +146,21 @@
               </td>
               <td class="col-actions text-center">
                 <div class="btn-group">
-                  <a href="{% url 'sale:quotation_detail' quote.id %}" class="btn btn-sm btn-outline-primary" title="{% trans 'عرض' %}">
+                  <a href="{% url 'sale:quotation_detail' quote.id %}" class="btn btn-sm btn-outline-primary" title="{% trans 'عرض عرض السعر' %}">
                     <i class="fas fa-eye"></i>
                   </a>
-                  {% if not quote.converted_to_sale %}
+                  {% if quote.converted_to_sale %}
+                  <a href="{% url 'sale:sale_detail' quote.converted_to_sale.pk %}" class="btn btn-sm btn-outline-success" title="{% trans 'عرض الفاتورة' %}">
+                    <i class="fas fa-file-invoice-dollar"></i>
+                  </a>
+                  {% elif quote.sales_orders.first %}
+                  <a href="{% url 'sale:sales_order_detail' quote.sales_orders.first.pk %}" class="btn btn-sm btn-outline-info" title="{% trans 'عرض أمر البيع' %}">
+                    <i class="fas fa-clipboard-list"></i>
+                  </a>
+                  {% endif %}
+                  {% if quote.status != 'accepted' and not quote.converted_to_sale and not quote.sales_orders.exists %}
                   <a href="{% url 'sale:quotation_edit' quote.id %}" class="btn btn-sm btn-outline-warning" title="{% trans 'تعديل' %}">
                     <i class="fas fa-edit"></i>
-                  </a>
-                  <a href="{% url 'sale:quotation_delete' quote.id %}" class="btn btn-sm btn-outline-danger" title="{% trans 'حذف' %}">
-                    <i class="fas fa-trash"></i>
                   </a>
                   {% endif %}
                   <a href="{% url 'sale:quotation_print' quote.id %}" target="_blank" class="btn btn-sm btn-outline-dark" title="{% trans 'طباعة' %}">

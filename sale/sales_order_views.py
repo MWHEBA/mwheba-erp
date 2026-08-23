@@ -28,6 +28,8 @@ from product.models.product_core import Product
 from product.models.stock_management import Warehouse
 from client.models import Customer
 from core.models import SystemSetting
+from financial.models import Currency, CostCenter
+from financial.services.exchange_rate_service import ExchangeRateService
 from financial.exceptions import FinancialCoreError
 
 logger = logging.getLogger(__name__)
@@ -523,12 +525,19 @@ def sales_order_edit(request, pk):
     from financial.models import Currency, CostCenter
     from django.contrib.auth import get_user_model
     currencies = list(Currency.objects.filter(is_active=True).order_by("code"))
+    for c in currencies:
+        c.current_rate = ExchangeRateService.get_exchange_rate(c)
+
     customers = Customer.objects.filter(is_active=True).order_by("name")
     warehouses = Warehouse.objects.filter(is_active=True).order_by("name")
     products = Product.objects.filter(is_active=True).order_by("name")
     price_lists = PriceList.objects.filter(is_active=True).order_by("name")
     cost_centers = CostCenter.objects.filter(is_active=True).order_by("code") if hasattr(CostCenter, "objects") else []
     salesmen = get_user_model().objects.filter(is_active=True).order_by("first_name", "username")
+
+    functional_curr = Currency.objects.filter(is_functional=True).first() or (currencies[0] if currencies else None)
+    curr_obj = Currency.objects.filter(code=so.currency).first() or functional_curr
+    currency_symbol = curr_obj.symbol if curr_obj and curr_obj.symbol else (curr_obj.code if curr_obj else "ج.م")
 
     breadcrumb_items = [
         {"title": _("الرئيسية"), "url": reverse("core:dashboard"), "icon": "fa-home"},
@@ -553,7 +562,12 @@ def sales_order_edit(request, pk):
         "price_lists": price_lists,
         "cost_centers": cost_centers,
         "salesmen": salesmen,
+        "selected_currency_id": curr_obj.id if curr_obj else None,
+        "selected_currency_is_foreign": not (curr_obj.is_functional) if curr_obj else False,
         "current_exchange_rate": so.exchange_rate,
+        "functional_currency": functional_curr,
+        "currency_symbol": currency_symbol,
+        "allowed_item_types": "both",
         "custom_fields_json": json.dumps(custom_fields_merged),
         "custom_fields_display_mode": SystemSetting.get_setting('custom_fields_display_mode', 'expanded'),
         "enable_custom_fields": SystemSetting.get_setting('enable_custom_fields', 'true'),
@@ -569,16 +583,39 @@ def sales_order_detail(request, pk):
     عرض تفاصيل أمر البيع والبنود وإذون التسليم والفواتير المرتبطة
     """
     so = get_object_or_404(
-        SalesOrder.objects.select_related("customer", "warehouse", "created_by", "quotation_reference", "salesman", "cost_center")
-        .prefetch_related("items__product", "delivery_notes", "invoices"),
+        SalesOrder.objects.select_related(
+            "customer", "warehouse", "created_by", "quotation_reference", "salesman", "cost_center", "price_list"
+        ).prefetch_related("items__product__unit", "delivery_notes__warehouse", "delivery_notes__created_by"),
         pk=pk
     )
 
     # التحقق من فواتير البيع المنشأة من هذا الأمر
-    linked_sales = Sale.objects.filter(sales_order=so).order_by("-id")
+    linked_sales = Sale.objects.filter(sales_order=so).select_related("customer", "warehouse", "created_by").order_by("-id")
+
+    items = so.items.all()
+    total_ordered_qty = sum(item.ordered_qty for item in items)
+    total_delivered_qty = sum(item.delivered_qty for item in items)
+    total_invoiced_qty = sum(item.invoiced_qty for item in items)
+    total_remaining_qty = max(Decimal("0.00"), total_ordered_qty - total_delivered_qty)
+
+    delivery_progress = round((total_delivered_qty / total_ordered_qty) * 100, 1) if total_ordered_qty > 0 else 0
+    invoicing_progress = round((total_invoiced_qty / total_ordered_qty) * 100, 1) if total_ordered_qty > 0 else 0
+
+    # حساب مرحلة دورة حياة المستند
+    if so.status in ["INVOICED"] or (total_invoiced_qty >= total_ordered_qty and total_ordered_qty > 0):
+        current_step = 4
+    elif so.status in ["DELIVERED", "FULLY_DELIVERED"] or (total_delivered_qty >= total_ordered_qty and total_ordered_qty > 0):
+        current_step = 3
+    elif so.status in ["PARTIALLY_DELIVERED", "PARTIALLY_INVOICED"]:
+        current_step = 2.5
+    elif so.status in ["APPROVED", "CONFIRMED"]:
+        current_step = 2
+    else:
+        current_step = 1
 
     breadcrumb_items = [
         {"title": _("الرئيسية"), "url": reverse("core:dashboard"), "icon": "fa-home"},
+        {"title": _("المبيعات"), "url": reverse("sale:sale_list"), "icon": "fa-shopping-cart"},
         {"title": _("أوامر البيع"), "url": reverse("sale:sales_order_list"), "icon": "fa-clipboard-list"},
         {"title": f"{_('أمر بيع')} #{so.order_number}", "active": True},
     ]
@@ -603,12 +640,11 @@ def sales_order_detail(request, pk):
             "class": "btn-outline-primary",
         })
         header_buttons.append({
-            "url": reverse("sale:sales_order_confirm", args=[so.pk]),
+            "onclick": "confirmApproveOrder()",
             "text": _("اعتماد أمر البيع"),
             "label": _("اعتماد أمر البيع"),
             "icon": "fa-check",
             "class": "btn-success",
-            "is_post": True,
         })
 
     if so.status in ["APPROVED", "CONFIRMED", "PARTIALLY_DELIVERED"]:
@@ -629,13 +665,12 @@ def sales_order_detail(request, pk):
 
     if so.status not in ["CANCELLED", "FULLY_DELIVERED", "INVOICED"]:
         header_buttons.append({
-            "url": reverse("sale:sales_order_cancel", args=[so.pk]),
+            "toggle": "modal",
+            "target": "#cancelOrderModal",
             "text": _("إلغاء أمر البيع"),
             "label": _("إلغاء أمر البيع"),
             "icon": "fa-times-circle",
             "class": "btn-outline-danger",
-            "is_post": True,
-            "confirm_message": _("هل أنت متأكد من إلغاء أمر البيع؟ سيتم فك حجز المخزون فوراً."),
         })
 
     context = {
@@ -643,9 +678,16 @@ def sales_order_detail(request, pk):
         "page_icon": "fas fa-clipboard-check",
         "page_subtitle": f"{_('تفاصيل ومتابعة أمر البيع رقم')} {so.order_number}",
         "so": so,
-        "items": so.items.all(),
+        "items": items,
         "delivery_notes": so.delivery_notes.all(),
         "linked_sales": linked_sales,
+        "total_ordered_qty": total_ordered_qty,
+        "total_delivered_qty": total_delivered_qty,
+        "total_invoiced_qty": total_invoiced_qty,
+        "total_remaining_qty": total_remaining_qty,
+        "delivery_progress": delivery_progress,
+        "invoicing_progress": invoicing_progress,
+        "current_step": current_step,
         "breadcrumb_items": breadcrumb_items,
         "header_buttons": header_buttons,
     }
@@ -664,7 +706,7 @@ def sales_order_confirm(request, pk):
         SalesService.approve_sales_order(so.id, request.user)
         messages.success(request, f"تم اعتماد أمر البيع #{so.order_number} بنجاح وحجز المخزون.")
     except Exception as e:
-        messages.error(request, f"خطأ أثناء الاعتماد: {str(e)}")
+        messages.warning(request, str(e))
     return redirect("sale:sales_order_detail", pk=pk)
 
 
@@ -691,17 +733,80 @@ def sales_order_print(request, pk):
     عرض قالب الطباعة الرسمي لأمر البيع (Contract / Sales Order Print View)
     """
     so = get_object_or_404(
-        SalesOrder.objects.select_related("customer", "warehouse", "created_by", "salesman", "cost_center")
-        .prefetch_related("items__product"),
+        SalesOrder.objects.select_related("customer", "warehouse", "created_by", "salesman", "cost_center", "price_list", "quotation_reference")
+        .prefetch_related("items__product__unit"),
         pk=pk
     )
+
+    print_lang = request.GET.get("lang", "ar")
+    is_english = print_lang == "en"
+    print_dir = "ltr" if is_english else "rtl"
+
+    company_name = SystemSetting.get_setting("company_name", "موهبة")
+    company_address = SystemSetting.get_setting("company_address", "")
+    company_phone = SystemSetting.get_setting("company_phone", "")
+    company_tax_number = SystemSetting.get_setting("company_tax_number", "")
+    company_logo = SystemSetting.get_setting("company_logo", "")
+    company_stamp = SystemSetting.get_setting("company_stamp", "")
+    company_email = SystemSetting.get_setting("company_email", "")
+    company_website = SystemSetting.get_setting("company_website", "")
+
+    status_map_ar = {
+        "DRAFT": "مسودة",
+        "PENDING_APPROVAL": "معلق الاعتماد",
+        "APPROVED": "معتمد",
+        "CONFIRMED": "مؤكد",
+        "PARTIALLY_DELIVERED": "مسلم جزئياً",
+        "FULLY_DELIVERED": "مسلم بالكامل",
+        "PARTIALLY_INVOICED": "مفوتر جزئياً",
+        "INVOICED": "مفوتر بالكامل",
+        "CANCELLED": "ملغى",
+    }
+    status_map_en = {
+        "DRAFT": "Draft",
+        "PENDING_APPROVAL": "Pending Approval",
+        "APPROVED": "Approved",
+        "CONFIRMED": "Confirmed",
+        "PARTIALLY_DELIVERED": "Partially Delivered",
+        "FULLY_DELIVERED": "Fully Delivered",
+        "PARTIALLY_INVOICED": "Partially Invoiced",
+        "INVOICED": "Invoiced",
+        "CANCELLED": "Cancelled",
+    }
+
+    status_map = status_map_en if is_english else status_map_ar
+    translated_status = status_map.get(so.status, so.get_status_display())
+    currency_symbol_active = so.currency or "EGP"
+
+    amount_in_words = ""
+    try:
+        from utils.arabic_numbers import amount_to_arabic_words
+        amount_in_words = amount_to_arabic_words(so.total_amount, currency=so.currency or "EGP")
+    except Exception:
+        amount_in_words = ""
+
+    has_item_discounts = any(item.discount_percentage > 0 for item in so.items.all())
+
     context = {
         "so": so,
         "items": so.items.all(),
-        "company_name": SystemSetting.get_setting("company_name", "موهبة"),
-        "company_address": SystemSetting.get_setting("company_address", ""),
-        "company_phone": SystemSetting.get_setting("company_phone", ""),
-        "company_tax_number": SystemSetting.get_setting("company_tax_number", ""),
+        "company_name": company_name,
+        "company_address": company_address,
+        "company_phone": company_phone,
+        "company_tax_number": company_tax_number,
+        "company_logo": company_logo,
+        "company_stamp": company_stamp,
+        "company_email": company_email,
+        "company_website": company_website,
+        "title": f"{'Sales Order' if is_english else 'أمر بيع'} - {so.order_number}",
+        "document_title": "Sales Order" if is_english else "أمر بيع وتوريد",
+        "print_lang": print_lang,
+        "print_dir": print_dir,
+        "is_english": is_english,
+        "currency_symbol_active": currency_symbol_active,
+        "translated_status": translated_status,
+        "has_item_discounts": has_item_discounts,
+        "amount_in_words": amount_in_words,
     }
     return render(request, "sale/sales_order_print.html", context)
 

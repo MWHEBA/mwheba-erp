@@ -628,7 +628,7 @@
 
             <div class="vr bg-white opacity-50 mx-1" style="height: 20px;"></div>
 
-            <button type="button" id="toggleStampBtn" onclick="toggleCompanyStamp()"
+            <button type="button" id="toggleStampBtn" onclick="toggleCompanyStamp(event)"
                 class="btn btn-sm btn-light fw-bold" title="إظهار/إخفاء ختم الشركة">
                 <i class="fas fa-toggle-on text-success me-1" id="stampToggleIcon"></i>
                 <span id="toggleStampText">{% if is_english %}Stamp: ON{% else %}الختم: مفعّل{% endif %}</span>
@@ -799,24 +799,38 @@
     </div>
 
     <script>
-        function toggleCompanyStamp() {
-            const stampElem = document.getElementById('printableCompanyStamp');
+        function toggleCompanyStamp(e) {
+            if (e && typeof e.preventDefault === 'function') {
+                e.preventDefault();
+            }
+            const stampElements = document.querySelectorAll('#printableCompanyStamp, #companyStampWrapper, .floating-company-stamp');
             const stampBtn = document.getElementById('toggleStampBtn');
             const stampIcon = document.getElementById('stampToggleIcon');
             const stampText = document.getElementById('toggleStampText');
-            if (stampElem) {
-                const isHidden = (window.getComputedStyle(stampElem).display === 'none' || stampElem.style.display === 'none');
-                if (isHidden) {
-                    stampElem.style.display = 'block';
-                    if (stampText) stampText.innerText = "{% if is_english %}Stamp: ON{% else %}الختم: مفعّل{% endif %}";
-                    if (stampIcon) stampIcon.className = "fas fa-toggle-on text-success me-1";
-                    if (stampBtn) stampBtn.className = "btn btn-sm btn-light fw-bold";
+
+            if (stampElements.length === 0) {
+                return;
+            }
+
+            const firstElem = stampElements[0];
+            const isCurrentlyHidden = (firstElem.style.display === 'none' || window.getComputedStyle(firstElem).display === 'none');
+
+            stampElements.forEach(function (el) {
+                if (isCurrentlyHidden) {
+                    el.style.setProperty('display', 'block', 'important');
                 } else {
-                    stampElem.style.display = 'none';
-                    if (stampText) stampText.innerText = "{% if is_english %}Stamp: OFF{% else %}الختم: معطّل{% endif %}";
-                    if (stampIcon) stampIcon.className = "fas fa-toggle-off opacity-75 me-1";
-                    if (stampBtn) stampBtn.className = "btn btn-sm btn-outline-light";
+                    el.style.setProperty('display', 'none', 'important');
                 }
+            });
+
+            if (isCurrentlyHidden) {
+                if (stampText) stampText.textContent = "{% if is_english %}Stamp: ON{% else %}الختم: مفعّل{% endif %}";
+                if (stampIcon) stampIcon.className = "fas fa-toggle-on text-success me-1";
+                if (stampBtn) stampBtn.className = "btn btn-sm btn-light fw-bold";
+            } else {
+                if (stampText) stampText.textContent = "{% if is_english %}Stamp: OFF{% else %}الختم: معطّل{% endif %}";
+                if (stampIcon) stampIcon.className = "fas fa-toggle-off opacity-75 me-1";
+                if (stampBtn) stampBtn.className = "btn btn-sm btn-outline-light";
             }
         }
 
