@@ -18,6 +18,24 @@
   <!-- Page Header المركزي -->
   {% include "shared/page_header.html" %}
 
+  {% if not supplier.is_active %}
+  <div class="alert alert-warning d-flex align-items-center justify-content-between p-3 mb-4 shadow-sm" role="alert">
+    <div class="d-flex align-items-center">
+      <i class="fas fa-archive fa-2x text-warning me-3"></i>
+      <div>
+        <h5 class="alert-heading mb-1 fw-bold">{% trans "هذا المورد مؤرشف ومعطل حالياً" %}</h5>
+        <p class="mb-0 small text-muted">{% trans "لا يمكن إنشاء أوامر شراء أو فواتير جديدة له. يمكنك إعادة تنشيط حسابه في أي وقت." %}</p>
+      </div>
+    </div>
+    <form method="POST" action="{% url 'supplier:supplier_reactivate' supplier.pk %}" class="ms-3">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-success fw-bold px-4">
+        <i class="fas fa-undo me-1"></i> {% trans "إعادة تنشيط المورد" %}
+      </button>
+    </form>
+  </div>
+  {% endif %}
+
   <!-- Overview Cards (Rule 7 Compliant - Direct Grid Row) -->
   <div class="row g-3 mb-4">
     <div class="col-md-6 col-lg-3">
@@ -88,6 +106,7 @@
             <i class="fas fa-info-circle me-2"></i>{% trans "معلومات المورد" %}
           </button>
         </li>
+        {% if enable_purchase_orders %}
         <li class="nav-item" role="presentation">
           <button class="nav-link fw-semibold px-3" id="po-tab" data-bs-toggle="tab"
             data-bs-target="#po-tab-pane" type="button" role="tab" aria-controls="po-tab-pane"
@@ -96,6 +115,7 @@
             <span class="badge rounded-pill bg-light text-secondary border ms-1">{{ supplier.purchase_orders.count|default:"0" }}</span>
           </button>
         </li>
+        {% endif %}
         <li class="nav-item" role="presentation">
           <button class="nav-link fw-semibold px-3" id="purchases-tab" data-bs-toggle="tab"
             data-bs-target="#purchases-tab-pane" type="button" role="tab" aria-controls="purchases-tab-pane"
@@ -457,6 +477,7 @@
 
         </div>
 
+        {% if enable_purchase_orders %}
         <!-- تاب أوامر الشراء -->
         <div class="tab-pane fade" id="po-tab-pane" role="tabpanel" aria-labelledby="po-tab" tabindex="0">
           <div class="d-flex justify-content-between align-items-center mb-3">
@@ -507,6 +528,7 @@
           </div>
           {% endif %}
         </div>
+        {% endif %}
 
         <!-- تاب فواتير الشراء -->
         <div class="tab-pane fade" id="purchases-tab-pane" role="tabpanel" aria-labelledby="purchases-tab" tabindex="0">
@@ -1549,5 +1571,77 @@
         });
       }
     });
+
+    function openDeleteSupplierModal() {
+      if (window.EntityDeleteArchiveController) {
+        window.EntityDeleteArchiveController.open({
+          entityType: 'supplier',
+          entityId: '{{ supplier.id }}',
+          deleteUrl: "{% url 'supplier:supplier_delete' supplier.id %}",
+          onSuccess: function() {
+            window.location.href = "{% url 'supplier:supplier_list' %}";
+          }
+        });
+      }
+    }
   </script>
+
+  <!-- Actions Modal (Rule 8) -->
+  <div class="modal fade" id="actionsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 shadow-lg">
+        <div class="modal-header bg-light border-bottom px-4 py-3">
+          <h5 class="modal-title fw-bold text-dark mb-0">
+            <i class="fas fa-cog text-primary me-2"></i>{% trans "خيارات وإجراءات إضافية" %}
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body p-0">
+          <div class="list-group list-group-flush">
+            <a href="{% url 'supplier:supplier_edit' supplier.pk %}" class="list-group-item list-group-item-action d-flex align-items-center p-3">
+              <div class="me-3"><i class="fas fa-pen fa-2x text-primary"></i></div>
+              <div>
+                <div class="fw-bold">{% trans "تعديل بيانات المورد" %}</div>
+                <small class="text-muted">{% trans "تحديث بيانات المورد والاتصال والحد الائتماني" %}</small>
+              </div>
+            </a>
+            <a href="{% url 'supplier:supplier_change_account' supplier.pk %}" class="list-group-item list-group-item-action d-flex align-items-center p-3">
+              <div class="me-3"><i class="fas fa-exchange-alt fa-2x text-info"></i></div>
+              <div>
+                <div class="fw-bold">{% trans "تغيير الحساب المحاسبي" %}</div>
+                <small class="text-muted">{% trans "ربط المورد بحساب آخر في شجرة الحسابات" %}</small>
+              </div>
+            </a>
+            {% if supplier.is_active %}
+            <button type="button" data-bs-dismiss="modal"
+              onclick="openDeleteSupplierModal()"
+              class="list-group-item list-group-item-action d-flex align-items-center p-3 text-danger border-0">
+              <div class="me-3"><i class="fas fa-trash-alt fa-2x text-danger"></i></div>
+              <div>
+                <div class="fw-bold">{% trans "حذف / أرشفة المورد" %}</div>
+                <small class="text-muted">{% trans "فحص المعاملات والحذف النهائي أو التعطيل الآمن" %}</small>
+              </div>
+            </button>
+            {% else %}
+            <form method="POST" action="{% url 'supplier:supplier_reactivate' supplier.pk %}" class="d-inline">
+              {% csrf_token %}
+              <button type="submit" class="list-group-item list-group-item-action d-flex align-items-center p-3 text-success border-0 w-100">
+                <div class="me-3"><i class="fas fa-undo fa-2x text-success"></i></div>
+                <div>
+                  <div class="fw-bold">{% trans "إعادة تنشيط المورد" %}</div>
+                  <small class="text-muted">{% trans "استرجاع المورد وتفعيل حسابه المالي للمعاملات الجديدة" %}</small>
+                </div>
+              </button>
+            </form>
+            {% endif %}
+          </div>
+        </div>
+        <div class="modal-footer bg-light border-top px-4 py-3">
+          <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إغلاق" %}</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% include "components/modals/entity_delete_archive_modal.html" %}
   {% endblock %}

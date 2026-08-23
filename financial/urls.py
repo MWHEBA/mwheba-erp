@@ -47,6 +47,7 @@ urlpatterns = [
     path("cost-centers/suggest-code/", views.suggest_cost_center_code, name="cost_center_suggest_code"),
     path("cost-centers/<int:pk>/", views.cost_center_detail_view, name="cost_center_detail"),
     path("cost-centers/<int:pk>/edit/", views.cost_center_edit_view, name="cost_center_edit"),
+    path("cost-centers/<int:pk>/delete/", views.cost_center_delete_view, name="cost_center_delete"),
     path("cost-centers/tree-api/", views.cost_center_tree_api, name="cost_center_tree_api"),
 
     # الموازنات التقديرية والرقابة المحاسبية المعيارية (Enterprise Budget Engine)

@@ -790,9 +790,9 @@ def format_boolean_badge(value, field_key=''):
     """
     if field_key == 'is_active':
         if value:
-            return '<span class="badge bg-success">نشط</span>'
+            return '<span class="badge bg-success"><i class="fas fa-check-circle me-1"></i>نشط</span>'
         else:
-            return '<span class="badge bg-secondary">غير نشط</span>'
+            return '<span class="badge bg-secondary"><i class="fas fa-archive me-1"></i>مؤرشف</span>'
     else:
         if value:
             return '<span class="badge bg-success">نعم</span>'

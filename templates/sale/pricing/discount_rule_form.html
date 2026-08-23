@@ -1,84 +1,133 @@
 {% extends 'base.html' %}
 {% load static %}
 {% load i18n %}
+{% load utils_extras %}
 
 {% block title %}{{ page_title }}{% endblock %}
 
 {% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
 <link rel="stylesheet" href="{% static 'css/select2.min.css' %}">
 {% endblock %}
 
 {% block content %}
 <div class="container-fluid">
-  {% include "shared/page_header.html" %}
+  <!-- Page Header -->
+  {% include "shared/page_header.html" with title=page_title subtitle=page_subtitle icon=page_icon header_buttons=header_buttons breadcrumb_items=breadcrumb_items %}
 
-  <form method="POST" action="">
+  <form method="POST" action="" id="discountRuleForm" autocomplete="off">
     {% csrf_token %}
 
     <div class="section-container mb-4">
-      <h5 class="section-title"><i class="fas fa-percentage me-2"></i>{% trans "بيانات قاعدة الخصم" %}</h5>
-      <div class="row g-3">
-        <div class="col-md-4">
-          <label for="rule_name" class="form-label required">{% trans "اسم قاعدة الخصم" %}</label>
-          <input type="text" class="form-control" id="rule_name" name="rule_name" required>
-        </div>
-        <div class="col-md-4">
-          <label for="rule_type" class="form-label required">{% trans "نوع القاعدة" %}</label>
-          <select class="form-select" id="rule_type" name="rule_type">
-            <option value="PERCENTAGE">{% trans "نسبة مئوية" %}</option>
-            <option value="FIXED_AMOUNT">{% trans "مبلغ ثابت" %}</option>
-            <option value="TIERED_QUANTITY">{% trans "شريحة كمية" %}</option>
-          </select>
-        </div>
-        <div class="col-md-4">
-          <label for="priority" class="form-label">{% trans "الأولوية (الأقل رقماً يطبق أولاً)" %}</label>
-          <input type="number" class="form-control" id="priority" name="priority" value="10">
+      <h5 class="section-title"><i class="fas fa-percentage me-2 text-primary"></i>{% trans "محددات وبيانات قاعدة الخصم" %}</h5>
+      
+      <div class="row g-4">
+        <!-- اسم القاعدة -->
+        <div class="col-md-5">
+          <label for="rule_name" class="form-label fw-bold required">{% trans "اسم قاعدة الخصم" %}</label>
+          <div class="input-group">
+            <span class="input-group-text"><i class="fas fa-tag"></i></span>
+            <input type="text" class="form-control" id="rule_name" name="rule_name" value="{{ rule.rule_name|default:'' }}" placeholder="{% trans 'مثال: خصم كبار العملاء 10%' %}" required>
+          </div>
+          <div class="form-text text-muted">{% trans "اسم وصفي واضح يسهل التعرف على سياسة الخصم." %}</div>
         </div>
 
+        <!-- نوع القاعدة -->
+        <div class="col-md-4">
+          <label for="rule_type" class="form-label fw-bold required">{% trans "نوع القاعدة" %}</label>
+          <select class="form-select select2-simple" id="rule_type" name="rule_type" required>
+            {% for key, val in rule_types %}
+              <option value="{{ key }}" {% if rule.rule_type == key %}selected{% endif %}>{{ val }}</option>
+            {% endfor %}
+          </select>
+          <div class="form-text text-muted">{% trans "تحديد كيفية احتساب الخصم (نسبة مئوية أو خصم بمبلغ مقطوع)." %}</div>
+        </div>
+
+        <!-- الأولوية -->
+        <div class="col-md-3">
+          <label for="priority" class="form-label fw-bold">{% trans "الأولوية" %}</label>
+          <input type="number" class="form-control" id="priority" name="priority" value="{{ rule.priority|default:'10' }}" min="1">
+          <div class="form-text text-muted">{% trans "الرقم الأقل يطبق أولاً في حال تعدد القواعد." %}</div>
+        </div>
+
+        <!-- العميل المستهدف -->
         <div class="col-md-6">
-          <label for="customer" class="form-label">{% trans "العميل المستهدف (اختياري - اتركه فارغاً للكل)" %}</label>
-          <select class="form-select select2" id="customer" name="customer">
-            <option value="">{% trans "جميع العملاء" %}</option>
+          <label for="customer" class="form-label fw-bold">{% trans "العميل المستهدف (اختياري)" %}</label>
+          <select class="form-select select2" id="customer" name="customer" dir="rtl">
+            <option value="">{% trans "جميع العملاء (عام لكافة العملاء)" %}</option>
             {% for c in customers %}
-            <option value="{{ c.id }}">{{ c.name }}</option>
+              <option value="{{ c.id }}" {% if rule.customer_id == c.id %}selected{% endif %}>{{ c.name }}</option>
             {% endfor %}
           </select>
+          <div class="form-text text-muted">{% trans "تخصيص الخصم لعميل محدد أو تركه عاماً لجميع العملاء." %}</div>
         </div>
+
+        <!-- فئة المنتجات -->
         <div class="col-md-6">
-          <label for="category" class="form-label">{% trans "فئة المنتجات (اختياري - اتركه فارغاً للكل)" %}</label>
-          <select class="form-select select2" id="category" name="category">
-            <option value="">{% trans "جميع الفئات" %}</option>
+          <label for="category" class="form-label fw-bold">{% trans "فئة المنتجات (اختياري)" %}</label>
+          <select class="form-select select2" id="category" name="category" dir="rtl">
+            <option value="">{% trans "جميع الفئات (كافة الأصناف)" %}</option>
             {% for cat in categories %}
-            <option value="{{ cat.id }}">{{ cat.name }}</option>
+              <option value="{{ cat.id }}" {% if rule.category_id == cat.id %}selected{% endif %}>{{ cat.name }}</option>
             {% endfor %}
           </select>
+          <div class="form-text text-muted">{% trans "تطبيق الخصم على تصنيف أصناف معين فقط أو تركه عاماً." %}</div>
+        </div>
+
+        <!-- نسبة الخصم % -->
+        <div class="col-md-4" id="percentageWrapper">
+          <label for="discount_percentage" class="form-label fw-bold">{% trans "نسبة الخصم (%)" %}</label>
+          <div class="input-group">
+            <input type="number" step="0.01" class="form-control fw-bold text-success" id="discount_percentage" name="discount_percentage" value="{{ rule.discount_percentage|default:'0.00' }}" min="0" max="100">
+            <span class="input-group-text fw-bold">%</span>
+          </div>
+          <div class="form-text text-muted">{% trans "النسبة المئوية المخصومة من السعر." %}</div>
+        </div>
+
+        <!-- مبلغ الخصم الثابت -->
+        <div class="col-md-4" id="fixedValueWrapper">
+          <label for="value" class="form-label fw-bold">{% trans "مبلغ الخصم الثابت" %}</label>
+          <div class="input-group">
+            <input type="number" step="0.01" class="form-control fw-bold text-success" id="value" name="value" value="{{ rule.value|default:'0.00' }}" min="0">
+            <span class="input-group-text">{% currency_symbol %}</span>
+          </div>
+          <div class="form-text text-muted">{% trans "قيمة نقدية ثابتة تُخصم من الإجمالي." %}</div>
+        </div>
+
+        <!-- الحد الأدنى للطلب -->
+        <div class="col-md-4">
+          <label for="min_order_amount" class="form-label fw-bold">{% trans "الحد الأدنى لقيمة الطلب" %}</label>
+          <div class="input-group">
+            <input type="number" step="0.01" class="form-control" id="min_order_amount" name="min_order_amount" value="{{ rule.min_order_amount|default:'0.00' }}" min="0">
+            <span class="input-group-text">{% currency_symbol %}</span>
+          </div>
+          <div class="form-text text-muted">{% trans "الحد الأدنى للفاتورة لتطبيق الخصم (0 = بدون حد أدنى)." %}</div>
+        </div>
+
+        <!-- تاريخ السريان والانتهاء -->
+        <div class="col-md-4">
+          <label for="effective_date" class="form-label fw-bold required">{% trans "تاريخ بدء السريان" %}</label>
+          <input type="date" class="form-control" id="effective_date" name="effective_date" value="{{ rule.effective_date|date:'Y-m-d'|default:'' }}" required>
+          <div class="form-text text-muted">{% trans "تاريخ بداية تفعيل الخصم." %}</div>
         </div>
 
         <div class="col-md-4">
-          <label for="discount_percentage" class="form-label">{% trans "نسبة الخصم %" %}</label>
-          <input type="number" step="0.01" class="form-control" id="discount_percentage" name="discount_percentage" value="0.00" min="0" max="100">
-        </div>
-        <div class="col-md-4">
-          <label for="value" class="form-label">{% trans "مبلغ الخصم الثابت" %}</label>
-          <input type="number" step="0.01" class="form-control" id="value" name="value" value="0.00" min="0">
-        </div>
-        <div class="col-md-4">
-          <label for="min_order_amount" class="form-label">{% trans "الحد الأدنى للطلب لتفعيل الخصم" %}</label>
-          <input type="number" step="0.01" class="form-control" id="min_order_amount" name="min_order_amount" value="0.00" min="0">
+          <label for="expiry_date" class="form-label fw-bold">{% trans "تاريخ الانتهاء (اختياري)" %}</label>
+          <input type="date" class="form-control" id="expiry_date" name="expiry_date" value="{{ rule.expiry_date|date:'Y-m-d'|default:'' }}">
+          <div class="form-text text-muted">{% trans "اتركه فارغاً إذا كان الخصم سارياً دائماً." %}</div>
         </div>
 
-        <div class="col-md-6">
-          <label for="effective_date" class="form-label required">{% trans "تاريخ بدء السريان" %}</label>
-          <input type="date" class="form-control" id="effective_date" name="effective_date" value="{% now 'Y-m-d' %}" required>
-        </div>
-        <div class="col-md-6">
-          <label for="expiry_date" class="form-label">{% trans "تاريخ الانتهاء (اختياري)" %}</label>
-          <input type="date" class="form-control" id="expiry_date" name="expiry_date">
+        <!-- حالة التفعيل -->
+        <div class="col-md-4 d-flex align-items-center mt-4">
+          <div class="form-check form-switch mt-3">
+            <input class="form-check-input" type="checkbox" role="switch" id="is_active" name="is_active" {% if rule %}{% if rule.is_active %}checked{% endif %}{% else %}checked{% endif %}>
+            <label class="form-check-label fw-bold" for="is_active">{% trans "تفعيل قاعدة الخصم حالياً" %}</label>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- أزرار الحفظ -->
+    <!-- أزرار الإجراءات الموحدة -->
     <div class="d-flex justify-content-end gap-2 mb-4">
       <a href="{% url 'sale:discount_rule_list' %}" class="btn btn-secondary px-4">{% trans "إلغاء" %}</a>
       <button type="submit" class="btn btn-primary px-5 fw-bold"><i class="fas fa-save me-2"></i>{% trans "حفظ قاعدة الخصم" %}</button>
@@ -90,8 +139,26 @@
 {% block extra_js %}
 <script src="{% static 'js/select2.min.js' %}"></script>
 <script>
-  $(document).ready(function() {
-    $('.select2').select2({ dir: "rtl", language: "ar", width: "100%" });
-  });
+document.addEventListener("DOMContentLoaded", function() {
+  $('.select2').select2({ dir: "rtl", language: "ar", width: "100%" });
+
+  // إذا كان نوع القاعدة نسبة مئوية نركز على حقل النسبة والعكس
+  function updateRuleTypeDisplay() {
+    var ruleType = document.getElementById("rule_type").value;
+    var percentageWrapper = document.getElementById("percentageWrapper");
+    var fixedValueWrapper = document.getElementById("fixedValueWrapper");
+
+    if (ruleType === "PERCENTAGE") {
+      percentageWrapper.style.opacity = "1";
+      fixedValueWrapper.style.opacity = "0.5";
+    } else {
+      percentageWrapper.style.opacity = "0.5";
+      fixedValueWrapper.style.opacity = "1";
+    }
+  }
+
+  document.getElementById("rule_type").addEventListener("change", updateRuleTypeDisplay);
+  updateRuleTypeDisplay();
+});
 </script>
 {% endblock %}

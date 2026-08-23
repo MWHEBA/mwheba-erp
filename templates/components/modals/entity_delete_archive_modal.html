@@ -128,11 +128,21 @@ window.EntityDeleteArchiveController = (function() {
                 'Accept': 'application/json'
             }
         })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('HTTP error ' + response.status);
+            }
+            return response.json();
+        })
         .then(data => {
             if (!data.success) {
                 if (window.showNotification) {
                     window.showNotification(data.message || 'فشل فحص الكيان', 'error');
+                } else if (window.toastr) {
+                    window.toastr.error(data.message || 'فشل فحص الكيان');
+                }
+                if (document.activeElement && modalEl.contains(document.activeElement)) {
+                    document.activeElement.blur();
                 }
                 modal.hide();
                 return;
@@ -144,6 +154,11 @@ window.EntityDeleteArchiveController = (function() {
             console.error('Error pre-checking entity:', err);
             if (window.showNotification) {
                 window.showNotification('حدث خطأ أثناء فحص سجلات الكيان', 'error');
+            } else if (window.toastr) {
+                window.toastr.error('حدث خطأ أثناء فحص سجلات الكيان');
+            }
+            if (document.activeElement && modalEl.contains(document.activeElement)) {
+                document.activeElement.blur();
             }
             modal.hide();
         });

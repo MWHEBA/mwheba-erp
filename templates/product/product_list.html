@@ -152,6 +152,7 @@
         <div class="collapse" id="filterSection">
             <div class="filter-section mb-4">
                 <form method="GET" action="{% url 'product:product_list' %}" class="row g-2 align-items-end" id="products-filter-form" onsubmit="event.preventDefault(); window.doSearch();">
+                    <input type="hidden" name="status" id="status" value="{{ current_status|default:'active' }}">
                     <!-- بحث -->
                     <div class="col-12 col-md">
                         <label for="search" class="form-label">{% trans "بحث" %}</label>
@@ -177,15 +178,6 @@
                             <option value="bundle" {% if current_product_type == 'bundle' %}selected{% endif %}>مجمع</option>
                         </select>
                     </div>
-                    <!-- الحالة -->
-                    <div class="col-12 col-md-auto">
-                        <label for="status" class="form-label">الحالة</label>
-                        <select class="form-select" id="status" name="status" style="min-width:110px;">
-                            <option value="all" {% if current_status == 'all' %}selected{% endif %}>الكل</option>
-                            <option value="active" {% if current_status == 'active' or not current_status %}selected{% endif %}>نشط</option>
-                            <option value="inactive" {% if current_status == 'inactive' %}selected{% endif %}>غير نشط</option>
-                        </select>
-                    </div>
                     <!-- أزرار -->
                     <div class="col-6 col-md-auto">
                         <button type="button" class="btn btn-primary w-100" onclick="window.doSearch()">
@@ -193,7 +185,7 @@
                         </button>
                     </div>
                     <div class="col-6 col-md-auto">
-                        <a href="{% url 'product:product_list' %}" class="btn btn-outline-secondary w-100">
+                        <a href="{% url 'product:product_list' %}{% if current_status == 'inactive' %}?status=inactive{% endif %}" class="btn btn-outline-secondary w-100">
                             <i class="fas fa-times me-1"></i>مسح
                         </a>
                     </div>
@@ -412,7 +404,7 @@ $(document).ready(function() {
         debounceTimer = setTimeout(function() { window.doSearch(); }, 400);
     });
 
-    $('#category, #product_type, #status').on('change', function() {
+    $('#category, #product_type').on('change', function() {
         // لما الـ select يتغير يدوياً، حدّث _activeCategoryId
         if (this.id === 'category') {
             _activeCategoryId = $(this).val() || '';

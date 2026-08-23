@@ -8,6 +8,7 @@ from .cost_center_views import (
     cost_center_create_view,
     cost_center_detail_view,
     cost_center_edit_view,
+    cost_center_delete_view,
     cost_center_tree_api,
     suggest_cost_center_code,
 )

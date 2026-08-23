@@ -251,11 +251,9 @@ class BatchVoucherService:
             batch_voucher: الإذن الجماعي
             user: المستخدم المعتمد
         """
-        # حساب المخزون الرئيسي
-        try:
-            inventory_account = ChartOfAccounts.objects.get(code='10400')
-        except ChartOfAccounts.DoesNotExist:
-            raise ValueError('حساب المخزون (10400) غير موجود')
+        # الحصول على حساب المخزون والحساب المقابل
+        from product.services.voucher_accounting_service import get_inventory_account, get_contra_account
+        inventory_account = get_inventory_account(warehouse=batch_voucher.warehouse)
         
         # الحساب المقابل
         if batch_voucher.voucher_type == 'transfer':
@@ -263,8 +261,7 @@ class BatchVoucherService:
             return None
         
         # الحصول على الحساب المقابل حسب الغرض
-        from product.services.voucher_accounting_service import get_contra_account
-        contra_account = get_contra_account(batch_voucher.purpose_type)
+        contra_account = get_contra_account(batch_voucher.purpose_type, is_receipt=(batch_voucher.voucher_type == 'receipt'))
         
         # إعداد بيانات القيد
         gateway = AccountingGateway()

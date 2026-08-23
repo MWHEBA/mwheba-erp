@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 def check_quotations_enabled(view_func):
     def _wrapped_view(request, *args, **kwargs):
-        enabled = SystemSetting.get_setting('enable_quotations', 'false') == 'true'
+        enabled = SystemSetting.get_bool('enable_quotations', False)
         if not enabled:
             return render(request, "core/permission_denied.html", {
                 "title": _("ميزة معطلة"),

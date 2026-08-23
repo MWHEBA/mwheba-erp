@@ -1,0 +1,89 @@
+{% load i18n %}
+<!-- ===== Corporate Unified Quick Customer Modal ===== -->
+<div class="modal fade" id="addCustomerModal" tabindex="-1" aria-labelledby="addCustomerModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-light border-bottom px-4 py-3">
+                <h5 class="modal-title fw-bold text-dark mb-0" id="addCustomerModalLabel">
+                    <i class="fas fa-user-plus text-primary me-2"></i>{% trans "إضافة عميل جديد" %}
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="ajax-add-customer-form" autocomplete="off">
+                {% csrf_token %}
+                <div class="modal-body p-4">
+                    <div id="modal-error-alert" class="alert alert-danger border-0 d-none" style="border-radius: 6px;">
+                        <ul class="mb-0" id="modal-error-list"></ul>
+                    </div>
+                    
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">{% trans "كود العميل" %} <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-barcode"></i></span>
+                                <input type="text" name="code" id="modal_customer_code" class="form-control bg-light" readonly required>
+                                <button class="btn btn-outline-secondary" type="button" id="toggle-customer-modal-code" title="{% trans 'تعديل الكود يدوياً' %}">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                            </div>
+                            <div class="form-text text-muted small">{% trans "يتم التوليد تلقائياً ويمكن تعديله يدوياً." %}</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">{% trans "اسم العميل" %} <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-user"></i></span>
+                                <input type="text" name="name" class="form-control" placeholder="{% trans 'أدخل اسم العميل بالكامل' %}" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">{% trans "رقم الهاتف" %}</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-phone"></i></span>
+                                <input type="text" name="phone" class="form-control" placeholder="01xxxxxxxxx">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">{% trans "البريد الإلكتروني" %}</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-envelope"></i></span>
+                                <input type="email" name="email" class="form-control" placeholder="email@example.com">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">{% trans "الحد الائتماني" %}</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-credit-card"></i></span>
+                                <input type="number" name="credit_limit" class="form-control" value="0" min="0" step="0.01">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">{% trans "الرقم الضريبي" %}</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-file-invoice"></i></span>
+                                <input type="text" name="tax_number" class="form-control" placeholder="{% trans 'أدخل الرقم الضريبي للعميل' %}">
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-bold">{% trans "العنوان" %}</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-map-marker-alt"></i></span>
+                                <textarea name="address" class="form-control" rows="2" placeholder="{% trans 'أدخل عنوان العميل بالتفصيل' %}"></textarea>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-bold">{% trans "ملاحظات إضافية" %}</label>
+                            <textarea name="notes" class="form-control" rows="2" placeholder="{% trans 'أي ملاحظات إضافية عن العميل' %}"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-top px-4 py-3">
+                    <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+                    <button type="submit" class="btn btn-primary px-4 fw-bold" id="btn-save-customer">
+                        <span class="spinner-border spinner-border-sm d-none me-1" id="save-customer-spinner" role="status" aria-hidden="true"></span>
+                        <i class="fas fa-save me-1"></i>{% trans "حفظ العميل" %}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

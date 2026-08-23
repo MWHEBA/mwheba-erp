@@ -27,6 +27,7 @@
     <div class="collapse {% if request.GET.search or request.GET.status or request.GET.has_debt or request.GET.currency or request.GET.client_type %}show{% endif %}" id="filterSection">
       <div class="filter-section mb-4">
         <form method="GET" action="{% url 'client:customer_list' %}" class="row g-2 align-items-end">
+          <input type="hidden" name="status" value="{{ request.GET.status|default:'active' }}">
           <div class="col-md-3 col-sm-6">
             <label for="search" class="form-label">{% trans "بحث" %}</label>
             <input type="text" class="form-control" id="search" name="search" value="{{ request.GET.search }}" placeholder="اسم أو هاتف أو كود العميل">
@@ -57,19 +58,11 @@
               <option value="0" {% if request.GET.has_debt == '0' %}selected{% endif %}>بدون مديونية</option>
             </select>
           </div>
-          <div class="col-md-1 col-sm-6">
-            <label for="status" class="form-label">{% trans "الحالة" %}</label>
-            <select class="form-select" id="status" name="status">
-              <option value="">{% trans "الكل" %}</option>
-              <option value="active" {% if request.GET.status == 'active' %}selected{% endif %}>{% trans "نشط" %}</option>
-              <option value="inactive" {% if request.GET.status == 'inactive' %}selected{% endif %}>{% trans "غير نشط" %}</option>
-            </select>
-          </div>
-          <div class="col-md-2 col-sm-6 d-flex gap-2">
+          <div class="col-md-3 col-sm-12 d-flex gap-2 align-items-end">
             <button type="submit" class="btn btn-primary flex-grow-1">
               <i class="fas fa-search me-1"></i>{% trans "بحث" %}
             </button>
-            <a href="{% url 'client:customer_list' %}" class="btn btn-outline-secondary">
+            <a href="{% url 'client:customer_list' %}{% if request.GET.status == 'inactive' %}?status=inactive{% endif %}" class="btn btn-outline-secondary">
               <i class="fas fa-times me-1"></i>مسح
             </a>
           </div>
@@ -85,7 +78,7 @@
       </div>
       <div class="card-body">
         <div id="customers-table-container">
-        {% include "components/data_table.html" with table_id="customers-table" data=customers headers=headers primary_key="id" table_class="hover clickable-rows" empty_message="لا يوجد عملاء متاحين" show_search=False show_length_menu=False disable_pagination=True show_currency=True clickable_rows=True row_click_url="/customers/0/detail/" %}
+        {% include "components/data_table.html" with table_id="customers-table" data=customers headers=headers action_buttons=action_buttons primary_key="id" table_class="hover clickable-rows" empty_message="لا يوجد عملاء متاحين" show_search=False show_length_menu=False disable_pagination=True show_currency=True clickable_rows=True row_click_url="/customers/0/detail/" %}
         </div>
       </div>
 
@@ -268,6 +261,18 @@
       }
     });
   }
+  function openDeleteModal(itemId) {
+    if (window.EntityDeleteArchiveController) {
+      window.EntityDeleteArchiveController.open({
+        entityType: 'customer',
+        entityId: itemId,
+        deleteUrl: '/customers/' + itemId + '/delete/',
+        tableContainerId: 'customers-table-container',
+        paginationContainerId: 'pagination-wrapper'
+      });
+    }
+  }
 </script>
 {% csrf_token %}
+{% include "components/modals/entity_delete_archive_modal.html" %}
 {% endblock %}

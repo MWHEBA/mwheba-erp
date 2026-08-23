@@ -52,7 +52,7 @@ from datetime import datetime, timedelta
 from django.db.models import Avg, Max, Min
 from core.models import SystemSetting
 from core.utils import paginate_queryset, render_paginated_response
-from utils.templatetags.utils_extras import currency_format
+from utils.templatetags.utils_extras import currency_format, smart_float
 
 # استيراد نماذج المشتريات للتحقق من الارتباطات
 try:
@@ -188,7 +188,7 @@ def product_list(request):
     try:
         # استرجاع المنتجات مع كل البيانات المطلوبة في query واحدة
         products = (
-            Product.objects.select_related("category", "unit", "created_by", "updated_by")
+            Product.objects.select_related("category", "unit", "created_by", "updated_by", "tax_code")
             .prefetch_related(
                 "stocks",
                 "images",
@@ -305,9 +305,8 @@ def product_list(request):
             {"key": "name_with_sku", "label": "اسم المنتج", "sortable": True, "class": "text-center", "format": "html"},
             {"key": "product_type", "label": "النوع", "sortable": True, "class": "text-center", "format": "html", "width": "100px"},
             {"key": "category", "label": "التصنيف", "sortable": True, "class": "text-center", "format": "html", "width": "120px"},
-            {"key": "sale_price", "label": "سعر البيع", "sortable": True, "class": "text-center", "format": "html", "width": "120px"},
+            {"key": "sale_price", "label": "سعر البيع", "sortable": True, "class": "text-center", "format": "html", "width": "160px"},
             {"key": "current_stock", "label": "المخزون", "sortable": True, "class": "text-center", "format": "html", "width": "120px"},
-            {"key": "is_active", "label": "الحالة", "sortable": True, "class": "text-center", "format": "html", "width": "90px"},
         ]
 
         action_buttons = [
@@ -344,7 +343,29 @@ def product_list(request):
                 sku_html = f'<div style="font-size:0.75rem;color:var(--text-muted);"><i class="fas fa-barcode me-1" style="font-size:0.7rem;"></i>{product.sku}</div>' if product.sku else ''
                 name_html = f'<div style="font-weight:500;">{product.name}</div>{sku_html}'
                 category_html = f'<span class="badge bg-light text-dark">{product.category.name}</span>' if product.category else '-'
-                price_html = f'<span style="font-weight:600;">{currency_format(product.selling_price)}</span> <small class="text-muted">ج.م</small>'
+                
+                # حساب السعر الأساسي والسعر شامل الضريبة
+                base_price = product.selling_price or Decimal('0.00')
+                tax_rate = product.tax_rate if (product.tax_rate is not None and product.tax_rate > Decimal('0.00')) else (
+                    product.tax_code.rate if (product.tax_code and product.tax_code.rate) else Decimal('0.00')
+                )
+                if tax_rate > Decimal('0.00'):
+                    tax_amount = (base_price * tax_rate) / Decimal('100.00')
+                    gross_price = base_price + tax_amount
+                    tax_rate_str = smart_float(tax_rate)
+                    price_html = (
+                        f'<div style="font-weight:600;">{currency_format(base_price)} <small class="text-muted">ج.م</small></div>'
+                        f'<div style="font-size:0.75rem;color:var(--text-muted);margin-top:2px;">'
+                        f'شامل الضريبة ({tax_rate_str}%): <strong style="color:var(--success, #059669);">{currency_format(gross_price)} ج.م</strong>'
+                        f'</div>'
+                    )
+                else:
+                    price_html = (
+                        f'<div style="font-weight:600;">{currency_format(base_price)} <small class="text-muted">ج.م</small></div>'
+                        f'<div style="font-size:0.75rem;color:var(--text-muted);margin-top:2px;">'
+                        f'<span class="text-muted"><i class="fas fa-ban me-1" style="font-size:0.7rem;"></i>معفى (0%)</span>'
+                        f'</div>'
+                    )
 
                 stock_val = product.total_stock or 0
                 if product.is_bundle:
@@ -357,8 +378,6 @@ def product_list(request):
                 else:
                     stock_html = f'<span class="badge bg-success">{stock_val}</span>'
 
-                status_html = '<span class="badge bg-success">نشط</span>' if product.is_active else '<span class="badge bg-danger">غير نشط</span>'
-
                 rows.append({
                     "id": product.id,
                     "bulk_checkbox": f'<input type="checkbox" class="row-checkbox" value="{product.id}">',
@@ -368,7 +387,6 @@ def product_list(request):
                     "category": category_html,
                     "sale_price": price_html,
                     "current_stock": stock_html,
-                    "is_active": status_html,
                     "row_click_url": detail_url,
                 })
             return rows
@@ -409,6 +427,7 @@ def product_list(request):
         # حساب إحصائيات المنتجات للمؤشرات
         total_products_count = Product.objects.filter(is_service=False).count()
         active_products_count = Product.objects.filter(is_service=False, is_active=True).count()
+        inactive_products_count = total_products_count - active_products_count
         
         annotated_stats_qs = Product.objects.filter(is_service=False, is_active=True).annotate(
             calc_stock=Sum('stocks__quantity')
@@ -431,10 +450,40 @@ def product_list(request):
         product_stats = {
             'total_products': total_products_count,
             'active_products': active_products_count,
+            'inactive_products': inactive_products_count,
             'low_stock_count': low_stock_count,
             'out_of_stock_count': out_of_stock_count,
             'total_stock_value': total_stock_value,
         }
+
+        if status == "inactive":
+            page_title = "أرشيف المنتجات"
+            page_subtitle = "عرض واسترجاع المنتجات المؤرشفة وغير النشطة"
+            page_icon = "fas fa-archive"
+            header_buttons = [
+                {"url": reverse("product:product_list"), "icon": "fa-boxes", "text": f"المنتجات النشطة ({active_products_count})", "class": "btn-outline-primary"},
+                {"url": reverse("product:product_create"), "icon": "fa-plus", "text": "إضافة منتج", "class": "btn-success"},
+            ]
+            breadcrumb_items = [
+                {"title": "الرئيسية", "url": reverse("core:dashboard"), "icon": "fas fa-home"},
+                {"title": "المنتجات", "url": reverse("product:product_list"), "icon": "fas fa-boxes"},
+                {"title": "الأرشيف", "active": True},
+            ]
+        else:
+            page_title = "قائمة المنتجات"
+            page_subtitle = "إدارة منتجات النظام وتصنيفاتها وأسعارها"
+            page_icon = "fas fa-boxes"
+            header_buttons = [
+                {"url": reverse("product:product_create"), "icon": "fa-plus", "text": "إضافة منتج", "class": "btn-success"},
+                {"url": reverse("product:product_list") + "?status=inactive", "icon": "fa-archive", "text": f"الأرشيف ({inactive_products_count})", "class": "btn-outline-secondary"},
+                {"url": reverse("product:product_import"), "icon": "fa-file-import", "text": "استيراد منتجات", "class": "btn-outline-primary"},
+                {"url": reverse("product:price_manager") + "?type=product", "icon": "fa-tags", "text": "تحديث الأسعار", "class": "btn-outline-warning"},
+                {"url": reverse("product:bundle_list"), "icon": "fa-list", "text": "المنتجات المجمعة", "class": "btn-outline-primary"},
+            ]
+            breadcrumb_items = [
+                {"title": "الرئيسية", "url": reverse("core:dashboard"), "icon": "fas fa-home"},
+                {"title": "المنتجات", "active": True},
+            ]
 
         context = {
             **pagination_data,
@@ -453,19 +502,11 @@ def product_list(request):
             "current_max_price": max_price,
             "current_in_stock": in_stock,
             "show_export": True,
-            "page_title": "قائمة المنتجات",
-            "page_subtitle": "إدارة منتجات النظام وتصنيفاتها وأسعارها",
-            "page_icon": "fas fa-boxes",
-            "header_buttons": [
-                {"url": reverse("product:product_create"), "icon": "fa-plus", "text": "إضافة منتج", "class": "btn-success"},
-                {"url": reverse("product:product_import"), "icon": "fa-file-import", "text": "استيراد منتجات", "class": "btn-outline-primary"},
-                {"url": reverse("product:price_manager") + "?type=product", "icon": "fa-tags", "text": "تحديث الأسعار", "class": "btn-outline-warning"},
-                {"url": reverse("product:bundle_list"), "icon": "fa-list", "text": "المنتجات المجمعة", "class": "btn-outline-primary"},
-            ],
-            "breadcrumb_items": [
-                {"title": "الرئيسية", "url": reverse("core:dashboard"), "icon": "fas fa-home"},
-                {"title": "المنتجات", "active": True},
-            ],
+            "page_title": page_title,
+            "page_subtitle": page_subtitle,
+            "page_icon": page_icon,
+            "header_buttons": header_buttons,
+            "breadcrumb_items": breadcrumb_items,
         }
 
         return render_paginated_response(
@@ -661,7 +702,7 @@ def service_list(request):
     try:
         # استرجاع الخدمات فقط
         services = (
-            Product.objects.select_related("category", "unit")
+            Product.objects.select_related("category", "unit", "tax_code")
             .prefetch_related("stocks", "images")
             .filter(is_service=True)
             .all()
@@ -727,7 +768,7 @@ def service_list(request):
                 "sortable": True,
                 "class": "text-center",
                 "format": "html",
-                "width": "120px",
+                "width": "160px",
             },
             {
                 "key": "is_active",
@@ -771,7 +812,29 @@ def service_list(request):
             sku_html = f'<div style="font-size:0.75rem;color:var(--text-muted);"><i class="fas fa-hashtag me-1"></i>{service.sku}</div>' if service.sku else ''
             name_html = f'<div style="font-weight:500;">{service.name}</div>{sku_html}'
             category_html = f'<span class="badge bg-light text-dark">{service.category.name}</span>' if service.category else '-'
-            price_html = f'<span style="font-weight:600;">{currency_format(service.selling_price)}</span> <small class="text-muted">ج.م</small>'
+            
+            # حساب السعر الأساسي والشامل للخدمة
+            base_price = service.selling_price or Decimal('0.00')
+            tax_rate = service.tax_rate if (service.tax_rate is not None and service.tax_rate > Decimal('0.00')) else (
+                service.tax_code.rate if (service.tax_code and service.tax_code.rate) else Decimal('0.00')
+            )
+            if tax_rate > Decimal('0.00'):
+                tax_amount = (base_price * tax_rate) / Decimal('100.00')
+                gross_price = base_price + tax_amount
+                tax_rate_str = smart_float(tax_rate)
+                price_html = (
+                    f'<div style="font-weight:600;">{currency_format(base_price)} <small class="text-muted">ج.م</small></div>'
+                    f'<div style="font-size:0.75rem;color:var(--text-muted);margin-top:2px;">'
+                    f'شامل الضريبة ({tax_rate_str}%): <strong style="color:var(--success, #059669);">{currency_format(gross_price)} ج.م</strong>'
+                    f'</div>'
+                )
+            else:
+                price_html = (
+                    f'<div style="font-weight:600;">{currency_format(base_price)} <small class="text-muted">ج.م</small></div>'
+                    f'<div style="font-size:0.75rem;color:var(--text-muted);margin-top:2px;">'
+                    f'<span class="text-muted"><i class="fas fa-ban me-1" style="font-size:0.7rem;"></i>معفى (0%)</span>'
+                    f'</div>'
+                )
             status_html = '<span class="badge bg-success">نشط</span>' if service.is_active else '<span class="badge bg-danger">غير نشط</span>'
 
             row_data = {
@@ -1047,12 +1110,22 @@ def product_detail(request, pk):
     # الحصول على المخزون الحالي للمنتج في كل مخزن
     stock_items = Stock.objects.filter(product=product).select_related("warehouse")
 
-    # آخر حركات المخزون
-    stock_movements = (
+    # آخر حركات المخزون الموحدة
+    from product.models.inventory_movement import InventoryMovement
+    stock_mvms = list(
         StockMovement.objects.filter(product=product)
+        .exclude(reference_number__in=InventoryMovement.objects.filter(product=product).values_list('movement_number', flat=True))
         .select_related("warehouse", "destination_warehouse", "created_by")
         .order_by("-timestamp")[:10]
     )
+    inv_mvms = list(
+        InventoryMovement.objects.filter(product=product, is_approved=True)
+        .select_related("warehouse", "created_by")
+        .order_by("-movement_date")[:10]
+    )
+    for im in inv_mvms:
+        im.timestamp = im.movement_date
+    stock_movements = sorted(stock_mvms + inv_mvms, key=lambda x: x.timestamp or timezone.now(), reverse=True)[:10]
 
     # إجمالي المخزون
     total_stock = stock_items.aggregate(total=Sum("quantity"))["total"] or 0
@@ -1106,11 +1179,48 @@ def product_detail(request, pk):
         
         # بيانات الهيدر
         "page_title": product.name,
-        "page_subtitle": f'{product.sku} • {product.category.name}',
+        "page_subtitle": f'{product.sku} • {product.category.name}' if product.category else f'{product.sku}',
         "page_icon": "fas fa-box",
-        
-        # أزرار الهيدر
-        "header_buttons": [
+    }
+
+    # تخصيص أزرار وشارات الهيدر ومسار التتبع حسب حالة المنتج (نشط / معطل)
+    if not product.is_active:
+        context["header_badges"] = [
+            {
+                "text": "معطل / مؤرشف",
+                "class": "bg-danger text-white",
+                "icon": "fas fa-archive",
+            },
+        ]
+        context["header_buttons"] = [
+            {
+                "form_id": "reactivate-product-form",
+                "icon": "fa-undo",
+                "text": "تفعيل المنتج",
+                "class": "btn-success fw-bold",
+            },
+            {
+                "url": reverse("product:product_list") + "?status=inactive",
+                "icon": "fa-arrow-right",
+                "text": "العودة للأرشيف",
+                "class": "btn-outline-secondary",
+            },
+        ]
+        context["breadcrumb_items"] = [
+            {"title": "الرئيسية", "url": reverse("core:dashboard"), "icon": "fas fa-home"},
+            {"title": "المنتجات", "url": reverse("product:product_list"), "icon": "fas fa-box"},
+            {"title": "الأرشيف", "url": reverse("product:product_list") + "?status=inactive", "icon": "fas fa-archive"},
+            {"title": product.name, "active": True},
+        ]
+    else:
+        context["header_badges"] = [
+            {
+                "text": "نشط",
+                "class": "bg-success text-white",
+                "icon": "fas fa-check-circle",
+            },
+        ]
+        context["header_buttons"] = [
             {
                 "url": reverse("product:product_edit", kwargs={"pk": product.pk}),
                 "icon": "fa-edit",
@@ -1129,17 +1239,31 @@ def product_detail(request, pk):
                 "text": "العودة للقائمة",
                 "class": "btn-outline-secondary",
             },
-        ],
-        
-        # البريدكرمب
-        "breadcrumb_items": [
+        ]
+        context["breadcrumb_items"] = [
             {"title": "الرئيسية", "url": reverse("core:dashboard"), "icon": "fas fa-home"},
             {"title": "المنتجات", "url": reverse("product:product_list"), "icon": "fas fa-box"},
             {"title": product.name, "active": True},
-        ],
-    }
+        ]
 
     return render(request, "product/product_detail.html", context)
+
+
+@login_required
+@require_POST
+def product_reactivate(request, pk):
+    """
+    إعادة تنشيط منتج أو منتج مجمع معطل ومؤرشف
+    """
+    product = get_object_or_404(Product, pk=pk)
+    product.is_active = True
+    product.save(update_fields=["is_active", "updated_at"] if hasattr(product, "updated_at") else ["is_active"])
+    messages.success(request, f'تم تفعيل المنتج "{product.name}" بنجاح')
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return JsonResponse({"success": True, "message": f'تم تفعيل المنتج "{product.name}" بنجاح'})
+    if product.is_bundle:
+        return redirect("product:bundle_detail", pk=product.pk)
+    return redirect("product:product_detail", pk=product.pk)
 
 
 @login_required
@@ -1244,6 +1368,14 @@ def product_delete(request, pk):
         PurchaseItem is not None
         and PurchaseItem.objects.filter(product=product).exists()
     )
+
+    # التحقق من وجود بنود مبيعات
+    has_sale_items = False
+    try:
+        from sale.models import SaleItem
+        has_sale_items = SaleItem.objects.filter(product=product).exists()
+    except Exception:
+        pass
     
     # التحقق من وجود مكونات Bundle
     has_bundle_components = False
@@ -1273,7 +1405,7 @@ def product_delete(request, pk):
 
     # تحديد إذا كان المنتج مرتبط بأي معاملات
     has_transactions = (
-        has_movements or has_purchase_items or 
+        has_movements or has_purchase_items or has_sale_items or
         has_bundle_components or has_supplier_prices or has_reservations
     )
     can_delete_permanently = not has_transactions
@@ -1302,6 +1434,10 @@ def product_delete(request, pk):
     if has_purchase_items:
         purchases_count = PurchaseItem.objects.filter(product=product).count()
         transactions_info.append(f"{purchases_count} فاتورة مشتريات")
+    if has_sale_items:
+        from sale.models import SaleItem
+        sales_count = SaleItem.objects.filter(product=product).count()
+        transactions_info.append(f"{sales_count} فاتورة مبيعات")
     if has_bundle_components:
         from product.models.product_core import BundleComponent
         bundles_count = BundleComponent.objects.filter(
@@ -1411,7 +1547,7 @@ def bundle_detail(request, pk):
                 'possible_bundles': int(possible_bundles),
                 'availability_status': availability_status,
                 'availability_class': availability_class,
-                'stock_ratio': (comp_stock / required_qty * 100) if required_qty > 0 else 0,
+                'stock_ratio': min(100, (comp_stock / required_qty * 100)) if required_qty > 0 else 0,
                 'alternatives': alternatives,
                 'alternatives_count': alternatives_count,
             })
@@ -1442,8 +1578,46 @@ def bundle_detail(request, pk):
             "page_subtitle": f"كود المنتج: {bundle.sku} • {components_count} مكون",
             "page_icon": "fas fa-boxes",
             
-            # أزرار الهيدر
-            "header_buttons": [
+        }
+
+        # أزرار وشارات الهيدر الموحدة للمنتج المجمع
+        if not bundle.is_active:
+            context["header_badges"] = [
+                {
+                    "text": "معطل / مؤرشف",
+                    "class": "bg-danger text-white",
+                    "icon": "fas fa-archive",
+                },
+            ]
+            context["header_buttons"] = [
+                {
+                    "form_id": "reactivate-product-form",
+                    "icon": "fa-undo",
+                    "text": "تفعيل المنتج المجمع",
+                    "class": "btn-success fw-bold",
+                },
+                {
+                    "url": reverse("product:bundle_list"),
+                    "icon": "fa-arrow-right",
+                    "text": "العودة للقائمة",
+                    "class": "btn-outline-secondary",
+                },
+            ]
+            context["breadcrumb_items"] = [
+                {"title": "الرئيسية", "url": reverse("core:dashboard"), "icon": "fas fa-home"},
+                {"title": "المنتجات", "url": reverse("product:product_list"), "icon": "fas fa-boxes"},
+                {"title": "المنتجات المجمعة", "url": reverse("product:bundle_list"), "icon": "fas fa-boxes"},
+                {"title": f"تفاصيل: {bundle.name}", "active": True},
+            ]
+        else:
+            context["header_badges"] = [
+                {
+                    "text": "نشط",
+                    "class": "bg-success text-white",
+                    "icon": "fas fa-check-circle",
+                },
+            ]
+            context["header_buttons"] = [
                 {
                     "url": reverse("product:product_edit", args=[bundle.pk]),
                     "icon": "fa-edit",
@@ -1456,28 +1630,13 @@ def bundle_detail(request, pk):
                     "text": "العودة للقائمة",
                     "class": "btn-outline-secondary",
                 },
-            ],
-            
-            # مسار التنقل
-            "breadcrumb_items": [
-                {
-                    "title": "الرئيسية",
-                    "url": reverse("core:dashboard"),
-                    "icon": "fas fa-home",
-                },
-                {
-                    "title": "المنتجات",
-                    "url": reverse("product:product_list"),
-                    "icon": "fas fa-boxes",
-                },
-                {
-                    "title": "المنتجات المجمعة",
-                    "url": reverse("product:bundle_list"),
-                    "icon": "fas fa-boxes",
-                },
+            ]
+            context["breadcrumb_items"] = [
+                {"title": "الرئيسية", "url": reverse("core:dashboard"), "icon": "fas fa-home"},
+                {"title": "المنتجات", "url": reverse("product:product_list"), "icon": "fas fa-boxes"},
+                {"title": "المنتجات المجمعة", "url": reverse("product:bundle_list"), "icon": "fas fa-boxes"},
                 {"title": f"تفاصيل: {bundle.name}", "active": True},
-            ],
-        }
+            ]
 
         return render(request, "product/bundle_detail.html", context)
         
@@ -2479,6 +2638,89 @@ def warehouse_toggle_active(request, pk):
 
 
 @login_required
+def warehouse_delete(request, pk):
+    """
+    حذف أو أرشفة مخزن مع التحقق من الأرصدة وحركات المخزون والفواتير
+    """
+    warehouse = get_object_or_404(Warehouse, pk=pk)
+
+    from product.models import Stock, StockMovement
+    from product.models.inventory_movement import InventoryMovement
+    
+    try:
+        from sale.models import SaleInvoice
+        has_sales = SaleInvoice.objects.filter(warehouse=warehouse).exists()
+    except Exception:
+        has_sales = False
+
+    try:
+        from purchase.models import PurchaseInvoice
+        has_purchases = PurchaseInvoice.objects.filter(warehouse=warehouse).exists()
+    except Exception:
+        has_purchases = False
+
+    # 1. التحقق من وجود أرصدة إيجابية في المخزن
+    stocks = Stock.objects.filter(warehouse=warehouse)
+    total_qty = stocks.filter(quantity__gt=0).aggregate(s=Sum("quantity"))["s"] or 0
+    has_positive_stock = (total_qty > 0)
+    stock_count = stocks.filter(quantity__gt=0).count()
+
+    # 2. التحقق من وجود حركات مخزنية سابقة أو فواتير
+    has_stock_movements = StockMovement.objects.filter(
+        Q(warehouse=warehouse) | Q(destination_warehouse=warehouse)
+    ).exists()
+    has_inv_movements = InventoryMovement.objects.filter(warehouse=warehouse).exists()
+
+    has_history = (has_stock_movements or has_inv_movements or has_sales or has_purchases)
+
+    can_delete_permanently = (not has_positive_stock and not has_history)
+    can_archive = (not has_positive_stock and has_history)
+
+    if request.method == "POST":
+        if has_positive_stock:
+            messages.error(
+                request,
+                f'لا يمكن حذف أو أرشفة المخزن "{warehouse.name}" لوجود بضائع وأرصدة حالية ({stock_count} منتج بإجمالي كمية {total_qty}). يرجى نقل أو تسوية المخزون أولاً.'
+            )
+            return redirect("product:warehouse_detail", pk=pk)
+
+        if can_delete_permanently:
+            w_name = warehouse.name
+            w_code = warehouse.code
+            stocks.delete()
+            warehouse.delete()
+            messages.success(request, f'تم حذف المخزن "{w_name}" ({w_code}) نهائياً من النظام.')
+            return redirect("product:warehouse_list")
+        else:
+            warehouse.is_active = False
+            warehouse.save(update_fields=["is_active"])
+            messages.warning(
+                request,
+                f'تمت أرشفة وتعطيل المخزن "{warehouse.name}" بنجاح لوجود سجلات وحركات مخزنية مرتبطة به.'
+            )
+            return redirect("product:warehouse_list")
+
+    context = {
+        "warehouse": warehouse,
+        "has_positive_stock": has_positive_stock,
+        "stock_count": stock_count,
+        "total_qty": total_qty,
+        "has_history": has_history,
+        "can_delete_permanently": can_delete_permanently,
+        "can_archive": can_archive,
+        "page_title": f"حذف / أرشفة مخزن: {warehouse.name}",
+        "page_icon": "fas fa-trash-alt",
+        "breadcrumb_items": [
+            {"title": "الرئيسية", "url": reverse("core:dashboard"), "icon": "fas fa-home"},
+            {"title": "المخازن", "url": reverse("product:warehouse_list"), "icon": "fas fa-warehouse"},
+            {"title": warehouse.name, "url": reverse("product:warehouse_detail", kwargs={"pk": warehouse.pk})},
+            {"title": "حذف / أرشفة", "active": True},
+        ],
+    }
+    return render(request, "product/warehouse_confirm_delete.html", context)
+
+
+@login_required
 def warehouse_detail(request, pk):
     """
     عرض تفاصيل المخزن
@@ -2498,12 +2740,22 @@ def warehouse_detail(request, pk):
     # المخازن الأخرى للتحويل
     other_warehouses = Warehouse.objects.filter(is_active=True).exclude(pk=warehouse.pk)
 
-    # آخر حركات المخزون في هذا المخزن
-    recent_movements = (
+    # آخر حركات المخزون في هذا المخزن (موحدة)
+    from product.models.inventory_movement import InventoryMovement
+    wh_stock_mvms = list(
         StockMovement.objects.filter(warehouse=warehouse)
+        .exclude(reference_number__in=InventoryMovement.objects.filter(warehouse=warehouse).values_list('movement_number', flat=True))
         .select_related("product", "warehouse", "destination_warehouse", "created_by")
         .order_by("-timestamp")[:10]
     )
+    wh_inv_mvms = list(
+        InventoryMovement.objects.filter(warehouse=warehouse, is_approved=True)
+        .select_related("product", "warehouse", "created_by")
+        .order_by("-movement_date")[:10]
+    )
+    for im in wh_inv_mvms:
+        im.timestamp = im.movement_date
+    recent_movements = sorted(wh_stock_mvms + wh_inv_mvms, key=lambda x: x.timestamp or timezone.now(), reverse=True)[:10]
 
     # إحصائيات المخزون
     total_products = stocks.count()
@@ -2556,13 +2808,62 @@ def warehouse_detail(request, pk):
         },
     ]
 
-    # إعداد action buttons (معطلة مؤقتاً لأن الروابط غير جاهزة)
     stock_action_buttons = []
+
+    if warehouse.is_active:
+        header_buttons = [
+            {
+                "url": reverse("product:warehouse_edit", args=[warehouse.pk]),
+                "icon": "fa-edit",
+                "text": "تعديل",
+                "class": "btn-outline-warning",
+            },
+            {
+                "url": reverse("product:warehouse_delete", args=[warehouse.pk]),
+                "icon": "fa-trash-alt",
+                "text": "حذف",
+                "class": "btn-outline-danger",
+            },
+            {
+                "url": reverse("product:warehouse_list"),
+                "icon": "fa-arrow-right",
+                "text": "العودة للقائمة",
+                "class": "btn-outline-secondary",
+            },
+        ]
+        header_badges = []
+    else:
+        header_buttons = [
+            {
+                "url": reverse("product:warehouse_delete", args=[warehouse.pk]),
+                "icon": "fa-trash-alt",
+                "text": "حذف نهائي",
+                "class": "btn-outline-danger",
+            },
+            {
+                "form_id": "reactivate-warehouse-form",
+                "icon": "fa-undo",
+                "text": "تفعيل المخزن",
+                "class": "btn-success",
+            },
+            {
+                "url": reverse("product:warehouse_list") + "?status=inactive",
+                "icon": "fa-arrow-right",
+                "text": "العودة للأرشيف",
+                "class": "btn-outline-secondary",
+            },
+        ]
+        header_badges = [
+            {
+                "text": "معطل / مؤرشف",
+                "class": "bg-danger text-white",
+            }
+        ]
 
     context = {
         "warehouse": warehouse,
-        "stocks": stock_data,  # استخدام stock_data بدلاً من stocks QuerySet
-        "stock_data": stock_data,  # إضافة للتوافق
+        "stocks": stock_data,
+        "stock_data": stock_data,
         "stock_headers": stock_headers,
         "stock_action_buttons": stock_action_buttons,
         "primary_key": "id",
@@ -2576,20 +2877,8 @@ def warehouse_detail(request, pk):
         "page_title": warehouse.name,
         "page_subtitle": "إدارة ومتابعة حركة المخزون",
         "page_icon": "fas fa-warehouse",
-        "header_buttons": [
-            {
-                "url": reverse("product:warehouse_edit", args=[warehouse.pk]),
-                "icon": "fa-edit",
-                "text": "تعديل",
-                "class": "btn-primary",
-            },
-            {
-                "onclick": f"toggleWarehouseActive({warehouse.pk}, {'true' if warehouse.is_active else 'false'})",
-                "icon": "fa-ban" if warehouse.is_active else "fa-check-circle",
-                "text": "تعطيل" if warehouse.is_active else "تفعيل",
-                "class": "btn-warning" if warehouse.is_active else "btn-success",
-            },
-        ],
+        "header_buttons": header_buttons,
+        "header_badges": header_badges,
         "breadcrumb_items": [
             {
                 "title": "الرئيسية",
@@ -2916,9 +3205,11 @@ def stock_movement_list(request):
     from django.db.models import Q, Value, CharField, F
     from itertools import chain
     
-    # الحصول على حركات StockMovement (المشتريات والمبيعات)
+    # الحصول على حركات StockMovement (المشتريات والمبيعات والعمليات الأخرى مع استبعاد أي إذن مكرر)
     stock_movements = (
-        StockMovement.objects.all()
+        StockMovement.objects.exclude(
+            reference_number__in=InventoryMovement.objects.values_list('movement_number', flat=True)
+        )
         .select_related("product", "warehouse", "destination_warehouse", "created_by")
         .annotate(
             source_type=Value('stock_movement', output_field=CharField()),

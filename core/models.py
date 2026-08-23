@@ -146,6 +146,18 @@ class SystemSetting(models.Model):
                 return default
 
     @classmethod
+    def get_bool(cls, key, default=False):
+        """
+        الحصول على قيمة إعداد منطقي كـ boolean بشكل آمن وموحد
+        """
+        val = cls.get_setting(key, default)
+        if isinstance(val, bool):
+            return val
+        if isinstance(val, (int, float)):
+            return bool(val)
+        return str(val).strip().lower() in ("true", "1", "yes", "on", "نعم")
+
+    @classmethod
     def set_setting(cls, key, value, group="general", data_type="string", description=""):
         """
         تحديث أو إنشاء إعداد مع مسح الكاش صراحة

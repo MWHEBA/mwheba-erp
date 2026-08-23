@@ -20,7 +20,7 @@
                 </li>
                 <li class="nav-item" role="presentation">
                     <button class="nav-link" id="quotations-tab" data-bs-toggle="tab" data-bs-target="#quotations" type="button" role="tab">
-                        <i class="fas fa-file-contract me-2 text-info"></i>عروض الأسعار
+                        <i class="fas fa-file-contract me-2 text-info"></i>عروض الأسعار وأوامر البيع والشراء
                     </button>
                 </li>
                 <li class="nav-item" role="presentation">
@@ -100,12 +100,12 @@
                         </div>
                     </div>
 
-                    <!-- 2. عروض الأسعار -->
+                    <!-- 2. عروض الأسعار وأوامر البيع والشراء -->
                     <div class="tab-pane fade" id="quotations" role="tabpanel">
                         <div class="card border mb-4">
                             <div class="card-header bg-light py-3">
                                 <h6 class="fw-bold mb-0 text-dark">
-                                    <i class="fas fa-file-contract text-info me-2"></i>إعدادات وسياسات عروض الأسعار
+                                    <i class="fas fa-file-contract text-info me-2"></i>إعدادات وسياسات عروض الأسعار (Quotations)
                                 </h6>
                             </div>
                             <div class="card-body p-4">
@@ -117,12 +117,56 @@
                                                 {{ form.enable_quotations.label }}
                                             </label>
                                         </div>
-                                        <div class="form-text text-muted">تشغيل أو تعطيل موديول عروض الأسعار وإمكانية تحويلها المباشر لفواتير مبيعات.</div>
+                                        <div class="form-text text-muted">تشغيل أو تعطيل موديول عروض الأسعار وإمكانية تحويلها المباشر لفواتير مبيعات أو أوامر بيع.</div>
                                     </div>
                                     <div class="col-md-6">
                                         <label class="form-label fw-bold">{{ form.default_quotation_validity_days.label }}</label>
                                         {{ form.default_quotation_validity_days }}
                                         <div class="form-text text-muted">عدد الأيام الافتراضية المضافة تلقائياً لتاريخ استحقاق عرض السعر عند إنشائه.</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- أوامر البيع -->
+                        <div class="card border mb-4">
+                            <div class="card-header bg-light py-3">
+                                <h6 class="fw-bold mb-0 text-dark">
+                                    <i class="fas fa-file-signature text-success me-2"></i>إعدادات وسياسات أوامر البيع (Sales Orders)
+                                </h6>
+                            </div>
+                            <div class="card-body p-4">
+                                <div class="row g-4">
+                                    <div class="col-md-12">
+                                        <div class="form-check form-switch mt-2">
+                                            {{ form.enable_sales_orders }}
+                                            <label class="form-check-label fw-bold" for="{{ form.enable_sales_orders.id_for_label }}">
+                                                {{ form.enable_sales_orders.label }}
+                                            </label>
+                                        </div>
+                                        <div class="form-text text-muted">تشغيل أو تعطيل موديول أوامر البيع (Sales Orders) وحجز المخزون وتحويلها لإذون تسليم وفواتير.</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- أوامر الشراء -->
+                        <div class="card border mb-4">
+                            <div class="card-header bg-light py-3">
+                                <h6 class="fw-bold mb-0 text-dark">
+                                    <i class="fas fa-shopping-cart text-primary me-2"></i>إعدادات وسياسات أوامر الشراء (Purchase Orders)
+                                </h6>
+                            </div>
+                            <div class="card-body p-4">
+                                <div class="row g-4">
+                                    <div class="col-md-12">
+                                        <div class="form-check form-switch mt-2">
+                                            {{ form.enable_purchase_orders }}
+                                            <label class="form-check-label fw-bold" for="{{ form.enable_purchase_orders.id_for_label }}">
+                                                {{ form.enable_purchase_orders.label }}
+                                            </label>
+                                        </div>
+                                        <div class="form-text text-muted">تشغيل أو تعطيل موديول أوامر الشراء والتوريد ودورة الاستلام (GRN).</div>
                                     </div>
                                 </div>
                             </div>

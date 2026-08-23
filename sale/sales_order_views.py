@@ -28,7 +28,21 @@ from financial.exceptions import FinancialCoreError
 logger = logging.getLogger(__name__)
 
 
+def check_sales_orders_enabled(view_func):
+    def _wrapped_view(request, *args, **kwargs):
+        from core.models import SystemSetting
+        enabled = SystemSetting.get_bool('enable_sales_orders', False)
+        if not enabled:
+            return render(request, "core/permission_denied.html", {
+                "title": _("ميزة معطلة"),
+                "message": _("ميزة أوامر البيع غير مفعلة لهذا الحساب/الشركة. يرجى تفعيلها من الإعدادات أولاً.")
+            })
+        return view_func(request, *args, **kwargs)
+    return _wrapped_view
+
+
 @login_required
+@check_sales_orders_enabled
 def sales_order_list(request):
     """
     قائمة أوامر البيع مع الفلاتر والإحصائيات ودعم AJAX
@@ -121,6 +135,7 @@ def sales_order_list(request):
 
 
 @login_required
+@check_sales_orders_enabled
 def sales_order_create(request, quotation_id=None):
     """
     إنشاء أمر بيع جديد (يدوياً أو من عرض سعر)
@@ -211,6 +226,7 @@ def sales_order_create(request, quotation_id=None):
 
 
 @login_required
+@check_sales_orders_enabled
 def sales_order_detail(request, pk):
     """
     عرض تفاصيل أمر البيع والبنود وإذون التسليم والفواتير المرتبطة
@@ -268,6 +284,7 @@ def sales_order_detail(request, pk):
 
 @login_required
 @require_POST
+@check_sales_orders_enabled
 def sales_order_confirm(request, pk):
     """
     اعتماد أمر البيع
@@ -283,6 +300,7 @@ def sales_order_confirm(request, pk):
 
 @login_required
 @require_POST
+@check_sales_orders_enabled
 def sales_order_cancel(request, pk):
     """
     إلغاء أمر البيع
@@ -298,6 +316,7 @@ def sales_order_cancel(request, pk):
 
 
 @login_required
+@check_sales_orders_enabled
 def sales_order_convert_to_sale(request, pk):
     """
     تحويل أمر البيع إلى فاتورة مبيعات مباشرة مع ربط sales_order

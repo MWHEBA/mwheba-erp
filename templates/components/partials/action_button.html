@@ -28,7 +28,7 @@
         <button type="button"
                class="btn btn-sm action-button {{ button.class|default:'action-view' }}" 
                title="{{ button.label }}"
-               {% if button.class == 'action-delete' %}
+               {% if 'action-delete' in button.class %}
                onclick="openDeleteModal('{{ item_id }}')"
                {% elif button.class == 'action-approve' %}
                onclick="openApproveModal('{{ item_id }}')"

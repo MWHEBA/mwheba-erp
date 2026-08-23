@@ -17,55 +17,57 @@
 <div class="container-fluid">
     {% csrf_token %}
     
+    <!-- نموذج إعادة تنشيط المخزن -->
+    <form id="reactivate-warehouse-form" method="POST" action="{% url 'product:warehouse_toggle_active' warehouse.pk %}" style="display: none;">
+        {% csrf_token %}
+    </form>
+
     <!-- Page Header الموحد -->
     {% include "shared/page_header.html" %}
 
     <!-- البطاقات الإحصائية الموحدة -->
-    <div class="section-container mb-4">
-        <h5 class="section-title"><i class="fas fa-chart-bar me-2"></i>الإحصائيات السريعة</h5>
-        <div class="row">
-            <div class="col-md-3 mb-3">
-                <div class="stats-card stats-card-secondary">
-                    <div class="stats-card-header"></div>
-                    <div class="stats-card-body">
-                        <div class="stats-card-icon"><i class="fas fa-box"></i></div>
-                        <div class="stats-card-title">إجمالي المنتجات</div>
-                        <div class="stats-card-value">{{ total_products|default:"0" }}</div>
-                        <div class="stats-card-unit">منتج</div>
-                    </div>
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="stats-card stats-card-secondary">
+                <div class="stats-card-header"></div>
+                <div class="stats-card-body">
+                    <div class="stats-card-icon"><i class="fas fa-box"></i></div>
+                    <div class="stats-card-title">إجمالي المنتجات</div>
+                    <div class="stats-card-value">{{ total_products|default:"0" }}</div>
+                    <div class="stats-card-unit">منتج</div>
                 </div>
             </div>
-            <div class="col-md-3 mb-3">
-                <div class="stats-card stats-card-success">
-                    <div class="stats-card-header"></div>
-                    <div class="stats-card-body">
-                        <div class="stats-card-icon"><i class="fas fa-check-circle"></i></div>
-                        <div class="stats-card-title">متوفر بالمخزون</div>
-                        <div class="stats-card-value">{{ in_stock_products|default:"0" }}</div>
-                        <div class="stats-card-unit">منتج</div>
-                    </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card stats-card-success">
+                <div class="stats-card-header"></div>
+                <div class="stats-card-body">
+                    <div class="stats-card-icon"><i class="fas fa-check-circle"></i></div>
+                    <div class="stats-card-title">متوفر بالمخزون</div>
+                    <div class="stats-card-value">{{ in_stock_products|default:"0" }}</div>
+                    <div class="stats-card-unit">منتج</div>
                 </div>
             </div>
-            <div class="col-md-3 mb-3">
-                <div class="stats-card stats-card-warning">
-                    <div class="stats-card-header"></div>
-                    <div class="stats-card-body">
-                        <div class="stats-card-icon"><i class="fas fa-exclamation-triangle"></i></div>
-                        <div class="stats-card-title">مخزون منخفض</div>
-                        <div class="stats-card-value">{{ low_stock_products|default:"0" }}</div>
-                        <div class="stats-card-unit">منتج</div>
-                    </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card stats-card-warning">
+                <div class="stats-card-header"></div>
+                <div class="stats-card-body">
+                    <div class="stats-card-icon"><i class="fas fa-exclamation-triangle"></i></div>
+                    <div class="stats-card-title">مخزون منخفض</div>
+                    <div class="stats-card-value">{{ low_stock_products|default:"0" }}</div>
+                    <div class="stats-card-unit">منتج</div>
                 </div>
             </div>
-            <div class="col-md-3 mb-3">
-                <div class="stats-card stats-card-danger">
-                    <div class="stats-card-header"></div>
-                    <div class="stats-card-body">
-                        <div class="stats-card-icon"><i class="fas fa-times-circle"></i></div>
-                        <div class="stats-card-title">نفذ من المخزون</div>
-                        <div class="stats-card-value">{{ out_of_stock_products|default:"0" }}</div>
-                        <div class="stats-card-unit">منتج</div>
-                    </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card stats-card-danger">
+                <div class="stats-card-header"></div>
+                <div class="stats-card-body">
+                    <div class="stats-card-icon"><i class="fas fa-times-circle"></i></div>
+                    <div class="stats-card-title">نفذ من المخزون</div>
+                    <div class="stats-card-value">{{ out_of_stock_products|default:"0" }}</div>
+                    <div class="stats-card-unit">منتج</div>
                 </div>
             </div>
         </div>
@@ -170,41 +172,6 @@
     </div>
 </div>
 
-<!-- Actions Modal -->
-<div class="modal fade" id="actionsModal" tabindex="-1" aria-labelledby="actionsModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="actionsModalLabel">
-          <i class="fas fa-cog me-2"></i>{% trans "خيارات إضافية" %}
-        </h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="إغلاق"></button>
-      </div>
-      <div class="modal-body">
-        <div class="list-group">
-          <a href="{% url 'product:warehouse_edit' warehouse.pk %}" class="list-group-item list-group-item-action d-flex align-items-center">
-            <div class="me-3">
-              <i class="fas fa-edit fa-2x text-warning"></i>
-            </div>
-            <div>
-              <div class="fw-bold">{% trans "تعديل بيانات المخزن" %}</div>
-              <small class="text-muted">{% trans "تعديل الاسم والموقع والمسؤول" %}</small>
-            </div>
-          </a>
-          <a href="#" onclick="toggleWarehouseActive({{ warehouse.pk }}, {{ warehouse.is_active|yesno:'true,false' }})" class="list-group-item list-group-item-action d-flex align-items-center">
-            <div class="me-3">
-              <i class="fas {% if warehouse.is_active %}fa-ban fa-2x text-warning{% else %}fa-check-circle fa-2x text-success{% endif %}"></i>
-            </div>
-            <div>
-              <div class="fw-bold">{% if warehouse.is_active %}{% trans "تعطيل المخزن" %}{% else %}{% trans "تفعيل المخزن" %}{% endif %}</div>
-              <small class="text-muted">{% if warehouse.is_active %}{% trans "إيقاف المخزن مؤقتاً" %}{% else %}{% trans "إعادة تفعيل المخزن" %}{% endif %}</small>
-            </div>
-          </a>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
 
 <!-- نافذة إضافة منتج للمخزون -->
 <div class="modal fade" id="addStockModal" tabindex="-1" aria-labelledby="addStockModalLabel" aria-hidden="true">

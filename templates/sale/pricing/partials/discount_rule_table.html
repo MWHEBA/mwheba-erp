@@ -1,0 +1,5 @@
+{% load static %}
+{% load i18n %}
+{% load utils_extras %}
+
+{% include "components/data_table.html" with table_id="discount-rules-table" data=rules_data headers=discount_rule_headers primary_key="id" table_class="hover" empty_message="لا توجد قواعد خصم مسجلة حتى الآن." show_search=False show_length_menu=False disable_pagination=True show_currency=True clickable_rows=True row_click_field="row_click_url" %}

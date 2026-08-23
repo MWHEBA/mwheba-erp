@@ -263,11 +263,14 @@ class SalesReturnService:
             # 3. Post COGS GL Reversal Entry via AccountingGateway
             journal_entry = None
             if total_restored_cogs > Decimal("0.00"):
+                from financial.services.role_registry import AccountRoleRegistry
+                inv_code = AccountRoleRegistry.get_account_code("INVENTORY_GENERAL") or "11310"
+                cogs_code = AccountRoleRegistry.get_account_code("COGS_EXPENSE") or "51100"
                 command = ReturnAccountingCommand(
                     correlation_id=str(correlation_id),
                     document_number=ret_header.return_number,
-                    inventory_account="10400",
-                    cogs_account="50100",
+                    inventory_account=inv_code,
+                    cogs_account=cogs_code,
                     amount=total_restored_cogs,
                     currency="EGP",
                     exchange_rate=Decimal("1.000000"),

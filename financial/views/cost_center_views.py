@@ -9,6 +9,7 @@ from django.utils import timezone
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 
+from django.db import models
 from financial.models import CostCenter, CostCenterBudget, CostCenterBalanceSnapshot, CostCenterAuditLog, JournalEntryLine
 from financial.services.cost_center_code_service import CostCenterCodeService
 
@@ -189,10 +190,22 @@ def cost_center_detail_view(request, pk):
         {
             'toggle': 'modal',
             'target': '#editCostCenterModal',
-            'text': 'تعديل مركز التكلفة',
+            'text': 'تعديل',
             'icon': 'fa-edit',
             'class': 'btn-outline-primary',
-        }
+        },
+        {
+            'url': reverse('financial:cost_center_delete', kwargs={'pk': cost_center.pk}),
+            'text': 'حذف',
+            'icon': 'fa-trash-alt',
+            'class': 'btn-outline-danger',
+        },
+        {
+            'url': reverse('financial:cost_centers_list'),
+            'text': 'العودة للقائمة',
+            'icon': 'fa-arrow-right',
+            'class': 'btn-outline-secondary',
+        },
     ]
 
     context = {
@@ -216,6 +229,77 @@ def cost_center_detail_view(request, pk):
         ]
     }
     return render(request, 'financial/cost_centers/cost_center_detail.html', context)
+
+
+@login_required
+def cost_center_delete_view(request, pk):
+    """
+    حذف أو أرشفة مركز تكلفة مع حماية الشجرة والقيود المحاسبية وكائنات النظام
+    """
+    cost_center = get_object_or_404(CostCenter, pk=pk)
+    has_children = cost_center.children.exists()
+    children_count = cost_center.children.count() if has_children else 0
+
+    from financial.models import JournalEntryLine
+    has_movements = JournalEntryLine.objects.filter(
+        models.Q(cost_center=cost_center) | models.Q(cost_allocations__cost_center=cost_center)
+    ).exists()
+    movements_count = JournalEntryLine.objects.filter(
+        models.Q(cost_center=cost_center) | models.Q(cost_allocations__cost_center=cost_center)
+    ).count() if has_movements else 0
+
+    has_budgets = CostCenterBudget.objects.filter(cost_center=cost_center).exists()
+    
+    can_delete_permanently = (not cost_center.is_system and not has_children and not has_movements and not has_budgets)
+    can_archive = (not cost_center.is_system and not has_children and (has_movements or has_budgets))
+
+    if request.method == "POST":
+        if cost_center.is_system:
+            messages.error(request, f'حظر الحوكمة: لا يمكن حذف مركز تكلفة تابع للنظام: "{cost_center.name}".')
+            return redirect('financial:cost_center_detail', pk=pk)
+
+        if has_children:
+            messages.error(request, f'لا يمكن حذف أو أرشفة مركز التكلفة "{cost_center.name}" لأنه يحتوي على {children_count} مركز فرعي. يرجى نقل أو حذف المراكز الفرعية أولاً.')
+            return redirect('financial:cost_center_detail', pk=pk)
+
+        if can_delete_permanently:
+            cc_name = cost_center.name
+            cc_code = cost_center.code
+            cost_center.delete()
+            messages.success(request, f'تم حذف مركز التكلفة "{cc_name}" ({cc_code}) نهائياً.')
+            return redirect('financial:cost_centers_list')
+        else:
+            cost_center.is_active = False
+            cost_center.save(update_fields=['is_active'])
+            CostCenterAuditLog.objects.create(
+                cost_center=cost_center,
+                action='DEACTIVATED',
+                performed_by=request.user,
+                user_name_snapshot=request.user.username,
+                changes_json='{"is_active": false}'
+            )
+            messages.warning(request, f'تمت أرشفة وتعطيل مركز التكلفة "{cost_center.name}" بنجاح لوجود حركات محاسبية مرتبطة.')
+            return redirect('financial:cost_centers_list')
+
+    context = {
+        "cost_center": cost_center,
+        "has_children": has_children,
+        "children_count": children_count,
+        "has_movements": has_movements,
+        "movements_count": movements_count,
+        "has_budgets": has_budgets,
+        "can_delete_permanently": can_delete_permanently,
+        "can_archive": can_archive,
+        "page_title": f"حذف / أرشفة مركز تكلفة: {cost_center.name}",
+        "page_icon": "fas fa-trash-alt",
+        "breadcrumb_items": [
+            {"title": "الرئيسية", "url": reverse("core:dashboard"), "icon": "fas fa-home"},
+            {"title": "مراكز التكلفة", "url": reverse("financial:cost_centers_list"), "icon": "fas fa-network-wired"},
+            {"title": cost_center.name, "url": reverse("financial:cost_center_detail", kwargs={"pk": cost_center.pk})},
+            {"title": "حذف / أرشفة", "active": True},
+        ]
+    }
+    return render(request, "financial/cost_centers/cost_center_delete.html", context)
 
 
 @login_required

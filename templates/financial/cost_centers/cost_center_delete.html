@@ -15,26 +15,35 @@
             <div class="card border-danger">
                 <div class="card-header bg-danger text-white py-3">
                     <h5 class="card-title mb-0 fw-bold">
-                        <i class="fas fa-exclamation-triangle me-2"></i>تحذير: تأكيد حذف / أرشفة المخزن
+                        <i class="fas fa-exclamation-triangle me-2"></i>تحذير: تأكيد حذف / أرشفة مركز التكلفة
                     </h5>
                 </div>
                 <div class="card-body p-4">
-                    {% if has_positive_stock %}
+                    {% if cost_center.is_system %}
                         <div class="alert alert-danger" role="alert">
                             <h6 class="alert-heading fw-bold">
-                                <i class="fas fa-ban me-2"></i>يوجد بضائع ومخزون حالي في المخزن ({{ stock_count }} منتج بإجمالي {{ total_qty }})
+                                <i class="fas fa-ban me-2"></i>حظر الحوكمة: مركز تكلفة تابع للنظام
                             </h6>
                             <p class="mb-0">
-                                لا يمكن حذف أو أرشفة المخزن طالما يحتوي على كميات بضائع وأرصدة إيجابية. يرجى نقل البضائع لمخزن آخر أو إجراء تسوية جردية لتصفير الأرصدة أولاً.
+                                لا يمكن حذف أو تعطيل هذا المركز لأنه كيان نظام أساسي محمي من الحذف والتعديل.
                             </p>
                         </div>
-                    {% elif has_history %}
+                    {% elif has_children %}
                         <div class="alert alert-warning" role="alert">
                             <h6 class="alert-heading fw-bold">
-                                <i class="fas fa-archive me-2"></i>سيتم أرشفة وتعطيل المخزن
+                                <i class="fas fa-sitemap me-2"></i>يحتوي على مراكز تكلفة فرعية ({{ children_count }} مركز)
                             </h6>
                             <p class="mb-0">
-                                نظراً لوجود سجلات وحركات مخزنية أو فواتير تاريخية مرتبطة بهذا المخزن، سيتم <strong>أرشفة وتعطيل</strong> المخزن لحماية سلامة السجلات والفواتير المحاسبية دون فقدان البيانات.
+                                لا يمكن حذف هذا المركز لأنه يحتوي على مراكز تكلفة فرعية تابعة له في الشجرة. يرجى نقل أو حذف المراكز الفرعية أولاً.
+                            </p>
+                        </div>
+                    {% elif has_movements or has_budgets %}
+                        <div class="alert alert-warning" role="alert">
+                            <h6 class="alert-heading fw-bold">
+                                <i class="fas fa-archive me-2"></i>سيتم أرشفة وتعطيل مركز التكلفة
+                            </h6>
+                            <p class="mb-0">
+                                نظراً لوجود معاملات مالية مرتبطة ({{ movements_count }} حركة محاسبية / موازنة تقديرية)، سيتم <strong>أرشفة وتعطيل</strong> المركز لحماية سلامة السجلات المالية والقيود المحاسبية دون فقدان البيانات.
                             </p>
                         </div>
                     {% else %}
@@ -43,37 +52,37 @@
                                 <i class="fas fa-trash-alt me-2"></i>حذف نهائي
                             </h6>
                             <p class="mb-0">
-                                هذا المخزن لا يحتوي على أي بضائع أو حركات مخزنية سابقة. سيتم حذفه وتطهيره من النظام نهائياً.
+                                هذا المركز لا يحتوي على أي حركات مالية أو مراكز فرعية. سيتم حذفه وتطهيره من النظام نهائياً.
                             </p>
                         </div>
                     {% endif %}
 
-                    <!-- بيانات المخزن -->
+                    <!-- بيانات مركز التكلفة -->
                     <div class="card mb-4 bg-light border">
                         <div class="card-body">
                             <div class="row g-3">
                                 <div class="col-md-6">
-                                    <label class="text-muted small d-block mb-1">كود المخزن</label>
-                                    <span class="badge bg-primary fs-7 px-3 py-2">{{ warehouse.code }}</span>
+                                    <label class="text-muted small d-block mb-1">كود مركز التكلفة</label>
+                                    <span class="badge bg-primary fs-7 px-3 py-2">{{ cost_center.code }}</span>
                                 </div>
                                 <div class="col-md-6">
-                                    <label class="text-muted small d-block mb-1">اسم المخزن</label>
-                                    <span class="fw-bold fs-6 text-dark">{{ warehouse.name }}</span>
+                                    <label class="text-muted small d-block mb-1">اسم مركز التكلفة</label>
+                                    <span class="fw-bold fs-6 text-dark">{{ cost_center.name }}</span>
                                 </div>
                                 <div class="col-md-6">
-                                    <label class="text-muted small d-block mb-1">الموقع</label>
-                                    <span>{{ warehouse.location|default:"-" }}</span>
+                                    <label class="text-muted small d-block mb-1">المركز الأب (في الشجرة)</label>
+                                    <span>{% if cost_center.parent %}{{ cost_center.parent.name }} ({{ cost_center.parent.code }}){% else %}مركز رئيسي (Root){% endif %}</span>
                                 </div>
                                 <div class="col-md-6">
-                                    <label class="text-muted small d-block mb-1">أمين المخزن / المسؤول</label>
-                                    <span class="fw-bold">{{ warehouse.manager|default:"-" }}</span>
+                                    <label class="text-muted small d-block mb-1">عدد الحركات المحاسبية المرتبطة</label>
+                                    <span class="fw-bold">{{ movements_count }} حركة</span>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- نموذج التأكيد -->
-                    {% if not has_positive_stock %}
+                    <!-- فورم التأكيد -->
+                    {% if not cost_center.is_system and not has_children %}
                         <form method="post" class="mt-4">
                             {% csrf_token %}
 
@@ -81,30 +90,30 @@
                                 <input class="form-check-input" type="checkbox" id="confirmDelete" required>
                                 <label class="form-check-label fw-bold text-dark" for="confirmDelete">
                                     {% if can_delete_permanently %}
-                                        أؤكد رغبتي في حذف هذا المخزن نهائياً من قاعدة البيانات
+                                        أؤكد رغبتي في حذف مركز التكلفة نهائياً من قاعدة البيانات
                                     {% else %}
-                                        أؤكد رغبتي في أرشفة وتعطيل هذا المخزن
+                                        أؤكد رغبتي في أرشفة وتعطيل مركز التكلفة
                                     {% endif %}
                                 </label>
                             </div>
 
                             <div class="d-flex justify-content-between align-items-center">
-                                <a href="{% url 'product:warehouse_detail' warehouse.pk %}" class="btn btn-secondary px-4">
+                                <a href="{% url 'financial:cost_center_detail' cost_center.pk %}" class="btn btn-secondary px-4">
                                     <i class="fas fa-times me-2"></i>إلغاء
                                 </a>
                                 <button type="submit" class="btn btn-danger px-4 fw-bold" id="deleteBtn" disabled>
                                     {% if can_delete_permanently %}
                                         <i class="fas fa-trash-alt me-2"></i>حذف نهائي
                                     {% else %}
-                                        <i class="fas fa-archive me-2"></i>أرشفة وتعطيل المخزن
+                                        <i class="fas fa-archive me-2"></i>أرشفة وتعطيل المركز
                                     {% endif %}
                                 </button>
                             </div>
                         </form>
                     {% else %}
                         <div class="d-flex justify-content-end">
-                            <a href="{% url 'product:warehouse_detail' warehouse.pk %}" class="btn btn-secondary px-4">
-                                <i class="fas fa-arrow-right me-2"></i>العودة لتفاصيل المخزن
+                            <a href="{% url 'financial:cost_center_detail' cost_center.pk %}" class="btn btn-secondary px-4">
+                                <i class="fas fa-arrow-right me-2"></i>العودة لتفاصيل المركز
                             </a>
                         </div>
                     {% endif %}

@@ -496,28 +496,21 @@ class IssueVoucherCreateView(LoginRequiredMixin, PermissionRequiredMixin, Create
         warehouse = form.cleaned_data['warehouse']
         quantity = form.cleaned_data['quantity']
         
-        # التحقق من توفر الكمية
-        try:
-            stock = Stock.objects.get(product=product, warehouse=warehouse)
-            if stock.quantity < quantity:
-                if self.request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                    return JsonResponse({
-                        'success': False,
-                        'message': f'الكمية المتاحة ({stock.quantity}) أقل من المطلوبة ({quantity})'
-                    }, status=400)
-                messages.error(self.request, f'الكمية المتاحة ({stock.quantity}) أقل من المطلوبة ({quantity})')
-                return self.form_invalid(form)
-            
-            form.instance.unit_cost = stock.average_cost
-        except Stock.DoesNotExist:
+        # التحقق من توفر الكمية في المخزن
+        stock = Stock.objects.filter(product=product, warehouse=warehouse).first()
+        available_qty = stock.quantity if stock else Decimal('0')
+        
+        if not stock or available_qty < quantity:
+            msg = f'الكمية المتاحة في المخزن ({available_qty}) أقل من المطلوبة ({quantity})' if stock else 'المنتج غير متوفر في هذا المخزن'
             if self.request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                 return JsonResponse({
                     'success': False,
-                    'message': 'المنتج غير متوفر في هذا المخزن'
+                    'message': msg
                 }, status=400)
-            messages.error(self.request, 'المنتج غير متوفر في هذا المخزن')
+            messages.error(self.request, msg)
             return self.form_invalid(form)
         
+        form.instance.unit_cost = (stock.average_cost if stock and stock.average_cost else None) or product.cost_price or Decimal('0.00')
         form.instance.voucher_type = 'issue'
         form.instance.movement_type = 'out'
         form.instance.document_type = 'issue_voucher'
@@ -539,8 +532,13 @@ class IssueVoucherCreateView(LoginRequiredMixin, PermissionRequiredMixin, Create
     
     def form_invalid(self, form):
         if self.request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            error_msgs = []
+            for field, errors in form.errors.items():
+                field_label = form.fields[field].label if field in form.fields else field
+                error_msgs.append(f"{field_label}: {', '.join(errors)}")
             return JsonResponse({
                 'success': False,
+                'message': ' | '.join(error_msgs) if error_msgs else 'بيانات غير صحيحة',
                 'errors': form.errors
             }, status=400)
         return super().form_invalid(form)

@@ -3,118 +3,109 @@
 {% load i18n %}
 {% load utils_extras %}
 
-{% block title %}{{ page_title }}{% endblock %}
+{% block title %}{{ page_title|default:"حذف / أرشفة المورد" }}{% endblock %}
 
 {% block content %}
-<div class="container-fluid mt-4">
-    {% csrf_token %}
-    
-    {% include "shared/page_header.html" with title=page_title icon=page_icon breadcrumb_items=breadcrumb_items %}
-    
+<div class="container-fluid">
+    {% include "shared/page_header.html" %}
+
     <div class="row justify-content-center">
-        <div class="col-lg-8">
-            <div class="card shadow-sm">
-                <div class="card-header {% if can_delete_permanently %}bg-danger{% else %}bg-warning{% endif %} text-white">
-                    <h5 class="mb-0">
-                        <i class="fas {% if can_delete_permanently %}fa-trash-alt{% else %}fa-ban{% endif %} me-2"></i>
-                        {% if can_delete_permanently %}
-                            تأكيد الحذف النهائي
+        <div class="col-lg-7 col-md-9">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-light border-bottom px-4 py-3">
+                    <h5 class="fw-bold text-dark mb-0">
+                        {% if can_delete %}
+                        <i class="fas fa-trash-alt text-danger me-2"></i>{% trans "تأكيد الحذف النهائي للمورد" %}
                         {% else %}
-                            تعطيل المورد
+                        <i class="fas fa-archive text-warning me-2"></i>{% trans "تأكيد أرشفة وتعطيل المورد" %}
                         {% endif %}
                     </h5>
                 </div>
-                <div class="card-body">
-                    {% if can_delete_permanently %}
-                        <div class="alert alert-danger">
-                            <i class="fas fa-exclamation-triangle me-2"></i>
-                            <strong>تحذير:</strong> هل أنت متأكد من حذف المورد <strong>{{ supplier.name }}</strong> نهائياً؟
-                            <br>
-                            <small class="text-muted">هذا الإجراء لا يمكن التراجع عنه.</small>
+                <div class="card-body p-4">
+                    {% if can_delete %}
+                    <div class="alert alert-danger mb-4" role="alert">
+                        <div class="d-flex align-items-start">
+                            <i class="fas fa-trash-alt fa-2x text-danger me-3"></i>
+                            <div>
+                                <strong class="fs-6">{% trans "تحذير: حذف نهائي من قاعدة البيانات" %}</strong>
+                                <p class="mb-0 mt-1 small">
+                                    {% trans "هذا المورد جديد وخالٍ تماماً من أي معاملات سابقة. سيتم حذف المورد وتطهير الحساب المالي المرتبط به من شجرة الحسابات نهائياً." %}
+                                </p>
+                            </div>
                         </div>
+                    </div>
                     {% else %}
-                        <div class="alert alert-warning">
-                            <i class="fas fa-info-circle me-2"></i>
-                            <strong>تنبيه:</strong> لا يمكن حذف المورد <strong>{{ supplier.name }}</strong> نهائياً لأنه مرتبط بمعاملات.
-                            <br>
-                            <small>سيتم تعطيل المورد بدلاً من الحذف النهائي.</small>
+                    <div class="alert alert-warning mb-4" role="alert">
+                        <div class="d-flex align-items-start">
+                            <i class="fas fa-exclamation-triangle fa-2x text-warning me-3"></i>
+                            <div>
+                                <strong class="fs-6">{% trans "تنبيه: لا يمكن الحذف الجذري لحماية القيود المحاسبية" %}</strong>
+                                <p class="mb-0 mt-1 small">
+                                    {% trans "هذا المورد مرتبط بفواتير أو مدفوعات أو قيود محاسبية مسجلة. سيتم تعطيله وأرشفته لمنع استخدامه في أي معاملات جديدة مع الحفاظ على سلامة الدفاتر." %}
+                                </p>
+                            </div>
                         </div>
+                    </div>
                     {% endif %}
-                    
+
                     <!-- معلومات المورد -->
-                    <div class="card mb-3">
-                        <div class="card-header bg-light">
-                            <h6 class="mb-0"><i class="fas fa-info-circle me-2"></i>معلومات المورد</h6>
-                        </div>
-                        <div class="card-body">
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <p class="mb-2"><strong>الاسم:</strong> {{ supplier.name }}</p>
-                                    <p class="mb-2"><strong>الكود:</strong> <code class="bg-light px-2 py-1 rounded">{{ supplier.code }}</code></p>
-                                    <p class="mb-2"><strong>الهاتف:</strong> {{ supplier.phone|default:"-" }}</p>
+                    <div class="card bg-light border-0 mb-4">
+                        <div class="card-body p-3">
+                            <div class="row g-3">
+                                <div class="col-sm-6">
+                                    <span class="text-muted small d-block">{% trans "اسم المورد:" %}</span>
+                                    <strong class="fs-6 text-dark">{{ supplier.name }}</strong>
                                 </div>
-                                <div class="col-md-6">
-                                    <p class="mb-2"><strong>الرصيد الحالي:</strong> 
-                                        <span class="badge {% if supplier.balance > 0 %}bg-danger{% elif supplier.balance < 0 %}bg-success{% else %}bg-secondary{% endif %}">
-                                            {{ supplier.balance|smart_float }} {{ currency_symbol }}
-                                        </span>
-                                    </p>
-                                    <p class="mb-2"><strong>الحالة:</strong> 
-                                        {% if supplier.is_active %}
-                                            <span class="badge bg-success">نشط</span>
-                                        {% else %}
-                                            <span class="badge bg-secondary">غير نشط</span>
-                                        {% endif %}
-                                    </p>
+                                <div class="col-sm-6">
+                                    <span class="text-muted small d-block">{% trans "كود المورد:" %}</span>
+                                    <code class="bg-white px-2 py-0.5 rounded border">{{ supplier.code|default:"-" }}</code>
+                                </div>
+                                <div class="col-sm-6">
+                                    <span class="text-muted small d-block">{% trans "الهاتف:" %}</span>
+                                    <span>{{ supplier.phone|default:"-" }}</span>
+                                </div>
+                                <div class="col-sm-6">
+                                    <span class="text-muted small d-block">{% trans "الاستحقاق الحالي:" %}</span>
+                                    <span class="badge {% if supplier.balance != 0 %}bg-danger{% else %}bg-secondary{% endif %} fs-6">
+                                        {{ supplier.balance|smart_float:2 }} {{ supplier.default_currency.symbol|default:"ج.م" }}
+                                    </span>
                                 </div>
                             </div>
                         </div>
                     </div>
-                    
-                    <!-- المعاملات المرتبطة -->
-                    {% if has_transactions %}
-                    <div class="card mb-3 border-warning">
-                        <div class="card-header bg-warning text-dark">
-                            <h6 class="mb-0"><i class="fas fa-link me-2"></i>المعاملات المرتبطة</h6>
-                        </div>
-                        <div class="card-body">
-                            <p class="mb-2">هذا المورد مرتبط بالمعاملات التالية:</p>
-                            <ul class="mb-0">
-                                {% for info in transactions_info %}
-                                <li>{{ info }}</li>
-                                {% endfor %}
-                            </ul>
-                            <div class="alert alert-info mt-3 mb-0">
-                                <small>
-                                    <i class="fas fa-lightbulb me-1"></i>
-                                    لحذف المورد نهائياً، يجب حذف جميع المعاملات المرتبطة به أولاً.
-                                </small>
-                            </div>
+
+                    {% if not can_delete and summary %}
+                    <!-- ملخص الارتباطات -->
+                    <div class="mb-4">
+                        <h6 class="fw-bold text-secondary small mb-2">
+                            <i class="fas fa-link me-1"></i> {% trans "سجل المعاملات والارتباطات القائمة:" %}
+                        </h6>
+                        <div class="d-flex flex-wrap gap-2">
+                            {% for item in summary %}
+                            <span class="badge bg-white text-dark border p-2">
+                                <i class="{{ item.icon|default:'fas fa-circle' }} text-primary me-1"></i>
+                                {{ item.label }}: <strong>{{ item.count }}</strong>
+                            </span>
+                            {% endfor %}
                         </div>
                     </div>
                     {% endif %}
-                    
-                    <!-- نموذج التأكيد -->
-                    <form method="post">
+
+                    <form method="POST">
                         {% csrf_token %}
-                        {% if can_delete_permanently %}
-                            <input type="hidden" name="action" value="delete">
-                        {% else %}
-                            <input type="hidden" name="action" value="deactivate">
-                        {% endif %}
-                        
-                        <div class="d-flex justify-content-between mt-4">
-                            <a href="{% url 'supplier:supplier_list' %}" class="btn btn-outline-secondary">
-                                <i class="fas fa-arrow-right me-1"></i> رجوع
+                        <div class="d-flex justify-content-between align-items-center pt-3 border-top">
+                            <a href="{% url 'supplier:supplier_detail' supplier.pk %}" class="btn btn-secondary px-4">
+                                <i class="fas fa-times me-1"></i> {% trans "إلغاء والعودة" %}
                             </a>
-                            <button type="submit" class="btn {% if can_delete_permanently %}btn-danger{% else %}btn-warning{% endif %}">
-                                <i class="fas {% if can_delete_permanently %}fa-trash-alt{% else %}fa-ban{% endif %} me-1"></i>
-                                {% if can_delete_permanently %}
-                                    حذف نهائي
-                                {% else %}
-                                    تعطيل المورد
-                                {% endif %}
+                            {% if can_delete %}
+                            <button type="submit" class="btn btn-danger px-4 fw-bold">
+                                <i class="fas fa-trash-alt me-1"></i> {% trans "تأكيد الحذف النهائي" %}
                             </button>
+                            {% else %}
+                            <button type="submit" class="btn btn-warning text-dark px-4 fw-bold">
+                                <i class="fas fa-archive me-1"></i> {% trans "تأكيد الأرشفة والتعطيل" %}
+                            </button>
+                            {% endif %}
                         </div>
                     </form>
                 </div>
@@ -122,4 +113,4 @@
         </div>
     </div>
 </div>
-{% endblock %} 
+{% endblock %}

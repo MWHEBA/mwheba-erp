@@ -9,6 +9,7 @@ urlpatterns = [
     path("add-ajax/", views.customer_add_ajax, name="customer_add_ajax"),
     path("<int:pk>/edit/", views.customer_edit, name="customer_edit"),
     path("<int:pk>/delete/", views.customer_delete, name="customer_delete"),
+    path("<int:pk>/reactivate/", views.customer_reactivate, name="customer_reactivate"),
     path("<int:pk>/detail/", views.customer_detail, name="customer_detail"),
     path(
         "<int:pk>/change-account/",

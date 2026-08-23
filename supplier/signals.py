@@ -140,16 +140,25 @@ def create_supplier_account_signal(sender, instance, created, **kwargs):
 @receiver(post_delete, sender=Supplier)
 def delete_supplier_account_signal(sender, instance, **kwargs):
     """
-    تعطيل الحساب المحاسبي بدلاً من الحذف الصلب لحماية قيود اليومية التاريخية
+    تطهير شجرة الحسابات: حذف الحساب المالي الفرعي للمورد نهائياً إذا لم تكن به أي قيود يومية،
+    أو تعطيله بدلاً من الحذف الصلب لحماية قيود اليومية التاريخية إن وُجدت.
     """
-    if instance.financial_account:
+    if instance.financial_account_id:
         try:
-            from financial.models import ChartOfAccounts
-            account_id = instance.financial_account_id
-            ChartOfAccounts.objects.filter(id=account_id).update(is_active=False)
-            logger.info(f"تم تعطيل الحساب المحاسبي للمورد {instance.name} بنجاح")
+            from financial.models import ChartOfAccounts, JournalEntryLine
+            account = ChartOfAccounts.objects.filter(id=instance.financial_account_id).first()
+            if account:
+                has_lines = JournalEntryLine.objects.filter(account=account).exists()
+                has_children = account.children.exists()
+                if not has_lines and not has_children:
+                    account.delete()
+                    logger.info(f"✅ تم تطهير وحذف الحساب المالي الفارغ ({account.code}) للمورد {instance.name} نهائياً")
+                else:
+                    account.is_active = False
+                    account.save(update_fields=['is_active'])
+                    logger.info(f"تم تعطيل الحساب المحاسبي للمورد {instance.name} بنجاح لوجود قيود تاريخية")
         except Exception as e:
-            logger.error(f"فشل تعطيل الحساب المحاسبي للمورد {instance.name}: {e}")
+            logger.error(f"فشل معالجة الحساب المحاسبي للمورد {instance.name}: {e}")
 
 
 

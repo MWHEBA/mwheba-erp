@@ -62,11 +62,14 @@
                                 <i class="fas fa-file-invoice me-2"></i>{% trans "فواتير المبيعات" %}
                             </a>
                         </li>
+                        <!-- أوامر البيع -->
+                        {% if enable_sales_orders %}
                         <li>
                             <a href="{% url 'sale:sales_order_list' %}" class="submenu-link">
                                 <i class="fas fa-file-contract me-2"></i>{% trans "أوامر البيع (Sales Orders)" %}
                             </a>
                         </li>
+                        {% endif %}
                         
                         <!-- عروض الأسعار -->
                         {% if enable_quotations %}
@@ -160,6 +163,7 @@
                     </a>
                     <ul class="collapse list-unstyled submenu {% if active_menu == 'purchases' %}show{% endif %}" id="purchaseMenu">
                         <!-- أوامر الشراء -->
+                        {% if enable_purchase_orders %}
                         <li class="submenu-title">أوامر الشراء والتوريد</li>
                         <li>
                             <a href="{% url 'purchase:po_list' %}" class="submenu-link">
@@ -168,6 +172,7 @@
                         </li>
 
                         <div class="nav-divider"></div>
+                        {% endif %}
 
                         <!-- الفواتير -->
                         <li class="submenu-title">فواتير المشتريات</li>

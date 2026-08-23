@@ -1504,10 +1504,16 @@ def chart_of_accounts_detail(request, pk):
                 "class": "btn-outline-warning",
             },
             {
+                "url": reverse("financial:account_delete", args=[account.pk]),
+                "icon": "fa-trash-alt",
+                "text": "حذف",
+                "class": "btn-outline-danger",
+            },
+            {
                 "url": reverse("financial:chart_of_accounts_list"),
-                "icon": "fa-arrow-left",
+                "icon": "fa-arrow-right",
                 "text": "العودة للقائمة",
-                "class": "btn-secondary",
+                "class": "btn-outline-secondary",
             },
         ],
         "breadcrumb_items": [
@@ -1530,17 +1536,46 @@ def chart_of_accounts_detail(request, pk):
 
 @login_required
 def chart_of_accounts_delete(request, pk):
-    """حذف حساب"""
+    """
+    حذف أو أرشفة حساب من دليل الحسابات مع حماية القيود وشجرة الحسابات
+    """
     account = get_object_or_404(ChartOfAccounts, pk=pk)
+    
+    from financial.models import JournalEntryLine
+    has_children = account.children.exists()
+    children_count = account.children.count() if has_children else 0
+    has_lines = JournalEntryLine.objects.filter(account=account).exists()
+    lines_count = JournalEntryLine.objects.filter(account=account).count() if has_lines else 0
+    
+    can_delete_permanently = (not has_children and not has_lines)
+    can_archive = (not has_children and has_lines)
+
     if request.method == "POST":
-        account.is_active = False
-        account.save()
-        messages.success(request, f'تم حذف الحساب "{account.name}" بنجاح.')
+        if has_children:
+            messages.error(request, f'لا يمكن حذف أو أرشفة الحساب "{account.name}" لأنه يحتوي على {children_count} حساب فرعي. يرجى حذف أو نقل الحسابات الفرعية أولاً.')
+            return redirect("financial:chart_of_accounts_list")
+            
+        if can_delete_permanently:
+            account_name = account.name
+            account_code = account.code
+            account.delete()
+            messages.success(request, f'تم حذف الحساب "{account_name}" ({account_code}) وتطهيره من الدليل نهائياً.')
+        else:
+            account.is_active = False
+            account.save(update_fields=['is_active'])
+            messages.warning(request, f'تمت أرشفة وتعطيل الحساب "{account.name}" بنجاح لوجود {lines_count} قيد محاسبي مرتبط.')
+            
         return redirect("financial:chart_of_accounts_list")
 
     context = {
         "account": account,
-        "page_title": f"حذف حساب: {account.name}",
+        "has_children": has_children,
+        "children_count": children_count,
+        "has_lines": has_lines,
+        "lines_count": lines_count,
+        "can_delete_permanently": can_delete_permanently,
+        "can_archive": can_archive,
+        "page_title": f"حذف / أرشفة حساب: {account.name}",
         "page_icon": "fas fa-trash",
     }
     return render(request, "financial/accounts/chart_of_accounts_delete.html", context)

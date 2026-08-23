@@ -32,6 +32,7 @@ class SourceLinkageService:
         'hr.PayrollPayment',
         'hr.Payroll',  # Added for POC testing - HR payroll records
         'product.StockMovement',
+        'product.InventoryMovement',
         'transportation.TransportationFee',
         'financial.FinancialTransaction',  # Added for TransactionService
         'financial.BankReconciliation',  # Added for BankReconciliationService

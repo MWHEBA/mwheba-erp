@@ -51,7 +51,7 @@ class InventoryMovement(models.Model):
 
     # أغراض أذون الاستلام
     RECEIPT_PURPOSE_TYPES = (
-        ("supplies_gifts", _("سبلايز/هدايا")),
+        ("supplies_gifts", _("مستلزمات ومهمات وهدايا")),
         ("inventory_gain", _("زيادة جرد")),
     )
 

@@ -543,49 +543,159 @@ class SupplierService:
             }
 
     @staticmethod
+    def can_delete_supplier(supplier) -> tuple:
+        """
+        فحص شامل لمصفوفة المعاملات السيادية للمورد.
+        إرجاع: (can_delete_permanently: bool, transactions_summary_list: list, exposure_dict: dict)
+        """
+        transactions_summary = []
+        
+        # 1. فواتير المشتريات
+        from purchase.models import Purchase
+        purchases_count = Purchase.objects.filter(supplier=supplier).count()
+        if purchases_count > 0:
+            transactions_summary.append({'label': 'فواتير مشتريات', 'count': purchases_count, 'icon': 'fas fa-shopping-cart'})
+
+        # 2. أوامر الشراء
+        try:
+            from purchase.models import PurchaseOrder
+            po_count = PurchaseOrder.objects.filter(supplier=supplier).count()
+            if po_count > 0:
+                transactions_summary.append({'label': 'أوامر شراء', 'count': po_count, 'icon': 'fas fa-file-invoice'})
+        except Exception:
+            pass
+
+        # 3. مرتجعات المشتريات
+        try:
+            from purchase.models import PurchaseReturn
+            returns_count = PurchaseReturn.objects.filter(supplier=supplier).count()
+            if returns_count > 0:
+                transactions_summary.append({'label': 'مرتجعات مشتريات', 'count': returns_count, 'icon': 'fas fa-exchange-alt'})
+        except Exception:
+            pass
+
+        # 4. سندات الصرف والدفع للمورد
+        payments_count = supplier.payments.count() if hasattr(supplier, 'payments') else 0
+        if payments_count > 0:
+            transactions_summary.append({'label': 'سندات دفع ومصروفات', 'count': payments_count, 'icon': 'fas fa-money-bill-wave'})
+
+        # 5. الأستاذ المساعد للموردين
+        subledger_count = supplier.subledger_transactions.count() if hasattr(supplier, 'subledger_transactions') else 0
+        if subledger_count > 0:
+            transactions_summary.append({'label': 'حركات أستاذ مساعد', 'count': subledger_count, 'icon': 'fas fa-book'})
+
+        # 6. قيود اليومية المرتبطة بالحساب المالي
+        if supplier.financial_account:
+            from financial.models.journal_entry import JournalEntryLine
+            journal_lines_count = JournalEntryLine.objects.filter(account=supplier.financial_account).count()
+            if journal_lines_count > 0:
+                transactions_summary.append({'label': 'قيود يومية محاسبية', 'count': journal_lines_count, 'icon': 'fas fa-calculator'})
+
+        # 7. الأرصدة الافتتاحية
+        try:
+            from financial.models import OpeningBalanceLine
+            opening_count = OpeningBalanceLine.objects.filter(supplier=supplier).count()
+            if opening_count > 0:
+                transactions_summary.append({'label': 'أرصدة افتتاحية', 'count': opening_count, 'icon': 'fas fa-balance-scale'})
+        except Exception:
+            pass
+
+        # فحص المزامنة الخارجية مع دفترة
+        daftra_id = getattr(supplier, 'daftra_id', None)
+        if daftra_id:
+            transactions_summary.append({'label': 'ارتباط مزامنة دفترة', 'count': 1, 'icon': 'fas fa-sync'})
+
+        total_transactions = sum(item['count'] for item in transactions_summary)
+        can_delete = (total_transactions == 0)
+
+        # حساب الالتزامات المالية
+        has_debt = (supplier.current_balance != Decimal('0.00')) if hasattr(supplier, 'current_balance') else (supplier.balance != Decimal('0.00') if hasattr(supplier, 'balance') else False)
+        balance_val = getattr(supplier, 'current_balance', getattr(supplier, 'balance', Decimal('0.00')))
+
+        exposure_dict = {
+            'has_debt': has_debt,
+            'balance': balance_val,
+            'available_prepaid': Decimal('0.00'),
+        }
+
+        return can_delete, transactions_summary, exposure_dict
+
+    @staticmethod
     @transaction.atomic
     def delete_supplier(supplier, user=None):
         """
-        حذف مورد (soft delete - تعطيل فقط)
-        
-        Args:
-            supplier: المورد المراد حذفه
-            user: المستخدم
-            
-        Note:
-            لا يتم حذف المورد فعلياً، بل يتم تعطيله فقط للحفاظ على سلامة البيانات
+        حذف نهائي للمورد الجديد الفارغ أو أرشفة وتعطيل ذكي للمورد المرتبط بمعاملات
+        مع حماية التزامن وقفل الصفوف.
         """
-        try:
-            # التحقق من عدم وجود معاملات مرتبطة
-            from purchase.models import Purchase
-            
-            purchases_count = Purchase.objects.filter(supplier=supplier).count()
-            
-            if purchases_count > 0:
-                # تعطيل المورد بدلاً من الحذف
-                supplier.is_active = False
-                supplier.save(update_fields=['is_active'])
-                logger.info(f"✅ تم تعطيل المورد {supplier.name} ({supplier.code}) - لديه {purchases_count} معاملة")
-                return {
-                    'success': True,
-                    'action': 'deactivated',
-                    'message': f'تم تعطيل المورد - لديه {purchases_count} معاملة مرتبطة'
-                }
-            else:
-                # حذف فعلي إذا لم يكن لديه معاملات
-                supplier_name = supplier.name
-                supplier_code = supplier.code
-                supplier.delete()
-                logger.info(f"✅ تم حذف المورد {supplier_name} ({supplier_code})")
-                return {
-                    'success': True,
-                    'action': 'deleted',
-                    'message': 'تم حذف المورد بنجاح'
-                }
-            
-        except Exception as e:
-            logger.error(f"❌ خطأ في حذف المورد {supplier.code}: {str(e)}")
-            raise
+        from supplier.models import Supplier
+        locked_supplier = Supplier.objects.select_for_update().get(pk=supplier.pk)
+        can_delete, summary, exposure = SupplierService.can_delete_supplier(locked_supplier)
+
+        supplier_name = locked_supplier.name
+        supplier_code = locked_supplier.code
+
+        if can_delete:
+            financial_account = locked_supplier.financial_account
+            locked_supplier.delete()
+
+            if financial_account:
+                try:
+                    from financial.models import ChartOfAccounts, JournalEntryLine
+                    acc = ChartOfAccounts.objects.filter(id=financial_account.id).first()
+                    if acc and not JournalEntryLine.objects.filter(account=acc).exists() and not acc.children.exists():
+                        acc.delete()
+                        logger.info(f"✅ تم تطهير الحساب المالي الفرعي {acc.code} للمورد المحذوف {supplier_name}")
+                except Exception as e:
+                    logger.warning(f"فشل حذف الحساب المالي بعد حذف المورد: {e}")
+
+            logger.info(f"✅ تم حذف المورد {supplier_name} ({supplier_code}) نهائياً من قاعدة البيانات")
+            return {
+                'success': True,
+                'action': 'deleted',
+                'message': f"تم حذف المورد '{supplier_name}' وتطهير الحساب المالي التابع له بنجاح."
+            }
+        else:
+            locked_supplier.is_active = False
+            locked_supplier.save(update_fields=['is_active'])
+
+            if locked_supplier.financial_account:
+                try:
+                    locked_supplier.financial_account.is_active = False
+                    locked_supplier.financial_account.save(update_fields=['is_active'])
+                except Exception as e:
+                    logger.warning(f"فشل تعطيل الحساب المالي للمورد المؤرشف: {e}")
+
+            logger.info(f"📦 تمت أرشفة وتعطيل المورد {supplier_name} ({supplier_code}) بنجاح لوجود سجلات مرتبطة")
+            return {
+                'success': True,
+                'action': 'archived',
+                'message': f"تمت أرشفة وتعطيل المورد '{supplier_name}' وحسابه المالي بنجاح لمنع التعامل معه، ويمكنك مراجعته عبر فلتر 'المعطلين'."
+            }
+
+    @staticmethod
+    @transaction.atomic
+    def reactivate_supplier(supplier, user=None) -> dict:
+        """
+        إعادة تنشيط مورد مؤرشف وحسابه المالي التابع
+        """
+        from supplier.models import Supplier
+        locked_supplier = Supplier.objects.select_for_update().get(pk=supplier.pk)
+        locked_supplier.is_active = True
+        locked_supplier.save(update_fields=['is_active'])
+
+        if locked_supplier.financial_account:
+            try:
+                locked_supplier.financial_account.is_active = True
+                locked_supplier.financial_account.save(update_fields=['is_active'])
+            except Exception as e:
+                logger.warning(f"فشل إعادة تنشيط الحساب المالي للمورد: {e}")
+
+        logger.info(f"🔄 تمت إعادة تنشيط المورد {locked_supplier.name} ({locked_supplier.code}) وحسابه المالي بنجاح")
+        return {
+            'success': True,
+            'action': 'reactivated',
+            'message': f"تمت إعادة تنشيط المورد '{locked_supplier.name}' وحسابه المالي بنجاح."
+        }
 
     @staticmethod
     def get_active_suppliers(supplier_type_code=None):

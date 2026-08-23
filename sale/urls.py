@@ -97,7 +97,9 @@ urlpatterns = [
     path("pricing/price-lists/", views.price_list_list, name="price_list_list"),
     path("pricing/price-lists/create/", views.price_list_create, name="price_list_create"),
     path("pricing/price-lists/<int:pk>/", views.price_list_detail, name="price_list_detail"),
-    path("pricing/price-lists/<int:pk>/edit/", views.price_list_edit, name="price_list_edit"),
     path("pricing/discount-rules/", views.discount_rule_list, name="discount_rule_list"),
     path("pricing/discount-rules/create/", views.discount_rule_create, name="discount_rule_create"),
+    path("pricing/discount-rules/<int:pk>/edit/", views.discount_rule_edit, name="discount_rule_edit"),
+    path("pricing/discount-rules/<int:pk>/toggle/", views.discount_rule_toggle_status, name="discount_rule_toggle"),
+    path("pricing/discount-rules/<int:pk>/delete/", views.discount_rule_delete, name="discount_rule_delete"),
 ]

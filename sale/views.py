@@ -2187,6 +2187,9 @@ from .pricing_policy_views import (
     price_list_edit,
     discount_rule_list,
     discount_rule_create,
+    discount_rule_edit,
+    discount_rule_toggle_status,
+    discount_rule_delete,
 )
 
 from .quotation_views import (

@@ -283,6 +283,11 @@
 
 {% block content %}
 <div class="container-fluid product-detail-container">
+    <!-- نموذج إعادة تنشيط المنتج -->
+    <form id="reactivate-product-form" method="POST" action="{% url 'product:product_reactivate' product.pk %}" style="display: none;">
+        {% csrf_token %}
+    </form>
+
     <!-- Page Header المركزي -->
     {% include "shared/page_header.html" %}
 

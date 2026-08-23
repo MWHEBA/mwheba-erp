@@ -17,6 +17,7 @@ urlpatterns = [
     path("create/modal/", views.supplier_create_modal, name="supplier_create_modal"),
     path("<int:pk>/edit/", views.supplier_edit, name="supplier_edit"),
     path("<int:pk>/delete/", views.supplier_delete, name="supplier_delete"),
+    path("<int:pk>/reactivate/", views.supplier_reactivate, name="supplier_reactivate"),
     path("<int:pk>/detail/", views.supplier_detail, name="supplier_detail"),
     path("<int:pk>/change-account/", views.supplier_change_account, name="supplier_change_account"),
     path("<int:pk>/create-account/", views.supplier_create_account, name="supplier_create_account"),

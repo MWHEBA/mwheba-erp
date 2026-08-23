@@ -18,6 +18,18 @@
         {% csrf_token %}
     </form>
     {% endif %}
+    <!-- إيضاح نوع المستند الداخلي -->
+    <div class="alert alert-light border shadow-sm mb-4 d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-2 p-3">
+        <div class="d-flex align-items-center gap-2">
+            <i class="fas fa-info-circle text-primary fs-5"></i>
+            <span class="small text-muted">
+                <strong class="text-dark">نوع المستند:</strong> إذن استلام وتسوية داخلية (Non-Procurement) &bull; غير مرتبط بفاتورة مشتريات أو استحقاق موردين.
+            </span>
+        </div>
+        <a href="{% url 'purchase:grn_list' %}" class="btn btn-outline-secondary btn-sm">
+            <i class="fas fa-truck-loading me-1"></i> أذون استلام المشتريات (GRN)
+        </a>
+    </div>
 
     <div class="section-container">
         <div class="row">

@@ -25,8 +25,21 @@ from core.services.sequence_service import SequenceService
 from core.enums.document_types import DocumentType
 from financial.exceptions import FinancialCoreError
 
+def check_purchase_orders_enabled(view_func):
+    def _wrapped_view(request, *args, **kwargs):
+        from core.models import SystemSetting
+        enabled = SystemSetting.get_bool('enable_purchase_orders', False)
+        if not enabled:
+            return render(request, "core/permission_denied.html", {
+                "title": _("ميزة معطلة"),
+                "message": _("ميزة أوامر الشراء غير مفعلة لهذا الحساب/الشركة. يرجى تفعيلها من الإعدادات أولاً.")
+            })
+        return view_func(request, *args, **kwargs)
+    return _wrapped_view
+
 
 @login_required
+@check_purchase_orders_enabled
 def po_list(request):
     """عرض قائمة أوامر الشراء المحوكمة (PO List View)"""
     orders = PurchaseOrder.objects.select_related(
@@ -122,6 +135,7 @@ def po_list(request):
 
 
 @login_required
+@check_purchase_orders_enabled
 def po_create(request):
     """إنشاء أمر شراء جديد (PO Create) مع دعم الحوكمة والمعايير المحاسبية الموحدة"""
     from purchase.forms import PurchaseOrderForm
@@ -357,6 +371,7 @@ def po_create(request):
 
 
 @login_required
+@check_purchase_orders_enabled
 def po_edit(request, pk):
     """تعديل أمر شراء قائم مع تطبيق خوارزمية التحديث غير المدمر وحوكمة الحالات"""
     from purchase.forms import PurchaseOrderForm
@@ -587,6 +602,7 @@ def po_edit(request, pk):
 
 
 @login_required
+@check_purchase_orders_enabled
 def po_detail(request, pk):
     """تفاصيل أمر الشراء مع التتبع الرباعي ودورة الحياة (PO Detail View)"""
     po = get_object_or_404(
@@ -694,6 +710,7 @@ def po_detail(request, pk):
 
 
 @login_required
+@check_purchase_orders_enabled
 def po_print(request, pk):
     """طباعة وتصدير أمر الشراء الرسمي للمورد (PO Print View)"""
     po = get_object_or_404(
@@ -713,6 +730,7 @@ def po_print(request, pk):
 
 
 @login_required
+@check_purchase_orders_enabled
 def po_pdf_download(request, pk):
     """تصدير وتحميل أمر الشراء كملف PDF رسمي"""
     from utils.pdf_utils import generate_pdf_from_html, generate_guaranteed_pdf_response
@@ -744,6 +762,7 @@ def po_pdf_download(request, pk):
 
 
 @login_required
+@check_purchase_orders_enabled
 def po_email_pdf(request, pk):
     """إرسال أمر الشراء عبر البريد الإلكتروني للمورد مباشرة"""
     po = get_object_or_404(PurchaseOrder.objects.select_related("supplier"), pk=pk)
@@ -767,6 +786,7 @@ def po_email_pdf(request, pk):
 
 
 @login_required
+@check_purchase_orders_enabled
 def po_duplicate(request, pk):
     """تكرار أمر الشراء لإنشاء أمر جديد بنفس البنود والأسعار"""
     po = get_object_or_404(PurchaseOrder, pk=pk)
@@ -774,6 +794,7 @@ def po_duplicate(request, pk):
 
 
 @login_required
+@check_purchase_orders_enabled
 def po_delete(request, pk):
     """حذف أمر الشراء إذا كان مسودة أو ملغى ولم تُسجل عليه أي أذون استلام"""
     po = get_object_or_404(PurchaseOrder.objects.prefetch_related("grns"), pk=pk)
@@ -804,6 +825,7 @@ def po_delete(request, pk):
 
 
 @login_required
+@check_purchase_orders_enabled
 def po_submit(request, pk):
     """تقديم أمر الشراء للاعتماد (POST only)"""
     if request.method != "POST":
@@ -820,6 +842,7 @@ def po_submit(request, pk):
 
 
 @login_required
+@check_purchase_orders_enabled
 def po_approve(request, pk):
     """اعتماد أمر الشراء (POST only)"""
     if request.method != "POST":
@@ -839,6 +862,7 @@ def po_approve(request, pk):
 
 
 @login_required
+@check_purchase_orders_enabled
 def po_short_close(request, pk):
     """الإغلاق المبكر لأمر الشراء عند تعذر استكمال التوريد (POST only)"""
     if request.method != "POST":
@@ -858,6 +882,7 @@ def po_short_close(request, pk):
 
 
 @login_required
+@check_purchase_orders_enabled
 def po_cancel(request, pk):
     """إلغاء أمر الشراء (POST only)"""
     if request.method != "POST":

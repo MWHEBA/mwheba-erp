@@ -483,3 +483,163 @@ class CustomerService:
             'available_credit': available_credit,
             'is_over_limit': actual_balance > customer.credit_limit if customer.credit_limit else False
         }
+
+    @staticmethod
+    def can_delete_customer(customer: Customer) -> tuple:
+        """
+        فحص شامل لمصفوفة المعاملات السيادية للعميل.
+        إرجاع: (can_delete_permanently: bool, transactions_summary_list: list, exposure_dict: dict)
+        """
+        from sale.models import SalePayment
+        transactions_summary = []
+        
+        # 1. فواتير المبيعات
+        sales_count = customer.sales.count()
+        if sales_count > 0:
+            transactions_summary.append({'label': 'فواتير مبيعات', 'count': sales_count, 'icon': 'fas fa-file-invoice-dollar'})
+            
+        # 2. عروض الأسعار
+        quotations_count = customer.quotations.count() if hasattr(customer, 'quotations') else 0
+        if quotations_count > 0:
+            transactions_summary.append({'label': 'عروض أسعار', 'count': quotations_count, 'icon': 'fas fa-file-alt'})
+            
+        # 3. المقبوضات وسندات الدفع
+        payments_count = customer.payments.count() + SalePayment.objects.filter(sale__customer=customer).count()
+        if payments_count > 0:
+            transactions_summary.append({'label': 'سندات دفع ومقبوضات', 'count': payments_count, 'icon': 'fas fa-money-bill-wave'})
+            
+        # 4. الأستاذ المساعد للعملاء
+        subledger_count = customer.subledger_transactions.count() if hasattr(customer, 'subledger_transactions') else 0
+        if subledger_count > 0:
+            transactions_summary.append({'label': 'حركات أستاذ مساعد', 'count': subledger_count, 'icon': 'fas fa-book'})
+            
+        # 5. الإشعارات الدائنة
+        cn_count = customer.credit_notes.count() if hasattr(customer, 'credit_notes') else 0
+        if cn_count > 0:
+            transactions_summary.append({'label': 'إشعارات دائنة', 'count': cn_count, 'icon': 'fas fa-undo'})
+            
+        # 6. مرتجعات المبيعات
+        returns_count = customer.sales_returns.count() if hasattr(customer, 'sales_returns') else 0
+        if returns_count > 0:
+            transactions_summary.append({'label': 'مرتجعات مبيعات', 'count': returns_count, 'icon': 'fas fa-exchange-alt'})
+            
+        # 7. قيود اليومية المرتبطة بالحساب المالي
+        journal_lines_count = 0
+        if customer.financial_account:
+            from financial.models.journal_entry import JournalEntryLine
+            journal_lines_count = JournalEntryLine.objects.filter(account=customer.financial_account).count()
+            if journal_lines_count > 0:
+                transactions_summary.append({'label': 'قيود يومية محاسبية', 'count': journal_lines_count, 'icon': 'fas fa-calculator'})
+                
+        # 8. الأرصدة الافتتاحية
+        from financial.models import OpeningBalanceLine
+        opening_count = OpeningBalanceLine.objects.filter(customer=customer).count()
+        if opening_count > 0:
+            transactions_summary.append({'label': 'أرصدة افتتاحية', 'count': opening_count, 'icon': 'fas fa-balance-scale'})
+
+        # 9. طلبات التسعير وأوامر التشغيل
+        try:
+            from printing_pricing.models import PricingOrder
+            po_count = PricingOrder.objects.filter(customer=customer).count()
+            if po_count > 0:
+                transactions_summary.append({'label': 'طلبات تسعير', 'count': po_count, 'icon': 'fas fa-tags'})
+        except Exception:
+            pass
+
+        # فحص المزامنة الخارجية مع دفترة
+        daftra_id = getattr(customer, 'daftra_id', None)
+        if daftra_id:
+            transactions_summary.append({'label': 'ارتباط مزامنة دفترة', 'count': 1, 'icon': 'fas fa-sync'})
+
+        total_transactions = sum(item['count'] for item in transactions_summary)
+        can_delete = (total_transactions == 0)
+
+        # حساب الالتزامات المالية
+        has_debt = (customer.balance != Decimal('0.00'))
+        available_prepaid = customer.available_prepaid_balance
+
+        exposure_dict = {
+            'has_debt': has_debt,
+            'balance': customer.balance,
+            'available_prepaid': available_prepaid,
+        }
+
+        return can_delete, transactions_summary, exposure_dict
+
+    @staticmethod
+    @transaction.atomic
+    def delete_or_archive_customer(customer: Customer, user=None) -> dict:
+        """
+        حذف نهائي للعميل الجديد الفارغ أو أرشفة وتعطيل ذكي للعميل المرتبط بمعاملات
+        مع حماية التزامن وقفل الصفوف.
+        """
+        # قفل صف العميل لمنع تضارب التزامن أثناء اتخاذ القرار
+        locked_customer = Customer.objects.select_for_update().get(pk=customer.pk)
+        can_delete, summary, exposure = CustomerService.can_delete_customer(locked_customer)
+
+        customer_name = locked_customer.name
+        customer_code = locked_customer.code
+
+        if can_delete:
+            # 1. حذف نهائي وتطهير الحساب المالي التابع
+            financial_account = locked_customer.financial_account
+            locked_customer.delete()
+            
+            if financial_account:
+                try:
+                    from financial.models import ChartOfAccounts, JournalEntryLine
+                    acc = ChartOfAccounts.objects.filter(id=financial_account.id).first()
+                    if acc and not JournalEntryLine.objects.filter(account=acc).exists() and not acc.children.exists():
+                        acc.delete()
+                        logger.info(f"✅ تم تطهير الحساب المالي الفرعي {acc.code} للعميل المحذوف {customer_name}")
+                except Exception as e:
+                    logger.warning(f"فشل حذف الحساب المالي بعد حذف العميل: {e}")
+
+            logger.info(f"✅ تم حذف العميل {customer_name} ({customer_code}) نهائياً من قاعدة البيانات")
+            return {
+                'success': True,
+                'action': 'deleted',
+                'message': f"تم حذف العميل '{customer_name}' وتطهير الحساب المالي التابع له بنجاح."
+            }
+        else:
+            # 2. أرشفة وتعطيل ذكي
+            locked_customer.is_active = False
+            locked_customer.save(update_fields=['is_active'])
+
+            if locked_customer.financial_account:
+                try:
+                    locked_customer.financial_account.is_active = False
+                    locked_customer.financial_account.save(update_fields=['is_active'])
+                except Exception as e:
+                    logger.warning(f"فشل تعطيل الحساب المالي للعميل المؤرشف: {e}")
+
+            logger.info(f"📦 تمت أرشفة وتعطيل العميل {customer_name} ({customer_code}) بنجاح لوجود سجلات مرتبطة")
+            return {
+                'success': True,
+                'action': 'archived',
+                'message': f"تمت أرشفة وتعطيل العميل '{customer_name}' وحسابه المالي بنجاح لمنع التعامل معه، ويمكنك مراجعته عبر فلتر 'المعطلين'."
+            }
+
+    @staticmethod
+    @transaction.atomic
+    def reactivate_customer(customer: Customer, user=None) -> dict:
+        """
+        إعادة تنشيط عميل مؤرشف وحسابه المالي التابع
+        """
+        locked_customer = Customer.objects.select_for_update().get(pk=customer.pk)
+        locked_customer.is_active = True
+        locked_customer.save(update_fields=['is_active'])
+
+        if locked_customer.financial_account:
+            try:
+                locked_customer.financial_account.is_active = True
+                locked_customer.financial_account.save(update_fields=['is_active'])
+            except Exception as e:
+                logger.warning(f"فشل إعادة تنشيط الحساب المالي للعميل: {e}")
+
+        logger.info(f"🔄 تمت إعادة تنشيط العميل {locked_customer.name} ({locked_customer.code}) وحسابه المالي بنجاح")
+        return {
+            'success': True,
+            'action': 'reactivated',
+            'message': f"تمت إعادة تنشيط العميل '{locked_customer.name}' وحسابه المالي بنجاح."
+        }

@@ -38,6 +38,7 @@ urlpatterns = [
     path("<int:pk>/", views.product_detail, name="product_detail"),
     path("<int:pk>/edit/", views.product_edit, name="product_edit"),
     path("<int:pk>/delete/", views.product_delete, name="product_delete"),
+    path("<int:pk>/reactivate/", views.product_reactivate, name="product_reactivate"),
     path("<int:pk>/upload-image/", views.product_image_upload, name="product_image_upload"),
     path("<int:pk>/update-currency-prices/", views.update_currency_prices, name="update_currency_prices"),
     
@@ -75,6 +76,7 @@ urlpatterns = [
     path("warehouses/create/", views.warehouse_create, name="warehouse_create"),
     path("warehouses/<int:pk>/", views.warehouse_detail, name="warehouse_detail"),
     path("warehouses/<int:pk>/edit/", views.warehouse_edit, name="warehouse_edit"),
+    path("warehouses/<int:pk>/delete/", views.warehouse_delete, name="warehouse_delete"),
     path("warehouses/<int:pk>/toggle-active/", views.warehouse_toggle_active, name="warehouse_toggle_active"),
     # المخزون
     path("stock/", views.stock_list, name="stock_list"),

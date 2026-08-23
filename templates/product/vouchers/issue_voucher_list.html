@@ -314,19 +314,23 @@ function initializeModalForm() {
                 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
             }
         })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
+        .then(async response => {
+            const data = await response.json().catch(() => ({}));
+            if (response.ok && data.success) {
                 bootstrap.Modal.getInstance(document.getElementById('issueVoucherModal')).hide();
                 window.location.href = data.redirect_url;
             } else {
-                alert(data.message || 'حدث خطأ');
+                let errorMsg = data.message;
+                if (!errorMsg && data.errors) {
+                    errorMsg = Object.values(data.errors).flat().join('\n');
+                }
+                alert(errorMsg || 'حدث خطأ أثناء حفظ إذن الصرف');
                 submitBtn.disabled = false;
                 submitBtn.innerHTML = '<i class="fas fa-save me-2"></i>حفظ';
             }
         })
         .catch(error => {
-            alert('حدث خطأ في الحفظ');
+            alert('حدث خطأ في الاتصال بالخادم');
             submitBtn.disabled = false;
             submitBtn.innerHTML = '<i class="fas fa-save me-2"></i>حفظ';
         });

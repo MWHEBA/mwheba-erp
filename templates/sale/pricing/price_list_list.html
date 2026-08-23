@@ -1,72 +1,133 @@
 {% extends 'base.html' %}
 {% load static %}
 {% load i18n %}
+{% load utils_extras %}
 
-{% block title %}{{ page_title }}{% endblock %}
+{% block title %}{{ page_title|default:"قوائم أسعار المبيعات" }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+{% endblock %}
 
 {% block content %}
 <div class="container-fluid">
-  {% include "shared/page_header.html" %}
+  <!-- Page Header -->
+  {% include "shared/page_header.html" with title=page_title subtitle=page_subtitle icon=page_icon header_buttons=header_buttons breadcrumb_items=breadcrumb_items %}
 
+  <!-- KPI Stats Row (Direct Row Rule 7) -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-4 col-sm-6">
+      <div class="stats-card stats-card-info">
+        <div class="stats-card-body">
+          <div class="stats-card-icon"><i class="fas fa-tags"></i></div>
+          <div class="stats-card-title">{% trans "إجمالي قوائم الأسعار" %}</div>
+          <div class="stats-card-value">{{ stats.total_count|default:"0" }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4 col-sm-6">
+      <div class="stats-card stats-card-success">
+        <div class="stats-card-body">
+          <div class="stats-card-icon"><i class="fas fa-check-circle"></i></div>
+          <div class="stats-card-title">{% trans "القوائم السارية" %}</div>
+          <div class="stats-card-value">{{ stats.active_count|default:"0" }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4 col-sm-6">
+      <div class="stats-card stats-card-primary">
+        <div class="stats-card-body">
+          <div class="stats-card-icon"><i class="fas fa-boxes"></i></div>
+          <div class="stats-card-title">{% trans "إجمالي أسعار البنود المحددة" %}</div>
+          <div class="stats-card-value">{{ stats.total_items|default:"0" }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Collapsible Filter Section -->
+  <div class="section-container mb-4">
+    <h5 class="section-title cursor-pointer {% if not request.GET.q and not request.GET.currency and not request.GET.status %}collapsed{% endif %}" data-bs-toggle="collapse" data-bs-target="#filterSection" aria-expanded="{% if request.GET.q or request.GET.currency or request.GET.status %}true{% else %}false{% endif %}">
+      <i class="fas fa-filter me-2"></i>{% trans "تصفية وبحث قوائم الأسعار" %}
+      <i class="fas fa-chevron-down float-end"></i>
+    </h5>
+    <div class="collapse {% if request.GET.q or request.GET.currency or request.GET.status %}show{% endif %} mt-3" id="filterSection">
+      <form method="get" id="priceListSearchForm" class="row g-3">
+        <div class="col-md-5">
+          <label class="form-label small text-muted">{% trans "بحث بالاسم أو الوصف أو فئة العميل" %}</label>
+          <div class="input-group input-group-sm">
+            <span class="input-group-text"><i class="fas fa-search"></i></span>
+            <input type="text" name="q" class="form-control" placeholder="{% trans 'اكتب للبحث...' %}" value="{{ request.GET.q }}">
+          </div>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label small text-muted">{% trans "الحالة" %}</label>
+          <select name="status" class="form-select form-select-sm">
+            <option value="">{% trans "الكل" %}</option>
+            <option value="active" {% if request.GET.status == "active" %}selected{% endif %}>{% trans "نشطة" %}</option>
+            <option value="inactive" {% if request.GET.status == "inactive" %}selected{% endif %}>{% trans "معطلة" %}</option>
+          </select>
+        </div>
+        <div class="col-md-4 d-flex align-items-end gap-2">
+          <button type="submit" class="btn btn-sm btn-primary px-4"><i class="fas fa-search me-1"></i>{% trans "تصفية" %}</button>
+          <a href="{% url 'sale:price_list_list' %}" class="btn btn-sm btn-outline-secondary px-3"><i class="fas fa-undo me-1"></i>{% trans "إعادة تعيين" %}</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Data Table Container -->
   <div class="section-container">
-    <h5 class="section-title"><i class="fas fa-tags me-2"></i>{% trans "قوائم أسعار المبيعات المعتمدة" %}</h5>
-    
-    {% if price_lists %}
-    <div class="table-responsive">
-      <table class="table table-hover table-striped text-center align-middle mb-0">
-        <thead class="table-light">
-          <tr>
-            <th>#</th>
-            <th>{% trans "اسم القائمة" %}</th>
-            <th>{% trans "العملة" %}</th>
-            <th>{% trans "فئة العملاء" %}</th>
-            <th>{% trans "تاريخ السريان" %}</th>
-            <th>{% trans "عدد البنود" %}</th>
-            <th>{% trans "الحالة" %}</th>
-            <th>{% trans "الإجراءات" %}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for pl in price_lists %}
-          <tr>
-            <td>{{ forloop.counter }}</td>
-            <td class="fw-bold text-start">
-              <a href="{% url 'sale:price_list_detail' pl.pk %}" class="text-primary text-decoration-none">
-                {{ pl.name }}
-              </a>
-            </td>
-            <td><span class="badge bg-light text-dark border">{{ pl.currency }}</span></td>
-            <td>{{ pl.customer_type|default:"الكل" }}</td>
-            <td>{{ pl.effective_from|date:"Y-m-d" }}</td>
-            <td><span class="badge bg-info text-white">{{ pl.items_count }}</span></td>
-            <td>
-              {% if pl.is_active %}
-                <span class="badge bg-success">{% trans "نشطة" %}</span>
-              {% else %}
-                <span class="badge bg-secondary">{% trans "معطلة" %}</span>
-              {% endif %}
-            </td>
-            <td>
-              <div class="btn-group btn-group-sm">
-                <a href="{% url 'sale:price_list_detail' pl.pk %}" class="btn btn-outline-secondary" title="{% trans 'عرض التفاصيل' %}">
-                  <i class="fas fa-eye"></i>
-                </a>
-                <a href="{% url 'sale:price_list_edit' pl.pk %}" class="btn btn-outline-primary" title="{% trans 'تعديل' %}">
-                  <i class="fas fa-edit"></i>
-                </a>
-              </div>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+    <h5 class="section-title"><i class="fas fa-list me-2"></i>{% trans "سجل قوائم أسعار المبيعات" %}</h5>
+    <div id="price-lists-table-container">
+      {% include "sale/pricing/partials/price_list_table.html" %}
     </div>
-    {% else %}
-    <div class="alert alert-info text-center my-4 py-4">
-      <i class="fas fa-tags fa-3x mb-3 text-muted"></i>
-      <p class="mb-0 fs-5">{% trans "لا توجد قوائم أسعار مسجلة حتى الآن." %}</p>
+    <div id="pagination-wrapper" class="mt-3">
+      {% include "partials/pagination.html" %}
     </div>
-    {% endif %}
   </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  window.doSearch = function() {
+    var form = document.getElementById("priceListSearchForm");
+    if (!form) return;
+    var formData = new FormData(form);
+    var params = new URLSearchParams(formData);
+    params.set("ajax", "1");
+
+    fetch(window.location.pathname + "?" + params.toString(), {
+      headers: { "X-Requested-With": "XMLHttpRequest" }
+    })
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+      if (data.table_html) {
+        document.getElementById("price-lists-table-container").innerHTML = data.table_html;
+      }
+      if (data.pagination_html) {
+        document.getElementById("pagination-wrapper").innerHTML = data.pagination_html;
+      }
+      var cleanParams = new URLSearchParams(formData);
+      window.history.replaceState({}, "", window.location.pathname + "?" + cleanParams.toString());
+    })
+    .catch(function(err) {
+      console.error("AJAX Search Error:", err);
+    });
+  };
+
+  var searchForm = document.getElementById("priceListSearchForm");
+  if (searchForm) {
+    searchForm.addEventListener("submit", function(e) {
+      e.preventDefault();
+      window.doSearch();
+    });
+    $(searchForm).find("select").on("change", function() {
+      window.doSearch();
+    });
+  }
+});
+</script>
 {% endblock %}

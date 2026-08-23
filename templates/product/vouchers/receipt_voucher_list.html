@@ -15,15 +15,29 @@
     {% csrf_token %}
     {% include "shared/page_header.html" %}
 
-    <div class="alert alert-info border-0 shadow-sm d-flex align-items-center mb-4 p-3" role="alert">
-        <i class="fas fa-info-circle fa-2x me-3 text-info"></i>
-        <div>
-            <h6 class="alert-heading fw-bold mb-1">أذون الاستلام الداخلية والتسويات (Non-Procurement Receipts)</h6>
-            <p class="mb-0 small text-muted">
-                هذه الشاشة مخصصة لإدخال حركات الاستلام الإدارية والداخلية (مثل الهدايا، السبلايز، وزيادة الجرد). 
-                لاستلام البضائع والمواد الواردة من <strong>الموردين والتجار (المشتريات)</strong> ولتفعيل قيد $GRNI$ والمطابقة الثلاثية، 
-                يرجى الانتقال لـ <a href="{% url 'purchase:grn_list' %}" class="fw-bold alert-link"><i class="fas fa-truck-loading me-1"></i>أذون استلام المشتريات (GRN)</a>.
-            </p>
+    <!-- بطاقة توجيهية وإيضاحية واضحة لطبيعة أذون الاستلام الداخلية -->
+    <div class="card border-0 shadow-sm mb-4 bg-light">
+        <div class="card-body p-3 d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
+            <div class="d-flex align-items-start gap-3">
+                <div class="p-2 rounded bg-white text-primary border">
+                    <i class="fas fa-info-circle fa-2x"></i>
+                </div>
+                <div>
+                    <h6 class="fw-bold mb-1 text-dark">
+                        <i class="fas fa-file-import text-primary me-1"></i>
+                        أذون الاستلام والتسويات الداخلية (Non-Procurement Receipts)
+                    </h6>
+                    <p class="mb-0 text-muted small">
+                        هذه الشاشة مخصصة لحركات الاستلام الإدارية والداخلية والتسويات المخزنية (مثل: الهدايا، مستلزمات التشغيل والمهمات، وزيادة الجرد). 
+                        لاستلام البضائع والمواد الواردة من <strong>الموردين والتجار (المشتريات)</strong> ولتفعيل قيد البضاعة غير المفوترة (GRNI) والمطابقة الثلاثية، يرجى الانتقال إلى قسم المشتريات.
+                    </p>
+                </div>
+            </div>
+            <div class="text-nowrap">
+                <a href="{% url 'purchase:grn_list' %}" class="btn btn-outline-primary btn-sm fw-bold px-3">
+                    <i class="fas fa-truck-loading me-1"></i> أذون استلام المشتريات (GRN)
+                </a>
+            </div>
         </div>
     </div>
 
@@ -238,19 +252,23 @@ function initializeModalForm() {
                 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
             }
         })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
+        .then(async response => {
+            const data = await response.json().catch(() => ({}));
+            if (response.ok && data.success) {
                 bootstrap.Modal.getInstance(document.getElementById('receiptVoucherModal')).hide();
                 window.location.href = data.redirect_url;
             } else {
-                alert(data.message || 'حدث خطأ');
+                let errorMsg = data.message;
+                if (!errorMsg && data.errors) {
+                    errorMsg = Object.values(data.errors).flat().join('\n');
+                }
+                alert(errorMsg || 'حدث خطأ أثناء حفظ إذن الاستلام');
                 submitBtn.disabled = false;
                 submitBtn.innerHTML = '<i class="fas fa-save me-2"></i>حفظ';
             }
         })
         .catch(error => {
-            alert('حدث خطأ في الحفظ');
+            alert('حدث خطأ في الاتصال بالخادم');
             submitBtn.disabled = false;
             submitBtn.innerHTML = '<i class="fas fa-save me-2"></i>حفظ';
         });

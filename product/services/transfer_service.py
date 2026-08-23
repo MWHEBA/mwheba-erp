@@ -342,24 +342,8 @@ class TransferService:
     
     def _get_warehouse_inventory_account(self, warehouse: Warehouse):
         """الحصول على حساب المخزون للمخزن"""
-        from financial.models.chart_of_accounts import ChartOfAccounts
-        
-        try:
-            # البحث عن حساب مخزون خاص بالمخزن (سلسلة 10400)
-            account = ChartOfAccounts.objects.filter(
-                code__startswith='10400',
-                name__icontains=warehouse.name,
-                is_active=True
-            ).first()
-            
-            if account:
-                return account
-            
-            # استخدام حساب المخزون العام
-            return ChartOfAccounts.objects.get(code='10400')
-            
-        except ChartOfAccounts.DoesNotExist:
-            raise ValueError('حساب المخزون غير موجود في الدليل المحاسبي')
+        from product.services.voucher_accounting_service import get_inventory_account
+        return get_inventory_account(warehouse=warehouse)
     
     def _generate_transfer_number(self) -> str:
         """توليد رقم التحويل"""

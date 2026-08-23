@@ -522,7 +522,7 @@ th.col-date {
 .action-button.action-reject:hover {
     background-color: var(--danger-color);
     border-color: var(--danger-dark);
-    color: var(--white);
+    color: var(--white) !important;
 }
 
 .action-button.action-success:hover,

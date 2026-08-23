@@ -13,6 +13,8 @@ from django.utils.translation import gettext as _
 from django.urls import reverse
 from django.core.paginator import Paginator
 from django.db.models import Q, Count
+from django.http import JsonResponse
+from django.template.loader import render_to_string
 
 from sale.models.pricing import PriceList, PriceListItem, DiscountRule, PricingAuditLog
 from product.models.product_core import Product, Category
@@ -26,9 +28,37 @@ logger = logging.getLogger(__name__)
 @login_required
 def price_list_list(request):
     """
-    قائمة قوائم أسعار المبيعات
+    قائمة قوائم أسعار المبيعات مع الفلاتر والإحصائيات والجدول الموحد ودعم AJAX
     """
-    price_lists = PriceList.objects.annotate(items_count=Count("items")).order_by("-is_active", "name")
+    price_lists = PriceList.objects.annotate(items_count=Count("items")).order_by("-is_active", "name", "-id")
+
+    # فلاتر البحث
+    q = request.GET.get("q") or request.GET.get("search")
+    if q:
+        price_lists = price_lists.filter(
+            Q(name__icontains=q) |
+            Q(description__icontains=q) |
+            Q(customer_type__icontains=q)
+        )
+
+    currency = request.GET.get("currency")
+    if currency:
+        price_lists = price_lists.filter(currency=currency)
+
+    status = request.GET.get("status")
+    if status in ["active", "1"]:
+        price_lists = price_lists.filter(is_active=True)
+    elif status in ["inactive", "0"]:
+        price_lists = price_lists.filter(is_active=False)
+
+    # إحصائيات KPI
+    all_pl = PriceList.objects.all()
+    stats = {
+        "total_count": all_pl.count(),
+        "active_count": all_pl.filter(is_active=True).count(),
+        "total_items": PriceListItem.objects.count(),
+        "default_count": all_pl.filter(is_default=True).count() if hasattr(PriceList, 'is_default') else 0,
+    }
 
     from core.utils import paginate_queryset
     pagination_context = paginate_queryset(price_lists, request)
@@ -36,33 +66,147 @@ def price_list_list(request):
 
     breadcrumb_items = [
         {"title": _("الرئيسية"), "url": reverse("core:dashboard"), "icon": "fa-home"},
-        {"title": _("إدارة المبيعات"), "url": reverse("sale:sale_list"), "icon": "fa-shopping-cart"},
+        {"title": _("المبيعات"), "url": reverse("sale:sale_list"), "icon": "fa-shopping-cart"},
         {"title": _("قوائم الأسعار"), "active": True},
     ]
 
     header_buttons = [
         {
             "url": reverse("sale:price_list_create"),
-            "label": _("إنشاء قائمة أسعار"),
+            "text": _("إنشاء قائمة أسعار"),
             "icon": "fa-plus",
             "class": "btn-primary",
         },
         {
             "url": reverse("sale:discount_rule_list"),
-            "label": _("قواعد الخصم"),
+            "text": _("قواعد الخصم"),
             "icon": "fa-percentage",
-            "class": "btn-outline-info",
+            "class": "btn-outline-secondary",
         }
     ]
 
+    # إعداد headers للجدول الموحد
+    price_list_headers = [
+        {
+            'key': 'id',
+            'label': '#',
+            'class': 'text-center',
+            'width': '4%'
+        },
+        {
+            'key': 'name',
+            'label': _('اسم القائمة'),
+            'class': 'text-start fw-bold',
+            'format': 'html',
+            'width': '25%'
+        },
+        {
+            'key': 'currency',
+            'label': _('العملة'),
+            'class': 'text-center',
+            'format': 'html',
+            'width': '10%'
+        },
+        {
+            'key': 'customer_type',
+            'label': _('فئة العملاء'),
+            'class': 'text-center',
+            'format': 'html',
+            'width': '15%'
+        },
+        {
+            'key': 'effective_from',
+            'label': _('تاريخ السريان'),
+            'class': 'text-center',
+            'format': 'html',
+            'width': '14%'
+        },
+        {
+            'key': 'items_count',
+            'label': _('عدد البنود'),
+            'class': 'text-center',
+            'format': 'html',
+            'width': '10%'
+        },
+        {
+            'key': 'status',
+            'label': _('الحالة'),
+            'class': 'text-center',
+            'format': 'html',
+            'width': '10%'
+        },
+        {
+            'key': 'actions',
+            'label': _('الإجراءات'),
+            'class': 'text-center col-actions',
+            'format': 'html',
+            'width': '1%'
+        }
+    ]
+
+    # بناء بيانات الجدول الموحد
+    price_lists_data = []
+    for pl in page_obj:
+        name_html = f'<div class="fw-bold text-primary mb-0"><i class="fas fa-tags me-1 text-muted"></i>{pl.name}</div>'
+        currency_html = f'<span class="badge bg-light text-dark border fw-bold">{pl.currency}</span>'
+        cust_type_html = f'<span class="badge bg-light text-secondary border">{pl.customer_type or "الكل"}</span>'
+        eff_date_html = pl.effective_from.strftime("%Y-%m-%d") if pl.effective_from else "-"
+
+        items_html = f'<span class="badge bg-info text-white">{pl.items_count} بنود</span>'
+
+        if pl.is_active:
+            status_html = '<span class="badge bg-success">نشطة</span>'
+        else:
+            status_html = '<span class="badge bg-secondary">معطلة</span>'
+
+        detail_url = reverse("sale:price_list_detail", args=[pl.pk])
+        edit_url = reverse("sale:price_list_edit", args=[pl.pk])
+
+        actions_html = f'''
+        <div class="btn-group btn-group-sm" onclick="event.stopPropagation();">
+            <a href="{detail_url}" class="btn btn-outline-secondary" title="عرض التفاصيل">
+                <i class="fas fa-eye"></i>
+            </a>
+            <a href="{edit_url}" class="btn btn-outline-primary" title="تعديل">
+                <i class="fas fa-edit"></i>
+            </a>
+        </div>
+        '''
+
+        price_lists_data.append({
+            'id': pl.id,
+            'name': name_html,
+            'currency': currency_html,
+            'customer_type': cust_type_html,
+            'effective_from': eff_date_html,
+            'items_count': items_html,
+            'status': status_html,
+            'actions': actions_html,
+            'row_click_url': detail_url,
+        })
+
     context = {
         "page_title": _("قوائم أسعار المبيعات"),
+        "page_subtitle": _("إدارة وتخصيص لوائح الأسعار المعتمدة لمختلف فئات العملاء والعملات"),
+        "page_icon": "fas fa-tags",
         "price_lists": page_obj.object_list,
+        "price_lists_data": price_lists_data,
+        "price_list_headers": price_list_headers,
         "page_obj": page_obj,
+        "stats": stats,
         **pagination_context,
         "breadcrumb_items": breadcrumb_items,
         "header_buttons": header_buttons,
     }
+
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.GET.get("ajax"):
+        table_html = render_to_string("sale/pricing/partials/price_list_table.html", context, request=request)
+        pagination_html = render_to_string("partials/pagination.html", context, request=request)
+        return JsonResponse({
+            "table_html": table_html,
+            "pagination_html": pagination_html,
+        })
+
     return render(request, "sale/pricing/price_list_list.html", context)
 
 
@@ -225,9 +369,45 @@ def price_list_edit(request, pk):
 @login_required
 def discount_rule_list(request):
     """
-    قائمة قواعد وسياسات الخصم
+    قائمة قواعد وسياسات الخصم مع الفلاتر والإحصائيات ودعم AJAX الموحد
     """
-    rules = DiscountRule.objects.select_related("customer", "category").order_by("-is_active", "priority")
+    rules = DiscountRule.objects.select_related("customer", "category").order_by("-is_active", "priority", "-id")
+
+    # فلاتر البحث
+    q = request.GET.get("q") or request.GET.get("search")
+    if q:
+        rules = rules.filter(
+            Q(rule_name__icontains=q) |
+            Q(customer__name__icontains=q) |
+            Q(category__name__icontains=q)
+        )
+
+    rule_type = request.GET.get("rule_type")
+    if rule_type:
+        rules = rules.filter(rule_type=rule_type)
+
+    customer_id = request.GET.get("customer")
+    if customer_id and customer_id.isdigit():
+        rules = rules.filter(customer_id=int(customer_id))
+
+    category_id = request.GET.get("category")
+    if category_id and category_id.isdigit():
+        rules = rules.filter(category_id=int(category_id))
+
+    status = request.GET.get("status")
+    if status in ["active", "1"]:
+        rules = rules.filter(is_active=True)
+    elif status in ["inactive", "0"]:
+        rules = rules.filter(is_active=False)
+
+    # حساب إحصائيات KPI العامة
+    all_rules = DiscountRule.objects.all()
+    stats = {
+        "total_count": all_rules.count(),
+        "active_count": all_rules.filter(is_active=True).count(),
+        "percentage_count": all_rules.filter(rule_type="PERCENTAGE").count(),
+        "fixed_count": all_rules.filter(rule_type__in=["FIXED_AMOUNT", "TIERED_QUANTITY"]).count(),
+    }
 
     from core.utils import paginate_queryset
     pagination_context = paginate_queryset(rules, request)
@@ -235,33 +415,203 @@ def discount_rule_list(request):
 
     breadcrumb_items = [
         {"title": _("الرئيسية"), "url": reverse("core:dashboard"), "icon": "fa-home"},
-        {"title": _("إدارة المبيعات"), "url": reverse("sale:sale_list"), "icon": "fa-shopping-cart"},
+        {"title": _("المبيعات"), "url": reverse("sale:sale_list"), "icon": "fa-shopping-cart"},
         {"title": _("قواعد الخصم"), "active": True},
     ]
 
     header_buttons = [
         {
             "url": reverse("sale:discount_rule_create"),
-            "label": _("إضافة قاعدة خصم"),
+            "text": _("إضافة قاعدة خصم"),
             "icon": "fa-plus",
             "class": "btn-primary",
         },
         {
             "url": reverse("sale:price_list_list"),
-            "label": _("قوائم الأسعار"),
+            "text": _("قوائم الأسعار"),
             "icon": "fa-tags",
             "class": "btn-outline-secondary",
         }
     ]
 
+    customers = Customer.objects.filter(is_active=True).only("id", "name").order_by("name")
+    categories = Category.objects.all().order_by("name")
+
+    # إعداد headers للجدول الموحد
+    discount_rule_headers = [
+        {
+            'key': 'id',
+            'label': '#',
+            'class': 'text-center',
+            'width': '4%'
+        },
+        {
+            'key': 'rule_name',
+            'label': _('اسم القاعدة'),
+            'class': 'text-start fw-bold',
+            'format': 'html',
+            'width': '20%'
+        },
+        {
+            'key': 'rule_type',
+            'label': _('نوع القاعدة'),
+            'class': 'text-center',
+            'format': 'html',
+            'width': '12%'
+        },
+        {
+            'key': 'target',
+            'label': _('العميل / التصنيف المستهدف'),
+            'class': 'text-start',
+            'format': 'html',
+            'width': '18%'
+        },
+        {
+            'key': 'discount_value',
+            'label': _('قيمة الخصم'),
+            'class': 'text-center',
+            'format': 'html',
+            'width': '12%'
+        },
+        {
+            'key': 'min_order_amount',
+            'label': _('الحد الأدنى للطلب'),
+            'class': 'text-center',
+            'format': 'html',
+            'width': '12%'
+        },
+        {
+            'key': 'validity_period',
+            'label': _('فترة السريان'),
+            'class': 'text-center',
+            'format': 'html',
+            'width': '12%'
+        },
+        {
+            'key': 'priority',
+            'label': _('الأولوية'),
+            'class': 'text-center',
+            'format': 'html',
+            'width': '5%'
+        },
+        {
+            'key': 'status',
+            'label': _('الحالة'),
+            'class': 'text-center',
+            'format': 'html',
+            'width': '8%'
+        },
+        {
+            'key': 'actions',
+            'label': _('الإجراءات'),
+            'class': 'text-center col-actions',
+            'format': 'html',
+            'width': '1%'
+        }
+    ]
+
+    # بناء بيانات الجدول الموحد
+    rules_data = []
+    for r in page_obj:
+        rule_name_html = f'<div class="fw-bold text-primary mb-0"><i class="fas fa-percentage me-1 text-muted"></i>{r.rule_name}</div>'
+
+        if r.rule_type == "PERCENTAGE":
+            rule_type_html = '<span class="badge bg-light text-primary border"><i class="fas fa-percent me-1"></i>نسبة مئوية</span>'
+            discount_value_html = f'<span class="fw-bold text-success fs-6">{r.discount_percentage}%</span>'
+        elif r.rule_type == "FIXED_AMOUNT":
+            rule_type_html = '<span class="badge bg-light text-success border"><i class="fas fa-money-bill-wave me-1"></i>مبلغ ثابت</span>'
+            discount_value_html = f'<span class="fw-bold text-success fs-6">{r.value:.2f} ج.م</span>'
+        else:
+            rule_type_html = '<span class="badge bg-light text-warning border"><i class="fas fa-layer-group me-1"></i>شريحة كمية</span>'
+            discount_value_html = f'<span class="fw-bold text-success fs-6">{r.value:.2f} ج.م</span>'
+
+        target_parts = []
+        if r.customer:
+            target_parts.append(f'<div class="text-dark fw-semibold"><i class="fas fa-user text-muted me-1"></i>{r.customer.name}</div>')
+        if r.category:
+            target_parts.append(f'<div class="text-muted small"><i class="fas fa-tags text-muted me-1"></i>{r.category.name}</div>')
+        if not target_parts:
+            target_html = '<span class="badge bg-light text-secondary border">كافة العملاء والأصناف</span>'
+        else:
+            target_html = "".join(target_parts)
+
+        if r.min_order_amount > 0:
+            min_amount_html = f'<span class="fw-semibold text-dark">{r.min_order_amount:.2f} ج.م</span>'
+        else:
+            min_amount_html = '<span class="text-muted">-</span>'
+
+        from_d = r.effective_date.strftime("%Y-%m-%d") if r.effective_date else "-"
+        to_d = r.expiry_date.strftime("%Y-%m-%d") if r.expiry_date else "مستمر"
+        validity_html = f'<div class="small"><span class="text-muted">من:</span> {from_d}</div><div class="small text-muted"><span>إلى:</span> {to_d}</div>'
+
+        priority_html = f'<span class="badge rounded-pill bg-light text-dark border fw-bold">{r.priority}</span>'
+
+        if r.is_active:
+            status_html = '<span class="badge bg-success">نشطة</span>'
+            toggle_title = "تعطيل"
+            toggle_icon = "fa-ban text-warning"
+        else:
+            status_html = '<span class="badge bg-secondary">معطلة</span>'
+            toggle_title = "تفعيل"
+            toggle_icon = "fa-check text-success"
+
+        edit_url = reverse("sale:discount_rule_edit", args=[r.pk])
+        toggle_url = reverse("sale:discount_rule_toggle", args=[r.pk])
+        delete_url = reverse("sale:discount_rule_delete", args=[r.pk])
+
+        actions_html = f'''
+        <div class="btn-group btn-group-sm" onclick="event.stopPropagation();">
+            <a href="{edit_url}" class="btn btn-outline-primary" title="تعديل">
+                <i class="fas fa-edit"></i>
+            </a>
+            <button type="button" class="btn btn-outline-secondary toggle-rule-btn" data-url="{toggle_url}" title="{toggle_title}">
+                <i class="fas {toggle_icon}"></i>
+            </button>
+            <button type="button" class="btn btn-outline-danger delete-rule-btn" data-url="{delete_url}" data-name="{r.rule_name}" title="حذف">
+                <i class="fas fa-trash-alt"></i>
+            </button>
+        </div>
+        '''
+
+        rules_data.append({
+            'id': r.id,
+            'rule_name': rule_name_html,
+            'rule_type': rule_type_html,
+            'target': target_html,
+            'discount_value': discount_value_html,
+            'min_order_amount': min_amount_html,
+            'validity_period': validity_html,
+            'priority': priority_html,
+            'status': status_html,
+            'actions': actions_html,
+            'row_click_url': edit_url,
+        })
+
     context = {
         "page_title": _("قواعد وسياسات الخصم"),
+        "page_subtitle": _("إدارة سياسات وقواعد الخصم التلقائية الممنوحة للعملاء وفئات المنتجات"),
+        "page_icon": "fas fa-percentage",
         "rules": page_obj.object_list,
+        "rules_data": rules_data,
+        "discount_rule_headers": discount_rule_headers,
         "page_obj": page_obj,
+        "stats": stats,
+        "customers": customers,
+        "categories": categories,
+        "rule_types": DiscountRule.RULE_TYPES,
         **pagination_context,
         "breadcrumb_items": breadcrumb_items,
         "header_buttons": header_buttons,
     }
+
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.GET.get("ajax"):
+        table_html = render_to_string("sale/pricing/partials/discount_rule_table.html", context, request=request)
+        pagination_html = render_to_string("partials/pagination.html", context, request=request)
+        return JsonResponse({
+            "table_html": table_html,
+            "pagination_html": pagination_html,
+        })
+
     return render(request, "sale/pricing/discount_rule_list.html", context)
 
 
@@ -275,12 +625,13 @@ def discount_rule_create(request):
         rule_type = request.POST.get("rule_type", "PERCENTAGE")
         customer_id = request.POST.get("customer") or None
         category_id = request.POST.get("category") or None
-        discount_percentage = Decimal(request.POST.get("discount_percentage", "0.00"))
-        value = Decimal(request.POST.get("value", "0.00"))
-        min_order_amount = Decimal(request.POST.get("min_order_amount", "0.00"))
-        priority = int(request.POST.get("priority", "10"))
+        discount_percentage = Decimal(request.POST.get("discount_percentage", "0.00") or "0.00")
+        value = Decimal(request.POST.get("value", "0.00") or "0.00")
+        min_order_amount = Decimal(request.POST.get("min_order_amount", "0.00") or "0.00")
+        priority = int(request.POST.get("priority", "10") or "10")
         effective_date = request.POST.get("effective_date") or timezone.now().date()
         expiry_date = request.POST.get("expiry_date") or None
+        is_active = request.POST.get("is_active") in ["on", "true", "1", True]
 
         try:
             rule = DiscountRule.objects.create(
@@ -294,17 +645,17 @@ def discount_rule_create(request):
                 priority=priority,
                 effective_date=effective_date,
                 expiry_date=expiry_date,
-                is_active=True
+                is_active=is_active
             )
-            messages.success(request, f"تم إنشاء قاعدة الخصم '{rule.rule_name}' بنجاح.")
+            messages.success(request, f"تم إنشاء قاعدة الخصم '{rule.rule_name}' بنجاح ✅")
             return redirect("sale:discount_rule_list")
 
         except Exception as e:
-            logger.error(f"Error creating discount rule: {e}")
+            logger.error(f"Error creating discount rule: {e}", exc_info=True)
             messages.error(request, f"خطأ أثناء إنشاء قاعدة الخصم: {str(e)}")
 
-    customers = Customer.objects.filter(is_active=True).only("id", "name")
-    categories = Category.objects.all()
+    customers = Customer.objects.filter(is_active=True).only("id", "name").order_by("name")
+    categories = Category.objects.all().order_by("name")
 
     breadcrumb_items = [
         {"title": _("الرئيسية"), "url": reverse("core:dashboard"), "icon": "fa-home"},
@@ -312,10 +663,124 @@ def discount_rule_create(request):
         {"title": _("إضافة قاعدة خصم"), "active": True},
     ]
 
+    header_buttons = [
+        {
+            "url": reverse("sale:discount_rule_list"),
+            "label": _("العودة للقائمة"),
+            "icon": "fa-arrow-right",
+            "class": "btn-secondary",
+        }
+    ]
+
     context = {
         "page_title": _("إضافة قاعدة خصم جديدة"),
+        "page_subtitle": _("تعريف قاعدة خصم تجارية جديدة وتحديد شروط الاستحقاق"),
+        "page_icon": "fas fa-percentage",
         "customers": customers,
         "categories": categories,
+        "rule_types": DiscountRule.RULE_TYPES,
         "breadcrumb_items": breadcrumb_items,
+        "header_buttons": header_buttons,
     }
     return render(request, "sale/pricing/discount_rule_form.html", context)
+
+
+@login_required
+def discount_rule_edit(request, pk):
+    """
+    تعديل قاعدة خصم قائمة
+    """
+    rule = get_object_or_404(DiscountRule, pk=pk)
+
+    if request.method == "POST":
+        rule.rule_name = request.POST.get("rule_name", rule.rule_name)
+        rule.rule_type = request.POST.get("rule_type", rule.rule_type)
+        rule.customer_id = request.POST.get("customer") or None
+        rule.category_id = request.POST.get("category") or None
+        rule.discount_percentage = Decimal(request.POST.get("discount_percentage", "0.00") or "0.00")
+        rule.value = Decimal(request.POST.get("value", "0.00") or "0.00")
+        rule.min_order_amount = Decimal(request.POST.get("min_order_amount", "0.00") or "0.00")
+        rule.priority = int(request.POST.get("priority", "10") or "10")
+        rule.effective_date = request.POST.get("effective_date") or rule.effective_date
+        rule.expiry_date = request.POST.get("expiry_date") or None
+        rule.is_active = request.POST.get("is_active") in ["on", "true", "1", True]
+
+        try:
+            rule.save()
+            messages.success(request, f"تم تحديث قاعدة الخصم '{rule.rule_name}' بنجاح ✅")
+            return redirect("sale:discount_rule_list")
+        except Exception as e:
+            logger.error(f"Error updating discount rule: {e}", exc_info=True)
+            messages.error(request, f"خطأ أثناء تعديل قاعدة الخصم: {str(e)}")
+
+    customers = Customer.objects.filter(is_active=True).only("id", "name").order_by("name")
+    categories = Category.objects.all().order_by("name")
+
+    breadcrumb_items = [
+        {"title": _("الرئيسية"), "url": reverse("core:dashboard"), "icon": "fa-home"},
+        {"title": _("قواعد الخصم"), "url": reverse("sale:discount_rule_list"), "icon": "fa-percentage"},
+        {"title": f"تعديل: {rule.rule_name}", "active": True},
+    ]
+
+    header_buttons = [
+        {
+            "url": reverse("sale:discount_rule_list"),
+            "label": _("العودة للقائمة"),
+            "icon": "fa-arrow-right",
+            "class": "btn-secondary",
+        }
+    ]
+
+    context = {
+        "page_title": _("تعديل قاعدة الخصم"),
+        "page_subtitle": _(f"تعديل محددات وشروط قاعدة الخصم #{rule.id}"),
+        "page_icon": "fas fa-edit",
+        "rule": rule,
+        "customers": customers,
+        "categories": categories,
+        "rule_types": DiscountRule.RULE_TYPES,
+        "breadcrumb_items": breadcrumb_items,
+        "header_buttons": header_buttons,
+    }
+    return render(request, "sale/pricing/discount_rule_form.html", context)
+
+
+@login_required
+@require_POST
+def discount_rule_toggle_status(request, pk):
+    """
+    تغيير حالة قاعدة الخصم (تفعيل / تعطيل)
+    """
+    rule = get_object_or_404(DiscountRule, pk=pk)
+    rule.is_active = not rule.is_active
+    rule.save(update_fields=["is_active"])
+
+    status_str = "تفعيل" if rule.is_active else "تعطيل"
+    messages.success(request, f"تم {status_str} قاعدة الخصم '{rule.rule_name}' بنجاح ✅")
+
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return JsonResponse({
+            "success": True,
+            "is_active": rule.is_active,
+            "message": f"تم {status_str} قاعدة الخصم بنجاح"
+        })
+    return redirect("sale:discount_rule_list")
+
+
+@login_required
+@require_POST
+def discount_rule_delete(request, pk):
+    """
+    حذف قاعدة الخصم
+    """
+    rule = get_object_or_404(DiscountRule, pk=pk)
+    rule_name = rule.rule_name
+    rule.delete()
+    messages.success(request, f"تم حذف قاعدة الخصم '{rule_name}' بنجاح 🗑️")
+
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return JsonResponse({
+            "success": True,
+            "message": f"تم حذف قاعدة الخصم '{rule_name}' بنجاح"
+        })
+    return redirect("sale:discount_rule_list")

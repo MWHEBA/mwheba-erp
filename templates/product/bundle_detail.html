@@ -200,6 +200,11 @@
     <!-- CSRF Token للاستخدام في JavaScript -->
     {% csrf_token %}
     
+    <!-- نموذج إعادة تنشيط المنتج المجمع -->
+    <form id="reactivate-product-form" method="POST" action="{% url 'product:product_reactivate' bundle.pk %}" style="display: none;">
+        {% csrf_token %}
+    </form>
+
     <!-- Page Header المركزي -->
     {% include "shared/page_header.html" %}
 
@@ -315,7 +320,7 @@
                         <!-- شريط تقدم المخزون -->
                         <div class="stock-progress">
                             <div class="stock-progress-bar bg-{{ comp_data.availability_class }}" 
-                                 style="width: {% if comp_data.stock_ratio > 100 %}100{% else %}{{ comp_data.stock_ratio|smart_float }}{% endif %}%"></div>
+                                 data-progress="{{ comp_data.stock_ratio|smart_float }}"></div>
                         </div>
                         
                         <div class="stock-info">
@@ -578,16 +583,17 @@ $(document).ready(function() {
     // تحريك أشرطة التقدم
     setTimeout(() => {
         $('.stock-progress-bar').each(function() {
-            const width = $(this).css('width');
+            const ratio = parseFloat($(this).attr('data-progress') || 0);
+            const finalWidth = Math.min(100, Math.max(0, ratio)) + '%';
             $(this).css('width', '0%');
             setTimeout(() => {
                 $(this).css({
-                    'width': width,
-                    'transition': 'width 1s ease'
+                    'width': finalWidth,
+                    'transition': 'width 0.8s ease'
                 });
             }, 100);
         });
-    }, 500);
+    }, 300);
     
     // إضافة تفاعل مع بطاقات المكونات
     $('.component-card').hover(

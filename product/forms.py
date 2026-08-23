@@ -74,9 +74,21 @@ class UnitForm(forms.ModelForm):
 
 
 class ProductForm(forms.ModelForm):
-    # تعريف الحقول غير الإجبارية
+    # تعريف الحقول الرقمية بمرونة لمنع أخطاء max_digits والتقريب الآلي
     min_stock = forms.IntegerField(
         required=False, min_value=0, label=_("الحد الأدنى للمخزون")
+    )
+    cost_price = forms.DecimalField(
+        required=False, min_value=0, max_digits=15, decimal_places=2, label=_("سعر التكلفة"),
+        widget=forms.NumberInput(attrs={"step": "0.01", "min": "0", "id": "id_cost_price"})
+    )
+    selling_price = forms.DecimalField(
+        required=True, min_value=0, max_digits=15, decimal_places=2, label=_("سعر البيع (بدون ضريبة)"),
+        widget=forms.NumberInput(attrs={"step": "0.01", "min": "0", "id": "id_selling_price"})
+    )
+    tax_rate = forms.DecimalField(
+        required=False, min_value=0, max_value=100, max_digits=8, decimal_places=2, label=_("نسبة الضريبة (%)"),
+        widget=forms.NumberInput(attrs={"step": "0.01", "min": "0", "max": "100", "placeholder": "0.00", "id": "id_tax_rate"})
     )
 
     class Meta:
@@ -104,9 +116,6 @@ class ProductForm(forms.ModelForm):
             "name_en": forms.TextInput(attrs={"placeholder": "الاسم (English)"}),
             "description": forms.Textarea(attrs={"rows": 3, "placeholder": "الوصف (عربي)"}),
             "description_en": forms.Textarea(attrs={"rows": 3, "placeholder": "الوصف (English)"}),
-            "cost_price": forms.NumberInput(attrs={"step": "0.01", "min": "0", "id": "id_cost_price"}),
-            "selling_price": forms.NumberInput(attrs={"step": "0.01", "min": "0", "id": "id_selling_price"}),
-            "tax_rate": forms.NumberInput(attrs={"step": "0.01", "min": "0", "max": "100", "placeholder": "0.00", "id": "id_tax_rate"}),
             "tax_code": forms.Select(attrs={"class": "form-select select2-tax-code", "id": "id_tax_code"}),
             "sku": forms.TextInput(attrs={
                 "placeholder": "سيتم توليده تلقائياً إذا ترك فارغاً",
@@ -140,15 +149,19 @@ class ProductForm(forms.ModelForm):
             if not default_tax:
                 default_tax = TaxCode.objects.filter(rate=Decimal('14.00'), is_active=True).first()
             
-            if default_tax:
+            if default_tax and default_tax.rate is not None:
                 self.fields['tax_code'].initial = default_tax.pk
-                self.fields['tax_rate'].initial = default_tax.rate
+                self.fields['tax_rate'].initial = default_tax.rate.quantize(Decimal('0.01'))
             else:
                 self.fields['tax_rate'].initial = Decimal('14.00')
         elif self.instance.pk and self.instance.tax_code:
             # في حالة التعديل، التأكد من أن نسبة الضريبة تظهر نسبة الكود
             if self.instance.tax_rate is None or self.instance.tax_rate == 0:
-                self.fields['tax_rate'].initial = self.instance.tax_code.rate
+                self.fields['tax_rate'].initial = (self.instance.tax_code.rate or Decimal('0.00')).quantize(Decimal('0.01'))
+            else:
+                self.fields['tax_rate'].initial = Decimal(str(self.instance.tax_rate)).quantize(Decimal('0.01'))
+        elif self.instance.pk and self.instance.tax_rate is not None:
+            self.fields['tax_rate'].initial = Decimal(str(self.instance.tax_rate)).quantize(Decimal('0.01'))
         
         # تحديث labels ديناميكياً
         self.fields['name'].label = f"اسم {item_type} (عربي)"
@@ -257,9 +270,16 @@ class ProductForm(forms.ModelForm):
         
         # إذا كانت خدمة ولم يتم إدخال سعر تكلفة، نضع 0
         if is_service and not cost_price:
-            return 0
-        
+            return Decimal('0.00')
+        if cost_price is not None:
+            return Decimal(str(cost_price)).quantize(Decimal('0.01'))
         return cost_price
+
+    def clean_selling_price(self):
+        selling_price = self.cleaned_data.get('selling_price')
+        if selling_price is not None:
+            return Decimal(str(selling_price)).quantize(Decimal('0.01'))
+        return selling_price
 
     def clean_min_stock(self):
         min_stock = self.cleaned_data.get("min_stock")
@@ -662,32 +682,22 @@ class IssueVoucherForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         from product.models.inventory_movement import InventoryMovement
-        from product.models.stock_management import Stock
+        from product.models.stock_management import Warehouse
         
         # تحديد الأغراض المتاحة لأذون الصرف فقط
         self.fields['purpose_type'].choices = [('', '--- اختر الغرض ---')] + list(InventoryMovement.ISSUE_PURPOSE_TYPES)
         
-        # عرض المنتجات التي لها stock متاح فقط
-        products_with_stock = Stock.objects.filter(
-            quantity__gt=0
-        ).values_list('product_id', flat=True).distinct()
-        
-        self.fields['product'].queryset = Product.objects.filter(
-            id__in=products_with_stock,
-            is_active=True
-        ).order_by('name')
-        
-        # إضافة خيار فارغ للمنتجات
+        # المنتجات النشطة
+        self.fields['product'].queryset = Product.objects.filter(is_active=True).order_by('name')
         self.fields['product'].empty_label = 'اختر المنتج'
         
-        # المخازن ستُحدّث ديناميكياً عبر JavaScript حسب المنتج المختار
-        self.fields['warehouse'].choices = [('', 'اختر المنتج أولاً')]
-        self.fields['warehouse'].widget.attrs['disabled'] = True
+        # المخازن النشطة
+        self.fields['warehouse'].queryset = Warehouse.objects.filter(is_active=True).order_by('name')
+        self.fields['warehouse'].empty_label = 'اختر المخزن'
         
         # تحسين labels
         self.fields['product'].label = 'المنتج'
         self.fields['warehouse'].label = 'المخزن'
-        self.fields['warehouse'].help_text = 'سيتم عرض المخازن المتاحة بعد اختيار المنتج'
         self.fields['quantity'].label = 'الكمية'
         self.fields['purpose_type'].label = 'غرض الصرف'
         self.fields['issued_by_name'].label = 'اسم الموظف'

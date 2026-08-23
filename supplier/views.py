@@ -29,7 +29,9 @@ def supplier_list(request):
     عرض قائمة الموردين
     """
     # فلترة بناءً على المعايير
-    status = request.GET.get("status", "")
+    status = request.GET.get("status", "active")
+    if not status:
+        status = "active"
     search = request.GET.get("search", "")
     has_debt = request.GET.get("has_debt", "")
     currency_id = request.GET.get("currency", "")
@@ -44,6 +46,7 @@ def supplier_list(request):
         suppliers = suppliers.filter(is_active=True)
     elif status == "inactive":
         suppliers = suppliers.filter(is_active=False)
+    # if status == 'all', no filtering is applied
 
     if currency_id:
         suppliers = suppliers.filter(default_currency_id=currency_id)
@@ -197,17 +200,14 @@ def supplier_list(request):
             "format": "html",
             "class": "text-center",
         },
-        {"key": "is_active", "label": "الحالة", "sortable": True, "format": "boolean"},
+        {
+            "key": "services_count",
+            "label": "الخدمات",
+            "sortable": False,
+            "class": "text-center",
+            "format": "html",
+        },
     ]
-
-    # إضافة عمود عدد الخدمات
-    headers.insert(-1, {
-        "key": "services_count",
-        "label": "الخدمات",
-        "sortable": False,
-        "class": "text-center",
-        "format": "html",
-    })
 
     # تعريف أزرار الإجراءات
     action_buttons = [
@@ -223,18 +223,42 @@ def supplier_list(request):
             "class": "action-edit",
             "label": "تعديل",
         },
+        {
+            "modal": True,
+            "icon": "fa-trash-alt",
+            "class": "action-delete text-danger",
+            "label": "حذف / أرشفة",
+        },
     ]
 
+    inactive_suppliers = Supplier.objects.filter(is_active=False).count()
     from core.models import SystemSetting
     daftra_enabled = SystemSetting.get_setting('daftra_enabled', 'false') == 'true'
-    supplier_header_buttons = [
-        {
+
+    is_archive_view = (status == "inactive")
+    supplier_header_buttons = []
+
+    if is_archive_view:
+        supplier_header_buttons.append({
+            "url": reverse("supplier:supplier_list"),
+            "icon": "fa-truck",
+            "text": "الموردون النشطون",
+            "class": "btn-outline-primary",
+        })
+    else:
+        supplier_header_buttons.append({
             "url": reverse("supplier:supplier_add"),
             "icon": "fa-plus",
             "text": "إضافة مورد",
             "class": "btn-primary",
-        },
-    ]
+        })
+        supplier_header_buttons.append({
+            "url": reverse("supplier:supplier_list") + "?status=inactive",
+            "icon": "fa-archive",
+            "text": f"الأرشيف ({inactive_suppliers})" if inactive_suppliers > 0 else "الأرشيف",
+            "class": "btn-outline-secondary",
+        })
+
     if daftra_enabled:
         supplier_header_buttons.append({
             "onclick": "syncWithDaftra('suppliers')",
@@ -243,12 +267,17 @@ def supplier_list(request):
             "class": "btn-outline-info",
         })
 
+    page_title = "أرشيف الموردين" if is_archive_view else "قائمة الموردين"
+    page_subtitle = "عرض وإدارة الموردين المؤرشفين وغير النشطين" if is_archive_view else "إدارة الموردين وعرض بياناتهم ومعاملاتهم المالية"
+    page_icon = "fas fa-archive" if is_archive_view else "fas fa-truck"
+
     context = {
         **pagination_data,
         "suppliers": suppliers_page,
         "headers": headers,
         "action_buttons": action_buttons,
         "active_suppliers": active_suppliers,
+        "inactive_suppliers": inactive_suppliers,
         "preferred_suppliers": preferred_suppliers,
         "total_debt": total_debt,
         "total_purchases": total_purchases,
@@ -257,9 +286,9 @@ def supplier_list(request):
         "entity_types": entity_types,
         "show_export": True,
         # بيانات الهيدر
-        "page_title": "قائمة الموردين",
-        "page_subtitle": "إدارة الموردين وعرض بياناتهم ومعاملاتهم المالية",
-        "page_icon": "fas fa-truck",
+        "page_title": page_title,
+        "page_subtitle": page_subtitle,
+        "page_icon": page_icon,
         # أزرار الهيدر
         "header_buttons": supplier_header_buttons,
         # البريدكرمب
@@ -269,7 +298,8 @@ def supplier_list(request):
                 "url": reverse("core:dashboard"),
                 "icon": "fas fa-home",
             },
-            {"title": "الموردين", "active": True},
+            {"title": "الموردين", "url": reverse("supplier:supplier_list") if is_archive_view else None, "active": not is_archive_view},
+            *([{"title": "الأرشيف", "active": True}] if is_archive_view else []),
         ],
     }
 
@@ -463,53 +493,59 @@ def supplier_edit(request, pk):
 @login_required
 def supplier_delete(request, pk):
     """
-    حذف مورد - حذف فعلي إذا لم يكن مرتبط بمعاملات، وإلا تعطيل فقط
+    حذف أو أرشفة مورد (فحص سيادي ذكي وتحديث تفاعلي بالـ AJAX)
     """
+    from supplier.services.supplier_service import SupplierService
     supplier = get_object_or_404(Supplier, pk=pk)
-    
-    # فحص المعاملات المرتبطة
-    has_purchases = supplier.purchases.exists()
-    has_payments = hasattr(supplier, 'supplier_payments') and supplier.supplier_payments.exists()
-    has_activities = hasattr(supplier, 'activities') and supplier.activities.exists()
-    
-    # تحديد إذا كان المورد مرتبط بأي معاملات
-    has_transactions = has_purchases or has_payments or has_activities
-    can_delete_permanently = not has_transactions
 
+    # 1. طلب الفحص المسبق اللحظي (Pre-check)
+    if request.GET.get('precheck') == '1' or (request.headers.get('X-Requested-With') == 'XMLHttpRequest' and request.method == 'GET'):
+        can_delete, summary, exposure = SupplierService.can_delete_supplier(supplier)
+        from core.templatetags.custom_filters import smart_float
+        from core.presenters.currency_exposure_presenter import get_currency_symbol
+        curr_code = supplier.default_currency.code if supplier.default_currency else "EGP"
+        curr_sym = (supplier.default_currency.symbol if supplier.default_currency and supplier.default_currency.symbol else "") or get_currency_symbol(curr_code)
+        
+        debt_str = f"{smart_float(exposure['balance'])} {curr_sym}" if exposure['has_debt'] else ""
+
+        return JsonResponse({
+            'success': True,
+            'id': supplier.id,
+            'name': supplier.name,
+            'code': supplier.code,
+            'can_delete': can_delete,
+            'has_debt': exposure['has_debt'],
+            'debt_display': debt_str,
+            'prepaid_display': "",
+            'transactions_summary': summary,
+        })
+
+    # 2. تنفيذ الحذف أو الأرشفة (POST)
     if request.method == "POST":
-        action = request.POST.get('action', 'deactivate')
+        res = SupplierService.delete_supplier(supplier, user=request.user)
         
-        if action == 'delete' and can_delete_permanently:
-            # حذف نهائي
-            supplier_name = supplier.name
-            supplier.delete()
-            messages.success(request, _(f"تم حذف المورد '{supplier_name}' نهائياً"))
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({
+                'success': True,
+                'action': res['action'],
+                'message': res['message'],
+                'redirect_url': reverse('supplier:supplier_list'),
+            })
+
+        if res['action'] == 'deleted':
+            messages.success(request, res['message'])
         else:
-            # تعطيل فقط
-            supplier.is_active = False
-            supplier.save()
-            messages.warning(request, _("تم تعطيل المورد (لا يمكن الحذف النهائي لوجود معاملات مرتبطة)"))
-        
+            messages.warning(request, res['message'])
         return redirect("supplier:supplier_list")
 
-    # إعداد معلومات المعاملات للعرض
-    transactions_info = []
-    if has_purchases:
-        purchases_count = supplier.purchases.count()
-        transactions_info.append(f"{purchases_count} فاتورة مشتريات")
-    if has_payments:
-        payments_count = supplier.supplier_payments.count()
-        transactions_info.append(f"{payments_count} دفعة")
-    if has_activities:
-        activities_count = supplier.activities.count()
-        transactions_info.append(f"{activities_count} نشاط")
-
+    # 3. العرض العادي للشاشة المنفصلة (Fallback)
+    can_delete, summary, exposure = SupplierService.can_delete_supplier(supplier)
     context = {
         "supplier": supplier,
-        "can_delete_permanently": can_delete_permanently,
-        "has_transactions": has_transactions,
-        "transactions_info": transactions_info,
-        "page_title": f"حذف المورد: {supplier.name}",
+        "can_delete": can_delete,
+        "summary": summary,
+        "exposure": exposure,
+        "page_title": f"حذف / أرشفة المورد: {supplier.name}",
         "page_icon": "fas fa-user-times",
         "breadcrumb_items": [
             {
@@ -526,11 +562,26 @@ def supplier_delete(request, pk):
                 "title": supplier.name,
                 "url": reverse("supplier:supplier_detail", kwargs={"pk": supplier.pk}),
             },
-            {"title": "حذف", "active": True},
+            {"title": "حذف / أرشفة", "active": True},
         ],
     }
-
     return render(request, "supplier/core/supplier_delete.html", context)
+
+
+@login_required
+def supplier_reactivate(request, pk):
+    """
+    إعادة تنشيط مورد مؤرشف وحسابه المالي التابع
+    """
+    from supplier.services.supplier_service import SupplierService
+    supplier = get_object_or_404(Supplier, pk=pk)
+    if request.method == "POST":
+        res = SupplierService.reactivate_supplier(supplier, user=request.user)
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success': True, 'message': res['message']})
+        messages.success(request, res['message'])
+        return redirect("supplier:supplier_detail", pk=supplier.pk)
+    return redirect("supplier:supplier_detail", pk=supplier.pk)
 
 
 @login_required

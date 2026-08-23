@@ -28,7 +28,9 @@ def customer_list(request):
     """
     عرض قائمة العملاء
     """
-    status = request.GET.get('status', '')
+    status = request.GET.get('status', 'active')
+    if not status:
+        status = 'active'
     has_debt = request.GET.get('has_debt', '')
     search = request.GET.get('search', '')
     currency_id = request.GET.get('currency', '')
@@ -40,6 +42,7 @@ def customer_list(request):
         customers_qs = customers_qs.filter(is_active=True)
     elif status == 'inactive':
         customers_qs = customers_qs.filter(is_active=False)
+    # if status == 'all', no filtering is applied
 
     if currency_id:
         customers_qs = customers_qs.filter(default_currency_id=currency_id)
@@ -112,7 +115,6 @@ def customer_list(request):
             "format": "html",
             "class": "text-center",
         },
-        {"key": "is_active", "label": "الحالة", "sortable": True, "format": "boolean"},
     ]
 
     # تعريف أزرار الإجراءات
@@ -128,6 +130,12 @@ def customer_list(request):
             "icon": "fa-pen",
             "class": "action-edit",
             "label": "تعديل",
+        },
+        {
+            "modal": True,
+            "icon": "fa-trash-alt",
+            "class": "action-delete text-danger",
+            "label": "حذف / أرشفة",
         },
     ]
 
@@ -167,14 +175,31 @@ def customer_list(request):
 
     from core.models import SystemSetting
     daftra_enabled = SystemSetting.get_setting('daftra_enabled', 'false') == 'true'
-    header_buttons = [
-        {
+
+    is_archive_view = (status == "inactive")
+    header_buttons = []
+
+    if is_archive_view:
+        header_buttons.append({
+            "url": reverse("client:customer_list"),
+            "icon": "fa-users",
+            "text": "العملاء النشطون",
+            "class": "btn-outline-primary",
+        })
+    else:
+        header_buttons.append({
             "url": reverse("client:customer_add"),
             "icon": "fa-plus",
             "text": "إضافة عميل",
             "class": "btn-primary",
-        },
-    ]
+        })
+        header_buttons.append({
+            "url": reverse("client:customer_list") + "?status=inactive",
+            "icon": "fa-archive",
+            "text": f"الأرشيف ({inactive_customers})" if inactive_customers > 0 else "الأرشيف",
+            "class": "btn-outline-secondary",
+        })
+
     if daftra_enabled:
         header_buttons.append({
             "onclick": "syncWithDaftra('clients')",
@@ -182,6 +207,10 @@ def customer_list(request):
             "text": "مزامنة دفترة",
             "class": "btn-outline-info",
         })
+
+    page_title = "أرشيف العملاء" if is_archive_view else "قائمة العملاء"
+    page_subtitle = "عرض وإدارة العملاء المؤرشفين وغير النشطين" if is_archive_view else "إدارة العملاء وعرض بياناتهم ومعاملاتهم المالية"
+    page_icon = "fas fa-archive" if is_archive_view else "fas fa-users"
 
     context = {
         **pagination_data,
@@ -194,9 +223,9 @@ def customer_list(request):
         'currencies': currencies,
         'client_types': client_types,
         'show_export': True,
-        'page_title': "قائمة العملاء",
-        'page_subtitle': "إدارة العملاء وعرض بياناتهم ومعاملاتهم المالية",
-        'page_icon': "fas fa-users",
+        'page_title': page_title,
+        'page_subtitle': page_subtitle,
+        'page_icon': page_icon,
         'header_buttons': header_buttons,
         'breadcrumb_items': [
             {
@@ -204,7 +233,8 @@ def customer_list(request):
                 "url": reverse("core:dashboard"),
                 "icon": "fas fa-home",
             },
-            {"title": "العملاء", "active": True},
+            {"title": "العملاء", "url": reverse("client:customer_list") if is_archive_view else None, "active": not is_archive_view},
+            *([{"title": "الأرشيف", "active": True}] if is_archive_view else []),
         ],
     }
 
@@ -333,19 +363,60 @@ def customer_edit(request, pk):
 @login_required
 def customer_delete(request, pk):
     """
-    حذف عميل (تعطيل)
+    حذف أو أرشفة عميل (فحص سيادي ذكي وتحديث تفاعلي بالـ AJAX)
     """
     customer = get_object_or_404(Customer, pk=pk)
 
+    # 1. طلب الفحص المسبق اللحظي (Pre-check)
+    if request.GET.get('precheck') == '1' or (request.headers.get('X-Requested-With') == 'XMLHttpRequest' and request.method == 'GET'):
+        can_delete, summary, exposure = CustomerService.can_delete_customer(customer)
+        from core.templatetags.custom_filters import smart_float
+        from core.presenters.currency_exposure_presenter import get_currency_symbol
+        from decimal import Decimal
+        curr_code = customer.default_currency.code if customer.default_currency else "EGP"
+        curr_sym = (customer.default_currency.symbol if customer.default_currency and customer.default_currency.symbol else "") or get_currency_symbol(curr_code)
+        
+        debt_str = f"{smart_float(customer.balance)} {curr_sym}" if exposure['has_debt'] else ""
+        prepaid_str = f"{smart_float(exposure['available_prepaid'])} {curr_sym}" if exposure['available_prepaid'] > Decimal('0.00') else ""
+
+        return JsonResponse({
+            'success': True,
+            'id': customer.id,
+            'name': customer.name,
+            'code': customer.code,
+            'can_delete': can_delete,
+            'has_debt': exposure['has_debt'],
+            'debt_display': debt_str,
+            'prepaid_display': prepaid_str,
+            'transactions_summary': summary,
+        })
+
+    # 2. تنفيذ الحذف أو الأرشفة (POST)
     if request.method == "POST":
-        customer.is_active = False
-        customer.save()
-        messages.success(request, _("تم حذف العميل بنجاح"))
+        res = CustomerService.delete_or_archive_customer(customer, user=request.user)
+        
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({
+                'success': True,
+                'action': res['action'],
+                'message': res['message'],
+                'redirect_url': reverse('client:customer_list'),
+            })
+
+        if res['action'] == 'deleted':
+            messages.success(request, res['message'])
+        else:
+            messages.warning(request, res['message'])
         return redirect("client:customer_list")
 
+    # 3. العرض العادي للشاشة المنفصلة (Fallback)
+    can_delete, summary, exposure = CustomerService.can_delete_customer(customer)
     context = {
         "customer": customer,
-        "page_title": f"حذف العميل: {customer.name}",
+        "can_delete": can_delete,
+        "summary": summary,
+        "exposure": exposure,
+        "page_title": f"حذف / أرشفة العميل: {customer.name}",
         "page_icon": "fas fa-user-times",
         "breadcrumb_items": [
             {
@@ -362,11 +433,25 @@ def customer_delete(request, pk):
                 "title": customer.name,
                 "url": reverse("client:customer_detail", kwargs={"pk": customer.pk}),
             },
-            {"title": "حذف", "active": True},
+            {"title": "حذف / أرشفة", "active": True},
         ],
     }
-
     return render(request, "client/customer_delete.html", context)
+
+
+@login_required
+def customer_reactivate(request, pk):
+    """
+    إعادة تنشيط عميل مؤرشف وحسابه المالي التابع
+    """
+    customer = get_object_or_404(Customer, pk=pk)
+    if request.method == "POST":
+        res = CustomerService.reactivate_customer(customer, user=request.user)
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success': True, 'message': res['message']})
+        messages.success(request, res['message'])
+        return redirect("client:customer_detail", pk=customer.pk)
+    return redirect("client:customer_detail", pk=customer.pk)
 
 
 @login_required
@@ -442,7 +527,7 @@ def customer_detail(request, pk):
 
     # جلب عروض الأسعار المرتبطة بالعميل إذا كانت الميزة مفعلة
     from core.models import SystemSetting
-    enable_quotations = SystemSetting.get_setting('enable_quotations', 'false') == 'true'
+    enable_quotations = SystemSetting.get_bool('enable_quotations', False)
     quotations = []
     quotations_count = 0
     quotations_headers = []
