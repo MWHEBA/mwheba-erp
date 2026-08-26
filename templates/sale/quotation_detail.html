@@ -324,6 +324,29 @@
   <!-- Page Header المركزي الموحد للنظام -->
   {% include "shared/page_header.html" %}
 
+  {% if cancelled_linked_so and not is_active_converted %}
+  <div class="alert alert-warning d-flex align-items-center mb-4 p-3 shadow-sm border-0" role="alert" style="border-radius: 8px; border-right: 4px solid var(--bs-warning) !important;">
+    <i class="fas fa-exclamation-triangle fa-2x me-3 text-warning"></i>
+    <div class="flex-grow-1">
+      <h6 class="alert-heading fw-bold mb-1">{% trans "تنبيه: تم إلغاء أمر البيع المرتبط" %} (#{{ cancelled_linked_so.order_number }})</h6>
+      <p class="mb-0 small text-muted">
+        {% trans "تم فك حجز المخزون لأمر البيع السابق الملغى. عرض السعر متاح الآن لاتخاذ إجراء جديد:" %}
+        <span class="fw-medium text-dark">{% trans "يمكنك إعادة إصدار أمر بيع جديد أو تحويله مباشرة لفاتورة مبيعات." %}</span>
+      </p>
+    </div>
+    <div class="ms-3 d-flex gap-2">
+      {% if enable_sales_orders %}
+      <a href="{% url 'sale:sales_order_create_for_quotation' quotation.id %}" class="btn btn-sm btn-primary fw-bold">
+        <i class="fas fa-clipboard-list me-1"></i>{% trans "إعادة إنشاء أمر بيع" %}
+      </a>
+      {% endif %}
+      <button type="button" class="btn btn-sm btn-success fw-bold" data-bs-toggle="modal" data-bs-target="#convertInvoiceModal">
+        <i class="fas fa-file-invoice-dollar me-1"></i>{% trans "تحويل لفاتورة مبيعات" %}
+      </button>
+    </div>
+  </div>
+  {% endif %}
+
   <div class="row">
     <div class="col-12">
       <div class="quotation-container">

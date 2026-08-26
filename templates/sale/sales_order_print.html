@@ -84,8 +84,8 @@
                         <tr>
                             <td class="custom-field-label">{% if is_english %}Currency / Exchange{% else %}العملة وسعر الصرف{% endif %}</td>
                             <td class="custom-field-value">
-                                {{ so.currency }}
-                                {% if so.currency != "EGP" %}
+                                {{ so.currency_display }}
+                                {% if so.currency != "EGP" and so.currency != "1" %}
                                     (1 = {{ so.exchange_rate|smart_float:4 }})
                                 {% endif %}
                             </td>
@@ -234,6 +234,20 @@
     <td>{% if is_english %}Total Order Amount{% else %}صافي إجمالي أمر البيع{% endif %}</td>
     <td>{{ so.total_amount|currency:currency_symbol_active }}</td>
 </tr>
+{% if so.required_down_payment > 0 or so.paid_down_payment > 0 %}
+<tr class="border-top">
+    <td>{% if is_english %}Required Advance Deposit{% else %}الدفعة المقدمة المشترطة{% endif %}</td>
+    <td>{{ so.required_down_payment|currency:currency_symbol_active }}</td>
+</tr>
+<tr class="text-success">
+    <td>{% if is_english %}Paid Advance Deposit{% else %}الدفعة المقدمة المسددة (سندات قبض){% endif %}</td>
+    <td>{{ so.paid_down_payment|currency:currency_symbol_active }}</td>
+</tr>
+<tr class="fw-bold {% if so.is_down_payment_satisfied %}text-success{% else %}text-danger{% endif %}">
+    <td>{% if is_english %}Remaining Order Balance{% else %}المتبقي من قيمة أمر البيع{% endif %}</td>
+    <td>{{ so.total_amount|subtract:so.paid_down_payment|currency:currency_symbol_active }}</td>
+</tr>
+{% endif %}
 {% endblock %}
 
 {% block terms_and_conditions %}

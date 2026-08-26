@@ -48,7 +48,18 @@
           {% endif %}
         </td>
         <td class="fw-bold">
-          {{ order.total_amount|smart_float:2 }} {% if order.currency and order.currency != 'EGP' %}{{ order.currency }}{% else %}{% currency_symbol %}{% endif %}
+          <div>{{ order.total_amount|smart_float:2 }} {{ order.currency_display }}</div>
+          {% if order.required_down_payment > 0 %}
+            <div class="mt-1" style="font-size: 11px;">
+              {% if order.down_payment_override %}
+                <span class="badge bg-info-subtle text-info border border-info-subtle" title="{{ order.down_payment_override_reason }}"><i class="fas fa-user-shield me-1"></i>{% trans "عربون: تجاوز إداري" %}</span>
+              {% elif order.is_down_payment_satisfied %}
+                <span class="badge bg-success-subtle text-success border border-success-subtle"><i class="fas fa-check-circle me-1"></i>{% trans "عربون مسدد" %}</span>
+              {% else %}
+                <span class="badge bg-warning-subtle text-dark border border-warning-subtle" title="{% trans 'متبقي لاستيفاء العربون:' %} {{ order.remaining_down_payment|smart_float:2 }}"><i class="fas fa-hand-holding-usd me-1"></i>{% trans "متبقي عربون:" %} {{ order.remaining_down_payment|smart_float:2 }}</span>
+              {% endif %}
+            </div>
+          {% endif %}
         </td>
         <td>
           {% if order.status == 'DRAFT' %}
@@ -92,12 +103,18 @@
             </a>
             {% endif %}
             {% if order.status in 'APPROVED,CONFIRMED,PARTIALLY_DELIVERED' %}
-            <a href="{% url 'sale:delivery_note_create' %}?so_id={{ order.pk }}" class="btn btn-outline-success" title="{% trans 'إصدار إذن تسليم' %}">
-              <i class="fas fa-truck-loading"></i>
-            </a>
-            <a href="{% url 'sale:sales_order_convert_to_sale' order.pk %}" class="btn btn-outline-primary" title="{% trans 'إصدار فاتورة' %}">
-              <i class="fas fa-file-invoice-dollar"></i>
-            </a>
+              {% if order.is_down_payment_satisfied %}
+                <a href="{% url 'sale:delivery_note_create' %}?so_id={{ order.pk }}" class="btn btn-outline-success" title="{% trans 'إصدار إذن تسليم' %}">
+                  <i class="fas fa-truck-loading"></i>
+                </a>
+              {% else %}
+                <button type="button" class="btn btn-outline-secondary disabled" title="{% trans 'يتطلب استيفاء الدفعة المقدمة المشترطة في الخزينة أولاً' %}" disabled>
+                  <i class="fas fa-truck-loading opacity-50"></i>
+                </button>
+              {% endif %}
+              <a href="{% url 'sale:sales_order_convert_to_sale' order.pk %}" class="btn btn-outline-primary" title="{% trans 'إصدار فاتورة' %}">
+                <i class="fas fa-file-invoice-dollar"></i>
+              </a>
             {% endif %}
           </div>
         </td>

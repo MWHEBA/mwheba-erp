@@ -303,6 +303,31 @@ def sale_create(request, customer_id=None):
                         }
                         SaleService.process_payment(sale, payment_data, request.user)
                         logger.info(f"✅ تم إنشاء دفعة مقدمة للفاتورة: {sale.number}")
+
+                    # تسوية الدفعة المقدمة المسددة في أمر البيع تلقائياً إن وجدت
+                    if sale.sales_order and sale.sales_order.paid_down_payment > Decimal('0.00'):
+                        from client.models import CustomerAllocationAudit
+                        already_allocated = CustomerAllocationAudit.objects.filter(
+                            customer=sale.customer,
+                            target_document_number=sale.number,
+                            allocation_status="APPLIED"
+                        ).aggregate(s=Sum('allocated_amount'))['s'] or Decimal('0.00')
+
+                        available_down_payment = max(Decimal('0.00'), sale.sales_order.paid_down_payment - Decimal(str(already_allocated)))
+                        amount_to_allocate = min(available_down_payment, sale.amount_due)
+                        if amount_to_allocate > Decimal('0.00'):
+                            try:
+                                from client.services.customer_allocation_audit_service import CustomerAllocationAuditService
+                                CustomerAllocationAuditService.allocate_customer_prepaid_balance_to_sale(
+                                    sale=sale,
+                                    amount_to_allocate=amount_to_allocate,
+                                    user=request.user
+                                )
+                                sale.refresh_from_db()
+                                sale.update_payment_status()
+                                logger.info(f"✅ تم تسوية دفعة مقدمة بقيمة {amount_to_allocate} من أمر البيع #{sale.sales_order.order_number} في الفاتورة #{sale.number}")
+                            except Exception as alloc_err:
+                                logger.warning(f"تنبيه تسوية العربون: {alloc_err}")
                 
                 messages.success(request, "تم إنشاء فاتورة المبيعات بنجاح")
                 return redirect("sale:sale_detail", pk=sale.pk)
@@ -2220,6 +2245,8 @@ from .sales_order_views import (
     sales_order_confirm,
     sales_order_cancel,
     sales_order_convert_to_sale,
+    sales_order_collect_down_payment,
+    sales_order_override_down_payment,
 )
 
 from .delivery_note_views import (

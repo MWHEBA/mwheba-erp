@@ -95,6 +95,7 @@ def quotation_list(request):
         "draft_count": draft_count,
         "sent_count": sent_count,
         "accepted_count": accepted_count,
+        "enable_sales_orders": SystemSetting.get_bool('enable_sales_orders', True),
         "active_menu": "sales",
         "page_title": _("عروض الأسعار"),
         "page_subtitle": _("إدارة عروض أسعار العملاء ومتابعتها وتصديرها"),
@@ -477,11 +478,12 @@ def quotation_detail(request, pk):
     quotation = get_object_or_404(Quotation.objects.with_details(), pk=pk)
     items = quotation.items.all()
 
-    linked_so = quotation.sales_orders.exclude(status='CANCELLED').first() if hasattr(quotation, 'sales_orders') else None
-    if not linked_so and hasattr(quotation, 'sales_orders'):
-        linked_so = quotation.sales_orders.first()
+    active_linked_so = quotation.sales_orders.exclude(status='CANCELLED').first() if hasattr(quotation, 'sales_orders') else None
+    cancelled_linked_so = quotation.sales_orders.filter(status='CANCELLED').order_by('-id').first() if hasattr(quotation, 'sales_orders') else None
+    linked_so = active_linked_so or cancelled_linked_so
     linked_sale = quotation.converted_to_sale
-    is_accepted_or_converted = bool(quotation.status == 'accepted' or linked_sale or linked_so)
+    is_active_converted = bool(linked_sale or active_linked_so)
+    is_accepted_or_converted = bool(is_active_converted)
 
     # شارات الهيدر
     header_badges = [
@@ -495,12 +497,19 @@ def quotation_detail(request, pk):
             "icon": "fas fa-tasks",
             "url": reverse("work_order:work_order_detail", kwargs={"pk": quotation.work_order.pk})
         })
-    if linked_so:
+    if active_linked_so:
         header_badges.append({
-            "text": _("أمر بيع: {}").format(linked_so.order_number),
+            "text": _("أمر بيع: {}").format(active_linked_so.order_number),
             "class": "bg-primary text-white",
             "icon": "fas fa-clipboard-list",
-            "url": reverse("sale:sales_order_detail", kwargs={"pk": linked_so.pk})
+            "url": reverse("sale:sales_order_detail", kwargs={"pk": active_linked_so.pk})
+        })
+    elif cancelled_linked_so:
+        header_badges.append({
+            "text": _("أمر بيع سابق ملغى: {} (بانتظار إجراء)").format(cancelled_linked_so.order_number),
+            "class": "bg-warning text-dark",
+            "icon": "fas fa-exclamation-circle",
+            "url": reverse("sale:sales_order_detail", kwargs={"pk": cancelled_linked_so.pk})
         })
     if linked_sale:
         header_badges.append({
@@ -520,12 +529,19 @@ def quotation_detail(request, pk):
             "class": "btn-outline-info",
         })
 
-    if linked_so:
+    if active_linked_so:
         header_buttons.append({
-            "url": reverse("sale:sales_order_detail", kwargs={"pk": linked_so.pk}),
+            "url": reverse("sale:sales_order_detail", kwargs={"pk": active_linked_so.pk}),
             "icon": "fa-clipboard-list",
             "text": _("عرض أمر البيع"),
             "class": "btn-primary",
+        })
+    elif cancelled_linked_so:
+        header_buttons.append({
+            "url": reverse("sale:sales_order_detail", kwargs={"pk": cancelled_linked_so.pk}),
+            "icon": "fa-clipboard-list",
+            "text": _("عرض أمر البيع الملغى"),
+            "class": "btn-outline-secondary",
         })
 
     if linked_sale:
@@ -536,7 +552,7 @@ def quotation_detail(request, pk):
             "class": "btn-success",
         })
 
-    if not is_accepted_or_converted:
+    if not is_active_converted:
         header_buttons.append({
             "url": reverse("sale:quotation_edit", kwargs={"pk": quotation.pk}),
             "icon": "fa-edit",
@@ -577,7 +593,7 @@ def quotation_detail(request, pk):
         }
     ])
 
-    if not is_accepted_or_converted and quotation.status != 'rejected':
+    if not is_active_converted and quotation.status != 'rejected':
         header_buttons.extend([
             {
                 "url": reverse("sale:sales_order_create_for_quotation", kwargs={"quotation_id": quotation.pk}),
@@ -608,6 +624,9 @@ def quotation_detail(request, pk):
         "quotation": quotation,
         "items": items,
         "is_accepted_or_converted": is_accepted_or_converted,
+        "is_active_converted": is_active_converted,
+        "active_linked_so": active_linked_so,
+        "cancelled_linked_so": cancelled_linked_so,
         "linked_so": linked_so,
         "linked_sale": linked_sale,
         "warehouses": Warehouse.objects.filter(is_active=True).order_by('name'),
@@ -701,6 +720,7 @@ def get_quotation_print_context(request, pk):
         status_map = {
             'draft': 'DRAFT',
             'sent': 'SENT',
+            'accepted': 'ACCEPTED',
             'approved': 'APPROVED',
             'rejected': 'REJECTED',
             'expired': 'EXPIRED',
@@ -716,7 +736,8 @@ def get_quotation_print_context(request, pk):
         status_map = {
             'draft': 'مسودة / DRAFT',
             'sent': 'تم الإرسال / SENT',
-            'approved': 'مقبول / APPROVED',
+            'accepted': 'مقبول / ACCEPTED',
+            'approved': 'معتمد / APPROVED',
             'rejected': 'مرفوض / REJECTED',
             'expired': 'منتهي / EXPIRED',
             'converted': 'تم التحويل / CONVERTED'
@@ -730,14 +751,15 @@ def get_quotation_print_context(request, pk):
         status_map = {
             'draft': 'مسودة',
             'sent': 'تم الإرسال',
-            'approved': 'مقبول',
+            'accepted': 'مقبول',
+            'approved': 'معتمد',
             'rejected': 'مرفوض',
             'expired': 'منتهي',
             'converted': 'تم التحويل'
         }
 
     status_code = getattr(quotation, 'status', 'draft')
-    translated_status = status_map.get(str(status_code).lower(), str(status_code))
+    translated_status = status_map.get(str(status_code).lower(), quotation.get_status_display() if hasattr(quotation, 'get_status_display') else str(status_code))
 
     context = {
         "quotation": quotation,

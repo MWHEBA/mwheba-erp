@@ -54,18 +54,31 @@ class SalesService:
         discount_type: str = "fixed",
         adjustment_name: Optional[str] = None,
         adjustment_amount: Decimal = Decimal("0.00"),
-        vat_rate: Decimal = Decimal("14.00"),
+        vat_rate: Optional[Decimal] = None,
         tax_amount: Optional[Decimal] = None,
         wht_active: bool = False,
         wht_rate: Decimal = Decimal("1.00"),
         wht_amount: Optional[Decimal] = None,
         required_down_payment: Decimal = Decimal("0.00"),
+        down_payment_type: str = "fixed",
         notes: Optional[str] = None,
         custom_fields: Optional[List[Dict[str, Any]]] = None,
     ) -> SalesOrder:
         """
         إنشاء أمر بيع وتطبيق لقطات التسعير المحوكمة والتقييم لموافقات الاعتماد
         """
+        from django.utils.dateparse import parse_date
+        if isinstance(order_date, str) and order_date:
+            order_date = parse_date(order_date) or timezone.localdate()
+        elif not order_date:
+            order_date = timezone.localdate()
+
+        if isinstance(expected_delivery_date, str) and expected_delivery_date:
+            expected_delivery_date = parse_date(expected_delivery_date) or None
+
+        if isinstance(reservation_expiry_date, str) and reservation_expiry_date:
+            reservation_expiry_date = parse_date(reservation_expiry_date) or None
+
         with transaction.atomic():
             from core.services.sequence_service import SequenceService
             from core.enums.document_types import DocumentType
@@ -94,10 +107,11 @@ class SalesService:
                 discount_type=discount_type or "fixed",
                 adjustment_name=adjustment_name or "",
                 adjustment_amount=adjustment_amount or Decimal("0.00"),
-                vat_rate=vat_rate if vat_rate is not None else Decimal("14.00"),
+                vat_rate=vat_rate if vat_rate is not None else Decimal("0.00"),
                 wht_active=bool(wht_active),
                 wht_rate=wht_rate if wht_rate is not None else Decimal("1.00"),
                 required_down_payment=required_down_payment or Decimal("0.00"),
+                down_payment_type=down_payment_type or "fixed",
                 notes=notes or "",
                 custom_fields=custom_fields or [],
                 status="DRAFT",
@@ -672,6 +686,18 @@ class SalesService:
 
             so.status = "CANCELLED"
             so.save(update_fields=["status"])
+
+            # Re-open linked quotation if no other active sales orders exist
+            if so.quotation_reference:
+                quote = so.quotation_reference
+                has_other_active_so = SalesOrder.objects.filter(quotation_reference=quote).exclude(pk=so.pk).exclude(status="CANCELLED").exists()
+                has_active_sale = getattr(quote, 'converted_to_sale', None) is not None
+                if not has_other_active_so and not has_active_sale:
+                    if quote.status == "accepted":
+                        quote.status = "sent"
+                        quote.save(update_fields=["status"])
+                        logger.info(f"Quotation #{quote.number} status reverted to 'sent' after cancelling Sales Order #{so.order_number}.")
+
             logger.info(f"Sales Order #{so.order_number} successfully CANCELLED and ATP reservations released.")
             return so
 

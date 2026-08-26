@@ -357,7 +357,9 @@ class SaleForm(forms.ModelForm):
         return date
 
     def clean_discount(self):
-        discount = self.cleaned_data.get("discount", 0)
+        discount = self.cleaned_data.get("discount")
+        if discount is None:
+            discount = Decimal("0")
         if discount < 0:
             raise ValidationError("لا يمكن أن يكون الخصم قيمة سالبة")
         return discount

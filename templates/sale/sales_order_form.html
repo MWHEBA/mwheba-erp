@@ -67,18 +67,30 @@
                                     <div class="col-12 col-md-6">
                                         <label class="form-label d-flex justify-content-between align-items-center w-100">
                                             <span>{% trans "العميل" %} <span class="text-danger">*</span></span>
+                                            {% if not so or so.paid_down_payment == 0 %}
                                             <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none" id="btn-add-customer-modal" style="color: var(--primary-color); font-size: 0.8rem;">
                                                 <i class="fas fa-plus-circle me-1"></i>{% trans "عميل جديد" %}
                                             </button>
+                                            {% endif %}
                                         </label>
-                                        <select name="customer" id="id_customer" class="form-control select2-init" required>
-                                            <option value="">{% trans "اختر العميل" %}</option>
-                                            {% for customer in customers %}
-                                                <option value="{{ customer.id }}" data-default-price-list="{{ customer.default_price_list_id|default:'' }}" {% if quotation and quotation.customer_id == customer.id or selected_customer.id == customer.id %}selected{% endif %}>
-                                                    {{ customer.name }}
-                                                </option>
-                                            {% endfor %}
-                                        </select>
+                                        {% if so and so.paid_down_payment > 0 %}
+                                            <select class="form-control select2-init" disabled>
+                                                <option value="{{ so.customer.id }}" selected>{{ so.customer.name }}</option>
+                                            </select>
+                                            <input type="hidden" name="customer" value="{{ so.customer.id }}">
+                                            <div class="mt-1">
+                                                <span class="badge bg-warning text-dark"><i class="fas fa-lock me-1"></i>{% trans "تم قفل العميل لوجود دفعات مسددة مرتبطة" %}</span>
+                                            </div>
+                                        {% else %}
+                                            <select name="customer" id="id_customer" class="form-control select2-init" required>
+                                                <option value="">{% trans "اختر العميل" %}</option>
+                                                {% for customer in customers %}
+                                                    <option value="{{ customer.id }}" data-default-price-list="{{ customer.default_price_list_id|default:'' }}" {% if quotation and quotation.customer_id == customer.id or selected_customer.id == customer.id %}selected{% endif %}>
+                                                        {{ customer.name }}
+                                                    </option>
+                                                {% endfor %}
+                                            </select>
+                                        {% endif %}
                                     </div>
 
                                     <!-- قائمة الأسعار -->
@@ -297,7 +309,7 @@
                                 <label class="form-label form-label-sm discount-label mb-0">{% trans "الخصم (%)" %}</label>
                                 <span class="discount-rule-badge discount-rule-info"></span>
                             </div>
-                            <input type="number" name="discount[]" class="form-control form-control-sm item-discount" min="0" max="100" step="0.01" value="{{ item.discount|smart_float|default:'0' }}">
+                            <input type="number" name="discount[]" class="form-control form-control-sm item-discount" min="0" max="100" step="0.01" value="{{ item.discount_percentage|smart_float|default:'0' }}">
                         </div>
                         <div class="col-6 col-md-2">
                             <label class="form-label form-label-sm">{% trans "الإجمالي" %}</label>
@@ -404,23 +416,74 @@
                                 <div class="col-md-6">
                                     <label class="form-label text-dark fw-medium">{% trans "تسوية ماليّة إضافية (شحن/مصاريف)" %}</label>
                                     <div class="input-group">
-                                        <input type="text" name="adjustment_name" id="id_adjustment_name" class="form-control" value="{% if so %}{{ so.adjustment_name|default:'' }}{% endif %}" placeholder="{% trans 'سبب التسوية (مثل: مصاريف شحن)...' %}">
+                                        <input type="text" name="adjustment_name" id="id_adjustment_name" class="form-control" value="{% if so %}{{ so.adjustment_name|default:'' }}{% elif quotation %}{{ quotation.adjustment_name|default:'' }}{% endif %}" placeholder="{% trans 'سبب التسوية (مثل: مصاريف شحن)...' %}">
                                         <select name="adjustment_type" id="id_adjustment_type" class="form-select px-1 text-center" style="max-width: 70px;">
-                                            <option value="add" {% if not so or so.adjustment_amount >= 0 %}selected{% endif %}>+</option>
-                                            <option value="subtract" {% if so and so.adjustment_amount < 0 %}selected{% endif %}>-</option>
+                                            <option value="add" {% if so and so.adjustment_amount >= 0 or quotation and quotation.adjustment_amount >= 0 or not so and not quotation %}selected{% endif %}>+</option>
+                                            <option value="subtract" {% if so and so.adjustment_amount < 0 or quotation and quotation.adjustment_amount < 0 %}selected{% endif %}>-</option>
                                         </select>
-                                        <input type="number" step="0.01" name="adjustment_amount" id="id_adjustment_amount" class="form-control text-center" value="{% if so %}{{ so.adjustment_amount|smart_float }}{% else %}0{% endif %}" style="max-width: 110px;" placeholder="0.00">
+                                        <input type="number" step="0.01" name="adjustment_amount" id="id_adjustment_amount" class="form-control text-center" value="{% if so %}{{ so.adjustment_amount|smart_float }}{% elif quotation %}{{ quotation.adjustment_amount|smart_float }}{% else %}0{% endif %}" style="max-width: 110px;" placeholder="0.00">
                                     </div>
                                 </div>
                                 <div class="col-md-6 mt-3">
-                                    <label class="form-label text-dark fw-medium">
-                                        <i class="fas fa-hand-holding-usd text-primary me-1"></i>{% trans "الدفعة المقدمة المشترطة (عربون)" %}
+                                    <label class="form-label text-dark fw-medium d-flex justify-content-between">
+                                        <span><i class="fas fa-hand-holding-usd text-primary me-1"></i>{% trans "الدفعة المقدمة المشترطة (عربون)" %}</span>
+                                        <span id="calculated_down_payment_hint" class="badge bg-light text-primary border small"></span>
                                     </label>
                                     <div class="input-group">
                                         <input type="number" step="0.01" name="required_down_payment" id="id_required_down_payment" class="form-control text-center" value="{% if so %}{{ so.required_down_payment|smart_float }}{% else %}0{% endif %}" min="0" placeholder="0.00">
-                                        <span class="input-group-text px-2">{{ currency_symbol }}</span>
+                                        <select name="down_payment_type" id="id_down_payment_type" class="form-select px-2 text-center" style="max-width: 85px;">
+                                            <option value="fixed" {% if so and so.down_payment_type == 'fixed' %}selected{% elif not so %}selected{% endif %}>{{ currency_symbol }}</option>
+                                            <option value="percentage" {% if so and so.down_payment_type == 'percentage' %}selected{% endif %}>%</option>
+                                        </select>
                                     </div>
                                 </div>
+                                {% if not is_edit %}
+                                <div class="col-md-6 mt-3" id="instant_down_payment_section">
+                                    <div class="p-2 border rounded bg-white">
+                                        <div class="form-check form-switch mb-2">
+                                            <input class="form-check-input" type="checkbox" name="instant_down_payment" id="id_instant_down_payment">
+                                            <label class="form-check-label fw-bold text-dark small" for="id_instant_down_payment">
+                                                <i class="fas fa-cash-register text-success me-1"></i>{% trans "تحصيل الدفعة المقدمة فورياً في الخزينة" %}
+                                            </label>
+                                        </div>
+                                        <div id="instant_treasury_wrapper" class="row g-2 d-none">
+                                            <div class="col-6">
+                                                <label class="form-label text-muted small mb-1">{% trans "طريقة الدفع" %}</label>
+                                                <select name="instant_payment_method" id="id_instant_payment_method" class="form-select form-select-sm">
+                                                    <option value="cash" selected>{% trans "نقداً" %}</option>
+                                                    <option value="bank_transfer">{% trans "تحويل بنكي" %}</option>
+                                                    <option value="pos">{% trans "شبكة / POS" %}</option>
+                                                    <option value="cheque">{% trans "شيك بنكي" %}</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-6">
+                                                <label class="form-label text-muted small mb-1" id="id_instant_account_label">{% trans "الخزينة المستلمة" %}</label>
+                                                <select name="instant_treasury_account" id="id_instant_treasury_account" class="form-select form-select-sm">
+                                                    <optgroup label="{% trans 'الخزن النقدية' %}" id="instant_optgroup_cash">
+                                                        {% for acc in cash_payment_accounts %}
+                                                            <option value="{{ acc.id }}" data-type="cash">
+                                                                {{ acc.code }} - {{ acc.name }} ({{ acc.currency_symbol|default:acc.currency_code|default:acc.currency.symbol|default:'ج.م' }})
+                                                            </option>
+                                                        {% endfor %}
+                                                    </optgroup>
+                                                    <optgroup label="{% trans 'الحسابات البنكية' %}" id="instant_optgroup_bank" style="display: none;">
+                                                        {% for acc in bank_payment_accounts %}
+                                                            <option value="{{ acc.id }}" data-type="bank" disabled>
+                                                                {{ acc.code }} - {{ acc.name }} ({{ acc.currency_symbol|default:acc.currency_code|default:acc.currency.symbol|default:'ج.م' }})
+                                                            </option>
+                                                        {% endfor %}
+                                                    </optgroup>
+                                                    {% if not cash_payment_accounts and not bank_payment_accounts %}
+                                                        {% for acc in treasury_accounts %}
+                                                            <option value="{{ acc.id }}">{{ acc.code }} - {{ acc.name }}</option>
+                                                        {% endfor %}
+                                                    {% endif %}
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endif %}
                             </div>
                         </div>
                         <!-- تبويب الضرائب والخصومات -->
@@ -430,7 +493,7 @@
                                     <div class="card border-0 shadow-sm bg-white p-3 h-100">
                                         <h6 class="fw-bold text-dark mb-2"><i class="fas fa-percent text-primary me-2"></i>{% trans "ضريبة القيمة المضافة (VAT)" %}</h6>
                                         <div class="form-check form-switch pt-1">
-                                            <input class="form-check-input" type="checkbox" name="tax_active" id="id_tax_active" role="switch" {% if so %}{% if so.tax_amount > 0 or so.vat_rate > 0 %}checked{% endif %}{% elif settings.enable_tax %}checked{% endif %}>
+                                            <input class="form-check-input" type="checkbox" name="tax_active" id="id_tax_active" role="switch" {% if so %}{% if so.tax_amount > 0 or so.vat_rate > 0 %}checked{% endif %}{% elif quotation %}{% if quotation.tax_active or quotation.vat_active %}checked{% endif %}{% elif settings.enable_tax %}checked{% endif %}>
                                             <label class="form-check-label text-dark fw-medium small" for="id_tax_active">{% trans "تفعيل ضريبة القيمة المضافة" %} ({{ settings.default_tax_rate|smart_float|default:'14' }}%)</label>
                                         </div>
                                         <small class="form-text text-muted mt-2">{% trans "تُحسب بنسبة" %} {{ settings.default_tax_rate|smart_float|default:'14' }}% {% trans "على الصافي التجاري للمستند." %}</small>
@@ -441,13 +504,13 @@
                                         <h6 class="fw-bold text-dark mb-2"><i class="fas fa-hand-holding-usd text-warning me-2"></i>{% trans "ضريبة الخصم والإضافة (WHT)" %}</h6>
                                         <div class="d-flex align-items-center mb-2">
                                             <div class="form-check form-switch me-2 pt-1">
-                                                <input class="form-check-input" type="checkbox" name="wht_active" id="id_wht_active" role="switch" {% if so and so.wht_active %}checked{% endif %}>
+                                                <input class="form-check-input" type="checkbox" name="wht_active" id="id_wht_active" role="switch" {% if so and so.wht_active %}checked{% elif quotation and quotation.wht_active %}checked{% endif %}>
                                                 <label class="form-check-label text-dark fw-medium small" for="id_wht_active">{% trans "ضريبة الخصم والإضافة" %}</label>
                                             </div>
                                             <select name="wht_rate" id="id_wht_rate" class="form-select form-select-sm ms-auto text-center" style="width: fit-content;">
-                                                <option value="1.00" {% if not so or so.wht_rate == 1.00 %}selected{% endif %}>1% (توريدات ومقاولات)</option>
-                                                <option value="3.00" {% if so and so.wht_rate == 3.00 %}selected{% endif %}>3% (خدمات وصيانة)</option>
-                                                <option value="5.00" {% if so and so.wht_rate == 5.00 %}selected{% endif %}>5% (مهن حرة واستشارات)</option>
+                                                <option value="1.00" {% if so and so.wht_rate == 1.00 or quotation and quotation.wht_rate == 1.00 or not so and not quotation %}selected{% endif %}>1% (توريدات ومقاولات)</option>
+                                                <option value="3.00" {% if so and so.wht_rate == 3.00 or quotation and quotation.wht_rate == 3.00 %}selected{% endif %}>3% (خدمات وصيانة)</option>
+                                                <option value="5.00" {% if so and so.wht_rate == 5.00 or quotation and quotation.wht_rate == 5.00 %}selected{% endif %}>5% (مهن حرة واستشارات)</option>
                                             </select>
                                         </div>
                                         <small class="form-text text-muted">{% trans "تُخصم من الصافي المستحق وتورد لمصلحة الضرائب." %}</small>
@@ -457,7 +520,7 @@
                         </div>
                         <!-- تبويب الملاحظات والشروط -->
                         <div class="tab-pane fade h-100" id="quote-tab-notes" role="tabpanel" aria-labelledby="quote-notes-tab">
-                            {% include "partials/editor.html" with id="id_notes" name="notes" value=so.notes|default:"" placeholder="أضف شروط التوريد، التسليم، أو أي تفاصيل أخرى..." height=180 toolbar="basic" %}
+                            {% include "partials/editor.html" with id="id_notes" name="notes" value=initial_notes|default:"" placeholder="أضف شروط التوريد، التسليم، أو أي تفاصيل أخرى..." height=180 toolbar="basic" %}
                         </div>
                     </div>
                 </div>
@@ -883,6 +946,27 @@
             var grossTotal = netSubtotal + vat;
             var grandTotal = Math.max(0, grossTotal - whtTotal);
 
+            // حساب الدفعة المقدمة المشترطة وإظهار التلميح
+            var downPaymentInput = parseFloat($('#id_required_down_payment').val()) || 0;
+            var downPaymentType = $('#id_down_payment_type').val() || 'fixed';
+            if (downPaymentType === 'percentage') {
+                $('#id_required_down_payment').attr('max', '100');
+                if (downPaymentInput > 100) {
+                    downPaymentInput = 100;
+                    $('#id_required_down_payment').val(100);
+                }
+                var equivalentDown = (grandTotal * downPaymentInput) / 100.0;
+                $('#calculated_down_payment_hint').text('يعادل: ' + smartFloat(equivalentDown) + ' ' + currencySymbol).removeClass('d-none');
+            } else {
+                $('#id_required_down_payment').removeAttr('max');
+                if (grandTotal > 0 && downPaymentInput > 0) {
+                    var equivalentPct = ((downPaymentInput / grandTotal) * 100.0).toFixed(1);
+                    $('#calculated_down_payment_hint').text('تمثل: ' + equivalentPct + '% من الإجمالي').removeClass('d-none');
+                } else {
+                    $('#calculated_down_payment_hint').addClass('d-none');
+                }
+            }
+
             var currencySymbol = (window.ProductPicker && window.ProductPicker.options && window.ProductPicker.options.currencySymbol) || $('#id_currency option:selected').data('symbol') || $('#id_currency option:selected').data('code') || '{{ currency_symbol }}';
             $('#subtotal').text(smartFloat(subtotal) + ' ' + currencySymbol);
 
@@ -901,6 +985,48 @@
 
         window.calculateRowTotal = calculateRowTotal;
         window.calculateTotals = calculateTotals;
+
+        function updateInstantTreasuryAccounts() {
+            const method = $('#id_instant_payment_method').val();
+            const isCash = (method === 'cash');
+            const select = $('#id_instant_treasury_account');
+            const label = $('#id_instant_account_label');
+
+            if (isCash) {
+                label.text("{% trans 'الخزينة النقدية المستلمة' %}");
+                select.find('#instant_optgroup_bank').hide();
+                select.find('#instant_optgroup_cash').show();
+                select.find('option[data-type="bank"]').prop('disabled', true);
+                select.find('option[data-type="cash"]').prop('disabled', false);
+                const firstCash = select.find('option[data-type="cash"]:not([disabled]):first');
+                if (firstCash.length) {
+                    select.val(firstCash.val());
+                }
+            } else {
+                label.text("{% trans 'الحساب البنكي المستلم' %}");
+                select.find('#instant_optgroup_cash').hide();
+                select.find('#instant_optgroup_bank').show();
+                select.find('option[data-type="cash"]').prop('disabled', true);
+                select.find('option[data-type="bank"]').prop('disabled', false);
+                const firstBank = select.find('option[data-type="bank"]:not([disabled]):first');
+                if (firstBank.length) {
+                    select.val(firstBank.val());
+                }
+            }
+        }
+
+        $('#id_instant_payment_method').on('change', updateInstantTreasuryAccounts);
+        updateInstantTreasuryAccounts();
+
+        $('#id_required_down_payment, #id_down_payment_type').on('input change', calculateTotals);
+        $('#id_instant_down_payment').on('change', function() {
+            if ($(this).is(':checked')) {
+                $('#instant_treasury_wrapper').removeClass('d-none');
+                updateInstantTreasuryAccounts();
+            } else {
+                $('#instant_treasury_wrapper').addClass('d-none');
+            }
+        });
 
         bindEventHandlers();
         $('.item-row').each(function() { calculateRowTotal($(this)); });

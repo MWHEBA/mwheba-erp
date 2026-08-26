@@ -23,7 +23,7 @@ class PriceList(models.Model):
     name = models.CharField(_("اسم قائمة الأسعار"), max_length=100, unique=True)
     currency = models.CharField(_("العملة"), max_length=3, default="EGP")
     customer_type = models.CharField(_("تصنيف العملاء المستهدف"), max_length=50, blank=True, default="ALL")
-    effective_from = models.DateField(_("تاريخ بدء السريان"), default=timezone.now)
+    effective_from = models.DateField(_("تاريخ بدء السريان"), default=timezone.localdate)
     effective_to = models.DateField(_("تاريخ نهاية السريان"), null=True, blank=True)
     status = models.CharField(_("الحالة"), max_length=20, choices=STATUS_CHOICES, default="ACTIVE")
     is_active = models.BooleanField(_("نشط"), default=True)
@@ -51,7 +51,7 @@ class PriceListItem(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="price_list_items", verbose_name=_("المنتج"))
     unit_price = models.DecimalField(_("سعر الوحدة"), max_digits=15, decimal_places=2)
     min_quantity = models.DecimalField(_("الحد الأدنى للكمية"), max_digits=12, decimal_places=4, default=Decimal("1.0000"))
-    effective_date = models.DateField(_("تاريخ السريان"), default=timezone.now)
+    effective_date = models.DateField(_("تاريخ السريان"), default=timezone.localdate)
     is_active = models.BooleanField(_("نشط"), default=True)
 
     class Meta:
@@ -99,7 +99,7 @@ class DiscountRule(models.Model):
     value = models.DecimalField(_("قيمة الخصم الثابتة"), max_digits=15, decimal_places=2, default=Decimal("0.00"))
     min_order_amount = models.DecimalField(_("الحد الأدنى لقيمة الطلب"), max_digits=15, decimal_places=2, default=Decimal("0.00"))
     priority = models.IntegerField(_("الأولوية"), default=10)
-    effective_date = models.DateField(_("تاريخ البدء"), default=timezone.now)
+    effective_date = models.DateField(_("تاريخ البدء"), default=timezone.localdate)
     expiry_date = models.DateField(_("تاريخ الانتهاء"), null=True, blank=True)
     is_active = models.BooleanField(_("نشط"), default=True)
 

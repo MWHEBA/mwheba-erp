@@ -29,6 +29,15 @@
             </option>
             {% endfor %}
           </select>
+          {% if sales_order and sales_order.required_down_payment > 0 %}
+            <div class="mt-2">
+              {% if sales_order.down_payment_override %}
+                <span class="badge bg-info text-white"><i class="fas fa-user-shield me-1"></i>{% trans "تم التجاوز الإداري لشرط الدفعة المقدمة" %} ({{ sales_order.down_payment_override_reason }})</span>
+              {% elif sales_order.is_down_payment_satisfied %}
+                <span class="badge bg-success"><i class="fas fa-check-circle me-1"></i>{% trans "الدفعة المقدمة المشترطة مستوفاة بالكامل" %} ({{ sales_order.paid_down_payment }} {{ sales_order.currency }})</span>
+              {% endif %}
+            </div>
+          {% endif %}
         </div>
         <div class="col-md-3">
           <label for="delivery_date" class="form-label required">{% trans "تاريخ التسليم" %}</label>

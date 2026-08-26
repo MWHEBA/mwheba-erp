@@ -43,6 +43,15 @@ class QuotationItem(models.Model):
     def __str__(self):
         return f"{self.product} x {self.quantity}"
 
+    @property
+    def discount_percentage(self):
+        """احتساب نسبة الخصم المئوية ديناميكياً من قيمة الخصم"""
+        from decimal import Decimal
+        sub = self.quantity * self.unit_price
+        if sub and sub > Decimal("0.00") and self.discount:
+            return ((self.discount / sub) * Decimal("100.00")).quantize(Decimal("0.01"))
+        return Decimal("0.00")
+
     def save(self, *args, **kwargs):
-        self.total = (self.quantity * self.unit_price) - self.discount
+        self.total = (self.quantity * self.unit_price) - (self.discount or 0)
         super().save(*args, **kwargs)

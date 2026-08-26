@@ -16,7 +16,7 @@ class ExchangeRateService:
     @classmethod
     def get_functional_currency(cls) -> Optional[Currency]:
         """الحصول على العملة الوظيفية/الأساسية للمؤسسة مع غطاء حماية عند تفريغ قاعدة البيانات"""
-        curr = Currency.objects.filter(is_functional=True).first() or Currency.objects.first()
+        curr = Currency.objects.filter(is_functional=True).first() or Currency.objects.filter(code="EGP").first()
         if not curr:
             from types import SimpleNamespace
             return SimpleNamespace(

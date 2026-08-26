@@ -88,6 +88,8 @@ urlpatterns = [
     path("orders/<int:pk>/confirm/", views.sales_order_confirm, name="sales_order_confirm"),
     path("orders/<int:pk>/cancel/", views.sales_order_cancel, name="sales_order_cancel"),
     path("orders/<int:pk>/convert-sale/", views.sales_order_convert_to_sale, name="sales_order_convert_to_sale"),
+    path("orders/<int:pk>/collect-down-payment/", views.sales_order_collect_down_payment, name="sales_order_collect_down_payment"),
+    path("orders/<int:pk>/override-down-payment/", views.sales_order_override_down_payment, name="sales_order_override_down_payment"),
 
     # إذون تسليم البضاعة (Delivery Notes)
     path("delivery-notes/", views.delivery_note_list, name="delivery_note_list"),

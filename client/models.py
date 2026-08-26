@@ -1,4 +1,5 @@
 from decimal import Decimal
+from django.conf import settings
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from django.core.validators import RegexValidator
@@ -303,6 +304,33 @@ class CustomerPayment(MonetaryTransactionMixin, models.Model):
         blank=True,
         verbose_name=_("أمر الشغل المرتبط"),
         related_name="payments",
+    )
+
+    # ربط بأمر البيع (الدفعة المقدمة / العربون المشترط)
+    sales_order = models.ForeignKey(
+        "sale.SalesOrder",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        verbose_name=_("أمر البيع المرتبط"),
+        related_name="down_payments",
+    )
+
+    # مركز التكلفة ومسؤول المبيعات
+    cost_center = models.ForeignKey(
+        "financial.CostCenter",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name=_("مركز التكلفة"),
+    )
+    salesman = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="customer_payments_assisted",
+        verbose_name=_("مسؤول المبيعات"),
     )
 
     created_at = models.DateTimeField(_("تاريخ الإنشاء"), auto_now_add=True)

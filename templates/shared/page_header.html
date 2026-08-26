@@ -325,12 +325,13 @@ If custom_filters is available, it will be used for JSON parsing.
                                             </button>
                                         </form>
                                     {% else %}
-                                        <a href="{{ button.url|default:'#' }}" 
+                                        <a href="{% if button.toggle %}javascript:void(0){% else %}{{ button.url|default:'#' }}{% endif %}" 
                                            class="btn {{ button.class|default:'btn-primary' }} me-2"
                                            {% if button.id %}id="{{ button.id }}"{% endif %}
                                            {% if button.title %}title="{{ button.title }}"{% endif %}
-                                           {% if button.target %}target="{{ button.target }}"{% endif %}
                                            {% if button.toggle %}data-bs-toggle="{{ button.toggle }}"{% endif %}
+                                           {% if button.target_modal or button.data_bs_target %}data-bs-target="{{ button.target_modal|default:button.data_bs_target }}"{% elif button.toggle == 'modal' and button.target and '#' in button.target %}data-bs-target="{{ button.target }}"{% elif button.target %}target="{{ button.target }}"{% endif %}
+                                           {% if button.data_attrs %}{{ button.data_attrs|safe }}{% endif %}
                                            {% if button.disabled %}aria-disabled="true" tabindex="-1"{% endif %}
                                            aria-label="{{ button.text }}">
                                             {% if button.icon %}<i class="fas {{ button.icon }} me-1" aria-hidden="true"></i>{% endif %}

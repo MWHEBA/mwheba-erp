@@ -194,8 +194,25 @@ def sales_order_create(request, quotation_id=None):
     if request.method == "POST":
         customer_id = request.POST.get("customer")
         warehouse_id = request.POST.get("warehouse")
-        order_date = request.POST.get("order_date") or timezone.now().date()
-        currency_val = request.POST.get("currency", "EGP")
+        from django.utils.dateparse import parse_date
+        order_date_raw = request.POST.get("order_date")
+        order_date = parse_date(order_date_raw) if order_date_raw else timezone.localdate()
+        currency_input = request.POST.get("currency")
+        from financial.models import Currency
+        if currency_input and str(currency_input).isdigit():
+            c_obj = Currency.objects.filter(id=int(currency_input)).first()
+            currency_val = c_obj.code if c_obj else None
+        elif currency_input:
+            c_obj = Currency.objects.filter(code__iexact=str(currency_input).strip()).first()
+            currency_val = c_obj.code if c_obj else str(currency_input).strip()
+        else:
+            c_obj = None
+            currency_val = None
+
+        if not currency_val:
+            func_c = Currency.objects.filter(is_functional=True).first() or Currency.objects.first()
+            currency_val = func_c.code if func_c else "EGP"
+
         exchange_rate_str = request.POST.get("exchange_rate", "1.000000")
         try:
             exchange_rate = Decimal(str(exchange_rate_str).replace(',', '').strip())
@@ -220,8 +237,10 @@ def sales_order_create(request, quotation_id=None):
             from financial.models import CostCenter
             cost_center = CostCenter.objects.filter(id=int(cost_center_id)).first()
 
-        expected_delivery_date = request.POST.get("expected_delivery_date") or None
-        reservation_expiry_date = request.POST.get("reservation_expiry_date") or None
+        expected_delivery_date_raw = request.POST.get("expected_delivery_date")
+        expected_delivery_date = parse_date(expected_delivery_date_raw) if expected_delivery_date_raw else None
+        reservation_expiry_date_raw = request.POST.get("reservation_expiry_date")
+        reservation_expiry_date = parse_date(reservation_expiry_date_raw) if reservation_expiry_date_raw else None
         shipping_method = request.POST.get("shipping_method", "PICKUP")
         shipping_address = request.POST.get("shipping_address", "")
         notes = request.POST.get("notes", "")
@@ -239,6 +258,10 @@ def sales_order_create(request, quotation_id=None):
         wht_amount_val = request.POST.get("wht_amount")
         wht_amount = Decimal(wht_amount_val) if wht_amount_val else None
         required_down_payment = Decimal(request.POST.get("required_down_payment", "0") or "0")
+        down_payment_type = request.POST.get("down_payment_type", "fixed")
+        instant_down_payment = request.POST.get("instant_down_payment") == "on"
+        instant_treasury = request.POST.get("instant_treasury_account")
+        instant_payment_method = request.POST.get("instant_payment_method", "cash")
 
         # Custom Fields
         custom_fields = SaleService.parse_custom_fields(request.POST.get("custom_fields_json", "[]"))
@@ -314,6 +337,7 @@ def sales_order_create(request, quotation_id=None):
                 wht_rate=wht_rate,
                 wht_amount=wht_amount,
                 required_down_payment=required_down_payment,
+                down_payment_type=down_payment_type,
                 notes=notes,
                 custom_fields=custom_fields,
             )
@@ -321,6 +345,29 @@ def sales_order_create(request, quotation_id=None):
             if quotation:
                 quotation.status = "accepted"
                 quotation.save(update_fields=["status"])
+
+            # معالجة التحصيل الفوري للعربون إن طُلب وتوفرت صلاحية الخزينة
+            if instant_down_payment and so.required_down_payment > Decimal("0.00") and instant_treasury:
+                try:
+                    from client.services.customer_allocation_audit_service import CustomerAllocationAuditService
+                    curr_model = Currency.objects.filter(code=so.currency).first()
+                    CustomerAllocationAuditService.create_prepaid_payment(
+                        customer_id=so.customer_id,
+                        amount=so.required_down_payment,
+                        payment_date=so.order_date,
+                        payment_method=instant_payment_method,
+                        financial_account_id=int(instant_treasury),
+                        currency=curr_model,
+                        user=request.user,
+                        sales_order=so,
+                        cost_center=so.cost_center,
+                        salesman=so.salesman,
+                        notes=f"تحصيل فوري لدفعة مقدمة أمر بيع #{so.order_number}"
+                    )
+                    messages.info(request, f"تم تحصيل الدفعة المقدمة المشترطة ({so.required_down_payment} {so.currency}) بالخزينة فوراً.")
+                except Exception as pay_err:
+                    logger.warning(f"Failed instant down payment collection: {pay_err}")
+                    messages.warning(request, f"تم إنشاء أمر البيع ولكن تعذر تسجيل حركة الخزينة الفورية: {str(pay_err)}")
 
             messages.success(request, f"تم إنشاء أمر البيع رقم {so.order_number} بنجاح.")
             return redirect("sale:sales_order_detail", pk=so.pk)
@@ -378,10 +425,16 @@ def sales_order_create(request, quotation_id=None):
 
     custom_fields_merged = SaleService.smart_merge_custom_fields('sales_order', quotation.custom_fields if quotation else [])
 
+    from financial.services.account_helper import AccountHelperService
+    cash_payment_accounts = AccountHelperService.get_cash_accounts()
+    bank_payment_accounts = AccountHelperService.get_bank_accounts()
+    treasury_accounts = AccountHelperService.get_cash_and_bank_accounts()
+
     context = {
         "page_title": _("إنشاء أمر بيع جديد"),
         "page_icon": "fas fa-cart-plus",
         "page_subtitle": _("إنشاء وتأكيد أمر بيع جديد وحجز المخزون"),
+        "is_edit": False,
         "customers": customers,
         "selected_customer": quotation.customer if quotation else None,
         "warehouses": warehouses,
@@ -391,7 +444,11 @@ def sales_order_create(request, quotation_id=None):
         "price_lists": price_lists,
         "cost_centers": cost_centers,
         "salesmen": salesmen,
+        "cash_payment_accounts": cash_payment_accounts,
+        "bank_payment_accounts": bank_payment_accounts,
+        "treasury_accounts": treasury_accounts,
         "quotation": quotation,
+        "initial_notes": quotation.notes if quotation else "",
         "selected_currency_id": selected_curr.id if selected_curr else None,
         "selected_currency_is_foreign": not (selected_curr.is_functional) if selected_curr else False,
         "current_exchange_rate": current_rate,
@@ -425,13 +482,39 @@ def sales_order_edit(request, pk):
     if request.method == "POST":
         customer_id = request.POST.get("customer")
         warehouse_id = request.POST.get("warehouse")
-        order_date = request.POST.get("order_date") or so.order_date
-        currency_val = request.POST.get("currency", so.currency)
+        from django.utils.dateparse import parse_date
+        order_date_raw = request.POST.get("order_date")
+        order_date = parse_date(order_date_raw) if order_date_raw else so.order_date
+        expected_delivery_date_raw = request.POST.get("expected_delivery_date")
+        expected_delivery_date = parse_date(expected_delivery_date_raw) if expected_delivery_date_raw else None
+        reservation_expiry_date_raw = request.POST.get("reservation_expiry_date")
+        reservation_expiry_date = parse_date(reservation_expiry_date_raw) if reservation_expiry_date_raw else None
+        currency_input = request.POST.get("currency", so.currency)
+        from financial.models import Currency
+        if currency_input and str(currency_input).isdigit():
+            c_obj = Currency.objects.filter(id=int(currency_input)).first()
+            currency_val = c_obj.code if c_obj else None
+        elif currency_input:
+            c_obj = Currency.objects.filter(code__iexact=str(currency_input).strip()).first()
+            currency_val = c_obj.code if c_obj else str(currency_input).strip()
+        else:
+            c_obj = None
+            currency_val = None
+
+        if not currency_val:
+            func_c = Currency.objects.filter(is_functional=True).first() or Currency.objects.first()
+            currency_val = func_c.code if func_c else (so.currency or "EGP")
+
         exchange_rate_str = request.POST.get("exchange_rate", str(so.exchange_rate))
         try:
             exchange_rate = Decimal(str(exchange_rate_str).replace(',', '').strip())
         except Exception:
             exchange_rate = Decimal("1.000000")
+
+        # فحص قفل العميل في حال وجود دفعات مسددة
+        if so.paid_down_payment > Decimal("0.00") and customer_id and int(customer_id) != so.customer_id:
+            messages.error(request, _("لا يمكن تغيير العميل نظراً لوجود دفعات مسددة ومرتبطة بهذا الأمر."))
+            return redirect("sale:sales_order_edit", pk=so.pk)
 
         salesman_id = request.POST.get("salesman")
         salesman = None
@@ -462,8 +545,8 @@ def sales_order_edit(request, pk):
                 so.cost_center = cost_center
                 so.currency = currency_val
                 so.exchange_rate = exchange_rate
-                so.expected_delivery_date = request.POST.get("expected_delivery_date") or None
-                so.reservation_expiry_date = request.POST.get("reservation_expiry_date") or None
+                so.expected_delivery_date = expected_delivery_date
+                so.reservation_expiry_date = reservation_expiry_date
                 so.shipping_method = request.POST.get("shipping_method", "PICKUP")
                 so.shipping_address = request.POST.get("shipping_address", "")
                 so.notes = request.POST.get("notes", "")
@@ -476,6 +559,7 @@ def sales_order_edit(request, pk):
                 so.wht_active = request.POST.get("wht_active") == "on" or request.POST.get("wht_active") == "true"
                 so.wht_rate = Decimal(request.POST.get("wht_rate", "1.00") or "1.00")
                 so.required_down_payment = Decimal(request.POST.get("required_down_payment", "0") or "0")
+                so.down_payment_type = request.POST.get("down_payment_type", "fixed")
                 so.custom_fields = SaleService.parse_custom_fields(request.POST.get("custom_fields_json", "[]"))
 
                 # Recreate items
@@ -510,9 +594,15 @@ def sales_order_edit(request, pk):
                 calc_vat = (after_adj * (so.vat_rate / Decimal("100.00"))).quantize(Decimal("0.01")) if so.vat_rate else Decimal("0.00")
                 calc_wht = (after_adj * (so.wht_rate / Decimal("100.00"))).quantize(Decimal("0.01")) if (so.wht_active and so.wht_rate) else Decimal("0.00")
 
+                new_total = (after_adj + calc_vat - calc_wht).quantize(Decimal("0.01"))
+
+                # حظر تقليص إجمالي أمر البيع لأقل من المحصل فعلياً
+                if new_total < so.paid_down_payment:
+                    raise ValueError(f"لا يمكن تقليص إجمالي أمر البيع ({new_total}) لأقل من المبالغ المحصلة فعلياً ({so.paid_down_payment}).")
+
                 so.tax_amount = calc_vat
                 so.wht_amount = calc_wht
-                so.total_amount = (after_adj + calc_vat - calc_wht).quantize(Decimal("0.01"))
+                so.total_amount = new_total
                 so.functional_amount = (so.total_amount * exchange_rate).quantize(Decimal("0.01"))
                 so.save()
 
@@ -547,6 +637,11 @@ def sales_order_edit(request, pk):
 
     custom_fields_merged = SaleService.smart_merge_custom_fields('sales_order', so.custom_fields or [])
 
+    from financial.services.account_helper import AccountHelperService
+    cash_payment_accounts = AccountHelperService.get_cash_accounts()
+    bank_payment_accounts = AccountHelperService.get_bank_accounts()
+    treasury_accounts = AccountHelperService.get_cash_and_bank_accounts()
+
     context = {
         "page_title": f"تعديل أمر البيع #{so.order_number}",
         "page_icon": "fas fa-edit",
@@ -562,6 +657,11 @@ def sales_order_edit(request, pk):
         "price_lists": price_lists,
         "cost_centers": cost_centers,
         "salesmen": salesmen,
+        "cash_payment_accounts": cash_payment_accounts,
+        "bank_payment_accounts": bank_payment_accounts,
+        "treasury_accounts": treasury_accounts,
+        "quotation": so.quotation_reference if so else None,
+        "initial_notes": so.notes if so else "",
         "selected_currency_id": curr_obj.id if curr_obj else None,
         "selected_currency_is_foreign": not (curr_obj.is_functional) if curr_obj else False,
         "current_exchange_rate": so.exchange_rate,
@@ -580,12 +680,17 @@ def sales_order_edit(request, pk):
 @check_sales_orders_enabled
 def sales_order_detail(request, pk):
     """
-    عرض تفاصيل أمر البيع والبنود وإذون التسليم والفواتير المرتبطة
+    عرض تفاصيل أمر البيع والبنود وإذون التسليم والدفعات المقدمة والفواتير المرتبطة
     """
     so = get_object_or_404(
         SalesOrder.objects.select_related(
             "customer", "warehouse", "created_by", "quotation_reference", "salesman", "cost_center", "price_list"
-        ).prefetch_related("items__product__unit", "delivery_notes__warehouse", "delivery_notes__created_by"),
+        ).prefetch_related(
+            "items__product__unit", 
+            "delivery_notes__warehouse", 
+            "delivery_notes__created_by",
+            "down_payments__financial_account"
+        ),
         pk=pk
     )
 
@@ -665,13 +770,29 @@ def sales_order_detail(request, pk):
 
     if so.status not in ["CANCELLED", "FULLY_DELIVERED", "INVOICED"]:
         header_buttons.append({
-            "toggle": "modal",
-            "target": "#cancelOrderModal",
+            "onclick": "confirmCancelOrder()",
             "text": _("إلغاء أمر البيع"),
             "label": _("إلغاء أمر البيع"),
             "icon": "fa-times-circle",
             "class": "btn-outline-danger",
         })
+
+    can_collect_down_payment = (
+        request.user.has_perm("financial.add_financialtransaction") or 
+        request.user.is_superuser or 
+        request.user.is_staff
+    )
+    can_override_down_payment = (
+        request.user.has_perm("sale.change_salesorder") or 
+        request.user.is_superuser
+    )
+
+    down_payments = so.down_payments.select_related("financial_account").order_by("-payment_date", "-id")
+
+    from financial.services.account_helper import AccountHelperService
+    cash_payment_accounts = AccountHelperService.get_cash_accounts()
+    bank_payment_accounts = AccountHelperService.get_bank_accounts()
+    treasury_accounts = AccountHelperService.get_cash_and_bank_accounts()
 
     context = {
         "page_title": f"{_('أمر بيع')} #{so.order_number}",
@@ -681,6 +802,12 @@ def sales_order_detail(request, pk):
         "items": items,
         "delivery_notes": so.delivery_notes.all(),
         "linked_sales": linked_sales,
+        "down_payments": down_payments,
+        "cash_payment_accounts": cash_payment_accounts,
+        "bank_payment_accounts": bank_payment_accounts,
+        "treasury_accounts": treasury_accounts,
+        "can_collect_down_payment": can_collect_down_payment,
+        "can_override_down_payment": can_override_down_payment,
         "total_ordered_qty": total_ordered_qty,
         "total_delivered_qty": total_delivered_qty,
         "total_invoiced_qty": total_invoiced_qty,
@@ -692,6 +819,101 @@ def sales_order_detail(request, pk):
         "header_buttons": header_buttons,
     }
     return render(request, "sale/sales_order_detail.html", context)
+
+
+@login_required
+@require_POST
+@check_sales_orders_enabled
+def sales_order_collect_down_payment(request, pk):
+    """
+    تحصيل دفعة مقدمة / عربون لأمر البيع وتسجيل سند قبض مالي رسمي وقيد يومية بالخزينة
+    """
+    so = get_object_or_404(SalesOrder, pk=pk)
+
+    can_collect = (
+        request.user.has_perm("financial.add_financialtransaction") or 
+        request.user.is_superuser or 
+        request.user.is_staff
+    )
+    if not can_collect:
+        messages.error(request, _("ليس لديك صلاحية تسجيل حركات الخزينة وسندات القبض."))
+        return redirect("sale:sales_order_detail", pk=pk)
+
+    if so.status in ["CANCELLED", "REJECTED", "CLOSED"]:
+        messages.error(request, _("لا يمكن تحصيل دفعة مقدمة على أمر بيع ملغي أو مغلق."))
+        return redirect("sale:sales_order_detail", pk=pk)
+
+    amount_str = request.POST.get("amount", "0")
+    try:
+        amount = Decimal(str(amount_str).replace(',', '').strip())
+    except Exception:
+        amount = Decimal("0.00")
+
+    if amount <= Decimal("0.00"):
+        messages.error(request, _("مبلغ الدفعة المقدمة يجب أن يكون أكبر من صفر."))
+        return redirect("sale:sales_order_detail", pk=pk)
+
+    max_allowed = max(Decimal("0.00"), so.total_amount - so.paid_down_payment)
+    if amount > max_allowed:
+        messages.error(request, _("مبلغ الدفعة المقدمة ({} {}) يتجاوز المبلغ المتبقي من إجمالي أمر البيع ({} {}).").format(amount, so.currency_display, max_allowed, so.currency_display))
+        return redirect("sale:sales_order_detail", pk=pk)
+
+    financial_account_id = request.POST.get("financial_account")
+    payment_method = request.POST.get("payment_method", "cash")
+    payment_date = request.POST.get("payment_date") or timezone.now().date()
+    notes = request.POST.get("notes", "").strip()
+
+    try:
+        with transaction.atomic():
+            from client.services.customer_allocation_audit_service import CustomerAllocationAuditService
+            from financial.models import Currency
+            curr_model = Currency.objects.filter(code=so.currency).first()
+
+            payment = CustomerAllocationAuditService.create_prepaid_payment(
+                customer_id=so.customer_id,
+                amount=amount,
+                payment_date=payment_date,
+                payment_method=payment_method,
+                financial_account_id=int(financial_account_id) if financial_account_id and str(financial_account_id).isdigit() else None,
+                currency=curr_model,
+                user=request.user,
+                sales_order=so,
+                cost_center=so.cost_center,
+                salesman=so.salesman,
+                notes=notes or f"سند قبض دفعة مقدمة عن أمر بيع #{so.order_number}"
+            )
+
+            messages.success(request, f"تم بنجاح تحصيل دفعة مقدمة بقيمة {amount} {so.currency} وإصدار سند قبض رقم #PAY-{payment.id}.")
+    except Exception as e:
+        logger.error(f"Error collecting down payment for SO #{so.order_number}: {e}", exc_info=True)
+        messages.error(request, f"خطأ أثناء تسجيل سند القبض: {str(e)}")
+
+    return redirect("sale:sales_order_detail", pk=pk)
+
+
+@login_required
+@require_POST
+@check_sales_orders_enabled
+def sales_order_override_down_payment(request, pk):
+    """
+    اعتماد تجاوز شرط الدفعة المقدمة إدارياً للصرف المخزني لحالات عملاء الـ VIP
+    """
+    so = get_object_or_404(SalesOrder, pk=pk)
+
+    can_override = request.user.has_perm("sale.change_salesorder") or request.user.is_superuser
+    if not can_override:
+        messages.error(request, _("ليس لديك صلاحية اعتماد التجاوز الإداري لشروط المبيعات."))
+        return redirect("sale:sales_order_detail", pk=pk)
+
+    override_reason = request.POST.get("override_reason", "").strip() or "تجاوز إداري معتمد للصرف قبل اكتمال العربون"
+
+    so.down_payment_override = True
+    so.down_payment_override_by = request.user
+    so.down_payment_override_reason = override_reason
+    so.save(update_fields=["down_payment_override", "down_payment_override_by", "down_payment_override_reason"])
+
+    messages.success(request, f"تم اعتماد التجاوز الإداري لشرط الدفعة المقدمة لأمر البيع #{so.order_number} بنجاح، ويمكن الآن إصدار إذن التسليم.")
+    return redirect("sale:sales_order_detail", pk=pk)
 
 
 @login_required
@@ -776,12 +998,12 @@ def sales_order_print(request, pk):
 
     status_map = status_map_en if is_english else status_map_ar
     translated_status = status_map.get(so.status, so.get_status_display())
-    currency_symbol_active = so.currency or "EGP"
+    currency_symbol_active = so.currency_display
 
     amount_in_words = ""
     try:
         from utils.arabic_numbers import amount_to_arabic_words
-        amount_in_words = amount_to_arabic_words(so.total_amount, currency=so.currency or "EGP")
+        amount_in_words = amount_to_arabic_words(so.total_amount, currency=so.currency_code)
     except Exception:
         amount_in_words = ""
 

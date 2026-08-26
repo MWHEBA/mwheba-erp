@@ -109,17 +109,25 @@
                   <span class="invoice-number-text fw-bold text-dark">{{ quote.number }}</span>
                 </div>
               </td>
-              <td class="fw-bold text-start">{{ quote.customer.name }}</td>
-              <td>{{ quote.salesman_display_name }}</td>
+              <td class="fw-bold text-start">{{ quote.customer.name|default:"-" }}</td>
+              <td>{{ quote.salesman_display_name|default:"-" }}</td>
               <td>{{ quote.date|date:"Y-m-d" }}</td>
               <td>{{ quote.valid_until|date:"Y-m-d"|default:"-" }}</td>
               <td>
                 <span class="transaction-amount text-center d-block fw-bold">
-                  <span class="currency-symbol">{{ quote|get_currency_symbol:currency_symbol }}</span> {{ quote.total|smart_float:2 }}
+                  <span class="currency-symbol">{{ quote.currency_symbol|default:"ج.م" }}</span> {{ quote.total|smart_float:2 }}
                 </span>
               </td>
               <td>
-                {% if quote.status == 'draft' %}
+                {% if quote.converted_to_sale %}
+                  <span class="badge bg-success">{% trans "محول لفاتورة" %}</span>
+                {% elif quote.active_sales_order %}
+                  <span class="badge bg-primary">{% trans "محول لأمر بيع" %}</span>
+                {% elif quote.is_order_cancelled_awaiting_action %}
+                  <span class="badge bg-warning text-dark border border-warning">
+                    <i class="fas fa-exclamation-circle me-1 text-danger"></i>{% trans "أمر ملغى - بانتظار إجراء" %}
+                  </span>
+                {% elif quote.status == 'draft' %}
                   <span class="badge bg-secondary">{% trans "مسودة" %}</span>
                 {% elif quote.status == 'sent' %}
                   <span class="badge bg-info text-white">{% trans "تم الإرسال" %}</span>
@@ -136,9 +144,13 @@
                   <a href="{% url 'sale:sale_detail' quote.converted_to_sale.pk %}" class="btn btn-xs btn-outline-success" title="{% trans 'عرض الفاتورة' %}">
                     <i class="fas fa-file-invoice-dollar me-1"></i>{{ quote.converted_to_sale.number }}
                   </a>
-                {% elif quote.sales_orders.first %}
-                  <a href="{% url 'sale:sales_order_detail' quote.sales_orders.first.pk %}" class="btn btn-xs btn-outline-primary" title="{% trans 'عرض أمر البيع' %}">
-                    <i class="fas fa-clipboard-list me-1"></i>{{ quote.sales_orders.first.order_number }}
+                {% elif quote.active_sales_order %}
+                  <a href="{% url 'sale:sales_order_detail' quote.active_sales_order.pk %}" class="btn btn-xs btn-outline-primary" title="{% trans 'عرض أمر البيع' %}">
+                    <i class="fas fa-clipboard-list me-1"></i>{{ quote.active_sales_order.order_number }}
+                  </a>
+                {% elif quote.is_order_cancelled_awaiting_action and quote.latest_sales_order %}
+                  <a href="{% url 'sale:sales_order_detail' quote.latest_sales_order.pk %}" class="btn btn-xs btn-outline-danger" title="{% trans 'عرض أمر البيع الملغى' %}">
+                    <i class="fas fa-times-circle me-1"></i>{{ quote.latest_sales_order.order_number }} <span class="badge bg-danger-subtle text-danger ms-1 small">{% trans "ملغى" %}</span>
                   </a>
                 {% else %}
                   <span class="text-muted">-</span>
@@ -146,22 +158,18 @@
               </td>
               <td class="col-actions text-center">
                 <div class="btn-group">
-                  <a href="{% url 'sale:quotation_detail' quote.id %}" class="btn btn-sm btn-outline-primary" title="{% trans 'عرض عرض السعر' %}">
+                  <a href="{% url 'sale:quotation_detail' quote.id %}" class="btn btn-sm btn-outline-primary" title="{% trans 'عرض تفاصيل عرض السعر' %}">
                     <i class="fas fa-eye"></i>
                   </a>
-                  {% if quote.converted_to_sale %}
-                  <a href="{% url 'sale:sale_detail' quote.converted_to_sale.pk %}" class="btn btn-sm btn-outline-success" title="{% trans 'عرض الفاتورة' %}">
-                    <i class="fas fa-file-invoice-dollar"></i>
-                  </a>
-                  {% elif quote.sales_orders.first %}
-                  <a href="{% url 'sale:sales_order_detail' quote.sales_orders.first.pk %}" class="btn btn-sm btn-outline-info" title="{% trans 'عرض أمر البيع' %}">
-                    <i class="fas fa-clipboard-list"></i>
-                  </a>
-                  {% endif %}
-                  {% if quote.status != 'accepted' and not quote.converted_to_sale and not quote.sales_orders.exists %}
-                  <a href="{% url 'sale:quotation_edit' quote.id %}" class="btn btn-sm btn-outline-warning" title="{% trans 'تعديل' %}">
-                    <i class="fas fa-edit"></i>
-                  </a>
+                  {% if not quote.converted_to_sale and not quote.active_sales_order and quote.status != 'rejected' %}
+                    {% if enable_sales_orders %}
+                    <a href="{% url 'sale:sales_order_create_for_quotation' quote.id %}" class="btn btn-sm btn-outline-success" title="{% trans 'تحويل / إعادة إنشاء أمر بيع' %}">
+                      <i class="fas fa-cart-plus"></i>
+                    </a>
+                    {% endif %}
+                    <a href="{% url 'sale:quotation_edit' quote.id %}" class="btn btn-sm btn-outline-warning" title="{% trans 'تعديل' %}">
+                      <i class="fas fa-edit"></i>
+                    </a>
                   {% endif %}
                   <a href="{% url 'sale:quotation_print' quote.id %}" target="_blank" class="btn btn-sm btn-outline-dark" title="{% trans 'طباعة' %}">
                     <i class="fas fa-print"></i>

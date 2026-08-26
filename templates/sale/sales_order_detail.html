@@ -160,7 +160,7 @@
 
   <!-- كروت التتبع والمؤشرات الرئيسية (KPI Cards) -->
   <div class="row g-3 mb-4">
-    <div class="col-md-3 col-sm-6">
+    <div class="col-lg col-md-4 col-sm-6">
       <div class="stats-card stats-card-info h-100">
         <div class="stats-card-body d-flex align-items-center">
           <div class="stats-card-icon me-3">
@@ -173,7 +173,7 @@
         </div>
       </div>
     </div>
-    <div class="col-md-3 col-sm-6">
+    <div class="col-lg col-md-4 col-sm-6">
       <div class="stats-card stats-card-success h-100">
         <div class="stats-card-body d-flex align-items-center">
           <div class="stats-card-icon me-3">
@@ -186,7 +186,7 @@
         </div>
       </div>
     </div>
-    <div class="col-md-3 col-sm-6">
+    <div class="col-lg col-md-4 col-sm-6">
       <div class="stats-card stats-card-warning h-100">
         <div class="stats-card-body d-flex align-items-center">
           <div class="stats-card-icon me-3">
@@ -199,7 +199,7 @@
         </div>
       </div>
     </div>
-    <div class="col-md-3 col-sm-6">
+    <div class="col-lg col-md-6 col-sm-6">
       <div class="stats-card stats-card-primary h-100">
         <div class="stats-card-body d-flex align-items-center">
           <div class="stats-card-icon me-3">
@@ -207,7 +207,35 @@
           </div>
           <div>
             <div class="stats-card-title text-muted">{% trans "إجمالي أمر البيع" %}</div>
-            <div class="stats-card-value fw-bold fs-5 text-primary">{{ so.total_amount|smart_float:2 }} {{ so.currency }}</div>
+            <div class="stats-card-value fw-bold fs-5 text-primary">{{ so.total_amount|smart_float:2 }} {{ so.currency_display }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg col-md-6 col-sm-6">
+      <div class="stats-card {% if so.is_down_payment_satisfied %}stats-card-success{% elif so.required_down_payment > 0 %}stats-card-warning{% else %}stats-card-info{% endif %} h-100">
+        <div class="stats-card-body d-flex align-items-center">
+          <div class="stats-card-icon me-3">
+            <i class="fas fa-hand-holding-usd"></i>
+          </div>
+          <div>
+            <div class="stats-card-title text-muted d-flex justify-content-between align-items-center">
+              <span>{% trans "الدفعة المقدمة (العربون)" %}</span>
+            </div>
+            <div class="stats-card-value fw-bold fs-5">
+              {{ so.paid_down_payment|smart_float:2 }} / {{ so.required_down_payment|smart_float:2 }} {{ so.currency_display }}
+            </div>
+            <div class="mt-1">
+              {% if so.required_down_payment == 0 %}
+                <span class="badge bg-light text-muted border">{% trans "غير مشترط" %}</span>
+              {% elif so.down_payment_override %}
+                <span class="badge bg-info text-white" title="{{ so.down_payment_override_reason }}">{% trans "تم التجاوز الإداري" %}</span>
+              {% elif so.is_down_payment_satisfied %}
+                <span class="badge bg-success">{% trans "مستوفى بالكامل" %}</span>
+              {% else %}
+                <span class="badge bg-warning text-dark">{% trans "متبقي:" %} {{ so.remaining_down_payment|smart_float:2 }} {{ so.currency_display }}</span>
+              {% endif %}
+            </div>
           </div>
         </div>
       </div>
@@ -293,46 +321,100 @@
                     <span class="text-muted">-</span>
                   {% endif %}
                 </td>
-                <td class="text-end fw-bold text-success">{{ item.line_total|smart_float:2 }} {{ so.currency }}</td>
+                <td class="text-end fw-bold text-success">{{ item.line_total|smart_float:2 }} {{ so.currency_display }}</td>
               </tr>
               {% endfor %}
             </tbody>
             <tfoot class="table-light">
               <tr>
                 <td colspan="9" class="text-end fw-bold">{% trans "المجموع الفرعي:" %}</td>
-                <td class="text-end fw-bold">{{ so.subtotal|smart_float:2 }} {{ so.currency }}</td>
+                <td class="text-end fw-bold">{{ so.subtotal|smart_float:2 }} {{ so.currency_display }}</td>
               </tr>
               {% if so.discount_amount > 0 %}
               <tr class="text-danger">
                 <td colspan="9" class="text-end fw-bold">{% trans "قيمة الخصم:" %}</td>
-                <td class="text-end fw-bold">-{{ so.discount_amount|smart_float:2 }} {{ so.currency }}</td>
+                <td class="text-end fw-bold">-{{ so.discount_amount|smart_float:2 }} {{ so.currency_display }}</td>
               </tr>
               {% endif %}
               {% if so.adjustment_amount != 0 %}
               <tr>
                 <td colspan="9" class="text-end fw-bold">{{ so.adjustment_name|default:_("تسوية إضافية:") }}</td>
-                <td class="text-end fw-bold">{{ so.adjustment_amount|smart_float:2 }} {{ so.currency }}</td>
+                <td class="text-end fw-bold">{{ so.adjustment_amount|smart_float:2 }} {{ so.currency_display }}</td>
               </tr>
               {% endif %}
               {% if so.tax_amount > 0 %}
               <tr class="text-primary">
                 <td colspan="9" class="text-end fw-bold">{% trans "ضريبة القيمة المضافة (VAT):" %}</td>
-                <td class="text-end fw-bold">+{{ so.tax_amount|smart_float:2 }} {{ so.currency }}</td>
+                <td class="text-end fw-bold">+{{ so.tax_amount|smart_float:2 }} {{ so.currency_display }}</td>
               </tr>
               {% endif %}
               {% if so.wht_amount > 0 %}
               <tr class="text-warning">
                 <td colspan="9" class="text-end fw-bold">{% trans "خصم أ.ت.ص (المنبع):" %}</td>
-                <td class="text-end fw-bold">-{{ so.wht_amount|smart_float:2 }} {{ so.currency }}</td>
+                <td class="text-end fw-bold">-{{ so.wht_amount|smart_float:2 }} {{ so.currency_display }}</td>
               </tr>
               {% endif %}
               <tr class="table-active">
                 <td colspan="9" class="text-end fw-bold fs-5">{% trans "صافي إجمالي أمر البيع:" %}</td>
-                <td class="text-end fw-bold fs-5 text-success">{{ so.total_amount|smart_float:2 }} {{ so.currency }}</td>
+                <td class="text-end fw-bold fs-5 text-success">{{ so.total_amount|smart_float:2 }} {{ so.currency_display }}</td>
               </tr>
             </tfoot>
           </table>
         </div>
+      </div>
+
+      <!-- سندات قبض الدفعة المقدمة (العربون) -->
+      <div class="section-container mb-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h5 class="section-title mb-0"><i class="fas fa-hand-holding-usd me-2 text-primary"></i>{% trans "سندات قبض الدفعة المقدمة (العربون)" %}</h5>
+          {% if can_collect_down_payment and so.status not in 'CANCELLED,CLOSED' %}
+            <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#collectDownPaymentModal">
+              <i class="fas fa-plus me-1"></i>{% trans "تحصيل دفعة مقدمة" %}
+            </button>
+          {% endif %}
+        </div>
+
+        {% if down_payments %}
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 text-center">
+              <thead class="table-light">
+                <tr>
+                  <th>{% trans "رقم السند" %}</th>
+                  <th>{% trans "تاريخ التحصيل" %}</th>
+                  <th>{% trans "المبلغ" %}</th>
+                  <th>{% trans "طريقة الدفع" %}</th>
+                  <th>{% trans "الخزينة / الحساب المالي" %}</th>
+                  <th>{% trans "المسؤول" %}</th>
+                  <th>{% trans "الحالة" %}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for p in down_payments %}
+                <tr>
+                  <td class="fw-bold text-primary">#PAY-{{ p.id }}</td>
+                  <td>{{ p.payment_date|date:"Y-m-d" }}</td>
+                  <td class="fw-bold text-success">{{ p.amount|smart_float:2 }} {{ p.currency.code|default:so.currency }}</td>
+                  <td><span class="badge bg-light text-dark border">{{ p.get_payment_method_display|default:p.payment_method }}</span></td>
+                  <td>{{ p.financial_account.name|default:"الخزينة الرئيسية" }}</td>
+                  <td>{{ p.created_by.get_full_name|default:p.created_by.username|default:"-" }}</td>
+                  <td>
+                    {% if p.status == 'posted' %}
+                      <span class="badge bg-success">{% trans "مرحل محاسبياً" %}</span>
+                    {% else %}
+                      <span class="badge bg-secondary">{{ p.status }}</span>
+                    {% endif %}
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="text-center py-4 text-muted">
+            <i class="fas fa-wallet fa-2x mb-2 opacity-50 d-block"></i>
+            <p class="small mb-0">{% trans "لم يتم تسجيل أي سندات قبض دفعة مقدمة على هذا الأمر حتى الآن." %}</p>
+          </div>
+        {% endif %}
       </div>
 
       <!-- إذون تسليم البضاعة المرتبطة -->
@@ -576,7 +658,7 @@
           {% if so.required_down_payment > 0 %}
           <div class="d-flex justify-content-between border-bottom pb-2">
             <span class="text-muted">{% trans "الدفعة المقدمة المشترطة:" %}</span>
-            <span class="fw-bold text-primary">{{ so.required_down_payment|smart_float:2 }} {{ so.currency }}</span>
+            <span class="fw-bold text-primary">{{ so.required_down_payment|smart_float:2 }} {{ so.currency_display }}</span>
           </div>
           {% endif %}
           {% if so.shipping_address %}
@@ -587,7 +669,7 @@
           {% endif %}
           <div class="d-flex justify-content-between border-bottom pb-2">
             <span class="text-muted">{% trans "العملة وسعر الصرف:" %}</span>
-            <span>{{ so.currency }} (1 = {{ so.exchange_rate }})</span>
+            <span>{{ so.currency_display }} (1 = {{ so.exchange_rate }})</span>
           </div>
           <div class="d-flex justify-content-between">
             <span class="text-muted">{% trans "أنشئ بواسطة:" %}</span>
@@ -612,6 +694,22 @@
             </a>
           {% endif %}
 
+          {% if can_collect_down_payment and so.status not in 'CANCELLED,CLOSED' and not so.is_down_payment_satisfied %}
+            <button type="button" class="btn btn-warning text-dark w-100 fw-bold" data-bs-toggle="modal" data-bs-target="#collectDownPaymentModal">
+              <i class="fas fa-hand-holding-usd me-1"></i>{% trans "تحصيل الدفعة المقدمة (سند قبض)" %}
+            </button>
+          {% elif can_collect_down_payment and so.status not in 'CANCELLED,CLOSED' and so.paid_down_payment < so.total_amount %}
+            <button type="button" class="btn btn-outline-warning text-dark w-100" data-bs-toggle="modal" data-bs-target="#collectDownPaymentModal">
+              <i class="fas fa-hand-holding-usd me-1"></i>{% trans "تحصيل دفعة إضافية" %}
+            </button>
+          {% endif %}
+
+          {% if so.required_down_payment > 0 and not so.is_down_payment_satisfied and can_override_down_payment %}
+            <button type="button" class="btn btn-outline-info w-100" data-bs-toggle="modal" data-bs-target="#overrideDownPaymentModal">
+              <i class="fas fa-user-shield me-1"></i>{% trans "اعتماد تجاوز إداري (VIP)" %}
+            </button>
+          {% endif %}
+
           {% if so.status in 'APPROVED,CONFIRMED,PARTIALLY_DELIVERED' %}
             <a href="{% url 'sale:delivery_note_create' %}?so_id={{ so.pk }}" class="btn btn-info text-white w-100 fw-bold">
               <i class="fas fa-truck me-1"></i>{% trans "إصدار إذن تسليم مخزني" %}
@@ -632,6 +730,138 @@
           </a>
         </div>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal تحصيل دفعة مقدمة / عربون بتصميم المؤسسة الموحد -->
+<div class="modal fade" id="collectDownPaymentModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header bg-light border-bottom px-4 py-3">
+        <h5 class="modal-title fw-bold text-dark mb-0">
+          <i class="fas fa-hand-holding-usd text-primary me-2"></i>{% trans "تحصيل دفعة مقدمة / عربون" %}
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form method="post" action="{% url 'sale:sales_order_collect_down_payment' so.pk %}">
+        {% csrf_token %}
+        <div class="modal-body p-4">
+          <div class="bg-light p-3 rounded border mb-3">
+            <div class="d-flex justify-content-between small mb-1">
+              <span class="text-muted">{% trans "العميل:" %}</span>
+              <span class="fw-bold text-dark">{{ so.customer.name }}</span>
+            </div>
+            <div class="d-flex justify-content-between small mb-1">
+              <span class="text-muted">{% trans "الدفعة المقدمة المشترطة:" %}</span>
+              <span class="fw-bold text-primary">{{ so.required_down_payment|smart_float:2 }} {{ so.currency_display }}</span>
+            </div>
+            <div class="d-flex justify-content-between small mb-1">
+              <span class="text-muted">{% trans "المحصل حتى الآن:" %}</span>
+              <span class="fw-bold text-success">{{ so.paid_down_payment|smart_float:2 }} {{ so.currency_display }}</span>
+            </div>
+            <div class="d-flex justify-content-between small border-top pt-1 mt-1">
+              <span class="text-muted">{% trans "المتبقي لاستيفاء العربون:" %}</span>
+              <span class="fw-bold text-danger">{{ so.remaining_down_payment|smart_float:2 }} {{ so.currency_display }}</span>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-bold text-dark small">{% trans "مبلغ الدفعة المراد تحصيله" %} <span class="text-danger">*</span></label>
+            <div class="input-group">
+              <input type="number" step="0.01" name="amount" class="form-control fw-bold text-center fs-5" value="{{ so.remaining_down_payment|smart_float }}" min="0.01" max="{{ so.total_amount|subtract:so.paid_down_payment }}" required>
+              <span class="input-group-text px-3">{{ so.currency_display }}</span>
+            </div>
+          </div>
+
+          <div class="row g-3 mb-3">
+            <div class="col-6">
+              <label class="form-label fw-bold text-dark small">{% trans "طريقة الدفع" %} <span class="text-danger">*</span></label>
+              <select name="payment_method" id="collect_payment_method" class="form-select" required>
+                <option value="cash" selected>{% trans "نقداً" %}</option>
+                <option value="bank_transfer">{% trans "تحويل بنكي" %}</option>
+                <option value="pos">{% trans "شبكة / نقاط بيع (POS)" %}</option>
+                <option value="cheque">{% trans "شيك بنكي" %}</option>
+              </select>
+            </div>
+            <div class="col-6">
+              <label class="form-label fw-bold text-dark small">{% trans "تاريخ التحصيل" %} <span class="text-danger">*</span></label>
+              <input type="date" name="payment_date" class="form-control" value="{% now 'Y-m-d' %}" required>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-bold text-dark small" id="collect_account_label">
+              <i class="fas fa-wallet me-1 text-primary"></i>{% trans "الخزينة النقدية المستلمة" %} <span class="text-danger">*</span>
+            </label>
+            <select name="financial_account" id="collect_financial_account" class="form-select" required>
+              <optgroup label="{% trans 'الخزن النقدية' %}" id="collect_optgroup_cash">
+                {% for acc in cash_payment_accounts %}
+                  <option value="{{ acc.id }}" data-type="cash" data-currency="{{ acc.currency_symbol|default:acc.currency_code|default:acc.currency.symbol|default:'ج.م' }}">
+                    {{ acc.code }} - {{ acc.name }} ({{ acc.currency_symbol|default:acc.currency_code|default:acc.currency.symbol|default:'ج.م' }})
+                  </option>
+                {% endfor %}
+              </optgroup>
+              <optgroup label="{% trans 'الحسابات البنكية' %}" id="collect_optgroup_bank" style="display: none;">
+                {% for acc in bank_payment_accounts %}
+                  <option value="{{ acc.id }}" data-type="bank" data-currency="{{ acc.currency_symbol|default:acc.currency_code|default:acc.currency.symbol|default:'ج.م' }}" disabled>
+                    {{ acc.code }} - {{ acc.name }} ({{ acc.currency_symbol|default:acc.currency_code|default:acc.currency.symbol|default:'ج.م' }})
+                  </option>
+                {% endfor %}
+              </optgroup>
+              {% if not cash_payment_accounts and not bank_payment_accounts %}
+                {% for acc in treasury_accounts %}
+                  <option value="{{ acc.id }}">{{ acc.code }} - {{ acc.name }}</option>
+                {% endfor %}
+              {% endif %}
+            </select>
+          </div>
+
+          <div class="mb-0">
+            <label class="form-label fw-bold text-dark small">{% trans "ملاحظات السند" %}</label>
+            <input type="text" name="notes" class="form-control" placeholder="{% trans 'سند قبض دفعة مقدمة عن أمر بيع #' %}{{ so.order_number }}">
+          </div>
+        </div>
+        <div class="modal-footer bg-light border-top px-4 py-3">
+          <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+          <button type="submit" class="btn btn-primary px-4 fw-bold">
+            <i class="fas fa-check-circle me-1"></i>{% trans "تسجيل وإصدار سند القبض" %}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal اعتماد تجاوز إداري (VIP) بتصميم المؤسسة الموحد -->
+<div class="modal fade" id="overrideDownPaymentModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header bg-light border-bottom px-4 py-3">
+        <h5 class="modal-title fw-bold text-dark mb-0">
+          <i class="fas fa-user-shield text-info me-2"></i>{% trans "اعتماد تجاوز شرط الدفعة المقدمة" %}
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form method="post" action="{% url 'sale:sales_order_override_down_payment' so.pk %}">
+        {% csrf_token %}
+        <div class="modal-body p-4">
+          <div class="alert alert-warning py-2 px-3 small mb-3">
+            <i class="fas fa-exclamation-triangle me-1"></i>
+            {% trans "يتيح هذا الإجراء لإدارة المبيعات السماح بصرف البضاعة وإصدار إذن التسليم فوراً دون انتظار استيفاء العربون المالي المشترط في الخزينة." %}
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-bold text-dark small">{% trans "مبرر التجاوز الإداري" %} <span class="text-danger">*</span></label>
+            <textarea name="override_reason" class="form-control" rows="3" placeholder="{% trans 'اذكر سبب اعتماد التجاوز (مثال: عميل VIP ذو جدارة ائتمانية عالية، اتفاقية توريد خاصة)...' %}" required></textarea>
+          </div>
+        </div>
+        <div class="modal-footer bg-light border-top px-4 py-3">
+          <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+          <button type="submit" class="btn btn-info text-white px-4 fw-bold">
+            <i class="fas fa-check me-1"></i>{% trans "تأكيد الاعتماد الإداري" %}
+          </button>
+        </div>
+      </form>
     </div>
   </div>
 </div>
@@ -673,11 +903,17 @@
         </div>
       </form>
     </div>
+  </div>
+</div>
 <form id="approveOrderForm" method="post" action="{% url 'sale:sales_order_confirm' so.pk %}" style="display: none;"
       data-order-number="{{ so.order_number }}"
       data-customer-name="{{ so.customer.name }}"
       data-warehouse-name="{{ so.warehouse.name }}"
-      data-total-amount="{{ so.total_amount|smart_float:2 }} {{ so.currency }}">
+      data-total-amount="{{ so.total_amount|smart_float:2 }} {{ so.currency_display }}">
+  {% csrf_token %}
+</form>
+<form id="cancelOrderForm" method="post" action="{% url 'sale:sales_order_cancel' so.pk %}" style="display: none;"
+      data-order-number="{{ so.order_number }}">
   {% csrf_token %}
 </form>
 
@@ -685,6 +921,45 @@
 
 {% block extra_js %}
 <script>
+function confirmCancelOrder() {
+  var form = document.getElementById("cancelOrderForm");
+  if (!form) return;
+  var orderNumber = form.getAttribute("data-order-number") || "";
+
+  if (typeof Swal !== "undefined") {
+    Swal.fire({
+      title: '<span style="font-size: 18px; font-weight: bold; color: var(--text-dark, #212529);">إلغاء أمر البيع وفك الحجز</span>',
+      html:
+        '<div class="text-start p-2" style="direction: rtl; font-size: 14px; line-height: 1.6;">' +
+        '  <p class="mb-3 text-danger fw-bold">هل أنت متأكد من رغبتك في إلغاء أمر البيع رقم #' + orderNumber + '؟</p>' +
+        '  <div class="alert alert-warning py-2 px-3 mb-0 small" style="border-radius: 6px;">' +
+        '    <i class="fas fa-exclamation-triangle me-1 text-warning"></i>' +
+        '    سيقوم النظام بفك حجز البضاعة المحجوزة بالمخزن فوراً وإرجاعها للرصيد المتاح.' +
+        '  </div>' +
+        '</div>',
+      icon: "warning",
+      iconColor: "#dc3545",
+      showCancelButton: true,
+      confirmButtonText: '<i class="fas fa-times me-1"></i> تأكيد الإلغاء',
+      cancelButtonText: "تراجع",
+      reverseButtons: true,
+      customClass: {
+        confirmButton: "btn btn-danger px-4 mx-1 fw-bold",
+        cancelButton: "btn btn-secondary px-3 mx-1"
+      },
+      buttonsStyling: false
+    }).then(function(result) {
+      if (result.isConfirmed) {
+        form.submit();
+      }
+    });
+  } else {
+    if (confirm("هل أنت متأكد من إلغاء أمر البيع وفك حجز المخزون؟")) {
+      form.submit();
+    }
+  }
+}
+
 function confirmApproveOrder() {
   var form = document.getElementById("approveOrderForm");
   if (!form) return;
@@ -808,6 +1083,41 @@ document.addEventListener("DOMContentLoaded", function() {
       }
     });
   }
+
+  function updateCollectFinancialAccounts() {
+    const method = $('#collect_payment_method').val();
+    const isCash = (method === 'cash');
+    const select = $('#collect_financial_account');
+    const label = $('#collect_account_label');
+
+    if (isCash) {
+      label.html('<i class="fas fa-cash-register me-1 text-success"></i>' + "{% trans 'الخزينة النقدية المستلمة' %}" + ' <span class="text-danger">*</span>');
+      select.find('#collect_optgroup_bank').hide();
+      select.find('#collect_optgroup_cash').show();
+      select.find('option[data-type="bank"]').prop('disabled', true);
+      select.find('option[data-type="cash"]').prop('disabled', false);
+      const firstCash = select.find('option[data-type="cash"]:not([disabled]):first');
+      if (firstCash.length) {
+        select.val(firstCash.val());
+      }
+    } else {
+      label.html('<i class="fas fa-university me-1 text-primary"></i>' + "{% trans 'الحساب البنكي / وسيلة التحصيل' %}" + ' <span class="text-danger">*</span>');
+      select.find('#collect_optgroup_cash').hide();
+      select.find('#collect_optgroup_bank').show();
+      select.find('option[data-type="cash"]').prop('disabled', true);
+      select.find('option[data-type="bank"]').prop('disabled', false);
+      const firstBank = select.find('option[data-type="bank"]:not([disabled]):first');
+      if (firstBank.length) {
+        select.val(firstBank.val());
+      }
+    }
+  }
+
+  $('#collect_payment_method').on('change', updateCollectFinancialAccounts);
+  $('#collectDownPaymentModal').on('shown.bs.modal', function() {
+    updateCollectFinancialAccounts();
+  });
+  updateCollectFinancialAccounts();
 });
 </script>
 {% endblock %}

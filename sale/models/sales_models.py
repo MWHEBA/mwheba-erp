@@ -73,6 +73,10 @@ class SalesOrder(models.Model):
 
     # الشروط والدفعة المقدمة والحقول المخصصة
     required_down_payment = models.DecimalField(_("الدفعة المقدمة المطلوبة"), max_digits=15, decimal_places=2, default=Decimal("0.00"))
+    down_payment_type = models.CharField(_("نوع الدفعة المقدمة"), max_length=15, choices=(("fixed", _("مبلغ ثابت")), ("percentage", _("نسبة مئوية"))), default="fixed")
+    down_payment_override = models.BooleanField(_("تجاوز شرط الدفعة المقدمة إدارياً"), default=False)
+    down_payment_override_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="sales_orders_overridden", verbose_name=_("تم التجاوز بواسطة"))
+    down_payment_override_reason = models.TextField(_("سبب التجاوز الإداري"), blank=True, null=True)
     notes = models.TextField(_("الشروط والملاحظات"), blank=True, null=True)
     custom_fields = models.JSONField(_("الحقول الإضافية"), default=list, blank=True)
 
@@ -83,6 +87,101 @@ class SalesOrder(models.Model):
         verbose_name = _("أمر بيع")
         verbose_name_plural = _("أوامر البيع")
         ordering = ["-order_date", "-id"]
+
+    @property
+    def currency_code(self) -> str:
+        """كود العملة القياسي (ديناميكي 100% من جدول العملات)"""
+        from financial.models import Currency
+        raw = str(self.currency or "").strip()
+        if raw.isdigit():
+            c = Currency.objects.filter(id=int(raw)).first()
+            if c:
+                return c.code
+        elif raw:
+            c = Currency.objects.filter(code__iexact=raw).first()
+            if c:
+                return c.code
+        func_curr = Currency.objects.filter(is_functional=True).first() or Currency.objects.first()
+        return func_curr.code if func_curr else raw
+
+    @property
+    def currency_symbol(self) -> str:
+        """رمز العملة الرسمي (ديناميكي 100% من جدول العملات)"""
+        from financial.models import Currency
+        raw = str(self.currency or "").strip()
+        if raw.isdigit():
+            c = Currency.objects.filter(id=int(raw)).first()
+            if c:
+                return c.symbol or c.code
+        elif raw:
+            c = Currency.objects.filter(code__iexact=raw).first()
+            if c:
+                return c.symbol or c.code
+        func_curr = Currency.objects.filter(is_functional=True).first() or Currency.objects.first()
+        if func_curr:
+            return func_curr.symbol or func_curr.code
+        return raw
+
+    @property
+    def currency_display(self) -> str:
+        """عرض العملة في الواجهات والقوالب"""
+        return self.currency_symbol
+
+    @property
+    def effective_required_down_payment(self) -> Decimal:
+        """
+        القيمة الفعلية للدفعة المقدمة المشترطة بالعملة سواء كانت نسبة مئوية أو مبلغاً ثابتاً
+        """
+        if self.down_payment_type == "percentage":
+            return (self.total_amount * (self.required_down_payment / Decimal("100.00"))).quantize(Decimal("0.01"))
+        return self.required_down_payment or Decimal("0.00")
+
+    @property
+    def paid_down_payment(self) -> Decimal:
+        """
+        مجموع المبالغ المسددة فعلياً من سندات القبض المعتمدة المربوطة بأمر البيع
+        """
+        from django.db.models import Sum
+        val = self.down_payments.filter(status="posted").aggregate(s=Sum("amount"))["s"]
+        return Decimal(str(val)) if val is not None else Decimal("0.00")
+
+    @property
+    def is_down_payment_satisfied(self) -> bool:
+        """
+        التحقق من استيفاء شرط الدفعة المقدمة (سواء بالسداد أو بالتجاوز الإداري)
+        """
+        if self.down_payment_override:
+            return True
+        if self.effective_required_down_payment <= Decimal("0.00"):
+            return True
+        return self.paid_down_payment >= self.effective_required_down_payment
+
+    @property
+    def remaining_down_payment(self) -> Decimal:
+        """
+        المتبقي من الدفعة المقدمة المشترطة
+        """
+        return max(Decimal("0.00"), self.effective_required_down_payment - self.paid_down_payment)
+
+    @property
+    def down_payment_status(self) -> str:
+        """
+        حالة سداد الدفعة المقدمة:
+        - NO_DOWN_PAYMENT: لا يشترط
+        - OVERRIDDEN: تم التجاوز الإداري
+        - SATISFIED: مستوفى بالكامل
+        - PARTIALLY_PAID: مسدد جزئياً
+        - PENDING: معلق بانتظار التحصيل
+        """
+        if self.effective_required_down_payment <= Decimal("0.00"):
+            return "NO_DOWN_PAYMENT"
+        if self.down_payment_override:
+            return "OVERRIDDEN"
+        if self.paid_down_payment >= self.effective_required_down_payment:
+            return "SATISFIED"
+        if self.paid_down_payment > Decimal("0.00"):
+            return "PARTIALLY_PAID"
+        return "PENDING"
 
     def __str__(self):
         return f"{self.order_number} - {self.customer.name} ({self.status})"

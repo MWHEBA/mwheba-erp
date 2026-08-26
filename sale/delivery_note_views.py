@@ -130,7 +130,7 @@ def delivery_note_list(request):
 @login_required
 def delivery_note_create(request):
     """
-    إنشاء إذن تسليم جديد لأمر بيع معتمد
+    إنشاء إذن تسليم جديد لأمر بيع معتمد مع حوكمة سداد الدفعة المقدمة المشترطة
     """
     so_id = request.GET.get("so_id") or request.POST.get("sales_order")
     sales_order = None
@@ -139,6 +139,15 @@ def delivery_note_create(request):
             SalesOrder.objects.select_related("customer", "warehouse").prefetch_related("items__product"),
             pk=int(so_id)
         )
+
+    # التحقق من استيفاء الدفعة المقدمة المشترطة
+    if sales_order and not sales_order.is_down_payment_satisfied:
+        messages.error(
+            request,
+            _("لا يمكن إصدار إذن تسليم مخزني لأمر البيع #{} لعدم استيفاء سداد الدفعة المقدمة المشترطة ({} {}) بالخزينة بعد.")
+            .format(sales_order.order_number, sales_order.required_down_payment, sales_order.currency)
+        )
+        return redirect("sale:sales_order_detail", pk=sales_order.pk)
 
     if request.method == "POST":
         delivery_date = request.POST.get("delivery_date") or timezone.now().date()
@@ -154,6 +163,14 @@ def delivery_note_create(request):
             if not sales_order:
                 so_id_post = request.POST.get("sales_order")
                 sales_order = get_object_or_404(SalesOrder, pk=so_id_post)
+
+            if not sales_order.is_down_payment_satisfied:
+                messages.error(
+                    request,
+                    _("لا يمكن صرف البضاعة من المخزن لأمر البيع #{} قبل استيفاء سداد الدفعة المقدمة المشترطة في الخزينة.")
+                    .format(sales_order.order_number)
+                )
+                return redirect("sale:sales_order_detail", pk=sales_order.pk)
 
             items_data = []
             for i in range(len(so_item_ids)):

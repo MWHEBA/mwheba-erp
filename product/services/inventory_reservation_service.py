@@ -175,27 +175,33 @@ class InventoryReservationService:
     def sweep_expired_reservations(cls, user=None) -> List[InventoryReservation]:
         """
         FIN-SAL-008: تنظيف وإفراج تلقائي عن الحجوزات المنتهية (Sweep Expired Stock Reservations)
+        يستثني تلقائياً أوامر البيع التي تم سداد دفعتها المقدمة بالكامل
         """
         now = timezone.now()
         with transaction.atomic():
             expired_res = InventoryReservation.objects.filter(
-                reservation_status__in=["EXPIRED", "CANCELLED"]
-            )
+                models.Q(reservation_status="ACTIVE", expires_at__lt=now) | models.Q(reservation_status__in=["EXPIRED", "CANCELLED"])
+            ).select_related("sales_order")
             swept = []
             for res in expired_res:
-                res.reservation_status = "EXPIRED"
-                res.released_at = now
-                res.save()
+                # إذا كان أمر البيع مسدداً له العربون، يتم حماية الحجز من الفك التلقائي
+                if res.sales_order and res.sales_order.is_down_payment_satisfied:
+                    continue
 
-                InventoryReservationAudit.objects.create(
-                    reservation=res,
-                    action="EXPIRED",
-                    previous_quantity=res.quantity,
-                    new_quantity=Decimal("0.0000"),
-                    reason="Automatic Sweep: Reservation TTL Expired",
-                    user=user
-                )
-                swept.append(res)
+                if res.reservation_status == "ACTIVE":
+                    res.reservation_status = "EXPIRED"
+                    res.released_at = now
+                    res.save()
+
+                    InventoryReservationAudit.objects.create(
+                        reservation=res,
+                        action="EXPIRED",
+                        previous_quantity=res.quantity,
+                        new_quantity=Decimal("0.0000"),
+                        reason="Automatic Sweep: Reservation TTL Expired without Down Payment",
+                        user=user
+                    )
+                    swept.append(res)
 
             if swept:
                 logger.info(f"Auto-swept {len(swept)} expired stock reservations.")

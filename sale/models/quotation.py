@@ -121,9 +121,12 @@ class Quotation(models.Model):
 
     @property
     def salesman_display_name(self):
-        user = self.salesman or self.created_by
-        if user:
-            return user.get_full_name() or user.username
+        try:
+            user = self.salesman or self.created_by
+            if user:
+                return user.get_full_name() or user.username
+        except Exception:
+            pass
         return ""
 
     class Meta:
@@ -182,3 +185,42 @@ class Quotation(models.Model):
         if curr:
             return getattr(curr, 'symbol', None) or getattr(curr, 'code', 'ج.م')
         return "ج.م"
+
+    @property
+    def active_sales_order(self):
+        """أمر البيع النشط المرتبط بعرض السعر"""
+        try:
+            if hasattr(self, '_prefetched_objects_cache') and 'sales_orders' in self._prefetched_objects_cache:
+                for so in self._prefetched_objects_cache['sales_orders']:
+                    if getattr(so, 'status', None) != 'CANCELLED':
+                        return so
+                return None
+            if hasattr(self, 'sales_orders'):
+                return self.sales_orders.exclude(status="CANCELLED").first()
+        except Exception:
+            pass
+        return None
+
+    @property
+    def latest_sales_order(self):
+        """آخر أمر بيع تم إنشاؤه من عرض السعر (سواء نشط أو ملغى)"""
+        try:
+            if hasattr(self, '_prefetched_objects_cache') and 'sales_orders' in self._prefetched_objects_cache:
+                orders = self._prefetched_objects_cache['sales_orders']
+                return orders[0] if orders else None
+            if hasattr(self, 'sales_orders'):
+                return self.sales_orders.order_by("-id").first()
+        except Exception:
+            pass
+        return None
+
+    @property
+    def is_order_cancelled_awaiting_action(self):
+        """هل تم إلغاء أمر البيع المرتبط وعرض السعر بحاجة لإجراء؟"""
+        try:
+            if getattr(self, 'converted_to_sale', None) or self.active_sales_order:
+                return False
+            latest = self.latest_sales_order
+            return bool(latest and getattr(latest, 'status', None) == "CANCELLED")
+        except Exception:
+            return False

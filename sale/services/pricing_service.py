@@ -17,6 +17,29 @@ class PricingService:
     """
 
     @classmethod
+    def _normalize_date(cls, d):
+        """ضمان تحويل أي مدخل تاريخ إلى كائن datetime.date صحيح لتفادي أخطاء المقارنة مع النصوص"""
+        if not d:
+            return timezone.localdate()
+        if hasattr(d, 'date') and callable(d.date):
+            return d.date()
+        from datetime import date
+        if isinstance(d, date):
+            return d
+        if isinstance(d, str):
+            try:
+                from django.utils.dateparse import parse_date, parse_datetime
+                parsed = parse_date(d)
+                if parsed:
+                    return parsed
+                parsed_dt = parse_datetime(d)
+                if parsed_dt:
+                    return parsed_dt.date()
+            except Exception:
+                pass
+        return timezone.localdate()
+
+    @classmethod
     def get_pricing_context_cache(
         cls,
         customer_id: Optional[int] = None,
@@ -26,7 +49,7 @@ class PricingService:
         """
         جلب وتجهيز كاش قواعد الأسعار والخصومات في استعلامين مجمعين فقط (2 SQL Queries Prefetch)
         """
-        as_of_date = as_of_date or timezone.now().date()
+        as_of_date = cls._normalize_date(as_of_date)
         
         # 1. جلب بنود قائمة الأسعار المحددة
         pl_items_map = {}
@@ -35,37 +58,39 @@ class PricingService:
             try:
                 pl = PriceList.objects.get(
                     pk=price_list_id,
-                    is_active=True,
-                    effective_from__lte=as_of_date
+                    is_active=True
                 )
-                if not (pl.effective_to and pl.effective_to < as_of_date):
+                pl_eff_from = pl.effective_from.date() if hasattr(pl.effective_from, 'date') else pl.effective_from
+                pl_eff_to = pl.effective_to.date() if hasattr(pl.effective_to, 'date') else pl.effective_to
+                if not (pl_eff_from and pl_eff_from > as_of_date) and not (pl_eff_to and pl_eff_to < as_of_date):
                     price_list_currency = pl.currency
                     items_qs = PriceListItem.objects.filter(
                         price_list_id=price_list_id,
-                        is_active=True,
-                        effective_date__lte=as_of_date
+                        is_active=True
                     ).order_by("product_id", "-min_quantity")
                     for it in items_qs:
-                        pl_items_map.setdefault(it.product_id, []).append({
-                            "unit_price": it.unit_price,
-                            "min_quantity": it.min_quantity
-                        })
+                        it_date = it.effective_date.date() if hasattr(it.effective_date, 'date') else it.effective_date
+                        if not it_date or it_date <= as_of_date:
+                            pl_items_map.setdefault(it.product_id, []).append({
+                                "unit_price": it.unit_price,
+                                "min_quantity": it.min_quantity
+                            })
             except PriceList.DoesNotExist:
                 pass
 
         # 2. جلب قواعد الخصم السارية
-        rules_qs = DiscountRule.objects.filter(
-            is_active=True,
-            effective_date__lte=as_of_date
-        ).filter(
-            models.Q(expiry_date__gte=as_of_date) | models.Q(expiry_date__isnull=True)
-        )
+        rules_qs = DiscountRule.objects.filter(is_active=True)
         if customer_id:
             rules_qs = rules_qs.filter(models.Q(customer_id=customer_id) | models.Q(customer__isnull=True))
         else:
             rules_qs = rules_qs.filter(customer__isnull=True)
 
-        rules_list = list(rules_qs.select_related("product", "category", "customer"))
+        rules_list = []
+        for r in rules_qs.select_related("product", "category", "customer"):
+            r_eff = r.effective_date.date() if hasattr(r.effective_date, 'date') else r.effective_date
+            r_exp = r.expiry_date.date() if hasattr(r.expiry_date, 'date') else r.expiry_date
+            if (not r_eff or r_eff <= as_of_date) and (not r_exp or r_exp >= as_of_date):
+                rules_list.append(r)
 
         # حساب الـ version_hash
         hash_seed = f"{customer_id}_{price_list_id}_{len(pl_items_map)}_{len(rules_list)}_{as_of_date}"
@@ -98,7 +123,7 @@ class PricingService:
         الحصول على لقطة تسعير المبيعات الحاكمة للمنتج متضمنة السعر المرجعي والخصم التجاري المستحق
         """
         product = Product.objects.select_related("unit", "category").get(pk=product_id)
-        as_of_date = as_of_date or timezone.now().date()
+        as_of_date = cls._normalize_date(as_of_date)
         base_price = product.selling_price or Decimal("0.00")
         cost_price = product.cost_price or Decimal("0.00")
         target_currency = currency
@@ -120,9 +145,10 @@ class PricingService:
 
         if context_cache and "price_list_items" in context_cache:
             pl_currency = context_cache.get("price_list_currency", "EGP")
-            cached_items = context_cache["price_list_items"].get(product_id, [])
+            cached_items = list(context_cache["price_list_items"].get(product_id, []))
+            cached_items.sort(key=lambda x: Decimal(str(x["min_quantity"])), reverse=True)
             for it in cached_items:
-                if quantity >= it["min_quantity"]:
+                if quantity >= Decimal(str(it["min_quantity"])):
                     base_price = it["unit_price"]
                     matched_pl_item = True
                     break
@@ -130,22 +156,25 @@ class PricingService:
             try:
                 price_list = PriceList.objects.get(
                     pk=price_list_id,
-                    is_active=True,
-                    effective_from__lte=as_of_date
+                    is_active=True
                 )
-                if not (price_list.effective_to and price_list.effective_to < as_of_date):
+                pl_eff_from = price_list.effective_from.date() if hasattr(price_list.effective_from, 'date') else price_list.effective_from
+                pl_eff_to = price_list.effective_to.date() if hasattr(price_list.effective_to, 'date') else price_list.effective_to
+                if not (pl_eff_from and pl_eff_from > as_of_date) and not (pl_eff_to and pl_eff_to < as_of_date):
                     pl_currency = price_list.currency
-                    item = PriceListItem.objects.filter(
+                    items_qs = list(PriceListItem.objects.filter(
                         price_list=price_list,
                         product=product,
-                        min_quantity__lte=quantity,
-                        is_active=True,
-                        effective_date__lte=as_of_date
-                    ).order_by("-min_quantity").first()
+                        is_active=True
+                    ))
+                    items_qs.sort(key=lambda x: Decimal(str(x.min_quantity)), reverse=True)
 
-                    if item:
-                        base_price = item.unit_price
-                        matched_pl_item = True
+                    for item in items_qs:
+                        it_date = item.effective_date.date() if hasattr(item.effective_date, 'date') else item.effective_date
+                        if (not it_date or it_date <= as_of_date) and quantity >= Decimal(str(item.min_quantity)):
+                            base_price = item.unit_price
+                            matched_pl_item = True
+                            break
             except PriceList.DoesNotExist:
                 pass
 
@@ -182,17 +211,17 @@ class PricingService:
         if context_cache and "discount_rules" in context_cache:
             rules_list = context_cache["discount_rules"]
         else:
-            rq = DiscountRule.objects.filter(
-                is_active=True,
-                effective_date__lte=as_of_date
-            ).filter(
-                models.Q(expiry_date__gte=as_of_date) | models.Q(expiry_date__isnull=True)
-            )
+            rq = DiscountRule.objects.filter(is_active=True)
             if customer_id:
                 rq = rq.filter(models.Q(customer_id=customer_id) | models.Q(customer__isnull=True))
             else:
                 rq = rq.filter(customer__isnull=True)
-            rules_list = list(rq.select_related("product", "category", "customer"))
+            rules_list = []
+            for r in rq.select_related("product", "category", "customer"):
+                r_eff = r.effective_date.date() if hasattr(r.effective_date, 'date') else r.effective_date
+                r_exp = r.expiry_date.date() if hasattr(r.expiry_date, 'date') else r.expiry_date
+                if (not r_eff or r_eff <= as_of_date) and (not r_exp or r_exp >= as_of_date):
+                    rules_list.append(r)
 
         matched_rules = []
         cat_id = product.category_id
@@ -309,7 +338,7 @@ class PricingService:
         """
         تقييم سلة بنود المبيعات بالكامل دفعة واحدة مع التوزيع النسبي للخصومات وحساب وعاء الفاتورة الإلكترونية ETA
         """
-        as_of_date = as_of_date or timezone.now().date()
+        as_of_date = cls._normalize_date(as_of_date)
         context_cache = cls.get_pricing_context_cache(customer_id, price_list_id, as_of_date)
 
         # 1. تجميع كميات الفئات المشتركة

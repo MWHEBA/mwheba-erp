@@ -200,6 +200,54 @@ class QuotationSystemTest(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, quotation.number)
 
+    def test_quotation_list_with_cancelled_and_active_orders(self):
+        """
+        اختبار قائمة عروض الأسعار مع وجود أوامر بيع ملغاة ونشطة ومحولة
+        """
+        from sale.models import SalesOrder
+        
+        # 1. عرض سعر ملغى أمره
+        quote_cancelled = Quotation.objects.create(
+            customer=self.customer,
+            warehouse=self.warehouse,
+            date=timezone.now().date(),
+            created_by=self.admin
+        )
+        so_cancelled = SalesOrder.objects.create(
+            order_number="SO-TEST-CANCEL",
+            customer=self.customer,
+            warehouse=self.warehouse,
+            order_date=timezone.now().date(),
+            quotation_reference=quote_cancelled,
+            status="CANCELLED",
+            total_amount=Decimal("100.00"),
+            created_by=self.admin
+        )
+
+        # 2. عرض سعر نشط أمره
+        quote_active = Quotation.objects.create(
+            customer=self.customer,
+            warehouse=self.warehouse,
+            date=timezone.now().date(),
+            created_by=self.admin
+        )
+        so_active = SalesOrder.objects.create(
+            order_number="SO-TEST-ACTIVE",
+            customer=self.customer,
+            warehouse=self.warehouse,
+            order_date=timezone.now().date(),
+            quotation_reference=quote_active,
+            status="APPROVED",
+            total_amount=Decimal("200.00"),
+            created_by=self.admin
+        )
+
+        response = self.client.get(reverse("sale:quotation_list"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, quote_cancelled.number)
+        self.assertContains(response, quote_active.number)
+        self.assertContains(response, "SO-TEST-ACTIVE")
+
     def test_convert_quotation_to_sale_invoice(self):
         """
         اختبار تحويل عرض السعر إلى فاتورة مبيعات والتأكد من نقل كافة البيانات بدقة

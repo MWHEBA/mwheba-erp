@@ -473,11 +473,11 @@ class CustomerAllocationAuditService:
 
                 gateway = AccountingGateway()
                 gateway.create_journal_entry(
-                    source_module="sale",
+                    source_module="client",
                     source_model="CustomerAllocationAudit",
                     source_id=last_audit.id if last_audit else sale.id,
                     lines=lines,
-                    idempotency_key=f"JE:sale:CustomerAllocationAudit:{last_audit.id if last_audit else sale.id}:reclassify",
+                    idempotency_key=f"JE:client:CustomerAllocationAudit:{last_audit.id if last_audit else sale.id}:reclassify",
                     user=user or sale.created_by,
                     entry_type="automatic",
                     description=f"تسوية رصيد مسبق للعميل {locked_customer.name}",
@@ -612,6 +612,11 @@ class CustomerAllocationAuditService:
             return rev_audit
 
     @classmethod
+    def create_prepaid_payment(cls, *args, **kwargs):
+        """اسم بديل موحد لإنشاء الدفعات المقدمة"""
+        return cls.create_customer_advance_payment(*args, **kwargs)
+
+    @classmethod
     def create_customer_advance_payment(
         cls,
         customer_id: int,
@@ -622,7 +627,10 @@ class CustomerAllocationAuditService:
         reference_number: Optional[str] = None,
         notes: Optional[str] = None,
         currency=None,
-        user=None
+        user=None,
+        sales_order=None,
+        cost_center=None,
+        salesman=None
     ):
         """
         إضافة رصيد مسبق/دفعة مقدمة جديدة للعميل وتوليد القيد المحاسبي التلقائي
@@ -655,7 +663,11 @@ class CustomerAllocationAuditService:
                 currency=currency or customer.default_currency,
                 payment_date=payment_date,
                 payment_method=payment_method,
-                reference_number=reference_number,
+                financial_account=fin_account,
+                sales_order=sales_order,
+                cost_center=cost_center or (sales_order.cost_center if sales_order else None),
+                salesman=salesman or (sales_order.salesman if sales_order else None),
+                reference_number=reference_number or (f"SO-{sales_order.order_number}" if sales_order else None),
                 notes=notes,
                 created_by=user,
                 status="posted"
@@ -678,21 +690,23 @@ class CustomerAllocationAuditService:
             )
 
             try:
+                from governance.services.accounting_gateway import JournalEntryLineData, AccountingGateway
                 advance_acc = ChartOfAccounts.objects.filter(code="20200").first()
                 debit_acc_code = fin_account.code if fin_account else (customer.financial_account.code if customer.financial_account else "10101")
+                so_ref_text = f" عن أمر بيع #{sales_order.order_number}" if sales_order else ""
                 if advance_acc:
                     lines = [
                         JournalEntryLineData(
                             account_code=debit_acc_code,
                             debit=amount,
                             credit=Decimal("0.00"),
-                            description=f"تحصيل رصيد مسبق من العميل {customer.name}"
+                            description=f"تحصيل دفعة مقدمة من العميل {customer.name}{so_ref_text}"
                         ),
                         JournalEntryLineData(
                             account_code=advance_acc.code,
                             debit=Decimal("0.00"),
                             credit=amount,
-                            description=f"دفعة مقدمة للعميل {customer.name} - مرجع #{payment.id}"
+                            description=f"دفعة مقدمة للعميل {customer.name}{so_ref_text} - مرجع #{payment.id}"
                         )
                     ]
                     gateway = AccountingGateway()
@@ -704,7 +718,7 @@ class CustomerAllocationAuditService:
                         idempotency_key=f"JE:client:CustomerPayment:{payment.id}",
                         user=user,
                         entry_type="automatic",
-                        description=f"إثبات رصيد مسبق للعميل {customer.name}",
+                        description=f"إثبات دفعة مقدمة للعميل {customer.name}{so_ref_text}",
                         reference=f"دفعة مقدمة #{payment.id}"
                     )
             except Exception as e:
