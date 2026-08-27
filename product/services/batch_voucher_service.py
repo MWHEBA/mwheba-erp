@@ -221,8 +221,11 @@ class BatchVoucherService:
             
             # للتحويل: إنشاء حركة الدخول للمخزن الهدف
             if batch_voucher.voucher_type == 'transfer':
-                movement_in_number = serial.get_next_number()
-                movement_in_number_str = f"{serial.prefix}{movement_in_number:04d}"
+                movement_in_number_str = SequenceService.get_next_number(
+                    DocumentType.STOCK_RECEIPT,
+                    warehouse=batch_voucher.target_warehouse,
+                    date=batch_voucher.voucher_date
+                )
                 
                 movement_in = InventoryMovement.objects.create(
                     movement_number=movement_in_number_str,

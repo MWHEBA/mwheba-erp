@@ -148,26 +148,9 @@
                                         {{ form.date|as_crispy_field }}
                                     </div>
 
-                                    <!-- مدة الصلاحية بالأيام مع الحساب التلقائي -->
+                                    <!-- تاريخ انتهاء الصلاحية (صالح حتى) -->
                                     <div class="col-12 col-md-6">
-                                        <label class="form-label d-flex justify-content-between align-items-center" for="id_validity_days">
-                                            <span>{% trans "مدة الصلاحية (بالأيام)" %} <i class="fas fa-hourglass-half text-primary me-1"></i></span>
-                                            <span class="badge bg-light text-primary border" id="valid_until_badge" style="font-size: 0.72rem;"></span>
-                                        </label>
-                                        <div class="input-group">
-                                            <input type="number" id="id_validity_days" class="form-control text-center fw-bold" min="1" max="365" placeholder="15" value="{{ quotation.validity_days|default:'15' }}">
-                                            <span class="input-group-text bg-light text-muted">{% trans "يوم" %}</span>
-                                        </div>
-                                        <div class="d-flex gap-1 mt-1 justify-content-between align-items-center flex-wrap">
-                                            <div class="btn-group btn-group-sm">
-                                                <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-2 quick-days-btn" data-days="7" style="font-size: 0.75rem;">7 أيام</button>
-                                                <button type="button" class="btn btn-primary text-white btn-sm py-0 px-2 quick-days-btn" data-days="15" style="font-size: 0.75rem;">15 يوم</button>
-                                                <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-2 quick-days-btn" data-days="30" style="font-size: 0.75rem;">30 يوم</button>
-                                            </div>
-                                            <small class="text-muted" id="valid_until_text" style="font-size: 0.75rem;"></small>
-                                        </div>
-                                        <!-- حقل valid_until المخفي لضمان الإرسال السليم للخادم وقواعد البيانات -->
-                                        <input type="hidden" name="valid_until" id="id_valid_until" value="{{ form.valid_until.value|default:'' }}">
+                                        {{ form.valid_until|as_crispy_field }}
                                     </div>
 
                                     <!-- العملة وسعر الصرف -->
@@ -961,101 +944,8 @@
         $('.item-row').each(function() { calculateRowTotal($(this)); });
         calculateTotals();
 
-        // ==========================================
-        // إدارة مدة الصلاحية وحساب تاريخ الانتهاء تلقائياً
-        // ==========================================
-        function updateValidUntilFromDays() {
-            var dateInput = document.querySelector('input[name="date"]') || document.getElementById('id_date');
-            var daysInput = document.getElementById('id_validity_days');
-            var validUntilInput = document.getElementById('id_valid_until');
-            var badgeEl = document.getElementById('valid_until_badge');
-            var textEl = document.getElementById('valid_until_text');
-
-            if (!daysInput || !validUntilInput) return;
-
-            var days = parseInt(daysInput.value, 10);
-            if (isNaN(days) || days < 1) {
-                days = 15;
-            }
-
-            var baseDateStr = dateInput ? dateInput.value : '';
-            var baseDate = new Date();
-
-            if (baseDateStr) {
-                if (baseDateStr.includes('-') && baseDateStr.split('-')[0].length === 4) {
-                    var parts = baseDateStr.split('-');
-                    baseDate = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
-                } else if (baseDateStr.includes('/')) {
-                    var parts = baseDateStr.split('/');
-                    if (parts[2] && parts[2].length === 4) {
-                        baseDate = new Date(parseInt(parts[2], 10), parseInt(parts[1], 10) - 1, parseInt(parts[0], 10));
-                    }
-                } else {
-                    var parsed = new Date(baseDateStr);
-                    if (!isNaN(parsed.getTime())) baseDate = parsed;
-                }
-            }
-
-            if (isNaN(baseDate.getTime())) {
-                baseDate = new Date();
-            }
-
-            var targetDate = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate() + days);
-            var yyyy = targetDate.getFullYear();
-            var mm = String(targetDate.getMonth() + 1).padStart(2, '0');
-            var dd = String(targetDate.getDate()).padStart(2, '0');
-            var formattedDate = yyyy + '-' + mm + '-' + dd;
-            var displayDate = dd + '-' + mm + '-' + yyyy;
-
-            validUntilInput.value = formattedDate;
-            if (badgeEl) {
-                badgeEl.textContent = 'ينتهي: ' + displayDate;
-            }
-            if (textEl) {
-                textEl.innerHTML = '<i class="fas fa-calendar-check text-success me-1"></i>صالح حتى: <strong>' + displayDate + '</strong>';
-            }
-        }
-
-        var initialValidUntilVal = $('#id_valid_until').val();
-        var initialDateVal = $('input[name="date"]').val();
-        if (initialValidUntilVal && initialDateVal) {
-            try {
-                var d1 = new Date(initialDateVal);
-                var d2 = new Date(initialValidUntilVal);
-                if (!isNaN(d1.getTime()) && !isNaN(d2.getTime())) {
-                    var diffDays = Math.round((d2 - d1) / (1000 * 60 * 60 * 24));
-                    if (diffDays > 0) {
-                        $('#id_validity_days').val(diffDays);
-                        $('.quick-days-btn').removeClass('btn-primary text-white').addClass('btn-outline-secondary');
-                        $('.quick-days-btn[data-days="' + diffDays + '"]').removeClass('btn-outline-secondary').addClass('btn-primary text-white');
-                    }
-                }
-            } catch (e) {}
-        }
-        updateValidUntilFromDays();
-
-        $('#id_validity_days').on('input change', function() {
-            var val = parseInt($(this).val(), 10);
-            $('.quick-days-btn').removeClass('btn-primary text-white').addClass('btn-outline-secondary');
-            $('.quick-days-btn[data-days="' + val + '"]').removeClass('btn-outline-secondary').addClass('btn-primary text-white');
-            updateValidUntilFromDays();
-        });
-
-        $('.quick-days-btn').on('click', function() {
-            var d = $(this).data('days');
-            $('#id_validity_days').val(d);
-            $('.quick-days-btn').removeClass('btn-primary text-white').addClass('btn-outline-secondary');
-            $(this).removeClass('btn-outline-secondary').addClass('btn-primary text-white');
-            updateValidUntilFromDays();
-        });
-
-        $('input[name="date"]').on('input change', function() {
-            updateValidUntilFromDays();
-        });
-
         // ===== التحقق قبل الإرسال =====
         $('#quotation-form').on('submit', function(e) {
-            updateValidUntilFromDays();
             if (typeof ProductPicker !== 'undefined' && typeof ProductPicker.sanitizeTrailingEmptyRows === 'function') {
                 ProductPicker.sanitizeTrailingEmptyRows();
             }

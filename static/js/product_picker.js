@@ -98,6 +98,7 @@
             var currencySymbol = opts.currencySymbol || 'ج.م';
             var isPurchase = (opts.type === 'purchase');
             var isServiceType = (opts.allowedItemTypes === 'services');
+            var isBatchVoucher = (opts.type === 'batch_voucher' || opts.type === 'voucher');
             
             var labelProductText = isServiceType ? 'الخدمة' : (isPurchase ? 'المنتج / الصنف' : 'المنتج / الخدمة');
             var priceFieldName = 'unit_price[]';
@@ -139,34 +140,59 @@
                 ? '<a href="javascript:void(0)" class="remove-item" title="إزالة البند"><i class="fas fa-times-circle"></i></a>'
                 : '';
 
-            var $row = $('<div class="item-row row g-2 align-items-center">' +
-                '<input type="hidden" name="item_id[]" class="item-id-input" value="' + itemId + '">' +
-                '<div class="col-12 col-md-2">' +
-                    '<label class="form-label form-label-sm product-code-label">الكود / الباركود</label>' +
-                    '<input type="text" class="form-control form-control-sm product-code-input" placeholder="الكود / الباركود" value="' + productCode + '">' +
-                '</div>' +
-                '<div class="col-12 col-md-3">' +
-                    '<div class="product-header-row d-flex align-items-center mb-1 justify-content-between">' +
-                        '<label class="form-label form-label-sm product-label product-header required-field mb-0">' + labelProductText + '</label>' +
-                        '<span class="stock-info"></span>' +
+            var $row;
+            if (isBatchVoucher) {
+                $row = $('<div class="item-row row g-2 align-items-center">' +
+                    '<input type="hidden" name="item_id[]" class="item-id-input" value="' + itemId + '">' +
+                    '<div class="col-12 col-md-2">' +
+                        '<label class="form-label form-label-sm product-code-label">الكود / الباركود</label>' +
+                        '<input type="text" class="form-control form-control-sm product-code-input" placeholder="الكود / الباركود" value="' + productCode + '">' +
                     '</div>' +
-                    '<button type="button" class="product-picker-btn"><span class="' + (productId ? 'selected-text' : 'placeholder-text text-muted') + '">' + productName + '</span><i class="fas fa-th-large text-muted small"></i></button>' +
-                    '<input type="hidden" name="product[]" class="product-id-input" value="' + productId + '" data-price="' + productPrice + '" data-stock="' + productStock + '" data-is-service="' + isService + '" required>' +
-                    '<input type="hidden" name="variant[]" class="variant-id-input" value="' + variantId + '">' +
-                    '<input type="hidden" name="unit[]" class="unit-id-input" value="' + unitId + '">' +
-                '</div>' +
-                '<div class="col-6 col-md-2"><label class="form-label form-label-sm required-field">' + (isPurchase ? 'الكمية المطلوبة' : 'الكمية') + '</label><input type="number" name="quantity[]" class="form-control form-control-sm quantity" min="0.0001" step="0.0001" value="' + qty + '" required></div>' +
-                '<div class="col-6 col-md-2"><label class="form-label form-label-sm required-field">' + (isPurchase ? 'سعر الشراء' : 'سعر الوحدة') + '</label><input type="number" step="0.0001" name="' + priceFieldName + '" class="form-control form-control-sm unit-price" value="' + unitPrice + '" required ' + priceReadonly + '></div>' +
-                '<div class="col-6 col-md-1">' +
-                    '<div class="discount-header-row d-flex align-items-center mb-1 justify-content-center">' +
-                        '<label class="form-label form-label-sm discount-label mb-0">الخصم</label>' +
-                        '<span class="discount-rule-info discount-rule-badge"></span>' +
+                    '<div class="col-12 col-md-4">' +
+                        '<div class="product-header-row d-flex align-items-center mb-1 justify-content-between">' +
+                            '<label class="form-label form-label-sm product-label product-header required-field mb-0">المنتج <span class="text-danger">*</span></label>' +
+                            '<span class="stock-info"></span>' +
+                        '</div>' +
+                        '<button type="button" class="product-picker-btn"><span class="' + (productId ? 'selected-text' : 'placeholder-text text-muted') + '">' + productName + '</span><i class="fas fa-th-large text-muted small"></i></button>' +
+                        '<input type="hidden" name="product[]" class="product-id-input" value="' + productId + '" data-price="' + productPrice + '" data-stock="' + productStock + '" data-is-service="' + isService + '" required>' +
+                        '<input type="hidden" name="variant[]" class="variant-id-input" value="' + variantId + '">' +
+                        '<input type="hidden" name="unit[]" class="unit-id-input" value="' + unitId + '">' +
                     '</div>' +
-                    '<input type="number" name="discount[]" class="form-control form-control-sm item-discount" min="0" step="0.01" value="' + itemDisc + '">' +
-                '</div>' +
-                '<div class="col-6 col-md-2"><label class="form-label form-label-sm">الإجمالي</label><div class="input-group input-group-sm"><input type="text" class="form-control form-control-sm item-total" value="' + itemTotal + '" readonly><span class="input-group-text px-1">' + currencySymbol + '</span></div></div>' +
-                removeBtn +
-            '</div>');
+                    '<div class="col-6 col-md-2"><label class="form-label form-label-sm required-field">الكمية <span class="text-danger">*</span></label><input type="number" name="quantity[]" class="form-control form-control-sm quantity text-center" min="1" step="1" value="' + qty + '" required></div>' +
+                    '<div class="col-6 col-md-2"><label class="form-label form-label-sm">تكلفة الوحدة</label><input type="text" inputmode="decimal" name="unit_cost[]" class="form-control form-control-sm unit-cost bg-light text-center" value="' + unitPrice + '" readonly></div>' +
+                    '<div class="col-6 col-md-2"><label class="form-label form-label-sm">الإجمالي</label><div class="input-group input-group-sm"><input type="text" class="form-control form-control-sm item-total text-center" value="' + itemTotal + '" readonly><span class="input-group-text px-1">' + currencySymbol + '</span></div></div>' +
+                    removeBtn +
+                '</div>');
+            } else {
+                $row = $('<div class="item-row row g-2 align-items-center">' +
+                    '<input type="hidden" name="item_id[]" class="item-id-input" value="' + itemId + '">' +
+                    '<div class="col-12 col-md-2">' +
+                        '<label class="form-label form-label-sm product-code-label">الكود / الباركود</label>' +
+                        '<input type="text" class="form-control form-control-sm product-code-input" placeholder="الكود / الباركود" value="' + productCode + '">' +
+                    '</div>' +
+                    '<div class="col-12 col-md-3">' +
+                        '<div class="product-header-row d-flex align-items-center mb-1 justify-content-between">' +
+                            '<label class="form-label form-label-sm product-label product-header required-field mb-0">' + labelProductText + '</label>' +
+                            '<span class="stock-info"></span>' +
+                        '</div>' +
+                        '<button type="button" class="product-picker-btn"><span class="' + (productId ? 'selected-text' : 'placeholder-text text-muted') + '">' + productName + '</span><i class="fas fa-th-large text-muted small"></i></button>' +
+                        '<input type="hidden" name="product[]" class="product-id-input" value="' + productId + '" data-price="' + productPrice + '" data-stock="' + productStock + '" data-is-service="' + isService + '" required>' +
+                        '<input type="hidden" name="variant[]" class="variant-id-input" value="' + variantId + '">' +
+                        '<input type="hidden" name="unit[]" class="unit-id-input" value="' + unitId + '">' +
+                    '</div>' +
+                    '<div class="col-6 col-md-2"><label class="form-label form-label-sm required-field">' + (isPurchase ? 'الكمية المطلوبة' : 'الكمية') + '</label><input type="number" name="quantity[]" class="form-control form-control-sm quantity" min="0.0001" step="0.0001" value="' + qty + '" required></div>' +
+                    '<div class="col-6 col-md-2"><label class="form-label form-label-sm required-field">' + (isPurchase ? 'سعر الشراء' : 'سعر الوحدة') + '</label><input type="number" step="0.0001" name="' + priceFieldName + '" class="form-control form-control-sm unit-price" value="' + unitPrice + '" required ' + priceReadonly + '></div>' +
+                    '<div class="col-6 col-md-1">' +
+                        '<div class="discount-header-row d-flex align-items-center mb-1 justify-content-center">' +
+                            '<label class="form-label form-label-sm discount-label mb-0">الخصم</label>' +
+                            '<span class="discount-rule-info discount-rule-badge"></span>' +
+                        '</div>' +
+                        '<input type="number" name="discount[]" class="form-control form-control-sm item-discount" min="0" step="0.01" value="' + itemDisc + '">' +
+                    '</div>' +
+                    '<div class="col-6 col-md-2"><label class="form-label form-label-sm">الإجمالي</label><div class="input-group input-group-sm"><input type="text" class="form-control form-control-sm item-total" value="' + itemTotal + '" readonly><span class="input-group-text px-1">' + currencySymbol + '</span></div></div>' +
+                    removeBtn +
+                '</div>');
+            }
 
             if (productId && typeof this.renderStockState === 'function') {
                 this.renderStockState($row, {
@@ -537,11 +563,16 @@
                 if (e.which === 13 || e.key === 'Enter') {
                     e.preventDefault();
                     var $row = $(this).closest('.item-row');
-                    $row.find('.unit-price').focus().select();
+                    var $nextInput = $row.find('.unit-price:not([readonly]), .unit-cost:not([readonly])');
+                    if ($nextInput.length) {
+                        $nextInput.focus().select();
+                    } else {
+                        $('#add-item').trigger('click');
+                    }
                 }
             });
 
-            $(document).off('keydown.enterFocusNewRow', '#items-container .unit-price, #items-container .item-discount').on('keydown.enterFocusNewRow', '#items-container .unit-price, #items-container .item-discount', function(e) {
+            $(document).off('keydown.enterFocusNewRow', '#items-container .unit-price, #items-container .unit-cost, #items-container .item-discount').on('keydown.enterFocusNewRow', '#items-container .unit-price, #items-container .unit-cost, #items-container .item-discount', function(e) {
                 if (e.which === 13 || e.key === 'Enter') {
                     e.preventDefault();
                     $('#add-item').trigger('click');
@@ -899,7 +930,7 @@
                 $row.find('.unit-id-input').val(product.unit_id);
             }
 
-            $row.find('.unit-price').val(effectivePrice !== '' && effectivePrice !== undefined ? (typeof smartFloat === 'function' ? smartFloat(effectivePrice) : effectivePrice) : '');
+            $row.find('.unit-price, .unit-cost').val(effectivePrice !== '' && effectivePrice !== undefined ? (typeof smartFloat === 'function' ? smartFloat(effectivePrice) : effectivePrice) : '');
 
             // تطبيق الخصم التلقائي إن وجد
             $row.find('.cost-warning-badge').remove();

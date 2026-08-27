@@ -53,6 +53,8 @@ class BatchVoucherListView(UnifiedPaginationMixin, LoginRequiredMixin, Permissio
         context.update({
             'active_menu': 'product',
             'title': 'الأذون الجماعية',
+            'page_icon': 'fas fa-layer-group',
+            'icon': 'fas fa-layer-group',
             'breadcrumb_items': [
                 {'title': 'الرئيسية', 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},
                 {'title': 'المنتجات', 'url': reverse('product:product_list'), 'icon': 'fas fa-box'},
@@ -75,28 +77,55 @@ class BatchVoucherCreateView(LoginRequiredMixin, PermissionRequiredMixin, Create
     def get_initial(self):
         initial = super().get_initial()
         from product.models.stock_management import Warehouse
-        default_warehouse = (
-            Warehouse.objects.filter(is_active=True, name__icontains='رئيس').first()
-            or Warehouse.objects.filter(is_active=True).first()
-        )
-        if default_warehouse:
-            initial['warehouse'] = default_warehouse
-        initial['voucher_type'] = 'transfer'
+        
+        warehouse_id = self.request.GET.get('warehouse')
+        if warehouse_id:
+            try:
+                initial['warehouse'] = Warehouse.objects.get(id=warehouse_id, is_active=True)
+            except (Warehouse.DoesNotExist, ValueError):
+                pass
+        
+        if 'warehouse' not in initial or not initial['warehouse']:
+            default_warehouse = (
+                Warehouse.objects.filter(is_active=True, name__icontains='رئيس').first()
+                or Warehouse.objects.filter(is_active=True).first()
+            )
+            if default_warehouse:
+                initial['warehouse'] = default_warehouse
+        
+        initial['voucher_type'] = self.request.GET.get('voucher_type') or 'transfer'
+        if self.request.GET.get('target_warehouse'):
+            initial['target_warehouse'] = self.request.GET.get('target_warehouse')
+        if self.request.GET.get('purpose_type'):
+            initial['purpose_type'] = self.request.GET.get('purpose_type')
+        initial['voucher_date'] = timezone.now()
         return initial
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        from product.models.stock_management import Warehouse
+        from core.models import SystemSetting
+
+        warehouses = Warehouse.objects.filter(is_active=True).order_by('name')
+        currency_symbol = SystemSetting.get_currency_symbol()
         product_categories = Category.objects.filter(
             is_active=True, products__is_active=True, products__is_service=False, products__is_bundle=False
         ).distinct().order_by('name')
         context.update({
             'active_menu': 'product',
             'title': 'إذن جماعي جديد',
+            'page_icon': 'fas fa-layer-group',
+            'icon': 'fas fa-layer-group',
+            'warehouses': warehouses,
+            'currency_symbol': currency_symbol,
             'product_categories': product_categories,
             'breadcrumb_items': [
                 {'title': 'الرئيسية', 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},
-                {'title': 'الأذون الجماعية', 'url': reverse('product:batch_voucher_list'), 'icon': 'fas fa-file-invoice'},
+                {'title': 'الأذون الجماعية', 'url': reverse('product:batch_voucher_list'), 'icon': 'fas fa-layer-group'},
                 {'title': 'إذن جديد', 'active': True}
+            ],
+            'header_buttons': [
+                {'url': reverse('product:batch_voucher_list'), 'icon': 'fa-arrow-right', 'text': 'العودة للأذون', 'class': 'btn-outline-secondary'}
             ]
         })
         return context
@@ -111,27 +140,33 @@ class BatchVoucherCreateView(LoginRequiredMixin, PermissionRequiredMixin, Create
         product_ids = request.POST.getlist('product[]')
         quantities = request.POST.getlist('quantity[]')
         unit_costs = request.POST.getlist('unit_cost[]')
+        if not unit_costs:
+            unit_costs = request.POST.getlist('unit_price[]')
 
         # تجميع البنود الصالحة
         valid_items = []
         for pid, qty, cost in zip(product_ids, quantities, unit_costs):
             if pid and qty:
                 try:
-                    valid_items.append({
-                        'product_id': int(pid),
-                        'quantity': int(str(qty).replace(',', '')),
-                        'unit_cost': float(str(cost).replace(',', '')) if cost else 0.0,
-                    })
+                    qty_val = int(float(str(qty).replace(',', '')))
+                    cost_val = float(str(cost).replace(',', '')) if cost else 0.0
+                    if qty_val > 0:
+                        valid_items.append({
+                            'product_id': int(pid),
+                            'quantity': qty_val,
+                            'unit_cost': cost_val,
+                        })
                 except (ValueError, TypeError):
                     continue
 
         if not valid_items:
-            form.add_error(None, 'يرجى إضافة منتج واحد على الأقل')
+            form.add_error(None, 'يرجى إضافة بند واحد على الأقل مع تحديد المنتج والكمية')
             return self.form_invalid(form)
 
         voucher = form.save(commit=False)
         voucher.created_by = request.user
-        voucher.voucher_date = timezone.now()
+        if not voucher.voucher_date:
+            voucher.voucher_date = timezone.now()
         voucher.save()
 
         for item in valid_items:
@@ -164,6 +199,10 @@ class BatchVoucherUpdateView(LoginRequiredMixin, PermissionRequiredMixin, Update
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        from core.models import SystemSetting
+
+        warehouses = Warehouse.objects.filter(is_active=True).order_by('name')
+        currency_symbol = SystemSetting.get_currency_symbol()
         product_categories = Category.objects.filter(
             is_active=True, products__is_active=True, products__is_service=False, products__is_bundle=False
         ).distinct().order_by('name')
@@ -172,13 +211,21 @@ class BatchVoucherUpdateView(LoginRequiredMixin, PermissionRequiredMixin, Update
         context.update({
             'active_menu': 'product',
             'title': f'تعديل الإذن {self.object.voucher_number}',
+            'page_icon': 'fas fa-layer-group',
+            'icon': 'fas fa-layer-group',
+            'warehouses': warehouses,
+            'currency_symbol': currency_symbol,
             'product_categories': product_categories,
             'existing_items': existing_items,
             'breadcrumb_items': [
                 {'title': 'الرئيسية', 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},
-                {'title': 'الأذون الجماعية', 'url': reverse('product:batch_voucher_list'), 'icon': 'fas fa-file-invoice'},
+                {'title': 'الأذون الجماعية', 'url': reverse('product:batch_voucher_list'), 'icon': 'fas fa-layer-group'},
                 {'title': self.object.voucher_number, 'url': reverse('product:batch_voucher_detail', args=[self.object.pk])},
                 {'title': 'تعديل', 'active': True}
+            ],
+            'header_buttons': [
+                {'url': reverse('product:batch_voucher_detail', args=[self.object.pk]), 'icon': 'fa-eye', 'text': 'عرض الإذن', 'class': 'btn-outline-primary'},
+                {'url': reverse('product:batch_voucher_list'), 'icon': 'fa-arrow-right', 'text': 'العودة للأذون', 'class': 'btn-outline-secondary'}
             ]
         })
         return context
@@ -193,26 +240,30 @@ class BatchVoucherUpdateView(LoginRequiredMixin, PermissionRequiredMixin, Update
         product_ids = request.POST.getlist('product[]')
         quantities = request.POST.getlist('quantity[]')
         unit_costs = request.POST.getlist('unit_cost[]')
+        if not unit_costs:
+            unit_costs = request.POST.getlist('unit_price[]')
 
         valid_items = []
         for pid, qty, cost in zip(product_ids, quantities, unit_costs):
             if pid and qty:
                 try:
-                    valid_items.append({
-                        'product_id': int(pid),
-                        'quantity': int(str(qty).replace(',', '')),
-                        'unit_cost': float(str(cost).replace(',', '')) if cost else 0.0,
-                    })
+                    qty_val = int(float(str(qty).replace(',', '')))
+                    cost_val = float(str(cost).replace(',', '')) if cost else 0.0
+                    if qty_val > 0:
+                        valid_items.append({
+                            'product_id': int(pid),
+                            'quantity': qty_val,
+                            'unit_cost': cost_val,
+                        })
                 except (ValueError, TypeError):
                     continue
 
         if not valid_items:
-            form.add_error(None, 'يرجى إضافة منتج واحد على الأقل')
+            form.add_error(None, 'يرجى إضافة بند واحد على الأقل مع تحديد المنتج والكمية')
             return self.form_invalid(form)
 
         voucher = form.save(commit=False)
         voucher.updated_by = request.user
-        voucher.voucher_date = timezone.now()
         voucher.save()
 
         # حذف البنود القديمة وإعادة إنشاؤها
@@ -245,6 +296,7 @@ class BatchVoucherDetailView(LoginRequiredMixin, PermissionRequiredMixin, Detail
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        from core.models import SystemSetting
         
         # جلب الحركات الفردية المرتبطة بالإذن الجماعي
         inventory_movements = self.object.inventory_movements.select_related(
@@ -279,6 +331,13 @@ class BatchVoucherDetailView(LoginRequiredMixin, PermissionRequiredMixin, Detail
             })
         
         header_buttons.append({
+            'onclick': 'window.print()',
+            'icon': 'fa-print',
+            'text': 'طباعة',
+            'class': 'btn-outline-secondary'
+        })
+
+        header_buttons.append({
             'url': reverse('product:batch_voucher_list'),
             'icon': 'fa-arrow-right',
             'text': 'العودة',
@@ -288,13 +347,16 @@ class BatchVoucherDetailView(LoginRequiredMixin, PermissionRequiredMixin, Detail
         context.update({
             'active_menu': 'product',
             'title': f'تفاصيل الإذن {self.object.voucher_number}',
+            'page_icon': 'fas fa-layer-group',
+            'icon': 'fas fa-layer-group',
+            'currency_symbol': SystemSetting.get_currency_symbol(),
             'breadcrumb_items': [
                 {'title': 'الرئيسية', 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},
-                {'title': 'الأذون الجماعية', 'url': reverse('product:batch_voucher_list'), 'icon': 'fas fa-file-invoice'},
+                {'title': 'الأذون الجماعية', 'url': reverse('product:batch_voucher_list'), 'icon': 'fas fa-layer-group'},
                 {'title': self.object.voucher_number, 'active': True}
             ],
             'header_buttons': header_buttons,
-            'inventory_movements': inventory_movements  # ✅ إضافة الحركات للـ context
+            'inventory_movements': inventory_movements
         })
         return context
 
@@ -306,13 +368,20 @@ class BatchVoucherApproveView(LoginRequiredMixin, PermissionRequiredMixin, View)
     def post(self, request, pk):
         voucher = get_object_or_404(BatchVoucher, pk=pk)
         service = BatchVoucherService()
+        is_ajax = request.headers.get('x-requested-with') == 'XMLHttpRequest'
         
         try:
             service.approve_batch_voucher(voucher, request.user)
-            messages.success(request, f'تم اعتماد الإذن {voucher.voucher_number} بنجاح')
+            msg = f'تم اعتماد الإذن {voucher.voucher_number} بنجاح'
+            if is_ajax:
+                return JsonResponse({'success': True, 'message': msg})
+            messages.success(request, msg)
             return redirect('product:batch_voucher_detail', pk=pk)
         except ValueError as e:
-            messages.error(request, f'فشل الاعتماد: {str(e)}')
+            err_msg = f'فشل الاعتماد: {str(e)}'
+            if is_ajax:
+                return JsonResponse({'success': False, 'error': err_msg}, status=400)
+            messages.error(request, err_msg)
             return redirect('product:batch_voucher_detail', pk=pk)
 
 
@@ -323,14 +392,21 @@ class BatchVoucherDeleteView(LoginRequiredMixin, PermissionRequiredMixin, View):
     def post(self, request, pk):
         voucher = get_object_or_404(BatchVoucher, pk=pk)
         service = BatchVoucherService()
+        is_ajax = request.headers.get('x-requested-with') == 'XMLHttpRequest'
         
         try:
             voucher_number = voucher.voucher_number
             service.delete_batch_voucher(voucher)
-            messages.success(request, f'تم حذف الإذن {voucher_number} بنجاح')
+            msg = f'تم حذف الإذن {voucher_number} بنجاح'
+            if is_ajax:
+                return JsonResponse({'success': True, 'message': msg, 'redirect_url': reverse('product:batch_voucher_list')})
+            messages.success(request, msg)
             return redirect('product:batch_voucher_list')
         except ValueError as e:
-            messages.error(request, f'فشل الحذف: {str(e)}')
+            err_msg = f'فشل الحذف: {str(e)}'
+            if is_ajax:
+                return JsonResponse({'success': False, 'error': err_msg}, status=400)
+            messages.error(request, err_msg)
             return redirect('product:batch_voucher_detail', pk=pk)
 
 
@@ -347,7 +423,7 @@ class GetProductCostView(LoginRequiredMixin, View):
             return JsonResponse({
                 'unit_cost': float(product.cost_price),
                 'product_name': product.name,
-                'unit_name': product.unit.name
+                'unit_name': product.unit.name if product.unit else ''
             })
         except Product.DoesNotExist:
             return JsonResponse({'error': 'المنتج غير موجود'}, status=404)

@@ -790,17 +790,24 @@ class TransferVoucherForm(forms.Form):
 class BatchVoucherForm(forms.ModelForm):
     """نموذج الإذن الجماعي"""
 
+    voucher_date = forms.DateTimeField(
+        required=False,
+        widget=forms.DateTimeInput(attrs={'class': 'form-control', 'type': 'datetime-local'}),
+        label='تاريخ الإذن'
+    )
+
     class Meta:
         model = BatchVoucher
         fields = ['voucher_type', 'warehouse', 'target_warehouse',
-                  'purpose_type', 'party_name', 'notes']
+                  'purpose_type', 'party_name', 'reference_document', 'voucher_date', 'notes']
         widgets = {
-            'voucher_type': forms.Select(attrs={'class': 'form-select', 'required': True}),
-            'warehouse': forms.Select(attrs={'class': 'form-select', 'required': True}),
-            'target_warehouse': forms.Select(attrs={'class': 'form-select'}),
-            'purpose_type': forms.Select(attrs={'class': 'form-select'}),
-            'party_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'اسم الشخص'}),
-            'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
+            'voucher_type': forms.Select(attrs={'class': 'form-select select2-init', 'required': True}),
+            'warehouse': forms.Select(attrs={'class': 'form-select select2-init', 'required': True}),
+            'target_warehouse': forms.Select(attrs={'class': 'form-select select2-init'}),
+            'purpose_type': forms.Select(attrs={'class': 'form-select select2-init'}),
+            'party_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'اسم الشخص أو الجهة'}),
+            'reference_document': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'رقم أو اسم المستند المرجعي'}),
+            'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 4, 'placeholder': 'أي ملاحظات إضافية...'}),
         }
 
     def __init__(self, *args, **kwargs):
@@ -810,14 +817,16 @@ class BatchVoucherForm(forms.ModelForm):
         self.fields['warehouse'].queryset = warehouses
         self.fields['warehouse'].empty_label = 'اختر المخزن'
         self.fields['target_warehouse'].queryset = warehouses
-        self.fields['target_warehouse'].empty_label = 'اختر المخزن الهدف'
+        self.fields['target_warehouse'].empty_label = 'اختر المخزن المستهدف'
         self.fields['target_warehouse'].required = False
 
         self.fields['voucher_type'].label = 'نوع الإذن'
-        self.fields['warehouse'].label = 'المخزن'
-        self.fields['target_warehouse'].label = 'المخزن الهدف'
+        self.fields['warehouse'].label = 'المخزن المصدر / الأساسي'
+        self.fields['target_warehouse'].label = 'المخزن المستهدف'
         self.fields['purpose_type'].label = 'الغرض'
-        self.fields['party_name'].label = 'اسم الشخص'
+        self.fields['party_name'].label = 'اسم الشخص / الجهة'
+        self.fields['reference_document'].label = 'المستند المرجعي'
+        self.fields['voucher_date'].label = 'تاريخ الإذن'
         self.fields['notes'].label = 'ملاحظات'
 
     def clean(self):
@@ -826,7 +835,7 @@ class BatchVoucherForm(forms.ModelForm):
         target_warehouse = cleaned_data.get('target_warehouse')
         warehouse = cleaned_data.get('warehouse')
         if voucher_type == 'transfer' and not target_warehouse:
-            self.add_error('target_warehouse', 'المخزن الهدف مطلوب لأذون التحويل')
+            self.add_error('target_warehouse', 'المخزن المستهدف مطلوب لأذون التحويل')
         if voucher_type == 'transfer' and warehouse and target_warehouse and warehouse == target_warehouse:
             self.add_error('target_warehouse', 'لا يمكن التحويل من وإلى نفس المخزن')
         return cleaned_data
