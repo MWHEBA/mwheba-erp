@@ -23,6 +23,15 @@ class PurchaseItem(models.Model):
     discount = models.DecimalField(
         _("الخصم"), max_digits=12, decimal_places=2, default=0
     )
+    tax_rate = models.DecimalField(
+        _("نسبة الضريبة"), max_digits=6, decimal_places=2, default=Decimal("0.00")
+    )
+    tax_amount = models.DecimalField(
+        _("مبلغ الضريبة"), max_digits=12, decimal_places=2, default=Decimal("0.00")
+    )
+    is_taxable = models.BooleanField(
+        _("خاضع للضريبة"), default=True
+    )
     total = models.DecimalField(_("الإجمالي"), max_digits=12, decimal_places=2)
 
     class Meta:

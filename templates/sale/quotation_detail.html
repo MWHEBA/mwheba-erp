@@ -539,6 +539,7 @@
                     <th>{% trans "سعر الوحدة" %}</th>
                     <th>{% trans "الكمية" %}</th>
                     <th>{% trans "الخصم" %}</th>
+                    <th>{% trans "الضريبة" %}</th>
                     <th>{% trans "الإجمالي" %}</th>
                   </tr>
                 </thead>
@@ -570,6 +571,13 @@
                       {% endif %}
                     </td>
                     <td>{% if item.discount and item.discount > 0 %}{{ item.discount|smart_float:2 }} {{ quotation|get_currency_symbol:currency_symbol }}{% else %}-{% endif %}</td>
+                    <td>
+                      {% if item.is_taxable and item.tax_rate and item.tax_rate > 0 %}
+                        <span class="badge bg-info-subtle text-info border" style="font-size:0.75rem;">{{ item.tax_rate|smart_float }}% ض.ق.م</span>
+                      {% else %}
+                        <span class="badge bg-light text-muted border" style="font-size:0.75rem;">معفى</span>
+                      {% endif %}
+                    </td>
                     <td class="fw-bold text-success">{{ item.total|smart_float:2 }} {{ quotation|get_currency_symbol:currency_symbol }}</td>
                   </tr>
                   {% endfor %}
@@ -617,18 +625,32 @@
                     <div class="summary-label">{% trans "المجموع الفرعي:" %}</div>
                     <div class="summary-value">{{ quotation.subtotal|smart_float:2 }} {{ quotation|get_currency_symbol:currency_symbol }}</div>
                   </div>
+                  {% if quotation.discount and quotation.discount > 0 %}
                   <div class="summary-row">
                     <div class="summary-label">{% trans "الخصم الإجمالي:" %}</div>
-                    <div class="summary-value text-danger">{% if quotation.discount and quotation.discount > 0 %}{{ quotation.discount|smart_float:2 }} {{ quotation|get_currency_symbol:currency_symbol }}{% else %}-{% endif %}</div>
+                    <div class="summary-value text-danger">{{ quotation.discount|smart_float:2 }} {{ quotation|get_currency_symbol:currency_symbol }}</div>
                   </div>
+                  {% endif %}
+                  {% if quotation.taxable_subtotal and quotation.taxable_subtotal > 0 %}
+                  <div class="summary-row text-muted small">
+                    <div class="summary-label">{% trans "الوعاء الخاضع للضريبة:" %}</div>
+                    <div class="summary-value">{{ quotation.taxable_subtotal|smart_float:2 }} {{ quotation|get_currency_symbol:currency_symbol }}</div>
+                  </div>
+                  {% endif %}
+                  {% if quotation.exempt_subtotal and quotation.exempt_subtotal > 0 %}
+                  <div class="summary-row text-muted small">
+                    <div class="summary-label">{% trans "الوعاء المعفى:" %}</div>
+                    <div class="summary-value">{{ quotation.exempt_subtotal|smart_float:2 }} {{ quotation|get_currency_symbol:currency_symbol }}</div>
+                  </div>
+                  {% endif %}
                   <div class="summary-row">
-                    <div class="summary-label">{% trans "الضريبة:" %}</div>
-                    <div class="summary-value">{% if quotation.tax and quotation.tax > 0 %}{{ quotation.tax|smart_float:2 }} {{ quotation|get_currency_symbol:currency_symbol }}{% else %}-{% endif %}</div>
+                    <div class="summary-label">{% trans "ضريبة القيمة المضافة:" %}</div>
+                    <div class="summary-value text-primary">{% if quotation.tax and quotation.tax > 0 %}{{ quotation.tax|smart_float:2 }} {{ quotation|get_currency_symbol:currency_symbol }}{% else %}-{% endif %}</div>
                   </div>
                 </div>
                 <div class="summary-row border-top pt-2 mt-2">
                   <div class="summary-label">{% trans "الإجمالي الكلي:" %}</div>
-                  <div class="summary-value font-weight-bold">{{ quotation.total|smart_float:2 }} {{ quotation|get_currency_symbol:currency_symbol }}</div>
+                  <div class="summary-value font-weight-bold text-success">{{ quotation.total|smart_float:2 }} {{ quotation|get_currency_symbol:currency_symbol }}</div>
                 </div>
               </div>
             </div>

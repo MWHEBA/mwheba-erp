@@ -87,6 +87,7 @@
                 <th class="text-center">{% trans "المفوتر" %}</th>
                 <th class="text-center">{% trans "المتبقي" %}</th>
                 <th class="text-end">{% trans "سعر الوحدة" %}</th>
+                <th class="text-center">{% trans "الضريبة" %}</th>
                 <th class="text-end pe-3">{% trans "الإجمالي" %}</th>
               </tr>
             </thead>
@@ -105,13 +106,20 @@
                   {{ item.ordered_qty|subtract:item.received_qty|floatformat:2 }}
                 </td>
                 <td class="text-end">{{ item.unit_price|floatformat:2 }}</td>
+                <td class="text-center">
+                  {% if item.is_taxable and item.tax_rate and item.tax_rate > 0 %}
+                    <span class="badge bg-info-subtle text-info border">{{ item.tax_rate|smart_float }}% ض.ق.م</span>
+                  {% else %}
+                    <span class="badge bg-light text-muted border">معفى</span>
+                  {% endif %}
+                </td>
                 <td class="text-end pe-3 fw-bold">{{ item.total_price|floatformat:2 }} {{ po.currency|default:"EGP" }}</td>
               </tr>
               {% endfor %}
             </tbody>
             <tfoot class="table-light">
               <tr>
-                <th colspan="7" class="text-end fw-bold">{% trans "الإجمالي الكلي:" %}</th>
+                <th colspan="8" class="text-end fw-bold">{% trans "الإجمالي الكلي:" %}</th>
                 <th class="text-end pe-3 fw-bold text-primary fs-6">{{ po.total_amount|floatformat:2 }} {{ po.currency|default:"EGP" }}</th>
               </tr>
             </tfoot>

@@ -210,6 +210,7 @@
                                     <th>{% trans "الكمية" %}</th>
                                     <th>{% trans "سعر الوحدة" %}</th>
                                     <th>{% trans "الخصم" %}</th>
+                                    <th>{% trans "الضريبة" %}</th>
                                     <th>{% trans "الإجمالي" %}</th>
                                     <th>{% trans "سبب الإرجاع" %}</th>
                                 </tr>
@@ -233,6 +234,13 @@
                                     </td>
                                     <td>{{ item.unit_price|currency }}</td>
                                     <td>{% if item.discount and item.discount > 0 %}{{ item.discount|currency }}{% else %}-{% endif %}</td>
+                                    <td>
+                                        {% if item.is_taxable and item.tax_rate and item.tax_rate > 0 %}
+                                            <span class="badge bg-info-subtle text-info border">{{ item.tax_rate|smart_float }}% ض.ق.م</span>
+                                        {% else %}
+                                            <span class="badge bg-light text-muted border">{% trans "معفى" %}</span>
+                                        {% endif %}
+                                    </td>
                                     <td class="item-total">{{ item.total|currency }}</td>
                                     <td>{{ item.reason }}</td>
                                 </tr>
@@ -240,20 +248,20 @@
                             </tbody>
                             <tfoot>
                                 <tr>
-                                    <th colspan="5" class="text-end">{% trans "المجموع الفرعي" %}</th>
+                                    <th colspan="6" class="text-end">{% trans "المجموع الفرعي" %}</th>
                                     <th>{{ sale_return.subtotal|currency }}</th>
                                     <th></th>
                                 </tr>
                                 {% if sale_return.tax > 0 %}
                                 <tr>
-                                    <th colspan="5" class="text-end">{% trans "الضريبة" %}</th>
+                                    <th colspan="6" class="text-end">{% trans "الضريبة" %}</th>
                                     <th>{{ sale_return.tax|currency }}</th>
                                     <th></th>
                                 </tr>
                                 {% endif %}
-                                <tr>
-                                    <th colspan="5" class="text-end">{% trans "الإجمالي" %}</th>
-                                    <th>{{ sale_return.total|currency }}</th>
+                                <tr class="table-primary">
+                                    <th colspan="6" class="text-end">{% trans "الإجمالي" %}</th>
+                                    <th class="total-value">{{ sale_return.total|currency }}</th>
                                     <th></th>
                                 </tr>
                             </tfoot>

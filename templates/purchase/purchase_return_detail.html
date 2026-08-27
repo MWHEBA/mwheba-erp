@@ -156,6 +156,7 @@
                                     <th class="text-center">{% trans "الكمية" %}</th>
                                     <th class="text-center">{% trans "سعر الوحدة" %}</th>
                                     <th class="text-center">{% trans "الخصم" %}</th>
+                                    <th class="text-center">{% trans "الضريبة" %}</th>
                                     <th class="text-center">{% trans "الإجمالي" %}</th>
                                     <th class="text-center">{% trans "سبب الإرجاع" %}</th>
                                 </tr>
@@ -172,6 +173,13 @@
                                     </td>
                                     <td class="text-center">{{ item.unit_price|currency }}</td>
                                     <td class="text-center">{% if item.discount and item.discount > 0 %}{{ item.discount|currency }}{% else %}-{% endif %}</td>
+                                    <td class="text-center">
+                                        {% if item.is_taxable and item.tax_rate and item.tax_rate > 0 %}
+                                            <span class="badge bg-info-subtle text-info border">{{ item.tax_rate|smart_float }}% ض.ق.م</span>
+                                        {% else %}
+                                            <span class="badge bg-light text-muted border">{% trans "معفى" %}</span>
+                                        {% endif %}
+                                    </td>
                                     <td class="text-center">{{ item.total|currency }}</td>
                                     <td class="text-center">{{ item.reason }}</td>
                                 </tr>
@@ -179,17 +187,17 @@
                             </tbody>
                             <tfoot>
                                 <tr>
-                                    <th colspan="4" class="text-end">{% trans "المجموع الفرعي" %}</th>
+                                    <th colspan="5" class="text-end">{% trans "المجموع الفرعي" %}</th>
                                     <th>{{ purchase_return.subtotal|currency }}</th>
                                     <td></td>
                                 </tr>
                                 <tr>
-                                    <th colspan="4" class="text-end">{% trans "الضريبة" %}</th>
+                                    <th colspan="5" class="text-end">{% trans "الضريبة" %}</th>
                                     <th>{{ purchase_return.tax|currency }}</th>
                                     <td></td>
                                 </tr>
                                 <tr>
-                                    <th colspan="4" class="text-end">{% trans "الإجمالي" %}</th>
+                                    <th colspan="5" class="text-end">{% trans "الإجمالي" %}</th>
                                     <th>{{ purchase_return.total|currency }}</th>
                                     <td></td>
                                 </tr>

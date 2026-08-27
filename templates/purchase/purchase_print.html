@@ -107,13 +107,31 @@
 {% if purchase.discount and purchase.discount > 0 %}
 <tr>
     <td>{% trans "الخصم" %}</td>
-    <td>-{{ purchase.discount|currency:purchase.currency_symbol }}</td>
+    <td class="text-danger">-{{ purchase.discount|currency:purchase.currency_symbol }}</td>
+</tr>
+{% endif %}
+{% if purchase.taxable_subtotal and purchase.taxable_subtotal > 0 %}
+<tr style="color: var(--text-muted); font-size: 0.9em;">
+    <td>{% trans "الوعاء الخاضع للضريبة" %}</td>
+    <td>{{ purchase.taxable_subtotal|currency:purchase.currency_symbol }}</td>
+</tr>
+{% endif %}
+{% if purchase.exempt_subtotal and purchase.exempt_subtotal > 0 %}
+<tr style="color: var(--text-muted); font-size: 0.9em;">
+    <td>{% trans "الوعاء المعفى من الضريبة" %}</td>
+    <td>{{ purchase.exempt_subtotal|currency:purchase.currency_symbol }}</td>
 </tr>
 {% endif %}
 {% if purchase.tax and purchase.tax > 0 %}
 <tr>
-    <td>{% trans "الضريبة" %}</td>
+    <td>{% trans "ضريبة القيمة المضافة" %}</td>
     <td>+{{ purchase.tax|currency:purchase.currency_symbol }}</td>
+</tr>
+{% endif %}
+{% if purchase.wht_amount and purchase.wht_amount > 0 %}
+<tr style="color: var(--warning-color, #f59e0b);">
+    <td>{% trans "خصم أرباح تجارية (WHT)" %}</td>
+    <td>-{{ purchase.wht_amount|currency:purchase.currency_symbol }}</td>
 </tr>
 {% endif %}
 <tr class="summary-highlight-row">

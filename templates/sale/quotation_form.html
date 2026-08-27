@@ -76,8 +76,12 @@
                                             <select name="customer" id="id_customer" class="form-control select2-init" required>
                                                 <option value="">{% trans "اختر العميل" %}</option>
                                                 {% for customer in customers %}
-                                                    <option value="{{ customer.id }}" data-default-price-list="{{ customer.default_price_list_id|default:'' }}" {% if form.customer.value == customer.id|stringformat:'s' or selected_customer.id == customer.id %}selected{% endif %}>
-                                                        {{ customer.name }}
+                                                    <option value="{{ customer.id }}" 
+                                                            data-default-price-list="{{ customer.default_price_list_id|default:'' }}"
+                                                            data-tax-exempt="{{ customer.is_tax_exempt|yesno:'true,false' }}"
+                                                            data-has-valid-certificate="{{ customer.has_valid_tax_exemption|yesno:'true,false' }}"
+                                                            {% if form.customer.value == customer.id|stringformat:'s' or selected_customer.id == customer.id %}selected{% endif %}>
+                                                        {{ customer.name }}{% if customer.is_tax_exempt %} (معفى ضريبياً){% endif %}
                                                     </option>
                                                 {% endfor %}
                                             </select>
@@ -340,9 +344,9 @@
                                         <h6 class="fw-bold text-dark mb-2"><i class="fas fa-percent text-primary me-2"></i>ضريبة القيمة المضافة (VAT)</h6>
                                         <div class="form-check form-switch pt-1">
                                             <input class="form-check-input" type="checkbox" name="tax_active" id="id_tax_active" role="switch" {% if form.instance.pk %}{% if form.instance.tax_active %}checked{% endif %}{% else %}{% if settings.enable_tax %}checked{% endif %}{% endif %}>
-                                            <label class="form-check-label text-dark fw-medium small" for="id_tax_active">{% trans "تفعيل ضريبة القيمة المضافة" %} ({{ settings.default_tax_rate|smart_float|default:'14' }}%)</label>
+                                            <label class="form-check-label text-dark fw-medium small" for="id_tax_active">{% trans "تطبيق ضريبة القيمة المضافة على البنود الخاضعة" %}</label>
                                         </div>
-                                        <small class="form-text text-muted mt-2">{% trans "تُحسب بنسبة" %} {{ settings.default_tax_rate|smart_float|default:'14' }}% {% trans "على الصافي التجاري للمستند." %}</small>
+                                        <small class="form-text text-muted mt-2">{% trans "تُحسب الضريبة آلياً بنسبة كل صنف على البنود الخاضعة فقط بعد توزيع الخصومات بالتناسب، مع مراعاة شهادات إعفاء العملاء." %}</small>
                                     </div>
                                 </div>
                                 <div class="col-md-6">
@@ -376,7 +380,7 @@
                                 <a href="{% url 'sale:custom_field_list' %}" target="_blank" class="btn btn-link btn-sm p-0 text-decoration-none" style="font-size: 0.825rem;">
                                     <i class="fas fa-cog me-1"></i>إدارة تعاريف الحقول
                                 </a>
-                                {% endif %}
+                                endif %}
                             </div>
                             <div id="custom-fields-render-container" class="row g-3">
                                 <!-- توليد العناصر هنا ديناميكياً بـ JavaScript -->
@@ -413,8 +417,20 @@
                                 <span id="adjustment-total">0</span>
                             </div>
                         </div>
+                        <div class="row mb-2 small text-muted" id="taxable-base-row">
+                            <div class="col-7 text-end"><span>{% trans "الوعاء الخاضع للضريبة:" %}</span></div>
+                            <div class="col-5 text-end">
+                                <span id="taxable-subtotal">0</span>
+                            </div>
+                        </div>
+                        <div class="row mb-2 small text-muted" id="exempt-base-row">
+                            <div class="col-7 text-end"><span>{% trans "الوعاء المعفى:" %}</span></div>
+                            <div class="col-5 text-end">
+                                <span id="exempt-subtotal">0</span>
+                            </div>
+                        </div>
                         <div class="row mb-2" id="tax-total-row">
-                            <div class="col-6 text-end"><strong>{% trans "القيمة المضافة" %} ({{ settings.default_tax_rate|smart_float|default:'14' }}%):</strong></div>
+                            <div class="col-6 text-end"><strong>{% trans "ضريبة القيمة المضافة:" %}</strong></div>
                             <div class="col-6 text-end text-primary">
                                 <span id="tax-total">0</span>
                             </div>
@@ -866,13 +882,34 @@
 
         function calculateTotals() {
             var subtotal = 0;
-            $('.item-total').each(function() {
-                subtotal += parseFloat($(this).val().replace(/,/g, '')) || 0;
+            var rowsData = [];
+
+            // جمع بيانات الأسطر
+            $('.item-row').each(function() {
+                var $row = $(this);
+                var qty = parseFloat($row.find('.quantity').val()) || 0;
+                var unitPrice = parseFloat(String($row.find('.unit-price').val() || '0').replace(/,/g, '')) || 0;
+                var itemDisc = parseFloat($row.find('.item-discount').val()) || 0;
+                var lineGross = qty * unitPrice;
+                var lineNet = Math.max(0, lineGross - itemDisc);
+                var taxRate = parseFloat($row.find('.item-tax-rate').val()) || 0;
+                var isTaxableVal = $row.find('.item-is-taxable').val();
+                var isTaxable = (isTaxableVal === true || isTaxableVal === 'true');
+
+                subtotal += lineGross;
+                rowsData.push({
+                    $row: $row,
+                    lineGross: lineGross,
+                    lineDisc: itemDisc,
+                    lineNet: lineNet,
+                    taxRate: taxRate,
+                    isTaxable: isTaxable
+                });
             });
             
             var discountInput = parseFloat($('#id_discount').val()) || 0;
             var discountType = $('#id_discount_type').val() || 'fixed';
-            var discountTotal = 0;
+            var globalDiscount = 0;
 
             if (discountType === 'percentage') {
                 $('#id_discount').attr('max', '100');
@@ -880,51 +917,67 @@
                     discountInput = 100;
                     $('#id_discount').val(100);
                 }
-                discountTotal = (subtotal * discountInput) / 100;
+                globalDiscount = (subtotal * discountInput) / 100;
             } else {
                 $('#id_discount').removeAttr('max');
                 if (subtotal > 0 && discountInput > subtotal) {
                     discountInput = subtotal;
                     $('#id_discount').val(subtotal);
                 }
-                discountTotal = discountInput;
+                globalDiscount = discountInput;
             }
 
             var adjAmountRaw = parseFloat($('#id_adjustment_amount').val()) || 0;
             var adjType = $('#id_adjustment_type').val() || 'add';
             var adjTotal = (adjType === 'subtract') ? -Math.abs(adjAmountRaw) : Math.abs(adjAmountRaw);
 
-            var netSubtotal = Math.max(0, subtotal - discountTotal + adjTotal);
-            
-            var defaultTaxRate = parseFloat('{{ settings.default_tax_rate|default:14 }}') || 14;
+            // فحص إعفاء العميل
+            var $custOpt = $('#id_customer option:selected');
+            var isCustomerExempt = ($custOpt.data('tax-exempt') === true || $custOpt.data('tax-exempt') === 'true' || $custOpt.data('has-valid-certificate') === true || $custOpt.data('has-valid-certificate') === 'true');
             var isTaxActive = $('#id_tax_active').is(':checked');
-            var vat = 0;
-            if (isTaxActive) {
-                vat = (netSubtotal * defaultTaxRate) / 100.0;
-                $('#tax-total-row').removeClass('text-muted opacity-50');
-            } else {
-                vat = 0;
-                $('#tax-total-row').addClass('text-muted opacity-50');
-            }
+
+            var totalSumGross = 0;
+            rowsData.forEach(function(r) { totalSumGross += r.lineNet; });
+
+            var totalVat = 0;
+            var taxableSubtotal = 0;
+            var exemptSubtotal = 0;
+
+            rowsData.forEach(function(r) {
+                // توزيع الخصم العام بالتناسب (Pro-Rata)
+                var allocatedGlobalDisc = (totalSumGross > 0) ? (r.lineNet / totalSumGross) * globalDiscount : 0;
+                var lineTaxBase = Math.max(0, r.lineNet - allocatedGlobalDisc);
+
+                var isItemTaxActive = isTaxActive && !isCustomerExempt && r.isTaxable && (r.taxRate > 0);
+                if (isItemTaxActive) {
+                    taxableSubtotal += lineTaxBase;
+                    var lineVat = Math.round((lineTaxBase * (r.taxRate / 100.0)) * 100) / 100.0;
+                    totalVat += lineVat;
+                } else {
+                    exemptSubtotal += lineTaxBase;
+                }
+            });
+
+            var netSubtotal = Math.max(0, subtotal - globalDiscount + adjTotal);
 
             var isWhtActive = $('#id_wht_active').is(':checked');
             var whtRate = parseFloat($('#id_wht_rate').val()) || 1.0;
             var whtTotal = 0;
             if (isWhtActive) {
-                whtTotal = (netSubtotal * whtRate) / 100.0;
+                whtTotal = Math.round(((netSubtotal * whtRate) / 100.0) * 100) / 100.0;
                 $('#wht-total-row').show();
             } else {
                 whtTotal = 0;
                 $('#wht-total-row').hide();
             }
 
-            var grossTotal = netSubtotal + vat;
+            var grossTotal = netSubtotal + totalVat;
             var grandTotal = Math.max(0, grossTotal - whtTotal);
 
             var currencySymbol = (window.ProductPicker && window.ProductPicker.options && window.ProductPicker.options.currencySymbol) || $('#id_currency option:selected').data('symbol') || $('#id_currency option:selected').data('code') || '{{ currency_symbol }}';
             $('#subtotal').text(smartFloat(subtotal) + ' ' + currencySymbol);
 
-            var discountText = smartFloat(discountTotal) + ' ' + currencySymbol;
+            var discountText = smartFloat(globalDiscount) + ' ' + currencySymbol;
             if (discountType === 'percentage' && discountInput > 0) {
                 discountText += ' (' + discountInput + '%)';
             }
@@ -932,7 +985,9 @@
 
             var adjText = (adjTotal >= 0 ? '+' : '') + smartFloat(adjTotal) + ' ' + currencySymbol;
             $('#adjustment-total').text(adjText);
-            $('#tax-total').text(smartFloat(vat) + ' ' + currencySymbol);
+            $('#taxable-subtotal').text(smartFloat(taxableSubtotal) + ' ' + currencySymbol);
+            $('#exempt-subtotal').text(smartFloat(exemptSubtotal) + ' ' + currencySymbol);
+            $('#tax-total').text(smartFloat(totalVat) + ' ' + currencySymbol);
             $('#wht-total').text(smartFloat(whtTotal) + ' ' + currencySymbol + ' (' + whtRate + '%)');
             $('#grand-total').text(smartFloat(grandTotal) + ' ' + currencySymbol);
         }

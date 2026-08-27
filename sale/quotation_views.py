@@ -157,44 +157,85 @@ def quotation_create(request, customer_id=None):
                     quantities = request.POST.getlist("quantity[]")
                     unit_prices = request.POST.getlist("unit_price[]")
                     discounts = request.POST.getlist("discount[]")
+                    tax_rates = request.POST.getlist("tax_rate[]")
 
-                    subtotal = Decimal("0")
-                    total_discount = Decimal("0")
+                    # فحص حالة إعفاء العميل
+                    customer_is_exempt = False
+                    if quotation.customer:
+                        from financial.models import TaxExemptionCertificate
+                        customer_is_exempt = TaxExemptionCertificate.objects.filter(
+                            customer=quotation.customer,
+                            status="ACTIVE",
+                            valid_from__lte=quotation.date,
+                            valid_to__gte=quotation.date
+                        ).exists()
 
+                    parsed_items = []
                     for i in range(len(product_ids)):
                         if product_ids[i] and quantities[i] and unit_prices[i]:
                             prod_id = int(product_ids[i])
-                            product = Product.objects.get(id=prod_id)
+                            product = Product.objects.select_related('tax_code', 'unit').get(id=prod_id)
                             qty = Decimal(quantities[i])
                             price = Decimal(unit_prices[i].replace(',', ''))
                             if price <= 0:
                                 raise ValueError(_("سعر المنتج يجب أن يكون أكبر من صفر (البند رقم {})").format(i + 1))
                             if qty <= 0:
                                 raise ValueError(_("الكمية يجب أن تكون أكبر من صفر (البند رقم {})").format(i + 1))
-                            item_disc = Decimal(discounts[i]) if i < len(discounts) and discounts[i] else Decimal("0")
-                            item_total = (qty * price) - item_disc
+                            item_disc = Decimal(discounts[i]) if i < len(discounts) and discounts[i] else Decimal("0.00")
+                            
+                            # قراءة نسبة الضريبة من الحقل أو من كارت الصنف
+                            if i < len(tax_rates) and tax_rates[i] is not None and tax_rates[i] != '':
+                                line_tax_rate = Decimal(str(tax_rates[i]).replace('%', '').replace(',', '').strip())
+                            else:
+                                line_tax_rate = Decimal(str(getattr(product, 'effective_tax_rate', 14.0) or 0.0))
 
-                            QuotationItem.objects.create(
-                                quotation=quotation,
-                                product=product,
-                                quantity=qty,
-                                unit_price=price,
-                                discount=item_disc,
-                                total=item_total
-                            )
+                            is_exempt = bool(getattr(product, 'is_tax_exempt', False))
+                            is_taxable = (not is_exempt) and (line_tax_rate > Decimal("0.00"))
 
-                            subtotal += qty * price
-                            total_discount += item_disc
+                            parsed_items.append({
+                                "product": product,
+                                "quantity": qty,
+                                "unit_price": price,
+                                "discount": item_disc,
+                                "tax_rate": line_tax_rate,
+                                "is_taxable": is_taxable,
+                                "is_service": product.is_service,
+                            })
 
-                    # تحديث قيم الإجماليات والعملة
-                    quotation.subtotal = subtotal
-                    quotation.discount = total_discount
-                    if quotation.tax_active:
-                        default_tax_rate = Decimal(SystemSetting.get_setting('default_tax_rate', '14'))
-                        quotation.tax = ((subtotal - total_discount) * default_tax_rate / 100).quantize(Decimal("0.01"))
-                    else:
-                        quotation.tax = Decimal("0")
-                    quotation.total = subtotal - total_discount + quotation.tax
+                    # استدعاء المحرك الضريبي المركزي
+                    from utils.tax_calculator import TaxMathEngine
+                    tax_calc_res = TaxMathEngine.compute_document_taxes(
+                        items=parsed_items,
+                        global_discount=quotation.discount,
+                        adjustment_amount=getattr(quotation, 'adjustment_amount', Decimal("0.00")),
+                        tax_active=quotation.tax_active,
+                        customer_exempt=customer_is_exempt,
+                        document_number=quotation.number
+                    )
+
+                    # حفظ بنود عرض السعر بالقيم المحسوبة المعيارية
+                    for p_item, res_item in zip(parsed_items, tax_calc_res["items"]):
+                        QuotationItem.objects.create(
+                            quotation=quotation,
+                            product=p_item["product"],
+                            quantity=p_item["quantity"],
+                            unit_price=p_item["unit_price"],
+                            discount=p_item["discount"],
+                            tax_rate=res_item["effective_tax_rate"],
+                            tax_amount=res_item["line_tax_amount"],
+                            is_taxable=p_item["is_taxable"],
+                            table_tax_rate=res_item["effective_table_rate"],
+                            table_tax_amount=res_item["line_table_tax"],
+                            total=res_item["line_total"]
+                        )
+
+                    # تحديث قيم الإجماليات والأوعية والعملة
+                    quotation.subtotal = tax_calc_res["subtotal"]
+                    quotation.taxable_subtotal = tax_calc_res["taxable_subtotal"]
+                    quotation.exempt_subtotal = tax_calc_res["exempt_subtotal"]
+                    quotation.discount = tax_calc_res["global_discount"]
+                    quotation.tax = tax_calc_res["total_tax"]
+                    quotation.total = tax_calc_res["total"]
 
                     currency_id = request.POST.get("currency")
                     if currency_id:
@@ -333,44 +374,85 @@ def quotation_edit(request, pk):
                     quantities = request.POST.getlist("quantity[]")
                     unit_prices = request.POST.getlist("unit_price[]")
                     discounts = request.POST.getlist("discount[]")
+                    tax_rates = request.POST.getlist("tax_rate[]")
 
-                    subtotal = Decimal("0")
-                    total_discount = Decimal("0")
+                    # فحص حالة إعفاء العميل
+                    customer_is_exempt = False
+                    if quotation.customer:
+                        from financial.models import TaxExemptionCertificate
+                        customer_is_exempt = TaxExemptionCertificate.objects.filter(
+                            customer=quotation.customer,
+                            status="ACTIVE",
+                            valid_from__lte=quotation.date,
+                            valid_to__gte=quotation.date
+                        ).exists()
 
+                    parsed_items = []
                     for i in range(len(product_ids)):
                         if product_ids[i] and quantities[i] and unit_prices[i]:
                             prod_id = int(product_ids[i])
-                            product = Product.objects.get(id=prod_id)
+                            product = Product.objects.select_related('tax_code', 'unit').get(id=prod_id)
                             qty = Decimal(quantities[i])
                             price = Decimal(unit_prices[i].replace(',', ''))
                             if price <= 0:
                                 raise ValueError(_("سعر المنتج يجب أن يكون أكبر من صفر (البند رقم {})").format(i + 1))
                             if qty <= 0:
                                 raise ValueError(_("الكمية يجب أن تكون أكبر من صفر (البند رقم {})").format(i + 1))
-                            item_disc = Decimal(discounts[i] if discounts[i] else '0')
-                            item_total = (qty * price) - item_disc
+                            item_disc = Decimal(discounts[i]) if i < len(discounts) and discounts[i] else Decimal("0.00")
+                            
+                            # قراءة نسبة الضريبة من الحقل أو من كارت الصنف
+                            if i < len(tax_rates) and tax_rates[i] is not None and tax_rates[i] != '':
+                                line_tax_rate = Decimal(str(tax_rates[i]).replace('%', '').replace(',', '').strip())
+                            else:
+                                line_tax_rate = Decimal(str(getattr(product, 'effective_tax_rate', 14.0) or 0.0))
 
-                            QuotationItem.objects.create(
-                                quotation=quotation,
-                                product=product,
-                                quantity=qty,
-                                unit_price=price,
-                                discount=item_disc,
-                                total=item_total
-                            )
+                            is_exempt = bool(getattr(product, 'is_tax_exempt', False))
+                            is_taxable = (not is_exempt) and (line_tax_rate > Decimal("0.00"))
 
-                            subtotal += qty * price
-                            total_discount += item_disc
+                            parsed_items.append({
+                                "product": product,
+                                "quantity": qty,
+                                "unit_price": price,
+                                "discount": item_disc,
+                                "tax_rate": line_tax_rate,
+                                "is_taxable": is_taxable,
+                                "is_service": product.is_service,
+                            })
 
-                    # تحديث القيم والعملة
-                    quotation.subtotal = subtotal
-                    quotation.discount = total_discount
-                    if quotation.tax_active:
-                        default_tax_rate = Decimal(SystemSetting.get_setting('default_tax_rate', '14'))
-                        quotation.tax = ((subtotal - total_discount) * default_tax_rate / 100).quantize(Decimal("0.01"))
-                    else:
-                        quotation.tax = Decimal("0")
-                    quotation.total = subtotal - total_discount + quotation.tax
+                    # استدعاء المحرك الضريبي المركزي
+                    from utils.tax_calculator import TaxMathEngine
+                    tax_calc_res = TaxMathEngine.compute_document_taxes(
+                        items=parsed_items,
+                        global_discount=quotation.discount,
+                        adjustment_amount=getattr(quotation, 'adjustment_amount', Decimal("0.00")),
+                        tax_active=quotation.tax_active,
+                        customer_exempt=customer_is_exempt,
+                        document_number=quotation.number
+                    )
+
+                    # حفظ بنود عرض السعر بالقيم المحسوبة المعيارية
+                    for p_item, res_item in zip(parsed_items, tax_calc_res["items"]):
+                        QuotationItem.objects.create(
+                            quotation=quotation,
+                            product=p_item["product"],
+                            quantity=p_item["quantity"],
+                            unit_price=p_item["unit_price"],
+                            discount=p_item["discount"],
+                            tax_rate=res_item["effective_tax_rate"],
+                            tax_amount=res_item["line_tax_amount"],
+                            is_taxable=p_item["is_taxable"],
+                            table_tax_rate=res_item["effective_table_rate"],
+                            table_tax_amount=res_item["line_table_tax"],
+                            total=res_item["line_total"]
+                        )
+
+                    # تحديث قيم الإجماليات والأوعية والعملة
+                    quotation.subtotal = tax_calc_res["subtotal"]
+                    quotation.taxable_subtotal = tax_calc_res["taxable_subtotal"]
+                    quotation.exempt_subtotal = tax_calc_res["exempt_subtotal"]
+                    quotation.discount = tax_calc_res["global_discount"]
+                    quotation.tax = tax_calc_res["total_tax"]
+                    quotation.total = tax_calc_res["total"]
 
                     currency_id = request.POST.get("currency")
                     if currency_id:
@@ -424,13 +506,20 @@ def quotation_edit(request, pk):
 
     # تهيئة البنود الحالية لواجهة الجافاسكريبت
     current_items = []
-    for item in quotation.items.all():
+    for item in quotation.items.all().select_related('product', 'product__tax_code', 'product__unit'):
+        eff_tax = float(item.tax_rate if item.tax_rate is not None else getattr(item.product, 'effective_tax_rate', 14.0))
         current_items.append({
             'product_id': item.product.id,
             'product_name': item.product.name,
             'quantity': float(item.quantity),
             'unit_price': float(item.unit_price),
             'discount': float(item.discount),
+            'tax_rate': eff_tax,
+            'tax_amount': float(item.tax_amount or 0.0),
+            'is_taxable': bool(item.is_taxable),
+            'is_tax_exempt': bool(getattr(item.product, 'is_tax_exempt', False)),
+            'table_tax_rate': float(item.table_tax_rate or 0.0),
+            'table_tax_amount': float(item.table_tax_amount or 0.0),
             'total': float(item.total),
             'is_service': item.product.is_service,
         })
@@ -476,7 +565,7 @@ def quotation_detail(request, pk):
         })
 
     quotation = get_object_or_404(Quotation.objects.with_details(), pk=pk)
-    items = quotation.items.all()
+    items = quotation.items.all().select_related('product', 'product__tax_code', 'product__unit', 'product__category')
 
     active_linked_so = quotation.sales_orders.exclude(status='CANCELLED').first() if hasattr(quotation, 'sales_orders') else None
     cancelled_linked_so = quotation.sales_orders.filter(status='CANCELLED').order_by('-id').first() if hasattr(quotation, 'sales_orders') else None
@@ -911,11 +1000,22 @@ def quotation_convert_to_sale(request, pk):
             }
 
             for item in quotation.items.all():
+                item_rate = item.tax_rate
+                if (item_rate is None or item_rate == 0) and (quotation.tax and quotation.tax > 0) and item.is_taxable:
+                    item_rate = getattr(quotation, 'vat_rate', Decimal("14.00")) or Decimal("14.00")
+                elif item_rate is None or item_rate == 0:
+                    item_rate = getattr(item.product, 'effective_tax_rate', Decimal("0.00"))
+
                 sale_data['items'].append({
                     'product_id': item.product.id,
                     'quantity': item.quantity,
                     'unit_price': item.unit_price,
-                    'discount': item.discount
+                    'discount': item.discount,
+                    'tax_rate': item_rate,
+                    'tax_amount': item.tax_amount,
+                    'is_taxable': item.is_taxable,
+                    'table_tax_rate': getattr(item, 'table_tax_rate', Decimal("0.00")),
+                    'table_tax_amount': getattr(item, 'table_tax_amount', Decimal("0.00")),
                 })
 
             # إنشاء الفاتورة من خلال SaleService

@@ -95,17 +95,23 @@ class SalesReversalService:
                     unit_p = item.delivery_item.so_item.unit_price if hasattr(item.delivery_item, 'so_item') else Decimal("0.00")
                     line_sub = (qty * unit_p).quantize(Decimal("0.01"))
                     
-                    # Dynamically resolve product tax rate (fallback to standard default VAT 14%)
-                    rate_val = Decimal("14.0000")
-                    if getattr(item.product, 'tax_code', None):
+                    # Dynamically resolve product tax rate from original sales line or product
+                    orig_tax_rate = None
+                    if hasattr(item, 'delivery_item') and hasattr(item.delivery_item, 'so_item') and getattr(item.delivery_item.so_item, 'tax_rate', None) is not None and item.delivery_item.so_item.tax_rate > Decimal("0.00"):
+                        orig_tax_rate = Decimal(str(item.delivery_item.so_item.tax_rate))
+                    
+                    if orig_tax_rate is not None:
+                        rate_val = orig_tax_rate
+                    elif getattr(item.product, 'is_tax_exempt', False):
+                        rate_val = Decimal("0.00")
+                    elif getattr(item.product, 'tax_code', None):
                         rate_val = item.product.tax_code.rate
-                    elif getattr(item.product, 'tax_rate', None) is not None and Decimal(str(item.product.tax_rate)) > Decimal("0.00"):
+                    elif getattr(item.product, 'tax_rate', None) is not None and item.product.tax_rate > Decimal("0.00"):
                         rate_val = Decimal(str(item.product.tax_rate))
                     else:
                         from financial.models import TaxCode
                         default_tax = TaxCode.objects.filter(is_default=True, is_active=True).first() or TaxCode.objects.filter(code__in=["T1", "VAT14", "VAT_14", "VAT"]).first()
-                        if default_tax:
-                            rate_val = default_tax.rate
+                        rate_val = default_tax.rate if default_tax else Decimal("14.00")
 
                     line_vat = (line_sub * (rate_val / Decimal("100.00"))).quantize(Decimal("0.01"))
                     line_tot = line_sub + line_vat

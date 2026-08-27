@@ -146,6 +146,9 @@ class PurchaseOrderItem(models.Model):
 
     unit_price = models.DecimalField(_("سعر الوحدة المحدد في PO"), max_digits=15, decimal_places=4)
     discount = models.DecimalField(_("خصم البند"), max_digits=15, decimal_places=2, default=Decimal("0.00"))
+    tax_rate = models.DecimalField(_("نسبة الضريبة"), max_digits=6, decimal_places=2, default=Decimal("0.00"))
+    tax_amount = models.DecimalField(_("مبلغ الضريبة"), max_digits=15, decimal_places=2, default=Decimal("0.00"))
+    is_taxable = models.BooleanField(_("خاضع للضريبة"), default=True)
     total_price = models.DecimalField(_("إجمالي السطر"), max_digits=15, decimal_places=2)
 
     class Meta:

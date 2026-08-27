@@ -134,6 +134,12 @@
                 }
             }
 
+            var taxRate = (itemData.tax_rate !== undefined && itemData.tax_rate !== null) ? itemData.tax_rate : 14.0;
+            var isTaxable = itemData.is_taxable !== undefined ? itemData.is_taxable : (!itemData.is_tax_exempt && parseFloat(taxRate) > 0);
+            var taxBadgeHtml = isTaxable && parseFloat(taxRate) > 0 
+                ? '<span class="tax-info-badge badge bg-info-subtle text-info border ms-1" style="font-size:0.68rem;">' + taxRate + '% ض.ق.م</span>'
+                : '<span class="tax-info-badge badge bg-light text-muted border ms-1" style="font-size:0.68rem;">معفى</span>';
+
             var itemTotal = itemData.total !== undefined ? itemData.total : (itemData.total_price !== undefined ? itemData.total_price : ((qty * unitPrice) - itemDisc));
 
             var removeBtn = (opts.showRemoveButton !== false)
@@ -144,6 +150,8 @@
             if (isBatchVoucher) {
                 $row = $('<div class="item-row row g-2 align-items-center">' +
                     '<input type="hidden" name="item_id[]" class="item-id-input" value="' + itemId + '">' +
+                    '<input type="hidden" name="tax_rate[]" class="item-tax-rate" value="' + taxRate + '">' +
+                    '<input type="hidden" name="is_taxable[]" class="item-is-taxable" value="' + (isTaxable ? 'true' : 'false') + '">' +
                     '<div class="col-12 col-md-2">' +
                         '<label class="form-label form-label-sm product-code-label">الكود / الباركود</label>' +
                         '<input type="text" class="form-control form-control-sm product-code-input" placeholder="الكود / الباركود" value="' + productCode + '">' +
@@ -151,7 +159,7 @@
                     '<div class="col-12 col-md-4">' +
                         '<div class="product-header-row d-flex align-items-center mb-1 justify-content-between">' +
                             '<label class="form-label form-label-sm product-label product-header required-field mb-0">المنتج <span class="text-danger">*</span></label>' +
-                            '<span class="stock-info"></span>' +
+                            '<div>' + taxBadgeHtml + '<span class="stock-info ms-1"></span></div>' +
                         '</div>' +
                         '<button type="button" class="product-picker-btn"><span class="' + (productId ? 'selected-text' : 'placeholder-text text-muted') + '">' + productName + '</span><i class="fas fa-th-large text-muted small"></i></button>' +
                         '<input type="hidden" name="product[]" class="product-id-input" value="' + productId + '" data-price="' + productPrice + '" data-stock="' + productStock + '" data-is-service="' + isService + '" required>' +
@@ -166,6 +174,8 @@
             } else {
                 $row = $('<div class="item-row row g-2 align-items-center">' +
                     '<input type="hidden" name="item_id[]" class="item-id-input" value="' + itemId + '">' +
+                    '<input type="hidden" name="tax_rate[]" class="item-tax-rate" value="' + taxRate + '">' +
+                    '<input type="hidden" name="is_taxable[]" class="item-is-taxable" value="' + (isTaxable ? 'true' : 'false') + '">' +
                     '<div class="col-12 col-md-2">' +
                         '<label class="form-label form-label-sm product-code-label">الكود / الباركود</label>' +
                         '<input type="text" class="form-control form-control-sm product-code-input" placeholder="الكود / الباركود" value="' + productCode + '">' +
@@ -173,7 +183,7 @@
                     '<div class="col-12 col-md-3">' +
                         '<div class="product-header-row d-flex align-items-center mb-1 justify-content-between">' +
                             '<label class="form-label form-label-sm product-label product-header required-field mb-0">' + labelProductText + '</label>' +
-                            '<span class="stock-info"></span>' +
+                            '<div>' + taxBadgeHtml + '<span class="stock-info ms-1"></span></div>' +
                         '</div>' +
                         '<button type="button" class="product-picker-btn"><span class="' + (productId ? 'selected-text' : 'placeholder-text text-muted') + '">' + productName + '</span><i class="fas fa-th-large text-muted small"></i></button>' +
                         '<input type="hidden" name="product[]" class="product-id-input" value="' + productId + '" data-price="' + productPrice + '" data-stock="' + productStock + '" data-is-service="' + isService + '" required>' +
@@ -953,6 +963,36 @@
             }
 
             var isService = product.is_service === true || product.is_service === 'true' || product.is_service === 1;
+
+            // ضبط بيانات الضريبة للصنف المختار
+            var taxRate = (product.tax_rate !== undefined && product.tax_rate !== null) ? parseFloat(product.tax_rate) : 14.0;
+            var isTaxable = product.is_taxable !== undefined ? Boolean(product.is_taxable) : (!product.is_tax_exempt && taxRate > 0);
+
+            var $taxRateInput = $row.find('.item-tax-rate, input[name="tax_rate[]"]');
+            if ($taxRateInput.length) {
+                $taxRateInput.val(taxRate);
+            } else {
+                $row.append('<input type="hidden" name="tax_rate[]" class="item-tax-rate" value="' + taxRate + '">');
+            }
+
+            var $isTaxableInput = $row.find('.item-is-taxable, input[name="is_taxable[]"]');
+            if ($isTaxableInput.length) {
+                $isTaxableInput.val(isTaxable ? 'true' : 'false');
+            } else {
+                $row.append('<input type="hidden" name="is_taxable[]" class="item-is-taxable" value="' + (isTaxable ? 'true' : 'false') + '">');
+            }
+
+            var $taxBadge = $row.find('.tax-info-badge');
+            if (!$taxBadge.length) {
+                $taxBadge = $('<span class="tax-info-badge badge ms-1" style="font-size:0.68rem;"></span>');
+                $row.find('.product-header-row').append($taxBadge);
+            }
+            if (isTaxable && taxRate > 0) {
+                $taxBadge.removeClass('bg-light text-muted').addClass('bg-info-subtle text-info border').text(taxRate + '% ض.ق.م');
+            } else {
+                $taxBadge.removeClass('bg-info-subtle text-info').addClass('bg-light text-muted border').text('معفى');
+            }
+
             self.renderStockState($row, {
                 stock: product.stock,
                 is_service: isService,

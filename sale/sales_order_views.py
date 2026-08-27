@@ -1055,6 +1055,8 @@ def sales_order_convert_to_sale(request, pk):
                 "quantity": str(item.ordered_qty - item.invoiced_qty if (item.ordered_qty - item.invoiced_qty) > 0 else item.ordered_qty),
                 "unit_price": str(item.unit_price),
                 "discount": str(item.discount_percentage),
+                "tax_rate": str(item.tax_rate or 0),
+                "is_taxable": item.is_taxable,
             }
             for item in so.items.all()
         ]

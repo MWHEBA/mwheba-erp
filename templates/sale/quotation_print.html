@@ -115,9 +115,21 @@
     <td>-{{ quotation.discount|currency:currency_symbol_active }}</td>
 </tr>
 {% endif %}
+{% if quotation.taxable_subtotal and quotation.taxable_subtotal > 0 %}
+<tr style="font-size: 0.9em; color: var(--text-muted);">
+    <td>{% if is_english %}Taxable Base{% else %}الوعاء الخاضع للضريبة{% endif %}</td>
+    <td>{{ quotation.taxable_subtotal|currency:currency_symbol_active }}</td>
+</tr>
+{% endif %}
+{% if quotation.exempt_subtotal and quotation.exempt_subtotal > 0 %}
+<tr style="font-size: 0.9em; color: var(--text-muted);">
+    <td>{% if is_english %}Exempt Base{% else %}الوعاء المعفى من الضريبة{% endif %}</td>
+    <td>{{ quotation.exempt_subtotal|currency:currency_symbol_active }}</td>
+</tr>
+{% endif %}
 {% if quotation.tax and quotation.tax > 0 %}
 <tr>
-    <td>{% if is_english %}Tax (VAT){% else %}الضريبة{% endif %}</td>
+    <td>{% if is_english %}VAT (14%){% else %}ضريبة القيمة المضافة{% endif %}</td>
     <td>+{{ quotation.tax|currency:currency_symbol_active }}</td>
 </tr>
 {% endif %}

@@ -416,23 +416,63 @@ class PricingService:
         else:
             actual_header_discount = min(net_after_line_discounts, header_discount.quantize(Decimal("0.01")))
 
-        taxable_base = max(Decimal("0.00"), net_after_line_discounts - actual_header_discount)
-
         # فحص سقف الخصم التراكمي الإجمالي
         total_all_discounts = total_line_discounts + actual_header_discount
         discount_percentage_overall = ((total_all_discounts / subtotal) * Decimal("100.00")).quantize(Decimal("0.01")) if subtotal > 0 else Decimal("0.00")
         is_exceeding_max_discount = discount_percentage_overall > max_discount_threshold_pct
 
-        # 4. حساب ضريبة القيمة المضافة (14% VAT) وضريبة الخصم والإضافة (1% WHT)
-        vat_amount = Decimal("0.00")
-        if vat_active and vat_rate > Decimal("0"):
-            vat_amount = (taxable_base * (vat_rate / Decimal("100.00"))).quantize(Decimal("0.01"))
+        # 4. استدعاء المحرك الضريبي الموحد TaxMathEngine
+        from utils.tax_calculator import TaxMathEngine
+        
+        # فحص شهادة إعفاء العميل إن وجدت
+        customer_exempt = False
+        if customer_id:
+            try:
+                from financial.models import TaxExemptionCertificate
+                customer_exempt = TaxExemptionCertificate.objects.filter(
+                    customer_id=customer_id,
+                    status="ACTIVE",
+                    valid_from__lte=as_of_date,
+                    valid_to__gte=as_of_date
+                ).exists()
+            except Exception:
+                customer_exempt = False
 
-        wht_amount = Decimal("0.00")
-        if wht_active and wht_rate > Decimal("0"):
-            wht_amount = (taxable_base * (wht_rate / Decimal("100.00"))).quantize(Decimal("0.01"))
+        # تجهيز بنود الحساب الضريبي
+        tax_calc_items = []
+        for it, eval_it in zip(items, evaluated_items):
+            tax_calc_items.append({
+                "product_id": eval_it["product_id"],
+                "name": eval_it["product_name"],
+                "code": eval_it["sku"],
+                "quantity": eval_it["quantity"],
+                "unit_price": eval_it["unit_price"],
+                "discount": eval_it["applied_discount"],
+                "tax_rate": it.get("tax_rate", vat_rate),
+                "is_taxable": it.get("is_taxable", True),
+                "table_tax_rate": it.get("table_tax_rate", 0),
+            })
 
-        final_invoice_total = (taxable_base + vat_amount - wht_amount).quantize(Decimal("0.01"))
+        tax_results = TaxMathEngine.compute_document_taxes(
+            items=tax_calc_items,
+            global_discount=actual_header_discount,
+            tax_active=vat_active,
+            customer_exempt=customer_exempt,
+            wht_rate=wht_rate if wht_active else Decimal("0.00")
+        )
+
+        # تحديث نتائج الضرائب في البنود
+        for eval_it, res_it in zip(evaluated_items, tax_results["items"]):
+            eval_it["tax_rate"] = res_it["effective_tax_rate"]
+            eval_it["tax_amount"] = res_it["line_tax_amount"]
+            eval_it["line_net_base"] = res_it["line_net_base"]
+            eval_it["line_total"] = res_it["line_total"]
+
+        vat_amount = tax_results["total_tax"]
+        wht_amount = tax_results["total_wht"]
+        taxable_base = tax_results["taxable_subtotal"]
+        exempt_base = tax_results["exempt_subtotal"]
+        final_invoice_total = tax_results["total"]
 
         return {
             "items": evaluated_items,
@@ -443,6 +483,7 @@ class PricingService:
             "discount_percentage_overall": discount_percentage_overall,
             "is_exceeding_max_discount": is_exceeding_max_discount,
             "taxable_base": taxable_base,
+            "exempt_base": exempt_base,
             "vat_active": vat_active,
             "vat_rate": vat_rate,
             "vat_amount": vat_amount,
@@ -450,10 +491,11 @@ class PricingService:
             "wht_rate": wht_rate,
             "wht_amount": wht_amount,
             "total": final_invoice_total,
+            "net_payable": tax_results["net_payable"],
             "currency": currency,
             "exchange_rate": exchange_rate or Decimal("1.000000"),
             "has_below_cost_warning": has_below_cost_warning,
-            "version_hash": context_cache.get("version_hash", "")
+            "version_hash": context_cache.get("version_hash", "") if context_cache else ""
         }
 
     @classmethod

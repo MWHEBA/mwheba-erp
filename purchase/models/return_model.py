@@ -100,6 +100,15 @@ class PurchaseReturnItem(models.Model):
     discount = models.DecimalField(
         _("الخصم"), max_digits=12, decimal_places=2, default=0
     )
+    tax_rate = models.DecimalField(
+        _("نسبة الضريبة"), max_digits=6, decimal_places=2, default=0
+    )
+    tax_amount = models.DecimalField(
+        _("مبلغ الضريبة"), max_digits=12, decimal_places=2, default=0
+    )
+    is_taxable = models.BooleanField(
+        _("خاضع للضريبة"), default=True
+    )
     total = models.DecimalField(_("الإجمالي"), max_digits=12, decimal_places=2)
     reason = models.CharField(_("سبب الإرجاع"), max_length=255)
 

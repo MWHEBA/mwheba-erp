@@ -274,6 +274,7 @@
                 <th>{% trans "المفوتر" %}</th>
                 <th class="text-end">{% trans "سعر الوحدة" %}</th>
                 <th>{% trans "الخصم" %}</th>
+                <th>{% trans "الضريبة" %}</th>
                 <th class="text-end">{% trans "الإجمالي" %}</th>
               </tr>
             </thead>
@@ -324,41 +325,48 @@
                     <span class="text-muted">-</span>
                   {% endif %}
                 </td>
+                <td>
+                  {% if item.is_taxable and item.tax_rate and item.tax_rate > 0 %}
+                    <span class="badge bg-info-subtle text-info border">{{ item.tax_rate|smart_float }}% ض.ق.م</span>
+                  {% else %}
+                    <span class="badge bg-light text-muted border">معفى</span>
+                  {% endif %}
+                </td>
                 <td class="text-end fw-bold text-success">{{ item.line_total|smart_float:2 }} {{ so.currency_display }}</td>
               </tr>
               {% endfor %}
             </tbody>
             <tfoot class="table-light">
               <tr>
-                <td colspan="9" class="text-end fw-bold">{% trans "المجموع الفرعي:" %}</td>
+                <td colspan="10" class="text-end fw-bold">{% trans "المجموع الفرعي:" %}</td>
                 <td class="text-end fw-bold">{{ so.subtotal|smart_float:2 }} {{ so.currency_display }}</td>
               </tr>
               {% if so.discount_amount > 0 %}
               <tr class="text-danger">
-                <td colspan="9" class="text-end fw-bold">{% trans "قيمة الخصم:" %}</td>
+                <td colspan="10" class="text-end fw-bold">{% trans "قيمة الخصم:" %}</td>
                 <td class="text-end fw-bold">-{{ so.discount_amount|smart_float:2 }} {{ so.currency_display }}</td>
               </tr>
               {% endif %}
               {% if so.adjustment_amount != 0 %}
               <tr>
-                <td colspan="9" class="text-end fw-bold">{{ so.adjustment_name|default:_("تسوية إضافية:") }}</td>
+                <td colspan="10" class="text-end fw-bold">{{ so.adjustment_name|default:_("تسوية إضافية:") }}</td>
                 <td class="text-end fw-bold">{{ so.adjustment_amount|smart_float:2 }} {{ so.currency_display }}</td>
               </tr>
               {% endif %}
               {% if so.tax_amount > 0 %}
               <tr class="text-primary">
-                <td colspan="9" class="text-end fw-bold">{% trans "ضريبة القيمة المضافة (VAT):" %}</td>
+                <td colspan="10" class="text-end fw-bold">{% trans "ضريبة القيمة المضافة (VAT):" %}</td>
                 <td class="text-end fw-bold">+{{ so.tax_amount|smart_float:2 }} {{ so.currency_display }}</td>
               </tr>
               {% endif %}
               {% if so.wht_amount > 0 %}
               <tr class="text-warning">
-                <td colspan="9" class="text-end fw-bold">{% trans "خصم أ.ت.ص (المنبع):" %}</td>
+                <td colspan="10" class="text-end fw-bold">{% trans "خصم أ.ت.ص (المنبع):" %}</td>
                 <td class="text-end fw-bold">-{{ so.wht_amount|smart_float:2 }} {{ so.currency_display }}</td>
               </tr>
               {% endif %}
               <tr class="table-active">
-                <td colspan="9" class="text-end fw-bold fs-5">{% trans "صافي إجمالي أمر البيع:" %}</td>
+                <td colspan="10" class="text-end fw-bold fs-5">{% trans "صافي إجمالي أمر البيع:" %}</td>
                 <td class="text-end fw-bold fs-5 text-success">{{ so.total_amount|smart_float:2 }} {{ so.currency_display }}</td>
               </tr>
             </tfoot>
@@ -806,15 +814,15 @@
             <select name="financial_account" id="collect_financial_account" class="form-select" required>
               <optgroup label="{% trans 'الخزن النقدية' %}" id="collect_optgroup_cash">
                 {% for acc in cash_payment_accounts %}
-                  <option value="{{ acc.id }}" data-type="cash" data-currency="{{ acc.currency_symbol|default:acc.currency_code|default:acc.currency.symbol|default:'ج.م' }}">
-                    {{ acc.code }} - {{ acc.name }} ({{ acc.currency_symbol|default:acc.currency_code|default:acc.currency.symbol|default:'ج.م' }})
+                  <option value="{{ acc.id }}" data-type="cash" data-currency="{{ acc.currency_symbol|default:acc.currency_code|default:'ج.م' }}">
+                    {{ acc.code }} - {{ acc.name }} ({{ acc.currency_symbol|default:acc.currency_code|default:'ج.م' }})
                   </option>
                 {% endfor %}
               </optgroup>
               <optgroup label="{% trans 'الحسابات البنكية' %}" id="collect_optgroup_bank" style="display: none;">
                 {% for acc in bank_payment_accounts %}
-                  <option value="{{ acc.id }}" data-type="bank" data-currency="{{ acc.currency_symbol|default:acc.currency_code|default:acc.currency.symbol|default:'ج.م' }}" disabled>
-                    {{ acc.code }} - {{ acc.name }} ({{ acc.currency_symbol|default:acc.currency_code|default:acc.currency.symbol|default:'ج.م' }})
+                  <option value="{{ acc.id }}" data-type="bank" data-currency="{{ acc.currency_symbol|default:acc.currency_code|default:'ج.م' }}" disabled>
+                    {{ acc.code }} - {{ acc.name }} ({{ acc.currency_symbol|default:acc.currency_code|default:'ج.م' }})
                   </option>
                 {% endfor %}
               </optgroup>

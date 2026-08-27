@@ -198,6 +198,11 @@ class SalesOrderItem(models.Model):
     invoiced_qty = models.DecimalField(_("الكمية المفوترة"), max_digits=15, decimal_places=4, default=Decimal("0.0000"))
     unit_price = models.DecimalField(_("سعر الوحدة الأصلي"), max_digits=15, decimal_places=2)
     discount_percentage = models.DecimalField(_("نسبة الخصم %"), max_digits=5, decimal_places=2, default=Decimal("0.00"))
+    tax_rate = models.DecimalField(_("نسبة الضريبة"), max_digits=6, decimal_places=2, default=Decimal("0.00"))
+    tax_amount = models.DecimalField(_("مبلغ الضريبة"), max_digits=15, decimal_places=2, default=Decimal("0.00"))
+    is_taxable = models.BooleanField(_("خاضع للضريبة"), default=True)
+    table_tax_rate = models.DecimalField(_("نسبة ضريبة الجدول"), max_digits=6, decimal_places=2, default=Decimal("0.00"))
+    table_tax_amount = models.DecimalField(_("مبلغ ضريبة الجدول"), max_digits=15, decimal_places=2, default=Decimal("0.00"))
     line_total = models.DecimalField(_("إجمالي السطر"), max_digits=15, decimal_places=2)
     price_snapshot = models.JSONField(_("لقطة التسعير المحوكمة"), default=dict, blank=True)
 

@@ -363,6 +363,8 @@ def delivery_note_convert_to_sale(request, pk):
                 "quantity": str(item.delivered_qty),
                 "unit_price": str(item.so_item.unit_price),
                 "discount": str(item.so_item.discount_percentage),
+                "tax_rate": str(item.so_item.tax_rate or 0),
+                "is_taxable": item.so_item.is_taxable,
             }
             for item in dn.items.all()
         ]

@@ -421,10 +421,10 @@
                                         <h6 class="fw-bold text-dark mb-2"><i class="fas fa-percent text-primary me-2"></i>ضريبة القيمة المضافة (VAT)</h6>
                                         <div class="form-check form-switch pt-1">
                                             <input class="form-check-input" type="checkbox" name="vat_active" id="id_vat_active" role="switch" {% if form.instance.pk %}{% if form.instance.vat_active %}checked{% endif %}{% else %}{% if settings.enable_tax %}checked{% endif %}{% endif %}>
-                                            <label class="form-check-label text-dark fw-medium small" for="id_vat_active">{% trans "تفعيل ضريبة القيمة المضافة" %} ({{ settings.default_tax_rate|smart_float|default:'14' }}%)</label>
+                                            <label class="form-check-label text-dark fw-medium small" for="id_vat_active">{% trans "تطبيق ضريبة القيمة المضافة على البنود الخاضعة" %}</label>
                                         </div>
                                         <input type="hidden" name="vat_rate" id="id_vat_rate" value="{{ settings.default_tax_rate|default:'14.00' }}">
-                                        <small class="form-text text-muted mt-2">{% trans "تُحسب بنسبة" %} {{ settings.default_tax_rate|smart_float|default:'14' }}% {% trans "على الصافي التجاري للمستند." %}</small>
+                                        <small class="form-text text-muted mt-2">{% trans "تُحسب الضريبة آلياً بنسبة كل صنف على البنود الخاضعة فقط بعد توزيع الخصومات بالتناسب." %}</small>
                                     </div>
                                 </div>
                                 <div class="col-md-6">
@@ -491,8 +491,16 @@
                                 <span id="adjustment-total">0.00</span>
                             </div>
                         </div>
+                        <div class="row mb-2 small text-muted" id="taxable-base-row">
+                            <div class="col-7 text-end"><span>{% trans "الوعاء الخاضع للضريبة:" %}</span></div>
+                            <div class="col-5 text-end"><span id="taxable-subtotal">0.00</span></div>
+                        </div>
+                        <div class="row mb-2 small text-muted" id="exempt-base-row">
+                            <div class="col-7 text-end"><span>{% trans "الوعاء المعفى:" %}</span></div>
+                            <div class="col-5 text-end"><span id="exempt-subtotal">0.00</span></div>
+                        </div>
                         <div class="row mb-2" id="tax-total-row">
-                            <div class="col-6 text-end"><strong>{% trans "القيمة المضافة" %} ({{ settings.default_tax_rate|smart_float|default:'14' }}%):</strong></div>
+                            <div class="col-6 text-end"><strong>{% trans "ضريبة القيمة المضافة:" %}</strong></div>
                             <div class="col-6 text-end text-primary">
                                 <span id="tax-total">0.00</span>
                             </div>
@@ -617,6 +625,7 @@ $(document).ready(function() {
 
     function calculateTotals() {
         let subtotal = 0;
+        let rowsData = [];
 
         $('#items-container .item-row').each(function() {
             let row = $(this);
@@ -624,9 +633,22 @@ $(document).ready(function() {
             let price = parseFloat(row.find('.unit-price').val()) || 0;
             let discount = parseFloat(row.find('.item-discount').val()) || 0;
 
-            let lineTotal = Math.max(0, (qty * price) - discount);
-            row.find('.item-total').val(lineTotal.toFixed(2));
-            subtotal += lineTotal;
+            let lineGross = qty * price;
+            let lineNet = Math.max(0, lineGross - discount);
+            let taxRate = parseFloat(row.find('.item-tax-rate').val()) || 0;
+            let isTaxableVal = row.find('.item-is-taxable').val();
+            let isTaxable = (isTaxableVal === true || isTaxableVal === 'true');
+
+            row.find('.item-total').val(lineNet.toFixed(2));
+            subtotal += lineGross;
+            rowsData.push({
+                row: row,
+                lineGross: lineGross,
+                lineDisc: discount,
+                lineNet: lineNet,
+                taxRate: taxRate,
+                isTaxable: isTaxable
+            });
         });
 
         $('#subtotal').text(subtotal.toFixed(2) + ' ' + currentCurrencySymbol);
@@ -643,18 +665,39 @@ $(document).ready(function() {
         }
         $('#discount-total').text(docDiscountAmt.toFixed(2) + ' ' + currentCurrencySymbol);
 
-        let netCommercial = Math.max(0, subtotal - docDiscountAmt);
-
-        // ضريبة القيمة المضافة VAT
         let vatActive = $('#id_vat_active').is(':checked');
-        let vatRate = parseFloat($('#id_vat_rate').val()) || defaultVatRate;
-        let vatAmount = vatActive ? (netCommercial * (vatRate / 100)) : 0;
+        let totalSumGross = 0;
+        rowsData.forEach(function(r) { totalSumGross += r.lineNet; });
+
+        let vatAmount = 0;
+        let taxableSubtotal = 0;
+        let exemptSubtotal = 0;
+
+        rowsData.forEach(function(r) {
+            // توزيع الخصم العام بالتناسب (Pro-Rata)
+            let allocatedGlobalDisc = (totalSumGross > 0) ? (r.lineNet / totalSumGross) * docDiscountAmt : 0;
+            let lineTaxBase = Math.max(0, r.lineNet - allocatedGlobalDisc);
+
+            let isItemTaxActive = vatActive && r.isTaxable && (r.taxRate > 0);
+            if (isItemTaxActive) {
+                taxableSubtotal += lineTaxBase;
+                let lineVat = Math.round((lineTaxBase * (r.taxRate / 100.0)) * 100) / 100.0;
+                vatAmount += lineVat;
+            } else {
+                exemptSubtotal += lineTaxBase;
+            }
+        });
+
+        $('#taxable-subtotal').text(taxableSubtotal.toFixed(2) + ' ' + currentCurrencySymbol);
+        $('#exempt-subtotal').text(exemptSubtotal.toFixed(2) + ' ' + currentCurrencySymbol);
         $('#tax-total').text(vatAmount.toFixed(2) + ' ' + currentCurrencySymbol);
+
+        let netCommercial = Math.max(0, subtotal - docDiscountAmt);
 
         // ضريبة الخصم والإضافة WHT
         let whtActive = $('#id_wht_active').is(':checked');
         let whtRate = parseFloat($('#id_wht_rate').val()) || 1.0;
-        let whtAmount = whtActive ? (netCommercial * (whtRate / 100)) : 0;
+        let whtAmount = whtActive ? Math.round(((netCommercial * (whtRate / 100)) * 100)) / 100.0 : 0;
         if (whtActive) {
             $('#wht-total-row').show();
             $('#wht-total').text('-' + whtAmount.toFixed(2) + ' ' + currentCurrencySymbol);

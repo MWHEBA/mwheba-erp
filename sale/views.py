@@ -44,12 +44,13 @@ def _extract_posted_items(request):
     quantities = request.POST.getlist("quantity[]")
     unit_prices = request.POST.getlist("unit_price[]")
     discounts = request.POST.getlist("discount[]")
+    tax_rates = request.POST.getlist("tax_rate[]")
 
     posted_items = []
     if product_ids:
         valid_ids = [int(p) for p in product_ids if p and str(p).isdigit()]
         if valid_ids:
-            prod_map = {p.id: p for p in Product.objects.filter(id__in=valid_ids).select_related("unit")}
+            prod_map = {p.id: p for p in Product.objects.filter(id__in=valid_ids).select_related("unit", "tax_code")}
             for i in range(len(product_ids)):
                 if product_ids[i] and str(product_ids[i]).isdigit():
                     p_id = int(product_ids[i])
@@ -71,6 +72,16 @@ def _extract_posted_items(request):
                         item_cost_centers = request.POST.getlist("item_cost_center[]")
                         item_cc = int(item_cost_centers[i]) if (i < len(item_cost_centers) and item_cost_centers[i] and str(item_cost_centers[i]).isdigit()) else ""
                         
+                        # استخراج نسبة الضريبة
+                        if i < len(tax_rates) and tax_rates[i] is not None and tax_rates[i] != '':
+                            try:
+                                eff_tax = float(str(tax_rates[i]).replace('%', '').replace(',', '').strip())
+                            except Exception:
+                                eff_tax = float(getattr(prod_obj, 'effective_tax_rate', 14.0) or 0.0)
+                        else:
+                            eff_tax = float(getattr(prod_obj, 'effective_tax_rate', 14.0) or 0.0)
+
+                        is_exempt = bool(getattr(prod_obj, 'is_tax_exempt', False))
                         product_code = getattr(prod_obj, 'code', None) or getattr(prod_obj, 'sku', '') or ""
                         posted_items.append({
                             "id": prod_obj.id,
@@ -81,6 +92,9 @@ def _extract_posted_items(request):
                             "unit_price": float(p),
                             "price": float(p),
                             "discount": float(d),
+                            "tax_rate": eff_tax,
+                            "is_taxable": (not is_exempt) and (eff_tax > 0),
+                            "is_tax_exempt": is_exempt,
                             "cost_center": item_cc,
                             "is_service": prod_obj.is_service,
                             "unit": prod_obj.unit.name if prod_obj.unit else "",
@@ -1359,8 +1373,10 @@ def sale_edit(request, pk):
 
     # تجهيز البنود الحالية كـ JSON للواجهة التفاعلية
     duplicate_items = []
-    for item in sale.items.all():
+    for item in sale.items.all().select_related("product", "product__tax_code", "product__unit"):
         product_code = getattr(item.product, 'code', None) or getattr(item.product, 'sku', '')
+        eff_tax = float(item.tax_rate if item.tax_rate is not None else getattr(item.product, 'effective_tax_rate', 14.0))
+        is_exempt = bool(getattr(item.product, 'is_tax_exempt', False))
         duplicate_items.append({
             "id": item.product.id,
             "product_id": item.product.id,
@@ -1370,6 +1386,10 @@ def sale_edit(request, pk):
             "price": float(item.unit_price),
             "unit_price": float(item.unit_price),
             "discount": float(item.discount or 0),
+            "tax_rate": eff_tax,
+            "tax_amount": float(item.tax_amount or 0.0),
+            "is_taxable": bool(item.is_taxable),
+            "is_tax_exempt": is_exempt,
             "cost_center": item.cost_center_id or "",
             "is_service": item.product.is_service,
             "unit": item.product.unit.name if item.product.unit else "",
@@ -1928,11 +1948,15 @@ def sale_duplicate(request, pk):
             "unit_price": float(item.unit_price),
             "price": float(item.unit_price),
             "discount": float(item.discount),
+            "tax_rate": float(item.tax_rate if item.tax_rate is not None else getattr(item.product, 'effective_tax_rate', 14.0)),
+            "tax_amount": float(item.tax_amount or 0.0),
+            "is_taxable": bool(item.is_taxable),
+            "is_tax_exempt": bool(getattr(item.product, 'is_tax_exempt', False)),
             "total": float(item.total),
             "cost_center": item.cost_center_id or "",
             "is_service": item.product.is_service,
         }
-        for item in original.items.all()
+        for item in original.items.all().select_related('product', 'product__tax_code', 'product__unit')
     ])
 
     form = SaleForm(initial={

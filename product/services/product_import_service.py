@@ -83,6 +83,15 @@ class ProductImportService:
         'price_sar': 'price_sar',
         'سعر التكلفة ريال': 'cost_sar',
         'cost_sar': 'cost_sar',
+        'نسبة الضريبة': 'tax_rate',
+        'الضريبة': 'tax_rate',
+        'ضريبة القيمة المضافة': 'tax_rate',
+        'tax_rate': 'tax_rate',
+        'tax': 'tax_rate',
+        'vat': 'tax_rate',
+        'معفى': 'is_tax_exempt',
+        'معفى من الضريبة': 'is_tax_exempt',
+        'is_tax_exempt': 'is_tax_exempt',
     }
 
     ITEM_TYPE_MAP = {
@@ -403,6 +412,17 @@ class ProductImportService:
         name_en = row.get('name_en', '').strip() or None
         description_en = row.get('description_en', '').strip() or ''
 
+        raw_tax = row.get('tax_rate')
+        if raw_tax is not None and str(raw_tax).strip() != '':
+            try:
+                tax_rate = Decimal(str(raw_tax).replace('%', '').replace(',', '').strip())
+            except Exception:
+                tax_rate = Decimal('14.00')
+        else:
+            tax_rate = Decimal('14.00')
+
+        is_tax_exempt = str(row.get('is_tax_exempt', '')).strip().lower() in ['true', 'yes', '1', 'نعم', 'معفى']
+
         try:
             if existing and update_existing:
                 existing.name = name
@@ -419,6 +439,8 @@ class ProductImportService:
                 existing.is_active = is_active
                 existing.is_service = is_service
                 existing.item_type = item_type
+                existing.tax_rate = tax_rate
+                existing.is_tax_exempt = is_tax_exempt
                 existing.updated_by = self.user
                 if barcode:
                     existing.barcode = barcode
@@ -446,6 +468,8 @@ class ProductImportService:
                     is_active=is_active,
                     is_service=is_service,
                     item_type=item_type,
+                    tax_rate=tax_rate,
+                    is_tax_exempt=is_tax_exempt,
                     created_by=self.user,
                 )
                 self.created_count += 1

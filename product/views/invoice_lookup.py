@@ -188,7 +188,7 @@ def invoice_product_lookup(request):
         show_all = show_all_param or exact or product_ids or (product_type in ["service", "services", "purchase"])
         
         # Prefetch currency prices and variants for efficiency
-        qs = qs.prefetch_related('currency_prices__currency', 'variants').select_related('category', 'unit')
+        qs = qs.prefetch_related('currency_prices__currency', 'variants').select_related('category', 'unit', 'tax_code')
 
         # تجهيز كاش التسعير للطلبات غير الشرائية
         pricing_cache = None
@@ -273,6 +273,9 @@ def invoice_product_lookup(request):
                     "stock": getattr(v, "stock", 0)
                 })
 
+            effective_tax = float(getattr(p, "effective_tax_rate", 14.0) or 0.0)
+            is_exempt = bool(getattr(p, "is_tax_exempt", False))
+
             base_item = {
                 "id": p.id,
                 "name": p.name,
@@ -292,6 +295,10 @@ def invoice_product_lookup(request):
                 "currency_prices": curr_prices,
                 "stock": stock_qty,
                 "is_service": p.is_service,
+                "tax_rate": effective_tax,
+                "tax_code": p.tax_code.code if p.tax_code else "",
+                "is_taxable": (not is_exempt) and (effective_tax > 0),
+                "is_tax_exempt": is_exempt,
                 "unit_id": p.unit_id if p.unit else None,
                 "unit_name": p.unit.name if p.unit else "",
                 "unit_symbol": p.unit.symbol if p.unit and hasattr(p.unit, 'symbol') else (p.unit.name if p.unit else ""),

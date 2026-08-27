@@ -393,15 +393,22 @@ class PurchaseService:
         إضافة بند للمرتجع
         """
         purchase_item = PurchaseItem.objects.get(id=item_data['purchase_item_id'])
+        qty = Decimal(str(item_data['quantity']))
+        item_tax_rate = purchase_item.tax_rate or Decimal('0')
+        item_is_taxable = purchase_item.is_taxable
+        item_tax_amount = (qty * (purchase_item.tax_amount / purchase_item.quantity)) if (purchase_item.quantity and purchase_item.quantity > 0) else Decimal('0')
         
         item = PurchaseReturnItem.objects.create(
             purchase_return=purchase_return,
             purchase_item=purchase_item,
             product=purchase_item.product,
-            quantity=Decimal(item_data['quantity']),
-            unit_price=Decimal(item_data['unit_price']),
-            discount=Decimal(item_data.get('discount', 0)),
-            total=Decimal(item_data['quantity']) * Decimal(item_data['unit_price']) - Decimal(item_data.get('discount', 0)),
+            quantity=qty,
+            unit_price=Decimal(str(item_data['unit_price'])),
+            discount=Decimal(str(item_data.get('discount', 0))),
+            tax_rate=item_tax_rate,
+            tax_amount=item_tax_amount.quantize(Decimal('0.01')),
+            is_taxable=item_is_taxable,
+            total=qty * Decimal(str(item_data['unit_price'])) - Decimal(str(item_data.get('discount', 0))),
             reason=item_data.get('reason', 'مرتجع')
         )
         logger.info(f"✅ تم إضافة بند مرتجع: {item.product.name}")

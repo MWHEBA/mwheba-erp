@@ -43,6 +43,37 @@ class SaleItem(models.Model):
         help_text=_("تفاصيل وحيثيات احتساب السعر وقواعد الخصم المطبقة للتدقيق المالي")
     )
     total = models.DecimalField(_("الإجمالي"), max_digits=12, decimal_places=2)
+    tax_rate = models.DecimalField(
+        _("نسبة الضريبة"),
+        max_digits=6,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        help_text=_("نسبة ضريبة القيمة المضافة للبند")
+    )
+    tax_amount = models.DecimalField(
+        _("مبلغ الضريبة"),
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        help_text=_("قيمة الضريبة المحسوبة للبند")
+    )
+    is_taxable = models.BooleanField(
+        _("خاضع للضريبة"),
+        default=True,
+        help_text=_("هل البند خاضع لضريبة القيمة المضافة")
+    )
+    table_tax_rate = models.DecimalField(
+        _("نسبة ضريبة الجدول"),
+        max_digits=6,
+        decimal_places=2,
+        default=Decimal("0.00")
+    )
+    table_tax_amount = models.DecimalField(
+        _("مبلغ ضريبة الجدول"),
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00")
+    )
 
     class Meta:
         verbose_name = _("بند الفاتورة")

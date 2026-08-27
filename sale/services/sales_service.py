@@ -147,6 +147,9 @@ class SalesService:
                 line_total = (qty * price * (Decimal("1.00") - (disc / Decimal("100.00")))).quantize(Decimal("0.01"))
                 subtotal_val += line_total
 
+                prod_rate = getattr(product, 'effective_tax_rate', Decimal('14.00')) or Decimal('14.00')
+                is_taxable_val = not getattr(product, 'is_tax_exempt', False)
+
                 SalesOrderItem.objects.create(
                     sales_order=so,
                     product=product,
@@ -155,6 +158,8 @@ class SalesService:
                     invoiced_qty=Decimal("0.0000"),
                     unit_price=price,
                     discount_percentage=disc,
+                    tax_rate=prod_rate,
+                    is_taxable=is_taxable_val,
                     line_total=line_total,
                     price_snapshot=price_snap_serializable
                 )

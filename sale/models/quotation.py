@@ -50,6 +50,8 @@ class Quotation(models.Model):
         _("الحالة"), max_length=20, choices=STATUS_CHOICES, default="draft"
     )
     subtotal = models.DecimalField(_("المجموع الفرعي"), max_digits=12, decimal_places=2, default=0)
+    taxable_subtotal = models.DecimalField(_("المجموع الفرعي الخاضع للضريبة"), max_digits=12, decimal_places=2, default=Decimal("0.00"))
+    exempt_subtotal = models.DecimalField(_("المجموع الفرعي المعفى من الضريبة"), max_digits=12, decimal_places=2, default=Decimal("0.00"))
     discount = models.DecimalField(_("الخصم"), max_digits=12, decimal_places=2, default=0)
     adjustment_name = models.CharField(_("اسم التسوية"), max_length=100, blank=True, null=True)
     adjustment_amount = models.DecimalField(_("مبلغ التسوية"), max_digits=12, decimal_places=2, default=Decimal("0.00"))

@@ -162,14 +162,19 @@ class SaleService:
     @staticmethod
     def _add_sale_item(sale, item_data, user):
         """
-        إضافة بند لفاتورة المبيعات مع تخصيص مركز التكلفة
+        إضافة بند لفاتورة المبيعات مع تخصيص مركز التكلفة والضرائب
         """
         cc_id = item_data.get('cost_center_id') or item_data.get('cost_center') or sale.cost_center_id
         price_snapshot = item_data.get('price_snapshot')
-        if not price_snapshot:
+        prod = None
+        try:
+            prod = Product.objects.select_related('tax_code').get(id=item_data['product_id'])
+        except Exception:
+            pass
+
+        if not price_snapshot and prod:
             from sale.services.pricing_service import PricingService
             try:
-                prod = Product.objects.get(id=item_data['product_id'])
                 res = PricingService.get_sales_price(
                     product=prod,
                     customer=sale.customer,
@@ -183,15 +188,38 @@ class SaleService:
             except Exception:
                 price_snapshot = {}
 
+        # استنتاج نسبة الضريبة وحالة الإعفاء للبند
+        tax_rate = None
+        if item_data.get('tax_rate') is not None and str(item_data.get('tax_rate')).strip() != '':
+            tax_rate = Decimal(str(item_data['tax_rate']).replace('%', '').replace(',', '').strip())
+        elif prod:
+            tax_rate = Decimal(str(getattr(prod, 'effective_tax_rate', 14.0) or 0.0))
+        else:
+            tax_rate = Decimal("14.00")
+
+        is_exempt = bool(getattr(prod, 'is_tax_exempt', False)) if prod else False
+        is_taxable = item_data.get('is_taxable', (not is_exempt) and (tax_rate > Decimal("0.00")))
+        table_tax_rate = Decimal(str(item_data.get('table_tax_rate', 0.0) or 0.0))
+        table_tax_amount = Decimal(str(item_data.get('table_tax_amount', 0.0) or 0.0))
+
+        qty = Decimal(str(item_data['quantity']))
+        unit_p = Decimal(str(item_data['unit_price']))
+        disc = Decimal(str(item_data.get('discount', 0)))
+
         item = SaleItem.objects.create(
             sale=sale,
             product_id=item_data['product_id'],
-            quantity=Decimal(str(item_data['quantity'])),
-            unit_price=Decimal(str(item_data['unit_price'])),
-            discount=Decimal(str(item_data.get('discount', 0))),
-            price_snapshot=price_snapshot,
+            quantity=qty,
+            unit_price=unit_p,
+            discount=disc,
+            tax_rate=tax_rate,
+            tax_amount=Decimal(str(item_data.get('tax_amount', 0.0) or 0.0)),
+            is_taxable=is_taxable,
+            table_tax_rate=table_tax_rate,
+            table_tax_amount=table_tax_amount,
+            price_snapshot=price_snapshot or {},
             cost_center_id=cc_id if cc_id else None,
-            total=Decimal(str(item_data['quantity'])) * Decimal(str(item_data['unit_price'])) - Decimal(str(item_data.get('discount', 0)))
+            total=(qty * unit_p) - disc
         )
         logger.info(f"✅ تم إضافة بند: {item.product.name} للفاتورة: {sale.number}")
         return item
@@ -199,28 +227,64 @@ class SaleService:
     @staticmethod
     def _calculate_totals(sale):
         """
-        حساب إجماليات الفاتورة
+        حساب إجماليات الفاتورة باستخدام TaxMathEngine الموحد
         """
-        items = sale.items.all()
-        subtotal = sum(item.total for item in items)
+        items = list(sale.items.all().select_related('product', 'product__tax_code'))
         
-        sale.subtotal = subtotal
-        net_taxable_base = max(Decimal('0'), subtotal - sale.discount + sale.adjustment_amount)
-        
-        if getattr(sale, 'vat_active', True) and getattr(sale, 'tax_active', True):
-            vat_rate = getattr(sale, 'vat_rate', Decimal("14.00")) or Decimal("14.00")
-            sale.tax = (net_taxable_base * vat_rate / Decimal("100.00")).quantize(Decimal("0.01"))
-        else:
-            sale.tax = Decimal("0.00")
-            
-        if getattr(sale, 'wht_active', False):
-            wht_rate = getattr(sale, 'wht_rate', Decimal("1.00")) or Decimal("1.00")
-            sale.wht_amount = (net_taxable_base * wht_rate / Decimal("100.00")).quantize(Decimal("0.01"))
-        else:
-            sale.wht_amount = Decimal("0.00")
+        # فحص إعفاء العميل
+        customer_is_exempt = False
+        if sale.customer:
+            from financial.models import TaxExemptionCertificate
+            customer_is_exempt = TaxExemptionCertificate.objects.filter(
+                customer=sale.customer,
+                status="ACTIVE",
+                valid_from__lte=sale.date,
+                valid_to__gte=sale.date
+            ).exists()
 
-        gross_total = net_taxable_base + sale.tax
-        sale.total = max(Decimal('0'), gross_total - sale.wht_amount)
+        tax_calc_items = []
+        for it in items:
+            prod_tax_rate = it.tax_rate
+            if (prod_tax_rate is None or prod_tax_rate == 0) and it.is_taxable:
+                prod_tax_rate = getattr(it.product, 'effective_tax_rate', Decimal('14.00'))
+
+            tax_calc_items.append({
+                "product_id": it.product_id,
+                "name": it.product.name,
+                "code": it.product.sku,
+                "quantity": it.quantity,
+                "unit_price": it.unit_price,
+                "discount": it.discount,
+                "tax_rate": prod_tax_rate,
+                "is_taxable": it.is_taxable,
+                "table_tax_rate": it.table_tax_rate,
+                "is_service": it.product.is_service,
+            })
+
+        from utils.tax_calculator import TaxMathEngine
+        tax_results = TaxMathEngine.compute_document_taxes(
+            items=tax_calc_items,
+            global_discount=sale.discount,
+            adjustment_amount=getattr(sale, 'adjustment_amount', Decimal("0.00")),
+            tax_active=getattr(sale, 'tax_active', True) and getattr(sale, 'vat_active', True),
+            customer_exempt=customer_is_exempt,
+            wht_rate=getattr(sale, 'wht_rate', Decimal("1.00")) if getattr(sale, 'wht_active', False) else Decimal("0.00"),
+            document_number=sale.number
+        )
+
+        # تحديث نتائج الضرائب بالسطور
+        for it, res_it in zip(items, tax_results["items"]):
+            it.tax_rate = res_it["effective_tax_rate"]
+            it.tax_amount = res_it["line_tax_amount"]
+            it.table_tax_rate = res_it["effective_table_rate"]
+            it.table_tax_amount = res_it["line_table_tax"]
+            it.total = res_it["line_total"]
+            it.save(update_fields=['tax_rate', 'tax_amount', 'table_tax_rate', 'table_tax_amount', 'total'])
+
+        sale.subtotal = tax_results["subtotal"]
+        sale.tax = tax_results["total_tax"]
+        sale.wht_amount = tax_results["total_wht"]
+        sale.total = tax_results["total"]
         
         if sale.currency and not sale.currency.is_functional:
             sale.total_foreign = sale.total
@@ -935,15 +999,22 @@ class SaleService:
         from sale.models import SaleItem
         
         sale_item = SaleItem.objects.get(id=item_data['sale_item_id'])
+        qty = Decimal(str(item_data['quantity']))
+        item_tax_rate = sale_item.tax_rate or Decimal('0')
+        item_is_taxable = sale_item.is_taxable
+        item_tax_amount = (qty * (sale_item.tax_amount / sale_item.quantity)) if (sale_item.quantity and sale_item.quantity > 0) else Decimal('0')
         
         item = SaleReturnItem.objects.create(
             sale_return=sale_return,
             sale_item=sale_item,
             product=sale_item.product,
-            quantity=Decimal(item_data['quantity']),
-            unit_price=Decimal(item_data['unit_price']),
-            discount=Decimal(item_data.get('discount', 0)),
-            total=Decimal(item_data['quantity']) * Decimal(item_data['unit_price']) - Decimal(item_data.get('discount', 0)),
+            quantity=qty,
+            unit_price=Decimal(str(item_data['unit_price'])),
+            discount=Decimal(str(item_data.get('discount', 0))),
+            tax_rate=item_tax_rate,
+            tax_amount=item_tax_amount.quantize(Decimal('0.01')),
+            is_taxable=item_is_taxable,
+            total=qty * Decimal(str(item_data['unit_price'])) - Decimal(str(item_data.get('discount', 0))),
             reason=item_data.get('reason', 'مرتجع')
         )
         logger.info(f"✅ تم إضافة بند مرتجع: {item.product.name}")
