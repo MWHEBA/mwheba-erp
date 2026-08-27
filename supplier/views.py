@@ -209,19 +209,15 @@ def supplier_list(request):
         },
     ]
 
-    # تعريف أزرار الإجراءات
+    # تعريف أزرار الإجراءات (تم حذف أزرار العرض والتعديل لأن الصف بالكامل قابل للنقر)
     action_buttons = [
         {
-            "url": "supplier:supplier_detail",
-            "icon": "fa-eye",
-            "class": "action-view",
-            "label": "عرض",
-        },
-        {
-            "url": "supplier:supplier_edit",
-            "icon": "fa-pen",
-            "class": "action-edit",
-            "label": "تعديل",
+            "type": "button",
+            "icon": "fa-undo",
+            "class": "action-reactivate text-success",
+            "label": "إعادة تنشيط",
+            "condition": "is_inactive",
+            "data_attrs": 'onclick="reactivateSupplier(this.closest(\'tr\').dataset.id)"',
         },
         {
             "modal": True,
@@ -1678,35 +1674,57 @@ def supplier_detail(request, pk):
         },
     ]
 
-    # أزرار الإجراءات السريعة للمورد في الهيدر
-    header_buttons = [
-        {
-            "url": "#",
-            "icon": "fa-plus-circle",
-            "text": "إضافة رصيد مسبق",
-            "class": "btn-primary",
-            "toggle": "modal",
-            "target": "#addSupplierAdvanceModal",
-            "title": "إضافة رصيد مسبق / دفعة مقدمة للمورد",
-        },
-        {
-            "url": reverse("purchase:purchase_create_for_supplier", kwargs={"supplier_id": supplier.id}),
-            "icon": "fa-plus",
-            "text": "فاتورة مشتريات",
-            "class": "btn-success",
-            "title": "إنشاء فاتورة مشتريات جديدة من هذا المورد",
-        },
-        {
-            "url": "#",
-            "icon": "fa-ellipsis-v",
-            "text": "",
-            "class": "btn-outline-secondary",
-            "id": "actions-menu-btn",
-            "toggle": "modal",
-            "target": "#actionsModal",
-            "title": "خيارات وإجراءات إضافية",
-        },
-    ]
+    # شارات وأزرار الإجراءات السريعة للمورد في الهيدر
+    if not supplier.is_active:
+        header_badges = [
+            {
+                "text": "مورد مؤرشف ومعطل",
+                "class": "bg-warning text-dark fw-bold",
+                "icon": "fas fa-archive",
+                "title": "هذا المورد غير نشط ومؤرشف",
+            }
+        ]
+        header_buttons = [
+            {
+                "url": "#",
+                "icon": "fa-undo",
+                "text": "إعادة تنشيط المورد",
+                "class": "btn-success fw-bold",
+                "id": "btn-reactivate-supplier",
+                "onclick": "const f = document.getElementById('reactivate-supplier-form'); if(f) { f.submit(); } else { const nf = document.createElement('form'); nf.method='POST'; nf.action='" + reverse('supplier:supplier_reactivate', kwargs={'pk': supplier.pk}) + "'; const c = document.querySelector('[name=csrfmiddlewaretoken]'); if(c) { const i = document.createElement('input'); i.type='hidden'; i.name='csrfmiddlewaretoken'; i.value=c.value; nf.appendChild(i); } document.body.appendChild(nf); nf.submit(); }",
+                "title": "إعادة تنشيط المورد وحسابه المالي",
+            }
+        ]
+    else:
+        header_badges = []
+        header_buttons = [
+            {
+                "url": "#",
+                "icon": "fa-plus-circle",
+                "text": "إضافة رصيد مسبق",
+                "class": "btn-primary",
+                "toggle": "modal",
+                "target": "#addSupplierAdvanceModal",
+                "title": "إضافة رصيد مسبق / دفعة مقدمة للمورد",
+            },
+            {
+                "url": reverse("purchase:purchase_create_for_supplier", kwargs={"supplier_id": supplier.id}),
+                "icon": "fa-plus",
+                "text": "فاتورة مشتريات",
+                "class": "btn-success",
+                "title": "إنشاء فاتورة مشتريات جديدة من هذا المورد",
+            },
+            {
+                "url": "#",
+                "icon": "fa-ellipsis-v",
+                "text": "",
+                "class": "btn-outline-secondary",
+                "id": "actions-menu-btn",
+                "toggle": "modal",
+                "target": "#actionsModal",
+                "title": "خيارات وإجراءات إضافية",
+            },
+        ]
 
     # جلب خدمات المورد — المرحلة الثانية
     from supplier.models import SupplierService, ServiceType
@@ -1773,19 +1791,16 @@ def supplier_detail(request, pk):
     credit_limit = getattr(supplier, 'credit_limit', Decimal('0.00')) or Decimal('0.00')
     available_credit = credit_limit - total_purchases + total_payments
 
-    from financial.models import ChartOfAccounts
-    from django.db.models import Q
+    from financial.services.account_helper import AccountHelperService
     financial_accounts_list = list(
-        ChartOfAccounts.objects.filter(
-            Q(is_cash_account=True) | Q(is_bank_account=True) | Q(code__startswith="101"),
-            is_active=True
-        ).order_by("code")
+        AccountHelperService.get_expense_and_settlement_accounts()
     )
 
     context = {
         "supplier": supplier,
         "financial_accounts": financial_accounts_list,
         "available_credit": available_credit,
+        "header_badges": header_badges,
         "header_buttons": header_buttons,
         "quick_action_buttons": header_buttons,
         "payments": payments_data,  # استخدام البيانات المحولة

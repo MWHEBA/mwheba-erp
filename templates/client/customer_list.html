@@ -27,7 +27,7 @@
     <div class="collapse {% if request.GET.search or request.GET.status or request.GET.has_debt or request.GET.currency or request.GET.client_type %}show{% endif %}" id="filterSection">
       <div class="filter-section mb-4">
         <form method="GET" action="{% url 'client:customer_list' %}" class="row g-2 align-items-end">
-          <input type="hidden" name="status" value="{{ request.GET.status|default:'active' }}">
+          <input type="hidden" name="status" id="status" value="{{ request.GET.status|default:'active' }}">
           <div class="col-md-3 col-sm-6">
             <label for="search" class="form-label">{% trans "بحث" %}</label>
             <input type="text" class="form-control" id="search" name="search" value="{{ request.GET.search }}" placeholder="اسم أو هاتف أو كود العميل">
@@ -125,12 +125,14 @@
       if (typeof customQueryStr === 'string' && customQueryStr.length > 0) {
         queryString = customQueryStr;
       } else {
+        const currentUrlParams = new URLSearchParams(window.location.search);
+        const statusVal = $('#status').val() || currentUrlParams.get('status') || '';
         const params = new URLSearchParams({
           search: $('#search').val() || '',
           client_type: $('#client_type').val() || '',
           currency: $('#currency').val() || '',
           has_debt: $('#has_debt').val() || '',
-          status: $('#status').val() || '',
+          status: statusVal,
           page: 1
         });
         queryString = params.toString();
@@ -260,6 +262,66 @@
       }
     });
   }
+  function reactivateCustomer(customerId) {
+    if (!customerId) return;
+    Swal.fire({
+      title: 'تأكيد إعادة التنشيط',
+      text: 'هل أنت متأكد من رغبتك في إعادة تنشيط هذا العميل وتفعيل حسابه المالي؟',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: 'var(--bs-success, #198754)',
+      cancelButtonColor: 'var(--bs-secondary, #6c757d)',
+      confirmButtonText: '<i class="fas fa-undo me-1"></i> إعادة تنشيط',
+      cancelButtonText: 'إلغاء',
+      reverseButtons: true
+    }).then((result) => {
+      if (result.isConfirmed) {
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]') 
+                        || document.querySelector('meta[name="csrf-token"]');
+        const csrfValue = csrfToken ? (csrfToken.value || csrfToken.getAttribute('content')) : '';
+        
+        $.ajax({
+          url: '/customers/' + customerId + '/reactivate/',
+          type: 'POST',
+          headers: { 'X-CSRFToken': csrfValue, 'X-Requested-With': 'XMLHttpRequest' },
+          success: function(response) {
+            if (response && response.success) {
+              if (window.showNotification) {
+                window.showNotification(response.message || 'تمت إعادة تنشيط العميل بنجاح', 'success', 'نجاح');
+              } else if (typeof toastr !== 'undefined') {
+                toastr.success(response.message || 'تمت إعادة تنشيط العميل بنجاح');
+              }
+              const currentSearch = window.location.search ? window.location.search.substring(1) : '';
+              if (window.doSearch) {
+                window.doSearch(currentSearch);
+              } else {
+                location.reload();
+              }
+            } else {
+              const msg = (response && response.message) ? response.message : 'حدث خطأ أثناء إعادة التنشيط';
+              if (window.showNotification) {
+                window.showNotification(msg, 'error', 'خطأ');
+              } else if (typeof toastr !== 'undefined') {
+                toastr.error(msg);
+              }
+            }
+          },
+          error: function(xhr) {
+            let msg = 'حدث خطأ أثناء إعادة التنشيط';
+            if (xhr.responseJSON && xhr.responseJSON.message) {
+              msg = xhr.responseJSON.message;
+            }
+            if (window.showNotification) {
+              window.showNotification(msg, 'error', 'خطأ');
+            } else if (typeof toastr !== 'undefined') {
+              toastr.error(msg);
+            }
+          }
+        });
+      }
+    });
+  }
+
   function openDeleteModal(itemId) {
     if (window.EntityDeleteArchiveController) {
       window.EntityDeleteArchiveController.open({

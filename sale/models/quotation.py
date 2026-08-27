@@ -224,3 +224,14 @@ class Quotation(models.Model):
             return bool(latest and getattr(latest, 'status', None) == "CANCELLED")
         except Exception:
             return False
+
+    @property
+    def validity_days(self):
+        """عدد أيام صلاحية عرض السعر المحسوبة بين تاريخ العرض وتاريخ الانتهاء"""
+        try:
+            if self.date and self.valid_until:
+                delta = (self.valid_until - self.date).days
+                return max(0, delta)
+        except Exception:
+            pass
+        return None

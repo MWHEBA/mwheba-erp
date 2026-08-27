@@ -192,11 +192,14 @@
 </div>
 {% endif %}
 
-{% if so.required_down_payment > 0 %}
+{% if so.effective_required_down_payment > 0 %}
 <div class="p-2 border border-primary-subtle rounded bg-light small text-primary fw-bold">
     <i class="fas fa-hand-holding-usd me-1"></i>
     {% if is_english %}Required Advance Down Payment:{% else %}الدفعة المقدمة المشترطة لبدء التنفيذ والتوريد:{% endif %}
-    <span>{{ so.required_down_payment|currency:currency_symbol_active }}</span>
+    <span>
+        {{ so.effective_required_down_payment|currency:currency_symbol_active }}
+        {% if so.down_payment_type == 'percentage' %}({{ so.required_down_payment|smart_float }}%){% endif %}
+    </span>
 </div>
 {% endif %}
 {% endblock %}
@@ -234,10 +237,13 @@
     <td>{% if is_english %}Total Order Amount{% else %}صافي إجمالي أمر البيع{% endif %}</td>
     <td>{{ so.total_amount|currency:currency_symbol_active }}</td>
 </tr>
-{% if so.required_down_payment > 0 or so.paid_down_payment > 0 %}
+{% if so.effective_required_down_payment > 0 or so.paid_down_payment > 0 %}
 <tr class="border-top">
     <td>{% if is_english %}Required Advance Deposit{% else %}الدفعة المقدمة المشترطة{% endif %}</td>
-    <td>{{ so.required_down_payment|currency:currency_symbol_active }}</td>
+    <td>
+        {{ so.effective_required_down_payment|currency:currency_symbol_active }}
+        {% if so.down_payment_type == 'percentage' and so.required_down_payment > 0 %}<span class="text-muted small">({{ so.required_down_payment|smart_float }}%)</span>{% endif %}
+    </td>
 </tr>
 <tr class="text-success">
     <td>{% if is_english %}Paid Advance Deposit{% else %}الدفعة المقدمة المسددة (سندات قبض){% endif %}</td>

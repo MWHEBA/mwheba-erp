@@ -188,14 +188,21 @@ class PurchasePayment(MonetaryTransactionMixin, PaymentAuditMixin, models.Model)
         """التحقق من صحة البيانات"""
         super().clean()
 
-        # التحقق من أن الحساب المالي نقدي أو بنكي (إلا لو كانت الدفعة مخصومة من رصيد مسبق للمورد)
+        # التحقق من أن الحساب المالي نقدي أو بنكي أو عهدة معتمدة (إلا لو كانت الدفعة مخصومة من رصيد مسبق للمورد)
         if self.financial_account and not (self.source_type == "PREPAID_BALANCE"):
+            is_custody = (
+                self.financial_account.code.startswith("1145")
+                or self.financial_account.code.startswith("1051")
+                or (getattr(self.financial_account, "account_type", None) and getattr(self.financial_account.account_type, "code", "").upper() == "OTHER_DEBIT")
+                or "عهدة" in (self.financial_account.name or "")
+            )
             if not (
                 self.financial_account.is_cash_account
                 or self.financial_account.is_bank_account
+                or is_custody
             ):
                 raise ValidationError(
-                    {"financial_account": _("يجب اختيار حساب نقدي أو بنكي فقط")}
+                    {"financial_account": _("يجب اختيار حساب نقدي أو بنكي أو عهدة معتمدة فقط")}
                 )
 
         # التحقق من أن المبلغ موجب
@@ -237,6 +244,8 @@ class PurchasePayment(MonetaryTransactionMixin, PaymentAuditMixin, models.Model)
             acc_name = f" - {self.financial_account.name}" if self.financial_account else ""
             ref = f" (مرجع: #{self.reference_number})" if self.reference_number else ""
             return f"تحويل بنكي{acc_name}{ref}"
+        elif self.financial_account and (self.financial_account.code.startswith("1145") or self.financial_account.code.startswith("1051") or "عهدة" in (self.financial_account.name or "")):
+            return f"عهدة - {self.financial_account.name}"
         else:
             acc_name = f" - {self.financial_account.name}" if self.financial_account else ""
             return f"نقدي{acc_name}"

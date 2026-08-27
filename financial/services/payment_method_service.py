@@ -77,8 +77,10 @@ class PaymentMethodService:
             return 'cash'
         if account.is_bank_account or (account.account_type and account.account_type.code.lower() == 'bank'):
             return 'bank'
+        if account.code.startswith('1145') or account.code.startswith('1051') or (account.account_type and account.account_type.code.upper() == 'OTHER_DEBIT') or 'عهدة' in account.name:
+            return 'custody'
         name = account.name
-        if any(k in name for k in ['نقدي', 'صندوق', 'خزينة', 'عهدة']):
+        if any(k in name for k in ['نقدي', 'صندوق', 'خزينة']):
             return 'cash'
         if any(k in name for k in ['بنك', 'مصرف', 'جارية']):
             return 'bank'
@@ -103,7 +105,7 @@ class PaymentMethodService:
     @classmethod
     def is_non_cash_payment(cls, payment_method_code: str) -> bool:
         """
-        Check if payment method is non-cash (bank, check, card, etc.).
+        Check if payment method is non-cash (bank, check, card, custody, etc.).
         """
         return not cls.is_cash_payment(payment_method_code)
     
@@ -130,6 +132,8 @@ class PaymentMethodService:
             return 'fas fa-money-bill-wave'
         elif account_type == 'bank':
             return 'fas fa-university'
+        elif account_type == 'custody':
+            return 'fas fa-user-tag'
         else:
             return 'fas fa-credit-card'
     

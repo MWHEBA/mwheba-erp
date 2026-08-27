@@ -32,9 +32,16 @@ class PrepaidAllocationSystemTest(TestCase):
         from financial.models import ChartOfAccounts, AccountType
         acc_type_ast, _ = AccountType.objects.get_or_create(code="AST_TEST", defaults={"name": "أصول", "category": "asset", "nature": "debit"})
         acc_type_liab, _ = AccountType.objects.get_or_create(code="LIAB_TEST", defaults={"name": "خصوم", "category": "liability", "nature": "credit"})
+        acc_type_rev, _ = AccountType.objects.get_or_create(code="REV_TEST", defaults={"name": "إيرادات", "category": "equity", "nature": "credit"})
+        acc_type_exp, _ = AccountType.objects.get_or_create(code="EXP_TEST", defaults={"name": "مصروفات", "category": "equity", "nature": "debit"})
 
         cust_acc, _ = ChartOfAccounts.objects.get_or_create(code="11010", defaults={"name": "ذمم العملاء", "account_type": acc_type_ast, "is_active": True, "is_leaf": True})
         supp_acc, _ = ChartOfAccounts.objects.get_or_create(code="20100", defaults={"name": "دائنو الموردين", "account_type": acc_type_liab, "is_active": True, "is_leaf": True})
+        ChartOfAccounts.objects.get_or_create(code="21510", defaults={"name": "دفعات مقدمة عملاء", "account_type": acc_type_liab, "is_active": True, "is_leaf": True})
+        ChartOfAccounts.objects.get_or_create(code="11410", defaults={"name": "دفعات مقدمة موردين", "account_type": acc_type_ast, "is_active": True, "is_leaf": True})
+        ChartOfAccounts.objects.get_or_create(code="54300", defaults={"name": "خسائر فروق عملة", "account_type": acc_type_exp, "is_active": True, "is_leaf": True})
+        ChartOfAccounts.objects.get_or_create(code="43100", defaults={"name": "أرباح فروق عملة", "account_type": acc_type_rev, "is_active": True, "is_leaf": True})
+        ChartOfAccounts.objects.get_or_create(code="54400", defaults={"name": "فروق تقريب", "account_type": acc_type_exp, "is_active": True, "is_leaf": True})
 
         # إنشاء عميل ومورد
         self.customer = Customer.objects.create(
@@ -306,23 +313,23 @@ class PrepaidAllocationSystemTest(TestCase):
         self.assertEqual(diff_loss, Decimal("500.00"))
         entries_loss = cust_fx.generate_entries(diff_loss, "20200", "10200", reference_note="Test Sale")
         self.assertEqual(len(entries_loss), 1)
-        self.assertEqual(entries_loss[0].account_code, "50400") # FX Loss
+        self.assertEqual(entries_loss[0].account_code, "54300") # FX Loss
 
-        # Gain: Advance rate 50, Sale rate 45 -> Amount 100 -> Invoice EGP 4500 - Advance EGP 5000 = -500 Diff -> Realized FX Gain for seller (Credit 40400)
+        # Gain: Advance rate 50, Sale rate 45 -> Amount 100 -> Invoice EGP 4500 - Advance EGP 5000 = -500 Diff -> Realized FX Gain for seller (Credit 43100)
         diff_gain = cust_fx.calculate_difference(Decimal("50.0"), Decimal("45.0"), Decimal("100.0"))
         self.assertEqual(diff_gain, Decimal("-500.00"))
         entries_gain = cust_fx.generate_entries(diff_gain, "20200", "10200", reference_note="Test Sale")
         self.assertEqual(len(entries_gain), 1)
-        self.assertEqual(entries_gain[0].account_code, "40400") # FX Gain
+        self.assertEqual(entries_gain[0].account_code, "43100") # FX Gain
 
         # Supplier Strategy:
         supp_fx = SupplierAdvanceAssetStrategy()
-        # Gain: Advance 40, Bill 50 -> Amount 100 -> Bill 5000 - Advance 4000 = +500 Diff -> Realized FX Gain for buyer (Credit 40400)
+        # Gain: Advance 40, Bill 50 -> Amount 100 -> Bill 5000 - Advance 4000 = +500 Diff -> Realized FX Gain for buyer (Credit 43100)
         supp_diff_gain = supp_fx.calculate_difference(Decimal("40.0"), Decimal("50.0"), Decimal("100.0"))
         self.assertEqual(supp_diff_gain, Decimal("1000.00"))
         supp_entries_gain = supp_fx.generate_entries(supp_diff_gain, "10500", "20100", reference_note="Test Bill")
         self.assertEqual(len(supp_entries_gain), 1)
-        self.assertEqual(supp_entries_gain[0].account_code, "40400") # FX Gain
+        self.assertEqual(supp_entries_gain[0].account_code, "43100") # FX Gain
 
 
 

@@ -33,11 +33,11 @@ class PartnerAdvanceService:
         snapshot = PartnerCurrencyBalanceSnapshot.objects.filter(
             partner_type=partner_type,
             partner_id=partner_id,
-            currency=curr_code,
+            currency__code=curr_code,
         ).first()
 
         if snapshot:
-            return snapshot.net_balance
+            return snapshot.advance_balance
 
         # إذا لم توجد لقطة مخصصة، يتم احتساب اللقطة وتأسيسها آلياً
         return cls.rebuild_snapshot(partner, currency=currency)
@@ -154,12 +154,23 @@ class PartnerAdvanceService:
         if not currency:
             currency = func_curr
 
-        is_func = (not currency or (func_curr and currency.id == func_curr.id))
+        if currency and not isinstance(currency, Currency):
+            curr_code = getattr(currency, "code", str(currency) if currency else "EGP")
+            currency = Currency.objects.filter(code=curr_code).first()
+
+        if func_curr and not isinstance(func_curr, Currency):
+            f_code = getattr(func_curr, "code", "EGP")
+            func_curr = Currency.objects.filter(code=f_code).first()
+
+        is_func = (not currency or (func_curr and currency and currency.id == func_curr.id))
 
         if partner_type == "customer":
             if hasattr(partner, "payments"):
                 if is_func or not currency:
-                    payments = partner.payments.exclude(status="cancelled").filter(Q(currency=currency) | Q(currency__isnull=True))
+                    if currency:
+                        payments = partner.payments.exclude(status="cancelled").filter(Q(currency=currency) | Q(currency__isnull=True))
+                    else:
+                        payments = partner.payments.exclude(status="cancelled").all()
                 else:
                     payments = partner.payments.exclude(status="cancelled").filter(currency=currency)
             else:

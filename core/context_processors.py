@@ -134,7 +134,7 @@ def payment_accounts(request):
     إضافة حسابات الدفع (الخزينة/البنك) المصنفة للقوالب مع Cache
     ✅ استخدام AccountHelperService للمرجعية الموحدة وتقديم الخزن والبنك والافتراضي بمرونة
     """
-    cache_key = 'payment_accounts_data_v4'
+    cache_key = 'payment_accounts_data_v5'
     cached_data = cache.get(cache_key)
 
     if cached_data is None:
@@ -143,6 +143,7 @@ def payment_accounts(request):
 
             cash_qs = AccountHelperService.get_cash_accounts().select_related('currency')
             bank_qs = AccountHelperService.get_bank_accounts().select_related('currency')
+            custody_qs = AccountHelperService.get_custody_accounts().select_related('currency')
 
             def _serialize_acc(acc):
                 curr_code = 'EGP'
@@ -163,12 +164,13 @@ def payment_accounts(request):
                     'currency_symbol': curr_symbol,
                     'currency_rate': curr_rate,
                     'currency_is_functional': is_func,
-                    'is_cash_account': getattr(acc, 'is_cash_account', True),
+                    'is_cash_account': getattr(acc, 'is_cash_account', False),
                     'is_bank_account': getattr(acc, 'is_bank_account', False),
                 }
 
             cash_accounts_data = [_serialize_acc(a) for a in cash_qs]
             bank_accounts_data = [_serialize_acc(a) for a in bank_qs]
+            custody_accounts_data = [_serialize_acc(a) for a in custody_qs]
 
             # الدمج للقوائم العامة
             all_accounts_data = cash_accounts_data + bank_accounts_data
@@ -188,6 +190,7 @@ def payment_accounts(request):
                 'accounts': all_accounts_data,
                 'cash_accounts': cash_accounts_data,
                 'bank_accounts': bank_accounts_data,
+                'custody_accounts': custody_accounts_data,
                 'default': default_account_data,
                 'default_bank': default_bank_data
             }
@@ -200,6 +203,7 @@ def payment_accounts(request):
                 'accounts': [],
                 'cash_accounts': [],
                 'bank_accounts': [],
+                'custody_accounts': [],
                 'default': None,
                 'default_bank': None
             }
@@ -208,6 +212,7 @@ def payment_accounts(request):
         'payment_accounts': cached_data['accounts'],
         'cash_payment_accounts': cached_data.get('cash_accounts', []),
         'bank_payment_accounts': cached_data.get('bank_accounts', []),
+        'custody_payment_accounts': cached_data.get('custody_accounts', []),
         'default_payment_account': cached_data['default'],
         'default_bank_account': cached_data.get('default_bank')
     }

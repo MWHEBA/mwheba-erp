@@ -60,6 +60,26 @@ Component: Payment Account Select
     </optgroup>
     {% endif %}
 
+    {% if allow_custody and custody_payment_accounts %}
+    <optgroup label="عهد موظفين (تسوية)">
+        {% for account in custody_payment_accounts %}
+        <option value="{% if value_type == 'id' %}{{ account.id }}{% else %}{{ account.code }}{% endif %}"
+            data-currency="{{ account.currency_code|default:'EGP' }}"
+            data-symbol="{{ account.currency_symbol|default:'ج.م' }}"
+            data-rate="{{ account.currency_rate|default:'1.000000' }}"
+            data-is-functional="{{ account.currency_is_functional|default:'1' }}"
+            {% if value_type == 'id' %}
+                {% if selected_value and selected_value|stringformat:'s' == account.id|stringformat:'s' %}selected{% endif %}
+            {% else %}
+                {% if selected_value and selected_value|stringformat:'s' == account.code|stringformat:'s' %}selected{% endif %}
+            {% endif %}
+        >
+            {{ account.name }} ({{ account.currency_symbol|default:account.currency_code|default:'ج.م' }})
+        </option>
+        {% endfor %}
+    </optgroup>
+    {% endif %}
+
     {% if not cash_payment_accounts and not bank_payment_accounts and payment_accounts %}
         {% for account in payment_accounts %}
         <option value="{% if value_type == 'id' %}{{ account.id }}{% else %}{{ account.code }}{% endif %}"

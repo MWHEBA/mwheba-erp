@@ -213,7 +213,7 @@
       </div>
     </div>
     <div class="col-lg col-md-6 col-sm-6">
-      <div class="stats-card {% if so.is_down_payment_satisfied %}stats-card-success{% elif so.required_down_payment > 0 %}stats-card-warning{% else %}stats-card-info{% endif %} h-100">
+      <div class="stats-card {% if so.is_down_payment_satisfied %}stats-card-success{% elif so.effective_required_down_payment > 0 %}stats-card-warning{% else %}stats-card-info{% endif %} h-100">
         <div class="stats-card-body d-flex align-items-center">
           <div class="stats-card-icon me-3">
             <i class="fas fa-hand-holding-usd"></i>
@@ -223,10 +223,13 @@
               <span>{% trans "الدفعة المقدمة (العربون)" %}</span>
             </div>
             <div class="stats-card-value fw-bold fs-5">
-              {{ so.paid_down_payment|smart_float:2 }} / {{ so.required_down_payment|smart_float:2 }} {{ so.currency_display }}
+              {{ so.paid_down_payment|smart_float:2 }} / {{ so.effective_required_down_payment|smart_float:2 }} {{ so.currency_display }}
+              {% if so.down_payment_type == 'percentage' and so.required_down_payment > 0 %}
+                <small class="text-muted fs-6 fw-normal font-monospace">({{ so.required_down_payment|smart_float }}%)</small>
+              {% endif %}
             </div>
             <div class="mt-1">
-              {% if so.required_down_payment == 0 %}
+              {% if so.effective_required_down_payment == 0 %}
                 <span class="badge bg-light text-muted border">{% trans "غير مشترط" %}</span>
               {% elif so.down_payment_override %}
                 <span class="badge bg-info text-white" title="{{ so.down_payment_override_reason }}">{% trans "تم التجاوز الإداري" %}</span>
@@ -655,10 +658,13 @@
             <span class="text-muted">{% trans "طريقة التوصيل:" %}</span>
             <span>{{ so.get_shipping_method_display }}</span>
           </div>
-          {% if so.required_down_payment > 0 %}
+          {% if so.effective_required_down_payment > 0 %}
           <div class="d-flex justify-content-between border-bottom pb-2">
             <span class="text-muted">{% trans "الدفعة المقدمة المشترطة:" %}</span>
-            <span class="fw-bold text-primary">{{ so.required_down_payment|smart_float:2 }} {{ so.currency_display }}</span>
+            <span class="fw-bold text-primary">
+              {{ so.effective_required_down_payment|smart_float:2 }} {{ so.currency_display }}
+              {% if so.down_payment_type == 'percentage' %}<small class="text-muted fw-normal">({{ so.required_down_payment|smart_float }}%)</small>{% endif %}
+            </span>
           </div>
           {% endif %}
           {% if so.shipping_address %}
@@ -704,7 +710,7 @@
             </button>
           {% endif %}
 
-          {% if so.required_down_payment > 0 and not so.is_down_payment_satisfied and can_override_down_payment %}
+          {% if so.effective_required_down_payment > 0 and not so.is_down_payment_satisfied and can_override_down_payment %}
             <button type="button" class="btn btn-outline-info w-100" data-bs-toggle="modal" data-bs-target="#overrideDownPaymentModal">
               <i class="fas fa-user-shield me-1"></i>{% trans "اعتماد تجاوز إداري (VIP)" %}
             </button>
@@ -754,7 +760,10 @@
             </div>
             <div class="d-flex justify-content-between small mb-1">
               <span class="text-muted">{% trans "الدفعة المقدمة المشترطة:" %}</span>
-              <span class="fw-bold text-primary">{{ so.required_down_payment|smart_float:2 }} {{ so.currency_display }}</span>
+              <span class="fw-bold text-primary">
+                {{ so.effective_required_down_payment|smart_float:2 }} {{ so.currency_display }}
+                {% if so.down_payment_type == 'percentage' %}<small class="text-muted fw-normal">({{ so.required_down_payment|smart_float }}%)</small>{% endif %}
+              </span>
             </div>
             <div class="d-flex justify-content-between small mb-1">
               <span class="text-muted">{% trans "المحصل حتى الآن:" %}</span>
@@ -769,7 +778,7 @@
           <div class="mb-3">
             <label class="form-label fw-bold text-dark small">{% trans "مبلغ الدفعة المراد تحصيله" %} <span class="text-danger">*</span></label>
             <div class="input-group">
-              <input type="number" step="0.01" name="amount" class="form-control fw-bold text-center fs-5" value="{{ so.remaining_down_payment|smart_float }}" min="0.01" max="{{ so.total_amount|subtract:so.paid_down_payment }}" required>
+              <input type="number" step="0.01" name="amount" class="form-control fw-bold text-center fs-5" value="{% if so.remaining_down_payment > 0 %}{{ so.remaining_down_payment|smart_float }}{% else %}{{ so.total_amount|subtract:so.paid_down_payment|smart_float }}{% endif %}" min="0.01" max="{{ so.total_amount|subtract:so.paid_down_payment }}" required>
               <span class="input-group-text px-3">{{ so.currency_display }}</span>
             </div>
           </div>

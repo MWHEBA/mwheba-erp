@@ -289,11 +289,16 @@ class Purchase(models.Model):
     @property
     def amount_paid(self):
         """
-        حساب إجمالي المبلغ المدفوع: النقدية المباشرة + التوزيعات المطبقة من سجل التدقيق
+        حساب إجمالي المبلغ المدفوع: النقدية المباشرة + التوزيعات المطبقة من سجل التدقيق بدون ازدواج
         """
         from supplier.models import SupplierAllocationAudit
         from decimal import Decimal
-        direct_paid = self.payments.filter(status="posted").aggregate(models.Sum("amount"))["amount__sum"] or Decimal("0.00")
+        direct_paid = self.payments.filter(status="posted").exclude(
+            source_type="PREPAID_BALANCE"
+        ).exclude(
+            payment_method__in=["prepaid_balance", "advance"]
+        ).aggregate(models.Sum("amount"))["amount__sum"] or Decimal("0.00")
+
         allocated_paid = SupplierAllocationAudit.objects.filter(
             target_document_number=self.number,
             allocation_status="APPLIED"

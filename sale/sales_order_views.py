@@ -347,13 +347,13 @@ def sales_order_create(request, quotation_id=None):
                 quotation.save(update_fields=["status"])
 
             # معالجة التحصيل الفوري للعربون إن طُلب وتوفرت صلاحية الخزينة
-            if instant_down_payment and so.required_down_payment > Decimal("0.00") and instant_treasury:
+            if instant_down_payment and so.effective_required_down_payment > Decimal("0.00") and instant_treasury:
                 try:
                     from client.services.customer_allocation_audit_service import CustomerAllocationAuditService
                     curr_model = Currency.objects.filter(code=so.currency).first()
                     CustomerAllocationAuditService.create_prepaid_payment(
                         customer_id=so.customer_id,
-                        amount=so.required_down_payment,
+                        amount=so.effective_required_down_payment,
                         payment_date=so.order_date,
                         payment_method=instant_payment_method,
                         financial_account_id=int(instant_treasury),
@@ -364,7 +364,7 @@ def sales_order_create(request, quotation_id=None):
                         salesman=so.salesman,
                         notes=f"تحصيل فوري لدفعة مقدمة أمر بيع #{so.order_number}"
                     )
-                    messages.info(request, f"تم تحصيل الدفعة المقدمة المشترطة ({so.required_down_payment} {so.currency}) بالخزينة فوراً.")
+                    messages.info(request, f"تم تحصيل الدفعة المقدمة المشترطة ({so.effective_required_down_payment} {so.currency}) بالخزينة فوراً.")
                 except Exception as pay_err:
                     logger.warning(f"Failed instant down payment collection: {pay_err}")
                     messages.warning(request, f"تم إنشاء أمر البيع ولكن تعذر تسجيل حركة الخزينة الفورية: {str(pay_err)}")

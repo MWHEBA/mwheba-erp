@@ -233,11 +233,11 @@ class SupplierAllocationService:
 
                 gateway = AccountingGateway()
                 gateway.create_journal_entry(
-                    source_module="purchase",
+                    source_module="supplier",
                     source_model="SupplierAllocationAudit",
                     source_id=last_audit.id if last_audit else purchase.id,
                     lines=lines,
-                    idempotency_key=f"JE:purchase:SupplierAllocationAudit:{last_audit.id if last_audit else purchase.id}:reclassify",
+                    idempotency_key=f"JE:supplier:SupplierAllocationAudit:{last_audit.id if last_audit else purchase.id}:reclassify",
                     user=user or purchase.created_by,
                     entry_type="automatic",
                     description=f"تسوية رصيد مسبق للمورد {supplier.name}",
@@ -563,9 +563,10 @@ class SupplierAllocationService:
                                 description=f"إغلاق دفعات مقدمة للمورد {locked_supplier.name} - دفعة {batch_reference}"
                             )
                         ]
+                        from governance.services import AccountingGateway, JournalEntryLineData
                         gateway = AccountingGateway()
                         gateway.create_journal_entry(
-                            source_module="purchase",
+                            source_module="supplier",
                             source_model="SupplierAllocationAudit",
                             source_id=audits_created[0].id if audits_created else locked_supplier.id,
                             lines=lines,
@@ -669,11 +670,11 @@ class SupplierAllocationService:
 
                     gateway = AccountingGateway()
                     gateway.create_journal_entry(
-                        source_module="purchase",
+                        source_module="supplier",
                         source_model="SupplierAllocationAudit",
                         source_id=rev_audit.id,
                         lines=rev_lines,
-                        idempotency_key=f"JE:purchase:SupplierAllocationAudit:REV:{audit.id}",
+                        idempotency_key=f"JE:supplier:SupplierAllocationAudit:REV:{audit.id}",
                         user=user,
                         entry_type="automatic",
                         description=f"قيد عكسي لتسوية رصيد مسبق للمورد {audit.supplier.name}",

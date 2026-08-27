@@ -310,8 +310,20 @@ def product_list(request):
         ]
 
         action_buttons = [
-            {"url": "product:product_detail", "icon": "fa-eye", "label": "عرض التفاصيل", "class": "action-view", "title": "عرض تفاصيل المنتج"},
-            {"url": "product:product_edit", "icon": "fa-edit", "label": "تعديل", "class": "action-edit", "title": "تعديل المنتج"},
+            {
+                "type": "button",
+                "icon": "fa-undo",
+                "class": "action-reactivate text-success",
+                "label": "إعادة تنشيط",
+                "condition": "is_inactive",
+                "data_attrs": 'onclick="reactivateProduct(this.closest(\'tr\').dataset.id)"',
+            },
+            {
+                "modal": True,
+                "icon": "fa-trash-alt",
+                "class": "action-delete text-danger",
+                "label": "حذف / أرشفة",
+            },
         ]
 
         def build_table_data(page):
@@ -387,6 +399,7 @@ def product_list(request):
                     "category": category_html,
                     "sale_price": price_html,
                     "current_stock": stock_html,
+                    "is_active": product.is_active,
                     "row_click_url": detail_url,
                 })
             return rows
@@ -1416,53 +1429,51 @@ def product_delete(request, pk):
     current_stock_qty = Stock.objects.filter(product=product).aggregate(total=Sum('quantity'))['total'] or Decimal('0')
     has_stock = (not product.is_service and current_stock_qty > Decimal('0'))
 
+    # 1. الفحص المسبق اللحظي (Pre-check) عبر الـ Modal
+    if request.GET.get('precheck') == '1' or (request.headers.get('X-Requested-With') == 'XMLHttpRequest' and request.method == 'GET'):
+        stock_msg = f"{current_stock_qty} {unit_name}" if has_stock else ""
+        return JsonResponse({
+            'success': True,
+            'id': product.id,
+            'name': product.name,
+            'code': product.sku or product.barcode or (product.code if hasattr(product, 'code') else ''),
+            'can_delete': can_delete_permanently and not has_stock,
+            'has_debt': has_stock,
+            'debt_display': f"رصيد المخزون: {stock_msg}" if has_stock else "",
+            'prepaid_display': "",
+            'transactions_summary': transactions_info,
+        })
+
+    # 2. تنفيذ الحذف أو الأرشفة
     if request.method == "POST":
+        is_ajax = request.headers.get("X-Requested-With") == "XMLHttpRequest"
         if has_stock:
-            unit_name = product.unit.name if product.unit else ""
-            messages.error(request, f"لا يمكن حذف أو تعطيل المنتج '{product.name}' لوجود رصيد متاح في المخزن ({current_stock_qty} {unit_name}). يرجى تصفية أو صرف المخزون أولاً.")
+            msg = f"لا يمكن حذف أو تعطيل المنتج '{product.name}' لوجود رصيد متاح في المخزن ({current_stock_qty} {unit_name}). يرجى تصفية أو صرف المخزون أولاً."
+            if is_ajax:
+                return JsonResponse({"success": False, "message": msg}, status=400)
+            messages.error(request, msg)
             return redirect("product:product_detail", pk=product.pk)
 
         action = request.POST.get('action', 'deactivate')
         
-        if action == 'delete' and can_delete_permanently:
+        if (action == 'delete' or can_delete_permanently) and can_delete_permanently:
             # حذف نهائي
             product_name = product.name
             product.delete()
-            messages.success(request, f"تم حذف المنتج '{product_name}' نهائياً")
+            msg = f"تم حذف المنتج '{product_name}' نهائياً"
+            if is_ajax:
+                return JsonResponse({"success": True, "action": "deleted", "message": msg, "redirect_url": reverse("product:product_list")})
+            messages.success(request, msg)
         else:
             # تعطيل فقط
             product.is_active = False
             product.save()
+            msg = f"تم أرشفة وتعطيل المنتج '{product.name}' بنجاح"
+            if is_ajax:
+                return JsonResponse({"success": True, "action": "archived", "message": msg, "redirect_url": reverse("product:product_list")})
             messages.warning(request, "تم تعطيل المنتج (لا يمكن الحذف النهائي لوجود معاملات مرتبطة)")
         
         return redirect("product:product_list")
-
-    # إعداد معلومات المعاملات للعرض
-    transactions_info = []
-    if has_movements:
-        movements_count = InventoryMovement.objects.filter(product=product).count()
-        transactions_info.append(f"{movements_count} حركة مخزنية")
-    if has_purchase_items:
-        purchases_count = PurchaseItem.objects.filter(product=product).count()
-        transactions_info.append(f"{purchases_count} فاتورة مشتريات")
-    if has_sale_items:
-        from sale.models import SaleItem
-        sales_count = SaleItem.objects.filter(product=product).count()
-        transactions_info.append(f"{sales_count} فاتورة مبيعات")
-    if has_bundle_components:
-        from product.models.product_core import BundleComponent
-        bundles_count = BundleComponent.objects.filter(
-            models.Q(bundle_product=product) | models.Q(component_product=product)
-        ).count()
-        transactions_info.append(f"{bundles_count} مكون Bundle")
-    if has_supplier_prices:
-        from product.models.supplier_pricing import SupplierProductPrice
-        prices_count = SupplierProductPrice.objects.filter(product=product).count()
-        transactions_info.append(f"{prices_count} سعر مورد")
-    if has_reservations:
-        from product.models.reservation_system import StockReservation
-        reservations_count = StockReservation.objects.filter(product=product).count()
-        transactions_info.append(f"{reservations_count} حجز مخزون")
 
     context = {
         "product": product,

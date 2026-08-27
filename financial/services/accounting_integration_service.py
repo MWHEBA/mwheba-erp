@@ -896,6 +896,7 @@ class AccountingIntegrationService:
         try:
             from financial.services.role_registry import AccountRoleRegistry
             from financial.models import ChartOfAccounts
+            from django.db import models
             
             accounts = {}
             role_mappings = {
@@ -921,6 +922,20 @@ class AccountingIntegrationService:
                 if not account and key in cls.DEFAULT_ACCOUNTS:
                     code = cls.DEFAULT_ACCOUNTS[key]
                     account = ChartOfAccounts.objects.filter(code=code, is_active=True).first()
+
+                if not account:
+                    if key == "cash":
+                        from financial.services.account_helper import AccountHelperService
+                        account = AccountHelperService.get_cash_accounts().first()
+                    elif key == "bank":
+                        from financial.services.account_helper import AccountHelperService
+                        account = AccountHelperService.get_bank_accounts().first()
+                    elif key == "inventory":
+                        account = ChartOfAccounts.objects.filter(models.Q(code__startswith="104") | models.Q(code__startswith="113"), is_active=True, is_leaf=True).first()
+                    elif key == "accounts_payable":
+                        account = ChartOfAccounts.objects.filter(models.Q(code__startswith="201") | models.Q(code__startswith="211"), is_active=True, is_leaf=True).first()
+                    elif key == "purchase_expense":
+                        account = ChartOfAccounts.objects.filter(models.Q(code__startswith="501") | models.Q(code__startswith="511"), is_active=True, is_leaf=True).first()
 
                 if account:
                     accounts[key] = account

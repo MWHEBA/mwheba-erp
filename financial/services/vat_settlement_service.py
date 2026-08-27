@@ -129,10 +129,10 @@ class VATSettlementService:
             tax_payable_code = "21310"
             tax_credit_code = "11550"
 
-            out_acc_obj = ChartOfAccounts.objects.filter(code=out_acc_code).first() or ChartOfAccounts.objects.filter(account_type__category="LIABILITY").first()
-            in_acc_obj = ChartOfAccounts.objects.filter(code=in_acc_code).first() or ChartOfAccounts.objects.filter(account_type__category="ASSET").first()
-            tax_payable_obj = ChartOfAccounts.objects.filter(code=tax_payable_code).first() or out_acc_obj
-            tax_credit_obj = ChartOfAccounts.objects.filter(code=tax_credit_code).first() or in_acc_obj
+            out_acc_obj = ChartOfAccounts.objects.filter(code=out_acc_code, is_leaf=True, is_active=True).first() or ChartOfAccounts.objects.filter(account_type__category="liability", is_leaf=True, is_active=True).first()
+            in_acc_obj = ChartOfAccounts.objects.filter(code=in_acc_code, is_leaf=True, is_active=True).first() or ChartOfAccounts.objects.filter(account_type__category="asset", is_leaf=True, is_active=True).first()
+            tax_payable_obj = ChartOfAccounts.objects.filter(code=tax_payable_code, is_leaf=True, is_active=True).first() or out_acc_obj
+            tax_credit_obj = ChartOfAccounts.objects.filter(code=tax_credit_code, is_leaf=True, is_active=True).first() or in_acc_obj
 
             lines = []
 

@@ -24,6 +24,10 @@ class TestPurchaseOrderLifecycle:
             password="password123"
         )
 
+        # تفعيل ميزة أوامر الشراء للاختبارات
+        from core.models import SystemSetting
+        SystemSetting.set_setting('enable_purchase_orders', True)
+
         # تجهيز الحسابات
         self.asset_type, _ = AccountType.objects.get_or_create(name="أصول", code="ASSET", category="asset")
         self.liab_type, _ = AccountType.objects.get_or_create(name="خصوم", code="LIAB", category="liability")

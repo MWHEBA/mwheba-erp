@@ -494,7 +494,7 @@ class CustomerService:
         transactions_summary = []
         
         # 1. فواتير المبيعات
-        sales_count = customer.sales.count()
+        sales_count = customer.sales.count() if hasattr(customer, 'sales') else 0
         if sales_count > 0:
             transactions_summary.append({'label': 'فواتير مبيعات', 'count': sales_count, 'icon': 'fas fa-file-invoice-dollar'})
             
@@ -504,7 +504,7 @@ class CustomerService:
             transactions_summary.append({'label': 'عروض أسعار', 'count': quotations_count, 'icon': 'fas fa-file-alt'})
             
         # 3. المقبوضات وسندات الدفع
-        payments_count = customer.payments.count() + SalePayment.objects.filter(sale__customer=customer).count()
+        payments_count = (customer.payments.count() if hasattr(customer, 'payments') else 0) + SalePayment.objects.filter(sale__customer=customer).count()
         if payments_count > 0:
             transactions_summary.append({'label': 'سندات دفع ومقبوضات', 'count': payments_count, 'icon': 'fas fa-money-bill-wave'})
             
@@ -519,11 +519,39 @@ class CustomerService:
             transactions_summary.append({'label': 'إشعارات دائنة', 'count': cn_count, 'icon': 'fas fa-undo'})
             
         # 6. مرتجعات المبيعات
-        returns_count = customer.sales_returns.count() if hasattr(customer, 'sales_returns') else 0
+        returns_count = 0
+        if hasattr(customer, 'sales_returns'):
+            returns_count += customer.sales_returns.count()
+        try:
+            from sale.models import SalesReturnHeader
+            returns_count += SalesReturnHeader.objects.filter(customer=customer).count()
+        except Exception:
+            pass
         if returns_count > 0:
             transactions_summary.append({'label': 'مرتجعات مبيعات', 'count': returns_count, 'icon': 'fas fa-exchange-alt'})
+
+        # 7. أوامر البيع وأذون التسليم
+        try:
+            from sale.models import SalesOrder, DeliveryNote
+            so_count = SalesOrder.objects.filter(customer=customer).count()
+            if so_count > 0:
+                transactions_summary.append({'label': 'أوامر بيع', 'count': so_count, 'icon': 'fas fa-shopping-cart'})
+            dn_count = DeliveryNote.objects.filter(customer=customer).count()
+            if dn_count > 0:
+                transactions_summary.append({'label': 'أذون تسليم', 'count': dn_count, 'icon': 'fas fa-truck-loading'})
+        except Exception:
+            pass
+
+        # 8. أوامر الشغل
+        try:
+            from work_order.models import WorkOrder
+            wo_count = WorkOrder.objects.filter(customer=customer).count()
+            if wo_count > 0:
+                transactions_summary.append({'label': 'أوامر شغل', 'count': wo_count, 'icon': 'fas fa-tasks'})
+        except Exception:
+            pass
             
-        # 7. قيود اليومية المرتبطة بالحساب المالي
+        # 9. قيود اليومية المرتبطة بالحساب المالي
         journal_lines_count = 0
         if customer.financial_account:
             from financial.models.journal_entry import JournalEntryLine
@@ -531,16 +559,28 @@ class CustomerService:
             if journal_lines_count > 0:
                 transactions_summary.append({'label': 'قيود يومية محاسبية', 'count': journal_lines_count, 'icon': 'fas fa-calculator'})
                 
-        # 8. الأرصدة الافتتاحية
-        from financial.models import OpeningBalanceLine
-        opening_count = OpeningBalanceLine.objects.filter(customer=customer).count()
-        if opening_count > 0:
-            transactions_summary.append({'label': 'أرصدة افتتاحية', 'count': opening_count, 'icon': 'fas fa-balance-scale'})
+        # 10. الأرصدة الافتتاحية
+        try:
+            from financial.models import OpeningBalanceLine
+            opening_count = OpeningBalanceLine.objects.filter(customer=customer).count()
+            if opening_count > 0:
+                transactions_summary.append({'label': 'أرصدة افتتاحية', 'count': opening_count, 'icon': 'fas fa-balance-scale'})
+        except Exception:
+            pass
 
-        # 9. طلبات التسعير وأوامر التشغيل
+        # 11. تسويات وتخصيصات الدفع
+        try:
+            from financial.models import PaymentAllocation
+            pa_count = PaymentAllocation.objects.filter(customer=customer).count()
+            if pa_count > 0:
+                transactions_summary.append({'label': 'تسويات وتخصيصات دفع', 'count': pa_count, 'icon': 'fas fa-receipt'})
+        except Exception:
+            pass
+
+        # 12. طلبات التسعير
         try:
             from printing_pricing.models import PricingOrder
-            po_count = PricingOrder.objects.filter(customer=customer).count()
+            po_count = PricingOrder.objects.filter(customer=customer).count() + PricingOrder.objects.filter(client=customer).count()
             if po_count > 0:
                 transactions_summary.append({'label': 'طلبات تسعير', 'count': po_count, 'icon': 'fas fa-tags'})
         except Exception:

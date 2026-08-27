@@ -489,3 +489,82 @@ class TestSalesOrderDownPaymentLifecycle:
         assert sale.amount_paid == Decimal("3000.00")
         assert sale.amount_due == Decimal("7000.00")
         assert sale.payment_status == "partially_paid"
+
+    def test_down_payment_creates_journal_entry_and_syncs_snapshots(self, client):
+        """9. التحقق من توليد القيد المحاسبي ومزامنة لقطات الرصيد المسبق للشريك عند تحصيل الدفعة المقدمة"""
+        from financial.models import JournalEntry
+        from financial.services.partner_advance_service import PartnerAdvanceService
+
+        so = SalesService.create_sales_order(
+            customer=self.customer,
+            warehouse=self.warehouse,
+            order_date=timezone.now().date(),
+            items_data=[{
+                "product": self.product,
+                "ordered_qty": Decimal("1"),
+                "unit_price": Decimal("10000.00"),
+                "discount_percentage": Decimal("0")
+            }],
+            user=self.user,
+            vat_rate=Decimal("0.00"),
+            required_down_payment=Decimal("20.00"),
+            down_payment_type="percentage"
+        )
+        assert so.effective_required_down_payment == Decimal("2000.00")
+
+        je_count_before = JournalEntry.objects.count()
+
+        pay = CustomerAllocationAuditService.create_prepaid_payment(
+            customer_id=self.customer.id,
+            amount=so.effective_required_down_payment,
+            sales_order=so,
+            financial_account_id=self.treasury_acc.id,
+            user=self.user
+        )
+
+        je_count_after = JournalEntry.objects.count()
+        assert je_count_after == je_count_before + 1
+        last_je = JournalEntry.objects.last()
+        assert last_je.source_model == "CustomerPayment"
+        assert last_je.source_id == pay.id
+
+        # التحقق من سطور القيد (المدين: الخزينة، الدائن: دفعات مقدمة 20200/21510)
+        lines = list(last_je.lines.all())
+        assert len(lines) == 2
+        debit_line = next(l for l in lines if l.debit > 0)
+        credit_line = next(l for l in lines if l.credit > 0)
+        assert debit_line.account.code == self.treasury_acc.code
+        assert debit_line.debit == Decimal("2000.00")
+        assert credit_line.credit == Decimal("2000.00")
+
+        # التحقق من تحديث اللقطة
+        avail_bal = PartnerAdvanceService.get_available_balance(self.customer)
+        assert avail_bal >= Decimal("2000.00")
+
+    def test_sales_order_detail_view_percentage_down_payment(self, client):
+        """10. التحقق من عرض تفاصيل الدفعة المقدمة النسبة المئوية في صفحة أمر البيع بشكل سليم"""
+        client.force_login(self.user)
+        so = SalesService.create_sales_order(
+            customer=self.customer,
+            warehouse=self.warehouse,
+            order_date=timezone.now().date(),
+            items_data=[{
+                "product": self.product,
+                "ordered_qty": Decimal("2"),
+                "unit_price": Decimal("5000.00"),
+                "discount_percentage": Decimal("0")
+            }],
+            user=self.user,
+            vat_rate=Decimal("0.00"),
+            required_down_payment=Decimal("25.00"),
+            down_payment_type="percentage"
+        )
+        assert so.effective_required_down_payment == Decimal("2500.00")
+
+        detail_url = reverse("sale:sales_order_detail", args=[so.pk])
+        resp = client.get(detail_url)
+        assert resp.status_code == 200
+        content = resp.content.decode("utf-8")
+        assert "2,500" in content or "2500" in content
+        assert "25" in content
+

@@ -273,11 +273,22 @@ window.EntityDeleteArchiveController = (function() {
                 'X-CSRFToken': getCsrfToken()
             }
         })
-        .then(response => response.json())
+        .then(async response => {
+            let data;
+            try {
+                data = await response.json();
+            } catch (e) {
+                data = { success: false, message: 'حدث خطأ غير متوقع في استجابة الخادم (' + response.status + ')' };
+            }
+            if (!response.ok && data && !data.message) {
+                data.message = 'حدث خطأ في الخادم (' + response.status + ')';
+            }
+            return data;
+        })
         .then(data => {
             const modalEl = document.getElementById('entityDeleteArchiveModal');
             const modal = bootstrap.Modal.getInstance(modalEl);
-            if (modal) modal.hide();
+            if (modal && data.success) modal.hide();
 
             if (data.success) {
                 if (window.showNotification) {
@@ -310,13 +321,19 @@ window.EntityDeleteArchiveController = (function() {
             } else {
                 if (window.showNotification) {
                     window.showNotification(data.message || 'فشلت العملية', 'error');
+                } else if (window.toastr) {
+                    window.toastr.error(data.message || 'فشلت العملية');
                 }
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'إعادة المحاولة';
             }
         })
         .catch(err => {
             console.error('Error submitting delete/archive:', err);
             if (window.showNotification) {
                 window.showNotification('حدث خطأ أثناء تنفيذ الإجراء', 'error');
+            } else if (window.toastr) {
+                window.toastr.error('حدث خطأ أثناء تنفيذ الإجراء');
             }
             submitBtn.disabled = false;
             submitBtn.textContent = 'إعادة المحاولة';

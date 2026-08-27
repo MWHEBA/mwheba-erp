@@ -465,7 +465,12 @@
                 </div>
                 <div class="party-info">
                   <div class="party-label">{% trans "صالح حتى:" %}</div>
-                  <div class="party-value fw-bold text-warning">{{ quotation.valid_until|date:"d-m-Y"|default:"-" }}</div>
+                  <div class="party-value fw-bold text-warning">
+                    {{ quotation.valid_until|date:"d-m-Y"|default:"-" }}
+                    {% if quotation.validity_days %}
+                    <span class="badge bg-warning-subtle text-dark ms-1">({{ quotation.validity_days }} {% trans "يوم" %})</span>
+                    {% endif %}
+                  </div>
                 </div>
                 <div class="party-info">
                   <div class="party-label">{% trans "المُنشئ:" %}</div>

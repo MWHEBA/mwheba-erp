@@ -24,7 +24,7 @@ class AccountHelperService:
 
     @staticmethod
     def get_cash_accounts():
-        """الحصول على الحسابات النقدية والصناديق والعهد المالية المفعلة والنهائية فقط"""
+        """الحصول على الحسابات النقدية والصناديق المفعلة والنهائية فقط"""
         if NEW_SYSTEM_AVAILABLE:
             try:
                 return (
@@ -35,6 +35,24 @@ class AccountHelperService:
                         | models.Q(account_type__name__icontains="نقدي")
                         | models.Q(account_type__name__icontains="صندوق")
                         | models.Q(account_type__name__icontains="خزينة")
+                    )
+                    .order_by("code")
+                )
+            except Exception:
+                pass
+        return ChartOfAccounts.objects.none()
+
+    @staticmethod
+    def get_custody_accounts():
+        """الحصول على حسابات العهد المؤقتة المفعلة والنهائية فقط للتسوية"""
+        if NEW_SYSTEM_AVAILABLE:
+            try:
+                return (
+                    ChartOfAccounts.objects.filter(is_active=True, is_leaf=True)
+                    .filter(
+                        models.Q(code__startswith="1145")
+                        | models.Q(code__startswith="1051")
+                        | models.Q(account_type__code__iexact="OTHER_DEBIT")
                         | models.Q(account_type__name__icontains="عهدة")
                     )
                     .order_by("code")
@@ -74,6 +92,27 @@ class AccountHelperService:
                     .filter(
                         models.Q(id__in=cash_qs.values_list('id', flat=True))
                         | models.Q(id__in=bank_qs.values_list('id', flat=True))
+                    )
+                    .order_by("code")
+                )
+            except Exception:
+                pass
+        return ChartOfAccounts.objects.none()
+
+    @staticmethod
+    def get_expense_and_settlement_accounts():
+        """الحصول على الحسابات المتاحة لسداد وتسوية المصروفات والمشتريات (خزائن + بنوك + عهد)"""
+        cash_qs = AccountHelperService.get_cash_accounts()
+        bank_qs = AccountHelperService.get_bank_accounts()
+        custody_qs = AccountHelperService.get_custody_accounts()
+        if NEW_SYSTEM_AVAILABLE:
+            try:
+                return (
+                    ChartOfAccounts.objects.filter(is_active=True, is_leaf=True)
+                    .filter(
+                        models.Q(id__in=cash_qs.values_list('id', flat=True))
+                        | models.Q(id__in=bank_qs.values_list('id', flat=True))
+                        | models.Q(id__in=custody_qs.values_list('id', flat=True))
                     )
                     .order_by("code")
                 )

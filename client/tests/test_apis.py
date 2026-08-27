@@ -334,7 +334,7 @@ class CustomerDeleteAPITest(TestCase):
         self.assertContains(response, self.customer.name)
         
     def test_customer_delete_post(self):
-        """اختبار حذف عميل (تعطيل)"""
+        """اختبار حذف عميل بدون معاملات (حذف نهائي)"""
         customer_pk = self.customer.pk
         
         response = self.client.post(
@@ -344,9 +344,8 @@ class CustomerDeleteAPITest(TestCase):
         # يجب أن يعيد توجيه بعد الحذف
         self.assertEqual(response.status_code, 302)
         
-        # التحقق من التعطيل (وليس الحذف الفعلي)
-        self.customer.refresh_from_db()
-        self.assertFalse(self.customer.is_active)
+        # التحقق من الحذف النهائي للعميل الفارغ الجديد
+        self.assertFalse(Customer.objects.filter(pk=customer_pk).exists())
 
 
 class CustomerIntegrationAPITest(TestCase):
@@ -383,12 +382,11 @@ class CustomerIntegrationAPITest(TestCase):
         )
         self.assertEqual(response.status_code, 200)
         
-        # 4. حذف العميل (تعطيل)
+        # 4. حذف العميل (حذف نهائي للعميل الجديد الفارغ)
         response = self.client.post(
             reverse('client:customer_delete', kwargs={'pk': customer_pk})
         )
         self.assertEqual(response.status_code, 302)
         
-        # التحقق من التعطيل
-        customer.refresh_from_db()
-        self.assertFalse(customer.is_active)
+        # التحقق من الحذف النهائي
+        self.assertFalse(Customer.objects.filter(pk=customer_pk).exists())

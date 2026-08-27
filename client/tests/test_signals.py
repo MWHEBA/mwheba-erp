@@ -180,7 +180,7 @@ class CustomerSignalsTest(TestCase):
     # ==================== اختبارات delete_customer_account_signal ====================
     
     def test_signal_deletes_account_on_customer_delete(self):
-        """اختبار تعطيل الحساب المحاسبي بأمان عند حذف العميل"""
+        """اختبار تطهير الحساب المحاسبي الفارغ عند حذف العميل"""
         # إنشاء عميل
         customer = Customer.objects.create(
             name='عميل للحذف',
@@ -194,10 +194,9 @@ class CustomerSignalsTest(TestCase):
         # حذف العميل
         customer.delete()
         
-        # التحقق من تعطيل الحساب لحماية سجلات القيود
+        # التحقق من تطهير وحذف الحساب الفارغ نهائياً من شجرة الحسابات
         if account_code:
-            account = ChartOfAccounts.objects.get(code=account_code)
-            self.assertFalse(account.is_active)
+            self.assertFalse(ChartOfAccounts.objects.filter(code=account_code).exists())
         
     def test_signal_no_error_if_no_account(self):
         """اختبار عدم حدوث خطأ عند حذف عميل بدون حساب"""

@@ -34,7 +34,7 @@
 {{ quotation.date|date:"d-m-Y" }}
 {% if quotation.valid_until %}
 <div style="font-size: 12px; color: var(--text-muted); font-weight: 500; margin-top: 2px;">
-    {% if is_english %}Valid Until:{% else %}صالح حتى:{% endif %} {{ quotation.valid_until|date:"d-m-Y" }}
+    {% if is_english %}Valid for {{ quotation.validity_days }} days (Until: {{ quotation.valid_until|date:"d-m-Y" }}){% else %}صالح لمدة {{ quotation.validity_days }} يوماً (حتى: {{ quotation.valid_until|date:"d-m-Y" }}){% endif %}
 </div>
 {% endif %}
 {% endblock %}

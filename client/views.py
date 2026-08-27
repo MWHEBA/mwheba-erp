@@ -117,19 +117,15 @@ def customer_list(request):
         },
     ]
 
-    # تعريف أزرار الإجراءات
+    # تعريف أزرار الإجراءات (تم حذف أزرار العرض والتعديل لأن الصف بالكامل قابل للنقر)
     action_buttons = [
         {
-            "url": "client:customer_detail",
-            "icon": "fa-eye",
-            "class": "action-view",
-            "label": "عرض",
-        },
-        {
-            "url": "client:customer_edit",
-            "icon": "fa-pen",
-            "class": "action-edit",
-            "label": "تعديل",
+            "type": "button",
+            "icon": "fa-undo",
+            "class": "action-reactivate text-success",
+            "label": "إعادة تنشيط",
+            "condition": "is_inactive",
+            "data_attrs": 'onclick="reactivateCustomer(this.closest(\'tr\').dataset.id)"',
         },
         {
             "modal": True,
@@ -369,45 +365,62 @@ def customer_delete(request, pk):
 
     # 1. طلب الفحص المسبق اللحظي (Pre-check)
     if request.GET.get('precheck') == '1' or (request.headers.get('X-Requested-With') == 'XMLHttpRequest' and request.method == 'GET'):
-        can_delete, summary, exposure = CustomerService.can_delete_customer(customer)
-        from core.templatetags.custom_filters import smart_float
-        from core.presenters.currency_exposure_presenter import get_currency_symbol
-        from decimal import Decimal
-        curr_code = customer.default_currency.code if customer.default_currency else "EGP"
-        curr_sym = (customer.default_currency.symbol if customer.default_currency and customer.default_currency.symbol else "") or get_currency_symbol(curr_code)
-        
-        debt_str = f"{smart_float(customer.balance)} {curr_sym}" if exposure['has_debt'] else ""
-        prepaid_str = f"{smart_float(exposure['available_prepaid'])} {curr_sym}" if exposure['available_prepaid'] > Decimal('0.00') else ""
+        try:
+            can_delete, summary, exposure = CustomerService.can_delete_customer(customer)
+            from core.templatetags.custom_filters import smart_float
+            from core.presenters.currency_exposure_presenter import get_currency_symbol
+            from decimal import Decimal
+            curr_code = customer.default_currency.code if customer.default_currency else "EGP"
+            curr_sym = (customer.default_currency.symbol if customer.default_currency and customer.default_currency.symbol else "") or get_currency_symbol(curr_code)
+            
+            debt_str = f"{smart_float(customer.balance)} {curr_sym}" if exposure['has_debt'] else ""
+            prepaid_str = f"{smart_float(exposure['available_prepaid'])} {curr_sym}" if exposure['available_prepaid'] > Decimal('0.00') else ""
 
-        return JsonResponse({
-            'success': True,
-            'id': customer.id,
-            'name': customer.name,
-            'code': customer.code,
-            'can_delete': can_delete,
-            'has_debt': exposure['has_debt'],
-            'debt_display': debt_str,
-            'prepaid_display': prepaid_str,
-            'transactions_summary': summary,
-        })
+            return JsonResponse({
+                'success': True,
+                'id': customer.id,
+                'name': customer.name,
+                'code': customer.code,
+                'can_delete': can_delete,
+                'has_debt': exposure['has_debt'],
+                'debt_display': debt_str,
+                'prepaid_display': prepaid_str,
+                'transactions_summary': summary,
+            })
+        except Exception as e:
+            logger.exception(f"خطأ أثناء فحص سجلات العميل {pk}: {e}")
+            return JsonResponse({
+                'success': False,
+                'message': f"حدث خطأ أثناء فحص سجلات العميل: {str(e)}"
+            }, status=500)
 
     # 2. تنفيذ الحذف أو الأرشفة (POST)
     if request.method == "POST":
-        res = CustomerService.delete_or_archive_customer(customer, user=request.user)
-        
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return JsonResponse({
-                'success': True,
-                'action': res['action'],
-                'message': res['message'],
-                'redirect_url': reverse('client:customer_list'),
-            })
+        try:
+            res = CustomerService.delete_or_archive_customer(customer, user=request.user)
+            
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'success': True,
+                    'action': res['action'],
+                    'message': res['message'],
+                    'redirect_url': reverse('client:customer_list'),
+                })
 
-        if res['action'] == 'deleted':
-            messages.success(request, res['message'])
-        else:
-            messages.warning(request, res['message'])
-        return redirect("client:customer_list")
+            if res['action'] == 'deleted':
+                messages.success(request, res['message'])
+            else:
+                messages.warning(request, res['message'])
+            return redirect("client:customer_list")
+        except Exception as e:
+            logger.exception(f"خطأ أثناء حذف/أرشفة العميل {pk}: {e}")
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'success': False,
+                    'message': f"حدث خطأ أثناء تنفيذ الإجراء: {str(e)}"
+                }, status=500)
+            messages.error(request, f"حدث خطأ أثناء تنفيذ الإجراء: {str(e)}")
+            return redirect("client:customer_list")
 
     # 3. العرض العادي للشاشة المنفصلة (Fallback)
     can_delete, summary, exposure = CustomerService.can_delete_customer(customer)
@@ -1403,33 +1416,54 @@ def customer_detail(request, pk):
         })
 
     context["prepaid_balances"] = prepaid_bals
-    context["header_badges"] = header_badges
-    context["header_buttons"] = [
-        {
-            "url": "#",
-            "icon": "fa-plus-circle",
-            "text": "تحصيل رصيد مسبق",
-            "class": "btn-primary",
-            "toggle": "modal",
-            "target": "#addCustomerAdvanceModal",
-            "title": "تحصيل رصيد مسبق / دفعة مقدمة من العميل",
-        },
-        {
-            "url": reverse("sale:sale_create_for_customer", kwargs={"customer_id": customer.id}),
-            "icon": "fa-file-invoice-dollar",
-            "text": "فاتورة بيع",
-            "class": "btn-success",
-        },
-        {
-            "url": "#",
-            "icon": "fa-ellipsis-v",
-            "text": "",
-            "class": "btn-outline-secondary",
-            "id": "actions-menu-btn",
-            "toggle": "modal",
-            "target": "#actionsModal",
-        },
-    ]
+    if not customer.is_active:
+        context["header_badges"] = [
+            {
+                "text": "عميل مؤرشف ومعطل",
+                "class": "bg-warning text-dark fw-bold",
+                "icon": "fas fa-archive",
+                "title": "هذا العميل غير نشط ومؤرشف",
+            }
+        ]
+        context["header_buttons"] = [
+            {
+                "url": "#",
+                "icon": "fa-undo",
+                "text": "إعادة تنشيط العميل",
+                "class": "btn-success fw-bold",
+                "id": "btn-reactivate-customer",
+                "onclick": "const f = document.getElementById('reactivate-customer-form'); if(f) { f.submit(); } else { const nf = document.createElement('form'); nf.method='POST'; nf.action='" + reverse('client:customer_reactivate', kwargs={'pk': customer.pk}) + "'; const c = document.querySelector('[name=csrfmiddlewaretoken]'); if(c) { const i = document.createElement('input'); i.type='hidden'; i.name='csrfmiddlewaretoken'; i.value=c.value; nf.appendChild(i); } document.body.appendChild(nf); nf.submit(); }",
+                "title": "إعادة تنشيط العميل وحسابه المالي",
+            }
+        ]
+    else:
+        context["header_badges"] = header_badges
+        context["header_buttons"] = [
+            {
+                "url": "#",
+                "icon": "fa-plus-circle",
+                "text": "تحصيل رصيد مسبق",
+                "class": "btn-primary",
+                "toggle": "modal",
+                "target": "#addCustomerAdvanceModal",
+                "title": "تحصيل رصيد مسبق / دفعة مقدمة من العميل",
+            },
+            {
+                "url": reverse("sale:sale_create_for_customer", kwargs={"customer_id": customer.id}),
+                "icon": "fa-file-invoice-dollar",
+                "text": "فاتورة بيع",
+                "class": "btn-success",
+            },
+            {
+                "url": "#",
+                "icon": "fa-ellipsis-v",
+                "text": "",
+                "class": "btn-outline-secondary",
+                "id": "actions-menu-btn",
+                "toggle": "modal",
+                "target": "#actionsModal",
+            },
+        ]
     context["breadcrumb_items"] = [
         {
             "title": "الرئيسية",

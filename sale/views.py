@@ -307,9 +307,12 @@ def sale_create(request, customer_id=None):
                     # تسوية الدفعة المقدمة المسددة في أمر البيع تلقائياً إن وجدت
                     if sale.sales_order and sale.sales_order.paid_down_payment > Decimal('0.00'):
                         from client.models import CustomerAllocationAudit
+                        so_down_payment_ids = list(sale.sales_order.down_payments.filter(status="posted").values_list("id", flat=True))
+                        so_pay_ref_numbers = [f"PAY-{pid}" for pid in so_down_payment_ids]
+
                         already_allocated = CustomerAllocationAudit.objects.filter(
                             customer=sale.customer,
-                            target_document_number=sale.number,
+                            source_document_number__in=so_pay_ref_numbers,
                             allocation_status="APPLIED"
                         ).aggregate(s=Sum('allocated_amount'))['s'] or Decimal('0.00')
 

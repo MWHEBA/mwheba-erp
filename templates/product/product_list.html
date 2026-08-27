@@ -586,5 +586,79 @@ function submitBulkEdit() {
             btn.innerHTML = '<i class="fas fa-save me-1"></i>تطبيق التعديل';
         });
 }
+
+function openDeleteModal(itemId) {
+    if (window.EntityDeleteArchiveController) {
+        window.EntityDeleteArchiveController.open({
+            entityType: 'product',
+            entityId: itemId,
+            deleteUrl: '/products/' + itemId + '/delete/',
+            tableContainerId: 'products-table-container',
+            paginationContainerId: 'pagination-wrapper'
+        });
+    }
+}
+
+function reactivateProduct(productId) {
+    if (!productId) return;
+    Swal.fire({
+        title: 'تأكيد إعادة التنشيط',
+        text: 'هل أنت متأكد من رغبتك في إعادة تنشيط هذا المنتج وإتاحته للعمليات؟',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: 'var(--bs-success, #198754)',
+        cancelButtonColor: 'var(--bs-secondary, #6c757d)',
+        confirmButtonText: '<i class="fas fa-undo me-1"></i> إعادة تنشيط',
+        cancelButtonText: 'إلغاء',
+        reverseButtons: true
+    }).then((result) => {
+        if (result.isConfirmed) {
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]') 
+                            || document.querySelector('meta[name="csrf-token"]');
+            const csrfValue = csrfToken ? (csrfToken.value || csrfToken.getAttribute('content')) : '';
+            
+            $.ajax({
+                url: '/products/' + productId + '/reactivate/',
+                type: 'POST',
+                headers: { 'X-CSRFToken': csrfValue, 'X-Requested-With': 'XMLHttpRequest' },
+                success: function(response) {
+                    if (response && response.success) {
+                        if (window.showNotification) {
+                            window.showNotification(response.message || 'تمت إعادة تنشيط المنتج بنجاح', 'success', 'نجاح');
+                        } else if (typeof toastr !== 'undefined') {
+                            toastr.success(response.message || 'تمت إعادة تنشيط المنتج بنجاح');
+                        }
+                        const currentSearch = window.location.search ? window.location.search.substring(1) : '';
+                        if (window.doSearch) {
+                            window.doSearch(currentSearch);
+                        } else {
+                            location.reload();
+                        }
+                    } else {
+                        const msg = (response && response.message) ? response.message : 'حدث خطأ أثناء إعادة التنشيط';
+                        if (window.showNotification) {
+                            window.showNotification(msg, 'error', 'خطأ');
+                        } else if (typeof toastr !== 'undefined') {
+                            toastr.error(msg);
+                        }
+                    }
+                },
+                error: function(xhr) {
+                    let msg = 'حدث خطأ أثناء إعادة التنشيط';
+                    if (xhr.responseJSON && xhr.responseJSON.message) {
+                        msg = xhr.responseJSON.message;
+                    }
+                    if (window.showNotification) {
+                        window.showNotification(msg, 'error', 'خطأ');
+                    } else if (typeof toastr !== 'undefined') {
+                        toastr.error(msg);
+                    }
+                }
+            });
+        }
+    });
+}
 </script>
+{% csrf_token %}
+{% include "components/modals/entity_delete_archive_modal.html" %}
 {% endblock %}

@@ -29,7 +29,7 @@
         <p class="mb-0 small text-muted">{% trans "لا يمكن إصدار فواتير أو عروض أسعار جديدة له. يمكنك إعادة تنشيط حسابه في أي وقت." %}</p>
       </div>
     </div>
-    <form method="POST" action="{% url 'client:customer_reactivate' customer.pk %}" class="ms-3">
+    <form method="POST" action="{% url 'client:customer_reactivate' customer.pk %}" id="reactivate-customer-form" class="ms-3">
       {% csrf_token %}
       <button type="submit" class="btn btn-success fw-bold px-4">
         <i class="fas fa-undo me-1"></i> {% trans "إعادة تنشيط العميل" %}

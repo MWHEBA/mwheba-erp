@@ -74,7 +74,7 @@
     <div class="collapse {% if request.GET.search or request.GET.status or request.GET.has_debt or request.GET.currency or request.GET.primary_type or request.GET.entity_type %}show{% endif %}" id="filterSection">
       <div class="filter-section mb-4">
       <form method="GET" action="{% url 'supplier:supplier_list' %}" class="row g-2 align-items-end">
-        <input type="hidden" name="status" value="{{ request.GET.status|default:'active' }}">
+        <input type="hidden" name="status" id="status" value="{{ request.GET.status|default:'active' }}">
         <div class="col-md-3 col-sm-6">
           <label for="search" class="form-label">{% trans "بحث" %}</label>
           <input type="text" class="form-control" id="search" name="search" value="{{ request.GET.search }}" placeholder="اسم أو كود أو هاتف المورد">
@@ -125,7 +125,7 @@
       </div>
       <div class="card-body">
         <div id="suppliers-table-container">
-        {% include "components/data_table.html" with table_id="suppliers-table" data=suppliers headers=headers action_buttons=action_buttons primary_key="id" table_class="hover" empty_message="لا يوجد موردين متاحين" show_search=False show_length_menu=False disable_pagination=True show_currency=True %}
+        {% include "components/data_table.html" with table_id="suppliers-table" data=suppliers headers=headers action_buttons=action_buttons primary_key="id" table_class="hover clickable-rows" empty_message="لا يوجد موردين متاحين" show_search=False show_length_menu=False disable_pagination=True show_currency=True clickable_rows=True row_click_url="/supplier/0/detail/" %}
         </div>
 
       </div>
@@ -159,10 +159,12 @@
       });
     }
     $('#suppliers-table tbody').off('click', 'tr').on('click', 'tr', function(e) {
-      if ($(e.target).closest('.col-actions').length > 0) return;
-      const viewBtn = $(this).find('.action-view');
-      if (viewBtn.length) window.location.href = viewBtn.attr('href');
-    }).find('tr').css('cursor', 'pointer');
+      if ($(e.target).closest('.col-actions, .btn, a, button').length > 0) return;
+      const itemId = $(this).data('id');
+      if (itemId && itemId !== '0') {
+        window.location.href = '/supplier/' + itemId + '/detail/';
+      }
+    }).css('cursor', 'pointer');
   }
 
   $(document).ready(function() {
@@ -174,12 +176,14 @@
       if (typeof customQueryStr === 'string' && customQueryStr.length > 0) {
         queryString = customQueryStr;
       } else {
+        const currentUrlParams = new URLSearchParams(window.location.search);
+        const statusVal = $('#status').val() || currentUrlParams.get('status') || '';
         const params = new URLSearchParams({
           search: $('#search').val() || '',
           primary_type: $('#primary_type').val() || '',
           currency: $('#currency').val() || '',
           has_debt: $('#has_debt').val() || '',
-          status: $('#status').val() || '',
+          status: statusVal,
           page: 1
         });
         queryString = params.toString();
@@ -307,6 +311,66 @@
       }
     });
   };
+
+  function reactivateSupplier(supplierId) {
+    if (!supplierId) return;
+    Swal.fire({
+      title: 'تأكيد إعادة التنشيط',
+      text: 'هل أنت متأكد من رغبتك في إعادة تنشيط هذا المورد وتفعيل حسابه المالي؟',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: 'var(--bs-success, #198754)',
+      cancelButtonColor: 'var(--bs-secondary, #6c757d)',
+      confirmButtonText: '<i class="fas fa-undo me-1"></i> إعادة تنشيط',
+      cancelButtonText: 'إلغاء',
+      reverseButtons: true
+    }).then((result) => {
+      if (result.isConfirmed) {
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]') 
+                        || document.querySelector('meta[name="csrf-token"]');
+        const csrfValue = csrfToken ? (csrfToken.value || csrfToken.getAttribute('content')) : '';
+        
+        $.ajax({
+          url: '/supplier/' + supplierId + '/reactivate/',
+          type: 'POST',
+          headers: { 'X-CSRFToken': csrfValue, 'X-Requested-With': 'XMLHttpRequest' },
+          success: function(response) {
+            if (response && response.success) {
+              if (window.showNotification) {
+                window.showNotification(response.message || 'تمت إعادة تنشيط المورد بنجاح', 'success', 'نجاح');
+              } else if (typeof toastr !== 'undefined') {
+                toastr.success(response.message || 'تمت إعادة تنشيط المورد بنجاح');
+              }
+              const currentSearch = window.location.search ? window.location.search.substring(1) : '';
+              if (window.doSearch) {
+                window.doSearch(currentSearch);
+              } else {
+                location.reload();
+              }
+            } else {
+              const msg = (response && response.message) ? response.message : 'حدث خطأ أثناء إعادة التنشيط';
+              if (window.showNotification) {
+                window.showNotification(msg, 'error', 'خطأ');
+              } else if (typeof toastr !== 'undefined') {
+                toastr.error(msg);
+              }
+            }
+          },
+          error: function(xhr) {
+            let msg = 'حدث خطأ أثناء إعادة التنشيط';
+            if (xhr.responseJSON && xhr.responseJSON.message) {
+              msg = xhr.responseJSON.message;
+            }
+            if (window.showNotification) {
+              window.showNotification(msg, 'error', 'خطأ');
+            } else if (typeof toastr !== 'undefined') {
+              toastr.error(msg);
+            }
+          }
+        });
+      }
+    });
+  }
 
   function openDeleteModal(itemId) {
     if (window.EntityDeleteArchiveController) {

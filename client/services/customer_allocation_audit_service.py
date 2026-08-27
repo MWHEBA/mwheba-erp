@@ -691,21 +691,49 @@ class CustomerAllocationAuditService:
 
             try:
                 from governance.services.accounting_gateway import JournalEntryLineData, AccountingGateway
-                advance_acc = ChartOfAccounts.objects.filter(code="20200").first()
-                debit_acc_code = fin_account.code if fin_account else (customer.financial_account.code if customer.financial_account else "10101")
+                from financial.services.role_registry import AccountRoleRegistry, AccountRoleNames
+                from financial.services.account_helper import AccountHelperService
+                from financial.services.exchange_rate_service import ExchangeRateService
+
+                advance_acc = AccountRoleRegistry.get_account(AccountRoleNames.CUSTOMER_ADVANCE_LIABILITY)
+                if not advance_acc:
+                    advance_acc = ChartOfAccounts.objects.filter(code__in=["21510", "20200"]).first()
+
+                if fin_account:
+                    debit_acc_code = fin_account.code
+                elif customer.financial_account:
+                    debit_acc_code = customer.financial_account.code
+                else:
+                    default_cash = AccountHelperService.get_default_cash_account()
+                    if default_cash:
+                        debit_acc_code = default_cash.code
+                    else:
+                        cash_role_acc = AccountRoleRegistry.get_account(AccountRoleNames.DEFAULT_CASH_DRAWER)
+                        debit_acc_code = cash_role_acc.code if cash_role_acc else "11110"
+
+                payment_curr = currency or customer.default_currency
+                currency_rate = Decimal("1.000000")
+                if payment_curr:
+                    try:
+                        currency_rate = Decimal(str(ExchangeRateService.get_exchange_rate(payment_curr) or "1.000000"))
+                    except Exception:
+                        currency_rate = Decimal("1.000000")
+
+                func_amount = (amount * currency_rate).quantize(Decimal("0.01"))
                 so_ref_text = f" عن أمر بيع #{sales_order.order_number}" if sales_order else ""
+                
                 if advance_acc:
                     lines = [
                         JournalEntryLineData(
                             account_code=debit_acc_code,
-                            debit=amount,
+                            debit=func_amount,
                             credit=Decimal("0.00"),
                             description=f"تحصيل دفعة مقدمة من العميل {customer.name}{so_ref_text}"
                         ),
                         JournalEntryLineData(
                             account_code=advance_acc.code,
                             debit=Decimal("0.00"),
-                            credit=amount,
+                            credit=func_amount,
                             description=f"دفعة مقدمة للعميل {customer.name}{so_ref_text} - مرجع #{payment.id}"
                         )
                     ]
@@ -723,6 +751,15 @@ class CustomerAllocationAuditService:
                     )
             except Exception as e:
                 logger.warning(f"لم يتم توليد قيد الدفعة المقدمة للعميل تلقائياً: {str(e)}")
+
+            # مزامنة لقطات الأرصدة المسبقة والانكشاف المالي للعميل
+            try:
+                from financial.services.partner_advance_service import PartnerAdvanceService
+                PartnerAdvanceService.rebuild_all_snapshots(customer)
+                from financial.services.partner_balance_service import PartnerBalanceService
+                PartnerBalanceService.update_partner_snapshot("customer", customer.id)
+            except Exception as snap_err:
+                logger.warning(f"Failed to sync customer advance snapshot: {snap_err}")
 
             return payment
 

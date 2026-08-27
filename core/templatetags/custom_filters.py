@@ -711,6 +711,10 @@ def render_action_button(button, item, primary_key='id'):
             show_button = status != 'approved' and status != 'paid'
         elif button.condition == "status == 'approved'":
             show_button = getattr(item, 'status', None) == 'approved'
+        elif button.condition == 'is_active':
+            show_button = bool(getattr(item, 'is_active', True) if not isinstance(item, dict) else item.get('is_active', True))
+        elif button.condition == 'is_inactive':
+            show_button = not bool(getattr(item, 'is_active', True) if not isinstance(item, dict) else item.get('is_active', True))
     elif hasattr(button, 'get') and button.get('condition'):
         # للتعامل مع dictionary buttons
         if button.get('condition') == 'not_fully_paid':
@@ -729,6 +733,10 @@ def render_action_button(button, item, primary_key='id'):
             show_button = status != 'approved' and status != 'paid'
         elif button.get('condition') == "status == 'approved'":
             show_button = getattr(item, 'status', None) == 'approved'
+        elif button.get('condition') == 'is_active':
+            show_button = bool(getattr(item, 'is_active', True) if not isinstance(item, dict) else item.get('is_active', True))
+        elif button.get('condition') == 'is_inactive':
+            show_button = not bool(getattr(item, 'is_active', True) if not isinstance(item, dict) else item.get('is_active', True))
     
     # الحصول على المفتاح الأساسي
     if isinstance(item, dict):

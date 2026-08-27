@@ -145,7 +145,9 @@ def chart_of_accounts(db):
             defaults={
                 'name': 'الخزينة',
                 'account_type': cash_type,
-                'is_active': True
+                'is_active': True,
+                'is_leaf': True,
+                'is_cash_account': True,
             }
         )[0],
         'bank': ChartOfAccounts.objects.get_or_create(
@@ -153,7 +155,9 @@ def chart_of_accounts(db):
             defaults={
                 'name': 'البنك',
                 'account_type': cash_type,
-                'is_active': True
+                'is_active': True,
+                'is_leaf': True,
+                'is_bank_account': True,
             }
         )[0],
         'inventory': ChartOfAccounts.objects.get_or_create(
@@ -161,7 +165,8 @@ def chart_of_accounts(db):
             defaults={
                 'name': 'المخزون',
                 'account_type': asset_type,
-                'is_active': True
+                'is_active': True,
+                'is_leaf': True,
             }
         )[0],
         'inventory_goods': ChartOfAccounts.objects.get_or_create(
@@ -169,7 +174,8 @@ def chart_of_accounts(db):
             defaults={
                 'name': 'مخزون البضاعة',
                 'account_type': asset_type,
-                'is_active': True
+                'is_active': True,
+                'is_leaf': True,
             }
         )[0],
         'inventory_goods_movement': ChartOfAccounts.objects.get_or_create(
@@ -177,7 +183,8 @@ def chart_of_accounts(db):
             defaults={
                 'name': 'مخزون البضاعة - حركة',
                 'account_type': asset_type,
-                'is_active': True
+                'is_active': True,
+                'is_leaf': True,
             }
         )[0],
         'suppliers': ChartOfAccounts.objects.get_or_create(
@@ -185,7 +192,8 @@ def chart_of_accounts(db):
             defaults={
                 'name': 'الموردون',
                 'account_type': liability_type,
-                'is_active': True
+                'is_active': True,
+                'is_leaf': True,
             }
         )[0],
         'general_expenses': ChartOfAccounts.objects.get_or_create(
@@ -193,7 +201,8 @@ def chart_of_accounts(db):
             defaults={
                 'name': 'مصروفات إدارية',
                 'account_type': expense_type,
-                'is_active': True
+                'is_active': True,
+                'is_leaf': True,
             }
         )[0],
         'cogs': ChartOfAccounts.objects.get_or_create(
@@ -201,7 +210,8 @@ def chart_of_accounts(db):
             defaults={
                 'name': 'تكلفة البضاعة المباعة',
                 'account_type': expense_type,
-                'is_active': True
+                'is_active': True,
+                'is_leaf': True,
             }
         )[0],
     }
