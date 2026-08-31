@@ -309,7 +309,7 @@ def load_gitignore_patterns():
                     patterns.append(line)
     
     # إضافة الملفات المخفية
-    patterns.extend(['.*', '__pycache__', '*.pyc', '.deploy_hashes.json'])
+    patterns.extend(['.*', '__pycache__', '*.pyc', '.deploy_hashes.json', 'scratch', 'scratch/*'])
     return patterns
 
 
@@ -317,13 +317,27 @@ def is_ignored(file_path, patterns, project_root):
     """فحص ما إذا كان الملف مستثنى"""
     import fnmatch
     
-    relative_path = str(file_path.relative_to(project_root))
+    relative_path = str(file_path.relative_to(project_root)).replace('\\', '/')
+    parts = relative_path.split('/')
     
     if any(part.startswith('.') for part in file_path.parts):
         return True
+
+    # تجاهل مجلد scratch وكل محتوياته
+    if relative_path.startswith('scratch/') or relative_path == 'scratch' or 'scratch' in parts[:-1]:
+        return True
         
     for pattern in patterns:
+        clean_pattern = pattern.rstrip('/')
+        if pattern.endswith('/'):
+            if relative_path == clean_pattern or relative_path.startswith(clean_pattern + '/'):
+                return True
+            if clean_pattern in parts[:-1]:
+                return True
+
         if fnmatch.fnmatch(relative_path, pattern) or fnmatch.fnmatch(file_path.name, pattern):
+            return True
+        if fnmatch.fnmatch(relative_path, f"{clean_pattern}/*"):
             return True
             
     return False

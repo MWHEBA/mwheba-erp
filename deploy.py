@@ -120,12 +120,15 @@ class DeploymentManager:
                         patterns.append(line)
         
         # إضافة patterns أساسية فقط
-        patterns.extend(['__pycache__', '*.pyc', '.deploy_hashes.json', '*.log', 'deploy_logs'])
+        patterns.extend(['__pycache__', '*.pyc', '.deploy_hashes.json', '*.log', 'deploy_logs', 'scratch', 'scratch/*'])
         return patterns
 
     def is_ignored(self, file_path):
         """فحص ما إذا كان الملف مستثنى"""
-        relative_path = str(file_path.relative_to(self.project_root)).replace('\\', '/')
+        try:
+            relative_path = str(file_path.relative_to(self.project_root)).replace('\\', '/')
+        except ValueError:
+            relative_path = str(file_path).replace('\\', '/')
         
         # استثناء للملفات المهمة
         important_files = [
@@ -144,6 +147,10 @@ class DeploymentManager:
         if relative_path.startswith('deploy_logs/') or relative_path == 'deploy_logs':
             return True
 
+        # تجاهل مجلد scratch وكل محتوياته
+        if relative_path.startswith('scratch/') or relative_path == 'scratch' or '/scratch/' in f"/{relative_path}/":
+            return True
+
         # تجاهل جميع ملفات .deploy_hashes.json في أي مكان
         if file_path.name == '.deploy_hashes.json':
             return True
@@ -159,8 +166,18 @@ class DeploymentManager:
             if pattern.startswith('.'):
                 continue
             
+            # إذا كان النمط ينتهي بـ / (مجلد)
+            clean_pattern = pattern.rstrip('/')
+            if pattern.endswith('/'):
+                if relative_path == clean_pattern or relative_path.startswith(clean_pattern + '/'):
+                    return True
+                if clean_pattern in parts[:-1]:
+                    return True
+
             # مقارنة المسار الكامل أو اسم الملف
             if fnmatch.fnmatch(relative_path, pattern) or fnmatch.fnmatch(file_path.name, pattern):
+                return True
+            if fnmatch.fnmatch(relative_path, f"{clean_pattern}/*") or fnmatch.fnmatch(relative_path, f"*/{clean_pattern}/*"):
                 return True
                 
         return False
