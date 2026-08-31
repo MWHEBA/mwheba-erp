@@ -393,28 +393,12 @@ class OperationsSettingsForm(forms.Form):
         widget=forms.Select(attrs={'class': 'form-select select2-filter', 'dir': 'rtl'})
     )
 
-    # 2. عروض الأسعار وأوامر الشراء
-    enable_quotations = forms.BooleanField(
-        label=_('تفعيل موديول عروض الأسعار'),
-        required=False,
-        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
-    )
     default_quotation_validity_days = forms.IntegerField(
         label=_('فترة صلاحية عرض السعر الافتراضية (بالأيام)'),
         initial=15,
         min_value=1,
         max_value=365,
         widget=forms.NumberInput(attrs={'class': 'form-control', 'placeholder': '15'})
-    )
-    enable_sales_orders = forms.BooleanField(
-        label=_('تفعيل موديول أوامر البيع (Sales Orders)'),
-        required=False,
-        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
-    )
-    enable_purchase_orders = forms.BooleanField(
-        label=_('تفعيل موديول أوامر الشراء (Purchase Orders)'),
-        required=False,
-        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
     )
 
     # 3. الشروط والأحكام الافتراضية

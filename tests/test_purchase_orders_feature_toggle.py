@@ -2,7 +2,7 @@ import pytest
 from django.test import TestCase, Client
 from django.contrib.auth import get_user_model
 from django.urls import reverse
-from core.models import SystemSetting
+from core.models import SystemSetting, SystemModule
 from supplier.models import Supplier
 
 User = get_user_model()
@@ -18,10 +18,17 @@ class TestPurchaseOrdersFeatureToggle(TestCase):
         )
         self.client.force_login(self.user)
         self.supplier = Supplier.objects.create(name="مورد تجريبي", code="SUP-PO-01")
+        # Ensure base suppliers_purchases module is enabled
+        SystemModule.objects.update_or_create(
+            code="suppliers_purchases",
+            defaults={"name_ar": "المشتريات", "is_enabled": True, "module_type": "optional"}
+        )
 
-    def test_purchase_orders_disabled_by_default_hides_from_sidebar_and_supplier_and_blocks_view(self):
-        # التأكد من مسح أي إعداد مسبق
-        SystemSetting.objects.filter(key="enable_purchase_orders").delete()
+    def test_purchase_orders_disabled_hides_from_sidebar_and_supplier_and_blocks_view(self):
+        SystemModule.objects.update_or_create(
+            code="purchase_orders",
+            defaults={"name_ar": "أوامر الشراء", "is_enabled": False, "module_type": "optional"}
+        )
         SystemSetting.invalidate_all_system_caches()
 
         # 1. فحص ظهورها في الـ context processor
@@ -46,7 +53,10 @@ class TestPurchaseOrdersFeatureToggle(TestCase):
         assert "ميزة أوامر الشراء غير مفعلة" in po_create_resp.content.decode("utf-8")
 
     def test_purchase_orders_enabled_shows_in_sidebar_and_supplier_and_allows_access(self):
-        SystemSetting.set_setting("enable_purchase_orders", "true", group="sales", data_type="boolean")
+        SystemModule.objects.update_or_create(
+            code="purchase_orders",
+            defaults={"name_ar": "أوامر الشراء", "is_enabled": True, "module_type": "optional"}
+        )
         SystemSetting.invalidate_all_system_caches()
 
         # 1. فحص ظهورها في الـ context processor

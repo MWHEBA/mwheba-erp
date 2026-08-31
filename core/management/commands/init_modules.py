@@ -2,7 +2,7 @@
 Management command لتهيئة تطبيقات النظام
 """
 from django.core.management.base import BaseCommand
-from core.models import SystemModule
+from core.models import SystemModule, SystemSetting
 
 
 class Command(BaseCommand):
@@ -10,6 +10,11 @@ class Command(BaseCommand):
     
     def handle(self, *args, **options):
         self.stdout.write(self.style.SUCCESS('بدء تهيئة تطبيقات النظام...'))
+        
+        # استقراء القيم الحالية من إعدادات النظام لوراثتها في حالة الإنشاء الجديد
+        legacy_quotations_enabled = SystemSetting.get_bool('enable_quotations', False)
+        legacy_so_enabled = SystemSetting.get_bool('enable_sales_orders', False)
+        legacy_po_enabled = SystemSetting.get_bool('enable_purchase_orders', False)
         
         modules_data = [
             # التطبيقات الأساسية (غير قابلة للتعطيل)
@@ -50,6 +55,32 @@ class Command(BaseCommand):
                 'required_modules_codes': [],
             },
             {
+                'code': 'quotations',
+                'name_ar': 'عروض الأسعار',
+                'name_en': 'Quotations',
+                'description': 'إدارة عروض الأسعار للعملاء وتحويلها المباشر لفواتير وأوامر بيع',
+                'icon': 'fas fa-file-contract',
+                'module_type': 'optional',
+                'is_enabled': legacy_quotations_enabled,
+                'order': 11,
+                'url_namespace': '',
+                'menu_id': 'salesMenu',
+                'required_modules_codes': ['customers_sales'],
+            },
+            {
+                'code': 'sales_orders',
+                'name_ar': 'أوامر البيع والتسليم',
+                'name_en': 'Sales Orders',
+                'description': 'إدارة أوامر البيع وحجز المخزون وإذون تسليم البضاعة',
+                'icon': 'fas fa-clipboard-list',
+                'module_type': 'optional',
+                'is_enabled': legacy_so_enabled,
+                'order': 12,
+                'url_namespace': '',
+                'menu_id': 'salesMenu',
+                'required_modules_codes': ['customers_sales'],
+            },
+            {
                 'code': 'suppliers_purchases',
                 'name_ar': 'إدارة الموردين والمشتريات',
                 'name_en': 'Suppliers & Purchases Management',
@@ -60,6 +91,19 @@ class Command(BaseCommand):
                 'url_namespace': 'supplier,purchase',
                 'menu_id': 'supplierMenu,purchaseMenu',
                 'required_modules_codes': [],
+            },
+            {
+                'code': 'purchase_orders',
+                'name_ar': 'أوامر الشراء والتوريد',
+                'name_en': 'Purchase Orders',
+                'description': 'إدارة أوامر الشراء ومتابعة التوريدات واستلام البضاعة بالمخزن',
+                'icon': 'fas fa-shopping-cart',
+                'module_type': 'optional',
+                'is_enabled': legacy_po_enabled,
+                'order': 21,
+                'url_namespace': '',
+                'menu_id': 'purchaseMenu',
+                'required_modules_codes': ['suppliers_purchases'],
             },
             {
                 'code': 'warehouses',
@@ -153,16 +197,15 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(f'تم تحديث {updated_count} تطبيق موجود'))
         self.stdout.write(self.style.SUCCESS('=' * 50))
         
-        # مسح الكاش
+        # مسح الكاش الشامل
         from django.core.cache import cache
         cache.delete('enabled_modules_dict')
+        cache.delete('enabled_modules_dict_v2')
         cache.delete('enabled_modules_set')
-        # محاولة مسح pattern إذا كان متاح
+        SystemSetting.invalidate_all_system_caches()
         try:
             cache.delete_pattern('module_enabled_*')
         except AttributeError:
-            # LocMemCache لا يدعم delete_pattern
             pass
         
-        self.stdout.write(self.style.SUCCESS('[+] تم مسح الكاش'))
-
+        self.stdout.write(self.style.SUCCESS('[+] تم مسح كاش المنظومة بالكامل'))

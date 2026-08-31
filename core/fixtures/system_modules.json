@@ -150,5 +150,62 @@
     "updated_at": "2026-07-04T21:45:00.000Z",
     "required_modules": [3]
   }
+},
+{
+  "model": "core.systemmodule",
+  "pk": 9,
+  "fields": {
+    "code": "quotations",
+    "name_ar": "عروض الأسعار",
+    "name_en": "Quotations",
+    "description": "إدارة عروض الأسعار للعملاء وتحويلها المباشر لفواتير وأوامر بيع",
+    "icon": "fas fa-file-contract",
+    "module_type": "optional",
+    "is_enabled": true,
+    "url_namespace": "",
+    "menu_id": "salesMenu",
+    "order": 11,
+    "created_at": "2026-08-31T20:00:00.000Z",
+    "updated_at": "2026-08-31T20:00:00.000Z",
+    "required_modules": [3]
+  }
+},
+{
+  "model": "core.systemmodule",
+  "pk": 10,
+  "fields": {
+    "code": "sales_orders",
+    "name_ar": "أوامر البيع والتسليم",
+    "name_en": "Sales Orders",
+    "description": "إدارة أوامر البيع وحجز المخزون وإذون تسليم البضاعة",
+    "icon": "fas fa-clipboard-list",
+    "module_type": "optional",
+    "is_enabled": true,
+    "url_namespace": "",
+    "menu_id": "salesMenu",
+    "order": 12,
+    "created_at": "2026-08-31T20:00:00.000Z",
+    "updated_at": "2026-08-31T20:00:00.000Z",
+    "required_modules": [3]
+  }
+},
+{
+  "model": "core.systemmodule",
+  "pk": 11,
+  "fields": {
+    "code": "purchase_orders",
+    "name_ar": "أوامر الشراء والتوريد",
+    "name_en": "Purchase Orders",
+    "description": "إدارة أوامر الشراء ومتابعة التوريدات واستلام البضاعة بالمخزن",
+    "icon": "fas fa-shopping-cart",
+    "module_type": "optional",
+    "is_enabled": true,
+    "url_namespace": "",
+    "menu_id": "purchaseMenu",
+    "order": 21,
+    "created_at": "2026-08-31T20:00:00.000Z",
+    "updated_at": "2026-08-31T20:00:00.000Z",
+    "required_modules": [4]
+  }
 }
 ]

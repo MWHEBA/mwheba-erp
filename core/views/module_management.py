@@ -2,14 +2,18 @@
 Views لإدارة تطبيقات النظام
 """
 from django.contrib.auth.decorators import login_required, user_passes_test
-from django.shortcuts import render, redirect, get_object_or_404
+from django.shortcuts import render, redirect
+from django.urls import reverse
 from django.contrib import messages
 from django.core.cache import cache
-from core.models import SystemModule
+from core.models import SystemModule, SystemSetting
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 @login_required
-@user_passes_test(lambda u: u.is_superuser)
+@user_passes_test(lambda u: u.is_authenticated and (u.is_superuser or getattr(u, 'is_admin', False)))
 def module_management(request):
     """
     صفحة إدارة تطبيقات النظام
@@ -31,7 +35,7 @@ def module_management(request):
                 else:
                     module.is_enabled = True
                     module.save()
-                    # مسح الكاش
+                    _log_module_audit(request, module, 'ENABLE')
                     _clear_modules_cache()
                     messages.success(request, f'تم تفعيل تطبيق {module.name_ar}')
             
@@ -47,6 +51,7 @@ def module_management(request):
                 else:
                     module.is_enabled = False
                     module.save()
+                    _log_module_audit(request, module, 'DISABLE')
                     _clear_modules_cache()
                     messages.success(request, f'تم تعطيل تطبيق {module.name_ar}')
         
@@ -68,8 +73,8 @@ def module_management(request):
         'optional_modules': optional_modules,
         'active_menu': 'settings',
         'breadcrumb_items': [
-            {'title': 'الرئيسية', 'url': '/'},
-            {'title': 'الإعدادات', 'url': None},
+            {'title': 'الرئيسية', 'url': reverse('core:dashboard'), 'icon': 'fa-home'},
+            {'title': 'الإعدادات', 'url': None, 'icon': 'fa-cogs'},
             {'title': 'تطبيقات النظام', 'active': True}
         ],
     }
@@ -77,13 +82,33 @@ def module_management(request):
     return render(request, 'core/module_management.html', context)
 
 
+def _log_module_audit(request, module, action_type):
+    """توثيق عملية تفعيل أو تعطيل التطبيق في سجل الحوكمة والرقابة"""
+    try:
+        from governance.services import AuditService
+        AuditService.log_action(
+            user=request.user,
+            action=f"MODULE_{action_type}",
+            model_name="SystemModule",
+            object_id=str(module.id),
+            details={
+                "code": module.code,
+                "name": module.name_ar,
+                "is_enabled": module.is_enabled
+            },
+            ip_address=request.META.get('REMOTE_ADDR')
+        )
+    except Exception as e:
+        logger.debug(f"Audit log skipped for module toggle: {e}")
+
+
 def _clear_modules_cache():
-    """مسح كاش التطبيقات"""
+    """مسح كاش التطبيقات والإعدادات العامة لحظياً"""
     cache.delete('enabled_modules_dict')
+    cache.delete('enabled_modules_dict_v2')
     cache.delete('enabled_modules_set')
-    # مسح جميع الكاش الخاص بالتطبيقات الفردية
+    SystemSetting.invalidate_all_system_caches()
     try:
         cache.delete_pattern('module_enabled_*')
     except AttributeError:
-        # في حالة استخدام backend لا يدعم delete_pattern
         pass

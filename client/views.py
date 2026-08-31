@@ -626,9 +626,14 @@ def customer_detail(request, pk):
         ]
 
     # جلب أوامر البيع المرتبطة بالعميل
-    from sale.models.sales_models import SalesOrder
-    sales_orders = SalesOrder.objects.filter(customer=customer).select_related("warehouse", "salesman").order_by("-order_date", "-id")
-    sales_orders_count = sales_orders.count()
+    enable_sales_orders = SystemSetting.get_bool('enable_sales_orders', False)
+    if enable_sales_orders:
+        from sale.models.sales_models import SalesOrder
+        sales_orders = SalesOrder.objects.filter(customer=customer).select_related("warehouse", "salesman").order_by("-order_date", "-id")
+        sales_orders_count = sales_orders.count()
+    else:
+        sales_orders = []
+        sales_orders_count = 0
     sales_orders_headers = [
         {"key": "id", "label": "#", "sortable": True, "class": "text-center", "width": "60px"},
         {"key": "order_date", "label": "التاريخ", "sortable": True, "class": "text-center", "format": "date"},

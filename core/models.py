@@ -91,16 +91,36 @@ class SystemSetting(models.Model):
             except Exception:
                 pass
 
+            # Bridge to SystemModule for operational sub-module feature toggles
+            MODULE_BRIDGE_MAP = {
+                'enable_quotations': ('quotations', 'customers_sales'),
+                'enable_sales_orders': ('sales_orders', 'customers_sales'),
+                'enable_purchase_orders': ('purchase_orders', 'suppliers_purchases'),
+            }
+            try:
+                # Check if SystemModule has any matching submodule records
+                existing_submodules = {m.code: m.is_enabled for m in SystemModule.objects.filter(code__in=['quotations', 'sales_orders', 'purchase_orders', 'customers_sales', 'suppliers_purchases'])}
+                for setting_key, (sub_code, parent_code) in MODULE_BRIDGE_MAP.items():
+                    if sub_code in existing_submodules:
+                        is_sub_on = existing_submodules[sub_code]
+                        is_parent_on = (not parent_code) or existing_submodules.get(parent_code, True)
+                        settings_dict[setting_key] = is_sub_on and is_parent_on
+            except Exception:
+                pass
+
             cache.set(cache_key, settings_dict, 300)
         return settings_dict
 
     @classmethod
     def invalidate_all_system_caches(cls):
         """
-        تفريغ كافة الكاشات المرتبطة بالإعدادات، المنشأة، والعملات دفعة واحدة
+        تفريغ كافة الكاشات المرتبطة بالإعدادات، المنشأة، والعملات والموديولات دفعة واحدة
         """
         from django.core.cache import cache
         cache.delete('global_settings_dict_v2')
+        cache.delete('enabled_modules_dict')
+        cache.delete('enabled_modules_dict_v2')
+        cache.delete('enabled_modules_set')
         cache.delete('company_info_v1')
         cache.delete('default_currency_symbol')
         cache.delete('default_currency_symbol_en')
@@ -148,8 +168,35 @@ class SystemSetting(models.Model):
     @classmethod
     def get_bool(cls, key, default=False):
         """
-        الحصول على قيمة إعداد منطقي كـ boolean بشكل آمن وموحد
+        الحصول على قيمة إعداد منطقي كـ boolean بشكل آمن وموحد مع الربط المباشر بـ SystemModule
         """
+        MODULE_BRIDGE_MAP = {
+            'enable_quotations': ('quotations', 'customers_sales'),
+            'enable_sales_orders': ('sales_orders', 'customers_sales'),
+            'enable_purchase_orders': ('purchase_orders', 'suppliers_purchases'),
+        }
+        if key in MODULE_BRIDGE_MAP:
+            sub_code, parent_code = MODULE_BRIDGE_MAP[key]
+            try:
+                from django.core.cache import cache
+                cached_modules = cache.get('enabled_modules_dict_v2')
+                if cached_modules is not None and sub_code in cached_modules:
+                    is_sub_on = bool(cached_modules[sub_code])
+                    is_parent_on = (not parent_code) or (parent_code in cached_modules)
+                    return is_sub_on and is_parent_on
+                
+                sub_mod = SystemModule.objects.filter(code=sub_code).first()
+                if sub_mod is not None:
+                    if not sub_mod.is_enabled:
+                        return False
+                    if parent_code:
+                        parent_mod = SystemModule.objects.filter(code=parent_code).first()
+                        if parent_mod and not parent_mod.is_enabled:
+                            return False
+                    return True
+            except Exception:
+                pass
+
         val = cls.get_setting(key, default)
         if isinstance(val, bool):
             return val
@@ -176,6 +223,20 @@ class SystemSetting(models.Model):
         return obj
 
     def save(self, *args, **kwargs):
+        # مزامنة SystemModule عند تحديث مفاتيح الموديولات
+        MODULE_BRIDGE_MAP = {
+            'enable_quotations': 'quotations',
+            'enable_sales_orders': 'sales_orders',
+            'enable_purchase_orders': 'purchase_orders',
+        }
+        if self.key in MODULE_BRIDGE_MAP:
+            sub_code = MODULE_BRIDGE_MAP[self.key]
+            is_true = str(self.value).strip().lower() in ("true", "1", "yes", "on", "نعم")
+            try:
+                SystemModule.objects.filter(code=sub_code).update(is_enabled=is_true)
+            except Exception:
+                pass
+
         super().save(*args, **kwargs)
         self.invalidate_cache()
 

@@ -2,7 +2,7 @@ import pytest
 from django.test import TestCase, Client
 from django.contrib.auth import get_user_model
 from django.urls import reverse
-from core.models import SystemSetting
+from core.models import SystemSetting, SystemModule
 
 User = get_user_model()
 
@@ -16,10 +16,17 @@ class TestSalesOrdersFeatureToggle(TestCase):
             password="password123"
         )
         self.client.force_login(self.user)
+        # Ensure base customer_sales module is enabled
+        SystemModule.objects.update_or_create(
+            code="customers_sales",
+            defaults={"name_ar": "المبيعات", "is_enabled": True, "module_type": "optional"}
+        )
 
-    def test_sales_orders_disabled_by_default_hides_from_sidebar_and_blocks_view(self):
-        # التأكد من مسح أي إعداد مسبق
-        SystemSetting.objects.filter(key="enable_sales_orders").delete()
+    def test_sales_orders_disabled_hides_from_sidebar_and_blocks_view(self):
+        SystemModule.objects.update_or_create(
+            code="sales_orders",
+            defaults={"name_ar": "أوامر البيع", "is_enabled": False, "module_type": "optional"}
+        )
         SystemSetting.invalidate_all_system_caches()
 
         # 1. فحص ظهورها في الـ context processor
@@ -38,7 +45,10 @@ class TestSalesOrdersFeatureToggle(TestCase):
         assert "ميزة أوامر البيع غير مفعلة" in so_create_resp.content.decode("utf-8")
 
     def test_sales_orders_enabled_shows_in_sidebar_and_allows_access(self):
-        SystemSetting.set_setting("enable_sales_orders", "true", group="sales", data_type="boolean")
+        SystemModule.objects.update_or_create(
+            code="sales_orders",
+            defaults={"name_ar": "أوامر البيع", "is_enabled": True, "module_type": "optional"}
+        )
         SystemSetting.invalidate_all_system_caches()
 
         # 1. فحص ظهورها في الـ context processor

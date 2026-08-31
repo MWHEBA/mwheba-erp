@@ -452,10 +452,7 @@ def operations_settings(request):
         'invoice_product_code_display': settings_dict.get('invoice_product_code_display', 'sku'),
         'enable_custom_fields': settings_dict.get('enable_custom_fields', 'true') == 'true',
         'custom_fields_display_mode': settings_dict.get('custom_fields_display_mode', 'expanded'),
-        'enable_quotations': SystemSetting.get_bool('enable_quotations', False),
         'default_quotation_validity_days': int(settings_dict.get('default_quotation_validity_days', 15)) if settings_dict.get('default_quotation_validity_days') else 15,
-        'enable_sales_orders': SystemSetting.get_bool('enable_sales_orders', False),
-        'enable_purchase_orders': SystemSetting.get_bool('enable_purchase_orders', False),
         'default_sale_invoice_notes': settings_dict.get('default_sale_invoice_notes', settings_dict.get('invoice_notes', '')),
         'default_sale_invoice_notes_en': settings_dict.get('default_sale_invoice_notes_en', ''),
         'default_quotation_notes': settings_dict.get('default_quotation_notes', ''),
@@ -555,7 +552,9 @@ def system_settings(request):
     from financial.models import JournalEntry, Currency
     from sale.models.sale import Sale
     from sale.models.quotation import Quotation
+    from sale.models.sales_models import SalesOrder
     from purchase.models.purchase import Purchase
+    from purchase.models.procurement_models import PurchaseOrder
 
     has_transactions = False
     try:
@@ -563,7 +562,9 @@ def system_settings(request):
             JournalEntry.objects.exists() or
             Sale.objects.exists() or
             Purchase.objects.exists() or
-            Quotation.objects.exists()
+            Quotation.objects.exists() or
+            SalesOrder.objects.exists() or
+            PurchaseOrder.objects.exists()
         )
     except Exception:
         pass

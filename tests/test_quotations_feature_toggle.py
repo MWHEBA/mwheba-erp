@@ -2,7 +2,7 @@ import pytest
 from django.test import TestCase, Client
 from django.contrib.auth import get_user_model
 from django.urls import reverse
-from core.models import SystemSetting
+from core.models import SystemSetting, SystemModule
 
 User = get_user_model()
 
@@ -16,10 +16,18 @@ class TestQuotationsFeatureToggle(TestCase):
             password="password123"
         )
         self.client.force_login(self.user)
+        # Ensure base customer_sales module is enabled
+        SystemModule.objects.update_or_create(
+            code="customers_sales",
+            defaults={"name_ar": "المبيعات", "is_enabled": True, "module_type": "optional"}
+        )
 
-    def test_quotations_disabled_by_default_hides_from_sidebar_and_blocks_view(self):
-        # التأكد من مسح أي إعداد مسبق
-        SystemSetting.objects.filter(key="enable_quotations").delete()
+    def test_quotations_disabled_hides_from_sidebar_and_blocks_view(self):
+        # تعطيل موديول عروض الأسعار
+        SystemModule.objects.update_or_create(
+            code="quotations",
+            defaults={"name_ar": "عروض الأسعار", "is_enabled": False, "module_type": "optional"}
+        )
         SystemSetting.invalidate_all_system_caches()
 
         # 1. فحص ظهورها في الـ context processor
@@ -33,7 +41,10 @@ class TestQuotationsFeatureToggle(TestCase):
         assert "ميزة عروض الأسعار غير مفعلة" in quote_resp.content.decode("utf-8")
 
     def test_quotations_enabled_shows_in_sidebar_and_allows_access(self):
-        SystemSetting.set_setting("enable_quotations", "true", group="sales", data_type="boolean")
+        SystemModule.objects.update_or_create(
+            code="quotations",
+            defaults={"name_ar": "عروض الأسعار", "is_enabled": True, "module_type": "optional"}
+        )
         SystemSetting.invalidate_all_system_caches()
 
         # 1. فحص ظهورها في الـ context processor

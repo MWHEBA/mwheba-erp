@@ -482,10 +482,13 @@ class SystemModuleAdmin(admin.ModelAdmin):
     
     def save_model(self, request, obj, form, change):
         super().save_model(request, obj, form, change)
-        # مسح الكاش عند التعديل
+        # مسح الكاش الشامل عند التعديل
         from django.core.cache import cache
+        from core.models import SystemSetting
         cache.delete('enabled_modules_dict')
+        cache.delete('enabled_modules_dict_v2')
         cache.delete('enabled_modules_set')
+        SystemSetting.invalidate_all_system_caches()
         try:
             cache.delete_pattern('module_enabled_*')
         except AttributeError:
