@@ -957,11 +957,24 @@ def sale_list(request):
             'class': 'action-copy',
         })
         
+        # Build items badges
+        items = sale.items.select_related('product').all()
+        badges = []
+        for it in items:
+            p_name = it.product.name if it.product else 'منتج'
+            badges.append(
+                f'<span class="badge bg-light text-dark border me-1 mb-1" style="font-size: 0.85rem;">'
+                f'<i class="fas fa-box text-primary me-1"></i>{p_name}'
+                f'</span>'
+            )
+        items_summary = "".join(badges) if badges else '<span class="text-muted">-</span>'
+        
         sales_data.append({
             'id': sale.id,
             'number': sale.number,
             'created_at': sale.created_at,
             'customer': sale.customer.name if sale.customer else '-',
+            'items_summary': items_summary,
             'salesman': sale.salesman_display_name,
             'warehouse': sale.warehouse.name if sale.warehouse else '-',
             'total': sale.total,
@@ -1007,6 +1020,7 @@ def sale_list(request):
             'format': 'datetime_12h',
         },
         {'key': 'customer', 'label': 'العميل', 'sortable': True, 'width': '18%', 'class': 'fw-bold'},
+        {'key': 'items_summary', 'label': 'الأصناف والبنود', 'sortable': False, 'format': 'html'},
         {'key': 'salesman', 'label': 'مسؤول المبيعات', 'sortable': True, 'class': 'text-center'},
     ]
     if allowed_types != 'services':

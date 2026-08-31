@@ -63,7 +63,7 @@ class DataRetentionService:
             
             # Financial records - 7 years for tax compliance
             RetentionPolicy(
-                model_name='financial.Transaction',
+                model_name='financial.JournalEntry',
                 retention_days=2555,
                 archive_before_delete=True,
                 cascade_delete=False
@@ -90,27 +90,6 @@ class DataRetentionService:
                 archive_before_delete=False
             ),
             
-            # Temporary files - 7 days
-            RetentionPolicy(
-                model_name='core.TempFile',
-                retention_days=7,
-                archive_before_delete=False
-            ),
-            
-            # Email logs - 90 days
-            RetentionPolicy(
-                model_name='core.EmailLog',
-                retention_days=90,
-                archive_before_delete=True
-            ),
-            
-            # Security events - 1 year
-            RetentionPolicy(
-                model_name='core.SecurityEvent',
-                retention_days=365,
-                archive_before_delete=True
-            ),
-            
             # Backup metadata - 1 year
             RetentionPolicy(
                 model_name='core.BackupRecord',
@@ -125,6 +104,7 @@ class DataRetentionService:
                 archive_before_delete=True
             )
         ]
+
         
         # Load custom policies from settings
         custom_policies = getattr(settings, 'DATA_RETENTION_POLICIES', [])
@@ -517,7 +497,7 @@ Policy Details:
                 message=message,
                 from_email=settings.DEFAULT_FROM_EMAIL,
                 recipient_list=self.notification_emails,
-                fail_silently=False
+                fail_silently=True
             )
             
         except Exception as e:
@@ -634,7 +614,7 @@ This is an automated notification from the data retention system.
                 message=message,
                 from_email=settings.DEFAULT_FROM_EMAIL,
                 recipient_list=self.notification_emails,
-                fail_silently=False
+                fail_silently=True
             )
             
         except Exception as e:
@@ -645,6 +625,9 @@ This is an automated notification from the data retention system.
         Create data export for compliance or backup purposes
         """
         try:
+            import tempfile
+            from pathlib import Path
+            
             model_class = self._get_model_class(model_name)
             if not model_class:
                 raise Exception(f"Model not found: {model_name}")
@@ -659,16 +642,18 @@ This is an automated notification from the data retention system.
             for record in queryset:
                 export_data.append(self._serialize_record(record))
             
-            # Save export file
+            # Save export file to portable path
             timestamp = timezone.now().strftime('%Y%m%d_%H%M%S')
             filename = f"data_export_{model_name.replace('.', '_')}_{timestamp}.json"
+            export_dir = Path(getattr(settings, 'BACKUP_LOCAL_DIR', tempfile.gettempdir()))
+            export_dir.mkdir(parents=True, exist_ok=True)
+            export_path = export_dir / filename
             
-            export_path = f"/tmp/{filename}"
-            with open(export_path, 'w') as f:
-                json.dump(export_data, f, indent=2, default=str)
+            with open(export_path, 'w', encoding='utf-8') as f:
+                json.dump(export_data, f, indent=2, default=str, ensure_ascii=False)
             
             logger.info(f"Data export created: {export_path} ({len(export_data)} records)")
-            return export_path
+            return str(export_path)
             
         except Exception as e:
             logger.error(f"Data export failed for {model_name}: {e}")

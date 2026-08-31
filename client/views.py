@@ -531,8 +531,20 @@ def customer_detail(request, pk):
 
     # جلب فواتير البيع المؤكدة المرتبطة بالعميل
     from sale.models import Sale
-    invoices = Sale.objects.with_list_details().filter(customer=customer, status="confirmed").order_by("-date")
-    invoices_count = invoices.count()
+    invoices_qs = Sale.objects.with_list_details().filter(customer=customer, status="confirmed").order_by("-date").prefetch_related('items__product')
+    invoices = []
+    for inv in invoices_qs:
+        badges = []
+        for it in inv.items.all():
+            p_name = it.product.name if it.product else 'منتج'
+            badges.append(
+                f'<span class="badge bg-light text-dark border me-1 mb-1" style="font-size: 0.85rem;">'
+                f'<i class="fas fa-box text-primary me-1"></i>{p_name}'
+                f'</span>'
+            )
+        inv.items_summary = "".join(badges) if badges else '<span class="text-muted">-</span>'
+        invoices.append(inv)
+    invoices_count = len(invoices)
 
     # جلب طلبات التسعير المرتبطة بالعميل (مؤقتاً معطل)
     pricing_orders = []
@@ -631,7 +643,7 @@ def customer_detail(request, pk):
     ]
 
     # حساب إجمالي المبيعات
-    total_sales = invoices.aggregate(total=Sum("total"))["total"] or 0
+    total_sales = invoices_qs.aggregate(total=Sum("total"))["total"] or 0
 
     # حساب عدد المنتجات الفريدة في فواتير البيع
     from sale.models import SaleItem
@@ -643,9 +655,9 @@ def customer_detail(request, pk):
 
     # تاريخ آخر معاملة
     last_transaction_date = None
-    if payments or invoices.exists():
+    if payments or invoices:
         last_payment_date = payments[0]["payment_date"] if payments else None
-        last_invoice_date = invoices.first().date if invoices.exists() else None
+        last_invoice_date = invoices[0].date if invoices else None
 
         if last_payment_date and last_invoice_date:
             last_transaction_date = max(last_payment_date, last_invoice_date)
@@ -973,6 +985,13 @@ def customer_detail(request, pk):
             "format": "reference",
             "variant": "highlight-code",
             "app": "sale",
+        },
+        {
+            "key": "items_summary",
+            "label": "الأصناف والبنود",
+            "sortable": False,
+            "class": "text-start",
+            "format": "html",
         },
         {
             "key": "total",

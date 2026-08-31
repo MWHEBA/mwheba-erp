@@ -653,11 +653,23 @@ def supplier_detail(request, pk):
 
 
     # جلب فواتير الشراء المؤكدة المرتبطة بالمورد
-    purchases = Purchase.objects.filter(supplier=supplier, status="confirmed").order_by("-date")
-    purchases_count = purchases.count()
+    purchases_qs = Purchase.objects.filter(supplier=supplier, status="confirmed").order_by("-date").prefetch_related('items__product__unit')
+    purchases = []
+    for p in purchases_qs:
+        badges = []
+        for it in p.items.all():
+            p_name = it.product.name if it.product else 'منتج'
+            badges.append(
+                f'<span class="badge bg-light text-dark border me-1 mb-1" style="font-size: 0.85rem;">'
+                f'<i class="fas fa-box text-primary me-1"></i>{p_name}'
+                f'</span>'
+            )
+        p.items_summary = "".join(badges) if badges else '<span class="text-muted">-</span>'
+        purchases.append(p)
+    purchases_count = len(purchases)
 
     # حساب إجمالي المشتريات
-    total_purchases = purchases.aggregate(total=Sum("total"))["total"] or 0
+    total_purchases = purchases_qs.aggregate(total=Sum("total"))["total"] or 0
 
     # حساب عدد المنتجات الفريدة في فواتير الشراء
     purchase_items = PurchaseItem.objects.filter(purchase__supplier=supplier)
@@ -695,9 +707,9 @@ def supplier_detail(request, pk):
 
     # تاريخ آخر معاملة
     last_transaction_date = None
-    if payments_list or purchases.exists():
+    if payments_list or purchases:
         last_payment_date = payments_list[0]["payment_date"] if payments_list else None
-        last_purchase_date = purchases.first().date if purchases.exists() else None
+        last_purchase_date = purchases[0].date if purchases else None
 
         if last_payment_date and last_purchase_date:
             last_transaction_date = max(last_payment_date, last_purchase_date)
@@ -1041,6 +1053,13 @@ def supplier_detail(request, pk):
             "format": "reference",
             "variant": "highlight-code",
             "app": "purchase",
+        },
+        {
+            "key": "items_summary",
+            "label": "الأصناف والبنود",
+            "sortable": False,
+            "class": "text-start",
+            "format": "html",
         },
         {
             "key": "total",

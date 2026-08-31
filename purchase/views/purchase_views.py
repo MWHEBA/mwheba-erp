@@ -151,6 +151,7 @@ def purchase_list(request):
             "format": "datetime_12h",
         },
         {"key": "supplier.name", "label": _("المورد"), "sortable": True, "class": "fw-bold"},
+        {"key": "items_summary", "label": _("الأصناف والبنود"), "sortable": False, "format": "html"},
         {"key": "warehouse.name", "label": _("المخزن"), "sortable": True},
         {
             "key": "total",
@@ -218,6 +219,18 @@ def purchase_list(request):
             'class': 'action-copy',
         })
         
+        # Build items badges
+        items = purchase.items.select_related('product').all()
+        badges = []
+        for it in items:
+            p_name = it.product.name if it.product else 'منتج'
+            badges.append(
+                f'<span class="badge bg-light text-dark border me-1 mb-1" style="font-size: 0.85rem;">'
+                f'<i class="fas fa-box text-primary me-1"></i>{p_name}'
+                f'</span>'
+            )
+        items_summary = "".join(badges) if badges else '<span class="text-muted">-</span>'
+
         row_data = {
             'id': purchase.id,
             'number': purchase.number,
@@ -225,6 +238,7 @@ def purchase_list(request):
             'supplier.name': purchase.supplier.name if purchase.supplier else 'غير محدد',
             'supplier': purchase.supplier.name if purchase.supplier else 'غير محدد',
             'supplier_name': purchase.supplier.name if purchase.supplier else 'غير محدد',
+            'items_summary': items_summary,
             'warehouse.name': purchase.warehouse.name if purchase.warehouse else ('خدمية' if purchase.is_service else 'غير محدد'),
             'warehouse': purchase.warehouse.name if purchase.warehouse else ('خدمية' if purchase.is_service else 'غير محدد'),
             'warehouse_name': purchase.warehouse.name if purchase.warehouse else ('خدمية' if purchase.is_service else 'غير محدد'),

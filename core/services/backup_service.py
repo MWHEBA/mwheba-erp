@@ -1,51 +1,145 @@
-# ============================================================
-# PHASE 5: DATA PROTECTION - BACKUP SERVICE
-# ============================================================
-
 """
-Comprehensive backup service for database and media files.
-Simplified and unified backup system.
+Enterprise Dual-Engine Disaster Recovery & Backup Service
+MWHEBA ERP 100% Comprehensive Backup & Restoration Engine
 """
 
 import os
+import re
 import gzip
 import shutil
+import tarfile
+import zipfile
 import hashlib
 import logging
+import sqlite3
 import subprocess
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple, Any
+
 from django.conf import settings
-from django.db import connection
+from django.db import connection, connections, transaction
 from django.utils import timezone
+from django.core.cache import cache
+from core.models import SystemSetting
 
 logger = logging.getLogger(__name__)
 
+BACKUP_ID_REGEX = re.compile(r'^backup_\d{8}_\d{6}$')
+
+
+
 class BackupService:
     """
-    Comprehensive backup service with multiple storage backends
+    Enterprise Backup & Disaster Recovery Service with Dual-Engine (MySQL & SQLite) Parity
     """
     
     def __init__(self):
         self.backup_dir = Path(getattr(settings, 'BACKUP_LOCAL_DIR', settings.BASE_DIR / 'backups'))
         self.backup_dir.mkdir(parents=True, exist_ok=True)
-        
-    def create_backup(self, backup_type='full', download_mode=False) -> Dict[str, any]:
+        self.safety_dir = self.backup_dir / 'safety_snapshots'
+        self.safety_dir.mkdir(parents=True, exist_ok=True)
+        self.storage_type = 'local'
+        self._last_error = None
+        self._set_directory_permissions(self.backup_dir)
+        self._set_directory_permissions(self.safety_dir)
+
+    def _set_directory_permissions(self, path: Path):
+        """Set secure permissions (0o700 for dirs, 0o600 for files) if supported"""
+        try:
+            if os.name != 'nt':
+                if path.is_dir():
+                    os.chmod(path, 0o700)
+                elif path.is_file():
+                    os.chmod(path, 0o600)
+        except Exception as e:
+            logger.debug(f"Permissions setting skipped for {path}: {e}")
+
+    # ============================================================
+    # 1. MAINTENANCE LOCK & CONCURRENCY CONTROL
+    # ============================================================
+
+    def is_maintenance_locked(self) -> bool:
+        """Check if a system restore or critical maintenance lock is active"""
+        lock_file = settings.BASE_DIR / '.maintenance_lock'
+        return lock_file.exists()
+
+    def set_maintenance_lock(self, active: bool = True, reason: str = "Database restore in progress"):
+        """Create or release global HTTP 503 maintenance lock"""
+        lock_file = settings.BASE_DIR / '.maintenance_lock'
+        try:
+            if active:
+                with open(lock_file, 'w', encoding='utf-8') as f:
+                    f.write(f"{reason}\nTimestamp: {timezone.now().isoformat()}\n")
+                logger.warning(f"Maintenance lock ACTIVATED: {reason}")
+            else:
+                if lock_file.exists():
+                    lock_file.unlink()
+                logger.info("Maintenance lock RELEASED")
+        except Exception as e:
+            logger.error(f"Failed to toggle maintenance lock ({active}): {e}")
+
+    # ============================================================
+    # 2. FILE HELPERS, HASHING & COMPRESSION
+    # ============================================================
+
+    def _calculate_file_hash(self, file_path: Path) -> str:
+        """Calculate SHA256 file hash using fast 64KB buffers"""
+        sha256_hash = hashlib.sha256()
+        with open(file_path, "rb") as f:
+            for byte_block in iter(lambda: f.read(65536), b""):
+                sha256_hash.update(byte_block)
+        return sha256_hash.hexdigest()
+
+    def _compress_file(self, file_path: Path, remove_original: bool = True) -> Path:
         """
-        Create backup with specified type
-        
-        Args:
-            backup_type: 'full', 'database', or 'media'
-            download_mode: True to return file for direct download, False to save on server
-        
-        Returns:
-            Dict with backup information
+        Compress file using Gzip with fast standard compression (compresslevel=6)
         """
-        backup_id = f"backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        if not file_path.exists():
+            raise FileNotFoundError(f"File to compress does not exist: {file_path}")
+        
+        compressed_path = file_path.with_suffix(file_path.suffix + '.gz')
+        
+        with open(file_path, 'rb') as f_in:
+            with gzip.open(compressed_path, 'wb', compresslevel=6) as f_out:
+                shutil.copyfileobj(f_in, f_out, length=65536)
+        
+        if remove_original and file_path.exists() and file_path != compressed_path:
+            try:
+                file_path.unlink()
+            except Exception as e:
+                logger.warning(f"Could not remove uncompressed original file {file_path}: {e}")
+        
+        self._set_directory_permissions(compressed_path)
+        return compressed_path
+
+    def _find_backup_files(self, backup_id: str) -> List[Path]:
+        """
+        Find all files belonging to a specific backup_id, strictly isolating safety snapshots
+        """
+        if not BACKUP_ID_REGEX.match(backup_id):
+            return []
+        
+        all_matches = list(self.backup_dir.glob(f"*{backup_id}*"))
+        valid_files = [
+            f for f in all_matches
+            if f.is_file() and not f.name.startswith('safety_snapshot_') and not f.name.startswith('temp_')
+        ]
+        return valid_files
+
+    # ============================================================
+    # 3. BACKUP CREATION WORKFLOW (100% ATOMICITY)
+    # ============================================================
+
+    def create_backup(self, backup_type: str = 'full', download_mode: bool = False) -> Dict[str, Any]:
+        """
+        Create a full, database, or media backup
+        """
+        now = timezone.now()
+        backup_id = f"backup_{now.strftime('%Y%m%d_%H%M%S')}"
         backup_info = {
             'backup_id': backup_id,
-            'timestamp': timezone.now(),
+            'timestamp': now,
             'status': 'started',
             'backup_type': backup_type,
             'download_mode': download_mode,
@@ -55,199 +149,225 @@ class BackupService:
             'warnings': []
         }
         
+        logger.info(f"Starting {backup_type} backup: {backup_id}")
+        
         try:
-            logger.info(f"Starting {backup_type} backup: {backup_id}")
+            # 1. Check disk space
+            if not self._check_disk_space():
+                raise Exception("المساحة التخزينية المتاحة على القرص غير كافية لإنشاء النسخة الاحتياطية")
             
-            # Create backups based on type
+            # 2. Create Database Backup
             if backup_type in ['full', 'database']:
-                db_backup = self._create_database_backup(backup_id)
-                if db_backup:
-                    backup_info['files'].append(db_backup)
-                    backup_info['size_bytes'] += db_backup['size_bytes']
+                db_result = self._create_database_backup(backup_id)
+                if db_result:
+                    backup_info['files'].append(db_result)
+                    backup_info['size_bytes'] += db_result['size_bytes']
                 else:
-                    error_msg = 'Database backup failed'
-                    if hasattr(self, '_last_error'):
-                        error_msg = self._last_error
-                    backup_info['warnings'].append(error_msg)
+                    if backup_type == 'full':
+                        raise Exception("فشل إنشاء نسخة قاعدة البيانات أثناء النسخ الكامل")
+                    else:
+                        backup_info['errors'].append("فشل إنشاء نسخة قاعدة البيانات")
             
+            # 3. Create Media Backup
             if backup_type in ['full', 'media']:
-                media_backup = self._create_media_backup(backup_id)
-                if media_backup:
-                    backup_info['files'].append(media_backup)
-                    backup_info['size_bytes'] += media_backup['size_bytes']
-                else:
-                    backup_info['warnings'].append('Media backup failed - check logs for details')
-            
-            # Verify backup integrity
-            verification_result = self._verify_backup_integrity(backup_info)
-            backup_info['verification'] = verification_result
-            
-            # Clean old backups (only if not download mode)
-            if not download_mode:
-                # Determine backup type for cleanup
-                cleanup_type = 'all'
-                if backup_type == 'database':
-                    cleanup_type = 'database'
+                media_result = self._create_media_backup(backup_id)
+                if media_result:
+                    backup_info['files'].append(media_result)
+                    backup_info['size_bytes'] += media_result['size_bytes']
                 elif backup_type == 'media':
-                    cleanup_type = 'media'
-                elif backup_type == 'full':
-                    cleanup_type = 'full'
-                
-                self._cleanup_old_backups(backup_type=cleanup_type)
+                    backup_info['errors'].append("فشل إنشاء نسخة ملفات الميديا")
+            
+            # 4. Handle Full Zip Packaging if requested and multiple files created
+            if backup_type == 'full' and len(backup_info['files']) > 1:
+                full_zip = self._package_full_backup_zip(backup_id, backup_info['files'])
+                if full_zip:
+                    backup_info['files'] = [full_zip]
+                    backup_info['size_bytes'] = full_zip['size_bytes']
+            
+            # 5. Strict Verification & Integrity Check
+            if not backup_info['files'] or backup_info['errors']:
+                backup_info['status'] = 'failed'
+                error_summary = ", ".join(backup_info['errors']) or "لم يتم إنشاء أي ملفات"
+                self._last_error = error_summary
+                logger.error(f"Backup {backup_id} failed: {error_summary}")
+                self._record_backup_audit(backup_info)
+                return backup_info
+            
+            # 6. Verify Backup Integrity
+            integrity_result = self._verify_backup_integrity(backup_info)
+            if integrity_result.get('status') != 'success':
+                backup_info['status'] = 'failed'
+                backup_info['errors'].append("فشل التحقق من سلامة تجزئة الملفات (Hash Mismatch)")
+                self._last_error = "Integrity check failed"
+                self._record_backup_audit(backup_info)
+                return backup_info
             
             backup_info['status'] = 'completed'
-            logger.info(f"Backup completed successfully: {backup_id}")
+            logger.info(f"Backup {backup_id} completed successfully (Size: {backup_info['size_bytes']} bytes)")
+            
+            # 7. Record in DB Audit Model
+            self._record_backup_audit(backup_info)
+            
+            # 8. Clean up old backups if not download mode
+            if not download_mode:
+                self.cleanup_old_backups()
                 
+            return backup_info
+            
         except Exception as e:
+            logger.error(f"Unexpected error in create_backup: {e}", exc_info=True)
             backup_info['status'] = 'failed'
             backup_info['errors'].append(str(e))
-            logger.error(f"Backup failed: {backup_id} - {e}")
-            raise
-        
-        return backup_info
-    
-    def _create_database_backup(self, backup_id: str) -> Optional[Dict[str, any]]:
-        """
-        Create database backup using mysqldump or pg_dump
-        """
-        error_details = None
+            self._last_error = str(e)
+            self._record_backup_audit(backup_info)
+            return backup_info
+
+    def _package_full_backup_zip(self, backup_id: str, file_records: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+        """Package multiple backup files (DB, Media, Encryption Key) into a single atomic zip"""
+        try:
+            zip_path = self.backup_dir / f"full_{backup_id}.zip"
+            with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                for rec in file_records:
+                    file_path = Path(rec['path'])
+                    if file_path.exists():
+                        zipf.write(file_path, file_path.name)
+                        try:
+                            file_path.unlink()
+                        except Exception as e:
+                            logger.warning(f"Could not remove standalone file after zip: {e}")
+                
+                # Include encryption key if present
+                enc_key_path = settings.BASE_DIR / 'encryption.key'
+                if enc_key_path.exists():
+                    zipf.write(enc_key_path, 'encryption.key')
+            
+            self._set_directory_permissions(zip_path)
+            file_hash = self._calculate_file_hash(zip_path)
+            return {
+                'type': 'full',
+                'filename': zip_path.name,
+                'path': str(zip_path),
+                'size_bytes': zip_path.stat().st_size,
+                'hash': file_hash,
+                'created_at': timezone.now()
+            }
+        except Exception as e:
+            logger.error(f"Failed to package full backup zip: {e}", exc_info=True)
+            return None
+
+    # ============================================================
+    # 4. DATABASE BACKUP ENGINES (MySQL, PostgreSQL, SQLite)
+    # ============================================================
+
+    def _create_database_backup(self, backup_id: str) -> Optional[Dict[str, Any]]:
+        """Create database backup based on configured ENGINE"""
         try:
             db_config = settings.DATABASES['default']
             engine = db_config['ENGINE']
             
-            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-            
-            if 'mysql' in engine.lower():
-                filename = f"db_mysql_{backup_id}_{timestamp}.sql"
-                result = self._create_mysql_backup(db_config, filename)
-                logger.info(f"MySQL backup created: {filename}, size: {result.get('size_bytes', 0) if result else 0}")
-                return result
-            elif 'postgresql' in engine.lower():
-                filename = f"db_postgresql_{backup_id}_{timestamp}.sql"
-                result = self._create_postgresql_backup(db_config, filename)
-                logger.info(f"PostgreSQL backup created: {filename}, size: {result.get('size_bytes', 0) if result else 0}")
-                return result
-            elif 'sqlite' in engine.lower():
-                filename = f"db_sqlite_{backup_id}_{timestamp}.db"
-                result = self._create_sqlite_backup(db_config, filename)
-                logger.info(f"SQLite backup created: {filename}, size: {result.get('size_bytes', 0) if result else 0}")
-                return result
+            if 'mysql' in engine:
+                return self._create_mysql_backup(db_config, backup_id)
+            elif 'postgresql' in engine:
+                return self._create_postgresql_backup(db_config, backup_id)
+            elif 'sqlite' in engine:
+                return self._create_sqlite_backup(db_config, backup_id)
             else:
-                error_details = f"Unsupported database engine: {engine}"
-                logger.warning(error_details)
-                return None
-                
+                return self._create_json_backup(backup_id)
         except Exception as e:
-            import traceback
-            error_details = f"Database backup failed: {str(e)}\n{traceback.format_exc()}"
-            logger.error(error_details)
-            # Store error for debugging
-            if not hasattr(self, '_last_error'):
-                self._last_error = error_details
+            logger.error(f"Failed to create database backup: {e}", exc_info=True)
+            self._last_error = str(e)
             return None
-    
-    def _create_mysql_backup(self, db_config: Dict, filename: str) -> Dict[str, any]:
-        """
-        Create MySQL database backup using mysqldump or Django's dumpdata
-        """
-        backup_path = self.backup_dir / filename
+
+    def _find_mysql_binary(self, binary_name: str = 'mysqldump') -> str:
+        """Search system PATH and standard Windows installations for MySQL binaries"""
+        which_path = shutil.which(binary_name)
+        if which_path:
+            return which_path
         
-        logger.info(f"Starting MySQL backup to: {backup_path}")
-        
-        # Try mysqldump first
-        try:
-            # Build mysqldump command
-            cmd = [
-                'mysqldump',
-                '--single-transaction',
-                '--routines',
-                '--triggers',
-                '--events',
-                '--add-drop-database',
-                '--create-options',
-                '--disable-keys',
-                '--extended-insert',
-                '--quick',
-                '--lock-tables=false',
-                f"--host={db_config.get('HOST', 'localhost')}",
-                f"--port={db_config.get('PORT', 3306)}",
-                f"--user={db_config['USER']}",
-                f"--password={db_config['PASSWORD']}",
-                db_config['NAME']
+        if os.name == 'nt':
+            search_paths = [
+                Path(r"C:/Program Files/MySQL") / f"MySQL Server 8.0/bin/{binary_name}.exe",
+                Path(r"C:/Program Files/MySQL") / f"MySQL Server 8.4/bin/{binary_name}.exe",
+                Path(r"C:/Program Files/MySQL") / f"MySQL Server 5.7/bin/{binary_name}.exe",
+                Path(r"C:/xampp/mysql/bin") / f"{binary_name}.exe",
+                Path(r"C:/laragon/bin/mysql/current/bin") / f"{binary_name}.exe",
             ]
-            
-            # Execute mysqldump
-            with open(backup_path, 'w', encoding='utf-8') as f:
-                result = subprocess.run(cmd, stdout=f, stderr=subprocess.PIPE, text=True)
-            
-            if result.returncode != 0:
-                logger.warning(f"mysqldump failed: {result.stderr}, trying alternative method")
-                raise Exception("mysqldump not available")
-            
-            # Check if file was created and has content
-            if not backup_path.exists() or backup_path.stat().st_size == 0:
-                logger.warning("mysqldump created empty file, trying alternative method")
-                raise Exception("mysqldump created empty file")
+
+            for p in search_paths:
+                if p.exists():
+                    return str(p)
                 
-        except Exception as e:
-            logger.info(f"mysqldump not available ({e}), using Django dumpdata as fallback")
+            for root_dir in [Path(r"C:\Program Files\MySQL"), Path(r"C:\laragon\bin\mysql")]:
+                if root_dir.exists():
+                    for match in root_dir.glob(f"**/{binary_name}.exe"):
+                        if match.is_file():
+                            return str(match)
+                            
+        return binary_name
+
+    def _create_mysql_backup(self, db_config: Dict[str, Any], backup_id: str) -> Dict[str, Any]:
+        """Create MySQL dump with UTF-8 encoding, skip-lock-tables, and dumpdata fallback"""
+        raw_sql_path = self.backup_dir / f"db_mysql_{backup_id}.sql"
+        mysqldump_bin = self._find_mysql_binary('mysqldump')
+        
+        host = db_config.get('HOST') or 'localhost'
+        port = str(db_config.get('PORT') or 3306)
+        user = db_config.get('USER', 'root')
+        password = db_config.get('PASSWORD', '')
+        db_name = db_config.get('NAME', 'mwheba_erp')
+        
+        env = os.environ.copy()
+        if password:
+            env['MYSQL_PWD'] = password
             
-            # Fallback: Use Django's dumpdata
-            from django.core.management import call_command
-            from django.apps import apps
-            from django.db import connection
-            from io import StringIO
-            
-            output = StringIO()
+        base_cmd = [
+            mysqldump_bin,
+            '--default-character-set=utf8mb4',
+            '--single-transaction',
+            '--quick',
+            '--skip-lock-tables',
+            '--add-drop-table',
+            '--no-create-db',
+            '--routines',
+            '--triggers',
+            f"--host={host}",
+            f"--port={port}",
+            f"--user={user}",
+            db_name
+        ]
+        
+        # Try with --events first, then fallback without --events if access denied
+        cmd_candidates = [
+            base_cmd + ['--events'],
+            base_cmd
+        ]
+        
+        dump_succeeded = False
+        for cmd in cmd_candidates:
             try:
-                # Get all models that are managed and have existing tables
-                managed_models = []
-                with connection.cursor() as cursor:
-                    # Get list of existing tables
-                    cursor.execute("SHOW TABLES")
-                    existing_tables = {row[0] for row in cursor.fetchall()}
+                with open(raw_sql_path, 'w', encoding='utf-8') as f_out:
+                    res = subprocess.run(cmd, stdout=f_out, stderr=subprocess.PIPE, text=True, env=env)
                 
-                for model in apps.get_models():
-                    if model._meta.managed:
-                        table_name = model._meta.db_table
-                        # Only include models whose tables actually exist
-                        if table_name in existing_tables:
-                            managed_models.append(f"{model._meta.app_label}.{model._meta.model_name}")
-                        else:
-                            logger.warning(f"Skipping model {model._meta.app_label}.{model._meta.model_name} - table {table_name} does not exist")
-                
-                if managed_models:
-                    call_command('dumpdata', *managed_models, '--natural-foreign', 
-                               '--natural-primary', '--indent=2', stdout=output)
-                    
-                    with open(backup_path, 'w', encoding='utf-8') as f:
-                        f.write(output.getvalue())
-                    
-                    logger.info(f"Django dumpdata backup created successfully for {len(managed_models)} models")
+                if res.returncode == 0 and raw_sql_path.exists() and raw_sql_path.stat().st_size > 0:
+                    dump_succeeded = True
+                    break
                 else:
-                    logger.warning("No managed models found to backup")
-                    raise Exception("No managed models found")
-                    
-            except Exception as dump_error:
-                logger.error(f"Django dumpdata also failed: {dump_error}")
-                raise Exception(f"Both mysqldump and dumpdata failed: {dump_error}")
+                    logger.warning(f"mysqldump attempt failed (returncode {res.returncode}): {res.stderr}")
+                    raw_sql_path.unlink(missing_ok=True)
+            except Exception as ex:
+                logger.warning(f"mysqldump execution error: {ex}")
+                raw_sql_path.unlink(missing_ok=True)
         
-        # Check if file was created and has content
-        if not backup_path.exists():
-            raise Exception(f"Backup file was not created: {backup_path}")
+        # Fallback to Django dumpdata if mysqldump is not found or fails
+        if not dump_succeeded:
+            logger.info("Using Django dumpdata fallback for MySQL backup...")
+            raw_sql_path = self._create_django_dumpdata_file(backup_id)
         
-        original_size = backup_path.stat().st_size
-        logger.info(f"MySQL dump created successfully, size: {original_size} bytes")
+        if not raw_sql_path.exists() or raw_sql_path.stat().st_size == 0:
+            raw_sql_path.unlink(missing_ok=True)
+            raise Exception("Failed to generate database dump content (file is empty)")
         
-        if original_size == 0:
-            raise Exception(f"MySQL dump file is empty: {backup_path}")
-        
-        # Compress the backup
-        compressed_path = self._compress_file(backup_path)
-        compressed_size = compressed_path.stat().st_size
-        logger.info(f"MySQL backup compressed: {compressed_path.name}, size: {compressed_size} bytes")
-        
-        # Calculate file hash
+        compressed_path = self._compress_file(raw_sql_path, remove_original=True)
         file_hash = self._calculate_file_hash(compressed_path)
         
         return {
@@ -255,72 +375,68 @@ class BackupService:
             'engine': 'mysql',
             'filename': compressed_path.name,
             'path': str(compressed_path),
-            'size_bytes': compressed_size,
-            'hash': file_hash,
-            'created_at': timezone.now()
-        }
-    
-    def _create_postgresql_backup(self, db_config: Dict, filename: str) -> Dict[str, any]:
-        """
-        Create PostgreSQL database backup using pg_dump
-        """
-        backup_path = self.backup_dir / filename
-        
-        # Set environment variables for pg_dump
-        env = os.environ.copy()
-        env['PGPASSWORD'] = db_config['PASSWORD']
-        
-        # Build pg_dump command
-        cmd = [
-            'pg_dump',
-            '--verbose',
-            '--clean',
-            '--no-owner',
-            '--no-privileges',
-            '--format=custom',
-            f"--host={db_config.get('HOST', 'localhost')}",
-            f"--port={db_config.get('PORT', 5432)}",
-            f"--username={db_config['USER']}",
-            f"--dbname={db_config['NAME']}",
-            f"--file={backup_path}"
-        ]
-        
-        # Execute pg_dump
-        result = subprocess.run(cmd, env=env, stderr=subprocess.PIPE, text=True)
-        
-        if result.returncode != 0:
-            raise Exception(f"pg_dump failed: {result.stderr}")
-        
-        # Compress the backup
-        compressed_path = self._compress_file(backup_path)
-        
-        # Calculate file hash
-        file_hash = self._calculate_file_hash(compressed_path)
-        
-        return {
-            'type': 'database',
-            'engine': 'postgresql',
-            'filename': compressed_path.name,
-            'path': str(compressed_path),
             'size_bytes': compressed_path.stat().st_size,
             'hash': file_hash,
             'created_at': timezone.now()
         }
-    
-    def _create_sqlite_backup(self, db_config: Dict, filename: str) -> Dict[str, any]:
-        """
-        Create SQLite database backup by copying the file
-        """
-        source_path = Path(db_config['NAME'])
-        backup_path = self.backup_dir / filename
+
+    def _create_django_dumpdata_file(self, backup_id: str) -> Path:
+        """Create JSON dumpdata streamed directly to disk (O(1) Memory)"""
+        from django.core.management import call_command
+        from django.apps import apps
         
-        # Copy SQLite database file
-        shutil.copy2(source_path, backup_path)
+        json_path = self.backup_dir / f"db_django_{backup_id}.json"
         
-        # Compress the backup
-        compressed_path = self._compress_file(backup_path)
+        # Get existing managed models safely
+        with connection.cursor() as cursor:
+            existing_tables = set(connection.introspection.table_names(cursor))
         
-        # Calculate file hash
+        managed_models = []
+        for model in apps.get_models():
+            if model._meta.managed and model._meta.db_table in existing_tables:
+                managed_models.append(f"{model._meta.app_label}.{model._meta.model_name}")
+        
+        if not managed_models:
+            raise Exception("No managed database models found for dumpdata")
+        
+        with open(json_path, 'w', encoding='utf-8') as f_out:
+            call_command(
+                'dumpdata',
+                *managed_models,
+                '--natural-foreign',
+                '--natural-primary',
+                '--indent=2',
+                '--exclude=contenttypes',
+                '--exclude=auth.Permission',
+                '--exclude=sessions',
+                '--exclude=admin.logentry',
+                stdout=f_out
+            )
+        
+        return json_path
+
+    def _create_sqlite_backup(self, db_config: Dict[str, Any], backup_id: str) -> Dict[str, Any]:
+        """Create SQLite online backup integrating WAL journals cleanly"""
+        source_name = db_config.get('NAME')
+        source_path = Path(source_name)
+        if not source_path.is_absolute():
+            source_path = settings.BASE_DIR / source_path
+        
+        if not source_path.exists():
+            raise FileNotFoundError(f"SQLite database file not found: {source_path}")
+        
+        raw_db_path = self.backup_dir / f"db_sqlite_{backup_id}.sqlite3"
+        
+        # Online backup API captures WAL uncheckpointed pages
+        source_conn = sqlite3.connect(str(source_path))
+        dest_conn = sqlite3.connect(str(raw_db_path))
+        try:
+            source_conn.backup(dest_conn)
+        finally:
+            dest_conn.close()
+            source_conn.close()
+        
+        compressed_path = self._compress_file(raw_db_path, remove_original=True)
         file_hash = self._calculate_file_hash(compressed_path)
         
         return {
@@ -332,1211 +448,936 @@ class BackupService:
             'hash': file_hash,
             'created_at': timezone.now()
         }
-    
-    def _create_media_backup(self, backup_id: str) -> Optional[Dict[str, any]]:
-        """
-        Create backup of media files
-        """
-        try:
-            media_root = Path(settings.MEDIA_ROOT)
-            if not media_root.exists():
-                logger.warning(f"Media root directory does not exist: {media_root}")
-                return None
-            
-            # Check if media directory has any files
-            media_files = list(media_root.rglob('*'))
-            if not media_files:
-                logger.info("Media directory is empty, skipping media backup")
-                return None
-            
-            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-            archive_name = f"media_{backup_id}_{timestamp}.tar.gz"
-            archive_path = self.backup_dir / archive_name
-            
-            logger.info(f"Creating media backup with {len(media_files)} files")
-            
-            # Create compressed archive of media files
-            shutil.make_archive(
-                str(archive_path.with_suffix('')),
-                'gztar',
-                root_dir=media_root.parent,
-                base_dir=media_root.name
-            )
-            
-            if not archive_path.exists() or archive_path.stat().st_size == 0:
-                logger.error(f"Media archive was not created or is empty: {archive_path}")
-                return None
-            
-            # Calculate file hash
-            file_hash = self._calculate_file_hash(archive_path)
-            
-            logger.info(f"Media backup created successfully: {archive_path.name}, size: {archive_path.stat().st_size} bytes")
-            
-            return {
-                'type': 'media',
-                'filename': archive_path.name,
-                'path': str(archive_path),
-                'size_bytes': archive_path.stat().st_size,
-                'hash': file_hash,
-                'created_at': timezone.now()
-            }
-            
-        except Exception as e:
-            logger.error(f"Media backup failed: {e}", exc_info=True)
-            return None
-    
-    def _cleanup_old_backups(self, backup_type='all'):
-        """
-        Remove old backup files based on retention policy from SystemSettings
-        Separate policies for database, full, and media backups
-        
-        Args:
-            backup_type: 'database', 'full', 'media', or 'all'
-        """
-        try:
-            from core.models import SystemSetting
-            
-            # Determine which backup types to clean
-            types_to_clean = []
-            if backup_type == 'all':
-                types_to_clean = ['database', 'full', 'media']
-            else:
-                types_to_clean = [backup_type]
-            
-            for btype in types_to_clean:
-                # Get retention settings for this backup type
-                retention_type = SystemSetting.get_setting(f'backup_{btype}_retention_type', 'count')
-                retention_count = SystemSetting.get_setting(f'backup_{btype}_retention_count', 5)
-                retention_days = SystemSetting.get_setting(f'backup_{btype}_retention_days', 30)
-                auto_cleanup = SystemSetting.get_setting(f'backup_{btype}_auto_cleanup', True)
-                
-                # Skip cleanup if disabled
-                if not auto_cleanup:
-                    logger.info(f"Automatic backup cleanup is disabled for {btype} backups")
-                    continue
-                
-                # Get backup files for this type
-                if btype == 'database':
-                    pattern = 'db_*'
-                elif btype == 'full':
-                    # Full backups have both db_ and media_ files with same backup_id
-                    # We'll identify them by having both types
-                    pattern = '*backup_*'
-                elif btype == 'media':
-                    pattern = 'media_*'
-                else:
-                    continue
-                
-                backup_files = sorted(
-                    [f for f in self.backup_dir.glob(pattern) if f.is_file()],
-                    key=lambda x: x.stat().st_mtime
-                )
-                
-                # For full backups, group by backup_id
-                if btype == 'full':
-                    # Group files by backup_id
-                    from collections import defaultdict
-                    backup_groups = defaultdict(list)
-                    
-                    for f in backup_files:
-                        import re
-                        match = re.search(r'backup_(\d{8}_\d{6})', f.name)
-                        if match:
-                            backup_id = match.group(1)
-                            backup_groups[backup_id].append(f)
-                    
-                    # Only consider groups that have both db and media files
-                    full_backup_files = []
-                    for backup_id, files in backup_groups.items():
-                        has_db = any('db_' in f.name for f in files)
-                        has_media = any('media_' in f.name for f in files)
-                        if has_db and has_media:
-                            full_backup_files.extend(files)
-                    
-                    backup_files = sorted(full_backup_files, key=lambda x: x.stat().st_mtime)
-                
-                if retention_type == 'count':
-                    # Keep only the last N backups
-                    if len(backup_files) > retention_count:
-                        files_to_delete = backup_files[:-retention_count]
-                        for backup_file in files_to_delete:
-                            backup_file.unlink()
-                            logger.info(f"Removed old {btype} backup (count policy): {backup_file.name}")
-                
-                elif retention_type == 'days':
-                    # Remove backups older than N days
-                    cutoff_date = datetime.now() - timedelta(days=retention_days)
-                    for backup_file in backup_files:
-                        file_time = datetime.fromtimestamp(backup_file.stat().st_mtime)
-                        if file_time < cutoff_date:
-                            backup_file.unlink()
-                            logger.info(f"Removed old {btype} backup (days policy): {backup_file.name}")
-                
-                # retention_type == 'none': don't delete anything
-                
-                logger.info(f"Cleanup completed for {btype} backups: policy={retention_type}, count={retention_count}, days={retention_days}")
-        
-        except Exception as e:
-            logger.error(f"Backup cleanup failed: {e}")
-    
-    def _compress_file(self, file_path: Path) -> Path:
-        """
-        Compress a file using gzip
-        """
-        compressed_path = file_path.with_suffix(file_path.suffix + '.gz')
-        
-        with open(file_path, 'rb') as f_in:
-            with gzip.open(compressed_path, 'wb') as f_out:
-                shutil.copyfileobj(f_in, f_out)
-        
-        # Remove original file
-        file_path.unlink()
-        
-        return compressed_path
-    
-    def _calculate_file_hash(self, file_path: Path) -> str:
-        """
-        Calculate SHA-256 hash of a file
-        """
-        hash_sha256 = hashlib.sha256()
-        with open(file_path, 'rb') as f:
-            for chunk in iter(lambda: f.read(4096), b""):
-                hash_sha256.update(chunk)
-        return hash_sha256.hexdigest()
-    
-    def _verify_backup_integrity(self, backup_info: Dict) -> Dict[str, any]:
-        """
-        Verify backup file integrity
-        """
-        verification_result = {
-            'status': 'success',
-            'verified_files': 0,
-            'failed_files': 0,
-            'errors': []
-        }
-        
-        try:
-            for file_info in backup_info['files']:
-                file_path = Path(file_info['path'])
-                
-                if not file_path.exists():
-                    verification_result['failed_files'] += 1
-                    verification_result['errors'].append(f"File not found: {file_path}")
-                    continue
-                
-                # Verify file size
-                actual_size = file_path.stat().st_size
-                expected_size = file_info['size_bytes']
-                
-                if actual_size != expected_size:
-                    verification_result['failed_files'] += 1
-                    verification_result['errors'].append(
-                        f"Size mismatch for {file_path}: expected {expected_size}, got {actual_size}"
-                    )
-                    continue
-                
-                # Verify file hash
-                actual_hash = self._calculate_file_hash(file_path)
-                expected_hash = file_info['hash']
-                
-                if actual_hash != expected_hash:
-                    verification_result['failed_files'] += 1
-                    verification_result['errors'].append(
-                        f"Hash mismatch for {file_path}: expected {expected_hash}, got {actual_hash}"
-                    )
-                    continue
-                
-                verification_result['verified_files'] += 1
-            
-            if verification_result['failed_files'] > 0:
-                verification_result['status'] = 'failed'
-            
-        except Exception as e:
-            verification_result['status'] = 'error'
-            verification_result['errors'].append(str(e))
-        
-        return verification_result
-    
-    def restore_from_uploaded_file(self, file_path: str, restore_type: str = 'auto') -> Dict[str, any]:
-        """
-        Restore from an uploaded backup file
-        
-        Args:
-            file_path: Path to the uploaded backup file
-            restore_type: 'auto', 'database', 'media', or 'full'
-        
-        Returns:
-            Dict with restore information including success rate
-        """
-        restore_info = {
-            'timestamp': timezone.now(),
-            'status': 'started',
-            'restored_components': [],
-            'errors': [],
-            'success_rate': None,
-            'details': {}
-        }
-        
-        try:
-            file_path_obj = Path(file_path)
-            logger.info(f"Starting restore from uploaded file: {file_path_obj.name}, type: {restore_type}")
-            
-            # Auto-detect file type if needed
-            if restore_type == 'auto':
-                restore_type = self._detect_backup_type(file_path_obj)
-                logger.info(f"Auto-detected backup type: {restore_type}")
-            
-            # Handle different file types
-            if restore_type == 'database':
-                result = self._restore_database_from_file(file_path_obj)
-                restore_info['restored_components'].append('database')
-                
-                # Extract success rate if available
-                if isinstance(result, dict) and 'success_rate' in result:
-                    restore_info['success_rate'] = result['success_rate']
-                    restore_info['details'] = result
-            
-            elif restore_type == 'media':
-                self._restore_media_from_file(file_path_obj)
-                restore_info['restored_components'].append('media')
-                restore_info['success_rate'] = 100.0
-            
-            elif restore_type == 'full':
-                # Try to extract and restore both
-                if file_path_obj.suffix == '.zip':
-                    # Extract zip and restore components
-                    import zipfile
-                    import tempfile
-                    
-                    temp_dir = tempfile.mkdtemp()
-                    try:
-                        with zipfile.ZipFile(file_path_obj, 'r') as zip_ref:
-                            zip_ref.extractall(temp_dir)
-                        
-                        # Find and restore database files
-                        for extracted_file in Path(temp_dir).rglob('*'):
-                            if extracted_file.is_file():
-                                if any(pattern in extracted_file.name.lower() for pattern in ['db_', 'database', '.sql', '.db']):
-                                    try:
-                                        result = self._restore_database_from_file(extracted_file)
-                                        restore_info['restored_components'].append('database')
-                                        if isinstance(result, dict) and 'success_rate' in result:
-                                            restore_info['success_rate'] = result['success_rate']
-                                    except Exception as e:
-                                        logger.warning(f"Failed to restore database from {extracted_file.name}: {e}")
-                                
-                                elif any(pattern in extracted_file.name.lower() for pattern in ['media_', 'media', '.tar']):
-                                    try:
-                                        self._restore_media_from_file(extracted_file)
-                                        restore_info['restored_components'].append('media')
-                                    except Exception as e:
-                                        logger.warning(f"Failed to restore media from {extracted_file.name}: {e}")
-                    finally:
-                        # Clean up temp directory
-                        shutil.rmtree(temp_dir, ignore_errors=True)
-                else:
-                    raise Exception("Full backup restore requires a .zip file")
-            
-            restore_info['status'] = 'completed'
-            logger.info(f"Restore completed successfully. Components: {restore_info['restored_components']}, Success rate: {restore_info.get('success_rate')}")
-            
-        except Exception as e:
-            restore_info['status'] = 'failed'
-            restore_info['errors'].append(str(e))
-            logger.error(f"Restore from uploaded file failed: {e}")
-            raise
-        
-        return restore_info
-    
-    def _detect_backup_type(self, file_path: Path) -> str:
-        """
-        Auto-detect backup type from filename and extension
-        Enhanced with content inspection
-        """
-        filename_lower = file_path.name.lower()
-        
-        # Check for media indicators first (most specific)
-        if any(pattern in filename_lower for pattern in ['media_', 'media.tar', 'media.zip']):
-            return 'media'
-        
-        # Check for full backup indicators
-        if 'full' in filename_lower or '.zip' in filename_lower:
-            return 'full'
-        
-        # Check for database indicators
-        if any(pattern in filename_lower for pattern in ['db_', 'database', '.sql', '.db', '.sqlite', '.json']):
-            return 'database'
-        
-        # If still uncertain, try to inspect file content
-        try:
-            # Try to read first few bytes to determine type
-            working_file = file_path
-            
-            # Decompress if needed for inspection
-            if file_path.suffix == '.gz':
-                import tempfile
-                temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='')
-                temp_file.close()
-                
-                with gzip.open(file_path, 'rb') as f_in:
-                    with open(temp_file.name, 'wb') as f_out:
-                        # Read only first 1KB for detection
-                        f_out.write(f_in.read(1024))
-                
-                working_file = Path(temp_file.name)
-            
-            # Read first bytes
-            with open(working_file, 'rb') as f:
-                first_bytes = f.read(100)
-            
-            # Clean up temp file
-            if working_file != file_path:
-                working_file.unlink()
-            
-            # Check if it's JSON
-            if first_bytes.strip().startswith(b'[') or first_bytes.strip().startswith(b'{'):
-                return 'database'
-            
-            # Check if it's SQL
-            if b'CREATE' in first_bytes.upper() or b'INSERT' in first_bytes.upper() or b'DROP' in first_bytes.upper():
-                return 'database'
-            
-            # Check if it's tar archive
-            if first_bytes.startswith(b'\x1f\x8b') or b'ustar' in first_bytes:
-                return 'media'
-                
-        except Exception as e:
-            logger.warning(f"Failed to inspect file content for type detection: {e}")
-        
-        # Default to database if uncertain
-        return 'database'
-    
-    def _restore_database_from_file(self, file_path: Path):
-        """
-        Restore database from a backup file with enhanced detection and validation
-        """
-        logger.info(f"Restoring database from file: {file_path.name}, size: {file_path.stat().st_size} bytes")
-        
-        # Validate file exists and has content
-        if not file_path.exists():
-            raise Exception(f"ملف النسخة الاحتياطية غير موجود: {file_path}")
-        
-        if file_path.stat().st_size == 0:
-            raise Exception(f"ملف النسخة الاحتياطية فارغ: {file_path}")
-        
-        db_config = settings.DATABASES['default']
-        engine = db_config['ENGINE']
-        
-        # Decompress if needed
-        working_file = file_path
-        is_temp_file = False
-        
-        if file_path.suffix == '.gz':
-            logger.info(f"Decompressing gzip file: {file_path.name}")
-            import tempfile
-            
-            try:
-                # Create temp file
-                temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='')
-                temp_file.close()
-                
-                with gzip.open(file_path, 'rb') as f_in:
-                    with open(temp_file.name, 'wb') as f_out:
-                        shutil.copyfileobj(f_in, f_out)
-                
-                working_file = Path(temp_file.name)
-                is_temp_file = True
-                
-                # Validate decompressed file
-                if not working_file.exists() or working_file.stat().st_size == 0:
-                    raise Exception("فشل فك ضغط الملف أو الملف المفكوك فارغ")
-                
-                logger.info(f"Decompressed successfully: {working_file}, size: {working_file.stat().st_size} bytes")
-                
-            except gzip.BadGzipFile:
-                if is_temp_file and working_file.exists():
-                    working_file.unlink()
-                raise Exception("الملف ليس ملف gzip صحيح. تأكد من أن الملف غير تالف.")
-            except Exception as decompress_error:
-                if is_temp_file and working_file.exists():
-                    working_file.unlink()
-                logger.error(f"Failed to decompress file: {decompress_error}")
-                raise Exception(f"فشل فك ضغط الملف: {str(decompress_error)}")
-        
-        # Detect file type by reading first few bytes
-        file_format = None
-        try:
-            with open(working_file, 'rb') as f:
-                first_bytes = f.read(200)
-            
-            # Try to decode as UTF-8
-            try:
-                first_chars = first_bytes.decode('utf-8').strip()
-                
-                # Check for JSON format
-                if first_chars.startswith('[') or first_chars.startswith('{'):
-                    file_format = 'json'
-                    logger.info("Detected JSON format (Django dumpdata)")
-                # Check for SQL format
-                elif any(keyword in first_chars.upper() for keyword in ['CREATE', 'INSERT', 'DROP', 'ALTER', '--', '/*']):
-                    file_format = 'sql'
-                    logger.info("Detected SQL format")
-                else:
-                    logger.warning(f"Unknown format. First 100 chars: {first_chars[:100]}")
-                    file_format = 'unknown'
-                    
-            except UnicodeDecodeError:
-                # Binary file, might be SQLite
-                if first_bytes.startswith(b'SQLite format'):
-                    file_format = 'sqlite'
-                    logger.info("Detected SQLite database file")
-                else:
-                    logger.warning("Binary file with unknown format")
-                    file_format = 'unknown'
-                    
-        except Exception as detect_error:
-            logger.error(f"Failed to detect file type: {detect_error}")
-            file_format = 'unknown'
-        
-        # Validate format is supported
-        if file_format == 'unknown':
-            if is_temp_file and working_file.exists():
-                working_file.unlink()
-            raise Exception("تعذر تحديد نوع ملف النسخة الاحتياطية. تأكد من أن الملف صحيح وغير تالف.")
-        
-        # Rename temp file with correct extension for better handling
-        if is_temp_file:
-            import tempfile
-            if file_format == 'json':
-                new_temp = tempfile.NamedTemporaryFile(delete=False, suffix='.json')
-                new_temp.close()
-                shutil.move(str(working_file), new_temp.name)
-                working_file = Path(new_temp.name)
-                logger.info(f"Renamed temp file to JSON: {working_file}")
-            elif file_format == 'sql':
-                new_temp = tempfile.NamedTemporaryFile(delete=False, suffix='.sql')
-                new_temp.close()
-                shutil.move(str(working_file), new_temp.name)
-                working_file = Path(new_temp.name)
-                logger.info(f"Renamed temp file to SQL: {working_file}")
-            elif file_format == 'sqlite':
-                new_temp = tempfile.NamedTemporaryFile(delete=False, suffix='.db')
-                new_temp.close()
-                shutil.move(str(working_file), new_temp.name)
-                working_file = Path(new_temp.name)
-                logger.info(f"Renamed temp file to SQLite: {working_file}")
-        
-        try:
-            # Route to appropriate restore method based on format
-            if file_format == 'json':
-                logger.info("Using Django loaddata for JSON restore")
-                result = self._restore_from_json(working_file)
-                # Return result with success rate if available
-                return result if isinstance(result, dict) else None
-            elif file_format == 'sql':
-                if 'mysql' in engine.lower():
-                    self._restore_mysql_database(db_config, working_file)
-                elif 'postgresql' in engine.lower():
-                    self._restore_postgresql_database(db_config, working_file)
-                else:
-                    raise Exception(f"نوع قاعدة البيانات غير مدعوم: {engine}")
-            elif file_format == 'sqlite':
-                if 'sqlite' in engine.lower():
-                    self._restore_sqlite_database(db_config, working_file)
-                else:
-                    raise Exception("ملف SQLite لا يمكن استعادته في قاعدة بيانات من نوع آخر")
-            else:
-                raise Exception(f"صيغة الملف غير مدعومة: {file_format}")
-                
-            logger.info("Database restored successfully")
-            return None
-            
-        except Exception as restore_error:
-            logger.error(f"Database restore failed: {restore_error}")
-            raise
-        finally:
-            # Clean up temp file if created
-            if is_temp_file and working_file.exists():
-                try:
-                    working_file.unlink()
-                    logger.info(f"Cleaned up temporary file: {working_file}")
-                except Exception as cleanup_error:
-                    logger.warning(f"Failed to cleanup temp file: {cleanup_error}")
-    
-    def _restore_from_json(self, file_path: Path):
-        """
-        Restore database from Django JSON dumpdata format
-        """
-        from django.core.management import call_command
-        from django.core import serializers
-        from django.db import transaction, connection
-        from django.db.models import signals
-        from io import StringIO
-        import sys
-        import json
-        
-        logger.info(f"Starting JSON restore from: {file_path}")
-        
-        # Validate JSON file
-        try:
-            with open(file_path, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-            
-            if not isinstance(data, list):
-                raise Exception("ملف JSON غير صحيح: يجب أن يحتوي على قائمة من الكائنات")
-            
-            logger.info(f"Loaded {len(data)} objects from JSON file")
-            
-        except json.JSONDecodeError as e:
-            raise Exception(f"ملف JSON تالف أو غير صحيح: {str(e)}")
-        except Exception as e:
-            raise Exception(f"فشل قراءة ملف JSON: {str(e)}")
-        
-        # Try standard loaddata first
-        try:
-            logger.info("Attempting standard Django loaddata")
-            
-            old_stdout = sys.stdout
-            old_stderr = sys.stderr
-            sys.stdout = StringIO()
-            sys.stderr = StringIO()
-            
-            try:
-                call_command('loaddata', str(file_path), verbosity=2)
-                stdout_output = sys.stdout.getvalue()
-                stderr_output = sys.stderr.getvalue()
-                
-                logger.info(f"Loaddata stdout: {stdout_output}")
-                if stderr_output:
-                    logger.warning(f"Loaddata stderr: {stderr_output}")
-                
-            finally:
-                sys.stdout = old_stdout
-                sys.stderr = old_stderr
-            
-            logger.info("Database restored successfully using Django loaddata")
-            return {'success_rate': 100.0, 'method': 'loaddata'}
-            
-        except Exception as loaddata_error:
-            logger.warning(f"Standard loaddata failed: {loaddata_error}")
-            logger.info("Attempting manual JSON restore with error handling")
-        
-        # Manual restore with error handling and FK constraints disabled
-        # Also disable signals to prevent interference
-        # Use autocommit mode to avoid atomic block issues
-        try:
-            # Store original signal receivers
-            saved_receivers = {}
-            signal_types = [
-                signals.pre_save, signals.post_save,
-                signals.pre_delete, signals.post_delete,
-                signals.m2m_changed
-            ]
-            
-            # Temporarily disconnect all signals
-            logger.info("Temporarily disconnecting Django signals")
-            for signal_type in signal_types:
-                saved_receivers[signal_type] = signal_type.receivers[:]
-                signal_type.receivers = []
-            
-            # Get current autocommit state and enable it
-            original_autocommit = connection.get_autocommit()
-            connection.set_autocommit(True)
-            logger.info(f"Set autocommit to True (was: {original_autocommit})")
-            
-            # Disable foreign key checks for MySQL
-            db_engine = connection.settings_dict['ENGINE']
-            if 'mysql' in db_engine.lower():
-                logger.info("Disabling MySQL foreign key checks")
-                with connection.cursor() as cursor:
-                    cursor.execute('SET FOREIGN_KEY_CHECKS=0;')
-            elif 'postgresql' in db_engine.lower():
-                logger.info("Disabling PostgreSQL constraints")
-                with connection.cursor() as cursor:
-                    cursor.execute('SET CONSTRAINTS ALL DEFERRED;')
-            
-            success_count = 0
-            error_count = 0
-            errors = []
-            skipped_models = set()
-            
-            # Process each object WITHOUT transactions (autocommit mode)
-            for i, obj_data in enumerate(data):
-                try:
-                    # Deserialize and save each object individually
-                    for obj in serializers.deserialize('json', json.dumps([obj_data])):
-                        obj.save()
-                    
-                    success_count += 1
-                    
-                    # Log progress every 100 objects
-                    if (i + 1) % 100 == 0:
-                        logger.info(f"Progress: {i + 1}/{len(data)} objects processed, {success_count} successful, {error_count} failed")
-                        
-                except Exception as obj_error:
-                    error_count += 1
-                    model_name = obj_data.get('model', 'unknown')
-                    error_msg = f"{model_name}: {str(obj_error)}"
-                    
-                    # Track skipped models
-                    skipped_models.add(model_name)
-                    
-                    # Log first 20 errors in detail
-                    if error_count <= 20:
-                        logger.warning(f"Failed to restore object {i + 1}: {error_msg}")
-                    
-                    errors.append(error_msg)
-            
-            logger.info(f"Manual JSON restore completed: {success_count} objects restored, {error_count} failed")
-            
-            # Re-enable foreign key checks
-            if 'mysql' in db_engine.lower():
-                logger.info("Re-enabling MySQL foreign key checks")
-                with connection.cursor() as cursor:
-                    cursor.execute('SET FOREIGN_KEY_CHECKS=1;')
-            elif 'postgresql' in db_engine.lower():
-                logger.info("Re-enabling PostgreSQL constraints")
-                with connection.cursor() as cursor:
-                    cursor.execute('SET CONSTRAINTS ALL IMMEDIATE;')
-            
-            # Restore original autocommit state
-            connection.set_autocommit(original_autocommit)
-            logger.info(f"Restored autocommit to: {original_autocommit}")
-            
-            # Reconnect signals
-            logger.info("Reconnecting Django signals")
-            for signal_type in signal_types:
-                signal_type.receivers = saved_receivers[signal_type]
-            
-            if skipped_models:
-                logger.warning(f"Skipped models due to errors: {', '.join(sorted(skipped_models))}")
-            
-            if success_count == 0:
-                raise Exception(f"لم يتم استعادة أي بيانات. أمثلة على الأخطاء: {errors[:3]}")
-            
-            # More lenient success criteria - accept if we restored at least 10% of data
-            success_rate = (success_count / len(data)) * 100
-            logger.info(f"Restore success rate: {success_rate:.1f}% ({success_count}/{len(data)})")
-            
-            if error_count > 0:
-                logger.warning(f"تم تخطي {error_count} كائن بسبب أخطاء. الأخطاء الأولى: {errors[:5]}")
-                
-                # Only fail if success rate is very low (less than 10%)
-                if success_rate < 10:
-                    raise Exception(f"فشلت استعادة معظم البيانات ({error_count}/{len(data)}). معدل النجاح: {success_rate:.1f}%")
-                
-                # Warn if success rate is low but acceptable
-                if success_rate < 50:
-                    logger.warning(f"⚠️ معدل نجاح منخفض: {success_rate:.1f}%. قد تحتاج لمراجعة البيانات المفقودة.")
-            
-            # Return success info with rate
-            return {
-                'success_rate': success_rate,
-                'method': 'manual',
-                'success_count': success_count,
-                'error_count': error_count,
-                'total_count': len(data),
-                'skipped_models': list(skipped_models)
-            }
-            
-        except Exception as manual_error:
-            # Make sure to re-enable constraints, restore autocommit, and reconnect signals even on error
-            try:
-                if 'mysql' in db_engine.lower():
-                    with connection.cursor() as cursor:
-                        cursor.execute('SET FOREIGN_KEY_CHECKS=1;')
-                elif 'postgresql' in db_engine.lower():
-                    with connection.cursor() as cursor:
-                        cursor.execute('SET CONSTRAINTS ALL IMMEDIATE;')
-                
-                # Restore autocommit
-                connection.set_autocommit(original_autocommit)
-                
-                # Reconnect signals
-                for signal_type in signal_types:
-                    signal_type.receivers = saved_receivers[signal_type]
-            except:
-                pass
-            
-            logger.error(f"Manual JSON restore failed: {manual_error}")
-            raise Exception(f"فشل استعادة البيانات من ملف JSON: {str(manual_error)}")
-    
-    def _old_restore_logic_for_reference(self):
-        """
-        Old restore logic - kept for reference, will be removed
-        """
-        try:
-            # If it's JSON, use Django's loaddata
-            if is_json:
-                logger.info("Detected JSON format, using Django loaddata")
-                from django.core.management import call_command
-                from django.core.serializers import base
-                from io import StringIO
-                import sys
-                import json
-                
-                # Try to load with ignoring errors
-                try:
-                    # First, try normal loaddata
-                    logger.info("Attempting standard loaddata")
-                    old_stdout = sys.stdout
-                    old_stderr = sys.stderr
-                    sys.stdout = StringIO()
-                    sys.stderr = StringIO()
-                    
-                    try:
-                        call_command('loaddata', str(working_file), verbosity=2)
-                        output = sys.stdout.getvalue()
-                        logger.info(f"Django loaddata output: {output}")
-                    finally:
-                        sys.stdout = old_stdout
-                        sys.stderr = old_stderr
-                    
-                    logger.info("Database restored successfully using Django loaddata")
-                    return
-                    
-                except Exception as loaddata_error:
-                    logger.warning(f"Standard loaddata failed: {loaddata_error}")
-                    logger.info("Attempting manual JSON restore with error handling")
-                    
-                    # Manual restore with error handling
-                    from django.core import serializers
-                    from django.db import transaction
-                    
-                    with open(working_file, 'r', encoding='utf-8') as f:
-                        data = json.load(f)
-                    
-                    logger.info(f"Loaded {len(data)} objects from JSON")
-                    
-                    success_count = 0
-                    error_count = 0
-                    errors = []
-                    
-                    for obj_data in data:
-                        try:
-                            # Deserialize and save each object individually
-                            for obj in serializers.deserialize('json', json.dumps([obj_data])):
-                                obj.save()
-                                success_count += 1
-                        except Exception as obj_error:
-                            error_count += 1
-                            error_msg = f"{obj_data.get('model', 'unknown')}: {str(obj_error)}"
-                            if error_count <= 10:  # Log first 10 errors
-                                logger.warning(f"Failed to restore object: {error_msg}")
-                            errors.append(error_msg)
-                    
-                    logger.info(f"Manual JSON restore completed: {success_count} objects restored, {error_count} failed")
-                    
-                    if success_count == 0:
-                        raise Exception(f"No objects were restored successfully. Sample errors: {errors[:3]}")
-                    
-                    if error_count > 0:
-                        logger.warning(f"Some objects failed to restore ({error_count} errors). First few: {errors[:5]}")
-                    
-                    return
-            
-            # Otherwise, use SQL restore methods
-            if 'mysql' in engine.lower():
-                self._restore_mysql_database(db_config, working_file)
-            elif 'postgresql' in engine.lower():
-                self._restore_postgresql_database(db_config, working_file)
-            elif 'sqlite' in engine.lower():
-                self._restore_sqlite_database(db_config, working_file)
-            else:
-                raise Exception(f"Unsupported database engine: {engine}")
-        finally:
-            # Clean up decompressed file if created
-            if working_file != file_path:
-                try:
-                    working_file.unlink()
-                    logger.info(f"Cleaned up temporary decompressed file: {working_file}")
-                except Exception as cleanup_error:
-                    logger.warning(f"Failed to cleanup temp file: {cleanup_error}")
-    
-    def _restore_mysql_database(self, db_config: Dict, file_path: Path):
-        """
-        Restore MySQL database from SQL file
-        """
-        logger.info(f"Restoring MySQL database from: {file_path}")
-        
-        # Validate file exists and has content
-        if not file_path.exists():
-            raise Exception(f"Backup file not found: {file_path}")
-        
-        file_size = file_path.stat().st_size
-        if file_size == 0:
-            raise Exception(f"Backup file is empty: {file_path}")
-        
-        logger.info(f"Backup file size: {file_size} bytes")
-        
-        try:
-            # Check if mysql command is available
-            mysql_available = shutil.which('mysql') is not None
-            
-            if mysql_available:
-                logger.info("Using mysql command for restore")
-                # Try using mysql command
-                cmd = [
-                    'mysql',
-                    f"--host={db_config.get('HOST', 'localhost')}",
-                    f"--port={db_config.get('PORT', 3306)}",
-                    f"--user={db_config['USER']}",
-                    f"--password={db_config['PASSWORD']}",
-                    db_config['NAME']
-                ]
-                
-                with open(file_path, 'r', encoding='utf-8') as f:
-                    result = subprocess.run(cmd, stdin=f, stderr=subprocess.PIPE, text=True)
-                
-                if result.returncode != 0:
-                    raise Exception(f"mysql restore failed: {result.stderr}")
-                
-                logger.info("MySQL database restored successfully using mysql command")
-            else:
-                # Fallback: Use PyMySQL to execute SQL directly
-                logger.info("mysql command not available, using PyMySQL fallback")
-                
-                try:
-                    import pymysql
-                except ImportError:
-                    raise Exception("PyMySQL library not installed. Cannot restore database without mysql command or PyMySQL.")
-                
-                connection = pymysql.connect(
-                    host=db_config.get('HOST', 'localhost'),
-                    port=int(db_config.get('PORT', 3306)),
-                    user=db_config['USER'],
-                    password=db_config['PASSWORD'],
-                    database=db_config['NAME'],
-                    charset='utf8mb4'
-                )
-                
-                try:
-                    with open(file_path, 'r', encoding='utf-8') as f:
-                        sql_content = f.read()
-                    
-                    if not sql_content.strip():
-                        raise Exception("SQL file is empty or contains only whitespace")
-                    
-                    logger.info(f"Read SQL content: {len(sql_content)} characters")
-                    
-                    # Try to execute the entire SQL file at once (simpler and more reliable)
-                    cursor = connection.cursor()
-                    
-                    try:
-                        # For mysqldump files, try executing all at once
-                        logger.info("Attempting to execute SQL file as a whole")
-                        
-                        # Split by semicolon and execute each statement
-                        # Use a simple regex-based split that handles most cases
-                        import re
-                        
-                        # Remove comments first
-                        sql_no_comments = re.sub(r'--[^\n]*\n', '\n', sql_content)
-                        sql_no_comments = re.sub(r'/\*.*?\*/', '', sql_no_comments, flags=re.DOTALL)
-                        
-                        # Split by semicolon (simple approach)
-                        raw_statements = sql_no_comments.split(';')
-                        
-                        statements = []
-                        for stmt in raw_statements:
-                            stmt = stmt.strip()
-                            if stmt and len(stmt) > 5:  # Ignore very short statements
-                                statements.append(stmt + ';')
-                        
-                        logger.info(f"Parsed {len(statements)} SQL statements")
-                        
-                        # Log first statement as sample for debugging
-                        if statements:
-                            first_stmt = statements[0][:300] + '...' if len(statements[0]) > 300 else statements[0]
-                            logger.info(f"First statement sample: {first_stmt}")
-                        
-                        if len(statements) == 0:
-                            # Try alternative: execute without parsing
-                            logger.warning("No statements found with standard parsing, trying direct execution")
-                            
-                            # Remove only single-line comments
-                            sql_cleaned = '\n'.join([
-                                line for line in sql_content.split('\n')
-                                if line.strip() and not line.strip().startswith('--')
-                            ])
-                            
-                            if sql_cleaned.strip():
-                                # Try to execute as-is
-                                try:
-                                    for result in cursor.execute(sql_cleaned, multi=True):
-                                        pass
-                                    connection.commit()
-                                    logger.info("SQL executed successfully using multi-statement execution")
-                                    cursor.close()
-                                    return
-                                except AttributeError:
-                                    # PyMySQL doesn't support multi parameter
-                                    logger.info("Multi-statement not supported, will try splitting differently")
-                                    # Split by semicolon at end of line
-                                    statements = [s.strip() + ';' for s in sql_cleaned.split(';') if s.strip()]
-                                    if not statements:
-                                        raise Exception("No valid SQL statements found in backup file")
-                            else:
-                                raise Exception("No valid SQL statements found in backup file")
-                        
-                        # Execute statements
-                        executed_count = 0
-                        failed_count = 0
-                        last_error = None
-                        
-                        for i, statement in enumerate(statements):
-                            try:
-                                cursor.execute(statement)
-                                executed_count += 1
-                                
-                                # Log progress every 100 statements
-                                if (i + 1) % 100 == 0:
-                                    logger.info(f"Progress: {i + 1}/{len(statements)} statements executed")
-                                    
-                            except Exception as stmt_error:
-                                # Log but continue with other statements
-                                failed_count += 1
-                                error_msg = str(stmt_error)
-                                last_error = error_msg
-                                
-                                # Log first few errors with more details
-                                if failed_count <= 10:
-                                    logger.error(f"Failed to execute statement {i + 1}: {error_msg}")
-                                    # Log first 200 chars of statement for debugging
-                                    stmt_preview = statement[:200] + '...' if len(statement) > 200 else statement
-                                    logger.error(f"Failed statement: {stmt_preview}")
-                        
-                        connection.commit()
-                        cursor.close()
-                        logger.info(f"MySQL database restored using PyMySQL: {executed_count} statements executed, {failed_count} failed")
-                        
-                        if executed_count == 0:
-                            error_detail = f"Last error: {last_error}" if last_error else "No error details available"
-                            raise Exception(f"No SQL statements were executed successfully. {error_detail}")
-                            
-                    except Exception as exec_error:
-                        logger.error(f"Failed to execute SQL: {exec_error}")
-                        raise
-                    
-                finally:
-                    connection.close()
-            
-        except Exception as e:
-            logger.error(f"MySQL restore failed: {e}")
-            raise
-    
-    def _restore_postgresql_database(self, db_config: Dict, file_path: Path):
-        """
-        Restore PostgreSQL database from backup file
-        """
-        logger.info(f"Restoring PostgreSQL database from: {file_path}")
-        
+
+    def _create_postgresql_backup(self, db_config: Dict[str, Any], backup_id: str) -> Dict[str, Any]:
+        """Create PostgreSQL custom format backup"""
+        raw_dump_path = self.backup_dir / f"db_postgres_{backup_id}.dump"
         env = os.environ.copy()
-        env['PGPASSWORD'] = db_config['PASSWORD']
+        if db_config.get('PASSWORD'):
+            env['PGPASSWORD'] = db_config['PASSWORD']
         
         cmd = [
-            'pg_restore',
-            '--verbose',
+            'pg_dump',
             '--clean',
             '--no-owner',
             '--no-privileges',
+            '--format=custom',
             f"--host={db_config.get('HOST', 'localhost')}",
             f"--port={db_config.get('PORT', 5432)}",
-            f"--username={db_config['USER']}",
+            f"--username={db_config.get('USER', 'postgres')}",
             f"--dbname={db_config['NAME']}",
-            str(file_path)
+            f"--file={raw_dump_path}"
         ]
         
-        result = subprocess.run(cmd, env=env, stderr=subprocess.PIPE, text=True)
+        res = subprocess.run(cmd, env=env, stderr=subprocess.PIPE, text=True)
+        if res.returncode != 0:
+            raw_dump_path.unlink(missing_ok=True)
+            raise Exception(f"pg_dump failed: {res.stderr}")
         
-        if result.returncode != 0:
-            raise Exception(f"pg_restore failed: {result.stderr}")
+        compressed_path = self._compress_file(raw_dump_path, remove_original=True)
+        file_hash = self._calculate_file_hash(compressed_path)
         
-        logger.info("PostgreSQL database restored successfully")
-    
-    def _restore_sqlite_database(self, db_config: Dict, file_path: Path):
+        return {
+            'type': 'database',
+            'engine': 'postgresql',
+            'filename': compressed_path.name,
+            'path': str(compressed_path),
+            'size_bytes': compressed_path.stat().st_size,
+            'hash': file_hash,
+            'created_at': timezone.now()
+        }
+
+    def _create_json_backup(self, backup_id: str) -> Dict[str, Any]:
+        """Direct JSON backup fallback"""
+        json_path = self._create_django_dumpdata_file(backup_id)
+        compressed_path = self._compress_file(json_path, remove_original=True)
+        file_hash = self._calculate_file_hash(compressed_path)
+        return {
+            'type': 'database',
+            'engine': 'json',
+            'filename': compressed_path.name,
+            'path': str(compressed_path),
+            'size_bytes': compressed_path.stat().st_size,
+            'hash': file_hash,
+            'created_at': timezone.now()
+        }
+
+    # ============================================================
+    # 5. MEDIA FILES BACKUP (Correct Extension & O(1) Check)
+    # ============================================================
+
+    def _create_media_backup(self, backup_id: str) -> Optional[Dict[str, Any]]:
+        """Create media archive with correct extension handling (.tar.gz)"""
+        try:
+            media_root = Path(settings.MEDIA_ROOT)
+            if not media_root.exists() or not any(media_root.iterdir()):
+                logger.info("Media directory is empty or does not exist, creating empty archive")
+                media_root.mkdir(parents=True, exist_ok=True)
+            
+            # Pass raw base name to prevent .tar.tar.gz double extension
+            archive_base_name = str(self.backup_dir / f"media_{backup_id}")
+            final_tar_path = Path(shutil.make_archive(
+                base_name=archive_base_name,
+                format='gztar',
+                root_dir=str(media_root)
+            ))
+            
+            self._set_directory_permissions(final_tar_path)
+            file_hash = self._calculate_file_hash(final_tar_path)
+            
+            return {
+                'type': 'media',
+                'filename': final_tar_path.name,
+                'path': str(final_tar_path),
+                'size_bytes': final_tar_path.stat().st_size,
+                'hash': file_hash,
+                'created_at': timezone.now()
+            }
+        except Exception as e:
+            logger.error(f"Failed to create media backup: {e}", exc_info=True)
+            return None
+
+    # ============================================================
+    # 6. RESTORATION ENGINE & RECOVERY PIPELINE
+    # ============================================================
+
+    def restore_from_backup(self, backup_id: str) -> Dict[str, Any]:
+        """Restore all components of a saved backup on the server"""
+        backup_files = self._find_backup_files(backup_id)
+        if not backup_files:
+            return {'status': 'failed', 'error': 'النسخة الاحتياطية غير موجودة على القرص'}
+        
+        # If single full zip archive exists
+        if len(backup_files) == 1 and backup_files[0].name.endswith('.zip'):
+            return self.restore_from_uploaded_file(str(backup_files[0]), restore_type='full')
+        
+        # Find DB and Media components
+        db_file = next((f for f in backup_files if 'db_' in f.name), None)
+        media_file = next((f for f in backup_files if 'media_' in f.name), None)
+        
+        if not db_file and not media_file:
+            return {'status': 'failed', 'error': 'لم يتم العثور على أي ملفات صالحة للاستعادة'}
+        
+        restored_components = []
+        details = {}
+        
+        # 1. Restore Database
+        if db_file:
+            db_res = self.restore_from_uploaded_file(str(db_file), restore_type='database')
+            if db_res.get('status') != 'completed':
+                return db_res
+            restored_components.extend(db_res.get('restored_components', ['database']))
+            details['database'] = db_res.get('details', {})
+        
+        # 2. Restore Media
+        if media_file:
+            media_res = self.restore_from_uploaded_file(str(media_file), restore_type='media')
+            if media_res.get('status') != 'completed':
+                return media_res
+            restored_components.extend(media_res.get('restored_components', ['media']))
+            details['media'] = media_res.get('details', {})
+        
+        return {
+            'status': 'completed',
+            'restored_components': list(set(restored_components)),
+            'details': details
+        }
+
+    def restore_from_uploaded_file(self, file_path_str: str, restore_type: str = 'auto') -> Dict[str, Any]:
         """
-        Restore SQLite database by replacing the file
+        Master restoration handler supporting Gzip SQL, SQLite, JSON, Tar Media, and Full Zip Archives
         """
-        logger.info(f"Restoring SQLite database from: {file_path}")
+        file_path = Path(file_path_str)
+        if not file_path.exists():
+            return {'status': 'failed', 'error': 'الملف المطلوب استعادته غير موجود'}
         
-        db_path = Path(db_config['NAME'])
+        snapshot_id = f"snap_{timezone.now().strftime('%Y%m%d_%H%M%S')}"
+        snapshot_created = False
         
-        # Backup current database
-        if db_path.exists():
-            backup_path = db_path.with_suffix('.db.backup')
-            shutil.copy2(db_path, backup_path)
-            logger.info(f"Current database backed up to: {backup_path}")
+        self.set_maintenance_lock(True, "Database restore in progress")
+        try:
+            # 0. Emergency cleanup of stale temp files and old artifacts to free disk space
+            self._cleanup_stale_temp_artifacts()
+            
+            # 1. Take compressed safety snapshot of current database
+            snapshot_created = self._create_safety_snapshot(snapshot_id)
+
+            
+            # 2. Close all existing database connections
+            connections.close_all()
+            
+            # 3. Detect file format and route to appropriate restore handler
+            detected_type, decompressed_path, is_temp = self._prepare_restore_payload(file_path)
+            
+            restored_components = []
+            details = {}
+            
+            try:
+                if detected_type == 'full_zip':
+                    res = self._restore_full_zip_archive(decompressed_path)
+                    restored_components = res.get('restored_components', ['database', 'media'])
+                    details = res.get('details', {})
+                elif detected_type == 'media':
+                    res = self._restore_media_archive(decompressed_path)
+                    restored_components = ['media']
+                    details = res
+                elif detected_type in ['sql', 'sqlite', 'json']:
+                    res = self._restore_database_payload(decompressed_path, detected_type)
+                    restored_components = ['database']
+                    details = res
+                else:
+                    raise Exception(f"صيغة الملف غير مدعومة: {detected_type}")
+            finally:
+                if is_temp and decompressed_path.exists():
+                    try:
+                        if decompressed_path.is_file():
+                            decompressed_path.unlink()
+                        elif decompressed_path.is_dir():
+                            shutil.rmtree(decompressed_path)
+                    except Exception as clean_err:
+                        logger.warning(f"Failed to clean temp payload: {clean_err}")
+            
+            # 4. Post-Restore DB migrations & schema sync
+            try:
+                from django.core.management import call_command
+                call_command('migrate', interactive=False)
+                logger.info("Post-restore auto-migrate executed successfully")
+            except Exception as mig_err:
+                logger.warning(f"Post-restore migrate warning: {mig_err}")
+            
+            # 5. Clear all system caches
+            cache.clear()
+            SystemSetting.invalidate_all_system_caches()
+            
+            # 6. Post-restore sanity check
+            if not self._post_restore_sanity_audit():
+                raise Exception("فشل الفحص الذاتي للبيانات بعد الاستعادة (Post-Restore Sanity Failed)")
+            
+            logger.info("Restore pipeline finished successfully 100%")
+            return {
+                'status': 'completed',
+                'restored_components': restored_components,
+                'details': details
+            }
+            
+        except Exception as e:
+            logger.error(f"Restore pipeline failed: {e}", exc_info=True)
+            self._last_error = str(e)
+            
+            # Auto-rollback to safety snapshot
+            if snapshot_created:
+                logger.warning("Initiating auto-rollback to pre-restore safety snapshot...")
+                self._rollback_safety_snapshot(snapshot_id)
+            
+            return {
+                'status': 'failed',
+                'error': str(e)
+            }
+        finally:
+            connections.close_all()
+            self.set_maintenance_lock(False)
+
+    def _prepare_restore_payload(self, file_path: Path) -> Tuple[str, Path, bool]:
+        """Detect file type and decompress in-memory/temp as needed"""
+        filename_lower = file_path.name.lower()
         
-        # Replace with new database
-        shutil.copy2(file_path, db_path)
-        logger.info("SQLite database restored successfully")
-    
-    def _restore_media_from_file(self, file_path: Path):
-        """
-        Restore media files from archive
-        """
-        logger.info(f"Restoring media files from: {file_path.name}")
+        # 1. Full Zip Archive
+        if filename_lower.endswith('.zip'):
+            return 'full_zip', file_path, False
         
-        media_root = Path(settings.MEDIA_ROOT)
+        # 2. Media Archive
+        if filename_lower.endswith(('.tar.gz', '.tgz', '.tar')):
+            return 'media', file_path, False
         
-        # Backup current media directory
-        if media_root.exists():
-            backup_dir = media_root.parent / f"{media_root.name}_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-            shutil.copytree(media_root, backup_dir)
-            logger.info(f"Current media backed up to: {backup_dir}")
+        # 3. Gzip Compressed DB Files
+        if filename_lower.endswith('.gz'):
+            temp_out = self.backup_dir / f"temp_decomp_{timezone.now().strftime('%Y%m%d_%H%M%S')}.bin"
+            
+            with gzip.open(file_path, 'rb') as f_in:
+                with open(temp_out, 'wb') as f_out:
+                    shutil.copyfileobj(f_in, f_out, length=65536)
+            
+            # Detect format of uncompressed content
+            dtype = self._inspect_payload_format(temp_out)
+            ext_map = {'json': '.json', 'sql': '.sql', 'sqlite': '.sqlite3'}
+            final_suffix = ext_map.get(dtype, '.sql')
+            final_temp = temp_out.with_suffix(final_suffix)
+            if temp_out != final_temp:
+                if final_temp.exists():
+                    final_temp.unlink()
+                temp_out.rename(final_temp)
+                
+            return dtype, final_temp, True
         
-        # Extract archive
-        if file_path.suffix == '.gz' and '.tar' in file_path.name:
-            # tar.gz file
-            import tarfile
-            with tarfile.open(file_path, 'r:gz') as tar:
-                tar.extractall(media_root.parent)
-        elif file_path.suffix == '.zip':
-            # zip file
-            import zipfile
-            with zipfile.ZipFile(file_path, 'r') as zip_ref:
-                zip_ref.extractall(media_root.parent)
+        # 4. Raw Uncompressed Files
+        dtype = self._inspect_payload_format(file_path)
+        return dtype, file_path, False
+
+    def _inspect_payload_format(self, file_path: Path) -> str:
+        """Inspect first 4096 bytes of file to determine payload type accurately"""
+        with open(file_path, 'rb') as f:
+            header = f.read(4096)
+        
+        if header.startswith(b'SQLite format 3\x00'):
+            return 'sqlite'
+        
+        # Clean UTF-8 BOM and whitespace
+        clean_header = header[3:].lstrip() if header.startswith(b'\xef\xbb\xbf') else header.lstrip()
+        
+        header_text = clean_header.decode('utf-8', errors='ignore').strip()
+        if header_text.startswith('[') or header_text.startswith('{'):
+            return 'json'
+        
+        if any(header_text.upper().startswith(kw) for kw in ['--', '/*', '#', 'SET', 'INSERT', 'CREATE', 'DROP', 'USE', 'LOCK', 'ALTER', 'REPLACE']):
+            return 'sql'
+            
+        if file_path.suffix in ['.sql']:
+            return 'sql'
+        elif file_path.suffix in ['.json']:
+            return 'json'
+        elif file_path.suffix in ['.db', '.sqlite3', '.sqlite']:
+            return 'sqlite'
+            
+        return 'sql'
+
+    # ============================================================
+    # 7. SPECIFIC RESTORE EXECUTORS
+    # ============================================================
+
+    def _restore_database_payload(self, file_path: Path, payload_type: str) -> Dict[str, Any]:
+        """Restore database payload based on current DB engine"""
+        db_config = settings.DATABASES['default']
+        engine = db_config['ENGINE']
+        
+        if payload_type == 'json':
+            return self._restore_json_fixture(file_path)
+        elif payload_type == 'sqlite':
+            if 'sqlite' in engine:
+                return self._restore_sqlite_database(db_config, file_path)
+            else:
+                raise Exception("لا يمكن استعادة نسخة SQLite مباشرة على خادم MySQL. يرجى استخدام نسخة SQL أو JSON.")
+        elif payload_type == 'sql':
+            if 'mysql' in engine or 'postgres' in engine:
+                return self._restore_mysql_database(db_config, file_path)
+            elif 'sqlite' in engine:
+                return self._restore_mysql_via_cursor(file_path)
+        
+        if 'sqlite' in engine:
+            return self._restore_sqlite_database(db_config, file_path)
         else:
-            raise Exception(f"Unsupported media archive format: {file_path.suffix}")
+            return self._restore_mysql_database(db_config, file_path)
+
+
+    def _restore_mysql_database(self, db_config: Dict[str, Any], file_path: Path) -> Dict[str, Any]:
+        """
+        Restore MySQL database using CLI mysql or PyMySQL chunked batch with strict UTF-8 & foreign key control
+        """
+        mysql_bin = self._find_mysql_binary('mysql')
+        host = db_config.get('HOST') or 'localhost'
+        port = str(db_config.get('PORT') or 3306)
+        user = db_config.get('USER', 'root')
+        password = db_config.get('PASSWORD', '')
+        db_name = db_config.get('NAME', 'mwheba_erp')
         
-        logger.info("Media files restored successfully")
-    
-    def restore_from_backup(self, backup_id: str, restore_database: bool = True, 
-                          restore_media: bool = True) -> Dict[str, any]:
+        env = os.environ.copy()
+        if password:
+            env['MYSQL_PWD'] = password
+            
+        cmd = [
+            mysql_bin,
+            '--default-character-set=utf8mb4',
+            f"--host={host}",
+            f"--port={port}",
+            f"--user={user}",
+            db_name
+        ]
+        
+        # Attempt CLI restore first
+        cli_success = False
+        try:
+            with open(file_path, 'r', encoding='utf-8', errors='replace') as f_in:
+                res = subprocess.run(cmd, stdin=f_in, stderr=subprocess.PIPE, text=True, env=env)
+            if res.returncode == 0:
+                cli_success = True
+                logger.info("MySQL CLI restore completed successfully")
+            else:
+                logger.warning(f"MySQL CLI restore returned code {res.returncode}: {res.stderr}")
+        except Exception as e:
+            logger.warning(f"MySQL CLI invocation failed ({e}), falling back to PyMySQL parser")
+        
+        if not cli_success:
+            self._restore_mysql_via_cursor(file_path)
+            
+        return {'engine': 'mysql', 'file': file_path.name, 'status': 'completed'}
+
+    def _restore_mysql_via_cursor(self, file_path: Path):
+        """Stateful SQL Tokenizer & PyMySQL execution with SET FOREIGN_KEY_CHECKS=0"""
+        statements = []
+        current_stmt = []
+        in_quote = None
+        is_escaped = False
+        
+        with open(file_path, 'r', encoding='utf-8', errors='replace') as f:
+            for line in f:
+                stripped = line.strip()
+                if not in_quote and (stripped.startswith('--') or stripped.startswith('#')):
+                    continue
+                
+                i = 0
+                while i < len(line):
+                    ch = line[i]
+                    current_stmt.append(ch)
+                    
+                    if is_escaped:
+                        is_escaped = False
+                    elif ch == '\\':
+                        is_escaped = True
+                    elif in_quote:
+                        if ch == in_quote:
+                            in_quote = None
+                    else:
+                        if ch in ("'", '"', '`'):
+                            in_quote = ch
+                        elif ch == ';':
+                            stmt_str = "".join(current_stmt).strip()
+                            if stmt_str and stmt_str != ';':
+                                statements.append(stmt_str)
+                            current_stmt = []
+                    i += 1
+        
+        if current_stmt:
+            tail = "".join(current_stmt).strip()
+            if tail:
+                statements.append(tail)
+        
+        if not statements:
+            raise Exception("No valid SQL statements parsed from file")
+        
+        # Execute in a single dedicated connection
+        with connection.cursor() as cursor:
+            cursor.execute("SET FOREIGN_KEY_CHECKS = 0;")
+            cursor.execute("SET SQL_MODE = 'NO_AUTO_VALUE_ON_ZERO';")
+            try:
+                for idx, stmt in enumerate(statements):
+                    stmt_clean = stmt.strip()
+                    upper_stmt = stmt_clean.upper()
+                    
+                    # Skip database creation or switching statements that break on cPanel/shared hosting
+                    if upper_stmt.startswith('USE ') or upper_stmt.startswith('CREATE DATABASE') or upper_stmt.startswith('DROP DATABASE'):
+                        logger.debug(f"Skipping database-level directive: {stmt_clean[:50]}")
+                        continue
+                    
+                    # Strip DEFINER clauses to prevent permission errors on shared hosting
+                    if 'DEFINER=' in stmt_clean:
+                        stmt_clean = re.sub(r'DEFINER\s*=\s*`?[^`@\s]+`?@`?[^`\s]+`?', '', stmt_clean)
+                    
+                    try:
+                        cursor.execute(stmt_clean)
+                    except Exception as stmt_err:
+                        logger.error(f"SQL execution error at statement #{idx} (Snippet: {stmt_clean[:100]!r}): {stmt_err}")
+                        raise Exception(f"خطأ في تنفيذ جملة SQL #{idx} ({stmt_clean[:60]}...): {stmt_err}")
+            finally:
+                cursor.execute("SET FOREIGN_KEY_CHECKS = 1;")
+
+
+    def _restore_sqlite_database(self, db_config: Dict[str, Any], file_path: Path) -> Dict[str, Any]:
+        """Restore SQLite database cleanly removing stale WAL files"""
+        source_name = db_config.get('NAME')
+        db_path = Path(source_name)
+        if not db_path.is_absolute():
+            db_path = settings.BASE_DIR / db_path
+        
+        connections.close_all()
+        
+        # Remove stale WAL and SHM journal files to prevent WAL poisoning
+        wal_path = db_path.with_name(db_path.name + '-wal')
+        shm_path = db_path.with_name(db_path.name + '-shm')
+        wal_path.unlink(missing_ok=True)
+        shm_path.unlink(missing_ok=True)
+        
+        # Replace database file
+        shutil.copy2(file_path, db_path)
+        self._set_directory_permissions(db_path)
+        
+        return {'engine': 'sqlite', 'file': file_path.name, 'status': 'completed'}
+
+    def _restore_json_fixture(self, file_path: Path) -> Dict[str, Any]:
+        """Restore Django JSON dumpdata using loaddata"""
+        from django.core.management import call_command
+        
+        actual_path = file_path
+        renamed = False
+        if not str(file_path).lower().endswith('.json'):
+            actual_path = file_path.with_suffix('.json')
+            if actual_path.exists():
+                actual_path.unlink()
+            shutil.copy2(file_path, actual_path)
+            renamed = True
+        
+        with connection.cursor() as cursor:
+            if 'mysql' in settings.DATABASES['default']['ENGINE']:
+                cursor.execute("SET FOREIGN_KEY_CHECKS = 0;")
+            elif 'sqlite' in settings.DATABASES['default']['ENGINE']:
+                cursor.execute("PRAGMA foreign_keys = OFF;")
+        
+        try:
+            call_command(
+                'loaddata',
+                str(actual_path),
+                '--ignorenonexistent',
+                verbosity=0
+            )
+        finally:
+            if renamed and actual_path.exists():
+                try:
+                    actual_path.unlink()
+                except Exception:
+                    pass
+            with connection.cursor() as cursor:
+                if 'mysql' in settings.DATABASES['default']['ENGINE']:
+                    cursor.execute("SET FOREIGN_KEY_CHECKS = 1;")
+                elif 'sqlite' in settings.DATABASES['default']['ENGINE']:
+                    cursor.execute("PRAGMA foreign_keys = ON;")
+                    
+        return {'engine': 'json', 'file': file_path.name, 'status': 'completed'}
+
+
+    def _restore_media_archive(self, file_path: Path) -> Dict[str, Any]:
+        """Restore media archive safely with path traversal protection (Anti-Zip/Tar Slip)"""
+        media_root = Path(settings.MEDIA_ROOT)
+        media_root.mkdir(parents=True, exist_ok=True)
+        
+        if file_path.name.endswith(('.tar.gz', '.tgz', '.tar')):
+            with tarfile.open(file_path, 'r:*') as tar:
+                for member in tar.getmembers():
+                    # Zip/Tar Slip protection
+                    target_path = (media_root / member.name).resolve()
+                    if not str(target_path).startswith(str(media_root.resolve())):
+                        raise Exception(f"Security Alert: Path traversal attempt in tar archive ({member.name})")
+                tar.extractall(path=str(media_root))
+        elif file_path.name.endswith('.zip'):
+            with zipfile.ZipFile(file_path, 'r') as zipf:
+                for member in zipf.namelist():
+                    target_path = (media_root / member).resolve()
+                    if not str(target_path).startswith(str(media_root.resolve())):
+                        raise Exception(f"Security Alert: Path traversal attempt in zip archive ({member})")
+                zipf.extractall(path=str(media_root))
+                
+        return {'type': 'media', 'file': file_path.name, 'status': 'completed'}
+
+    def _restore_full_zip_archive(self, zip_path: Path) -> Dict[str, Any]:
+        """Extract and restore full package (DB + Media + Encryption Key) atomically"""
+        temp_extract_dir = self.backup_dir / f"temp_full_extract_{timezone.now().strftime('%Y%m%d_%H%M%S')}"
+        temp_extract_dir.mkdir(parents=True, exist_ok=True)
+        
+        restored_components = []
+        details = {}
+        
+        try:
+            with zipfile.ZipFile(zip_path, 'r') as zipf:
+                for member in zipf.namelist():
+                    target_path = (temp_extract_dir / member).resolve()
+                    if not str(target_path).startswith(str(temp_extract_dir.resolve())):
+                        raise Exception(f"Security Alert: Zip Slip detected in {member}")
+                zipf.extractall(path=str(temp_extract_dir))
+            
+            # 1. Restore Encryption Key if included
+            enc_key_file = temp_extract_dir / 'encryption.key'
+            if enc_key_file.exists():
+                shutil.copy2(enc_key_file, settings.BASE_DIR / 'encryption.key')
+                details['encryption_key'] = 'restored'
+            
+            # 2. Find and restore DB file
+            db_candidates = [
+                f for f in temp_extract_dir.iterdir()
+                if f.is_file() and any(f.name.lower().endswith(ext) for ext in ['.sql.gz', '.sql', '.sqlite3.gz', '.sqlite3', '.db.gz', '.db', '.json.gz', '.json'])
+            ]
+            
+            if db_candidates:
+                db_file = db_candidates[0]
+                db_dtype, db_payload, is_tmp = self._prepare_restore_payload(db_file)
+                try:
+                    self._restore_database_payload(db_payload, db_dtype)
+                    restored_components.append('database')
+                finally:
+                    if is_tmp and db_payload.exists():
+                        db_payload.unlink(missing_ok=True)
+            
+            # 3. Find and restore Media archive
+            media_candidates = [
+                f for f in temp_extract_dir.iterdir()
+                if f.is_file() and any(f.name.lower().endswith(ext) for ext in ['.tar.gz', '.tgz', '.tar'])
+            ]
+            if media_candidates:
+                self._restore_media_archive(media_candidates[0])
+                restored_components.append('media')
+                
+            return {
+                'restored_components': restored_components,
+                'details': details
+            }
+        finally:
+            if temp_extract_dir.exists():
+                shutil.rmtree(temp_extract_dir, ignore_errors=True)
+
+    # ============================================================
+    # 8. SAFETY SNAPSHOTS & AUTO-ROLLBACK
+    # ============================================================
+
+    def _cleanup_stale_temp_artifacts(self):
+        """Purge temporary decompression folders, orphaned .tmp/.bin files, and old snapshots (>24h) to free disk space"""
+        try:
+            now = timezone.now()
+            # 1. Clean backups dir temp files
+            if self.backup_dir.exists():
+                for p in self.backup_dir.iterdir():
+                    if (p.name.startswith(('temp_', 'safety_snapshot_')) or p.suffix in ['.tmp', '.bin']) and p.is_file():
+                        try:
+                            p.unlink()
+                        except Exception:
+                            pass
+                    elif p.name.startswith('temp_') and p.is_dir():
+                        try:
+                            shutil.rmtree(p, ignore_errors=True)
+                        except Exception:
+                            pass
+            
+            # 2. Clean safety snapshots older than 24 hours
+            if self.safety_dir.exists():
+                import time
+                current_time = time.time()
+                for p in self.safety_dir.iterdir():
+                    if p.is_file():
+                        if current_time - p.stat().st_mtime > 86400:
+                            try:
+                                p.unlink()
+                            except Exception:
+                                pass
+        except Exception as e:
+            logger.warning(f"Error during temp artifacts cleanup: {e}")
+
+
+    def _create_safety_snapshot(self, snapshot_id: str) -> bool:
+        """Create rapid compressed snapshot in safety_snapshots/ before any destructive change"""
+        try:
+            db_config = settings.DATABASES['default']
+            engine = db_config['ENGINE']
+            
+            if 'sqlite' in engine:
+                source_name = db_config.get('NAME')
+                source_path = Path(source_name)
+                if not source_path.is_absolute():
+                    source_path = settings.BASE_DIR / source_path
+                if source_path.exists():
+                    dest_path = self.safety_dir / f"safety_snapshot_{snapshot_id}.sqlite3.gz"
+                    with open(source_path, 'rb') as f_in, gzip.open(dest_path, 'wb', compresslevel=6) as f_out:
+                        shutil.copyfileobj(f_in, f_out, length=65536)
+                    return True
+            elif 'mysql' in engine:
+                # Compressed dump for safety saving 90% disk space
+                raw_sql_gz = self.safety_dir / f"safety_snapshot_{snapshot_id}.sql.gz"
+                mysqldump_bin = self._find_mysql_binary('mysqldump')
+                env = os.environ.copy()
+                if db_config.get('PASSWORD'):
+                    env['MYSQL_PWD'] = db_config['PASSWORD']
+                
+                cmd = [
+                    mysqldump_bin,
+                    '--default-character-set=utf8mb4',
+                    '--single-transaction',
+                    '--skip-lock-tables',
+                    f"--host={db_config.get('HOST', 'localhost')}",
+                    f"--port={db_config.get('PORT', 3306)}",
+                    f"--user={db_config.get('USER', 'root')}",
+                    db_config.get('NAME', 'mwheba_erp')
+                ]
+                with gzip.open(raw_sql_gz, 'wb', compresslevel=6) as f_gz:
+                    res = subprocess.run(cmd, stdout=f_gz, stderr=subprocess.PIPE, env=env)
+                if res.returncode == 0 and raw_sql_gz.exists() and raw_sql_gz.stat().st_size > 0:
+                    return True
+                else:
+                    raw_sql_gz.unlink(missing_ok=True)
+                    return False
+            return True
+        except OSError as oe:
+            # Handle Disk quota exceeded (Errno 122) or No space left on device (ENOSPC)
+            logger.warning(f"Safety snapshot skipped due to disk quota limitation: {oe}")
+            # Purge partial snapshot file to not lock disk
+            for p in self.safety_dir.glob(f"*{snapshot_id}*"):
+                p.unlink(missing_ok=True)
+            return False
+        except Exception as e:
+            logger.warning(f"Failed to create safety snapshot: {e}")
+            for p in self.safety_dir.glob(f"*{snapshot_id}*"):
+                p.unlink(missing_ok=True)
+            return False
+
+    def _rollback_safety_snapshot(self, snapshot_id: str):
+        """Rollback database to safety snapshot state if restore breaks"""
+        try:
+            db_config = settings.DATABASES['default']
+            engine = db_config['ENGINE']
+            
+            if 'sqlite' in engine:
+                snap_gz = self.safety_dir / f"safety_snapshot_{snapshot_id}.sqlite3.gz"
+                if snap_gz.exists():
+                    db_path = Path(db_config.get('NAME'))
+                    if not db_path.is_absolute():
+                        db_path = settings.BASE_DIR / db_path
+                    connections.close_all()
+                    with gzip.open(snap_gz, 'rb') as f_in, open(db_path, 'wb') as f_out:
+                        shutil.copyfileobj(f_in, f_out, length=65536)
+                    logger.info("SQLite successfully rolled back to compressed safety snapshot")
+            elif 'mysql' in engine:
+                snap_gz = self.safety_dir / f"safety_snapshot_{snapshot_id}.sql.gz"
+                if snap_gz.exists():
+                    dtype, decomp_path, is_tmp = self._prepare_restore_payload(snap_gz)
+                    try:
+                        self._restore_mysql_database(db_config, decomp_path)
+                        logger.info("MySQL successfully rolled back to compressed safety snapshot")
+                    finally:
+                        if is_tmp and decomp_path.exists():
+                            decomp_path.unlink(missing_ok=True)
+        except Exception as e:
+            logger.critical(f"FATAL: Auto-rollback to safety snapshot failed: {e}", exc_info=True)
+
+
+    def _post_restore_sanity_audit(self) -> bool:
+        """Verify database responsiveness and user table existence after restore"""
+        try:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT 1;")
+                cursor.fetchone()
+                
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            _ = User.objects.count()
+            return True
+        except Exception as e:
+            logger.error(f"Post-restore sanity audit failed: {e}")
+            return False
+
+    # ============================================================
+    # 9. INTEGRITY VERIFICATION, LISTING & RETENTION CLEANUP
+    # ============================================================
+
+    def _verify_backup_integrity(self, backup_info: Dict[str, Any]) -> Dict[str, Any]:
+        """Verify all generated files exist and match their SHA-256 hashes"""
+        failed_files = 0
+        total_files = len(backup_info.get('files', []))
+        
+        for file_info in backup_info.get('files', []):
+            path = Path(file_info['path'])
+            if not path.exists() or path.stat().st_size == 0:
+                failed_files += 1
+                continue
+            
+            calc_hash = self._calculate_file_hash(path)
+            if calc_hash != file_info.get('hash'):
+                failed_files += 1
+        
+        status = 'success' if failed_files == 0 and total_files > 0 else 'failed'
+        return {
+            'status': status,
+            'total_files': total_files,
+            'failed_files': failed_files
+        }
+
+    def list_backups(self) -> List[Dict[str, Any]]:
         """
-        Restore system from backup
+        List all backups grouped by backup_id with metadata
         """
-        restore_info = {
-            'backup_id': backup_id,
-            'timestamp': timezone.now(),
-            'status': 'started',
-            'restored_components': [],
-            'errors': []
+        backups_map: Dict[str, Dict[str, Any]] = {}
+        
+        for file_path in self.backup_dir.iterdir():
+            if not file_path.is_file() or file_path.name.startswith(('safety_snapshot_', 'temp_', '.')):
+                continue
+            
+            # Extract backup_id (backup_YYYYMMDD_HHMMSS)
+            match = re.search(r'backup_\d{8}_\d{6}', file_path.name)
+            if not match:
+                continue
+            
+            backup_id = match.group(0)
+            if backup_id not in backups_map:
+                try:
+                    dt_str = backup_id.replace('backup_', '')
+                    created_at = timezone.make_aware(datetime.strptime(dt_str, '%Y%m%d_%H%M%S'))
+                except Exception:
+                    created_at = timezone.now()
+                
+                backups_map[backup_id] = {
+                    'backup_id': backup_id,
+                    'created_at': created_at,
+                    'files': [],
+                    'size_bytes': 0,
+                    'backup_type': 'database',
+                    'storage_type': 'local'
+                }
+            
+            size = file_path.stat().st_size
+            backups_map[backup_id]['size_bytes'] += size
+            backups_map[backup_id]['files'].append({
+                'filename': file_path.name,
+                'path': str(file_path),
+                'size_bytes': size
+            })
+        
+        # Refine backup types
+        for b_id, b_data in backups_map.items():
+            has_full_zip = any(f['filename'].startswith('full_') and f['filename'].endswith('.zip') for f in b_data['files'])
+            has_db = any('db_' in f['filename'] for f in b_data['files'])
+            has_media = any('media_' in f['filename'] for f in b_data['files'])
+            
+            if has_full_zip or (has_db and has_media):
+                b_data['backup_type'] = 'full'
+            elif has_db:
+                b_data['backup_type'] = 'database'
+            elif has_media:
+                b_data['backup_type'] = 'media'
+        
+        # Sort by creation date descending
+        sorted_backups = sorted(backups_map.values(), key=lambda x: x['created_at'], reverse=True)
+        return sorted_backups
+
+    def delete_backup(self, backup_id: str) -> bool:
+        """Delete all files associated with a backup_id"""
+        files = self._find_backup_files(backup_id)
+        if not files:
+            return False
+        
+        success = True
+        for f in files:
+            try:
+                if f.is_file():
+                    f.unlink()
+                elif f.is_dir():
+                    shutil.rmtree(f)
+            except Exception as e:
+                logger.error(f"Failed to delete backup file {f}: {e}")
+                success = False
+        
+        # Remove from BackupRecord model
+        try:
+            from core.models import BackupRecord
+            BackupRecord.objects.filter(backup_id=backup_id).delete()
+        except Exception:
+            pass
+            
+        return success
+
+    def cleanup_old_backups(self) -> Dict[str, Any]:
+        """
+        Group-aware retention cleanup applying count and days policies per backup type
+        """
+        stats = {
+            'deleted_count': 0,
+            'freed_bytes': 0,
+            'freed_mb': 0.0,
+            'status': 'completed'
         }
         
         try:
-            logger.info(f"Starting restore from backup: {backup_id}")
+            backups = self.list_backups()
             
-            # Find backup files
-            backup_files = self._find_backup_files(backup_id)
+            # Policy settings
+            db_type = SystemSetting.get_setting('backup_db_retention_type', 'count')
+            db_count = max(1, int(SystemSetting.get_setting('backup_db_retention_count', 10)))
+            db_days = max(1, int(SystemSetting.get_setting('backup_db_retention_days', 30)))
             
-            if not backup_files:
-                raise Exception(f"No backup files found for backup ID: {backup_id}")
+            full_type = SystemSetting.get_setting('backup_full_retention_type', 'count')
+            full_count = max(1, int(SystemSetting.get_setting('backup_full_retention_count', 5)))
+            full_days = max(1, int(SystemSetting.get_setting('backup_full_retention_days', 60)))
             
-            # Restore database
-            if restore_database:
-                db_file = next((f for f in backup_files if f['type'] == 'database'), None)
-                if db_file:
-                    self._restore_database(db_file)
-                    restore_info['restored_components'].append('database')
+            media_type = SystemSetting.get_setting('backup_media_retention_type', 'count')
+            media_count = max(1, int(SystemSetting.get_setting('backup_media_retention_count', 3)))
+            media_days = max(1, int(SystemSetting.get_setting('backup_media_retention_days', 90)))
             
-            # Restore media files
-            if restore_media:
-                media_file = next((f for f in backup_files if f['type'] == 'media'), None)
-                if media_file:
-                    self._restore_media(media_file)
-                    restore_info['restored_components'].append('media')
+            by_type: Dict[str, List[Dict[str, Any]]] = {'database': [], 'full': [], 'media': []}
+            for b in backups:
+                b_type = b.get('backup_type', 'database')
+                if b_type in by_type:
+                    by_type[b_type].append(b)
             
-            restore_info['status'] = 'completed'
-            logger.info(f"Restore completed successfully: {backup_id}")
+            to_delete_ids = set()
+            now = timezone.now()
+            
+            # Check DB backups
+            if db_type == 'count' and len(by_type['database']) > db_count:
+                for b in by_type['database'][db_count:]:
+                    to_delete_ids.add(b['backup_id'])
+            elif db_type == 'days':
+                cutoff = now - timedelta(days=db_days)
+                for b in by_type['database']:
+                    if b['created_at'] < cutoff:
+                        to_delete_ids.add(b['backup_id'])
+                        
+            # Check Full backups
+            if full_type == 'count' and len(by_type['full']) > full_count:
+                for b in by_type['full'][full_count:]:
+                    to_delete_ids.add(b['backup_id'])
+            elif full_type == 'days':
+                cutoff = now - timedelta(days=full_days)
+                for b in by_type['full']:
+                    if b['created_at'] < cutoff:
+                        to_delete_ids.add(b['backup_id'])
+                        
+            # Check Media backups
+            if media_type == 'count' and len(by_type['media']) > media_count:
+                for b in by_type['media'][media_count:]:
+                    to_delete_ids.add(b['backup_id'])
+            elif media_type == 'days':
+                cutoff = now - timedelta(days=media_days)
+                for b in by_type['media']:
+                    if b['created_at'] < cutoff:
+                        to_delete_ids.add(b['backup_id'])
+            
+            # Execute deletion
+            for b_id in to_delete_ids:
+                files = self._find_backup_files(b_id)
+                for f in files:
+                    try:
+                        f_size = f.stat().st_size
+                        f.unlink()
+                        stats['deleted_count'] += 1
+                        stats['freed_bytes'] += f_size
+                    except Exception as e:
+                        logger.warning(f"Error removing old backup file {f}: {e}")
+            
+            stats['freed_mb'] = stats['freed_bytes'] / (1024 * 1024)
+            logger.info(f"Retention cleanup completed: deleted {stats['deleted_count']} files, freed {stats['freed_mb']:.2f} MB")
+            return stats
             
         except Exception as e:
-            restore_info['status'] = 'failed'
-            restore_info['errors'].append(str(e))
-            logger.error(f"Restore failed: {backup_id} - {e}")
-            raise
-        
-        return restore_info
-    
-    def _find_backup_files(self, backup_id: str) -> List[Dict[str, any]]:
-        """
-        Find backup files for a given backup ID
-        """
-        backup_files = []
-        
-        # Search local backup directory
-        for backup_file in self.backup_dir.glob(f"*{backup_id}*"):
-            if backup_file.is_file():
-                file_type = 'unknown'
-                if 'db_' in backup_file.name:
-                    file_type = 'database'
-                elif 'media_' in backup_file.name:
-                    file_type = 'media'
-                elif 'config_' in backup_file.name:
-                    file_type = 'config'
-                
-                backup_files.append({
-                    'type': file_type,
-                    'filename': backup_file.name,
-                    'path': str(backup_file),
-                    'size_bytes': backup_file.stat().st_size
-                })
-        
-        return backup_files
-    
-    def _restore_database(self, db_file: Dict[str, any]):
-        """
-        Restore database from backup file
-        """
-        # Implementation depends on database type
-        # This is a placeholder for the actual restore logic
-        logger.info(f"Restoring database from: {db_file['filename']}")
-        # TODO: Implement database-specific restore logic
-    
-    def _restore_media(self, media_file: Dict[str, any]):
-        """
-        Restore media files from backup
-        """
-        logger.info(f"Restoring media files from: {media_file['filename']}")
-        # TODO: Implement media restore logic
-    
-    def list_backups(self) -> List[Dict[str, any]]:
-        """
-        List available backups grouped by backup_id
-        """
-        backups = []
-        
-        # Group backup files by backup ID
-        backup_groups = {}
-        
-        for backup_file in self.backup_dir.glob('*'):
-            if backup_file.is_file():
-                # Extract backup ID from filename
-                # Format: db_backup_20260212_045439.sql.gz or media_backup_20260212_045439.tar.gz
-                filename = backup_file.name
-                
-                # Find backup_YYYYMMDD_HHMMSS pattern
-                import re
-                match = re.search(r'backup_(\d{8}_\d{6})', filename)
-                
-                if match:
-                    backup_id = f"backup_{match.group(1)}"
-                    
-                    if backup_id not in backup_groups:
-                        backup_groups[backup_id] = []
-                    
-                    backup_groups[backup_id].append({
-                        'filename': backup_file.name,
-                        'path': str(backup_file),
-                        'size_bytes': backup_file.stat().st_size,
-                        'created_at': datetime.fromtimestamp(backup_file.stat().st_mtime)
-                    })
-        
-        # Convert groups to backup list
-        for backup_id, files in backup_groups.items():
-            total_size = sum(f['size_bytes'] for f in files)
-            created_at = min(f['created_at'] for f in files)
-            
-            backups.append({
-                'backup_id': backup_id,
-                'created_at': created_at,
-                'total_size_bytes': total_size,
-                'file_count': len(files),
-                'files': files
-            })
-        
-        # Sort by creation date (newest first)
-        backups.sort(key=lambda x: x['created_at'], reverse=True)
-        
-        return backups
+            logger.error(f"Cleanup old backups failed: {e}", exc_info=True)
+            stats['status'] = 'failed'
+            return stats
+
+    def _check_disk_space(self) -> bool:
+        """Check that available disk space exceeds minimum threshold (100MB)"""
+        try:
+            usage = shutil.disk_usage(self.backup_dir)
+            free_mb = usage.free / (1024 * 1024)
+            return free_mb > 100
+        except Exception as e:
+            logger.warning(f"Disk space check skipped: {e}")
+            return True
+
+    def _record_backup_audit(self, backup_info: Dict[str, Any]):
+        """Persist backup record in Django Admin Audit Model (BackupRecord)"""
+        try:
+            from core.models import BackupRecord
+            BackupRecord.objects.update_or_create(
+                backup_id=backup_info['backup_id'],
+                defaults={
+                    'backup_type': backup_info.get('backup_type', 'database'),
+                    'status': backup_info.get('status', 'completed'),
+                    'file_size': backup_info.get('size_bytes', 0),
+                    'storage_type': 'local',
+                    'file_path': backup_info['files'][0]['path'] if backup_info.get('files') else '',
+                    'file_hash': backup_info['files'][0]['hash'] if backup_info.get('files') else '',
+                    'completed_at': timezone.now() if backup_info.get('status') == 'completed' else None
+                }
+            )
+        except Exception as e:
+            logger.debug(f"Could not persist BackupRecord model: {e}")

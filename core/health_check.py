@@ -50,17 +50,25 @@ def health_check(request):
     
     # Backup system check (optional - don't fail if backup is down)
     try:
+        import os
         from core.services.backup_service import BackupService
         backup_service = BackupService()
         
+        # Check if system is under maintenance (restore in progress)
+        if getattr(backup_service, 'is_maintenance_locked', lambda: False)():
+            health_status['checks']['maintenance'] = {'status': 'active', 'message': 'System restore in progress'}
+            health_status['status'] = 'maintenance'
+            return JsonResponse(health_status, status=503)
+        
         # Check if backup directory exists and is writable
-        if backup_service.backup_dir.exists() and backup_service.backup_dir.is_dir():
+        if backup_service.backup_dir.exists() and backup_service.backup_dir.is_dir() and os.access(backup_service.backup_dir, os.W_OK):
             health_status['checks']['backup'] = {'status': 'healthy'}
         else:
-            health_status['checks']['backup'] = {'status': 'degraded', 'error': 'Backup directory not accessible'}
+            health_status['checks']['backup'] = {'status': 'degraded', 'error': 'Backup directory not accessible or writable'}
     except Exception as e:
         health_status['checks']['backup'] = {'status': 'degraded', 'error': str(e)}
         logger.warning(f"Backup health check failed: {e}")
+
     
     # Set overall status
     if not overall_healthy:
