@@ -13,7 +13,7 @@ from django.db.models import Sum
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 from decimal import Decimal
-from client.models import Customer
+from customer.models import Customer
 from .models import SalePayment, Sale, SaleReturn, CustomFieldDefinition
 from django.core.cache import cache
 from django.conf import settings

@@ -8,14 +8,14 @@ from django.urls import reverse
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 
-from client.models import Customer, CustomerPayment, CustomerTransaction
+from customer.models import Customer, CustomerPayment, CustomerTransaction
 from product.models.product_core import Product, Category, Unit
 from product.models.stock_management import Warehouse, Stock
 from product.services.inventory_reservation_service import InventoryReservationService
 from sale.models.sales_models import SalesOrder, SalesOrderItem, DeliveryNote
 from sale.models import Sale
 from sale.services.sales_service import SalesService
-from client.services.customer_allocation_audit_service import CustomerAllocationAuditService
+from customer.services.customer_allocation_audit_service import CustomerAllocationAuditService
 
 User = get_user_model()
 
@@ -34,13 +34,13 @@ class TestSalesOrderDownPaymentLifecycle:
             name="شركة الأهرام للتجارة",
             code="CUST-DP-001",
             phone="01099887766",
-            client_type="company"
+            customer_type="company"
         )
         self.other_customer = Customer.objects.create(
             name="شركة النيل للخدمات",
             code="CUST-DP-002",
             phone="01099887755",
-            client_type="company"
+            customer_type="company"
         )
         self.warehouse, _ = Warehouse.objects.get_or_create(
             code="WH-DP-01",

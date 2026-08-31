@@ -14,7 +14,7 @@ try:
 except ImportError:
     PaperServiceDetails = None
     HAS_PAPER_SERVICE_DETAILS = False
-from client.models import Customer
+from customer.models import Customer
 
 
 class PricingOrderForm(forms.ModelForm):
@@ -157,7 +157,6 @@ class PricingOrderForm(forms.ModelForm):
         model = PrintingOrder
         fields = [
             "customer",
-            "client",
             "work_order",
             "currency",
             "title",
@@ -191,10 +190,6 @@ class PricingOrderForm(forms.ModelForm):
         ]
         widgets = {
             "customer": forms.Select(attrs={
-                "class": "form-control select2",
-                "data-placeholder": "اختر العميل...",
-            }),
-            "client": forms.Select(attrs={
                 "class": "form-control select2",
                 "data-placeholder": "اختر العميل...",
             }),
@@ -443,12 +438,6 @@ class PricingOrderForm(forms.ModelForm):
         with transaction.atomic():
             instance = super().save(commit=False)
             
-            # مزامنة customer و client
-            if not instance.customer and instance.client:
-                instance.customer = instance.client
-            elif not instance.client and instance.customer:
-                instance.client = instance.customer
-                
             # مزامنة final_price و sale_price
             if not instance.final_price and instance.sale_price:
                 instance.final_price = instance.sale_price
@@ -476,7 +465,7 @@ class OrderSearchForm(forms.Form):
         }),
     )
 
-    client = forms.ModelChoiceField(
+    customer = forms.ModelChoiceField(
         label=_("العميل"),
         queryset=Customer.objects.filter(is_active=True),
         required=False,

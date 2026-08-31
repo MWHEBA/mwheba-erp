@@ -70,7 +70,7 @@ class Command(BaseCommand):
             'enforcement_priority': 4
         },
         'CustomerPayment': {
-            'app': 'client',
+            'app': 'customer',
             'model': 'CustomerPayment',
             'authoritative_service': 'CustomerService',
             'risk_level': 'HIGH',

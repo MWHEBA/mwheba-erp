@@ -18,7 +18,7 @@ import logging
 from sale.models import Sale, SaleItem, SalePayment, SaleReturn, SaleReturnItem
 from governance.services.accounting_gateway import AccountingGateway
 from governance.services.movement_service import MovementService
-from client.services.customer_service import CustomerService
+from customer.services.customer_service import CustomerService
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -62,7 +62,7 @@ class SaleService:
                     list(Stock.objects.filter(product_id__in=product_ids, warehouse_id=data['warehouse_id']).order_by('id').select_for_update())
             
             if data.get('customer_id'):
-                from client.models import Customer
+                from customer.models import Customer
                 list(Customer.objects.filter(id=data['customer_id']).select_for_update())
 
             # 1. إنشاء الفاتورة
@@ -783,7 +783,7 @@ class SaleService:
 
             # معالجة خاصة للخصم المباشر من الرصيد المسبق للعميل
             if pm == 'PREPAID_BALANCE':
-                from client.services.customer_allocation_audit_service import CustomerAllocationAuditService
+                from customer.services.customer_allocation_audit_service import CustomerAllocationAuditService
                 audit = CustomerAllocationAuditService.allocate_customer_prepaid_balance_to_sale(
                     sale=sale,
                     amount_to_allocate=amount,

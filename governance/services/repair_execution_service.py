@@ -437,7 +437,7 @@ class RepairExecutionService:
     def _relink_customer_payment(self, entry, description: str, result: RepairExecutionResult) -> bool:
         """Attempt to relink customer payment journal entry"""
         try:
-            CustomerPayment = apps.get_model('client', 'CustomerPayment')
+            CustomerPayment = apps.get_model('customer', 'CustomerPayment')
 
             potential_payments = CustomerPayment.objects.filter(
                 created_at__date=entry.date
@@ -445,13 +445,13 @@ class RepairExecutionService:
 
             for payment in potential_payments:
                 existing_entries = entry.__class__.objects.filter(
-                    source_module='client',
+                    source_module='customer',
                     source_model='CustomerPayment',
                     source_id=payment.id
                 ).exclude(id=entry.id)
 
                 if not existing_entries.exists():
-                    entry.source_module = 'client'
+                    entry.source_module = 'customer'
                     entry.source_model = 'CustomerPayment'
                     entry.source_id = payment.id
                     entry.save()

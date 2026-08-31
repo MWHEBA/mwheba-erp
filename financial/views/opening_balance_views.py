@@ -101,7 +101,7 @@ def opening_balance_wizard(request, pk=None):
     currencies = Currency.objects.filter(is_active=True)
 
     try:
-        from client.models import Customer
+        from customer.models import Customer
         customers = Customer.objects.filter(is_active=True)
     except Exception:
         customers = []
@@ -113,7 +113,7 @@ def opening_balance_wizard(request, pk=None):
         suppliers = []
 
     from financial.services.role_registry import AccountRoleRegistry, AccountRoleNames
-    from client.models import Customer
+    from customer.models import Customer
     from supplier.models import Supplier
 
     control_codes = set()
@@ -346,8 +346,8 @@ def opening_balance_add_line_action(request, pk):
 
         # Auto-resolve account_id based on line_type
         if line_type == 'AR' and customer_id:
-            from client.models import Customer
-            from client.services.customer_service import CustomerService
+            from customer.models import Customer
+            from customer.services.customer_service import CustomerService
             customer = Customer.objects.filter(pk=customer_id).first()
             if customer:
                 if not customer.financial_account_id:

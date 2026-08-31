@@ -9,7 +9,7 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from django.core.paginator import Paginator
 
-from client.models import Customer
+from customer.models import Customer
 from sale.models import Sale, CreditNote
 from sale.services.sales_reversal_service import SalesReversalService
 

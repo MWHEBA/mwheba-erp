@@ -13,7 +13,7 @@ class Migration(migrations.Migration):
         ("supplier", "0001_initial"),
         ("financial", "0001_initial"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
-        ("client", "0003_initial"),
+        ("customer", "0003_initial"),
     ]
 
     operations = [
@@ -223,7 +223,7 @@ class Migration(migrations.Migration):
                 null=True,
                 on_delete=django.db.models.deletion.SET_NULL,
                 related_name="suppliers",
-                to="client.paymentterm",
+                to="customer.paymentterm",
                 verbose_name="شروط السداد المعيارية",
             ),
         ),

@@ -33,7 +33,7 @@ class ValidationAuditLog(models.Model):
 
     MODULE_CHOICES = (
         ('financial', _('المالية')),
-        ('client', _('العملاء')),
+        ('customer', _('العملاء')),
         ('product', _('المنتجات')),
         ('sale', _('المبيعات')),
         ('purchase', _('المشتريات')),
@@ -199,7 +199,7 @@ class ValidationAuditLog(models.Model):
             validation_type: نوع التحقق (chart_of_accounts, accounting_period, both)
             failure_reason: السبب التقني للفشل
             error_message: رسالة الخطأ بالعربية
-            module: الوحدة (client, financial, etc.)
+            module: الوحدة (customer, financial, etc.)
             transaction_type: نوع المعاملة (اختياري)
             transaction_date: تاريخ المعاملة (اختياري)
             transaction_amount: مبلغ المعاملة (اختياري)

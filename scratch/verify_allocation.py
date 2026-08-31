@@ -13,8 +13,8 @@ django.setup()
 
 from django.utils import timezone
 from django.contrib.auth import get_user_model
-from client.models import Customer, CustomerPayment
-from client.services.customer_allocation_audit_service import CustomerAllocationAuditService
+from customer.models import Customer, CustomerPayment
+from customer.services.customer_allocation_audit_service import CustomerAllocationAuditService
 from supplier.models import Supplier, SupplierType, SupplierAdvancePayment
 from supplier.services.supplier_allocation_service import SupplierAllocationService
 from sale.models import Sale, SalePayment

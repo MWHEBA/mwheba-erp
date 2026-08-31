@@ -558,7 +558,7 @@
           <div class="d-flex justify-content-between border-bottom pb-2">
             <span class="text-muted">{% trans "اسم العميل:" %}</span>
             <span class="fw-bold">
-              <a href="{% url 'client:customer_detail' so.customer.id %}" class="text-primary text-decoration-none">
+              <a href="{% url "customer:customer_detail" so.customer.id %}" class="text-primary text-decoration-none">
                 {{ so.customer.name }}
               </a>
             </span>

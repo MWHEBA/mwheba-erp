@@ -13,7 +13,7 @@ from financial.models import (
 )
 from financial.services.revenue_recognition_service import RevenueRecognitionService
 from product.models import Product, Category, Unit, Warehouse, Stock
-from client.models import Customer
+from customer.models import Customer
 from sale.services.sales_service import SalesService
 from financial.exceptions import FinancialCoreError
 

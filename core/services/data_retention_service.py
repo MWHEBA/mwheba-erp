@@ -54,7 +54,7 @@ class DataRetentionService:
         default_policies = [
             # Customer data - 7 years
             RetentionPolicy(
-                model_name='client.Customer',
+                model_name="customer.Customer",
                 retention_days=2555,
                 archive_before_delete=True,
                 anonymize_before_delete=True,
@@ -71,7 +71,7 @@ class DataRetentionService:
             
             # Payment records - 7 years
             RetentionPolicy(
-                model_name='client.CustomerPayment',
+                model_name="customer.CustomerPayment",
                 retention_days=2555,
                 archive_before_delete=True
             ),

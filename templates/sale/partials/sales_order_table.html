@@ -25,7 +25,7 @@
           <i class="fas fa-clipboard-list me-1"></i>{{ order.order_number }}
         </td>
         <td class="fw-semibold">
-          <a href="{% url 'client:customer_detail' order.customer_id %}" class="text-decoration-none text-dark" onclick="event.stopPropagation();">
+          <a href="{% url "customer:customer_detail" order.customer_id %}" class="text-decoration-none text-dark" onclick="event.stopPropagation();">
             {{ order.customer.name }}
           </a>
         </td>

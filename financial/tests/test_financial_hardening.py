@@ -6,7 +6,7 @@ from django.contrib.auth import get_user_model
 
 from sale.models import Sale, SalePayment
 from purchase.models import Purchase, PurchasePayment
-from client.models import Customer
+from customer.models import Customer
 from supplier.models import Supplier
 from product.models import Product, Category, Warehouse, Unit
 from financial.models import ChartOfAccounts, AccountType, AccountingPeriod
@@ -75,7 +75,7 @@ def hardening_env(db):
         user=user
     )
 
-    from client.services import CustomerService
+    from customer.services import CustomerService
     customer = CustomerService().create_customer(
         name="Hardened Customer",
         code="HCUST01",

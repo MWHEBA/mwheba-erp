@@ -3,7 +3,7 @@ from decimal import Decimal
 from django.utils import timezone
 from django.contrib.auth import get_user_model
 
-from client.models import Customer, CustomerCreditProfile
+from customer.models import Customer, CustomerCreditProfile
 from financial.models import ChartOfAccounts, AccountType
 from presentation.services.customer_dashboard_presenter import CustomerDashboardPresenter
 from presentation.services.financial_dashboard_presenter import FinancialDashboardPresenter

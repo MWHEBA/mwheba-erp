@@ -58,5 +58,5 @@ class Command(BaseCommand):
         )
         
         self.stdout.write('\n🔗 يمكنك الآن الوصول للإعدادات عبر:')
-        self.stdout.write('   • الرابط: /supplier/settings/types/')
+        self.stdout.write('   • الرابط: /suppliers/settings/types/')
         self.stdout.write('   • القائمة الجانبية: الموردين > إعدادات أنواع الموردين')

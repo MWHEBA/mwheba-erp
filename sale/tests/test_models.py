@@ -3,7 +3,7 @@ from django.contrib.auth import get_user_model
 from django.utils import timezone
 from decimal import Decimal
 from sale.models import Sale, SaleItem, SaleReturn, SaleReturnItem
-from client.models import Customer
+from customer.models import Customer
 from product.models import Category, Unit, Product, Warehouse, Stock
 import datetime
 

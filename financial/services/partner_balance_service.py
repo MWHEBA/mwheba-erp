@@ -97,7 +97,7 @@ class PartnerBalanceService:
 
         try:
             if partner_type == "customer":
-                from client.models import Customer
+                from customer.models import Customer
                 Customer.objects.filter(pk=partner_id).update(balance=models.F("balance") + delta)
             elif partner_type == "supplier":
                 from supplier.models import Supplier

@@ -658,7 +658,7 @@
             $('#btn-save-customer').prop('disabled', false);
 
             $.ajax({
-                url: "{% url 'client:customer_add_ajax' %}",
+                url: "{% url "customer:customer_add_ajax" %}",
                 type: "GET",
                 success: function(response) {
                     if (response.success) {
@@ -700,7 +700,7 @@
             $('#modal-error-list').empty();
 
             $.ajax({
-                url: "{% url 'client:customer_add_ajax' %}",
+                url: "{% url "customer:customer_add_ajax" %}",
                 type: "POST",
                 data: $form.serialize(),
                 success: function(response) {

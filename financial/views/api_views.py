@@ -2604,7 +2604,7 @@ def data_integrity_check(request):
     from financial.models import JournalEntry, ChartOfAccounts
     from purchase.models import Purchase
     from product.models import Stock, StockMovement
-    from client.models import Customer
+    from customer.models import Customer
     from supplier.models import Supplier
     from django.db.models import Sum, Q, Count
     from decimal import Decimal

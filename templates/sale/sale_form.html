@@ -607,7 +607,7 @@
                         <i class="fas fa-save me-1"></i> حفظ الفاتورة
                     </button>
                     {% if selected_customer %}
-                        <a href="{% url 'client:customer_detail' pk=selected_customer.pk %}" class="btn btn-secondary">
+                        <a href="{% url "customer:customer_detail" pk=selected_customer.pk %}" class="btn btn-secondary">
                             <i class="fas fa-times me-1"></i> إلغاء
                         </a>
                     {% else %}
@@ -823,7 +823,7 @@
 
             // 3. جلب الكود التلقائي من السيرفر في الخلفية
             $.ajax({
-                url: "{% url 'client:customer_add_ajax' %}",
+                url: "{% url "customer:customer_add_ajax" %}",
                 type: "GET",
                 success: function(response) {
                     if (response.success) {
@@ -867,7 +867,7 @@
             $('#modal-error-list').empty();
 
             $.ajax({
-                url: "{% url 'client:customer_add_ajax' %}",
+                url: "{% url "customer:customer_add_ajax" %}",
                 type: "POST",
                 data: $form.serialize(),
                 success: function(response) {

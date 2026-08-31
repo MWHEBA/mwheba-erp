@@ -400,15 +400,15 @@ function downloadDocumentPDF(pdfUrl, printUrl, docNumber) {
                     showToastNotification("{% if is_english %}PDF downloaded successfully!{% else %}تم تحميل الـ PDF بنجاح!{% endif %}");
                 });
             } else {
-                generateClientPDF(fileName);
+                generateBrowserPDF(fileName);
             }
         })
         .catch(err => {
-            generateClientPDF(fileName);
+            generateBrowserPDF(fileName);
         });
 }
 
-function generateClientPDF(fileName) {
+function generateBrowserPDF(fileName) {
     let element = document.querySelector('.print-container') || document.querySelector('.invoice-card') || document.querySelector('.card') || document.body;
     
     function doRender() {

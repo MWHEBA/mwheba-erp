@@ -73,7 +73,7 @@ class OrderValidator:
             warnings = []
             
             # التحقق من البيانات الأساسية
-            if not order.client:
+            if not order.customer:
                 missing_fields.append(_('العميل'))
             
             if not order.product_name:
@@ -204,7 +204,7 @@ class OrderValidator:
         completed_fields = 0
         
         # البيانات الأساسية
-        if order.client:
+        if order.customer:
             completed_fields += 1
         if order.product_name:
             completed_fields += 1

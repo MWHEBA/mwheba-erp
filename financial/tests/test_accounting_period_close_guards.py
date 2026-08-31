@@ -9,7 +9,7 @@ from sale.services.sales_service import SalesService
 from sale.services.sales_reversal_service import SalesReversalService
 from financial.services.tax_service import TaxDeterminationService
 from product.models import Product, Category, Unit, Warehouse, Stock
-from client.models import Customer
+from customer.models import Customer
 from financial.exceptions import FinancialCoreError
 
 User = get_user_model()

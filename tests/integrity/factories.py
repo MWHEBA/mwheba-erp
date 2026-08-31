@@ -101,7 +101,7 @@ class IntegrityTestDataFactory:
     @staticmethod
     def create_test_customer(name="Test Customer", code="TEST_CUST"):
         """Create a test customer for sale operations"""
-        from client.models import Customer
+        from customer.models import Customer
         
         return Customer.objects.create(
             name=name,
@@ -382,7 +382,7 @@ class IntegrityTestDataFactory:
         from product.models import Stock, Product, Category, Unit, Warehouse
         from purchase.models import Purchase, PurchaseItem
         from supplier.models import Supplier
-        from client.models import Customer
+        from customer.models import Customer
         from governance.models import IdempotencyRecord, AuditTrail
         
         # Clean up in reverse dependency order

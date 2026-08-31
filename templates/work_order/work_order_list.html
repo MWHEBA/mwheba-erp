@@ -90,7 +90,7 @@
               <td>{{ page_obj.start_index|add:forloop.counter0 }}</td>
               <td class="fw-bold text-primary">{{ order.number }}</td>
               <td class="fw-bold text-start" onclick="event.stopPropagation();">
-                <a href="{% url 'client:customer_detail' pk=order.customer.id %}" class="text-decoration-none text-dark hover-primary d-flex align-items-center">
+                <a href="{% url "customer:customer_detail" pk=order.customer.id %}" class="text-decoration-none text-dark hover-primary d-flex align-items-center">
                   <i class="fas fa-user-tie text-muted me-2"></i>
                   <span>{{ order.customer.name }}</span>
                 </a>

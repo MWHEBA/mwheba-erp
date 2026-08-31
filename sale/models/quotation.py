@@ -23,7 +23,7 @@ class Quotation(models.Model):
 
     number = models.CharField(_("رقم عرض السعر"), max_length=20, unique=True)
     customer = models.ForeignKey(
-        "client.Customer",
+        "customer.Customer",
         on_delete=models.CASCADE,
         verbose_name=_("العميل"),
         related_name="quotations",

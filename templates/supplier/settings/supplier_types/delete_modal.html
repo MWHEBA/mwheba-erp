@@ -16,7 +16,7 @@
     <!-- معلومات النوع المراد حذفه -->
     <div class="alert alert-warning">
       <div class="d-flex align-items-center mb-3">
-        <div class="type-icon me-3" style="background-color: {{ supplier_type.color }};">
+        <div class="type-icon me-3" data-color="{{ supplier_type.color|default:'var(--primary-color)' }}">
           <i class="{{ supplier_type.icon }}"></i>
         </div>
         <div>
@@ -268,6 +268,10 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
+document.querySelectorAll('#deleteForm .type-icon[data-color]').forEach(function(el) {
+    el.style.backgroundColor = el.getAttribute('data-color') || 'var(--primary-color)';
+});
+
 function openEditModal() {
     // إغلاق مودال الحذف
     const deleteModal = bootstrap.Modal.getInstance(document.getElementById('typeModal'));
@@ -275,7 +279,7 @@ function openEditModal() {
     
     // فتح مودال التعديل
     setTimeout(() => {
-        fetch(`/supplier/settings/types/{{ supplier_type.id }}/edit/`, {
+        fetch(`/suppliers/settings/types/{{ supplier_type.id }}/edit/`, {
             headers: {
                 'X-Requested-With': 'XMLHttpRequest'
             }

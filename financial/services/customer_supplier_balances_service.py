@@ -31,14 +31,8 @@ class CustomerSupplierBalancesService:
         """
         إنشاء تقرير أرصدة العملاء (AR Aging Report)
         """
-        return self.generate_client_balances_report()
-
-    def generate_client_balances_report(self) -> Dict[str, Any]:
-        """
-        إنشاء تقرير أرصدة العملاء
-        """
         try:
-            from client.models import Customer
+            from customer.models import Customer
         except ImportError:
             return {
                 "error": "نماذج العملاء غير متوفرة",
@@ -48,7 +42,7 @@ class CustomerSupplierBalancesService:
             }
 
         # جلب جميع العملاء
-        clients = Customer.objects.all().select_related("financial_account")
+        customers = Customer.objects.all().select_related("financial_account")
 
         accounts_data = []
         total_current = Decimal("0")
@@ -57,8 +51,8 @@ class CustomerSupplierBalancesService:
         total_90 = Decimal("0")
         total_over_90 = Decimal("0")
 
-        for client in clients:
-            account_data = self._calculate_client_balance(client)
+        for customer in customers:
+            account_data = self._calculate_customer_balance(customer)
 
             if account_data["total_balance"] > 0:
                 accounts_data.append(account_data)
@@ -200,15 +194,15 @@ class CustomerSupplierBalancesService:
             "as_of_date": self.as_of_date,
         }
 
-    def _calculate_client_balance(self, client) -> Dict[str, Any]:
+    def _calculate_customer_balance(self, customer) -> Dict[str, Any]:
         """حساب رصيد العميل حسب فترات الاستحقاق"""
         try:
             from sale.models import Sale
         except ImportError:
-            return self._empty_balance(client.code if hasattr(client, 'code') else '', client.name)
+            return self._empty_balance(customer.code if hasattr(customer, 'code') else '', customer.name)
 
         sales = Sale.objects.filter(
-            customer=client,
+            customer=customer,
             issue_date__lte=self.as_of_date
         ).exclude(payment_status='paid')
 
@@ -239,11 +233,11 @@ class CustomerSupplierBalancesService:
                     over_90 += remaining
 
         total_balance = current + days_1_30 + days_31_60 + days_61_90 + over_90
-        account_code = client.financial_account.code if getattr(client, "financial_account", None) else (client.code or "")
+        account_code = customer.financial_account.code if getattr(customer, "financial_account", None) else (customer.code or "")
 
         return {
             "account_code": account_code,
-            "account_name": client.name,
+            "account_name": customer.name,
             "current": current,
             "days_1_30": days_1_30,
             "days_31_60": days_31_60,

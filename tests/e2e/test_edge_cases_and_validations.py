@@ -125,7 +125,7 @@ class TestEdgeCasesAndValidations:
         - محاولة بيع: 7000 ج.م
         - النتيجة المتوقعة: فشل أو تحذير
         """
-        from client.services.customer_service import CustomerService
+        from customer.services.customer_service import CustomerService
         from product.models import Product, Stock
         from sale.services.sale_service import SaleService
         
@@ -360,7 +360,7 @@ class TestEdgeCasesAndValidations:
         - محاولة إنشاء عميل آخر بنفس الكود
         - النتيجة المتوقعة: فشل العملية
         """
-        from client.services.customer_service import CustomerService
+        from customer.services.customer_service import CustomerService
         
         print("\n" + "="*80)
         print("اختبار: رفض الأكواد المكررة")

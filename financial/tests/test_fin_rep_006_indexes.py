@@ -1,6 +1,6 @@
 import pytest
 from django.db import models
-from client.models import CustomerTransaction, CustomerAllocationAudit
+from customer.models import CustomerTransaction, CustomerAllocationAudit
 from financial.models import RevenueRecognitionScheduleLine, RevenueRecognitionEntry, TaxDeterminationAudit
 from product.models import InventoryReservation
 from sale.models import SalesReturnHeader, SalesReturnAudit, CreditNote, CreditNoteAudit

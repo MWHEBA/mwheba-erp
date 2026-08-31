@@ -2,7 +2,7 @@
  * field-handlers.js - معالجات الحقول الديناميكية للنظام الجديد - المحسن
  * 
  * هذا الملف يحتوي على معالجات احترافية للحقول مع تحسينات المرحلة الأولى:
- * - id_client (Select2 مع البحث)
+ * - id_customer (Select2 مع البحث)
  * - id_product_type (Select مع البيانات من API)
  * - id_product_size (Select مع البيانات من API)
  * 
@@ -33,7 +33,7 @@ PrintingPricingSystem.FieldHandlers = {
         // إعدادات الحفظ التلقائي
         autoSaveInterval: 30000, // 30 ثانية
         autoSaveFields: [
-            'client', 'title', 'quantity', 'product_type', 'product_size', 'product_width', 'product_height',
+            'customer', 'title', 'quantity', 'product_type', 'product_size', 'product_width', 'product_height',
             'order_type', 'has_internal_content', 'open_size_width', 'open_size_height',
             'internal_page_count', 'binding_side', 'print_sides', 'print_direction', 'colors_design',
             'colors_front', 'colors_back', 'design_price', 'supplier', 'press',
@@ -62,7 +62,7 @@ PrintingPricingSystem.FieldHandlers = {
      * ذاكرة التخزين المؤقت للبيانات
      */
     cache: {
-        'clients': { data: null, timestamp: 0 },
+        'customers': { data: null, timestamp: 0 },
         'product-types': { data: null, timestamp: 0 },
         'product-sizes': { data: null, timestamp: 0 },
         'piece_size': { data: null, timestamp: 0 }
@@ -110,7 +110,7 @@ PrintingPricingSystem.FieldHandlers = {
      */
     init: function() {
         
-        this.initClientField();
+        this.initCustomerField();
         this.initProductTypeField();
         this.initProductSizeField();
         this.initPieceSizeField();
@@ -191,22 +191,22 @@ PrintingPricingSystem.FieldHandlers = {
     /**
      * تهيئة حقل العميل مع Select2
      */
-    initClientField: function() {
-        const clientField = $('#id_client');
-        if (!clientField.length) {
+    initCustomerField: function() {
+        const customerField = $('#id_customer');
+        if (!customerField.length) {
             console.warn('⚠️ حقل العميل غير موجود');
             return;
         }
 
 
         // تحويل الحقل إلى Select2 مع البحث الديناميكي
-        clientField.select2({
+        customerField.select2({
             ...this.config.select2Config,
             placeholder: 'اختر العميل...',
             allowClear: true,
             minimumInputLength: 0,
             ajax: {
-                url: this.config.apiBaseUrl + 'get-clients/',
+                url: this.config.apiBaseUrl + 'get-customers/',
                 dataType: 'json',
                 delay: 300,
                 data: function(params) {
@@ -232,14 +232,14 @@ PrintingPricingSystem.FieldHandlers = {
                 },
                 cache: true
             },
-            templateResult: this.formatClientOption,
-            templateSelection: this.formatClientSelection
+            templateResult: this.formatCustomerOption,
+            templateSelection: this.formatCustomerSelection
         });
 
         // معالج تغيير العميل
-        clientField.on('select2:select', (e) => {
+        customerField.on('select2:select', (e) => {
             const selectedData = e.params.data;
-            this.onClientChange(selectedData);
+            this.onCustomerChange(selectedData);
             
             // تفعيل الحفظ التلقائي (بدون مؤشر فوري)
             if (this.autoSave) {
@@ -248,8 +248,8 @@ PrintingPricingSystem.FieldHandlers = {
             }
         });
 
-        clientField.on('select2:clear', () => {
-            this.onClientClear();
+        customerField.on('select2:clear', () => {
+            this.onCustomerClear();
             
             // تفعيل الحفظ التلقائي (بدون مؤشر فوري)
             if (this.autoSave) {
@@ -263,15 +263,15 @@ PrintingPricingSystem.FieldHandlers = {
     /**
      * تنسيق عرض خيار العميل في القائمة
      */
-    formatClientOption: function(client) {
-        if (client.loading) {
-            return client.text;
+    formatCustomerOption: function(customer) {
+        if (customer.loading) {
+            return customer.text;
         }
 
         // عرض النص كما هو من API (يحتوي على الكود + الاسم + الشركة)
         const $container = $(
-            `<div class="select2-result-client">
-                <div class="client-name">${client.text}</div>
+            `<div class="select2-result-customer">
+                <div class="customer-name">${customer.text}</div>
             </div>`
         );
 
@@ -281,28 +281,25 @@ PrintingPricingSystem.FieldHandlers = {
     /**
      * تنسيق عرض العميل المختار (في الحقل بعد الاختيار)
      */
-    formatClientSelection: function(client) {
+    formatCustomerSelection: function(customer) {
         // عرض النص المركب من API فقط (لا تكرار)
-        return client.text;
+        return customer.text;
     },
 
     /**
      * معالج تغيير العميل
      */
-    onClientChange: function(clientData) {
-        // يمكن إضافة منطق إضافي هنا
-        // مثل تحديث معلومات العميل أو الأسعار الخاصة
-        
+    onCustomerChange: function(customerData) {
         // إطلاق حدث مخصص
-        $(document).trigger('client:changed', clientData);
+        $(document).trigger('customer:changed', customerData);
     },
 
     /**
      * معالج مسح العميل
      */
-    onClientClear: function() {
+    onCustomerClear: function() {
         // إطلاق حدث مخصص
-        $(document).trigger('client:cleared');
+        $(document).trigger('customer:cleared');
     },
 
     /**
@@ -3241,7 +3238,7 @@ PrintingPricingSystem.FieldHandlers = {
         if (!selectElement.length) return;
         
         $.ajax({
-            url: '/supplier/api/suppliers/by-service-type/',
+            url: '/suppliers/api/suppliers/by-service-type/',
             method: 'GET',
             data: {
                 service_type: 'coating'
@@ -3301,7 +3298,7 @@ PrintingPricingSystem.FieldHandlers = {
             
             // تحميل خدمات التغطية للمورد
             $.ajax({
-                url: '/supplier/api/supplier-coating-services/',
+                url: '/suppliers/api/supplier-coating-services/',
                 method: 'GET',
                 data: { supplier_id: supplierId },
                 success: (response) => {
@@ -3456,7 +3453,7 @@ PrintingPricingSystem.FieldHandlers = {
      */
     getMissingRequiredFields: function() {
         const requiredFields = [
-            { id: 'id_client', name: 'العميل', section: 1 },
+            { id: 'id_customer', name: 'العميل', section: 1 },
             { id: 'id_title', name: 'عنوان الطلب', section: 1 },
             { id: 'id_product_type', name: 'نوع المنتج', section: 1 },
             { id: 'id_quantity', name: 'الكمية', section: 1 },
@@ -3787,7 +3784,7 @@ PrintingPricingSystem.FieldHandlers = {
                 if (age < 3600000 && draft.url === window.location.href) {
                     
                     // إعطاء أولوية لاستعادة الحقول التي لا تعتمد على APIs
-                    const priorityFields = ['client', 'title', 'quantity', 'order_type', 'has_internal_content', 'open_size_width', 'open_size_height', 'internal_page_count', 'binding_side', 'print_sides', 'internal_print_sides'];
+                    const priorityFields = ['customer', 'title', 'quantity', 'order_type', 'has_internal_content', 'open_size_width', 'open_size_height', 'internal_page_count', 'binding_side', 'print_sides', 'internal_print_sides'];
                     const colorFields = ['colors_design', 'colors_front', 'colors_back', 'design_price', 'internal_colors_design', 'internal_colors_front', 'internal_colors_back', 'internal_design_price']; // تحتاج print_sides أولاً
                     const apiDependentFields = ['product_type', 'product_size', 'paper_type', 'supplier', 'press', 'ctp_supplier', 'internal_ctp_supplier'];
                     const customSizeFields = ['product_width', 'product_height', 'piece_width', 'piece_height']; // تحتاج product_size و piece_size أولاً
@@ -4286,9 +4283,9 @@ PrintingPricingSystem.FieldHandlers = {
      */
     destroy: function() {
         // تنظيف Select2 للعميل
-        const clientField = $('#id_client');
-        if (clientField.hasClass('select2-hidden-accessible')) {
-            clientField.select2('destroy');
+        const customerField = $('#id_customer');
+        if (customerField.hasClass('select2-hidden-accessible')) {
+            customerField.select2('destroy');
         }
         // تنظيف Select2 لنوع المنتج
         const productTypeField = $('#id_product_type');

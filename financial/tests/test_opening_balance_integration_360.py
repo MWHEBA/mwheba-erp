@@ -10,7 +10,7 @@ from financial.models import (
     OpeningBalanceBatch,
     OpeningBalanceLine,
 )
-from client.models import Customer, CustomerTransaction
+from customer.models import Customer, CustomerTransaction
 from supplier.models import Supplier, SupplierTransaction
 from financial.services.opening_balance_service import OpeningBalancePostingService
 from financial.services.partner_exposure_service import BusinessPartnerExposureService

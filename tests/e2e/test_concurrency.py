@@ -55,7 +55,7 @@ class TestConcurrentSales:
         """
         from product.models import Product, Stock
         from sale.services.sale_service import SaleService
-        from client.services.customer_service import CustomerService
+        from customer.services.customer_service import CustomerService
         
         print("\n" + "="*80)
         print("اختبار: البيع المتزامن لنفس المنتج")
@@ -94,7 +94,7 @@ class TestConcurrentSales:
         ChartOfAccounts.objects.get_or_create(code='10400', defaults={'name': 'حساب المخزون', 'account_type': asset_type, 'is_active': True})
         
         # إنشاء 3 عملاء
-        from client.services.customer_service import CustomerService
+        from customer.services.customer_service import CustomerService
         customer_service = CustomerService()
         customers = []
         for i in range(3):
@@ -372,7 +372,7 @@ class TestConcurrentSales:
         from purchase.services.purchase_service import PurchaseService
         from sale.services.sale_service import SaleService
         from supplier.services.supplier_service import SupplierService
-        from client.services.customer_service import CustomerService
+        from customer.services.customer_service import CustomerService
         
         print("\n" + "="*80)
         print("اختبار: تحديثات المخزون المتزامنة")

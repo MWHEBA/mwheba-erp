@@ -124,7 +124,7 @@ const schemaOptionsCache = {};
 async function getSourceOptions(source) {
     if (schemaOptionsCache[source]) return schemaOptionsCache[source];
     try {
-        const resp = await fetch(`/supplier/api/schema-options/?source=${source}`);
+        const resp = await fetch(`/suppliers/api/schema-options/?source=${source}`);
         const data = await resp.json();
         schemaOptionsCache[source] = data.success ? data.options : [];
     } catch(e) {

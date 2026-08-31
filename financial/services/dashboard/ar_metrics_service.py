@@ -4,7 +4,7 @@ from typing import Optional, Any
 from django.db.models import Sum, Q
 from django.utils import timezone
 
-from client.models import CustomerTransaction, Customer
+from customer.models import CustomerTransaction, Customer
 from presentation.dto.dashboard_dto import ARMetricsDTO
 
 logger = logging.getLogger("financial.services.dashboard.ar_metrics_service")

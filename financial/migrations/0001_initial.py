@@ -3288,7 +3288,6 @@ class Migration(migrations.Migration):
                             ("inventory", "حركة مخزنية"),
                             ("sales_invoice", "فاتورة مبيعات"),
                             ("customer_payment", "تحصيل من عميل"),
-                            ("client_payment", "تحصيل من عميل"),
                             ("service_payment", "دفعة خدمات"),
                             ("purchase_invoice", "فاتورة مشتريات"),
                             ("vendor_payment", "سداد لمورد"),
@@ -3371,7 +3370,7 @@ class Migration(migrations.Migration):
                     "source_module",
                     models.CharField(
                         blank=True,
-                        help_text="الوحدة التي أنشأت القيد (client, transportation, hr, etc.)",
+                        help_text="الوحدة التي أنشأت القيد (customer, transportation, hr, etc.)",
                         max_length=50,
                         verbose_name="الوحدة المصدر",
                     ),
@@ -3724,7 +3723,6 @@ class Migration(migrations.Migration):
                             ("inventory", "حركة مخزنية"),
                             ("sales_invoice", "فاتورة مبيعات"),
                             ("customer_payment", "تحصيل من عميل"),
-                            ("client_payment", "تحصيل من عميل"),
                             ("service_payment", "دفعة خدمات"),
                             ("purchase_invoice", "فاتورة مشتريات"),
                             ("vendor_payment", "سداد لمورد"),
@@ -6660,7 +6658,7 @@ class Migration(migrations.Migration):
                     models.CharField(
                         choices=[
                             ("financial", "المالية"),
-                            ("client", "العملاء"),
+                            ("customer", "العملاء"),
                             ("product", "المنتجات"),
                             ("sale", "المبيعات"),
                             ("purchase", "المشتريات"),

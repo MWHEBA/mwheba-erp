@@ -9,7 +9,7 @@ from .views.order_views import (
 # تم حذف calculation_views - الحسابات تتم داخل نموذج الطلب ديناميكياً
 from .views.api_views import (
     CalculateCostAPIView, GetMaterialPriceAPIView, GetServicePriceAPIView,
-    ValidateOrderAPIView, OrderSummaryAPIView, GetClientsAPIView,
+    ValidateOrderAPIView, OrderSummaryAPIView, GetCustomersAPIView,
     GetProductTypesAPIView, GetProductSizesAPIView, GetPrintingSuppliersAPIView,
     GetPressesAPIView, GetPressPriceAPIView, GetCTPSuppliersAPIView,
     GetCTPPlatesAPIView, GetCTPPriceAPIView, GetPaperTypesAPIView,
@@ -73,7 +73,7 @@ api_patterns = [
     path('order-summary/<int:order_id>/', OrderSummaryAPIView.as_view(), name='api_order_summary'),
     
     # APIs للحقول الديناميكية ومعلومات العميل
-    path('get-clients/', GetClientsAPIView.as_view(), name='api_get_clients'),
+    path('get-customers/', GetCustomersAPIView.as_view(), name='api_get_customers'),
     path('customer-info/<int:customer_id>/', CustomerInfoAPIView.as_view(), name='api_customer_info'),
     path('get-product-types/', GetProductTypesAPIView.as_view(), name='api_get_product_types'),
     path('get-product-sizes/', GetProductSizesAPIView.as_view(), name='api_get_product_sizes'),

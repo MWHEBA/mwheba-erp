@@ -13,7 +13,7 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from core.models import SystemSetting
-from client.models import Customer
+from customer.models import Customer
 from product.models import Product, Warehouse, Stock
 from sale.models import Quotation, QuotationItem, Sale
 from sale.models.pricing import PriceList
@@ -722,7 +722,7 @@ def quotation_detail(request, pk):
         "title": _("عرض سعر {}").format(quotation.number),
         "page_title": _("عرض سعر {}").format(quotation.number),
         "page_subtitle": _('العميل: <a href="{}" class="text-decoration-none fw-bold text-primary"><i class="fas fa-user-tie me-1"></i>{}</a>').format(
-            reverse("client:customer_detail", kwargs={"pk": quotation.customer.id}),
+            reverse("customer:customer_detail", kwargs={"pk": quotation.customer.id}),
             quotation.customer.name
         ),
         "page_icon": "fas fa-file-signature",

@@ -2,7 +2,7 @@ from decimal import Decimal
 import pytest
 from django.test import TestCase
 from django.urls import reverse
-from client.models import Customer
+from customer.models import Customer
 from supplier.models import Supplier, SupplierType
 from financial.models.currency import Currency
 
@@ -27,13 +27,13 @@ class TestCustomerSupplierFilters(TestCase):
         self.c1 = Customer.objects.create(
             name="عميل محلي",
             code="CUST-FLT-1",
-            client_type="individual",
+            customer_type="individual",
             default_currency=self.curr_egp
         )
         self.c2 = Customer.objects.create(
             name="شركة دولية",
             code="CUST-FLT-2",
-            client_type="company",
+            customer_type="company",
             default_currency=self.curr_usd
         )
 
@@ -75,8 +75,8 @@ class TestCustomerSupplierFilters(TestCase):
         assert "USD" in curr_codes
         assert "EUR" not in curr_codes
 
-    def test_customer_client_type_filter(self):
-        qs = Customer.objects.filter(client_type="company")
+    def test_customer_customer_type_filter(self):
+        qs = Customer.objects.filter(customer_type="company")
         assert qs.filter(id=self.c2.id).exists()
         assert not qs.filter(id=self.c1.id).exists()
 

@@ -25,7 +25,7 @@ class PaymentAllocation(models.Model):
 
     # الربط الاختياري بالعميل أو المورد
     customer = models.ForeignKey(
-        'client.Customer',
+        "customer.Customer",
         on_delete=models.PROTECT,
         verbose_name=_("العميل"),
         null=True,

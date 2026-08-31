@@ -42,7 +42,7 @@
                 {% is_module_enabled 'customers_sales' as customers_sales_enabled %}
                 {% if customers_sales_enabled %}
                 <li class="sidebar-item">
-                    <a href="{% url 'client:customer_list' %}" class="sidebar-link {% if active_menu == 'customers' %}active{% endif %}">
+                    <a href="{% url "customer:customer_list" %}" class="sidebar-link {% if active_menu == 'customers' %}active{% endif %}">
                         <i class="fas fa-users sidebar-icon"></i>
                         <span class="sidebar-text">{% trans "العملاء" %}</span>
                     </a>
@@ -734,7 +734,7 @@
                         {% comment %}
                         TODO: إضافة كشف حساب عميل ومورد
                         <li>
-                            <a href="{% url 'client:customer_statement' %}" class="submenu-link">
+                            <a href="{% url "customer:customer_statement" %}" class="submenu-link">
                                 <i class="fas fa-receipt me-2"></i>{% trans "كشف حساب عميل" %}
                             </a>
                         </li>

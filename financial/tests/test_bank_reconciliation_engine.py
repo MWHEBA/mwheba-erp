@@ -59,7 +59,7 @@ class TestBankReconciliationEngine:
         # Post GL entry
         draft = LedgerCoreService.create_draft_entry(
             date=today,
-            description="Client Wire Deposit",
+            description="Customer Wire Deposit",
             reference="WIRE-7788",
             entry_type="manual",
             created_by=user,
@@ -112,7 +112,7 @@ class TestBankReconciliationEngine:
         # Post GL entry 2 days earlier
         draft = LedgerCoreService.create_draft_entry(
             date=date_gl,
-            description="Client Wire Probable",
+            description="Customer Wire Probable",
             reference="DIFF-REF-99",
             entry_type="manual",
             created_by=user,

@@ -672,7 +672,7 @@ def api_calculate_tax(request):
         supplier_id = data.get("supplier_id")
         is_tax_inclusive = data.get("is_tax_inclusive", False)
 
-        from client.models import Customer
+        from customer.models import Customer
         from supplier.models import Supplier
         cust = Customer.objects.filter(pk=customer_id).first() if customer_id else None
         supp = Supplier.objects.filter(pk=supplier_id).first() if supplier_id else None

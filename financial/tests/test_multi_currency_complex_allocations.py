@@ -4,8 +4,8 @@ from decimal import Decimal
 from django.utils import timezone
 from django.contrib.auth import get_user_model
 
-from client.models import Customer, CustomerTransaction
-from client.services.customer_subledger_service import CustomerSubledgerService
+from customer.models import Customer, CustomerTransaction
+from customer.services.customer_subledger_service import CustomerSubledgerService
 from financial.models import ChartOfAccounts, AccountType
 
 User = get_user_model()

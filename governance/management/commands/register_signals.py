@@ -31,7 +31,7 @@ class Command(BaseCommand):
         
         # List of known signal modules
         signal_modules = [
-            'client.signals',
+            'customer.signals',
             'supplier.signals',
             'purchase.signals',
             'sale.signals',

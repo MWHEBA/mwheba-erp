@@ -9,7 +9,7 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ("client", "0002_initial"),
+        ("customer", "0001_initial"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
@@ -99,7 +99,7 @@ class Migration(migrations.Migration):
                     models.ForeignKey(
                         on_delete=django.db.models.deletion.PROTECT,
                         related_name="work_orders",
-                        to="client.customer",
+                        to="customer.customer",
                         verbose_name="العميل",
                     ),
                 ),

@@ -26,7 +26,7 @@ from sale.services import SaleService
 from sale.services.sales_service import SalesService
 from product.models.product_core import Product
 from product.models.stock_management import Warehouse
-from client.models import Customer
+from customer.models import Customer
 from core.models import SystemSetting
 from financial.models import Currency, CostCenter
 from financial.services.exchange_rate_service import ExchangeRateService
@@ -349,7 +349,7 @@ def sales_order_create(request, quotation_id=None):
             # معالجة التحصيل الفوري للعربون إن طُلب وتوفرت صلاحية الخزينة
             if instant_down_payment and so.effective_required_down_payment > Decimal("0.00") and instant_treasury:
                 try:
-                    from client.services.customer_allocation_audit_service import CustomerAllocationAuditService
+                    from customer.services.customer_allocation_audit_service import CustomerAllocationAuditService
                     curr_model = Currency.objects.filter(code=so.currency).first()
                     CustomerAllocationAuditService.create_prepaid_payment(
                         customer_id=so.customer_id,
@@ -865,7 +865,7 @@ def sales_order_collect_down_payment(request, pk):
 
     try:
         with transaction.atomic():
-            from client.services.customer_allocation_audit_service import CustomerAllocationAuditService
+            from customer.services.customer_allocation_audit_service import CustomerAllocationAuditService
             from financial.models import Currency
             curr_model = Currency.objects.filter(code=so.currency).first()
 

@@ -13,7 +13,7 @@ class Migration(migrations.Migration):
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
         ("product", "0002_initial"),
         ("work_order", "0001_initial"),
-        ("client", "0003_initial"),
+        ("customer", "0003_initial"),
         ("sale", "0001_initial"),
     ]
 
@@ -66,7 +66,7 @@ class Migration(migrations.Migration):
             field=models.ForeignKey(
                 on_delete=django.db.models.deletion.PROTECT,
                 related_name="sales_returns",
-                to="client.customer",
+                to="customer.customer",
                 verbose_name="العميل",
             ),
         ),
@@ -194,7 +194,7 @@ class Migration(migrations.Migration):
             field=models.ForeignKey(
                 on_delete=django.db.models.deletion.PROTECT,
                 related_name="sales_orders",
-                to="client.customer",
+                to="customer.customer",
                 verbose_name="العميل",
             ),
         ),
@@ -302,7 +302,7 @@ class Migration(migrations.Migration):
             field=models.ForeignKey(
                 on_delete=django.db.models.deletion.PROTECT,
                 related_name="sales_invoices",
-                to="client.customer",
+                to="customer.customer",
                 verbose_name="العميل",
             ),
         ),
@@ -440,7 +440,7 @@ class Migration(migrations.Migration):
                 null=True,
                 on_delete=django.db.models.deletion.SET_NULL,
                 related_name="allocations",
-                to="client.customerpayment",
+                to="customer.customerpayment",
                 verbose_name="دفعة العميل المقدمة",
             ),
         ),
@@ -572,7 +572,7 @@ class Migration(migrations.Migration):
             field=models.ForeignKey(
                 on_delete=django.db.models.deletion.PROTECT,
                 related_name="sales",
-                to="client.customer",
+                to="customer.customer",
                 verbose_name="العميل",
             ),
         ),
@@ -711,7 +711,7 @@ class Migration(migrations.Migration):
             field=models.ForeignKey(
                 on_delete=django.db.models.deletion.PROTECT,
                 related_name="return_authorizations",
-                to="client.customer",
+                to="customer.customer",
                 verbose_name="العميل",
             ),
         ),
@@ -774,7 +774,7 @@ class Migration(migrations.Migration):
             field=models.ForeignKey(
                 on_delete=django.db.models.deletion.CASCADE,
                 related_name="quotations",
-                to="client.customer",
+                to="customer.customer",
                 verbose_name="العميل",
             ),
         ),
@@ -913,7 +913,7 @@ class Migration(migrations.Migration):
                 null=True,
                 on_delete=django.db.models.deletion.CASCADE,
                 related_name="discount_rules",
-                to="client.customer",
+                to="customer.customer",
                 verbose_name="العميل (اختياري)",
             ),
         ),
@@ -964,7 +964,7 @@ class Migration(migrations.Migration):
             field=models.ForeignKey(
                 on_delete=django.db.models.deletion.PROTECT,
                 related_name="delivery_notes",
-                to="client.customer",
+                to="customer.customer",
                 verbose_name="العميل",
             ),
         ),
@@ -1089,7 +1089,7 @@ class Migration(migrations.Migration):
             field=models.ForeignKey(
                 on_delete=django.db.models.deletion.PROTECT,
                 related_name="credit_notes",
-                to="client.customer",
+                to="customer.customer",
                 verbose_name="العميل",
             ),
         ),

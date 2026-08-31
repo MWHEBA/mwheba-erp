@@ -6,7 +6,7 @@ from utils.search import (
     build_smart_search_query,
     smart_search_filter,
 )
-from client.models import Customer
+from customer.models import Customer
 from financial.models.currency import Currency
 
 

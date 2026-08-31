@@ -2650,7 +2650,7 @@ def _get_schema_sources(schema):
 def service_type_schema_options_api(request):
     """
     API — جلب خيارات حقل source معين من printing_pricing.
-    GET /supplier/api/schema-options/?source=PaperType
+    GET /suppliers/api/schema-options/?source=PaperType
     """
     source = request.GET.get('source', '').strip()
     if not source:

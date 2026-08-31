@@ -5,7 +5,7 @@ from django.contrib.auth import get_user_model
 from core.services.system_reset_service import SystemResetService
 from core.models import DocumentSequenceRule, DocumentSequenceCounter, Notification, DashboardStat
 from governance.models import IdempotencyRecord
-from client.models import Customer
+from customer.models import Customer
 from supplier.models import Supplier
 from product.models import Product, Category, Unit, Warehouse, Stock, PriceHistory, SerialNumber
 from financial.models import (

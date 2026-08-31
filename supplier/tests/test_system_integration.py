@@ -399,9 +399,9 @@ class SupplierSystemIntegrationTest(TestCase):
         except Exception as e:
             self.fail(f"فشل في إنشاء النماذج: {e}")
         
-        # اختبار ال��صول للواجهات
+        # اختبار الوصول للواجهات
         try:
-            response = self.client.get('/supplier/')
+            response = self.client.get('/suppliers/')
             self.assertIn(response.status_code, [200, 302])
             print("   ✅ الوصول للواجهات نجح")
         except Exception as e:

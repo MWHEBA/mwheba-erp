@@ -4,7 +4,7 @@ from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.db.models import Q
 from .models import Sale, SaleItem, SalePayment, SaleReturn, SaleReturnItem, Quotation, CustomFieldDefinition
-from client.models import Customer
+from customer.models import Customer
 from product.models import Product, Stock, Warehouse
 from django.db import models
 from django.utils import timezone

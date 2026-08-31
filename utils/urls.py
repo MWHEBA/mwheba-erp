@@ -11,7 +11,7 @@ urlpatterns = [
     # سجلات النظام
     path("system-logs/", views.SystemLogView.as_view(), name="system_logs"),
     # Daftra Sync
-    path("daftra/sync-clients/", daftra_views.sync_clients, name="daftra_sync_clients"),
+    path("daftra/sync-customers/", daftra_views.sync_customers, name="daftra_sync_customers"),
     path("daftra/sync-suppliers/", daftra_views.sync_suppliers, name="daftra_sync_suppliers"),
     path("daftra/test-connection/", daftra_views.test_daftra_connection, name="daftra_test_connection"),
 ]

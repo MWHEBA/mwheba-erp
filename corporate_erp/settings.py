@@ -138,7 +138,7 @@ INSTALLED_APPS = [
     'core.apps.CoreConfig',
     'users',
     'governance.apps.GovernanceConfig',
-    'client',  # ✅ Client/Customer management
+    'customer',  # ✅ Customer management
     'sale',    # ✅ Sales management
     'supplier',
     'product.apps.ProductConfig',

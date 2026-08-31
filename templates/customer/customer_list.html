@@ -1,0 +1,339 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load crispy_forms_tags %}
+{% load app_tags %}
+{% load custom_filters %}
+{% load utils_extras %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<!-- جميع الستايلات موجودة في unified-components.css و components.css -->
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Page Header المركزي -->
+  {% include "shared/page_header.html" %}
+  
+  <!-- تصفية وبحث -->
+  <div class="section-container mb-4">
+    <h5 class="section-title" data-bs-toggle="collapse" data-bs-target="#filterSection" aria-expanded="{% if request.GET.search or request.GET.status or request.GET.has_debt or request.GET.currency or request.GET.customer_type %}true{% else %}false{% endif %}" style="cursor: pointer;">
+      <i class="fas fa-filter me-2"></i>{% trans "تصفية وبحث" %}
+      {% if request.GET.search or request.GET.status or request.GET.has_debt or request.GET.currency or request.GET.customer_type %}<span class="badge bg-primary ms-2">فعّال</span>{% endif %}
+      <i class="fas fa-chevron-down float-end"></i>
+    </h5>
+    <div class="collapse {% if request.GET.search or request.GET.status or request.GET.has_debt or request.GET.currency or request.GET.customer_type %}show{% endif %}" id="filterSection">
+      <div class="filter-section mb-4">
+        <form method="GET" action="{% url "customer:customer_list" %}" class="row g-2 align-items-end">
+          <input type="hidden" name="status" id="status" value="{{ request.GET.status|default:'active' }}">
+          <div class="col-md-3 col-sm-6">
+            <label for="search" class="form-label">{% trans "بحث" %}</label>
+            <input type="text" class="form-control" id="search" name="search" value="{{ request.GET.search }}" placeholder="اسم أو هاتف أو كود العميل">
+          </div>
+          <div class="col-md-2 col-sm-6">
+            <label for="customer_type" class="form-label">{% trans "التصنيف" %}</label>
+            <select class="form-select" id="customer_type" name="customer_type">
+              <option value="">{% trans "كل التصنيفات" %}</option>
+              {% for val, label in customer_types %}
+              <option value="{{ val }}" {% if request.GET.customer_type == val %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-2 col-sm-6">
+            <label for="currency" class="form-label">{% trans "العملة" %}</label>
+            <select class="form-select" id="currency" name="currency">
+              <option value="">{% trans "كل العملات" %}</option>
+              {% for curr in currencies %}
+              <option value="{{ curr.id }}" {% if request.GET.currency == curr.id|stringformat:"s" %}selected{% endif %}>{{ curr.name }} ({{ curr.code }})</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-2 col-sm-6">
+            <label for="has_debt" class="form-label">{% trans "المديونية" %}</label>
+            <select class="form-select" id="has_debt" name="has_debt">
+              <option value="">{% trans "الكل" %}</option>
+              <option value="1" {% if request.GET.has_debt == '1' %}selected{% endif %}>عليهم مديونية</option>
+              <option value="0" {% if request.GET.has_debt == '0' %}selected{% endif %}>بدون مديونية</option>
+            </select>
+          </div>
+          <div class="col-md-3 col-sm-12 d-flex gap-2 align-items-end">
+            <button type="submit" class="btn btn-primary flex-grow-1">
+              <i class="fas fa-search me-1"></i>{% trans "بحث" %}
+            </button>
+            <a href="{% url "customer:customer_list" %}{% if request.GET.status == 'inactive' %}?status=inactive{% endif %}" class="btn btn-outline-secondary">
+              <i class="fas fa-times me-1"></i>مسح
+            </a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  
+  <!-- قائمة العملاء -->
+  <div class="section-container">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0"><i class="fas fa-list me-2"></i>{% trans "قائمة العملاء" %}</h5>
+      </div>
+      <div class="card-body">
+        <div id="customers-table-container">
+        {% include "components/data_table.html" with table_id="customers-table" data=customers headers=headers action_buttons=action_buttons primary_key="id" table_class="hover clickable-rows" empty_message="لا يوجد عملاء متاحين" show_search=False show_length_menu=False disable_pagination=True show_currency=True clickable_rows=True row_click_url="/customers/0/detail/" %}
+        </div>
+      </div>
+
+      <!-- Django Pagination -->
+      <div id="pagination-wrapper">
+        {% include "partials/pagination.html" with page_obj=page_obj align="center" %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/global-table.js' %}"></script>
+<script>
+  function initTable() {
+    if (typeof GlobalTableManager !== 'undefined') {
+      GlobalTableManager.initializeTable('customers-table', {
+        paging: false, searching: false, info: false, dom: 't', ordering: true,
+        columnDefs: [
+          { targets: 'col-name', width: '20%' },
+          { targets: 'col-phone', width: '15%' },
+          { targets: 'col-address', width: '25%' }
+        ],
+        autoWidth: true, responsive: true
+      });
+    }
+    $('#customers-table tbody').off('click', 'tr').on('click', 'tr', function(e) {
+      if ($(e.target).closest('.col-actions, .btn, a, button').length > 0) return;
+      const itemId = $(this).data('id');
+      if (itemId && itemId !== '0') {
+        window.location.href = '/customers/' + itemId + '/detail/';
+      }
+    }).css('cursor', 'pointer');
+  }
+
+  $(document).ready(function() {
+    initTable();
+
+    let debounceTimer;
+    // Global Ajax search function
+    window.doSearch = function(customQueryStr) {
+      let queryString = '';
+      if (typeof customQueryStr === 'string' && customQueryStr.length > 0) {
+        queryString = customQueryStr;
+      } else {
+        const currentUrlParams = new URLSearchParams(window.location.search);
+        const statusVal = $('#status').val() || currentUrlParams.get('status') || '';
+        const params = new URLSearchParams({
+          search: $('#search').val() || '',
+          customer_type: $('#customer_type').val() || '',
+          currency: $('#currency').val() || '',
+          has_debt: $('#has_debt').val() || '',
+          status: statusVal,
+          page: 1
+        });
+        queryString = params.toString();
+      }
+
+      $.ajax({
+        url: '{% url "customer:customer_list" %}?' + queryString,
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        success: function(data) {
+          if (data.table_html !== undefined) {
+            $('#customers-table-container').html(data.table_html);
+          }
+          if (data.pagination_html !== undefined) {
+            $('#pagination-wrapper').html(data.pagination_html);
+          }
+          history.replaceState(null, '', '?' + queryString);
+          initTable();
+        }
+      });
+    };
+
+    $('#search').on('input', function() {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(function() { window.doSearch(); }, 400);
+    });
+
+    $('#customer_type, #currency, #has_debt, #status').on('change', function() {
+      window.doSearch();
+    });
+
+    $('form').on('submit', function(e) {
+      e.preventDefault();
+      window.doSearch();
+    });
+  });
+
+  // ===== مزامنة دفترة =====
+  function syncWithDaftra(type) {
+    const btn = document.getElementById('daftra-sync-btn');
+    const url = (type === 'customers') ? '/utils/daftra/sync-customers/' : '/utils/daftra/sync-suppliers/';
+    const label = (type === 'customers') ? 'العملاء' : 'الموردين';
+
+    Swal.fire({
+      title: `مزامنة ${label} مع دفترة`,
+      html: `
+        <div class="text-start">
+          <p id="sync-status-msg" class="mb-2">جاري الاتصال بدفترة...</p>
+          <div class="progress mb-3" style="height: 20px;">
+            <div id="sync-progress-bar" class="progress-bar progress-bar-striped progress-bar-animated bg-info"
+                 role="progressbar" style="width: 0%">0%</div>
+          </div>
+          <div id="sync-stats" class="d-none">
+            <div class="row text-center">
+              <div class="col-3"><span class="badge bg-success fs-6" id="stat-created">0</span><br><small>جديد</small></div>
+              <div class="col-3"><span class="badge bg-primary fs-6" id="stat-updated">0</span><br><small>محدّث</small></div>
+              <div class="col-3"><span class="badge bg-secondary fs-6" id="stat-skipped">0</span><br><small>بدون تغيير</small></div>
+              <div class="col-3"><span class="badge bg-danger fs-6" id="stat-errors">0</span><br><small>أخطاء</small></div>
+            </div>
+          </div>
+        </div>`,
+      showConfirmButton: false,
+      showCancelButton: true,
+      cancelButtonText: 'إلغاء',
+      allowOutsideClick: false,
+      didOpen: () => {
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]') 
+                        || document.querySelector('meta[name="csrf-token"]');
+        const csrfValue = csrfToken ? (csrfToken.value || csrfToken.getAttribute('content')) : '';
+        if (!csrfValue) { Swal.close(); toastr.error('خطأ في CSRF Token'); return; }
+
+        fetch(url, {
+          method: 'POST',
+          headers: { 'X-CSRFToken': csrfValue }
+        }).then(response => {
+          const reader = response.body.getReader();
+          const decoder = new TextDecoder();
+
+          function read() {
+            reader.read().then(({ done, value }) => {
+              if (done) return;
+              const lines = decoder.decode(value).split('\n').filter(l => l.trim());
+              lines.forEach(line => {
+                try {
+                  const data = JSON.parse(line);
+                  const bar = document.getElementById('sync-progress-bar');
+                  const msg = document.getElementById('sync-status-msg');
+                  const stats = document.getElementById('sync-stats');
+
+                  if (bar) { bar.style.width = data.progress + '%'; bar.textContent = data.progress + '%'; }
+
+                  if (data.type === 'status' && msg) msg.textContent = data.message;
+
+                  if (data.stats && stats) {
+                    stats.classList.remove('d-none');
+                    document.getElementById('stat-created').textContent = data.stats.created;
+                    document.getElementById('stat-updated').textContent = data.stats.updated;
+                    document.getElementById('stat-skipped').textContent = data.stats.skipped;
+                    document.getElementById('stat-errors').textContent = data.stats.errors;
+                  }
+
+                  if (data.type === 'complete') {
+                    if (bar) bar.classList.replace('bg-info', data.stats.errors > 0 && data.stats.created === 0 && data.stats.updated === 0 ? 'bg-warning' : 'bg-success');
+                    const hasErrors = data.stats && data.stats.errors > 0;
+                    const msg = hasErrors
+                      ? `تمت المزامنة مع ${data.stats.errors} خطأ - تم: ${data.stats.created} جديد، ${data.stats.updated} محدّث`
+                      : `تمت مزامنة ${label} بنجاح`;
+                    hasErrors ? toastr.warning(msg) : toastr.success(msg);
+                    setTimeout(() => { Swal.close(); location.reload(); }, 2000);
+                  }
+
+                  if (data.type === 'error') {
+                    if (msg) msg.textContent = data.message;
+                    if (bar) bar.classList.replace('bg-info', 'bg-danger');
+                    Swal.update({ showConfirmButton: true, confirmButtonText: 'إغلاق', showCancelButton: false });
+                    toastr.error(data.message);
+                  }
+                } catch(e) {}
+              });
+              read();
+            });
+          }
+          read();
+        }).catch(err => {
+          toastr.error('فشل الاتصال بالخادم');
+          Swal.close();
+        });
+      }
+    });
+  }
+  function reactivateCustomer(customerId) {
+    if (!customerId) return;
+    Swal.fire({
+      title: 'تأكيد إعادة التنشيط',
+      text: 'هل أنت متأكد من رغبتك في إعادة تنشيط هذا العميل وتفعيل حسابه المالي؟',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: 'var(--bs-success, #198754)',
+      cancelButtonColor: 'var(--bs-secondary, #6c757d)',
+      confirmButtonText: '<i class="fas fa-undo me-1"></i> إعادة تنشيط',
+      cancelButtonText: 'إلغاء',
+      reverseButtons: true
+    }).then((result) => {
+      if (result.isConfirmed) {
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]') 
+                        || document.querySelector('meta[name="csrf-token"]');
+        const csrfValue = csrfToken ? (csrfToken.value || csrfToken.getAttribute('content')) : '';
+        
+        $.ajax({
+          url: '/customers/' + customerId + '/reactivate/',
+          type: 'POST',
+          headers: { 'X-CSRFToken': csrfValue, 'X-Requested-With': 'XMLHttpRequest' },
+          success: function(response) {
+            if (response && response.success) {
+              if (window.showNotification) {
+                window.showNotification(response.message || 'تمت إعادة تنشيط العميل بنجاح', 'success', 'نجاح');
+              } else if (typeof toastr !== 'undefined') {
+                toastr.success(response.message || 'تمت إعادة تنشيط العميل بنجاح');
+              }
+              const currentSearch = window.location.search ? window.location.search.substring(1) : '';
+              if (window.doSearch) {
+                window.doSearch(currentSearch);
+              } else {
+                location.reload();
+              }
+            } else {
+              const msg = (response && response.message) ? response.message : 'حدث خطأ أثناء إعادة التنشيط';
+              if (window.showNotification) {
+                window.showNotification(msg, 'error', 'خطأ');
+              } else if (typeof toastr !== 'undefined') {
+                toastr.error(msg);
+              }
+            }
+          },
+          error: function(xhr) {
+            let msg = 'حدث خطأ أثناء إعادة التنشيط';
+            if (xhr.responseJSON && xhr.responseJSON.message) {
+              msg = xhr.responseJSON.message;
+            }
+            if (window.showNotification) {
+              window.showNotification(msg, 'error', 'خطأ');
+            } else if (typeof toastr !== 'undefined') {
+              toastr.error(msg);
+            }
+          }
+        });
+      }
+    });
+  }
+
+  function openDeleteModal(itemId) {
+    if (window.EntityDeleteArchiveController) {
+      window.EntityDeleteArchiveController.open({
+        entityType: 'customer',
+        entityId: itemId,
+        deleteUrl: '/customers/' + itemId + '/delete/',
+        tableContainerId: 'customers-table-container',
+        paginationContainerId: 'pagination-wrapper'
+      });
+    }
+  }
+</script>
+{% csrf_token %}
+{% include "components/modals/entity_delete_archive_modal.html" %}
+{% endblock %}

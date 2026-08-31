@@ -192,8 +192,6 @@ def breadcrumb_context(request):
         "Category": "التصنيفات",
         "Categories": "التصنيفات",
         "Financial": "الإدارة المالية",
-        "Client": "العملاء",
-        "Clients": "العملاء",
         "Customer": "العملاء",
         "Customers": "العملاء",
         "Sale": "المبيعات",
@@ -288,8 +286,8 @@ def get_dashboard_counts():
                     total=Count('id')
                 )['total']
 
-            if apps.is_installed('client'):
-                Customer = apps.get_model('client', 'Customer')
+            if apps.is_installed('customer'):
+                Customer = apps.get_model('customer', 'Customer')
                 counts['customers'] = Customer.objects.filter(
                     is_active=True
                 ).aggregate(total=Count('id'))['total']

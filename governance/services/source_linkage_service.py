@@ -23,11 +23,11 @@ class SourceLinkageService:
     
     # Allowlist of valid source models for journal entries
     ALLOWED_SOURCES = {
-        'client.CustomerAllocationAudit',
+        'customer.CustomerAllocationAudit',
         'supplier.SupplierAllocationAudit',
         'sale.CustomerAllocationAudit',
         'purchase.SupplierAllocationAudit',
-        'client.CustomerPayment',
+        "customer.CustomerPayment",
         'purchase.PurchasePayment',
         'hr.PayrollPayment',
         'hr.Payroll',  # Added for POC testing - HR payroll records

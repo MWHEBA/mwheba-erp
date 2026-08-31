@@ -176,7 +176,7 @@ class BusinessPartnerExposureService:
                         results[pid].append(dto)
 
         elif partner_type == "customer":
-            from client.models import Customer, CustomerTransaction
+            from customer.models import Customer, CustomerTransaction
             from sale.models import Sale
             customers_map = {c.id: c for c in Customer.objects.filter(id__in=partner_ids).select_related('default_currency')}
             partner_currency_map: Dict[int, Dict[str, Dict[str, Decimal]]] = {}

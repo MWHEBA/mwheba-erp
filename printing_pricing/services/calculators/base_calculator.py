@@ -305,14 +305,14 @@ class BaseCalculator(ABC):
         """
         try:
             # التحقق أولاً من الأتعاب المقطوعة من الطلب أو المعاملات
-            design_service_type = parameters.get('design_service_type') or getattr(self.order, 'design_service_type', 'CLIENT_READY')
+            design_service_type = parameters.get('design_service_type') or getattr(self.order, 'design_service_type', 'CUSTOMER_READY')
             direct_fee = parameters.get('design_fee')
             
             if direct_fee is not None:
                 total_cost = Decimal(str(direct_fee))
             elif hasattr(self.order, 'design_fee') and self.order.design_fee > 0:
                 total_cost = Decimal(str(self.order.design_fee))
-            elif design_service_type == 'CLIENT_READY':
+            elif design_service_type == 'CUSTOMER_READY':
                 total_cost = Decimal('0.00')
             elif design_service_type == 'PREPRESS_EDIT':
                 total_cost = Decimal('150.00')

@@ -60,7 +60,7 @@ class ExcelImportService:
         all_currencies = {c.code.upper(): c for c in Currency.objects.filter(is_active=True)}
         
         try:
-            from client.models import Customer
+            from customer.models import Customer
             all_customers = {c.code: c for c in Customer.objects.filter(is_active=True) if hasattr(c, 'code') and c.code}
             all_customers.update({str(c.id): c for c in Customer.objects.filter(is_active=True)})
         except Exception:
@@ -94,7 +94,7 @@ class ExcelImportService:
             if not account:
                 if line_type == 'AR' and customer_obj:
                     if not getattr(customer_obj, 'financial_account', None):
-                        from client.services.customer_service import CustomerService
+                        from customer.services.customer_service import CustomerService
                         account = CustomerService.create_financial_account_for_customer(customer_obj)
                     else:
                         account = customer_obj.financial_account

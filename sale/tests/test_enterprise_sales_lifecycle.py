@@ -2,7 +2,7 @@ import pytest
 from decimal import Decimal
 from django.utils import timezone
 from django.contrib.auth import get_user_model
-from client.models import Customer
+from customer.models import Customer
 from product.models import Product, Warehouse, Category, Unit
 from sale.models import SalesOrder, SalesOrderItem, DeliveryNote, DeliveryNoteItem, Sale
 from sale.services.sales_service import SalesService

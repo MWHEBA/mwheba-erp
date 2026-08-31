@@ -1,7 +1,7 @@
 import logging
 from decimal import Decimal
 from django.db import models, transaction
-from client.models import Customer
+from customer.models import Customer
 from supplier.models import Supplier
 
 logger = logging.getLogger(__name__)
@@ -20,7 +20,7 @@ class PartnerBalanceAuditService:
         تدقيق ومطابقة رصيد عميل محدد
         """
         from sale.models import Sale, SalePayment, SaleReturn
-        from client.models import CustomerTransaction
+        from customer.models import CustomerTransaction
 
         try:
             customer = Customer.objects.get(pk=customer_id)

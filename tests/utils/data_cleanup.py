@@ -47,8 +47,8 @@ class TestDataCleanupManager:
             'purchase.PurchaseReturn',
             
             # العملاء والموردين
-            'client.Customer',
-            'client.CustomerPayment',
+            "customer.Customer",
+            "customer.CustomerPayment",
             'supplier.Supplier',
             
             # الموظفين والموارد البشرية

@@ -21,7 +21,7 @@ from sale.services.credit_note_decision import (
     CreditNoteDecision,
     CreditNoteAccountingCommand,
 )
-from client.services.customer_subledger_service import CustomerSubledgerService
+from customer.services.customer_subledger_service import CustomerSubledgerService
 from governance.services.accounting_gateway import create_credit_note_posting, create_credit_note_reversal_posting
 from financial.exceptions import FinancialCoreError
 

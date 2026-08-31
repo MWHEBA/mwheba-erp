@@ -10,7 +10,7 @@ from django.test import TestCase
 from django.contrib.auth import get_user_model
 
 from financial.services.customer_supplier_balances_service import CustomerSupplierBalancesService
-from client.models import Customer
+from customer.models import Customer
 from supplier.models import Supplier
 
 User = get_user_model()

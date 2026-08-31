@@ -28,7 +28,7 @@ class TestFINSAL003InventoryReservation:
             end_date=today.replace(day=28),
             defaults={"status": "open"}
         )
-        from client.models import Customer
+        from customer.models import Customer
         customer = Customer.objects.create(name="Delta Electronics", code="CUST-RES-001", credit_limit=Decimal("100000.00"))
 
         from financial.models.chart_of_accounts import ChartOfAccounts, AccountType

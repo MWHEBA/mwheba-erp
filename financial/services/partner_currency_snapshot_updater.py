@@ -26,8 +26,8 @@ class PartnerCurrencySnapshotUpdater:
         """
         try:
             from financial.services.partner_advance_service import PartnerAdvanceService
-            if partner_type.lower() in ["customer", "client"]:
-                from client.models import Customer
+            if partner_type.lower() == "customer":
+                from customer.models import Customer
                 partner = Customer.objects.filter(pk=partner_id).first()
             else:
                 from supplier.models import Supplier

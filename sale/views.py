@@ -19,7 +19,7 @@ from sale.models.pricing import PriceList
 from sale.forms import SaleForm, SalePaymentForm, SaleReturnForm
 from sale.services import SaleService
 from product.models import Product, Warehouse, SerialNumber
-from client.models import Customer
+from customer.models import Customer
 from core.models import SystemSetting
 
 logger = logging.getLogger(__name__)
@@ -320,7 +320,7 @@ def sale_create(request, customer_id=None):
 
                     # تسوية الدفعة المقدمة المسددة في أمر البيع تلقائياً إن وجدت
                     if sale.sales_order and sale.sales_order.paid_down_payment > Decimal('0.00'):
-                        from client.models import CustomerAllocationAudit
+                        from customer.models import CustomerAllocationAudit
                         so_down_payment_ids = list(sale.sales_order.down_payments.filter(status="posted").values_list("id", flat=True))
                         so_pay_ref_numbers = [f"PAY-{pid}" for pid in so_down_payment_ids]
 
@@ -334,7 +334,7 @@ def sale_create(request, customer_id=None):
                         amount_to_allocate = min(available_down_payment, sale.amount_due)
                         if amount_to_allocate > Decimal('0.00'):
                             try:
-                                from client.services.customer_allocation_audit_service import CustomerAllocationAuditService
+                                from customer.services.customer_allocation_audit_service import CustomerAllocationAuditService
                                 CustomerAllocationAuditService.allocate_customer_prepaid_balance_to_sale(
                                     sale=sale,
                                     amount_to_allocate=amount_to_allocate,
@@ -469,7 +469,7 @@ def sale_create(request, customer_id=None):
         "page_icon": "fas fa-file-invoice-dollar",
         "header_buttons": ([
             {
-                "url": reverse("client:customer_detail", kwargs={"pk": selected_customer.pk}),
+                "url": reverse("customer:customer_detail", kwargs={"pk": selected_customer.pk}),
                 "icon": "fa-arrow-right",
                 "text": f"العودة لتفاصيل {selected_customer.name}",
                 "class": "btn-secondary",
@@ -484,7 +484,7 @@ def sale_create(request, customer_id=None):
                 {"title": _("المبيعات"), "url": reverse("sale:sale_list"), "icon": "fa-shopping-cart"},
             ] + ([{
                 "title": selected_customer.name,
-                "url": reverse("client:customer_detail", kwargs={"pk": selected_customer.pk}),
+                "url": reverse("customer:customer_detail", kwargs={"pk": selected_customer.pk}),
                 "icon": "fa-user",
             }] if selected_customer else [])),
             {"title": _("إضافة فاتورة مبيعات"), "active": True, "icon": "fa-plus-circle"},
@@ -625,7 +625,7 @@ def allocate_prepaid_balance(request, pk):
         is_auto = request.POST.get("auto_fifo") == "true"
 
         try:
-            from client.services.customer_allocation_audit_service import CustomerAllocationAuditService
+            from customer.services.customer_allocation_audit_service import CustomerAllocationAuditService
             from decimal import Decimal
             available = sale.customer.available_prepaid_balance if sale.customer else Decimal("0.00")
             open_amount = sale.total - (sale.amount_paid or Decimal("0.00"))
@@ -755,7 +755,7 @@ def sale_detail(request, pk):
         "title": f"فاتورة مبيعات {sale.number}",
         "page_title": f"فاتورة مبيعات {sale.number}",
         "page_subtitle": _('العميل: <a href="{}" class="text-decoration-none fw-bold text-primary"><i class="fas fa-user-tie me-1"></i>{}</a>').format(
-            reverse("client:customer_detail", kwargs={"pk": sale.customer.id}),
+            reverse("customer:customer_detail", kwargs={"pk": sale.customer.id}),
             sale.customer.name
         ) if sale.customer else _('العميل: <span class="text-muted">عميل نقدي / غير محدد</span>'),
         "page_icon": "fas fa-file-invoice-dollar",
@@ -1330,7 +1330,7 @@ def sale_edit(request, pk):
     import json
     from sale.forms import SaleForm
     from product.models import Product, Warehouse
-    from client.models import Customer
+    from customer.models import Customer
 
     posted_items = []
     if request.method == "POST":

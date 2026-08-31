@@ -55,7 +55,7 @@ class FinancialTransactionSignalHandler:
             transaction_type: نوع المعاملة (اختياري)
             transaction_amount: مبلغ المعاملة (اختياري)
             user: المستخدم الذي يحاول المعاملة (اختياري)
-            module: الوحدة (client, financial, etc.)
+            module: الوحدة (customer, financial, etc.)
             is_system_generated: هل المعاملة مولدة من النظام (افتراضي False)
             **kwargs: معاملات إضافية
             
@@ -123,7 +123,7 @@ class FinancialTransactionSignalHandler:
                     'date_field': 'date',         # حقل التاريخ
                     'amount_field': 'amount',     # حقل المبلغ (اختياري)
                     'entity_type': 'customer',    # نوع الكيان
-                    'module': 'client',           # الوحدة
+                    'module': 'customer',         # الوحدة
                     'transaction_type': 'payment' # نوع المعاملة
                 }
 
@@ -136,7 +136,7 @@ class FinancialTransactionSignalHandler:
             ...         'date_field': 'date',
             ...         'amount_field': 'total',
             ...         'entity_type': 'customer',
-            ...         'module': 'client',
+            ...         'module': 'customer',
             ...         'transaction_type': 'sale'
             ...     }
             ... )
@@ -243,7 +243,7 @@ def trigger_validation(
         ...     entity_type='customer',
         ...     transaction_type='payment',
         ...     transaction_amount=1000,
-        ...     module='client'
+        ...     module='customer'
         ... )
     """
     return pre_financial_transaction.send(
@@ -278,7 +278,7 @@ def connect_model_validation(model_class, field_mapping):
         ...         'date_field': 'date',
         ...         'amount_field': 'total',
         ...         'entity_type': 'customer',
-        ...         'module': 'client',
+        ...         'module': 'customer',
         ...         'transaction_type': 'sale'
         ...     }
         ... )

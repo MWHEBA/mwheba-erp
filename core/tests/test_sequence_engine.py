@@ -34,7 +34,7 @@ try:
     from sale.models import SalesOrder
 except ImportError:
     SalesOrder = None
-from client.models import Customer
+from customer.models import Customer
 
 User = get_user_model()
 

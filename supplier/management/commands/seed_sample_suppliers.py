@@ -8,7 +8,7 @@ from django.utils import timezone
 
 from users.models import User
 from supplier.models import Supplier, SupplierType
-from client.models import PaymentTerm
+from customer.models import PaymentTerm
 from financial.models import Currency
 from supplier.services.supplier_service import SupplierService
 

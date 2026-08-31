@@ -18,7 +18,7 @@ class WorkOrder(models.Model):
 
     number = models.CharField(_("رقم أمر الشغل"), max_length=50, unique=True, blank=True)
     customer = models.ForeignKey(
-        "client.Customer",
+        "customer.Customer",
         on_delete=models.PROTECT,
         related_name="work_orders",
         verbose_name=_("العميل"),

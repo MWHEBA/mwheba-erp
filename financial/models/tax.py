@@ -9,7 +9,7 @@ from django.conf import settings
 
 from financial.models.chart_of_accounts import ChartOfAccounts
 from financial.models.journal_entry import JournalEntry
-from client.models import Customer
+from customer.models import Customer
 from supplier.models import Supplier
 
 

@@ -21,13 +21,13 @@ class Command(BaseCommand):
 
         orphaned = []
         for record in all_records:
-            # Extract payment ID from key like 'JE:client:CustomerPayment:6:payment'
+            # Extract payment ID from key like 'JE:customer:CustomerPayment:6:payment'
             parts = record.idempotency_key.split(':')
             if len(parts) >= 4:
                 payment_id = parts[3]
                 # Check if journal entry exists
                 entry_exists = JournalEntry.objects.filter(
-                    source_module='client',
+                    source_module='customer',
                     source_model='CustomerPayment',
                     source_id=payment_id
                 ).exists()

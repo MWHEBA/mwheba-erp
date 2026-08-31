@@ -2,7 +2,7 @@ from django import forms
 from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
 from .models import WorkOrder
-from client.models import Customer
+from customer.models import Customer
 
 
 class WorkOrderForm(forms.ModelForm):

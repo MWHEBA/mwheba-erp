@@ -7,9 +7,9 @@ from django.db import connections, transaction
 from django.contrib.auth import get_user_model
 
 from product.models import Product, Category, Unit, Warehouse, Stock
-from client.models import Customer
-from client.services.credit_exposure_service import CreditExposureService
-from client.services.customer_subledger_service import CustomerSubledgerService
+from customer.models import Customer
+from customer.services.credit_exposure_service import CreditExposureService
+from customer.services.customer_subledger_service import CustomerSubledgerService
 from product.services.inventory_reservation_service import InventoryReservationService
 from financial.models import ChartOfAccounts, AccountType
 
@@ -32,7 +32,7 @@ class TestConcurrencyLocking:
             defaults={"status": "open"}
         )
 
-        from client.models import CustomerCreditProfile
+        from customer.models import CustomerCreditProfile
         customer = Customer.objects.create(name=f"Concurrency Customer {uid}", code=f"CUST-CONC-{uid}", credit_limit=Decimal("100000.00"))
         CustomerCreditProfile.objects.create(customer=customer, credit_limit=Decimal("100000.00"))
 

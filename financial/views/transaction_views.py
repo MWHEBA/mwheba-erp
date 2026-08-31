@@ -347,7 +347,6 @@ def journal_entries_list(request):
                 'automatic': ('fa-robot', 'primary'),
                 'sales_invoice': ('fa-file-invoice', 'primary'),
                 'customer_payment': ('fa-hand-holding-usd', 'success'),
-                'client_payment': ('fa-hand-holding-usd', 'success'),
                 'service_payment': ('fa-file-invoice-dollar', 'info'),
                 'sales_return': ('fa-undo', 'warning'),
                 'purchase_invoice': ('fa-file-invoice-dollar', 'info'),

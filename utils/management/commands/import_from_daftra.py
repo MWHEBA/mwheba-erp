@@ -10,7 +10,7 @@ from decimal import Decimal
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.utils import timezone
-from client.models import Customer
+from customer.models import Customer
 from supplier.models import Supplier
 from users.models import User
 
@@ -318,7 +318,7 @@ class Command(BaseCommand):
             'credit_limit': credit_limit,
             'is_active': is_active,
             'tax_number': data.get('tax_number', ''),
-            'client_type': client_type,
+            'customer_type': client_type,
             'notes': data.get('notes', ''),
             'created_by': self.current_user,
         }

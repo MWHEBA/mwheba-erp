@@ -6,7 +6,7 @@ from decimal import Decimal
 from django.urls import reverse
 
 from .models import WorkOrder
-from client.models import Customer, CustomerPayment
+from customer.models import Customer, CustomerPayment
 from core.models import SystemModule
 from sale.models import Sale, Quotation
 from purchase.models import Purchase
@@ -34,7 +34,7 @@ class WorkOrderTests(TestCase):
             name="عميل تجريبي للشغل",
             code="CUSTWO01",
             email="wo@test.com",
-            client_type="individual"
+            customer_type="individual"
         )
 
         # 3. موديول أوامر الشغل

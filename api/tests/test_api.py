@@ -78,9 +78,9 @@ class APIEndpointsTest(APITestCase):
         # إما أن ينجح أو لا يكون موجود
         self.assertIn(response.status_code, [200, 404])
         
-    def test_api_clients_endpoint(self):
+    def test_api_customers_endpoint(self):
         """اختبار نقطة نهاية العملاء"""
-        response = self.client.get('/api/clients/')
+        response = self.client.get('/api/customers/')
         
         # إما أن ينجح أو لا يكون موجود
         self.assertIn(response.status_code, [200, 404])

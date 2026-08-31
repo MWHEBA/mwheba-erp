@@ -510,14 +510,14 @@ class OrderSummaryAPIView(BaseAPIView):
             return self.handle_exception(e, "OrderSummaryAPIView.get")
 
 
-class GetClientsAPIView(BaseAPIView):
+class GetCustomersAPIView(BaseAPIView):
     """
     API لجلب قائمة العملاء للـ Select2
     """
     
     def get(self, request):
         try:
-            from client.models import Customer
+            from customer.models import Customer
             
             # الحصول على معامل البحث
             search = request.GET.get('search', '').strip()
@@ -538,36 +538,36 @@ class GetClientsAPIView(BaseAPIView):
             total_count = queryset.count()
             start = (page - 1) * page_size
             end = start + page_size
-            clients = queryset[start:end]
+            customers = queryset[start:end]
             
             # تحويل البيانات لصيغة Select2
             results = []
-            for client in clients:
+            for customer in customers:
                 # بناء النص المعروض بطريقة واضحة ومنظمة
                 display_parts = []
                 
                 # إضافة الكود إذا وُجد
-                if client.code:
-                    display_parts.append(f"[{client.code}]")
+                if customer.code:
+                    display_parts.append(f"[{customer.code}]")
                 
                 # إضافة اسم العميل
-                display_parts.append(client.name)
+                display_parts.append(customer.name)
                 
                 # إضافة اسم الشركة إذا وُجد ومختلف عن اسم العميل
-                if client.company_name and client.company_name != client.name:
-                    display_parts.append(f"- {client.company_name}")
+                if customer.company_name and customer.company_name != customer.name:
+                    display_parts.append(f"- {customer.company_name}")
                 
                 # دمج الأجزاء
                 display_name = " ".join(display_parts)
                 
                 results.append({
-                    'id': client.id,
+                    'id': customer.id,
                     'text': display_name,
-                    'name': client.name,
-                    'company_name': client.company_name or '',
-                    'code': client.code,
-                    'phone': client.phone_primary or client.phone or '',
-                    'email': client.email or ''
+                    'name': customer.name,
+                    'company_name': customer.company_name or '',
+                    'code': customer.code,
+                    'phone': customer.phone_primary or customer.phone or '',
+                    'email': customer.email or ''
                 })
             
             return JsonResponse({
@@ -582,7 +582,7 @@ class GetClientsAPIView(BaseAPIView):
             })
             
         except Exception as e:
-            return self.handle_exception(e, "GetClientsAPIView.get")
+            return self.handle_exception(e, "GetCustomersAPIView.get")
 
 
 class GetProductTypesAPIView(BaseAPIView):
@@ -1423,7 +1423,7 @@ class GetPieceSizesAPIView(BaseAPIView):
 __all__ = [
     'BaseAPIView', 'CalculateCostAPIView', 'GetMaterialPriceAPIView',
     'GetServicePriceAPIView', 'ValidateOrderAPIView', 'OrderSummaryAPIView',
-    'GetClientsAPIView', 'GetProductTypesAPIView', 'GetProductSizesAPIView',
+    'GetCustomersAPIView', 'GetProductTypesAPIView', 'GetProductSizesAPIView',
     'GetPrintingSuppliersAPIView', 'GetPressesAPIView', 'GetPressPriceAPIView',
     'GetCTPSuppliersAPIView', 'GetCTPPlatesAPIView', 'GetCTPPriceAPIView',
     'GetPaperTypesAPIView', 'GetPaperSuppliersAPIView', 'GetPaperWeightsAPIView',
@@ -1729,16 +1729,16 @@ class CustomerInfoAPIView(BaseAPIView):
     """
     def get(self, request, customer_id):
         try:
-            from client.models import Customer
+            from customer.models import Customer
             customer = get_object_or_404(Customer, pk=customer_id, is_active=True)
             
-            client_type = getattr(customer, 'client_type', 'company')
+            customer_type = getattr(customer, 'customer_type', 'individual')
             
             # تحديد فئة العميل وهامش الربح الافتراضي
-            if client_type == 'individual':
+            if customer_type == 'individual':
                 category = 'retail'
                 default_profit_margin = 35.0
-            elif client_type in ('company', 'government'):
+            elif customer_type in ('company', 'government'):
                 category = 'corporate'
                 default_profit_margin = 25.0
             else:
@@ -1767,7 +1767,7 @@ class CustomerInfoAPIView(BaseAPIView):
                 'success': True,
                 'customer_id': customer.id,
                 'customer_name': customer.name,
-                'client_type': client_type,
+                'customer_type': customer_type,
                 'category': category,
                 'default_profit_margin': default_profit_margin,
                 'credit_limit': float(getattr(customer, 'credit_limit', 0) or 0),

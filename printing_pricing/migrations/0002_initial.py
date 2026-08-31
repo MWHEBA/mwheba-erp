@@ -12,7 +12,7 @@ class Migration(migrations.Migration):
         ("supplier", "0001_initial"),
         ("printing_pricing", "0001_initial"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
-        ("client", "0003_initial"),
+        ("customer", "0003_initial"),
     ]
 
     operations = [
@@ -73,14 +73,14 @@ class Migration(migrations.Migration):
         ),
         migrations.AddField(
             model_name="printingorder",
-            name="client",
+            name="customer",
             field=models.ForeignKey(
                 blank=True,
                 null=True,
                 on_delete=django.db.models.deletion.PROTECT,
-                related_name="client_printing_orders",
-                to="client.customer",
-                verbose_name="العميل (client)",
+                related_name="printing_orders",
+                to="customer.customer",
+                verbose_name="العميل",
             ),
         ),
         migrations.AddField(
@@ -113,7 +113,7 @@ class Migration(migrations.Migration):
             field=models.ForeignKey(
                 on_delete=django.db.models.deletion.PROTECT,
                 related_name="printing_orders",
-                to="client.customer",
+                to="customer.customer",
                 verbose_name="العميل",
             ),
         ),

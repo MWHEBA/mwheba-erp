@@ -273,7 +273,7 @@ class FinancialValidationService:
             transaction_type: نوع المعاملة (اختياري، مثل: opening, adjustment)
             transaction_amount: مبلغ المعاملة (اختياري)
             user: المستخدم الذي يحاول المعاملة (اختياري)
-            module: الوحدة (client, financial, etc.)
+            module: الوحدة (customer, financial, etc.)
             view_name: اسم الـ view (اختياري)
             request: كائن الطلب HTTP (اختياري)
             raise_exception: رفع استثناء عند الفشل (افتراضي False)
@@ -296,7 +296,7 @@ class FinancialValidationService:
             ...     transaction_date=date(2024, 6, 15),
             ...     transaction_type='payment',
             ...     user=request.user,
-            ...     module='client'
+            ...     module='customer'
             ... )
             >>> if not result['is_valid']:
             ...     for error in result['errors']:

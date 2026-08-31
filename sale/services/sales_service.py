@@ -4,7 +4,7 @@ from typing import List, Dict, Any, Optional
 from django.db import transaction
 from django.utils import timezone
 
-from client.models import Customer
+from customer.models import Customer
 from product.models.product_core import Product
 from product.models.stock_management import Warehouse
 from sale.models.quotation import Quotation
@@ -19,7 +19,7 @@ from sale.models.sales_models import (
 from sale.services.pricing_service import PricingService
 from financial.services.approval_service import ApprovalService
 from governance.services.movement_service import MovementService
-from client.services.customer_subledger_service import CustomerSubledgerService
+from customer.services.customer_subledger_service import CustomerSubledgerService
 from financial.services.ledger_core_service import LedgerCoreService
 from financial.exceptions import FinancialCoreError
 
@@ -199,8 +199,8 @@ class SalesService:
             so.functional_amount = func_val
 
             # Credit Governance Check via CreditDecision Engine (FIN-AR-001 v6.0)
-            from client.services.credit_exposure_service import CreditExposureService
-            from client.services.credit_decision import CreditDecisionType
+            from customer.services.credit_exposure_service import CreditExposureService
+            from customer.services.credit_decision import CreditDecisionType
 
             credit_decision = CreditExposureService.evaluate_credit_check(customer.id, total_val, currency)
 

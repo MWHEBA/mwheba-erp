@@ -4,7 +4,7 @@ from django.test import TestCase, Client
 from django.contrib.auth import get_user_model
 from django.urls import reverse
 from sale.models.pricing import DiscountRule
-from client.models import Customer
+from customer.models import Customer
 from product.models.product_core import Category
 
 User = get_user_model()

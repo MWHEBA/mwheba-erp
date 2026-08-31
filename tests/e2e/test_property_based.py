@@ -190,7 +190,7 @@ class TestPropertyBasedSales:
         """
         اختبار: إنشاء عميل بأسماء عربية متنوعة
         """
-        from client.services.customer_service import CustomerService
+        from customer.services.customer_service import CustomerService
         import uuid
         
         assume(len(customer_name.strip()) >= 3)

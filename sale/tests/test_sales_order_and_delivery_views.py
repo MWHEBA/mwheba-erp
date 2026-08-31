@@ -7,7 +7,7 @@ from django.urls import reverse
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 
-from client.models import Customer
+from customer.models import Customer
 from product.models.product_core import Product, Category, Unit
 from product.models.stock_management import Warehouse, Stock
 from sale.models.sales_models import SalesOrder, SalesOrderItem, DeliveryNote, DeliveryNoteItem
@@ -31,7 +31,7 @@ class TestSalesOrderAndDeliveryViews:
             name="Test Enterprise Customer",
             code="CUST-VIEW-001",
             phone="01011112222",
-            client_type="company"
+            customer_type="company"
         )
         self.warehouse, _ = Warehouse.objects.get_or_create(
             code="WH-VIEW-01",

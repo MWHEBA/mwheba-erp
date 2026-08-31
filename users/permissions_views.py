@@ -34,7 +34,6 @@ def _get_arabic_permission_name(permission):
     # Model name translations
     model_translations = {
         'customer': 'العملاء',
-        'client': 'العملاء',
         'employee': 'الموظفين',
         'user': 'المستخدمين',
         'role': 'الأدوار',

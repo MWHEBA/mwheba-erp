@@ -195,7 +195,7 @@ class OpeningBalanceLine(models.Model):
     debit = models.DecimalField(_("مدين (عملة وظيفية)"), max_digits=15, decimal_places=2, default=Decimal('0.00'), help_text=_("المبلغ بالعملة الوظيفية النظامية"))
     credit = models.DecimalField(_("دائن (عملة وظيفية)"), max_digits=15, decimal_places=2, default=Decimal('0.00'), help_text=_("المبلغ بالعملة الوظيفية النظامية"))
 
-    customer = models.ForeignKey('client.Customer', null=True, blank=True, on_delete=models.PROTECT, verbose_name=_("العميل"))
+    customer = models.ForeignKey("customer.Customer", null=True, blank=True, on_delete=models.PROTECT, verbose_name=_("العميل"))
     supplier = models.ForeignKey('supplier.Supplier', null=True, blank=True, on_delete=models.PROTECT, verbose_name=_("المورد"))
     treasury_account = models.ForeignKey('financial.ChartOfAccounts', null=True, blank=True, on_delete=models.PROTECT, related_name='treasury_opening_lines', verbose_name=_("حساب الخزينة/البنك"))
     inventory_snapshot_id = models.CharField(_("معرف Snapshot التقييم للمخزون"), max_length=100, blank=True, null=True)

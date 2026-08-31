@@ -5,7 +5,7 @@ from django.test import Client
 from django.urls import reverse
 from django.utils import timezone
 
-from client.models import Customer
+from customer.models import Customer
 from work_order.models import WorkOrder
 from printing_pricing.models import (
     PrintingOrder, PaperSpecification, PrintingSpecification,
@@ -37,7 +37,7 @@ class TestPhase1Comprehensive:
         )
         self.customer = Customer.objects.create(
             name="شركة الأمل للدعاية",
-            client_type="company",
+            customer_type="company",
             phone="01012345678",
             phone_primary="01012345678",
             address="15 شارع مصدق، الدقي، الجيزة",
@@ -67,8 +67,8 @@ class TestPhase1Comprehensive:
         # 3. التحقق من تجميد لقطة العنوان
         assert "شركة الأمل للدعاية" in order.delivery_address_snapshot
         assert "01012345678" in order.delivery_address_snapshot
-        # 4. التحقق من مزامنة client و sale_price
-        assert order.client == self.customer
+        # 4. التحقق من customer و sale_price
+        assert order.customer == self.customer
         assert order.sale_price == Decimal('12000.00')
 
     def test_02_multi_part_specifications_foreign_key(self):
@@ -126,7 +126,7 @@ class TestPhase1Comprehensive:
             lamination_waste_pct=Decimal('2.00'),
             diecut_waste_pct=Decimal('3.00'),
             binding_waste_pct=Decimal('2.00'),
-            is_client_paper=False,
+            is_customer_paper=False,
             sheet_cost=Decimal('3.00')
         )
         
@@ -137,12 +137,12 @@ class TestPhase1Comprehensive:
         assert res['total_cost'] == Decimal(str(res['gross_sheets_needed'])) * Decimal('3.00')
         
         # التحقق في حالة ورق العميل (التكلفة = 0)
-        res_client_paper = calc.calculate_cumulative_paper_waste(
+        res_customer_paper = calc.calculate_cumulative_paper_waste(
             net_sheets=1000,
-            is_client_paper=True,
+            is_customer_paper=True,
             sheet_cost=Decimal('3.00')
         )
-        assert res_client_paper['total_cost'] == Decimal('0.00')
+        assert res_customer_paper['total_cost'] == Decimal('0.00')
 
     def test_04_auto_plate_count_calculation(self):
         """التحقق من الحساب الآلي لعدد الزنكات CTP"""

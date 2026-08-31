@@ -4,7 +4,7 @@ from typing import Dict, Any, Optional
 from django.db import models, transaction
 from django.utils import timezone
 
-from client.models import CustomerTransaction
+from customer.models import CustomerTransaction
 from supplier.models import SupplierTransaction
 from financial.models.allocation import PaymentAllocation, AllocationStatus
 from financial.services.ledger_core_service import LedgerCoreService

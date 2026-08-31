@@ -34,31 +34,31 @@ SUPPLIERS_DATA = [
 ]
 
 CUSTOMERS_DATA = [
-    {"name": "مقاولون عرب للإنشاءات", "company_name": "مقاولون عرب", "phone": "01501234567", "city": "القاهرة", "client_type": "company", "credit_limit": 500000},
-    {"name": "شركة الحسن للمقاولات", "company_name": "الحسن للمقاولات", "phone": "01612345678", "city": "الجيزة", "client_type": "company", "credit_limit": 300000},
-    {"name": "مهندس كريم الصرف الصحي", "company_name": "", "phone": "01723456789", "city": "القاهرة", "client_type": "individual", "credit_limit": 50000},
-    {"name": "بلدية مدينة نصر", "company_name": "بلدية مدينة نصر", "phone": "01834567890", "city": "القاهرة", "client_type": "government", "credit_limit": 1000000},
-    {"name": "شركة الإعمار للتطوير العقاري", "company_name": "الإعمار للتطوير", "phone": "01945678901", "city": "الإسكندرية", "client_type": "company", "credit_limit": 750000},
-    {"name": "مقاولات الخليج المصرية", "company_name": "الخليج المصرية", "phone": "01056789012", "city": "القاهرة", "client_type": "company", "credit_limit": 400000},
-    {"name": "محافظة الجيزة - قطاع الصرف", "company_name": "محافظة الجيزة", "phone": "01167890123", "city": "الجيزة", "client_type": "government", "credit_limit": 2000000},
-    {"name": "مهندس سامر البناء", "company_name": "", "phone": "01278901234", "city": "الإسكندرية", "client_type": "individual", "credit_limit": 30000},
-    {"name": "شركة النهضة للمقاولات العامة", "company_name": "النهضة للمقاولات", "phone": "01389012345", "city": "القاهرة", "client_type": "company", "credit_limit": 600000},
-    {"name": "هيئة الصرف الصحي بالقاهرة", "company_name": "هيئة الصرف الصحي", "phone": "01490123456", "city": "القاهرة", "client_type": "government", "credit_limit": 5000000},
-    {"name": "شركة الأمل للإنشاءات", "company_name": "الأمل للإنشاءات", "phone": "01501234568", "city": "الجيزة", "client_type": "company", "credit_limit": 250000},
-    {"name": "مقاول أحمد الصرف الصحي", "company_name": "", "phone": "01612345679", "city": "القاهرة", "client_type": "individual", "credit_limit": 80000},
-    {"name": "شركة الوطن للتطوير والبناء", "company_name": "الوطن للتطوير", "phone": "01723456780", "city": "الإسكندرية", "client_type": "company", "credit_limit": 450000},
-    {"name": "وحدة محلية شبرا الخيمة", "company_name": "وحدة شبرا الخيمة", "phone": "01834567891", "city": "القاهرة", "client_type": "government", "credit_limit": 800000},
-    {"name": "شركة الفجر للمقاولات الصناعية", "company_name": "الفجر للمقاولات", "phone": "01945678902", "city": "السويس", "client_type": "company", "credit_limit": 350000},
-    {"name": "مهندس طارق الأنابيب", "company_name": "", "phone": "01056789013", "city": "الجيزة", "client_type": "individual", "credit_limit": 60000},
-    {"name": "شركة الشروق للإنشاءات الكبرى", "company_name": "الشروق للإنشاءات", "phone": "01167890124", "city": "القاهرة", "client_type": "company", "credit_limit": 900000},
-    {"name": "هيئة الصرف الصحي بالإسكندرية", "company_name": "هيئة الصرف الإسكندرية", "phone": "01278901235", "city": "الإسكندرية", "client_type": "government", "credit_limit": 3000000},
-    {"name": "شركة الدلتا للمقاولات", "company_name": "الدلتا للمقاولات", "phone": "01389012346", "city": "المنصورة", "client_type": "company", "credit_limit": 200000},
-    {"name": "مقاول حسين الصرف", "company_name": "", "phone": "01490123457", "city": "أسيوط", "client_type": "individual", "credit_limit": 40000},
-    {"name": "شركة الصعيد للإنشاءات", "company_name": "الصعيد للإنشاءات", "phone": "01501234569", "city": "أسيوط", "client_type": "company", "credit_limit": 150000},
-    {"name": "محافظة الإسكندرية - الصرف الصحي", "company_name": "محافظة الإسكندرية", "phone": "01612345680", "city": "الإسكندرية", "client_type": "government", "credit_limit": 4000000},
-    {"name": "شركة الربيع للمقاولات والبناء", "company_name": "الربيع للمقاولات", "phone": "01723456781", "city": "القاهرة", "client_type": "company", "credit_limit": 280000},
-    {"name": "مهندس وليد الأنظمة الصحية", "company_name": "", "phone": "01834567892", "city": "الجيزة", "client_type": "individual", "credit_limit": 70000},
-    {"name": "شركة الإسكندرية للمقاولات البحرية", "company_name": "الإسكندرية البحرية", "phone": "01945678903", "city": "الإسكندرية", "client_type": "company", "credit_limit": 550000},
+    {"name": "مقاولون عرب للإنشاءات", "company_name": "مقاولون عرب", "phone": "01501234567", "city": "القاهرة", "customer_type": "company", "credit_limit": 500000},
+    {"name": "شركة الحسن للمقاولات", "company_name": "الحسن للمقاولات", "phone": "01612345678", "city": "الجيزة", "customer_type": "company", "credit_limit": 300000},
+    {"name": "مهندس كريم الصرف الصحي", "company_name": "", "phone": "01723456789", "city": "القاهرة", "customer_type": "individual", "credit_limit": 50000},
+    {"name": "بلدية مدينة نصر", "company_name": "بلدية مدينة نصر", "phone": "01834567890", "city": "القاهرة", "customer_type": "government", "credit_limit": 1000000},
+    {"name": "شركة الإعمار للتطوير العقاري", "company_name": "الإعمار للتطوير", "phone": "01945678901", "city": "الإسكندرية", "customer_type": "company", "credit_limit": 750000},
+    {"name": "مقاولات الخليج المصرية", "company_name": "الخليج المصرية", "phone": "01056789012", "city": "القاهرة", "customer_type": "company", "credit_limit": 400000},
+    {"name": "محافظة الجيزة - قطاع الصرف", "company_name": "محافظة الجيزة", "phone": "01167890123", "city": "الجيزة", "customer_type": "government", "credit_limit": 2000000},
+    {"name": "مهندس سامر البناء", "company_name": "", "phone": "01278901234", "city": "الإسكندرية", "customer_type": "individual", "credit_limit": 30000},
+    {"name": "شركة النهضة للمقاولات العامة", "company_name": "النهضة للمقاولات", "phone": "01389012345", "city": "القاهرة", "customer_type": "company", "credit_limit": 600000},
+    {"name": "هيئة الصرف الصحي بالقاهرة", "company_name": "هيئة الصرف الصحي", "phone": "01490123456", "city": "القاهرة", "customer_type": "government", "credit_limit": 5000000},
+    {"name": "شركة الأمل للإنشاءات", "company_name": "الأمل للإنشاءات", "phone": "01501234568", "city": "الجيزة", "customer_type": "company", "credit_limit": 250000},
+    {"name": "مقاول أحمد الصرف الصحي", "company_name": "", "phone": "01612345679", "city": "القاهرة", "customer_type": "individual", "credit_limit": 80000},
+    {"name": "شركة الوطن للتطوير والبناء", "company_name": "الوطن للتطوير", "phone": "01723456780", "city": "الإسكندرية", "customer_type": "company", "credit_limit": 450000},
+    {"name": "وحدة محلية شبرا الخيمة", "company_name": "وحدة شبرا الخيمة", "phone": "01834567891", "city": "القاهرة", "customer_type": "government", "credit_limit": 800000},
+    {"name": "شركة الفجر للمقاولات الصناعية", "company_name": "الفجر للمقاولات", "phone": "01945678902", "city": "السويس", "customer_type": "company", "credit_limit": 350000},
+    {"name": "مهندس طارق الأنابيب", "company_name": "", "phone": "01056789013", "city": "الجيزة", "customer_type": "individual", "credit_limit": 60000},
+    {"name": "شركة الشروق للإنشاءات الكبرى", "company_name": "الشروق للإنشاءات", "phone": "01167890124", "city": "القاهرة", "customer_type": "company", "credit_limit": 900000},
+    {"name": "هيئة الصرف الصحي بالإسكندرية", "company_name": "هيئة الصرف الإسكندرية", "phone": "01278901235", "city": "الإسكندرية", "customer_type": "government", "credit_limit": 3000000},
+    {"name": "شركة الدلتا للمقاولات", "company_name": "الدلتا للمقاولات", "phone": "01389012346", "city": "المنصورة", "customer_type": "company", "credit_limit": 200000},
+    {"name": "مقاول حسين الصرف", "company_name": "", "phone": "01490123457", "city": "أسيوط", "customer_type": "individual", "credit_limit": 40000},
+    {"name": "شركة الصعيد للإنشاءات", "company_name": "الصعيد للإنشاءات", "phone": "01501234569", "city": "أسيوط", "customer_type": "company", "credit_limit": 150000},
+    {"name": "محافظة الإسكندرية - الصرف الصحي", "company_name": "محافظة الإسكندرية", "phone": "01612345680", "city": "الإسكندرية", "customer_type": "government", "credit_limit": 4000000},
+    {"name": "شركة الربيع للمقاولات والبناء", "company_name": "الربيع للمقاولات", "phone": "01723456781", "city": "القاهرة", "customer_type": "company", "credit_limit": 280000},
+    {"name": "مهندس وليد الأنظمة الصحية", "company_name": "", "phone": "01834567892", "city": "الجيزة", "customer_type": "individual", "credit_limit": 70000},
+    {"name": "شركة الإسكندرية للمقاولات البحرية", "company_name": "الإسكندرية البحرية", "phone": "01945678903", "city": "الإسكندرية", "customer_type": "company", "credit_limit": 550000},
 ]
 
 PRODUCTS_DATA = [
@@ -205,7 +205,7 @@ class Command(BaseCommand):
         self.stdout.write(f'  ✅ تم إضافة {created_count} مورد جديد، تم تخطي {skipped_count} موجود')
 
     def _add_customers(self, dry_run):
-        from client.models import Customer
+        from customer.models import Customer
         self.stdout.write('\n👥 إضافة العملاء...')
 
         # Get next available code number
@@ -236,7 +236,7 @@ class Command(BaseCommand):
                     company_name=data.get('company_name', ''),
                     phone=data['phone'],
                     city=data['city'],
-                    client_type=data['client_type'],
+                    customer_type=data.get('customer_type', 'individual'),
                     credit_limit=data['credit_limit'],
                     code=code,
                     is_active=True,

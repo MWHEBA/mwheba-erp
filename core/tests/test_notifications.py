@@ -13,7 +13,7 @@ from core.models import Notification, NotificationPreference, SystemSetting
 from core.services.notification_service import NotificationService
 from product.models import Product, Category, Unit
 from purchase.models import Purchase
-from client.models import Customer  # Changed from students.models.Parent
+from customer.models import Customer  # Changed from students.models.Parent
 from supplier.models import Supplier
 
 User = get_user_model()

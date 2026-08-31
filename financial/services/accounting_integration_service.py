@@ -54,8 +54,8 @@ class AccountingIntegrationService:
                     logger.error(error_msg)
                     raise ValidationError(error_msg)
 
-                client_account, client_name = cls._get_client_info(sale, user)
-                if not client_account:
+                customer_account, customer_name = cls._get_customer_info(sale, user)
+                if not customer_account:
                     error_msg = f"لا يوجد حساب محاسبي مرتبط بالعميل في الفاتورة {sale.number}"
                     logger.error(error_msg)
                     raise ValidationError(error_msg)
@@ -65,10 +65,10 @@ class AccountingIntegrationService:
 
                 lines = [
                     JournalEntryLineData(
-                        account_code=client_account.code,
+                        account_code=customer_account.code,
                         debit=total_sale_amount,
                         credit=Decimal("0.00"),
-                        description=f"مبيعات - {client_name} - فاتورة {sale.number}"
+                        description=f"مبيعات - {customer_name} - فاتورة {sale.number}"
                     ),
                     JournalEntryLineData(
                         account_code=accounts["sales_revenue"].code,
@@ -106,7 +106,7 @@ class AccountingIntegrationService:
                     idempotency_key=idem_key,
                     user=user or sale.created_by,
                     entry_type='sales_invoice',
-                    description=f"مبيعات لـ {client_name}",
+                    description=f"مبيعات لـ {customer_name}",
                     reference=f"فاتورة مبيعات رقم {sale.number}",
                     date=sale.date
                 )
@@ -340,15 +340,15 @@ class AccountingIntegrationService:
                 )
 
                 # استخدام حساب العميل المحدد
-                client_account = None
-                client_name = sale_return.sale.client_name
+                customer_account = None
+                customer_name = sale_return.sale.customer.name if sale_return.sale.customer else "عميل"
                 
                 if sale_return.sale.customer:
-                    client_account = cls._get_customer_account(sale_return.sale.customer)
-                    if not client_account:
+                    customer_account = cls._get_customer_account(sale_return.sale.customer)
+                    if not customer_account:
                         logger.warning(f"⚠️ العميل {sale_return.sale.customer.name} ليس له حساب محاسبي - سيتم إنشاء حساب جديد")
-                        client_account = cls._create_customer_account(sale_return.sale.customer, user or sale_return.created_by)
-                        if not client_account:
+                        customer_account = cls._create_customer_account(sale_return.sale.customer, user or sale_return.created_by)
+                        if not customer_account:
                             error_msg = f"❌ فشل إنشاء حساب محاسبي للعميل {sale_return.sale.customer.name}. يجب إنشاء حساب محاسبي للعميل أولاً."
                             logger.error(error_msg)
                             raise ValueError(error_msg)
@@ -359,10 +359,10 @@ class AccountingIntegrationService:
 
                 lines.append(
                     JournalEntryLineData(
-                        account_code=client_account.code,
+                        account_code=customer_account.code,
                         debit=Decimal("0.00"),
                         credit=total_return,
-                        description=f"تخفيض ذمم {client_name} - مرتجع {sale_return.number}"
+                        description=f"تخفيض ذمم {customer_name} - مرتجع {sale_return.number}"
                     )
                 )
 
@@ -395,7 +395,7 @@ class AccountingIntegrationService:
                     idempotency_key=f"JE:sales:SaleReturn:{sale_return.id}:create",
                     user=user or sale_return.created_by,
                     entry_type='sales_return',
-                    description=f"مرتجع من {sale_return.sale.client_name}",
+                    description=f"مرتجع من {sale_return.sale.customer.name if (sale_return.sale and sale_return.sale.customer) else 'عميل'}",
                     reference=f"مرتجع مبيعات رقم {sale_return.number} - فاتورة {sale_return.sale.number}",
                     date=sale_return.date
                 )
@@ -425,9 +425,9 @@ class AccountingIntegrationService:
                 # تحديد نوع القيد
                 if payment_type == "sale_payment":
                     # دفعة من عميل/ولي أمر
-                    client_name = payment.sale.customer.name if (payment.sale and payment.sale.customer) else getattr(payment.sale, 'client_name', 'عميل')
+                    customer_name = payment.sale.customer.name if (payment.sale and payment.sale.customer) else getattr(payment.sale, 'customer_name', 'عميل')
                     reference = f"دفعة من العميل - فاتورة {payment.sale.number}"
-                    description = f"استلام دفعة من {client_name}"
+                    description = f"استلام دفعة من {customer_name}"
 
                     # النظام الجديد: payment_method هو account code مباشرة أو legacy 'cash' / 'bank_transfer'
                     payment_method = payment.payment_method
@@ -449,16 +449,16 @@ class AccountingIntegrationService:
                         raise ValueError(f"الحساب المحاسبي {payment_method} غير موجود أو غير نشط")
                     
                     # دائن حساب العميل المحدد
-                    client_account = None
+                    customer_account = None
                     
                     if payment.sale.customer:
-                        client_account = cls._get_customer_account(payment.sale.customer)
+                        customer_account = cls._get_customer_account(payment.sale.customer)
                         
-                        if not client_account:
+                        if not customer_account:
                             logger.warning(f"⚠️ العميل {payment.sale.customer.name} ليس له حساب محاسبي - سيتم إنشاء حساب جديد")
-                            client_account = cls._create_customer_account(payment.sale.customer, user or payment.created_by)
+                            customer_account = cls._create_customer_account(payment.sale.customer, user or payment.created_by)
                             
-                            if not client_account:
+                            if not customer_account:
                                 error_msg = f"❌ فشل إنشاء حساب محاسبي للعميل {payment.sale.customer.name}. يجب إنشاء حساب محاسبي للعميل أولاً."
                                 logger.error(error_msg)
                                 raise ValueError(error_msg)
@@ -467,7 +467,7 @@ class AccountingIntegrationService:
                         logger.error(error_msg)
                         raise ValueError(error_msg)
                     
-                    account_credit = client_account
+                    account_credit = customer_account
 
                 elif payment_type == "fee_payment":
                     # دفعة رسوم خدمات
@@ -552,11 +552,11 @@ class AccountingIntegrationService:
                 
                 if payment_type == "sale_payment":
                     # دفعة من عميل (سند قبض)
-                    entry_type = "client_payment"
-                    client_name = payment.sale.customer.name if (payment.sale and payment.sale.customer) else getattr(payment.sale, 'client_name', 'عميل')
+                    entry_type = "customer_payment"
+                    customer_name = payment.sale.customer.name if (payment.sale and payment.sale.customer) else getattr(payment.sale, 'customer_name', 'عميل')
                     rec_code = f"REC-{str(payment.id).zfill(4)}"
                     reference = payment.reference_number if getattr(payment, 'reference_number', None) else rec_code
-                    description = f"تحصيل من العميل \"{client_name}\" - فاتورة مبيعات {payment.sale.number}"
+                    description = f"تحصيل من العميل \"{customer_name}\" - فاتورة مبيعات {payment.sale.number}"
 
                 elif payment_type == "fee_payment":
                     # دفعة رسوم خدمات
@@ -814,7 +814,7 @@ class AccountingIntegrationService:
                     source_module = 'purchase'
                     source_model = 'PurchasePayment'
                 elif payment_type == "customer_payment":
-                    source_module = 'client'
+                    source_module = 'customer'
                     source_model = 'CustomerPayment'
                 elif payment_type == "sale_payment":
                     source_module = 'sale'
@@ -1367,24 +1367,24 @@ class AccountingIntegrationService:
                 
                 # معالجة فرق الإجمالي (الإيرادات والعملاء/أولياء الأمور)
                 if total_difference != 0:
-                    client_account = None
-                    client_name = sale.client_name
+                    customer_account = None
+                    customer_name = sale.customer.name if sale.customer else (sale.parent.name if sale.parent else "عميل")
                     
                     if sale.parent:
-                        client_account = cls._get_parent_account(sale.parent)
-                        if not client_account:
+                        customer_account = cls._get_parent_account(sale.parent)
+                        if not customer_account:
                             logger.warning(f"⚠️ ولي الأمر {sale.parent.name} ليس له حساب محاسبي - سيتم إنشاء حساب جديد")
-                            client_account = cls._create_parent_account(sale.parent, user)
-                            if not client_account:
+                            customer_account = cls._create_parent_account(sale.parent, user)
+                            if not customer_account:
                                 error_msg = f"❌ فشل إنشاء حساب محاسبي لولي الأمر {sale.parent.name}. يجب إنشاء حساب محاسبي لولي الأمر أولاً."
                                 logger.error(error_msg)
                                 raise ValueError(error_msg)
                     elif sale.customer:
-                        client_account = cls._get_customer_account(sale.customer)
-                        if not client_account:
+                        customer_account = cls._get_customer_account(sale.customer)
+                        if not customer_account:
                             logger.warning(f"⚠️ العميل {sale.customer.name} ليس له حساب محاسبي - سيتم إنشاء حساب جديد")
-                            client_account = cls._create_customer_account(sale.customer, user)
-                            if not client_account:
+                            customer_account = cls._create_customer_account(sale.customer, user)
+                            if not customer_account:
                                 error_msg = f"❌ فشل إنشاء حساب محاسبي للعميل {sale.customer.name}. يجب إنشاء حساب محاسبي للعميل أولاً."
                                 logger.error(error_msg)
                                 raise ValueError(error_msg)
@@ -1395,10 +1395,10 @@ class AccountingIntegrationService:
                     
                     if total_difference > 0:  # زيادة في الفاتورة
                         lines.append(JournalEntryLineData(
-                            account_code=client_account.code,
+                            account_code=customer_account.code,
                             debit=total_difference,
                             credit=Decimal("0.00"),
-                            description=f"زيادة ذمة {client_name} - تصحيح فاتورة {sale.number}"
+                            description=f"زيادة ذمة {customer_name} - تصحيح فاتورة {sale.number}"
                         ))
                         lines.append(JournalEntryLineData(
                             account_code=accounts["sales_revenue"].code,
@@ -1409,10 +1409,10 @@ class AccountingIntegrationService:
                     else:  # نقص في الفاتورة
                         abs_diff = abs(total_difference)
                         lines.append(JournalEntryLineData(
-                            account_code=client_account.code,
+                            account_code=customer_account.code,
                             debit=Decimal("0.00"),
                             credit=abs_diff,
-                            description=f"تخفيض ذمة {client_name} - تصحيح فاتورة {sale.number}"
+                            description=f"تخفيض ذمة {customer_name} - تصحيح فاتورة {sale.number}"
                         ))
                         lines.append(JournalEntryLineData(
                             account_code=accounts["sales_revenue"].code,
@@ -1691,39 +1691,39 @@ class AccountingIntegrationService:
             return {}
 
     @classmethod
-    def _get_client_info(cls, sale, user=None) -> tuple:
+    def _get_customer_info(cls, sale, user=None) -> tuple:
         """الحصول على معلومات العميل/ولي الأمر وحسابه المحاسبي"""
         try:
-            client_account = None
-            client_name = ""
+            customer_account = None
+            customer_name = ""
             
             if sale.parent:
-                # استخدام ولي الأمر (النظام الجديد)
-                client_account = cls._get_parent_account(sale.parent)
-                client_name = sale.parent.name
+                # استخدام ولي الأمر
+                customer_account = cls._get_parent_account(sale.parent)
+                customer_name = sale.parent.name
                 
-                if not client_account:
+                if not customer_account:
                     # إنشاء حساب جديد لولي الأمر تلقائياً
                     logger.warning(f"⚠️ ولي الأمر {sale.parent.name} ليس له حساب محاسبي - سيتم إنشاء حساب جديد")
-                    client_account = cls._create_parent_account(sale.parent, user or sale.created_by)
+                    customer_account = cls._create_parent_account(sale.parent, user or sale.created_by)
                     
-                    if not client_account:
+                    if not customer_account:
                         # فشل إنشاء الحساب - إيقاف العملية
                         error_msg = f"❌ فشل إنشاء حساب محاسبي لولي الأمر {sale.parent.name}. يجب إنشاء حساب محاسبي لولي الأمر أولاً."
                         logger.error(error_msg)
                         raise ValueError(error_msg)
                         
             elif hasattr(sale, 'customer') and sale.customer:
-                # استخدام العميل (النظام القديم - للتوافق المؤقت)
-                client_account = cls._get_customer_account(sale.customer)
-                client_name = sale.customer.name
+                # استخدام العميل
+                customer_account = cls._get_customer_account(sale.customer)
+                customer_name = sale.customer.name
                 
-                if not client_account:
+                if not customer_account:
                     # إنشاء حساب جديد للعميل تلقائياً
                     logger.warning(f"⚠️ العميل {sale.customer.name} ليس له حساب محاسبي - سيتم إنشاء حساب جديد")
-                    client_account = cls._create_customer_account(sale.customer, user or sale.created_by)
+                    customer_account = cls._create_customer_account(sale.customer, user or sale.created_by)
                     
-                    if not client_account:
+                    if not customer_account:
                         # فشل إنشاء الحساب - إيقاف العملية
                         error_msg = f"❌ فشل إنشاء حساب محاسبي للعميل {sale.customer.name}. يجب إنشاء حساب محاسبي للعميل أولاً."
                         logger.error(error_msg)
@@ -1733,7 +1733,7 @@ class AccountingIntegrationService:
                 logger.error(error_msg)
                 raise ValueError(error_msg)
             
-            return client_account, client_name
+            return customer_account, customer_name
             
         except Exception as e:
             logger.error(f"خطأ في الحصول على معلومات العميل: {str(e)}")

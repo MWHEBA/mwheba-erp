@@ -169,7 +169,7 @@ class Supplier(models.Model):
         help_text=_("الحد الأقصى للتسهيلات الائتمانية الممنوحة من المورد لشركتنا")
     )
     default_payment_term = models.ForeignKey(
-        "client.PaymentTerm",
+        "customer.PaymentTerm",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,

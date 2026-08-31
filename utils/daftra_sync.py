@@ -9,7 +9,7 @@ import logging
 from decimal import Decimal
 from django.db import transaction
 from django.conf import settings
-from client.models import Customer
+from customer.models import Customer
 from supplier.models import Supplier
 from users.models import User
 from financial.models import ChartOfAccounts
@@ -127,7 +127,7 @@ class DaftraSync:
         
         return all_suppliers
     
-    def compare_client_fields(self, customer, daftra_data, stats=None, force_active=False):
+    def compare_customer_fields(self, customer, daftra_data, stats=None, force_active=False):
         """مقارنة حقول العميل للكشف عن التغييرات"""
         client = daftra_data.get('Client', {})
         
@@ -254,7 +254,7 @@ class DaftraSync:
         
         return fields_match, new_data
     
-    def _process_single_client(self, item, user, stats, force_active=False):
+    def _process_single_customer(self, item, user, stats, force_active=False):
         """معالجة عميل واحد - محسن للسرعة"""
         client_data = item.get('Client', {})
         client_number = str(client_data.get('client_number', '')).strip()
@@ -268,7 +268,7 @@ class DaftraSync:
         
         if existing:
             # مقارنة الحقول
-            fields_match, new_data = self.compare_client_fields(existing, item, stats, force_active)
+            fields_match, new_data = self.compare_customer_fields(existing, item, stats, force_active)
             
             if fields_match:
                 stats['skipped'] += 1
@@ -301,11 +301,11 @@ class DaftraSync:
                 stats['updated'] += 1
         else:
             # إنشاء عميل جديد
-            _, new_data = self.compare_client_fields(None, item, stats, force_active)
+            _, new_data = self.compare_customer_fields(None, item, stats, force_active)
             new_data['created_by'] = user
             
             # إعداد سريع للعميل الجديد
-            new_data['client_type'] = 'individual'  # افتراضي للسرعة
+            new_data['customer_type'] = 'individual'  # افتراضي للسرعة
             
             # إنشاء العميل بدون حساب مالي (للسرعة)
             try:
@@ -316,7 +316,7 @@ class DaftraSync:
                 logger.error(f"[Daftra] فشل إنشاء عميل [{new_data.get('name')}] كود [{client_number}]: {type(e).__name__}: {e}")
                 stats['details'].append({'action': 'error', 'name': new_data.get('name'), 'code': client_number, 'reason': str(e)})
     
-    def sync_clients(self, user=None, force_active=False):
+    def sync_customers(self, user=None, force_active=False):
         """مزامنة العملاء مع Daftra - محسن للسرعة"""
         stats = {
             'created': 0,
@@ -337,7 +337,7 @@ class DaftraSync:
         
         for i, item in enumerate(daftra_clients, 1):
             try:
-                self._process_single_client(item, user, stats, force_active)
+                self._process_single_customer(item, user, stats, force_active)
                 
                 # طباعة التقدم كل 100 عميل
                 if i % 100 == 0:
@@ -358,9 +358,9 @@ class DaftraSync:
         
         return stats
     
-    def fix_duplicate_client_names(self):
+    def fix_duplicate_customer_names(self):
         """إصلاح أسماء العملاء المكررة"""
-        from client.models import Customer
+        from customer.models import Customer
         from django.db import models
         
         try:
@@ -388,9 +388,9 @@ class DaftraSync:
             print(f"❌ خطأ في إصلاح الأسماء: {e}")
             return {'error': str(e)}
     
-    def activate_all_existing_clients(self):
+    def activate_all_existing_customers(self):
         """تفعيل جميع العملاء الموجودين - سريع"""
-        from client.models import Customer
+        from customer.models import Customer
         
         try:
             updated = Customer.objects.filter(is_active=False).update(is_active=True)

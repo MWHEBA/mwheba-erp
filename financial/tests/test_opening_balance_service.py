@@ -11,7 +11,7 @@ from financial.models.currency import Currency
 from financial.models.opening_balance import OpeningBalanceBatch, OpeningBalanceLine
 from financial.services.opening_balance_service import OpeningBalancePostingService
 from financial.exceptions import ImmutableLedgerError
-from client.models import Customer, CustomerTransaction
+from customer.models import Customer, CustomerTransaction
 
 User = get_user_model()
 

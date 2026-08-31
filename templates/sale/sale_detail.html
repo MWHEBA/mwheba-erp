@@ -453,7 +453,7 @@
                                 <div class="party-label">{% trans "العميل:" %}</div>
                                 <div class="party-value">
                                     {% if sale.customer %}
-                                    <a href="{% url 'client:customer_detail' sale.customer.id %}" class="text-primary">
+                                    <a href="{% url "customer:customer_detail" sale.customer.id %}" class="text-primary">
                                         <i class="fas fa-user-circle me-1"></i> {{ sale.customer.name }}
                                     </a>
                                     {% else %}

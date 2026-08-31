@@ -2,7 +2,7 @@ from rest_framework import serializers
 from django.utils.translation import gettext_lazy as _
 
 from ..models import PrintingOrder, OrderMaterial, OrderService, PaperSpecification, PrintingSpecification
-from client.models import Customer
+from customer.models import Customer
 
 
 class CustomerSerializer(serializers.ModelSerializer):

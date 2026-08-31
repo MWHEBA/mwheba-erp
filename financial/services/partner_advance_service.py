@@ -83,7 +83,7 @@ class PartnerAdvanceService:
         partner_type = "customer" if hasattr(partner, "payments") or partner.__class__.__name__ == "Customer" else "supplier"
 
         if partner_type == "customer":
-            from client.services.customer_allocation_audit_service import CustomerAllocationAuditService
+            from customer.services.customer_allocation_audit_service import CustomerAllocationAuditService
             return CustomerAllocationAuditService.allocate_customer_prepaid_balance_to_sale(
                 sale=invoice,
                 amount_to_allocate=amount,
@@ -103,7 +103,7 @@ class PartnerAdvanceService:
         توجيه عكس التوزيع آلياً وحصرياً لنواة الـ Audit الموحدة Single Source of Truth
         """
         if partner_type == "customer":
-            from client.services.customer_allocation_audit_service import CustomerAllocationAuditService
+            from customer.services.customer_allocation_audit_service import CustomerAllocationAuditService
             return CustomerAllocationAuditService.reverse_customer_allocation(audit_id=audit_id, user=user)
         else:
             from supplier.services.supplier_allocation_service import SupplierAllocationService
@@ -177,7 +177,7 @@ class PartnerAdvanceService:
                 payments = []
             total_paid = sum((p.transaction_amount or p.amount) for p in payments)
 
-            from client.models import CustomerAllocationAudit
+            from customer.models import CustomerAllocationAudit
             settled = Decimal("0.00")
             for p in payments:
                 settled += sum(
@@ -232,7 +232,7 @@ class PartnerAdvanceService:
         تقارن رصيد اللقطة المخزنة مع مجموع سجلات الـ Audit وتولد ReconciliationIssue في حال وجود فروق
         """
         from financial.models import PartnerCurrencyBalanceSnapshot, ReconciliationIssue, Currency
-        from client.models import Customer, CustomerAllocationAudit, CustomerPayment
+        from customer.models import Customer, CustomerAllocationAudit, CustomerPayment
         from supplier.models import Supplier, SupplierAllocationAudit, SupplierAdvancePayment
 
         issues_found = []

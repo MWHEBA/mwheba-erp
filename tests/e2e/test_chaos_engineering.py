@@ -388,7 +388,7 @@ class TestChaosEngineering:
         """
         from product.models import Product, Stock, StockMovement
         from financial.models import JournalEntry, JournalEntryLine
-        from client.services.customer_service import CustomerService
+        from customer.services.customer_service import CustomerService
         from sale.services.sale_service import SaleService
         from django.db.models import Sum
         

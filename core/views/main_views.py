@@ -69,7 +69,7 @@ def dashboard(request):
     # محاولة جلب بيانات المبيعات والعملاء
     try:
         from sale.models import Sale
-        from client.models import Customer
+        from customer.models import Customer
         
         # إحصائيات المبيعات الشهر الحالي
         sales_month = Sale.objects.filter(
@@ -169,7 +169,7 @@ def dashboard(request):
         remaining = invoice.amount_due
         
         supplier_invoices_data.append({
-            'number': f'<a href="/purchase/{invoice.id}/" class="text-primary">{invoice.number}</a>',
+            'number': f'<a href="/purchases/{invoice.id}/" class="text-primary">{invoice.number}</a>',
             'supplier': invoice.supplier.name if invoice.supplier else '-',
             'date': invoice.date.strftime('%d-%m-%Y'),
             'days_overdue': f'<span class="badge {badge_class}">{days_overdue} يوم</span>',

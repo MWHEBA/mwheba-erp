@@ -1,8 +1,8 @@
 import logging
 from decimal import Decimal
 from typing import Dict, Any, Optional
-from client.models import Customer, CustomerTransaction, CustomerCreditProfile
-from client.services.customer_subledger_service import CustomerSubledgerService
+from customer.models import Customer, CustomerTransaction, CustomerCreditProfile
+from customer.services.customer_subledger_service import CustomerSubledgerService
 from presentation.dto.dashboard_dto import ARMetricsDTO
 
 logger = logging.getLogger("presentation.services.customer_dashboard_presenter")

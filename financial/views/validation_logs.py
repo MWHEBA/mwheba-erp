@@ -292,9 +292,7 @@ def validation_audit_tool(request):
         'module_choices': [
             ('all', 'جميع الوحدات'),
             ('financial', 'المالية'),
-            ('client', 'العملاء'),
-            ('activities', 'الأنشطة'),
-            ('transportation', 'النقل'),
+            ('customer', 'العملاء'),
             ('hr', 'الموارد البشرية'),
             ('supplier', 'الموردين'),
         ],

@@ -48,7 +48,7 @@
     "icon": "fas fa-users",
     "module_type": "optional",
     "is_enabled": true,
-    "url_namespace": "client,sale",
+    "url_namespace": "customer,sale",
     "menu_id": "customerMenu,salesMenu",
     "order": 10,
     "created_at": "2026-02-28T01:16:15.626Z",

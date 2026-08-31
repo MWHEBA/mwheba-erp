@@ -7,7 +7,7 @@ import json
 from printing_pricing.models import PrintingOrder, OrderMaterial, OrderService, OrderSummary, PricingStatus, CalculationType
 from printing_pricing.services.calculators.base_calculator import BaseCalculator
 from printing_pricing.services.validators.order_validator import OrderValidator
-from client.models import Customer
+from customer.models import Customer
 
 User = get_user_model()
 

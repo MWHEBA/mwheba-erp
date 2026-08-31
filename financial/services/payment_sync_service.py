@@ -218,8 +218,6 @@ class PaymentSyncService:
 
             raise
 
-    # Parent payment sync removed - client module no longer exists
-
     def _sync_to_supplier_payment(
         self, sync_operation: PaymentSyncOperation, payment_obj, rule: PaymentSyncRule
     ):

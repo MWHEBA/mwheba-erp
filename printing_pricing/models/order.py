@@ -5,7 +5,7 @@ from django.conf import settings
 from decimal import Decimal
 
 from .base import BaseModel, PricingStatus, OrderType
-from client.models import Customer
+from customer.models import Customer
 
 
 class PrintingOrder(BaseModel):
@@ -56,16 +56,6 @@ class PrintingOrder(BaseModel):
         on_delete=models.PROTECT,
         related_name="printing_orders",
         verbose_name=_("العميل")
-    )
-    
-    # إضافة حقل client للتوافق مع النظام القديم
-    client = models.ForeignKey(
-        Customer,
-        on_delete=models.PROTECT,
-        related_name="client_printing_orders",
-        verbose_name=_("العميل (client)"),
-        null=True,
-        blank=True
     )
     
     title = models.CharField(
@@ -334,11 +324,11 @@ class PrintingOrder(BaseModel):
     design_service_type = models.CharField(
         max_length=20,
         choices=(
-            ("CLIENT_READY", _("تصميم جاهز للطباعة من العميل")),
+            ("CUSTOMER_READY", _("تصميم جاهز للطباعة من العميل")),
             ("PREPRESS_EDIT", _("تعديل فني ومونتاج وفصل ألوان")),
             ("NEW_CONCEPT", _("تصميم إبداعي جديد بالكامل")),
         ),
-        default="CLIENT_READY",
+        default="CUSTOMER_READY",
         verbose_name=_("خدمة التصميم")
     )
     design_fee = models.DecimalField(
@@ -399,12 +389,6 @@ class PrintingOrder(BaseModel):
         """
         if not self.order_number:
             self.order_number = self.generate_order_number()
-            
-        # المزامنة التوافقية بين customer و client
-        if self.customer and not self.client:
-            self.client = self.customer
-        elif self.client and not self.customer:
-            self.customer = self.client
             
         # المزامنة التوافقية بين final_price و sale_price
         if self.final_price and not self.sale_price:

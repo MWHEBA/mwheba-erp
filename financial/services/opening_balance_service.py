@@ -152,7 +152,7 @@ class OpeningBalancePostingService:
                     if line.customer.financial_account:
                         posting_account = line.customer.financial_account
                     elif not posting_account or not getattr(posting_account, 'is_leaf', True) or getattr(posting_account, 'is_control_account', False):
-                        from client.services.customer_service import CustomerService
+                        from customer.services.customer_service import CustomerService
                         posting_account = CustomerService.create_financial_account_for_customer(line.customer, user=user)
                     if line.account_id != posting_account.id:
                         line.account = posting_account
@@ -367,7 +367,7 @@ class OpeningBalancePostingService:
     def _check_subledger_allocations(cls, batch):
         """التحقق من عدم وجود سدادات أو تخصيصات نشطة مرتبطة بالأرصدة الافتتاحية للعملاء أو الموردين"""
         try:
-            from client.models import CustomerTransaction
+            from customer.models import CustomerTransaction
             c_txs = CustomerTransaction.objects.filter(reference_type="OPENING_BALANCE", reference_id=str(batch.id))
             for ctx in c_txs:
                 if hasattr(ctx, 'allocations') and ctx.allocations.exists():
@@ -404,7 +404,7 @@ class OpeningBalancePostingService:
     @classmethod
     def _create_customer_opening_item(cls, line, journal_entry, user):
         try:
-            from client.models import CustomerTransaction
+            from customer.models import CustomerTransaction
             is_foreign = bool(line.currency and not line.currency.is_functional)
             func_val = abs(line.debit - line.credit)
             foreign_val = (line.debit_foreign or line.credit_foreign) if is_foreign else func_val
@@ -435,7 +435,7 @@ class OpeningBalancePostingService:
     @classmethod
     def _reverse_customer_opening_item(cls, line, reversal_jv, user):
         try:
-            from client.models import CustomerTransaction
+            from customer.models import CustomerTransaction
             is_foreign = bool(line.currency and not line.currency.is_functional)
             func_val = abs(line.debit - line.credit)
             foreign_val = (line.debit_foreign or line.credit_foreign) if is_foreign else func_val

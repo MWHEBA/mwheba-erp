@@ -1622,7 +1622,7 @@
         const supplierSelect = document.getElementById('supplierId');
         if (!supplierSelect) return;
         
-        fetch('/supplier/api/list/')
+        fetch('/suppliers/api/list/')
         .then(response => response.json())
         .then(data => {
             if (data.success && data.suppliers) {

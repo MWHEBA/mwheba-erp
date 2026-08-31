@@ -257,7 +257,7 @@ def supplier_type_settings_delete(request, pk):
                         return JsonResponse({
                             'success': True,
                             'message': success_message,
-                            'redirect_url': '/supplier/settings/types/'
+                            'redirect_url': '/suppliers/settings/types/'
                         })
                     
                     return redirect('supplier:supplier_type_settings_list')

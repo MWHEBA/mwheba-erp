@@ -149,7 +149,8 @@ class APIRateLimitMiddleware(MiddlewareMixin):
     PROTECTED_API_PATHS = getattr(settings, 'PROTECTED_API_PATHS', [
         '/api/',
         '/financial/api/',
-        '/clients/api/'
+        '/customers/api/',
+        '/suppliers/api/'
     ])
     
     # حدود المعدل الافتراضية

@@ -159,7 +159,7 @@ def test_supplier(db):
 @pytest.fixture
 def test_customer(db):
     """Create a test customer for sale operations"""
-    from client.models import Customer
+    from customer.models import Customer
     
     return Customer.objects.create(
         name='Test Customer',

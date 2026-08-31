@@ -21,7 +21,7 @@ from financial.services.fx_revaluation_service import FXRevaluationService
 from purchase.services.landed_cost_allocation_service import LandedCostAllocationService
 from sale.models.sale import Sale
 from purchase.models.purchase import Purchase
-from client.models import Customer
+from customer.models import Customer
 from supplier.models import Supplier
 from product.models.stock_management import Warehouse
 

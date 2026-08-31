@@ -147,7 +147,6 @@ class JournalEntry(models.Model):
         ("inventory", _("حركة مخزنية")),
         ("sales_invoice", _("فاتورة مبيعات")),
         ("customer_payment", _("تحصيل من عميل")),
-        ("client_payment", _("تحصيل من عميل")),
         ("service_payment", _("دفعة خدمات")),
         ("purchase_invoice", _("فاتورة مشتريات")),
         ("vendor_payment", _("سداد لمورد")),
@@ -222,7 +221,7 @@ class JournalEntry(models.Model):
         _("الوحدة المصدر"), 
         max_length=50, 
         blank=True, 
-        help_text=_("الوحدة التي أنشأت القيد (client, transportation, hr, etc.)")
+        help_text=_("الوحدة التي أنشأت القيد (customer, transportation, hr, etc.)")
     )
     source_model = models.CharField(
         _("النموذج المصدر"), 
@@ -1027,7 +1026,7 @@ class JournalEntry(models.Model):
         ربط القيد بمصدره (الوحدة والنموذج والكائن)
         
         الوسائط:
-            module: اسم الوحدة (client, hr, transportation, etc.)
+            module: اسم الوحدة (customer, hr, transportation, etc.)
             model: اسم النموذج (CustomerPayment, SalaryPayment, etc.)
             object_id: معرف الكائن
         """

@@ -20,7 +20,7 @@ class ReportsBuilderService:
     # Data source configurations
     DATA_SOURCE_CONFIG = {
         'customers': {
-            'model': 'client.Customer',
+            'model': "customer.Customer",
             'fields': {
                 'name': {'label': 'اسم العميل', 'type': 'text'},
                 'code': {'label': 'كود العميل', 'type': 'text'},
@@ -29,7 +29,7 @@ class ReportsBuilderService:
                 'email': {'label': 'البريد الإلكتروني', 'type': 'text'},
                 'address': {'label': 'العنوان', 'type': 'text'},
                 'city': {'label': 'المدينة', 'type': 'text'},
-                'client_type': {'label': 'نوع العميل', 'type': 'text'},
+                'customer_type': {'label': 'نوع العميل', 'type': 'text'},
                 'balance': {'label': 'الرصيد', 'type': 'number'},
                 'credit_limit': {'label': 'حد الائتمان', 'type': 'number'},
                 'is_active': {'label': 'نشط', 'type': 'boolean'},
@@ -64,7 +64,7 @@ class ReportsBuilderService:
             }
         },
         'payments': {
-            'model': 'client.CustomerPayment',
+            'model': "customer.CustomerPayment",
             'fields': {
                 'customer__name': {'label': 'اسم العميل', 'type': 'text'},
                 'amount': {'label': 'المبلغ', 'type': 'number'},

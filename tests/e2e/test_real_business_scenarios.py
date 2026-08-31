@@ -46,7 +46,7 @@ class TestRealBusinessScenarios:
         5. دفع للمورد 4000 ج.م
         6. التحقق من كل شيء بدقة
         """
-        from client.services.customer_service import CustomerService
+        from customer.services.customer_service import CustomerService
         from supplier.services.supplier_service import SupplierService
         from purchase.services.purchase_service import PurchaseService
         from sale.services.sale_service import SaleService
@@ -66,14 +66,14 @@ class TestRealBusinessScenarios:
             code='REAL_CUST_001',
             user=test_user,
             phone='01012345678',
-            client_type='company',
+            customer_type='company',
             credit_limit=Decimal('50000.00')
         )
         
         # التحقق الصارم: العميل يجب أن يكون له حساب محاسبي
         assert customer.financial_account is not None, \
             " CRITICAL: العميل ليس له حساب محاسبي!"
-        assert customer.financial_account.code.startswith('1103'), \
+        assert customer.financial_account.code.startswith(('1103', '1121')), \
             f" CRITICAL: كود حساب العميل خاطئ: {customer.financial_account.code}"
         
         print(f" العميل: {customer.name}")
@@ -90,7 +90,7 @@ class TestRealBusinessScenarios:
         # التحقق الصارم: المورد يجب أن يكون له حساب محاسبي
         assert supplier.financial_account is not None, \
             " CRITICAL: المورد ليس له حساب محاسبي!"
-        assert supplier.financial_account.code.startswith(('2101', '2010')), \
+        assert supplier.financial_account.code.startswith(('2101', '2010', '2111')), \
             f" CRITICAL: كود حساب المورد خاطئ: {supplier.financial_account.code}"
         
         print(f" المورد: {supplier.name}")
@@ -174,9 +174,9 @@ class TestRealBusinessScenarios:
         # التحقق من الحسابات المستخدمة
         account_codes = [line.account.code for line in purchase_lines]
         
-        # يجب أن يحتوي على حساب المخزون (10400) أو حساب المصروفات
+        # يجب أن يحتوي على حساب المخزون أو حساب المصروفات
         has_inventory_or_expense = any(
-            code in ['10400', '10300', '50200'] for code in account_codes
+            code.startswith(('10400', '10300', '50200', '1131', '5111')) for code in account_codes
         )
         assert has_inventory_or_expense, \
             f" القيد لا يحتوي على حساب المخزون/المصروفات: {account_codes}"
@@ -273,8 +273,8 @@ class TestRealBusinessScenarios:
         assert customer.financial_account.code in sale_account_codes, \
             f" القيد لا يحتوي على حساب العميل: {sale_account_codes}"
         
-        # يجب أن يحتوي على حساب إيرادات المبيعات (40100)
-        assert '40100' in sale_account_codes, \
+        # يجب أن يحتوي على حساب إيرادات المبيعات
+        assert any(code.startswith(('40100', '4111', '4110')) for code in sale_account_codes), \
             f" القيد لا يحتوي على حساب إيرادات المبيعات: {sale_account_codes}"
         
         print(f"   الحسابات: {', '.join(sale_account_codes)}")
@@ -293,7 +293,7 @@ class TestRealBusinessScenarios:
         print("دفعة من العميل")
         print("-"*80)
         
-        cash_account = ChartOfAccounts.objects.get(code='10100')
+        cash_account = ChartOfAccounts.objects.filter(code__in=['11110', '10100']).first() or ChartOfAccounts.objects.filter(is_cash_account=True).first()
         if not cash_account.is_cash_account:
             cash_account.is_cash_account = True
             cash_account.save()
@@ -303,7 +303,7 @@ class TestRealBusinessScenarios:
             sale=sale,
             amount=Decimal('5000.00'),
             payment_date=timezone.now().date(),
-            payment_method='10100',  # الصندوق
+            payment_method=cash_account.code,  # الصندوق
             financial_account=cash_account,  # الحساب المالي
             status='draft',  # مسودة أولاً
             created_by=test_user,

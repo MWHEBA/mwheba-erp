@@ -156,7 +156,7 @@ function deleteTier(tierId, rangeLabel) {
         if (result.isConfirmed) {
             const form = document.createElement('form');
             form.method = 'POST';
-            form.action = `/supplier/{{ supplier.pk }}/services/{{ service.pk }}/tiers/${tierId}/delete/`;
+            form.action = `/suppliers/{{ supplier.pk }}/services/{{ service.pk }}/tiers/${tierId}/delete/`;
             const csrf = document.querySelector('[name=csrfmiddlewaretoken]');
             if (csrf) {
                 const inp = document.createElement('input');

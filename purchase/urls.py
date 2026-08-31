@@ -76,7 +76,7 @@ urlpatterns = [
     # فواتير المشتريات
     path("", purchase_list, name="purchase_list"),
     path("create/", purchase_create, name="purchase_create"),
-    path("create/supplier/<int:supplier_id>/", purchase_create, name="purchase_create_for_supplier"),
+    path("create/suppliers/<int:supplier_id>/", purchase_create, name="purchase_create_for_supplier"),
     # API - يجب أن يكون قبل patterns الـ <int:pk>
     path("api/supplier-type/<int:supplier_id>/", get_supplier_type_api, name="supplier_type_api"),
     path("api/create-product/", ajax_create_product, name="ajax_create_product"),
@@ -130,6 +130,6 @@ urlpatterns = [
     path("grn/<int:pk>/post/", grn_post, name="grn_post"),
     path("grn/<int:pk>/reverse/", grn_reverse, name="grn_reverse"),
     # التكاليف الإضافية والجمارك (Landed Cost)
-    path("landed-cost/", landed_cost_list, name="landed_cost_list"),
-    path("landed-cost/create/", landed_cost_create, name="landed_cost_create"),
+    path("landed-costs/", landed_cost_list, name="landed_cost_list"),
+    path("landed-costs/create/", landed_cost_create, name="landed_cost_create"),
 ]

@@ -5,7 +5,7 @@ from django.utils import timezone
 from django.contrib.auth import get_user_model
 
 from product.models.product_core import Product, Category
-from client.models import Customer
+from customer.models import Customer
 
 User = get_user_model()
 

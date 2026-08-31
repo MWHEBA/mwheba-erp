@@ -117,7 +117,7 @@ class EntityAccountMapper:
                         logger.warning(f"تعذر إنشاء حساب تلقائي للمورد {entity}: {err}")
                 elif entity_type == 'customer':
                     try:
-                        from client.services.customer_service import CustomerService
+                        from customer.services.customer_service import CustomerService
                         account = CustomerService().create_financial_account_for_customer(entity)
                     except Exception as err:
                         logger.warning(f"تعذر إنشاء حساب تلقائي للعميل {entity}: {err}")
@@ -296,7 +296,7 @@ class EntityAccountMapper:
         """
         try:
             if entity_type == 'customer':
-                from client.models import Customer
+                from customer.models import Customer
                 return Customer.objects.get(id=entity_id)
 
             elif entity_type == 'supplier':

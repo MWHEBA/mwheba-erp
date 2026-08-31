@@ -451,7 +451,7 @@ class JournalEntryService:
                     },
                     "11210001": {
                         "name": "عميل افتراضي",
-                        "name_en": "Default Client",
+                        "name_en": "Default Customer",
                         "type": "asset",
                         "description": "حساب عميل افتراضي",
                     },

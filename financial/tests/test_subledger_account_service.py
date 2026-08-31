@@ -10,7 +10,7 @@ from django.contrib.auth import get_user_model
 
 from financial.models.chart_of_accounts import ChartOfAccounts, AccountType
 from financial.services.subledger_account_service import SubledgerAccountService
-from client.models import Customer
+from customer.models import Customer
 from supplier.models import Supplier
 
 User = get_user_model()

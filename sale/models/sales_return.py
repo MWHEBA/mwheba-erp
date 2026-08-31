@@ -7,7 +7,7 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from django.conf import settings
 
-from client.models import Customer
+from customer.models import Customer
 from product.models import Product, Warehouse
 from sale.models.sales_models import SalesOrder, DeliveryNote, DeliveryNoteItem, SalesInvoice
 from financial.models.journal_entry import JournalEntry

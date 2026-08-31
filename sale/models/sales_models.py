@@ -4,7 +4,7 @@ from django.conf import settings
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
-from client.models import Customer
+from customer.models import Customer
 from product.models.product_core import Product, Unit
 from product.models.stock_management import Warehouse
 from financial.models.journal_entry import JournalEntry

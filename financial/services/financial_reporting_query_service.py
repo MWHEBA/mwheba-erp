@@ -10,7 +10,7 @@ from django.db.models import Sum
 
 from financial.models.chart_of_accounts import ChartOfAccounts
 from financial.services.ledger_query_service import LedgerQueryService
-from client.services.customer_aging_service import CustomerAgingService
+from customer.services.customer_aging_service import CustomerAgingService
 from supplier.services.supplier_aging_service import SupplierAgingService
 from product.services.valuation_service import InventoryValuationService
 

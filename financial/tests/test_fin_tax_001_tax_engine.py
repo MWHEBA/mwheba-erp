@@ -18,7 +18,7 @@ from financial.models import (
 from financial.services.tax_service import TaxDeterminationService
 from financial.services.tax_decision import TaxCalculationResult
 from product.models import Product, Category, Unit, Warehouse, Stock
-from client.models import Customer
+from customer.models import Customer
 from sale.services.sales_service import SalesService
 from financial.exceptions import FinancialCoreError
 

@@ -2,7 +2,7 @@ from django.test import TestCase
 from django.contrib.auth import get_user_model
 from sale.models import CustomFieldDefinition, Sale, Quotation
 from sale.services.sale_service import SaleService
-from client.models import Customer
+from customer.models import Customer
 from product.models import Warehouse, Product, Unit, Category
 
 User = get_user_model()

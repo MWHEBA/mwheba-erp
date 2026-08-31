@@ -149,7 +149,7 @@ class ApprovalService:
                     po.save(update_fields=["status", "approved_by", "approved_at"])
 
             elif req.module == "CREDIT" and req.reference_id:
-                from client.models import CustomerCreditStatusHistory
+                from customer.models import CustomerCreditStatusHistory
                 CustomerCreditStatusHistory.objects.create(
                     customer_id=int(req.reference_id),
                     old_status="OVER_LIMIT_PENDING",

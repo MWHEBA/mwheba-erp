@@ -9,7 +9,7 @@ from decimal import Decimal
 from datetime import date
 
 from sale.models.sale import Sale
-from client.models import Customer
+from customer.models import Customer
 
 User = get_user_model()
 

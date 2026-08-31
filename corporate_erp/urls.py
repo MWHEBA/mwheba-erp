@@ -47,10 +47,10 @@ urlpatterns = [
     # تطبيقات النظام
     path("", include("core.urls")),
     path("users/", include("users.urls")),
-    path("customers/", include("client.urls")),
+    path("customers/", include("customer.urls")),
     path("sales/", include("sale.urls")),
     path("work-orders/", include("work_order.urls")),
-    path("supplier/", include("supplier.urls")),
+    path("suppliers/", include("supplier.urls")),
     path("products/", include("product.urls")),
     path("printing-pricing/", include("printing_pricing.urls")),  # نظام تسعير المطبوعات
     path("purchases/", include("purchase.urls")),

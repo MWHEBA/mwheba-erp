@@ -4,7 +4,7 @@ from django.contrib.auth import get_user_model
 from django.utils import timezone
 
 from product.models.product_core import Product, Category, Unit
-from client.models import Customer
+from customer.models import Customer
 from sale.models.pricing import PriceList, PriceListItem, DiscountRule, PricingAuditLog
 from sale.services.pricing_service import PricingService
 

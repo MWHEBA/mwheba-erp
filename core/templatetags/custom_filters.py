@@ -399,7 +399,7 @@ def has_module_access(context, module_name):
         "advanced_reports": ["financial.view_account", "financial.view_transaction"],
         # "sales": ["sale.view_sale"],  # تم تعطيل المبيعات
         "purchases": ["purchase.view_purchase"],
-        "clients": ["client.view_customer"],
+        "customers": ["customer.view_customer"],
         "suppliers": ["supplier.view_supplier"],
         "inventory": ["product.view_product"],
         "users": ["auth.view_user"],

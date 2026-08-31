@@ -716,8 +716,8 @@
           <a href="#" id="viewInvoiceBtn" class="btn btn-outline-info btn-sm me-2" target="_blank" style="display: none;">
             <i class="fas fa-file-invoice me-1"></i>عرض الفاتورة
           </a>
-          <a href="#" id="viewClientBtn" class="btn btn-outline-warning btn-sm me-2" target="_blank" style="display: none;">
-            <i class="fas fa-user me-1"></i><span id="clientBtnText">عرض العميل</span>
+          <a href="#" id="viewCustomerBtn" class="btn btn-outline-warning btn-sm me-2" target="_blank" style="display: none;">
+            <i class="fas fa-user me-1"></i><span id="customerBtnText">عرض العميل</span>
           </a>
         </div>
         <div>
@@ -1123,7 +1123,7 @@
     // إخفاء جميع الأزرار الإضافية في البداية
     document.getElementById('viewPaymentBtn').style.display = 'none';
     document.getElementById('viewInvoiceBtn').style.display = 'none';
-    document.getElementById('viewClientBtn').style.display = 'none';
+    document.getElementById('viewCustomerBtn').style.display = 'none';
     
     // جلب تفاصيل القيد
     fetch(`/financial/api/journal-entry/${journalEntryId}/summary/`)
@@ -1281,14 +1281,14 @@
     
     const paymentBtn = document.getElementById('viewPaymentBtn');
     const invoiceBtn = document.getElementById('viewInvoiceBtn');
-    const clientBtn = document.getElementById('viewClientBtn');
-    const clientBtnText = document.getElementById('clientBtnText');
+    const customerBtn = document.getElementById('viewCustomerBtn');
+    const customerBtnText = document.getElementById('customerBtnText');
     
     
     // إخفاء جميع الأزرار في البداية
     paymentBtn.style.display = 'none';
     invoiceBtn.style.display = 'none';
-    clientBtn.style.display = 'none';
+    customerBtn.style.display = 'none';
     
     // التحقق من وجود معلومات المصدر
     if (data.source) {
@@ -1306,15 +1306,15 @@
         invoiceBtn.style.display = 'inline-block';
       }
       
-      // زر عرض ولي الأمر أو المورد
-      if (data.source.parent_url) {
-        clientBtn.href = data.source.parent_url;
-        clientBtnText.textContent = 'عرض ولي الأمر';
-        clientBtn.style.display = 'inline-block';
+      // زر عرض العميل أو المورد
+      if (data.source.customer_url || data.source.parent_url) {
+        customerBtn.href = data.source.customer_url || data.source.parent_url;
+        customerBtnText.textContent = 'عرض العميل';
+        customerBtn.style.display = 'inline-block';
       } else if (data.source.supplier_url) {
-        clientBtn.href = data.source.supplier_url;
-        clientBtnText.textContent = 'عرض المورد';
-        clientBtn.style.display = 'inline-block';
+        customerBtn.href = data.source.supplier_url;
+        customerBtnText.textContent = 'عرض المورد';
+        customerBtn.style.display = 'inline-block';
       }
     }
     

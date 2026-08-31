@@ -16,7 +16,7 @@ from sale.services.sales_return_service import SalesReturnService
 from sale.services.sales_reversal_service import SalesReversalService
 from sale.services.sales_service import SalesService
 from product.models import Product, Category, Unit, Warehouse, Stock
-from client.models import Customer
+from customer.models import Customer
 from financial.models import ChartOfAccounts, AccountType
 from financial.exceptions import FinancialCoreError
 

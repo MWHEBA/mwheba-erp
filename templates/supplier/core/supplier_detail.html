@@ -1097,7 +1097,7 @@
         if (result.isConfirmed) {
           const form = document.createElement('form');
           form.method = 'POST';
-          form.action = `/supplier/{{ supplier.pk }}/services/${serviceId}/delete/`;
+          form.action = `/suppliers/{{ supplier.pk }}/services/${serviceId}/delete/`;
           const csrf = document.querySelector('[name=csrfmiddlewaretoken]');
           if (csrf) {
             const inp = document.createElement('input');
@@ -1141,7 +1141,7 @@
     }
 
     function openCreateAccountModal(supplierId) {
-      fetch(`/supplier/${supplierId}/create-account/`, {
+      fetch(`/suppliers/${supplierId}/create-account/`, {
         method: 'GET',
         headers: { 'X-Requested-With': 'XMLHttpRequest' }
       })
@@ -1171,7 +1171,7 @@
         if (typeof toastr !== 'undefined') toastr.error('خطأ: لم يتم العثور على رمز الأمان');
         return;
       }
-      fetch(`/supplier/${supplierId}/create-account/`, {
+      fetch(`/suppliers/${supplierId}/create-account/`, {
         method: 'POST',
         headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': csrfToken }
       })

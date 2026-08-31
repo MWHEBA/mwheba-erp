@@ -156,7 +156,7 @@ class MaterialCalculator(BaseCalculator):
         lamination_waste_pct: Decimal = Decimal('0.00'),
         diecut_waste_pct: Decimal = Decimal('0.00'),
         binding_waste_pct: Decimal = Decimal('0.00'),
-        is_client_paper: bool = False,
+        is_customer_paper: bool = False,
         sheet_cost: Decimal = Decimal('0.00')
     ) -> Dict[str, Any]:
         """
@@ -168,7 +168,7 @@ class MaterialCalculator(BaseCalculator):
             lamination_waste_pct: نسبة هالك السلوفان / اللامينيشن
             diecut_waste_pct: نسبة هالك التكسير / الدايكت
             binding_waste_pct: نسبة هالك التجليد والتقفيل
-            is_client_paper: هل الورق مُورد من العميل (تكلفة = 0)
+            is_customer_paper: هل الورق مُورد من العميل (تكلفة = 0)
             sheet_cost: تكلفة الفرخ الواحد
             
         Returns:
@@ -195,7 +195,7 @@ class MaterialCalculator(BaseCalculator):
         gross_sheets_needed = net_sheets + total_waste_sheets
         
         unit_cost = Decimal(str(sheet_cost))
-        total_cost = Decimal('0.00') if is_client_paper else (Decimal(str(gross_sheets_needed)) * unit_cost)
+        total_cost = Decimal('0.00') if is_customer_paper else (Decimal(str(gross_sheets_needed)) * unit_cost)
         
         return {
             'success': True,
@@ -206,7 +206,7 @@ class MaterialCalculator(BaseCalculator):
             'waste_binding_sheets': int(math.ceil(waste_binding)),
             'total_waste_sheets': total_waste_sheets,
             'gross_sheets_needed': gross_sheets_needed,
-            'is_client_paper': is_client_paper,
+            'is_customer_paper': is_customer_paper,
             'sheet_cost': unit_cost,
             'total_cost': total_cost,
             'details': {

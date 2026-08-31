@@ -11,7 +11,7 @@ from django.db.models import Sum
 from .models import WorkOrder
 from .forms import WorkOrderForm
 from .decorators import check_work_orders_enabled
-from client.models import Customer, CustomerPayment
+from customer.models import Customer, CustomerPayment
 from sale.models import Sale, SalePayment, Quotation
 from purchase.models import Purchase
 from financial.models import JournalEntry, ChartOfAccounts
@@ -275,7 +275,7 @@ def work_order_detail(request, pk):
         "title": _("أمر شغل {}").format(work_order.number),
         "page_title": _("أمر شغل {}").format(work_order.number),
         "page_subtitle": _('العميل: <a href="{}" class="text-decoration-none fw-bold text-primary"><i class="fas fa-user-tie me-1"></i>{}</a>').format(
-            reverse("client:customer_detail", kwargs={"pk": work_order.customer.id}),
+            reverse("customer:customer_detail", kwargs={"pk": work_order.customer.id}),
             work_order.customer.name
         ),
         "page_icon": "fas fa-briefcase",

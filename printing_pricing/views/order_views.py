@@ -14,7 +14,7 @@ from django.db import transaction
 from core.utils import UnifiedPaginationMixin
 from ..models import PrintingOrder, OrderMaterial, OrderService, OrderSummary, PaperSpecification, PrintingSpecification
 from ..forms import PrintingOrderForm, OrderSearchForm
-from client.models import Customer
+from customer.models import Customer
 
 
 class OrderListView(UnifiedPaginationMixin, LoginRequiredMixin, ListView):

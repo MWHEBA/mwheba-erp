@@ -64,7 +64,7 @@ def display_reception_role_summary():
             codename = perm.codename.lower()
             if 'application' in codename:
                 permission_categories['التطبيقات'].append(perm)
-            elif 'customer' in codename or 'client' in codename:
+            elif 'customer' in codename:
                 permission_categories['العملاء'].append(perm)
             elif 'transportation' in codename or 'bus' in codename:
                 permission_categories['النقل والباصات'].append(perm)
@@ -96,7 +96,7 @@ def display_reception_role_summary():
         for app_label, perms in django_apps.items():
             app_name_ar = {
                 'qr_applications': 'التطبيقات الإلكترونية',
-                'client': 'العملاء',
+                'customer': 'العملاء',
                 'transportation': 'النقل',
                 'product': 'المنتجات',
                 'activities': 'الأنشطة',

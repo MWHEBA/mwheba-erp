@@ -1,4 +1,4 @@
-﻿"""
+"""
 Django Signals محسنة لتزامن المدفوعات
 """
 from django.db.models.signals import post_save, post_delete, pre_delete
@@ -225,8 +225,7 @@ try:
 except ImportError:
     logger.warning("Payment models not available for signal registration")
 
-# تسجيل الإشارات لدفعات العملاء
-# Customer payment signals removed - client module no longer exists
+# تسجيل الإشارات لدفعات العملاء يتم عبر تطبيق customer مباشرة
 
 # تسجيل الإشارات لدفعات الموردين
 try:

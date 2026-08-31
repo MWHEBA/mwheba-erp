@@ -50,7 +50,7 @@ class Command(BaseCommand):
                 'icon': 'fas fa-users',
                 'module_type': 'optional',
                 'order': 10,
-                'url_namespace': 'client,sale',
+                'url_namespace': 'customer,sale',
                 'menu_id': 'customerMenu,salesMenu',
                 'required_modules_codes': [],
             },

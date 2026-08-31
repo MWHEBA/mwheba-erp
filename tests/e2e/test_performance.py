@@ -282,7 +282,7 @@ class TestPerformance:
         المعايير:
         - كل استعلام: < 2 ثانية
         """
-        from client.services.customer_service import CustomerService
+        from customer.services.customer_service import CustomerService
         from product.models import Product, Stock
         from sale.services.sale_service import SaleService
         from sale.models import Sale
@@ -448,7 +448,7 @@ class TestStress:
         - الوقت الإجمالي: < 30 ثانية
         - لا أخطاء في سلامة البيانات
         """
-        from client.services.customer_service import CustomerService
+        from customer.services.customer_service import CustomerService
         from product.models import Product, Stock
         from sale.services.sale_service import SaleService
         

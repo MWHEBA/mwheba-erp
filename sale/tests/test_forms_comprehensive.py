@@ -14,7 +14,7 @@ try:
         SaleForm, SaleItemForm, SalePaymentForm, 
         SaleReturnForm, SaleSearchForm
     )
-    from client.models import Customer
+    from customer.models import Customer
     from product.models import Product, Category, Unit, Warehouse
 except ImportError:
     # إنشاء نماذج وهمية للاختبار

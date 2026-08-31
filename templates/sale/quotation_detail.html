@@ -428,7 +428,7 @@
                 <div class="party-info">
                   <div class="party-label">{% trans "العميل:" %}</div>
                   <div class="party-value">
-                    <a href="{% url 'client:customer_detail' quotation.customer.id %}" class="text-primary fw-bold text-decoration-none">
+                    <a href="{% url "customer:customer_detail" quotation.customer.id %}" class="text-primary fw-bold text-decoration-none">
                       <i class="fas fa-user-circle me-1"></i> {{ quotation.customer.name }}
                     </a>
                   </div>

@@ -18,7 +18,7 @@ from financial.models import (
     AccountingPeriod,
     JournalEntry,
 )
-from client.models import Customer
+from customer.models import Customer
 from supplier.models import Supplier
 from financial.services.tax_service import TaxDeterminationService
 from financial.services.vat_settlement_service import VATSettlementService

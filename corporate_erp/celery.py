@@ -22,8 +22,8 @@ app.autodiscover_tasks()
 app.conf.update(
     # Task routing
     task_routes={
-        'client.tasks.send_payment_notification': {'queue': 'notifications'},
-        'client.tasks.generate_payment_report': {'queue': 'reports'},
+        'customer.tasks.send_payment_notification': {'queue': 'notifications'},
+        'customer.tasks.generate_payment_report': {'queue': 'reports'},
         'financial.tasks.process_accounting_integration': {'queue': 'accounting'},
         'financial.tasks.bulk_process_settlements': {'queue': 'bulk_processing'},
     },

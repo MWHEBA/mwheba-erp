@@ -25,7 +25,7 @@ from decimal import Decimal
 # استيراد النماذج للاختبار
 from product.models import Product, Category, Unit
 from supplier.models import Supplier, SupplierType
-from client.models import Customer
+from customer.models import Customer
 from users.models import User
 
 # قوائم بيانات ثابتة للاختبار المبسط

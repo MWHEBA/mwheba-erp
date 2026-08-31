@@ -121,7 +121,7 @@ class SalePayment(MonetaryTransactionMixin, PaymentAuditMixin, models.Model):
 
     # ربط بدفعة العميل المقدمة (العربون)
     customer_payment = models.ForeignKey(
-        "client.CustomerPayment",
+        "customer.CustomerPayment",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
@@ -549,7 +549,7 @@ class SalePayment(MonetaryTransactionMixin, PaymentAuditMixin, models.Model):
 
     def delete(self, *args, **kwargs):
         # حذف CustomerPayment المرتبطة إذا وجدت
-        from client.models import CustomerPayment
+        from customer.models import CustomerPayment
 
         try:
             customer_payment = CustomerPayment.objects.get(

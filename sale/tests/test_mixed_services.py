@@ -5,7 +5,7 @@ from django.utils import timezone
 
 from sale.services import SaleService
 from sale.models import Sale, SaleItem
-from client.models import Customer
+from customer.models import Customer
 from product.models import Product, Warehouse, Stock
 from financial.models import JournalEntry, ChartOfAccounts, AccountType, AccountingPeriod
 
@@ -58,7 +58,7 @@ def test_setup(db):
     # 4. Create Customer
     customer, _ = Customer.objects.get_or_create(
         code='CUST_MIXED',
-        defaults={'name': 'Mixed Test Customer', 'phone': '01112223334', 'client_type': 'individual', 'created_by': user}
+        defaults={'name': 'Mixed Test Customer', 'phone': '01112223334', 'customer_type': 'individual', 'created_by': user}
     )
 
     # 5. Create Warehouse

@@ -13,7 +13,7 @@ corporate_erp/          ← Django project root
 ├── core/               ← النواة: إعدادات، إشعارات، مراقبة
 ├── users/              ← المستخدمون والصلاحيات
 ├── governance/         ← الحوكمة: audit، idempotency، أمان
-├── client/             ← إدارة العملاء
+├── customer/           ← إدارة العملاء
 ├── sale/               ← المبيعات والفواتير
 ├── supplier/           ← الموردون
 ├── product/            ← المنتجات والمخزون
@@ -79,7 +79,7 @@ corporate_erp/          ← Django project root
 
 ---
 
-### 2.4 client
+### 2.4 customer
 **الغرض:** إدارة العملاء.
 
 | النموذج | الوصف |
@@ -105,7 +105,7 @@ corporate_erp/          ← Django project root
 | `SaleReturnItem` | بنود المرتجع |
 
 **العلاقات:**
-- `Sale.customer` → `client.Customer`
+- `Sale.customer` → `customer.Customer`
 - `Sale.items` → `product.Product`
 - `SalePayment` → `financial.ChartOfAccounts` (payment_method = account code)
 
@@ -334,7 +334,7 @@ Production:   MySQL   (via PyMySQL)
 /admin/                 → Django admin
 /customers/             → client app
 /sales/                 → sale app
-/supplier/              → supplier app
+/suppliers/             → supplier app
 /products/              → product app
 /purchases/             → purchase app
 /financial/             → financial app
@@ -409,7 +409,7 @@ governance.AuditTrail
 ## 10. العلاقات الرئيسية بين الـ Apps
 
 ```
-client.Customer ──────────────────────────────────────────┐
+customer.Customer ────────────────────────────────────────┐
                                                            ↓
 sale.Sale ──────────────────────────────────── financial.ChartOfAccounts
     ↓                                                      ↑

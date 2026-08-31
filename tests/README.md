@@ -13,7 +13,7 @@
 pytest
 
 # تشغيل اختبارات وحدة معينة
-pytest client/tests/
+pytest customer/tests/
 pytest utils/tests/
 pytest financial/tests/
 
@@ -58,7 +58,7 @@ tests/
 └── utils/                     # أدوات مساعدة للاختبارات
 
 # اختبارات كل تطبيق في مجلده
-client/tests/
+customer/tests/
 utils/tests/
 users/tests/
 financial/tests/
@@ -215,7 +215,7 @@ def test_invalid_data_raises_error():
 
 ```bash
 # اختبارات العملاء فقط
-pytest client/tests/
+pytest customer/tests/
 
 # اختبارات الخدمات المالية
 pytest tests/unit/test_financial_settlement_services.py
@@ -318,10 +318,10 @@ python manage.py test
 pytest
 
 # القديم
-python manage.py test client.tests.test_models
+python manage.py test customer.tests.test_models
 
 # الجديد
-pytest client/tests/test_models.py
+pytest customer/tests/test_models.py
 ```
 
 ### تحديث الاختبارات الموجودة

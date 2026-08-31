@@ -108,9 +108,9 @@ def has_module_access(context, module_name):
             "purchase.view_purchase",
             "purchase.view_purchasereturn",
         ],
-        "clients": [
-            "client.view_customer",
-            "client.view_customerpayment",
+        "customers": [
+            "customer.view_customer",
+            "customer.view_customerpayment",
         ],
         "suppliers": [
             "supplier.view_supplier",
@@ -164,7 +164,7 @@ def get_user_role_badge(context):
     # if user.has_perm("sale.add_sale"):  # تم تعطيل المبيعات
     #     return {"text": "مبيعات", "class": "bg-info"}
     
-    if user.has_perm("client.add_customer"):
+    if user.has_perm("customer.add_customer"):
         return {"text": "عملاء", "class": "bg-info"}
 
     if user.has_perm("purchase.add_purchase"):
@@ -217,8 +217,8 @@ def get_sidebar_notifications(context):
         }
 
     # إشعارات العملاء
-    if user.has_perm("client.view_customer"):
-        notifications["clients"] = {
+    if user.has_perm("customer.view_customer"):
+        notifications["customers"] = {
             "count": 0,
             "type": "warning",
             "message": "لا توجد فواتير معلقة",

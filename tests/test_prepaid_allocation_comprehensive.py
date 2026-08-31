@@ -3,8 +3,8 @@ from django.utils import timezone
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 
-from client.models import Customer, CustomerPayment, CustomerTransaction, CustomerAllocationAudit
-from client.services.customer_allocation_audit_service import CustomerAllocationAuditService
+from customer.models import Customer, CustomerPayment, CustomerTransaction, CustomerAllocationAudit
+from customer.services.customer_allocation_audit_service import CustomerAllocationAuditService
 from supplier.models import Supplier, SupplierTransaction, SupplierType, SupplierAdvancePayment, SupplierAllocationAudit
 from supplier.services.supplier_allocation_service import SupplierAllocationService
 from sale.models import Sale, SalePayment

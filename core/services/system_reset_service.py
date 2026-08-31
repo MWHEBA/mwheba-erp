@@ -105,7 +105,7 @@ class SystemResetService:
                 safe_delete('printing_pricing', 'PrintingOrder')
 
                 # =========================================================================
-                # المرحلة 3: دورة المبيعات والعملاء (Sales & Clients Transactions - Bottom-Up)
+                # المرحلة 3: دورة المبيعات والعملاء (Sales & Customers Transactions - Bottom-Up)
                 # =========================================================================
                 # إشعارات الدائن والمرتجعات
                 safe_delete('sale', 'CreditNoteAllocation')
@@ -140,11 +140,11 @@ class SystemResetService:
                 safe_delete('sale', 'PricingAuditLog')
 
                 # مدفوعات وحركات العملاء
-                safe_delete('client', 'CustomerAllocationAudit')
-                safe_delete('client', 'CustomerTransaction')
-                safe_delete('client', 'CustomerPayment')
-                safe_delete('client', 'CustomerCreditStatusHistory')
-                safe_delete('client', 'CreditAuditLog')
+                safe_delete('customer', 'CustomerAllocationAudit')
+                safe_delete('customer', 'CustomerTransaction')
+                safe_delete('customer', 'CustomerPayment')
+                safe_delete('customer', 'CustomerCreditStatusHistory')
+                safe_delete('customer', 'CreditAuditLog')
 
                 # =========================================================================
                 # المرحلة 4: دورة المشتريات والموردين (Purchases & Suppliers - Bottom-Up)
@@ -154,10 +154,11 @@ class SystemResetService:
                 safe_delete('purchase', 'SupplierBill')
                 safe_delete('purchase', 'GRNAuditLog')
                 safe_delete('purchase', 'GRNPostingLog')
-                safe_delete('purchase', 'GoodsReceivedNoteItem')
-                safe_delete('purchase', 'GoodsReceivedNote')
-                safe_delete('purchase', 'PurchaseOrderItem')
-                safe_delete('purchase', 'PurchaseOrder')
+                safe_delete('purchase', 'GoodsReceiptItem')
+                safe_delete('purchase', 'GoodsReceipt')
+                safe_delete('purchase', 'SupplierAdvancePayment')
+                safe_delete('supplier', 'SupplierTransaction')
+                safe_delete('supplier', 'SupplierPayment')
                 safe_delete('purchase', 'PurchaseReturnItem')
                 safe_delete('purchase', 'PurchaseReturn')
                 safe_delete('purchase', 'PurchasePayment')
@@ -336,7 +337,7 @@ class SystemResetService:
                 # =========================================================================
                 if reset_balances:
                     try:
-                        customer_model = apps.get_model('client', 'Customer')
+                        customer_model = apps.get_model('customer', 'Customer')
                         if customer_model:
                             customer_model._base_manager.all().update(balance=Decimal('0.00'))
                     except Exception as e:
@@ -425,7 +426,7 @@ class SystemResetService:
                         'financial_journalentry', 'financial_journalentryline',
                         'financial_openingbalancebatch', 'financial_openingbalanceline',
                         'financial_financialtransaction', 'financial_expensetransaction', 'financial_incometransaction',
-                        'client_customertransaction', 'client_customerpayment',
+                        'customer_customertransaction', 'customer_customerpayment',
                         'supplier_suppliertransaction', 'supplier_supplieradvancepayment',
                         'product_stockmovement', 'product_stocktransfer', 'product_stockledgerentry',
                         'work_order_workorder', 'printing_pricing_printingorder'

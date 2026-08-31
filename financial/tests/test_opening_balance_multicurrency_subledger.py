@@ -10,7 +10,7 @@ from financial.models.currency import Currency
 from financial.models.opening_balance import OpeningBalanceBatch, OpeningBalanceLine
 from financial.services.opening_balance_service import OpeningBalancePostingService
 from financial.services.excel_import_service import ExcelImportService
-from client.models import Customer, CustomerTransaction
+from customer.models import Customer, CustomerTransaction
 from supplier.models import Supplier, SupplierTransaction
 
 User = get_user_model()

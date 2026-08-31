@@ -15,7 +15,7 @@ from .daftra_sync import DaftraSync
 logger = logging.getLogger(__name__)
 
 
-def sync_progress_generator(sync_type='clients', user=None):
+def sync_progress_generator(sync_type='customers', user=None):
     """مولد التقدم المباشر للمزامنة"""
     try:
         syncer = DaftraSync()
@@ -27,7 +27,7 @@ def sync_progress_generator(sync_type='clients', user=None):
             'progress': 5
         }) + '\n'
         
-        if sync_type == 'clients':
+        if sync_type == 'customers':
             daftra_items = syncer.fetch_all_clients()
         else:
             daftra_items = syncer.fetch_all_suppliers()
@@ -55,8 +55,8 @@ def sync_progress_generator(sync_type='clients', user=None):
             progress = 10 + int((index / total) * 85)
             
             try:
-                if sync_type == 'clients':
-                    result = syncer._process_single_client(item, user, stats)
+                if sync_type == 'customers':
+                    result = syncer._process_single_customer(item, user, stats)
                 else:
                     result = syncer._process_single_supplier(item, user, stats)
                 
@@ -97,12 +97,12 @@ def sync_progress_generator(sync_type='clients', user=None):
 
 @csrf_exempt
 @require_http_methods(["POST"])
-def sync_clients(request):
+def sync_customers(request):
     """مزامنة العملاء مع Daftra - مع تقدم مباشر"""
     user = request.user if request.user.is_authenticated else None
     
     response = StreamingHttpResponse(
-        sync_progress_generator('clients', user),
+        sync_progress_generator('customers', user),
         content_type='text/event-stream'
     )
     response['Cache-Control'] = 'no-cache'

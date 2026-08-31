@@ -24,7 +24,7 @@
         </td>
         <td>{{ dn.delivery_date|date:"Y-m-d" }}</td>
         <td class="fw-semibold">
-          <a href="{% url 'client:customer_detail' dn.customer_id %}" class="text-decoration-none text-dark" onclick="event.stopPropagation();">
+          <a href="{% url "customer:customer_detail" dn.customer_id %}" class="text-decoration-none text-dark" onclick="event.stopPropagation();">
             {{ dn.customer.name }}
           </a>
         </td>

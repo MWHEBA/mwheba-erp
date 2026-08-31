@@ -6,7 +6,7 @@ from decimal import Decimal
 from ..models import ChartOfAccounts, AccountType, JournalEntry, JournalEntryLine
 
 try:
-    from client.models import Customer
+    from customer.models import Customer
     from supplier.models import Supplier
 except ImportError:
     Customer = None

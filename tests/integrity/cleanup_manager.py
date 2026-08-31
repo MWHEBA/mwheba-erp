@@ -36,7 +36,7 @@ class TestDataCleanupManager:
             'product.Unit',
             'product.Warehouse',
             'supplier.Supplier',
-            'client.Customer',
+            "customer.Customer",
             'users.User'  # Clean test users last
         ]
         
@@ -46,7 +46,7 @@ class TestDataCleanupManager:
             'product.Warehouse': ['code__startswith=TEST_', 'code__startswith=CONC_', 'code__startswith=CONST_'],
             'product.Product': ['code__startswith=TEST_', 'code__startswith=PPUR_', 'code__startswith=PSAL_', 'code__startswith=CONC_'],
             'supplier.Supplier': ['code__startswith=TEST_', 'code__startswith=CONC_'],
-            'client.Customer': ['code__startswith=TEST_', 'code__startswith=CONC_'],
+            "customer.Customer": ['code__startswith=TEST_', 'code__startswith=CONC_'],
             'purchase.Purchase': ['number__startswith=PUR-'],
             'sale.Sale': ['number__startswith=SAL-'],
             'activities.Activity': ['name__startswith=Test Activity'],

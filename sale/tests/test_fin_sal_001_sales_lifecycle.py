@@ -3,12 +3,12 @@ from decimal import Decimal
 from django.utils import timezone
 from django.contrib.auth import get_user_model
 
-from client.models import Customer
+from customer.models import Customer
 from product.models.product_core import Product, Category, Unit
 from product.models.stock_management import Warehouse
 from financial.models import ChartOfAccounts, AccountType, AccountingPeriod, FiscalYear
 from sale.services.sales_service import SalesService
-from client.services.customer_subledger_service import CustomerSubledgerService
+from customer.services.customer_subledger_service import CustomerSubledgerService
 
 User = get_user_model()
 

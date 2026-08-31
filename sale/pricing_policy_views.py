@@ -18,7 +18,7 @@ from django.template.loader import render_to_string
 
 from sale.models.pricing import PriceList, PriceListItem, DiscountRule, PricingAuditLog
 from product.models.product_core import Product, Category
-from client.models import Customer
+from customer.models import Customer
 
 logger = logging.getLogger(__name__)
 

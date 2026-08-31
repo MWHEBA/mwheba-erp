@@ -273,7 +273,7 @@ function initializeDeleteModal() {
 
 // فتح مودال الإنشاء
 window.openCreateModal = function() {
-    fetch('/supplier/settings/types/create/', {
+    fetch('/suppliers/settings/types/create/', {
         headers: { 'X-Requested-With': 'XMLHttpRequest' }
     })
     .then(response => response.text())
@@ -293,7 +293,7 @@ window.openCreateModal = function() {
 
 // تعديل نوع
 window.editType = function(id) {
-    fetch(`/supplier/settings/types/${id}/edit/`, {
+    fetch(`/suppliers/settings/types/${id}/edit/`, {
         headers: { 'X-Requested-With': 'XMLHttpRequest' }
     })
     .then(response => response.text())
@@ -312,7 +312,7 @@ window.editType = function(id) {
 
 // حذف نوع
 window.deleteType = function(id) {
-    fetch(`/supplier/settings/types/${id}/delete/`, {
+    fetch(`/suppliers/settings/types/${id}/delete/`, {
         headers: { 'X-Requested-With': 'XMLHttpRequest' }
     })
     .then(response => response.text())
@@ -339,7 +339,7 @@ window.toggleStatus = function(id, isActive) {
         return;
     }
     
-    fetch(`/supplier/settings/types/${id}/toggle-status/`, {
+    fetch(`/suppliers/settings/types/${id}/toggle-status/`, {
         method: 'POST',
         headers: {
             'X-Requested-With': 'XMLHttpRequest',
@@ -368,7 +368,7 @@ window.reorderTypes = function() {
         return;
     }
     
-    fetch('/supplier/settings/types/reorder/', {
+    fetch('/suppliers/settings/types/reorder/', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -400,7 +400,7 @@ window.syncWithOldSystem = function() {
         return;
     }
     
-    fetch('/supplier/settings/types/sync/', {
+    fetch('/suppliers/settings/types/sync/', {
         method: 'POST',
         headers: {
             'X-Requested-With': 'XMLHttpRequest',

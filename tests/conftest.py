@@ -125,7 +125,7 @@ def test_supplier():
 def test_customer():
     """عميل للاختبارات"""
     try:
-        from client.models import Customer
+        from customer.models import Customer
         
         customer, created = Customer.objects.get_or_create(
             code='TEST_CUST_001',

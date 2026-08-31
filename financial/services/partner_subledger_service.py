@@ -21,7 +21,7 @@ class PartnerSubledgerService:
             return None
 
         try:
-            from client.models import CustomerTransaction
+            from customer.models import CustomerTransaction
             from sale.models import SalePayment
 
             paid_foreign = SalePayment.objects.filter(sale=sale, status="posted").aggregate(
@@ -164,7 +164,7 @@ class PartnerSubledgerService:
         """
         try:
             if partner_type == "customer":
-                from client.models import CustomerTransaction
+                from customer.models import CustomerTransaction
                 curr_code = getattr(advance_payment, "currency_code", "EGP") or "EGP"
                 raw_rate = getattr(advance_payment, "exchange_rate", Decimal("1.000000")) or Decimal("1.000000")
                 rate = Decimal(str(raw_rate))

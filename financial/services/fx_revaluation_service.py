@@ -13,7 +13,7 @@ from django.db import transaction, models
 
 from financial.services.exchange_rate_service import ExchangeRateService
 from financial.services.ledger_core_service import LedgerCoreService
-from client.models import CustomerTransaction
+from customer.models import CustomerTransaction
 from supplier.models import SupplierTransaction
 
 logger = logging.getLogger("financial.services.fx_revaluation")

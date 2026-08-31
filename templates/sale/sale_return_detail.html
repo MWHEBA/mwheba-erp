@@ -115,7 +115,7 @@
                         
                         <dt class="col-sm-5">{% trans "العميل" %}</dt>
                         <dd class="col-sm-7">
-                            <a href="{% url 'client:customer_detail' sale_return.sale.customer.pk %}">
+                            <a href="{% url "customer:customer_detail" sale_return.sale.customer.pk %}">
                                 {{ sale_return.sale.customer.name }}
                             </a>
                         </dd>

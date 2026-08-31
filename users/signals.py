@@ -12,7 +12,7 @@ User = get_user_model()
 
 # List of models to monitor for audit logging (in string format to avoid early/circular imports)
 MONITORED_MODELS = [
-    'client.Customer',
+    'customer.Customer',
     'supplier.Supplier',
     'product.Product',
     'sale.Sale',

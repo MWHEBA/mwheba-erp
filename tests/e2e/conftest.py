@@ -123,6 +123,7 @@ def setup_chart_of_accounts(django_db_setup, django_db_blocker):
     """تهيئة المنظومة المالية والشجرة المعيارية الشاملة للاختبارات"""
     with django_db_blocker.unblock():
         from django.core.management import call_command
+        from financial.models import AccountType, ChartOfAccounts, AccountingPeriod
         try:
             call_command('setup_accounting_system', force=True, verbosity=0)
         except Exception:
@@ -229,8 +230,8 @@ def test_warehouse(db, warehouse_user):
 @pytest.fixture
 def test_customer(db, test_user):
     """عميل للاختبار - مع تنظيف تلقائي"""
-    from client.models import Customer
-    from client.services.customer_service import CustomerService
+    from customer.models import Customer
+    from customer.services.customer_service import CustomerService
     
     # حذف العميل إن وجد
     Customer.objects.filter(code='E2E_CUST').delete()
@@ -243,7 +244,7 @@ def test_customer(db, test_user):
         phone='01234567890',
         email='customer@e2e.test',
         address='شارع الاختبار، المنصورة',
-        client_type='individual',
+        customer_type='individual',
         credit_limit=Decimal('10000.00')
     )
     yield customer

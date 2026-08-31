@@ -20,7 +20,7 @@ def monitor_signal(signal_name=None, module_name=None, model_name=None,
     Usage:
         @monitor_signal(
             signal_name='customer_account_creation',
-            module_name='client',
+            module_name='customer',
             model_name='Customer',
             signal_type='post_save',
             priority='CRITICAL',

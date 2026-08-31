@@ -9,7 +9,7 @@ from django.utils import timezone
 
 from sale.services import SaleService
 from sale.models import Sale, SaleItem, SalePayment, SaleReturn
-from client.models import Customer
+from customer.models import Customer
 from product.models import Product, Warehouse, Stock
 from financial.models import JournalEntry, ChartOfAccounts
 
@@ -29,7 +29,7 @@ def user(db):
 @pytest.fixture
 def customer(db, user, chart_of_accounts):
     """Create test customer using CustomerService"""
-    from client.services import CustomerService
+    from customer.services import CustomerService
     
     # استخدام CustomerService لإنشاء العميل بشكل صحيح
     customer_service = CustomerService()
@@ -38,7 +38,7 @@ def customer(db, user, chart_of_accounts):
         code='CUST001',
         phone='01234567890',
         email='customer@test.com',
-        client_type='individual',
+        customer_type='individual',
         user=user
     )
     

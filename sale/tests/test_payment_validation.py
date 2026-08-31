@@ -8,7 +8,7 @@ from django.contrib.auth import get_user_model
 from sale.models import Sale, SaleItem, SalePayment
 from sale.forms import SalePaymentForm
 from sale.services.sale_service import SaleService
-from client.models import Customer
+from customer.models import Customer
 from product.models import Warehouse, Product, Category, Unit
 
 User = get_user_model()

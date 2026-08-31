@@ -73,7 +73,7 @@ def require_financial_validation(
             @require_financial_validation(
                 entity_param='customer',
                 date_param='payment_date',
-                module='client'
+                module='customer'
             )
             def post(self, request, customer_id):
                 customer = Customer.objects.get(id=customer_id)

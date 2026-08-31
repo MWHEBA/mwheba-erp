@@ -4,7 +4,7 @@ from django.urls import reverse
 from django.utils import timezone
 from decimal import Decimal
 from core.models import SystemSetting
-from client.models import Customer
+from customer.models import Customer
 from product.models import Category, Unit, Product, Warehouse, Stock, SerialNumber
 from sale.models import Quotation, QuotationItem, Sale
 from financial.models import ChartOfAccounts, AccountType, AccountingPeriod

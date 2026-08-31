@@ -74,7 +74,7 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(f"ملخص الموردين: تم إنشاء {created_count}، فشل {failed_count} من إجمالي {total}."))
 
     def process_customers(self, dry_run: bool):
-        from client.models import Customer
+        from customer.models import Customer
 
         customers = Customer.objects.filter(financial_account__isnull=True)
         total = customers.count()

@@ -106,11 +106,11 @@ class AccountingGateway:
     
     # Supported source models for journal entries (allowlist)
     ALLOWED_SOURCES = {
-        'client.CustomerAllocationAudit',
+        'customer.CustomerAllocationAudit',
         'supplier.SupplierAllocationAudit',
         'sale.CustomerAllocationAudit',
         'purchase.SupplierAllocationAudit',
-        'client.CustomerPayment',
+        "customer.CustomerPayment",
         'product.StockMovement',
         'product.InventoryMovement',
         'product.BatchVoucher',
@@ -149,7 +149,7 @@ class AccountingGateway:
     
     # High-priority workflows that require strict validation
     HIGH_PRIORITY_WORKFLOWS = {
-        'client.CustomerPayment',
+        "customer.CustomerPayment",
         'product.StockMovement',
         'hr.Payroll',
         'purchase.PurchasePayment',
@@ -176,7 +176,7 @@ class AccountingGateway:
         The format is: JE:{module}:{model}:{id}:{operation}
         
         Args:
-            module: Source module (e.g., 'client', 'transportation', 'product')
+            module: Source module (e.g., 'customer', 'transportation', 'product')
             model: Source model (e.g., 'CustomerPayment', 'DriverPayment', 'StockMovement')
             object_id: Object ID (must be positive integer)
             operation: Operation type (e.g., 'create', 'refund', 'reverse', 'payment')
@@ -231,13 +231,13 @@ class AccountingGateway:
             True if valid, False otherwise
             
         Examples:
-            >>> AccountingGateway.validate_idempotency_key('JE:client:CustomerPayment:123:create')
+            >>> AccountingGateway.validate_idempotency_key('JE:customer:CustomerPayment:123:create')
             True
             
             >>> AccountingGateway.validate_idempotency_key('invalid-key')
             False
             
-            >>> AccountingGateway.validate_idempotency_key('JE:client:CustomerPayment:123:create:extra')
+            >>> AccountingGateway.validate_idempotency_key('JE:customer:CustomerPayment:123:create:extra')
             False
         """
         if not key or not isinstance(key, str):
@@ -295,7 +295,7 @@ class AccountingGateway:
         operation with proper locking.
         
         Args:
-            source_module: Source module name (e.g., 'client', 'product')
+            source_module: Source module name (e.g., 'customer', 'product')
             source_model: Source model name (e.g., 'CustomerPayment', 'StockMovement')
             source_id: ID of the source record
             lines: List of journal entry lines
@@ -401,8 +401,8 @@ class AccountingGateway:
                             entry_type = 'sales_invoice'
                     elif 'supplier' in s_mod or 'supplier' in s_model:
                         entry_type = 'supplier_payment'
-                    elif 'client' in s_mod or 'customer' in s_model:
-                        entry_type = 'parent_payment'
+                    elif 'customer' in s_mod or 'customer' in s_model:
+                        entry_type = 'customer_payment'
                     elif 'hr' in s_mod or 'payroll' in s_mod or 'payroll' in s_model:
                         entry_type = 'salary_payment'
                     elif 'inventory' in s_mod or 'stock' in s_mod or 'product' in s_mod:
@@ -1125,7 +1125,7 @@ class AccountingGateway:
         source_key = f"{source_info.module}.{source_info.model}"
         
         prefix_mapping = {
-            'client.CustomerPayment': 'CP',
+            "customer.CustomerPayment": 'CP',
             'product.StockMovement': 'SM',
             'purchase.PurchasePayment': 'PP',
             'hr.Payroll': 'PR',
@@ -1295,7 +1295,7 @@ class AccountingGateway:
         high_priority_count = JournalEntry.objects.filter(
             created_by_service='AccountingGateway'
         ).filter(
-            source_module__in=['client', 'product'],
+            source_module__in=['customer', 'product'],
             source_model__in=['CustomerPayment', 'StockMovement']
         ).count()
         
@@ -1427,7 +1427,7 @@ class AccountingGateway:
             )
         
         # Enforce additional controls for selected workflows
-        if source_key == 'client.CustomerPayment':
+        if source_key == "customer.CustomerPayment":
             self._enforce_customer_payment_period_controls(journal_entry, period)
         elif source_key == 'product.StockMovement':
             self._enforce_stock_movement_period_controls(journal_entry, period)
@@ -1470,7 +1470,7 @@ class AccountingGateway:
         """
         if hasattr(journal_entry, 'source_id') and journal_entry.source_id:
             try:
-                from client.models.payment import CustomerPayment
+                from customer.models.payment import CustomerPayment
                 payment = CustomerPayment.objects.get(id=journal_entry.source_id)
                 
                 if not period.is_date_in_period(payment.payment_date):
@@ -1639,7 +1639,7 @@ class AccountingGateway:
             source_key: Source workflow key
         """
         # Additional validation based on workflow type
-        if source_key == 'client.CustomerPayment':
+        if source_key == "customer.CustomerPayment":
             logger.info(f"Processing CustomerPayment reversal for entry {original_entry.number}")
             
         elif source_key == 'product.StockMovement':
@@ -1803,7 +1803,7 @@ def create_customer_payment_entry(
 
     if idempotency_key is None:
         idempotency_key = IdempotencyService.generate_journal_entry_key(
-            'client', 'CustomerPayment', customer_payment.id, 'create'
+            'customer', 'CustomerPayment', customer_payment.id, 'create'
         )
 
     # الحساب النقدي/البنكي من طريقة الدفع
@@ -1839,7 +1839,7 @@ def create_customer_payment_entry(
     ]
 
     return gateway.create_journal_entry(
-        source_module='client',
+        source_module='customer',
         source_model='CustomerPayment',
         source_id=customer_payment.id,
         lines=lines,

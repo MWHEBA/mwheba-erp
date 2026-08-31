@@ -88,7 +88,7 @@ class PartnerAdvanceSettlement(models.Model):
     )
 
     customer_payment = models.ForeignKey(
-        "client.CustomerPayment",
+        "customer.CustomerPayment",
         on_delete=models.SET_NULL,
         null=True,
         blank=True,

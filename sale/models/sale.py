@@ -35,7 +35,7 @@ class Sale(models.Model):
         _("الحالة"), max_length=20, choices=STATUS_CHOICES, default="confirmed"
     )
     customer = models.ForeignKey(
-        "client.Customer",
+        "customer.Customer",
         on_delete=models.PROTECT,
         verbose_name=_("العميل"),
         related_name="sales",
@@ -282,7 +282,7 @@ class Sale(models.Model):
         """
         حساب إجمالي المبلغ المدفوع: النقدية المباشرة + التوزيعات المطبقة من سجل التدقيق بدون ازدواج
         """
-        from client.models import CustomerAllocationAudit
+        from customer.models import CustomerAllocationAudit
         from decimal import Decimal
         direct_paid = self.payments.filter(status="posted").exclude(
             source_type="PREPAID_BALANCE"

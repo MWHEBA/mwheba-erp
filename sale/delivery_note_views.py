@@ -20,7 +20,7 @@ from sale.models.sales_models import DeliveryNote, DeliveryNoteItem, SalesOrder,
 from sale.models import Sale
 from sale.services.sales_service import SalesService
 from product.models.stock_management import Warehouse
-from client.models import Customer
+from customer.models import Customer
 from financial.models import JournalEntry
 from financial.exceptions import FinancialCoreError
 

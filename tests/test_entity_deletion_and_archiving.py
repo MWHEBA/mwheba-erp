@@ -3,8 +3,8 @@ from decimal import Decimal
 from django.utils import timezone
 from django.contrib.auth import get_user_model
 from django.test import Client
-from client.models import Customer
-from client.services.customer_service import CustomerService
+from customer.models import Customer
+from customer.services.customer_service import CustomerService
 from supplier.models import Supplier
 from supplier.services.supplier_service import SupplierService
 from financial.models import ChartOfAccounts, AccountType
@@ -199,7 +199,7 @@ class TestEntityDeletionAndArchiving:
         assert cust_json['can_delete'] is True
 
         # 2. فحص المورد
-        supp_resp = self.client.get(f"/supplier/{supplier.id}/delete/?precheck=1", HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        supp_resp = self.client.get(f"/suppliers/{supplier.id}/delete/?precheck=1", HTTP_X_REQUESTED_WITH='XMLHttpRequest')
         assert supp_resp.status_code == 200
         supp_json = supp_resp.json()
         assert supp_json['success'] is True

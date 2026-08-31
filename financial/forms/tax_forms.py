@@ -11,7 +11,7 @@ from financial.models.tax import (
     TaxJurisdiction,
 )
 from financial.models.chart_of_accounts import ChartOfAccounts
-from client.models import Customer
+from customer.models import Customer
 from supplier.models import Supplier
 
 
