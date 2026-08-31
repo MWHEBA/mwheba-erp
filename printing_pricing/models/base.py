@@ -89,6 +89,12 @@ class OrderType(models.TextChoices):
     LABEL = 'label', _('لصقة')
     STICKER = 'sticker', _('ستيكر')
     BANNER = 'banner', _('بانر')
+    ROLLUP = 'rollup', _('رول اب')
+    SIGNAGE = 'signage', _('يافطة / واجهة')
+    GIVEAWAYS = 'giveaways', _('هدايا دعائية')
+    UNIFORM = 'uniform', _('يونيفورم / ملابس')
+    TROPHY = 'trophy', _('دروع وتكريمات')
+    BOOTH = 'booth', _('تجهيز معارض')
     OTHER = 'other', _('أخرى')
 
 
@@ -100,6 +106,8 @@ class CalculationType(models.TextChoices):
     PRINTING = 'printing', _('تكلفة الطباعة')
     FINISHING = 'finishing', _('تكلفة خدمات الطباعة')
     DESIGN = 'design', _('تكلفة التصميم')
+    INSTALLATION = 'installation', _('تكلفة التركيبات والمعاينة')
+    LOGISTICS = 'logistics', _('تكلفة النقل والمشاوير')
     TOTAL = 'total', _('التكلفة الإجمالية')
 
 

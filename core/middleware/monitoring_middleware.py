@@ -54,5 +54,5 @@ class SimpleMonitoringMiddleware(MiddlewareMixin):
     
     def _is_sensitive_endpoint(self, path: str) -> bool:
         """Check if endpoint is sensitive (simplified)"""
-        sensitive_patterns = ['/admin/', '/api/', '/financial/', '/clients/']
+        sensitive_patterns = ['/admin/', '/api/', '/financial/', '/customers/', '/suppliers/', '/clients/']
         return any(pattern in path for pattern in sensitive_patterns)

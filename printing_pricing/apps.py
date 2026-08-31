@@ -8,7 +8,7 @@ class PrintingPricingConfig(AppConfig):
     """
     default_auto_field = 'django.db.models.BigAutoField'
     name = 'printing_pricing'
-    verbose_name = _('التسعير المحسن')
+    verbose_name = _('تسعير المطبوعات والخدمات الإعلانية')
     
     def ready(self):
         """

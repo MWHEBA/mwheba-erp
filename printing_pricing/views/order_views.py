@@ -10,8 +10,9 @@ from django.db.models import Q, Sum, Count
 from django.core.paginator import Paginator
 from decimal import Decimal
 
+from django.db import transaction
 from core.utils import UnifiedPaginationMixin
-from ..models import PrintingOrder, OrderMaterial, OrderService, OrderSummary
+from ..models import PrintingOrder, OrderMaterial, OrderService, OrderSummary, PaperSpecification, PrintingSpecification
 from ..forms import PrintingOrderForm, OrderSearchForm
 from client.models import Customer
 
@@ -371,54 +372,94 @@ def duplicate_order(request, pk):
         if not _has_order_permission(request.user, original_order):
             return JsonResponse({'success': False, 'error': _('غير مصرح لك بنسخ هذا الطلب')}, status=403)
         
-        # إنشاء نسخة جديدة
-        new_order = PrintingOrder.objects.create(
-            customer=original_order.customer,
-            title=f"{original_order.title} - نسخة",
-            description=original_order.description,
-            order_type=original_order.order_type,
-            quantity=original_order.quantity,
-            pages_count=original_order.pages_count,
-            copies_count=original_order.copies_count,
-            width=original_order.width,
-            height=original_order.height,
-            profit_margin=original_order.profit_margin,
-            priority=original_order.priority,
-            created_by=request.user,
-            updated_by=request.user
-        )
-        
-        # نسخ المواد
-        for material in original_order.materials.filter(is_active=True):
-            OrderMaterial.objects.create(
-                order=new_order,
-                material_type=material.material_type,
-                material_name=material.material_name,
-                quantity=material.quantity,
-                unit=material.unit,
-                unit_cost=material.unit_cost,
-                waste_percentage=material.waste_percentage,
-                created_by=request.user
+        # إنشاء نسخة جديدة داخل معاملة ذرية
+        with transaction.atomic():
+            new_order = PrintingOrder.objects.create(
+                customer=original_order.customer,
+                title=f"{original_order.title} - نسخة",
+                description=original_order.description,
+                order_type=original_order.order_type,
+                quantity=original_order.quantity,
+                pages_count=original_order.pages_count,
+                copies_count=original_order.copies_count,
+                width=original_order.width,
+                height=original_order.height,
+                profit_margin=original_order.profit_margin,
+                priority=original_order.priority,
+                currency=original_order.currency,
+                exchange_rate=original_order.exchange_rate,
+                design_service_type=original_order.design_service_type,
+                design_fee=original_order.design_fee,
+                sales_rep=original_order.sales_rep,
+                sales_commission_rate=original_order.sales_commission_rate,
+                created_by=request.user,
+                updated_by=request.user
             )
-        
-        # نسخ الخدمات
-        for service in original_order.services.filter(is_active=True):
-            OrderService.objects.create(
-                order=new_order,
-                service_category=service.service_category,
-                service_name=service.service_name,
-                service_description=service.service_description,
-                quantity=service.quantity,
-                unit=service.unit,
-                unit_price=service.unit_price,
-                setup_cost=service.setup_cost,
-                is_optional=service.is_optional,
-                execution_time=service.execution_time,
-                created_by=request.user
-            )
-        
-        # إنشاء ملخص للطلب الجديد
-        OrderSummary.objects.create(order=new_order)
+            
+            # نسخ مواصفات الورق
+            for p_spec in original_order.paper_specs.filter(is_active=True):
+                PaperSpecification.objects.create(
+                    order=new_order,
+                    paper_type_name=p_spec.paper_type_name,
+                    paper_weight=p_spec.paper_weight,
+                    paper_size_name=p_spec.paper_size_name,
+                    sheet_width=p_spec.sheet_width,
+                    sheet_height=p_spec.sheet_height,
+                    sheets_needed=p_spec.sheets_needed,
+                    montage_count=p_spec.montage_count,
+                    piece_size=p_spec.piece_size,
+                    sheet_cost=p_spec.sheet_cost,
+                    total_paper_cost=p_spec.total_paper_cost,
+                    created_by=request.user
+                )
+                
+            # نسخ مواصفات الطباعة
+            for pr_spec in original_order.printing_specs.filter(is_active=True):
+                PrintingSpecification.objects.create(
+                    order=new_order,
+                    printing_type=pr_spec.printing_type,
+                    colors_front=pr_spec.colors_front,
+                    colors_back=pr_spec.colors_back,
+                    is_cmyk=pr_spec.is_cmyk,
+                    has_spot_colors=pr_spec.has_spot_colors,
+                    spot_colors_count=pr_spec.spot_colors_count,
+                    resolution_dpi=pr_spec.resolution_dpi,
+                    print_quality=pr_spec.print_quality,
+                    special_requirements=pr_spec.special_requirements,
+                    created_by=request.user
+                )
+            
+            # نسخ المواد
+            for material in original_order.materials.filter(is_active=True):
+                OrderMaterial.objects.create(
+                    order=new_order,
+                    material_type=material.material_type,
+                    material_name=material.material_name,
+                    quantity=material.quantity,
+                    unit=material.unit,
+                    unit_cost=material.unit_cost,
+                    waste_percentage=material.waste_percentage,
+                    created_by=request.user
+                )
+            
+            # نسخ الخدمات
+            for service in original_order.services.filter(is_active=True):
+                OrderService.objects.create(
+                    order=new_order,
+                    service_category=service.service_category,
+                    service_name=service.service_name,
+                    service_description=service.service_description,
+                    quantity=service.quantity,
+                    unit=service.unit,
+                    unit_price=service.unit_price,
+                    setup_cost=service.setup_cost,
+                    is_optional=service.is_optional,
+                    execution_time=service.execution_time,
+                    created_by=request.user
+                )
+            
+            # إنشاء ملخص للطلب الجديد
+            OrderSummary.objects.create(order=new_order)
         
         messages.success(
             request,

@@ -31,3 +31,5 @@ class DocumentType(models.TextChoices):
     STOCK_ISSUE = "STOCK_ISSUE", _("إذن صرف مخزني")
     STOCK_TRANSFER = "STOCK_TRANSFER", _("إذن تحويل مخزني")
     INVENTORY_ADJUSTMENT = "INVENTORY_ADJUSTMENT", _("تسوية مخزنية")
+    WORK_ORDER = "WORK_ORDER", _("أمر شغل")
+    PRINTING_REQUEST = "PRINTING_REQUEST", _("طلب تسعير مطبوعات")

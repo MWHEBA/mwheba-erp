@@ -1,11 +1,7 @@
-"""
-نماذج الطلبات المحسنة للنظام الجديد
-Enhanced order forms for the new system
-"""
-
 from django import forms
 from django.utils.translation import gettext_lazy as _
 from django.core.exceptions import ValidationError
+from django.db import transaction
 
 from ..models import (
     PaperType, ProductType, ProductSize, PrintDirection, PrintSide,
@@ -19,7 +15,6 @@ except ImportError:
     PaperServiceDetails = None
     HAS_PAPER_SERVICE_DETAILS = False
 from client.models import Customer
-from users.models import User
 
 
 class PricingOrderForm(forms.ModelForm):
@@ -161,9 +156,13 @@ class PricingOrderForm(forms.ModelForm):
         from printing_pricing.models import PrintingOrder
         model = PrintingOrder
         fields = [
+            "customer",
             "client",
+            "work_order",
+            "currency",
             "title",
             "description",
+            "order_type",
             "quantity",
             "product_type",
             "paper_type",
@@ -176,18 +175,41 @@ class PricingOrderForm(forms.ModelForm):
             "print_direction",
             "coating_type",
             "coating_service",
+            "design_service_type",
+            "design_fee",
+            "sales_rep",
+            "sales_commission_rate",
             "has_internal_content",
             "material_cost",
             "printing_cost",
             "finishing_cost",
             "extra_cost",
+            "profit_margin",
+            "final_price",
             "sale_price",
             "status",
         ]
         widgets = {
+            "customer": forms.Select(attrs={
+                "class": "form-control select2",
+                "data-placeholder": "اختر العميل...",
+            }),
             "client": forms.Select(attrs={
                 "class": "form-control select2",
                 "data-placeholder": "اختر العميل...",
+            }),
+            "work_order": forms.Select(attrs={
+                "class": "form-control select2",
+                "data-placeholder": "اختر أمر الشغل (اختياري)...",
+            }),
+            "currency": forms.Select(attrs={
+                "class": "form-select",
+            }),
+            "design_service_type": forms.Select(attrs={
+                "class": "form-select",
+            }),
+            "sales_rep": forms.Select(attrs={
+                "class": "form-control select2",
             }),
             "title": forms.TextInput(attrs={
                 "class": "form-control",
@@ -227,11 +249,23 @@ class PricingOrderForm(forms.ModelForm):
                 "class": "form-control",
                 "step": "0.01"
             }),
+            "design_fee": forms.NumberInput(attrs={
+                "class": "form-control",
+                "step": "0.01"
+            }),
             "extra_cost": forms.NumberInput(attrs={
                 "class": "form-control",
                 "step": "0.01"
             }),
             "profit_margin": forms.NumberInput(attrs={
+                "class": "form-control",
+                "step": "0.01"
+            }),
+            "sales_commission_rate": forms.NumberInput(attrs={
+                "class": "form-control",
+                "step": "0.01"
+            }),
+            "final_price": forms.NumberInput(attrs={
                 "class": "form-control",
                 "step": "0.01"
             }),
@@ -403,6 +437,29 @@ class PricingOrderForm(forms.ModelForm):
         if height is not None and height <= 0:
             raise ValidationError(_('الطول يجب أن يكون أكبر من صفر'))
         return height
+
+    def save(self, commit=True):
+        """حفظ الطلب داخل معاملة ذرية مع مزامنة الحقول التوافقية"""
+        with transaction.atomic():
+            instance = super().save(commit=False)
+            
+            # مزامنة customer و client
+            if not instance.customer and instance.client:
+                instance.customer = instance.client
+            elif not instance.client and instance.customer:
+                instance.client = instance.customer
+                
+            # مزامنة final_price و sale_price
+            if not instance.final_price and instance.sale_price:
+                instance.final_price = instance.sale_price
+            elif not instance.sale_price and instance.final_price:
+                instance.sale_price = instance.final_price
+                
+            if commit:
+                instance.save()
+                self.save_m2m()
+                
+            return instance
 
 
 # ==================== نموذج البحث في الطلبات ====================

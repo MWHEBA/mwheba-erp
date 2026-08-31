@@ -85,8 +85,12 @@ class CostCalculation(BaseModel):
             models.Index(fields=['calculation_date']),
             models.Index(fields=['is_current']),
         ]
-        unique_together = [
-            ['order', 'calculation_type', 'is_current']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['order', 'calculation_type'],
+                condition=models.Q(is_current=True),
+                name='unique_current_calculation_per_type'
+            )
         ]
 
     def __str__(self):

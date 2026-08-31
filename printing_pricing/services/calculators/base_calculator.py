@@ -295,7 +295,7 @@ class BaseCalculator(ABC):
     
     def _calculate_design_cost(self, parameters):
         """
-        حساب تكلفة التصميم
+        حساب تكلفة التصميم (أتعاب مقطوعة أو حسب ساعات العمل)
         
         Args:
             parameters: معاملات الحساب
@@ -304,40 +304,38 @@ class BaseCalculator(ABC):
             dict: نتائج حساب تكلفة التصميم
         """
         try:
-            # معاملات التصميم
-            design_hours = Decimal(str(parameters.get('design_hours', '0')))
-            hourly_rate = Decimal(str(parameters.get('hourly_rate', '50.00')))
-            complexity_factor = Decimal(str(parameters.get('complexity_factor', '1.0')))
+            # التحقق أولاً من الأتعاب المقطوعة من الطلب أو المعاملات
+            design_service_type = parameters.get('design_service_type') or getattr(self.order, 'design_service_type', 'CLIENT_READY')
+            direct_fee = parameters.get('design_fee')
             
-            if design_hours <= 0:
-                return {
-                    'success': True,
-                    'base_cost': Decimal('0.00'),
-                    'additional_costs': Decimal('0.00'),
-                    'total_cost': Decimal('0.00'),
-                    'details': {
-                        'message': _('لا توجد ساعات تصميم محددة'),
-                        'design_hours': 0
-                    }
-                }
-            
-            # حساب التكلفة
-            base_cost = design_hours * hourly_rate
-            complexity_cost = base_cost * (complexity_factor - 1)
-            total_cost = base_cost + complexity_cost
-            
+            if direct_fee is not None:
+                total_cost = Decimal(str(direct_fee))
+            elif hasattr(self.order, 'design_fee') and self.order.design_fee > 0:
+                total_cost = Decimal(str(self.order.design_fee))
+            elif design_service_type == 'CLIENT_READY':
+                total_cost = Decimal('0.00')
+            elif design_service_type == 'PREPRESS_EDIT':
+                total_cost = Decimal('150.00')
+            elif design_service_type == 'NEW_CONCEPT':
+                total_cost = Decimal('800.00')
+            else:
+                # دعم الحساب بالساعات كـ fallback
+                design_hours = Decimal(str(parameters.get('design_hours', '0')))
+                hourly_rate = Decimal(str(parameters.get('hourly_rate', '50.00')))
+                complexity_factor = Decimal(str(parameters.get('complexity_factor', '1.0')))
+                base_cost = design_hours * hourly_rate
+                complexity_cost = base_cost * (complexity_factor - 1)
+                total_cost = base_cost + complexity_cost
+
             return {
                 'success': True,
-                'base_cost': base_cost,
-                'additional_costs': complexity_cost,
+                'base_cost': total_cost,
+                'additional_costs': Decimal('0.00'),
                 'total_cost': total_cost,
                 'details': {
-                    'design_hours': float(design_hours),
-                    'hourly_rate': float(hourly_rate),
-                    'complexity_factor': float(complexity_factor),
-                    'base_cost': float(base_cost),
-                    'complexity_cost': float(complexity_cost),
-                    'calculation_method': 'hours_times_rate_with_complexity'
+                    'design_service_type': design_service_type,
+                    'design_fee': float(total_cost),
+                    'calculation_method': 'agency_flat_creative_fee'
                 }
             }
             
@@ -346,7 +344,7 @@ class BaseCalculator(ABC):
     
     def _calculate_total_cost(self, parameters):
         """
-        حساب التكلفة الإجمالية
+        حساب التكلفة الإجمالية وتطبيق هامش الوكالة وعمولة المبيعات
         
         Args:
             parameters: معاملات الحساب
@@ -355,19 +353,23 @@ class BaseCalculator(ABC):
             dict: نتائج حساب التكلفة الإجمالية
         """
         try:
-            # حساب جميع أنواع التكاليف
+            # حساب جميع أنواع التكاليف الأساسية
             material_result = self._calculate_material_cost(parameters)
             printing_result = self._calculate_printing_cost(parameters)
             finishing_result = self._calculate_finishing_cost(parameters)
             design_result = self._calculate_design_cost(parameters)
             
-            # جمع التكاليف
             material_cost = material_result['total_cost']
             printing_cost = printing_result['total_cost']
             finishing_cost = finishing_result['total_cost']
             design_cost = design_result['total_cost']
             
-            subtotal = material_cost + printing_cost + finishing_cost + design_cost
+            # تكاليف التركيبات واللوجستيات
+            installation_cost = Decimal(str(parameters.get('installation_cost', '0.00')))
+            logistics_cost = Decimal(str(parameters.get('logistics_cost', '0.00')))
+            
+            # إجمالي التكاليف المباشرة
+            direct_costs = material_cost + printing_cost + finishing_cost + design_cost + installation_cost + logistics_cost
             
             # إضافات وخصومات
             discount_percentage = Decimal(str(parameters.get('discount_percentage', '0')))
@@ -378,34 +380,57 @@ class BaseCalculator(ABC):
             if tax_percentage < 0 or tax_percentage > 100:
                 raise ValueError(_('نسبة الضريبة يجب أن تكون بين 0 و 100%'))
 
-            rush_fee = Decimal(str(parameters.get('rush_fee', '0')))
+            rush_fee = Decimal(str(parameters.get('rush_fee', getattr(self.order, 'rush_fee', '0.00') or '0.00')))
             if rush_fee < 0:
                 raise ValueError(_('رسوم الاستعجال لا يمكن أن تكون سالبة'))
             
-            discount_amount = subtotal * (discount_percentage / 100)
-            after_discount = subtotal - discount_amount
-            tax_amount = after_discount * (tax_percentage / 100)
+            # هامش الربح
+            profit_margin = Decimal(str(parameters.get('profit_margin', getattr(self.order, 'profit_margin', '20.00') or '20.00')))
+            if profit_margin >= 100:
+                raise ValueError(_('هامش الربح يجب أن يكون أقل من 100%'))
+                
+            # حساب سعر البيع بمعادلة الهامش الحقيقي
+            if profit_margin > 0:
+                base_sale_price = direct_costs / (Decimal('1.00') - (profit_margin / Decimal('100.00')))
+            else:
+                base_sale_price = direct_costs
+
+            discount_amount = base_sale_price * (discount_percentage / Decimal('100.00'))
+            after_discount = base_sale_price - discount_amount
+            tax_amount = after_discount * (tax_percentage / Decimal('100.00'))
+            final_price = after_discount + tax_amount + rush_fee
             
-            total_cost = after_discount + tax_amount + rush_fee
+            # عمولة المبيعات على صافي الربح مع صمام الأمان
+            gross_profit = max(Decimal('0.00'), final_price - direct_costs)
+            sales_commission_rate = Decimal(str(parameters.get('sales_commission_rate', getattr(self.order, 'sales_commission_rate', '0.00') or '0.00')))
+            sales_commission_amount = gross_profit * (sales_commission_rate / Decimal('100.00')) if sales_commission_rate > 0 else Decimal('0.00')
             
             return {
                 'success': True,
-                'base_cost': subtotal,
+                'base_cost': direct_costs,
                 'additional_costs': tax_amount + rush_fee - discount_amount,
-                'total_cost': total_cost,
+                'total_cost': direct_costs,
+                'final_price': final_price,
+                'sales_commission_amount': sales_commission_amount,
                 'details': {
                     'material_cost': float(material_cost),
                     'printing_cost': float(printing_cost),
                     'finishing_cost': float(finishing_cost),
                     'design_cost': float(design_cost),
-                    'subtotal': float(subtotal),
+                    'installation_cost': float(installation_cost),
+                    'logistics_cost': float(logistics_cost),
+                    'direct_costs': float(direct_costs),
+                    'profit_margin': float(profit_margin),
+                    'base_sale_price': float(base_sale_price),
                     'discount_percentage': float(discount_percentage),
                     'discount_amount': float(discount_amount),
                     'tax_percentage': float(tax_percentage),
                     'tax_amount': float(tax_amount),
                     'rush_fee': float(rush_fee),
-                    'total_cost': float(total_cost),
-                    'calculation_method': 'comprehensive_total',
+                    'final_price': float(final_price),
+                    'sales_commission_rate': float(sales_commission_rate),
+                    'sales_commission_amount': float(sales_commission_amount),
+                    'calculation_method': 'agency_true_margin_markup',
                     'breakdown_results': {
                         'material': material_result,
                         'printing': printing_result,

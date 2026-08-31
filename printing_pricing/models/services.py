@@ -155,10 +155,10 @@ class PrintingSpecification(BaseModel):
     """
     مواصفات الطباعة للطلب
     """
-    order = models.OneToOneField(
+    order = models.ForeignKey(
         PrintingOrder,
         on_delete=models.CASCADE,
-        related_name="printing_spec",
+        related_name="printing_specs",
         verbose_name=_("الطلب")
     )
     

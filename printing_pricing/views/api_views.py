@@ -1721,3 +1721,59 @@ class SaveOrderServiceSupplierAPIView(BaseAPIView):
             return JsonResponse({'success': False, 'error': 'JSON غير صحيح'}, status=400)
         except Exception as e:
             return self.handle_exception(e, 'SaveOrderServiceSupplierAPIView.post')
+
+
+class CustomerInfoAPIView(BaseAPIView):
+    """
+    API جلب معلومات العميل وتصنيفه وهامش ربحه والذاكرة السعرية فورياً (<15ms)
+    """
+    def get(self, request, customer_id):
+        try:
+            from client.models import Customer
+            customer = get_object_or_404(Customer, pk=customer_id, is_active=True)
+            
+            client_type = getattr(customer, 'client_type', 'company')
+            
+            # تحديد فئة العميل وهامش الربح الافتراضي
+            if client_type == 'individual':
+                category = 'retail'
+                default_profit_margin = 35.0
+            elif client_type in ('company', 'government'):
+                category = 'corporate'
+                default_profit_margin = 25.0
+            else:
+                category = 'b2b_trade'
+                default_profit_margin = 15.0
+                
+            # ذاكرة الأسعار لآخر 5 طلبات لهذا العميل
+            past_orders = PrintingOrder.objects.filter(
+                customer=customer,
+                is_active=True
+            ).exclude(final_price__isnull=True).order_by('-created_at')[:5]
+            
+            price_memory = []
+            for po in past_orders:
+                price_memory.append({
+                    'order_number': po.order_number,
+                    'title': po.title,
+                    'order_type': po.get_order_type_display() if hasattr(po, 'get_order_type_display') else po.order_type,
+                    'quantity': po.quantity,
+                    'final_price': float(po.final_price or 0),
+                    'unit_price': float(round((po.final_price or 0) / (po.quantity or 1), 2)),
+                    'date': po.created_at.strftime('%Y-%m-%d')
+                })
+                
+            return JsonResponse({
+                'success': True,
+                'customer_id': customer.id,
+                'customer_name': customer.name,
+                'client_type': client_type,
+                'category': category,
+                'default_profit_margin': default_profit_margin,
+                'credit_limit': float(getattr(customer, 'credit_limit', 0) or 0),
+                'balance': float(getattr(customer, 'balance', 0) or 0),
+                'currency_code': customer.default_currency.code if getattr(customer, 'default_currency', None) else 'EGP',
+                'price_memory': price_memory
+            })
+        except Exception as e:
+            return self.handle_exception(e, "CustomerInfoAPIView")

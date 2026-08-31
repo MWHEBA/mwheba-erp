@@ -45,6 +45,8 @@ class SequenceService:
         DocumentType.STOCK_ISSUE: "SI",
         DocumentType.STOCK_TRANSFER: "ST",
         DocumentType.INVENTORY_ADJUSTMENT: "IA",
+        DocumentType.WORK_ORDER: "WO",
+        DocumentType.PRINTING_REQUEST: "PR",
     }
 
     # خريطة الموديلات والحقول لتحديد الـ Seed الأولي للبيانات القديمة
@@ -64,6 +66,8 @@ class SequenceService:
         DocumentType.STOCK_RECEIPT: [("product.StockMovement", "number"), ("product.InventoryMovement", "movement_number")],
         DocumentType.STOCK_ISSUE: [("product.StockMovement", "number"), ("product.InventoryMovement", "movement_number")],
         DocumentType.INVENTORY_ADJUSTMENT: [("product.InventoryAdjustment", "adjustment_number")],
+        DocumentType.WORK_ORDER: [("work_order.WorkOrder", "number")],
+        DocumentType.PRINTING_REQUEST: [("printing_pricing.PrintingOrder", "order_number")],
     }
 
     @classmethod
@@ -105,6 +109,11 @@ class SequenceService:
             "CUSTOMER_RECEIPT": DocumentType.CUSTOMER_RECEIPT,
             "VENDOR_PAYMENT": DocumentType.VENDOR_PAYMENT,
             "FIXED_ASSET_ENTRY": DocumentType.FIXED_ASSET_ENTRY,
+            "WORK_ORDER": DocumentType.WORK_ORDER,
+            "WO": DocumentType.WORK_ORDER,
+            "PRINTING_ORDER": DocumentType.PRINTING_REQUEST,
+            "PRINTING_REQUEST": DocumentType.PRINTING_REQUEST,
+            "PR": DocumentType.PRINTING_REQUEST,
         }
 
         return alias_map.get(raw, raw)

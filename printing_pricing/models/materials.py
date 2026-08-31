@@ -121,10 +121,10 @@ class PaperSpecification(BaseModel):
     """
     مواصفات الورق للطلب
     """
-    order = models.OneToOneField(
+    order = models.ForeignKey(
         PrintingOrder,
         on_delete=models.CASCADE,
-        related_name="paper_spec",
+        related_name="paper_specs",
         verbose_name=_("الطلب")
     )
     
@@ -158,7 +158,7 @@ class PaperSpecification(BaseModel):
     
     # معلومات الكمية
     sheets_needed = models.PositiveIntegerField(
-        verbose_name=_("عدد الفروخ المطلوبة")
+        verbose_name=_("عدد الأفرخ المطلوبة")
     )
     
     montage_count = models.PositiveIntegerField(

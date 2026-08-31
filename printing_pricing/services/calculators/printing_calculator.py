@@ -201,6 +201,33 @@ class PrintingCalculator(BaseCalculator):
                 'details': str(e)
             }
     
+    def calculate_auto_plate_count(
+        self,
+        colors_front: int = 1,
+        colors_back: int = 0,
+        print_mode: str = 'work_and_turn'
+    ) -> int:
+        """
+        الحساب الآلي لعدد زنكات CTP
+        
+        Args:
+            colors_front: عدد ألوان الوجه
+            colors_back: عدد ألوان الظهر
+            print_mode: طريقة السحب (work_and_turn طبع وقلب / sheetwise وجهين منفصل)
+            
+        Returns:
+            int: عدد الزنكات المحسوب
+        """
+        c_front = max(0, int(colors_front or 0))
+        c_back = max(0, int(colors_back or 0))
+        
+        if c_back == 0:
+            return max(1, c_front)
+        elif print_mode == 'sheetwise':
+            return c_front + c_back
+        else:  # work_and_turn طبع وقلب
+            return max(c_front, c_back)
+
     def _validate_printing_data(self, quantity: Decimal, colors_count: Decimal, unit_cost: Decimal):
         """التحقق من صحة بيانات الطباعة"""
         if quantity <= 0:

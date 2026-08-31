@@ -1,6 +1,7 @@
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from django.core.validators import MinValueValidator
+from django.conf import settings
 from decimal import Decimal
 
 from .base import BaseModel, PricingStatus, OrderType
@@ -17,6 +18,37 @@ class PrintingOrder(BaseModel):
         unique=True,
         verbose_name=_("رقم الطلب"),
         help_text=_("رقم فريد للطلب")
+    )
+    
+    work_order = models.ForeignKey(
+        "work_order.WorkOrder",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="printing_orders",
+        verbose_name=_("أمر الشغل المرتبط")
+    )
+    
+    currency = models.ForeignKey(
+        "financial.Currency",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        verbose_name=_("العملة"),
+        related_name="printing_orders"
+    )
+    
+    exchange_rate = models.DecimalField(
+        _("سعر الصرف"),
+        max_digits=18,
+        decimal_places=6,
+        default=Decimal("1.000000")
+    )
+    
+    delivery_address_snapshot = models.TextField(
+        _("لقطة عنوان وهاتف التسليم"),
+        blank=True,
+        null=True
     )
     
     customer = models.ForeignKey(
@@ -297,6 +329,55 @@ class PrintingOrder(BaseModel):
         validators=[MinValueValidator(Decimal('0.00'))],
         verbose_name=_("رسوم الاستعجال")
     )
+    
+    # خدمات التصميم والإبداع
+    design_service_type = models.CharField(
+        max_length=20,
+        choices=(
+            ("CLIENT_READY", _("تصميم جاهز للطباعة من العميل")),
+            ("PREPRESS_EDIT", _("تعديل فني ومونتاج وفصل ألوان")),
+            ("NEW_CONCEPT", _("تصميم إبداعي جديد بالكامل")),
+        ),
+        default="CLIENT_READY",
+        verbose_name=_("خدمة التصميم")
+    )
+    design_fee = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        validators=[MinValueValidator(Decimal('0.00'))],
+        verbose_name=_("أتعاب التصميم")
+    )
+    
+    # عمولات المبيعات
+    sales_rep = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="printing_sales_orders",
+        verbose_name=_("مسؤول المبيعات")
+    )
+    sales_commission_rate = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        validators=[MinValueValidator(Decimal('0.00'))],
+        verbose_name=_("نسبة عمولة المبيعات %")
+    )
+    sales_commission_amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        validators=[MinValueValidator(Decimal('0.00'))],
+        verbose_name=_("مبلغ عمولة المبيعات")
+    )
+    
+    # الهالك التراكمي للورش
+    cumulative_waste_sheets = models.PositiveIntegerField(
+        default=0,
+        verbose_name=_("إجمالي أفرخ الهالك التراكمي")
+    )
 
     class Meta:
         verbose_name = _("طلب تسعير")
@@ -314,34 +395,74 @@ class PrintingOrder(BaseModel):
 
     def save(self, *args, **kwargs):
         """
-        حفظ محسن مع توليد رقم الطلب تلقائياً
+        حفظ محسن مع توليد رقم الطلب والربط بأمر الشغل وتجميد لقطة العميل
         """
         if not self.order_number:
             self.order_number = self.generate_order_number()
+            
+        # المزامنة التوافقية بين customer و client
+        if self.customer and not self.client:
+            self.client = self.customer
+        elif self.client and not self.customer:
+            self.customer = self.client
+            
+        # المزامنة التوافقية بين final_price و sale_price
+        if self.final_price and not self.sale_price:
+            self.sale_price = self.final_price
+        elif self.sale_price and not self.final_price:
+            self.final_price = self.sale_price
+            
+        # الربط التلقائي بأمر الشغل إذا تُرك فارغاً
+        if not self.work_order and self.customer:
+            try:
+                from work_order.models import WorkOrder
+                user = kwargs.get('user') or getattr(self, 'created_by', None)
+                self.work_order = WorkOrder.objects.create(
+                    customer=self.customer,
+                    created_by=user,
+                    notes=f"أمر شغل تلقائي لطلب التسعير {self.title or self.order_number}"
+                )
+            except Exception:
+                pass
+                
+        # تجميد لقطة عنوان وهاتف العميل
+        if self.customer and not self.delivery_address_snapshot:
+            phone = getattr(self.customer, 'phone_primary', None) or getattr(self.customer, 'phone', '') or ''
+            addr = getattr(self.customer, 'address', '') or ''
+            self.delivery_address_snapshot = f"{self.customer.name} | هاتف: {phone} | عنوان: {addr}"
+            
         super().save(*args, **kwargs)
 
     def generate_order_number(self):
         """
-        توليد رقم طلب فريد
+        توليد رقم طلب فريد عبر الخدمة المركزية الموحدة للترقيم (SequenceService)
         """
-        from django.utils import timezone
-        import random
-        
-        now = timezone.now()
-        date_part = now.strftime("%Y%m%d")
-        
-        # البحث عن آخر رقم في نفس اليوم
-        last_order = PrintingOrder.objects.filter(
-            order_number__startswith=f"PO{date_part}"
-        ).order_by('-order_number').first()
-        
-        if last_order:
-            last_seq = int(last_order.order_number[-3:])
-            new_seq = last_seq + 1
-        else:
-            new_seq = 1
+        try:
+            from core.services.sequence_service import SequenceService
+            from core.enums.document_types import DocumentType
+            return SequenceService.get_next_number(
+                document_type=DocumentType.PRINTING_REQUEST,
+                user=getattr(self, 'created_by', None)
+            )
+        except Exception:
+            # آلية بديلة آمنة في حالة عدم توفر الجداول
+            from django.utils import timezone
+            now = timezone.now()
+            year = now.year
+            last_order = PrintingOrder.objects.filter(
+                order_number__startswith=f"PR-{year}-"
+            ).order_by('-order_number').first()
             
-        return f"PO{date_part}{new_seq:03d}"
+            if last_order:
+                try:
+                    last_seq = int(last_order.order_number.split('-')[-1])
+                    new_seq = last_seq + 1
+                except Exception:
+                    new_seq = 1
+            else:
+                new_seq = 1
+                
+            return f"PR-{year}-{new_seq:04d}"
 
     @property
     def total_pages(self):

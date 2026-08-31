@@ -149,6 +149,74 @@ class MaterialCalculator(BaseCalculator):
                 'details': str(e)
             }
     
+    def calculate_cumulative_paper_waste(
+        self,
+        net_sheets: int,
+        printing_waste_pct: Decimal = Decimal('5.00'),
+        lamination_waste_pct: Decimal = Decimal('0.00'),
+        diecut_waste_pct: Decimal = Decimal('0.00'),
+        binding_waste_pct: Decimal = Decimal('0.00'),
+        is_client_paper: bool = False,
+        sheet_cost: Decimal = Decimal('0.00')
+    ) -> Dict[str, Any]:
+        """
+        حساب الهالك التراكمي المتسلسل لمراحل الورش المختلفة
+        
+        Args:
+            net_sheets: عدد الأفرخ الصافية المطلوبة للطباعة
+            printing_waste_pct: نسبة هالك سحب الطباعة (أوفست/ديجيتال)
+            lamination_waste_pct: نسبة هالك السلوفان / اللامينيشن
+            diecut_waste_pct: نسبة هالك التكسير / الدايكت
+            binding_waste_pct: نسبة هالك التجليد والتقفيل
+            is_client_paper: هل الورق مُورد من العميل (تكلفة = 0)
+            sheet_cost: تكلفة الفرخ الواحد
+            
+        Returns:
+            Dict: تفاصيل الهالك التراكمي وإجمالي الأفرخ والتكلفة
+        """
+        import math
+        
+        # المرحلة 1: هالك الطباعة
+        waste_printing = float(net_sheets) * (float(printing_waste_pct) / 100.0)
+        accumulated_1 = float(net_sheets) + waste_printing
+        
+        # المرحلة 2: هالك السلوفان
+        waste_lamination = accumulated_1 * (float(lamination_waste_pct) / 100.0) if float(lamination_waste_pct) > 0 else 0.0
+        accumulated_2 = accumulated_1 + waste_lamination
+        
+        # المرحلة 3: هالك التكسير
+        waste_diecut = accumulated_2 * (float(diecut_waste_pct) / 100.0) if float(diecut_waste_pct) > 0 else 0.0
+        accumulated_3 = accumulated_2 + waste_diecut
+        
+        # المرحلة 4: هالك التجليد
+        waste_binding = accumulated_3 * (float(binding_waste_pct) / 100.0) if float(binding_waste_pct) > 0 else 0.0
+        
+        total_waste_sheets = int(math.ceil(waste_printing + waste_lamination + waste_diecut + waste_binding))
+        gross_sheets_needed = net_sheets + total_waste_sheets
+        
+        unit_cost = Decimal(str(sheet_cost))
+        total_cost = Decimal('0.00') if is_client_paper else (Decimal(str(gross_sheets_needed)) * unit_cost)
+        
+        return {
+            'success': True,
+            'net_sheets': net_sheets,
+            'waste_printing_sheets': int(math.ceil(waste_printing)),
+            'waste_lamination_sheets': int(math.ceil(waste_lamination)),
+            'waste_diecut_sheets': int(math.ceil(waste_diecut)),
+            'waste_binding_sheets': int(math.ceil(waste_binding)),
+            'total_waste_sheets': total_waste_sheets,
+            'gross_sheets_needed': gross_sheets_needed,
+            'is_client_paper': is_client_paper,
+            'sheet_cost': unit_cost,
+            'total_cost': total_cost,
+            'details': {
+                'printing_waste_pct': float(printing_waste_pct),
+                'lamination_waste_pct': float(lamination_waste_pct),
+                'diecut_waste_pct': float(diecut_waste_pct),
+                'binding_waste_pct': float(binding_waste_pct)
+            }
+        }
+    
     def _validate_material_data(self, quantity: Decimal, unit_cost: Decimal, waste_percentage: Decimal):
         """التحقق من صحة بيانات المادة"""
         if quantity <= 0:

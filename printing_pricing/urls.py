@@ -15,9 +15,10 @@ from .views.api_views import (
     GetCTPPlatesAPIView, GetCTPPriceAPIView, GetPaperTypesAPIView,
     GetPaperSuppliersAPIView, GetPaperWeightsAPIView, GetPaperSheetTypesAPIView,
     GetPaperOriginsAPIView, GetPaperPriceAPIView, GetPieceSizesAPIView,
-    # المرحلة الأولى — APIs خدمات الموردين
+    # المرحلة الأولى — APIs خدمات الموردين ومعلومات العميل
     GetServiceTypesAPIView, GetSuppliersByServiceAPIView,
     GetSupplierServicesAPIView, GetServicePriceByIdAPIView,
+    CustomerInfoAPIView,
     # المرحلة الثالثة — ربط التسعير
     SaveOrderServiceSupplierAPIView,
 )
@@ -71,8 +72,9 @@ api_patterns = [
     path('validate-order/', ValidateOrderAPIView.as_view(), name='api_validate_order'),
     path('order-summary/<int:order_id>/', OrderSummaryAPIView.as_view(), name='api_order_summary'),
     
-    # APIs للحقول الديناميكية
+    # APIs للحقول الديناميكية ومعلومات العميل
     path('get-clients/', GetClientsAPIView.as_view(), name='api_get_clients'),
+    path('customer-info/<int:customer_id>/', CustomerInfoAPIView.as_view(), name='api_customer_info'),
     path('get-product-types/', GetProductTypesAPIView.as_view(), name='api_get_product_types'),
     path('get-product-sizes/', GetProductSizesAPIView.as_view(), name='api_get_product_sizes'),
     
