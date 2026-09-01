@@ -72,7 +72,7 @@ def generate_mobile_whatsapp_link(request, order_id):
 @transaction.atomic
 def save_quick_mobile_quote(request):
     """
-    حفظ المقايسة السريعة كطلب تسعير رسمي في النظام من الموبايل
+    حفظ التسعيرة السريعة كطلب تسعير رسمي في النظام من الموبايل
     """
     if request.method != 'POST':
         return JsonResponse({'success': False, 'error': _('طريقة غير مسموحة')}, status=405)
@@ -84,7 +84,7 @@ def save_quick_mobile_quote(request):
         product_type = data.get('product_type', 'flyer')
         quantity = int(data.get('quantity', 1000))
         price = Decimal(str(data.get('price', '0.00')))
-        title = data.get('title') or f"مقايسة سريعة ({product_type}) - {quantity} قطعة"
+        title = data.get('title') or f"تسعير سريع ({product_type}) - {quantity} قطعة"
 
         if not customer_id:
             return JsonResponse({'success': False, 'error': _('يرجى اختيار العميل')}, status=400)
@@ -110,8 +110,8 @@ def save_quick_mobile_quote(request):
 
         OrderSummary.objects.create(
             order=order,
-            subtotal=price / Decimal('1.14'),
-            tax_amount=price - (price / Decimal('1.14')),
+            subtotal=price,
+            tax_amount=Decimal('0.00'),
             final_price=price
         )
 
@@ -120,7 +120,7 @@ def save_quick_mobile_quote(request):
             'order_id': order.pk,
             'order_number': order.order_number,
             'detail_url': reverse('printing_pricing:order_detail', kwargs={'pk': order.pk}),
-            'message': _('تم حفظ المقايسة بنجاح برقم {}').format(order.order_number)
+            'message': _('تم حفظ طلب التسعير بنجاح برقم {}').format(order.order_number)
         })
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)}, status=400)

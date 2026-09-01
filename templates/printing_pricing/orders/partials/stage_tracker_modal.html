@@ -50,8 +50,8 @@
 
           <!-- أجرة النقل والمشوار -->
           <div class="mb-3">
-            <label for="tracker_driver_fee" class="form-label fw-bold">
-              {% trans "أجرة النقل / المشوار (ج.م)" %}
+            <label for="tracker_driver_fee" class="form-label small fw-bold">
+              {% trans "أجرة النقل / المشوار" %} ({{ currency_symbol|default:"ج.م" }})
             </label>
             <input type="number" step="0.01" class="form-control" id="tracker_driver_fee" name="driver_fee" value="0.00">
           </div>

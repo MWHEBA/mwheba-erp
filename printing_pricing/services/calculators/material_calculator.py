@@ -495,7 +495,7 @@ class MaterialCalculator(BaseCalculator):
         tolerance_percentage: Decimal = Decimal('1.00')
     ) -> Dict[str, Any]:
         """
-        فحص ومطابقة أبعاد ملف التصميم المرفوع (Artwork) مع المقايسة المعتمدة
+        فحص ومطابقة أبعاد ملف التصميم المرفوع (Artwork) مع التسعير المعتمد
         """
         try:
             qw = self._to_decimal(quoted_width_cm)
@@ -521,7 +521,7 @@ class MaterialCalculator(BaseCalculator):
                 'quoted_area_sqcm': quoted_area.quantize(Decimal('0.01')),
                 'artwork_area_sqcm': artwork_area.quantize(Decimal('0.01')),
                 'area_difference_percentage': area_diff_pct,
-                'warning_message': _('تنبيه: مساحة التصميم تزيد بنسبة {}% عن المقايسة').format(area_diff_pct) if is_escalation_required else None
+                'warning_message': _('تنبيه: مساحة التصميم تزيد بنسبة {}% عن التسعير المعتمد').format(area_diff_pct) if is_escalation_required else None
             }
         except Exception as e:
             return {

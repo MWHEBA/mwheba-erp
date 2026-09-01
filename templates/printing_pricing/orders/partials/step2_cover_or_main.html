@@ -1,0 +1,277 @@
+{% load i18n %}
+{% load app_tags %}
+
+<div class="section-container mb-4" id="card_step2_cover">
+  <!-- Section Title & Accordion Trigger -->
+  <h5 class="section-title cursor-pointer" data-bs-toggle="collapse" data-bs-target="#collapse_step2" aria-expanded="true">
+    <span>
+      <i class="fas fa-scroll text-success me-2"></i>
+      <span id="step2_header_title">2. {% trans "مواصفات وخامات وتشطيب المطبوع الرئيسي / الغلاف" %}</span>
+    </span>
+    <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-1 ms-auto me-2" id="step2_badge_status">
+      <i class="fas fa-check-circle me-1"></i>{% trans "مكتمل" %}
+    </span>
+    <i class="fas fa-chevron-down"></i>
+  </h5>
+
+  <!-- Accordion Body -->
+  <div id="collapse_step2" class="collapse show">
+    <div>
+      
+      <!-- 1. المقاسات والأبعاد ومستشار الهدر -->
+      <div class="row g-3 mb-4 pb-3 border-bottom">
+        <div class="col-md-3">
+          <label for="id_width" class="form-label fw-bold">
+            {% trans "العرض المقفول (سم)" %} <span class="text-danger">*</span>
+          </label>
+          <input type="number" step="0.1" class="form-control" id="id_width" name="width" 
+                 value="{{ form.width.value|default:form.instance.width|default:form.custom_size_width.value|default:'21' }}" required>
+          <input type="hidden" id="id_custom_size_width" name="custom_size_width" value="{{ form.custom_size_width.value|default:'21' }}">
+        </div>
+        <div class="col-md-3">
+          <label for="id_height" class="form-label fw-bold">
+            {% trans "الارتفاع المقفول (سم)" %} <span class="text-danger">*</span>
+          </label>
+          <input type="number" step="0.1" class="form-control" id="id_height" name="height" 
+                 value="{{ form.height.value|default:form.instance.height|default:form.custom_size_height.value|default:'29.7' }}" required>
+          <input type="hidden" id="id_custom_size_height" name="custom_size_height" value="{{ form.custom_size_height.value|default:'29.7' }}">
+        </div>
+        <div class="col-md-3">
+          <label for="id_open_size_width" class="form-label fw-bold">
+            {% trans "العرض المفتوح (سم)" %}
+          </label>
+          <input type="number" step="0.1" class="form-control" id="id_open_size_width" name="open_size_width" 
+                 value="{{ form.open_size_width.value|default:'42' }}">
+        </div>
+        <div class="col-md-3">
+          <label for="id_open_size_height" class="form-label fw-bold">
+            {% trans "الارتفاع المفتوح (سم)" %}
+          </label>
+          <input type="number" step="0.1" class="form-control" id="id_open_size_height" name="open_size_height" 
+                 value="{{ form.open_size_height.value|default:'29.7' }}">
+        </div>
+
+        <!-- شارة مستشار تقليل هدر الورق الذكي -->
+        <div class="col-12 d-none" id="trim_advisor_alert">
+          <div class="alert alert-warning py-2 px-3 mb-0 d-flex align-items-center justify-content-between small">
+            <div>
+              <i class="fas fa-lightbulb text-warning fs-5 me-2"></i>
+              <strong>{% trans "مستشار توفير الهالك الذكي:" %}</strong>
+              <span id="trim_advisor_text">{% trans "المقاس الحالي يسبب هدر 22% من الفرخ. اقتراح تعديل 5 مم لزيادة عدد القطع." %}</span>
+            </div>
+            <button type="button" class="btn btn-sm btn-dark py-0" id="btn_apply_trim_suggestion">{% trans "تطبيق المقترح" %}</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. خامة الورق ومقاس الفرخ -->
+      <div class="row g-3 mb-4 pb-3 border-bottom">
+        <div class="col-md-4">
+          <label for="id_paper_type" class="form-label fw-bold">
+            <i class="fas fa-layer-group text-primary me-1"></i>{% trans "نوع الورق / الخامة" %}
+          </label>
+          <select class="form-select select2-filter" id="id_paper_type" name="paper_type">
+            {% if form.fields.paper_type.queryset %}
+              <option value="">{% trans "اختر نوع الورق..." %}</option>
+              {% for ptype in form.fields.paper_type.queryset %}
+                <option value="{{ ptype.pk }}" {% if form.paper_type.value == ptype.pk or form.instance.paper_type_id == ptype.pk %}selected{% endif %}>
+                  {{ ptype.name }}
+                </option>
+              {% endfor %}
+            {% else %}
+              <option value="couche" selected>{% trans "ورق كوشيه فاخر (Couche)" %}</option>
+              <option value="duplex">{% trans "كرتون دوبلكس ظهر رمادي (Duplex)" %}</option>
+              <option value="bristol">{% trans "برستول كرتون أبيض (Bristol)" %}</option>
+              <option value="woodfree">{% trans "ورق طبع أبيض / كريمي (Woodfree)" %}</option>
+              <option value="kraft">{% trans "ورق كرافت بني (Kraft)" %}</option>
+              <option value="sticker">{% trans "ورق ستيكر لاصق (Sticker Paper)" %}</option>
+            {% endif %}
+          </select>
+        </div>
+
+        <div class="col-md-2">
+          <label for="id_paper_weight" class="form-label fw-bold">
+            {% trans "الجراماج (جم)" %}
+          </label>
+          <select class="form-select" id="id_paper_weight" name="paper_weight">
+            <option value="150" {% if form.paper_weight.value == '150' %}selected{% endif %}>150 جم</option>
+            <option value="170" {% if form.paper_weight.value == '170' %}selected{% endif %}>170 جم</option>
+            <option value="200" {% if form.paper_weight.value == '200' %}selected{% endif %}>200 جم</option>
+            <option value="250" {% if form.paper_weight.value == '250' %}selected{% endif %}>250 جم</option>
+            <option value="300" {% if form.paper_weight.value == '300' or not form.paper_weight.value %}selected{% endif %}>300 جم</option>
+            <option value="350" {% if form.paper_weight.value == '350' %}selected{% endif %}>350 جم</option>
+          </select>
+        </div>
+
+        <div class="col-md-3">
+          <label for="id_sheet_size" class="form-label fw-bold">
+            <i class="fas fa-ruler-combined text-success me-1"></i>{% trans "مقاس الفرخ الخام" %}
+          </label>
+          <select class="form-select" id="id_sheet_size" name="sheet_size">
+            <option value="70x100" selected>70 × 100 سم (الفرخ الكبير القياسي)</option>
+            <option value="66x88">66 × 88 سم (فرخ الملازم والكتب)</option>
+            <option value="custom">{% trans "مقاس خاص / مستورد" %}</option>
+          </select>
+        </div>
+
+        <div class="col-md-3">
+          <label class="form-label fw-bold small text-muted">{% trans "المونتاج وقطع الفرخ" %}</label>
+          <div class="form-control bg-light d-flex justify-content-between align-items-center">
+            <span class="small text-muted">{% trans "القطع بالفرخ:" %}</span>
+            <strong class="text-primary fs-6" id="pieces_per_sheet_display">4 قطع</strong>
+            <span class="badge bg-info-subtle text-info border" id="grain_guard_badge" title="{% trans 'موازٍ لخط الطي والريجة' %}">
+              <i class="fas fa-check me-1"></i>{% trans "ألياف سليمة" %}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. طباعة الأوفست والماكينة والزنكات CTP -->
+      <div class="row g-3 mb-4 pb-3 border-bottom">
+        <div class="col-md-4">
+          <label for="id_press_bed_size" class="form-label fw-bold">
+            <i class="fas fa-industry text-primary me-1"></i>{% trans "ماكينة الطباعة المعتمدة" %}
+          </label>
+          <select class="form-select select2-filter" id="id_press_bed_size" name="press_bed_size">
+            <option value="70x100" selected>{% trans "فرخ كامل 70×100 سم (أوفست كبير)" %}</option>
+            <option value="50x70">{% trans "نصف فرخ 50×70 سم (أوفست متوسط)" %}</option>
+            <option value="35x50">{% trans "ربع فرخ 35×50 سم (ماكينات صغيرة)" %}</option>
+            <option value="33x48">{% trans "شيتات ديجيتال A3+ (33×48.7 سم)" %}</option>
+          </select>
+        </div>
+
+        <div class="col-md-4">
+          <label for="id_colors_front" class="form-label fw-bold">
+            <i class="fas fa-palette text-danger me-1"></i>{% trans "ألوان الوجه (الخارجي)" %}
+          </label>
+          <select class="form-select" id="id_colors_front" name="colors_front">
+            <option value="4" {% if form.colors_front.value == 4 or not form.colors_front.value %}selected{% endif %}>{% trans "4 ألوان (كامل CMYK)" %}</option>
+            <option value="1" {% if form.colors_front.value == 1 %}selected{% endif %}>{% trans "1 لون (أسود أو بانتون)" %}</option>
+            <option value="2" {% if form.colors_front.value == 2 %}selected{% endif %}>{% trans "2 لون" %}</option>
+            <option value="0" {% if form.colors_front.value == 0 %}selected{% endif %}>{% trans "بدون طباعة (أبيض)" %}</option>
+          </select>
+        </div>
+
+        <div class="col-md-4">
+          <label for="id_colors_back" class="form-label fw-bold">
+            {% trans "ألوان الظهر (الداخلي)" %}
+          </label>
+          <select class="form-select" id="id_colors_back" name="colors_back">
+            <option value="4" {% if form.colors_back.value == 4 or not form.colors_back.value %}selected{% endif %}>{% trans "4 ألوان (كامل CMYK)" %}</option>
+            <option value="0" {% if form.colors_back.value == 0 %}selected{% endif %}>{% trans "وجه واحد (ظهر أبيض فارغ)" %}</option>
+            <option value="1" {% if form.colors_back.value == 1 %}selected{% endif %}>{% trans "1 لون (أسود)" %}</option>
+            <option value="2" {% if form.colors_back.value == 2 %}selected{% endif %}>{% trans "2 لون" %}</option>
+          </select>
+        </div>
+
+        <div class="col-md-6">
+          <label class="form-label fw-bold small text-muted">{% trans "زنكات CTP المطلوبة" %}</label>
+          <div class="input-group">
+            <span class="input-group-text bg-light"><i class="fas fa-stamp text-secondary"></i></span>
+            <input type="number" class="form-control text-center fw-bold" id="id_plate_count" name="zinc_plates_count" 
+                   value="{{ form.zinc_plates_count.value|default:'4' }}" min="0">
+            <span class="input-group-text small bg-light">{% trans "زنكة" %}</span>
+          </div>
+        </div>
+
+        <div class="col-md-6">
+          <label class="form-label fw-bold small text-muted">
+            {% trans "حساب التراج (سعر الألف سحبة)" %}
+          </label>
+          <div class="form-control bg-light d-flex justify-content-between align-items-center">
+            <span class="small text-muted" id="press_pulls_count">1,000 سحبة</span>
+            <span class="badge bg-secondary" id="press_floor_badge">{% trans "فتحة ماكينة" %}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4. السلوفان والتشطيب والتكسير -->
+      <div class="row g-3 mb-3">
+        <div class="col-md-4">
+          <label for="id_lamination" class="form-label fw-bold">
+            <i class="fas fa-shield-alt text-primary me-1"></i>{% trans "السلوفان والحراري" %}
+          </label>
+          <select class="form-select select2-filter" id="id_lamination" name="coating_type">
+            {% if form.fields.coating_type.queryset %}
+              <option value="">{% trans "بدون سلوفان" %}</option>
+              {% for ctype in form.fields.coating_type.queryset %}
+                <option value="{{ ctype.pk }}" {% if form.coating_type.value == ctype.pk or form.instance.coating_type_id == ctype.pk %}selected{% endif %}>
+                  {{ ctype.name }}
+                </option>
+              {% endfor %}
+            {% else %}
+              <option value="none">{% trans "بدون سلوفان" %}</option>
+              <option value="matte_2_sides" selected>{% trans "سلوفان حراري مط وجهين" %}</option>
+              <option value="matte_1_side">{% trans "سلوفان حراري مط وجه واحد" %}</option>
+              <option value="gloss_2_sides">{% trans "سلوفان حراري لامع وجهين" %}</option>
+              <option value="gloss_1_side">{% trans "سلوفان حراري لامع وجه واحد" %}</option>
+              <option value="soft_touch_2_sides">{% trans "سلوفان قطيفة (سوفت تاتش Soft-Touch)" %}</option>
+            {% endif %}
+          </select>
+        </div>
+
+        <div class="col-md-4">
+          <label for="id_finishing" class="form-label fw-bold">
+            <i class="fas fa-star text-warning me-1"></i>{% trans "التشطيبات الفاخرة" %}
+          </label>
+          <select class="form-select select2-filter" id="id_finishing" name="finishing">
+            <option value="none" selected>{% trans "بدون تشطيب إضافي" %}</option>
+            <option value="spot_uv">{% trans "ورنيش موضعي بارز (Spot UV)" %}</option>
+            <option value="gold_foiling">{% trans "بصمة ذهبي حراري (Gold Foil)" %}</option>
+            <option value="silver_foiling">{% trans "بصمة فضي حراري (Silver Foil)" %}</option>
+            <option value="embossing">{% trans "كوفراج بارز (Embossing)" %}</option>
+          </select>
+        </div>
+
+        <div class="col-md-4">
+          <label for="id_die_cutting" class="form-label fw-bold">
+            <i class="fas fa-cut text-danger me-1"></i>{% trans "القص والتكسير والريجة" %}
+          </label>
+          <select class="form-select select2-filter" id="id_die_cutting" name="die_cutting">
+            <option value="straight_cut" selected>{% trans "قص مستقيم بالمقص دار (0 ج فورمة)" %}</option>
+            <option value="creasing_1">{% trans "ريجة طي واحدة (بروشور مطوية)" %}</option>
+            <option value="creasing_2">{% trans "ريجتين (بروشور 3 طيات)" %}</option>
+            <option value="die_cut_custom">{% trans "تكسير فورمة سكاكين جديدة" %}</option>
+            <option value="die_cut_existing">{% trans "استخدام فورمة سابقة من عهدة الورشة" %}</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- 5. زر الخيارات المتقدمة المطوية (⚙️ خيارات تشغيل متقدمة) -->
+      <div class="mt-3">
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#advanced_step2_options">
+          <i class="fas fa-cog me-1"></i>{% trans "⚙️ خيارات تشغيل متقدمة (المخزن، زنكات الأرشيف، وأسلوب القلب)" %}
+        </button>
+
+        <div class="collapse mt-3 p-3 bg-light border rounded" id="advanced_step2_options">
+          <div class="row g-3">
+            <div class="col-md-4">
+              <label class="form-label fw-bold small">{% trans "مصدر خام الورق" %}</label>
+              <select class="form-select form-select-sm" id="id_paper_source" name="paper_source">
+                <option value="purchase" selected>{% trans "شراء مباشر للمشروع من المورد" %}</option>
+                <option value="warehouse">{% trans "سحب وصرف من مخزن المنشأة (مع احتساب التكلفة)" %}</option>
+              </select>
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label fw-bold small">{% trans "زنكات CTP للأوفست" %}</label>
+              <select class="form-select form-select-sm" id="id_plates_option" name="plates_option">
+                <option value="new" selected>{% trans "فتح زنكات CTP جديدة بالكامل" %}</option>
+                <option value="archived">{% trans "استخدام زنكات سابقة محفوظة بالأرشيف (0 ج)" %}</option>
+              </select>
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label fw-bold small">{% trans "أسلوب قلب الشيت على الماكينة" %}</label>
+              <select class="form-select form-select-sm" id="id_sheet_turn_mode" name="sheet_turn_mode">
+                <option value="work_turn" selected>{% trans "قلب وش وضهر على نفس الزنكات (Work & Turn)" %}</option>
+                <option value="work_sheet">{% trans "زنكات مستقلة للوجه وزنكات للظهر (Work & Sheet)" %}</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>

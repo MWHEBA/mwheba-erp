@@ -457,36 +457,43 @@ class OrderSearchForm(forms.Form):
     """نموذج البحث في طلبات التسعير"""
 
     search = forms.CharField(
-        label=_("البحث"),
+        label=_("بحث سريع"),
         required=False,
         widget=forms.TextInput(attrs={
-            "class": "form-control",
-            "placeholder": _("البحث في رقم الطلب أو العنوان أو العميل..."),
+            "class": "form-control form-control-sm",
+            "placeholder": _("رقم الطلب أو العنوان أو العميل..."),
         }),
     )
 
     customer = forms.ModelChoiceField(
         label=_("العميل"),
-        queryset=Customer.objects.filter(is_active=True),
+        queryset=Customer.objects.filter(is_active=True).order_by('name'),
         required=False,
-        widget=forms.Select(attrs={"class": "form-control select2"}),
+        widget=forms.Select(attrs={"class": "form-select form-select-sm select2-filter", "dir": "rtl"}),
         empty_label=_("جميع العملاء")
     )
 
     status = forms.ChoiceField(
-        label=_("الحالة"),
+        label=_("حالة الطلب"),
         required=False,
-        choices=[("", _("جميع الحالات"))],  # سيتم تحديثها في __init__
-        widget=forms.Select(attrs={"class": "form-control"}),
+        choices=[("", _("جميع الحالات"))],
+        widget=forms.Select(attrs={"class": "form-select form-select-sm select2-filter", "dir": "rtl"}),
+    )
+
+    order_type = forms.ChoiceField(
+        label=_("نوع المطبوع"),
+        required=False,
+        choices=[("", _("جميع الأنواع"))],
+        widget=forms.Select(attrs={"class": "form-select form-select-sm select2-filter", "dir": "rtl"}),
     )
 
     date_from = forms.DateField(
         label=_("من تاريخ"),
         required=False,
         widget=forms.TextInput(attrs={
-            "class": "form-control",
-            "data-date-picker": True,
-            "placeholder": "من تاريخ..."
+            "class": "form-control form-control-sm",
+            "data-date-picker": "true",
+            "placeholder": "YYYY-MM-DD"
         }),
     )
 
@@ -494,18 +501,17 @@ class OrderSearchForm(forms.Form):
         label=_("إلى تاريخ"),
         required=False,
         widget=forms.TextInput(attrs={
-            "class": "form-control",
-            "data-date-picker": True,
-            "placeholder": "إلى تاريخ..."
+            "class": "form-control form-control-sm",
+            "data-date-picker": "true",
+            "placeholder": "YYYY-MM-DD"
         }),
     )
 
-    order_type = forms.ChoiceField(
-        label=_("نوع الطلب"),
-        required=False,
-        choices=[("", _("جميع الأنواع"))],  # سيتم تحديثها في __init__
-        widget=forms.Select(attrs={"class": "form-control"}),
-    )
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        from ..models.base import PricingStatus, OrderType
+        self.fields['status'].choices = [("", _("جميع الحالات"))] + list(PricingStatus.choices)
+        self.fields['order_type'].choices = [("", _("جميع الأنواع"))] + list(OrderType.choices)
 
 
 # ==================== النماذج الإضافية من الملف القديم ====================

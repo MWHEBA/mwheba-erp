@@ -8,52 +8,53 @@
       <span class="badge bg-secondary">{% trans "مقارنة لحظية للعميل" %}</span>
     </div>
 
-    <div class="table-responsive">
-      <table class="table table-bordered table-sm bg-white text-center align-middle mb-2">
+    <!-- جدول الشرائح بعرض كامل 100% بدون شريط تمرير أفقي -->
+    <div class="w-100 overflow-hidden">
+      <table class="table table-bordered table-sm bg-white text-center align-middle mb-2 w-100" style="table-layout: fixed; font-size: 0.84rem;">
         <thead class="table-light">
           <tr>
-            <th>{% trans "الشريحة الكمية" %}</th>
-            <th>{% trans "سعر الوحدة للعميل" %}</th>
-            <th>{% trans "الإجمالي قبل الضريبة" %}</th>
-            <th>{% trans "ضريبة القيمة المضافة" %}</th>
-            <th>{% trans "الإجمالي الصافي للعميل" %}</th>
-            <th>{% trans "إجراء" %}</th>
+            <th style="width: 20%; padding: 0.4rem 0.2rem;">{% trans "الكمية" %}</th>
+            <th style="width: 16%; padding: 0.4rem 0.2rem;">{% trans "سعر الوحدة" %}</th>
+            <th style="width: 18%; padding: 0.4rem 0.2rem;">{% trans "قبل الضريبة" %}</th>
+            <th style="width: 14%; padding: 0.4rem 0.2rem;">{% trans "الضريبة" %}</th>
+            <th style="width: 20%; padding: 0.4rem 0.2rem;">{% trans "الإجمالي الصافي" %}</th>
+            <th style="width: 12%; padding: 0.4rem 0.2rem;">{% trans "اختيار" %}</th>
           </tr>
         </thead>
         <tbody id="quantity_tiers_tbody">
-          <!-- سيتم توليد الشرائح ديناميكياً بـ JS -->
+          <!-- سيتم توليد وتحديث الشرائح ديناميكياً بـ JS -->
           <tr>
-            <td class="fw-bold">1,000 {% trans "قطعة" %}</td>
-            <td class="unit-price text-primary fw-bold">2.50 {% trans "ج" %}</td>
-            <td>2,500.00 {% trans "ج" %}</td>
-            <td>350.00 {% trans "ج" %}</td>
-            <td class="fw-bold text-success fs-6">2,850.00 {% trans "ج" %}</td>
-            <td>
-              <button type="button" class="btn btn-outline-primary btn-sm py-0 select-tier-btn" data-qty="1000">
+            <td class="fw-bold text-nowrap" style="padding: 0.35rem 0.2rem;">1,000 قطعة</td>
+            <td class="unit-price text-primary fw-bold text-nowrap" style="padding: 0.35rem 0.2rem;">2.50 ج</td>
+            <td class="text-nowrap" style="padding: 0.35rem 0.2rem;">2,500.00 ج</td>
+            <td class="text-nowrap text-muted" style="padding: 0.35rem 0.2rem;">350.00 ج</td>
+            <td class="fw-bold text-success text-nowrap" style="padding: 0.35rem 0.2rem;">2,850.00 ج</td>
+            <td style="padding: 0.35rem 0.2rem;">
+              <button type="button" class="btn btn-outline-primary btn-sm py-0 px-1 w-100 select-tier-btn" style="font-size: 0.78rem;" data-qty="1000">
                 {% trans "اعتماد" %}
               </button>
             </td>
           </tr>
           <tr>
-            <td class="fw-bold">2,500 {% trans "قطعة" %}</td>
-            <td class="unit-price text-primary fw-bold">1.60 {% trans "ج" %}</td>
-            <td>4,000.00 {% trans "ج" %}</td>
-            <td>560.00 {% trans "ج" %}</td>
-            <td class="fw-bold text-success fs-6">4,560.00 {% trans "ج" %}</td>
-            <td>
-              <button type="button" class="btn btn-outline-primary btn-sm py-0 select-tier-btn" data-qty="2500">
+            <td class="fw-bold text-nowrap" style="padding: 0.35rem 0.2rem;">2,500 قطعة</td>
+            <td class="unit-price text-primary fw-bold text-nowrap" style="padding: 0.35rem 0.2rem;">1.60 ج</td>
+            <td class="text-nowrap" style="padding: 0.35rem 0.2rem;">4,000.00 ج</td>
+            <td class="text-nowrap text-muted" style="padding: 0.35rem 0.2rem;">560.00 ج</td>
+            <td class="fw-bold text-success text-nowrap" style="padding: 0.35rem 0.2rem;">4,560.00 ج</td>
+            <td style="padding: 0.35rem 0.2rem;">
+              <button type="button" class="btn btn-outline-primary btn-sm py-0 px-1 w-100 select-tier-btn" style="font-size: 0.78rem;" data-qty="2500">
                 {% trans "اعتماد" %}
               </button>
             </td>
           </tr>
           <tr>
-            <td class="fw-bold">5,000 {% trans "قطعة" %}</td>
-            <td class="unit-price text-primary fw-bold">1.10 {% trans "ج" %}</td>
-            <td>5,500.00 {% trans "ج" %}</td>
-            <td>770.00 {% trans "ج" %}</td>
-            <td class="fw-bold text-success fs-6">6,270.00 {% trans "ج" %}</td>
-            <td>
-              <button type="button" class="btn btn-outline-primary btn-sm py-0 select-tier-btn" data-qty="5000">
+            <td class="fw-bold text-nowrap" style="padding: 0.35rem 0.2rem;">5,000 قطعة</td>
+            <td class="unit-price text-primary fw-bold text-nowrap" style="padding: 0.35rem 0.2rem;">1.10 ج</td>
+            <td class="text-nowrap" style="padding: 0.35rem 0.2rem;">5,500.00 ج</td>
+            <td class="text-nowrap text-muted" style="padding: 0.35rem 0.2rem;">770.00 ج</td>
+            <td class="fw-bold text-success text-nowrap" style="padding: 0.35rem 0.2rem;">6,270.00 ج</td>
+            <td style="padding: 0.35rem 0.2rem;">
+              <button type="button" class="btn btn-outline-primary btn-sm py-0 px-1 w-100 select-tier-btn" style="font-size: 0.78rem;" data-qty="5000">
                 {% trans "اعتماد" %}
               </button>
             </td>
@@ -61,7 +62,7 @@
         </tbody>
       </table>
     </div>
-    <small class="text-muted">
+    <small class="text-muted d-block mt-2">
       <i class="fas fa-info-circle me-1"></i>
       {% trans "تظهر هذه المقارنة تلقائياً في عرض السعر الموجه للعميل ليختار الكمية الأنسب لميزانيته." %}
     </small>

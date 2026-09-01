@@ -11,7 +11,7 @@ from supplier.models import Supplier
 
 class ProcurementBridgeService:
     """
-    خدمة جسر المشتريات والربط بين مقايسة الطباعة وأوامر الشراء للورش
+    خدمة جسر المشتريات والربط بين طلب تسعير الطباعة وأوامر الشراء للورش
     (Procurement Bridge & Multi-Part Unbundling Service)
     """
 
@@ -53,7 +53,7 @@ class ProcurementBridgeService:
         user=None
     ) -> list:
         """
-        توليد أوامر الشراء (Purchase POs) المنفصلة للورش والموردين من بنود المقايسة
+        توليد أوامر الشراء (Purchase POs) المنفصلة للورش والموردين من بنود التسعير
         مع تطبيق ضريبة الخصم والإضافة 1% وبند غرامة التأخير SLA وترحيل work_order
         """
         Purchase = apps.get_model('purchase', 'Purchase')

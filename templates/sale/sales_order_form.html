@@ -231,7 +231,7 @@
                     <span><i class="fas fa-list me-2"></i>{% trans "بنود أمر البيع" %}</span>
                     {% if enabled_modules.printing_pricing %}
                     <button type="button" class="btn btn-outline-primary btn-sm ms-3" data-bs-toggle="modal" data-bs-target="#importPrintingOrderModal">
-                        <i class="fas fa-print me-1"></i>{% trans "استيراد مقايسة مطبوعات" %}
+                        <i class="fas fa-print me-1"></i>{% trans "استيراد تسعير مطبوعات" %}
                     </button>
                     {% endif %}
                 </div>
@@ -1155,21 +1155,21 @@
 </script>
 
 {% if enabled_modules.printing_pricing %}
-<!-- Modal استيراد مقايسة مطبوعات -->
+<!-- Modal استيراد تسعير مطبوعات -->
 <div class="modal fade" id="importPrintingOrderModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-lg">
     <div class="modal-content border-0 shadow-lg">
       <div class="modal-header bg-light border-bottom px-4 py-3">
         <h5 class="modal-title fw-bold text-dark mb-0">
-          <i class="fas fa-print text-primary me-2"></i>{% trans "استيراد مقايسة مطبوعات معتمدة إلى أمر البيع" %}
+          <i class="fas fa-print text-primary me-2"></i>{% trans "استيراد تسعير مطبوعات معتمد إلى أمر البيع" %}
         </h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body p-4">
         <div class="mb-3">
-          <label class="form-label fw-bold">{% trans "اختر المقايسة المعتمدة" %}</label>
+          <label class="form-label fw-bold">{% trans "اختر طلب التسعير المعتمد" %}</label>
           <select class="form-select select2-modal" id="modal_printing_order_select" style="width: 100%;">
-            <option value="">{% trans "جاري البحث عن المقايسات المعتمدة..." %}</option>
+            <option value="">{% trans "جاري البحث عن طلبات التسعير المعتمدة..." %}</option>
           </select>
         </div>
         <div id="printing_order_preview" class="p-3 bg-light rounded border d-none">
@@ -1202,13 +1202,13 @@ document.addEventListener('DOMContentLoaded', function() {
       .then(res => res.json())
       .then(data => {
         const select = $('#modal_printing_order_select');
-        select.empty().append('<option value="">{% trans "اختر المقايسة..." %}</option>');
+        select.empty().append('<option value="">{% trans "اختر طلب التسعير..." %}</option>');
         if (data.orders && data.orders.length > 0) {
           data.orders.forEach(o => {
             select.append(`<option value="${o.id}" data-title="${o.title}" data-qty="${o.quantity}" data-price="${o.final_price}" data-unit="${o.unit_price}">${o.order_number} - ${o.title} (${o.customer_name}) - ${o.final_price} ج.م</option>`);
           });
         } else {
-          select.append('<option value="" disabled>{% trans "لا توجد مقايسات معتمدة جاهزة" %}</option>');
+          select.append('<option value="" disabled>{% trans "لا توجد طلبات تسعير معتمدة جاهزة" %}</option>');
         }
       });
   });
@@ -1241,7 +1241,7 @@ document.addEventListener('DOMContentLoaded', function() {
     lastRow.find('input[name$="-unit_price"]').val(unitPrice).trigger('input');
 
     $('#importPrintingOrderModal').modal('hide');
-    window.showNotification && window.showNotification('تم استيراد بنود المقايسة بنجاح', 'success');
+    window.showNotification && window.showNotification('تم استيراد بنود التسعير بنجاح', 'success');
   });
 });
 </script>

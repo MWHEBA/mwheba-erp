@@ -6,6 +6,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.urls import reverse_lazy, reverse
 from django.http import JsonResponse, HttpResponseRedirect
+from django.template.loader import render_to_string
 from django.utils.translation import gettext_lazy as _
 from django.db.models import Q, Sum, Count
 from django.core.paginator import Paginator
@@ -13,14 +14,17 @@ from decimal import Decimal
 
 from django.db import transaction
 from core.utils import UnifiedPaginationMixin
-from ..models import PrintingOrder, OrderMaterial, OrderService, OrderSummary, PaperSpecification, PrintingSpecification
+from ..models import (
+    PrintingOrder, OrderMaterial, OrderService, OrderSummary,
+    PaperSpecification, PrintingSpecification, PricingStatus, OrderType
+)
 from ..forms import PrintingOrderForm, OrderSearchForm
 from customer.models import Customer
 
 
 class OrderListView(UnifiedPaginationMixin, LoginRequiredMixin, ListView):
     """
-    عرض قائمة طلبات التسعير
+    عرض قائمة طلبات التسعير مع الفلترة الموحدة ودعم AJAX
     """
     model = PrintingOrder
     template_name = 'printing_pricing/orders/order_list.html'
@@ -35,74 +39,114 @@ class OrderListView(UnifiedPaginationMixin, LoginRequiredMixin, ListView):
         if not (self.request.user.is_superuser or self.request.user.is_staff):
             queryset = queryset.filter(created_by=self.request.user)
         
-        # تطبيق البحث
-        search_form = OrderSearchForm(self.request.GET)
-        if search_form.is_valid():
-            search_query = search_form.cleaned_data.get('search_query')
-            status = search_form.cleaned_data.get('status')
-            order_type = search_form.cleaned_data.get('order_type')
-            customer = search_form.cleaned_data.get('customer')
-            date_from = search_form.cleaned_data.get('date_from')
-            date_to = search_form.cleaned_data.get('date_to')
-            
-            if search_query:
-                queryset = queryset.filter(
-                    Q(order_number__icontains=search_query) |
-                    Q(title__icontains=search_query) |
-                    Q(customer__name__icontains=search_query) |
-                    Q(customer__company_name__icontains=search_query)
-                )
-            
-            if status:
-                queryset = queryset.filter(status=status)
-            
-            if order_type:
-                queryset = queryset.filter(order_type=order_type)
-            
-            if customer:
+        search_query = self.request.GET.get('search_query') or self.request.GET.get('search') or self.request.GET.get('q')
+        status = self.request.GET.get('status')
+        order_type = self.request.GET.get('order_type')
+        customer = self.request.GET.get('customer')
+        date_from = self.request.GET.get('date_from')
+        date_to = self.request.GET.get('date_to')
+        
+        if search_query:
+            from utils.search import smart_search_filter
+            queryset = smart_search_filter(
+                queryset,
+                search_query.strip(),
+                text_fields=['customer__name', 'customer__company_name', 'title'],
+                code_fields=['order_number', 'customer__code', 'customer__phone']
+            )
+        
+        if status:
+            queryset = queryset.filter(status=status)
+        
+        if order_type:
+            queryset = queryset.filter(order_type=order_type)
+        
+        if customer:
+            if isinstance(customer, str) and customer.isdigit():
+                queryset = queryset.filter(customer_id=int(customer))
+            elif hasattr(customer, 'id'):
                 queryset = queryset.filter(customer=customer)
-            
-            if date_from:
-                queryset = queryset.filter(created_at__date__gte=date_from)
-            
-            if date_to:
-                queryset = queryset.filter(created_at__date__lte=date_to)
+        
+        if date_from:
+            queryset = queryset.filter(created_at__date__gte=date_from)
+        
+        if date_to:
+            queryset = queryset.filter(created_at__date__lte=date_to)
         
         return queryset.order_by('-created_at')
     
     def get_context_data(self, **kwargs):
         """إضافة بيانات إضافية للسياق"""
         context = super().get_context_data(**kwargs)
-        context['search_form'] = OrderSearchForm(self.request.GET)
         
-        # إحصائيات سريعة
+        search_query = self.request.GET.get('search_query') or self.request.GET.get('search') or self.request.GET.get('q') or ''
+        status = self.request.GET.get('status') or ''
+        order_type = self.request.GET.get('order_type') or ''
+        customer = self.request.GET.get('customer') or ''
+        date_from = self.request.GET.get('date_from') or ''
+        date_to = self.request.GET.get('date_to') or ''
+        
+        all_orders = PrintingOrder.objects.filter(is_active=True)
+        if not (self.request.user.is_superuser or self.request.user.is_staff):
+            all_orders = all_orders.filter(created_by=self.request.user)
+            
         context['stats'] = {
-            'total_orders': PrintingOrder.objects.filter(is_active=True).count(),
-            'pending_orders': PrintingOrder.objects.filter(status='pending', is_active=True).count(),
-            'approved_orders': PrintingOrder.objects.filter(status='approved', is_active=True).count(),
-            'total_value': PrintingOrder.objects.filter(is_active=True).aggregate(
+            'total_orders': all_orders.count(),
+            'pending_orders': all_orders.filter(status='pending').count(),
+            'approved_orders': all_orders.filter(status='approved').count(),
+            'total_value': all_orders.aggregate(
+                total=Sum('final_price')
+            )['total'] or all_orders.aggregate(
                 total=Sum('estimated_cost')
             )['total'] or Decimal('0.00')
         }
         
-        # Page Header Context
-        context['page_title'] = 'طلبات التسعير'
-        context['page_subtitle'] = 'عرض وإدارة جميع طلبات التسعير'
-        context['page_icon'] = 'fas fa-list'
+        context['page_title'] = _('طلبات تسعير الطباعة')
+        context['page_subtitle'] = _('عرض وإدارة وتتبع جميع طلبات وتسعيرات أعمال الطباعة')
+        context['page_icon'] = 'fas fa-print'
         context['header_buttons'] = [
             {
                 'url': reverse('printing_pricing:order_create'),
                 'icon': 'fa-plus',
-                'text': 'طلب جديد',
+                'text': _('تسعير جديد'),
                 'class': 'btn-primary',
             },
         ]
         context['breadcrumb_items'] = [
-            {'title': 'الرئيسية', 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},
-            {'title': 'طلبات التسعير', 'active': True},
+            {'title': _('الرئيسية'), 'url': reverse('core:dashboard'), 'icon': 'fa-home'},
+            {'title': _('تسعير الطباعة'), 'url': reverse('printing_pricing:dashboard'), 'icon': 'fa-calculator'},
+            {'title': _('طلبات تسعير الطباعة'), 'active': True},
         ]
         
+        context['customers'] = Customer.objects.filter(is_active=True).only('id', 'name').order_by('name')
+        context['status_choices'] = PricingStatus.choices
+        context['order_type_choices'] = OrderType.choices
+        context['search_query'] = search_query
+        context['selected_customer'] = customer
+        context['selected_status'] = status
+        context['selected_order_type'] = order_type
+        context['selected_date_from'] = date_from
+        context['selected_date_to'] = date_to
+        
         return context
+
+    def render_to_response(self, context, **response_kwargs):
+        if self.request.headers.get("X-Requested-With") == "XMLHttpRequest" or self.request.GET.get("ajax"):
+            table_html = render_to_string(
+                "printing_pricing/orders/partials/order_table.html",
+                context,
+                request=self.request
+            )
+            pagination_html = render_to_string(
+                "partials/pagination.html",
+                context,
+                request=self.request
+            )
+            return JsonResponse({
+                "table_html": table_html,
+                "pagination_html": pagination_html,
+            })
+        return super().render_to_response(context, **response_kwargs)
 
 
 def check_can_view_margins(user):
@@ -213,18 +257,24 @@ class OrderCreateView(LoginRequiredMixin, CreateView):
         return context
     
     def form_valid(self, form):
-        """معالجة النموذج الصحيح"""
+        """معالجة النموذج الصحيح وتفكيك بنود الخامات والخدمات ذرياً"""
         form.instance.created_by = self.request.user
         form.instance.updated_by = self.request.user
         
         response = super().form_valid(form)
         
-        # إنشاء أو استرجاع ملخص التكلفة بأمان
-        OrderSummary.objects.get_or_create(order=self.object)
+        # تفكيك وتوليد بنود الخامات والخدمات وملخص التكاليف بناءً على معمارية تشريح الشغلانة
+        try:
+            from ..services.anatomy_persistence_service import OrderAnatomyPersistenceService
+            OrderAnatomyPersistenceService.persist_order_anatomy(self.object, self.request.POST)
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"Error persisting order anatomy: {e}")
+            OrderSummary.objects.get_or_create(order=self.object)
         
         messages.success(
             self.request, 
-            _('تم إنشاء طلب التسعير {} بنجاح').format(self.object.order_number)
+            _('تم إنشاء طلب التسعير {} وتفكيك بنود التشغيل بنجاح').format(self.object.order_number)
         )
         
         return response
@@ -273,11 +323,18 @@ class OrderUpdateView(LoginRequiredMixin, UpdateView):
         form.instance.updated_by = self.request.user
         response = super().form_valid(form)
         
-        OrderSummary.objects.get_or_create(order=self.object)
+        # تفكيك وتوليد بنود الخامات والخدمات وملخص التكاليف بناءً على معمارية تشريح الشغلانة
+        try:
+            from ..services.anatomy_persistence_service import OrderAnatomyPersistenceService
+            OrderAnatomyPersistenceService.persist_order_anatomy(self.object, self.request.POST)
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"Error persisting order anatomy on update: {e}")
+            OrderSummary.objects.get_or_create(order=self.object)
         
         messages.success(
             self.request,
-            _('تم تحديث طلب التسعير {} بنجاح').format(self.object.order_number)
+            _('تم تحديث طلب التسعير {} وتحديث بنود التشغيل بنجاح').format(self.object.order_number)
         )
         return response
     

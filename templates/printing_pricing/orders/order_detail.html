@@ -79,16 +79,16 @@
         <div class="row g-3 mb-4">
           <div class="col-md-4">
             <div class="p-3 bg-light rounded text-center border">
-              <div class="text-muted small mb-1">{% trans "قيمة البيع للعميل (شامل الضريبة)" %}</div>
-              <div class="fs-4 fw-bold text-primary">{{ summary.final_price|default:order.final_price|floatformat:2 }} ج.م</div>
-              <div class="small text-muted">{{ order.quantity }} {% trans "قطعة" %}</div>
+              <div class="text-muted small mb-1">{% trans "قيمة البيع للعميل (صافي)" %}</div>
+              <div class="fs-4 fw-bold text-primary">{{ summary.final_price|default:order.final_price|smart_float }} {{ currency_symbol|default:"ج.م" }}</div>
+              <div class="small text-muted">{{ order.quantity|smart_float }} {% trans "قطعة" %}</div>
             </div>
           </div>
 
           <div class="col-md-4">
             <div class="p-3 bg-light rounded text-center border">
               <div class="text-muted small mb-1">{% trans "إجمالي تكاليف الورش والمصروفات" %}</div>
-              <div class="fs-4 fw-bold text-danger">{{ summary.material_cost|add:summary.printing_cost|add:summary.finishing_cost|default:"0.00"|floatformat:2 }} ج.م</div>
+              <div class="fs-4 fw-bold text-danger">{{ summary.material_cost|add:summary.printing_cost|add:summary.finishing_cost|default:"0.00"|smart_float }} {{ currency_symbol|default:"ج.م" }}</div>
               <div class="small text-muted">{% trans "أوامر شراء الورش والورق" %}</div>
             </div>
           </div>
@@ -96,8 +96,8 @@
           <div class="col-md-4">
             <div class="p-3 bg-light rounded text-center border">
               <div class="text-muted small mb-1">{% trans "صافي الربح الفعلي المحقق" %}</div>
-              <div class="fs-4 fw-bold text-success">{{ summary.net_profit|default:"0.00"|floatformat:2 }} ج.م</div>
-              <div class="small text-success fw-bold">{{ summary.profit_margin|default:"0.00"|floatformat:1 }}% {% trans "هامش ربح" %}</div>
+              <div class="fs-4 fw-bold text-success">{{ summary.net_profit|default:"0.00"|smart_float }} {{ currency_symbol|default:"ج.م" }}</div>
+              <div class="small text-success fw-bold">{{ summary.profit_margin|default:"0.00"|smart_float }}% {% trans "هامش ربح" %}</div>
             </div>
           </div>
         </div>
@@ -124,8 +124,8 @@
                 <td class="fw-bold">{{ po.purchase_number }}</td>
                 <td>{{ po.supplier.name }}</td>
                 <td>{{ po.notes|default:_("خدمات طباعة وتشطيب") }}</td>
-                <td>{{ po.total_amount|floatformat:2 }} ج</td>
-                <td class="text-success">{{ po.tax_deduction_amount|default:"0.00"|floatformat:2 }} ج</td>
+                <td>{{ po.total_amount|smart_float }} {{ currency_symbol|default:"ج.م" }}</td>
+                <td class="text-success">{{ po.tax_deduction_amount|default:"0.00"|smart_float }} {{ currency_symbol|default:"ج.م" }}</td>
                 <td><span class="badge bg-success">{% trans "معتمد" %}</span></td>
               </tr>
               {% empty %}
@@ -168,7 +168,7 @@
                 <td>{{ log.from_location|default:_("المطبعة") }}</td>
                 <td class="fw-bold text-primary">{{ log.to_location }}</td>
                 <td>{{ log.transporter.name|default:_("سائق حر") }}</td>
-                <td class="fw-bold text-success">{{ log.cost|floatformat:2 }} ج.م</td>
+                <td class="fw-bold text-success">{{ log.cost|smart_float }} {{ currency_symbol|default:"ج.م" }}</td>
                 <td class="text-muted">{{ log.notes|default:"-" }}</td>
               </tr>
               {% empty %}
@@ -208,7 +208,7 @@
           </a>
 
           <a href="{% url 'printing_pricing:executive_summary' order.pk %}" target="_blank" class="btn btn-outline-danger text-start">
-            <i class="fas fa-file-contract text-danger me-2"></i>{% trans "الملخص التنفيذي للمقايسة" %}
+            <i class="fas fa-file-contract text-danger me-2"></i>{% trans "الملخص التنفيذي للتسعير" %}
           </a>
         </div>
       </div>

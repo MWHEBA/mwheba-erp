@@ -117,6 +117,9 @@ class PriceUnit(models.TextChoices):
     """
     PIECE = 'piece', _('بالقطعة')
     THOUSAND = 'thousand', _('بالألف')
+    SHEET = 'sheet', _('بالفرخ / شيت')
+    METER = 'meter', _('بالمتر')
+    PACKAGE = 'package', _('بالباكدج')
 
 
 class ProductionStage(models.TextChoices):

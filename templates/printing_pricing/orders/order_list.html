@@ -1,193 +1,242 @@
 {% extends 'base.html' %}
 {% load static %}
 {% load i18n %}
+{% load custom_filters %}
 {% load app_tags %}
 
-{% block title %}{% trans "طلبات ومقايسات الطباعة" %}{% endblock %}
+{% block title %}{{ page_title|default:"طلبات ومقايسات الطباعة" }}{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/components.css' %}">
+<link rel="stylesheet" href="{% static 'css/tables.css' %}">
 <link rel="stylesheet" href="{% static 'css/printing_pricing/components.css' %}">
 {% endblock %}
 
 {% block content %}
 <div class="container-fluid">
-  <!-- رأس الصفحة المركزي -->
+  <!-- رأس الصفحة المركزي الموحد -->
   {% include "shared/page_header.html" %}
 
-  <!-- كروت الإحصائيات السريعة (Stats Cards Row) -->
+  <!-- كروت الإحصائيات السريعة (KPI Stats Row) -->
   <div class="row g-3 mb-4">
     <div class="col-md-3">
-      <div class="stats-card stats-card-info p-3 bg-white rounded shadow-sm border">
-        <div class="d-flex align-items-center justify-content-between">
-          <div>
-            <div class="text-muted small">{% trans "إجمالي المقايسات" %}</div>
-            <div class="fs-4 fw-bold text-dark">{{ stats.total_orders|default:orders|length }}</div>
-          </div>
-          <div class="stats-card-icon fs-2 text-info"><i class="fas fa-print"></i></div>
+      <div class="stats-card stats-card-info">
+        <div class="stats-card-body">
+          <div class="stats-card-icon"><i class="fas fa-print"></i></div>
+          <div class="stats-card-title">{% trans "إجمالي المقايسات" %}</div>
+          <div class="stats-card-value">{{ stats.total_orders|default:"0" }}</div>
         </div>
       </div>
     </div>
 
     <div class="col-md-3">
-      <div class="stats-card stats-card-warning p-3 bg-white rounded shadow-sm border">
-        <div class="d-flex align-items-center justify-content-between">
-          <div>
-            <div class="text-muted small">{% trans "قيد الدراسة والتسعير" %}</div>
-            <div class="fs-4 fw-bold text-warning">{{ stats.pending_orders|default:0 }}</div>
-          </div>
-          <div class="stats-card-icon fs-2 text-warning"><i class="fas fa-hourglass-half"></i></div>
+      <div class="stats-card stats-card-warning">
+        <div class="stats-card-body">
+          <div class="stats-card-icon"><i class="fas fa-hourglass-half"></i></div>
+          <div class="stats-card-title">{% trans "قيد المراجعة والتسعير" %}</div>
+          <div class="stats-card-value">{{ stats.pending_orders|default:"0" }}</div>
         </div>
       </div>
     </div>
 
     <div class="col-md-3">
-      <div class="stats-card stats-card-success p-3 bg-white rounded shadow-sm border">
-        <div class="d-flex align-items-center justify-content-between">
-          <div>
-            <div class="text-muted small">{% trans "مقايسات معتمدة قيد التنفيذ" %}</div>
-            <div class="fs-4 fw-bold text-success">{{ stats.approved_orders|default:0 }}</div>
-          </div>
-          <div class="stats-card-icon fs-2 text-success"><i class="fas fa-check-double"></i></div>
+      <div class="stats-card stats-card-success">
+        <div class="stats-card-body">
+          <div class="stats-card-icon"><i class="fas fa-check-double"></i></div>
+          <div class="stats-card-title">{% trans "مقايسات معتمدة" %}</div>
+          <div class="stats-card-value">{{ stats.approved_orders|default:"0" }}</div>
         </div>
       </div>
     </div>
 
     <div class="col-md-3">
-      <div class="stats-card stats-card-primary p-3 bg-white rounded shadow-sm border">
-        <div class="d-flex align-items-center justify-content-between">
-          <div>
-            <div class="text-muted small">{% trans "إجمالي قيمة المقايسات" %}</div>
-            <div class="fs-4 fw-bold text-primary">{{ stats.total_value|default:"0.00"|floatformat:2 }} ج.م</div>
-          </div>
-          <div class="stats-card-icon fs-2 text-primary"><i class="fas fa-coins"></i></div>
+      <div class="stats-card stats-card-primary">
+        <div class="stats-card-body">
+          <div class="stats-card-icon"><i class="fas fa-coins"></i></div>
+          <div class="stats-card-title">{% trans "إجمالي قيمة المقايسات" %}</div>
+          <div class="stats-card-value">{{ stats.total_value|default:"0.00"|smart_float:2 }}</div>
+          <div class="stats-card-unit">{% currency_symbol %}</div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- قسم الفلترة والبحث القابل للطي -->
+  <!-- قسم الفلترة والبحث القابل للطي (Collapsible Filter Section) -->
   <div class="section-container mb-4">
-    <div class="d-flex align-items-center justify-content-between cursor-pointer" data-bs-toggle="collapse" data-bs-target="#filterSection">
-      <h6 class="fw-bold text-dark mb-0">
-        <i class="fas fa-filter text-primary me-2"></i>{% trans "فلترة وبحث متقدم" %}
-      </h6>
-      <i class="fas fa-chevron-down text-muted"></i>
-    </div>
-
-    <div class="collapse show mt-3" id="filterSection">
-      <form method="get" id="search-form" class="row g-3">
-        <div class="col-md-4">
-          <label class="form-label small fw-bold">{% trans "بحث سريع" %}</label>
-          <input type="text" class="form-control form-control-sm" name="search_query" value="{{ request.GET.search_query }}" placeholder="{% trans 'رقم الطلب أو العنوان أو العميل...' %}">
-        </div>
-
-        <div class="col-md-3">
-          <label class="form-label small fw-bold">{% trans "حالة الطلب" %}</label>
-          <select class="form-select form-select-sm" name="status">
-            <option value="">{% trans "جميع الحالات" %}</option>
-            <option value="draft" {% if request.GET.status == 'draft' %}selected{% endif %}>{% trans "مسودة" %}</option>
-            <option value="pending" {% if request.GET.status == 'pending' %}selected{% endif %}>{% trans "قيد المراجعة" %}</option>
-            <option value="approved" {% if request.GET.status == 'approved' %}selected{% endif %}>{% trans "معتمد" %}</option>
-            <option value="in_production" {% if request.GET.status == 'in_production' %}selected{% endif %}>{% trans "قيد الإنتاج بالمطابع" %}</option>
-            <option value="completed" {% if request.GET.status == 'completed' %}selected{% endif %}>{% trans "مكتمل" %}</option>
-          </select>
-        </div>
-
-        <div class="col-md-3">
-          <label class="form-label small fw-bold">{% trans "نوع المطبوع" %}</label>
-          <select class="form-select form-select-sm" name="order_type">
-            <option value="">{% trans "جميع الأنواع" %}</option>
-            <option value="business_card" {% if request.GET.order_type == 'business_card' %}selected{% endif %}>{% trans "كروت شخصية" %}</option>
-            <option value="flyer" {% if request.GET.order_type == 'flyer' %}selected{% endif %}>{% trans "فلاير / بروشور" %}</option>
-            <option value="catalog" {% if request.GET.order_type == 'catalog' %}selected{% endif %}>{% trans "كتالوج / مجلة" %}</option>
-            <option value="folder" {% if request.GET.order_type == 'folder' %}selected{% endif %}>{% trans "فولدرات بجيب" %}</option>
-            <option value="giveaways" {% if request.GET.order_type == 'giveaways' %}selected{% endif %}>{% trans "هدايا دعائية" %}</option>
-          </select>
-        </div>
-
-        <div class="col-md-2 d-flex align-items-end gap-2">
-          <button type="submit" class="btn btn-primary btn-sm w-100 fw-bold">
-            <i class="fas fa-search me-1"></i>{% trans "بحث" %}
-          </button>
-          <a href="{% url 'printing_pricing:order_list' %}" class="btn btn-outline-secondary btn-sm" title="{% trans 'إعادة ضبط' %}">
-            <i class="fas fa-undo"></i>
-          </a>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- جدول البيانات التفاعلي -->
-  <div class="section-container mb-4">
-    <h5 class="section-title text-primary mb-3">
-      <i class="fas fa-list-ul me-2"></i>{% trans "قائمة طلبات ومقايسات الطباعة" %}
+    <h5 class="section-title cursor-pointer {% if not search_query and not selected_customer and not selected_status and not selected_order_type and not selected_date_from and not selected_date_to %}collapsed{% endif %}" data-bs-toggle="collapse" data-bs-target="#filterSection" aria-expanded="{% if search_query or selected_customer or selected_status or selected_order_type or selected_date_from or selected_date_to %}true{% else %}false{% endif %}">
+      <i class="fas fa-filter me-2"></i>{% trans "تصفية وبحث متقدم" %}
+      {% if search_query or selected_customer or selected_status or selected_order_type or selected_date_from or selected_date_to %}
+        <span class="badge bg-primary ms-2">{% trans "فعّال" %}</span>
+      {% endif %}
+      <i class="fas fa-chevron-down float-end"></i>
     </h5>
 
-    <div class="table-responsive" id="order-table-container">
-      <table class="table table-hover table-bordered align-middle text-center small mb-0">
-        <thead class="table-light">
-          <tr>
-            <th>{% trans "رقم الطلب" %}</th>
-            <th>{% trans "العنوان والمسمى" %}</th>
-            <th>{% trans "العميل" %}</th>
-            <th>{% trans "الكمية" %}</th>
-            <th>{% trans "قيمة المقايسة" %}</th>
-            <th>{% trans "الموقع الحالي للشغل" %}</th>
-            <th>{% trans "الحالة" %}</th>
-            <th>{% trans "التاريخ" %}</th>
-            <th>{% trans "الإجراءات" %}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for ord in orders %}
-          <tr class="clickable-row" data-href="{% url 'printing_pricing:order_detail' ord.pk %}">
-            <td class="fw-bold text-primary">{{ ord.order_number }}</td>
-            <td class="text-start">{{ ord.title|truncatechars:35 }}</td>
-            <td>{{ ord.customer.name }}</td>
-            <td class="fw-bold">{{ ord.quantity|default:1 }}</td>
-            <td class="fw-bold text-success">{{ ord.final_price|default:ord.estimated_cost|floatformat:2 }} ج</td>
-            <td>
-              <span class="badge bg-light text-dark border">
-                <i class="fas fa-map-marker-alt text-danger me-1"></i>{{ ord.get_current_stage_display }}
-              </span>
-            </td>
-            <td>
-              {% if ord.status == 'approved' %}
-                <span class="badge bg-success">{% trans "معتمد" %}</span>
-              {% elif ord.status == 'in_production' %}
-                <span class="badge bg-primary">{% trans "قيد التشغيل" %}</span>
-              {% elif ord.status == 'completed' %}
-                <span class="badge bg-dark">{% trans "تم التسليم" %}</span>
-              {% else %}
-                <span class="badge bg-warning text-dark">{% trans "مسودة" %}</span>
-              {% endif %}
-            </td>
-            <td class="text-muted">{{ ord.created_at|date:"Y-m-d" }}</td>
-            <td class="col-actions" onclick="event.stopPropagation();">
-              <div class="btn-group btn-group-sm">
-                <a href="{% url 'printing_pricing:order_detail' ord.pk %}" class="btn btn-outline-secondary" title="{% trans 'عرض' %}">
-                  <i class="fas fa-eye"></i>
-                </a>
-                <a href="{% url 'printing_pricing:order_update' ord.pk %}" class="btn btn-outline-primary" title="{% trans 'تعديل' %}">
-                  <i class="fas fa-edit"></i>
-                </a>
+    <div class="collapse {% if search_query or selected_customer or selected_status or selected_order_type or selected_date_from or selected_date_to %}show{% endif %} mt-3" id="filterSection">
+      <div class="filter-section">
+        <form method="get" id="orderSearchForm" class="row g-3">
+          {% csrf_token %}
+          <div class="col-md-3">
+            <label class="form-label small text-muted">{% trans "بحث سريع" %}</label>
+            <div class="input-group input-group-sm">
+              <span class="input-group-text"><i class="fas fa-search"></i></span>
+              <input type="text" name="search_query" id="search-input" class="form-control" placeholder="{% trans 'رقم الطلب أو العنوان أو العميل...' %}" value="{{ search_query }}">
+            </div>
+          </div>
+
+          <div class="col-md-2">
+            <label class="form-label small text-muted">{% trans "العميل" %}</label>
+            <select name="customer" id="customer-select" class="form-select form-select-sm select2-filter" dir="rtl">
+              <option value="">{% trans "جميع العملاء" %}</option>
+              {% for c in customers %}
+                <option value="{{ c.id }}" {% if selected_customer == c.id|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="col-md-2">
+            <label class="form-label small text-muted">{% trans "حالة الطلب" %}</label>
+            <select name="status" id="status-select" class="form-select form-select-sm select2-filter" dir="rtl">
+              <option value="">{% trans "جميع الحالات" %}</option>
+              {% for key, val in status_choices %}
+                <option value="{{ key }}" {% if selected_status == key %}selected{% endif %}>{{ val }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="col-md-2">
+            <label class="form-label small text-muted">{% trans "نوع المطبوع" %}</label>
+            <select name="order_type" id="order-type-select" class="form-select form-select-sm select2-filter" dir="rtl">
+              <option value="">{% trans "جميع الأنواع" %}</option>
+              {% for key, val in order_type_choices %}
+                <option value="{{ key }}" {% if selected_order_type == key %}selected{% endif %}>{{ val }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="col-md-3">
+            <div class="row g-2">
+              <div class="col-6">
+                <label class="form-label small text-muted">{% trans "من تاريخ" %}</label>
+                <input type="text" name="date_from" id="date_from" class="form-control form-control-sm" data-date-picker placeholder="YYYY-MM-DD" value="{{ selected_date_from }}">
               </div>
-            </td>
-          </tr>
-          {% empty %}
-          <tr>
-            <td colspan="9" class="text-muted py-4">{% trans "لا توجد طلبات تسعير مطابقة للبحث." %}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+              <div class="col-6">
+                <label class="form-label small text-muted">{% trans "إلى تاريخ" %}</label>
+                <input type="text" name="date_to" id="date_to" class="form-control form-control-sm" data-date-picker placeholder="YYYY-MM-DD" value="{{ selected_date_to }}">
+              </div>
+            </div>
+          </div>
+
+          <div class="col-12 d-flex justify-content-end gap-2 mt-2">
+            <button type="submit" class="btn btn-sm btn-primary px-3">
+              <i class="fas fa-search me-1"></i>{% trans "تصفية" %}
+            </button>
+            <a href="{% url 'printing_pricing:order_list' %}" class="btn btn-sm btn-outline-secondary px-3" title="{% trans 'إعادة ضبط' %}">
+              <i class="fas fa-undo me-1"></i>{% trans "إعادة تعيين" %}
+            </a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- جدول البيانات التفاعلي (Table Section) -->
+  <div class="section-container mb-4">
+    <h5 class="section-title mb-3">
+      <i class="fas fa-list me-2"></i>{% trans "قائمة طلبات ومقايسات الطباعة" %}
+    </h5>
+
+    <div id="order-table-container">
+      {% include "printing_pricing/orders/partials/order_table.html" %}
     </div>
 
     <!-- التفاف الترقيم السيرفري SSR Pagination -->
     <div id="pagination-wrapper" class="mt-3">
-      {% include "partials/pagination.html" %}
+      {% include "partials/pagination.html" with page_obj=page_obj|default:orders align="center" %}
     </div>
   </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/select2.min.js' %}"></script>
+<script>
+  function initTableEvents() {
+    $('#order-table-container table tbody tr.clickable-row').off('click').on('click', function(e) {
+      if ($(e.target).closest('.col-actions, .btn, a, button, input').length > 0) return;
+      var href = $(this).data('href');
+      if (href) window.location.href = href;
+    }).css('cursor', 'pointer');
+  }
+
+  function confirmDeleteOrder(orderId) {
+    if (confirm('{% trans "هل أنت متأكد من حذف هذا الطلب؟ لا يمكن التراجع عن هذا الإجراء." %}')) {
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = `/printing-pricing/orders/${orderId}/delete/`;
+      
+      const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
+      if (csrfToken) {
+        const csrfInput = document.createElement('input');
+        csrfInput.type = 'hidden';
+        csrfInput.name = 'csrfmiddlewaretoken';
+        csrfInput.value = csrfToken.value;
+        form.appendChild(csrfInput);
+      }
+      
+      document.body.appendChild(form);
+      form.submit();
+    }
+  }
+
+  $(document).ready(function() {
+    $('.select2-filter').select2({ width: '100%', language: "ar", dir: "rtl" });
+    initTableEvents();
+
+    let debounceTimer;
+    window.doSearch = function(customQueryStr) {
+      let queryString = '';
+      if (typeof customQueryStr === 'string' && customQueryStr.length > 0) {
+        queryString = customQueryStr;
+      } else {
+        const form = $('#orderSearchForm');
+        queryString = form.serialize();
+      }
+
+      $.ajax({
+        url: '?' + queryString,
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        success: function(data) {
+          if (data.table_html !== undefined) {
+            $('#order-table-container').html(data.table_html);
+          }
+          if (data.pagination_html !== undefined) {
+            $('#pagination-wrapper').html(data.pagination_html);
+          }
+          history.replaceState(null, '', '?' + queryString);
+          initTableEvents();
+        }
+      });
+    };
+
+    $('#orderSearchForm').on('submit', function(e) {
+      e.preventDefault();
+      window.doSearch();
+    });
+
+    $('#search-input').on('input', function() {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(function() {
+        window.doSearch();
+      }, 400);
+    });
+
+    $('.select2-filter, #status-select, #order-type-select').on('change', function() {
+      window.doSearch();
+    });
+
+    $('#date_from, #date_to').on('change', function() {
+      window.doSearch();
+    });
+  });
+</script>
 {% endblock %}

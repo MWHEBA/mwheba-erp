@@ -1,0 +1,125 @@
+{% load i18n %}
+{% load app_tags %}
+
+<div class="section-container mb-4" id="card_step1_scope">
+  <h5 class="section-title">
+    <span><i class="fas fa-layer-group me-2"></i>1. {% trans "بيانات الطلب والعميل" %}</span>
+    <span class="badge bg-light text-dark border px-3 py-1 ms-auto" id="badge_step1_summary">{% trans "الأساسيات" %}</span>
+  </h5>
+  
+  <div>
+    <!-- أ. شريط القوالب السريعة بنقرة واحدة -->
+    <div class="mb-4">
+      <label class="form-label fw-bold text-secondary small text-uppercase mb-2">
+        <i class="fas fa-bolt text-warning me-1"></i>{% trans "قوالب سريعة بنقرة واحدة" %}
+      </label>
+      <div class="d-flex flex-wrap gap-2" id="presets_container">
+        <button type="button" class="btn btn-sm btn-outline-secondary preset-btn" data-preset="business_card">
+          <i class="fas fa-id-card me-1 text-primary"></i>{% trans "كروت شخصية" %}
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-secondary preset-btn" data-preset="flyer_a5">
+          <i class="fas fa-file-alt me-1 text-success"></i>{% trans "فلاير A5" %}
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-secondary preset-btn" data-preset="brochure_trifold">
+          <i class="fas fa-newspaper me-1 text-warning"></i>{% trans "بروشور 3 بوابة" %}
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-secondary preset-btn" data-preset="folder_pocket">
+          <i class="fas fa-folder-open me-1 text-danger"></i>{% trans "فولدر" %}
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-secondary preset-btn" data-preset="catalog_64p">
+          <i class="fas fa-book-open me-1 text-primary"></i>{% trans "كتالوج" %}
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-secondary preset-btn" data-preset="ncr_invoice">
+          <i class="fas fa-receipt me-1 text-success"></i>{% trans "دفاتر فواتير" %}
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-secondary preset-btn" data-preset="giveaways_pen_mug">
+          <i class="fas fa-gift me-1 text-danger"></i>{% trans "هدايا دعائية" %}
+        </button>
+      </div>
+    </div>
+
+    <!-- ب. الحقول الأساسية للطلب والعميل -->
+    <div class="row g-3">
+      <!-- 1. العميل -->
+      <div class="col-md-5">
+        <label for="id_customer" class="form-label fw-bold">
+          {% trans "العميل" %} <span class="text-danger">*</span>
+        </label>
+        <select class="form-select select2-filter" id="id_customer" name="customer" required>
+          <option value="">{% trans "اختر العميل..." %}</option>
+          {% for cust in form.fields.customer.queryset %}
+            <option value="{{ cust.pk }}" 
+                    data-phone="{{ cust.phone|default:'' }}" 
+                    data-tax="{{ cust.tax_number|default:'' }}"
+                    data-is-b2b="{% if cust.category == 'agency' or cust.category == 'trade' %}true{% else %}false{% endif %}"
+                    {% if form.customer.value == cust.pk or form.instance.customer_id == cust.pk %}selected{% endif %}>
+              {{ cust.name }} {% if cust.company_name %}({{ cust.company_name }}){% endif %}
+            </option>
+          {% endfor %}
+        </select>
+        <div id="customer_badge_info" class="small text-muted mt-1 d-none">
+          <span class="badge bg-light text-dark border me-1" id="cust_tier_badge">{% trans "عميل مباشر" %}</span>
+          <span class="text-secondary" id="cust_phone_text"></span>
+        </div>
+      </div>
+
+      <!-- 2. تاريخ الطلب / التسعير -->
+      <div class="col-md-3">
+        <label for="id_order_date" class="form-label fw-bold">
+          {% trans "تاريخ التسعير" %} <span class="text-danger">*</span>
+        </label>
+        <input type="date" class="form-control" id="id_order_date" name="order_date" 
+               value="{% if object and object.created_at %}{{ object.created_at|date:'Y-m-d' }}{% else %}{% now 'Y-m-d' %}{% endif %}" required>
+      </div>
+
+      <!-- 3. عنوان الشغلانة -->
+      <div class="col-md-4">
+        <label for="id_title" class="form-label fw-bold">
+          {% trans "وصف الطلب" %} <span class="text-danger">*</span>
+        </label>
+        <input type="text" class="form-control" id="id_title" name="title" 
+               value="{{ form.title.value|default:form.instance.title|default:'' }}" 
+               placeholder="{% trans 'مثال: طباعة بروشور تعريفي A4' %}" required>
+      </div>
+
+      <!-- 4. نوع المطبوع (Order Type) -->
+      <div class="col-md-4">
+        <label for="id_order_type" class="form-label fw-bold">
+          {% trans "نوع المطبوع" %} <span class="text-danger">*</span>
+        </label>
+        <select class="form-select select2-filter" id="id_order_type" name="order_type" required>
+          <option value="flyer" {% if form.order_type.value == 'flyer' or form.instance.order_type == 'flyer' %}selected{% endif %}>{% trans "مطبوع مفرود" %}</option>
+          <option value="catalog" {% if form.order_type.value == 'catalog' or form.instance.order_type == 'catalog' or form.instance.order_type == 'book' %}selected{% endif %}>{% trans "كتالوج" %}</option>
+          <option value="folder" {% if form.order_type.value == 'folder' or form.instance.order_type == 'folder' %}selected{% endif %}>{% trans "مطبوع مع فورمة" %}</option>
+          <option value="invoice" {% if form.order_type.value == 'invoice' or form.instance.order_type == 'invoice' %}selected{% endif %}>{% trans "دفاتر فواتير" %}</option>
+          <option value="giveaways" {% if form.order_type.value == 'giveaways' or form.instance.order_type == 'giveaways' %}selected{% endif %}>{% trans "هدايا دعائية" %}</option>
+        </select>
+      </div>
+
+      <!-- 5. الكمية المطلوبة والتوجيه الآلي للماكينة -->
+      <div class="col-md-4">
+        <label for="id_quantity" class="form-label fw-bold">
+          {% trans "الكمية المطلوبة" %} <span class="text-danger">*</span>
+        </label>
+        <div class="input-group">
+          <input type="number" class="form-control fw-bold" id="id_quantity" name="quantity" 
+                 value="{{ form.quantity.value|default:form.instance.quantity|default:1000 }}" min="1" required>
+          <span class="input-group-text p-1">
+            <span class="badge bg-success" id="badge_routing_type">{% trans "أوفست زنكات" %}</span>
+          </span>
+        </div>
+      </div>
+
+      <!-- 6. المسؤول (غير قابل للتغيير - يقرأ المستخدم تلقائياً) -->
+      <div class="col-md-4">
+        <label for="id_sales_rep_display" class="form-label fw-bold">
+          {% trans "المسؤول" %}
+        </label>
+        <input type="text" class="form-control bg-light" id="id_sales_rep_display" 
+               value="{% if object and object.sales_rep %}{{ object.sales_rep.get_full_name|default:object.sales_rep.username }}{% elif object and object.created_by %}{{ object.created_by.get_full_name|default:object.created_by.username }}{% else %}{{ request.user.get_full_name|default:request.user.username }}{% endif %}" readonly tabindex="-1">
+        <input type="hidden" name="sales_rep" id="id_sales_rep" 
+               value="{% if object and object.sales_rep_id %}{{ object.sales_rep_id }}{% elif object and object.created_by_id %}{{ object.created_by_id }}{% else %}{{ request.user.pk }}{% endif %}">
+      </div>
+    </div>
+  </div>
+</div>

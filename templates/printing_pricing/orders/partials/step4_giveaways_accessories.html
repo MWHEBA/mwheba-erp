@@ -1,0 +1,82 @@
+{% load i18n %}
+{% load app_tags %}
+
+<div class="section-container mb-4 d-none" id="card_step4_giveaways">
+  <!-- Section Title & Accordion Trigger -->
+  <h5 class="section-title cursor-pointer" data-bs-toggle="collapse" data-bs-target="#collapse_step4" aria-expanded="true">
+    <span>
+      <i class="fas fa-gift text-danger me-2"></i>
+      <span id="step4_header_title">4. {% trans "الهدايا الترويجية وشيتات ستيكر الكريستال UV-DTF" %}</span>
+    </span>
+    <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-3 py-1 ms-auto me-2" id="step4_badge_status">
+      <i class="fas fa-magic me-1"></i>{% trans "قسم الهدايا" %}
+    </span>
+    <i class="fas fa-chevron-down"></i>
+  </h5>
+
+  <!-- Accordion Body -->
+  <div id="collapse_step4" class="collapse show">
+    <div>
+      <div class="row g-3 mb-4 pb-3 border-bottom">
+        <div class="col-md-4">
+          <label for="id_giveaway_item_type" class="form-label fw-bold">
+            <i class="fas fa-gift text-primary me-1"></i>{% trans "صنف الهدية الدعائية" %}
+          </label>
+          <select class="form-select select2-filter" id="id_giveaway_item_type" name="giveaway_item_type">
+            <option value="metal_pen" selected>{% trans "قلم معدني فاخر (Metal Pen)" %}</option>
+            <option value="ceramic_mug">{% trans "مج سيراميك أبيض / سحري (Ceramic Mug)" %}</option>
+            <option value="usb_flash">{% trans "فلاش ميموري معدن / خشب 32GB" %}</option>
+            <option value="powerbank">{% trans "باور بنك مضيء 10,000 mAh" %}</option>
+            <option value="crystal_trophy">{% trans "درع كريستال / خشب تكريمي" %}</option>
+            <option value="uv_dtf_sheet">{% trans "شيت ستيكر كريستال بارز UV-DTF بالمتر" %}</option>
+          </select>
+        </div>
+
+        <div class="col-md-4">
+          <label for="id_giveaway_print_method" class="form-label fw-bold">
+            <i class="fas fa-print text-success me-1"></i>{% trans "طريقة التخصيص والطباعة" %}
+          </label>
+          <select class="form-select select2-filter" id="id_giveaway_print_method" name="giveaway_print_method">
+            <option value="laser_engraving" selected>{% trans "حفر بالليزر دقيق (Laser Engraving)" %}</option>
+            <option value="uv_flatbed">{% trans "طباعة UV مسطح ألوان مباشرة" %}</option>
+            <option value="silk_screen">{% trans "سلك سكرين 1 أو 2 لون" %}</option>
+            <option value="sublimation">{% trans "طباعة حرارية سبلميشن (Sublimation)" %}</option>
+            <option value="uv_dtf_transfer">{% trans "لصق ستيكر كريستال بارز UV-DTF" %}</option>
+          </select>
+        </div>
+
+        <div class="col-md-4">
+          <label class="form-label fw-bold small text-muted">{% trans "احتياطي فحص الإلكترونيات (3%)" %}</label>
+          <div class="form-control bg-light d-flex justify-content-between align-items-center">
+            <span class="small text-muted">{% trans "إجمالي قطع التشغيل:" %}</span>
+            <strong class="text-danger fs-6" id="giveaway_buffer_qty_display">1,030 قطعة</strong>
+          </div>
+        </div>
+      </div>
+
+      <!-- صمام عينة الاعتماد الحية والعلب -->
+      <div class="row g-3">
+        <div class="col-md-6">
+          <div class="form-check form-switch mt-2">
+            <input class="form-check-input" type="checkbox" id="id_giveaway_sample_milestone" name="giveaway_sample_milestone" checked>
+            <label class="form-check-label fw-bold text-dark" for="id_giveaway_sample_milestone">
+              <i class="fas fa-camera text-primary me-1"></i>{% trans "إلزام تصنيع وتصوير عينة حفر ليزر/UV معتمدة قبل بدء كامل الكمية" %}
+            </label>
+          </div>
+        </div>
+
+        <div class="col-md-6">
+          <label for="id_giveaway_packaging_box" class="form-label fw-bold small">
+            <i class="fas fa-box text-secondary me-1"></i>{% trans "علبة وتغليف الهدية" %}
+          </label>
+          <select class="form-select form-select-sm" id="id_giveaway_packaging_box" name="giveaway_packaging_box">
+            <option value="standard_box" selected>{% trans "علبة كرتون مبطنة قياسية (مشمولة)" %}</option>
+            <option value="luxury_velvet_box">{% trans "علبة قطيفة هارد كفر فاخرة (+ رسوم)" %}</option>
+            <option value="opp_bag">{% trans "كيس سيلوفان شفاف اقتصادي" %}</option>
+          </select>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>

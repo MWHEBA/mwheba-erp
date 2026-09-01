@@ -148,7 +148,7 @@ class TestPhase5UIAndSecurity:
         assert 'recent_orders' in response.context
 
     def test_save_quick_mobile_quote_api(self, client, admin_user, sample_customer):
-        """التحقق من حفظ المقايسة السريعة كطلب رسمي في النظام من الموبايل"""
+        """التحقق من حفظ التسعيرة السريعة كطلب رسمي في النظام من الموبايل"""
         client.force_login(admin_user)
         url = reverse('printing_pricing:api_save_quick_mobile_quote')
         payload = {
@@ -165,4 +165,26 @@ class TestPhase5UIAndSecurity:
         assert data['success'] is True
         assert 'order_id' in data
         assert PrintingOrder.objects.filter(pk=data['order_id']).exists()
+
+    def test_order_list_view_standardized_and_ajax(self, client, admin_user, sample_order):
+        """التحقق من التنسيق الموحد لقائمة طلبات التسعير والفلترة عبر AJAX"""
+        client.force_login(admin_user)
+        url = reverse('printing_pricing:order_list')
+        
+        # 1. طلب عادي SSR
+        response = client.get(url)
+        assert response.status_code == 200
+        assert 'stats' in response.context
+        assert 'breadcrumb_items' in response.context
+        assert 'status_choices' in response.context
+        assert 'order_type_choices' in response.context
+        assert sample_order in response.context['orders']
+        
+        # 2. طلب AJAX
+        ajax_response = client.get(url, {'search_query': 'كتالوج'}, HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        assert ajax_response.status_code == 200
+        data = ajax_response.json()
+        assert 'table_html' in data
+        assert 'pagination_html' in data
+        assert 'ORD-PH5-001' in data['table_html']
 

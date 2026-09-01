@@ -51,16 +51,13 @@
             {% trans "نوع المطبوع / الخدمة" %}
           </label>
           <select class="form-select" id="m_product_type">
-            <option value="business_card">{% trans "كروت شخصية فاخرة (1,000 كارت)" %}</option>
-            <option value="flyer">{% trans "فلاير دعائي A4 وجهين (1,000 فلاير)" %}</option>
-            <option value="flyer_a5" selected>{% trans "فلاير دعائي A5 وجهين (2,500 فلاير)" %}</option>
-            <option value="brochure">{% trans "بروشور 3 طيات مطوي (1,000 بروشور)" %}</option>
-            <option value="catalog">{% trans "كتالوج / مجلة 16 صفحة (500 نسخة)" %}</option>
-            <option value="folder">{% trans "فولدر شركات بجيب فاخر (500 فولدر)" %}</option>
-            <option value="invoice">{% trans "دفاتر فواتير NCR أصل و 2 صورة (50 دفتر)" %}</option>
-            <option value="giveaways">{% trans "أقلام معدن حفر ليزر (500 قلم)" %}</option>
-            <option value="mug">{% trans "مجات سيراميك مطبوعة (100 مج)" %}</option>
-            <option value="sticker">{% trans "ستيكر شيت كريستال UV-DTF (10 متر)" %}</option>
+            <option value="business_card">{% trans "كروت شخصية" %}</option>
+            <option value="flyer_a5" selected>{% trans "فلاير A5" %}</option>
+            <option value="brochure">{% trans "بروشور 3 بوابة" %}</option>
+            <option value="folder">{% trans "فولدر" %}</option>
+            <option value="catalog">{% trans "كتالوج" %}</option>
+            <option value="invoice">{% trans "دفاتر فواتير" %}</option>
+            <option value="giveaways">{% trans "هدايا دعائية" %}</option>
           </select>
         </div>
 
@@ -86,12 +83,10 @@
 
         <!-- نتيجة السعر الفورية -->
         <div class="price-display-box p-3 text-center mb-4">
-          <div class="text-muted small mb-1">{% trans "السعر المقترح للعميل (شامل الضريبة والتسليم):" %}</div>
-          <div id="m_calculated_price" class="fs-2 fw-bold text-success">1,450.00 ج.م</div>
+          <div class="text-muted small mb-1">{% trans "السعر الصافي المقترح للعميل:" %}</div>
+          <div id="m_calculated_price" class="fs-2 fw-bold text-success">1,450.00 {{ currency_symbol|default:"ج.م" }}</div>
           <div class="d-flex justify-content-center gap-3 text-muted small mt-1">
-            <span>{% trans "سعر القطعة:" %} <strong id="m_unit_price" class="text-dark">1.45</strong> ج</span>
-            <span>•</span>
-            <span id="m_vat_notice">{% trans "شامل 14% ضريبة ق.م" %}</span>
+            <span>{% trans "سعر القطعة:" %} <strong id="m_unit_price" class="text-dark">1.45</strong> {{ currency_symbol|default:"ج.م" }}</span>
           </div>
         </div>
 
@@ -114,6 +109,19 @@
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+  const currencySymbol = "{{ currency_symbol|default:'ج.م' }}";
+
+  function formatMoney(amount, forceDecimals = false) {
+    if (amount === undefined || amount === null || isNaN(amount)) return `0 ${currencySymbol}`;
+    const num = Number(amount);
+    const hasDecimals = (num % 1 !== 0) || forceDecimals;
+    const formatted = num.toLocaleString('en-US', {
+      minimumFractionDigits: hasDecimals ? 2 : 0,
+      maximumFractionDigits: 2
+    });
+    return `${formatted} ${currencySymbol}`;
+  }
+
   function updateMobilePrice() {
     const product = document.getElementById('m_product_type').value;
     const qty = parseInt(document.getElementById('m_quantity').value) || 1000;
@@ -134,15 +142,11 @@ document.addEventListener('DOMContentLoaded', function() {
     if (finishing === 'luxury') baseRate *= 1.30;
     else if (finishing === 'ultra_luxury') baseRate *= 1.60;
 
-    const isExempt = ['catalog'].includes(product);
-    const subtotal = qty * baseRate;
-    const vat = isExempt ? 0 : (subtotal * 0.14);
-    const total = subtotal + vat;
+    const total = qty * baseRate;
     const unitPrice = total / qty;
 
-    document.getElementById('m_calculated_price').textContent = total.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' ج.م';
-    document.getElementById('m_unit_price').textContent = unitPrice.toFixed(2);
-    document.getElementById('m_vat_notice').textContent = isExempt ? '{% trans "معفى من ضريبة القيمة المضافة" %}' : '{% trans "شامل 14% ضريبة ق.م" %}';
+    document.getElementById('m_calculated_price').textContent = formatMoney(total);
+    document.getElementById('m_unit_price').textContent = formatMoney(unitPrice, true);
   }
 
   document.getElementById('m_product_type').addEventListener('change', updateMobilePrice);
@@ -167,18 +171,18 @@ document.addEventListener('DOMContentLoaded', function() {
     const priceText = document.getElementById('m_calculated_price').textContent;
     const unitPrice = document.getElementById('m_unit_price').textContent;
 
-    const msg = `مرحباً بك ${custName}،\nيسعدنا تقديم عرض السعر المعتمد لمطبوعاتكم:\n\n📌 *البند:* ${productText}\n🔢 *الكمية:* ${qty} قطعة\n💵 *سعر القطعة:* ${unitPrice} ج.م\n💰 *الإجمالي النهائي:* ${priceText}\n\n✨ شامل فحص التصميم وضريبة القيمة المضافة والتسليم.\nللطلب والاعتماد، يرجى الرد على هذه الرسالة.`;
+    const msg = `مرحباً بك ${custName}،\nيسعدنا تقديم عرض السعر المعتمد لمطبوعاتكم:\n\n📌 *البند:* ${productText}\n🔢 *الكمية:* ${qty} قطعة\n💵 *سعر القطعة:* ${unitPrice}\n💰 *إجمالي السعر:* ${priceText}\n\n✨ *ملاحظة:* الأسعار صافية غير شاملة ضريبة القيمة المضافة (14%).\nللطلب والاعتماد، يرجى الرد على هذه الرسالة.`;
 
     const encoded = encodeURIComponent(msg);
     const waUrl = cleanPhone ? `https://wa.me/${cleanPhone}?text=${encoded}` : `https://wa.me/?text=${encoded}`;
     window.open(waUrl, '_blank');
   });
 
-  // 2. زر حفظ المقايسة السريعة كطلب رسمي في النظام
+  // 2. زر حفظ التسعيرة السريعة كطلب رسمي في النظام
   document.getElementById('btn_save_as_order').addEventListener('click', function() {
     const customerId = document.getElementById('m_customer').value;
     if (!customerId) {
-      window.showNotification && window.showNotification('يرجى اختيار العميل أولاً لحفظ المقايسة', 'warning');
+      window.showNotification && window.showNotification('يرجى اختيار العميل أولاً لحفظ طلب التسعير', 'warning');
       return;
     }
 
