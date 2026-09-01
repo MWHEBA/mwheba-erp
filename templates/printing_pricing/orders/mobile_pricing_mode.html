@@ -9,8 +9,8 @@
 <link rel="stylesheet" href="{% static 'css/components.css' %}">
 <style>
   .mobile-pricing-wrapper { max-width: 580px; margin: 0 auto; }
-  .btn-touch { padding: 12px; font-size: 1.05rem; border-radius: 8px; }
-  .price-display-box { background-color: var(--bg-light, #f8f9fa); border: 1px solid var(--border-color, #dee2e6); border-radius: 8px; }
+  .btn-touch { padding: 12px; font-size: 1.05rem; border-radius: var(--border-radius); }
+  .price-display-box { background-color: var(--gray-50); border: 1px solid var(--gray-200); border-radius: var(--border-radius); }
 </style>
 {% endblock %}
 
@@ -51,13 +51,17 @@
             {% trans "نوع المطبوع / الخدمة" %}
           </label>
           <select class="form-select" id="m_product_type">
-            <option value="business_card">{% trans "كروت شخصية" %}</option>
-            <option value="flyer_a5" selected>{% trans "فلاير A5" %}</option>
-            <option value="brochure">{% trans "بروشور 3 بوابة" %}</option>
-            <option value="folder">{% trans "فولدر" %}</option>
-            <option value="catalog">{% trans "كتالوج" %}</option>
-            <option value="invoice">{% trans "دفاتر فواتير" %}</option>
-            <option value="giveaways">{% trans "هدايا دعائية" %}</option>
+            {% if product_types %}
+              {% for pt in product_types %}
+                <option value="{{ pt.base_archetype }}" {% if pt.base_archetype == 'flyer' or forloop.first %}selected{% endif %}>{{ pt.name }}</option>
+              {% endfor %}
+            {% else %}
+              <option value="flyer" selected>{% trans "مطبوع مفرود" %}</option>
+              <option value="catalog">{% trans "كتالوج" %}</option>
+              <option value="folder">{% trans "مطبوع مع فورمة" %}</option>
+              <option value="invoice">{% trans "دفاتر فواتير" %}</option>
+              <option value="giveaways">{% trans "هدايا دعائية" %}</option>
+            {% endif %}
           </select>
         </div>
 

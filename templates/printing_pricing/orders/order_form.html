@@ -4,17 +4,27 @@
 {% load app_tags %}
 
 {% block title %}
-{% if object %}{% trans "تحرير طلب تسعير مطبوعات" %} - {{ object.order_number }}{% else %}{% trans "طلب تسعير مطبوعات جديد" %}{% endif %}
+{% if object %}{% trans "تحرير طلب تسعير مطبوعات" %} - {{ object.order_number }}{% else %}{% trans "طلب تسعير مطبوعات
+جديد" %}{% endif %}
 {% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
 <link rel="stylesheet" href="{% static 'css/components.css' %}">
-<link rel="stylesheet" href="{% static 'css/printing_pricing/components.css' %}">
+<link rel="stylesheet" href="{% static 'css/select2-enhancements.css' %}">
 <link rel="stylesheet" href="{% static 'css/toastr-override.css' %}">
 <style>
-  .preset-btn { transition: var(--transition-base, all 0.2s ease); border-radius: var(--border-radius-sm, 6px); font-weight: 600; font-size: var(--font-size-sm, 0.85rem); }
-  .preset-btn:hover { transform: translateY(-1px); }
+  .preset-btn {
+    transition: var(--transition-base, all 0.2s ease);
+    border-radius: var(--border-radius-sm, 6px);
+    font-weight: 600;
+    font-size: var(--font-size-sm, 0.85rem);
+  }
+
+  .preset-btn:hover {
+    transform: translateY(-1px);
+  }
+
   @media (max-width: 991px) {
     .summary-sidebar-container {
       position: sticky;
@@ -36,24 +46,25 @@
   <div id="draft_restore_alert" class="alert alert-info alert-dismissible fade show d-none mb-3" role="alert">
     <i class="fas fa-history me-2"></i>
     <span>{% trans "توجد مسودة غير محفوظة لهذا الطلب. هل تريد استعادتها؟" %}</span>
-    <button type="button" class="btn btn-sm btn-primary ms-3 py-0" id="btn_restore_draft">{% trans "استعادة المسودة" %}</button>
+    <button type="button" class="btn btn-sm btn-primary ms-3 py-0" id="btn_restore_draft">{% trans "استعادة المسودة"
+      %}</button>
     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
   </div>
 
   <form method="post" id="order-form" class="needs-validation" novalidate>
     {% csrf_token %}
-    
+
     <div class="row g-4">
       <!-- العمود الأيمن: معمارية تشريح الشغلانة الذكية (5 خطوات متسلسلة) -->
       <div class="col-lg-8">
-        
+
         <!-- الخطوة 1: بيانات الطلب والعميل ومقاس الماكينة -->
         {% include "printing_pricing/orders/partials/step1_job_scope.html" %}
 
         <!-- الخطوة 2: مواصفات وخامات المطبوع الرئيسي / الغلاف -->
         {% include "printing_pricing/orders/partials/step2_cover_or_main.html" %}
 
-        <!-- الخطوة 3: مواصفات المتن والصفحات والجيوب (شرطي) -->
+        <!-- الخطوة 3: مواصفات الداخلي والصفحات والجيوب (شرطي) -->
         {% include "printing_pricing/orders/partials/step3_inner_pages.html" %}
 
         <!-- الخطوة 4: الهدايا الترويجية والـ UV-DTF (شرطي) -->
@@ -75,400 +86,709 @@
 
 {% block extra_js %}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-  const orderId = "{{ object.id|default:'new' }}";
-  const draftKey = `printing_anatomy_draft_${orderId}`;
-  const currencySymbol = "{{ currency_symbol|default:'ج.م' }}";
+  document.addEventListener('DOMContentLoaded', function () {
+    const orderId = "{{ object.id|default:'new' }}";
+    const draftKey = `printing_anatomy_draft_${orderId}`;
+    const currencySymbol = "{{ currency_symbol|default:'ج.م' }}";
 
-  // تعيين تاريخ اليوم تلقائياً إذا كان الحقل فارغاً
-  const orderDateInput = document.getElementById('id_order_date');
-  if (orderDateInput && !orderDateInput.value) {
-    orderDateInput.value = new Date().toISOString().split('T')[0];
-  }
-
-  // دالة التنسيق الذكي للأرقام والعملة
-  function formatMoney(amount, forceDecimals = false) {
-    if (amount === undefined || amount === null || isNaN(amount)) return `0 ${currencySymbol}`;
-    const num = Number(amount);
-    const hasDecimals = (num % 1 !== 0) || forceDecimals;
-    const formatted = num.toLocaleString('en-US', {
-      minimumFractionDigits: hasDecimals ? 2 : 0,
-      maximumFractionDigits: 2
-    });
-    return `${formatted} ${currencySymbol}`;
-  }
-
-  // 1. تعريف القوالب السريعة
-  const presetsData = {
-    business_card: {
-      type: 'flyer', title: '{% trans "كروت شخصية" %}', qty: 1000,
-      w: 9, h: 5, open_w: 9, open_h: 5, paper: 'couche', weight: '350', sheet: '70x100',
-      front_c: 4, back_c: 4, plates: 4, lam: 'matte_2_sides', finishing: 'spot_uv', die: 'straight_cut',
-      inner_pages: 0, inner_paper: 'couche', inner_weight: '135', binding: 'none'
-    },
-    flyer_a5: {
-      type: 'flyer', title: '{% trans "فلاير A5" %}', qty: 5000,
-      w: 14.8, h: 21, open_w: 14.8, open_h: 21, paper: 'couche', weight: '150', sheet: '70x100',
-      front_c: 4, back_c: 4, plates: 4, lam: 'none', finishing: 'none', die: 'straight_cut',
-      inner_pages: 0, inner_paper: 'couche', inner_weight: '135', binding: 'none'
-    },
-    brochure_trifold: {
-      type: 'flyer', title: '{% trans "بروشور 3 بوابة" %}', qty: 2500,
-      w: 9.9, h: 21, open_w: 29.7, open_h: 21, paper: 'couche', weight: '170', sheet: '70x100',
-      front_c: 4, back_c: 4, plates: 4, lam: 'matte_2_sides', finishing: 'none', die: 'creasing_2',
-      inner_pages: 0, inner_paper: 'couche', inner_weight: '135', binding: 'none'
-    },
-    folder_pocket: {
-      type: 'folder', title: '{% trans "فولدر" %}', qty: 1000,
-      w: 22, h: 31, open_w: 44, open_h: 31, paper: 'couche', weight: '350', sheet: '70x100',
-      front_c: 4, back_c: 0, plates: 4, lam: 'matte_1_side', finishing: 'spot_uv', die: 'die_cut_custom',
-      inner_pages: 4, inner_paper: 'couche', inner_weight: '350', binding: 'none'
-    },
-    catalog_64p: {
-      type: 'catalog', title: '{% trans "كتالوج" %}', qty: 1000,
-      w: 21, h: 29.7, open_w: 42, open_h: 29.7, paper: 'couche', weight: '300', sheet: '70x100',
-      front_c: 4, back_c: 4, plates: 4, lam: 'matte_1_side', finishing: 'none', die: 'straight_cut',
-      inner_pages: 32, inner_paper: 'couche', inner_weight: '135', binding: 'staple'
-    },
-    ncr_invoice: {
-      type: 'invoice', title: '{% trans "دفاتر فواتير" %}', qty: 50,
-      w: 21, h: 29.7, open_w: 21, open_h: 29.7, paper: 'woodfree', weight: '80', sheet: '70x100',
-      front_c: 1, back_c: 0, plates: 1, lam: 'none', finishing: 'none', die: 'straight_cut',
-      inner_pages: 100, inner_paper: 'woodfree', inner_weight: '55', binding: 'none'
-    },
-    giveaways_pen_mug: {
-      type: 'giveaways', title: '{% trans "هدايا دعائية" %}', qty: 500,
-      w: 10, h: 10, open_w: 10, open_h: 10, paper: 'couche', weight: '150', sheet: '70x100',
-      front_c: 1, back_c: 0, plates: 0, lam: 'none', finishing: 'none', die: 'straight_cut',
-      inner_pages: 0, inner_paper: 'couche', inner_weight: '135', binding: 'none'
+    // تعيين تاريخ اليوم تلقائياً إذا كان الحقل فارغاً
+    const orderDateInput = document.getElementById('id_order_date');
+    if (orderDateInput && !orderDateInput.value) {
+      orderDateInput.value = new Date().toISOString().split('T')[0];
     }
-  };
 
-  // 2. تطبيق القوالب السريعة
-  document.querySelectorAll('.preset-btn').forEach(btn => {
-    btn.addEventListener('click', function() {
-      const p = presetsData[this.dataset.preset];
-      if (!p) return;
+    // دالة التنسيق الذكي للأرقام والعملة
+    function formatMoney(amount, forceDecimals = false) {
+      if (amount === undefined || amount === null || isNaN(amount)) return `0 ${currencySymbol}`;
+      const num = Number(amount);
+      const hasDecimals = (num % 1 !== 0) || forceDecimals;
+      const formatted = num.toLocaleString('en-US', {
+        minimumFractionDigits: hasDecimals ? 2 : 0,
+        maximumFractionDigits: 2
+      });
+      return `${formatted} ${currencySymbol}`;
+    }
 
-      const anatomySelect = document.getElementById('id_order_type') || document.getElementById('id_job_anatomy_type');
-      if (anatomySelect) {
-        anatomySelect.value = p.type;
-        handleAnatomySwitch(p.type);
+    // 1. تعريف القوالب السريعة
+    const presetsData = {
+      business_card: {
+        type: 'flyer', title: '{% trans "كروت شخصية" %}', qty: 1000,
+        size_keyword: 'كارت', orientation: 'landscape',
+        w: 9, h: 5, paper: 'couche', weight: '350', sheet: '70x100',
+        front_c: 4, back_c: 4, plates: 4, lam: 'matte_2_sides', finishing: 'spot_uv', die: 'straight_cut',
+        inner_pages: 0, inner_paper: 'couche', inner_weight: '135', binding: 'none'
+      },
+      flyer_a5: {
+        type: 'flyer', title: '{% trans "فلاير A5" %}', qty: 5000,
+        size_keyword: 'A5', orientation: 'portrait', is_closed: false, open_dir: 'right',
+        w: 14.8, h: 21, paper: 'couche', weight: '150', sheet: '70x100',
+        front_c: 4, back_c: 4, plates: 4, lam: 'none', finishing: 'none', die: 'straight_cut',
+        inner_pages: 0, inner_paper: 'couche', inner_weight: '135', binding: 'none'
+      },
+      brochure_trifold: {
+        type: 'flyer', title: '{% trans "بروشور 3 بوابة" %}', qty: 2500,
+        size_keyword: 'بروشور', orientation: 'portrait', is_closed: true, open_dir: 'right',
+        w: 21, h: 29.7, paper: 'couche', weight: '170', sheet: '70x100',
+        front_c: 4, back_c: 4, plates: 4, lam: 'matte_2_sides', finishing: 'none', die: 'creasing_2',
+        inner_pages: 0, inner_paper: 'couche', inner_weight: '135', binding: 'none'
+      },
+      folder_pocket: {
+        type: 'folder', title: '{% trans "فولدر" %}', qty: 1000,
+        size_keyword: 'فولدر', orientation: 'portrait', is_closed: true, open_dir: 'right',
+        w: 22, h: 31, paper: 'couche', weight: '350', sheet: '70x100',
+        front_c: 4, back_c: 0, plates: 4, lam: 'matte_1_side', finishing: 'spot_uv', die: 'die_cut_custom',
+        inner_pages: 4, inner_paper: 'couche', inner_weight: '350', binding: 'none'
+      },
+      catalog_64p: {
+        type: 'catalog', title: '{% trans "كتالوج" %}', qty: 1000,
+        size_keyword: 'A4', orientation: 'portrait', is_closed: true, open_dir: 'right',
+        w: 21, h: 29.7, paper: 'couche', weight: '300', sheet: '70x100',
+        front_c: 4, back_c: 4, plates: 4, lam: 'matte_1_side', finishing: 'none', die: 'straight_cut',
+        inner_pages: 32, inner_paper: 'couche', inner_weight: '135', binding: 'staple'
+      },
+      ncr_invoice: {
+        type: 'invoice', title: '{% trans "دفاتر مكربن" %}', qty: 50,
+        size_keyword: 'A4', orientation: 'portrait', is_closed: false, open_dir: 'top',
+        w: 21, h: 29.7, paper: 'woodfree', weight: '80', sheet: '70x100',
+        front_c: 1, back_c: 0, plates: 1, lam: 'none', finishing: 'none', die: 'straight_cut',
+        inner_pages: 50, inner_paper: 'woodfree', inner_weight: '80', binding: 'staple'
+      },
+      giveaways_pen_mug: {
+        type: 'giveaways', title: '{% trans "هدايا دعائية و UV" %}', qty: 100,
+        size_keyword: 'custom', orientation: 'portrait', is_closed: false, open_dir: 'right',
+        w: 10, h: 10, paper: 'couche', weight: '300', sheet: '70x100',
+        front_c: 4, back_c: 0, plates: 0, lam: 'none', finishing: 'none', die: 'straight_cut',
+        inner_pages: 0, inner_paper: 'couche', inner_weight: '300', binding: 'none'
       }
+    };
 
-      if (document.getElementById('id_title') && !document.getElementById('id_title').value) {
-        document.getElementById('id_title').value = p.title;
-      }
-      if (document.getElementById('id_quantity')) document.getElementById('id_quantity').value = p.qty;
-      if (document.getElementById('id_width')) document.getElementById('id_width').value = p.w;
-      if (document.getElementById('id_custom_size_width')) document.getElementById('id_custom_size_width').value = p.w;
-      if (document.getElementById('id_height')) document.getElementById('id_height').value = p.h;
-      if (document.getElementById('id_custom_size_height')) document.getElementById('id_custom_size_height').value = p.h;
-      if (document.getElementById('id_open_size_width')) document.getElementById('id_open_size_width').value = p.open_w;
-      if (document.getElementById('id_open_size_height')) document.getElementById('id_open_size_height').value = p.open_h;
-      if (document.getElementById('id_paper_type')) $(document.getElementById('id_paper_type')).val(p.paper).trigger('change');
-      if (document.getElementById('id_paper_weight')) document.getElementById('id_paper_weight').value = p.weight;
-      if (document.getElementById('id_colors_front')) document.getElementById('id_colors_front').value = p.front_c;
-      if (document.getElementById('id_colors_back')) document.getElementById('id_colors_back').value = p.back_c;
-      if (document.getElementById('id_plate_count')) document.getElementById('id_plate_count').value = p.plates;
-      if (document.getElementById('id_lamination')) $(document.getElementById('id_lamination')).val(p.lam).trigger('change');
-      if (document.getElementById('id_finishing')) $(document.getElementById('id_finishing')).val(p.finishing).trigger('change');
-      if (document.getElementById('id_die_cutting')) $(document.getElementById('id_die_cutting')).val(p.die).trigger('change');
-      if (document.getElementById('id_pages_count')) document.getElementById('id_pages_count').value = p.inner_pages;
-      if (document.getElementById('id_binding_type')) $(document.getElementById('id_binding_type')).val(p.binding).trigger('change');
+    // دالة تطبيق مقاس المطبوع المختار والقفل الذكي
+    function applySelectedProductSize() {
+      const sizeSelect = document.getElementById('id_product_size');
+      if (!sizeSelect) return;
+      
+      const widthInput = document.getElementById('id_width');
+      const heightInput = document.getElementById('id_height');
+      const selectedOpt = sizeSelect.options[sizeSelect.selectedIndex];
+      const isCustom = !selectedOpt || selectedOpt.value === 'custom';
 
-      recalculate();
-    });
-  });
+      const isLandscape = document.getElementById('orient_landscape')?.checked || false;
 
-  // 3. التبديل الذكي بين الأنماط التشريحية مع الحفاظ على البيانات المشتركة
-  function handleAnatomySwitch(type) {
-    const cardStep3 = document.getElementById('card_step3_inner');
-    const cardStep4 = document.getElementById('card_step4_giveaways');
-    const innerBook = document.getElementById('inner_book_section');
-    const innerFolder = document.getElementById('inner_folder_section');
-    const innerNcr = document.getElementById('inner_ncr_section');
-
-    if (type === 'flyer' || type === 'single_sheet' || type === 'brochure' || type === 'business_card') {
-      cardStep3.classList.add('d-none');
-      cardStep4.classList.add('d-none');
-      document.getElementById('step2_header_title').textContent = '2. ' + '{% trans "مواصفات وخامات المطبوع المفرد" %}';
-    } else if (type === 'catalog' || type === 'book' || type === 'magazine' || type === 'book_catalog') {
-      cardStep3.classList.remove('d-none');
-      cardStep4.classList.add('d-none');
-      innerBook.classList.remove('d-none');
-      innerFolder.classList.add('d-none');
-      innerNcr.classList.add('d-none');
-      document.getElementById('step2_header_title').textContent = '2. ' + '{% trans "مواصفات وخامات وتشطيب الغلاف" %}';
-    } else if (type === 'folder' || type === 'box' || type === 'folder_packaging') {
-      cardStep3.classList.remove('d-none');
-      cardStep4.classList.add('d-none');
-      innerBook.classList.add('d-none');
-      innerFolder.classList.remove('d-none');
-      innerNcr.classList.add('d-none');
-      document.getElementById('step2_header_title').textContent = '2. ' + '{% trans "مواصفات وخامات فرخ الفولدر الخارجي" %}';
-    } else if (type === 'invoice' || type === 'ncr_invoices') {
-      cardStep3.classList.remove('d-none');
-      cardStep4.classList.add('d-none');
-      innerBook.classList.add('d-none');
-      innerFolder.classList.add('d-none');
-      innerNcr.classList.remove('d-none');
-      document.getElementById('step2_header_title').textContent = '2. ' + '{% trans "مواصفات وخامات غلاف الدفتر" %}';
-    } else if (type === 'giveaways') {
-      cardStep3.classList.add('d-none');
-      cardStep4.classList.remove('d-none');
-      document.getElementById('step2_header_title').textContent = '2. ' + '{% trans "مواصفات التغليف والمطبوع المصاحب" %}';
-    }
-  }
-
-  const anatomySelect = document.getElementById('id_order_type') || document.getElementById('id_job_anatomy_type');
-  if (anatomySelect) {
-    anatomySelect.addEventListener('change', function() {
-      handleAnatomySwitch(this.value);
-      recalculate();
-    });
-  }
-
-  // 4. معالجة Select2 داخل الأكورديون
-  $('.collapse').on('shown.bs.collapse', function() {
-    $(this).find('.select2-filter').each(function() {
-      if ($(this).data('select2')) {
-        $(this).select2('destroy');
-      }
-      $(this).select2({ width: '100%', dir: 'rtl' });
-    });
-  });
-
-  // 5. محرك الحسابات الفوري 0ms بالعملة الوظيفية
-  function recalculate() {
-    const qty = parseFloat(document.getElementById('id_quantity')?.value) || 1000;
-    const type = (document.getElementById('id_order_type') || document.getElementById('id_job_anatomy_type'))?.value || 'flyer';
-
-    // توجيه الماكينة التلقائي
-    const routingBadge = document.getElementById('badge_routing_type');
-    const plateCountInput = document.getElementById('id_plate_count');
-    if (qty <= 300) {
-      if (routingBadge) {
-        routingBadge.className = 'badge bg-info';
-        routingBadge.textContent = '{% trans "ديجيتال شيتات A3+" %}';
-      }
-      if (plateCountInput && !plateCountInput.dataset.manual) {
-        plateCountInput.value = '0';
-      }
-    } else {
-      if (routingBadge) {
-        routingBadge.className = 'badge bg-success';
-        routingBadge.textContent = '{% trans "أوفست زنكات" %}';
-      }
-      if (plateCountInput && plateCountInput.value === '0' && !plateCountInput.dataset.manual) {
-        plateCountInput.value = '4';
-      }
-    }
-
-    // حساب قطع الفرخ والهدر
-    const w = parseFloat(document.getElementById('id_width')?.value || document.getElementById('id_custom_size_width')?.value) || 21;
-    const h = parseFloat(document.getElementById('id_height')?.value || document.getElementById('id_custom_size_height')?.value) || 29.7;
-    const cutsPerSheet = Math.max(1, Math.floor((100 / w) * (70 / h)));
-    const cutsDisplay = document.getElementById('pieces_per_sheet_display');
-    if (cutsDisplay) cutsDisplay.textContent = `${cutsPerSheet} ` + '{% trans "قطع" %}';
-
-    // تكلفة الورق
-    const netSheets = Math.ceil(qty / cutsPerSheet);
-    const wastePercent = qty > 2000 ? 0.05 : 0.10;
-    const grossSheets = Math.ceil(netSheets * (1 + wastePercent));
-    const paperWeight = parseFloat(document.getElementById('id_paper_weight')?.value) || 300;
-    const sheetCost = 3.50 * (paperWeight / 300); // سعر فرخ تقديري ثابت
-    let costPaper = grossSheets * sheetCost;
-
-    // تكلفة المتن لو وجد
-    if (type === 'catalog' || type === 'book' || type === 'book_catalog') {
-      const pages = parseFloat(document.getElementById('id_pages_count')?.value) || 32;
-      const innerSheetsPerBook = pages / 16;
-      const innerGrossSheets = Math.ceil((qty * innerSheetsPerBook) * 1.08);
-      const innerSheetCost = 2.20;
-      costPaper += (innerGrossSheets * innerSheetCost);
-
-      // سمك الكعب
-      const spineMm = ((pages / 2) * (135 / 1000) * 1.15).toFixed(1);
-      const spineDisplay = document.getElementById('spine_thickness_display');
-      if (spineDisplay) spineDisplay.textContent = `${spineMm} مم`;
-    }
-
-    // تكلفة الطباعة والتراج وزنكات CTP
-    const plates = parseFloat(plateCountInput?.value) || 0;
-    const plateUnitCost = 75; // زنكة CTP
-    const costPlates = plates * plateUnitCost;
-    
-    // سحبات التراج مع صمام الحد الأدنى لفتحة الماكينة
-    const pulls = Math.ceil(grossSheets);
-    const pullsText = document.getElementById('press_pulls_count');
-    if (pullsText) pullsText.textContent = `${pulls.toLocaleString('en-US')} ` + '{% trans "سحبة" %}';
-
-    let costPress = 0;
-    if (plates > 0) {
-      const pressRatePer1000 = 40;
-      const minPressFloor = 180; // حد أدنى لفتحة الماكينة
-      costPress = Math.max(minPressFloor, Math.ceil(pulls / 1000) * pressRatePer1000);
-    } else {
-      // ديجيتال شيتات A3
-      costPress = qty * 2.50;
-    }
-    const costPrinting = costPlates + costPress;
-
-    // تكلفة السلوفان مع حد أدنى للورش
-    const lam = document.getElementById('id_lamination')?.value || 'none';
-    let costFinishing = 0;
-    if (lam !== 'none') {
-      const lamRatePerSheet = lam.includes('2_sides') ? 0.90 : 0.50;
-      const minLamFloor = 150;
-      costFinishing += Math.max(minLamFloor, grossSheets * lamRatePerSheet);
-    }
-
-    const finishVal = document.getElementById('id_finishing')?.value || 'none';
-    if (finishVal !== 'none') {
-      costFinishing += Math.max(200, qty * 0.40);
-    }
-
-    // تكلفة التجليد والتكسير
-    let costBinding = 0;
-    const dieVal = document.getElementById('id_die_cutting')?.value || 'straight_cut';
-    if (dieVal.includes('die_cut')) {
-      costBinding += 250; // فورمة تكسير
-    }
-    if (type === 'catalog' || type === 'book' || type === 'book_catalog') {
-      costBinding += Math.max(150, qty * 1.20);
-    }
-
-    // تكلفة اللوجستيات
-    const costLogistics = parseFloat(document.getElementById('id_extra_cost')?.value || document.getElementById('id_estimated_shipping_cost')?.value) || 0;
-
-    // الإجمالي
-    let totalCost = costPaper + costPrinting + costFinishing + costBinding + costLogistics;
-
-    // هوامش الربح
-    const profitMargin = 0.25;
-    const finalPrice = totalCost / (1 - profitMargin);
-    const unitPrice = finalPrice / qty;
-    const grandTotal = finalPrice; // السعر الصافي للبيع
-
-    // مزامنة الحقول المخفية لنقل الأرقام للباك إند
-    if (document.getElementById('id_material_cost')) document.getElementById('id_material_cost').value = costPaper.toFixed(2);
-    if (document.getElementById('id_printing_cost')) document.getElementById('id_printing_cost').value = costPrinting.toFixed(2);
-    if (document.getElementById('id_finishing_cost')) document.getElementById('id_finishing_cost').value = (costFinishing + costBinding).toFixed(2);
-    if (document.getElementById('id_profit_margin')) document.getElementById('id_profit_margin').value = (profitMargin * 100).toFixed(2);
-    if (document.getElementById('id_final_price')) document.getElementById('id_final_price').value = grandTotal.toFixed(2);
-    if (document.getElementById('id_sale_price')) document.getElementById('id_sale_price').value = grandTotal.toFixed(2);
-
-    // تحديث شاشات العرض بالتنسيق الذكي
-    const costPaperEl = document.getElementById('cost_paper_display');
-    if (costPaperEl) costPaperEl.textContent = formatMoney(costPaper);
-    const costPrintEl = document.getElementById('cost_printing_display');
-    if (costPrintEl) costPrintEl.textContent = formatMoney(costPrinting);
-    const costFinEl = document.getElementById('cost_finishing_display');
-    if (costFinEl) costFinEl.textContent = formatMoney(costFinishing);
-    const costBindEl = document.getElementById('cost_binding_display');
-    if (costBindEl) costBindEl.textContent = formatMoney(costBinding);
-    const costLogEl = document.getElementById('cost_logistics_display');
-    if (costLogEl) costLogEl.textContent = formatMoney(costLogistics);
-    const totalCostEl = document.getElementById('total_cost_display');
-    if (totalCostEl) totalCostEl.textContent = formatMoney(totalCost);
-
-    const unitPriceEl = document.getElementById('unit_price_display');
-    if (unitPriceEl) unitPriceEl.textContent = formatMoney(unitPrice, true);
-    const finalTotalEl = document.getElementById('final_total_display');
-    if (finalTotalEl) finalTotalEl.textContent = formatMoney(grandTotal);
-
-    // تحديث البدائل اللحظية
-    const altNoLam = document.getElementById('alt_no_lam_diff');
-    if (altNoLam) altNoLam.textContent = `- ${formatMoney(costFinishing * 0.7)}`;
-    const altLightPaper = document.getElementById('alt_lighter_paper_diff');
-    if (altLightPaper) altLightPaper.textContent = `- ${formatMoney(costPaper * 0.25)}`;
-
-    // تحديث الشرائح الكمية الصافية بالتنسيق الذكي
-    const tier1Qty = qty;
-    const tier2Qty = Math.round(qty * 2.5);
-    const tier3Qty = Math.round(qty * 5);
-
-    const fixedSetup = costPlates + 250;
-    const variablePerUnit = (totalCost - fixedSetup) / qty;
-
-    const t1Total = (fixedSetup + (variablePerUnit * tier1Qty)) / (1 - profitMargin);
-    const t2Total = (fixedSetup + (variablePerUnit * tier2Qty)) / (1 - profitMargin);
-    const t3Total = (fixedSetup + (variablePerUnit * tier3Qty)) / (1 - profitMargin);
-
-    if (document.getElementById('tier_qty_1')) document.getElementById('tier_qty_1').textContent = tier1Qty.toLocaleString('en-US');
-    if (document.getElementById('tier_unit_1')) document.getElementById('tier_unit_1').textContent = formatMoney(t1Total / tier1Qty, true);
-    if (document.getElementById('tier_total_1')) document.getElementById('tier_total_1').textContent = formatMoney(t1Total);
-
-    if (document.getElementById('tier_qty_2')) document.getElementById('tier_qty_2').textContent = tier2Qty.toLocaleString('en-US');
-    if (document.getElementById('tier_unit_2')) document.getElementById('tier_unit_2').textContent = formatMoney(t2Total / tier2Qty, true);
-    if (document.getElementById('tier_total_2')) document.getElementById('tier_total_2').textContent = formatMoney(t2Total);
-
-    if (document.getElementById('tier_qty_3')) document.getElementById('tier_qty_3').textContent = tier3Qty.toLocaleString('en-US');
-    if (document.getElementById('tier_unit_3')) document.getElementById('tier_unit_3').textContent = formatMoney(t3Total / tier3Qty, true);
-    if (document.getElementById('tier_total_3')) document.getElementById('tier_total_3').textContent = formatMoney(t3Total);
-  }
-
-  // ربط أحداث الإدخال بالمحرك الفوري
-  document.getElementById('order-form').addEventListener('input', recalculate);
-  document.getElementById('order-form').addEventListener('change', recalculate);
-
-  // 6. نسخ رسالة عرض السعر للواتساب
-  const btnWhatsapp = document.getElementById('btn_copy_whatsapp');
-  if (btnWhatsapp) {
-    btnWhatsapp.addEventListener('click', function() {
-      const title = document.getElementById('id_title')?.value || '{% trans "مطبوعات متميزة" %}';
-      const qty = document.getElementById('id_quantity')?.value || '1000';
-      const unit = document.getElementById('unit_price_display')?.textContent || `0.00 ${currencySymbol}`;
-      const total = document.getElementById('final_total_display')?.textContent || `0.00 ${currencySymbol}`;
-      const paper = document.getElementById('id_paper_type')?.options[document.getElementById('id_paper_type')?.selectedIndex]?.text || '';
-      const weight = document.getElementById('id_paper_weight')?.value || '300';
-      const lam = document.getElementById('id_lamination')?.options[document.getElementById('id_lamination')?.selectedIndex]?.text || '';
-
-      const text = `🌟 *عرض سعر طباعة معتمد - MWHEBA ERP* 🌟\n\n` +
-                   `📋 *الصنف:* ${title}\n` +
-                   `🔢 *الكمية:* ${Number(qty).toLocaleString()} قطعة/نسخة\n` +
-                   `📄 *المواصفات:* ورق ${paper} ${weight} جم | ${lam}\n` +
-                   `💰 *سعر القطعة:* ${unit}\n` +
-                   `💵 *إجمالي السعر:* ${total}\n` +
-                   `📌 *ملاحظة:* الأسعار صافية غير شاملة ضريبة القيمة المضافة (14%).\n` +
-                   `⏳ *الصلاحية:* صالح لمدة 5 أيام من تاريخه.\n\n` +
-                   `_شكراً لتعاملكم معنا، يسعدنا تأكيد طلبكم!_`;
-
-      navigator.clipboard.writeText(text).then(() => {
-        if (window.showToastr) {
-          window.showToastr('تم نسخ ملخص عرض السعر للواتساب بنجاح 📲', 'success');
-        } else {
-          alert('تم نسخ عرض السعر بنجاح!');
+      if (isCustom) {
+        if (widthInput) {
+          widthInput.readOnly = false;
+          widthInput.style.backgroundColor = 'var(--white)';
+          widthInput.style.cursor = 'text';
         }
+        if (heightInput) {
+          heightInput.readOnly = false;
+          heightInput.style.backgroundColor = 'var(--white)';
+          heightInput.style.cursor = 'text';
+        }
+      } else {
+        const rawW = parseFloat(selectedOpt.dataset.width) || 21;
+        const rawH = parseFloat(selectedOpt.dataset.height) || 29.7;
+        
+        let finalW = isLandscape ? Math.max(rawW, rawH) : Math.min(rawW, rawH);
+        let finalH = isLandscape ? Math.min(rawW, rawH) : Math.max(rawW, rawH);
+
+        if (widthInput) {
+          widthInput.value = finalW;
+          widthInput.readOnly = true;
+          widthInput.style.backgroundColor = 'var(--gray-100)';
+          widthInput.style.cursor = 'not-allowed';
+        }
+        if (heightInput) {
+          heightInput.value = finalH;
+          heightInput.readOnly = true;
+          heightInput.style.backgroundColor = 'var(--gray-100)';
+          heightInput.style.cursor = 'not-allowed';
+        }
+      }
+      updateOpenDimensionsDisplay();
+      recalculate();
+    }
+
+    // 2. تطبيق القوالب السريعة
+    document.querySelectorAll('.preset-btn').forEach(btn => {
+      btn.addEventListener('click', function () {
+        const p = presetsData[this.dataset.preset];
+        if (!p) return;
+
+        // مزامنة نوع المطبوع
+        const anatomySelect = document.getElementById('id_order_type') || document.getElementById('id_job_anatomy_type');
+        if (anatomySelect) {
+          let matchedVal = null;
+          for (let i = 0; i < anatomySelect.options.length; i++) {
+            if (anatomySelect.options[i].dataset.archetype === p.type) {
+              matchedVal = anatomySelect.options[i].value;
+              break;
+            }
+          }
+          if (matchedVal) {
+            $(anatomySelect).val(matchedVal).trigger('change');
+          } else {
+            $(anatomySelect).val(p.type).trigger('change');
+          }
+          handleAnatomySwitch(p.type);
+        }
+
+        // مزامنة اتجاه الطباعة
+        if (p.orientation === 'landscape') {
+          const landRadio = document.getElementById('orient_landscape');
+          if (landRadio) landRadio.checked = true;
+        } else {
+          const portRadio = document.getElementById('orient_portrait');
+          if (portRadio) portRadio.checked = true;
+        }
+
+        // مزامنة المقاس المقفول وجهة الفتح
+        const closedSwitch = document.getElementById('id_is_closed_size');
+        if (closedSwitch && p.is_closed !== undefined) {
+          closedSwitch.checked = p.is_closed;
+        }
+        if (p.open_dir) {
+          const dirRadio = document.querySelector(`input[name="open_direction"][value="${p.open_dir}"]`);
+          if (dirRadio) dirRadio.checked = true;
+        }
+
+        // مزامنة مقاس المطبوع
+        const sizeSelect = document.getElementById('id_product_size');
+        if (sizeSelect) {
+          let matchedSizeVal = 'custom';
+          for (let i = 0; i < sizeSelect.options.length; i++) {
+            if (p.size_keyword && p.size_keyword !== 'custom' && sizeSelect.options[i].text.includes(p.size_keyword)) {
+              matchedSizeVal = sizeSelect.options[i].value;
+              break;
+            }
+          }
+          $(sizeSelect).val(matchedSizeVal).trigger('change');
+        }
+
+        if (document.getElementById('id_title') && !document.getElementById('id_title').value) {
+          document.getElementById('id_title').value = p.title;
+        }
+        if (document.getElementById('id_quantity')) document.getElementById('id_quantity').value = p.qty;
+        if (document.getElementById('id_paper_type')) $(document.getElementById('id_paper_type')).val(p.paper).trigger('change');
+        if (document.getElementById('id_paper_weight')) document.getElementById('id_paper_weight').value = p.weight;
+        if (document.getElementById('id_colors_front')) document.getElementById('id_colors_front').value = p.front_c;
+        if (document.getElementById('id_colors_back')) document.getElementById('id_colors_back').value = p.back_c;
+        if (document.getElementById('id_plate_count')) document.getElementById('id_plate_count').value = p.plates;
+        if (document.getElementById('id_lamination')) $(document.getElementById('id_lamination')).val(p.lam).trigger('change');
+        if (document.getElementById('id_finishing')) $(document.getElementById('id_finishing')).val(p.finishing).trigger('change');
+        if (document.getElementById('id_die_cutting')) $(document.getElementById('id_die_cutting')).val(p.die).trigger('change');
+        if (document.getElementById('id_pages_count')) document.getElementById('id_pages_count').value = p.inner_pages;
+        if (document.getElementById('id_binding_type')) $(document.getElementById('id_binding_type')).val(p.binding).trigger('change');
+
+        applySelectedProductSize();
       });
     });
-  }
 
-  // 7. الفتح التلقائي للكارت المطوي عند وجود خطأ إدخال
-  const form = document.getElementById('order-form');
-  form.addEventListener('submit', function(e) {
-    if (!form.checkValidity()) {
-      e.preventDefault();
-      e.stopPropagation();
+    // دالة تحديث عرض المقاس المفتوح الفعلي على الماكينة وتغيير مسميات الحقول
+    function updateOpenDimensionsDisplay() {
+      const isClosed = document.getElementById('id_is_closed_size')?.checked || false;
+      const w = parseFloat(document.getElementById('id_width')?.value) || 21;
+      const h = parseFloat(document.getElementById('id_height')?.value) || 29.7;
+      const selectEl = document.getElementById('id_order_type') || document.getElementById('id_job_anatomy_type');
+      const type = selectEl?.options[selectEl.selectedIndex]?.dataset?.archetype || selectEl?.value || 'flyer';
+      const openDir = document.querySelector('input[name="open_direction"]:checked')?.value || 'right';
 
-      const firstInvalid = form.querySelector(':invalid');
-      if (firstInvalid) {
-        const collapsedParent = firstInvalid.closest('.collapse');
-        if (collapsedParent && !collapsedParent.classList.contains('show')) {
-          const bsCollapse = new bootstrap.Collapse(collapsedParent, { toggle: true });
+      // تغيير مسميات الحقول ديناميكياً
+      const labelW = document.getElementById('label_width');
+      const labelH = document.getElementById('label_height');
+      if (labelW) labelW.textContent = isClosed ? '{% trans "العرض المقفول (سم)" %}' : '{% trans "العرض (سم)" %}';
+      if (labelH) labelH.textContent = isClosed ? '{% trans "الارتفاع المقفول (سم)" %}' : '{% trans "الارتفاع (سم)" %}';
+
+      let multiplier = (type === 'brochure' || type === 'brochures') ? 3 : 2;
+      let spine = 0;
+      if (['catalog', 'book', 'magazine', 'book_catalog'].includes(type)) {
+        const pages = parseFloat(document.getElementById('id_pages_count')?.value) || 0;
+        if (pages > 4) {
+          spine = Math.round(((pages / 2) * 0.012) * 10) / 10;
         }
-        setTimeout(() => {
-          firstInvalid.focus();
-          firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }, 200);
+      }
+
+      let openW = w;
+      let openH = h;
+      if (isClosed) {
+        if (openDir === 'top') {
+          openW = w;
+          openH = (h * multiplier) + spine;
+        } else {
+          openW = (w * multiplier) + spine;
+          openH = h;
+        }
+      }
+
+      const openText = document.getElementById('open_dims_text');
+      if (openText) {
+        openText.textContent = `${openW.toFixed(1).replace(/\.0$/, '')} × ${openH.toFixed(1).replace(/\.0$/, '')} سم`;
       }
     }
-    form.classList.add('was-validated');
-  });
 
-  // تشغيل الحسبة المبدئية
-  recalculate();
-});
+    // 3. التبديل الذكي بين الأنماط التشريحية مع الحفاظ على البيانات المشتركة
+    function handleAnatomySwitch(type) {
+      const cardStep3 = document.getElementById('card_step3_inner');
+      const cardStep4 = document.getElementById('card_step4_giveaways');
+      const innerBook = document.getElementById('inner_book_section');
+      const innerFolder = document.getElementById('inner_folder_section');
+      const innerNcr = document.getElementById('inner_ncr_section');
+      const closedContainer = document.getElementById('closed_size_container');
+      const closedSwitch = document.getElementById('id_is_closed_size');
+
+      // التحكم في ظهور سويتش المقاس المقفول وتوجيه الفتح بناءً على نوع المطبوع
+      if (['catalog', 'book', 'magazine', 'book_catalog', 'folder', 'folder_packaging', 'box', 'brochure'].includes(type)) {
+        if (closedContainer) closedContainer.classList.remove('d-none');
+        if (closedSwitch && !closedSwitch.dataset.manual) {
+          closedSwitch.checked = true;
+        }
+      } else {
+        if (closedContainer) closedContainer.classList.add('d-none');
+        if (closedSwitch && !closedSwitch.dataset.manual) {
+          closedSwitch.checked = false;
+        }
+      }
+
+      if (type === 'flyer' || type === 'single_sheet' || type === 'brochure' || type === 'business_card') {
+        cardStep3.classList.add('d-none');
+        cardStep4.classList.add('d-none');
+        document.getElementById('step2_header_title').textContent = '2. ' + '{% trans "مواصفات وخامات المطبوع المفرد" %}';
+      } else if (type === 'catalog' || type === 'book' || type === 'magazine' || type === 'book_catalog') {
+        cardStep3.classList.remove('d-none');
+        cardStep4.classList.add('d-none');
+        innerBook.classList.remove('d-none');
+        innerFolder.classList.add('d-none');
+        innerNcr.classList.add('d-none');
+        document.getElementById('step2_header_title').textContent = '2. ' + '{% trans "مواصفات وخامات وتشطيب الغلاف" %}';
+      } else if (type === 'folder' || type === 'box' || type === 'folder_packaging') {
+        cardStep3.classList.remove('d-none');
+        cardStep4.classList.add('d-none');
+        innerBook.classList.add('d-none');
+        innerFolder.classList.remove('d-none');
+        innerNcr.classList.add('d-none');
+        document.getElementById('step2_header_title').textContent = '2. ' + '{% trans "مواصفات وخامات فرخ الفولدر الخارجي" %}';
+      } else if (type === 'invoice' || type === 'ncr_invoices') {
+        cardStep3.classList.remove('d-none');
+        cardStep4.classList.add('d-none');
+        innerBook.classList.add('d-none');
+        innerFolder.classList.add('d-none');
+        innerNcr.classList.remove('d-none');
+        document.getElementById('step2_header_title').textContent = '2. ' + '{% trans "مواصفات وخامات غلاف الدفتر" %}';
+      } else if (type === 'giveaways') {
+        cardStep3.classList.add('d-none');
+        cardStep4.classList.remove('d-none');
+        document.getElementById('step2_header_title').textContent = '2. ' + '{% trans "مواصفات التغليف والمطبوع المصاحب" %}';
+      }
+      updateOpenDimensionsDisplay();
+    }
+
+    const anatomySelect = document.getElementById('id_order_type') || document.getElementById('id_job_anatomy_type');
+    if (anatomySelect) {
+      // التهيئة الأولية عند التحميل
+      const initOpt = anatomySelect.options[anatomySelect.selectedIndex];
+      const initArchetype = initOpt?.dataset?.archetype || anatomySelect.value || 'flyer';
+      handleAnatomySwitch(initArchetype);
+    }
+
+    // 4. تهيئة Select2 الشاملة لكافة حقول المنسدلات ومنها نوع ومقاس المطبوع والعميل
+    if (typeof $.fn.select2 !== 'undefined') {
+      $('.select2-filter').select2({
+        width: '100%',
+        dir: 'rtl',
+        language: 'ar'
+      });
+
+      // مزامنة اختيار نوع المطبوع عبر Select2
+      $('#id_order_type').on('select2:select change', function () {
+        const selectedOpt = this.options[this.selectedIndex];
+        const currentArchetype = selectedOpt?.dataset?.archetype || this.value || 'flyer';
+        handleAnatomySwitch(currentArchetype);
+        recalculate();
+      });
+
+      // مزامنة اختيار مقاس المطبوع عبر Select2
+      $('#id_product_size').on('select2:select change', function () {
+        applySelectedProductSize();
+      });
+
+      // مزامنة اختيار العميل عبر Select2
+      $('#id_customer').on('select2:select change', function () {
+        const selected = this.options[this.selectedIndex];
+        const badge = document.getElementById('customer_badge_info');
+        const phone = document.getElementById('cust_phone_text');
+        if (selected && selected.value) {
+          if (badge) badge.classList.remove('d-none');
+          if (phone) phone.textContent = selected.dataset.phone || '';
+        } else {
+          if (badge) badge.classList.add('d-none');
+        }
+        recalculate();
+      });
+
+      // إعادة ضبط Select2 داخل الأكورديونات عند الفتح
+      $('.collapse').on('shown.bs.collapse', function () {
+        $(this).find('.select2-filter').each(function () {
+          if ($(this).data('select2')) {
+            $(this).select2('destroy');
+          }
+          $(this).select2({ width: '100%', dir: 'rtl', language: 'ar' });
+        });
+      });
+    }
+
+    // التبديل عند تغيير زر الراديو لاتجاه الطباعة
+    $('input[name="print_orientation"]').on('change', function() {
+      const sizeSelect = document.getElementById('id_product_size');
+      const widthInput = document.getElementById('id_width');
+      const heightInput = document.getElementById('id_height');
+      
+      if (sizeSelect && sizeSelect.value !== 'custom') {
+        applySelectedProductSize();
+      } else {
+        if (widthInput && heightInput) {
+          const oldW = widthInput.value;
+          const oldH = heightInput.value;
+          widthInput.value = oldH;
+          heightInput.value = oldW;
+        }
+        updateOpenDimensionsDisplay();
+        recalculate();
+      }
+    });
+
+    // مراقبة سويتش المقاس المقفول
+    $('#id_is_closed_size').on('change', function() {
+      this.dataset.manual = '1';
+      updateOpenDimensionsDisplay();
+      recalculate();
+    });
+
+    // مراقبة أزرار جهة الفتح والتجليد
+    $('input[name="open_direction"]').on('change', function() {
+      updateOpenDimensionsDisplay();
+      recalculate();
+    });
+
+    // الكشف الذكي التلقائي عن الاتجاه في المقاس المخصص
+    const widthEl = document.getElementById('id_width');
+    const heightEl = document.getElementById('id_height');
+    [widthEl, heightEl].forEach(input => {
+      if (input) {
+        input.addEventListener('input', function() {
+          const sizeSelect = document.getElementById('id_product_size');
+          if (sizeSelect && sizeSelect.value === 'custom') {
+            const w = parseFloat(widthEl?.value) || 0;
+            const h = parseFloat(heightEl?.value) || 0;
+            if (w > 0 && h > 0) {
+              if (w > h) {
+                const landRadio = document.getElementById('orient_landscape');
+                if (landRadio && !landRadio.checked) landRadio.checked = true;
+              } else if (h > w) {
+                const portRadio = document.getElementById('orient_portrait');
+                if (portRadio && !portRadio.checked) portRadio.checked = true;
+              }
+            }
+          }
+          updateOpenDimensionsDisplay();
+          recalculate();
+        });
+      }
+    });
+
+    // التهيئة المبدئية لمقاس المطبوع
+    applySelectedProductSize();
+
+    // 5. محرك الحسابات الفوري 0ms بالعملة الوظيفية
+    function recalculate() {
+      const qty = parseFloat(document.getElementById('id_quantity')?.value) || 1000;
+      const selectEl = document.getElementById('id_order_type') || document.getElementById('id_job_anatomy_type');
+      const type = selectEl?.options[selectEl.selectedIndex]?.dataset?.archetype || selectEl?.value || 'flyer';
+      const openDir = document.querySelector('input[name="open_direction"]:checked')?.value || 'right';
+
+      // حساب قطع الفرخ والهدر بناءً على المقاس المفتوح الفعلي
+      const isClosed = document.getElementById('id_is_closed_size')?.checked || false;
+      const w = parseFloat(document.getElementById('id_width')?.value || document.getElementById('id_custom_size_width')?.value) || 21;
+      const h = parseFloat(document.getElementById('id_height')?.value || document.getElementById('id_custom_size_height')?.value) || 29.7;
+      
+      let multiplier = (type === 'brochure' || type === 'brochures') ? 3 : 2;
+      let spine = 0;
+      if (['catalog', 'book', 'magazine', 'book_catalog'].includes(type)) {
+        const pages = parseFloat(document.getElementById('id_pages_count')?.value) || 0;
+        if (pages > 4) {
+          spine = Math.round(((pages / 2) * 0.012) * 10) / 10;
+        }
+      }
+
+      let openW = w;
+      let openH = h;
+      if (isClosed) {
+        if (openDir === 'top') {
+          openW = w;
+          openH = (h * multiplier) + spine;
+        } else {
+          openW = (w * multiplier) + spine;
+          openH = h;
+        }
+      }
+
+      // توجيه الماكينة التلقائي مع حماية سقف الشيت الديجيتال (48.7 سم)
+      const routingBadge = document.getElementById('badge_routing_type');
+      const plateCountInput = document.getElementById('id_plate_count');
+      if (qty <= 300 && openW <= 48.7 && openH <= 33) {
+        if (routingBadge) {
+          routingBadge.className = 'badge bg-info';
+          routingBadge.textContent = '{% trans "ديجيتال شيتات A3+" %}';
+        }
+        if (plateCountInput && !plateCountInput.dataset.manual) {
+          plateCountInput.value = '0';
+        }
+      } else {
+        if (routingBadge) {
+          routingBadge.className = 'badge bg-success';
+          if (openW > 48.7) {
+            routingBadge.textContent = '{% trans "أوفست زنكات (مقاس عريض)" %}';
+          } else {
+            routingBadge.textContent = '{% trans "أوفست زنكات" %}';
+          }
+        }
+        if (plateCountInput && plateCountInput.value === '0' && !plateCountInput.dataset.manual) {
+          plateCountInput.value = '4';
+        }
+      }
+
+      const cutsW = Math.max(1, Math.floor(100 / openW));
+      const cutsH = Math.max(1, Math.floor(70 / openH));
+      const cutsPerSheet = Math.max(1, cutsW * cutsH);
+      const cutsDisplay = document.getElementById('pieces_per_sheet_display');
+      if (cutsDisplay) cutsDisplay.textContent = `${cutsPerSheet} ` + '{% trans "قطع" %}';
+
+      // تنبيه مستشار تقليل الهدر الذكي
+      const trimAlert = document.getElementById('trim_advisor_alert');
+      const trimText = document.getElementById('trim_advisor_text');
+      if (trimAlert && trimText) {
+        const wasteRatio = 1 - (cutsPerSheet * (openW * openH) / 7000);
+        if (wasteRatio > 0.35 && qty >= 500) {
+          trimAlert.classList.remove('d-none');
+          trimText.textContent = `المقاس المفتوح الحالي (${openW.toFixed(1)}×${openH.toFixed(1)} سم) يسبب هدر ${Math.round(wasteRatio * 100)}% من فرخ 70×100 سم. يُنصح بمراجعة جهة الفتح أو تعديل المقاس.`;
+        } else {
+          trimAlert.classList.add('d-none');
+        }
+      }
+
+      // تكلفة الورق
+      const netSheets = Math.ceil(qty / cutsPerSheet);
+      const wastePercent = qty > 2000 ? 0.05 : 0.10;
+      const grossSheets = Math.ceil(netSheets * (1 + wastePercent));
+      const paperWeight = parseFloat(document.getElementById('id_paper_weight')?.value) || 300;
+      const sheetCost = 3.50 * (paperWeight / 300); // سعر فرخ تقديري ثابت
+      let costPaper = grossSheets * sheetCost;
+
+      // تكلفة الداخلي لو وجد
+      if (type === 'catalog' || type === 'book' || type === 'book_catalog') {
+        const pages = parseFloat(document.getElementById('id_pages_count')?.value) || 32;
+        const innerSheetsPerBook = pages / 16;
+        const innerGrossSheets = Math.ceil((qty * innerSheetsPerBook) * 1.08);
+        const innerSheetCost = 2.20;
+        costPaper += (innerGrossSheets * innerSheetCost);
+
+        // سمك الكعب
+        const spineMm = ((pages / 2) * (135 / 1000) * 1.15).toFixed(1);
+        const spineDisplay = document.getElementById('spine_thickness_display');
+        if (spineDisplay) spineDisplay.textContent = `${spineMm} مم`;
+      }
+
+      // تكلفة الطباعة والتراج وزنكات CTP
+      const plates = parseFloat(plateCountInput?.value) || 0;
+      const plateUnitCost = 75; // زنكة CTP
+      const costPlates = plates * plateUnitCost;
+
+      // سحبات التراج مع صمام الحد الأدنى لفتحة الماكينة
+      const pulls = Math.ceil(grossSheets);
+      const pullsText = document.getElementById('press_pulls_count');
+      if (pullsText) pullsText.textContent = `${pulls.toLocaleString('en-US')} ` + '{% trans "سحبة" %}';
+
+      let costPress = 0;
+      if (plates > 0) {
+        const pressRatePer1000 = 40;
+        const minPressFloor = 180; // حد أدنى لفتحة الماكينة
+        costPress = Math.max(minPressFloor, Math.ceil(pulls / 1000) * pressRatePer1000);
+      } else {
+        // ديجيتال شيتات A3
+        costPress = qty * 2.50;
+      }
+      const costPrinting = costPlates + costPress;
+
+      // تكلفة السلوفان مع حد أدنى للورش
+      const lam = document.getElementById('id_lamination')?.value || 'none';
+      let costFinishing = 0;
+      if (lam !== 'none') {
+        const lamRatePerSheet = lam.includes('2_sides') ? 0.90 : 0.50;
+        const minLamFloor = 150;
+        costFinishing += Math.max(minLamFloor, grossSheets * lamRatePerSheet);
+      }
+
+      const finishVal = document.getElementById('id_finishing')?.value || 'none';
+      if (finishVal !== 'none') {
+        costFinishing += Math.max(200, qty * 0.40);
+      }
+
+      // تكلفة التجليد والتكسير
+      let costBinding = 0;
+      const dieVal = document.getElementById('id_die_cutting')?.value || 'straight_cut';
+      if (dieVal.includes('die_cut')) {
+        costBinding += 250; // فورمة تكسير
+      }
+      if (type === 'catalog' || type === 'book' || type === 'book_catalog') {
+        costBinding += Math.max(150, qty * 1.20);
+      }
+
+      // تكلفة اللوجستيات
+      const costLogistics = parseFloat(document.getElementById('id_extra_cost')?.value || document.getElementById('id_estimated_shipping_cost')?.value) || 0;
+
+      // الإجمالي
+      let totalCost = costPaper + costPrinting + costFinishing + costBinding + costLogistics;
+
+      // هوامش الربح
+      const profitMargin = 0.25;
+      const finalPrice = totalCost / (1 - profitMargin);
+      const unitPrice = finalPrice / qty;
+      const grandTotal = finalPrice; // السعر الصافي للبيع
+
+      // مزامنة الحقول المخفية لنقل الأرقام للباك إند
+      if (document.getElementById('id_material_cost')) document.getElementById('id_material_cost').value = costPaper.toFixed(2);
+      if (document.getElementById('id_printing_cost')) document.getElementById('id_printing_cost').value = costPrinting.toFixed(2);
+      if (document.getElementById('id_finishing_cost')) document.getElementById('id_finishing_cost').value = (costFinishing + costBinding).toFixed(2);
+      if (document.getElementById('id_profit_margin')) document.getElementById('id_profit_margin').value = (profitMargin * 100).toFixed(2);
+      if (document.getElementById('id_final_price')) document.getElementById('id_final_price').value = grandTotal.toFixed(2);
+      if (document.getElementById('id_sale_price')) document.getElementById('id_sale_price').value = grandTotal.toFixed(2);
+
+      // تحديث شاشات العرض بالتنسيق الذكي
+      const costPaperEl = document.getElementById('cost_paper_display');
+      if (costPaperEl) costPaperEl.textContent = formatMoney(costPaper);
+      const costPrintEl = document.getElementById('cost_printing_display');
+      if (costPrintEl) costPrintEl.textContent = formatMoney(costPrinting);
+      const costFinEl = document.getElementById('cost_finishing_display');
+      if (costFinEl) costFinEl.textContent = formatMoney(costFinishing);
+      const costBindEl = document.getElementById('cost_binding_display');
+      if (costBindEl) costBindEl.textContent = formatMoney(costBinding);
+      const costLogEl = document.getElementById('cost_logistics_display');
+      if (costLogEl) costLogEl.textContent = formatMoney(costLogistics);
+      const totalCostEl = document.getElementById('total_cost_display');
+      if (totalCostEl) totalCostEl.textContent = formatMoney(totalCost);
+
+      const unitPriceEl = document.getElementById('unit_price_display');
+      if (unitPriceEl) unitPriceEl.textContent = formatMoney(unitPrice, true);
+      const finalTotalEl = document.getElementById('final_total_display');
+      if (finalTotalEl) finalTotalEl.textContent = formatMoney(grandTotal);
+
+      // تحديث البدائل اللحظية
+      const altNoLam = document.getElementById('alt_no_lam_diff');
+      if (altNoLam) altNoLam.textContent = `- ${formatMoney(costFinishing * 0.7)}`;
+      const altLightPaper = document.getElementById('alt_lighter_paper_diff');
+      if (altLightPaper) altLightPaper.textContent = `- ${formatMoney(costPaper * 0.25)}`;
+
+      // تحديث الشرائح الكمية الصافية بالتنسيق الذكي
+      const tier1Qty = qty;
+      const tier2Qty = Math.round(qty * 2.5);
+      const tier3Qty = Math.round(qty * 5);
+
+      const fixedSetup = costPlates + 250;
+      const variablePerUnit = (totalCost - fixedSetup) / qty;
+
+      const t1Total = (fixedSetup + (variablePerUnit * tier1Qty)) / (1 - profitMargin);
+      const t2Total = (fixedSetup + (variablePerUnit * tier2Qty)) / (1 - profitMargin);
+      const t3Total = (fixedSetup + (variablePerUnit * tier3Qty)) / (1 - profitMargin);
+
+      if (document.getElementById('tier_qty_1')) document.getElementById('tier_qty_1').textContent = tier1Qty.toLocaleString('en-US');
+      if (document.getElementById('tier_unit_1')) document.getElementById('tier_unit_1').textContent = formatMoney(t1Total / tier1Qty, true);
+      if (document.getElementById('tier_total_1')) document.getElementById('tier_total_1').textContent = formatMoney(t1Total);
+
+      if (document.getElementById('tier_qty_2')) document.getElementById('tier_qty_2').textContent = tier2Qty.toLocaleString('en-US');
+      if (document.getElementById('tier_unit_2')) document.getElementById('tier_unit_2').textContent = formatMoney(t2Total / tier2Qty, true);
+      if (document.getElementById('tier_total_2')) document.getElementById('tier_total_2').textContent = formatMoney(t2Total);
+
+      if (document.getElementById('tier_qty_3')) document.getElementById('tier_qty_3').textContent = tier3Qty.toLocaleString('en-US');
+      if (document.getElementById('tier_unit_3')) document.getElementById('tier_unit_3').textContent = formatMoney(t3Total / tier3Qty, true);
+      if (document.getElementById('tier_total_3')) document.getElementById('tier_total_3').textContent = formatMoney(t3Total);
+    }
+
+    // ربط أحداث الإدخال بالمحرك الفوري
+    document.getElementById('order-form').addEventListener('input', recalculate);
+    document.getElementById('order-form').addEventListener('change', recalculate);
+
+    // 6. نسخ رسالة عرض السعر للواتساب
+    const btnWhatsapp = document.getElementById('btn_copy_whatsapp');
+    if (btnWhatsapp) {
+      btnWhatsapp.addEventListener('click', function () {
+        const title = document.getElementById('id_title')?.value || '{% trans "مطبوعات متميزة" %}';
+        const qty = document.getElementById('id_quantity')?.value || '1000';
+        const unit = document.getElementById('unit_price_display')?.textContent || `0.00 ${currencySymbol}`;
+        const total = document.getElementById('final_total_display')?.textContent || `0.00 ${currencySymbol}`;
+        const sizeSelect = document.getElementById('id_product_size');
+        const sizeName = sizeSelect?.options[sizeSelect?.selectedIndex]?.text || '';
+        const isClosed = document.getElementById('id_is_closed_size')?.checked || false;
+        const openDimsText = document.getElementById('open_dims_text')?.textContent || '';
+        const openDirLabel = document.querySelector('input[name="open_direction"]:checked')?.nextElementSibling?.textContent?.trim() || '';
+        
+        let sizeText = sizeSelect?.value === 'custom'
+          ? `مقاس مخصص (${widthVal}×${heightVal} سم)`
+          : `${sizeName}`;
+        
+        if (isClosed) {
+          sizeText += ` (مقفول) [مفتوح: ${openDimsText}] - ${orientLabel} (${openDirLabel})`;
+        } else {
+          sizeText += ` - ${orientLabel}`;
+        }
+
+        const paper = document.getElementById('id_paper_type')?.options[document.getElementById('id_paper_type')?.selectedIndex]?.text || '';
+        const weight = document.getElementById('id_paper_weight')?.value || '300';
+        const lam = document.getElementById('id_lamination')?.options[document.getElementById('id_lamination')?.selectedIndex]?.text || '';
+
+        const text = `🌟 *عرض سعر طباعة معتمد - MWHEBA ERP* 🌟\n\n` +
+          `📋 *الصنف:* ${title}\n` +
+          `📐 *المقاس:* ${sizeText}\n` +
+          `🔢 *الكمية:* ${Number(qty).toLocaleString()} قطعة/نسخة\n` +
+          `📄 *المواصفات:* ورق ${paper} ${weight} جم | ${lam}\n` +
+          `💰 *سعر القطعة:* ${unit}\n` +
+          `💵 *إجمالي السعر:* ${total}\n` +
+          `📌 *ملاحظة:* الأسعار صافية غير شاملة ضريبة القيمة المضافة (14%).\n` +
+          `⏳ *الصلاحية:* صالح لمدة 5 أيام من تاريخه.\n\n` +
+          `_شكراً لتعاملكم معنا، يسعدنا تأكيد طلبكم!_`;
+
+        navigator.clipboard.writeText(text).then(() => {
+          if (window.showToastr) {
+            window.showToastr('تم نسخ ملخص عرض السعر للواتساب بنجاح 📲', 'success');
+          } else {
+            alert('تم نسخ عرض السعر بنجاح!');
+          }
+        });
+      });
+    }
+
+    // 7. الفتح التلقائي للكارت المطوي عند وجود خطأ إدخال
+    const form = document.getElementById('order-form');
+    form.addEventListener('submit', function (e) {
+      if (!form.checkValidity()) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const firstInvalid = form.querySelector(':invalid');
+        if (firstInvalid) {
+          const collapsedParent = firstInvalid.closest('.collapse');
+          if (collapsedParent && !collapsedParent.classList.contains('show')) {
+            const bsCollapse = new bootstrap.Collapse(collapsedParent, { toggle: true });
+          }
+          setTimeout(() => {
+            firstInvalid.focus();
+            firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }, 200);
+        }
+      }
+      form.classList.add('was-validated');
+    });
+
+    // تشغيل الحسبة المبدئية
+    recalculate();
+  });
 </script>
 {% endblock %}

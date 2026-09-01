@@ -82,17 +82,26 @@
                placeholder="{% trans 'مثال: طباعة بروشور تعريفي A4' %}" required>
       </div>
 
-      <!-- 4. نوع المطبوع (Order Type) -->
+      <!-- 4. نوع المطبوع (Product Type) -->
       <div class="col-md-4">
         <label for="id_order_type" class="form-label fw-bold">
           {% trans "نوع المطبوع" %} <span class="text-danger">*</span>
         </label>
-        <select class="form-select select2-filter" id="id_order_type" name="order_type" required>
-          <option value="flyer" {% if form.order_type.value == 'flyer' or form.instance.order_type == 'flyer' %}selected{% endif %}>{% trans "مطبوع مفرود" %}</option>
-          <option value="catalog" {% if form.order_type.value == 'catalog' or form.instance.order_type == 'catalog' or form.instance.order_type == 'book' %}selected{% endif %}>{% trans "كتالوج" %}</option>
-          <option value="folder" {% if form.order_type.value == 'folder' or form.instance.order_type == 'folder' %}selected{% endif %}>{% trans "مطبوع مع فورمة" %}</option>
-          <option value="invoice" {% if form.order_type.value == 'invoice' or form.instance.order_type == 'invoice' %}selected{% endif %}>{% trans "دفاتر فواتير" %}</option>
-          <option value="giveaways" {% if form.order_type.value == 'giveaways' or form.instance.order_type == 'giveaways' %}selected{% endif %}>{% trans "هدايا دعائية" %}</option>
+        <select class="form-select select2-filter" id="id_order_type" name="product_type" required>
+          {% if product_types %}
+            {% for pt in product_types %}
+              <option value="{{ pt.pk }}" data-archetype="{{ pt.base_archetype }}" 
+                      {% if form.instance.product_type_id == pt.pk or form.product_type.value == pt.pk|stringformat:"s" or not form.instance.product_type_id and pt.is_default %}selected{% endif %}>
+                {{ pt.name }}
+              </option>
+            {% endfor %}
+          {% else %}
+            <option value="" data-archetype="flyer" {% if form.order_type.value == 'flyer' or form.instance.order_type == 'flyer' %}selected{% endif %}>{% trans "مطبوع مفرود (كروت / فلاير)" %}</option>
+            <option value="" data-archetype="catalog" {% if form.order_type.value == 'catalog' or form.instance.order_type == 'catalog' or form.instance.order_type == 'book' %}selected{% endif %}>{% trans "مطبوع مع داخلي (كتالوج / بلوك نوت)" %}</option>
+            <option value="" data-archetype="folder" {% if form.order_type.value == 'folder' or form.instance.order_type == 'folder' %}selected{% endif %}>{% trans "مطبوع مع فورمة تكسير" %}</option>
+            <option value="" data-archetype="invoice" {% if form.order_type.value == 'invoice' or form.instance.order_type == 'invoice' %}selected{% endif %}>{% trans "دفاتر مكربن" %}</option>
+            <option value="" data-archetype="giveaways" {% if form.order_type.value == 'giveaways' or form.instance.order_type == 'giveaways' %}selected{% endif %}>{% trans "هدايا دعائية و UV" %}</option>
+          {% endif %}
         </select>
       </div>
 
@@ -119,6 +128,133 @@
                value="{% if object and object.sales_rep %}{{ object.sales_rep.get_full_name|default:object.sales_rep.username }}{% elif object and object.created_by %}{{ object.created_by.get_full_name|default:object.created_by.username }}{% else %}{{ request.user.get_full_name|default:request.user.username }}{% endif %}" readonly tabindex="-1">
         <input type="hidden" name="sales_rep" id="id_sales_rep" 
                value="{% if object and object.sales_rep_id %}{{ object.sales_rep_id }}{% elif object and object.created_by_id %}{{ object.created_by_id }}{% else %}{{ request.user.pk }}{% endif %}">
+      </div>
+
+      <!-- 7. الأبعاد الهندسية للمطبوع بنظام شبكة 4+2+3+3=12 -->
+      <!-- أ. مقاس المطبوع -->
+      <div class="col-md-4">
+        <label for="id_product_size" class="form-label fw-bold">
+          <i class="fas fa-ruler-combined text-primary me-1"></i>{% trans "مقاس المطبوع" %} <span class="text-danger">*</span>
+        </label>
+        <select class="form-select select2-filter" id="id_product_size" name="product_size" required>
+          {% if product_sizes %}
+            {% for ps in product_sizes %}
+              <option value="{{ ps.pk }}" data-width="{{ ps.width|floatformat:'-2' }}" data-height="{{ ps.height|floatformat:'-2' }}"
+                      {% if form.instance.product_size_id == ps.pk or form.product_size.value == ps.pk|stringformat:'s' or not form.instance.product_size_id and ps.is_default %}selected{% endif %}>
+                {{ ps.name }} ({{ ps.width|floatformat:'-2' }}×{{ ps.height|floatformat:'-2' }} سم)
+              </option>
+            {% endfor %}
+          {% else %}
+            <option value="" data-width="21" data-height="29.7" selected>A4 معياري (21×29.7 سم)</option>
+            <option value="" data-width="14.8" data-height="21">A5 كتيب / فلاير (14.8×21 سم)</option>
+            <option value="" data-width="29.7" data-height="42">A3 بوستر (29.7×42 سم)</option>
+            <option value="" data-width="9" data-height="5">كارت شخصي فاخر (9×5 سم)</option>
+            <option value="" data-width="22" data-height="31">فولدر شركات مع جيب (22×31 سم)</option>
+          {% endif %}
+          <option value="custom" data-width="" data-height="" {% if form.product_size.value == 'custom' %}selected{% endif %}>
+            {% trans "مقاس مخصص (إدخال حر)" %}
+          </option>
+        </select>
+      </div>
+
+      <!-- ب. اتجاه الطباعة السريع -->
+      <div class="col-md-2">
+        <label class="form-label fw-bold">
+          {% trans "اتجاه الطباعة" %}
+        </label>
+        <div class="btn-group w-100" role="group" id="orientation_toggle_group">
+          <input type="radio" class="btn-check" name="print_orientation" id="orient_portrait" value="portrait" 
+                 {% if form.print_orientation.value != 'landscape' and form.instance.print_orientation != 'landscape' %}checked{% endif %} autocomplete="off">
+          <label class="btn btn-outline-secondary btn-sm d-flex align-items-center justify-content-center py-2" for="orient_portrait" title="{% trans 'طولي / رأسي' %}">
+            <i class="fas fa-arrows-alt-v me-1 text-primary"></i>{% trans "طولي" %}
+          </label>
+
+          <input type="radio" class="btn-check" name="print_orientation" id="orient_landscape" value="landscape" 
+                 {% if form.print_orientation.value == 'landscape' or form.instance.print_orientation == 'landscape' %}checked{% endif %} autocomplete="off">
+          <label class="btn btn-outline-secondary btn-sm d-flex align-items-center justify-content-center py-2" for="orient_landscape" title="{% trans 'عرضي / أفقي' %}">
+            <i class="fas fa-arrows-alt-h me-1 text-info"></i>{% trans "عرضي" %}
+          </label>
+        </div>
+      </div>
+
+      <!-- ج. العرض سم -->
+      <div class="col-md-3">
+        <label for="id_width" class="form-label fw-bold">
+          <span id="label_width">{% trans "العرض (سم)" %}</span> <span class="text-danger">*</span>
+        </label>
+        <div class="input-group">
+          <input type="number" step="0.1" class="form-control" id="id_width" name="width" 
+                 value="{{ form.width.value|default:form.instance.width|default:'21' }}" required readonly style="background-color: var(--gray-100); cursor: not-allowed;">
+          <span class="input-group-text bg-light small">{% trans "سم" %}</span>
+        </div>
+        <input type="hidden" id="id_custom_size_width" name="custom_size_width" value="{{ form.custom_size_width.value|default:'21' }}">
+      </div>
+
+      <!-- د. الارتفاع سم -->
+      <div class="col-md-3">
+        <label for="id_height" class="form-label fw-bold">
+          <span id="label_height">{% trans "الارتفاع (سم)" %}</span> <span class="text-danger">*</span>
+        </label>
+        <div class="input-group">
+          <input type="number" step="0.1" class="form-control" id="id_height" name="height" 
+                 value="{{ form.height.value|default:form.instance.height|default:'29.7' }}" required readonly style="background-color: var(--gray-100); cursor: not-allowed;">
+          <span class="input-group-text bg-light small">{% trans "سم" %}</span>
+        </div>
+        <input type="hidden" id="id_custom_size_height" name="custom_size_height" value="{{ form.custom_size_height.value|default:'29.7' }}">
+      </div>
+
+      <!-- 8. خيار المقاس المقفول (المطوي) وجهة الفتح وشارة المقاس المفتوح للماكينة -->
+      <div class="col-12" id="closed_size_container">
+        <div class="p-2 px-3 bg-light rounded border d-flex flex-wrap align-items-center justify-content-between gap-3">
+          <div class="d-flex align-items-center gap-3 flex-wrap">
+            <div class="form-check form-switch mb-0">
+              <input class="form-check-input" type="checkbox" role="switch" id="id_is_closed_size" name="is_closed_size" 
+                     {% if form.instance.is_closed_size or form.is_closed_size.value %}checked{% endif %}>
+              <label class="form-check-label fw-bold text-dark ms-1" for="id_is_closed_size">
+                <i class="fas fa-book-open text-primary me-1"></i>{% trans "المقاس المدخل مقفول بعد الطي (مطوي)" %}
+              </label>
+            </div>
+
+            <!-- جهة الفتح والتجليد المدمجة -->
+            <div class="btn-group btn-group-sm" role="group" id="open_direction_toggle_group">
+              <input type="radio" class="btn-check" name="open_direction" id="open_dir_right" value="right" 
+                     {% if form.open_direction.value != 'left' and form.open_direction.value != 'top' and form.instance.open_direction != 'left' and form.instance.open_direction != 'top' %}checked{% endif %} autocomplete="off">
+              <label class="btn btn-outline-secondary py-1 px-2" for="open_dir_right" title="{% trans 'فتح جانبي عربي (يمين)' %}">
+                <i class="fas fa-book me-1 text-primary"></i>{% trans "عربي (يمين)" %}
+              </label>
+
+              <input type="radio" class="btn-check" name="open_direction" id="open_dir_left" value="left" 
+                     {% if form.open_direction.value == 'left' or form.instance.open_direction == 'left' %}checked{% endif %} autocomplete="off">
+              <label class="btn btn-outline-secondary py-1 px-2" for="open_dir_left" title="{% trans 'فتح جانبي إنجليزي (يسار)' %}">
+                <i class="fas fa-book-open me-1 text-info"></i>{% trans "إنجليزي (يسار)" %}
+              </label>
+
+              <input type="radio" class="btn-check" name="open_direction" id="open_dir_top" value="top" 
+                     {% if form.open_direction.value == 'top' or form.instance.open_direction == 'top' %}checked{% endif %} autocomplete="off">
+              <label class="btn btn-outline-secondary py-1 px-2" for="open_dir_top" title="{% trans 'فتح رأسي من الرأس (بلوك نوت / كالندر)' %}">
+                <i class="fas fa-calendar-alt me-1 text-success"></i>{% trans "من أعلى (رأسي)" %}
+              </label>
+            </div>
+          </div>
+
+          <div class="small text-muted" id="open_dimensions_indicator">
+            <i class="fas fa-ruler-horizontal text-secondary me-1"></i>
+            <span>{% trans "المقاس المفتوح على ماكينة الطباعة:" %}</span>
+            <strong class="text-primary fs-6 ms-1" id="open_dims_text">42 × 29.7 سم</strong>
+          </div>
+        </div>
+      </div>
+
+      <!-- شارة مستشار تقليل هدر الورق الذكي -->
+      <div class="col-12 d-none" id="trim_advisor_alert">
+        <div class="alert alert-warning py-2 px-3 mb-0 d-flex align-items-center justify-content-between small">
+          <div>
+            <i class="fas fa-lightbulb text-warning fs-5 me-2"></i>
+            <strong>{% trans "مستشار توفير الهالك الذكي:" %}</strong>
+            <span id="trim_advisor_text">{% trans "المقاس الحالي يسبب هدر 22% من الفرخ. اقتراح تعديل 5 مم لزيادة عدد القطع." %}</span>
+          </div>
+          <button type="button" class="btn btn-sm btn-dark py-0" id="btn_apply_trim_suggestion">{% trans "تطبيق المقترح" %}</button>
+        </div>
       </div>
     </div>
   </div>

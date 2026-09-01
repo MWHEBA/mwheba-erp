@@ -63,7 +63,9 @@ from .views.settings_views import (
     PieceSizeListView, PieceSizeCreateView, PieceSizeUpdateView, PieceSizeDeleteView,
     PlateSizeListView, PlateSizeCreateView, PlateSizeUpdateView, PlateSizeDeleteView,
     ProductTypeListView, ProductTypeCreateView, ProductTypeUpdateView, ProductTypeDeleteView,
+    ProductTypeReorderView, ProductTypeToggleActiveView,
     ProductSizeListView, ProductSizeCreateView, ProductSizeUpdateView, ProductSizeDeleteView,
+    ProductSizeReorderView, ProductSizeToggleActiveView,
     VATSettingListView, VATSettingCreateView, VATSettingUpdateView, VATSettingDeleteView,
     OffsetMachineTypeListView, OffsetMachineTypeCreateView, OffsetMachineTypeUpdateView, OffsetMachineTypeDeleteView,
     OffsetSheetSizeListView, OffsetSheetSizeCreateView, OffsetSheetSizeUpdateView, OffsetSheetSizeDeleteView,
@@ -225,17 +227,21 @@ settings_patterns = [
     path('plate-sizes/<int:pk>/edit/', PlateSizeUpdateView.as_view(), name='plate_size_edit'),
     path('plate-sizes/<int:pk>/delete/', PlateSizeDeleteView.as_view(), name='plate_size_delete'),
     
-    # أنواع المنتجات
+    # أنواع المطبوعات
     path('product-types/', ProductTypeListView.as_view(), name='product_type_list'),
     path('product-types/create/', ProductTypeCreateView.as_view(), name='product_type_create'),
     path('product-types/<int:pk>/edit/', ProductTypeUpdateView.as_view(), name='product_type_edit'),
     path('product-types/<int:pk>/delete/', ProductTypeDeleteView.as_view(), name='product_type_delete'),
+    path('product-types/reorder/', ProductTypeReorderView.as_view(), name='product_type_reorder'),
+    path('product-types/<int:pk>/toggle-active/', ProductTypeToggleActiveView.as_view(), name='product_type_toggle_active'),
     
-    # مقاسات المنتجات
+    # مقاسات المطبوعات
     path('product-sizes/', ProductSizeListView.as_view(), name='product_size_list'),
     path('product-sizes/create/', ProductSizeCreateView.as_view(), name='product_size_create'),
     path('product-sizes/<int:pk>/edit/', ProductSizeUpdateView.as_view(), name='product_size_edit'),
     path('product-sizes/<int:pk>/delete/', ProductSizeDeleteView.as_view(), name='product_size_delete'),
+    path('product-sizes/reorder/', ProductSizeReorderView.as_view(), name='product_size_reorder'),
+    path('product-sizes/<int:pk>/toggle-active/', ProductSizeToggleActiveView.as_view(), name='product_size_toggle_active'),
     
     # إعدادات ضريبة القيمة المضافة
     path('vat-settings/', VATSettingListView.as_view(), name='vat_setting_list'),

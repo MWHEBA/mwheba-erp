@@ -16,13 +16,13 @@ class PrintingOrderAdmin(admin.ModelAdmin):
     إدارة طلبات التسعير في لوحة الإدارة
     """
     list_display = [
-        'order_number', 'customer', 'title', 'order_type', 
+        'order_number', 'customer', 'title', 'product_type', 'order_type', 
         'status', 'quantity', 'estimated_cost_display', 
         'created_at', 'due_date'
     ]
     
     list_filter = [
-        'status', 'order_type', 'priority', 'is_rush_order',
+        'status', 'product_type', 'order_type', 'priority',
         'created_at', 'due_date'
     ]
     

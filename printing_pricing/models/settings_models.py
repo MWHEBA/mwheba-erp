@@ -310,10 +310,31 @@ class PlateSize(models.Model):
 class ProductType(models.Model):
     """نموذج أنواع المنتجات"""
 
+    ARCHETYPE_CHOICES = [
+        ('flyer', _('مطبوع مفرود (كروت / فلاير)')),
+        ('catalog', _('مطبوع مع داخلي (كتالوج / بلوك نوت)')),
+        ('folder', _('مطبوع مع فورمة تكسير')),
+        ('invoice', _('دفاتر مكربن')),
+        ('giveaways', _('هدايا دعائية و UV')),
+    ]
+
     name = models.CharField(
         max_length=100,
-        verbose_name=_("اسم نوع المنتج"),
-        help_text=_("مثال: كتاب، مجلة، بروشور، كتالوج"),
+        unique=True,
+        verbose_name=_("اسم نوع المطبوع"),
+        help_text=_("مثال: مطبوع مفرود، كتالوج، فولدر، دفاتر فواتير"),
+    )
+    base_archetype = models.CharField(
+        max_length=20,
+        choices=ARCHETYPE_CHOICES,
+        default='flyer',
+        verbose_name=_("التصنيف التشغيلي للمحرك"),
+        help_text=_("يحدد مسار التشغيل وتفكيك التكاليف والخطوات في شاشة التسعير"),
+    )
+    sort_order = models.PositiveIntegerField(
+        default=0,
+        verbose_name=_("الترتيب"),
+        help_text=_("ترتيب الظهور في القوائم المنسدلة (الأصغر يظهر أولاً)"),
     )
     description = models.TextField(
         blank=True,
@@ -337,21 +358,22 @@ class ProductType(models.Model):
 
     class Meta:
         app_label = "printing_pricing"
-        verbose_name = _("نوع المنتج")
-        verbose_name_plural = _("أنواع المنتجات")
-        ordering = ["name"]
+        verbose_name = _("نوع المطبوع")
+        verbose_name_plural = _("أنواع المطبوعات")
+        ordering = ["sort_order", "id"]
 
     def __str__(self):
         return self.name
 
 
 class ProductSize(models.Model):
-    """نموذج مقاسات المنتجات"""
+    """نموذج مقاسات المطبوعات"""
 
     name = models.CharField(
         max_length=100,
+        unique=True,
         verbose_name=_("اسم المقاس"),
-        help_text=_("مثال: A4، A5، مقاس مخصص"),
+        help_text=_("مثال: A4، A5، كارت شخصي"),
     )
     width = models.DecimalField(
         max_digits=8,
@@ -362,8 +384,13 @@ class ProductSize(models.Model):
     height = models.DecimalField(
         max_digits=8,
         decimal_places=2,
-        verbose_name=_("الطول (سم)"),
-        help_text=_("طول المنتج بالسنتيمتر"),
+        verbose_name=_("الارتفاع (سم)"),
+        help_text=_("ارتفاع المنتج بالسنتيمتر"),
+    )
+    sort_order = models.PositiveIntegerField(
+        default=0,
+        verbose_name=_("الترتيب"),
+        help_text=_("ترتيب الظهور في القوائم المنسدلة (الأصغر يظهر أولاً)"),
     )
     description = models.TextField(
         blank=True,
@@ -387,9 +414,9 @@ class ProductSize(models.Model):
 
     class Meta:
         app_label = "printing_pricing"
-        verbose_name = _("مقاس المنتج")
-        verbose_name_plural = _("مقاسات المنتجات")
-        ordering = ["name"]
+        verbose_name = _("مقاس المطبوع")
+        verbose_name_plural = _("مقاسات المطبوعات")
+        ordering = ["sort_order", "id"]
 
     def __str__(self):
         return f"{self.name} ({self.width}×{self.height} سم)"

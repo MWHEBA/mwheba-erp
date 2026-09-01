@@ -16,7 +16,8 @@ from django.db import transaction
 from core.utils import UnifiedPaginationMixin
 from ..models import (
     PrintingOrder, OrderMaterial, OrderService, OrderSummary,
-    PaperSpecification, PrintingSpecification, PricingStatus, OrderType
+    PaperSpecification, PrintingSpecification, PricingStatus, OrderType,
+    ProductType, ProductSize
 )
 from ..forms import PrintingOrderForm, OrderSearchForm
 from customer.models import Customer
@@ -121,6 +122,8 @@ class OrderListView(UnifiedPaginationMixin, LoginRequiredMixin, ListView):
         context['customers'] = Customer.objects.filter(is_active=True).only('id', 'name').order_by('name')
         context['status_choices'] = PricingStatus.choices
         context['order_type_choices'] = OrderType.choices
+        context['product_types'] = ProductType.objects.filter(is_active=True).order_by('sort_order', 'id')
+        context['product_sizes'] = ProductSize.objects.filter(is_active=True).order_by('sort_order', 'id')
         context['search_query'] = search_query
         context['selected_customer'] = customer
         context['selected_status'] = status
@@ -249,6 +252,8 @@ class OrderCreateView(LoginRequiredMixin, CreateView):
                 'class': 'btn-secondary',
             },
         ]
+        context['product_types'] = ProductType.objects.filter(is_active=True).order_by('sort_order', 'id')
+        context['product_sizes'] = ProductSize.objects.filter(is_active=True).order_by('sort_order', 'id')
         context['breadcrumb_items'] = [
             {'title': 'الرئيسية', 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},
             {'title': 'طلبات التسعير', 'url': reverse('printing_pricing:order_list'), 'icon': 'fas fa-print'},
@@ -311,6 +316,8 @@ class OrderUpdateView(LoginRequiredMixin, UpdateView):
                 'class': 'btn-info',
             },
         ]
+        context['product_types'] = ProductType.objects.filter(is_active=True).order_by('sort_order', 'id')
+        context['product_sizes'] = ProductSize.objects.filter(is_active=True).order_by('sort_order', 'id')
         context['breadcrumb_items'] = [
             {'title': 'الرئيسية', 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},
             {'title': 'طلبات التسعير', 'url': reverse('printing_pricing:order_list'), 'icon': 'fas fa-print'},
@@ -598,7 +605,12 @@ def duplicate_order(request, pk):
                 customer=original_order.customer,
                 title=f"{original_order.title} - نسخة",
                 description=original_order.description,
+                product_type=original_order.product_type,
                 order_type=original_order.order_type,
+                product_size=original_order.product_size,
+                print_orientation=original_order.print_orientation,
+                is_closed_size=original_order.is_closed_size,
+                open_direction=original_order.open_direction,
                 quantity=original_order.quantity,
                 pages_count=original_order.pages_count,
                 copies_count=original_order.copies_count,

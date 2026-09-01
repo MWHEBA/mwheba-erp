@@ -2,75 +2,124 @@
 {% load i18n %}
 {% load static %}
 
-{% block title %}{% translate "أنواع المنتجات" %}{% endblock %}
+{% block title %}{% translate "أنواع المطبوعات" %}{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/components.css' %}">
 <link rel="stylesheet" href="{% static 'css/tables.css' %}">
+<style>
+.clickable-row {
+  cursor: pointer;
+  transition: background-color 0.15s ease-in-out;
+}
+.clickable-row:hover {
+  background-color: var(--gray-50) !important;
+}
+.reorder-btn {
+  padding: 0.2rem 0.4rem;
+  font-size: 0.75rem;
+}
+</style>
 {% endblock %}
 
 {% block content %}
 <div class="container-fluid">
-    <!-- Page Header المركزي -->
+    <!-- Central Unified Page Header -->
     {% include "shared/page_header.html" %}
 
-
-<div class="card shadow-sm">
-    <div class="card-body">
+    <div class="section-container mb-4">
         <div class="table-responsive">
-            <table class="table table-striped table-hover">
-                <thead>
+            <table class="table table-hover align-middle mb-0" id="product-types-table">
+                <thead class="table-light">
                     <tr>
-                        <th>{% trans "الاسم" %}</th>
-                        <th>{% trans "الوصف" %}</th>
-                        <th>{% trans "الحالة" %}</th>
-                        <th>{% trans "افتراضي" %}</th>
-                        <th>{% trans "الإجراءات" %}</th>
+                        <th style="width: 80px;" class="text-center">{% trans "الترتيب" %}</th>
+                        <th>{% trans "اسم نوع المطبوع" %}</th>
+                        <th>{% trans "التصنيف التشغيلي للمحرك" %}</th>
+                        <th>{% trans "الوصف ومسار التشغيل" %}</th>
+                        <th class="text-center" style="width: 110px;">{% trans "الحالة" %}</th>
+                        <th class="text-center" style="width: 100px;">{% trans "افتراضي" %}</th>
+                        <th class="text-center" style="width: 160px;">{% trans "الإجراءات" %}</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody id="product-types-tbody">
                     {% for product_type in product_types %}
-                    <tr>
-                        <td>
-                            <strong>{{ product_type.name }}</strong>
+                    <tr class="clickable-row" data-id="{{ product_type.pk }}">
+                        <!-- أزرار الترتيب -->
+                        <td class="text-center stop-propagation">
+                            <div class="btn-group btn-group-sm" role="group">
+                                <button type="button" class="btn btn-outline-secondary reorder-btn" onclick="reorderItem('{{ product_type.pk }}', 'up')" title="{% trans 'تحريك لأعلى' %}">
+                                    <i class="fas fa-chevron-up"></i>
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary reorder-btn" onclick="reorderItem('{{ product_type.pk }}', 'down')" title="{% trans 'تحريك لأسفل' %}">
+                                    <i class="fas fa-chevron-down"></i>
+                                </button>
+                            </div>
                         </td>
+                        <!-- الاسم -->
+                        <td>
+                            <div class="fw-bold text-dark fs-6">{{ product_type.name }}</div>
+                            <small class="text-muted">#{{ product_type.id }}</small>
+                        </td>
+                        <!-- التصنيف التشغيلي -->
+                        <td>
+                            {% if product_type.base_archetype == 'flyer' %}
+                                <span class="badge bg-primary px-2 py-1"><i class="fas fa-file-alt me-1"></i>{% trans "مطبوع مفرود" %}</span>
+                            {% elif product_type.base_archetype == 'catalog' %}
+                                <span class="badge bg-info text-dark px-2 py-1"><i class="fas fa-book-open me-1"></i>{% trans "كتالوج ومجلات" %}</span>
+                            {% elif product_type.base_archetype == 'folder' %}
+                                <span class="badge bg-warning text-dark px-2 py-1"><i class="fas fa-folder me-1"></i>{% trans "مطبوع مع فورمة" %}</span>
+                            {% elif product_type.base_archetype == 'invoice' %}
+                                <span class="badge bg-secondary px-2 py-1"><i class="fas fa-file-invoice me-1"></i>{% trans "دفاتر فواتير" %}</span>
+                            {% elif product_type.base_archetype == 'giveaways' %}
+                                <span class="badge bg-success px-2 py-1"><i class="fas fa-gift me-1"></i>{% trans "هدايا دعائية" %}</span>
+                            {% else %}
+                                <span class="badge bg-light text-dark px-2 py-1">{{ product_type.get_base_archetype_display }}</span>
+                            {% endif %}
+                        </td>
+                        <!-- الوصف -->
                         <td>
                             {% if product_type.description %}
-                                {{ product_type.description|truncatechars:50 }}
+                                <span class="text-muted small">{{ product_type.description|truncatechars:65 }}</span>
                             {% else %}
-                                <span class="text-muted">-</span>
+                                <span class="text-muted small">-</span>
                             {% endif %}
                         </td>
-                        <td>
-                            {% if product_type.is_active %}
-                                <span class="badge bg-success">{% trans "نشط" %}</span>
-                            {% else %}
-                                <span class="badge bg-secondary">{% trans "غير نشط" %}</span>
-                            {% endif %}
+                        <!-- الحالة (تفعيل سريع) -->
+                        <td class="text-center stop-propagation">
+                            <button type="button" class="btn btn-sm {% if product_type.is_active %}btn-outline-success{% else %}btn-outline-secondary{% endif %} rounded-pill px-3 py-0" 
+                                    onclick="toggleActive('{{ product_type.pk }}')" id="status-btn-{{ product_type.pk }}">
+                                {% if product_type.is_active %}{% trans "نشط" %}{% else %}{% trans "معطل" %}{% endif %}
+                            </button>
                         </td>
-                        <td>
+                        <!-- افتراضي -->
+                        <td class="text-center">
                             {% if product_type.is_default %}
-                                <span class="badge bg-primary">{% trans "افتراضي" %}</span>
+                                <span class="badge bg-primary"><i class="fas fa-check me-1"></i>{% trans "افتراضي" %}</span>
                             {% else %}
                                 <span class="text-muted">-</span>
                             {% endif %}
                         </td>
-                        <td>
+                        <!-- الإجراءات -->
+                        <td class="text-center stop-propagation">
                             <div class="btn-group btn-group-sm" role="group">
-                                <button type="button" class="btn btn-outline-primary" onclick="openEditModal('{{ product_type.pk }}')" title="تعديل">
+                                <button type="button" class="btn btn-outline-secondary" onclick="openEditModal('{{ product_type.pk }}')" title="{% trans 'تعديل' %}">
                                     <i class="fas fa-edit"></i>
                                 </button>
-                                <button type="button" class="btn btn-outline-danger" onclick="openDeleteModal('{{ product_type.pk }}')" title="حذف">
-                                    <i class="fas fa-trash"></i>
+                                <button type="button" class="btn btn-outline-danger" onclick="openDeleteModal('{{ product_type.pk }}')" title="{% trans 'حذف' %}">
+                                    <i class="fas fa-trash-alt"></i>
                                 </button>
                             </div>
                         </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="5" class="text-center text-muted py-4">
-                            <i class="fas fa-box fa-3x mb-3 d-block"></i>
-                            {% trans "لا توجد أنواع منتجات مضافة بعد" %}
+                        <td colspan="7" class="text-center text-muted py-5">
+                            <i class="fas fa-layer-group fa-3x mb-3 d-block text-secondary opacity-50"></i>
+                            <h6 class="fw-bold">{% trans "لا توجد أنواع مطبوعات مضافة بعد" %}</h6>
+                            <p class="small text-muted mb-3">{% trans "يمكنك إضافة نوع جديد لتنظيم مسارات التسعير بالمطبعة" %}</p>
+                            <button type="button" class="btn btn-primary btn-sm px-3" onclick="openCreateModal()">
+                                <i class="fas fa-plus me-1"></i>{% trans "إضافة نوع مطبوع الآن" %}
+                            </button>
                         </td>
                     </tr>
                     {% endfor %}
@@ -79,21 +128,20 @@
         </div>
     </div>
 </div>
-</div>
 
-<!-- Modal للإنشاء والتعديل -->
+<!-- Modal للإنشاء والتعديل الموحد -->
 <div class="modal fade" id="formModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content" id="modalContent">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 650px;">
+        <div class="modal-content border-0 shadow-lg" id="modalContent">
             <!-- سيتم تحميل المحتوى هنا -->
         </div>
     </div>
 </div>
 
-<!-- Modal للحذف -->
+<!-- Modal للحذف الموحد -->
 <div class="modal fade" id="deleteModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content" id="deleteModalContent">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 480px;">
+        <div class="modal-content border-0 shadow-lg" id="deleteModalContent">
             <!-- سيتم تحميل المحتوى هنا -->
         </div>
     </div>
@@ -102,12 +150,35 @@
 
 {% block extra_js %}
 <script>
+document.addEventListener('DOMContentLoaded', function() {
+    // تفعيل السطور القابلة للنقر
+    document.querySelectorAll('.clickable-row').forEach(row => {
+        row.addEventListener('click', function(e) {
+            if (e.target.closest('.stop-propagation') || e.target.closest('button') || e.target.closest('a')) {
+                return;
+            }
+            const id = this.dataset.id;
+            if (id) {
+                openEditModal(id);
+            }
+        });
+    });
+});
+
 function openCreateModal() {
     fetch('{% url "printing_pricing:product_type_create" %}')
         .then(response => response.text())
         .then(html => {
             document.getElementById('modalContent').innerHTML = html;
-            new bootstrap.Modal(document.getElementById('formModal')).show();
+            const modalEl = document.getElementById('formModal');
+            const modal = new bootstrap.Modal(modalEl);
+            modal.show();
+            // تهيئة Select2 داخل المودال
+            $(modalEl).find('.select2-modal').select2({
+                dropdownParent: $(modalEl),
+                dir: "rtl",
+                width: '100%'
+            });
         });
 }
 
@@ -116,7 +187,14 @@ function openEditModal(id) {
         .then(response => response.text())
         .then(html => {
             document.getElementById('modalContent').innerHTML = html;
-            new bootstrap.Modal(document.getElementById('formModal')).show();
+            const modalEl = document.getElementById('formModal');
+            const modal = new bootstrap.Modal(modalEl);
+            modal.show();
+            $(modalEl).find('.select2-modal').select2({
+                dropdownParent: $(modalEl),
+                dir: "rtl",
+                width: '100%'
+            });
         });
 }
 
@@ -129,7 +207,7 @@ function openDeleteModal(id) {
         });
 }
 
-function submitForm(formId) {
+function submitProductTypeForm(formId) {
     const form = document.getElementById(formId);
     const formData = new FormData(form);
     
@@ -138,15 +216,80 @@ function submitForm(formId) {
         body: formData,
         headers: {
             'X-Requested-With': 'XMLHttpRequest',
-            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || '{{ csrf_token }}'
         }
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(err => { throw err; });
+        }
+        return response.json();
+    })
     .then(data => {
         if (data.success) {
-            location.reload();
+            window.showNotification && window.showNotification(data.message || '{% trans "تم الحفظ بنجاح" %}', 'success');
+            setTimeout(() => location.reload(), 1000);
         } else {
-            console.log(data.errors);
+            if (data.errors) {
+                let errText = Object.values(data.errors).flat().join('<br>');
+                window.showNotification && window.showNotification(errText, 'error');
+            }
+        }
+    })
+    .catch(err => {
+        window.showNotification && window.showNotification(err.message || '{% trans "حدث خطأ أثناء المعالجة" %}', 'error');
+    });
+}
+
+function reorderItem(itemId, direction) {
+    fetch('{% url "printing_pricing:product_type_reorder" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: JSON.stringify({ item_id: itemId, direction: direction })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            window.showNotification && window.showNotification(data.message, 'success');
+            setTimeout(() => location.reload(), 400);
+        } else {
+            window.showNotification && window.showNotification(data.message, 'error');
+        }
+    })
+    .catch(e => {
+        window.showNotification && window.showNotification('{% trans "فشل حفظ الترتيب" %}', 'error');
+    });
+}
+
+function toggleActive(pk) {
+    const url = `{% url "printing_pricing:product_type_toggle_active" 0 %}`.replace('0', pk);
+    fetch(url, {
+        method: 'POST',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': '{{ csrf_token }}'
+        }
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            window.showNotification && window.showNotification(data.message, 'success');
+            const btn = document.getElementById(`status-btn-${pk}`);
+            if (btn) {
+                if (data.is_active) {
+                    btn.className = 'btn btn-sm btn-outline-success rounded-pill px-3 py-0';
+                    btn.textContent = '{% trans "نشط" %}';
+                } else {
+                    btn.className = 'btn btn-sm btn-outline-secondary rounded-pill px-3 py-0';
+                    btn.textContent = '{% trans "معطل" %}';
+                }
+            }
+        } else {
+            window.showNotification && window.showNotification(data.message, 'error');
         }
     });
 }

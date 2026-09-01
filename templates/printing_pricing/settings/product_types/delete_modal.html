@@ -1,50 +1,42 @@
 {% load i18n %}
 
-<div class="modal-header">
-    <h5 class="modal-title text-danger">
-        <i class="fas fa-exclamation-triangle"></i> تأكيد الحذف
+<div class="modal-header bg-light border-bottom px-4 py-3">
+    <h5 class="modal-title fw-bold text-danger mb-0">
+        <i class="fas fa-trash-alt me-2"></i>{% trans "تأكيد حذف نوع المطبوع" %}
     </h5>
-    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
 </div>
 
 <form id="deleteProductTypeForm" method="post" action="{{ action_url }}">
-    <div class="modal-body">
+    <div class="modal-body p-4 text-center">
         {% csrf_token %}
         
-        <div class="alert alert-warning">
-            <i class="fas fa-exclamation-triangle"></i>
-            <strong>تحذير:</strong> هذا الإجراء لا يمكن التراجع عنه!
+        <div class="mb-3">
+            <i class="fas fa-exclamation-triangle fa-3x text-warning"></i>
         </div>
         
-        <p class="mb-3">هل أنت متأكد من حذف نوع المنتج التالي؟</p>
-        
-        <div class="card">
-            <div class="card-body">
-                <h6 class="card-title">{{ product_type.name }}</h6>
-                <p class="card-text">
-                    {% if product_type.description %}
-                        <strong>الوصف:</strong> {{ product_type.description|truncatewords:10 }}<br>
-                    {% endif %}
-                    <strong>الحالة:</strong> 
-                    {% if product_type.is_active %}
-                        <span class="badge bg-success">نشط</span>
-                    {% else %}
-                        <span class="badge bg-danger">غير نشط</span>
-                    {% endif %}
-                    {% if product_type.is_default %}
-                        <span class="badge bg-primary">افتراضي</span>
-                    {% endif %}
-                </p>
+        <h5 class="fw-bold mb-2">{% trans "هل أنت متأكد من رغبتك في حذف هذا الصنف؟" %}</h5>
+        <div class="p-3 bg-light rounded border mb-3 text-start">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <span class="fw-bold fs-6">{{ product_type.name }}</span>
+                <span class="badge bg-secondary">{{ product_type.get_base_archetype_display }}</span>
             </div>
+            {% if product_type.description %}
+                <small class="text-muted d-block">{{ product_type.description }}</small>
+            {% endif %}
         </div>
+
+        <p class="text-muted small mb-0">
+            <i class="fas fa-info-circle me-1"></i>{% trans "ملاحظة: إذا كان هذا الصنف مستخدماً في طلبات تسعير سابقة، فلن تتمكن من حذفه حفاظاً على سلامة السجلات، ويمكنك إيقاف تفعيله بدلاً من ذلك." %}
+        </p>
     </div>
     
-    <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-            <i class="fas fa-times"></i> إلغاء
+    <div class="modal-footer bg-light border-top px-4 py-3">
+        <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">
+            <i class="fas fa-times me-1"></i>{% trans "إلغاء" %}
         </button>
-        <button type="submit" class="btn btn-danger">
-            <i class="fas fa-trash"></i> حذف نهائي
+        <button type="submit" class="btn btn-danger px-4 fw-bold" id="btn-confirm-delete">
+            <i class="fas fa-trash-alt me-1"></i>{% trans "تأكيد الحذف" %}
         </button>
     </div>
 </form>
@@ -55,12 +47,11 @@ document.getElementById('deleteProductTypeForm').addEventListener('submit', func
     
     const form = this;
     const formData = new FormData(form);
-    const submitBtn = form.querySelector('button[type="submit"]');
-    const originalText = submitBtn.innerHTML;
+    const submitBtn = document.getElementById('btn-confirm-delete');
+    const originalHtml = submitBtn.innerHTML;
     
-    // تعطيل الزر وإظهار مؤشر التحميل
     submitBtn.disabled = true;
-    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الحذف...';
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>{% trans "جاري الحذف..." %}';
     
     fetch(form.action, {
         method: 'POST',
@@ -70,25 +61,26 @@ document.getElementById('deleteProductTypeForm').addEventListener('submit', func
             'X-CSRFToken': formData.get('csrfmiddlewaretoken')
         }
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(err => { throw err; });
+        }
+        return response.json();
+    })
     .then(data => {
         if (data.success) {
-            // إغلاق المودال وإعادة تحميل الصفحة
-            const modal = bootstrap.Modal.getInstance(document.querySelector('.modal'));
-            modal.hide();
-            location.reload();
+            window.showNotification && window.showNotification('{% trans "تم حذف الصنف بنجاح" %}', 'success');
+            setTimeout(() => location.reload(), 800);
         } else {
-            alert('حدث خطأ أثناء الحذف');
+            window.showNotification && window.showNotification(data.message || '{% trans "تعذر حذف الصنف" %}', 'error');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalHtml;
         }
     })
     .catch(error => {
-        console.error('Error:', error);
-        alert('حدث خطأ أثناء الحذف');
-    })
-    .finally(() => {
-        // إعادة تفعيل الزر
+        window.showNotification && window.showNotification(error.message || '{% trans "لا يمكن حذف هذا الصنف لوجود طلبات تسعير سابقة مرتبطة به. يرجى إيقاف تفعيله." %}', 'error');
         submitBtn.disabled = false;
-        submitBtn.innerHTML = originalText;
+        submitBtn.innerHTML = originalHtml;
     });
 });
 </script>

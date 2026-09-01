@@ -1,48 +1,109 @@
 {% load i18n %}
-{% load django_bootstrap5 %}
 
-<div class="modal-header">
-    <h5 class="modal-title">
-        <i class="fas fa-ruler me-2 text-primary"></i>{{ title }}
+<div class="modal-header bg-light border-bottom px-4 py-3">
+    <h5 class="modal-title fw-bold text-dark mb-0">
+        <i class="fas fa-ruler-combined text-primary me-2"></i>{{ title }}
     </h5>
-    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
 </div>
 
 <form id="productSizeForm" method="post" action="{{ action_url }}">
-    <div class="modal-body">
+    <div class="modal-body px-4 py-3">
         {% csrf_token %}
         
-        {% bootstrap_field form.name %}
-        
-        <div class="row">
-            <div class="col-md-6">
-                {% bootstrap_field form.width %}
+        <div class="row g-3">
+            <!-- 1. اسم المقاس -->
+            <div class="col-md-8">
+                <label for="id_name" class="form-label fw-bold mb-1">
+                    {% trans "اسم المقاس" %} <span class="text-danger">*</span>
+                </label>
+                {{ form.name }}
+                {% if form.name.errors %}
+                    <div class="text-danger small mt-1">{{ form.name.errors.0 }}</div>
+                {% endif %}
             </div>
-            <div class="col-md-6">
-                {% bootstrap_field form.height %}
+
+            <!-- 2. رقم الترتيب -->
+            <div class="col-md-4">
+                <label for="id_sort_order" class="form-label fw-bold mb-1">
+                    {% trans "رقم الترتيب" %}
+                </label>
+                {{ form.sort_order }}
+                {% if form.sort_order.errors %}
+                    <div class="text-danger small mt-1">{{ form.sort_order.errors.0 }}</div>
+                {% endif %}
             </div>
-        </div>
-        
-        {% bootstrap_field form.description %}
-        
-        <div class="row">
+
+            <!-- 3. العرض والارتفاع -->
             <div class="col-md-6">
-                {% bootstrap_field form.is_active %}
+                <label for="id_width" class="form-label fw-bold mb-1">
+                    {% trans "العرض (سم)" %} <span class="text-danger">*</span>
+                </label>
+                <div class="input-group">
+                    {{ form.width }}
+                    <span class="input-group-text bg-light small">{% trans "سم" %}</span>
+                </div>
+                {% if form.width.errors %}
+                    <div class="text-danger small mt-1">{{ form.width.errors.0 }}</div>
+                {% endif %}
             </div>
+
             <div class="col-md-6">
-                {% bootstrap_field form.is_default %}
-                <small class="form-text text-muted">سيتم إلغاء الافتراضي من المقاسات الأخرى</small>
+                <label for="id_height" class="form-label fw-bold mb-1">
+                    {% trans "الارتفاع (سم)" %} <span class="text-danger">*</span>
+                </label>
+                <div class="input-group">
+                    {{ form.height }}
+                    <span class="input-group-text bg-light small">{% trans "سم" %}</span>
+                </div>
+                {% if form.height.errors %}
+                    <div class="text-danger small mt-1">{{ form.height.errors.0 }}</div>
+                {% endif %}
+            </div>
+
+            <!-- 4. الوصف -->
+            <div class="col-12">
+                <label for="id_description" class="form-label fw-bold mb-1">
+                    {% trans "الوصف والاستخدام" %}
+                </label>
+                {{ form.description }}
+                {% if form.description.errors %}
+                    <div class="text-danger small mt-1">{{ form.description.errors.0 }}</div>
+                {% endif %}
+            </div>
+
+            <!-- 5. خيارات التفعيل والافتراضي -->
+            <div class="col-12">
+                <div class="p-3 bg-light rounded border">
+                    <div class="row g-2 align-items-center">
+                        <div class="col-sm-6">
+                            <div class="form-check mb-0">
+                                {{ form.is_active }}
+                                <label class="form-check-label fw-bold ms-1" for="{{ form.is_active.id_for_label }}">
+                                    {% trans "نشط ومتاح في التسعير" %}
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-sm-6">
+                            <div class="form-check mb-0">
+                                {{ form.is_default }}
+                                <label class="form-check-label fw-bold ms-1" for="{{ form.is_default.id_for_label }}">
+                                    {% trans "مقاس افتراضي" %}
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
-    
-    <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-            <i class="fas fa-times"></i> إلغاء
+
+    <div class="modal-footer bg-light border-top px-4 py-3">
+        <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">
+            {% trans "إلغاء" %}
         </button>
-        <button type="button" class="btn btn-primary" onclick="submitForm('productSizeForm')">
-            <i class="fas fa-save"></i> حفظ
+        <button type="button" class="btn btn-primary px-4 fw-bold" onclick="submitForm('productSizeForm')">
+            <i class="fas fa-save me-1"></i>{% trans "حفظ المقاس" %}
         </button>
     </div>
 </form>
-

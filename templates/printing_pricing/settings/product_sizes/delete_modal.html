@@ -1,96 +1,42 @@
 {% load i18n %}
-{% load utils_extras %}
 
-<div class="modal-header">
-    <h5 class="modal-title text-danger">
-        <i class="fas fa-exclamation-triangle"></i> تأكيد الحذف
+<div class="modal-header bg-light border-bottom px-4 py-3">
+    <h5 class="modal-title fw-bold text-danger mb-0">
+        <i class="fas fa-trash-alt me-2"></i>{% trans "تأكيد حذف مقاس المطبوع" %}
     </h5>
-    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
 </div>
 
-<form id="deleteProductSizeForm" method="post" action="{{ action_url }}">
-    <div class="modal-body">
+<form id="deleteProductSizeForm" method="post" action="{% url 'printing_pricing:product_size_delete' object.pk %}">
+    <div class="modal-body p-4 text-center">
         {% csrf_token %}
         
-        <div class="alert alert-warning">
-            <i class="fas fa-exclamation-triangle"></i>
-            <strong>تحذير:</strong> هذا الإجراء لا يمكن التراجع عنه!
+        <div class="mb-3">
+            <i class="fas fa-exclamation-triangle fa-3x text-warning"></i>
         </div>
         
-        <p class="mb-3">هل أنت متأكد من حذف مقاس المنتج التالي؟</p>
-        
-        <div class="card">
-            <div class="card-body">
-                <h6 class="card-title">{{ product_size.name }}</h6>
-                <p class="card-text">
-                    <strong>الأبعاد:</strong> <code>{{ product_size.width|smart_float }}×{{ product_size.height|smart_float }} سم</code><br>
-                    {% if product_size.description %}
-                        <strong>الوصف:</strong> {{ product_size.description|truncatewords:10 }}<br>
-                    {% endif %}
-                    <strong>الحالة:</strong> 
-                    {% if product_size.is_active %}
-                        <span class="badge bg-success">نشط</span>
-                    {% else %}
-                        <span class="badge bg-danger">غير نشط</span>
-                    {% endif %}
-                    {% if product_size.is_default %}
-                        <span class="badge bg-primary">افتراضي</span>
-                    {% endif %}
-                </p>
+        <h5 class="fw-bold mb-2">{% trans "هل أنت متأكد من رغبتك في حذف هذا المقاس؟" %}</h5>
+        <div class="p-3 bg-light rounded border mb-3 text-start">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <span class="fw-bold fs-6">{{ object.name }}</span>
+                <span class="badge bg-secondary">{{ object.width|floatformat:"-2" }}×{{ object.height|floatformat:"-2" }} سم</span>
             </div>
+            {% if object.description %}
+                <small class="text-muted d-block">{{ object.description }}</small>
+            {% endif %}
         </div>
+
+        <p class="text-muted small mb-0">
+            <i class="fas fa-info-circle me-1"></i>{% trans "ملاحظة: إذا كان هذا المقاس مستخدماً في طلبات سابقة، يفضل إيقاف تفعيله بدلاً من حذفه." %}
+        </p>
     </div>
     
-    <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-            <i class="fas fa-times"></i> إلغاء
+    <div class="modal-footer bg-light border-top px-4 py-3">
+        <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">
+            <i class="fas fa-times me-1"></i>{% trans "إلغاء" %}
         </button>
-        <button type="submit" class="btn btn-danger">
-            <i class="fas fa-trash"></i> حذف نهائي
+        <button type="button" class="btn btn-danger px-4 fw-bold" onclick="submitDeleteForm()">
+            <i class="fas fa-trash-alt me-1"></i>{% trans "تأكيد الحذف" %}
         </button>
     </div>
 </form>
-
-<script>
-document.getElementById('deleteProductSizeForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-    
-    const form = this;
-    const formData = new FormData(form);
-    const submitBtn = form.querySelector('button[type="submit"]');
-    const originalText = submitBtn.innerHTML;
-    
-    // تعطيل الزر وإظهار مؤشر التحميل
-    submitBtn.disabled = true;
-    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الحذف...';
-    
-    fetch(form.action, {
-        method: 'POST',
-        body: formData,
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest',
-            'X-CSRFToken': formData.get('csrfmiddlewaretoken')
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            // إغلاق المودال وإعادة تحميل الصفحة
-            const modal = bootstrap.Modal.getInstance(document.querySelector('.modal'));
-            modal.hide();
-            location.reload();
-        } else {
-            alert('حدث خطأ أثناء الحذف');
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('حدث خطأ أثناء الحذف');
-    })
-    .finally(() => {
-        // إعادة تفعيل الزر
-        submitBtn.disabled = false;
-        submitBtn.innerHTML = originalText;
-    });
-});
-</script>

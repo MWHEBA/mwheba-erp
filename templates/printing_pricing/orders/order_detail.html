@@ -12,7 +12,7 @@
 <link rel="stylesheet" href="{% static 'css/printing_pricing/components.css' %}">
 <style>
   .stage-badge { font-size: 0.9rem; padding: 0.4rem 0.8rem; border-radius: 20px; }
-  .hub-card { border: 1px solid var(--border-color, #dee2e6); border-radius: 8px; }
+  .hub-card { border: 1px solid var(--gray-200); border-radius: var(--border-radius); }
 </style>
 {% endblock %}
 
@@ -27,6 +27,10 @@
         </h4>
         <div class="d-flex align-items-center gap-2 text-muted small">
           <span><i class="fas fa-user me-1"></i>{{ order.customer.name }}</span>
+          <span>•</span>
+          <span><i class="fas fa-layer-group me-1"></i>{{ order.product_type.name|default:order.get_order_type_display }}</span>
+          <span>•</span>
+          <span><i class="fas fa-ruler-combined me-1"></i>{{ order.get_dimensions_display }}</span>
           <span>•</span>
           <span><i class="fas fa-calendar-alt me-1"></i>{{ order.created_at|date:"Y-m-d" }}</span>
           <span>•</span>

@@ -9,7 +9,9 @@ from django.contrib.auth.mixins import LoginRequiredMixin as DjangoLoginRequired
 from django.contrib.auth.mixins import UserPassesTestMixin
 from django.contrib import messages
 from django.urls import reverse_lazy
-from django.views.generic import ListView, CreateView, UpdateView, DeleteView
+from django.db import models
+from django.http import JsonResponse
+from django.views.generic import ListView, CreateView, UpdateView, DeleteView, View
 from django.shortcuts import render
 
 class StaffRequiredMixin(UserPassesTestMixin):
@@ -1720,33 +1722,38 @@ class PlateSizeDeleteView(AjaxDeleteMixin, LoginRequiredMixin, DeleteView):
     success_url = reverse_lazy('printing_pricing:plate_size_list')
 
 
-# ==================== عروض أنواع المنتجات ====================
+# ==================== عروض أنواع المطبوعات ====================
 
 class ProductTypeListView(LoginRequiredMixin, ListView):
-    """عرض قائمة أنواع المنتجات"""
+    """عرض قائمة أنواع المطبوعات"""
     model = ProductType
     template_name = 'printing_pricing/settings/product_types/list.html'
     context_object_name = 'product_types'
-    paginate_by = 20
+    paginate_by = 50
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['page_title'] = _('أنواع المنتجات')
-        context['page_icon'] = 'fas fa-box'
-        context['page_subtitle'] = _('إدارة أنواع المنتجات')
+        context['page_title'] = _('أنواع المطبوعات')
+        context['page_icon'] = 'fas fa-layer-group'
+        context['page_subtitle'] = _('إدارة وتخصيص وترتيب أنواع المطبوعات ومسارات تشغيلها')
         context['header_buttons'] = [
             {
                 'onclick': 'openCreateModal()',
                 'icon': 'fa-plus',
-                'text': _('إضافة جديد'),
-                'class': 'btn-primary',
+                'text': _('إضافة نوع مطبوع جديد'),
+                'class': 'btn-primary fw-bold',
             },
         ]
         context['breadcrumb_items'] = [
             {
                 'title': _('الرئيسية'),
-                'url': '/',
+                'url': reverse_lazy('core:dashboard'),
                 'icon': 'fas fa-home'
+            },
+            {
+                'title': _('تسعير المطبوعات'),
+                'url': reverse_lazy('printing_pricing:order_list'),
+                'icon': 'fas fa-calculator'
             },
             {
                 'title': _('الإعدادات'),
@@ -1754,9 +1761,9 @@ class ProductTypeListView(LoginRequiredMixin, ListView):
                 'icon': 'fas fa-cog'
             },
             {
-                'title': _('أنواع المنتجات'),
+                'title': _('أنواع المطبوعات'),
                 'url': '',
-                'icon': 'fas fa-box',
+                'icon': 'fas fa-layer-group',
                 'active': True
             }
         ]
@@ -1769,11 +1776,11 @@ class ProductTypeListView(LoginRequiredMixin, ListView):
             queryset = queryset.filter(
                 Q(name__icontains=search) | Q(description__icontains=search)
             )
-        return queryset.order_by('name')
+        return queryset.order_by('sort_order', 'id')
 
 
 class ProductTypeCreateView(AjaxFormMixin, LoginRequiredMixin, CreateView):
-    """عرض إنشاء نوع منتج جديد"""
+    """عرض إنشاء نوع مطبوع جديد"""
     model = ProductType
     form_class = ProductTypeForm
     template_name = 'printing_pricing/settings/product_types/form_modal.html'
@@ -1781,17 +1788,21 @@ class ProductTypeCreateView(AjaxFormMixin, LoginRequiredMixin, CreateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['title'] = _('إضافة نوع منتج جديد')
+        context['title'] = _('إضافة نوع مطبوع جديد')
         context['action_url'] = self.request.path
         return context
 
     def form_valid(self, form):
-        messages.success(self.request, _('تم إنشاء نوع المنتج بنجاح'))
+        # في حالة عدم تحديد ترتيب، وضعه في نهاية القائمة
+        if not form.cleaned_data.get('sort_order'):
+            max_order = ProductType.objects.aggregate(models.Max('sort_order'))['sort_order__max'] or 0
+            form.instance.sort_order = max_order + 10
+        messages.success(self.request, _('تم إنشاء نوع المطبوع بنجاح'))
         return super().form_valid(form)
 
 
 class ProductTypeUpdateView(AjaxFormMixin, LoginRequiredMixin, UpdateView):
-    """عرض تحديث نوع المنتج"""
+    """عرض تحديث نوع المطبوع"""
     model = ProductType
     form_class = ProductTypeForm
     template_name = 'printing_pricing/settings/product_types/form_modal.html'
@@ -1799,59 +1810,112 @@ class ProductTypeUpdateView(AjaxFormMixin, LoginRequiredMixin, UpdateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['title'] = _('تحديث نوع المنتج')
+        context['title'] = _('تحديث نوع المطبوع')
         context['action_url'] = self.request.path
         return context
 
     def form_valid(self, form):
-        messages.success(self.request, _('تم تحديث نوع المنتج بنجاح'))
+        messages.success(self.request, _('تم تحديث نوع المطبوع بنجاح'))
         return super().form_valid(form)
 
 
 class ProductTypeDeleteView(AjaxDeleteMixin, LoginRequiredMixin, DeleteView):
-    """عرض حذف نوع المنتج"""
+    """عرض حذف نوع المطبوع مع الحماية ضد ProtectedError"""
     model = ProductType
     template_name = 'printing_pricing/settings/product_types/delete_modal.html'
     success_url = reverse_lazy('printing_pricing:product_type_list')
 
+    def post(self, request, *args, **kwargs):
+        try:
+            return super().post(request, *args, **kwargs)
+        except models.ProtectedError:
+            err_msg = _('لا يمكن حذف هذا الصنف لوجود طلبات تسعير سابقة مرتبطة به. يرجى إيقاف تفعيله بدلاً من الحذف.')
+            if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.is_ajax():
+                return JsonResponse({'success': False, 'message': err_msg}, status=400)
+            messages.error(request, err_msg)
+            return redirect(self.success_url)
 
-# ==================== عروض مقاسات المنتجات ====================
+
+class ProductTypeReorderView(LoginRequiredMixin, View):
+    """إعادة ترتيب أنواع المطبوعات بالـ AJAX"""
+    def post(self, request, *args, **kwargs):
+        import json
+        try:
+            body = json.loads(request.body.decode('utf-8'))
+            item_id = body.get('item_id')
+            direction = body.get('direction') # 'up' or 'down'
+
+            items = list(ProductType.objects.all().order_by('sort_order', 'id'))
+            target_idx = next((i for i, item in enumerate(items) if item.pk == int(item_id)), None)
+
+            if target_idx is not None:
+                if direction == 'up' and target_idx > 0:
+                    items[target_idx], items[target_idx - 1] = items[target_idx - 1], items[target_idx]
+                elif direction == 'down' and target_idx < len(items) - 1:
+                    items[target_idx], items[target_idx + 1] = items[target_idx + 1], items[target_idx]
+
+                # إعادة ترقيم متسلسل متوازن بفروق 10
+                for idx, pt in enumerate(items):
+                    pt.sort_order = (idx + 1) * 10
+                    pt.save(update_fields=['sort_order'])
+
+                return JsonResponse({'success': True, 'message': _('تم تحديث الترتيب بنجاح')})
+            return JsonResponse({'success': False, 'message': _('العنصر غير موجود')}, status=404)
+        except Exception as e:
+            return JsonResponse({'success': False, 'message': str(e)}, status=400)
+
+
+class ProductTypeToggleActiveView(LoginRequiredMixin, View):
+    """تفعيل أو إيقاف نوع المطبوع سريعاً بالـ AJAX"""
+    def post(self, request, pk, *args, **kwargs):
+        try:
+            pt = get_object_or_404(ProductType, pk=pk)
+            pt.is_active = not pt.is_active
+            pt.save(update_fields=['is_active'])
+            status_text = _('تم التفعيل') if pt.is_active else _('تم الإيقاف')
+            return JsonResponse({'success': True, 'is_active': pt.is_active, 'message': f"{pt.name}: {status_text}"})
+        except Exception as e:
+            return JsonResponse({'success': False, 'message': str(e)}, status=400)
+
+
+
+# ==================== عروض مقاسات المطبوعات ====================
 
 class ProductSizeListView(LoginRequiredMixin, ListView):
-    """عرض قائمة مقاسات المنتجات"""
+    """عرض قائمة مقاسات المطبوعات"""
     model = ProductSize
     template_name = 'printing_pricing/settings/product_sizes/list.html'
     context_object_name = 'product_sizes'
-    paginate_by = 20
+    paginate_by = 25
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['page_title'] = _('مقاسات المنتجات')
-        context['page_icon'] = 'fas fa-ruler'
-        context['page_subtitle'] = _('إدارة مقاسات المنتجات')
+        context['page_title'] = _('مقاسات المطبوعات')
+        context['page_icon'] = 'fas fa-ruler-combined'
+        context['page_subtitle'] = _('إدارة وتنسيق المقاسات القياسية المعتمدة في شاشة التسعير')
         context['header_buttons'] = [
             {
                 'onclick': 'openCreateModal()',
                 'icon': 'fa-plus',
-                'text': _('إضافة جديد'),
+                'text': _('إضافة مقاس جديد'),
                 'class': 'btn-primary',
             },
         ]
         context['breadcrumb_items'] = [
             {
                 'title': _('الرئيسية'),
-                'url': '/',
+                'url': reverse_lazy('core:dashboard'),
                 'icon': 'fas fa-home'
             },
             {
-                'title': _('الإعدادات'),
+                'title': _('إعدادات التسعير والطباعة'),
                 'url': reverse_lazy('printing_pricing:settings_home'),
                 'icon': 'fas fa-cog'
             },
             {
-                'title': _('مقاسات المنتجات'),
+                'title': _('مقاسات المطبوعات'),
                 'url': '',
-                'icon': 'fas fa-ruler',
+                'icon': 'fas fa-ruler-combined',
                 'active': True
             }
         ]
@@ -1862,11 +1926,11 @@ class ProductSizeListView(LoginRequiredMixin, ListView):
         search = self.request.GET.get('search')
         if search:
             queryset = queryset.filter(name__icontains=search)
-        return queryset.order_by('name')
+        return queryset.order_by('sort_order', 'id')
 
 
 class ProductSizeCreateView(AjaxFormMixin, LoginRequiredMixin, CreateView):
-    """عرض إنشاء مقاس منتج جديد"""
+    """عرض إنشاء مقاس مطبوع جديد"""
     model = ProductSize
     form_class = ProductSizeForm
     template_name = 'printing_pricing/settings/product_sizes/form_modal.html'
@@ -1874,17 +1938,17 @@ class ProductSizeCreateView(AjaxFormMixin, LoginRequiredMixin, CreateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['title'] = _('إضافة مقاس منتج جديد')
+        context['title'] = _('إضافة مقاس مطبوع جديد')
         context['action_url'] = self.request.path
         return context
 
     def form_valid(self, form):
-        messages.success(self.request, _('تم إنشاء مقاس المنتج بنجاح'))
+        messages.success(self.request, _('تم إنشاء مقاس المطبوع بنجاح'))
         return super().form_valid(form)
 
 
 class ProductSizeUpdateView(AjaxFormMixin, LoginRequiredMixin, UpdateView):
-    """عرض تحديث مقاس المنتج"""
+    """عرض تحديث مقاس المطبوع"""
     model = ProductSize
     form_class = ProductSizeForm
     template_name = 'printing_pricing/settings/product_sizes/form_modal.html'
@@ -1892,17 +1956,73 @@ class ProductSizeUpdateView(AjaxFormMixin, LoginRequiredMixin, UpdateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['title'] = _('تحديث مقاس المنتج')
+        context['title'] = _('تحديث مقاس المطبوع')
         context['action_url'] = self.request.path
         return context
 
     def form_valid(self, form):
-        messages.success(self.request, _('تم تحديث مقاس المنتج بنجاح'))
+        messages.success(self.request, _('تم تحديث مقاس المطبوع بنجاح'))
         return super().form_valid(form)
 
 
 class ProductSizeDeleteView(AjaxDeleteMixin, LoginRequiredMixin, DeleteView):
-    """عرض حذف مقاس المنتج"""
+    """عرض حذف مقاس المطبوع مع الحماية ضد ProtectedError"""
     model = ProductSize
     template_name = 'printing_pricing/settings/product_sizes/delete_modal.html'
     success_url = reverse_lazy('printing_pricing:product_size_list')
+
+    def delete(self, request, *args, **kwargs):
+        try:
+            return super().delete(request, *args, **kwargs)
+        except models.ProtectedError:
+            err_msg = _('لا يمكن حذف هذا المقاس لوجود طلبات تسعير مرتبطة به. يرجى إيقاف تفعيله بدلاً من الحذف.')
+            if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.META.get('HTTP_X_REQUESTED_WITH') == 'XMLHttpRequest':
+                return JsonResponse({'success': False, 'message': str(err_msg)}, status=400)
+            messages.error(request, err_msg)
+            return redirect(self.success_url)
+
+    def post(self, request, *args, **kwargs):
+        return self.delete(request, *args, **kwargs)
+
+
+class ProductSizeReorderView(LoginRequiredMixin, View):
+    """إعادة ترتيب مقاسات المطبوعات بالـ AJAX"""
+    def post(self, request, *args, **kwargs):
+        import json
+        try:
+            body = json.loads(request.body.decode('utf-8'))
+            item_id = body.get('item_id')
+            direction = body.get('direction')
+
+            items = list(ProductSize.objects.all().order_by('sort_order', 'id'))
+            target_idx = next((i for i, item in enumerate(items) if item.pk == int(item_id)), None)
+
+            if target_idx is not None:
+                if direction == 'up' and target_idx > 0:
+                    items[target_idx], items[target_idx - 1] = items[target_idx - 1], items[target_idx]
+                elif direction == 'down' and target_idx < len(items) - 1:
+                    items[target_idx], items[target_idx + 1] = items[target_idx + 1], items[target_idx]
+
+                # إعادة ترقيم متسلسل متوازن بفروق 10
+                for idx, ps in enumerate(items):
+                    ps.sort_order = (idx + 1) * 10
+                    ps.save(update_fields=['sort_order'])
+
+                return JsonResponse({'success': True, 'message': _('تم تحديث الترتيب بنجاح')})
+            return JsonResponse({'success': False, 'message': _('العنصر غير موجود')}, status=404)
+        except Exception as e:
+            return JsonResponse({'success': False, 'message': str(e)}, status=400)
+
+
+class ProductSizeToggleActiveView(LoginRequiredMixin, View):
+    """تفعيل أو إيقاف مقاس المطبوع سريعاً بالـ AJAX"""
+    def post(self, request, pk, *args, **kwargs):
+        try:
+            ps = get_object_or_404(ProductSize, pk=pk)
+            ps.is_active = not ps.is_active
+            ps.save(update_fields=['is_active'])
+            status_text = _('تم التفعيل') if ps.is_active else _('تم الإيقاف')
+            return JsonResponse({'success': True, 'is_active': ps.is_active, 'message': f"{ps.name}: {status_text}"})
+        except Exception as e:
+            return JsonResponse({'success': False, 'message': str(e)}, status=400)
+

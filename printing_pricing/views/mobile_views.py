@@ -12,6 +12,7 @@ from django.db import transaction
 from ..models.base import OrderType, ProductionStage
 from ..models.order import PrintingOrder
 from ..models.calculations import OrderSummary
+from ..models.settings_models import ProductType
 from ..services.pdf_sanitizer_service import CustomerPDFSanitizerService
 
 
@@ -25,6 +26,7 @@ class MobilePricingView(LoginRequiredMixin, TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['customers'] = Customer.objects.filter(is_active=True).order_by('name')[:100]
+        context['product_types'] = ProductType.objects.filter(is_active=True).order_by('sort_order', 'id')
         context['page_title'] = _('التسعير الميداني السريع (موبايل)')
         context['page_subtitle'] = _('حاسبة تسعير فورية ومشاركة عروض الأسعار على الواتساب')
         context['page_icon'] = 'fas fa-mobile-alt'
@@ -95,11 +97,15 @@ def save_quick_mobile_quote(request):
         import uuid
         order_number = f"ORD-MOB-{uuid.uuid4().hex[:6].upper()}"
 
+        resolved_order_type = product_type if product_type in [c[0] for c in OrderType.choices] else 'flyer'
+        matching_pt = ProductType.objects.filter(base_archetype=resolved_order_type, is_active=True).first()
+
         order = PrintingOrder.objects.create(
             order_number=order_number,
             customer=customer,
             title=title,
-            order_type=product_type if product_type in [c[0] for c in OrderType.choices] else 'commercial',
+            product_type=matching_pt,
+            order_type=resolved_order_type,
             quantity=quantity,
             final_price=price,
             estimated_cost=price * Decimal('0.70'),

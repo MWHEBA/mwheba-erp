@@ -86,7 +86,7 @@ class TestAnatomyPersistenceWorkflow:
         assert summary.final_price > summary.total_cost
 
     def test_book_catalog_mixed_anatomy_persistence(self):
-        """اختبار تسعير وحفظ كتالوج (غلاف + متن + تجليد)"""
+        """اختبار تسعير وحفظ كتالوج (غلاف + داخلي + تجليد)"""
         order = PrintingOrder.objects.create(
             order_number='ORD-TEST-002',
             customer=self.customer,
@@ -116,11 +116,11 @@ class TestAnatomyPersistenceWorkflow:
 
         summary = OrderAnatomyPersistenceService.persist_order_anatomy(order, post_data)
 
-        # 1. التحقق من إنشاء خامتين (ورق غلاف 300 جم + ورق متن 135 جم)
+        # 1. التحقق من إنشاء خامتين (ورق غلاف 300 جم + ورق داخلي 135 جم)
         materials = OrderMaterial.objects.filter(order=order)
         assert materials.count() == 2
         assert materials.filter(material_name__contains='300').exists()
-        assert materials.filter(material_name__contains='متن').exists()
+        assert materials.filter(material_name__contains='داخلي').exists()
 
         # 2. التحقق من إنشاء خدمة التجليد
         services = OrderService.objects.filter(order=order)

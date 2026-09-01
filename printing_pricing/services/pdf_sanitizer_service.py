@@ -30,7 +30,7 @@ class CustomerPDFSanitizerService:
 
         # تجهيز بنود مجمعة نظيفة للعميل
         items = []
-        if order.order_type == "BOOKS" or order.pages_count > 1:
+        if (order.order_type in ['catalog', 'book', 'book_catalog', 'BOOKS'] or (order.pages_count and order.pages_count > 1)):
             item_desc = f"{order.title} ({order.pages_count} صفحة)"
         else:
             item_desc = f"{order.title}"

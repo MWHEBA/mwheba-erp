@@ -43,7 +43,7 @@
         </td>
         <td>
           <span class="badge bg-light text-dark border">
-            {{ ord.get_order_type_display|default:"-" }}
+            {{ ord.product_type.name|default:ord.get_order_type_display|default:"-" }}
           </span>
         </td>
         <td class="fw-bold">{{ ord.quantity|default:1 }}</td>
@@ -96,7 +96,7 @@
   </table>
 </div>
 {% else %}
-<div class="empty-table-notice text-center py-5" style="border: 2px dashed #ccc; background-color: #f8f9fa; border-radius: 0.5rem;">
+<div class="empty-table-notice text-center py-5" style="border: 2px dashed var(--gray-300); background-color: var(--gray-50); border-radius: var(--border-radius);">
   <div class="empty-state-icon mb-3">
     <i class="fas fa-print fa-2x text-muted" style="opacity: 0.5;"></i>
   </div>

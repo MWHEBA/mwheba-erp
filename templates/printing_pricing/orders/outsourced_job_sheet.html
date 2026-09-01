@@ -6,14 +6,14 @@
 {% block extra_css %}
 <style>
 @media print {
-  body { background: var(--color-surface, #fff) !important; color: var(--color-text, #000) !important; font-size: 12pt; }
+  body { background: var(--white) !important; color: var(--black) !important; font-size: 12pt; }
   .no-print { display: none !important; }
-  .print-page { page-break-after: always; box-shadow: none !important; border: 1px solid var(--color-border, #ccc) !important; }
+  .print-page { page-break-after: always; box-shadow: none !important; border: 1px solid var(--gray-300) !important; }
 }
 .job-sheet-container { max-width: 900px; margin: 0 auto; }
-.doc-box { border: 1px solid var(--color-border, #dee2e6); border-radius: var(--border-radius, 8px); padding: 1.25rem; background: var(--color-card-bg, #fff); }
-.badge-tech { background: var(--color-warning-light, #fef3c7); color: var(--color-warning-dark, #92400e); font-weight: 600; padding: 0.35rem 0.65rem; border-radius: 4px; }
-.table-handoff th { background: var(--color-surface-hover, #f1f5f9); }
+.doc-box { border: 1px solid var(--gray-200); border-radius: var(--border-radius); padding: 1.25rem; background: var(--white); }
+.badge-tech { background: var(--warning-soft); color: var(--warning-dark); font-weight: 600; padding: 0.35rem 0.65rem; border-radius: var(--border-radius-sm); }
+.table-handoff th { background: var(--gray-50); }
 </style>
 {% endblock %}
 

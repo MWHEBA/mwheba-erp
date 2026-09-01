@@ -6,7 +6,7 @@ from decimal import Decimal
 from django.db import transaction
 from ..models import (
     PrintingOrder, OrderMaterial, OrderService, OrderSummary,
-    PriceUnit
+    PriceUnit, ProductType, ProductSize
 )
 
 
@@ -22,7 +22,57 @@ class OrderAnatomyPersistenceService:
         """
         with transaction.atomic():
             qty = Decimal(str(post_data.get('quantity') or order.quantity or 1000))
-            order_type = post_data.get('order_type') or order.order_type or 'flyer'
+            
+            # حل نوع المطبوع وتصنيفه التشغيلي بمرونة وأمان
+            product_type_id = post_data.get('product_type')
+            product_type = None
+            if product_type_id:
+                try:
+                    product_type = ProductType.objects.filter(pk=product_type_id).first()
+                except Exception:
+                    pass
+            elif order.product_type:
+                product_type = order.product_type
+            
+            if product_type:
+                order.product_type = product_type
+                order.order_type = product_type.base_archetype
+            elif post_data.get('order_type'):
+                order.order_type = post_data.get('order_type')
+                matching_pt = ProductType.objects.filter(base_archetype=order.order_type, is_active=True).first()
+                if matching_pt:
+                    order.product_type = matching_pt
+
+            # حل مقاس المطبوع واتجاه الطباعة
+            product_size_id = post_data.get('product_size')
+            if product_size_id and str(product_size_id) != 'custom':
+                try:
+                    product_size = ProductSize.objects.filter(pk=product_size_id).first()
+                    order.product_size = product_size
+                except Exception:
+                    pass
+            elif product_size_id == 'custom':
+                order.product_size = None
+
+            print_orient = post_data.get('print_orientation')
+            if print_orient in ['portrait', 'landscape']:
+                order.print_orientation = print_orient
+
+            is_closed = post_data.get('is_closed_size') in ['true', 'on', '1', True]
+            order.is_closed_size = is_closed
+
+            open_dir = post_data.get('open_direction')
+            if open_dir in ['right', 'left', 'top']:
+                order.open_direction = open_dir
+
+            w_val = Decimal(str(post_data.get('width') or post_data.get('custom_size_width') or order.width or 21))
+            h_val = Decimal(str(post_data.get('height') or post_data.get('custom_size_height') or order.height or 29.7))
+            order.width = w_val
+            order.height = h_val
+
+            order.save(update_fields=['product_type', 'order_type', 'product_size', 'print_orientation', 'is_closed_size', 'open_direction', 'width', 'height'])
+
+            order_type = order.order_type or 'flyer'
             
             # 1. تنظيف البنود السابقة للطلب لتحديثها بشكل نظيف
             order.materials.all().delete()
@@ -35,12 +85,11 @@ class OrderAnatomyPersistenceService:
             except:
                 paper_weight = Decimal('300')
                 
-            w = Decimal(str(post_data.get('width') or post_data.get('custom_size_width') or order.width or 21))
-            h = Decimal(str(post_data.get('height') or post_data.get('custom_size_height') or order.height or 29.7))
+            open_w, open_h = order.get_open_dimensions()
             
-            # حساب قطع الفرخ والهالك
-            cuts_w = max(Decimal('1'), Decimal('100') // w)
-            cuts_h = max(Decimal('1'), Decimal('70') // h)
+            # حساب قطع الفرخ والهالك بناءً على المقاس المفتوح الفعلي
+            cuts_w = max(Decimal('1'), Decimal('100') // open_w)
+            cuts_h = max(Decimal('1'), Decimal('70') // open_h)
             cuts_per_sheet = max(Decimal('1'), cuts_w * cuts_h)
             
             net_sheets = Decimal(str(int(qty / cuts_per_sheet) + (1 if qty % cuts_per_sheet > 0 else 0)))
@@ -50,11 +99,12 @@ class OrderAnatomyPersistenceService:
             sheet_unit_cost = Decimal('3.50') * (paper_weight / Decimal('300'))
             cover_paper_cost = gross_sheets * sheet_unit_cost
 
-            # أ. تسجيل خامة ورق الغلاف / المطبوع الرئيسي
+            # أ. تسجيل خامة ورق الغلاف / المطبوع الرئيسي بتوصيف المقاس المفتوح
+            open_desc = f" - مفتوح ({open_w}×{open_h} سم)" if is_closed else ""
             OrderMaterial.objects.create(
                 order=order,
                 material_type='paper',
-                material_name=f"ورق كوشيه فاخر {paper_weight} جم (مقاس 70×100)",
+                material_name=f"ورق كوشيه فاخر {paper_weight} جم{open_desc} (فرخ 70×100)",
                 quantity=gross_sheets,
                 unit=PriceUnit.SHEET,
                 unit_cost=sheet_unit_cost.quantize(Decimal('0.01')),
@@ -63,7 +113,7 @@ class OrderAnatomyPersistenceService:
             )
             total_materials_cost = cover_paper_cost
 
-            # ب. لو كان الصنف كتاب / كتالوج (تسجيل ورق المتن)
+            # ب. لو كان الصنف كتاب / كتالوج (تسجيل الورق الداخلي)
             if order_type in ['catalog', 'book', 'magazine', 'book_catalog']:
                 pages_count = int(post_data.get('pages_count') or order.pages_count or 32)
                 inner_sheets_per_book = Decimal(str(pages_count / 16))
@@ -74,7 +124,7 @@ class OrderAnatomyPersistenceService:
                 OrderMaterial.objects.create(
                     order=order,
                     material_type='paper',
-                    material_name=f"ورق متن داخلي 135 جم (عدد {pages_count} صفحة)",
+                    material_name=f"ورق داخلي 135 جم (عدد {pages_count} صفحة)",
                     quantity=inner_gross_sheets,
                     unit=PriceUnit.SHEET,
                     unit_cost=inner_sheet_cost,

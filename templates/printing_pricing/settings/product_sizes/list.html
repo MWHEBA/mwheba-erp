@@ -2,75 +2,117 @@
 {% load i18n %}
 {% load static %}
 
-{% block title %}{% translate "مقاسات المنتجات" %}{% endblock %}
+{% block title %}{% translate "مقاسات المطبوعات" %}{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/components.css' %}">
 <link rel="stylesheet" href="{% static 'css/tables.css' %}">
+<style>
+.clickable-row {
+  cursor: pointer;
+  transition: background-color 0.15s ease-in-out;
+}
+.clickable-row:hover {
+  background-color: var(--gray-50) !important;
+}
+.reorder-btn {
+  padding: 0.2rem 0.4rem;
+  font-size: 0.75rem;
+}
+</style>
 {% endblock %}
 
 {% block content %}
 <div class="container-fluid">
-    <!-- Page Header المركزي -->
+    <!-- Central Unified Page Header -->
     {% include "shared/page_header.html" %}
 
-
-<div class="card shadow-sm">
-    <div class="card-body">
+    <div class="section-container mb-4">
         <div class="table-responsive">
-            <table class="table table-striped table-hover">
-                <thead>
+            <table class="table table-hover align-middle mb-0" id="product-sizes-table">
+                <thead class="table-light">
                     <tr>
-                        <th>{% trans "الاسم" %}</th>
-                        <th>{% trans "الوصف" %}</th>
-                        <th>{% trans "الحالة" %}</th>
-                        <th>{% trans "افتراضي" %}</th>
-                        <th>{% trans "الإجراءات" %}</th>
+                        <th style="width: 80px;" class="text-center">{% trans "الترتيب" %}</th>
+                        <th>{% trans "اسم المقاس" %}</th>
+                        <th class="text-center" style="width: 140px;">{% trans "العرض (سم)" %}</th>
+                        <th class="text-center" style="width: 140px;">{% trans "الارتفاع (سم)" %}</th>
+                        <th>{% trans "الوصف والاستخدام" %}</th>
+                        <th class="text-center" style="width: 110px;">{% trans "الحالة" %}</th>
+                        <th class="text-center" style="width: 100px;">{% trans "افتراضي" %}</th>
+                        <th class="text-center" style="width: 140px;">{% trans "الإجراءات" %}</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody id="product-sizes-tbody">
                     {% for product_size in product_sizes %}
-                    <tr>
-                        <td>
-                            <strong>{{ product_size.name }}</strong>
+                    <tr class="clickable-row" data-id="{{ product_size.pk }}">
+                        <!-- أزرار الترتيب -->
+                        <td class="text-center stop-propagation">
+                            <div class="btn-group btn-group-sm" role="group">
+                                <button type="button" class="btn btn-outline-secondary reorder-btn" onclick="reorderItem('{{ product_size.pk }}', 'up')" title="{% trans 'تحريك لأعلى' %}">
+                                    <i class="fas fa-chevron-up"></i>
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary reorder-btn" onclick="reorderItem('{{ product_size.pk }}', 'down')" title="{% trans 'تحريك لأسفل' %}">
+                                    <i class="fas fa-chevron-down"></i>
+                                </button>
+                            </div>
                         </td>
+                        <!-- الاسم -->
+                        <td>
+                            <div class="fw-bold text-dark fs-6">{{ product_size.name }}</div>
+                            <small class="text-muted">#{{ product_size.id }}</small>
+                        </td>
+                        <!-- العرض -->
+                        <td class="text-center">
+                            <span class="badge bg-light text-dark border px-2 py-1 fs-6">{{ product_size.width|floatformat:"-2" }} سم</span>
+                        </td>
+                        <!-- الارتفاع -->
+                        <td class="text-center">
+                            <span class="badge bg-light text-dark border px-2 py-1 fs-6">{{ product_size.height|floatformat:"-2" }} سم</span>
+                        </td>
+                        <!-- الوصف -->
                         <td>
                             {% if product_size.description %}
-                                {{ product_size.description|truncatechars:50 }}
+                                <span class="text-muted small">{{ product_size.description|truncatechars:65 }}</span>
                             {% else %}
-                                <span class="text-muted">-</span>
+                                <span class="text-muted small">-</span>
                             {% endif %}
                         </td>
-                        <td>
-                            {% if product_size.is_active %}
-                                <span class="badge bg-success">{% trans "نشط" %}</span>
-                            {% else %}
-                                <span class="badge bg-secondary">{% trans "غير نشط" %}</span>
-                            {% endif %}
+                        <!-- الحالة (تفعيل سريع) -->
+                        <td class="text-center stop-propagation">
+                            <button type="button" class="btn btn-sm {% if product_size.is_active %}btn-outline-success{% else %}btn-outline-secondary{% endif %} rounded-pill px-3 py-0" 
+                                    onclick="toggleActive('{{ product_size.pk }}')" id="status-btn-{{ product_size.pk }}">
+                                {% if product_size.is_active %}{% trans "نشط" %}{% else %}{% trans "معطل" %}{% endif %}
+                            </button>
                         </td>
-                        <td>
+                        <!-- افتراضي -->
+                        <td class="text-center">
                             {% if product_size.is_default %}
-                                <span class="badge bg-primary">{% trans "افتراضي" %}</span>
+                                <span class="badge bg-primary"><i class="fas fa-check me-1"></i>{% trans "افتراضي" %}</span>
                             {% else %}
                                 <span class="text-muted">-</span>
                             {% endif %}
                         </td>
-                        <td>
+                        <!-- الإجراءات -->
+                        <td class="text-center stop-propagation">
                             <div class="btn-group btn-group-sm" role="group">
-                                <button type="button" class="btn btn-outline-primary" onclick="openEditModal('{{ product_size.pk }}')" title="تعديل">
+                                <button type="button" class="btn btn-outline-secondary" onclick="openEditModal('{{ product_size.pk }}')" title="{% trans 'تعديل' %}">
                                     <i class="fas fa-edit"></i>
                                 </button>
-                                <button type="button" class="btn btn-outline-danger" onclick="openDeleteModal('{{ product_size.pk }}')" title="حذف">
-                                    <i class="fas fa-trash"></i>
+                                <button type="button" class="btn btn-outline-danger" onclick="openDeleteModal('{{ product_size.pk }}')" title="{% trans 'حذف' %}">
+                                    <i class="fas fa-trash-alt"></i>
                                 </button>
                             </div>
                         </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="5" class="text-center text-muted py-4">
-                            <i class="fas fa-ruler fa-3x mb-3 d-block"></i>
-                            {% trans "لا توجد مقاسات منتجات مضافة بعد" %}
+                        <td colspan="8" class="text-center text-muted py-5">
+                            <i class="fas fa-ruler-combined fa-3x mb-3 d-block text-secondary opacity-50"></i>
+                            <h6 class="fw-bold">{% trans "لا توجد مقاسات مطبوعات مضافة بعد" %}</h6>
+                            <p class="small text-muted mb-3">{% trans "يمكنك إضافة مقاس جديد لتسهيل التسعير السريع بالمطبعة" %}</p>
+                            <button type="button" class="btn btn-primary btn-sm px-3" onclick="openCreateModal()">
+                                <i class="fas fa-plus me-1"></i>{% trans "إضافة مقاس مطبوع الآن" %}
+                            </button>
                         </td>
                     </tr>
                     {% endfor %}
@@ -79,21 +121,20 @@
         </div>
     </div>
 </div>
-</div>
 
-<!-- Modal للإنشاء والتعديل -->
+<!-- Modal للإنشاء والتعديل الموحد -->
 <div class="modal fade" id="formModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content" id="modalContent">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 650px;">
+        <div class="modal-content border-0 shadow-lg" id="modalContent">
             <!-- سيتم تحميل المحتوى هنا -->
         </div>
     </div>
 </div>
 
-<!-- Modal للحذف -->
+<!-- Modal للحذف الموحد -->
 <div class="modal fade" id="deleteModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content" id="deleteModalContent">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 480px;">
+        <div class="modal-content border-0 shadow-lg" id="deleteModalContent">
             <!-- سيتم تحميل المحتوى هنا -->
         </div>
     </div>
@@ -102,30 +143,73 @@
 
 {% block extra_js %}
 <script>
+document.addEventListener('DOMContentLoaded', function() {
+    // تفعيل السطور القابلة للنقر
+    document.querySelectorAll('.clickable-row').forEach(row => {
+        row.addEventListener('click', function(e) {
+            if (e.target.closest('.stop-propagation') || e.target.closest('button') || e.target.closest('a')) {
+                return;
+            }
+            const id = this.dataset.id;
+            if (id) {
+                openEditModal(id);
+            }
+        });
+    });
+});
+
 function openCreateModal() {
     fetch('{% url "printing_pricing:product_size_create" %}')
         .then(response => response.text())
         .then(html => {
             document.getElementById('modalContent').innerHTML = html;
-            new bootstrap.Modal(document.getElementById('formModal')).show();
+            const modalEl = document.getElementById('formModal');
+            const modal = new bootstrap.Modal(modalEl);
+            modal.show();
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            if (typeof window.showNotification === 'function') {
+                window.showNotification('{% trans "حدث خطأ أثناء فتح النافذة" %}', 'error');
+            }
         });
 }
 
-function openEditModal(id) {
-    fetch(`{% url "printing_pricing:product_size_edit" 0 %}`.replace('0', id))
+function openEditModal(pk) {
+    fetch('{% url "printing_pricing:product_size_edit" 0 %}'.replace('0', pk))
         .then(response => response.text())
         .then(html => {
             document.getElementById('modalContent').innerHTML = html;
-            new bootstrap.Modal(document.getElementById('formModal')).show();
+            const modalEl = document.getElementById('formModal');
+            const modal = new bootstrap.Modal(modalEl);
+            modal.show();
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            if (typeof window.showNotification === 'function') {
+                window.showNotification('{% trans "حدث خطأ أثناء فتح نافذة التعديل" %}', 'error');
+            }
         });
 }
 
-function openDeleteModal(id) {
-    fetch(`{% url "printing_pricing:product_size_delete" 0 %}`.replace('0', id))
-        .then(response => response.text())
+function openDeleteModal(pk) {
+    fetch('{% url "printing_pricing:product_size_delete" 0 %}'.replace('0', pk))
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.text();
+        })
         .then(html => {
             document.getElementById('deleteModalContent').innerHTML = html;
-            new bootstrap.Modal(document.getElementById('deleteModal')).show();
+            const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
+            modal.show();
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            if (typeof window.showNotification === 'function') {
+                window.showNotification('{% trans "حدث خطأ أثناء فتح نافذة الحذف" %}', 'error');
+            }
         });
 }
 
@@ -138,15 +222,145 @@ function submitForm(formId) {
         body: formData,
         headers: {
             'X-Requested-With': 'XMLHttpRequest',
-            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || '{{ csrf_token }}'
         }
     })
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            location.reload();
+            const modalEl = document.getElementById('formModal');
+            const modalInstance = bootstrap.Modal.getInstance(modalEl);
+            if (modalInstance) modalInstance.hide();
+            if (typeof window.showNotification === 'function') {
+                window.showNotification(data.message || '{% trans "تم الحفظ بنجاح" %}', 'success');
+            }
+            setTimeout(() => location.reload(), 600);
         } else {
-            console.log(data.errors);
+            if (data.html) {
+                document.getElementById('modalContent').innerHTML = data.html;
+            } else if (data.message) {
+                if (typeof window.showNotification === 'function') {
+                    window.showNotification(data.message, 'error');
+                }
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        if (typeof window.showNotification === 'function') {
+            window.showNotification('{% trans "حدث خطأ أثناء الحفظ" %}', 'error');
+        }
+    });
+}
+
+function submitDeleteForm() {
+    const form = document.getElementById('deleteProductSizeForm');
+    const formData = new FormData(form);
+    
+    fetch(form.action, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || '{{ csrf_token }}'
+        }
+    })
+    .then(response => {
+        if (response.ok) {
+            return response.json();
+        } else {
+            return response.json().then(errData => { throw new Error(errData.message || '{% trans "حدث خطأ أثناء الحذف" %}'); });
+        }
+    })
+    .then(data => {
+        if (data.success) {
+            const modalEl = document.getElementById('deleteModal');
+            const modalInstance = bootstrap.Modal.getInstance(modalEl);
+            if (modalInstance) modalInstance.hide();
+            if (typeof window.showNotification === 'function') {
+                window.showNotification(data.message || '{% trans "تم الحذف بنجاح" %}', 'success');
+            }
+            setTimeout(() => location.reload(), 600);
+        } else {
+            if (typeof window.showNotification === 'function') {
+                window.showNotification(data.message || '{% trans "حدث خطأ أثناء الحذف" %}', 'error');
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        if (typeof window.showNotification === 'function') {
+            window.showNotification(error.message || '{% trans "حدث خطأ أثناء الحذف" %}', 'error');
+        }
+    });
+}
+
+function toggleActive(pk) {
+    fetch('{% url "printing_pricing:product_size_toggle_active" 0 %}'.replace('0', pk), {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'X-Requested-With': 'XMLHttpRequest',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const btn = document.getElementById(`status-btn-${pk}`);
+            if (data.is_active) {
+                btn.className = 'btn btn-sm btn-outline-success rounded-pill px-3 py-0';
+                btn.textContent = '{% trans "نشط" %}';
+            } else {
+                btn.className = 'btn btn-sm btn-outline-secondary rounded-pill px-3 py-0';
+                btn.textContent = '{% trans "معطل" %}';
+            }
+            if (typeof window.showNotification === 'function') {
+                window.showNotification(data.message, 'info');
+            }
+        } else {
+            if (typeof window.showNotification === 'function') {
+                window.showNotification(data.message || '{% trans "فشل تغيير الحالة" %}', 'error');
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        if (typeof window.showNotification === 'function') {
+            window.showNotification('{% trans "حدث خطأ في الاتصال" %}', 'error');
+        }
+    });
+}
+
+function reorderItem(itemId, direction) {
+    fetch('{% url "printing_pricing:product_size_reorder" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}',
+            'X-Requested-With': 'XMLHttpRequest',
+        },
+        body: JSON.stringify({
+            item_id: itemId,
+            direction: direction
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            if (typeof window.showNotification === 'function') {
+                window.showNotification(data.message, 'success');
+            }
+            setTimeout(() => location.reload(), 400);
+        } else {
+            if (typeof window.showNotification === 'function') {
+                window.showNotification(data.message || '{% trans "فشل إعادة الترتيب" %}', 'error');
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        if (typeof window.showNotification === 'function') {
+            window.showNotification('{% trans "حدث خطأ في الاتصال" %}', 'error');
         }
     });
 }

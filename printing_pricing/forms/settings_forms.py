@@ -573,36 +573,46 @@ class ProductTypeForm(forms.ModelForm):
 
     class Meta:
         model = ProductType
-        fields = ['name', 'description', 'is_active', 'is_default']
+        fields = ['name', 'base_archetype', 'sort_order', 'description', 'is_active', 'is_default']
         widgets = {
             'name': forms.TextInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'مثال: كتيب'
+                'placeholder': 'مثال: بروشور 3 بوابة'
+            }),
+            'base_archetype': forms.Select(attrs={
+                'class': 'form-select select2-modal',
+            }),
+            'sort_order': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'placeholder': '0'
             }),
             'description': forms.Textarea(attrs={
                 'class': 'form-control',
-                'rows': 3,
-                'placeholder': 'وصف اختياري لنوع المنتج'
+                'rows': 2,
+                'placeholder': 'وصف توضيحي اختياري لنوع المطبوع ومسار تشغيله'
             }),
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'is_default': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
         labels = {
-            'name': _('اسم نوع المنتج'),
+            'name': _('اسم نوع المطبوع'),
+            'base_archetype': _('التصنيف التشغيلي للمحرك'),
+            'sort_order': _('رقم الترتيب'),
             'description': _('الوصف'),
-            'is_active': _('نشط'),
-            'is_default': _('افتراضي'),
+            'is_active': _('نشط ومتاح في شاشة التسعير'),
+            'is_default': _('صنف افتراضي'),
         }
 
     def clean_name(self):
         """التحقق من عدم تكرار الاسم"""
         name = self.cleaned_data.get('name')
         if name:
-            existing = ProductType.objects.filter(name=name)
+            existing = ProductType.objects.filter(name__iexact=name.strip())
             if self.instance.pk:
                 existing = existing.exclude(pk=self.instance.pk)
             if existing.exists():
-                raise ValidationError(_('هذا الاسم موجود مسبقاً'))
+                raise ValidationError(_('هذا الاسم موجود مسبقاً، يرجى اختيار اسم مميز.'))
+        return name
         return name
 
     def save(self, commit=True):
@@ -619,81 +629,86 @@ class ProductTypeForm(forms.ModelForm):
 
 
 class ProductSizeForm(forms.ModelForm):
-    """نموذج مقاسات المنتجات"""
+    """نموذج مقاسات المطبوعات"""
 
     class Meta:
         model = ProductSize
-        fields = ['name', 'width', 'height', 'description', 'is_active', 'is_default']
+        fields = ['name', 'width', 'height', 'sort_order', 'description', 'is_active', 'is_default']
         widgets = {
             'name': forms.TextInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'مثال: A4'
+                'placeholder': 'مثال: A4 معياري أو كارت شخصي'
             }),
             'width': forms.NumberInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'مثال: 21.0',
+                'placeholder': '21.0',
                 'step': '0.1',
                 'min': '0.1',
             }),
             'height': forms.NumberInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'مثال: 29.7',
+                'placeholder': '29.7',
                 'step': '0.1',
                 'min': '0.1',
+            }),
+            'sort_order': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'placeholder': '10'
             }),
             'description': forms.Textarea(attrs={
                 'class': 'form-control',
                 'rows': 2,
-                'placeholder': 'وصف اختياري لمقاس المنتج'
+                'placeholder': 'وصف توضيحي اختياري للمقاس واستخداماته'
             }),
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'is_default': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
         labels = {
-            'name': _('اسم مقاس المنتج'),
+            'name': _('اسم المقاس'),
             'width': _('العرض (سم)'),
-            'height': _('الطول (سم)'),
+            'height': _('الارتفاع (سم)'),
+            'sort_order': _('رقم الترتيب'),
             'description': _('الوصف'),
-            'is_active': _('نشط'),
-            'is_default': _('افتراضي'),
+            'is_active': _('نشط ومتاح في شاشة التسعير'),
+            'is_default': _('مقاس افتراضي'),
         }
 
     def clean_name(self):
         """التحقق من عدم تكرار الاسم"""
         name = self.cleaned_data.get('name')
         if name:
-            existing = ProductSize.objects.filter(name=name)
+            existing = ProductSize.objects.filter(name__iexact=name.strip())
             if self.instance.pk:
                 existing = existing.exclude(pk=self.instance.pk)
             if existing.exists():
-                raise ValidationError(_('هذا الاسم موجود مسبقاً'))
+                raise ValidationError(_('هذا الاسم موجود مسبقاً، يرجى اختيار اسم مميز.'))
         return name
 
     def clean_width(self):
         """التحقق من صحة العرض"""
         width = self.cleaned_data.get('width')
         if width and width <= 0:
-            raise ValidationError(_('العرض يجب أن يكون أكبر من صفر'))
+            raise ValidationError(_('العرض يجب أن يكون أكبر من الصفر'))
         return width
 
     def clean_height(self):
-        """التحقق من صحة الطول"""
+        """التحقق من صحة الارتفاع"""
         height = self.cleaned_data.get('height')
         if height and height <= 0:
-            raise ValidationError(_('الطول يجب أن يكون أكبر من صفر'))
+            raise ValidationError(_('الارتفاع يجب أن يكون أكبر من الصفر'))
         return height
 
     def save(self, commit=True):
         """حفظ النموذج مع إدارة الافتراضي تلقائياً"""
         instance = super().save(commit=False)
-        
-        # إذا تم تعيين هذا العنصر كافتراضي، إلغاء الافتراضي من العناصر الأخرى
         if instance.is_default:
             ProductSize.objects.filter(is_default=True).exclude(pk=instance.pk).update(is_default=False)
-        
         if commit:
             instance.save()
         return instance
+
+
+
 
 
 class VATSettingForm(forms.ModelForm):

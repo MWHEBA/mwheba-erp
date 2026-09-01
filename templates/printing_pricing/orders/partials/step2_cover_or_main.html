@@ -18,53 +18,7 @@
   <div id="collapse_step2" class="collapse show">
     <div>
       
-      <!-- 1. المقاسات والأبعاد ومستشار الهدر -->
-      <div class="row g-3 mb-4 pb-3 border-bottom">
-        <div class="col-md-3">
-          <label for="id_width" class="form-label fw-bold">
-            {% trans "العرض المقفول (سم)" %} <span class="text-danger">*</span>
-          </label>
-          <input type="number" step="0.1" class="form-control" id="id_width" name="width" 
-                 value="{{ form.width.value|default:form.instance.width|default:form.custom_size_width.value|default:'21' }}" required>
-          <input type="hidden" id="id_custom_size_width" name="custom_size_width" value="{{ form.custom_size_width.value|default:'21' }}">
-        </div>
-        <div class="col-md-3">
-          <label for="id_height" class="form-label fw-bold">
-            {% trans "الارتفاع المقفول (سم)" %} <span class="text-danger">*</span>
-          </label>
-          <input type="number" step="0.1" class="form-control" id="id_height" name="height" 
-                 value="{{ form.height.value|default:form.instance.height|default:form.custom_size_height.value|default:'29.7' }}" required>
-          <input type="hidden" id="id_custom_size_height" name="custom_size_height" value="{{ form.custom_size_height.value|default:'29.7' }}">
-        </div>
-        <div class="col-md-3">
-          <label for="id_open_size_width" class="form-label fw-bold">
-            {% trans "العرض المفتوح (سم)" %}
-          </label>
-          <input type="number" step="0.1" class="form-control" id="id_open_size_width" name="open_size_width" 
-                 value="{{ form.open_size_width.value|default:'42' }}">
-        </div>
-        <div class="col-md-3">
-          <label for="id_open_size_height" class="form-label fw-bold">
-            {% trans "الارتفاع المفتوح (سم)" %}
-          </label>
-          <input type="number" step="0.1" class="form-control" id="id_open_size_height" name="open_size_height" 
-                 value="{{ form.open_size_height.value|default:'29.7' }}">
-        </div>
-
-        <!-- شارة مستشار تقليل هدر الورق الذكي -->
-        <div class="col-12 d-none" id="trim_advisor_alert">
-          <div class="alert alert-warning py-2 px-3 mb-0 d-flex align-items-center justify-content-between small">
-            <div>
-              <i class="fas fa-lightbulb text-warning fs-5 me-2"></i>
-              <strong>{% trans "مستشار توفير الهالك الذكي:" %}</strong>
-              <span id="trim_advisor_text">{% trans "المقاس الحالي يسبب هدر 22% من الفرخ. اقتراح تعديل 5 مم لزيادة عدد القطع." %}</span>
-            </div>
-            <button type="button" class="btn btn-sm btn-dark py-0" id="btn_apply_trim_suggestion">{% trans "تطبيق المقترح" %}</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- 2. خامة الورق ومقاس الفرخ -->
+      <!-- 1. خامة الورق ومقاس الفرخ والجراماج -->
       <div class="row g-3 mb-4 pb-3 border-bottom">
         <div class="col-md-4">
           <label for="id_paper_type" class="form-label fw-bold">

@@ -256,7 +256,7 @@
                 <!-- بطاقة إعدادات المنتجات -->
                 <div class="col-lg-4 col-md-6 mb-4">
                     <div class="card settings-card h-100">
-                        <div class="card-header" style="background: var(--purple-color, #6f42c1);">
+                        <div class="card-header bg-primary text-white">
                             <h5 class="card-title">
                                 <i class="fas fa-box me-2"></i>
                                 {% translate "إعدادات المنتجات" %}
@@ -266,14 +266,14 @@
                             <div class="list-group list-group-flush">
                                 <a href="{% url 'printing_pricing:product_type_list' %}" class="settings-list-item">
                                     <div class="d-flex align-items-center">
-                                        <i class="fas fa-tags me-3" style="color: #6f42c1;"></i>
-                                        <span>{% translate "أنواع المنتجات" %}</span>
+                                        <i class="fas fa-layer-group me-3 text-primary"></i>
+                                        <span>{% translate "أنواع المطبوعات" %}</span>
                                     </div>
                                     <i class="fas fa-chevron-left"></i>
                                 </a>
                                 <a href="{% url 'printing_pricing:product_size_list' %}" class="settings-list-item">
                                     <div class="d-flex align-items-center">
-                                        <i class="fas fa-expand-arrows-alt me-3" style="color: #6f42c1;"></i>
+                                        <i class="fas fa-expand-arrows-alt me-3 text-primary"></i>
                                         <span>{% translate "مقاسات المنتجات" %}</span>
                                     </div>
                                     <i class="fas fa-chevron-left"></i>

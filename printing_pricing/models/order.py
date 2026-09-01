@@ -75,6 +75,34 @@ class PrintingOrder(BaseModel):
         choices=OrderType.choices,
         verbose_name=_("نوع الطلب")
     )
+
+    product_type = models.ForeignKey(
+        'ProductType',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="printing_orders",
+        verbose_name=_("نوع المطبوع")
+    )
+
+    product_size = models.ForeignKey(
+        'ProductSize',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="printing_orders",
+        verbose_name=_("مقاس المطبوع")
+    )
+
+    print_orientation = models.CharField(
+        max_length=20,
+        choices=[
+            ('portrait', _('طولي (رأسي)')),
+            ('landscape', _('عرضي (أفقي)'))
+        ],
+        default='portrait',
+        verbose_name=_("اتجاه الطباعة")
+    )
     
     status = models.CharField(
         max_length=20,
@@ -136,6 +164,32 @@ class PrintingOrder(BaseModel):
         blank=True,
         validators=[MinValueValidator(Decimal('0.01'))],
         verbose_name=_("الارتفاع (سم)")
+    )
+    
+    print_orientation = models.CharField(
+        max_length=20,
+        choices=[
+            ('portrait', _('طولي (رأسي)')),
+            ('landscape', _('عرضي (أفقي)')),
+        ],
+        default='portrait',
+        verbose_name=_("اتجاه الطباعة")
+    )
+    
+    is_closed_size = models.BooleanField(
+        default=False,
+        verbose_name=_("المقاس المدخل مقفول (مطوي)")
+    )
+    
+    open_direction = models.CharField(
+        max_length=20,
+        choices=[
+            ('right', _('عربي (يمين)')),
+            ('left', _('إنجليزي (يسار)')),
+            ('top', _('من أعلى (رأسي)')),
+        ],
+        default='right',
+        verbose_name=_("جهة الفتح والتجليد")
     )
     
     # معلومات التكلفة
@@ -402,6 +456,15 @@ class PrintingOrder(BaseModel):
     def __str__(self):
         return f"{self.order_number} - {self.title}"
 
+    def get_dimensions_display(self):
+        """عرض المقاس والاتجاه بشكل منسق ومحمي من الـ None"""
+        orientation_label = _("طولي") if self.print_orientation == 'portrait' else _("عرضي")
+        if self.product_size:
+            return f"{self.product_size.name} ({self.width or 0}×{self.height or 0} سم) - {orientation_label}"
+        elif self.width and self.height:
+            return f"{_('مقاس مخصص')} ({self.width}×{self.height} سم) - {orientation_label}"
+        return _("غير محدد")
+
     def save(self, *args, **kwargs):
         """
         حفظ محسن مع توليد رقم الطلب والربط بأمر الشغل وتجميد لقطة العميل
@@ -508,6 +571,54 @@ class PrintingOrder(BaseModel):
         
         # يمكن إضافة signal هنا لتسجيل تغيير الحالة
         return old_status, new_status
+
+    def get_open_dimensions(self):
+        """حساب المقاس المفتوح الفعلي على ماكينة الطباعة بناءً على نوع المطبوع وحالة الطي وجهة الفتح والتجليد"""
+        w = Decimal(str(self.width or 21))
+        h = Decimal(str(self.height or 29.7))
+        
+        if not self.is_closed_size:
+            return w, h
+            
+        archetype = self.product_type.base_archetype if self.product_type else (self.order_type or 'flyer')
+        direction = self.open_direction or 'right'
+        
+        # مضاعف البوابات: 3 للبروشورات و 2 للكتالوجات والفولدرات والمطويات
+        multiplier = Decimal('3') if archetype in ['brochure', 'brochures'] else Decimal('2')
+        
+        # حساب سمك كعب الغلاف (Spine) للكتالوجات والكتب
+        spine = Decimal('0.0')
+        if archetype in ['catalog', 'book', 'magazine', 'book_catalog']:
+            pages = Decimal(str(self.pages_count or 0))
+            if pages > 4:
+                spine = ((pages / Decimal('2')) * Decimal('0.012')).quantize(Decimal('0.1'))
+        
+        if direction == 'top':
+            open_w = w
+            open_h = (h * multiplier) + spine
+        else:  # right or left
+            open_w = (w * multiplier) + spine
+            open_h = h
+            
+        return open_w, open_h
+
+    def get_dimensions_display(self):
+        """عرض منسق للأبعاد ومقاس المطبوع والاتجاه وحالة الطي وجهة الفتح"""
+        orient = self.get_print_orientation_display() if hasattr(self, 'get_print_orientation_display') else ('عرضي (أفقي)' if self.print_orientation == 'landscape' else 'طولي (رأسي)')
+        w = float(self.width) if self.width is not None else 0
+        h = float(self.height) if self.height is not None else 0
+        w_str = f"{w:.1f}".rstrip('0').rstrip('.') if w else '0'
+        h_str = f"{h:.1f}".rstrip('0').rstrip('.') if h else '0'
+
+        fold_info = ""
+        if self.is_closed_size:
+            dir_label = self.get_open_direction_display() if hasattr(self, 'get_open_direction_display') else ('من أعلى (رأسي)' if self.open_direction == 'top' else ('إنجليزي (يسار)' if self.open_direction == 'left' else 'عربي (يمين)'))
+            fold_info = f" (مقفول) [فتح: {dir_label}]"
+
+        if self.product_size:
+            return f"{self.product_size.name} ({w_str}×{h_str} سم){fold_info} - {orient}"
+        return f"مقاس مخصص ({w_str}×{h_str} سم){fold_info} - {orient}"
+
 
 
 class PriceAuditLog(BaseModel):
