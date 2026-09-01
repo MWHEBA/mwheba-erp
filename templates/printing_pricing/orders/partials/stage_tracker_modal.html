@@ -1,0 +1,77 @@
+{% load i18n %}
+<div class="modal fade" id="stageTrackerModal" tabindex="-1" aria-labelledby="stageTrackerModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header bg-light border-bottom px-4 py-3">
+        <h5 class="modal-title fw-bold text-dark mb-0" id="stageTrackerModalLabel">
+          <i class="fas fa-truck-moving text-primary me-2"></i>{% trans "تحديث موقع الشغل ومحاسبة المشوارجي" %}
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <form id="stageTrackerForm">
+        <div class="modal-body p-4">
+          <!-- المرحلة والموقع التالي -->
+          <div class="mb-3">
+            <label for="tracker_stage" class="form-label fw-bold">
+              {% trans "المرحلة / المحطة الحالية" %} <span class="text-danger">*</span>
+            </label>
+            <select class="form-select" id="tracker_stage" name="stage" required>
+              <option value="prepress">{% trans "1. تجهيز الملفات والزنكات CTP" %}</option>
+              <option value="press">{% trans "2. في المطبعة (طباعة أوفست / ديجيتال)" %}</option>
+              <option value="lamination">{% trans "3. في ورشة السلوفان" %}</option>
+              <option value="die_cutting">{% trans "4. في ورشة التكسير / البصمة" %}</option>
+              <option value="binding">{% trans "5. في ورشة التجليد والتقفيل" %}</option>
+              <option value="packing">{% trans "6. في التعبئة والتغليف" %}</option>
+              <option value="ready_for_delivery">{% trans "7. جاهز للتسليم بالمخزن" %}</option>
+              <option value="delivered">{% trans "8. تم التسليم للعميل" %}</option>
+            </select>
+          </div>
+
+          <!-- الورشة الحالية -->
+          <div class="mb-3">
+            <label for="tracker_workshop_name" class="form-label fw-bold">
+              {% trans "اسم الورشة أو المطبعة المتواجد بها الشغل" %}
+            </label>
+            <input type="text" class="form-control" id="tracker_workshop_name" name="workshop_name" placeholder="مثال: مطبعة الفرز الأول / ورشة الألوان">
+          </div>
+
+          <!-- المشوارجي / السائق المكلف بالنقل -->
+          <div class="mb-3">
+            <label for="tracker_driver_id" class="form-label fw-bold">
+              {% trans "المكلف بنقل الشغل (المشوارجي / السائق / المورد)" %}
+            </label>
+            <select class="form-select" id="tracker_driver_id" name="driver_id">
+              <option value="">{% trans "اختر المشوارجي / السائق (مورد خدمات)..." %}</option>
+              <!-- سيتم ملؤه ديناميكياً بالموردين من فئة النقل -->
+            </select>
+            <small class="text-muted">{% trans "يُعامل كمورد خدمات ويُدرج له قيد استحقاق في حسابه فوراً." %}</small>
+          </div>
+
+          <!-- أجرة النقل والمشوار -->
+          <div class="mb-3">
+            <label for="tracker_driver_fee" class="form-label fw-bold">
+              {% trans "أجرة النقل / المشوار (ج.م)" %}
+            </label>
+            <input type="number" step="0.01" class="form-control" id="tracker_driver_fee" name="driver_fee" value="0.00">
+          </div>
+
+          <!-- ملاحظات سريعة -->
+          <div class="mb-3">
+            <label for="tracker_notes" class="form-label">
+              {% trans "ملاحظات النقل" %}
+            </label>
+            <input type="text" class="form-control" id="tracker_notes" name="notes" placeholder="مثال: تم نقل 10 رزم مغلفة">
+          </div>
+        </div>
+
+        <div class="modal-footer bg-light border-top px-4 py-3">
+          <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+          <button type="submit" class="btn btn-primary px-4 fw-bold" id="btnSaveStageTracker">
+            <i class="fas fa-check-circle me-1"></i>{% trans "تحديث الموقع وحفظ الأجرة" %}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

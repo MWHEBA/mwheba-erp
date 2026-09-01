@@ -119,10 +119,26 @@ class PriceUnit(models.TextChoices):
     THOUSAND = 'thousand', _('بالألف')
 
 
+class ProductionStage(models.TextChoices):
+    """
+    موقع ومرحلة الشغل الحالية (الشغل فين دلوقتي؟)
+    """
+    PREPRESS = 'prepress', _('تجهيز الملفات والزنكات CTP')
+    PRESS = 'press', _('في المطبعة (طباعة أوفست / ديجيتال)')
+    LAMINATION = 'lamination', _('في ورشة السلوفان')
+    DIE_CUTTING = 'die_cutting', _('في ورشة التكسير / البصمة')
+    BINDING = 'binding', _('في ورشة التجليد والتقفيل')
+    PACKING = 'packing', _('في التعبئة والتغليف')
+    READY_FOR_DELIVERY = 'ready_for_delivery', _('جاهز للتسليم بالمخزن')
+    DELIVERED = 'delivered', _('تم التسليم للعميل')
+
+
 __all__ = [
     'BaseModel',
     'PricingStatus',
     'OrderType', 
     'CalculationType',
-    'PriceUnit'
+    'PriceUnit',
+    'ProductionStage'
 ]
+

@@ -1,0 +1,92 @@
+{% load i18n %}
+<div class="card shadow-sm border-0 sticky-top" style="top: 20px;">
+  <!-- رأس كارت الملخص -->
+  <div class="card-header bg-light border-bottom p-3">
+    <div class="d-flex align-items-center justify-content-between">
+      <h6 class="fw-bold text-dark mb-0">
+        <i class="fas fa-calculator text-primary me-2"></i>{% trans "الملخص المالي الفوري" %}
+      </h6>
+      <span id="recalculation_spinner" class="spinner-border spinner-border-sm text-primary d-none" role="status"></span>
+    </div>
+  </div>
+
+  <div class="card-body p-3">
+    <!-- السعر النهائي للعميل -->
+    <div class="p-3 bg-light rounded text-center mb-3 border">
+      <div class="text-muted small mb-1">{% trans "السعر الإجمالي للعميل" %}</div>
+      <div id="sidebar_final_price" class="fs-3 fw-bold text-primary">0.00 {% trans "ج.م" %}</div>
+      <div class="text-muted small mt-1">
+        {% trans "سعر القطعة:" %} <strong id="sidebar_unit_price" class="text-dark">0.00</strong> {% trans "ج" %}
+      </div>
+    </div>
+
+    <!-- تفاصيل الفاتورة -->
+    <ul class="list-group list-group-flush small mb-3">
+      <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+        <span class="text-muted">{% trans "المبلغ قبل الضريبة:" %}</span>
+        <strong id="sidebar_subtotal">0.00 ج</strong>
+      </li>
+      <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+        <span class="text-muted">
+          {% trans "ضريبة القيمة المضافة" %} <span id="sidebar_vat_rate_badge" class="badge bg-secondary">14%</span>:
+        </span>
+        <strong id="sidebar_vat_amount">0.00 ج</strong>
+      </li>
+      <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+        <span class="text-muted">{% trans "الخصم التجاري:" %}</span>
+        <strong id="sidebar_discount" class="text-danger">0.00 ج</strong>
+      </li>
+      <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+        <span class="text-muted">
+          <i class="fas fa-shield-alt text-warning me-1"></i>{% trans "الحد الأدنى للتفاوض (Floor Price):" %}
+        </span>
+        <strong id="sidebar_floor_price" class="text-dark">0.00 ج</strong>
+      </li>
+    </ul>
+
+    <!-- كشف التكاليف وهوامش الأرباح (محجوب أمنياً عن المناديب) -->
+    {% if can_view_margins %}
+    <div class="border-top pt-3 mb-3">
+      <div class="d-flex align-items-center justify-content-between mb-2">
+        <span class="fw-bold text-danger small">
+          <i class="fas fa-user-shield me-1"></i>{% trans "كشف التكاليف وهوامش الأرباح (خاص بالإدارة):" %}
+        </span>
+      </div>
+      <div class="bg-white p-2 rounded border small">
+        <div class="d-flex justify-content-between text-muted mb-1">
+          <span>{% trans "إجمالي التكلفة المباشرة:" %}</span>
+          <strong id="sidebar_total_cost" class="text-danger">0.00 ج</strong>
+        </div>
+        <div class="d-flex justify-content-between text-muted mb-1">
+          <span>{% trans "صافي الربح التقديري:" %}</span>
+          <strong id="sidebar_profit_amount" class="text-success">0.00 ج</strong>
+        </div>
+        <div class="d-flex justify-content-between text-muted">
+          <span>{% trans "نسبة هامش الربح:" %}</span>
+          <strong id="sidebar_profit_margin" class="text-success">0.00%</strong>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- تنبيه وقت الجفاف وموعد التسليم الفني -->
+    <div id="lead_time_box" class="alert alert-warning py-2 px-3 small mb-3">
+      <i class="fas fa-clock text-warning me-1"></i>
+      <span class="fw-bold">{% trans "الحد الأدنى للوقت الفني:" %}</span>
+      <span id="estimated_lead_time">3 {% trans "أيام عمل (جفاف أحبار وسلفنة وتقفيل)" %}</span>
+    </div>
+
+    <!-- أزرار الحفظ والإجراءات -->
+    <div class="d-grid gap-2">
+      <button type="submit" class="btn btn-primary fw-bold py-2 shadow-sm">
+        <i class="fas fa-save me-2"></i>{% trans "حفظ واعتماد المقايسة" %}
+      </button>
+
+      {% if can_view_margins %}
+      <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#formulaInspectorModal">
+        <i class="fas fa-search-dollar me-1"></i>{% trans "مفتش تفاصيل الحسبة (Inspector)" %}
+      </button>
+      {% endif %}
+    </div>
+  </div>
+</div>

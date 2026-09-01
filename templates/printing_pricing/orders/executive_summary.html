@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% load static i18n %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.exec-container { max-width: 950px; margin: 0 auto; }
+.kpi-box { border: 1px solid var(--color-border, #dee2e6); border-radius: var(--border-radius, 8px); padding: 1.25rem; background: var(--color-card-bg, #fff); }
+.text-danger-custom { color: var(--color-danger, #dc2626) !important; }
+.text-success-custom { color: var(--color-success, #16a34a) !important; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="exec-container py-4">
+  <!-- أزرار التحكم -->
+  <div class="d-flex justify-content-between align-items-center mb-4 no-print">
+    <div>
+      <a href="{% url 'printing_pricing:order_detail' order.pk %}" class="btn btn-outline-secondary btn-sm">
+        <i class="fas fa-arrow-right me-1"></i> {% trans "العودة للطلب" %}
+      </a>
+    </div>
+    <div class="d-flex gap-2">
+      <span class="badge bg-danger fs-6 px-3 py-2"><i class="fas fa-user-shield me-1"></i> {% trans "سري للغاية - للإدارة فقط" %}</span>
+      <button onclick="window.print()" class="btn btn-outline-primary btn-sm px-3">
+        <i class="fas fa-print me-1"></i> {% trans "طباعة" %}
+      </button>
+    </div>
+  </div>
+
+  <div class="kpi-box mb-4 shadow-sm">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-4">
+      <div>
+        <h4 class="fw-bold mb-1"><i class="fas fa-chart-pie text-primary me-2"></i>{% trans "ملخص التفاوض وهوامش الربح التنفيذي" %}</h4>
+        <div class="text-muted small">{% trans "تحليل هيكل التكاليف ومستقطعات حسن التنفيذ والحد الأدنى للأسعار" %}</div>
+      </div>
+      <div class="text-end">
+        <div class="fw-bold fs-5 text-dark">{{ order.order_number }}</div>
+        <div class="text-muted small">{{ order.customer.name }}</div>
+      </div>
+    </div>
+
+    <!-- كروت المؤشرات المالية -->
+    <div class="row g-3 mb-4">
+      <div class="col-md-3">
+        <div class="p-3 bg-light rounded text-center border">
+          <div class="text-muted small">{% trans "التكلفة الإجمالية المقدرة" %}</div>
+          <div class="fw-bold fs-5 text-danger-custom">{{ total_cost|floatformat:2 }} ج</div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="p-3 bg-light rounded text-center border">
+          <div class="text-muted small">{% trans "السعر البيعي المعروض" %}</div>
+          <div class="fw-bold fs-5 text-primary">{{ final_price|floatformat:2 }} ج</div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="p-3 bg-light rounded text-center border">
+          <div class="text-muted small">{% trans "صافي الربح المتوقع" %}</div>
+          <div class="fw-bold fs-5 text-success-custom">{{ net_profit|floatformat:2 }} ج</div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="p-3 bg-light rounded text-center border">
+          <div class="text-muted small">{% trans "نسبة هامش الربح" %}</div>
+          <div class="fw-bold fs-5 text-success-custom">{{ margin_pct|floatformat:1 }}%</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- حدود التفاوض ومستقطعات الضمان -->
+    <h5 class="fw-bold border-bottom pb-2 mb-3"><i class="fas fa-balance-scale text-secondary me-2"></i>{% trans "حدود التفاوض ومستقطعات حسن التنفيذ (Retentions)" %}</h5>
+    <div class="row g-3 mb-4">
+      <div class="col-md-6">
+        <div class="border p-3 rounded">
+          <div class="fw-bold text-dark mb-2">{% trans "الحد الأدنى للتفاوض (Floor Price)" %}:</div>
+          <div class="d-flex justify-content-between align-items-center">
+            <span class="text-muted small">{% trans "أقل سعر مسموح به (هامش 12%)" %}:</span>
+            <span class="badge bg-warning text-dark fs-6">{{ floor_price|floatformat:2 }} ج</span>
+          </div>
+          <div class="text-muted small mt-2">
+            {% trans "تنبيه: أي تخفيض تحت هذا السعر يتطلب موافقة كتابية من المدير المالي." %}
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="border p-3 rounded">
+          <div class="fw-bold text-dark mb-2">{% trans "مستقطعات حسن التنفيذ (المناقصات)" %}:</div>
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <span class="text-muted small">{% trans "ضمان أعمال 5% (مؤجل)" %}:</span>
+            <span class="fw-bold text-danger-custom">-{{ retention_5pct|floatformat:2 }} ج</span>
+          </div>
+          <div class="d-flex justify-content-between align-items-center">
+            <span class="text-muted small">{% trans "التدفق النقدي الفعلي بعد الخصم" %}:</span>
+            <span class="fw-bold text-primary">{{ cash_flow_after_retention_5|floatformat:2 }} ج</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

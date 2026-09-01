@@ -172,7 +172,14 @@
         <!-- القسم الثاني: بنود عرض السعر والمنتجات -->
         <div class="section-container mb-4">
             <div class="section-title d-flex align-items-center justify-content-between">
-                <div><i class="fas fa-list me-2"></i>{% trans "بنود عرض السعر" %}</div>
+                <div class="d-flex align-items-center gap-2">
+                    <span><i class="fas fa-list me-2"></i>{% trans "بنود عرض السعر" %}</span>
+                    {% if enabled_modules.printing_pricing %}
+                    <button type="button" class="btn btn-outline-primary btn-sm ms-3" data-bs-toggle="modal" data-bs-target="#importPrintingOrderModal">
+                        <i class="fas fa-print me-1"></i>{% trans "استيراد مقايسة مطبوعات" %}
+                    </button>
+                    {% endif %}
+                </div>
                 <div class="form-check form-switch mb-0" title="إظهار المنتجات التي ليس لها مخزون في المخزن المحدد">
                     <input class="form-check-input show-all-products-toggle" type="checkbox" id="page-show-all-products" role="switch">
                     <label class="form-check-label small text-muted show-all-label mb-0" style="white-space: nowrap;" for="page-show-all-products">{% trans "إظهار المنتجات بدون مخزون" %}</label>
@@ -657,7 +664,7 @@
             $('#btn-save-customer').prop('disabled', false);
 
             $.ajax({
-                url: "{% url "customer:customer_add_ajax" %}",
+                url: "{% url 'customer:customer_add_ajax' %}",
                 type: "GET",
                 success: function(response) {
                     if (response.success) {
@@ -699,7 +706,7 @@
             $('#modal-error-list').empty();
 
             $.ajax({
-                url: "{% url "customer:customer_add_ajax" %}",
+                url: "{% url 'customer:customer_add_ajax' %}",
                 type: "POST",
                 data: $form.serialize(),
                 success: function(response) {
@@ -1062,4 +1069,38 @@
         });
     });
 </script>
+
+{% if enabled_modules.printing_pricing %}
+<!-- نافذة استيراد مقايسة مطبوعات معتمدة -->
+<div class="modal fade" id="importPrintingOrderModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-light border-bottom px-4 py-3">
+                <h5 class="modal-title fw-bold text-dark mb-0">
+                    <i class="fas fa-print text-primary me-2"></i>{% trans "استيراد مقايسة مطبوعات معتمدة" %}
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <p class="text-muted small mb-3">
+                    {% trans "اختر المقايسة المعتمدة لإدراجها تلقائياً كبند مجمع نظيف بسعر البيع النهائي وشروط التعاقد." %}
+                </p>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">{% trans "رقم / عنوان المقايسة" %}</label>
+                    <select class="form-select select2-filter" id="printing_order_import_select" style="width: 100%;">
+                        <option value="">{% trans "جاري تحميل المقايسات..." %}</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer bg-light border-top px-4 py-3">
+                <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+                <button type="button" class="btn btn-primary px-4 fw-bold" id="btn_confirm_import_printing">
+                    <i class="fas fa-file-import me-1"></i>{% trans "استيراد البند" %}
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
 {% endblock %}
+

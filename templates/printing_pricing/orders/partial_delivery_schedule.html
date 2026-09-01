@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% load static i18n %}
+
+{% block title %}{% trans "جدول التوريد والتسليم المقسم على دفعات" %}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h4 class="fw-bold mb-1"><i class="fas fa-calendar-alt text-primary me-2"></i>{% trans "جدول التوريد والتسليم المجزأ" %}</h4>
+      <div class="text-muted small">{% trans "توزيع الشحنات على الفروع ومخازن العميل على دفعات" %} - {{ order.order_number }}</div>
+    </div>
+    <div>
+      <a href="{% url 'printing_pricing:order_detail' order.pk %}" class="btn btn-outline-secondary btn-sm">
+        <i class="fas fa-arrow-right me-1"></i> {% trans "العودة للطلب" %}
+      </a>
+    </div>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-4">
+      <div class="table-responsive">
+        <table class="table table-bordered table-hover align-middle small">
+          <thead class="bg-light">
+            <tr>
+              <th>{% trans "الدفعة" %}</th>
+              <th>{% trans "تاريخ التوريد المخطط" %}</th>
+              <th>{% trans "المخزن / الفرع المستهدف" %}</th>
+              <th>{% trans "الكمية المخصصة" %}</th>
+              <th>{% trans "عدد الكراتين" %}</th>
+              <th>{% trans "حالة التوريد" %}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="fw-bold">{% trans "الدفعة 1" %}</td>
+              <td>{{ order.created_at|date:"Y/m/d" }}</td>
+              <td>{% trans "المقر الرئيسي / المخزن المركزي" %}</td>
+              <td class="fw-bold text-primary">{{ order.quantity }} {% trans "قطعة" %}</td>
+              <td>~{{ total_cartons|default:1 }} {% trans "كرتونة" %}</td>
+              <td><span class="badge bg-success">{% trans "جاهز للتسليم" %}</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

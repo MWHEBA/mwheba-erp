@@ -1,0 +1,96 @@
+{% load i18n %}
+<div class="sub-section mb-4">
+  <h6 class="sub-section-title text-primary mb-3">
+    <i class="fas fa-ruler-combined me-2"></i>{% trans "الأبعاد والمواصفات الفنية" %}
+  </h6>
+  
+  <div class="row g-3">
+    <!-- نوع الطلب -->
+    <div class="col-md-4">
+      <label for="id_order_type" class="form-label fw-bold">
+        {% trans "نوع الطلب" %} <span class="text-danger">*</span>
+      </label>
+      <select class="form-select" id="id_order_type" name="order_type" required>
+        {% for val, label in form.fields.order_type.choices %}
+          {% if val %}
+            <option value="{{ val }}" {% if form.order_type.value == val %}selected{% endif %}>{{ label }}</option>
+          {% endif %}
+        {% endfor %}
+      </select>
+    </div>
+
+    <!-- الكمية المطلوبة -->
+    <div class="col-md-4">
+      <label for="id_quantity" class="form-label fw-bold">
+        {% trans "الكمية المطلوبة (قطعة/نسخة)" %} <span class="text-danger">*</span>
+      </label>
+      <input type="number" class="form-control" id="id_quantity" name="quantity" min="1" value="{{ form.quantity.value|default:1000 }}" required>
+    </div>
+
+    <!-- عدد الصفحات (للكتب والكتالوجات) -->
+    <div class="col-md-4" id="pages_count_container">
+      <label for="id_pages_count" class="form-label fw-bold">
+        {% trans "إجمالي عدد الصفحات" %}
+      </label>
+      <input type="number" class="form-control" id="id_pages_count" name="pages_count" min="1" value="{{ form.pages_count.value|default:1 }}">
+      <small class="text-muted">{% trans "يجب أن يقبل القسمة على 4 للمجلات والكتالوجات" %}</small>
+    </div>
+
+    <!-- العرض والارتفاع المقفول -->
+    <div class="col-md-3">
+      <label for="id_custom_size_width" class="form-label fw-bold">
+        {% trans "العرض (سم)" %} <span class="text-danger">*</span>
+      </label>
+      <input type="number" step="0.1" class="form-control" id="id_custom_size_width" name="custom_size_width" value="{{ form.custom_size_width.value|default:21.0 }}" required>
+    </div>
+
+    <div class="col-md-3">
+      <label for="id_custom_size_height" class="form-label fw-bold">
+        {% trans "الارتفاع (سم)" %} <span class="text-danger">*</span>
+      </label>
+      <input type="number" step="0.1" class="form-control" id="id_custom_size_height" name="custom_size_height" value="{{ form.custom_size_height.value|default:29.7 }}" required>
+    </div>
+
+    <!-- العرض والارتفاع المفتوح -->
+    <div class="col-md-3" id="open_size_width_container">
+      <label for="id_open_size_width" class="form-label">
+        {% trans "العرض المفتوح (سم)" %}
+      </label>
+      <input type="number" step="0.1" class="form-control" id="id_open_size_width" name="open_size_width" value="{{ form.open_size_width.value|default:'' }}">
+    </div>
+
+    <div class="col-md-3" id="open_size_height_container">
+      <label for="id_open_size_height" class="form-label">
+        {% trans "الارتفاع المفتوح (سم)" %}
+      </label>
+      <input type="number" step="0.1" class="form-control" id="id_open_size_height" name="open_size_height" value="{{ form.open_size_height.value|default:'' }}">
+    </div>
+  </div>
+
+  <!-- صمامات الأمان الفنية (Bleed & Grain Direction) -->
+  <div class="row g-3 mt-2">
+    <div class="col-md-6">
+      <div class="form-check p-3 bg-light rounded border">
+        <input class="form-check-input ms-2" type="checkbox" id="bleed_guard_check" checked>
+        <label class="form-check-label fw-bold text-dark" for="bleed_guard_check">
+          <i class="fas fa-crop-alt text-primary me-1"></i>{% trans "تأكيد مسافة الخروج (Bleed 3mm)" %}
+        </label>
+        <div class="small text-muted mt-1">
+          {% trans "يضمن احتساب 3 مم خروج للألوان حول التصميم لمنع الحواف البيضاء أثناء القص." %}
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-6">
+      <div class="form-check p-3 bg-light rounded border">
+        <input class="form-check-input ms-2" type="checkbox" id="grain_direction_check" checked>
+        <label class="form-check-label fw-bold text-dark" for="grain_direction_check">
+          <i class="fas fa-compass text-info me-1"></i>{% trans "ضبط اتجاه ألياف الورق موازياً للكعب / خطوط الطي" %}
+        </label>
+        <div class="small text-muted mt-1">
+          {% trans "يمنع تكسر وتجعيد الورق الثقيل عند التقفيل وفتح صفحات الكتاب." %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

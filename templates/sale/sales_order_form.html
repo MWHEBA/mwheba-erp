@@ -227,12 +227,20 @@
         <!-- القسم الثاني: بنود أمر البيع والمنتجات -->
         <div class="section-container mb-4">
             <div class="section-title d-flex align-items-center justify-content-between">
-                <div><i class="fas fa-list me-2"></i>{% trans "بنود أمر البيع" %}</div>
+                <div class="d-flex align-items-center gap-2">
+                    <span><i class="fas fa-list me-2"></i>{% trans "بنود أمر البيع" %}</span>
+                    {% if enabled_modules.printing_pricing %}
+                    <button type="button" class="btn btn-outline-primary btn-sm ms-3" data-bs-toggle="modal" data-bs-target="#importPrintingOrderModal">
+                        <i class="fas fa-print me-1"></i>{% trans "استيراد مقايسة مطبوعات" %}
+                    </button>
+                    {% endif %}
+                </div>
                 <div class="form-check form-switch mb-0" title="إظهار المنتجات التي ليس لها مخزون في المخزن المحدد">
                     <input class="form-check-input show-all-products-toggle" type="checkbox" id="page-show-all-products" role="switch">
                     <label class="form-check-label small text-muted show-all-label mb-0" style="white-space: nowrap;" for="page-show-all-products">{% trans "إظهار المنتجات بدون مخزون" %}</label>
                 </div>
             </div>
+
             
             <div id="items-container">
                 {% if so and so.items.exists %}
@@ -658,7 +666,7 @@
             $('#btn-save-customer').prop('disabled', false);
 
             $.ajax({
-                url: "{% url "customer:customer_add_ajax" %}",
+                url: "{% url 'customer:customer_add_ajax' %}",
                 type: "GET",
                 success: function(response) {
                     if (response.success) {
@@ -700,7 +708,7 @@
             $('#modal-error-list').empty();
 
             $.ajax({
-                url: "{% url "customer:customer_add_ajax" %}",
+                url: "{% url 'customer:customer_add_ajax' %}",
                 type: "POST",
                 data: $form.serialize(),
                 success: function(response) {
@@ -1145,4 +1153,97 @@
         });
     });
 </script>
+
+{% if enabled_modules.printing_pricing %}
+<!-- Modal استيراد مقايسة مطبوعات -->
+<div class="modal fade" id="importPrintingOrderModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header bg-light border-bottom px-4 py-3">
+        <h5 class="modal-title fw-bold text-dark mb-0">
+          <i class="fas fa-print text-primary me-2"></i>{% trans "استيراد مقايسة مطبوعات معتمدة إلى أمر البيع" %}
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-4">
+        <div class="mb-3">
+          <label class="form-label fw-bold">{% trans "اختر المقايسة المعتمدة" %}</label>
+          <select class="form-select select2-modal" id="modal_printing_order_select" style="width: 100%;">
+            <option value="">{% trans "جاري البحث عن المقايسات المعتمدة..." %}</option>
+          </select>
+        </div>
+        <div id="printing_order_preview" class="p-3 bg-light rounded border d-none">
+          <div class="row g-2">
+            <div class="col-6"><strong>{% trans "اسم العمل:" %}</strong> <span id="po_title">-</span></div>
+            <div class="col-6"><strong>{% trans "الكمية:" %}</strong> <span id="po_qty">-</span></div>
+            <div class="col-6"><strong>{% trans "السعر البيعي الإجمالي:" %}</strong> <span id="po_price" class="text-success fw-bold">-</span></div>
+            <div class="col-6"><strong>{% trans "سعر الوحدة:" %}</strong> <span id="po_unit_price">-</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer bg-light border-top px-4 py-3">
+        <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+        <button type="button" class="btn btn-primary px-4 fw-bold" id="btn_confirm_import_printing_order" disabled>
+          <i class="fas fa-check-circle me-1"></i>{% trans "إدراج في أمر البيع" %}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  $('#importPrintingOrderModal').on('show.bs.modal', function () {
+    const custId = $('#id_customer').val();
+    let url = '/printing-pricing/api/approved-orders/';
+    if (custId) url += '?customer_id=' + custId;
+
+    fetch(url)
+      .then(res => res.json())
+      .then(data => {
+        const select = $('#modal_printing_order_select');
+        select.empty().append('<option value="">{% trans "اختر المقايسة..." %}</option>');
+        if (data.orders && data.orders.length > 0) {
+          data.orders.forEach(o => {
+            select.append(`<option value="${o.id}" data-title="${o.title}" data-qty="${o.quantity}" data-price="${o.final_price}" data-unit="${o.unit_price}">${o.order_number} - ${o.title} (${o.customer_name}) - ${o.final_price} ج.م</option>`);
+          });
+        } else {
+          select.append('<option value="" disabled>{% trans "لا توجد مقايسات معتمدة جاهزة" %}</option>');
+        }
+      });
+  });
+
+  $('#modal_printing_order_select').on('change', function() {
+    const opt = $(this).find(':selected');
+    if (opt.val()) {
+      $('#po_title').text(opt.data('title'));
+      $('#po_qty').text(opt.data('qty'));
+      $('#po_price').text(opt.data('price') + ' ج.م');
+      $('#po_unit_price').text(opt.data('unit') + ' ج.م');
+      $('#printing_order_preview').removeClass('d-none');
+      $('#btn_confirm_import_printing_order').prop('disabled', false);
+    } else {
+      $('#printing_order_preview').addClass('d-none');
+      $('#btn_confirm_import_printing_order').prop('disabled', true);
+    }
+  });
+
+  $('#btn_confirm_import_printing_order').on('click', function() {
+    const opt = $('#modal_printing_order_select').find(':selected');
+    const title = opt.data('title');
+    const qty = opt.data('qty');
+    const unitPrice = opt.data('unit');
+
+    $('#add-item-btn').trigger('click');
+    const lastRow = $('#items-container .item-row:last');
+    lastRow.find('.item-description, textarea[name$="-description"]').val(title);
+    lastRow.find('input[name$="-quantity"]').val(qty).trigger('input');
+    lastRow.find('input[name$="-unit_price"]').val(unitPrice).trigger('input');
+
+    $('#importPrintingOrderModal').modal('hide');
+    window.showNotification && window.showNotification('تم استيراد بنود المقايسة بنجاح', 'success');
+  });
+});
+</script>
+{% endif %}
 {% endblock %}

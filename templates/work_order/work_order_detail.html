@@ -103,8 +103,54 @@
     </div>
   </div>
 
+  {% if enabled_modules.printing_pricing and work_order.printing_orders.exists %}
+  {% with p_order=work_order.printing_orders.first %}
+  <div class="section-container mb-4">
+    <div class="d-flex align-items-center justify-content-between mb-3">
+      <h5 class="section-title mb-0">
+        <i class="fas fa-print text-primary me-2"></i>{% trans "مواصفات مقايسة الطباعة المرتبطة" %} ({{ p_order.order_number }})
+      </h5>
+      <div class="d-flex gap-2">
+        <a href="{% url 'printing_pricing:order_detail' p_order.pk %}" class="btn btn-outline-primary btn-sm">
+          <i class="fas fa-external-link-alt me-1"></i>{% trans "عرض المقايسة الكاملة" %}
+        </a>
+      </div>
+    </div>
+    <div class="row g-3">
+      <div class="col-md-3 col-sm-6">
+        <div class="p-3 bg-light rounded border text-center">
+          <div class="small text-muted mb-1">{% trans "الموقع الحالي للشغل" %}</div>
+          <div class="fw-bold text-primary fs-6">
+            <i class="fas fa-map-marker-alt text-danger me-1"></i>{{ p_order.get_current_stage_display }}
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3 col-sm-6">
+        <div class="p-3 bg-light rounded border text-center">
+          <div class="small text-muted mb-1">{% trans "الكمية المطلوبة" %}</div>
+          <div class="fw-bold text-dark fs-6">{{ p_order.quantity|default:1 }} {% trans "قطعة" %}</div>
+        </div>
+      </div>
+      <div class="col-md-3 col-sm-6">
+        <div class="p-3 bg-light rounded border text-center">
+          <div class="small text-muted mb-1">{% trans "الأبعاد الفنية" %}</div>
+          <div class="fw-bold text-dark fs-6">{{ p_order.custom_size_width|default:"21" }} × {{ p_order.custom_size_height|default:"29.7" }} {% trans "سم" %}</div>
+        </div>
+      </div>
+      <div class="col-md-3 col-sm-6">
+        <div class="p-3 bg-light rounded border text-center">
+          <div class="small text-muted mb-1">{% trans "صافي ربح المقايسة" %}</div>
+          <div class="fw-bold text-success fs-6">{{ p_order.summary.net_profit|default:"0.00"|floatformat:2 }} {% currency_symbol %}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endwith %}
+  {% endif %}
+
   <!-- تبويبات المستندات المرتبطة -->
   <div class="section-container mb-4">
+
     <div class="card-header bg-white border-0 pt-3 px-3 pb-0">
       <ul class="nav nav-tabs card-header-tabs border-bottom" id="workOrderTabs" role="tablist">
         <li class="nav-item" role="presentation">

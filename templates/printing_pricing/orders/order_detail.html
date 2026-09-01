@@ -2,345 +2,297 @@
 {% load static %}
 {% load i18n %}
 {% load app_tags %}
-{% load utils_extras %}
 
-{% block title %}{% trans "تفاصيل الطلب" %} - {{ object.order_number }}{% endblock %}
+{% block title %}
+{{ order.order_number }} - {{ order.title|default:_("تفاصيل طلب التسعير") }}
+{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/components.css' %}">
 <link rel="stylesheet" href="{% static 'css/printing_pricing/components.css' %}">
+<style>
+  .stage-badge { font-size: 0.9rem; padding: 0.4rem 0.8rem; border-radius: 20px; }
+  .hub-card { border: 1px solid var(--border-color, #dee2e6); border-radius: 8px; }
+</style>
 {% endblock %}
 
 {% block content %}
 <div class="container-fluid">
-    <!-- Page Header المركزي -->
-    {% include "shared/page_header.html" %}
-    
-    <!-- حالة الطلب -->
-    <div class="mb-3">
-        <span class="badge bg-{{ object.status|default:'secondary' }} fs-6">
-            {{ object.get_status_display }}
-        </span>
-    </div>
-
-  <!-- تفاصيل الطلب -->
-  <div class="section-container">
-      <div class="card-header">
-        <h5 class="card-title mb-0"><i class="fas fa-info-circle me-2"></i>{% trans "معلومات الطلب" %}</h5>
-      </div>
-      <div class="card-body">
-        <div class="row">
-          <div class="col-md-6">
-            <div class="pp-detail-item">
-              <span class="pp-detail-label">{% trans "عنوان الطلب" %}</span>
-              <div class="pp-detail-value">{{ object.title }}</div>
-            </div>
-          </div>
-          <div class="col-md-6">
-            <div class="pp-detail-item">
-              <span class="pp-detail-label">{% trans "العميل" %}</span>
-              <div class="pp-detail-value">{{ object.customer }}</div>
-            </div>
-          </div>
-          <div class="col-md-6">
-            <div class="pp-detail-item">
-              <span class="pp-detail-label">{% trans "نوع الطلب" %}</span>
-              <div class="pp-detail-value">{{ object.get_order_type_display }}</div>
-            </div>
-          </div>
-          <div class="col-md-6">
-            <div class="pp-detail-item">
-              <span class="pp-detail-label">{% trans "الكمية" %}</span>
-              <div class="pp-detail-value">{{ object.quantity|smart_float:0 }}</div>
-            </div>
-          </div>
-          {% if object.description %}
-          <div class="col-12">
-            <div class="pp-detail-item">
-              <span class="pp-detail-label">{% trans "الوصف" %}</span>
-              <div class="pp-detail-value">{{ object.description|linebreaks }}</div>
-            </div>
-          </div>
-          {% endif %}
+  <!-- رأس الصفحة المركزي -->
+  <div class="page-header mb-4">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+      <div>
+        <h4 class="page-title fw-bold text-dark mb-1">
+          <i class="fas fa-print text-primary me-2"></i>{{ order.order_number }} - {{ order.title }}
+        </h4>
+        <div class="d-flex align-items-center gap-2 text-muted small">
+          <span><i class="fas fa-user me-1"></i>{{ order.customer.name }}</span>
+          <span>•</span>
+          <span><i class="fas fa-calendar-alt me-1"></i>{{ order.created_at|date:"Y-m-d" }}</span>
+          <span>•</span>
+          <!-- شارة المرحلة الحالية (الشغل فين دلوقتي؟) -->
+          <span class="badge bg-primary stage-badge cursor-pointer" data-bs-toggle="modal" data-bs-target="#stageTrackerModal" title="{% trans 'اضغط لتحديث الموقع أو تسجيل أجرة المشوارجي' %}">
+            <i class="fas fa-truck-moving me-1"></i>{% trans "الموقع الحالي:" %} {{ order.get_current_stage_display }}
+            {% if order.current_workshop %} ({{ order.current_workshop.name }}){% endif %}
+          </span>
         </div>
       </div>
-  </div>
 
-  <!-- ملخص التكلفة -->
-  {% if object.total_cost %}
-  <div class="section-container">
-      <div class="card-header">
-        <h5 class="card-title mb-0"><i class="fas fa-calculator me-2"></i>{% trans "ملخص التكلفة" %}</h5>
-      </div>
-      <div class="card-body">
-        <div class="row">
-          <div class="col-md-8">
-            <div class="pp-cost-item">
-              <span class="pp-cost-label">{% trans "التكلفة الإجمالية" %}</span>
-              <span class="pp-cost-value">{{ object.total_cost|currency }}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-  </div>
-  {% endif %}
+      <!-- أزرار الإجراءات السريعة -->
+      <div class="d-flex flex-wrap gap-2">
+        <a href="{% url 'printing_pricing:order_update' order.pk %}" class="btn btn-outline-secondary btn-sm">
+          <i class="fas fa-edit me-1"></i>{% trans "تعديل" %}
+        </a>
 
-        <div class="pp-card mb-4">
-            <div class="pp-card-header">
-                <h5 class="pp-card-title">
-                    <i class="fas fa-cogs"></i>
-                    {% trans "المواصفات الفنية" %}
-                </h5>
-            </div>
-            <div class="pp-card-body">
-                <div class="row">
-                    <div class="col-md-6">
-                        <div class="pp-detail-item">
-                            <label class="pp-detail-label">{% trans "نوع الورق" %}</label>
-                            <div class="pp-detail-value">
-                                {% if object.paper_type %}
-                                    {{ object.paper_type.name }}
-                                    <small class="text-muted">({{ object.paper_type.weight }}جم)</small>
-                                {% else %}
-                                    <span class="text-muted">{% trans "غير محدد" %}</span>
-                                {% endif %}
-                            </div>
-                        </div>
-                        <div class="pp-detail-item">
-                            <label class="pp-detail-label">{% trans "مقاس المنتج" %}</label>
-                            <div class="pp-detail-value">
-                                {% if object.product_size %}
-                                    {{ object.product_size.name }}
-                                    <small class="text-muted">({{ object.product_size.width }}×{{ object.product_size.height }}سم)</small>
-                                {% else %}
-                                    <span class="text-muted">{% trans "غير محدد" %}</span>
-                                {% endif %}
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-6">
-                        <div class="pp-detail-item">
-                            <label class="pp-detail-label">{% trans "نوع التجليد" %}</label>
-                            <div class="pp-detail-value">{{ object.get_binding_type_display|default:"غير محدد" }}</div>
-                        </div>
-                        <div class="pp-detail-item">
-                            <label class="pp-detail-label">{% trans "نوع الغلاف" %}</label>
-                            <div class="pp-detail-value">{{ object.get_cover_type_display|default:"غير محدد" }}</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+        <button type="button" class="btn btn-outline-success btn-sm" id="btn_share_whatsapp" data-order-id="{{ order.pk }}">
+          <i class="fab fa-whatsapp me-1"></i>{% trans "مشاركة واتساب 📱" %}
+        </button>
 
-        <!-- الخدمات الإضافية -->
-        {% if object.design_price or object.internal_design_price %}
-        <div class="pp-card mb-4">
-            <div class="pp-card-header">
-                <h5 class="pp-card-title">
-                    <i class="fas fa-palette"></i>
-                    {% trans "خدمات التصميم" %}
-                </h5>
-            </div>
-            <div class="pp-card-body">
-                <div class="row">
-                    {% if object.design_price %}
-                    <div class="col-md-6">
-                        <div class="pp-detail-item">
-                            <label class="pp-detail-label">{% trans "تصميم الغلاف" %}</label>
-                            <div class="pp-detail-value text-success fw-bold">
-                                {{ object.design_price|currency }}
-                            </div>
-                        </div>
-                    </div>
-                    {% endif %}
-                    {% if object.internal_design_price %}
-                    <div class="col-md-6">
-                        <div class="pp-detail-item">
-                            <label class="pp-detail-label">{% trans "تصميم المحتوى الداخلي" %}</label>
-                            <div class="pp-detail-value text-success fw-bold">
-                                {{ object.internal_design_price|currency }}
-                            </div>
-                        </div>
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
+        <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#stageTrackerModal">
+          <i class="fas fa-map-marker-alt me-1"></i>{% trans "الشغل فين دلوقتي؟" %}
+        </button>
+
+        <!-- زر التحويل إلى أمر شغل -->
+        {% if can_convert_to_work_order %}
+        <button type="button" class="btn btn-success btn-sm fw-bold shadow-sm" id="btn_convert_work_order" data-order-id="{{ order.pk }}">
+          <i class="fas fa-cogs me-1"></i>{% trans "بدء التشغيل وتوليد أمر الشغل (PO)" %}
+        </button>
+        {% elif order.work_order %}
+        <a href="{% url 'work_order:work_order_detail' order.work_order.pk %}" class="btn btn-info btn-sm text-white fw-bold">
+          <i class="fas fa-link me-1"></i>{% trans "أمر الشغل" %} #{{ order.work_order.number }}
+        </a>
         {% endif %}
 
-        <!-- سجل الأنشطة -->
-        <div class="pp-card">
-            <div class="pp-card-header">
-                <h5 class="pp-card-title">
-                    <i class="fas fa-history"></i>
-                    {% trans "سجل الأنشطة" %}
-                </h5>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    <!-- العمود الأيمن: لوحة مركز الأرباح 360 درجة ومواصفات التشغيل -->
+    <div class="col-lg-8">
+      <!-- 1. لوحة 360 درجة للربحية (مقارنة سطر العميل المجمع vs أوامر شراء الورش) -->
+      <div class="section-container mb-4">
+        <h5 class="section-title text-primary mb-3">
+          <i class="fas fa-chart-pie me-2"></i>{% trans "مركز أرباح الشغلانة 360 درجة (Profit & Margin Hub)" %}
+        </h5>
+
+        <div class="row g-3 mb-4">
+          <div class="col-md-4">
+            <div class="p-3 bg-light rounded text-center border">
+              <div class="text-muted small mb-1">{% trans "قيمة البيع للعميل (شامل الضريبة)" %}</div>
+              <div class="fs-4 fw-bold text-primary">{{ summary.final_price|default:order.final_price|floatformat:2 }} ج.م</div>
+              <div class="small text-muted">{{ order.quantity }} {% trans "قطعة" %}</div>
             </div>
-            <div class="pp-card-body">
-                <div class="pp-activity-timeline" id="activity-timeline">
-                    <div class="pp-activity-item">
-                        <div class="pp-activity-icon pp-activity-create">
-                            <i class="fas fa-plus"></i>
-                        </div>
-                        <div class="pp-activity-content">
-                            <div class="pp-activity-text">تم إنشاء الطلب</div>
-                            <div class="pp-activity-time">{{ object.created_at|date:"d/m/Y H:i" }}</div>
-                            <div class="pp-activity-user">بواسطة: {{ object.created_by|default:"النظام" }}</div>
-                        </div>
-                    </div>
-                    
-                    {% if object.updated_at != object.created_at %}
-                    <div class="pp-activity-item">
-                        <div class="pp-activity-icon pp-activity-update">
-                            <i class="fas fa-edit"></i>
-                        </div>
-                        <div class="pp-activity-content">
-                            <div class="pp-activity-text">تم تحديث الطلب</div>
-                            <div class="pp-activity-time">{{ object.updated_at|date:"d/m/Y H:i" }}</div>
-                            <div class="pp-activity-user">بواسطة: {{ object.updated_by|default:"النظام" }}</div>
-                        </div>
-                    </div>
-                    {% endif %}
-                </div>
+          </div>
+
+          <div class="col-md-4">
+            <div class="p-3 bg-light rounded text-center border">
+              <div class="text-muted small mb-1">{% trans "إجمالي تكاليف الورش والمصروفات" %}</div>
+              <div class="fs-4 fw-bold text-danger">{{ summary.material_cost|add:summary.printing_cost|add:summary.finishing_cost|default:"0.00"|floatformat:2 }} ج.م</div>
+              <div class="small text-muted">{% trans "أوامر شراء الورش والورق" %}</div>
             </div>
+          </div>
+
+          <div class="col-md-4">
+            <div class="p-3 bg-light rounded text-center border">
+              <div class="text-muted small mb-1">{% trans "صافي الربح الفعلي المحقق" %}</div>
+              <div class="fs-4 fw-bold text-success">{{ summary.net_profit|default:"0.00"|floatformat:2 }} ج.م</div>
+              <div class="small text-success fw-bold">{{ summary.profit_margin|default:"0.00"|floatformat:1 }}% {% trans "هامش ربح" %}</div>
+            </div>
+          </div>
         </div>
+
+        <!-- جدول أوامر شراء الورش المفككة -->
+        <h6 class="fw-bold text-dark mb-2">
+          <i class="fas fa-file-invoice-dollar text-secondary me-2"></i>{% trans "أوامر شراء خدمات الورش المرتبطة (Unbundled Vendor POs):" %}
+        </h6>
+        <div class="table-responsive">
+          <table class="table table-bordered table-sm align-middle text-center small bg-white mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>{% trans "رقم الـ PO" %}</th>
+                <th>{% trans "المورد / الورشة" %}</th>
+                <th>{% trans "الخدمة / البند" %}</th>
+                <th>{% trans "القيمة" %}</th>
+                <th>{% trans "خصم 1% أ.ت.ص" %}</th>
+                <th>{% trans "الحالة" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for po in unbundled_pos %}
+              <tr>
+                <td class="fw-bold">{{ po.purchase_number }}</td>
+                <td>{{ po.supplier.name }}</td>
+                <td>{{ po.notes|default:_("خدمات طباعة وتشطيب") }}</td>
+                <td>{{ po.total_amount|floatformat:2 }} ج</td>
+                <td class="text-success">{{ po.tax_deduction_amount|default:"0.00"|floatformat:2 }} ج</td>
+                <td><span class="badge bg-success">{% trans "معتمد" %}</span></td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="6" class="text-muted py-3">{% trans "لم يتم إصدار أوامر شراء ورش حتى الآن (يتم توليدها تلقائياً عند بدء التشغيل)." %}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 2. سجل حركة الشغل ومكلفي النقل (المشوارجية) -->
+      <div class="section-container mb-4">
+        <div class="d-flex align-items-center justify-content-between mb-3">
+          <h5 class="section-title text-primary mb-0">
+            <i class="fas fa-route me-2"></i>{% trans "سجل حركة الشغل ومكلفي النقل (أجرة المشوارجية)" %}
+          </h5>
+          <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#stageTrackerModal">
+            <i class="fas fa-plus me-1"></i>{% trans "تسجيل حركة نقل" %}
+          </button>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table table-bordered table-sm align-middle text-center small bg-white mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>{% trans "التاريخ والوقت" %}</th>
+                <th>{% trans "من موقع" %}</th>
+                <th>{% trans "إلى موقع" %}</th>
+                <th>{% trans "المشوارجي / السائق (مورد)" %}</th>
+                <th>{% trans "الأجرة المسجلة" %}</th>
+                <th>{% trans "ملاحظات" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for log in transport_logs %}
+              <tr>
+                <td>{{ log.transfer_date|date:"Y-m-d H:i" }}</td>
+                <td>{{ log.from_location|default:_("المطبعة") }}</td>
+                <td class="fw-bold text-primary">{{ log.to_location }}</td>
+                <td>{{ log.transporter.name|default:_("سائق حر") }}</td>
+                <td class="fw-bold text-success">{{ log.cost|floatformat:2 }} ج.م</td>
+                <td class="text-muted">{{ log.notes|default:"-" }}</td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="6" class="text-muted py-3">{% trans "لا توجد حركات نقل مسجلة. اضغط 'الشغل فين دلوقتي؟' لتسجيل المشوار." %}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
 
-    <!-- الشريط الجانبي -->
+    <!-- العمود الأيسر: مستندات التشغيل والطباعة الرسمية -->
     <div class="col-lg-4">
-        <!-- ملخص التكلفة -->
-        <div class="pp-calculation-panel mb-4">
-            <div class="pp-calculation-header">
-                <i class="fas fa-calculator"></i>
-                {% trans "ملخص التكلفة" %}
-                <button type="button" class="pp-btn pp-btn-sm pp-btn-outline ms-auto" onclick="PrintingPricing.OrderDetail.recalculateCost()">
-                    <i class="fas fa-sync-alt"></i>
-                </button>
-            </div>
-            <div class="pp-calculation-body">
-                <div class="pp-cost-item">
-                    <span class="pp-cost-label">{% trans "تكلفة المواد" %}</span>
-                    <span class="pp-cost-value">{{ object.material_cost|currency }}</span>
-                </div>
-                <div class="pp-cost-item">
-                    <span class="pp-cost-label">{% trans "تكلفة الطباعة" %}</span>
-                    <span class="pp-cost-value">{{ object.printing_cost|currency }}</span>
-                </div>
-                <div class="pp-cost-item">
-                    <span class="pp-cost-label">{% trans "تكلفة الخدمات" %}</span>
-                    <span class="pp-cost-value">{{ object.services_cost|currency }}</span>
-                </div>
-                {% if object.design_price or object.internal_design_price %}
-                <div class="pp-cost-item">
-                    <span class="pp-cost-label">{% trans "تكلفة التصميم" %}</span>
-                    <span class="pp-cost-value">
-                        {% widthratio object.design_price|default:0|add:object.internal_design_price|default:0 1 1 %} {{ currency_symbol }}
-                    </span>
-                </div>
-                {% endif %}
-                <div class="pp-cost-item">
-                    <span class="pp-cost-label pp-total-cost">{% trans "إجمالي التكلفة" %}</span>
-                    <span class="pp-cost-value pp-total-cost">{{ object.total_cost|currency }}</span>
-                </div>
-            </div>
+      <div class="card shadow-sm border-0 mb-4">
+        <div class="card-header bg-light border-bottom p-3">
+          <h6 class="fw-bold text-dark mb-0">
+            <i class="fas fa-print text-primary me-2"></i>{% trans "مستندات التشغيل والتسليم المعيارية" %}
+          </h6>
         </div>
+        <div class="card-body p-3 d-grid gap-2">
+          <a href="{% url 'printing_pricing:consolidated_job_sheet' order.pk %}" target="_blank" class="btn btn-outline-primary text-start">
+            <i class="fas fa-file-invoice text-primary me-2"></i>{% trans "أمر تشغيل المطبعة الموحد" %}
+          </a>
 
-        <!-- معلومات إضافية -->
-        <div class="pp-card mb-4">
-            <div class="pp-card-header">
-                <h5 class="pp-card-title">
-                    <i class="fas fa-info"></i>
-                    {% trans "معلومات إضافية" %}
-                </h5>
-            </div>
-            <div class="pp-card-body">
-                <div class="pp-detail-item">
-                    <label class="pp-detail-label">{% trans "رقم الطلب" %}</label>
-                    <div class="pp-detail-value">
-                        <code>{{ object.order_number }}</code>
-                        <button class="btn btn-sm btn-outline-secondary ms-2" onclick="PrintingPricing.OrderDetail.copyOrderNumber()" title="{% trans 'نسخ' %}">
-                            <i class="fas fa-copy"></i>
-                        </button>
-                    </div>
-                </div>
-                <div class="pp-detail-item">
-                    <label class="pp-detail-label">{% trans "الحالة" %}</label>
-                    <div class="pp-detail-value">
-                        <span class="pp-status-badge pp-status-{{ object.status }}">
-                            {{ object.get_status_display }}
-                        </span>
-                    </div>
-                </div>
-                <div class="pp-detail-item">
-                    <label class="pp-detail-label">{% trans "تاريخ الإنشاء" %}</label>
-                    <div class="pp-detail-value">{{ object.created_at|date:"d/m/Y H:i" }}</div>
-                </div>
-                {% if object.updated_at != object.created_at %}
-                <div class="pp-detail-item">
-                    <label class="pp-detail-label">{% trans "آخر تحديث" %}</label>
-                    <div class="pp-detail-value">{{ object.updated_at|date:"d/m/Y H:i" }}</div>
-                </div>
-                {% endif %}
-            </div>
-        </div>
+          <a href="{% url 'printing_pricing:outsourced_job_sheet' order.pk %}" target="_blank" class="btn btn-outline-secondary text-start">
+            <i class="fas fa-external-link-alt text-info me-2"></i>{% trans "أمر تشغيل الورش الخارجية (Outsourced)" %}
+          </a>
 
-        <!-- إجراءات سريعة -->
-        <div class="pp-card">
-            <div class="pp-card-header">
-                <h5 class="pp-card-title">
-                    <i class="fas fa-bolt"></i>
-                    {% trans "إجراءات سريعة" %}
-                </h5>
-            </div>
-            <div class="pp-card-body">
-                <div class="d-grid gap-2">
-                    {% if object.status == 'draft' or object.status == 'pending' %}
-                    <button class="pp-btn pp-btn-success" onclick="PrintingPricing.OrderDetail.approveOrder()">
-                        <i class="fas fa-check"></i>
-                        {% trans "اعتماد الطلب" %}
-                    </button>
-                    <button class="pp-btn pp-btn-danger" onclick="PrintingPricing.OrderDetail.rejectOrder()">
-                        <i class="fas fa-times"></i>
-                        {% trans "رفض الطلب" %}
-                    </button>
-                    {% endif %}
-                    
-                    <button class="pp-btn pp-btn-info" onclick="PrintingPricing.OrderDetail.duplicateOrder()">
-                        <i class="fas fa-copy"></i>
-                        {% trans "نسخ الطلب" %}
-                    </button>
-                    
-                    <button class="pp-btn pp-btn-secondary" onclick="PrintingPricing.OrderDetail.exportToPDF()">
-                        <i class="fas fa-file-pdf"></i>
-                        {% trans "تصدير PDF" %}
-                    </button>
-                    
-                    <button class="pp-btn pp-btn-outline" onclick="PrintingPricing.OrderDetail.printOrder()">
-                        <i class="fas fa-print"></i>
-                        {% trans "طباعة" %}
-                    </button>
-                </div>
-            </div>
+          <a href="{% url 'printing_pricing:delivery_note' order.pk %}" target="_blank" class="btn btn-outline-success text-start">
+            <i class="fas fa-truck text-success me-2"></i>{% trans "إذن تسليم العميل الرسمي" %}
+          </a>
+
+          <a href="{% url 'printing_pricing:carton_labels' order.pk %}" target="_blank" class="btn btn-outline-warning text-dark text-start">
+            <i class="fas fa-tags text-warning me-2"></i>{% trans "استيكرات الكراتين والتغليف" %}
+          </a>
+
+          <a href="{% url 'printing_pricing:executive_summary' order.pk %}" target="_blank" class="btn btn-outline-danger text-start">
+            <i class="fas fa-file-contract text-danger me-2"></i>{% trans "الملخص التنفيذي للمقايسة" %}
+          </a>
         </div>
+      </div>
+
+      <!-- كارت صمامات الجودة والتعديلات الطارئة -->
+      <div class="card shadow-sm border-0">
+        <div class="card-header bg-light border-bottom p-3">
+          <h6 class="fw-bold text-dark mb-0">
+            <i class="fas fa-shield-alt text-success me-2"></i>{% trans "صمامات الجودة والتعديل" %}
+          </h6>
+        </div>
+        <div class="card-body p-3 d-grid gap-2">
+          <button type="button" class="btn btn-outline-warning text-dark" data-bs-toggle="modal" data-bs-target="#changeOrderModal">
+            <i class="fas fa-exclamation-triangle me-1"></i>{% trans "ملحق تعديل طارئ (Change Order)" %}
+          </button>
+        </div>
+      </div>
     </div>
+  </div>
 </div>
+
+<!-- تضمين النوافذ المنبثقة -->
+{% include "printing_pricing/orders/partials/stage_tracker_modal.html" %}
+{% include "printing_pricing/orders/partials/change_order_modal.html" %}
 {% endblock %}
 
-{% comment %} CSS moved to components.css {% endcomment %}
-
 {% block extra_js %}
-<script src="{% static 'js/printing_pricing/order-detail.js' %}"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    if (typeof PrintingPricing !== 'undefined' && PrintingPricing.OrderDetail) {
-        PrintingPricing.OrderDetail.init({
-            orderId: parseInt("{{ object.pk }}", 10),
-            orderNumber: '{{ object.order_number }}',
-            status: '{{ object.status }}'
+  const orderId = "{{ order.pk }}";
+
+  // 1. مشاركة الواتساب السريعة
+  const btnWhatsapp = document.getElementById('btn_share_whatsapp');
+  if (btnWhatsapp) {
+    btnWhatsapp.addEventListener('click', function() {
+      fetch(`/printing-pricing/api/whatsapp-quote-link/${orderId}/`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.whatsapp_url) {
+            window.open(data.whatsapp_url, '_blank');
+          } else {
+            window.showNotification && window.showNotification('تعذر إنشاء رابط الواتساب', 'error');
+          }
+        })
+        .catch(err => {
+          window.showNotification && window.showNotification('حدث خطأ أثناء الاتصال', 'error');
         });
-    }
+    });
+  }
+
+  // 2. تحديث الموقع وأجرة المشوارجي
+  const stageForm = document.getElementById('stageTrackerForm');
+  if (stageForm) {
+    stageForm.addEventListener('submit', function(e) {
+      e.preventDefault();
+      const stage = document.getElementById('tracker_stage').value;
+      const workshopName = document.getElementById('tracker_workshop_name').value;
+      const driverFee = parseFloat(document.getElementById('tracker_driver_fee').value) || 0;
+      const notes = document.getElementById('tracker_notes').value;
+
+      fetch(`/printing-pricing/api/update-order-stage/${orderId}/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: JSON.stringify({
+          stage: stage,
+          workshop_name: workshopName,
+          driver_fee: driverFee,
+          notes: notes
+        })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          window.showNotification && window.showNotification('تم تحديث موقع الشغل وأجرة المشوارجي بنجاح', 'success');
+          setTimeout(() => location.reload(), 1500);
+        } else {
+          window.showNotification && window.showNotification(data.error || 'حدث خطأ', 'error');
+        }
+      });
+    });
+  }
 });
 </script>
 {% endblock %}
-
-</div> <!-- إغلاق printing-pricing-wrapper -->

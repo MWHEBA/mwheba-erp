@@ -1,0 +1,232 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load app_tags %}
+
+{% block title %}{% trans "وضع التسعير الميداني السريع (موبايل)" %}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<style>
+  .mobile-pricing-wrapper { max-width: 580px; margin: 0 auto; }
+  .btn-touch { padding: 12px; font-size: 1.05rem; border-radius: 8px; }
+  .price-display-box { background-color: var(--bg-light, #f8f9fa); border: 1px solid var(--border-color, #dee2e6); border-radius: 8px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Page Header المركزي المعياري -->
+  {% include "shared/page_header.html" %}
+
+  <div class="mobile-pricing-wrapper py-2">
+    <div class="card shadow-sm border-0">
+      <!-- هيدر الكارت المعياري الهادئ -->
+      <div class="card-header bg-light border-bottom px-4 py-3 text-center">
+        <h5 class="fw-bold text-dark mb-1">
+          <i class="fas fa-mobile-alt text-primary me-2"></i>{% trans "حاسبة التسعير السريع للواتساب" %}
+        </h5>
+        <small class="text-muted">{% trans "تسعير فوري ومشاركة عرض السعر النظيف للعميل في ثانية واحدة" %}</small>
+      </div>
+
+      <div class="card-body p-4">
+        <!-- 1. العميل -->
+        <div class="mb-3">
+          <label class="form-label fw-bold" for="m_customer">
+            {% trans "العميل" %} <span class="text-danger">*</span>
+          </label>
+          <select class="form-select select2-filter" id="m_customer" required>
+            <option value="">{% trans "اختر العميل..." %}</option>
+            {% for cust in customers %}
+              <option value="{{ cust.pk }}" data-phone="{{ cust.phone|default:cust.mobile|default:'' }}">
+                {{ cust.name }} {% if cust.company_name %}({{ cust.company_name }}){% endif %}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- 2. الصنف السريع -->
+        <div class="mb-3">
+          <label class="form-label fw-bold" for="m_product_type">
+            {% trans "نوع المطبوع / الخدمة" %}
+          </label>
+          <select class="form-select" id="m_product_type">
+            <option value="business_card">{% trans "كروت شخصية فاخرة (1,000 كارت)" %}</option>
+            <option value="flyer">{% trans "فلاير دعائي A4 وجهين (1,000 فلاير)" %}</option>
+            <option value="flyer_a5" selected>{% trans "فلاير دعائي A5 وجهين (2,500 فلاير)" %}</option>
+            <option value="brochure">{% trans "بروشور 3 طيات مطوي (1,000 بروشور)" %}</option>
+            <option value="catalog">{% trans "كتالوج / مجلة 16 صفحة (500 نسخة)" %}</option>
+            <option value="folder">{% trans "فولدر شركات بجيب فاخر (500 فولدر)" %}</option>
+            <option value="invoice">{% trans "دفاتر فواتير NCR أصل و 2 صورة (50 دفتر)" %}</option>
+            <option value="giveaways">{% trans "أقلام معدن حفر ليزر (500 قلم)" %}</option>
+            <option value="mug">{% trans "مجات سيراميك مطبوعة (100 مج)" %}</option>
+            <option value="sticker">{% trans "ستيكر شيت كريستال UV-DTF (10 متر)" %}</option>
+          </select>
+        </div>
+
+        <!-- 3. الكمية -->
+        <div class="mb-3">
+          <label class="form-label fw-bold" for="m_quantity">
+            {% trans "الكمية المطلوبة (قطعة/نسخة)" %}
+          </label>
+          <input type="number" class="form-control" id="m_quantity" value="1000" min="1">
+        </div>
+
+        <!-- 4. مستوى التشطيب -->
+        <div class="mb-4">
+          <label class="form-label fw-bold" for="m_finishing">
+            {% trans "مستوى التشطيب والسلوفان" %}
+          </label>
+          <select class="form-select" id="m_finishing">
+            <option value="standard" selected>{% trans "تشطيب قياسي (طباعة ألوان كاملة)" %}</option>
+            <option value="luxury">{% trans "تشطيب فاخر (سلوفان مط + سبوت UV موضعي)" %}</option>
+            <option value="ultra_luxury">{% trans "تشطيب VIP (سلوفان سوفت تاتش + بصمة ذهبي)" %}</option>
+          </select>
+        </div>
+
+        <!-- نتيجة السعر الفورية -->
+        <div class="price-display-box p-3 text-center mb-4">
+          <div class="text-muted small mb-1">{% trans "السعر المقترح للعميل (شامل الضريبة والتسليم):" %}</div>
+          <div id="m_calculated_price" class="fs-2 fw-bold text-success">1,450.00 ج.م</div>
+          <div class="d-flex justify-content-center gap-3 text-muted small mt-1">
+            <span>{% trans "سعر القطعة:" %} <strong id="m_unit_price" class="text-dark">1.45</strong> ج</span>
+            <span>•</span>
+            <span id="m_vat_notice">{% trans "شامل 14% ضريبة ق.م" %}</span>
+          </div>
+        </div>
+
+        <!-- أزرار الإجراءات السريعة -->
+        <div class="d-grid gap-2">
+          <button type="button" class="btn btn-success btn-touch fw-bold shadow-sm" id="btn_mobile_whatsapp">
+            <i class="fab fa-whatsapp me-2"></i>{% trans "مشاركة العرض على الواتساب 📱" %}
+          </button>
+          
+          <button type="button" class="btn btn-outline-primary btn-touch fw-bold" id="btn_save_as_order">
+            <i class="fas fa-save me-2"></i>{% trans "حفظ كطلب تسعير رسمي في النظام" %}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  function updateMobilePrice() {
+    const product = document.getElementById('m_product_type').value;
+    const qty = parseInt(document.getElementById('m_quantity').value) || 1000;
+    const finishing = document.getElementById('m_finishing').value;
+
+    let baseRate = 0.85;
+    if (product === 'business_card') baseRate = 0.45;
+    else if (product === 'flyer') baseRate = 1.35;
+    else if (product === 'flyer_a5') baseRate = 0.75;
+    else if (product === 'brochure') baseRate = 1.95;
+    else if (product === 'catalog') baseRate = 9.50;
+    else if (product === 'folder') baseRate = 6.80;
+    else if (product === 'invoice') baseRate = 35.00;
+    else if (product === 'giveaways') baseRate = 16.50;
+    else if (product === 'mug') baseRate = 42.00;
+    else if (product === 'sticker') baseRate = 85.00;
+
+    if (finishing === 'luxury') baseRate *= 1.30;
+    else if (finishing === 'ultra_luxury') baseRate *= 1.60;
+
+    const isExempt = ['catalog'].includes(product);
+    const subtotal = qty * baseRate;
+    const vat = isExempt ? 0 : (subtotal * 0.14);
+    const total = subtotal + vat;
+    const unitPrice = total / qty;
+
+    document.getElementById('m_calculated_price').textContent = total.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' ج.م';
+    document.getElementById('m_unit_price').textContent = unitPrice.toFixed(2);
+    document.getElementById('m_vat_notice').textContent = isExempt ? '{% trans "معفى من ضريبة القيمة المضافة" %}' : '{% trans "شامل 14% ضريبة ق.م" %}';
+  }
+
+  document.getElementById('m_product_type').addEventListener('change', updateMobilePrice);
+  document.getElementById('m_quantity').addEventListener('input', updateMobilePrice);
+  document.getElementById('m_finishing').addEventListener('change', updateMobilePrice);
+
+  // 1. زر مشاركة الواتساب مع رقم العميل المباشر
+  document.getElementById('btn_mobile_whatsapp').addEventListener('click', function() {
+    const customerSelect = document.getElementById('m_customer');
+    const selectedOption = customerSelect.options[customerSelect.selectedIndex];
+    const custName = selectedOption?.text || '{% trans "عميلنا العزيز" %}';
+    let phone = selectedOption?.dataset?.phone || '';
+
+    // تنظيف رقم الهاتف وإضافة كود الدولة
+    let cleanPhone = phone.replace(/[^0-9]/g, '');
+    if (cleanPhone.startsWith('01')) {
+      cleanPhone = '2' + cleanPhone;
+    }
+
+    const productText = document.getElementById('m_product_type').options[document.getElementById('m_product_type').selectedIndex].text;
+    const qty = document.getElementById('m_quantity').value;
+    const priceText = document.getElementById('m_calculated_price').textContent;
+    const unitPrice = document.getElementById('m_unit_price').textContent;
+
+    const msg = `مرحباً بك ${custName}،\nيسعدنا تقديم عرض السعر المعتمد لمطبوعاتكم:\n\n📌 *البند:* ${productText}\n🔢 *الكمية:* ${qty} قطعة\n💵 *سعر القطعة:* ${unitPrice} ج.م\n💰 *الإجمالي النهائي:* ${priceText}\n\n✨ شامل فحص التصميم وضريبة القيمة المضافة والتسليم.\nللطلب والاعتماد، يرجى الرد على هذه الرسالة.`;
+
+    const encoded = encodeURIComponent(msg);
+    const waUrl = cleanPhone ? `https://wa.me/${cleanPhone}?text=${encoded}` : `https://wa.me/?text=${encoded}`;
+    window.open(waUrl, '_blank');
+  });
+
+  // 2. زر حفظ المقايسة السريعة كطلب رسمي في النظام
+  document.getElementById('btn_save_as_order').addEventListener('click', function() {
+    const customerId = document.getElementById('m_customer').value;
+    if (!customerId) {
+      window.showNotification && window.showNotification('يرجى اختيار العميل أولاً لحفظ المقايسة', 'warning');
+      return;
+    }
+
+    const productType = document.getElementById('m_product_type').value;
+    const qty = document.getElementById('m_quantity').value;
+    const productText = document.getElementById('m_product_type').options[document.getElementById('m_product_type').selectedIndex].text;
+    const rawPrice = parseFloat(document.getElementById('m_calculated_price').textContent.replace(/[^0-9.]/g, '')) || 0;
+
+    const btn = this;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>جاري الحفظ...';
+
+    fetch('/printing-pricing/api/save-quick-mobile-quote/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': '{{ csrf_token }}'
+      },
+      body: JSON.stringify({
+        customer_id: customerId,
+        product_type: productType,
+        quantity: qty,
+        price: rawPrice,
+        title: `طلب ميداني: ${productText}`
+      })
+    })
+    .then(res => res.json())
+    .then(data => {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-save me-2"></i>{% trans "حفظ كطلب تسعير رسمي في النظام" %}';
+
+      if (data.success) {
+        window.showNotification && window.showNotification(data.message, 'success');
+        setTimeout(() => {
+          window.location.href = data.detail_url;
+        }, 1500);
+      } else {
+        window.showNotification && window.showNotification(data.error || 'حدث خطأ أثناء الحفظ', 'error');
+      }
+    })
+    .catch(err => {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-save me-2"></i>{% trans "حفظ كطلب تسعير رسمي في النظام" %}';
+      window.showNotification && window.showNotification('حدث خطأ في الاتصال بالسيرفر', 'error');
+    });
+  });
+
+  updateMobilePrice();
+});
+</script>
+{% endblock %}

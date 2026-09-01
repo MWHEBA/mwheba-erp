@@ -1,0 +1,59 @@
+{% load i18n %}
+<div class="modal fade" id="changeOrderModal" tabindex="-1" aria-labelledby="changeOrderModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header bg-light border-bottom px-4 py-3">
+        <h5 class="modal-title fw-bold text-dark mb-0" id="changeOrderModalLabel">
+          <i class="fas fa-exclamation-triangle text-warning me-2"></i>{% trans "ملحق تعديل طارئ (Change Order Addendum)" %}
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <form id="changeOrderForm">
+        <div class="modal-body p-4">
+          <div class="alert alert-warning py-2 small mb-3">
+            <i class="fas fa-info-circle me-1"></i>
+            {% trans "يُستخدم هذا الملحق عند طلب العميل تعديل التصميم أو المقاس أو الورق بعد بدء الطباعة لرصد التكلفة الغارقة وتعديل الفاتورة." %}
+          </div>
+
+          <div class="mb-3">
+            <label for="change_reason" class="form-label fw-bold">
+              {% trans "سبب التعديل الطارئ" %} <span class="text-danger">*</span>
+            </label>
+            <textarea class="form-control" id="change_reason" name="reason" rows="2" required placeholder="مثال: تغيير خطأ إملائي في التصميم من طرف العميل بعد سحب الزنكات"></textarea>
+          </div>
+
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+              <label for="change_fault_party" class="form-label fw-bold">{% trans "الطرف المتسبب" %}</label>
+              <select class="form-select" id="change_fault_party" name="fault_party">
+                <option value="CUSTOMER_REQUEST">{% trans "طلب العميل (يتحمل التكلفة)" %}</option>
+                <option value="AGENCY_CORRECTION">{% trans "خطأ داخلي بالوكالة" %}</option>
+                <option value="VENDOR_REPRINT">{% trans "خطأ بالمطبعة / المورد" %}</option>
+              </select>
+            </div>
+
+            <div class="col-md-6">
+              <label for="change_sunk_cost" class="form-label fw-bold">
+                {% trans "التكلفة الغارقة المحملة (ج)" %}
+              </label>
+              <input type="number" step="0.01" class="form-control" id="change_sunk_cost" name="sunk_cost" value="0.00">
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label for="change_notes" class="form-label">{% trans "ملاحظات إضافية" %}</label>
+            <input type="text" class="form-control" id="change_notes" name="notes">
+          </div>
+        </div>
+
+        <div class="modal-footer bg-light border-top px-4 py-3">
+          <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+          <button type="submit" class="btn btn-warning px-4 fw-bold" id="btnSaveChangeOrder">
+            <i class="fas fa-file-signature me-1"></i>{% trans "اعتماد ملحق التعديل" %}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

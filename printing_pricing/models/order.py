@@ -3,8 +3,9 @@ from django.utils.translation import gettext_lazy as _
 from django.core.validators import MinValueValidator
 from django.conf import settings
 from decimal import Decimal
+import uuid
 
-from .base import BaseModel, PricingStatus, OrderType
+from .base import BaseModel, PricingStatus, OrderType, ProductionStage
 from customer.models import Customer
 
 
@@ -80,6 +81,24 @@ class PrintingOrder(BaseModel):
         choices=PricingStatus.choices,
         default=PricingStatus.DRAFT,
         verbose_name=_("حالة الطلب")
+    )
+
+    current_stage = models.CharField(
+        max_length=30,
+        choices=ProductionStage.choices,
+        default=ProductionStage.PREPRESS,
+        verbose_name=_("مرحلة الإنتاج الحالية (الشغل فين؟)"),
+        blank=True,
+        null=True
+    )
+
+    current_workshop = models.ForeignKey(
+        "supplier.Supplier",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="active_printing_orders",
+        verbose_name=_("الموقع / الورشة المتواجد بها الشغل حالياً")
     )
     
     # معلومات الكمية والمواصفات
@@ -491,4 +510,479 @@ class PrintingOrder(BaseModel):
         return old_status, new_status
 
 
-__all__ = ['PrintingOrder']
+class PriceAuditLog(BaseModel):
+    """
+    سجل تدقيق وتاريخ التعديلات المالية على أمر التسعير
+    """
+    order = models.ForeignKey(
+        PrintingOrder,
+        on_delete=models.CASCADE,
+        related_name="price_audit_logs",
+        verbose_name=_("أمر التسعير")
+    )
+    field_name = models.CharField(
+        max_length=100,
+        verbose_name=_("اسم الحقل المعدل")
+    )
+    old_value = models.CharField(
+        max_length=255,
+        verbose_name=_("القيمة السابقة")
+    )
+    new_value = models.CharField(
+        max_length=255,
+        verbose_name=_("القيمة الجديدة")
+    )
+    change_reason = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name=_("سبب التعديل")
+    )
+    changed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name=_("المستخدم المنفذ للتعديل")
+    )
+
+    class Meta:
+        verbose_name = _("سجل تدقيق السعر")
+        verbose_name_plural = _("سجلات تدقيق الأسعار")
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.order.order_number} - {self.field_name}: {self.old_value} -> {self.new_value}"
+
+
+class OrderVendorAdvance(BaseModel):
+    """
+    تتبع عرابين ودفعات الورش والموردين المقدمة تحت أمر الشغل وأمر التسعير
+    """
+    order = models.ForeignKey(
+        PrintingOrder,
+        on_delete=models.CASCADE,
+        related_name="vendor_advances",
+        verbose_name=_("أمر التسعير")
+    )
+    work_order = models.ForeignKey(
+        "work_order.WorkOrder",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="vendor_advances",
+        verbose_name=_("أمر الشغل المرتبط")
+    )
+    supplier = models.ForeignKey(
+        "supplier.Supplier",
+        on_delete=models.PROTECT,
+        related_name="printing_advances",
+        verbose_name=_("المورد / الورشة")
+    )
+    amount = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal('0.01'))],
+        verbose_name=_("مبلغ العربون / الدفعة")
+    )
+    payment_method = models.CharField(
+        max_length=50,
+        default="CASH",
+        verbose_name=_("طريقة الدفع")
+    )
+    reference_number = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        verbose_name=_("رقم الإيصال / السند")
+    )
+    notes = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name=_("ملاحظات")
+    )
+    is_settled = models.BooleanField(
+        default=False,
+        verbose_name=_("تمت التسوية مع الفاتورة")
+    )
+    settled_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name=_("تاريخ التسوية")
+    )
+
+    class Meta:
+        verbose_name = _("عربون مورد / ورشة")
+        verbose_name_plural = _("عرابين الموردين والورش")
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.supplier.name} - {self.amount} ج ({self.order.order_number})"
+
+
+class ProofSignOff(BaseModel):
+    """
+    الاعتماد الرقمي للبروفة (Digital Proof Sign-Off)
+    """
+    class ProofStatus(models.TextChoices):
+        PENDING = "PENDING", _("بانتظار مراجعة العميل")
+        APPROVED = "APPROVED", _("معتمد من العميل")
+        REJECTED = "REJECTED", _("مرفوض مع ملاحظات")
+
+    order = models.OneToOneField(
+        PrintingOrder,
+        on_delete=models.CASCADE,
+        related_name="proof_signoff",
+        verbose_name=_("أمر التسعير")
+    )
+    token = models.UUIDField(
+        default=uuid.uuid4,
+        unique=True,
+        editable=False,
+        verbose_name=_("رمز التحقق الآمن")
+    )
+    proof_file = models.FileField(
+        upload_to="printing_proofs/%Y/%m/",
+        blank=True,
+        null=True,
+        verbose_name=_("ملف البروفة الرقمية")
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=ProofStatus.choices,
+        default=ProofStatus.PENDING,
+        verbose_name=_("حالة الاعتماد")
+    )
+    client_feedback = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name=_("ملاحظات العميل")
+    )
+    approved_by_name = models.CharField(
+        max_length=150,
+        blank=True,
+        null=True,
+        verbose_name=_("اسم الشخص المعتمد")
+    )
+    approved_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name=_("تاريخ الاعتماد")
+    )
+    client_ip = models.GenericIPAddressField(
+        null=True,
+        blank=True,
+        verbose_name=_("عنوان IP للعميل")
+    )
+
+    class Meta:
+        verbose_name = _("اعتماد بروفة رقمية")
+        verbose_name_plural = _("اعتمادات البروفات الرقمية")
+
+    def __str__(self):
+        return f"بروفة {self.order.order_number} - {self.get_status_display()}"
+
+
+class DieMouldCustody(BaseModel):
+    """
+    أرشيف وعهدة فورمات التكسير وكليشيهات البصمة والزنكات (Die/Mould Custody Archive)
+    """
+    class MouldType(models.TextChoices):
+        DIE_CUT = "DIE_CUT", _("فورمة تكسير وريجة")
+        FOIL_STAMP = "FOIL_STAMP", _("كليشيه بصمة حراري")
+        EMBOSSING = "EMBOSSING", _("كليشيه كوفراج بارز")
+        SPOT_UV = "SPOT_UV", _("شابلونة سبوت يوفي")
+
+    class MouldStatus(models.TextChoices):
+        ACTIVE = "ACTIVE", _("صالحة وجاهزة للتشغيل")
+        MAINTENANCE = "MAINTENANCE", _("تحتاج صيانة / تغيير حشايا")
+        ARCHIVED = "ARCHIVED", _("مؤرشفة في مخزن الوكالة")
+
+    code = models.CharField(
+        max_length=50,
+        unique=True,
+        verbose_name=_("كود الفورمة / الكليشيه")
+    )
+    name = models.CharField(
+        max_length=200,
+        verbose_name=_("اسم وتوصيف الفورمة")
+    )
+    mould_type = models.CharField(
+        max_length=20,
+        choices=MouldType.choices,
+        default=MouldType.DIE_CUT,
+        verbose_name=_("نوع الأداة")
+    )
+    customer = models.ForeignKey(
+        Customer,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="custom_moulds",
+        verbose_name=_("العميل المالك (إن وجد)")
+    )
+    current_workshop = models.ForeignKey(
+        "supplier.Supplier",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="hosted_moulds",
+        verbose_name=_("الورشة الحاضنة للفورمة حالياً")
+    )
+    storage_location = models.CharField(
+        max_length=150,
+        blank=True,
+        null=True,
+        verbose_name=_("موقع التخزين والرف")
+    )
+    dimensions = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        verbose_name=_("الأبعاد والمقاس")
+    )
+    hit_count = models.PositiveIntegerField(
+        default=0,
+        verbose_name=_("إجمالي عدد الضربات والسحبات")
+    )
+    last_used_order = models.ForeignKey(
+        PrintingOrder,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="used_moulds",
+        verbose_name=_("آخر أمر شغل تم استخدامها فيه")
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=MouldStatus.choices,
+        default=MouldStatus.ACTIVE,
+        verbose_name=_("الحالة الفنية")
+    )
+    notes = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name=_("ملاحظات فنية")
+    )
+
+    class Meta:
+        verbose_name = _("عهدة فورمة / كليشيه")
+        verbose_name_plural = _("أرشيف وعهدة الفورمات والكليشيهات")
+        ordering = ["code"]
+
+    def __str__(self):
+        return f"{self.code} - {self.name} ({self.get_mould_type_display()})"
+
+
+class QCSignoff(BaseModel):
+    """
+    بوابة فحص مراقبة الجودة الرقمية (QC Sign-off Gateway)
+    """
+    class QCStatus(models.TextChoices):
+        PASSED = "PASSED", _("مطابق ومعتمد 100%")
+        CONDITIONAL_PASS = "CONDITIONAL_PASS", _("قبول مشروط بتسامح مقبول")
+        REJECTED = "REJECTED", _("مرفوض - توالف وإعادة تشغيل")
+
+    order = models.OneToOneField(
+        PrintingOrder,
+        on_delete=models.CASCADE,
+        related_name="qc_signoff",
+        verbose_name=_("أمر التسعير")
+    )
+    inspector_name = models.CharField(
+        max_length=150,
+        blank=True,
+        null=True,
+        verbose_name=_("اسم مسؤول فحص الجودة")
+    )
+    inspected_at = models.DateTimeField(
+        verbose_name=_("تاريخ ووقت الفحص")
+    )
+    bleed_verified = models.BooleanField(
+        default=False,
+        verbose_name=_("فحص خلوص ومسافة الخروج (Bleed 3mm) سليم")
+    )
+    barcode_scannable = models.BooleanField(
+        default=False,
+        verbose_name=_("فحص قراءة الباركود والـ QR بالماسح الضوئي سليم")
+    )
+    color_registration_passed = models.BooleanField(
+        default=False,
+        verbose_name=_("فحص تطابق ألوان الطباعة والأوفست سليم")
+    )
+    physical_swatch_matched = models.BooleanField(
+        default=False,
+        verbose_name=_("فحص مطابقة عينة الألوان المادية المرفقة")
+    )
+    lamination_adhesion_passed = models.BooleanField(
+        default=False,
+        verbose_name=_("فحص ثبات وقوة التصاق السلوفان سليم")
+    )
+    ncr_sequence_verified = models.BooleanField(
+        default=False,
+        verbose_name=_("فحص تسلسل وترتيب أرقام الفواتير NCR سليم")
+    )
+    sample_vault_archived = models.BooleanField(
+        default=False,
+        verbose_name=_("تم تحريز 5-10 عينات في خزانة الجودة لمدة 90 يوماً")
+    )
+    sample_vault_ref = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        verbose_name=_("رقم حرز خزانة العينات")
+    )
+    net_quantity_approved = models.PositiveIntegerField(
+        verbose_name=_("الكمية الصافية المعتمدة للتسليم")
+    )
+    defect_count = models.PositiveIntegerField(
+        default=0,
+        verbose_name=_("عدد التوالف والمرفوضات")
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=QCStatus.choices,
+        default=QCStatus.PASSED,
+        verbose_name=_("قرار الجودة النهائي")
+    )
+    notes = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name=_("ملاحظات تقرير الجودة")
+    )
+
+    class Meta:
+        verbose_name = _("تقرير فحص جودة QC")
+        verbose_name_plural = _("تقارير فحص الجودة QC")
+
+    def __str__(self):
+        return f"جودة {self.order.order_number} - {self.get_status_display()}"
+
+
+class SupplementalRemake(BaseModel):
+    """
+    أمر إعادة تشغيل تكميلي للمرتجعات الجزئية (Supplemental Remake Order)
+    """
+    class FaultParty(models.TextChoices):
+        VENDOR_FAULT = "VENDOR_FAULT", _("خطأ مورد / ورشة تشغيل")
+        AGENCY_FAULT = "AGENCY_FAULT", _("خطأ داخلي بالوكالة")
+        CLIENT_FAULT = "CLIENT_FAULT", _("تعديل أو خطأ من العميل")
+
+    class RemakeStatus(models.TextChoices):
+        PENDING = "PENDING", _("قيد الدراسة والموافقة")
+        IN_PROGRESS = "IN_PROGRESS", _("قيد إعادة التشغيل بالورش")
+        COMPLETED = "COMPLETED", _("تمت إعادة التشغيل والتسليم")
+        CANCELLED = "CANCELLED", _("ملغي")
+
+    order = models.ForeignKey(
+        PrintingOrder,
+        on_delete=models.CASCADE,
+        related_name="remakes",
+        verbose_name=_("أمر التسعير الأصلي")
+    )
+    remake_number = models.CharField(
+        max_length=50,
+        unique=True,
+        verbose_name=_("رقم أمر التعويض")
+    )
+    defective_quantity = models.PositiveIntegerField(
+        verbose_name=_("الكمية المعيبة المرتجعة")
+    )
+    fault_allocation = models.CharField(
+        max_length=20,
+        choices=FaultParty.choices,
+        default=FaultParty.VENDOR_FAULT,
+        verbose_name=_("الطرف المسؤول عن العيب")
+    )
+    responsible_supplier = models.ForeignKey(
+        "supplier.Supplier",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="attributed_remakes",
+        verbose_name=_("الورشة / المورد المتسبب")
+    )
+    estimated_copq = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        verbose_name=_("تكلفة الهادر الغارق (COPQ)")
+    )
+    reason = models.TextField(
+        verbose_name=_("سبب العيب والمطالبة")
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=RemakeStatus.choices,
+        default=RemakeStatus.PENDING,
+        verbose_name=_("حالة أمر التعويض")
+    )
+
+    class Meta:
+        verbose_name = _("أمر إعادة تشغيل تكميلي")
+        verbose_name_plural = _("أوامر إعادة التشغيل التكميلية")
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.remake_number} ({self.order.order_number}) - {self.defective_quantity} قطعة"
+
+
+class OrderTransportLog(BaseModel):
+    """
+    سجل حركة ونقل الشغل بين الورش والمطابع (بدون أي توقيعات أو أوراق)
+    يوثق: مين اللي نقل، من مكان كذا إلى مكان كذا، وأجرة النقل
+    """
+    order = models.ForeignKey(
+        PrintingOrder,
+        on_delete=models.CASCADE,
+        related_name="transport_logs",
+        verbose_name=_("أمر التسعير")
+    )
+    from_location = models.CharField(
+        max_length=200,
+        verbose_name=_("نقل من (المكان / الورشة السابقة)")
+    )
+    to_location = models.CharField(
+        max_length=200,
+        verbose_name=_("نقل إلى (المكان / الورشة التالية)")
+    )
+    transporter = models.ForeignKey(
+        "supplier.Supplier",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="transport_tasks",
+        verbose_name=_("المكلف بالنقل (السائق / المشوارجي / شركة الشحن)")
+    )
+    cost = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        verbose_name=_("أجرة النقل / المشوار")
+    )
+    transfer_date = models.DateTimeField(
+        verbose_name=_("تاريخ ووقت النقل")
+    )
+
+    class Meta:
+        verbose_name = _("سجل حركة ونقل الشغل")
+        verbose_name_plural = _("سجلات حركة ونقل الشغل")
+        ordering = ["-transfer_date"]
+
+    def __str__(self):
+        courier_name = self.transporter.name if self.transporter else "غير محدد"
+        return f"{self.order.order_number}: من {self.from_location} إلى {self.to_location} بواسطة {courier_name}"
+
+
+__all__ = [
+    'PrintingOrder',
+    'PriceAuditLog',
+    'OrderVendorAdvance',
+    'ProofSignOff',
+    'DieMouldCustody',
+    'QCSignoff',
+    'SupplementalRemake',
+    'OrderTransportLog'
+]
+
+
+

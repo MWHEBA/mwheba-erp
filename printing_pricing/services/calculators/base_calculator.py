@@ -1,4 +1,5 @@
 from decimal import Decimal
+from typing import Dict, List, Optional, Any
 from django.utils.translation import gettext_lazy as _
 from abc import ABC, abstractmethod
 
@@ -451,12 +452,223 @@ class BaseCalculator(ABC):
             dict: ملخص الحساب
         """
         return {
-            'order_id': self.order.id,
-            'order_number': self.order.order_number,
+            'order_id': self.order.id if self.order else None,
+            'order_number': getattr(self.order, 'order_number', '') if self.order else '',
             'errors': self.errors,
             'warnings': self.warnings,
             'calculation_details': self.calculation_details
         }
 
+    def _to_decimal(self, val, default=Decimal('0.00')) -> Decimal:
+        """تحويل آمن لأي قيمة إلى Decimal"""
+        if val is None:
+            return default
+        try:
+            return Decimal(str(val))
+        except Exception:
+            return default
+
+    def calculate_quantity_breaks(
+        self,
+        quantities: List[int],
+        fixed_costs: Decimal,
+        variable_cost_per_item: Decimal,
+        profit_margin_pct: Decimal = Decimal('25.00')
+    ) -> Dict[str, Any]:
+        """
+        محاكي مصفوفة الكميات المتعددة السريع وتخفيض تكلفة القطعة مع زيادة الكمية
+        """
+        try:
+            f_cost = self._to_decimal(fixed_costs)
+            v_cost = self._to_decimal(variable_cost_per_item)
+            margin = min(Decimal('99.99'), self._to_decimal(profit_margin_pct))
+            margin_multiplier = Decimal('1.00') - (margin / Decimal('100.00'))
+            if margin_multiplier <= 0:
+                margin_multiplier = Decimal('0.01')
+
+            breaks = []
+            base_unit_cost = None
+
+            for qty in quantities:
+                q = int(qty)
+                if q <= 0:
+                    continue
+                total_cost = (f_cost + (Decimal(str(q)) * v_cost)).quantize(Decimal('0.01'))
+                cost_per_unit = (total_cost / Decimal(str(q))).quantize(Decimal('0.0001'))
+                final_price = (total_cost / margin_multiplier).quantize(Decimal('0.01'))
+                price_per_unit = (final_price / Decimal(str(q))).quantize(Decimal('0.0001'))
+
+                if base_unit_cost is None:
+                    base_unit_cost = cost_per_unit
+
+                savings_pct = Decimal('0.00')
+                if base_unit_cost and base_unit_cost > 0:
+                    savings_pct = (((base_unit_cost - cost_per_unit) / base_unit_cost) * Decimal('100.00')).quantize(Decimal('0.01'))
+
+                breaks.append({
+                    'quantity': q,
+                    'total_cost': total_cost,
+                    'cost_per_unit': cost_per_unit,
+                    'final_price': final_price,
+                    'price_per_unit': price_per_unit,
+                    'savings_percentage': savings_pct
+                })
+
+            return {
+                'success': True,
+                'fixed_costs': f_cost,
+                'variable_cost_per_item': v_cost,
+                'profit_margin_pct': margin,
+                'quantity_breaks': breaks
+            }
+        except Exception as e:
+            return {'success': False, 'error': str(e), 'details': _('خطأ في حساب مصفوفة الكميات')}
+
+    def calculate_quotation_validity_and_fx_escalation(
+        self,
+        validity_days: int = 7,
+        paper_cost_component: Decimal = Decimal('0.00'),
+        original_usd_rate: Decimal = Decimal('50.00'),
+        current_usd_rate: Decimal = Decimal('50.00')
+    ) -> Dict[str, Any]:
+        """
+        حساب شرط تقلبات أسعار صرف الورق وصلاحية العرض
+        """
+        try:
+            days = int(validity_days)
+            p_cost = self._to_decimal(paper_cost_component)
+            orig_usd = self._to_decimal(original_usd_rate)
+            curr_usd = self._to_decimal(current_usd_rate)
+
+            fx_increase_pct = Decimal('0.00')
+            paper_escalation_adjustment = Decimal('0.00')
+
+            if orig_usd > 0 and curr_usd > orig_usd:
+                fx_increase_pct = (((curr_usd - orig_usd) / orig_usd) * Decimal('100.00')).quantize(Decimal('0.01'))
+                paper_escalation_adjustment = (p_cost * (fx_increase_pct / Decimal('100.00'))).quantize(Decimal('0.01'))
+
+            clause_text = _(
+                'عرض السعر سارٍ لمدة {} أيام من تاريخه. نظراً لتقلبات سوق الورق المستورد، '
+                'يحتفظ الطرف الأول بحق تعديل السعر إذا تجاوز تغير سعر الصرف 3% وقت التعميد.'
+            ).format(days)
+
+            return {
+                'success': True,
+                'validity_days': days,
+                'original_usd_rate': orig_usd,
+                'current_usd_rate': curr_usd,
+                'fx_increase_percentage': fx_increase_pct,
+                'paper_escalation_adjustment': paper_escalation_adjustment,
+                'escalation_clause_text': clause_text,
+                'is_price_adjusted': paper_escalation_adjustment > Decimal('0.00')
+            }
+        except Exception as e:
+            return {'success': False, 'error': str(e), 'details': _('خطأ في حساب شرط تقلبات الورق')}
+
+    def calculate_remake_copq_cost(
+        self,
+        original_order_cost: Decimal,
+        remake_material_cost: Decimal,
+        remake_workshop_cost: Decimal,
+        original_selling_price: Decimal
+    ) -> Dict[str, Any]:
+        """
+        حساب تكلفة إعادة التشغيل للعيوب (COPQ) وخصمها من صافي ربح أمر الشغل الأصلي
+        """
+        try:
+            orig_cost = self._to_decimal(original_order_cost)
+            r_mat = self._to_decimal(remake_material_cost)
+            r_work = self._to_decimal(remake_workshop_cost)
+            orig_price = self._to_decimal(original_selling_price)
+
+            total_copq = (r_mat + r_work).quantize(Decimal('0.01'))
+            total_cumulative_cost = (orig_cost + total_copq).quantize(Decimal('0.01'))
+            realized_net_profit = (orig_price - total_cumulative_cost).quantize(Decimal('0.01'))
+            
+            initial_profit = orig_price - orig_cost
+            profit_erosion_pct = Decimal('0.00')
+            if initial_profit > 0:
+                profit_erosion_pct = ((total_copq / initial_profit) * Decimal('100.00')).quantize(Decimal('0.01'))
+
+            return {
+                'success': True,
+                'original_selling_price': orig_price,
+                'original_order_cost': orig_cost,
+                'remake_material_cost': r_mat,
+                'remake_workshop_cost': r_work,
+                'total_copq_cost': total_copq,
+                'total_cumulative_cost': total_cumulative_cost,
+                'initial_profit': initial_profit,
+                'realized_net_profit': realized_net_profit,
+                'profit_erosion_percentage': profit_erosion_pct
+            }
+        except Exception as e:
+            return {'success': False, 'error': str(e), 'details': _('خطأ في حساب تكلفة إعادة التشغيل')}
+
+    def calculate_delivered_quantity_adjustment(
+        self,
+        ordered_quantity: int,
+        delivered_quantity: int,
+        unit_price: Decimal,
+        tolerance_percentage: Decimal = Decimal('5.00')
+    ) -> Dict[str, Any]:
+        """
+        تسوية الكميات المستلمة في إذن التسليم وتطبيق شرط التسامح الصناعي (±5%)
+        """
+        try:
+            ord_q = int(ordered_quantity)
+            del_q = int(delivered_quantity)
+            price = self._to_decimal(unit_price)
+            tol = self._to_decimal(tolerance_percentage)
+
+            diff_qty = del_q - ord_q
+            diff_pct = ((Decimal(str(diff_qty)) / Decimal(str(ord_q))) * Decimal('100.00')).quantize(Decimal('0.01'))
+            is_within_tolerance = abs(diff_pct) <= tol
+
+            ordered_total = (Decimal(str(ord_q)) * price).quantize(Decimal('0.01'))
+            delivered_total = (Decimal(str(del_q)) * price).quantize(Decimal('0.01'))
+            adjustment_amount = (delivered_total - ordered_total).quantize(Decimal('0.01'))
+
+            return {
+                'success': True,
+                'ordered_quantity': ord_q,
+                'delivered_quantity': del_q,
+                'quantity_difference': diff_qty,
+                'difference_percentage': diff_pct,
+                'is_within_tolerance': is_within_tolerance,
+                'unit_price': price,
+                'ordered_total_price': ordered_total,
+                'delivered_total_price': delivered_total,
+                'adjustment_amount': adjustment_amount
+            }
+        except Exception as e:
+            return {'success': False, 'error': str(e), 'details': _('خطأ في تسوية كمية التسليم')}
+
+    def calculate_withholding_tax_settlement(
+        self,
+        invoice_total_amount: Decimal,
+        wht_rate_pct: Decimal = Decimal('1.00')
+    ) -> Dict[str, Any]:
+        """
+        معالجة ضريبة الخصم من المنبع 1% (نموذج 41) لتسوية حساب العميل بدقة
+        """
+        try:
+            inv_amt = self._to_decimal(invoice_total_amount)
+            rate = self._to_decimal(wht_rate_pct)
+
+            wht_amount = (inv_amt * (rate / Decimal('100.00'))).quantize(Decimal('0.01'))
+            net_cash_receivable = (inv_amt - wht_amount).quantize(Decimal('0.01'))
+
+            return {
+                'success': True,
+                'invoice_total_amount': inv_amt,
+                'wht_rate_percentage': rate,
+                'wht_deduction_amount': wht_amount,
+                'net_cash_receivable': net_cash_receivable
+            }
+        except Exception as e:
+            return {'success': False, 'error': str(e), 'details': _('خطأ في حساب ضريبة الخصم من المنبع')}
+
 
 __all__ = ['BaseCalculator']
+

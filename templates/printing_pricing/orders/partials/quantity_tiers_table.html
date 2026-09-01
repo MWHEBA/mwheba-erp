@@ -1,0 +1,69 @@
+{% load i18n %}
+<div class="card mb-4 border-0 bg-light">
+  <div class="card-body p-3">
+    <div class="d-flex align-items-center justify-content-between mb-3">
+      <h6 class="fw-bold text-dark mb-0">
+        <i class="fas fa-layer-group text-primary me-2"></i>{% trans "مقارنة الشرائح الكمية (Multi-Tier Quantity Pricing)" %}
+      </h6>
+      <span class="badge bg-secondary">{% trans "مقارنة لحظية للعميل" %}</span>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table table-bordered table-sm bg-white text-center align-middle mb-2">
+        <thead class="table-light">
+          <tr>
+            <th>{% trans "الشريحة الكمية" %}</th>
+            <th>{% trans "سعر الوحدة للعميل" %}</th>
+            <th>{% trans "الإجمالي قبل الضريبة" %}</th>
+            <th>{% trans "ضريبة القيمة المضافة" %}</th>
+            <th>{% trans "الإجمالي الصافي للعميل" %}</th>
+            <th>{% trans "إجراء" %}</th>
+          </tr>
+        </thead>
+        <tbody id="quantity_tiers_tbody">
+          <!-- سيتم توليد الشرائح ديناميكياً بـ JS -->
+          <tr>
+            <td class="fw-bold">1,000 {% trans "قطعة" %}</td>
+            <td class="unit-price text-primary fw-bold">2.50 {% trans "ج" %}</td>
+            <td>2,500.00 {% trans "ج" %}</td>
+            <td>350.00 {% trans "ج" %}</td>
+            <td class="fw-bold text-success fs-6">2,850.00 {% trans "ج" %}</td>
+            <td>
+              <button type="button" class="btn btn-outline-primary btn-sm py-0 select-tier-btn" data-qty="1000">
+                {% trans "اعتماد" %}
+              </button>
+            </td>
+          </tr>
+          <tr>
+            <td class="fw-bold">2,500 {% trans "قطعة" %}</td>
+            <td class="unit-price text-primary fw-bold">1.60 {% trans "ج" %}</td>
+            <td>4,000.00 {% trans "ج" %}</td>
+            <td>560.00 {% trans "ج" %}</td>
+            <td class="fw-bold text-success fs-6">4,560.00 {% trans "ج" %}</td>
+            <td>
+              <button type="button" class="btn btn-outline-primary btn-sm py-0 select-tier-btn" data-qty="2500">
+                {% trans "اعتماد" %}
+              </button>
+            </td>
+          </tr>
+          <tr>
+            <td class="fw-bold">5,000 {% trans "قطعة" %}</td>
+            <td class="unit-price text-primary fw-bold">1.10 {% trans "ج" %}</td>
+            <td>5,500.00 {% trans "ج" %}</td>
+            <td>770.00 {% trans "ج" %}</td>
+            <td class="fw-bold text-success fs-6">6,270.00 {% trans "ج" %}</td>
+            <td>
+              <button type="button" class="btn btn-outline-primary btn-sm py-0 select-tier-btn" data-qty="5000">
+                {% trans "اعتماد" %}
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <small class="text-muted">
+      <i class="fas fa-info-circle me-1"></i>
+      {% trans "تظهر هذه المقارنة تلقائياً في عرض السعر الموجه للعميل ليختار الكمية الأنسب لميزانيته." %}
+    </small>
+  </div>
+</div>

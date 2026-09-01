@@ -430,8 +430,15 @@
                                     <span class="badge bg-warning ms-2">{% trans "مرتجع جزئي" %}</span>
                                     {% endif %}
                                 {% endif %}
+                                {% if purchase.work_order %}
+                                    <a href="{% url 'work_order:work_order_detail' purchase.work_order.pk %}" class="badge bg-primary ms-2 text-decoration-none">
+                                        <i class="fas fa-link me-1"></i>{% trans "أمر شغل" %} #{{ purchase.work_order.number }}
+                                    </a>
+                                {% endif %}
+
                             </div>
                         </div>
+
                         
                         <div class="col-lg-5">
                             <div class="total-summary">

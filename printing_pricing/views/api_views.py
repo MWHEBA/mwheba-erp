@@ -1777,3 +1777,353 @@ class CustomerInfoAPIView(BaseAPIView):
             })
         except Exception as e:
             return self.handle_exception(e, "CustomerInfoAPIView")
+
+
+class VendorAdvancesAPIView(BaseAPIView):
+    """
+    API لإدارة وتتبع واستعراض عرابين الموردين والورش
+    """
+    def get(self, request, order_id):
+        try:
+            order = get_object_or_404(PrintingOrder, pk=order_id, is_active=True)
+            if not self.has_order_permission(request, order):
+                return JsonResponse({'success': False, 'error': _('غير مصرح لك بعرض هذا الطلب')}, status=403)
+
+            from ..services.vendor_advance_service import VendorAdvanceService
+            summary = VendorAdvanceService.get_advances_summary(order)
+            return JsonResponse(summary)
+        except Exception as e:
+            return self.handle_exception(e, "VendorAdvancesAPIView.get")
+
+    def post(self, request, order_id):
+        try:
+            order = get_object_or_404(PrintingOrder, pk=order_id, is_active=True)
+            if not self.has_order_permission(request, order):
+                return JsonResponse({'success': False, 'error': _('غير مصرح لك بالتعديل على هذا الطلب')}, status=403)
+
+            data = json.loads(request.body) if request.body else {}
+            action = data.get('action', 'record')
+
+            from ..services.vendor_advance_service import VendorAdvanceService
+
+            if action == 'settle':
+                advance_id = data.get('advance_id')
+                advance = get_object_or_404(order.vendor_advances, pk=advance_id, is_active=True)
+                res = VendorAdvanceService.settle_advance(advance, notes=data.get('notes', ''), user=request.user)
+                return JsonResponse(res)
+
+            supplier_id = data.get('supplier_id')
+            amount = data.get('amount')
+            supplier = get_object_or_404(Supplier, pk=supplier_id, is_active=True)
+
+            res = VendorAdvanceService.record_advance(
+                order=order,
+                supplier=supplier,
+                amount=Decimal(str(amount)),
+                payment_method=data.get('payment_method', 'CASH'),
+                reference_number=data.get('reference_number', ''),
+                notes=data.get('notes', ''),
+                user=request.user
+            )
+            return JsonResponse(res)
+        except Exception as e:
+            return self.handle_exception(e, "VendorAdvancesAPIView.post")
+
+
+class ProofApprovalPublicAPIView(View):
+    """
+    API عام وآمن لاعتماد أو رفض البروفة الرقمية للعميل
+    """
+    @method_decorator(csrf_exempt)
+    def dispatch(self, request, *args, **kwargs):
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, request, token):
+        try:
+            from ..models import ProofSignOff
+            signoff = get_object_or_404(ProofSignOff.objects.select_related('order'), token=token)
+            return JsonResponse({
+                'success': True,
+                'token': str(signoff.token),
+                'order_number': signoff.order.order_number,
+                'order_title': signoff.order.title,
+                'status': signoff.status,
+                'status_display': signoff.get_status_display(),
+                'proof_file_url': signoff.proof_file.url if signoff.proof_file else None,
+                'client_feedback': signoff.client_feedback,
+                'approved_by_name': signoff.approved_by_name,
+                'approved_at': signoff.approved_at.strftime('%Y-%m-%d %H:%M') if signoff.approved_at else None
+            })
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)}, status=400)
+
+    def post(self, request, token):
+        try:
+            data = json.loads(request.body) if request.body else {}
+            action = data.get('action', 'approve').lower()
+            client_name = data.get('client_name', '').strip()
+            client_ip = request.META.get('REMOTE_ADDR')
+
+            if not client_name:
+                return JsonResponse({'success': False, 'error': _('اسم المعتمد مطلوب')}, status=400)
+
+            from ..services.proof_approval_service import ProofApprovalService
+
+            if action == 'approve':
+                res = ProofApprovalService.approve_proof(token, client_name, client_ip)
+            elif action == 'reject':
+                feedback = data.get('feedback', '').strip()
+                res = ProofApprovalService.reject_proof(token, feedback, client_name, client_ip)
+            else:
+                return JsonResponse({'success': False, 'error': _('إجراء غير معروف')}, status=400)
+
+            return JsonResponse(res)
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)}, status=400)
+
+
+class BulkPriceUpdateAPIView(BaseAPIView):
+    """
+    API لتحديث أسعار خدمات الورش والمطابع بشكل مجمع
+    """
+    def post(self, request):
+        try:
+            data = json.loads(request.body) if request.body else {}
+            updates = data.get('updates', [])
+
+            from ..services.bulk_price_updater import BulkPriceUpdaterService
+            res = BulkPriceUpdaterService.bulk_update_supplier_services(updates, user=request.user)
+            return JsonResponse(res)
+        except Exception as e:
+            return self.handle_exception(e, "BulkPriceUpdateAPIView.post")
+
+
+class PriceAuditTrailAPIView(BaseAPIView):
+    """
+    API لاسترجاع وتسجيل سجل التدقيق المالي للمقايسات
+    """
+    def get(self, request, order_id):
+        try:
+            order = get_object_or_404(PrintingOrder, pk=order_id, is_active=True)
+            if not self.has_order_permission(request, order):
+                return JsonResponse({'success': False, 'error': _('غير مصرح لك بعرض هذا الطلب')}, status=403)
+
+            from ..services.price_audit_service import PriceAuditService
+            res = PriceAuditService.get_order_audit_trail(order)
+            return JsonResponse(res)
+        except Exception as e:
+            return self.handle_exception(e, "PriceAuditTrailAPIView.get")
+
+    def post(self, request, order_id):
+        try:
+            order = get_object_or_404(PrintingOrder, pk=order_id, is_active=True)
+            if not self.has_order_permission(request, order):
+                return JsonResponse({'success': False, 'error': _('غير مصرح لك بالتعديل على هذا الطلب')}, status=403)
+
+            data = json.loads(request.body) if request.body else {}
+            from ..services.price_audit_service import PriceAuditService
+
+            res = PriceAuditService.log_price_change(
+                order=order,
+                field_name=data.get('field_name', ''),
+                old_value=data.get('old_value', ''),
+                new_value=data.get('new_value', ''),
+                reason=data.get('reason', ''),
+                user=request.user
+            )
+            return JsonResponse(res)
+        except Exception as e:
+            return self.handle_exception(e, "PriceAuditTrailAPIView.post")
+
+
+class MultiLegFreightAPIView(BaseAPIView):
+    """
+    API لحساب تكاليف النقل متعدد المحطات وتطبيق صمام الحد الأدنى
+    """
+    def post(self, request):
+        try:
+            data = json.loads(request.body) if request.body else {}
+            legs = data.get('legs', [])
+            min_drop = Decimal(str(data.get('minimum_drop_fee', '150.00')))
+            drops_count = int(data.get('staggered_drops_count', 1))
+            is_insured = bool(data.get('is_insured_cargo', False))
+            cargo_val = Decimal(str(data.get('cargo_value', '0.00')))
+            payer = data.get('payer', 'AGENCY')
+
+            from ..services.calculators import ServiceCalculator
+            calc = ServiceCalculator(None)
+            res = calc.calculate_multi_leg_freight(
+                legs=legs,
+                minimum_drop_fee=min_drop,
+                staggered_drops_count=drops_count,
+                is_insured_cargo=is_insured,
+                cargo_value=cargo_val,
+                payer=payer
+            )
+            return JsonResponse(res)
+        except Exception as e:
+            return self.handle_exception(e, "MultiLegFreightAPIView.post")
+
+
+class GenerateVendorPOsAPIView(BaseAPIView):
+    """
+    API لتوليد أوامر الشراء للورش مشروطة باعتماد البروفة والدفعة المقدمة
+    """
+    def post(self, request, order_id):
+        try:
+            order = get_object_or_404(PrintingOrder, pk=order_id)
+            if not self.has_order_permission(request, order):
+                return JsonResponse({'success': False, 'error': _('غير مصرح لك بالتعديل على هذا الطلب')}, status=403)
+
+            data = json.loads(request.body) if request.body else {}
+            gated = data.get('gated', True)
+            override_reason = data.get('override_reason', None)
+
+            from ..services.procurement_bridge import ProcurementBridgeService
+            pos = ProcurementBridgeService.generate_vendor_purchase_orders(
+                order=order,
+                gated=gated,
+                override_reason=override_reason,
+                user=request.user
+            )
+            return JsonResponse({
+                'success': True,
+                'created_pos_count': len(pos),
+                'po_numbers': [p.number for p in pos],
+                'message': _('تم توليد أوامر الشراء للورش بنجاح مع خصم 1% ضرائب.')
+            })
+        except Exception as e:
+            return self.handle_exception(e, "GenerateVendorPOsAPIView.post")
+
+
+class QCSignoffAPIView(BaseAPIView):
+    """
+    API لبوابة فحص واعتماد تقرير الجودة الرقمي
+    """
+    def get(self, request, order_id):
+        try:
+            order = get_object_or_404(PrintingOrder, pk=order_id)
+            from ..services.qc_service import QCSignoffService
+            qc = QCSignoffService.get_order_qc(order)
+            if not qc:
+                return JsonResponse({'success': True, 'has_qc': False})
+            return JsonResponse({
+                'success': True,
+                'has_qc': True,
+                'status': qc.status,
+                'inspector_name': qc.inspector_name,
+                'net_quantity_approved': qc.net_quantity_approved,
+                'defect_count': qc.defect_count,
+                'sample_vault_ref': qc.sample_vault_ref,
+                'inspected_at': qc.inspected_at.strftime('%Y-%m-%d %H:%M')
+            })
+        except Exception as e:
+            return self.handle_exception(e, "QCSignoffAPIView.get")
+
+    def post(self, request, order_id):
+        try:
+            order = get_object_or_404(PrintingOrder, pk=order_id)
+            if not self.has_order_permission(request, order):
+                return JsonResponse({'success': False, 'error': _('غير مصرح لك بالتعديل على هذا الطلب')}, status=403)
+
+            # معالجة بيانات POST (سواء JSON أو Form Data)
+            if request.content_type == 'application/json':
+                data = json.loads(request.body) if request.body else {}
+            else:
+                data = request.POST
+
+            from ..services.qc_service import QCSignoffService
+            qc = QCSignoffService.record_inspection(
+                order=order,
+                inspector_name=data.get('inspector_name', request.user.get_full_name() or request.user.username),
+                bleed_verified=bool(data.get('bleed_verified')),
+                barcode_scannable=bool(data.get('barcode_scannable')),
+                color_registration_passed=bool(data.get('color_registration_passed')),
+                physical_swatch_matched=bool(data.get('physical_swatch_matched')),
+                lamination_adhesion_passed=bool(data.get('lamination_adhesion_passed')),
+                ncr_sequence_verified=bool(data.get('ncr_sequence_verified')),
+                sample_vault_archived=bool(data.get('sample_vault_archived')),
+                sample_vault_ref=data.get('sample_vault_ref', ''),
+                net_quantity_approved=int(data.get('net_quantity_approved', order.quantity)),
+                defect_count=int(data.get('defect_count', 0)),
+                status=data.get('status', 'PASSED'),
+                notes=data.get('notes', '')
+            )
+            return JsonResponse({'success': True, 'qc_id': qc.id, 'status': qc.status, 'message': _('تم تسجيل تقرير الجودة بنجاح.')})
+        except Exception as e:
+            return self.handle_exception(e, "QCSignoffAPIView.post")
+
+
+class SupplementalRemakeAPIView(BaseAPIView):
+    """
+    API لأوامر إعادة التشغيل التكميلية للمرتجعات الجزئية
+    """
+    def post(self, request, order_id):
+        try:
+            order = get_object_or_404(PrintingOrder, pk=order_id)
+            if not self.has_order_permission(request, order):
+                return JsonResponse({'success': False, 'error': _('غير مصرح لك بالتعديل على هذا الطلب')}, status=403)
+
+            data = json.loads(request.body) if request.body else {}
+            from ..services.remake_service import SupplementalRemakeService
+            from supplier.models import Supplier
+
+            sup = Supplier.objects.filter(pk=data.get('responsible_supplier_id')).first() if data.get('responsible_supplier_id') else None
+
+            remake = SupplementalRemakeService.create_remake_order(
+                order=order,
+                defective_quantity=int(data.get('defective_quantity', 1)),
+                fault_party=data.get('fault_party', 'VENDOR_FAULT'),
+                reason=data.get('reason', 'عيب إنتاج'),
+                responsible_supplier=sup,
+                estimated_copq=Decimal(str(data.get('estimated_copq', '0.00')))
+            )
+            return JsonResponse({
+                'success': True,
+                'remake_number': remake.remake_number,
+                'defective_quantity': remake.defective_quantity,
+                'message': _('تم إصدار أمر إعادة التشغيل التكميلي بنجاح.')
+            })
+        except Exception as e:
+            return self.handle_exception(e, "SupplementalRemakeAPIView.post")
+
+
+class UpdateOrderStageAPIView(BaseAPIView):
+    """
+    API مباشر لتحديث مرحلة الشغل وموقعه الحالي (الشغل فين دلوقتي؟)
+    مع إمكانية تسجيل أجرة النقل للمندوب كمورد مباشرة
+    """
+    def post(self, request, order_id):
+        try:
+            order = get_object_or_404(PrintingOrder, pk=order_id)
+            if not self.has_order_permission(request, order):
+                return JsonResponse({'success': False, 'error': _('غير مصرح لك بالتعديل على هذا الطلب')}, status=403)
+
+            data = json.loads(request.body) if request.body else {}
+            stage = data.get('stage', order.current_stage)
+            workshop_id = data.get('workshop_id')
+            driver_id = data.get('driver_id')
+            driver_fee = Decimal(str(data.get('driver_fee', '0.00')))
+            notes = data.get('notes', '')
+
+            from supplier.models import Supplier
+            from ..services.stage_tracker_service import StageTrackerService
+
+            workshop = Supplier.objects.filter(pk=workshop_id).first() if workshop_id else None
+            driver = Supplier.objects.filter(pk=driver_id).first() if driver_id else None
+
+            res = StageTrackerService.update_order_stage(
+                order=order,
+                stage=stage,
+                workshop=workshop,
+                driver=driver,
+                driver_fee=driver_fee,
+                notes=notes,
+                user=request.user
+            )
+            return JsonResponse(res)
+        except Exception as e:
+            return self.handle_exception(e, "UpdateOrderStageAPIView.post")
+
+
+

@@ -19,9 +19,33 @@ from .views.api_views import (
     GetServiceTypesAPIView, GetSuppliersByServiceAPIView,
     GetSupplierServicesAPIView, GetServicePriceByIdAPIView,
     CustomerInfoAPIView,
-    # المرحلة الثالثة — ربط التسعير
+    # المرحلة الثالثة — ربط التسعير وعرابين الموردين والبروفة وسجل التدقيق
     SaveOrderServiceSupplierAPIView,
+    VendorAdvancesAPIView,
+    ProofApprovalPublicAPIView,
+    BulkPriceUpdateAPIView,
+    PriceAuditTrailAPIView,
+    MultiLegFreightAPIView,
+    # المرحلة الرابعة — جسر المشتريات ومحاضر التسليم والجودة والتعويضات
+    GenerateVendorPOsAPIView,
+    QCSignoffAPIView,
+    SupplementalRemakeAPIView,
+    UpdateOrderStageAPIView,
 )
+from .views.document_views import (
+    ConsolidatedPressJobSheetView,
+    OutsourcedJobSheetView,
+    DeliveryNoteView,
+    CartonLabelsView,
+    ExecutiveSummaryView,
+)
+from .views.mobile_views import (
+    MobilePricingView,
+    generate_mobile_whatsapp_link,
+    save_quick_mobile_quote
+)
+
+
 
 # استيراد عروض الإعدادات
 from .views.settings_views import (
@@ -58,8 +82,16 @@ order_patterns = [
     path('<int:pk>/edit/', OrderUpdateView.as_view(), name='order_update'),
     path('<int:pk>/delete/', OrderDeleteView.as_view(), name='order_delete'),
     path('<int:pk>/calculate/', calculate_order_cost, name='calculate_cost'),
+    path('<int:pk>/calculate-cost/', calculate_order_cost, name='calculate_order_cost'),
     path('<int:pk>/approve/', approve_order, name='approve_order'),
+    path('mobile-pricing/', MobilePricingView.as_view(), name='mobile_pricing'),
     path('<int:pk>/duplicate/', duplicate_order, name='duplicate_order'),
+    # المرحلة الرابعة — مستندات التشغيل والتسليم المعيارية
+    path('<int:pk>/consolidated-job-sheet/', ConsolidatedPressJobSheetView.as_view(), name='consolidated_job_sheet'),
+    path('<int:pk>/outsourced-job-sheet/', OutsourcedJobSheetView.as_view(), name='outsourced_job_sheet'),
+    path('<int:pk>/delivery-note/', DeliveryNoteView.as_view(), name='delivery_note'),
+    path('<int:pk>/carton-labels/', CartonLabelsView.as_view(), name='carton_labels'),
+    path('<int:pk>/executive-summary/', ExecutiveSummaryView.as_view(), name='executive_summary'),
 ]
 
 # تم حذف calculation_patterns - الحسابات تتم داخل نموذج الطلب ديناميكياً
@@ -105,8 +137,21 @@ api_patterns = [
     path('supplier-services/',    GetSupplierServicesAPIView.as_view(),   name='api_supplier_services'),
     path('service-price/',        GetServicePriceByIdAPIView.as_view(),   name='api_service_price_by_id'),
 
-    # المرحلة الثالثة — ربط التسعير
+    # المرحلة الثالثة — ربط التسعير وعرابين الموردين والبروفة وسجل التدقيق
     path('save-order-service-supplier/', SaveOrderServiceSupplierAPIView.as_view(), name='api_save_order_service_supplier'),
+    path('order-advances/<int:order_id>/', VendorAdvancesAPIView.as_view(), name='api_order_advances'),
+    path('proof-signoff/<uuid:token>/', ProofApprovalPublicAPIView.as_view(), name='api_proof_signoff'),
+    path('bulk-price-update/', BulkPriceUpdateAPIView.as_view(), name='api_bulk_price_update'),
+    path('price-audit-trail/<int:order_id>/', PriceAuditTrailAPIView.as_view(), name='api_price_audit_trail'),
+    path('calculate-freight/', MultiLegFreightAPIView.as_view(), name='api_calculate_freight'),
+
+    # المرحلة الرابعة — جسر المشتريات وتتبع موقع الشغل والتعويضات
+    path('generate-vendor-pos/<int:order_id>/', GenerateVendorPOsAPIView.as_view(), name='api_generate_vendor_pos'),
+    path('update-order-stage/<int:order_id>/', UpdateOrderStageAPIView.as_view(), name='api_update_order_stage'),
+    path('qc-signoff/<int:order_id>/', QCSignoffAPIView.as_view(), name='api_qc_signoff'),
+    path('supplemental-remake/<int:order_id>/', SupplementalRemakeAPIView.as_view(), name='api_supplemental_remake'),
+    path('whatsapp-quote-link/<int:order_id>/', generate_mobile_whatsapp_link, name='api_whatsapp_quote_link'),
+    path('save-quick-mobile-quote/', save_quick_mobile_quote, name='api_save_quick_mobile_quote'),
 ]
 
 # URLs للإعدادات

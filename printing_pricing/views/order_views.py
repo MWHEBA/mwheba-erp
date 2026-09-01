@@ -1,6 +1,7 @@
 from django.shortcuts import render, get_object_or_404, redirect
-from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
+from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView, TemplateView
 from django.contrib.auth.mixins import LoginRequiredMixin
+
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.urls import reverse_lazy, reverse
@@ -104,9 +105,14 @@ class OrderListView(UnifiedPaginationMixin, LoginRequiredMixin, ListView):
         return context
 
 
+def check_can_view_margins(user):
+    """التحقق من صلاحية رؤية التكاليف وهوامش الأرباح"""
+    return user.is_authenticated and (user.is_superuser or user.has_perm('printing_pricing.view_cost_margins') or user.is_staff)
+
+
 class OrderDetailView(LoginRequiredMixin, DetailView):
     """
-    عرض تفاصيل طلب التسعير
+    عرض تفاصيل طلب التسعير ومركز الأرباح 360 درجة
     """
     model = PrintingOrder
     template_name = 'printing_pricing/orders/order_detail.html'
@@ -115,18 +121,21 @@ class OrderDetailView(LoginRequiredMixin, DetailView):
     def get_queryset(self):
         """تحسين الاستعلام"""
         queryset = PrintingOrder.objects.select_related(
-            'customer', 'created_by', 'updated_by'
+            'customer', 'created_by', 'updated_by', 'currency', 'current_workshop', 'work_order', 'qc_signoff'
         ).prefetch_related(
-            'materials', 'services', 'calculations'
+            'materials', 'services', 'calculations', 'transport_logs', 'vendor_advances', 'used_moulds', 'remakes'
         )
         if not (self.request.user.is_superuser or self.request.user.is_staff):
             queryset = queryset.filter(created_by=self.request.user)
         return queryset
     
     def get_context_data(self, **kwargs):
-        """إضافة بيانات إضافية"""
+        """إضافة بيانات إضافية لمركز التكلفة والأرباح 360 درجة"""
         context = super().get_context_data(**kwargs)
         order = self.object
+        user = self.request.user
+        can_view_margins = check_can_view_margins(user)
+        context['can_view_margins'] = can_view_margins
         
         # المواد والخدمات
         context['materials'] = order.materials.filter(is_active=True)
@@ -134,12 +143,42 @@ class OrderDetailView(LoginRequiredMixin, DetailView):
         
         # ملخص التكاليف
         try:
-            context['summary'] = order.summary
+            summary = order.summary
+            context['summary'] = summary
+            if not can_view_margins and summary:
+                # عزل الأسرار التجارية والتكلفة عن المناديب
+                context['sanitized_final_price'] = summary.final_price
+                context['sanitized_tax'] = summary.tax_amount
+                context['sanitized_discount'] = summary.discount_amount
         except OrderSummary.DoesNotExist:
             context['summary'] = None
         
         # الحسابات الحالية
-        context['current_calculations'] = order.calculations.filter(is_current=True)
+        context['current_calculations'] = order.calculations.filter(is_current=True) if can_view_margins else []
+        
+        # سجل حركة ونقل الشغل ومكلف النقل
+        context['transport_logs'] = order.transport_logs.select_related('transporter').all()
+        
+        # أوامر الشراء المفككة للورش
+        from purchase.models import Purchase
+        if order.work_order:
+            context['unbundled_pos'] = Purchase.objects.filter(work_order=order.work_order).select_related('supplier')
+        else:
+            context['unbundled_pos'] = Purchase.objects.none()
+            
+        # العهد والفورمات والجودة والتعويضات والعرابين
+        context['die_moulds'] = order.used_moulds.all()
+        context['qc_signoff'] = getattr(order, 'qc_signoff', None)
+        context['remakes'] = order.remakes.all()
+        context['advances'] = order.vendor_advances.select_related('supplier').all()
+
+
+
+        
+        # حالة صمام الإطلاق لأمر الشغل
+        proof_approved = hasattr(order, 'proof_signoff') and order.proof_signoff.status == 'approved'
+        context['proof_approved'] = proof_approved
+        context['can_convert_to_work_order'] = not order.work_order and order.status in ['approved', 'completed']
         
         return context
 
@@ -154,14 +193,15 @@ class OrderCreateView(LoginRequiredMixin, CreateView):
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['page_title'] = 'إنشاء طلب جديد'
-        context['page_subtitle'] = 'إنشاء طلب تسعير جديد مع حساب التكلفة التلقائي'
+        context['can_view_margins'] = check_can_view_margins(self.request.user)
+        context['page_title'] = 'إنشاء طلب تسعير جديد'
+        context['page_subtitle'] = 'تسعير ذكي للمطبوعات والهدايا مع حساب التكلفة التلقائي'
         context['page_icon'] = 'fas fa-plus'
         context['header_buttons'] = [
             {
                 'url': reverse('printing_pricing:order_list'),
                 'icon': 'fa-arrow-right',
-                'text': 'رجوع',
+                'text': 'رجوع للقائمة',
                 'class': 'btn-secondary',
             },
         ]
@@ -174,15 +214,13 @@ class OrderCreateView(LoginRequiredMixin, CreateView):
     
     def form_valid(self, form):
         """معالجة النموذج الصحيح"""
-        # تعيين المستخدم الحالي
         form.instance.created_by = self.request.user
         form.instance.updated_by = self.request.user
         
-        # حفظ الطلب
         response = super().form_valid(form)
         
-        # إنشاء ملخص التكلفة
-        OrderSummary.objects.create(order=self.object)
+        # إنشاء أو استرجاع ملخص التكلفة بأمان
+        OrderSummary.objects.get_or_create(order=self.object)
         
         messages.success(
             self.request, 
@@ -192,7 +230,6 @@ class OrderCreateView(LoginRequiredMixin, CreateView):
         return response
     
     def get_success_url(self):
-        """الانتقال لصفحة تفاصيل الطلب بعد الإنشاء"""
         return reverse('printing_pricing:order_detail', kwargs={'pk': self.object.pk})
 
 
@@ -209,24 +246,44 @@ class OrderUpdateView(LoginRequiredMixin, UpdateView):
         if not (self.request.user.is_superuser or self.request.user.is_staff):
             queryset = queryset.filter(created_by=self.request.user)
         return queryset
+        
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['can_view_margins'] = check_can_view_margins(self.request.user)
+        context['page_title'] = f'تعديل طلب التسعير {self.object.order_number}'
+        context['page_subtitle'] = 'تعديل المواصفات والخامات والخدمات'
+        context['page_icon'] = 'fas fa-edit'
+        context['header_buttons'] = [
+            {
+                'url': reverse('printing_pricing:order_detail', kwargs={'pk': self.object.pk}),
+                'icon': 'fa-eye',
+                'text': 'عرض التفاصيل',
+                'class': 'btn-info',
+            },
+        ]
+        context['breadcrumb_items'] = [
+            {'title': 'الرئيسية', 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},
+            {'title': 'طلبات التسعير', 'url': reverse('printing_pricing:order_list'), 'icon': 'fas fa-print'},
+            {'title': self.object.order_number, 'url': reverse('printing_pricing:order_detail', kwargs={'pk': self.object.pk})},
+            {'title': 'تعديل', 'active': True},
+        ]
+        return context
     
     def form_valid(self, form):
-        """معالجة النموذج الصحيح"""
-        # تحديث المستخدم
         form.instance.updated_by = self.request.user
-        
         response = super().form_valid(form)
+        
+        OrderSummary.objects.get_or_create(order=self.object)
         
         messages.success(
             self.request,
             _('تم تحديث طلب التسعير {} بنجاح').format(self.object.order_number)
         )
-        
         return response
     
     def get_success_url(self):
-        """الانتقال لصفحة تفاصيل الطلب بعد التحديث"""
         return reverse('printing_pricing:order_detail', kwargs={'pk': self.object.pk})
+
 
 
 class OrderDeleteView(LoginRequiredMixin, DeleteView):
@@ -264,9 +321,38 @@ class OrderDeleteView(LoginRequiredMixin, DeleteView):
         return HttpResponseRedirect(self.get_success_url())
 
 
+class DashboardView(LoginRequiredMixin, TemplateView):
+    """لوحة تحكم مؤشرات الأداء لتسعير المطبوعات والهدايا"""
+    template_name = 'printing_pricing/dashboard.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        total_orders = PrintingOrder.objects.filter(is_active=True).count()
+        pending_orders = PrintingOrder.objects.filter(status='pending', is_active=True).count()
+        completed_orders = PrintingOrder.objects.filter(status='completed', is_active=True).count()
+        total_rev = PrintingOrder.objects.filter(is_active=True).aggregate(t=Sum('final_price'))['t'] or Decimal('0.00')
+
+        context['stats'] = {
+            'total_orders': total_orders,
+            'pending_orders': pending_orders,
+            'completed_orders': completed_orders,
+            'total_revenue': total_rev
+        }
+        context['recent_orders'] = PrintingOrder.objects.filter(is_active=True).select_related('customer').order_by('-created_at')[:10]
+        context['page_title'] = 'لوحة التحكم - تسعير المطبوعات'
+        context['page_subtitle'] = 'مؤشرات الأداء ومقايسات الطباعة والهدايا'
+        context['page_icon'] = 'fas fa-chart-line'
+        context['breadcrumb_items'] = [
+            {'title': 'الرئيسية', 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},
+            {'title': 'تسعير المطبوعات', 'active': True},
+        ]
+        return context
+
+
 def dashboard_redirect(request):
-    """redirect من الصفحة الرئيسية لقائمة الطلبات"""
-    return redirect(reverse('printing_pricing:order_list'))
+    """عرض لوحة التحكم"""
+    return DashboardView.as_view()(request)
+
 
 
 # دوال مساعدة للعمليات السريعة
@@ -280,7 +366,7 @@ def _has_order_permission(user, order):
 @login_required
 def calculate_order_cost(request, pk):
     """
-    حساب تكلفة الطلب عبر AJAX
+    حساب تكلفة الطلب وتحديث ملخص التكاليف وحساب التكلفة ذرياً
     """
     if request.method != 'POST':
         return JsonResponse({'success': False, 'error': _('طريقة غير مسموحة')})
@@ -292,15 +378,91 @@ def calculate_order_cost(request, pk):
         if not _has_order_permission(request.user, order):
             return JsonResponse({'success': False, 'error': _('غير مصرح لك بحساب تكلفة هذا الطلب')}, status=403)
         
-        # هنا سيتم استدعاء خدمات الحساب لاحقاً
-        # من services/calculators/
+        from ..models import CostCalculation, CalculationType
+        from ..services.calculators import BaseCalculator
         
-        # مؤقتاً نرجع استجابة أساسية
+        with transaction.atomic():
+            calculator = BaseCalculator(order)
+            result = calculator.calculate(CalculationType.TOTAL)
+            
+            if not result.get('success'):
+                return JsonResponse({'success': False, 'error': result.get('error', _('فشل في حساب التكلفة'))})
+            
+            details = result.get('details', {})
+            mat_cost = Decimal(str(details.get('material_cost', 0)))
+            print_cost = Decimal(str(details.get('printing_cost', 0)))
+            fin_cost = Decimal(str(details.get('finishing_cost', 0)))
+            des_cost = Decimal(str(details.get('design_cost', 0)))
+            other_cost = Decimal(str(details.get('installation_cost', 0))) + Decimal(str(details.get('logistics_cost', 0)))
+            
+            subtotal = Decimal(str(result.get('total_cost', 0)))
+            disc_amt = Decimal(str(details.get('discount_amount', 0)))
+            tax_amt = Decimal(str(details.get('tax_amount', 0)))
+            rush_f = Decimal(str(details.get('rush_fee', 0)))
+            final_p = Decimal(str(result.get('final_price', 0)))
+            margin_pct = Decimal(str(details.get('profit_margin', 20)))
+            profit_amt = max(Decimal('0.00'), final_p - subtotal)
+            
+            import json
+            from django.core.serializers.json import DjangoJSONEncoder
+
+            qty = max(1, order.quantity or 1)
+            cost_unit = (subtotal / Decimal(str(qty))).quantize(Decimal('0.0001'))
+            price_unit = (final_p / Decimal(str(qty))).quantize(Decimal('0.0001'))
+            
+            # تحديث أو إنشاء ملخص الطلب OrderSummary
+            summary, summary_created = OrderSummary.objects.get_or_create(order=order)
+            summary.material_cost = mat_cost
+            summary.printing_cost = print_cost
+            summary.finishing_cost = fin_cost
+            summary.design_cost = des_cost
+            summary.other_costs = other_cost
+            summary.subtotal = subtotal
+            summary.discount_amount = disc_amt
+            summary.tax_amount = tax_amt
+            summary.rush_fee = rush_f
+            summary.total_cost = subtotal
+            summary.profit_margin_percentage = margin_pct
+            summary.profit_amount = profit_amt
+            summary.final_price = final_p
+            summary.cost_per_unit = cost_unit
+            summary.price_per_unit = price_unit
+            summary.save()
+            
+            # تحويل تفاصيل الحساب إلى JSON آمن
+            json_safe_details = json.loads(json.dumps(details, cls=DjangoJSONEncoder))
+            
+            # تحديث أو إنشاء سجل حساب التكلفة CostCalculation
+            CostCalculation.objects.update_or_create(
+                order=order,
+                calculation_type=CalculationType.TOTAL,
+                is_current=True,
+                defaults={
+                    'base_cost': subtotal,
+                    'additional_costs': tax_amt + rush_f - disc_amt,
+                    'total_cost': subtotal,
+                    'calculation_details': json_safe_details,
+                    'created_by': request.user
+                }
+            )
+            
+            # تحديث الحقول على رأس أمر التسعير
+            order.estimated_cost = subtotal
+            order.final_price = final_p
+            order.sale_price = final_p
+            order.profit_margin = margin_pct
+            order.save(update_fields=['estimated_cost', 'final_price', 'sale_price', 'profit_margin', 'updated_at'])
+        
         return JsonResponse({
             'success': True,
-            'message': _('تم حساب التكلفة بنجاح'),
-            'estimated_cost': float(order.estimated_cost or 0),
-            'order_id': order.id
+            'message': _('تم حساب التكلفة والربحية بنجاح'),
+            'order_id': order.id,
+            'estimated_cost': float(subtotal),
+            'final_price': float(final_p),
+            'cost_per_unit': float(cost_unit),
+            'price_per_unit': float(price_unit),
+            'profit_margin': float(margin_pct),
+            'profit_amount': float(profit_amt)
         })
         
     except Exception as e:
@@ -308,6 +470,7 @@ def calculate_order_cost(request, pk):
             'success': False,
             'error': _('حدث خطأ أثناء حساب التكلفة: {}').format(str(e))
         })
+
 
 
 @login_required
