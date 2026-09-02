@@ -192,6 +192,197 @@ class PrintingOrder(BaseModel):
         verbose_name=_("جهة الفتح والتجليد")
     )
     
+    # تقنيات الطباعة الهجينة
+    cover_printing_type = models.CharField(
+        max_length=20,
+        choices=[
+            ('offset', _('أوفست')),
+            ('digital', _('ديجيتال')),
+            ('digital_banner', _('خامات كبيرة')),
+            ('screen', _('سلك سكرين')),
+            ('none', _('بدون طباعة')),
+        ],
+        default='offset',
+        verbose_name=_("نوع الطباعة")
+    )
+    
+    print_sides_mode = models.CharField(
+        max_length=20,
+        choices=[
+            ('single', _('وجه واحد')),
+            ('work_sheet', _('وجهين')),
+            ('work_turn', _('طبع وقلب')),
+        ],
+        default='single',
+        verbose_name=_("عدد الأوجه")
+    )
+    
+    digital_color_mode = models.CharField(
+        max_length=20,
+        choices=[
+            ('4_0', _('وجه واحد ألوان (4/0)')),
+            ('1_0', _('وجه واحد أسود (1/0)')),
+            ('4_4', _('وجهين ألوان (4/4)')),
+            ('4_1', _('وجه ألوان + ظهر أسود (4/1)')),
+            ('1_1', _('وجهين أسود (1/1)')),
+        ],
+        default='4_0',
+        verbose_name=_("نمط نقرات الديجيتال")
+    )
+    
+    spot_colors_front = models.PositiveIntegerField(
+        default=0,
+        verbose_name=_("عدد الألوان المخصوصة (الوجه)")
+    )
+    
+    spot_colors_back = models.PositiveIntegerField(
+        default=0,
+        verbose_name=_("عدد الألوان المخصوصة (الظهر)")
+    )
+    
+    banner_sqm_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal('50.00'),
+        verbose_name=_("سعر المتر المربع للخامات الكبيرة")
+    )
+    
+    has_white_ink = models.BooleanField(
+        default=False,
+        verbose_name=_("طباعة طبقة حبر أبيض للشفافيات والـ UV")
+    )
+    
+    inner_printing_type = models.CharField(
+        max_length=20,
+        choices=[
+            ('offset', _('أوفست')),
+            ('digital', _('ديجيتال')),
+        ],
+        default='offset',
+        verbose_name=_("نوع طباعة الداخلي")
+    )
+    
+    inner_print_sides_mode = models.CharField(
+        max_length=20,
+        choices=[
+            ('single', _('وجه واحد')),
+            ('work_sheet', _('وجهين')),
+            ('work_turn', _('طبع وقلب')),
+        ],
+        default='work_sheet',
+        verbose_name=_("عدد أوجه الداخلي")
+    )
+    
+    inner_color_mode = models.CharField(
+        max_length=20,
+        choices=[
+            ('all_color', _('ملون بالكامل 4/4')),
+            ('all_bw', _('أبيض وأسود نصوص 1/1')),
+            ('mixed', _('مختلط (ألوان + أسود)')),
+        ],
+        default='all_color',
+        verbose_name=_("نمط ألوان الداخلي")
+    )
+    
+    inner_spot_colors = models.PositiveSmallIntegerField(
+        default=0,
+        verbose_name=_("عدد الألوان المخصوصة (الداخلي)")
+    )
+    
+    inner_color_pages = models.PositiveIntegerField(
+        default=0,
+        verbose_name=_("عدد الصفحات الملونة بالداخلي")
+    )
+    
+    inner_bw_pages = models.PositiveIntegerField(
+        default=0,
+        verbose_name=_("عدد الصفحات الأبيض والأسود بالداخلي")
+    )
+    
+    inner_signatures_count = models.PositiveIntegerField(
+        default=0,
+        verbose_name=_("إجمالي عدد الملازم")
+    )
+    
+    binding_type = models.CharField(
+        max_length=30,
+        choices=[
+            ('staple', _('دبوس فرنسي سرج')),
+            ('perfect_binding', _('غراء حراري كعب مربع (PUR)')),
+            ('hardcover', _('كرتون مقوى فاخر (Hardcover)')),
+            ('wire_o', _('سلك لولبي دبل')),
+            ('pad_glue', _('بلوك تكعيب غراء من أعلى (نوت بوك / روشتات)')),
+            ('sewing_binding', _('خياطة ملازم وتجليد فاخر')),
+        ],
+        default='staple',
+        verbose_name=_("نوع التجليد والتقفيل")
+    )
+    
+    spine_thickness = models.DecimalField(
+        max_digits=6,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        verbose_name=_("سمك الكعب (مم)")
+    )
+    
+    inner_paper_type = models.CharField(
+        max_length=50,
+        default='couche',
+        verbose_name=_("نوع ورق الداخلي")
+    )
+    
+    inner_paper_weight = models.CharField(
+        max_length=10,
+        default='135',
+        verbose_name=_("جراماج ورق الداخلي")
+    )
+    
+    inner_coating_type = models.CharField(
+        max_length=30,
+        default='none',
+        verbose_name=_("سلوفان الداخلي")
+    )
+    
+    # حقول دفاتر الفواتير NCR
+    ncr_sets_count = models.PositiveSmallIntegerField(
+        default=2,
+        verbose_name=_("عدد الصور في الطقم")
+    )
+    
+    ncr_book_capacity = models.PositiveIntegerField(
+        default=50,
+        verbose_name=_("سعة الدفتر (مجموعة)")
+    )
+    
+    ncr_serial_start = models.PositiveIntegerField(
+        default=1001,
+        verbose_name=_("بداية الترقيم")
+    )
+    
+    ncr_serial_end = models.PositiveIntegerField(
+        default=1000,
+        verbose_name=_("نهاية الترقيم")
+    )
+    
+    # حقول جيوب الفولدرات
+    folder_pocket_type = models.CharField(
+        max_length=30,
+        default='same_sheet',
+        verbose_name=_("نوع الجيب")
+    )
+    
+    folder_card_slit = models.BooleanField(
+        default=True,
+        verbose_name=_("فتحة كارت شخصي")
+    )
+    
+    folder_pocket_height = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=Decimal('7.5'),
+        verbose_name=_("ارتفاع الجيب (سم)")
+    )
+    
     # معلومات التكلفة
     estimated_cost = models.DecimalField(
         max_digits=12,

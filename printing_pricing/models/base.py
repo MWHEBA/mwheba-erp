@@ -118,7 +118,8 @@ class PriceUnit(models.TextChoices):
     PIECE = 'piece', _('بالقطعة')
     THOUSAND = 'thousand', _('بالألف')
     SHEET = 'sheet', _('بالفرخ / شيت')
-    METER = 'meter', _('بالمتر')
+    METER = 'meter', _('بالمتر الطولي')
+    SQUARE_METER = 'sqm', _('بالمتر المربع')
     PACKAGE = 'package', _('بالباكدج')
 
 

@@ -105,18 +105,13 @@
         </select>
       </div>
 
-      <!-- 5. الكمية المطلوبة والتوجيه الآلي للماكينة -->
+      <!-- 5. الكمية المطلوبة -->
       <div class="col-md-4">
         <label for="id_quantity" class="form-label fw-bold">
           {% trans "الكمية المطلوبة" %} <span class="text-danger">*</span>
         </label>
-        <div class="input-group">
-          <input type="number" class="form-control fw-bold" id="id_quantity" name="quantity" 
-                 value="{{ form.quantity.value|default:form.instance.quantity|default:1000 }}" min="1" required>
-          <span class="input-group-text p-1">
-            <span class="badge bg-success" id="badge_routing_type">{% trans "أوفست زنكات" %}</span>
-          </span>
-        </div>
+        <input type="number" class="form-control fw-bold" id="id_quantity" name="quantity" 
+               value="{{ form.quantity.value|default:form.instance.quantity|default:1000 }}" min="1" required>
       </div>
 
       <!-- 6. المسؤول (غير قابل للتغيير - يقرأ المستخدم تلقائياً) -->
@@ -134,7 +129,7 @@
       <!-- أ. مقاس المطبوع -->
       <div class="col-md-4">
         <label for="id_product_size" class="form-label fw-bold">
-          <i class="fas fa-ruler-combined text-primary me-1"></i>{% trans "مقاس المطبوع" %} <span class="text-danger">*</span>
+          {% trans "مقاس المطبوع" %} <span class="text-danger">*</span>
         </label>
         <select class="form-select select2-filter" id="id_product_size" name="product_size" required>
           {% if product_sizes %}
@@ -204,7 +199,7 @@
       </div>
 
       <!-- 8. خيار المقاس المقفول (المطوي) وجهة الفتح وشارة المقاس المفتوح للماكينة -->
-      <div class="col-12" id="closed_size_container">
+      <div class="col-12 {% if not form.instance.is_closed_size and not form.is_closed_size.value %}d-none{% endif %}" id="closed_size_container">
         <div class="p-2 px-3 bg-light rounded border d-flex flex-wrap align-items-center justify-content-between gap-3">
           <div class="d-flex align-items-center gap-3 flex-wrap">
             <div class="form-check form-switch mb-0">

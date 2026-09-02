@@ -68,31 +68,115 @@
       </div>
     </div>
 
-    <!-- المواصفات الفنية للورق والألواح -->
-    <h5 class="fw-bold border-bottom pb-2 mb-3"><i class="fas fa-file-alt text-secondary me-2"></i>{% trans "مواصفات الورق والتقطيع" %}</h5>
+    <!-- تفاصيل التشغيل الهجين للغلاف والداخلي -->
     <div class="row g-3 mb-4">
-      <div class="col-md-4">
-        <div class="border p-2 rounded">
-          <div class="text-muted small">{% trans "نوع وجراماج الورق" %}:</div>
-          <div class="fw-bold">{{ order.paper_type.name|default:"-" }} {{ order.paper_weight.weight|default:"" }} جم</div>
+      <!-- أ. أمر تشغيل الغلاف / المطبوع الرئيسي -->
+      <div class="col-md-6">
+        <div class="border rounded p-3 h-100 bg-light">
+          <h6 class="fw-bold text-success border-bottom pb-2 mb-3">
+            <i class="fas fa-scroll me-2"></i>{% trans "1. أمر تشغيل الغلاف / المطبوع الرئيسي" %}
+          </h6>
+          <ul class="list-unstyled small mb-0">
+            <li class="mb-2 d-flex justify-content-between">
+              <span class="text-muted">{% trans "نوع الطباعة والأوجه:" %}</span>
+              <strong class="text-primary">{{ order.get_cover_printing_type_display }} ({{ order.get_print_sides_mode_display|default:_("وجه واحد") }})</strong>
+            </li>
+            <li class="mb-2 d-flex justify-content-between">
+              <span class="text-muted">{% trans "المقاس المقفول والمفتوح:" %}</span>
+              <strong>{{ order.get_dimensions_display }}</strong>
+            </li>
+            <li class="mb-2 d-flex justify-content-between">
+              <span class="text-muted">{% trans "الألوان والأحبار المعتمدة:" %}</span>
+              {% if order.cover_printing_type == 'offset' %}
+                <span class="badge-tech">{{ order.colors_front }}+{{ order.colors_back }} ألوان {% if order.spot_colors_front or order.spot_colors_back %}+ {{ order.spot_colors_front|add:order.spot_colors_back }} {% trans "لون مخصوص إضافي" %}{% endif %}</span>
+              {% elif order.cover_printing_type == 'digital' %}
+                <span class="badge-tech">ديجيتال كليك {{ order.get_digital_color_mode_display|default:"4/0" }}</span>
+              {% elif order.cover_printing_type == 'digital_banner' %}
+                <span class="badge-tech">خامات كبيرة بالمتر {% if order.has_white_ink %}+ حبر أبيض{% endif %}</span>
+              {% elif order.cover_printing_type == 'screen' %}
+                <span class="badge-tech">سلك سكرين {{ order.colors_front|default:"1" }} شابلونة</span>
+              {% else %}
+                <span class="badge-tech">سادة بدون طباعة</span>
+              {% endif %}
+            </li>
+            <li class="mb-2 d-flex justify-content-between">
+              <span class="text-muted">{% trans "السلوفان والحراري:" %}</span>
+              <span>{{ order.coating_type.name|default:_("بدون") }}</span>
+            </li>
+            <li class="d-flex justify-content-between">
+              <span class="text-muted">{% trans "القص والتكسير:" %}</span>
+              <span>{{ order.finishing_type.name|default:_("قص مستقيم") }}</span>
+            </li>
+          </ul>
         </div>
       </div>
-      <div class="col-md-4">
-        <div class="border p-2 rounded">
-          <div class="text-muted small">{% trans "مقاس الفرخ الخام" %}:</div>
-          <div class="fw-bold">{{ paper_calc.sheet_size|default:"70 × 100 سم" }}</div>
-        </div>
-      </div>
-      <div class="col-md-4">
-        <div class="border p-2 rounded">
-          <div class="text-muted small">{% trans "عدد الأفرخ شاملة الهالك" %}:</div>
-          <div class="fw-bold text-danger">{{ paper_calc.total_sheets_with_waste|default:"-" }} {% trans "فرخ" %}</div>
+
+      <!-- ب. أمر تشغيل الصفحات الداخلية والتجليد -->
+      <div class="col-md-6">
+        <div class="border rounded p-3 h-100 bg-light">
+          <h6 class="fw-bold text-primary border-bottom pb-2 mb-3">
+            <i class="fas fa-book-open me-2"></i>{% trans "2. أمر تشغيل الداخلي والتجليد" %}
+          </h6>
+          {% if order.order_type in 'catalog,book,magazine,book_catalog' %}
+          <ul class="list-unstyled small mb-0">
+            <li class="mb-2 d-flex justify-content-between">
+              <span class="text-muted">{% trans "تقنية الداخلي والأوجه:" %}</span>
+              <strong class="text-primary">{{ order.get_inner_printing_type_display }} ({{ order.get_inner_print_sides_mode_display }})</strong>
+            </li>
+            <li class="mb-2 d-flex justify-content-between">
+              <span class="text-muted">{% trans "الورق والجراماج:" %}</span>
+              <strong>{{ order.get_inner_paper_type_display|default:_("كوشيه") }} ({{ order.inner_paper_weight|default:"135" }} جم)</strong>
+            </li>
+            <li class="mb-2 d-flex justify-content-between">
+              <span class="text-muted">{% trans "الصفحات والملازم:" %}</span>
+              <strong>{{ order.pages_count }} صفحة ({{ order.inner_signatures_count|default:"-" }} ملازم)</strong>
+            </li>
+            <li class="mb-2 d-flex justify-content-between">
+              <span class="text-muted">{% trans "نوع التجليد:" %}</span>
+              <span class="badge-tech">{{ order.get_binding_type_display|default:_("دبوس سرج") }}</span>
+            </li>
+            <li class="d-flex justify-content-between">
+              <span class="text-muted">{% trans "سمك الكعب المحسوب:" %}</span>
+              <strong class="text-dark">{{ order.spine_thickness|default:"0.0" }} مم</strong>
+            </li>
+          </ul>
+          {% elif order.order_type in 'invoice,receipt,ncr' %}
+          <ul class="list-unstyled small mb-0">
+            <li class="mb-2 d-flex justify-content-between">
+              <span class="text-muted">{% trans "أطقم ورق الكربون NCR:" %}</span>
+              <strong class="text-primary">طقم {{ order.ncr_sets_count|default:"2" }} ألوان</strong>
+            </li>
+            <li class="mb-2 d-flex justify-content-between">
+              <span class="text-muted">{% trans "سعة الدفتر:" %}</span>
+              <strong>{{ order.ncr_book_capacity|default:"50" }} إيصال / دفتر</strong>
+            </li>
+            <li class="d-flex justify-content-between">
+              <span class="text-muted">{% trans "نطاق الترقيم السيريال:" %}</span>
+              <span class="badge-tech">من {{ order.ncr_serial_start }} إلى {{ order.ncr_serial_end }}</span>
+            </li>
+          </ul>
+          {% elif order.order_type in 'folder,box,folder_packaging' %}
+          <ul class="list-unstyled small mb-0">
+            <li class="mb-2 d-flex justify-content-between">
+              <span class="text-muted">{% trans "نوع وتجهيز الجيب:" %}</span>
+              <strong class="text-primary">{{ order.get_folder_pocket_type_display }}</strong>
+            </li>
+            <li class="d-flex justify-content-between">
+              <span class="text-muted">{% trans "شلاقة كارت بيزنس:" %}</span>
+              <span>{% if order.folder_card_slit %}{% trans "موجودة (فورمة مخصصة)" %}{% else %}{% trans "بدون" %}{% endif %}</span>
+            </li>
+          </ul>
+          {% else %}
+          <div class="text-muted small py-4 text-center">
+            <i class="fas fa-check-circle text-success me-1"></i>{% trans "مطبوع مفرد مفرود - لا يتطلب تشغيل ملازم داخلية." %}
+          </div>
+          {% endif %}
         </div>
       </div>
     </div>
 
-    <!-- تعليمات ماكينة الأوفست واتجاه الألياف -->
-    <h5 class="fw-bold border-bottom pb-2 mb-3"><i class="fas fa-cogs text-secondary me-2"></i>{% trans "تعليمات السحب والزنكات CTP" %}</h5>
+    <!-- تعليمات الجودة وضبط الماكينات -->
+    <h5 class="fw-bold border-bottom pb-2 mb-3"><i class="fas fa-cogs text-secondary me-2"></i>{% trans "تعليمات الجودة وضبط الماكينات" %}</h5>
     <div class="row g-3 mb-4">
       <div class="col-md-6">
         <ul class="list-group list-group-flush small">

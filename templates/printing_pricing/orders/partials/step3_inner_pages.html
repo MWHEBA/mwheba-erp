@@ -20,142 +20,238 @@
   <div id="collapse_step3" class="collapse show">
     <div>
 
-      <!-- أ. لو كان الصنف كتاب / كتالوج / مجلة (Book/Catalog Section) -->
+      <!-- أ. لو كان الصنف كتاب / كتالوج / مجلة / نوت بوك / بلوك (Book/Catalog/Pad Section) -->
       <div id="inner_book_section">
         <h6 class="fw-bold text-primary mb-3">
-          <i class="fas fa-file-alt me-1"></i>{% trans "تفاصيل صفحات الداخلي والملازم وتجليد الكتالوج" %}
+          <i class="fas fa-file-alt me-1"></i>{% trans "تفاصيل صفحات الداخلي والملازم والتجليد" %}
         </h6>
-        <div class="row g-3 mb-4 pb-3 border-bottom">
+
+        <!-- السطر الأول الرئيسي: نوع الطباعة | عدد الأوجه | ألوان الداخلي | نوع التجليد -->
+        <div class="row g-3 mb-3 pb-3 border-bottom align-items-end">
+          
+          <!-- 1. نوع الطباعة -->
           <div class="col-md-3">
-            <label for="id_pages_count" class="form-label fw-bold">
-              {% trans "إجمالي عدد الصفحات الداخلية" %} <span class="text-danger">*</span>
+            <label for="id_inner_printing_type" class="form-label fw-bold small">
+              {% trans "نوع الطباعة" %} <span class="text-danger">*</span>
+            </label>
+            <select class="form-select select2-filter" id="id_inner_printing_type" name="inner_printing_type">
+              <option value="offset" {% if form.inner_printing_type.value == 'offset' or not form.inner_printing_type.value %}selected{% endif %}>{% trans "أوفست" %}</option>
+              <option value="digital" {% if form.inner_printing_type.value == 'digital' %}selected{% endif %}>{% trans "ديجيتال" %}</option>
+            </select>
+          </div>
+
+          <!-- 2. عدد الأوجه -->
+          <div class="col-md-3">
+            <label for="id_inner_print_sides_mode" class="form-label fw-bold small">
+              {% trans "عدد الأوجه" %} <span class="text-danger">*</span>
+            </label>
+            <select class="form-select select2-filter" id="id_inner_print_sides_mode" name="inner_print_sides_mode">
+              <option value="work_sheet" {% if form.inner_print_sides_mode.value == 'work_sheet' or not form.inner_print_sides_mode.value %}selected{% endif %}>{% trans "وجهين" %}</option>
+              <option value="single" {% if form.inner_print_sides_mode.value == 'single' %}selected{% endif %}>{% trans "وجه واحد" %}</option>
+              <option value="work_turn" {% if form.inner_print_sides_mode.value == 'work_turn' %}selected{% endif %}>{% trans "طبع وقلب" %}</option>
+            </select>
+          </div>
+
+          <!-- 3. ألوان الداخلي المتكيفة -->
+          <div class="col-md-3">
+            <!-- أوفست وجهين -->
+            <div id="container_inner_color_mode_offset">
+              <label for="id_inner_color_mode" class="form-label fw-bold small">
+                {% trans "نمط ألوان الداخلي" %} <span class="text-danger">*</span>
+              </label>
+              <select class="form-select select2-filter" id="id_inner_color_mode" name="inner_color_mode">
+                <option value="all_color" {% if form.inner_color_mode.value == 'all_color' or not form.inner_color_mode.value %}selected{% endif %}>{% trans "ملون بالكامل (4/4)" %}</option>
+                <option value="all_bw" {% if form.inner_color_mode.value == 'all_bw' %}selected{% endif %}>{% trans "أبيض وأسود نصوص (1/1)" %}</option>
+                <option value="mixed" {% if form.inner_color_mode.value == 'mixed' %}selected{% endif %}>{% trans "مختلط (ألوان + أسود)" %}</option>
+              </select>
+            </div>
+
+            <!-- أوفست وجه واحد (للبلوكات والروشتات) -->
+            <div id="container_inner_color_mode_single" class="d-none">
+              <label class="form-label fw-bold small">
+                {% trans "ألوان التصميم" %} <span class="text-danger">*</span>
+              </label>
+              <div class="compact-color-group">
+                <span class="color-label">{% trans "أساسي" %}</span>
+                <input type="number" class="color-input" id="id_inner_colors_single" name="inner_colors_single" 
+                       value="1" min="0" max="8" step="1">
+                <div class="color-divider"></div>
+                <span class="color-label">{% trans "مخصوص" %}</span>
+                <input type="number" class="color-input" id="id_inner_spot_colors_single" 
+                       value="0" min="0" max="4" step="1">
+              </div>
+            </div>
+
+            <!-- ديجيتال صفحات مختلطة -->
+            <div id="container_inner_color_mode_digital" class="d-none">
+              <label class="form-label fw-bold small">
+                {% trans "توزيع صفحات الديجيتال" %} <span class="text-danger">*</span>
+              </label>
+              <div class="input-group input-group-sm">
+                <span class="input-group-text bg-primary-subtle text-primary">{% trans "ألوان" %}</span>
+                <input type="number" class="form-control text-center" id="id_digital_inner_color_pages" name="digital_inner_color_pages" value="{{ form.inner_color_pages.value|default:'32' }}" min="0">
+                <span class="input-group-text bg-secondary-subtle text-secondary">{% trans "أسود" %}</span>
+                <input type="number" class="form-control text-center" id="id_digital_inner_bw_pages" name="digital_inner_bw_pages" value="{{ form.inner_bw_pages.value|default:'0' }}" min="0">
+              </div>
+            </div>
+          </div>
+
+          <!-- 4. نوع التجليد والتقفيل -->
+          <div class="col-md-3">
+            <label for="id_binding_type" class="form-label fw-bold small">
+              {% trans "نوع التجليد والتقفيل" %} <span class="text-danger">*</span>
+            </label>
+            <select class="form-select select2-filter" id="id_binding_type" name="binding_type">
+              <option value="staple" {% if form.binding_type.value == 'staple' or not form.binding_type.value %}selected{% endif %}>{% trans "دبوس فرنسي سرج" %}</option>
+              <option value="perfect_binding" {% if form.binding_type.value == 'perfect_binding' %}selected{% endif %}>{% trans "غراء حراري كعب مربع (PUR)" %}</option>
+              <option value="hardcover" {% if form.binding_type.value == 'hardcover' %}selected{% endif %}>{% trans "كرتون مقوى فاخر (Hardcover)" %}</option>
+              <option value="wire_o" {% if form.binding_type.value == 'wire_o' %}selected{% endif %}>{% trans "سلك لولبي دبل (Wire-O)" %}</option>
+              <option value="pad_glue" {% if form.binding_type.value == 'pad_glue' %}selected{% endif %}>{% trans "بلوك تكعيب غراء من أعلى (نوت بوك / روشتات)" %}</option>
+              <option value="sewing_binding" {% if form.binding_type.value == 'sewing_binding' %}selected{% endif %}>{% trans "خياطة ملازم وتجليد فاخر" %}</option>
+            </select>
+          </div>
+
+        </div>
+
+        <!-- السطر الثاني: خامة الورق | الجراماج | إجمالي الصفحات | حاسبة الكعب -->
+        <div class="row g-3 mb-3 pb-3 border-bottom align-items-end">
+          
+          <!-- 1. نوع ورق الداخلي -->
+          <div class="col-md-3">
+            <label for="id_inner_paper_type" class="form-label fw-bold small">
+              {% trans "نوع ورق الداخلي" %} <span class="text-danger">*</span>
+            </label>
+            <select class="form-select select2-filter" id="id_inner_paper_type" name="inner_paper_type">
+              <option value="couche" {% if form.inner_paper_type.value == 'couche' or not form.inner_paper_type.value %}selected{% endif %}>{% trans "كوشيه فاخر (Couche)" %}</option>
+              <option value="woodfree" {% if form.inner_paper_type.value == 'woodfree' %}selected{% endif %}>{% trans "ورق طبع أبيض / كريمي (Woodfree)" %}</option>
+              <option value="kraft" {% if form.inner_paper_type.value == 'kraft' %}selected{% endif %}>{% trans "ورق كرافت (Kraft)" %}</option>
+            </select>
+          </div>
+
+          <!-- 2. جراماج الورق الداخلي -->
+          <div class="col-md-3">
+            <label for="id_inner_paper_weight" class="form-label fw-bold small">
+              {% trans "جراماج الورق الداخلي" %} <span class="text-danger">*</span>
+            </label>
+            <select class="form-select select2-filter" id="id_inner_paper_weight" name="inner_paper_weight">
+              <option value="70" {% if form.inner_paper_weight.value == '70' %}selected{% endif %}>70 جم (طبع كتب وروايات)</option>
+              <option value="80" {% if form.inner_paper_weight.value == '80' %}selected{% endif %}>80 جم (طبع فاخر)</option>
+              <option value="115" {% if form.inner_paper_weight.value == '115' %}selected{% endif %}>115 جم (كوشيه خفيف)</option>
+              <option value="135" {% if form.inner_paper_weight.value == '135' or not form.inner_paper_weight.value %}selected{% endif %}>135 جم (كوشيه كتالوجات معياري)</option>
+              <option value="150" {% if form.inner_paper_weight.value == '150' %}selected{% endif %}>150 جم (كوشيه متوسط)</option>
+            </select>
+          </div>
+
+          <!-- 3. إجمالي عدد الصفحات -->
+          <div class="col-md-3">
+            <label for="id_pages_count" class="form-label fw-bold small">
+              {% trans "إجمالي عدد الصفحات" %} <span class="text-danger">*</span>
             </label>
             <input type="number" class="form-control fw-bold text-center text-primary" id="id_pages_count"
-              name="pages_count" value="{{ form.pages_count.value|default:'32' }}" min="4" step="4">
+              name="pages_count" value="{{ form.pages_count.value|default:'32' }}" min="1">
             <div class="form-text small" id="signatures_count_hint">{% trans "يعادل 2 ملزمة (16 صفحة/ملزمة)" %}</div>
           </div>
 
+          <!-- 4. حاسبة سمك الكعب التلقائية -->
           <div class="col-md-3">
-            <label for="id_inner_paper_type" class="form-label fw-bold">
-              {% trans "نوع ورق الداخلي" %}
-            </label>
-            <select class="form-select select2-filter" id="id_inner_paper_type" name="inner_paper_type">
-              <option value="couche" selected>{% trans "كوشيه فاخر (Couche)" %}</option>
-              <option value="woodfree">{% trans "ورق طبع أبيض / كريمي (Woodfree)" %}</option>
-              <option value="kraft">{% trans "ورق كرافت (Kraft)" %}</option>
-            </select>
-          </div>
-
-          <div class="col-md-3">
-            <label for="id_inner_paper_weight" class="form-label fw-bold">
-              {% trans "جراماج الورق الداخلي" %}
-            </label>
-            <select class="form-select" id="id_inner_paper_weight" name="inner_paper_weight">
-              <option value="70">70 جم (طبع كتب وروايات)</option>
-              <option value="80">80 جم (طبع فاخر)</option>
-              <option value="115">115 جم (كوشيه خفيف)</option>
-              <option value="135" selected>135 جم (كوشيه كتالوجات معياري)</option>
-              <option value="150">150 جم (كوشيه متوسط)</option>
-            </select>
-          </div>
-
-          <div class="col-md-3">
-            <label class="form-label fw-bold small text-muted">{% trans "حاسبة سمك الكعب التلقائية" %}</label>
+            <label class="form-label fw-bold small text-muted">{% trans "حاسبة سمك الكعب الفيزيائية" %}</label>
             <div class="form-control bg-light d-flex justify-content-between align-items-center">
               <span class="small text-muted">{% trans "سمك الكعب:" %}</span>
-              <strong class="text-danger fs-6" id="spine_thickness_display">3.2 مم</strong>
+              <strong class="text-primary fs-6" id="spine_thickness_display">0.0 مم</strong>
             </div>
           </div>
+
         </div>
 
-        <!-- الملازم المختلطة ونوع التجليد -->
-        <div class="row g-3">
+        <!-- كروت التفاصيل الديناميكية: ملازم الأوفست المختلطة والألوان المخصوصة -->
+        <div id="inner_offset_fields" class="row g-3 mb-3">
           <div class="col-md-4">
-            <label class="form-label fw-bold small">{% trans "ملازم ملونة 4/4 ألوان (صور)" %}</label>
+            <label class="form-label fw-bold small text-muted">{% trans "ملازم ملونة (4/4 CMYK)" %}</label>
             <input type="number" class="form-control form-control-sm text-center" id="id_color_signatures_count"
               name="color_signatures_count" value="2" min="0">
           </div>
 
           <div class="col-md-4">
-            <label class="form-label fw-bold small">{% trans "ملازم نصوص 1/1 أسود وأبيض" %}</label>
+            <label class="form-label fw-bold small text-muted">{% trans "ملازم نصوص (1/1 أسود)" %}</label>
             <input type="number" class="form-control form-control-sm text-center" id="id_bw_signatures_count"
               name="bw_signatures_count" value="0" min="0">
           </div>
 
           <div class="col-md-4">
-            <label for="id_binding_type" class="form-label fw-bold">
-              <i class="fas fa-book text-success me-1"></i>{% trans "نوع التجليد والتقفيل" %}
-            </label>
-            <select class="form-select select2-filter" id="id_binding_type" name="binding_type">
-              <option value="staple" selected>{% trans "دبوس فرنسي سرج (Saddle Stitch)" %}</option>
-              <option value="perfect_binding">{% trans "غراء حراري كعب هاردكوفر (PUR Perfect Binding)" %}</option>
-              <option value="wire_o">{% trans "سلك لولبي دبل (Wire-O Spiral)" %}</option>
-              <option value="sewing_binding">{% trans "خياطة داخلي وتجليد فاخر" %}</option>
-            </select>
+            <label class="form-label fw-bold small text-muted">{% trans "ألوان مخصوصة إضافية بالداخلي" %}</label>
+            <input type="number" class="form-control form-control-sm text-center" id="id_inner_spot_colors"
+              name="inner_spot_colors" value="{{ form.inner_spot_colors.value|default:'0' }}" min="0">
           </div>
         </div>
+
+        <!-- صمامات وتنبيهات الأمان الفيزيائية للتجليد -->
+        <div class="alert alert-warning py-2 px-3 mb-3 d-none" id="binding_feasibility_warning">
+          <i class="fas fa-exclamation-triangle me-1"></i>
+          <small id="binding_warning_text"></small>
+        </div>
+
       </div>
 
       <!-- ب. لو كان الصنف فولدر شركات بجيب (Folder Pocket Section) -->
       <div id="inner_folder_section" class="d-none">
-        <h6 class="fw-bold text-danger mb-3">
-          <i class="fas fa-folder me-1"></i>{% trans "مواصفات الجيب الداخلي للفولدر (Pocket Specs)" %}
+        <h6 class="fw-bold text-primary mb-3">
+          <i class="fas fa-folder me-1"></i>{% trans "مواصفات الجيب الداخلي للفولدر" %}
         </h6>
         <div class="row g-3">
           <div class="col-md-4">
-            <label class="form-label fw-bold">{% trans "نوع الجيب" %}</label>
-            <select class="form-select" id="id_folder_pocket_type" name="folder_pocket_type">
+            <label class="form-label fw-bold small">{% trans "نوع الجيب" %}</label>
+            <select class="form-select select2-filter" id="id_folder_pocket_type" name="folder_pocket_type">
               <option value="same_sheet" selected>{% trans "جيب من نفس الفرخ مطوي وملصوق" %}</option>
               <option value="separate_pocket">{% trans "جيب منفصل مطبوع وملصوق يدوياً" %}</option>
               <option value="two_pockets">{% trans "جيبين (يمين ويسار)" %}</option>
             </select>
           </div>
           <div class="col-md-4">
-            <label class="form-label fw-bold">{% trans "فتحة الكارت الشخصي (Business Card Slit)" %}</label>
+            <label class="form-label fw-bold small">{% trans "فتحة الكارت الشخصي" %}</label>
             <select class="form-select" id="id_folder_card_slit" name="folder_card_slit">
-              <option value="yes" selected>{% trans "نعم - توجد فتحة كارت في الجيب" %}</option>
-              <option value="no">{% trans "لا - جيب مصمت بدون فتحة كارت" %}</option>
+              <option value="1" selected>{% trans "نعم - توجد فتحة كارت في الجيب" %}</option>
+              <option value="0">{% trans "لا - جيب مصمت بدون فتحة كارت" %}</option>
             </select>
           </div>
           <div class="col-md-4">
-            <label class="form-label fw-bold">{% trans "ارتفاع الجيب الداخلي (سم)" %}</label>
+            <label class="form-label fw-bold small">{% trans "ارتفاع الجيب الداخلي (سم)" %}</label>
             <input type="number" step="0.5" class="form-control" id="id_folder_pocket_height"
-              name="folder_pocket_height" value="7.5">
+              name="folder_pocket_height" value="{{ form.folder_pocket_height.value|default:'7.5' }}">
           </div>
         </div>
       </div>
 
       <!-- ج. لو كان الصنف دفاتر فواتير مكربنة NCR (NCR Invoices Section) -->
       <div id="inner_ncr_section" class="d-none">
-        <h6 class="fw-bold text-success mb-3">
+        <h6 class="fw-bold text-primary mb-3">
           <i class="fas fa-receipt me-1"></i>{% trans "مواصفات أوراق وترقيم دفاتر الفواتير المكربنة NCR" %}
         </h6>
         <div class="row g-3">
           <div class="col-md-3">
-            <label class="form-label fw-bold">{% trans "عدد الصور في الطقم" %}</label>
-            <select class="form-select" id="id_ncr_sets_count" name="ncr_sets_count">
+            <label class="form-label fw-bold small">{% trans "عدد الصور في الطقم" %}</label>
+            <select class="form-select select2-filter" id="id_ncr_sets_count" name="ncr_sets_count">
               <option value="2" selected>{% trans "أصل + صورة (طقم ورقتين)" %}</option>
               <option value="3">{% trans "أصل + صورتين (طقم 3 ورقات)" %}</option>
               <option value="4">{% trans "أصل + 3 صور (طقم 4 ورقات)" %}</option>
             </select>
           </div>
           <div class="col-md-3">
-            <label class="form-label fw-bold">{% trans "سعة الدفتر (عدد المجموعات)" %}</label>
-            <select class="form-select" id="id_ncr_book_capacity" name="ncr_book_capacity">
+            <label class="form-label fw-bold small">{% trans "سعة الدفتر (عدد المجموعات)" %}</label>
+            <select class="form-select select2-filter" id="id_ncr_book_capacity" name="ncr_book_capacity">
               <option value="50" selected>{% trans "50 رقم / مجموعة بالدفتر" %}</option>
               <option value="100">{% trans "100 رقم / مجموعة بالدفتر" %}</option>
             </select>
           </div>
           <div class="col-md-3">
-            <label class="form-label fw-bold">{% trans "بداية الترقيم (السيريال)" %}</label>
+            <label class="form-label fw-bold small">{% trans "بداية الترقيم (السيريال)" %}</label>
             <input type="number" class="form-control fw-bold text-center" id="id_ncr_serial_start"
-              name="ncr_serial_start" value="1001">
+              name="ncr_serial_start" value="{{ form.ncr_serial_start.value|default:'1001' }}">
           </div>
           <div class="col-md-3">
             <label class="form-label fw-bold small text-muted">{% trans "نهاية الترقيم المحسوبة" %}</label>
             <div class="form-control bg-light d-flex justify-content-between align-items-center">
               <span class="small text-muted">{% trans "إلى رقم:" %}</span>
-              <strong class="text-success fs-6" id="ncr_serial_end_display">3500</strong>
+              <strong class="text-primary fs-6" id="ncr_serial_end_display">3500</strong>
             </div>
           </div>
         </div>

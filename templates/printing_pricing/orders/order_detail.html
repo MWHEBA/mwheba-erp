@@ -74,6 +74,55 @@
   <div class="row g-4">
     <!-- العمود الأيمن: لوحة مركز الأرباح 360 درجة ومواصفات التشغيل -->
     <div class="col-lg-8">
+      <!-- 0. بطاقة المواصفات الفنية والهندسة الهجينة للطلب -->
+      <div class="section-container mb-4">
+        <h5 class="section-title text-primary mb-3">
+          <i class="fas fa-clipboard-list me-2"></i>{% trans "بطاقة المواصفات الفنية والهندسة الهجينة" %}
+        </h5>
+
+        <div class="row g-3">
+          <div class="col-md-6">
+            <div class="p-3 bg-light rounded border h-100">
+              <h6 class="fw-bold text-dark mb-2">
+                <i class="fas fa-scroll text-success me-2"></i>{% trans "مواصفات الغلاف / المطبوع الرئيسي" %}
+              </h6>
+              <ul class="list-unstyled mb-0 small">
+                <li class="mb-1"><strong>{% trans "تقنية الطباعة:" %}</strong> <span class="badge bg-primary-subtle text-primary border">{{ order.get_cover_printing_type_display }}</span></li>
+                <li class="mb-1"><strong>{% trans "الأبعاد:" %}</strong> {{ order.get_dimensions_display }}</li>
+                <li class="mb-1"><strong>{% trans "الخامة:" %}</strong> {{ order.paper_type|default:_("كوشيه") }} ({{ order.paper_weight|default:"300" }} جم)</li>
+                <li class="mb-1"><strong>{% trans "الأوجه والألوان:" %}</strong> {{ order.get_print_sides_mode_display }} ({{ order.colors_front }}+{{ order.colors_back }}){% if order.spot_colors_front or order.spot_colors_back %} + {{ order.spot_colors_front|add:order.spot_colors_back }} {% trans "لون مخصوص إضافي" %}{% endif %}</li>
+                <li><strong>{% trans "السلوفان والتشطيب:" %}</strong> {{ order.coating_type.name|default:_("بدون") }}</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="col-md-6">
+            <div class="p-3 bg-light rounded border h-100">
+              <h6 class="fw-bold text-dark mb-2">
+                <i class="fas fa-book-open text-primary me-2"></i>{% trans "مواصفات الداخلي والتجليد" %}
+              </h6>
+              <ul class="list-unstyled mb-0 small">
+                {% if order.order_type in 'catalog,book,magazine,book_catalog' %}
+                <li class="mb-1"><strong>{% trans "تقنية الداخلي:" %}</strong> <span class="badge bg-info-subtle text-info border">{{ order.get_inner_printing_type_display }}</span> - {{ order.get_inner_print_sides_mode_display }}</li>
+                <li class="mb-1"><strong>{% trans "ورق الداخلي:" %}</strong> {{ order.get_inner_paper_type_display|default:_("كوشيه") }} ({{ order.inner_paper_weight|default:"135" }} جم)</li>
+                <li class="mb-1"><strong>{% trans "عدد الصفحات والملازم:" %}</strong> {{ order.pages_count }} صفحة ({{ order.inner_signatures_count|default:"-" }} ملازم)</li>
+                <li class="mb-1"><strong>{% trans "نوع التجليد:" %}</strong> <span class="badge bg-secondary-subtle text-dark border">{{ order.get_binding_type_display|default:_("دبوس سرج") }}</span></li>
+                <li><strong>{% trans "سمك الكعب المحسوب:" %}</strong> <span class="fw-bold text-dark">{{ order.spine_thickness|default:"0.0" }} مم</span></li>
+                {% elif order.order_type in 'invoice,receipt,ncr' %}
+                <li class="mb-1"><strong>{% trans "دفاتر فواتير NCR:" %}</strong> طقم {{ order.ncr_sets_count|default:"2" }} ألوان (سعة {{ order.ncr_book_capacity|default:"50" }} إيصال/دفتر)</li>
+                <li><strong>{% trans "نطاق الترقيم:" %}</strong> من {{ order.ncr_serial_start }} إلى {{ order.ncr_serial_end }}</li>
+                {% elif order.order_type in 'folder,box,folder_packaging' %}
+                <li class="mb-1"><strong>{% trans "نوع الجيب:" %}</strong> {{ order.get_folder_pocket_type_display }}</li>
+                <li><strong>{% trans "شلاقة بيزنس كارد:" %}</strong> {% if order.folder_card_slit %}{% trans "نعم (موجودة)" %}{% else %}{% trans "بدون" %}{% endif %}</li>
+                {% else %}
+                <li class="text-muted">{% trans "مطبوع مفرد (لا يتضمن صفحات داخلية مستقلة)" %}</li>
+                {% endif %}
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- 1. لوحة 360 درجة للربحية (مقارنة سطر العميل المجمع vs أوامر شراء الورش) -->
       <div class="section-container mb-4">
         <h5 class="section-title text-primary mb-3">
@@ -84,7 +133,7 @@
           <div class="col-md-4">
             <div class="p-3 bg-light rounded text-center border">
               <div class="text-muted small mb-1">{% trans "قيمة البيع للعميل (صافي)" %}</div>
-              <div class="fs-4 fw-bold text-primary">{{ summary.final_price|default:order.final_price|smart_float }} {{ currency_symbol|default:"ج.م" }}</div>
+              <div class="fs-4 fw-bold text-primary">{% if summary %}{{ summary.final_price|smart_float }}{% else %}{{ order.final_price|default:"0.00"|smart_float }}{% endif %} {{ currency_symbol|default:"ج.م" }}</div>
               <div class="small text-muted">{{ order.quantity|smart_float }} {% trans "قطعة" %}</div>
             </div>
           </div>
@@ -92,7 +141,7 @@
           <div class="col-md-4">
             <div class="p-3 bg-light rounded text-center border">
               <div class="text-muted small mb-1">{% trans "إجمالي تكاليف الورش والمصروفات" %}</div>
-              <div class="fs-4 fw-bold text-danger">{{ summary.material_cost|add:summary.printing_cost|add:summary.finishing_cost|default:"0.00"|smart_float }} {{ currency_symbol|default:"ج.م" }}</div>
+              <div class="fs-4 fw-bold text-danger">{% if summary %}{{ summary.subtotal|smart_float }}{% else %}0.00{% endif %} {{ currency_symbol|default:"ج.م" }}</div>
               <div class="small text-muted">{% trans "أوامر شراء الورش والورق" %}</div>
             </div>
           </div>
@@ -100,8 +149,8 @@
           <div class="col-md-4">
             <div class="p-3 bg-light rounded text-center border">
               <div class="text-muted small mb-1">{% trans "صافي الربح الفعلي المحقق" %}</div>
-              <div class="fs-4 fw-bold text-success">{{ summary.net_profit|default:"0.00"|smart_float }} {{ currency_symbol|default:"ج.م" }}</div>
-              <div class="small text-success fw-bold">{{ summary.profit_margin|default:"0.00"|smart_float }}% {% trans "هامش ربح" %}</div>
+              <div class="fs-4 fw-bold text-success">{% if summary %}{{ summary.net_profit|smart_float }}{% else %}0.00{% endif %} {{ currency_symbol|default:"ج.م" }}</div>
+              <div class="small text-success fw-bold">{% if summary %}{{ summary.profit_margin|smart_float }}{% else %}0.00{% endif %}% {% trans "هامش ربح" %}</div>
             </div>
           </div>
         </div>

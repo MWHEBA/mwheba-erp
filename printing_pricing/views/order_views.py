@@ -241,23 +241,23 @@ class OrderCreateView(LoginRequiredMixin, CreateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['can_view_margins'] = check_can_view_margins(self.request.user)
-        context['page_title'] = 'إنشاء طلب تسعير جديد'
-        context['page_subtitle'] = 'تسعير ذكي للمطبوعات والهدايا مع حساب التكلفة التلقائي'
+        context['page_title'] = _('إنشاء طلب تسعير جديد')
+        context['page_subtitle'] = _('تسعير ذكي للمطبوعات والهدايا مع حساب التكلفة التلقائي')
         context['page_icon'] = 'fas fa-plus'
         context['header_buttons'] = [
             {
                 'url': reverse('printing_pricing:order_list'),
                 'icon': 'fa-arrow-right',
-                'text': 'رجوع للقائمة',
+                'text': _('رجوع للقائمة'),
                 'class': 'btn-secondary',
             },
         ]
         context['product_types'] = ProductType.objects.filter(is_active=True).order_by('sort_order', 'id')
         context['product_sizes'] = ProductSize.objects.filter(is_active=True).order_by('sort_order', 'id')
         context['breadcrumb_items'] = [
-            {'title': 'الرئيسية', 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},
-            {'title': 'طلبات التسعير', 'url': reverse('printing_pricing:order_list'), 'icon': 'fas fa-print'},
-            {'title': 'إنشاء طلب', 'active': True},
+            {'title': _('الرئيسية'), 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},
+            {'title': _('طلبات التسعير'), 'url': reverse('printing_pricing:order_list'), 'icon': 'fas fa-print'},
+            {'title': _('إنشاء طلب'), 'active': True},
         ]
         return context
     
@@ -305,24 +305,24 @@ class OrderUpdateView(LoginRequiredMixin, UpdateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['can_view_margins'] = check_can_view_margins(self.request.user)
-        context['page_title'] = f'تعديل طلب التسعير {self.object.order_number}'
-        context['page_subtitle'] = 'تعديل المواصفات والخامات والخدمات'
+        context['page_title'] = _('تعديل طلب التسعير {}').format(self.object.order_number)
+        context['page_subtitle'] = _('تعديل المواصفات والخامات والخدمات')
         context['page_icon'] = 'fas fa-edit'
         context['header_buttons'] = [
             {
                 'url': reverse('printing_pricing:order_detail', kwargs={'pk': self.object.pk}),
                 'icon': 'fa-eye',
-                'text': 'عرض التفاصيل',
+                'text': _('عرض التفاصيل'),
                 'class': 'btn-info',
             },
         ]
         context['product_types'] = ProductType.objects.filter(is_active=True).order_by('sort_order', 'id')
         context['product_sizes'] = ProductSize.objects.filter(is_active=True).order_by('sort_order', 'id')
         context['breadcrumb_items'] = [
-            {'title': 'الرئيسية', 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},
-            {'title': 'طلبات التسعير', 'url': reverse('printing_pricing:order_list'), 'icon': 'fas fa-print'},
+            {'title': _('الرئيسية'), 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},
+            {'title': _('طلبات التسعير'), 'url': reverse('printing_pricing:order_list'), 'icon': 'fas fa-print'},
             {'title': self.object.order_number, 'url': reverse('printing_pricing:order_detail', kwargs={'pk': self.object.pk})},
-            {'title': 'تعديل', 'active': True},
+            {'title': _('تعديل'), 'active': True},
         ]
         return context
     

@@ -304,7 +304,7 @@ class PrintingCalculator(BaseCalculator):
         standby_hourly_rate: Decimal = Decimal('500.00')
     ) -> Dict[str, Any]:
         """
-        تسعير أحبار البانتون المخصوصة وغسيل الأبراج والورنيش المائي وساعات انتظار الماكينة
+        تسعير أحبار الألوان المخصوصة وغسيل الأبراج والورنيش المائي وساعات انتظار الماكينة
         """
         try:
             p_count = int(pantone_colors_count)
@@ -332,7 +332,7 @@ class PrintingCalculator(BaseCalculator):
                 'total_cost': total_cost
             }
         except Exception as e:
-            return {'success': False, 'error': str(e), 'details': _('خطأ في حساب أحبار البانتون والورنيش')}
+            return {'success': False, 'error': str(e), 'details': _('خطأ في حساب أحبار الألوان المخصوصة والورنيش')}
 
     def calculate_gang_run_cost(
         self,
