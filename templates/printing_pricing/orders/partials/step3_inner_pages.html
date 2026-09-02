@@ -113,67 +113,188 @@
 
         </div>
 
-        <!-- السطر الثاني: خامة الورق | الجراماج | إجمالي الصفحات | حاسبة الكعب -->
-        <div class="row g-3 mb-3 pb-3 border-bottom align-items-end">
-          
-          <!-- 1. نوع ورق الداخلي -->
-          <div class="col-md-3">
-            <label for="id_inner_paper_type" class="form-label fw-bold small">
-              {% trans "نوع ورق الداخلي" %} <span class="text-danger">*</span>
-            </label>
-            <select class="form-select select2-filter" id="id_inner_paper_type" name="inner_paper_type">
-              <option value="couche" {% if form.inner_paper_type.value == 'couche' or not form.inner_paper_type.value %}selected{% endif %}>{% trans "كوشيه فاخر (Couche)" %}</option>
-              <option value="woodfree" {% if form.inner_paper_type.value == 'woodfree' %}selected{% endif %}>{% trans "ورق طبع أبيض / كريمي (Woodfree)" %}</option>
-              <option value="kraft" {% if form.inner_paper_type.value == 'kraft' %}selected{% endif %}>{% trans "ورق كرافت (Kraft)" %}</option>
-            </select>
-          </div>
+        <!-- 2. كارت تفاصيل واستهلاك خام ورق الداخلي والملازم -->
+        <div class="col-12 mb-3">
+          <div class="p-3 border rounded bg-light-subtle shadow-xs">
+            
+            <!-- ترويسة كارت ورق الداخلي -->
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 border-bottom pb-2 mb-3">
+              <div class="d-flex align-items-center gap-2">
+                <span class="fw-bold text-dark fs-6">
+                  <i class="fas fa-scroll text-primary me-2"></i>{% trans "تفاصيل واستهلاك خام ورق الداخلي والملازم" %}
+                </span>
+                <span class="badge bg-info-subtle text-info border border-info-subtle px-2 py-1" id="inner_paper_badge">
+                  {% trans "ورق الملازم والصفحات" %}
+                </span>
+              </div>
 
-          <!-- 2. جراماج الورق الداخلي -->
-          <div class="col-md-3">
-            <label for="id_inner_paper_weight" class="form-label fw-bold small">
-              {% trans "جراماج الورق الداخلي" %} <span class="text-danger">*</span>
-            </label>
-            <select class="form-select select2-filter" id="id_inner_paper_weight" name="inner_paper_weight">
-              <option value="70" {% if form.inner_paper_weight.value == '70' %}selected{% endif %}>70 جم (طبع كتب وروايات)</option>
-              <option value="80" {% if form.inner_paper_weight.value == '80' %}selected{% endif %}>80 جم (طبع فاخر)</option>
-              <option value="115" {% if form.inner_paper_weight.value == '115' %}selected{% endif %}>115 جم (كوشيه خفيف)</option>
-              <option value="135" {% if form.inner_paper_weight.value == '135' or not form.inner_paper_weight.value %}selected{% endif %}>135 جم (كوشيه كتالوجات معياري)</option>
-              <option value="150" {% if form.inner_paper_weight.value == '150' %}selected{% endif %}>150 جم (كوشيه متوسط)</option>
-            </select>
-          </div>
+              <div class="d-flex align-items-center gap-2">
+                <button type="button" class="btn btn-sm btn-outline-primary px-3" id="btn_copy_cover_paper_to_inner" title="{% trans 'نسخ نفس نوع الورق والمورد من كارت الغلاف' %}">
+                  <i class="fas fa-copy me-1"></i>{% trans "نسخ خامة ومورد الغلاف" %}
+                </button>
+                <span class="badge bg-light text-dark border px-2 py-1" id="inner_paper_summary_badge">
+                  <span id="badge_inner_gross_sheets">0</span> {% trans "فرخ" %} | <span id="badge_inner_weight">0</span> {% trans "كجم" %} | <strong class="text-primary" id="badge_inner_cost">0</strong> {{ currency_symbol|default:"ج.م" }}
+                </span>
+              </div>
+            </div>
 
-          <!-- 3. إجمالي عدد الصفحات -->
-          <div class="col-md-3">
-            <label for="id_pages_count" class="form-label fw-bold small">
-              {% trans "إجمالي عدد الصفحات" %} <span class="text-danger">*</span>
-            </label>
-            <input type="number" class="form-control fw-bold text-center text-primary" id="id_pages_count"
-              name="pages_count" value="{{ form.pages_count.value|default:'32' }}" min="1">
-            <div class="form-text small" id="signatures_count_hint">{% trans "يعادل 2 ملزمة (16 صفحة/ملزمة)" %}</div>
-          </div>
+            <div class="row g-3">
+              <!-- 1. مورد ورق الداخلي -->
+              <div class="col-md-3">
+                <label for="id_inner_paper_supplier" class="form-label fw-bold small">
+                  {% trans "مورد ورق الداخلي" %}
+                </label>
+                <select class="form-select select2-filter" id="id_inner_paper_supplier" name="inner_paper_supplier" dir="rtl">
+                  {% if paper_suppliers %}
+                    <option value="">{% trans "-- نفس مورد الغلاف / اختر مورد --" %}</option>
+                    {% for supp in paper_suppliers %}
+                      <option value="{{ supp.id }}">{{ supp.name }}</option>
+                    {% endfor %}
+                  {% else %}
+                    <option value="" selected>{% trans "لا يوجد موردين ورق" %}</option>
+                  {% endif %}
+                </select>
+              </div>
 
-          <!-- 4. حاسبة سمك الكعب التلقائية -->
-          <div class="col-md-3">
-            <label class="form-label fw-bold small text-muted">{% trans "حاسبة سمك الكعب الفيزيائية" %}</label>
-            <div class="form-control bg-light d-flex justify-content-between align-items-center">
-              <span class="small text-muted">{% trans "سمك الكعب:" %}</span>
-              <strong class="text-primary fs-6" id="spine_thickness_display">0.0 مم</strong>
+              <!-- 2. نوع ورق الداخلي -->
+              <div class="col-md-3">
+                <label for="id_inner_paper_type" class="form-label fw-bold small">
+                  {% trans "نوع ورق الداخلي" %} <span class="text-danger">*</span>
+                </label>
+                <select class="form-select select2-filter" id="id_inner_paper_type" name="inner_paper_type" dir="rtl">
+                  {% if paper_types %}
+                    {% for ptype in paper_types %}
+                      <option value="{{ ptype.pk }}" data-code="{{ ptype.name|lower }}" data-override-pack="{{ ptype.override_sheets_per_pack|default:'' }}" {% if form.inner_paper_type.value == ptype.pk or ptype.name == 'طبع أبيض' or forloop.first %}selected{% endif %}>
+                        {{ ptype.name }}
+                      </option>
+                    {% endfor %}
+                  {% else %}
+                    <option value="woodfree" data-override-pack="500" selected>{% trans "ورق طبع أبيض / كريمي (Woodfree)" %}</option>
+                    <option value="couche" data-override-pack="">{% trans "كوشيه فاخر (Couche)" %}</option>
+                    <option value="kraft" data-override-pack="250">{% trans "ورق كرافت (Kraft)" %}</option>
+                  {% endif %}
+                </select>
+              </div>
+
+              <!-- 3. مقاس فرخ الداخلي -->
+              <div class="col-md-3">
+                <label for="id_inner_sheet_size" class="form-label fw-bold small">
+                  {% trans "مقاس فرخ الداخلي" %}
+                </label>
+                <select class="form-select select2-filter text-center" id="id_inner_sheet_size" name="inner_sheet_size" dir="rtl">
+                  {% if paper_sizes %}
+                    {% for psize in paper_sizes %}
+                      <option value="{{ psize.name }}" data-width="{{ psize.width }}" data-height="{{ psize.height }}" {% if psize.name == '66x88' or forloop.first %}selected{% endif %}>
+                        {{ psize.name }} ({{ psize.width|floatformat:0 }}×{{ psize.height|floatformat:0 }} سم)
+                      </option>
+                    {% endfor %}
+                  {% else %}
+                    <option value="66x88" data-width="88" data-height="66" selected>66 × 88 سم (فرخ الكتب والملازم)</option>
+                    <option value="70x100" data-width="100" data-height="70">70 × 100 سم (الفرخ القياسي)</option>
+                  {% endif %}
+                </select>
+              </div>
+
+              <!-- 4. جراماج الورق الداخلي -->
+              <div class="col-md-3">
+                <label for="id_inner_paper_weight" class="form-label fw-bold small">
+                  {% trans "جراماج ورق الداخلي" %} <span class="text-danger">*</span>
+                </label>
+                <select class="form-select select2-filter text-center" id="id_inner_paper_weight" name="inner_paper_weight" dir="rtl">
+                  {% if paper_weights %}
+                    {% for pw in paper_weights %}
+                      <option value="{{ pw.gsm }}" data-sheets-per-pack="{{ pw.sheets_per_pack|default:500 }}" {% if form.inner_paper_weight.value == pw.gsm|stringformat:"s" or pw.gsm == 80 or pw.gsm == 135 %}selected{% endif %}>
+                        {{ pw.gsm }} جم
+                      </option>
+                    {% endfor %}
+                  {% else %}
+                    <option value="70" data-sheets-per-pack="500">70 جم (طبع كتب وروايات)</option>
+                    <option value="80" data-sheets-per-pack="500" selected>80 جم (طبع فاخر)</option>
+                    <option value="100" data-sheets-per-pack="500">100 جم (طبع نخب أول)</option>
+                    <option value="115" data-sheets-per-pack="500">115 جم (كوشيه خفيف)</option>
+                    <option value="135" data-sheets-per-pack="500">135 جم (كوشيه كتالوجات معياري)</option>
+                    <option value="150" data-sheets-per-pack="500">150 جم (كوشيه متوسط)</option>
+                  {% endif %}
+                </select>
+              </div>
+
+              <!-- 5. إجمالي عدد الصفحات -->
+              <div class="col-md-3">
+                <label for="id_pages_count" class="form-label fw-bold small">
+                  {% trans "إجمالي عدد الصفحات" %} <span class="text-danger">*</span>
+                </label>
+                <input type="number" class="form-control fw-bold text-center text-primary" id="id_pages_count"
+                  name="pages_count" value="{{ form.pages_count.value|default:'32' }}" min="1">
+                <div class="form-text small" id="signatures_count_hint">{% trans "يعادل 2 ملزمة (16 صفحة/ملزمة)" %}</div>
+              </div>
+
+              <!-- 6. سعر فرخ الداخلي المباشر -->
+              <div class="col-md-3">
+                <label for="id_inner_sheet_price" class="form-label fw-bold small">
+                  {% trans "سعر فرخ الداخلي" %}
+                </label>
+                <div class="input-group input-group-sm">
+                  <input type="number" step="0.01" min="0" class="form-control text-center fw-bold" id="id_inner_sheet_price" name="inner_sheet_price" value="2.40" placeholder="2.40">
+                  <span class="input-group-text small bg-light">{{ currency_symbol|default:"ج.م" }}</span>
+                </div>
+              </div>
+
+              <!-- 7. حاسبة سمك الكعب الفيزيائية -->
+              <div class="col-md-3">
+                <label class="form-label fw-bold small text-muted">{% trans "حاسبة سمك الكعب الفيزيائية" %}</label>
+                <div class="form-control bg-light d-flex justify-content-between align-items-center">
+                  <span class="small text-muted">{% trans "سمك الكعب:" %}</span>
+                  <strong class="text-primary fs-6" id="spine_thickness_display">0.0 مم</strong>
+                </div>
+              </div>
+
+              <!-- 8. إجمالي تكلفة ورق الداخلي -->
+              <div class="col-md-3">
+                <label class="form-label fw-bold small text-muted">{% trans "إجمالي تكلفة ورق الداخلي" %}</label>
+                <div class="form-control bg-light d-flex justify-content-between align-items-center">
+                  <span class="small text-muted">{% trans "التكلفة:" %}</span>
+                  <strong class="text-primary fs-6" id="cost_inner_paper_display">0.00 {{ currency_symbol|default:"ج.م" }}</strong>
+                </div>
+              </div>
+
+              <!-- شريط تفصيل ملازم وأفرخ الداخلي -->
+              <div class="col-12">
+                <div class="p-2 rounded border bg-white d-flex flex-wrap align-items-center justify-content-between gap-2 small">
+                  <div>
+                    <i class="fas fa-book-open text-primary me-1"></i>
+                    <span class="text-muted">{% trans "تفكيك الملازم:" %}</span>
+                    <strong class="text-dark" id="display_signatures_breakdown">2 ملازم (16 صفحة)</strong>
+                  </div>
+                  <div>
+                    <span class="text-muted">{% trans "أفرخ الداخلي:" %}</span>
+                    <strong class="text-primary" id="display_inner_gross_sheets">0 فرخ</strong>
+                    <span class="text-muted">({% trans "شامل الهالك" %})</span>
+                    <span class="badge bg-secondary-subtle text-secondary ms-1" id="display_inner_reams_breakdown">0 رزمة</span>
+                    <input type="hidden" id="id_inner_sheets_per_pack" name="inner_sheets_per_pack" value="500">
+                  </div>
+                  <div>
+                    <i class="fas fa-weight-hanging text-warning me-1"></i>
+                    <span class="text-muted">{% trans "وزن ورق الداخلي:" %}</span>
+                    <strong class="text-dark" id="display_inner_weight_kg">0.0 كجم</strong>
+                  </div>
+                </div>
+              </div>
+
             </div>
           </div>
-
         </div>
 
         <!-- كروت التفاصيل الديناميكية: زنكات CTP وملازم الأوفست المختلطة والديجيتال -->
         <div id="inner_offset_fields" class="row g-3 mb-3">
           
-          <!-- كارت منظومة طباعة وزنكات الداخلي الموحد -->
+          <!-- 1. كارت مطبعة وتكاليف طباعة الداخلي (الملازم) -->
           <div class="col-12">
             <div class="p-3 border rounded bg-light-subtle">
               
-              <!-- ترويسة الكارت العامة مع زر النسخ السريع -->
+              <!-- ترويسة كارت الطباعة مع زر النسخ السريع -->
               <div class="d-flex align-items-center justify-content-between border-bottom pb-2 mb-3">
                 <span class="fw-bold text-dark fs-6">
-                  <i class="fas fa-print text-primary me-2"></i>{% trans "منظومة طباعة وزنكات الداخلي (الملازم)" %}
+                  <i class="fas fa-print text-primary me-2"></i>{% trans "تفاصيل طباعة الأوفست" %}
                 </span>
                 <div class="d-flex align-items-center gap-2">
                   <button type="button" class="btn btn-sm btn-outline-primary px-3" id="btn_copy_cover_press_to_inner">
@@ -185,21 +306,21 @@
                 </div>
               </div>
 
-              <!-- 🔹 القسم الأول: مطبعة وماكينة الأوفست للداخلي -->
-              <div class="row g-3 mb-3">
-                
+              <div class="row g-3">
                 <!-- 1. مطبعة أوفست الداخلي -->
                 <div class="col-md-4">
                   <label for="id_inner_offset_supplier" class="form-label fw-bold">
                     {% trans "مطبعة أوفست الداخلي" %}
                   </label>
                   <select class="form-select select2-filter" id="id_inner_offset_supplier" name="inner_offset_supplier" dir="rtl">
-                    <option value="">{% trans "-- اختر مطبعة الداخلي --" %}</option>
-                    {% for supp in offset_suppliers %}
-                      <option value="{{ supp.id }}">{{ supp.name }}</option>
-                    {% empty %}
-                      <option value="" disabled>{% trans "لا توجد مطابع أوفست مسجلة" %}</option>
-                    {% endfor %}
+                    {% if offset_suppliers %}
+                      <option value="">{% trans "-- اختر مطبعة الداخلي --" %}</option>
+                      {% for supp in offset_suppliers %}
+                        <option value="{{ supp.id }}">{{ supp.name }}</option>
+                      {% endfor %}
+                    {% else %}
+                      <option value="" selected>{% trans "لا توجد مطابع اوفست" %}</option>
+                    {% endif %}
                   </select>
                 </div>
 
@@ -208,17 +329,17 @@
                   <label for="id_inner_press_machine" class="form-label fw-bold">
                     {% trans "ماكينة ومقاس الداخلي" %}
                   </label>
-                  <select class="form-select select2-filter" id="id_inner_press_machine" name="inner_press_machine">
-                    <option value="50x70" data-bed="50x70" data-rate="45" data-floor="200" selected>{% trans "نصف فرخ 50×70 سم (45 ج/تراج)" %}</option>
-                    <option value="70x100" data-bed="70x100" data-rate="65" data-floor="350">{% trans "فرخ كامل 70×100 سم (65 ج/تراج)" %}</option>
-                    <option value="35x50" data-bed="35x50" data-rate="35" data-floor="150">{% trans "ربع فرخ 35×50 سم (35 ج/تراج)" %}</option>
+                  <select class="form-select select2-filter text-center" id="id_inner_press_machine" name="inner_press_machine">
+                    <option value="50x70" data-bed="50x70" data-rate="45" data-floor="200" selected>{% trans "نصف فرخ 50×70 سم" %}</option>
+                    <option value="70x100" data-bed="70x100" data-rate="65" data-floor="350">{% trans "فرخ كامل 70×100 سم" %}</option>
+                    <option value="35x50" data-bed="35x50" data-rate="35" data-floor="150">{% trans "ربع فرخ 35×50 سم" %}</option>
                   </select>
                 </div>
 
                 <!-- 3. سعر التراج (ألف سحبة) للداخلي -->
                 <div class="col-md-4">
                   <label for="id_inner_press_rate" class="form-label fw-bold">
-                    {% trans "سعر التراج (ألف سحبة) للداخلي" %}
+                    {% trans "سعر التراج (ألف سحبة)" %}
                   </label>
                   <div class="input-group">
                     <input type="number" class="form-control text-center fw-bold" id="id_inner_press_rate" name="inner_press_rate" 
@@ -241,115 +362,120 @@
                 <!-- 5. إجمالي تكلفة سحب الداخلي -->
                 <div class="col-md-6">
                   <label class="form-label fw-bold">
-                    {% trans "تكلفة سحب ملازم الداخلي (التراج)" %}
+                    {% trans "تكلفة سحب ملازم الداخلي" %}
                   </label>
                   <div class="form-control bg-light d-flex justify-content-between align-items-center">
                     <span class="small text-muted">{% trans "الإجمالي:" %}</span>
                     <strong class="text-primary fs-6" id="inner_press_cost_display">0 {{ currency_symbol|default:"ج.م" }}</strong>
                   </div>
                 </div>
-
               </div>
 
-              <!-- 🔹 القسم الثاني: تجهيز زنكات CTP للداخلي والملازم -->
-              <div class="border-top pt-3 mt-2">
-                <div class="d-flex align-items-center justify-content-between pb-2 mb-3">
-                  <span class="fw-bold text-dark small">
-                    <i class="fas fa-stamp text-secondary me-2"></i>{% trans "تجهيز زنكات CTP للداخلي والملازم" %}
-                  </span>
-                  <div class="d-flex align-items-center gap-3">
-                    <div class="form-check form-switch mb-0">
-                      <input class="form-check-input" type="checkbox" id="id_is_inner_plates_archived" name="is_inner_plates_archived" value="1">
-                      <label class="form-check-label fw-bold small text-muted" for="id_is_inner_plates_archived">
-                        {% trans "الزنكات موجودة" %}
-                      </label>
-                    </div>
-                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1" id="inner_ctp_summary_badge">
-                      {% trans "زنكات جديدة" %}
-                    </span>
-                  </div>
-                  <input type="hidden" id="id_inner_plates_option" name="inner_plates_option" value="new">
-                </div>
+            </div>
+          </div>
 
-                <div class="row g-3">
-                  
-                  <!-- 1. مورد زنكات الداخلي -->
-                  <div class="col-md-6">
-                    <label for="id_inner_ctp_supplier" class="form-label fw-bold small text-muted">
-                      {% trans "مورد زنكات الداخلي" %}
+          <!-- 2. كارت تجهيز زنكات CTP للداخلي والملازم -->
+          <div class="col-12">
+            <div class="p-3 border rounded bg-light-subtle">
+              
+              <!-- ترويسة كارت الزنكات -->
+              <div class="d-flex align-items-center justify-content-between border-bottom pb-2 mb-3">
+                <span class="fw-bold text-dark fs-6">
+                  <i class="fas fa-stamp text-secondary me-2"></i>{% trans "تفاصيل الزنكات" %}
+                </span>
+                <div class="d-flex align-items-center gap-3">
+                  <div class="form-check form-switch mb-0">
+                    <input class="form-check-input" type="checkbox" id="id_is_inner_plates_archived" name="is_inner_plates_archived" value="1">
+                    <label class="form-check-label fw-bold text-dark small" for="id_is_inner_plates_archived">
+                      {% trans "الزنكات موجودة" %}
                     </label>
-                    <select class="form-select select2-filter" id="id_inner_ctp_supplier" name="inner_ctp_supplier" dir="rtl">
-                      <option value="">{% trans "-- اختر مورد زنكات CTP --" %}</option>
+                  </div>
+                  <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1" id="inner_ctp_summary_badge">
+                    {% trans "زنكات جديدة" %}
+                  </span>
+                </div>
+                <input type="hidden" id="id_inner_plates_option" name="inner_plates_option" value="new">
+              </div>
+
+              <div class="row g-3">
+                <!-- 1. مكتب فصل زنكات الداخلي -->
+                <div class="col-md-4">
+                  <label for="id_inner_ctp_supplier" class="form-label fw-bold">
+                    {% trans "مكتب الفصل للداخلي" %}
+                  </label>
+                  <select class="form-select select2-filter" id="id_inner_ctp_supplier" name="inner_ctp_supplier" dir="rtl">
+                    {% if ctp_suppliers %}
+                      <option value="">{% trans "-- اختر مكتب الفصل --" %}</option>
                       {% for supp in ctp_suppliers %}
                         <option value="{{ supp.id }}">{{ supp.name }}</option>
-                      {% empty %}
-                        <option value="" disabled>{% trans "لا يوجد موردين مسجلين لخدمات زنكات CTP" %}</option>
                       {% endfor %}
-                    </select>
-                  </div>
-
-                  <!-- 2. ماكينة ومقاس زنك الداخلي -->
-                  <div class="col-md-6">
-                    <label for="id_inner_press_bed_size" class="form-label fw-bold small text-muted">
-                      {% trans "مقاس زنك الداخلي (متزامن مع الماكينة)" %}
-                    </label>
-                    <select class="form-select select2-filter" id="id_inner_press_bed_size" name="inner_press_bed_size">
-                      <option value="50x70" data-price="85" selected>{% trans "نصف فرخ 50×70 سم" %}</option>
-                      <option value="70x100" data-price="150">{% trans "فرخ كامل 70×100 سم" %}</option>
-                      <option value="35x50" data-price="60">{% trans "ربع فرخ 35×50 سم" %}</option>
-                    </select>
-                  </div>
-
-                  <!-- 3. ملازم ملونة -->
-                  <div class="col-md-3">
-                    <label for="id_color_signatures_count" class="form-label fw-bold small text-muted">
-                      {% trans "ملازم ملونة (8 زنكات)" %}
-                    </label>
-                    <div class="input-group">
-                      <input type="number" class="form-control fw-bold text-center text-primary" id="id_color_signatures_count"
-                             name="color_signatures_count" value="2" min="0">
-                      <span class="input-group-text small bg-light">{% trans "ملزمة" %}</span>
-                    </div>
-                  </div>
-
-                  <!-- 4. ملازم نصوص -->
-                  <div class="col-md-3">
-                    <label for="id_bw_signatures_count" class="form-label fw-bold small text-muted">
-                      {% trans "ملازم نصوص (2 زنكة)" %}
-                    </label>
-                    <div class="input-group">
-                      <input type="number" class="form-control fw-bold text-center text-primary" id="id_bw_signatures_count"
-                             name="bw_signatures_count" value="0" min="0">
-                      <span class="input-group-text small bg-light">{% trans "ملزمة" %}</span>
-                    </div>
-                  </div>
-
-                  <!-- 5. سعر زنكة الداخلي -->
-                  <div class="col-md-3">
-                    <label for="id_inner_plate_price" class="form-label fw-bold small text-muted">
-                      {% trans "سعر زنكة الداخلي" %}
-                    </label>
-                    <div class="input-group">
-                      <input type="number" class="form-control fw-bold text-center" id="id_inner_plate_price" name="inner_plate_price" 
-                             value="85" min="0" step="5" title="{% trans 'سعر زنكة الداخلي المعتمد' %}">
-                      <span class="input-group-text small bg-light">{{ currency_symbol|default:"ج.م" }}</span>
-                    </div>
-                  </div>
-
-                  <!-- 6. إجمالي تكلفة زنكات الداخلي -->
-                  <div class="col-md-3">
-                    <label class="form-label fw-bold small text-muted">
-                      {% trans "تكلفة زنكات الداخلي" %}
-                    </label>
-                    <div class="form-control bg-light d-flex justify-content-between align-items-center">
-                      <span class="small text-muted">{% trans "الإجمالي:" %}</span>
-                      <strong class="text-primary fs-6" id="inner_ctp_cost_display">0 {{ currency_symbol|default:"ج.م" }}</strong>
-                    </div>
-                    <!-- حقل إجمالي زنكات الداخلي المخفي للمزامنة البرمجية -->
-                    <input type="hidden" id="id_inner_plates_count_total" name="inner_plates_count_total" value="16">
-                  </div>
-
+                    {% else %}
+                      <option value="" disabled selected>{% trans "لا توجد مكاتب فصل مسجلة" %}</option>
+                    {% endif %}
+                  </select>
                 </div>
+
+                <!-- 2. ماكينة ومقاس زنك الداخلي -->
+                <div class="col-md-4">
+                  <label for="id_inner_press_bed_size" class="form-label fw-bold">
+                    {% trans "مقاس زنك الداخلي (متزامن)" %}
+                  </label>
+                  <select class="form-select select2-filter text-center" id="id_inner_press_bed_size" name="inner_press_bed_size">
+                    <option value="50x70" data-price="85" selected>{% trans "نصف فرخ 50×70 سم" %}</option>
+                    <option value="70x100" data-price="150">{% trans "فرخ كامل 70×100 سم" %}</option>
+                    <option value="35x50" data-price="60">{% trans "ربع فرخ 35×50 سم" %}</option>
+                  </select>
+                </div>
+
+                <!-- 3. سعر زنكة الداخلي -->
+                <div class="col-md-4">
+                  <label for="id_inner_plate_price" class="form-label fw-bold">
+                    {% trans "سعر الزنكة الواحدة" %}
+                  </label>
+                  <div class="input-group">
+                    <input type="number" class="form-control text-center fw-bold" id="id_inner_plate_price" name="inner_plate_price" 
+                           value="85" min="0" step="5" title="{% trans 'سعر زنكة الداخلي المعتمد' %}">
+                    <span class="input-group-text small bg-light">{{ currency_symbol|default:"ج.م" }}</span>
+                  </div>
+                </div>
+
+                <!-- 4. ملازم ملونة -->
+                <div class="col-md-4">
+                  <label for="id_color_signatures_count" class="form-label fw-bold">
+                    {% trans "ملازم ملونة (8 زنكات)" %}
+                  </label>
+                  <div class="input-group">
+                    <input type="number" class="form-control fw-bold text-center text-primary" id="id_color_signatures_count"
+                           name="color_signatures_count" value="2" min="0">
+                    <span class="input-group-text small bg-light">{% trans "ملزمة" %}</span>
+                  </div>
+                </div>
+
+                <!-- 5. ملازم نصوص -->
+                <div class="col-md-4">
+                  <label for="id_bw_signatures_count" class="form-label fw-bold">
+                    {% trans "ملازم نصوص (2 زنكة)" %}
+                  </label>
+                  <div class="input-group">
+                    <input type="number" class="form-control fw-bold text-center text-primary" id="id_bw_signatures_count"
+                           name="bw_signatures_count" value="0" min="0">
+                    <span class="input-group-text small bg-light">{% trans "ملزمة" %}</span>
+                  </div>
+                </div>
+
+                <!-- 6. إجمالي تكلفة زنكات الداخلي -->
+                <div class="col-md-4">
+                  <label class="form-label fw-bold">
+                    {% trans "تكلفة زنكات الداخلي" %}
+                  </label>
+                  <div class="form-control bg-light d-flex justify-content-between align-items-center">
+                    <span class="small text-muted">{% trans "الإجمالي:" %}</span>
+                    <strong class="text-primary fs-6" id="inner_ctp_cost_display">0 {{ currency_symbol|default:"ج.م" }}</strong>
+                  </div>
+                  <!-- حقل إجمالي زنكات الداخلي المخفي للمزامنة البرمجية -->
+                  <input type="hidden" id="id_inner_plates_count_total" name="inner_plates_count_total" value="16">
+                </div>
+
               </div>
 
             </div>
@@ -376,12 +502,14 @@
                     {% trans "مركز الديجيتال للداخلي" %}
                   </label>
                   <select class="form-select select2-filter" id="id_inner_digital_supplier" name="inner_digital_supplier" dir="rtl">
-                    <option value="">{% trans "-- اختر مركز الديجيتال --" %}</option>
-                    {% for supp in digital_suppliers %}
-                      <option value="{{ supp.id }}">{{ supp.name }}</option>
-                    {% empty %}
-                      <option value="" disabled>{% trans "لا توجد مراكز ديجيتال مسجلة" %}</option>
-                    {% endfor %}
+                    {% if digital_suppliers %}
+                      <option value="">{% trans "-- اختر مركز الديجيتال --" %}</option>
+                      {% for supp in digital_suppliers %}
+                        <option value="{{ supp.id }}">{{ supp.name }}</option>
+                      {% endfor %}
+                    {% else %}
+                      <option value="" disabled selected>{% trans "لا توجد مراكز ديجيتال مسجلة" %}</option>
+                    {% endif %}
                   </select>
                 </div>
 

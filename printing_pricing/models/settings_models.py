@@ -18,6 +18,13 @@ class PaperType(models.Model):
 
     name = models.CharField(_("اسم نوع الورق"), max_length=100)
     description = models.TextField(_("الوصف"), blank=True)
+    override_sheets_per_pack = models.PositiveIntegerField(
+        _("سعة رزمة خاصة بالخامة (فرخ)"),
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(1)],
+        help_text=_("سعة خاصة تتجاوز الجراماج (مثل: 100 فرخ للدوبلكس، 100 للستيكر). اتركه فارغاً للاعتماد على سعة الجراماج.")
+    )
     is_active = models.BooleanField(_("نشط"), default=True)
     is_default = models.BooleanField(_("افتراضي"), default=False)
     created_at = models.DateTimeField(_("تاريخ الإنشاء"), auto_now_add=True)
@@ -65,6 +72,12 @@ class PaperWeight(models.Model):
     name = models.CharField(_("اسم الوزن"), max_length=100)
     gsm = models.PositiveIntegerField(
         _("الوزن (جرام)"), validators=[MinValueValidator(50)]
+    )
+    sheets_per_pack = models.PositiveIntegerField(
+        _("سعة الرزمة القياسية (فرخ)"),
+        default=250,
+        validators=[MinValueValidator(1)],
+        help_text=_("عدد الأفرخ القياسي في الرزمة لهذا الجراماج (مثال: 500 للأوزان الخفيفة، 250 للمتوسطة)")
     )
     description = models.TextField(_("الوصف"), blank=True)
     is_active = models.BooleanField(_("نشط"), default=True)

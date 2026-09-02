@@ -27,33 +27,40 @@
               </tr>
             </thead>
             <tbody id="inspector_table_body">
-              <tr>
-                <td class="fw-bold text-start">{% trans "الورق الخام" %}</td>
-                <td>{% trans "كوشيه 150 جم (70×100)" %}</td>
-                <td id="insp_paper_sheets">1,080 {% trans "فرخ" %}</td>
-                <td id="insp_sheet_rate">3.85 {% trans "ج" %}</td>
-                <td id="insp_paper_cost" class="fw-bold">4,158.00 {% trans "ج" %}</td>
+              <tr id="insp_row_cover_paper">
+                <td class="fw-bold text-start">{% trans "ورق الغلاف / الرئيسي" %}</td>
+                <td id="insp_paper_desc">{% trans "كوشيه 300 جم (70×100)" %}</td>
+                <td id="insp_paper_sheets">0 {% trans "فرخ" %}</td>
+                <td id="insp_sheet_rate">0.00 {{ currency_symbol|default:"ج" }}</td>
+                <td id="insp_paper_cost" class="fw-bold text-primary">0.00 {{ currency_symbol|default:"ج" }}</td>
+              </tr>
+              <tr id="insp_row_inner_paper" class="d-none">
+                <td class="fw-bold text-start">{% trans "ورق الداخلي والملازم" %}</td>
+                <td id="insp_inner_paper_desc">{% trans "طبع 80 جم (66×88)" %}</td>
+                <td id="insp_inner_paper_sheets">0 {% trans "فرخ" %}</td>
+                <td id="insp_inner_sheet_rate">0.00 {{ currency_symbol|default:"ج" }}</td>
+                <td id="insp_inner_paper_cost" class="fw-bold text-primary">0.00 {{ currency_symbol|default:"ج" }}</td>
               </tr>
               <tr>
                 <td class="fw-bold text-start">{% trans "زنكات CTP" %}</td>
-                <td>{% trans "أوفست 4+4 ألوان" %}</td>
-                <td id="insp_plates_count">8 {% trans "زنكات" %}</td>
-                <td id="insp_plate_rate">80.00 {% trans "ج" %}</td>
-                <td id="insp_ctp_cost" class="fw-bold">640.00 {% trans "ج" %}</td>
+                <td id="insp_plates_desc">{% trans "أوفست زنكات" %}</td>
+                <td id="insp_plates_count">0 {% trans "زنكات" %}</td>
+                <td id="insp_plate_rate">0.00 {{ currency_symbol|default:"ج" }}</td>
+                <td id="insp_ctp_cost" class="fw-bold">0.00 {{ currency_symbol|default:"ج" }}</td>
               </tr>
               <tr>
                 <td class="fw-bold text-start">{% trans "سحب الماكينة (Press)" %}</td>
-                <td>{% trans "تراج طباعة أوفست 4 ألوان" %}</td>
-                <td id="insp_runs_count">1 {% trans "تراج" %}</td>
-                <td id="insp_run_rate">350.00 {% trans "ج" %}</td>
-                <td id="insp_press_cost" class="fw-bold">350.00 {% trans "ج" %}</td>
+                <td id="insp_runs_desc">{% trans "سحبات وتراج الأوفست" %}</td>
+                <td id="insp_runs_count">0 {% trans "تراج" %}</td>
+                <td id="insp_run_rate">0.00 {{ currency_symbol|default:"ج" }}</td>
+                <td id="insp_press_cost" class="fw-bold">0.00 {{ currency_symbol|default:"ج" }}</td>
               </tr>
               <tr>
                 <td class="fw-bold text-start">{% trans "السلوفان والتشطيب" %}</td>
-                <td>{% trans "سلوفان مط وجهين فاخر" %}</td>
-                <td id="insp_lam_meters">2,160 {% trans "م.ط" %}</td>
-                <td id="insp_lam_rate">0.45 {% trans "ج" %}</td>
-                <td id="insp_lam_cost" class="fw-bold">972.00 {% trans "ج" %}</td>
+                <td id="insp_lam_desc">{% trans "سلوفان وتشطيب" %}</td>
+                <td id="insp_lam_meters">0 {% trans "م.ط" %}</td>
+                <td id="insp_lam_rate">0.00 {{ currency_symbol|default:"ج" }}</td>
+                <td id="insp_lam_cost" class="fw-bold">0.00 {{ currency_symbol|default:"ج" }}</td>
               </tr>
               <tr class="table-primary fw-bold">
                 <td colspan="4" class="text-end">{% trans "إجمالي التكلفة المباشرة (Direct Cost):" %}</td>

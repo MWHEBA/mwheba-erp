@@ -61,7 +61,7 @@ class StageTrackerService:
                 user_obj = User.objects.first()
 
             today_str = timezone.now().strftime('%y%m%d')
-            po_num = f"TRN-{today_str}-{order.id}-{driver.id}"
+            po_num = f"TRN-{today_str}-{order.id}-{driver.id}"[:20]
 
             # التحقق من عدم التكرار
             existing = Purchase.objects.filter(number=po_num).first()

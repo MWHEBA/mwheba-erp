@@ -19,6 +19,9 @@ from ..models import (
     PaperSpecification, PrintingSpecification, PricingStatus, OrderType,
     ProductType, ProductSize
 )
+from ..models.settings_models import (
+    PaperType, PaperSize, PaperWeight, PaperOrigin, PieceSize
+)
 from ..forms import PrintingOrderForm, OrderSearchForm
 from customer.models import Customer
 
@@ -231,39 +234,73 @@ class OrderDetailView(LoginRequiredMixin, DetailView):
 
 
 def get_active_ctp_suppliers():
-    """جلب موردي زنكات CTP المعتمدين الذين لديهم خدمات زنكات مسجلة ونشطة في النظام"""
+    """جلب مراكز زنكات CTP المعتمدة التي لديها خدمات وأسعار زنكات نشطة ومسجلة في النظام حصراً 100%"""
     try:
         from supplier.models import Supplier
+        from django.db.models import Q
         return Supplier.objects.filter(
             is_active=True,
             services__service_type__code='ctp_plates',
             services__is_active=True
+        ).filter(
+            Q(services__base_price__gt=0) |
+            Q(services__attributes__has_key='price_per_plate') |
+            Q(services__attributes__has_key='plate_size')
         ).distinct().order_by('name')
     except Exception:
         return []
 
 
 def get_active_offset_suppliers():
-    """جلب مطابع الأوفست المعتمدة التي لديها خدمات طباعة أوفست مسجلة ونشطة في النظام"""
+    """جلب مطابع الأوفست المعتمدة التي لديها خدمات وأسعار طباعة أوفست نشطة ومسجلة في النظام حصراً 100%"""
     try:
         from supplier.models import Supplier
+        from django.db.models import Q
         return Supplier.objects.filter(
             is_active=True,
             services__service_type__code='offset_printing',
             services__is_active=True
+        ).filter(
+            Q(services__base_price__gt=0) |
+            Q(services__attributes__has_key='price_per_1000') |
+            Q(services__attributes__has_key='machine_type') |
+            Q(services__attributes__has_key='sheet_size')
         ).distinct().order_by('name')
     except Exception:
         return []
 
 
 def get_active_digital_suppliers():
-    """جلب مراكز الطباعة الديجيتال المعتمدة التي لديها خدمات ديجيتال مسجلة ونشطة في النظام"""
+    """جلب مراكز الطباعة الديجيتال المعتمدة التي لديها خدمات وأسعار ديجيتال نشطة ومسجلة في النظام حصراً 100%"""
     try:
         from supplier.models import Supplier
+        from django.db.models import Q
         return Supplier.objects.filter(
             is_active=True,
             services__service_type__code='digital_printing',
             services__is_active=True
+        ).filter(
+            Q(services__base_price__gt=0) |
+            Q(services__attributes__has_key='price_per_page_bw') |
+            Q(services__attributes__has_key='price_per_page_color')
+        ).distinct().order_by('name')
+    except Exception:
+        return []
+
+
+def get_active_paper_suppliers():
+    """جلب تجار وموردي خامات الورق المعتمدين الذين لديهم أصناف وأسعار ورق نشطة ومسجلة في النظام حصراً 100%"""
+    try:
+        from supplier.models import Supplier
+        from django.db.models import Q
+        return Supplier.objects.filter(
+            is_active=True,
+            services__service_type__code='paper',
+            services__is_active=True
+        ).filter(
+            Q(services__base_price__gt=0) |
+            Q(services__attributes__has_key='price_per_sheet') |
+            Q(services__attributes__has_key='paper_type')
         ).distinct().order_by('name')
     except Exception:
         return []
@@ -296,6 +333,15 @@ class OrderCreateView(LoginRequiredMixin, CreateView):
         context['ctp_suppliers'] = get_active_ctp_suppliers()
         context['offset_suppliers'] = get_active_offset_suppliers()
         context['digital_suppliers'] = get_active_digital_suppliers()
+        
+        # تمرير إعدادات الورق الخمسة المعيارية وموردي الورق
+        context['paper_types'] = PaperType.objects.filter(is_active=True).order_by('name')
+        context['paper_sizes'] = PaperSize.objects.filter(is_active=True).order_by('name')
+        context['paper_weights'] = PaperWeight.objects.filter(is_active=True).order_by('gsm')
+        context['paper_origins'] = PaperOrigin.objects.filter(is_active=True).order_by('name')
+        context['piece_sizes'] = PieceSize.objects.filter(is_active=True).select_related('paper_type').order_by('name')
+        context['paper_suppliers'] = get_active_paper_suppliers()
+        
         context['breadcrumb_items'] = [
             {'title': _('الرئيسية'), 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},
             {'title': _('طلبات التسعير'), 'url': reverse('printing_pricing:order_list'), 'icon': 'fas fa-print'},
@@ -343,6 +389,31 @@ class OrderUpdateView(LoginRequiredMixin, UpdateView):
         if not (self.request.user.is_superuser or self.request.user.is_staff):
             queryset = queryset.filter(created_by=self.request.user)
         return queryset
+
+    def get_initial(self):
+        initial = super().get_initial()
+        order = self.get_object()
+        
+        # استرجاع مواصفات الورق المحفوظة
+        paper_spec = order.paper_specs.filter(is_active=True).first()
+        if paper_spec:
+            if order.paper_type_id:
+                initial['paper_type'] = order.paper_type_id
+            initial['paper_weight'] = paper_spec.paper_weight
+            initial['sheet_size'] = paper_spec.paper_size_name or '70x100'
+            initial['piece_size'] = paper_spec.piece_size
+            initial['paper_price'] = paper_spec.sheet_cost
+        
+        # استرجاع بيانات المورد ومصدر الورق من بنود الخامات
+        paper_mat = order.materials.filter(material_type='paper', is_active=True).first()
+        if paper_mat and isinstance(paper_mat.supplier_info, dict):
+            if 'supplier_id' in paper_mat.supplier_info:
+                initial['paper_supplier'] = paper_mat.supplier_info.get('supplier_id')
+            if 'origin' in paper_mat.supplier_info:
+                initial['paper_origin'] = paper_mat.supplier_info.get('origin')
+            if 'source' in paper_mat.supplier_info:
+                initial['paper_source'] = paper_mat.supplier_info.get('source')
+        return initial
         
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -363,6 +434,16 @@ class OrderUpdateView(LoginRequiredMixin, UpdateView):
         context['ctp_suppliers'] = get_active_ctp_suppliers()
         context['offset_suppliers'] = get_active_offset_suppliers()
         context['digital_suppliers'] = get_active_digital_suppliers()
+        
+        # تمرير إعدادات الورق الخمسة المعيارية وموردي الورق
+        context['paper_types'] = PaperType.objects.filter(is_active=True).order_by('name')
+        context['paper_sizes'] = PaperSize.objects.filter(is_active=True).order_by('name')
+        context['paper_weights'] = PaperWeight.objects.filter(is_active=True).order_by('gsm')
+        context['paper_origins'] = PaperOrigin.objects.filter(is_active=True).order_by('name')
+        context['piece_sizes'] = PieceSize.objects.filter(is_active=True).select_related('paper_type').order_by('name')
+        context['paper_suppliers'] = get_active_paper_suppliers()
+        context['saved_paper_spec'] = self.object.paper_specs.filter(is_active=True).first()
+        
         context['breadcrumb_items'] = [
             {'title': _('الرئيسية'), 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},
             {'title': _('طلبات التسعير'), 'url': reverse('printing_pricing:order_list'), 'icon': 'fas fa-print'},

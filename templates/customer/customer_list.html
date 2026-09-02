@@ -33,9 +33,9 @@
             <input type="text" class="form-control" id="search" name="search" value="{{ request.GET.search }}" placeholder="اسم أو هاتف أو كود العميل">
           </div>
           <div class="col-md-2 col-sm-6">
-            <label for="customer_type" class="form-label">{% trans "التصنيف" %}</label>
+            <label for="customer_type" class="form-label">{% trans "نوع العميل" %}</label>
             <select class="form-select" id="customer_type" name="customer_type">
-              <option value="">{% trans "كل التصنيفات" %}</option>
+              <option value="">{% trans "كل الأنواع" %}</option>
               {% for val, label in customer_types %}
               <option value="{{ val }}" {% if request.GET.customer_type == val %}selected{% endif %}>{{ label }}</option>
               {% endfor %}
@@ -73,19 +73,14 @@
   
   <!-- قائمة العملاء -->
   <div class="section-container">
-      <div class="card-header d-flex justify-content-between align-items-center">
-        <h5 class="card-title mb-0"><i class="fas fa-list me-2"></i>{% trans "قائمة العملاء" %}</h5>
-      </div>
-      <div class="card-body">
-        <div id="customers-table-container">
-        {% include "components/data_table.html" with table_id="customers-table" data=customers headers=headers action_buttons=action_buttons primary_key="id" table_class="hover clickable-rows" empty_message="لا يوجد عملاء متاحين" show_search=False show_length_menu=False disable_pagination=True show_currency=True clickable_rows=True row_click_url="/customers/0/detail/" %}
-        </div>
-      </div>
+    <h5 class="section-title"><i class="fas fa-users me-2"></i>{% trans "قائمة العملاء" %}</h5>
+    <div id="customers-table-container">
+    {% include "components/data_table.html" with table_id="customers-table" data=customers headers=headers action_buttons=action_buttons primary_key="id" table_class="hover clickable-rows" empty_message="لا يوجد عملاء متاحين" show_search=False show_length_menu=False disable_pagination=True show_currency=True clickable_rows=True row_click_url="/customers/0/detail/" %}
+    </div>
 
-      <!-- Django Pagination -->
-      <div id="pagination-wrapper">
-        {% include "partials/pagination.html" with page_obj=page_obj align="center" %}
-      </div>
+    <!-- Django Pagination -->
+    <div id="pagination-wrapper">
+      {% include "partials/pagination.html" with page_obj=page_obj align="center" %}
     </div>
   </div>
 </div>
@@ -99,9 +94,14 @@
       GlobalTableManager.initializeTable('customers-table', {
         paging: false, searching: false, info: false, dom: 't', ordering: true,
         columnDefs: [
+          { targets: 'col-actions', orderable: false, width: '120px' },
           { targets: 'col-name', width: '20%' },
-          { targets: 'col-phone', width: '15%' },
-          { targets: 'col-address', width: '25%' }
+          { targets: 'col-code', width: '12%' },
+          { targets: 'col-customer_type_display', orderable: false, width: '12%', className: 'text-center' },
+          { targets: 'col-phone', width: '14%' },
+          { targets: 'col-address', width: '20%' },
+          { targets: 'col-currency_display', orderable: false, width: '8%', className: 'text-center' },
+          { targets: 'col-actual_balance_display', width: '14%', className: 'text-end' }
         ],
         autoWidth: true, responsive: true
       });
@@ -166,6 +166,23 @@
     $('form').on('submit', function(e) {
       e.preventDefault();
       window.doSearch();
+    });
+
+    // معالجة روابط الترقيم ومحدد السطور بسلاسة عبر AJAX
+    $(document).on('click', '#pagination-wrapper a.page-link', function(e) {
+      const href = $(this).attr('href');
+      if (href && href.startsWith('?')) {
+        e.preventDefault();
+        window.doSearch(href.substring(1));
+      }
+    });
+
+    $(document).on('change', '#pagination-wrapper .per-page-select', function() {
+      const perPage = $(this).val();
+      const currentUrlParams = new URLSearchParams(window.location.search);
+      currentUrlParams.set('per_page', perPage);
+      currentUrlParams.set('page', '1');
+      window.doSearch(currentUrlParams.toString());
     });
   });
 

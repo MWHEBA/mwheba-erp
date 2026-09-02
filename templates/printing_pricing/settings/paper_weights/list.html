@@ -23,6 +23,7 @@
                     <tr>
                         <th>{% trans "الاسم" %}</th>
                         <th>{% trans "الوزن (جرام)" %}</th>
+                        <th>{% trans "سعة الرزمة" %}</th>
                         <th>{% trans "الوصف" %}</th>
                         <th>{% trans "الحالة" %}</th>
                         <th>{% trans "افتراضي" %}</th>
@@ -37,6 +38,9 @@
                         </td>
                         <td>
                             <span class="badge bg-info">{{ weight.gsm }} جم</span>
+                        </td>
+                        <td>
+                            <span class="badge bg-secondary-subtle text-secondary border">{{ weight.sheets_per_pack|default:250 }} {% trans "فرخ" %}</span>
                         </td>
                         <td>
                             {% if weight.description %}
@@ -87,8 +91,8 @@
 
 <!-- Modal للإنشاء والتعديل -->
 <div class="modal fade" id="formModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content" id="modalContent">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg" id="modalContent">
             <!-- سيتم تحميل المحتوى هنا -->
         </div>
     </div>
@@ -96,8 +100,8 @@
 
 <!-- Modal للحذف -->
 <div class="modal fade" id="deleteModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content" id="deleteModalContent">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg" id="deleteModalContent">
             <!-- سيتم تحميل المحتوى هنا -->
         </div>
     </div>
@@ -172,18 +176,25 @@ function submitForm(formId) {
 
 function displayFormErrors(errors) {
     // إزالة الأخطاء السابقة
-    document.querySelectorAll('.invalid-feedback').forEach(el => el.remove());
+    document.querySelectorAll('.invalid-feedback').forEach(el => {
+        el.textContent = '';
+    });
     document.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
     
     // عرض الأخطاء الجديدة
     for (const [field, fieldErrors] of Object.entries(errors)) {
         const fieldElement = document.querySelector(`[name="${field}"]`);
+        const errorDiv = document.getElementById(`error_${field}`);
         if (fieldElement) {
             fieldElement.classList.add('is-invalid');
-            const errorDiv = document.createElement('div');
-            errorDiv.className = 'invalid-feedback';
-            errorDiv.textContent = fieldErrors.join(', ');
-            fieldElement.parentNode.appendChild(errorDiv);
+        }
+        if (errorDiv) {
+            errorDiv.textContent = Array.isArray(fieldErrors) ? fieldErrors.join(', ') : fieldErrors;
+        } else if (fieldElement && fieldElement.parentNode) {
+            const err = document.createElement('div');
+            err.className = 'invalid-feedback d-block';
+            err.textContent = Array.isArray(fieldErrors) ? fieldErrors.join(', ') : fieldErrors;
+            fieldElement.parentNode.appendChild(err);
         }
     }
 }

@@ -157,11 +157,6 @@ def supplier_list(request):
 
     suppliers_page = page_obj
 
-    # جلب أنواع الموردين للفلتر من الإعدادات الديناميكية
-    supplier_types = SupplierType.objects.filter(
-        settings__is_active=True
-    ).select_related('settings').order_by('settings__display_order', 'name')
-
     # تعريف أعمدة الجدول
     headers = [
         {
@@ -299,7 +294,12 @@ def supplier_list(request):
         ],
     }
 
-    return render(request, "supplier/core/supplier_list.html", context)
+    return render_paginated_response(
+        request,
+        "supplier/core/supplier_list.html",
+        context,
+        table_template_name="supplier/core/partials/supplier_table.html"
+    )
 
 
 @login_required

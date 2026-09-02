@@ -70,6 +70,55 @@ class ProcurementBridgeService:
         calc = getattr(order, 'cost_calculation', None)
 
         # تجميع البنود حسب المورد / الورشة
+        # 0. بنود خام الورق (Paper PO) لتاجر الورق (إذا كان الشراء مباشراً للمشروع)
+        paper_materials = order.materials.filter(material_type='paper', is_active=True)
+        paper_total_cost = sum((m.total_cost for m in paper_materials), Decimal('0.00'))
+        
+        paper_sup_obj = None
+        is_customer_supplied = False
+        is_warehouse_draw = False
+        
+        first_paper_mat = paper_materials.first()
+        if first_paper_mat and isinstance(first_paper_mat.supplier_info, dict):
+            source = first_paper_mat.supplier_info.get('source', 'purchase')
+            if source == 'customer_supplied':
+                is_customer_supplied = True
+            elif source == 'warehouse':
+                is_warehouse_draw = True
+                
+            sup_id = first_paper_mat.supplier_info.get('supplier_id')
+            if sup_id:
+                try:
+                    paper_sup_obj = Supplier.objects.filter(id=sup_id).first()
+                except Exception:
+                    paper_sup_obj = None
+
+        if not is_customer_supplied and not is_warehouse_draw and paper_total_cost > Decimal('0.00'):
+            if not paper_sup_obj:
+                paper_sup_obj = cls._get_or_create_default_supplier("تاجر ومورد الورق")
+            
+            paper_desc_parts = [f"توريد خام ورق للشغلانة - أمر #{order.order_number}"]
+            for mat in paper_materials:
+                if mat.quantity and mat.quantity > 0:
+                    sup_info = mat.supplier_info if isinstance(mat.supplier_info, dict) else {}
+                    pack_cap = sup_info.get('sheets_per_pack') or 250
+                    try:
+                        pack_cap = int(pack_cap)
+                    except (ValueError, TypeError):
+                        pack_cap = 250
+                    reams = round(float(mat.quantity) / pack_cap, 1) if pack_cap > 0 else 0
+                    m_name = getattr(mat, 'material_name', '') or str(mat)
+                    paper_desc_parts.append(f"({m_name}: {mat.quantity} فرخ ≈ {reams} رزمة سعة {pack_cap})")
+
+            po = cls._create_purchase_order_for_supplier(
+                order=order,
+                supplier=paper_sup_obj,
+                subtotal=paper_total_cost,
+                service_desc=" - ".join(paper_desc_parts),
+                user=user
+            )
+            created_pos.append(po)
+
         # 1. بنود الأوفست / المطبعة
         offset_cost = Decimal('0.00')
         if calc and getattr(calc, 'offset_calc', None) and calc.offset_calc.cost > 0:

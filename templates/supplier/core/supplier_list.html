@@ -120,20 +120,14 @@
   
   <!-- قائمة الموردين -->
   <div class="section-container">
-      <div class="card-header d-flex justify-content-between align-items-center">
-        <h5 class="card-title mb-0"><i class="fas fa-list me-2"></i>{% trans "قائمة الموردين" %}</h5>
-      </div>
-      <div class="card-body">
-        <div id="suppliers-table-container">
-        {% include "components/data_table.html" with table_id="suppliers-table" data=suppliers headers=headers action_buttons=action_buttons primary_key="id" table_class="hover clickable-rows" empty_message="لا يوجد موردين متاحين" show_search=False show_length_menu=False disable_pagination=True show_currency=True clickable_rows=True row_click_url="/suppliers/0/detail/" %}
-        </div>
+    <h5 class="section-title"><i class="fas fa-truck me-2"></i>{% trans "قائمة الموردين" %}</h5>
+    <div id="suppliers-table-container">
+      {% include "supplier/core/partials/supplier_table.html" %}
+    </div>
 
-      </div>
-
-      <!-- Django Pagination -->
-      <div id="pagination-wrapper">
-        {% include "partials/pagination.html" with page_obj=page_obj align="center" %}
-      </div>
+    <!-- Django Pagination -->
+    <div id="pagination-wrapper">
+      {% include "partials/pagination.html" with page_obj=page_obj align="center" %}
     </div>
   </div>
 </div>
@@ -217,6 +211,23 @@
     $('form').on('submit', function(e) {
       e.preventDefault();
       doSearch();
+    });
+
+    // معالجة روابط الترقيم ومحدد السطور بسلاسة عبر AJAX
+    $(document).on('click', '#pagination-wrapper a.page-link', function(e) {
+      const href = $(this).attr('href');
+      if (href && href.startsWith('?')) {
+        e.preventDefault();
+        window.doSearch(href.substring(1));
+      }
+    });
+
+    $(document).on('change', '#pagination-wrapper .per-page-select', function() {
+      const perPage = $(this).val();
+      const currentUrlParams = new URLSearchParams(window.location.search);
+      currentUrlParams.set('per_page', perPage);
+      currentUrlParams.set('page', '1');
+      window.doSearch(currentUrlParams.toString());
     });
   });
 

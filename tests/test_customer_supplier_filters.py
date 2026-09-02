@@ -98,3 +98,28 @@ class TestCustomerSupplierFilters(TestCase):
         qs = Supplier.objects.filter(primary_type=self.st1)
         assert qs.filter(id=self.s1.id).exists()
         assert not qs.filter(id=self.s2.id).exists()
+
+    def test_supplier_list_search_and_ajax(self):
+        from users.models import User
+        user = User.objects.create_user(username="test_search_user", password="password123")
+        self.client.force_login(user)
+
+        # 1. Direct GET search
+        resp = self.client.get(reverse("supplier:supplier_list"), {"search": "محلي"})
+        assert resp.status_code == 200
+        assert "مورد محلي" in resp.content.decode("utf-8")
+        assert "مورد أجنبي" not in resp.content.decode("utf-8")
+
+        # 2. AJAX search
+        resp_ajax = self.client.get(
+            reverse("supplier:supplier_list"),
+            {"search": "أجنبي"},
+            HTTP_X_REQUESTED_WITH="XMLHttpRequest"
+        )
+        assert resp_ajax.status_code == 200
+        data = resp_ajax.json()
+        assert "table_html" in data
+        assert "pagination_html" in data
+        assert "مورد أجنبي" in data["table_html"]
+        assert "مورد محلي" not in data["table_html"]
+

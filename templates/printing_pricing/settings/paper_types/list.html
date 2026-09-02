@@ -22,6 +22,7 @@
                 <thead>
                     <tr>
                         <th>{% trans "اسم النوع" %}</th>
+                        <th>{% trans "سعة رزمة خاصة" %}</th>
                         <th>{% trans "الوصف" %}</th>
                         <th>{% trans "الحالة" %}</th>
                         <th>{% trans "افتراضي" %}</th>
@@ -33,6 +34,13 @@
                     <tr>
                         <td>
                             <strong>{{ paper_type.name }}</strong>
+                        </td>
+                        <td>
+                            {% if paper_type.override_sheets_per_pack %}
+                                <span class="badge bg-primary-subtle text-primary border">{{ paper_type.override_sheets_per_pack }} {% trans "فرخ" %}</span>
+                            {% else %}
+                                <span class="text-muted small">{% trans "حسب الجراماج" %}</span>
+                            {% endif %}
                         </td>
                         <td>
                             {% if paper_type.description %}
@@ -57,10 +65,10 @@
                         </td>
                         <td>
                             <div class="btn-group btn-group-sm" role="group">
-                                <button type="button" class="btn btn-outline-primary" onclick="openEditModal({{ paper_type.pk }})">
+                                <button type="button" class="btn btn-outline-primary" onclick="openEditModal('{{ paper_type.pk }}')">
                                     <i class="fas fa-edit"></i>
                                 </button>
-                                <button type="button" class="btn btn-outline-danger" onclick="openDeleteModal({{ paper_type.pk }})">
+                                <button type="button" class="btn btn-outline-danger" onclick="openDeleteModal('{{ paper_type.pk }}')">
                                     <i class="fas fa-trash"></i>
                                 </button>
                             </div>

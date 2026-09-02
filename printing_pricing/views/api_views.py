@@ -876,7 +876,7 @@ class GetCTPPlatesAPIView(BaseAPIView):
             if not supplier_id:
                 return JsonResponse({
                     'success': False,
-                    'error': _('يرجى اختيار مورد زنكات CTP المعتمد'),
+                    'error': _('يرجى اختيار مكتب الفصل المعتمد'),
                     'plates': [],
                     'total_count': 0,
                     'has_plates': False

@@ -20,27 +20,27 @@
 
 {% with p_param=page_param|default:"page" %}
 {% if page_obj and page_obj.paginator and page_obj.paginator.count > 0 %}
-<div class="pagination-container d-flex flex-wrap justify-content-between align-items-center gap-3 py-2 px-3 border-top bg-light-subtle rounded-bottom" id="pagination-wrapper">
+<div class="pagination-container d-flex flex-wrap justify-content-between align-items-center gap-3 py-2 px-3 border-top bg-light-subtle rounded-bottom">
     <!-- الجانب الأيمن: محدد عدد السطور + ملخص البيانات -->
     <div class="d-flex align-items-center gap-3 flex-wrap">
         <!-- 1. قائمة اختيار عدد العناصر في الصفحة -->
         {% if show_per_page|default:True %}
         <div class="per-page-container d-flex align-items-center gap-2">
-            <label for="per_page_select_{{ p_param }}" class="form-label mb-0 text-muted small fw-medium">{% trans "عرض:" %}</label>
-            <select id="per_page_select_{{ p_param }}" name="per_page" class="form-select form-select-sm per-page-select" style="width: auto; min-width: 80px;" data-page-param="{{ p_param }}">
+            <label for="per_page_select_{{ p_param }}" class="form-label mb-0 text-muted small fw-medium">{% trans "عرض" %}</label>
+            <select id="per_page_select_{{ p_param }}" name="per_page" class="form-select form-select-sm per-page-select" style="width: auto; min-width: 75px;" data-page-param="{{ p_param }}">
                 <option value="10" {% if page_obj.paginator.per_page == 10 %}selected{% endif %}>10</option>
                 <option value="25" {% if page_obj.paginator.per_page == 25 or not page_obj.paginator.per_page %}selected{% endif %}>25</option>
                 <option value="50" {% if page_obj.paginator.per_page == 50 %}selected{% endif %}>50</option>
                 <option value="100" {% if page_obj.paginator.per_page == 100 %}selected{% endif %}>100</option>
             </select>
-            <span class="text-muted small">{% trans "عنصر/صفحة" %}</span>
+            <span class="text-muted small">{% trans "سجل لكل صفحة" %}</span>
         </div>
         {% endif %}
 
         <!-- 2. ملخص السطور -->
         {% if show_info|default:True %}
         <div class="pagination-info text-muted small border-start ps-3">
-            {% trans "عرض" %} <strong class="text-dark">{{ page_obj.start_index }}</strong> - <strong class="text-dark">{{ page_obj.end_index }}</strong> {% trans "من إجمالي" %} <strong class="text-primary">{{ page_obj.paginator.count }}</strong> {% trans "عنصر" %}
+            {% trans "عرض" %} <strong class="text-dark">{{ page_obj.start_index }} - {{ page_obj.end_index }}</strong> {% trans "من إجمالي" %} <strong class="text-primary">{{ page_obj.paginator.count }}</strong> {% trans "عنصر" %}
         </div>
         {% endif %}
     </div>
@@ -50,7 +50,7 @@
         <!-- 3. أزرار التصفح والصفحات (تظهر فقط عند وجود أكثر من صفحة) -->
         {% if page_obj.has_other_pages %}
         <nav aria-label="{% trans 'ترقيم الصفحات' %}" class="pagination-nav">
-            <ul class="pagination pagination-sm mb-0 justify-content-{{ align|default:'center' }}">
+            <ul class="pagination pagination-sm m-0 p-0 justify-content-{{ align|default:'center' }}">
                 <!-- زر الصفحة الأولى -->
                 {% if show_first_last|default:True %}
                     {% if page_obj.has_previous %}
@@ -147,11 +147,12 @@
 
         <!-- 4. زر التصدير الحصري لإكسل المعتمد كلياً على الفلاتر النشطة -->
         {% if show_export|default:True %}
-        <div class="table-export-controls d-flex align-items-center border-start ps-3">
+        <div class="pagination-export d-flex align-items-center {% if page_obj.has_other_pages %}border-start ps-3{% endif %}">
             <a href="?{% url_replace request 'export' 'excel' %}" 
-               class="btn btn-sm btn-outline-success btn-export-all-excel" 
+               class="btn btn-sm btn-outline-success btn-export-all-excel d-inline-flex align-items-center gap-1" 
                title="{% trans 'تصدير كافة السجلات المفلترة كملف Excel' %}">
-                <i class="fas fa-file-excel me-1 text-success" aria-hidden="true"></i>{% trans "تصدير Excel" %}
+                <i class="fas fa-file-excel text-success" aria-hidden="true"></i>
+                <span>{% trans "تصدير Excel" %}</span>
             </a>
         </div>
         {% endif %}

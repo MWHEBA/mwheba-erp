@@ -6,7 +6,7 @@ from decimal import Decimal
 from django.db import transaction
 from ..models import (
     PrintingOrder, OrderMaterial, OrderService, OrderSummary,
-    PriceUnit, ProductType, ProductSize
+    PriceUnit, ProductType, ProductSize, PaperSpecification
 )
 
 
@@ -165,7 +165,7 @@ class OrderAnatomyPersistenceService:
             order.materials.all().delete()
             order.services.all().delete()
 
-            # 2. حسابات الورق والخامات
+            # 2. حسابات الورق والخامات بديناميكية تامة
             paper_weight_str = post_data.get('paper_weight') or '300'
             try:
                 paper_weight = Decimal(str(paper_weight_str))
@@ -174,12 +174,21 @@ class OrderAnatomyPersistenceService:
                 
             open_w, open_h = order.get_open_dimensions()
             
-            # احتساب تقطيع فرخ الغلاف
-            net_sheet_w = Decimal('100.0') - Decimal('1.5')
-            net_sheet_h = Decimal('70.0') - Decimal('1.5')
-            cuts_w = max(Decimal('1'), net_sheet_w // open_w)
-            cuts_h = max(Decimal('1'), net_sheet_h // open_h)
-            cuts_per_sheet = max(Decimal('1'), cuts_w * cuts_h)
+            # قراءة مقاس الفرخ الخام المقتنى
+            sheet_size_str = post_data.get('sheet_size') or '70x100'
+            if '66x88' in sheet_size_str:
+                sheet_w, sheet_h = Decimal('88.0'), Decimal('66.0')
+            elif '60x85' in sheet_size_str:
+                sheet_w, sheet_h = Decimal('85.0'), Decimal('60.0')
+            else:
+                sheet_w, sheet_h = Decimal('100.0'), Decimal('70.0')
+
+            # احتساب تقطيع فرخ الغلاف مع خصم 2.0 سم (بنسة 1.5 سم + طهارة مقص 0.5 سم)
+            net_sheet_w = max(Decimal('0.1'), sheet_w - Decimal('2.0'))
+            net_sheet_h = max(Decimal('0.1'), sheet_h - Decimal('2.0'))
+            cuts_normal = (net_sheet_w // open_w) * (net_sheet_h // open_h)
+            cuts_rotated = (net_sheet_w // open_h) * (net_sheet_h // open_w)
+            cuts_per_sheet = max(Decimal('1'), cuts_normal, cuts_rotated)
             
             total_materials_cost = Decimal('0.00')
             gross_sheets = Decimal('0')
@@ -210,22 +219,78 @@ class OrderAnatomyPersistenceService:
                     
                 gross_sheets = Decimal(str(int(net_sheets * (Decimal('1') + waste_rate)) + 1))
                 
-                sheet_unit_cost = Decimal('3.50') * (paper_weight / Decimal('300'))
+                # سويتش تقريب الرزمة المقفولة بحسب سعة الرزمة (100 - 500 فرخ)
+                ream_rounding = (post_data.get('pack_rounding') in ['on', 'true', '1']) or (post_data.get('ream_rounding') in ['on', 'true', '1'])
+                try:
+                    sheets_per_pack = int(post_data.get('sheets_per_pack') or 500)
+                    if sheets_per_pack <= 0:
+                        sheets_per_pack = 500
+                except (ValueError, TypeError):
+                    sheets_per_pack = 500
+
+                if ream_rounding and gross_sheets > Decimal('0'):
+                    import math
+                    gross_sheets = Decimal(str(math.ceil(int(gross_sheets) / sheets_per_pack) * sheets_per_pack))
+
+                # قراءة سعر الشروع ومصدر الورق
+                paper_source = post_data.get('paper_source') or 'purchase'
+                paper_price_str = post_data.get('paper_price')
+                if paper_source == 'customer_supplied':
+                    sheet_unit_cost = Decimal('0.00')
+                elif paper_price_str:
+                    try:
+                        sheet_unit_cost = Decimal(str(paper_price_str))
+                    except:
+                        sheet_unit_cost = Decimal('3.50')
+                else:
+                    sheet_unit_cost = Decimal('3.50') * (paper_weight / Decimal('300'))
+
                 cover_paper_cost = gross_sheets * sheet_unit_cost
+
+                # بيانات المورد والمنشأ والألياف والرزم
+                paper_sup_id = post_data.get('paper_supplier')
+                supplier_info_dict = {
+                    'origin': post_data.get('paper_origin') or 'ألماني',
+                    'source': paper_source,
+                    'grain_direction': post_data.get('grain_direction', 'LG'),
+                    'gross_sheets': int(gross_sheets),
+                    'packs': float(gross_sheets / Decimal(str(sheets_per_pack))),
+                    'sheets_per_pack': sheets_per_pack,
+                }
+                if paper_sup_id:
+                    supplier_info_dict['supplier_id'] = paper_sup_id
 
                 # أ. تسجيل خامة ورق الغلاف / المطبوع الرئيسي
                 open_desc = f" - مقاس مفتوح ({open_w}×{open_h} سم)" if is_closed else ""
                 OrderMaterial.objects.create(
                     order=order,
                     material_type='paper',
-                    material_name=f"[غلاف / مطبوع رئيسي] ورق {order.paper_type or 'كوشيه'} {paper_weight} جم{open_desc} (فرخ 70×100)",
+                    material_name=f"[غلاف / مطبوع رئيسي] ورق {order.paper_type or 'كوشيه'} {paper_weight} جم{open_desc} (فرخ {sheet_size_str})",
                     quantity=gross_sheets,
                     unit=PriceUnit.SHEET,
                     unit_cost=sheet_unit_cost.quantize(Decimal('0.01')),
                     total_cost=cover_paper_cost.quantize(Decimal('0.01')),
-                    waste_percentage=waste_rate * Decimal('100')
+                    waste_percentage=waste_rate * Decimal('100'),
+                    supplier_info=supplier_info_dict
                 )
                 total_materials_cost += cover_paper_cost
+
+                # حفظ وتحديث مواصفات الورق الرسمية للغلاف PaperSpecification
+                PaperSpecification.objects.filter(order=order).delete()
+                PaperSpecification.objects.create(
+                    order=order,
+                    paper_type_name=getattr(order.paper_type, 'name', None) or str(order.paper_type or 'كوشيه'),
+                    paper_size_name=sheet_size_str,
+                    sheet_width=sheet_w,
+                    sheet_height=sheet_h,
+                    piece_size=post_data.get('piece_size') or 'custom',
+                    paper_weight=int(paper_weight),
+                    sheets_needed=int(gross_sheets),
+                    montage_count=int(cuts_per_sheet),
+                    sheet_cost=sheet_unit_cost.quantize(Decimal('0.01')),
+                    total_paper_cost=cover_paper_cost.quantize(Decimal('0.01')),
+                    is_active=True,
+                )
 
             # ب. لو كان الصنف كتاب / كتالوج (تسجيل الورق الداخلي والخامات الإضافية)
             pages_count = int(post_data.get('pages_count') or order.pages_count or 32)
@@ -239,10 +304,20 @@ class OrderAnatomyPersistenceService:
                 inner_gsm = Decimal(str(order.inner_paper_weight or '135'))
                 inner_paper_name = "ورق طبع أبيض فاخر" if order.inner_paper_type == 'woodfree' else f"ورق كوشيه داخلي {inner_gsm} جم"
                 
+                # مقاس فرخ الداخلي
+                inner_sheet_size_str = post_data.get('inner_sheet_size') or '66x88'
+                if '70x100' in inner_sheet_size_str:
+                    inner_sheet_w, inner_sheet_h = Decimal('100.0'), Decimal('70.0')
+                else:
+                    inner_sheet_w, inner_sheet_h = Decimal('88.0'), Decimal('66.0')
+
+                inner_net_sheet_w = max(Decimal('0.1'), inner_sheet_w - Decimal('2.0'))
+                inner_net_sheet_h = max(Decimal('0.1'), inner_sheet_h - Decimal('2.0'))
+
                 inner_leaf_w = w_val if inner_sides == 'single' else (w_val * Decimal('2'))
                 inner_leaf_h = h_val
-                inner_cuts_w = max(Decimal('1'), net_sheet_w // inner_leaf_w)
-                inner_cuts_h = max(Decimal('1'), net_sheet_h // inner_leaf_h)
+                inner_cuts_w = max(Decimal('1'), inner_net_sheet_w // inner_leaf_w)
+                inner_cuts_h = max(Decimal('1'), inner_net_sheet_h // inner_leaf_h)
                 inner_cuts_per_sheet = max(Decimal('1'), inner_cuts_w * inner_cuts_h)
 
                 sheets_needed_total = qty * Decimal(str(actual_sheets_per_unit if inner_sides == 'single' else (actual_sheets_per_unit + 1) // 2))
@@ -256,13 +331,24 @@ class OrderAnatomyPersistenceService:
                     if (inner_gross_sheets - net_inner_sheets) < min_make_ready:
                         inner_gross_sheets = net_inner_sheets + min_make_ready
 
-                inner_sheet_cost = (Decimal('2.10') * (inner_gsm / Decimal('80'))) if order.inner_paper_type == 'woodfree' else (Decimal('2.40') * (inner_gsm / Decimal('135')))
+                inner_price_str = post_data.get('inner_sheet_price')
+                paper_source = post_data.get('paper_source') or 'purchase'
+                if paper_source == 'customer_supplied':
+                    inner_sheet_cost = Decimal('0.00')
+                elif inner_price_str:
+                    try:
+                        inner_sheet_cost = Decimal(str(inner_price_str))
+                    except:
+                        inner_sheet_cost = Decimal('2.40')
+                else:
+                    inner_sheet_cost = (Decimal('2.10') * (inner_gsm / Decimal('80'))) if order.inner_paper_type == 'woodfree' else (Decimal('2.40') * (inner_gsm / Decimal('135')))
+                    
                 inner_paper_cost = inner_gross_sheets * inner_sheet_cost
 
                 OrderMaterial.objects.create(
                     order=order,
                     material_type='paper',
-                    material_name=f"[داخلي] {inner_paper_name} ({pages_count} صفحة - {total_signatures} ملازم)",
+                    material_name=f"[داخلي] {inner_paper_name} ({pages_count} صفحة - {total_signatures} ملازم) (فرخ {inner_sheet_size_str})",
                     quantity=inner_gross_sheets,
                     unit=PriceUnit.SHEET,
                     unit_cost=inner_sheet_cost.quantize(Decimal('0.01')),
@@ -270,6 +356,22 @@ class OrderAnatomyPersistenceService:
                     waste_percentage=inner_waste_rate * Decimal('100')
                 )
                 total_materials_cost += inner_paper_cost
+
+                # حفظ وتحديث مواصفات الورق الداخلي PaperSpecification
+                PaperSpecification.objects.create(
+                    order=order,
+                    paper_type_name=inner_paper_name,
+                    paper_size_name=inner_sheet_size_str,
+                    sheet_width=inner_sheet_w,
+                    sheet_height=inner_sheet_h,
+                    piece_size='custom',
+                    paper_weight=int(inner_gsm),
+                    sheets_needed=int(inner_gross_sheets),
+                    montage_count=int(inner_cuts_per_sheet),
+                    sheet_cost=inner_sheet_cost.quantize(Decimal('0.01')),
+                    total_paper_cost=inner_paper_cost.quantize(Decimal('0.01')),
+                    is_active=True,
+                )
 
                 # خامات كرتون الهارد كوفر والبطانة
                 if order.binding_type == 'hardcover':

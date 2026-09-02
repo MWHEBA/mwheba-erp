@@ -99,6 +99,13 @@ def customer_list(request):
             "url": "customer:customer_detail",
         },
         {"key": "code", "label": "الكود", "sortable": True},
+        {
+            "key": "customer_type_display",
+            "label": "نوع العميل",
+            "sortable": False,
+            "format": "html",
+            "class": "text-center",
+        },
         {"key": "phone", "label": "رقم الهاتف", "sortable": False},
         {"key": "address", "label": "العنوان", "sortable": False},
         {
@@ -160,12 +167,19 @@ def customer_list(request):
     page_customer_ids = [c.pk for c in page_obj]
     exposure_map = BusinessPartnerExposureService.get_open_balances("customer", page_customer_ids)
 
+    type_badges = {
+        'individual': '<span class="badge bg-light text-dark border"><i class="fas fa-user me-1 text-secondary"></i>فرد</span>',
+        'company': '<span class="badge bg-primary text-white"><i class="fas fa-building me-1"></i>شركة</span>',
+        'government': '<span class="badge bg-info text-white"><i class="fas fa-landmark me-1"></i>جهة حكومية</span>',
+    }
+
     for c in page_obj:
         curr_code = c.default_currency.code if c.default_currency else "EGP"
         curr_symbol = (c.default_currency.symbol if c.default_currency and c.default_currency.symbol else "") or get_currency_symbol(curr_code)
         c.currency_display = f'<span class="badge bg-light text-dark border">{curr_symbol}</span>'
         customer_dtos = exposure_map.get(c.pk, [])
         c.actual_balance_display = CurrencyExposurePresenter.render_html_badges(customer_dtos)
+        c.customer_type_display = type_badges.get(c.customer_type, f'<span class="badge bg-secondary">{c.get_customer_type_display()}</span>')
 
     customers = page_obj
 

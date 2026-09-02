@@ -1,51 +1,107 @@
 {% load static %}
-{% load django_bootstrap5 %}
+{% load i18n %}
 
-<div class="modal-header">
-    <h5 class="modal-title">
-        <i class="fas fa-weight-hanging me-2"></i>{{ title }}
+<div class="modal-header bg-light border-bottom px-4 py-3">
+    <h5 class="modal-title fw-bold text-dark mb-0">
+        <i class="fas fa-weight-hanging text-primary me-2"></i>{{ title }}
     </h5>
-    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{% trans 'إغلاق' %}"></button>
 </div>
-<form id="paperWeightForm" method="post" action="{{ action_url }}">
+
+<form id="paperWeightForm" method="post" action="{{ action_url }}" novalidate>
     {% csrf_token %}
-    <div class="modal-body">
-        <div class="row">
-            <div class="col-md-8">
-                {% bootstrap_field form.name %}
+    <div class="modal-body p-4">
+        <div class="row g-3">
+            <!-- اسم الوزن -->
+            <div class="col-12">
+                <label for="{{ form.name.id_for_label }}" class="form-label fw-semibold">
+                    <i class="fas fa-tag text-muted me-1"></i>{% trans "اسم الوزن" %} <span class="text-danger">*</span>
+                </label>
+                {{ form.name }}
+                <div class="invalid-feedback d-block" id="error_name"></div>
             </div>
-            <div class="col-md-4">
-                {% bootstrap_field form.gsm %}
-            </div>
-        </div>
 
-        {% bootstrap_field form.description %}
-
-        <div class="row">
+            <!-- الوزن بالجرام -->
             <div class="col-md-6">
-                {% bootstrap_field form.is_active %}
+                <label for="{{ form.gsm.id_for_label }}" class="form-label fw-semibold">
+                    <i class="fas fa-balance-scale text-muted me-1"></i>{% trans "الوزن (جرام)" %} <span class="text-danger">*</span>
+                </label>
+                <div class="input-group">
+                    {{ form.gsm }}
+                    <span class="input-group-text bg-light text-muted">{% trans "جم" %}</span>
+                </div>
+                <div class="invalid-feedback d-block" id="error_gsm"></div>
             </div>
+
+            <!-- سعة الرزمة القياسية -->
             <div class="col-md-6">
-                {% bootstrap_field form.is_default %}
-                <small class="form-text text-muted">سيتم استخدام هذا الوزن كافتراضي في النماذج</small>
+                <label for="{{ form.sheets_per_pack.id_for_label }}" class="form-label fw-semibold">
+                    <i class="fas fa-boxes text-muted me-1"></i>{% trans "سعة الرزمة القياسية" %}
+                </label>
+                <div class="input-group">
+                    {{ form.sheets_per_pack }}
+                    <span class="input-group-text bg-light text-muted">{% trans "فرخ" %}</span>
+                </div>
+                <div class="invalid-feedback d-block" id="error_sheets_per_pack"></div>
+            </div>
+
+            <!-- الوصف -->
+            <div class="col-12">
+                <label for="{{ form.description.id_for_label }}" class="form-label fw-semibold">
+                    <i class="fas fa-align-right text-muted me-1"></i>{% trans "الوصف" %}
+                </label>
+                {{ form.description }}
+                <div class="invalid-feedback d-block" id="error_description"></div>
+            </div>
+
+            <!-- خيارات الحالة والافتراضي كبطاقات تبديل أنيقة -->
+            <div class="col-12 pt-2">
+                <div class="row g-3">
+                    <div class="col-sm-6">
+                        <div class="p-3 border rounded bg-light-subtle d-flex align-items-center justify-content-between h-100">
+                            <div>
+                                <label class="form-check-label fw-bold text-dark d-block mb-1" for="{{ form.is_active.id_for_label }}">
+                                    {% trans "حالة التفعيل" %}
+                                </label>
+                                <span class="small text-muted d-block">{% trans "متاح للاستخدام في تسعير المطبوعات" %}</span>
+                            </div>
+                            <div class="form-check form-switch m-0 ms-2">
+                                {{ form.is_active }}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-sm-6">
+                        <div class="p-3 border rounded bg-light-subtle d-flex align-items-center justify-content-between h-100">
+                            <div>
+                                <label class="form-check-label fw-bold text-dark d-block mb-1" for="{{ form.is_default.id_for_label }}">
+                                    {% trans "الوزن الافتراضي" %}
+                                </label>
+                                <span class="small text-muted d-block">{% trans "يُحدد تلقائياً عند فتح أمر جديد" %}</span>
+                            </div>
+                            <div class="form-check form-switch m-0 ms-2">
+                                {{ form.is_default }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
         {% if form.non_field_errors %}
-            <div class="alert alert-danger">
+            <div class="alert alert-danger mt-3 mb-0">
                 {% for error in form.non_field_errors %}
-                    <div>{{ error }}</div>
+                    <div><i class="fas fa-exclamation-circle me-1"></i>{{ error }}</div>
                 {% endfor %}
             </div>
         {% endif %}
     </div>
 
-    <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-            <i class="fas fa-times me-2"></i>إلغاء
+    <div class="modal-footer bg-light border-top px-4 py-3">
+        <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">
+            <i class="fas fa-times me-1"></i>{% trans "إلغاء" %}
         </button>
-        <button type="button" class="btn btn-primary" onclick="submitForm('paperWeightForm')">
-            <i class="fas fa-save me-2"></i>حفظ
+        <button type="button" class="btn btn-primary px-4 fw-bold" onclick="submitForm('paperWeightForm')">
+            <i class="fas fa-save me-1"></i>{% trans "حفظ" %}
         </button>
     </div>
 </form>

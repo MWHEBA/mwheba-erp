@@ -92,6 +92,10 @@
               <strong>{{ order.get_dimensions_display }}</strong>
             </li>
             <li class="mb-2 d-flex justify-content-between">
+              <span class="text-muted">{% trans "خام الورق ومقاس الفرخ:" %}</span>
+              <strong class="text-dark">{{ order.paper_type.name|default:_("كوشيه") }} ({{ order.paper_weight|default:"300" }} جم) - فرخ {{ order.paper_size.name|default:"70×100" }}</strong>
+            </li>
+            <li class="mb-2 d-flex justify-content-between">
               <span class="text-muted">{% trans "الألوان والأحبار المعتمدة:" %}</span>
               {% if order.cover_printing_type == 'offset' %}
                 <span class="badge-tech">{{ order.colors_front }}+{{ order.colors_back }} ألوان {% if order.spot_colors_front or order.spot_colors_back %}+ {{ order.spot_colors_front|add:order.spot_colors_back }} {% trans "لون مخصوص إضافي" %}{% endif %}</span>

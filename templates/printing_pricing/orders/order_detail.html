@@ -88,8 +88,19 @@
               </h6>
               <ul class="list-unstyled mb-0 small">
                 <li class="mb-1"><strong>{% trans "تقنية الطباعة:" %}</strong> <span class="badge bg-primary-subtle text-primary border">{{ order.get_cover_printing_type_display }}</span></li>
-                <li class="mb-1"><strong>{% trans "الأبعاد:" %}</strong> {{ order.get_dimensions_display }}</li>
-                <li class="mb-1"><strong>{% trans "الخامة:" %}</strong> {{ order.paper_type|default:_("كوشيه") }} ({{ order.paper_weight|default:"300" }} جم)</li>
+                <li class="mb-1"><strong>{% trans "الخامة ومقاس الفرخ:" %}</strong> 
+                  {% with ps=order.paper_specs.first %}
+                    {% if ps %}
+                      {{ ps.paper_type_name|default:order.paper_type.name|default:_("كوشيه") }} 
+                      ({{ ps.paper_weight|default:"300" }} جم) - 
+                      {% trans "فرخ" %} {{ ps.paper_size_name|default:"70×100" }}
+                      {% if ps.piece_size %}({{ ps.piece_size }}){% endif %}
+                      {% if ps.sheets_count %}<span class="badge bg-secondary-subtle text-secondary ms-1">{{ ps.sheets_count }} {% trans "فرخ" %}</span>{% endif %}
+                    {% else %}
+                      {{ order.paper_type.name|default:_("كوشيه") }} ({{ order.paper_weight|default:"300" }} جم)
+                    {% endif %}
+                  {% endwith %}
+                </li>
                 <li class="mb-1"><strong>{% trans "الأوجه والألوان:" %}</strong> {{ order.get_print_sides_mode_display }} ({{ order.colors_front }}+{{ order.colors_back }}){% if order.spot_colors_front or order.spot_colors_back %} + {{ order.spot_colors_front|add:order.spot_colors_back }} {% trans "لون مخصوص إضافي" %}{% endif %}</li>
                 <li><strong>{% trans "السلوفان والتشطيب:" %}</strong> {{ order.coating_type.name|default:_("بدون") }}</li>
               </ul>

@@ -23,7 +23,7 @@ class PaperTypeForm(forms.ModelForm):
 
     class Meta:
         model = PaperType
-        fields = ['name', 'description', 'is_active', 'is_default']
+        fields = ['name', 'description', 'override_sheets_per_pack', 'is_active', 'is_default']
         widgets = {
             'name': forms.TextInput(attrs={
                 'class': 'form-control',
@@ -34,12 +34,18 @@ class PaperTypeForm(forms.ModelForm):
                 'rows': 3,
                 'placeholder': 'وصف اختياري لنوع الورق'
             }),
+            'override_sheets_per_pack': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'اتركه فارغاً للاعتماد على الجراماج، أو اكتب مثلاً: 100 للدوبلكس',
+                'min': '1',
+            }),
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'is_default': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
         labels = {
             'name': _('اسم نوع الورق'),
             'description': _('الوصف'),
+            'override_sheets_per_pack': _('سعة رزمة خاصة بالخامة (فرخ)'),
             'is_active': _('نشط'),
             'is_default': _('افتراضي'),
         }
@@ -149,7 +155,7 @@ class PaperWeightForm(forms.ModelForm):
 
     class Meta:
         model = PaperWeight
-        fields = ['name', 'gsm', 'description', 'is_active', 'is_default']
+        fields = ['name', 'gsm', 'sheets_per_pack', 'description', 'is_active', 'is_default']
         widgets = {
             'name': forms.TextInput(attrs={
                 'class': 'form-control',
@@ -160,6 +166,11 @@ class PaperWeightForm(forms.ModelForm):
                 'placeholder': 'مثال: 80',
                 'min': '50',
                 'max': '500',
+            }),
+            'sheets_per_pack': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'مثال: 500 أو 250 أو 125',
+                'min': '1',
             }),
             'description': forms.Textarea(attrs={
                 'class': 'form-control',
@@ -172,6 +183,7 @@ class PaperWeightForm(forms.ModelForm):
         labels = {
             'name': _('اسم الوزن'),
             'gsm': _('الوزن (جرام)'),
+            'sheets_per_pack': _('سعة الرزمة القياسية (فرخ)'),
             'description': _('الوصف'),
             'is_active': _('نشط'),
             'is_default': _('افتراضي'),

@@ -2195,8 +2195,7 @@ html[dir="rtl"] .border-right-danger {
     justify-content: center;
     align-items: center;
     gap: var(--spacing-1);
-    margin: var(--spacing-4) 0;
-    margin-bottom: 0;
+    margin: 0;
 }
 
 .pagination .page-item .page-link,
@@ -2928,6 +2927,13 @@ html[dir="rtl"] .border-right-danger {
 .pagination-container {
     background-color: var(--bg-light);
     border-top: 1px solid var(--border-color);
+    min-height: 48px;
+}
+
+.pagination-container .per-page-container {
+    display: inline-flex;
+    align-items: center;
+    height: 31px;
 }
 
 .pagination-container .per-page-select {
@@ -2935,6 +2941,10 @@ html[dir="rtl"] .border-right-danger {
     color: var(--text-color);
     background-color: var(--white);
     transition: var(--transition-all);
+    height: 31px;
+    font-size: 0.84rem;
+    padding-top: 0.2rem;
+    padding-bottom: 0.2rem;
 }
 
 .pagination-container .per-page-select:focus {
@@ -2942,13 +2952,51 @@ html[dir="rtl"] .border-right-danger {
     box-shadow: 0 0 0 0.2rem var(--primary-soft);
 }
 
+.pagination-container .pagination-info {
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    margin: 0;
+    display: inline-flex;
+    align-items: center;
+    height: 31px;
+}
+
+.pagination-container .pagination-nav {
+    display: inline-flex;
+    align-items: center;
+    height: 31px;
+    margin: 0;
+    padding: 0;
+}
+
+.pagination-container .pagination {
+    margin: 0 !important;
+    padding: 0 !important;
+    height: 31px;
+    display: inline-flex;
+    align-items: center;
+}
+
+.pagination-container .page-item {
+    margin: 0;
+    display: inline-flex;
+    align-items: center;
+    height: 31px;
+}
+
 .pagination-container .page-link {
     color: var(--text-color);
     background-color: var(--white);
     border-color: var(--border-color);
     transition: var(--transition-all);
-    padding: 0.35rem 0.65rem;
-    font-size: 0.875rem;
+    padding: 0;
+    font-size: 0.84rem;
+    min-width: 31px;
+    height: 31px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
 }
 
 .pagination-container .page-link:hover {
@@ -2968,6 +3016,37 @@ html[dir="rtl"] .border-right-danger {
     background-color: var(--bg-light);
     border-color: var(--border-color);
     opacity: 0.6;
+}
+
+.pagination-container .pagination-export {
+    display: inline-flex;
+    align-items: center;
+    height: 31px;
+}
+
+.pagination-container .btn-export-all-excel {
+    height: 31px;
+    font-size: 0.84rem;
+    padding: 0 0.75rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    border-radius: var(--border-radius-sm, 0.25rem);
+    border-color: var(--success-color);
+    color: var(--success-color);
+}
+
+.pagination-container .btn-export-all-excel:hover {
+    background-color: var(--success-color);
+    color: var(--white);
+}
+
+.pagination-container .border-start {
+    border-color: var(--border-color) !important;
+    height: 24px;
+    display: inline-flex;
+    align-items: center;
 }
 
 .table-sort-link {
