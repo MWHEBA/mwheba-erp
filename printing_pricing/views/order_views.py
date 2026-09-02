@@ -230,6 +230,45 @@ class OrderDetailView(LoginRequiredMixin, DetailView):
         return context
 
 
+def get_active_ctp_suppliers():
+    """جلب موردي زنكات CTP المعتمدين الذين لديهم خدمات زنكات مسجلة ونشطة في النظام"""
+    try:
+        from supplier.models import Supplier
+        return Supplier.objects.filter(
+            is_active=True,
+            services__service_type__code='ctp_plates',
+            services__is_active=True
+        ).distinct().order_by('name')
+    except Exception:
+        return []
+
+
+def get_active_offset_suppliers():
+    """جلب مطابع الأوفست المعتمدة التي لديها خدمات طباعة أوفست مسجلة ونشطة في النظام"""
+    try:
+        from supplier.models import Supplier
+        return Supplier.objects.filter(
+            is_active=True,
+            services__service_type__code='offset_printing',
+            services__is_active=True
+        ).distinct().order_by('name')
+    except Exception:
+        return []
+
+
+def get_active_digital_suppliers():
+    """جلب مراكز الطباعة الديجيتال المعتمدة التي لديها خدمات ديجيتال مسجلة ونشطة في النظام"""
+    try:
+        from supplier.models import Supplier
+        return Supplier.objects.filter(
+            is_active=True,
+            services__service_type__code='digital_printing',
+            services__is_active=True
+        ).distinct().order_by('name')
+    except Exception:
+        return []
+
+
 class OrderCreateView(LoginRequiredMixin, CreateView):
     """
     إنشاء طلب تسعير جديد
@@ -254,6 +293,9 @@ class OrderCreateView(LoginRequiredMixin, CreateView):
         ]
         context['product_types'] = ProductType.objects.filter(is_active=True).order_by('sort_order', 'id')
         context['product_sizes'] = ProductSize.objects.filter(is_active=True).order_by('sort_order', 'id')
+        context['ctp_suppliers'] = get_active_ctp_suppliers()
+        context['offset_suppliers'] = get_active_offset_suppliers()
+        context['digital_suppliers'] = get_active_digital_suppliers()
         context['breadcrumb_items'] = [
             {'title': _('الرئيسية'), 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},
             {'title': _('طلبات التسعير'), 'url': reverse('printing_pricing:order_list'), 'icon': 'fas fa-print'},
@@ -318,6 +360,9 @@ class OrderUpdateView(LoginRequiredMixin, UpdateView):
         ]
         context['product_types'] = ProductType.objects.filter(is_active=True).order_by('sort_order', 'id')
         context['product_sizes'] = ProductSize.objects.filter(is_active=True).order_by('sort_order', 'id')
+        context['ctp_suppliers'] = get_active_ctp_suppliers()
+        context['offset_suppliers'] = get_active_offset_suppliers()
+        context['digital_suppliers'] = get_active_digital_suppliers()
         context['breadcrumb_items'] = [
             {'title': _('الرئيسية'), 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},
             {'title': _('طلبات التسعير'), 'url': reverse('printing_pricing:order_list'), 'icon': 'fas fa-print'},
@@ -674,7 +719,7 @@ def duplicate_order(request, pk):
                     created_by=request.user
                 )
             
-            # نسخ الخدمات
+            # نسخ الخدمات مع الحفاظ على ارتباط المورد ولقطة البيانات
             for service in original_order.services.filter(is_active=True):
                 OrderService.objects.create(
                     order=new_order,
@@ -685,7 +730,10 @@ def duplicate_order(request, pk):
                     unit=service.unit,
                     unit_price=service.unit_price,
                     setup_cost=service.setup_cost,
+                    total_cost=service.total_cost,
                     is_optional=service.is_optional,
+                    supplier_service=service.supplier_service,
+                    supplier_info=service.supplier_info,
                     execution_time=service.execution_time,
                     created_by=request.user
                 )

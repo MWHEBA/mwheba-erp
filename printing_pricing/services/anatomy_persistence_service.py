@@ -353,26 +353,74 @@ class OrderAnatomyPersistenceService:
                 back_colors = int(post_data.get('colors_back') or order.colors_back or 0)
                 if order.print_sides_mode != 'work_sheet':
                     back_colors = 0
-                total_plates_count = front_colors + back_colors + order.spot_colors_front + order.spot_colors_back
-                if total_plates_count == 0:
-                    total_plates_count = 4
+                
+                # إمكانية التعديل اليدوي لعدد الزنكات
+                calc_total_plates = front_colors + back_colors + order.spot_colors_front + order.spot_colors_back
+                if calc_total_plates == 0:
+                    calc_total_plates = 4
+                
+                try:
+                    total_plates_count = int(post_data.get('zinc_plates_count') or calc_total_plates)
+                except:
+                    total_plates_count = calc_total_plates
 
-                plate_rate_str = post_data.get('plate_price') or '85.00'
+                plates_option = post_data.get('plates_option') or 'new'
+                is_archived = (
+                    plates_option == 'archived' or 
+                    post_data.get('is_plates_archived') in ['1', 'true', 'on', True]
+                )
+
+                # قراءة مقاس وسعر الزنك
+                press_bed_size = post_data.get('press_bed_size') or '70x100'
+                default_rate = '150.00' if press_bed_size == '70x100' else ('85.00' if press_bed_size == '50x70' else '60.00')
+                plate_rate_str = post_data.get('plate_price') or default_rate
                 try:
                     plate_rate = Decimal(str(plate_rate_str))
                 except:
-                    plate_rate = Decimal('85.00')
-                    
-                plates_total = Decimal(str(total_plates_count)) * plate_rate
+                    plate_rate = Decimal(default_rate)
+                
+                effective_plate_rate = Decimal('0.00') if is_archived else plate_rate
+                plates_total = Decimal(str(total_plates_count)) * effective_plate_rate
+
+                # معالجة مورد زنكات CTP
+                cover_supplier_id = post_data.get('cover_ctp_supplier')
+                cover_supplier = None
+                cover_supp_service = None
+                if cover_supplier_id:
+                    try:
+                        from supplier.models import Supplier, SupplierService as SuppSvcModel
+                        cover_supplier = Supplier.objects.filter(id=cover_supplier_id, is_active=True).first()
+                        if cover_supplier:
+                            cover_supp_service = SuppSvcModel.objects.filter(
+                                supplier=cover_supplier, service_type__code='ctp_plates', is_active=True
+                            ).first()
+                    except Exception:
+                        pass
+
+                supplier_snapshot = {
+                    'supplier_id': cover_supplier.id if cover_supplier else None,
+                    'supplier_name': cover_supplier.name if cover_supplier else 'زنكات داخلية / سعر معياري',
+                    'bed_size': press_bed_size,
+                    'plates_option': plates_option,
+                    'is_archived': is_archived,
+                    'plate_price': float(plate_rate),
+                    'front_plates': front_colors + order.spot_colors_front,
+                    'back_plates': back_colors + order.spot_colors_back,
+                }
+
                 if total_plates_count > 0:
+                    status_desc = "من الأرشيف (0 ج)" if is_archived else f"جديدة ({press_bed_size})"
                     OrderService.objects.create(
                         order=order,
                         service_category='printing',
-                        service_name=f"[غلاف أوفست] تجهيز زنكات CTP (عدد {total_plates_count} زنكة)",
+                        service_name=f"[غلاف أوفست] تجهيز زنكات CTP {status_desc} (عدد {total_plates_count} زنكة)",
+                        service_description=f"مقاس الماكينة: {press_bed_size} | المصدر: {'أرشيف' if is_archived else 'جديد'} | المورد: {supplier_snapshot['supplier_name']}",
                         quantity=Decimal(str(total_plates_count)),
                         unit=PriceUnit.PIECE,
-                        unit_price=plate_rate,
-                        total_cost=plates_total
+                        unit_price=effective_plate_rate,
+                        total_cost=plates_total,
+                        supplier_service=cover_supp_service,
+                        supplier_info=supplier_snapshot
                     )
                     total_printing_cost += plates_total
 
@@ -384,19 +432,49 @@ class OrderAnatomyPersistenceService:
                     press_rate = Decimal(str(press_rate_str))
                 except:
                     press_rate = Decimal('45.00')
+                
+                # جلب مطبعة الأوفست وماكينتها
+                cover_offset_supp_id = post_data.get('cover_offset_supplier')
+                cover_offset_supp = None
+                cover_offset_svc = None
+                if cover_offset_supp_id:
+                    try:
+                        from supplier.models import Supplier, SupplierService as SuppSvcModel
+                        cover_offset_supp = Supplier.objects.filter(id=cover_offset_supp_id, is_active=True).first()
+                        if cover_offset_supp:
+                            cover_offset_svc = SuppSvcModel.objects.filter(
+                                supplier=cover_offset_supp, service_type__code='offset_printing', is_active=True
+                            ).first()
+                    except Exception:
+                        pass
+
+                press_machine_name = post_data.get('cover_press_machine') or press_bed_size
                 min_press_floor = Decimal('400.00') if (order.print_sides_mode == 'work_sheet' and (back_colors > 0 or order.spot_colors_back > 0)) else Decimal('200.00')
                 thousands_pulls = Decimal(str(int(press_pulls / 1000) + (1 if press_pulls % 1000 > 0 else 0)))
                 raw_press = thousands_pulls * press_rate
                 setup_diff = max(Decimal('0.00'), min_press_floor - raw_press)
 
+                offset_press_snapshot = {
+                    'supplier_id': cover_offset_supp.id if cover_offset_supp else None,
+                    'supplier_name': cover_offset_supp.name if cover_offset_supp else 'مطبعة أوفست معتمدة',
+                    'machine': press_machine_name,
+                    'bed_size': press_bed_size,
+                    'rate_per_1000': float(press_rate),
+                    'pulls_count': int(press_pulls),
+                }
+
                 OrderService.objects.create(
                     order=order,
                     service_category='printing',
-                    service_name=f"[غلاف أوفست] سحبات ماكينة أوفست بالتراج ({press_pulls} سحبة)",
+                    service_name=f"[غلاف أوفست] سحبات ماكينة أوفست بالتراج ({press_pulls} سحبة - {thousands_pulls} تراج)",
+                    service_description=f"المطبعة: {offset_press_snapshot['supplier_name']} | الماكينة: {press_machine_name} | سعر التراج: {press_rate} ج/تراج (ألف سحبة)",
                     quantity=thousands_pulls,
                     unit=PriceUnit.THOUSAND,
                     unit_price=press_rate,
-                    setup_cost=setup_diff
+                    setup_cost=setup_diff,
+                    total_cost=(raw_press + setup_diff),
+                    supplier_service=cover_offset_svc,
+                    supplier_info=offset_press_snapshot
                 )
                 total_printing_cost += (raw_press + setup_diff)
 
@@ -423,26 +501,61 @@ class OrderAnatomyPersistenceService:
                 req_digital_sheets = Decimal(str(int(qty / digi_cuts) + (1 if qty % digi_cuts > 0 else 0)))
 
                 click_mode = order.digital_color_mode or '4_0'
-                if click_mode == '1_0':
-                    digital_sheet_rate = Decimal('0.80')
-                elif click_mode == '4_4':
-                    digital_sheet_rate = Decimal('4.50')
-                elif click_mode == '4_1':
-                    digital_sheet_rate = Decimal('3.25')
-                elif click_mode == '1_1':
-                    digital_sheet_rate = Decimal('1.50')
+                digital_sheet_rate_str = post_data.get('digital_sheet_price')
+                if digital_sheet_rate_str:
+                    try:
+                        digital_sheet_rate = Decimal(str(digital_sheet_rate_str))
+                    except:
+                        digital_sheet_rate = Decimal('2.50')
                 else:
-                    digital_sheet_rate = Decimal('2.50')
+                    if click_mode == '1_0':
+                        digital_sheet_rate = Decimal('0.80')
+                    elif click_mode == '4_4':
+                        digital_sheet_rate = Decimal('4.50')
+                    elif click_mode == '4_1':
+                        digital_sheet_rate = Decimal('3.25')
+                    elif click_mode == '1_1':
+                        digital_sheet_rate = Decimal('1.50')
+                    else:
+                        digital_sheet_rate = Decimal('2.50')
                 
+                # جلب مركز الديجيتال وماكينته
+                cover_digi_supp_id = post_data.get('cover_digital_supplier')
+                cover_digi_supp = None
+                cover_digi_svc = None
+                if cover_digi_supp_id:
+                    try:
+                        from supplier.models import Supplier, SupplierService as SuppSvcModel
+                        cover_digi_supp = Supplier.objects.filter(id=cover_digi_supp_id, is_active=True).first()
+                        if cover_digi_supp:
+                            cover_digi_svc = SuppSvcModel.objects.filter(
+                                supplier=cover_digi_supp, service_type__code='digital_printing', is_active=True
+                            ).first()
+                    except Exception:
+                        pass
+
+                digi_machine_name = post_data.get('cover_digital_machine') or 'Digital Laser Press'
+                digi_snapshot = {
+                    'supplier_id': cover_digi_supp.id if cover_digi_supp else None,
+                    'supplier_name': cover_digi_supp.name if cover_digi_supp else 'مركز ديجيتال معتمد',
+                    'machine': digi_machine_name,
+                    'color_mode': click_mode,
+                    'click_rate': float(digital_sheet_rate),
+                    'sheets_count': int(req_digital_sheets),
+                }
+
                 raw_dig = req_digital_sheets * digital_sheet_rate
                 OrderService.objects.create(
                     order=order,
                     service_category='printing',
                     service_name=f"[غلاف ديجيتال] طباعة ليزر شيتات A3+ ({req_digital_sheets} شيت بمونتاج {digi_cuts} قطع/شيت)",
+                    service_description=f"المركز: {digi_snapshot['supplier_name']} | الماكينة: {digi_machine_name} | النمط: {click_mode}",
                     quantity=req_digital_sheets,
                     unit=PriceUnit.PIECE,
                     unit_price=digital_sheet_rate,
-                    total_cost=raw_dig
+                    total_cost=raw_dig,
+                    supplier_service=cover_digi_svc,
+                    supplier_info=digi_snapshot
                 )
                 total_printing_cost += raw_dig
 
@@ -495,26 +608,101 @@ class OrderAnatomyPersistenceService:
             # --- ثانياً: طباعة الصفحات الداخلية للمطبوعات المجلدة ---
             if order_type in ['catalog', 'book', 'magazine', 'book_catalog']:
                 if order.inner_printing_type == 'offset':
+                    # إعدادات زنكات الداخلي
+                    inner_plates_option = post_data.get('inner_plates_option') or 'new'
+                    is_inner_archived = (
+                        inner_plates_option == 'archived' or 
+                        post_data.get('is_inner_plates_archived') in ['1', 'true', 'on', True]
+                    )
+                    inner_bed_size = post_data.get('inner_press_bed_size') or '70x100'
+                    default_inner_rate = '150.00' if inner_bed_size == '70x100' else ('85.00' if inner_bed_size == '50x70' else '60.00')
+                    inner_plate_rate_str = post_data.get('inner_plate_price') or default_inner_rate
+                    try:
+                        inner_plate_rate = Decimal(str(inner_plate_rate_str))
+                    except:
+                        inner_plate_rate = Decimal(default_inner_rate)
+
+                    effective_inner_plate_rate = Decimal('0.00') if is_inner_archived else inner_plate_rate
+
+                    # جلب مورد زنكات الداخلي
+                    inner_supplier_id = post_data.get('inner_ctp_supplier')
+                    inner_supplier = None
+                    inner_supp_service = None
+                    if inner_supplier_id:
+                        try:
+                            from supplier.models import Supplier, SupplierService as SuppSvcModel
+                            inner_supplier = Supplier.objects.filter(id=inner_supplier_id, is_active=True).first()
+                            if inner_supplier:
+                                inner_supp_service = SuppSvcModel.objects.filter(
+                                    supplier=inner_supplier, service_type__code='ctp_plates', is_active=True
+                                ).first()
+                        except Exception:
+                            pass
+
+                    inner_supplier_snapshot = {
+                        'supplier_id': inner_supplier.id if inner_supplier else None,
+                        'supplier_name': inner_supplier.name if inner_supplier else 'زنكات داخلية / سعر معياري',
+                        'bed_size': inner_bed_size,
+                        'plates_option': inner_plates_option,
+                        'is_archived': is_inner_archived,
+                        'plate_price': float(inner_plate_rate),
+                    }
+
                     if inner_sides == 'single':
                         single_colors = int(post_data.get('inner_colors_single') or 4)
-                        single_plates_cost = Decimal(str(single_colors)) * Decimal('85.00')
+                        single_plates_cost = Decimal(str(single_colors)) * effective_inner_plate_rate
+                        single_status = "من الأرشيف (0 ج)" if is_inner_archived else f"جديدة ({inner_bed_size})"
                         OrderService.objects.create(
                             order=order,
                             service_category='printing',
-                            service_name=f"[داخلي أوفست] زنكات CTP لوجه واحد ({single_colors} زنكة)",
+                            service_name=f"[داخلي أوفست] زنكات CTP لوجه واحد {single_status} ({single_colors} زنكة)",
+                            service_description=f"مقاس الماكينة: {inner_bed_size} | المصدر: {'أرشيف' if is_inner_archived else 'جديد'} | المورد: {inner_supplier_snapshot['supplier_name']}",
                             quantity=Decimal(str(single_colors)),
                             unit=PriceUnit.PIECE,
-                            unit_price=Decimal('85.00')
+                            unit_price=effective_inner_plate_rate,
+                            total_cost=single_plates_cost,
+                            supplier_service=inner_supp_service,
+                            supplier_info=inner_supplier_snapshot
                         )
+                        inner_offset_supp_id = post_data.get('inner_offset_supplier')
+                        inner_offset_supp = None
+                        inner_offset_svc = None
+                        if inner_offset_supp_id:
+                            try:
+                                from supplier.models import Supplier, SupplierService as SuppSvcModel
+                                inner_offset_supp = Supplier.objects.filter(id=inner_offset_supp_id, is_active=True).first()
+                                if inner_offset_supp:
+                                    inner_offset_svc = SuppSvcModel.objects.filter(
+                                        supplier=inner_offset_supp, service_type__code='offset_printing', is_active=True
+                                    ).first()
+                            except Exception:
+                                pass
+
+                        inner_press_rate = Decimal(str(post_data.get('inner_press_rate') or '45.00'))
+                        inner_press_machine = post_data.get('inner_press_machine') or inner_bed_size
+
                         single_thousands = Decimal(str(int(inner_gross_sheets / 1000) + 1))
-                        single_press_cost = max(Decimal('150.00'), single_thousands * Decimal('45.00'))
+                        single_press_cost = max(Decimal('150.00'), single_thousands * inner_press_rate)
+
+                        single_press_snapshot = {
+                            'supplier_id': inner_offset_supp.id if inner_offset_supp else None,
+                            'supplier_name': inner_offset_supp.name if inner_offset_supp else 'مطبعة أوفست معتمدة',
+                            'machine': inner_press_machine,
+                            'rate_per_1000': float(inner_press_rate),
+                            'pulls_count': int(inner_gross_sheets),
+                        }
+
                         OrderService.objects.create(
                             order=order,
                             service_category='printing',
-                            service_name=f"[داخلي أوفست] سحب أوفست للداخلي ({inner_gross_sheets} سحبة)",
+                            service_name=f"[داخلي أوفست] سحب أوفست للداخلي ({inner_gross_sheets} سحبة - {single_thousands} تراج)",
+                            service_description=f"المطبعة: {single_press_snapshot['supplier_name']} | الماكينة: {inner_press_machine} | سعر التراج: {inner_press_rate} ج/تراج (ألف سحبة)",
                             quantity=single_thousands,
                             unit=PriceUnit.THOUSAND,
-                            unit_price=Decimal('45.00')
+                            unit_price=inner_press_rate,
+                            total_cost=single_press_cost,
+                            supplier_service=inner_offset_svc,
+                            supplier_info=single_press_snapshot
                         )
                         total_printing_cost += (single_plates_cost + single_press_cost)
                     else:
@@ -532,42 +720,102 @@ class OrderAnatomyPersistenceService:
                                 bw_sigs = 0
 
                         inner_spot = order.inner_spot_colors
-                        inner_plates = (color_sigs * 8) + (bw_sigs * 2) + (inner_spot * total_signatures)
-                        inner_plates_cost = Decimal(str(inner_plates)) * Decimal('85.00')
+                        calc_inner_plates = (color_sigs * 8) + (bw_sigs * 2) + (inner_spot * total_signatures)
+                        try:
+                            inner_plates = int(post_data.get('inner_plates_count_total') or calc_inner_plates)
+                        except:
+                            inner_plates = calc_inner_plates
+
+                        inner_plates_cost = Decimal(str(inner_plates)) * effective_inner_plate_rate
                         
                         if inner_plates > 0:
+                            inner_status = "من الأرشيف (0 ج)" if is_inner_archived else f"جديدة ({inner_bed_size})"
                             OrderService.objects.create(
                                 order=order,
                                 service_category='printing',
-                                service_name=f"[داخلي أوفست] زنكات CTP لملازم الداخلي ({inner_plates} زنكة - {color_sigs} ألوان + {bw_sigs} أسود)",
+                                service_name=f"[داخلي أوفست] زنكات CTP لملازم الداخلي {inner_status} ({inner_plates} زنكة - {color_sigs} ألوان + {bw_sigs} أسود)",
+                                service_description=f"مقاس الماكينة: {inner_bed_size} | المصدر: {'أرشيف' if is_inner_archived else 'جديد'} | المورد: {inner_supplier_snapshot['supplier_name']}",
                                 quantity=Decimal(str(inner_plates)),
                                 unit=PriceUnit.PIECE,
-                                unit_price=Decimal('85.00')
+                                unit_price=effective_inner_plate_rate,
+                                total_cost=inner_plates_cost,
+                                supplier_service=inner_supp_service,
+                                supplier_info=inner_supplier_snapshot
                             )
                             total_printing_cost += inner_plates_cost
 
+                        inner_offset_supp_id = post_data.get('inner_offset_supplier')
+                        inner_offset_supp = None
+                        inner_offset_svc = None
+                        if inner_offset_supp_id:
+                            try:
+                                from supplier.models import Supplier, SupplierService as SuppSvcModel
+                                inner_offset_supp = Supplier.objects.filter(id=inner_offset_supp_id, is_active=True).first()
+                                if inner_offset_supp:
+                                    inner_offset_svc = SuppSvcModel.objects.filter(
+                                        supplier=inner_offset_supp, service_type__code='offset_printing', is_active=True
+                                    ).first()
+                            except Exception:
+                                pass
+
+                        inner_press_rate = Decimal(str(post_data.get('inner_press_rate') or '45.00'))
+                        inner_press_machine = post_data.get('inner_press_machine') or inner_bed_size
+
                         inner_pulls = qty * Decimal(str(total_signatures)) * (Decimal('2') if inner_sides == 'work_turn' else Decimal('1'))
                         thousands_inner = Decimal(str(int(inner_pulls / 1000) + (1 if inner_pulls % 1000 > 0 else 0)))
-                        raw_inner_press = thousands_inner * Decimal('45.00')
+                        raw_inner_press = thousands_inner * inner_press_rate
                         inner_press_setup = max(Decimal('0.00'), Decimal('250.00') - raw_inner_press)
+
+                        inner_press_snapshot = {
+                            'supplier_id': inner_offset_supp.id if inner_offset_supp else None,
+                            'supplier_name': inner_offset_supp.name if inner_offset_supp else 'مطبعة أوفست معتمدة',
+                            'machine': inner_press_machine,
+                            'rate_per_1000': float(inner_press_rate),
+                            'pulls_count': int(inner_pulls),
+                        }
 
                         OrderService.objects.create(
                             order=order,
                             service_category='printing',
-                            service_name=f"[داخلي أوفست] سحبات ملازم الداخلي ({inner_pulls} سحبة)",
+                            service_name=f"[داخلي أوفست] سحبات ملازم الداخلي ({inner_pulls} سحبة - {thousands_inner} تراج)",
+                            service_description=f"المطبعة: {inner_press_snapshot['supplier_name']} | الماكينة: {inner_press_machine} | سعر التراج: {inner_press_rate} ج/تراج (ألف سحبة)",
                             quantity=thousands_inner,
                             unit=PriceUnit.THOUSAND,
-                            unit_price=Decimal('45.00'),
-                            setup_cost=inner_press_setup
+                            unit_price=inner_press_rate,
+                            setup_cost=inner_press_setup,
+                            total_cost=(raw_inner_press + inner_press_setup),
+                            supplier_service=inner_offset_svc,
+                            supplier_info=inner_press_snapshot
                         )
                         total_printing_cost += (raw_inner_press + inner_press_setup)
 
                 elif order.inner_printing_type == 'digital':
-                    color_pages = order.inner_color_pages or pages_count
-                    bw_pages = order.inner_bw_pages or 0
+                    color_pages = int(post_data.get('digital_inner_color_pages') or order.inner_color_pages or pages_count)
+                    bw_pages = int(post_data.get('digital_inner_bw_pages') or order.inner_bw_pages or 0)
                     
                     color_clicks = (Decimal(str(color_pages)) / Decimal('2')) * qty
                     bw_clicks = (Decimal(str(bw_pages)) / Decimal('2')) * qty
+
+                    inner_digi_supp_id = post_data.get('inner_digital_supplier')
+                    inner_digi_supp = None
+                    inner_digi_svc = None
+                    if inner_digi_supp_id:
+                        try:
+                            from supplier.models import Supplier, SupplierService as SuppSvcModel
+                            inner_digi_supp = Supplier.objects.filter(id=inner_digi_supp_id, is_active=True).first()
+                            if inner_digi_supp:
+                                inner_digi_svc = SuppSvcModel.objects.filter(
+                                    supplier=inner_digi_supp, service_type__code='digital_printing', is_active=True
+                                ).first()
+                        except Exception:
+                            pass
+
+                    inner_digi_snapshot = {
+                        'supplier_id': inner_digi_supp.id if inner_digi_supp else None,
+                        'supplier_name': inner_digi_supp.name if inner_digi_supp else 'مركز ديجيتال معتمد',
+                        'color_pages': color_pages,
+                        'bw_pages': bw_pages,
+                    }
                     
                     if color_clicks > 0:
                         color_cost = color_clicks * Decimal('0.80')
@@ -575,9 +823,13 @@ class OrderAnatomyPersistenceService:
                             order=order,
                             service_category='printing',
                             service_name=f"[داخلي ديجيتال] نقرات ليزر ألوان ({color_pages} صفحة ألوان)",
+                            service_description=f"المركز: {inner_digi_snapshot['supplier_name']} | صفحات الألوان: {color_pages}",
                             quantity=color_clicks,
                             unit=PriceUnit.PIECE,
-                            unit_price=Decimal('0.80')
+                            unit_price=Decimal('0.80'),
+                            total_cost=color_cost,
+                            supplier_service=inner_digi_svc,
+                            supplier_info=inner_digi_snapshot
                         )
                         total_printing_cost += color_cost
 
@@ -587,9 +839,13 @@ class OrderAnatomyPersistenceService:
                             order=order,
                             service_category='printing',
                             service_name=f"[داخلي ديجيتال] نقرات ليزر أسود ({bw_pages} صفحة أسود)",
+                            service_description=f"المركز: {inner_digi_snapshot['supplier_name']} | صفحات الأسود: {bw_pages}",
                             quantity=bw_clicks,
                             unit=PriceUnit.PIECE,
-                            unit_price=Decimal('0.25')
+                            unit_price=Decimal('0.25'),
+                            total_cost=bw_cost,
+                            supplier_service=inner_digi_svc,
+                            supplier_info=inner_digi_snapshot
                         )
                         total_printing_cost += bw_cost
 
@@ -825,12 +1081,15 @@ class OrderAnatomyPersistenceService:
             profit_margin_pct = Decimal(str(post_data.get('profit_margin') or order.profit_margin or '25.00'))
             margin_factor = profit_margin_pct / Decimal('100')
             
+            import math
             if margin_factor < Decimal('1'):
-                final_sell_price = (subtotal_cost / (Decimal('1') - margin_factor)).quantize(Decimal('0.01'))
+                raw_final = subtotal_cost / (Decimal('1') - margin_factor)
+                final_sell_price = Decimal(str(math.ceil(float(raw_final)))).quantize(Decimal('0.01'))
             else:
-                final_sell_price = subtotal_cost * Decimal('1.25')
+                raw_final = subtotal_cost * Decimal('1.25')
+                final_sell_price = Decimal(str(math.ceil(float(raw_final)))).quantize(Decimal('0.01'))
 
-            # السعر الصافي للبيع (غير شامل الضريبة)
+            # السعر الصافي للبيع (غير شامل الضريبة ومجبور للأعلى)
             net_sell_price = final_sell_price
 
             # تحديث حقول الطلب المباشرة بالسعر الصافي

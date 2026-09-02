@@ -81,6 +81,12 @@
               <span class="text-muted">{% trans "نوع الطباعة والأوجه:" %}</span>
               <strong class="text-primary">{{ order.get_cover_printing_type_display }} ({{ order.get_print_sides_mode_display|default:_("وجه واحد") }})</strong>
             </li>
+            {% if order.cover_printing_type == 'offset' %}
+            <li class="mb-2 d-flex justify-content-between">
+              <span class="text-muted">{% trans "زنكات CTP للأوفست:" %}</span>
+              <strong class="text-dark">{{ order.zinc_plates_count|default:"4" }} زنكة {% if order.services.all %}{% for s in order.services.all %}{% if 'غلاف أوفست' in s.service_name and 'أرشيف' in s.service_name %}<span class="badge bg-secondary-subtle text-secondary small">({% trans "أرشيف" %})</span>{% endif %}{% endfor %}{% endif %}</strong>
+            </li>
+            {% endif %}
             <li class="mb-2 d-flex justify-content-between">
               <span class="text-muted">{% trans "المقاس المقفول والمفتوح:" %}</span>
               <strong>{{ order.get_dimensions_display }}</strong>

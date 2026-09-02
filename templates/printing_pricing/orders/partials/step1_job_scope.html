@@ -87,7 +87,7 @@
         <label for="id_order_type" class="form-label fw-bold">
           {% trans "نوع المطبوع" %} <span class="text-danger">*</span>
         </label>
-        <select class="form-select select2-filter" id="id_order_type" name="product_type" required>
+        <select class="form-select select2-filter text-center" id="id_order_type" name="product_type" required>
           {% if product_types %}
             {% for pt in product_types %}
               <option value="{{ pt.pk }}" data-archetype="{{ pt.base_archetype }}" 
@@ -131,7 +131,7 @@
         <label for="id_product_size" class="form-label fw-bold">
           {% trans "مقاس المطبوع" %} <span class="text-danger">*</span>
         </label>
-        <select class="form-select select2-filter" id="id_product_size" name="product_size" required>
+        <select class="form-select select2-filter text-center" id="id_product_size" name="product_size" required>
           {% if product_sizes %}
             {% for ps in product_sizes %}
               <option value="{{ ps.pk }}" data-width="{{ ps.width|floatformat:'-2' }}" data-height="{{ ps.height|floatformat:'-2' }}"

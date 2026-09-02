@@ -7,11 +7,11 @@
     aria-expanded="true">
     <span>
       <i class="fas fa-book-open text-primary me-2"></i>
-      <span id="step3_header_title">3. {% trans "مواصفات الداخلي والصفحات الداخلية والتجليد والجيوب" %}</span>
+      <span id="step3_header_title">3. {% trans "تفاصيل الداخلي والتجليد" %}</span>
     </span>
-    <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-1 ms-auto me-2"
-      id="step3_badge_status">
-      <i class="fas fa-magic me-1"></i>{% trans "شرطي نشط" %}
+    <span class="badge bg-light text-primary border border-secondary-subtle px-3 py-1 ms-auto me-2 fw-bold"
+      id="step3_cost_badge">
+      0 {{ currency_symbol|default:"ج.م" }}
     </span>
     <i class="fas fa-chevron-down"></i>
   </h5>
@@ -163,24 +163,256 @@
 
         </div>
 
-        <!-- كروت التفاصيل الديناميكية: ملازم الأوفست المختلطة والألوان المخصوصة -->
+        <!-- كروت التفاصيل الديناميكية: زنكات CTP وملازم الأوفست المختلطة والديجيتال -->
         <div id="inner_offset_fields" class="row g-3 mb-3">
-          <div class="col-md-4">
-            <label class="form-label fw-bold small text-muted">{% trans "ملازم ملونة (4/4 CMYK)" %}</label>
-            <input type="number" class="form-control form-control-sm text-center" id="id_color_signatures_count"
-              name="color_signatures_count" value="2" min="0">
-          </div>
+          
+          <!-- كارت منظومة طباعة وزنكات الداخلي الموحد -->
+          <div class="col-12">
+            <div class="p-3 border rounded bg-light-subtle">
+              
+              <!-- ترويسة الكارت العامة مع زر النسخ السريع -->
+              <div class="d-flex align-items-center justify-content-between border-bottom pb-2 mb-3">
+                <span class="fw-bold text-dark fs-6">
+                  <i class="fas fa-print text-primary me-2"></i>{% trans "منظومة طباعة وزنكات الداخلي (الملازم)" %}
+                </span>
+                <div class="d-flex align-items-center gap-2">
+                  <button type="button" class="btn btn-sm btn-outline-primary px-3" id="btn_copy_cover_press_to_inner">
+                    <i class="fas fa-copy me-1"></i>{% trans "استخدام نفس مطبعة الغلاف" %}
+                  </button>
+                  <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1" id="inner_offset_summary_badge">
+                    {% trans "أوفست ملازم" %}
+                  </span>
+                </div>
+              </div>
 
-          <div class="col-md-4">
-            <label class="form-label fw-bold small text-muted">{% trans "ملازم نصوص (1/1 أسود)" %}</label>
-            <input type="number" class="form-control form-control-sm text-center" id="id_bw_signatures_count"
-              name="bw_signatures_count" value="0" min="0">
-          </div>
+              <!-- 🔹 القسم الأول: مطبعة وماكينة الأوفست للداخلي -->
+              <div class="row g-3 mb-3">
+                
+                <!-- 1. مطبعة أوفست الداخلي -->
+                <div class="col-md-4">
+                  <label for="id_inner_offset_supplier" class="form-label fw-bold">
+                    {% trans "مطبعة أوفست الداخلي" %}
+                  </label>
+                  <select class="form-select select2-filter" id="id_inner_offset_supplier" name="inner_offset_supplier" dir="rtl">
+                    <option value="">{% trans "-- اختر مطبعة الداخلي --" %}</option>
+                    {% for supp in offset_suppliers %}
+                      <option value="{{ supp.id }}">{{ supp.name }}</option>
+                    {% empty %}
+                      <option value="" disabled>{% trans "لا توجد مطابع أوفست مسجلة" %}</option>
+                    {% endfor %}
+                  </select>
+                </div>
 
-          <div class="col-md-4">
-            <label class="form-label fw-bold small text-muted">{% trans "ألوان مخصوصة إضافية بالداخلي" %}</label>
-            <input type="number" class="form-control form-control-sm text-center" id="id_inner_spot_colors"
-              name="inner_spot_colors" value="{{ form.inner_spot_colors.value|default:'0' }}" min="0">
+                <!-- 2. ماكينة ومقاس الداخلي -->
+                <div class="col-md-4">
+                  <label for="id_inner_press_machine" class="form-label fw-bold">
+                    {% trans "ماكينة ومقاس الداخلي" %}
+                  </label>
+                  <select class="form-select select2-filter" id="id_inner_press_machine" name="inner_press_machine">
+                    <option value="50x70" data-bed="50x70" data-rate="45" data-floor="200" selected>{% trans "نصف فرخ 50×70 سم (45 ج/تراج)" %}</option>
+                    <option value="70x100" data-bed="70x100" data-rate="65" data-floor="350">{% trans "فرخ كامل 70×100 سم (65 ج/تراج)" %}</option>
+                    <option value="35x50" data-bed="35x50" data-rate="35" data-floor="150">{% trans "ربع فرخ 35×50 سم (35 ج/تراج)" %}</option>
+                  </select>
+                </div>
+
+                <!-- 3. سعر التراج (ألف سحبة) للداخلي -->
+                <div class="col-md-4">
+                  <label for="id_inner_press_rate" class="form-label fw-bold">
+                    {% trans "سعر التراج (ألف سحبة) للداخلي" %}
+                  </label>
+                  <div class="input-group">
+                    <input type="number" class="form-control text-center fw-bold" id="id_inner_press_rate" name="inner_press_rate" 
+                           value="45" min="0" step="5" title="{% trans 'سعر التراج (ألف سحبة)' %}">
+                    <span class="input-group-text small bg-light">{{ currency_symbol|default:"ج.م" }} / {% trans "تراج" %}</span>
+                  </div>
+                </div>
+
+                <!-- 4. سحبات ملازم الداخلي -->
+                <div class="col-md-6">
+                  <label class="form-label fw-bold">
+                    {% trans "إجمالي التراج (سحبات ملازم الداخلي)" %}
+                  </label>
+                  <div class="form-control bg-light d-flex justify-content-between align-items-center">
+                    <span class="small text-muted" id="inner_press_pulls_count">2,000 سحبة (2 تراج)</span>
+                    <span class="badge bg-secondary" id="inner_press_floor_badge">250.00 {{ currency_symbol|default:"ج.م" }} {% trans "فتحة" %}</span>
+                  </div>
+                </div>
+
+                <!-- 5. إجمالي تكلفة سحب الداخلي -->
+                <div class="col-md-6">
+                  <label class="form-label fw-bold">
+                    {% trans "تكلفة سحب ملازم الداخلي (التراج)" %}
+                  </label>
+                  <div class="form-control bg-light d-flex justify-content-between align-items-center">
+                    <span class="small text-muted">{% trans "الإجمالي:" %}</span>
+                    <strong class="text-primary fs-6" id="inner_press_cost_display">0 {{ currency_symbol|default:"ج.م" }}</strong>
+                  </div>
+                </div>
+
+              </div>
+
+              <!-- 🔹 القسم الثاني: تجهيز زنكات CTP للداخلي والملازم -->
+              <div class="border-top pt-3 mt-2">
+                <div class="d-flex align-items-center justify-content-between pb-2 mb-3">
+                  <span class="fw-bold text-dark small">
+                    <i class="fas fa-stamp text-secondary me-2"></i>{% trans "تجهيز زنكات CTP للداخلي والملازم" %}
+                  </span>
+                  <div class="d-flex align-items-center gap-3">
+                    <div class="form-check form-switch mb-0">
+                      <input class="form-check-input" type="checkbox" id="id_is_inner_plates_archived" name="is_inner_plates_archived" value="1">
+                      <label class="form-check-label fw-bold small text-muted" for="id_is_inner_plates_archived">
+                        {% trans "الزنكات موجودة" %}
+                      </label>
+                    </div>
+                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1" id="inner_ctp_summary_badge">
+                      {% trans "زنكات جديدة" %}
+                    </span>
+                  </div>
+                  <input type="hidden" id="id_inner_plates_option" name="inner_plates_option" value="new">
+                </div>
+
+                <div class="row g-3">
+                  
+                  <!-- 1. مورد زنكات الداخلي -->
+                  <div class="col-md-6">
+                    <label for="id_inner_ctp_supplier" class="form-label fw-bold small text-muted">
+                      {% trans "مورد زنكات الداخلي" %}
+                    </label>
+                    <select class="form-select select2-filter" id="id_inner_ctp_supplier" name="inner_ctp_supplier" dir="rtl">
+                      <option value="">{% trans "-- اختر مورد زنكات CTP --" %}</option>
+                      {% for supp in ctp_suppliers %}
+                        <option value="{{ supp.id }}">{{ supp.name }}</option>
+                      {% empty %}
+                        <option value="" disabled>{% trans "لا يوجد موردين مسجلين لخدمات زنكات CTP" %}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+
+                  <!-- 2. ماكينة ومقاس زنك الداخلي -->
+                  <div class="col-md-6">
+                    <label for="id_inner_press_bed_size" class="form-label fw-bold small text-muted">
+                      {% trans "مقاس زنك الداخلي (متزامن مع الماكينة)" %}
+                    </label>
+                    <select class="form-select select2-filter" id="id_inner_press_bed_size" name="inner_press_bed_size">
+                      <option value="50x70" data-price="85" selected>{% trans "نصف فرخ 50×70 سم" %}</option>
+                      <option value="70x100" data-price="150">{% trans "فرخ كامل 70×100 سم" %}</option>
+                      <option value="35x50" data-price="60">{% trans "ربع فرخ 35×50 سم" %}</option>
+                    </select>
+                  </div>
+
+                  <!-- 3. ملازم ملونة -->
+                  <div class="col-md-3">
+                    <label for="id_color_signatures_count" class="form-label fw-bold small text-muted">
+                      {% trans "ملازم ملونة (8 زنكات)" %}
+                    </label>
+                    <div class="input-group">
+                      <input type="number" class="form-control fw-bold text-center text-primary" id="id_color_signatures_count"
+                             name="color_signatures_count" value="2" min="0">
+                      <span class="input-group-text small bg-light">{% trans "ملزمة" %}</span>
+                    </div>
+                  </div>
+
+                  <!-- 4. ملازم نصوص -->
+                  <div class="col-md-3">
+                    <label for="id_bw_signatures_count" class="form-label fw-bold small text-muted">
+                      {% trans "ملازم نصوص (2 زنكة)" %}
+                    </label>
+                    <div class="input-group">
+                      <input type="number" class="form-control fw-bold text-center text-primary" id="id_bw_signatures_count"
+                             name="bw_signatures_count" value="0" min="0">
+                      <span class="input-group-text small bg-light">{% trans "ملزمة" %}</span>
+                    </div>
+                  </div>
+
+                  <!-- 5. سعر زنكة الداخلي -->
+                  <div class="col-md-3">
+                    <label for="id_inner_plate_price" class="form-label fw-bold small text-muted">
+                      {% trans "سعر زنكة الداخلي" %}
+                    </label>
+                    <div class="input-group">
+                      <input type="number" class="form-control fw-bold text-center" id="id_inner_plate_price" name="inner_plate_price" 
+                             value="85" min="0" step="5" title="{% trans 'سعر زنكة الداخلي المعتمد' %}">
+                      <span class="input-group-text small bg-light">{{ currency_symbol|default:"ج.م" }}</span>
+                    </div>
+                  </div>
+
+                  <!-- 6. إجمالي تكلفة زنكات الداخلي -->
+                  <div class="col-md-3">
+                    <label class="form-label fw-bold small text-muted">
+                      {% trans "تكلفة زنكات الداخلي" %}
+                    </label>
+                    <div class="form-control bg-light d-flex justify-content-between align-items-center">
+                      <span class="small text-muted">{% trans "الإجمالي:" %}</span>
+                      <strong class="text-primary fs-6" id="inner_ctp_cost_display">0 {{ currency_symbol|default:"ج.م" }}</strong>
+                    </div>
+                    <!-- حقل إجمالي زنكات الداخلي المخفي للمزامنة البرمجية -->
+                    <input type="hidden" id="id_inner_plates_count_total" name="inner_plates_count_total" value="16">
+                  </div>
+
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <!-- كارت طباعة الداخلي ديجيتال شيتات -->
+        <div id="inner_digital_fields" class="row g-3 mb-3 d-none">
+          <div class="col-12">
+            <div class="p-3 border rounded bg-light-subtle">
+              <div class="d-flex align-items-center justify-content-between border-bottom pb-2 mb-3">
+                <span class="fw-bold text-dark fs-6">
+                  <i class="fas fa-desktop text-primary me-2"></i>{% trans "طباعة الداخلي ديجيتال شيتات ليزر" %}
+                </span>
+                <span class="badge bg-info-subtle text-info border px-2 py-1" id="inner_digital_badge">
+                  {% trans "كليك ليزر داخلي" %}
+                </span>
+              </div>
+
+              <div class="row g-3">
+                <!-- 1. مركز الديجيتال للداخلي -->
+                <div class="col-md-4">
+                  <label for="id_inner_digital_supplier" class="form-label fw-bold">
+                    {% trans "مركز الديجيتال للداخلي" %}
+                  </label>
+                  <select class="form-select select2-filter" id="id_inner_digital_supplier" name="inner_digital_supplier" dir="rtl">
+                    <option value="">{% trans "-- اختر مركز الديجيتال --" %}</option>
+                    {% for supp in digital_suppliers %}
+                      <option value="{{ supp.id }}">{{ supp.name }}</option>
+                    {% empty %}
+                      <option value="" disabled>{% trans "لا توجد مراكز ديجيتال مسجلة" %}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+
+                <!-- 2. صفحات ألوان الداخلي -->
+                <div class="col-md-4">
+                  <label for="id_digital_inner_color_pages" class="form-label fw-bold">
+                    {% trans "صفحات ألوان" %} (0.80 {{ currency_symbol|default:"ج.م" }}/كليك)
+                  </label>
+                  <input type="number" class="form-control fw-bold text-center text-primary" id="id_digital_inner_color_pages" 
+                         name="digital_inner_color_pages" value="{{ form.pages_count.value|default:'32' }}" min="0">
+                </div>
+
+                <!-- 3. صفحات أسود الداخلي -->
+                <div class="col-md-4">
+                  <label for="id_digital_inner_bw_pages" class="form-label fw-bold">
+                    {% trans "صفحات أسود" %} (0.25 {{ currency_symbol|default:"ج.م" }}/كليك)
+                  </label>
+                  <input type="number" class="form-control fw-bold text-center text-primary" id="id_digital_inner_bw_pages" 
+                         name="digital_inner_bw_pages" value="0" min="0">
+                </div>
+
+                <!-- 4. إجمالي تكلفة ديجيتال الداخلي -->
+                <div class="col-12">
+                  <div class="form-control bg-light d-flex justify-content-between align-items-center">
+                    <span class="small text-muted">{% trans "إجمالي تكلفة طباعة الداخلي ديجيتال:" %}</span>
+                    <strong class="text-primary fs-6" id="inner_digital_cost_display">0 {{ currency_symbol|default:"ج.م" }}</strong>
+                  </div>
+                </div>
+
+              </div>
+            </div>
           </div>
         </div>
 

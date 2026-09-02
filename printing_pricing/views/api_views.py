@@ -734,19 +734,47 @@ class GetPressesAPIView(BaseAPIView):
             for code in codes:
                 for svc in SvcClass.get_supplier_services(supplier_id, code):
                     svc_type = 'offset' if code == 'offset_printing' else 'digital'
-                    price = float(svc.get_price_for_quantity(1))
+                    price = float(svc.get_price_for_quantity(1) or svc.base_price)
+                    attrs = svc.attributes or {}
+                    
+                    # استخراج مقاس الماكينة ومقاس السلندر
+                    sheet_size = attrs.get('sheet_size')
+                    if not sheet_size:
+                        if '100' in svc.name or 'فرخ كامل' in svc.name:
+                            sheet_size = '70x100'
+                        elif '70' in svc.name or 'نصف فرخ' in svc.name:
+                            sheet_size = '50x70'
+                        elif '50' in svc.name or 'ربع فرخ' in svc.name:
+                            sheet_size = '35x50'
+                        else:
+                            sheet_size = '50x70'
+
+                    max_colors = int(attrs.get('max_colors') or (4 if '4' in svc.name else 2))
+                    setup_cost = float(svc.setup_cost) if svc.setup_cost else (200.0 if svc_type == 'offset' else 30.0)
+                    price_bw = float(attrs.get('price_per_page_bw') or 0.80)
+                    price_color = float(attrs.get('price_per_page_color') or (price if price > 0 else 2.50))
+
                     presses.append({
-                        'id':            f'{svc_type}_{svc.id}',
-                        'name':          svc.name,
-                        'type':          svc_type,
-                        'price_per_1000': price,
-                        'setup_cost':    float(svc.setup_cost),
-                        'attributes':    svc.attributes,
-                        'service_id':    svc.id,
+                        'id':                   f'{svc_type}_{svc.id}',
+                        'name':                 svc.name,
+                        'type':                 svc_type,
+                        'bed_size':             sheet_size,
+                        'sheet_size':           sheet_size,
+                        'max_colors':           max_colors,
+                        'price_per_1000':       price,
+                        'setup_cost':           setup_cost,
+                        'price_per_page_bw':    price_bw,
+                        'price_per_page_color': price_color,
+                        'attributes':           attrs,
+                        'service_id':           svc.id,
                     })
 
-            return JsonResponse({'success': True, 'presses': presses,
-                                 'supplier_info': {'id': supplier.id, 'name': supplier.name}, 'total_count': len(presses)})
+            return JsonResponse({
+                'success': True, 
+                'presses': presses,
+                'supplier_info': {'id': supplier.id, 'name': supplier.name}, 
+                'total_count': len(presses)
+            })
         except Exception as e:
             return self.handle_exception(e, "GetPressesAPIView.get")
 
@@ -805,23 +833,31 @@ class GetPressPriceAPIView(BaseAPIView):
 
 class GetCTPSuppliersAPIView(BaseAPIView):
     """
-    API لجلب موردي الزنكات — يستخدم SupplierService (ctp_plates)
+    API لجلب موردي الزنكات — يقتصر حصرياً على الموردين الذين لديهم خدمات زنكات CTP مسجلة ونشطة
     """
     
     def get(self, request):
         try:
-            if not HAS_SUPPLIER_SERVICES:
-                return JsonResponse({'success': True, 'suppliers': [], 'total_count': 0})
+            from supplier.models import Supplier
+            
+            suppliers_qs = Supplier.objects.filter(
+                is_active=True,
+                services__service_type__code='ctp_plates',
+                services__is_active=True
+            ).distinct().order_by('name')
 
-            from supplier.services.supplier_service import SupplierService as SvcClass
             results = []
-            for s in SvcClass.get_suppliers_by_service_type('ctp_plates'):
+            for s in suppliers_qs:
                 ctp_count = s.services.filter(service_type__code='ctp_plates', is_active=True).count()
                 results.append({
-                    'id': s.id, 'text': f"{s.name} ({ctp_count} خدمات زنكات)",
-                    'name': s.name, 'contact_person': s.contact_person or '',
-                    'phone': s.phone or '', 'email': s.email or '',
-                    'address': s.address or '', 'ctp_services_count': ctp_count,
+                    'id': s.id,
+                    'text': f"{s.name} ({ctp_count} " + _('مقاسات/خدمات زنكات') + ")",
+                    'name': s.name,
+                    'contact_person': s.contact_person or '',
+                    'phone': s.phone or '',
+                    'email': s.email or '',
+                    'address': s.address or '',
+                    'ctp_services_count': ctp_count,
                 })
             return JsonResponse({'success': True, 'suppliers': results, 'total_count': len(results)})
         except Exception as e:
@@ -830,37 +866,53 @@ class GetCTPSuppliersAPIView(BaseAPIView):
 
 class GetCTPPlatesAPIView(BaseAPIView):
     """
-    API لجلب خدمات الزنكات لمورد معين — يستخدم SupplierService
+    API لجلب خدمات ومقاسات الزنكات المسجلة لمورد CTP خارجي معين حصراً
     """
     
     def get(self, request):
         try:
             supplier_id = request.GET.get('supplier_id')
+            
             if not supplier_id:
-                return JsonResponse({'success': False, 'error': _('معرف المورد مطلوب'), 'missing_params': ['supplier_id']}, status=400)
+                return JsonResponse({
+                    'success': False,
+                    'error': _('يرجى اختيار مورد زنكات CTP المعتمد'),
+                    'plates': [],
+                    'total_count': 0,
+                    'has_plates': False
+                }, status=400)
 
+            from supplier.models import Supplier
             try:
                 supplier = Supplier.objects.get(id=supplier_id, is_active=True)
             except Supplier.DoesNotExist:
-                return JsonResponse({'success': False, 'error': _('المورد غير موجود أو غير نشط')}, status=404)
+                return JsonResponse({'success': False, 'error': _('المورد المحدد غير موجود أو غير نشط')}, status=404)
 
-            if not HAS_SUPPLIER_SERVICES:
-                return JsonResponse({'success': True, 'plates': [], 'supplier_info': {'id': supplier.id, 'name': supplier.name}, 'total_count': 0})
-
-            from supplier.services.supplier_service import SupplierService as SvcClass
             plates = []
-            for svc in SvcClass.get_supplier_services(supplier_id, 'ctp_plates'):
-                plates.append({
-                    'id':              f'ctp_{svc.id}',
-                    'name':            svc.name,
-                    'service_name':    svc.name,
-                    'plate_type':      svc.attributes.get('plate_type', 'عادي'),
-                    'price_per_plate': float(svc.get_price_for_quantity(1)),
-                    'service_id':      svc.id,
-                    'attributes':      svc.attributes,
-                })
-            return JsonResponse({'success': True, 'plates': plates,
-                                 'supplier_info': {'id': supplier.id, 'name': supplier.name}, 'total_count': len(plates)})
+            if HAS_SUPPLIER_SERVICES:
+                from supplier.services.supplier_service import SupplierService as SvcClass
+                for svc in SvcClass.get_supplier_services(supplier_id, 'ctp_plates'):
+                    bed_size = svc.attributes.get('bed_size') or ('70x100' if '100' in svc.name else ('50x70' if '70' in svc.name else ('35x50' if '50' in svc.name else 'custom')))
+                    price = float(svc.get_price_for_quantity(1) or svc.base_price)
+                    plates.append({
+                        'id':              f'ctp_{svc.id}',
+                        'service_id':      svc.id,
+                        'bed_size':        bed_size,
+                        'name':            svc.name,
+                        'service_name':    svc.name,
+                        'plate_type':      svc.attributes.get('plate_type', _('معياري')),
+                        'price_per_plate': price,
+                        'attributes':      svc.attributes,
+                    })
+
+            return JsonResponse({
+                'success': True,
+                'plates': plates,
+                'supplier_info': {'id': supplier.id, 'name': supplier.name},
+                'total_count': len(plates),
+                'has_plates': len(plates) > 0,
+                'message': _('تم جلب مقاسات الزنكات المسجلة للمورد بنجاح') if plates else _('لا توجد مقاسات أو خدمات زنكات مسجلة لهذا المورد')
+            })
         except Exception as e:
             return self.handle_exception(e, "GetCTPPlatesAPIView.get")
 

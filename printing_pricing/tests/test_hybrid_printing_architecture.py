@@ -458,6 +458,8 @@ class TestHybridPrintingArchitecture:
             'color_signatures_count': '2', # ملزمتين ألوان (2 * 8 = 16 زنكة)
             'bw_signatures_count': '2',    # ملزمتين أسود (2 * 2 = 4 زنكات)
             'inner_spot_colors': '1',      # لون بانتون على كل الملازم (4 زنكات) -> الإجمالي = 24 زنكة
+            'inner_press_bed_size': '50x70',
+            'inner_plate_price': '85.00',
             'binding_type': 'perfect_binding'
         }
         OrderAnatomyPersistenceService.persist_order_anatomy(order, post_data)
@@ -468,11 +470,51 @@ class TestHybridPrintingArchitecture:
         assert inner_plates_service is not None
         assert inner_plates_service.quantity == Decimal('24')
         assert inner_plates_service.unit_price == Decimal('85.00')
+        assert inner_plates_service.supplier_info.get('bed_size') == '50x70'
 
         # التحقق من خدمة التجليد غراء حراري PUR
         pb_service = order.services.filter(service_name__contains='PUR Perfect Binding').first()
         assert pb_service is not None
         assert pb_service.unit_price == Decimal('1.80')
+
+    def test_step2_ctp_archived_plates_and_supplier_snapshot(self, test_customer, test_user):
+        """اختبار زنكات الأرشيف (0 ج) وتوثيق لقطة المورد والمقاسات"""
+        flyer_type = ProductType.objects.create(name='فلاير دعائي', base_archetype='flyer', is_active=True)
+        order = PrintingOrder.objects.create(
+            order_number="ARCH-CTP-001",
+            title="فلاير من زنكات سابقة بالأرشيف",
+            customer=test_customer,
+            product_type=flyer_type,
+            order_type='flyer',
+            quantity=1000,
+            colors_front=4,
+            colors_back=4,
+            created_by=test_user,
+            updated_by=test_user
+        )
+        post_data = {
+            'order_type': 'flyer',
+            'quantity': '1000',
+            'width': '21.0',
+            'height': '29.7',
+            'cover_printing_type': 'offset',
+            'print_sides_mode_offset': 'work_sheet',
+            'colors_front': '4',
+            'colors_back': '4',
+            'plates_option': 'archived', # زنكات أرشيف
+            'zinc_plates_count': '8',
+            'press_bed_size': '70x100',
+            'plate_price': '150.00'
+        }
+        OrderAnatomyPersistenceService.persist_order_anatomy(order, post_data)
+        order.refresh_from_db()
+
+        ctp_service = order.services.filter(service_name__contains='زنكات CTP').first()
+        assert ctp_service is not None
+        assert ctp_service.quantity == Decimal('8') # العدد محفوظ للتشغيل
+        assert ctp_service.unit_price == Decimal('0.00') # التكلفة المالية صفر
+        assert ctp_service.total_cost == Decimal('0.00')
+        assert ctp_service.supplier_info.get('is_archived') is True
 
     def test_step3_ncr_invoices_and_sequential_numbering(self, test_customer, test_user):
         """اختبار دفاتر فواتير NCR وترقيم السيريال وتكعيب البلوكات"""

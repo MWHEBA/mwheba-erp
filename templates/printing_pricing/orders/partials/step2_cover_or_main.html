@@ -3,13 +3,14 @@
 
 <div class="section-container mb-4" id="card_step2_cover">
   <!-- Section Title & Accordion Trigger -->
-  <h5 class="section-title cursor-pointer" data-bs-toggle="collapse" data-bs-target="#collapse_step2" aria-expanded="true">
+  <h5 class="section-title cursor-pointer" data-bs-toggle="collapse" data-bs-target="#collapse_step2"
+      aria-expanded="true" aria-controls="collapse_step2">
     <span>
-      <i class="fas fa-scroll text-success me-2"></i>
-      <span id="step2_header_title">2. {% trans "مواصفات وخامات وتشطيب المطبوع الرئيسي / الغلاف" %}</span>
+      <i class="fas fa-print me-2 text-primary"></i>
+      <span id="step2_header_title">2. {% trans "تفاصيل الطباعة" %}</span>
     </span>
-    <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-1 ms-auto me-2" id="step2_badge_status">
-      <i class="fas fa-check-circle me-1"></i>{% trans "مكتمل" %}
+    <span class="badge bg-light text-primary border border-secondary-subtle px-3 py-1 ms-auto me-2 fw-bold" id="step2_cost_badge">
+      0 {{ currency_symbol|default:"ج.م" }}
     </span>
     <i class="fas fa-chevron-down"></i>
   </h5>
@@ -98,7 +99,7 @@
             <div class="form-check form-switch pt-2">
               <input class="form-check-input" type="checkbox" id="id_has_white_ink" name="has_white_ink" {% if form.has_white_ink.value %}checked{% endif %}>
               <label class="form-check-label small fw-bold" for="id_has_white_ink">
-                {% trans "حبر أبيض (+25 ج/م²)" %}
+                {% trans "حبر أبيض" %} (+25 {{ currency_symbol|default:"ج.م" }}/م²)
               </label>
             </div>
           </div>
@@ -141,7 +142,7 @@
             <div class="input-group">
               <input type="number" class="form-control fw-bold text-primary" id="id_banner_sqm_price" name="banner_sqm_price" 
                      value="{{ form.banner_sqm_price.value|default:'50.00' }}" min="5" step="5">
-              <span class="input-group-text small bg-light">{% trans "ج / م²" %}</span>
+              <span class="input-group-text small bg-light">{{ currency_symbol|default:"ج.م" }} / م²</span>
             </div>
           </div>
 
@@ -151,98 +152,307 @@
 
       <!-- 2. كروت التفاصيل الفنية والماكينات المعتمدة (تتبدل حسب تقنية الطباعة) -->
 
-      <!-- أ. تفاصيل ماكينة الأوفست والزنكات والتراج -->
+      <!-- أ. تفاصيل ماكينة الأوفست وزنكات CTP والتراج -->
       <div id="cover_offset_fields" class="row g-3 mb-4 pb-3 border-bottom">
-        <div class="col-md-4">
-          <label for="id_press_bed_size" class="form-label fw-bold">
-            {% trans "ماكينة الأوفست المعتمدة" %}
-          </label>
-          <select class="form-select select2-filter" id="id_press_bed_size" name="press_bed_size">
-            <option value="70x100" selected>{% trans "فرخ كامل 70×100 سم (أوفست كبير)" %}</option>
-            <option value="50x70">{% trans "نصف فرخ 50×70 سم (أوفست متوسط)" %}</option>
-            <option value="35x50">{% trans "ربع فرخ 35×50 سم (ماكينات صغيرة GTO)" %}</option>
-          </select>
-        </div>
-
-        <div class="col-md-4">
-          <label class="form-label fw-bold small text-muted">{% trans "زنكات CTP للأوفست" %}</label>
-          <div class="input-group">
-            <span class="input-group-text bg-light"><i class="fas fa-stamp text-secondary"></i></span>
-            <input type="number" class="form-control text-center fw-bold text-primary" id="id_plate_count" name="zinc_plates_count" 
-                   value="{{ form.zinc_plates_count.value|default:'4' }}" min="0">
-            <span class="input-group-text small bg-light">{% trans "زنكة ×" %}</span>
-            <input type="number" class="form-control text-center small" id="id_plate_price" name="plate_price" 
-                   value="85" min="0" step="5" style="max-width: 90px;" title="{% trans 'سعر الزنكة حسب الماكينة' %}">
-            <span class="input-group-text small bg-light">{% trans "ج" %}</span>
-          </div>
-        </div>
-
-        <div class="col-md-4">
-          <label class="form-label fw-bold small text-muted">
-            {% trans "حساب التراج والألف سحبة" %}
-          </label>
-          <div class="input-group">
-            <div class="form-control bg-light d-flex justify-content-between align-items-center">
-              <span class="small text-muted" id="press_pulls_count">1,000 سحبة</span>
-              <span class="badge bg-secondary" id="press_floor_badge">{% trans "فتحة ماكينة" %}</span>
-            </div>
-            <span class="input-group-text small bg-light">{% trans "سعر الألف:" %}</span>
-            <input type="number" class="form-control text-center small" id="id_press_rate" name="press_rate" 
-                   value="45" min="0" step="5" style="max-width: 80px;" title="{% trans 'سعر الألف سحبة' %}">
-            <span class="input-group-text small bg-light">{% trans "ج" %}</span>
-          </div>
-        </div>
-
-        <!-- تنبيهات ومستشار الأوفست الذكي -->
+        
+        <!-- كارت منظومة طباعة وزنكات الأوفست الموحد المتماسك -->
         <div class="col-12">
-          <div class="alert alert-success py-2 px-3 mb-0 d-none" id="work_turn_advisor_alert">
-            <i class="fas fa-lightbulb me-1 text-warning"></i>
-            <small class="fw-bold">{% trans "💡 مقترح توفير ذكي: مقاس الشغلانة يسمح بتشغيلها 'طبع وقلب (Work & Turn)' على نفس الزنكات لتوفير زنكات الظهر بالكامل!" %}</small>
-          </div>
-          <div class="alert alert-warning py-2 px-3 mb-0 d-none" id="micro_qty_offset_warning">
-            <i class="fas fa-exclamation-triangle me-1"></i>
-            <small class="fw-bold">{% trans "⚠️ تنبيه: الكمية صغيرة (أقل من 300 قطعة). اختيار الديجيتال سيوفر حوالي 80% من التكلفة لعدم وجود زنكات CTP أو فتحة ماكينة." %}</small>
+          <div class="p-3 border rounded bg-light-subtle">
+            
+            <!-- ترويسة الكارت العامة -->
+            <div class="d-flex align-items-center justify-content-between border-bottom pb-2 mb-3">
+              <span class="fw-bold text-dark fs-6">
+                <i class="fas fa-print text-primary me-2"></i>{% trans "منظومة طباعة وزنكات الأوفست" %}
+              </span>
+              <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1" id="cover_offset_summary_badge">
+                {% trans "أوفست تجاري" %}
+              </span>
+            </div>
+
+            <!-- 🔹 القسم الأول: مطبعة وماكينة الأوفست والتراج -->
+            <div class="row g-3 mb-3">
+              
+              <!-- 1. مطبعة الأوفست -->
+              <div class="col-md-4">
+                <label for="id_cover_offset_supplier" class="form-label fw-bold">
+                  {% trans "مطبعة الأوفست" %}
+                </label>
+                <select class="form-select select2-filter" id="id_cover_offset_supplier" name="cover_offset_supplier" dir="rtl">
+                  <option value="">{% trans "-- اختر مطبعة الأوفست --" %}</option>
+                  {% for supp in offset_suppliers %}
+                    <option value="{{ supp.id }}">{{ supp.name }}</option>
+                  {% empty %}
+                    <option value="" disabled>{% trans "لا توجد مطابع أوفست مسجلة" %}</option>
+                  {% endfor %}
+                </select>
+              </div>
+
+              <!-- 2. ماكينة ومقاس الأوفست -->
+              <div class="col-md-4">
+                <label for="id_cover_press_machine" class="form-label fw-bold">
+                  {% trans "ماكينة ومقاس الأوفست" %}
+                </label>
+                <select class="form-select select2-filter" id="id_cover_press_machine" name="cover_press_machine">
+                  <option value="50x70" data-bed="50x70" data-rate="45" data-floor="200" selected>{% trans "نصف فرخ 50×70 سم (45 ج/تراج)" %}</option>
+                  <option value="70x100" data-bed="70x100" data-rate="65" data-floor="350">{% trans "فرخ كامل 70×100 سم (65 ج/تراج)" %}</option>
+                  <option value="35x50" data-bed="35x50" data-rate="35" data-floor="150">{% trans "ربع فرخ 35×50 سم (35 ج/تراج)" %}</option>
+                </select>
+              </div>
+
+              <!-- 3. سعر التراج (ألف سحبة) -->
+              <div class="col-md-4">
+                <label for="id_press_rate" class="form-label fw-bold">
+                  {% trans "سعر التراج (ألف سحبة)" %}
+                </label>
+                <div class="input-group">
+                  <input type="number" class="form-control text-center fw-bold" id="id_press_rate" name="press_rate" 
+                         value="45" min="0" step="5" title="{% trans 'سعر التراج (ألف سحبة)' %}">
+                  <span class="input-group-text small bg-light">{{ currency_symbol|default:"ج.م" }} / {% trans "تراج" %}</span>
+                </div>
+              </div>
+
+              <!-- 4. سحبات الماكينة والتراج -->
+              <div class="col-md-6">
+                <label class="form-label fw-bold">
+                  {% trans "إجمالي التراج (السحبات)" %}
+                </label>
+                <div class="form-control bg-light d-flex justify-content-between align-items-center">
+                  <span class="small text-muted" id="press_pulls_count">1,000 سحبة (1 تراج)</span>
+                  <span class="badge bg-secondary" id="press_floor_badge">{% trans "فتحة ماكينة" %}</span>
+                </div>
+              </div>
+
+              <!-- 5. إجمالي تكلفة سحب الأوفست -->
+              <div class="col-md-6">
+                <label class="form-label fw-bold">
+                  {% trans "تكلفة الطباعة الأوفست" %}
+                </label>
+                <div class="form-control bg-light d-flex justify-content-between align-items-center">
+                  <span class="small text-muted">{% trans "الإجمالي:" %}</span>
+                  <strong class="text-primary fs-6" id="cover_press_cost_display">0 {{ currency_symbol|default:"ج.م" }}</strong>
+                </div>
+              </div>
+
+            </div>
+
+            <!-- 🔹 القسم الثاني: تجهيز زنكات CTP الميكانيكية التابعة -->
+            <div class="border-top pt-3 mt-2">
+              <div class="d-flex align-items-center justify-content-between pb-2 mb-3">
+                <span class="fw-bold text-dark small">
+                  <i class="fas fa-stamp text-secondary me-2"></i>{% trans "تجهيز زنكات CTP التابعة للماكينة" %}
+                </span>
+                <div class="d-flex align-items-center gap-3">
+                  <div class="form-check form-switch mb-0">
+                    <input class="form-check-input" type="checkbox" id="id_is_plates_archived" name="is_plates_archived" value="1">
+                    <label class="form-check-label fw-bold small text-muted" for="id_is_plates_archived">
+                      {% trans "الزنكات موجودة" %}
+                    </label>
+                  </div>
+                  <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1" id="cover_ctp_summary_badge">
+                    {% trans "زنكات جديدة" %}
+                  </span>
+                </div>
+                <input type="hidden" id="id_plates_option" name="plates_option" value="new">
+              </div>
+
+              <div class="row g-3">
+                
+                <!-- 1. مورد CTP -->
+                <div class="col-md-6">
+                  <label for="id_cover_ctp_supplier" class="form-label fw-bold small text-muted">
+                    {% trans "مورد زنكات CTP" %}
+                  </label>
+                  <select class="form-select select2-filter" id="id_cover_ctp_supplier" name="cover_ctp_supplier" dir="rtl">
+                    <option value="">{% trans "-- اختر مورد زنكات CTP --" %}</option>
+                    {% for supp in ctp_suppliers %}
+                      <option value="{{ supp.id }}">{{ supp.name }}</option>
+                    {% empty %}
+                      <option value="" disabled>{% trans "لا يوجد موردين مسجلين لخدمات زنكات CTP" %}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+
+                <!-- 2. ماكينة ومقاس الزنك المتزامن ميكانيكياً -->
+                <div class="col-md-6">
+                  <label for="id_press_bed_size" class="form-label fw-bold small text-muted">
+                    {% trans "مقاس زنك CTP (متزامن مع الماكينة)" %}
+                  </label>
+                  <select class="form-select select2-filter" id="id_press_bed_size" name="press_bed_size">
+                    <option value="50x70" data-price="85" selected>{% trans "نصف فرخ 50×70 سم" %}</option>
+                    <option value="70x100" data-price="150">{% trans "فرخ كامل 70×100 سم" %}</option>
+                    <option value="35x50" data-price="60">{% trans "ربع فرخ 35×50 سم" %}</option>
+                  </select>
+                </div>
+
+                <!-- 3. زنكات الوجه -->
+                <div class="col-md-3">
+                  <label for="id_plate_count_front" class="form-label fw-bold small text-muted">
+                    {% trans "زنكات الوجه" %}
+                  </label>
+                  <div class="input-group">
+                    <input type="number" class="form-control fw-bold text-center text-primary" 
+                           id="id_plate_count_front" name="plate_count_front" value="4" min="0" max="10">
+                    <span class="input-group-text small bg-light">{% trans "زنكة" %}</span>
+                  </div>
+                </div>
+
+                <!-- 4. زنكات الظهر -->
+                <div class="col-md-3">
+                  <label for="id_plate_count_back" class="form-label fw-bold small text-muted">
+                    {% trans "زنكات الظهر" %}
+                  </label>
+                  <div class="input-group">
+                    <input type="number" class="form-control fw-bold text-center text-primary" 
+                           id="id_plate_count_back" name="plate_count_back" value="0" min="0" max="10">
+                    <span class="input-group-text small bg-light">{% trans "زنكة" %}</span>
+                  </div>
+                </div>
+
+                <!-- 5. سعر الزنكة الواحدة -->
+                <div class="col-md-3">
+                  <label for="id_plate_price" class="form-label fw-bold small text-muted">
+                    {% trans "سعر الزنكة" %}
+                  </label>
+                  <div class="input-group">
+                    <input type="number" class="form-control fw-bold text-center" id="id_plate_price" name="plate_price" 
+                           value="85" min="0" step="5" title="{% trans 'سعر الزنكة المعتمد' %}">
+                    <span class="input-group-text small bg-light">{{ currency_symbol|default:"ج.م" }}</span>
+                  </div>
+                </div>
+
+                <!-- 6. إجمالي تكلفة زنكات CTP -->
+                <div class="col-md-3">
+                  <label class="form-label fw-bold small text-muted">
+                    {% trans "تكلفة زنكات CTP" %}
+                  </label>
+                  <div class="form-control bg-light d-flex justify-content-between align-items-center">
+                    <span class="small text-muted">{% trans "الإجمالي:" %}</span>
+                    <strong class="text-primary fs-6" id="cover_ctp_cost_display">0 {{ currency_symbol|default:"ج.م" }}</strong>
+                  </div>
+                  <!-- حقل إجمالي الزنكات المخفي للمزامنة البرمجية -->
+                  <input type="hidden" id="id_plate_count" name="zinc_plates_count" value="{{ form.zinc_plates_count.value|default:'4' }}">
+                </div>
+
+              </div>
+            </div>
+
+            <!-- تنبيهات ومستشار الأوفست الذكي -->
+            <div class="mt-3">
+              <div class="alert alert-success py-2 px-3 mb-0 d-none" id="work_turn_advisor_alert">
+                <i class="fas fa-lightbulb me-1 text-warning"></i>
+                <small class="fw-bold">{% trans "مقترح توفير: مقاس المطبوع يسمح بتشغيله طبع وقلب (Work & Turn) على نفس الزنكات لتوفير زنكات الظهر." %}</small>
+              </div>
+              <div class="alert alert-warning py-2 px-3 mb-0 d-none" id="micro_qty_offset_warning">
+                <i class="fas fa-exclamation-triangle me-1"></i>
+                <small class="fw-bold">{% trans "تنبيه: الكمية صغيرة (أقل من 300 قطعة). اختيار الديجيتال يوفر التكلفة لعدم وجود زنكات CTP أو فتحة ماكينة." %}</small>
+              </div>
+            </div>
+
           </div>
         </div>
       </div>
 
       <!-- ب. تفاصيل الديجيتال والمونتاج ونظام الشيتات -->
       <div id="cover_digital_fields" class="row g-3 mb-4 pb-3 border-bottom d-none">
-        <div class="col-md-4">
-          <label for="id_digital_sheet_price" class="form-label fw-bold">
-            {% trans "سعر الشيت الديجيتال A3+" %}
-          </label>
-          <div class="input-group">
-            <input type="number" class="form-control fw-bold text-primary" id="id_digital_sheet_price" name="digital_sheet_price" 
-                   value="2.50" min="0" step="0.25">
-            <span class="input-group-text small bg-light">{% trans "ج / شيت" %}</span>
-          </div>
-        </div>
-
-        <div class="col-md-4">
-          <label class="form-label fw-bold small text-muted">{% trans "مونتاج واستهلاك الشيتات" %}</label>
-          <div class="form-control bg-light d-flex justify-content-between align-items-center">
-            <span class="small text-muted" id="digital_yield_label">{% trans "شيتات مطلوبة:" %}</span>
-            <strong class="text-primary fs-6" id="digital_sheets_count_display">42 شيت A3+</strong>
-          </div>
-        </div>
-
-        <div class="col-md-4">
-          <label class="form-label fw-bold small text-muted">{% trans "مصاريف القص والريجة" %}</label>
-          <div class="form-control bg-light d-flex justify-content-between align-items-center">
-            <span class="small text-muted">{% trans "قص مقص + ريجة:" %}</span>
-            <span class="badge bg-info-subtle text-info border" id="digital_extra_fees_badge">{% trans "30 ج مقص" %}</span>
-          </div>
-        </div>
-
         <div class="col-12">
-          <div class="alert alert-warning py-2 px-3 mb-0 d-none" id="digital_sheet_size_warning">
-            <i class="fas fa-exclamation-triangle me-1"></i>
-            <small class="fw-bold">{% trans "المقاس المفتوح الحالي أكبر من سقف الشيت الديجيتال القياسي (48.7 سم). يُنصح باختيار خامات كبيرة أو أوفست." %}</small>
-          </div>
-          <div class="alert alert-danger py-2 px-3 mb-0 d-none" id="digital_gsm_warning">
-            <i class="fas fa-times-circle me-1"></i>
-            <small class="fw-bold">{% trans "الجراماج المختار أكبر من سقف ماكينات الديجيتال الليزر (350 جم). يرجى اختيار أوفست أو سلك سكرين." %}</small>
+          <div class="p-3 border rounded bg-light-subtle">
+            
+            <div class="d-flex align-items-center justify-content-between border-bottom pb-2 mb-3">
+              <span class="fw-bold text-dark fs-6">
+                <i class="fas fa-desktop text-primary me-2"></i>{% trans "طباعة ديجيتال شيتات ليزر" %}
+              </span>
+              <span class="badge bg-info-subtle text-info border px-2 py-1" id="digital_sheets_count_display">
+                {% trans "42 شيت A3+" %}
+              </span>
+            </div>
+
+            <div class="row g-3">
+              
+              <!-- 1. مركز الديجيتال -->
+              <div class="col-md-4">
+                <label for="id_cover_digital_supplier" class="form-label fw-bold">
+                  {% trans "مركز الطباعة الديجيتال" %}
+                </label>
+                <select class="form-select select2-filter" id="id_cover_digital_supplier" name="cover_digital_supplier" dir="rtl">
+                  <option value="">{% trans "-- اختر مركز الديجيتال --" %}</option>
+                  {% for supp in digital_suppliers %}
+                    <option value="{{ supp.id }}">{{ supp.name }}</option>
+                  {% empty %}
+                    <option value="" disabled>{% trans "لا توجد مراكز ديجيتال مسجلة" %}</option>
+                  {% endfor %}
+                </select>
+              </div>
+
+              <!-- 2. ماكينة وموديل الديجيتال -->
+              <div class="col-md-4">
+                <label for="id_cover_digital_machine" class="form-label fw-bold">
+                  {% trans "ماكينة وموديل الديجيتال" %}
+                </label>
+                <select class="form-select select2-filter" id="id_cover_digital_machine" name="cover_digital_machine">
+                  <option value="canon_c10000" data-price-color="2.50" data-price-bw="0.80" selected>{% trans "Canon imagePRESS C10000" %}</option>
+                  <option value="xerox_iridesse" data-price-color="3.00" data-price-bw="1.00">{% trans "Xerox Iridesse Production Press" %}</option>
+                  <option value="konica_accurio" data-price-color="2.25" data-price-bw="0.75">{% trans "Konica Minolta AccurioPress" %}</option>
+                </select>
+              </div>
+
+              <!-- 3. نمط ألوان الكليك -->
+              <div class="col-md-4">
+                <label for="id_digital_color_mode" class="form-label fw-bold">
+                  {% trans "نمط ألوان الكليك" %}
+                </label>
+                <select class="form-select select2-filter" id="id_digital_color_mode" name="digital_color_mode">
+                  <option value="4_0" selected>{% trans "وجه واحد ألوان (4 / 0)" %}</option>
+                  <option value="4_4">{% trans "وجهين ألوان (4 / 4)" %}</option>
+                  <option value="4_1">{% trans "وجه ألوان + ظهر أسود (4 / 1)" %}</option>
+                  <option value="1_1">{% trans "وجهين أسود (1 / 1)" %}</option>
+                  <option value="1_0">{% trans "وجه واحد أسود (1 / 0)" %}</option>
+                </select>
+              </div>
+
+              <!-- 4. سعر الشيت الديجيتال / الكليك -->
+              <div class="col-md-4">
+                <label for="id_digital_sheet_price" class="form-label fw-bold">
+                  {% trans "أجرة كليك الشيت A3+" %}
+                </label>
+                <div class="input-group">
+                  <input type="number" class="form-control fw-bold text-primary text-center" id="id_digital_sheet_price" name="digital_sheet_price" 
+                         value="2.50" min="0" step="0.25">
+                  <span class="input-group-text small bg-light">{{ currency_symbol|default:"ج.م" }} / {% trans "شيت" %}</span>
+                </div>
+              </div>
+
+              <!-- 5. مصاريف القص والريجة -->
+              <div class="col-md-4">
+                <label class="form-label fw-bold">{% trans "مصاريف القص والريجة" %}</label>
+                <div class="form-control bg-light d-flex justify-content-between align-items-center">
+                  <span class="small text-muted">{% trans "مقص إلكتروني:" %}</span>
+                  <span class="badge bg-secondary" id="digital_extra_fees_badge">30.00 {{ currency_symbol|default:"ج.م" }}</span>
+                </div>
+              </div>
+
+              <!-- 6. إجمالي تكلفة الديجيتال -->
+              <div class="col-md-4">
+                <label class="form-label fw-bold">{% trans "تكلفة الطباعة الديجيتال" %}</label>
+                <div class="form-control bg-light d-flex justify-content-between align-items-center">
+                  <span class="small text-muted">{% trans "الإجمالي:" %}</span>
+                  <strong class="text-primary fs-6" id="cover_digital_cost_display">0 {{ currency_symbol|default:"ج.م" }}</strong>
+                </div>
+              </div>
+
+            </div>
+
+            <!-- تنبيهات ومستشار الديجيتال الذكي -->
+            <div class="mt-3">
+              <div class="alert alert-warning py-2 px-3 mb-0 d-none" id="digital_sheet_size_warning">
+                <i class="fas fa-exclamation-triangle me-1"></i>
+                <small class="fw-bold">{% trans "المقاس المفتوح الحالي أكبر من سقف الشيت الديجيتال القياسي (48.7 سم). يُنصح باختيار خامات كبيرة أو أوفست." %}</small>
+              </div>
+              <div class="alert alert-danger py-2 px-3 mb-0 d-none mt-2" id="digital_gsm_warning">
+                <i class="fas fa-times-circle me-1"></i>
+                <small class="fw-bold">{% trans "الجراماج المختار أكبر من سقف ماكينات الديجيتال الليزر (350 جم). يرجى اختيار أوفست أو سلك سكرين." %}</small>
+              </div>
+            </div>
+
           </div>
         </div>
       </div>
@@ -260,14 +470,14 @@
           <label class="form-label fw-bold small text-muted">{% trans "معامل الحبر والسلوفان" %}</label>
           <div class="form-control bg-light d-flex justify-content-between align-items-center">
             <span class="small text-muted" id="banner_ink_mode_label">{% trans "حبر مذيبات CMYK" %}</span>
-            <span class="badge bg-secondary" id="banner_min_floor_badge">{% trans "حد أدنى 50 ج" %}</span>
+            <span class="badge bg-secondary" id="banner_min_floor_badge">{% trans "حد أدنى" %} 50 {{ currency_symbol|default:"ج.م" }}</span>
           </div>
         </div>
         <div class="col-md-4">
           <label class="form-label fw-bold small text-muted">{% trans "إجمالي تكلفة الطباعة" %}</label>
           <div class="form-control bg-light d-flex justify-content-between align-items-center">
             <span class="small text-muted">{% trans "طباعة المتر:" %}</span>
-            <strong class="text-success fs-6" id="banner_total_cost_display">125.00 ج</strong>
+            <strong class="text-success fs-6" id="banner_total_cost_display">0 {{ currency_symbol|default:"ج.م" }}</strong>
           </div>
         </div>
       </div>
@@ -278,14 +488,14 @@
           <label class="form-label fw-bold small text-muted">{% trans "تجهيز الشابلونات والأفلام" %}</label>
           <div class="form-control bg-light d-flex justify-content-between align-items-center">
             <span class="small text-muted" id="screen_frames_label">{% trans "شابلونات جديدة:" %}</span>
-            <strong class="text-primary fs-6" id="screen_frames_display">150.00 ج (1 شابلونة)</strong>
+            <strong class="text-primary fs-6" id="screen_frames_display">0 {{ currency_symbol|default:"ج.م" }}</strong>
           </div>
         </div>
         <div class="col-md-6">
           <label class="form-label fw-bold small text-muted">{% trans "سعر طباعة وسحب القطعة" %}</label>
           <div class="form-control bg-light d-flex justify-content-between align-items-center">
             <span class="small text-muted">{% trans "سحب يدوي/نصف أوتوماتيك:" %}</span>
-            <strong class="text-success fs-6" id="screen_pulls_display">0.75 ج / قطعة</strong>
+            <strong class="text-success fs-6" id="screen_pulls_display">0.75 {{ currency_symbol|default:"ج.م" }} / {% trans "قطعة" %}</strong>
           </div>
         </div>
       </div>
@@ -425,33 +635,16 @@
       <!-- 5. زر الخيارات المتقدمة المطوية -->
       <div class="mt-3">
         <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#advanced_step2_options">
-          <i class="fas fa-cog me-1"></i>{% trans "⚙️ خيارات تشغيل متقدمة (المخزن، زنكات الأرشيف، وأسلوب قلب الشيت)" %}
+          <i class="fas fa-cog me-1"></i>{% trans "⚙️ خيارات تشغيل متقدمة (مصدر الورق والتخزين)" %}
         </button>
 
         <div class="collapse mt-3 p-3 bg-light border rounded" id="advanced_step2_options">
           <div class="row g-3">
-            <div class="col-md-4">
+            <div class="col-md-6">
               <label class="form-label fw-bold small">{% trans "مصدر خام الورق" %}</label>
               <select class="form-select form-select-sm" id="id_paper_source" name="paper_source">
                 <option value="purchase" selected>{% trans "شراء مباشر للمشروع من المورد" %}</option>
                 <option value="warehouse">{% trans "سحب وصرف من مخزن المنشأة (مع احتساب التكلفة)" %}</option>
-              </select>
-            </div>
-
-            <div class="col-md-4">
-              <label class="form-label fw-bold small">{% trans "زنكات CTP للأوفست" %}</label>
-              <select class="form-select form-select-sm" id="id_plates_option" name="plates_option">
-                <option value="new" selected>{% trans "فتح زنكات CTP جديدة بالكامل" %}</option>
-                <option value="archived">{% trans "استخدام زنكات سابقة محفوظة بالأرشيف (0 ج)" %}</option>
-              </select>
-            </div>
-
-            <div class="col-md-4">
-              <label class="form-label fw-bold small">{% trans "أسلوب قلب الشيت على الماكينة" %}</label>
-              <select class="form-select form-select-sm" id="id_sheet_turn_mode" name="sheet_turn_mode">
-                <option value="work_turn" selected>{% trans "قلب جنب (Work & Turn - بنسة واحدة)" %}</option>
-                <option value="work_tumble">{% trans "قلب بنسة (Work & Tumble - بنستين)" %}</option>
-                <option value="work_sheet">{% trans "زنكات مستقلة للوجه وزنكات للظهر (Work & Sheet)" %}</option>
               </select>
             </div>
           </div>
