@@ -1,5 +1,6 @@
 from django.db import models
 from django.utils.translation import gettext_lazy as _
+from django.utils import timezone
 from django.core.validators import MinValueValidator
 from django.conf import settings
 from decimal import Decimal
@@ -46,28 +47,39 @@ class PrintingOrder(BaseModel):
         default=Decimal("1.000000")
     )
     
-    delivery_address_snapshot = models.TextField(
-        _("لقطة عنوان وهاتف التسليم"),
-        blank=True,
-        null=True
+    order_date = models.DateField(
+        _("تاريخ الطلب"),
+        default=timezone.now,
+        db_index=True,
+        help_text=_("تاريخ استلام وتسجيل طلب التسعير الفعلي")
     )
     
     customer = models.ForeignKey(
         Customer,
-        on_delete=models.PROTECT,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name="printing_orders",
-        verbose_name=_("العميل")
+        verbose_name=_("العميل المسجل")
+    )
+    
+    customer_name = models.CharField(
+        _("اسم العميل"),
+        max_length=200,
+        blank=True,
+        null=True,
+        help_text=_("اسم العميل للتسعيرات السريعة دون الحاجة لتسجيله في الدليل")
     )
     
     title = models.CharField(
         max_length=200,
-        verbose_name=_("عنوان الطلب")
+        verbose_name=_("وصف الطلب")
     )
     
     description = models.TextField(
         blank=True,
         null=True,
-        verbose_name=_("وصف الطلب")
+        verbose_name=_("ملاحظات الطلب")
     )
     
     order_type = models.CharField(
@@ -385,32 +397,6 @@ class PrintingOrder(BaseModel):
     
 
 
-    # معلومات إضافية
-    priority = models.CharField(
-        max_length=10,
-        choices=[
-            ('low', _('منخفضة')),
-            ('medium', _('متوسطة')),
-            ('high', _('عالية')),
-            ('urgent', _('عاجلة'))
-        ],
-        default='medium',
-        verbose_name=_("الأولوية")
-    )
-    
-    is_rush_order = models.BooleanField(
-        default=False,
-        verbose_name=_("طلب عاجل")
-    )
-    
-    rush_fee = models.DecimalField(
-        max_digits=10,
-        decimal_places=2,
-        default=Decimal('0.00'),
-        validators=[MinValueValidator(Decimal('0.00'))],
-        verbose_name=_("رسوم الاستعجال")
-    )
-    
     # خدمات التصميم والإبداع
     design_service_type = models.CharField(
         max_length=20,
@@ -479,49 +465,68 @@ class PrintingOrder(BaseModel):
 
     def save(self, *args, **kwargs):
         """
-        حفظ محسن مع توليد رقم الطلب والربط بأمر الشغل وتجميد لقطة العميل
+        حفظ محسن مع توليد رقم الطلب وتثبيت العملة الوظيفية
         """
         if not self.order_number:
             self.order_number = self.generate_order_number()
-            
 
-        # الربط التلقائي بأمر الشغل إذا تُرك فارغاً
-        if not self.work_order and self.customer:
+        # تثبيت العملة الوظيفية للمؤسسة افتراضياً
+        if not self.currency_id:
             try:
-                from work_order.models import WorkOrder
-                user = kwargs.get('user') or getattr(self, 'created_by', None)
-                self.work_order = WorkOrder.objects.create(
-                    customer=self.customer,
-                    created_by=user,
-                    notes=f"أمر شغل تلقائي لطلب التسعير {self.title or self.order_number}"
-                )
+                from financial.services.exchange_rate_service import ExchangeRateService
+                self.currency = ExchangeRateService.get_functional_currency()
+                self.exchange_rate = Decimal("1.000000")
             except Exception:
                 pass
+
+        # مزامنة اسم العميل تلقائياً من العميل المسجل إذا لم يكن مكتوباً
+        if self.customer and not self.customer_name:
+            self.customer_name = self.customer.name
+
+        # مزامنة order_type من نوع المطبوع تلقائياً إذا توفر
+        if self.product_type and hasattr(self.product_type, 'base_archetype') and self.product_type.base_archetype:
+            if not self.order_type or self.order_type != self.product_type.base_archetype:
+                self.order_type = self.product_type.base_archetype
                 
-        # تجميد لقطة عنوان وهاتف العميل
-        if self.customer and not self.delivery_address_snapshot:
-            phone = getattr(self.customer, 'phone_primary', None) or getattr(self.customer, 'phone', '') or ''
-            addr = getattr(self.customer, 'address', '') or ''
-            self.delivery_address_snapshot = f"{self.customer.name} | هاتف: {phone} | عنوان: {addr}"
-            
         super().save(*args, **kwargs)
+
+    def create_work_order(self, user=None):
+        """
+        توليد أمر شغل تنفيذي لصالة الإنتاج بعد اعتماد الطلب أو تحويله
+        """
+        if not self.work_order:
+            from work_order.models import WorkOrder
+            customer_display = self.customer_name or (self.customer.name if self.customer else '')
+            notes_text = f"أمر شغل معتمد لطلب التسعير {self.order_number} - {self.title or ''}"
+            if customer_display:
+                notes_text += f" | العميل: {customer_display}"
+
+            self.work_order = WorkOrder.objects.create(
+                customer=self.customer,
+                created_by=user or getattr(self, 'created_by', None),
+                delivery_date=self.due_date.date() if self.due_date else None,
+                notes=notes_text
+            )
+            self.save(update_fields=['work_order'])
+        return self.work_order
 
     def generate_order_number(self):
         """
         توليد رقم طلب فريد عبر الخدمة المركزية الموحدة للترقيم (SequenceService)
+        مع مراعاة سنة تاريخ الطلب الفعلي
         """
+        order_dt = self.order_date or timezone.now().date()
         try:
             from core.services.sequence_service import SequenceService
             from core.enums.document_types import DocumentType
             return SequenceService.get_next_number(
                 document_type=DocumentType.PRINTING_REQUEST,
+                date=order_dt,
                 user=getattr(self, 'created_by', None)
             )
         except Exception:
             # آلية بديلة آمنة في حالة عدم توفر الجداول
-            from django.utils import timezone
-            now = timezone.now()
-            year = now.year
+            year = order_dt.year if hasattr(order_dt, 'year') else timezone.now().year
             last_order = PrintingOrder.objects.filter(
                 order_number__startswith=f"PR-{year}-"
             ).order_by('-order_number').first()
@@ -552,9 +557,11 @@ class PrintingOrder(BaseModel):
         return self.quantity * self.copies_count
 
     @property
-    def customer_name(self):
+    def customer_display_name(self):
         """اسم العميل للعرض الموحد في الجداول"""
-        return self.customer.name if self.customer else "-"
+        if self.customer:
+            return self.customer.name
+        return self.customer_name or "-"
 
     @property
     def product_type_name(self):

@@ -145,20 +145,38 @@ class PricingOrderForm(forms.ModelForm):
         widget=forms.NumberInput(attrs={"class": "form-control"}),
     )
 
-    # حقول التصميم
-    design_price = forms.DecimalField(
-        label=_("سعر التصميم"),
+    # حقول العميل اليدوي
+    customer_name = forms.CharField(
+        label=_("اسم العميل"),
         required=False,
-        widget=forms.NumberInput(attrs={
-            "class": "form-control", 
-            "step": "0.01"
+        widget=forms.TextInput(attrs={
+            "class": "form-control",
+            "placeholder": _("اكتب اسم العميل يدوياً للتسعير السريع...")
         }),
     )
+
+    # حقول ألوان الطباعة
+    colors_front = forms.IntegerField(
+        label=_("عدد ألوان الوجه الأمامي"),
+        required=False,
+        initial=4,
+        widget=forms.NumberInput(attrs={"class": "form-control", "min": "0"}),
+    )
+    colors_back = forms.IntegerField(
+        label=_("عدد ألوان الوجه الخلفي"),
+        required=False,
+        initial=4,
+        widget=forms.NumberInput(attrs={"class": "form-control", "min": "0"}),
+    )
+
     class Meta:
         from printing_pricing.models import PrintingOrder
         model = PrintingOrder
         fields = [
             "customer",
+            "customer_name",
+            "order_date",
+            "due_date",
             "work_order",
             "currency",
             "title",
@@ -261,6 +279,12 @@ class PricingOrderForm(forms.ModelForm):
         for field_name, field in self.fields.items():
             if not field.widget.attrs.get("class"):
                 field.widget.attrs["class"] = "form-control"
+
+        # ضبط حقل العميل والعميل اليدوي
+        if "customer" in self.fields:
+            self.fields["customer"].required = False
+            self.fields["customer"].queryset = Customer.objects.filter(is_active=True).order_by("name")
+            self.fields["customer"].empty_label = _("اختر العميل المسجل (اختياري)...")
 
         # ربط نوع المنتج بالإعدادات
         try:
@@ -383,8 +407,14 @@ class PricingOrderForm(forms.ModelForm):
         if paper_type in ['', 'undefined', 'null', 'None']:
             cleaned_data["paper_type"] = None
         
+        # التحقق من العميل (إما مسجل أو مكتوب يدوياً)
+        customer = cleaned_data.get("customer")
+        customer_name = cleaned_data.get("customer_name")
+        if not customer and not customer_name:
+            self.add_error("customer_name", _("يرجى اختيار العميل المسجل أو كتابة اسم العميل يدوياً."))
+
         # التحقق من جوانب الطباعة والألوان بطريقة ديناميكية مرنة
-        print_sides = cleaned_data.get("print_sides")
+        print_sides = cleaned_data.get("print_sides_mode") or cleaned_data.get("print_sides")
         colors_front = cleaned_data.get("colors_front")
         colors_back = cleaned_data.get("colors_back")
         

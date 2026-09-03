@@ -1,10 +1,12 @@
 {% load i18n %}
 
+<!-- هيدر المودال الفاتح الموحد طبقاً للبند 8 -->
 <div class="modal-header bg-light border-bottom px-4 py-3">
-    <h5 class="modal-title fw-bold text-danger mb-0">
-        <i class="fas fa-trash-alt me-2"></i>{% trans "تأكيد حذف نوع المطبوع" %}
+    <h5 class="modal-title fw-bold text-dark mb-0">
+        <i class="fas fa-exclamation-triangle text-danger me-2"></i>
+        {% trans "تأكيد حذف نوع المطبوع" %}
     </h5>
-    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{% trans 'إغلاق' %}"></button>
 </div>
 
 <form id="deleteProductTypeForm" method="post" action="{{ action_url }}">
@@ -18,25 +20,28 @@
         <h5 class="fw-bold mb-2">{% trans "هل أنت متأكد من رغبتك في حذف هذا الصنف؟" %}</h5>
         <div class="p-3 bg-light rounded border mb-3 text-start">
             <div class="d-flex justify-content-between align-items-center mb-1">
-                <span class="fw-bold fs-6">{{ product_type.name }}</span>
-                <span class="badge bg-secondary">{{ product_type.get_base_archetype_display }}</span>
+                <span class="fw-bold fs-6 text-dark">{{ object.name|default:product_type.name|default:producttype.name }}</span>
+                <span class="badge bg-primary-subtle text-primary border border-primary-subtle">
+                    {{ object.get_base_archetype_display|default:product_type.get_base_archetype_display|default:producttype.get_base_archetype_display }}
+                </span>
             </div>
-            {% if product_type.description %}
-                <small class="text-muted d-block">{{ product_type.description }}</small>
+            {% if object.description or product_type.description %}
+                <small class="text-muted d-block mt-1">{{ object.description|default:product_type.description }}</small>
             {% endif %}
         </div>
 
         <p class="text-muted small mb-0">
-            <i class="fas fa-info-circle me-1"></i>{% trans "ملاحظة: إذا كان هذا الصنف مستخدماً في طلبات تسعير سابقة، فلن تتمكن من حذفه حفاظاً على سلامة السجلات، ويمكنك إيقاف تفعيله بدلاً من ذلك." %}
+            <i class="fas fa-info-circle me-1 text-primary"></i>
+            {% trans "ملاحظة: إذا كان هذا الصنف مستخدماً في طلبات تسعير سابقة، فلن تتمكن من حذفه حفاظاً على سلامة السجلات، ويمكنك إيقاف تفعيله بدلاً من ذلك." %}
         </p>
     </div>
     
     <div class="modal-footer bg-light border-top px-4 py-3">
         <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">
-            <i class="fas fa-times me-1"></i>{% trans "إلغاء" %}
+            {% trans "إلغاء" %}
         </button>
         <button type="submit" class="btn btn-danger px-4 fw-bold" id="btn-confirm-delete">
-            <i class="fas fa-trash-alt me-1"></i>{% trans "تأكيد الحذف" %}
+            <i class="fas fa-trash-alt me-1"></i> {% trans "تأكيد الحذف" %}
         </button>
     </div>
 </form>
@@ -51,7 +56,7 @@ document.getElementById('deleteProductTypeForm').addEventListener('submit', func
     const originalHtml = submitBtn.innerHTML;
     
     submitBtn.disabled = true;
-    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>{% trans "جاري الحذف..." %}';
+    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> {% trans "جاري الحذف..." %}';
     
     fetch(form.action, {
         method: 'POST',
@@ -69,16 +74,24 @@ document.getElementById('deleteProductTypeForm').addEventListener('submit', func
     })
     .then(data => {
         if (data.success) {
-            window.showNotification && window.showNotification('{% trans "تم حذف الصنف بنجاح" %}', 'success');
-            setTimeout(() => location.reload(), 800);
+            if (typeof window.showNotification === 'function') {
+                window.showNotification(data.message || '{% trans "تم حذف الصنف بنجاح" %}', 'success');
+            }
+            // الالتزام بالبند 10: 3100ms قبل التحديث
+            setTimeout(() => location.reload(), 3100);
         } else {
-            window.showNotification && window.showNotification(data.message || '{% trans "تعذر حذف الصنف" %}', 'error');
+            if (typeof window.showNotification === 'function') {
+                window.showNotification(data.message || '{% trans "تعذر حذف الصنف" %}', 'error');
+            }
             submitBtn.disabled = false;
             submitBtn.innerHTML = originalHtml;
         }
     })
     .catch(error => {
-        window.showNotification && window.showNotification(error.message || '{% trans "لا يمكن حذف هذا الصنف لوجود طلبات تسعير سابقة مرتبطة به. يرجى إيقاف تفعيله." %}', 'error');
+        const errorMsg = (error && error.message) ? error.message : '{% trans "لا يمكن حذف هذا الصنف لوجود طلبات تسعير سابقة مرتبطة به. يرجى إيقاف تفعيله." %}';
+        if (typeof window.showNotification === 'function') {
+            window.showNotification(errorMsg, 'error');
+        }
         submitBtn.disabled = false;
         submitBtn.innerHTML = originalHtml;
     });

@@ -41,8 +41,11 @@
           <span class="fw-bold" id="cost_binding_display">0 {{ currency_symbol|default:"ج.م" }}</span>
         </div>
         <div class="d-flex justify-content-between align-items-center mb-2 small">
-          <span class="text-secondary"><i class="fas fa-truck me-1 text-warning"></i>{% trans "انتقالات:" %}</span>
-          <span class="fw-bold" id="cost_logistics_display">0 {{ currency_symbol|default:"ج.م" }}</span>
+          <label for="id_extra_cost" class="text-secondary mb-0 cursor-pointer"><i class="fas fa-truck me-1 text-warning"></i>{% trans "انتقالات ولوجستيات:" %}</label>
+          <div class="input-group input-group-sm" style="max-width: 125px;">
+            <input type="number" class="form-control form-control-sm text-end fw-bold py-0 px-1 border-secondary-subtle" id="id_extra_cost" name="extra_cost" value="{{ form.extra_cost.value|default:'0' }}" min="0" step="5" placeholder="0">
+            <span class="input-group-text py-0 px-1 bg-light text-muted" style="font-size: 0.75rem;">{{ currency_symbol|default:"ج.م" }}</span>
+          </div>
         </div>
 
         <div class="d-flex justify-content-between align-items-center pt-2 border-top bg-light p-2 rounded">

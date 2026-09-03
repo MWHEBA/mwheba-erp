@@ -23,14 +23,13 @@ def _get_available_sources():
         'PaperSize':          'مقاسات الورق',
         'PaperWeight':        'أوزان الورق',
         'PaperOrigin':        'مناشئ الورق',
-        'OffsetMachineType':  'ماكينات الأوفست',
-        'OffsetSheetSize':    'مقاسات الأوفست',
-        'DigitalMachineType': 'ماكينات الديجيتال',
+        'OffsetMachineType':  'أنواع ماكينات الأوفست',
+        'DigitalMachineType': 'أنواع ماكينات الديجيتال',
         'CoatingType':        'أنواع التغطية',
         'FinishingType':      'أنواع التشطيب',
         'PackagingType':      'أنواع التقفيل',
         'PlateSize':          'مقاسات الزنكات',
-        'PieceSize':          'مقاسات القطع',
+        'PieceSize':          'مقاسات القطع وتفصيل السلندر',
     }
     try:
         import printing_pricing.models as sm

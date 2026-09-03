@@ -117,8 +117,10 @@
 {% endblock %}
 
 {% block extra_js %}
+<script id="service-schemas-data" type="application/json">{{ service_types_schemas|safe }}</script>
 <script>
-const SERVICE_SCHEMAS = {{ service_types_schemas|safe }};
+const serviceSchemasEl = document.getElementById('service-schemas-data');
+const SERVICE_SCHEMAS = serviceSchemasEl ? JSON.parse(serviceSchemasEl.textContent || '{}') : {};
 const schemaOptionsCache = {};
 
 async function getSourceOptions(source) {
@@ -150,6 +152,11 @@ if (serviceTypeSelect) {
         container.innerHTML = '<div class="text-center py-3"><i class="fas fa-spinner fa-spin"></i> جاري التحميل...</div>';
         container.innerHTML = await buildAttributeFields(schema, {});
     });
+
+    // تشغيل تلقائي إذا كانت الخدمة محددة مسبقاً بناءً على نوع المورد (الترشيح الذكي)
+    if (serviceTypeSelect.value) {
+        serviceTypeSelect.dispatchEvent(new Event('change'));
+    }
 }
 
 async function buildAttributeFields(schema, values) {

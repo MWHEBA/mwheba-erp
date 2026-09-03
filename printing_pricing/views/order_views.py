@@ -799,6 +799,9 @@ def approve_order(request, pk):
         # تحديث حالة الطلب
         old_status, new_status = order.update_status('approved', request.user)
         
+        # توليد أمر الشغل التنفيذي لصالة الإنتاج بعد الاعتماد
+        order.create_work_order(user=request.user)
+        
         messages.success(
             request,
             _('تم اعتماد طلب التسعير {} بنجاح').format(order.order_number)
@@ -851,7 +854,6 @@ def duplicate_order(request, pk):
                 width=original_order.width,
                 height=original_order.height,
                 profit_margin=original_order.profit_margin,
-                priority=original_order.priority,
                 currency=original_order.currency,
                 exchange_rate=original_order.exchange_rate,
                 design_service_type=original_order.design_service_type,

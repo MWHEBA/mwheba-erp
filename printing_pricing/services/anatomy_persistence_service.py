@@ -7,7 +7,8 @@ import math
 from django.db import transaction
 from ..models import (
     PrintingOrder, OrderMaterial, OrderService, OrderSummary,
-    PriceUnit, ProductType, ProductSize, PaperSpecification, CoatingType
+    PriceUnit, ProductType, ProductSize, PaperSpecification, CoatingType,
+    PaperSize, PieceSize
 )
 from .pricing_engine import PrintingCalculationEngine
 
@@ -176,16 +177,30 @@ class OrderAnatomyPersistenceService:
                 order.spine_thickness = spine_cm * Decimal('10')  # تخزينه بالـ مم في الموديل
                 open_w += spine_cm  # إضافة الكعب للغلاف المفتوح
             
-            # قراءة مقاس الفرخ القياسي في مصر (70x100 و 60x90 و 57x86 و 66x88)
-            sheet_size_str = post_data.get('sheet_size') or '70x100'
-            if '66x88' in sheet_size_str:
-                sheet_w, sheet_h = Decimal('88.0'), Decimal('66.0')
-            elif '60x90' in sheet_size_str or '90x60' in sheet_size_str or '60x85' in sheet_size_str:
-                sheet_w, sheet_h = Decimal('90.0'), Decimal('60.0')
-            elif '57x86' in sheet_size_str or '86x57' in sheet_size_str:
-                sheet_w, sheet_h = Decimal('86.0'), Decimal('57.0')
+            # الاستعلام الديناميكي لمقاس الفرخ من جدول PaperSize (بدون أي هارد كود)
+            sheet_size_str = post_data.get('sheet_size') or ''
+            paper_size_obj = None
+            if sheet_size_str:
+                if str(sheet_size_str).isdigit():
+                    paper_size_obj = PaperSize.objects.filter(pk=int(sheet_size_str), is_active=True).first()
+                if not paper_size_obj:
+                    paper_size_obj = PaperSize.objects.filter(name__icontains=str(sheet_size_str), is_active=True).first()
+
+            if paper_size_obj:
+                dim1, dim2 = Decimal(str(paper_size_obj.width)), Decimal(str(paper_size_obj.height))
+                sheet_w, sheet_h = max(dim1, dim2), min(dim1, dim2)
             else:
-                sheet_w, sheet_h = Decimal('100.0'), Decimal('70.0')
+                import re
+                dims = [Decimal(d) for d in re.findall(r'\d+(?:\.\d+)?', str(sheet_size_str))]
+                if len(dims) >= 2:
+                    sheet_w, sheet_h = max(dims[0], dims[1]), min(dims[0], dims[1])
+                else:
+                    first_ps = PaperSize.objects.filter(is_active=True).first()
+                    if first_ps:
+                        dim1, dim2 = Decimal(str(first_ps.width)), Decimal(str(first_ps.height))
+                        sheet_w, sheet_h = max(dim1, dim2), min(dim1, dim2)
+                    else:
+                        sheet_w, sheet_h = Decimal('100.0'), Decimal('70.0')
 
             # استدعاء محرك الحسابات الموحد (Single Source of Truth)
             calc_params = dict(post_data)
@@ -1412,31 +1427,15 @@ class OrderAnatomyPersistenceService:
                 )
                 total_finishing_cost += (folder_die + folder_glue)
 
-            # 5. المشال واللوجستيات ونقل الشغلانات بين الورش والكراتين
-            # احتساب المشال ونقل التروسيكلات والسيارات بين الورش
-            ext_services_count = OrderService.objects.filter(order=order, is_active=True).count()
-            # خطوط سير المشال بين الموردين (50 ج لكل مشوار ورشة كحد أدنى لحماية هامش الوكالة)
-            workshop_legs = max(1, min(4, ext_services_count // 2))
-            workshop_freight = Decimal(str(workshop_legs * 50))
-
-            # احتساب كراتين التعبئة بناءً على الوزن التقريبي للورق
-            total_weight_kg = Decimal('0.00')
-            for mat in OrderMaterial.objects.filter(order=order, material_type='paper'):
-                w_kg = (open_w * open_h * paper_weight * mat.quantity) / Decimal('10000000')
-                total_weight_kg += w_kg
-
-            cartons_needed = math.ceil(float(total_weight_kg / Decimal('15.0'))) if total_weight_kg > 0 else 1
-            cartons_cost = Decimal(str(cartons_needed * 15))  # 15 ج للكرتونة الواحدة
-
-            extra_cost_str = post_data.get('extra_cost') or post_data.get('estimated_shipping_cost')
+            # 5. المشال واللوجستيات والنقل اليدوي الصريح (Manual Logistics & Shipping)
+            extra_cost_str = post_data.get('extra_cost') or post_data.get('shipping_cost') or post_data.get('logistics_cost') or post_data.get('estimated_shipping_cost')
             if extra_cost_str:
                 try:
-                    shipping_cost = Decimal(str(extra_cost_str))
-                except:
+                    shipping_cost = Decimal(str(extra_cost_str)).quantize(Decimal('0.01'))
+                except Exception:
                     shipping_cost = Decimal('0.00')
             else:
-                client_shipping = Decimal('100.00') if total_weight_kg > 30 else Decimal('50.00')
-                shipping_cost = client_shipping + workshop_freight + cartons_cost
+                shipping_cost = Decimal('0.00')
 
             # 6. الحساب الإجمالي وتحديث OrderSummary بالجنيه المصري (EGP) حصراً
             subtotal_cost = total_materials_cost + total_printing_cost + total_finishing_cost + shipping_cost

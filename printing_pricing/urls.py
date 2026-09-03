@@ -19,6 +19,7 @@ from .views.api_views import (
     SaveOrderServiceSupplierAPIView,
     BulkPriceUpdateAPIView,
     GenerateVendorPOsAPIView,
+    ApprovedOrdersAPIView,
 )
 
 # استيراد عروض الإعدادات
@@ -66,6 +67,7 @@ api_patterns = [
     # APIs للحقول الديناميكية ومعلومات العميل
     path('get-customers/', GetCustomersAPIView.as_view(), name='api_get_customers'),
     path('customer-info/<int:customer_id>/', CustomerInfoAPIView.as_view(), name='api_customer_info'),
+    path('approved-orders/', ApprovedOrdersAPIView.as_view(), name='api_approved_orders'),
     path('get-product-types/', GetProductTypesAPIView.as_view(), name='api_get_product_types'),
     path('get-product-sizes/', GetProductSizesAPIView.as_view(), name='api_get_product_sizes'),
     

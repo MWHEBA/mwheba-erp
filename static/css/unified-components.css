@@ -3185,3 +3185,11 @@ html[dir="rtl"] .border-right-danger {
         margin-bottom: 0.75rem;
     }
 }
+
+/* تحويل أيقونات أزرار التبديل الراديو للون الأبيض عند التفعيل */
+.btn-check:checked + .btn i,
+.btn-check:checked + .btn .fa,
+.btn-check:checked + .btn .fas,
+.btn-check:checked + .btn .far {
+    color: var(--white) !important;
+}

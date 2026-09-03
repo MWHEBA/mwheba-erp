@@ -1205,7 +1205,7 @@ document.addEventListener('DOMContentLoaded', function() {
         select.empty().append('<option value="">{% trans "اختر طلب التسعير..." %}</option>');
         if (data.orders && data.orders.length > 0) {
           data.orders.forEach(o => {
-            select.append(`<option value="${o.id}" data-title="${o.title}" data-qty="${o.quantity}" data-price="${o.final_price}" data-unit="${o.unit_price}">${o.order_number} - ${o.title} (${o.customer_name}) - ${o.final_price} ج.م</option>`);
+            select.append(`<option value="${o.id}" data-title="${o.title}" data-qty="${o.quantity}" data-price="${o.final_price}" data-unit="${o.unit_price}" data-product="${o.product_id}">${o.order_number} - ${o.title} (${o.customer_name}) - ${o.final_price} ج.م</option>`);
           });
         } else {
           select.append('<option value="" disabled>{% trans "لا توجد طلبات تسعير معتمدة جاهزة" %}</option>');
@@ -1233,9 +1233,19 @@ document.addEventListener('DOMContentLoaded', function() {
     const title = opt.data('title');
     const qty = opt.data('qty');
     const unitPrice = opt.data('unit');
+    const productId = opt.data('product');
 
     $('#add-item-btn').trigger('click');
     const lastRow = $('#items-container .item-row:last');
+    
+    // اختيار الصنف المرجعي لمنع خطأ التحقق
+    const prodSelect = lastRow.find('select[name$="-product"]');
+    if (productId && prodSelect.find(`option[value="${productId}"]`).length) {
+      prodSelect.val(productId).trigger('change');
+    } else if (prodSelect.length && prodSelect.find('option:not([value=""]):first').length) {
+      prodSelect.val(prodSelect.find('option:not([value=""]):first').val()).trigger('change');
+    }
+
     lastRow.find('.item-description, textarea[name$="-description"]').val(title);
     lastRow.find('input[name$="-quantity"]').val(qty).trigger('input');
     lastRow.find('input[name$="-unit_price"]').val(unitPrice).trigger('input');

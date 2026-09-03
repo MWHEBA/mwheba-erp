@@ -12,7 +12,17 @@ class PrintingPricingConfig(AppConfig):
     
     def ready(self):
         """
-        تهيئة الوحدة عند بدء التشغيل
+        تهيئة الوحدة عند بدء التشغيل وربط إشارة ترحيل قاعدة البيانات
         """
-        # يمكن إضافة signals هنا لاحقاً
-        pass
+        from django.db.models.signals import post_migrate
+
+        def on_post_migrate(sender, **kwargs):
+            try:
+                from core.models import SystemModule
+                if SystemModule.objects.filter(code='printing_pricing', is_enabled=True).exists():
+                    from printing_pricing.services.supplier_seeder_service import PricingSupplierSeederService
+                    PricingSupplierSeederService.seed_all()
+            except Exception:
+                pass
+
+        post_migrate.connect(on_post_migrate, sender=self)

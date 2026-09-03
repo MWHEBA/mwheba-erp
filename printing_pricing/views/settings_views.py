@@ -33,12 +33,21 @@ from django.db.models import Q
 # ==================== Mixins مشتركة ====================
 
 class AjaxDeleteMixin:
-    """Mixin لإضافة دعم AJAX للـ DeleteViews"""
+    """Mixin لإضافة دعم AJAX للـ DeleteViews مع تمرير متغيرات الكائن بدقة"""
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         model_name = self.model._meta.model_name
         context[model_name] = self.object
+        context['item'] = self.object
+        context['object'] = self.object
+        
+        # تمرير الاسم بـ snake_case أيضاً (مثل product_type بدلاً من producttype)
+        import re
+        s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', self.model.__name__)
+        snake_name = re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
+        context[snake_name] = self.object
+        
         context['action_url'] = self.request.path
         return context
 
@@ -60,18 +69,26 @@ class AjaxDeleteMixin:
 
 
 class AjaxFormMixin:
-    """Mixin يضيف AJAX support لـ CreateView و UpdateView تلقائياً"""
+    """Mixin يضيف AJAX support لـ CreateView و UpdateView تلقائياً مع دعم إعادة رسم الفورم بالأخطاء"""
 
     def form_valid(self, form):
         response = super().form_valid(form)
         if self.request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             model_verbose_name = self.model._meta.verbose_name
-            return JsonResponse({'success': True, 'message': _('تم الحفظ بنجاح — {}').format(model_verbose_name)})
+            return JsonResponse({'success': True, 'message': _('تم حفظ {} بنجاح').format(model_verbose_name)})
         return response
 
     def form_invalid(self, form):
         if self.request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return JsonResponse({'success': False, 'errors': form.errors})
+            from django.template.loader import render_to_string
+            context = self.get_context_data(form=form)
+            rendered_html = render_to_string(self.template_name, context, request=self.request)
+            return JsonResponse({
+                'success': False,
+                'html': rendered_html,
+                'errors': form.errors,
+                'message': _('يرجى تصحيح الأخطاء الموضحة بالنموذج')
+            })
         return super().form_invalid(form)
 
 from ..models import (
@@ -796,9 +813,10 @@ class PieceSizeListView(LoginRequiredMixin, ListView):
         context['page_title'] = _('مقاسات القطع')
         context['page_icon'] = 'fas fa-cut'
         context['page_subtitle'] = _('إدارة مقاسات القطع المتاحة')
+        create_url = reverse_lazy('printing_pricing:piece_size_create')
         context['header_buttons'] = [
             {
-                'onclick': 'openCreateModal()',
+                'onclick': f"SettingsCRUD.openCreateModal('{create_url}')",
                 'icon': 'fa-plus',
                 'text': _('إضافة جديد'),
                 'class': 'btn-primary',
@@ -807,11 +825,11 @@ class PieceSizeListView(LoginRequiredMixin, ListView):
         context['breadcrumb_items'] = [
             {
                 'title': _('الرئيسية'),
-                'url': '/',
+                'url': reverse_lazy('core:dashboard'),
                 'icon': 'fas fa-home'
             },
             {
-                'title': _('الإعدادات'),
+                'title': _('إعدادات التسعير'),
                 'url': reverse_lazy('printing_pricing:settings_home'),
                 'icon': 'fas fa-cog'
             },

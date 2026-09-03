@@ -1444,3 +1444,36 @@ class GenerateVendorPOsAPIView(BaseAPIView):
         except Exception as e:
             return self.handle_exception(e, "GenerateVendorPOsAPIView.post")
 
+
+class ApprovedOrdersAPIView(BaseAPIView):
+    """
+    API جلب طلبات التسعير المعتمدة لربطها بشاشات المبيعات وعروض الأسعار
+    """
+    def get(self, request):
+        try:
+            customer_id = request.GET.get('customer_id')
+            qs = PrintingOrder.objects.filter(status='approved', is_active=True).select_related('customer')
+            if customer_id:
+                qs = qs.filter(customer_id=customer_id)
+
+            from product.models import Product
+            generic_prod = Product.objects.filter(type='service', is_active=True).first() if hasattr(Product, 'type') else Product.objects.filter(is_active=True).first()
+            prod_id = generic_prod.id if generic_prod else ""
+
+            orders_data = []
+            for o in qs[:50]:
+                u_price = round((o.final_price or Decimal('0.00')) / o.quantity, 4) if o.quantity else Decimal('0.00')
+                orders_data.append({
+                    'id': o.id,
+                    'order_number': o.order_number,
+                    'title': o.title or _("طلب مطبوعات"),
+                    'customer_name': o.customer.name if o.customer else (o.customer_name or _("عميل نقدي")),
+                    'quantity': o.quantity,
+                    'final_price': str(o.final_price or 0),
+                    'unit_price': str(u_price),
+                    'product_id': prod_id,
+                })
+            return JsonResponse({'success': True, 'orders': orders_data})
+        except Exception as e:
+            return self.handle_exception(e, "ApprovedOrdersAPIView.get")
+

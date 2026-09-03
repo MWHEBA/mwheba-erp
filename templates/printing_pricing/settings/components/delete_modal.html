@@ -1,0 +1,37 @@
+{% load i18n %}
+<!-- مودال تأكيد الحذف الموحد طبقاً لمعايير AGENTS.md (البند 8) -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-light border-bottom px-4 py-3">
+                <h5 class="modal-title fw-bold text-dark mb-0" id="deleteModalLabel">
+                    <i class="fas fa-exclamation-triangle text-danger me-2"></i>
+                    {% trans "تأكيد الحذف" %}
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{% trans 'إغلاق' %}"></button>
+            </div>
+            <form method="post" action="" id="deleteForm">
+                {% csrf_token %}
+                <div class="modal-body p-4">
+                    <p class="mb-2 text-secondary">{% trans "هل أنت متأكد من رغبتك في حذف هذا العنصر؟" %}</p>
+                    <div class="alert alert-light border py-2 px-3 fw-bold text-dark text-truncate" id="deleteItemName">
+                        <!-- اسم العنصر المراد حذفه -->
+                    </div>
+                    <small class="text-danger d-block mt-2">
+                        <i class="fas fa-info-circle me-1"></i>
+                        {% trans "ملاحظة: لا يمكن التراجع عن هذه العملية في حال اكتمالها." %}
+                    </small>
+                </div>
+                <div class="modal-footer bg-light border-top px-4 py-3">
+                    <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">
+                        {% trans "إلغاء" %}
+                    </button>
+                    <button type="submit" class="btn btn-danger px-4 fw-bold" id="confirmDeleteBtn">
+                        <i class="fas fa-trash-alt me-1"></i>
+                        {% trans "تأكيد الحذف" %}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

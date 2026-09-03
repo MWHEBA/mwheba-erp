@@ -822,8 +822,52 @@ class SupplierTypeSettings(models.Model):
 
     @classmethod
     def create_default_types(cls):
-        """إنشاء الأنواع الافتراضية للنظام"""
-        return cls.create_company_supplier_types()
+        """إنشاء الأنواع الافتراضية للنظام بأمان وبدون أخطاء"""
+        base_defaults = [
+            {
+                'name': _("مورد منتجات"),
+                'code': 'product_supplier',
+                'description': _("موردي المنتجات والمواد الخام"),
+                'icon': 'fas fa-boxes',
+                'color': '#007bff',
+                'display_order': 1,
+                'is_active': True,
+                'is_system': True,
+                'is_service_provider': False,
+            },
+            {
+                'name': _("مقدم خدمات"),
+                'code': 'service_provider',
+                'description': _("مقدمي خدمات الصيانة والتنظيف والأمن والخدمات العامة"),
+                'icon': 'fas fa-tools',
+                'color': '#ffc107',
+                'display_order': 2,
+                'is_active': True,
+                'is_system': True,
+                'is_service_provider': True,
+            },
+        ]
+        created_count = 0
+        for item in base_defaults:
+            obj, created = cls.objects.get_or_create(
+                code=item['code'],
+                defaults=item
+            )
+            if created:
+                created_count += 1
+            obj.sync_with_supplier_type()
+
+        # إذا كان موديول التسعير مفعلاً، قم أيضاً ببذر أنواع الطباعة
+        try:
+            from core.models import SystemModule
+            if SystemModule.objects.filter(code='printing_pricing', is_enabled=True).exists():
+                from printing_pricing.services.supplier_seeder_service import PricingSupplierSeederService
+                pricing_created = PricingSupplierSeederService.seed_supplier_types()
+                created_count += pricing_created
+        except Exception as e:
+            logger.warning(f"تخطي بذر أنواع التسعير أثناء create_default_types: {e}")
+
+        return created_count
 
 
 # ========================================

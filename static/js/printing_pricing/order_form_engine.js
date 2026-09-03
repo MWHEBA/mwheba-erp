@@ -164,62 +164,7 @@ const PricingMath = {
 };
 
 // ============================================================================
-// 2. كتالوج القوالب السريعة (Presets Catalog)
-// ============================================================================
-const PRESETS_DATA = {
-  business_card: {
-    type: 'flyer', title: 'كروت شخصية', qty: 1000,
-    size_keyword: 'كارت', orientation: 'landscape',
-    w: 9, h: 5, paper: 'couche', weight: '350', sheet: '70x100',
-    front_c: 4, back_c: 4, plates: 4, lam: 'matte_2_sides', finishing: 'spot_uv', die: 'straight_cut',
-    inner_pages: 0, inner_paper: 'couche', inner_weight: '135', binding: 'none'
-  },
-  flyer_a5: {
-    type: 'flyer', title: 'فلاير A5', qty: 5000,
-    size_keyword: 'A5', orientation: 'portrait', is_closed: false, open_dir: 'right',
-    w: 14.8, h: 21, paper: 'couche', weight: '150', sheet: '70x100',
-    front_c: 4, back_c: 4, plates: 4, lam: 'none', finishing: 'none', die: 'straight_cut',
-    inner_pages: 0, inner_paper: 'couche', inner_weight: '135', binding: 'none'
-  },
-  brochure_trifold: {
-    type: 'flyer', title: 'بروشور 3 بوابة', qty: 2500,
-    size_keyword: 'بروشور', orientation: 'portrait', is_closed: true, open_dir: 'right',
-    w: 21, h: 29.7, paper: 'couche', weight: '170', sheet: '70x100',
-    front_c: 4, back_c: 4, plates: 4, lam: 'matte_2_sides', finishing: 'none', die: 'creasing_2',
-    inner_pages: 0, inner_paper: 'couche', inner_weight: '135', binding: 'none'
-  },
-  folder_pocket: {
-    type: 'folder', title: 'فولدر', qty: 1000,
-    size_keyword: 'فولدر', orientation: 'portrait', is_closed: true, open_dir: 'right',
-    w: 22, h: 31, paper: 'couche', weight: '350', sheet: '70x100',
-    front_c: 4, back_c: 0, plates: 4, lam: 'matte_1_side', finishing: 'spot_uv', die: 'die_cut_custom',
-    inner_pages: 4, inner_paper: 'couche', inner_weight: '350', binding: 'none'
-  },
-  catalog_64p: {
-    type: 'catalog', title: 'كتالوج', qty: 1000,
-    size_keyword: 'A4', orientation: 'portrait', is_closed: true, open_dir: 'right',
-    w: 21, h: 29.7, paper: 'couche', weight: '300', sheet: '70x100',
-    front_c: 4, back_c: 4, plates: 4, lam: 'matte_1_side', finishing: 'none', die: 'straight_cut',
-    inner_pages: 32, inner_paper: 'couche', inner_weight: '135', binding: 'staple'
-  },
-  ncr_invoice: {
-    type: 'invoice', title: 'دفاتر مكربن', qty: 50,
-    size_keyword: 'A4', orientation: 'portrait', is_closed: false, open_dir: 'top',
-    w: 21, h: 29.7, paper: 'woodfree', weight: '80', sheet: '70x100',
-    front_c: 1, back_c: 0, plates: 1, lam: 'none', finishing: 'none', die: 'straight_cut',
-    inner_pages: 50, inner_paper: 'woodfree', inner_weight: '80', binding: 'staple'
-  },
-  giveaways_pen_mug: {
-    type: 'giveaways', title: 'هدايا دعائية و UV', qty: 100,
-    size_keyword: 'custom', orientation: 'portrait', is_closed: false, open_dir: 'right',
-    w: 10, h: 10, paper: 'couche', weight: '300', sheet: '70x100',
-    front_c: 4, back_c: 0, plates: 0, lam: 'none', finishing: 'none', die: 'straight_cut',
-    inner_pages: 0, inner_paper: 'couche', inner_weight: '300', binding: 'none'
-  }
-};
-
-// ============================================================================
-// 3. كلاس التحكم بالواجهة والأحداث (UI & Event Orchestrator)
+// 2. كلاس التحكم بالواجهة والأحداث (UI & Event Orchestrator)
 // ============================================================================
 class OrderFormUIController {
   constructor(config = {}) {
@@ -254,7 +199,6 @@ class OrderFormUIController {
     this.isPaperCascadeUpdating = false;
     this.isUserInteracting = false;
     this.isRestoringDraft = false;
-    this.isPresetApplying = false;
     this.isManualSheetsActive = false;
     this.manualGrossSheets = null;
     this.activePaperAbort = null;
@@ -346,7 +290,7 @@ class OrderFormUIController {
     const self = this;
 
     // 1. مراقبة تغيير نوع المطبوع
-    $(document).on('change select2:select', '#id_order_type, #id_job_anatomy_type', function () {
+    $(document).on('change select2:select', '#id_product_type, #id_order_type, #id_job_anatomy_type', function () {
       const selectEl = this;
       const archetype = selectEl.options[selectEl.selectedIndex]?.dataset?.archetype || selectEl.value;
       self.handleAnatomySwitch(archetype);
@@ -359,36 +303,45 @@ class OrderFormUIController {
       self.debouncedRecalculate();
     });
 
-    // 3. مراقبة العميل وتصنيف B2B
-    $(document).on('change select2:select', '#id_customer', function () {
-      const selected = this.options[this.selectedIndex];
-      const badge = document.getElementById('customer_badge_info');
-      const phone = document.getElementById('cust_phone_text');
-      const tierBadge = document.getElementById('cust_tier_badge');
+    // 3. التبديل بين العميل المسجل والعميل النقدي
+    $(document).on('change', '#id_is_cash_customer', function () {
+      const isCash = this.checked;
+      const regWrap = document.getElementById('wrapper_registered_customer');
+      const cashWrap = document.getElementById('wrapper_cash_customer');
+      const custSelect = $('#id_customer');
+      const custNameInput = document.getElementById('id_customer_name');
+      const labelText = document.getElementById('text_customer_label');
 
-      if (selected && selected.value) {
-        if (badge) badge.classList.remove('d-none');
-        if (phone) phone.textContent = selected.dataset.phone || '';
-        if (tierBadge) {
-          const isB2b = selected.dataset.isB2b === 'true';
-          tierBadge.textContent = isB2b ? 'وكالة / تاجر (B2B)' : 'عميل مباشر';
-          tierBadge.className = isB2b
-            ? 'badge bg-primary-subtle text-primary border border-primary-subtle me-1'
-            : 'badge bg-light text-dark border me-1';
+      if (isCash) {
+        if (regWrap) regWrap.classList.add('d-none');
+        if (cashWrap) cashWrap.classList.remove('d-none');
+        if (labelText) labelText.textContent = 'اسم العميل النقدي';
+        custSelect.val('').trigger('change');
+        if (custNameInput) {
+          custNameInput.focus();
+          custNameInput.required = true;
         }
       } else {
-        if (badge) badge.classList.add('d-none');
+        if (cashWrap) cashWrap.classList.add('d-none');
+        if (regWrap) regWrap.classList.remove('d-none');
+        if (labelText) labelText.textContent = 'العميل';
+        if (custNameInput) {
+          custNameInput.value = '';
+          custNameInput.required = false;
+        }
       }
-      self.debouncedRecalculate();
     });
 
-    // 4. أزرار القوالب السريعة
-    $(document).on('click', '.preset-btn', function () {
-      const presetKey = this.dataset.preset;
-      self.applyPreset(presetKey);
+    // مزامنة اسم العميل عند اختيار عميل مسجل
+    $(document).on('change select2:select', '#id_customer', function () {
+      const selected = this.options[this.selectedIndex];
+      const custNameInput = document.getElementById('id_customer_name');
+      if (selected && selected.value && custNameInput) {
+        custNameInput.value = selected.dataset.name || selected.text.trim();
+      }
     });
 
-    // 5. اتجاه الطباعة والمقاس المقفول وجهة الفتح
+    // 4. اتجاه الطباعة والمقاس المقفول وجهة الفتح
     $(document).on('change', 'input[name="print_orientation"]', function () {
       const sizeSelect = document.getElementById('id_product_size');
       const widthInput = document.getElementById('id_width');
@@ -680,7 +633,6 @@ class OrderFormUIController {
    */
   handleAnatomySwitch(type) {
     const cardStep3 = document.getElementById('card_step3_inner');
-    const cardStep4 = document.getElementById('card_step4_giveaways');
     const innerBook = document.getElementById('inner_book_section');
     const innerFolder = document.getElementById('inner_folder_section');
     const innerNcr = document.getElementById('inner_ncr_section');
@@ -707,25 +659,21 @@ class OrderFormUIController {
 
     if (type === 'flyer' || type === 'single_sheet' || type === 'brochure' || type === 'business_card') {
       if (cardStep3) cardStep3.classList.add('d-none');
-      if (cardStep4) cardStep4.classList.add('d-none');
       if (headerTitle) headerTitle.textContent = `2. ${this.config.i18n.step2Print}`;
     } else if (type === 'catalog' || type === 'book' || type === 'magazine' || type === 'book_catalog') {
       if (cardStep3) cardStep3.classList.remove('d-none');
-      if (cardStep4) cardStep4.classList.add('d-none');
       if (innerBook) innerBook.classList.remove('d-none');
       if (innerFolder) innerFolder.classList.add('d-none');
       if (innerNcr) innerNcr.classList.add('d-none');
       if (headerTitle) headerTitle.textContent = `2. ${this.config.i18n.step2Cover}`;
     } else if (type === 'folder' || type === 'box' || type === 'folder_packaging') {
       if (cardStep3) cardStep3.classList.remove('d-none');
-      if (cardStep4) cardStep4.classList.add('d-none');
       if (innerBook) innerBook.classList.add('d-none');
       if (innerFolder) innerFolder.classList.remove('d-none');
       if (innerNcr) innerNcr.classList.add('d-none');
       if (headerTitle) headerTitle.textContent = `2. ${this.config.i18n.step2Folder}`;
     } else if (type === 'invoice' || type === 'receipt' || type === 'ncr') {
       if (cardStep3) cardStep3.classList.remove('d-none');
-      if (cardStep4) cardStep4.classList.add('d-none');
       if (innerBook) innerBook.classList.add('d-none');
       if (innerFolder) innerFolder.classList.add('d-none');
       if (innerNcr) innerNcr.classList.remove('d-none');
@@ -736,163 +684,13 @@ class OrderFormUIController {
         innerPrintSelect.value = 'offset';
         $(innerPrintSelect).trigger('change');
       }
-    } else if (type === 'giveaways' || type === 'gift' || type === 'promo') {
-      if (cardStep3) cardStep3.classList.add('d-none');
-      if (cardStep4) cardStep4.classList.remove('d-none');
-      if (headerTitle) headerTitle.textContent = `2. ${this.config.i18n.step2Giveaways}`;
     }
 
     this.updatePrintingTypeUI();
     this.updateOpenDimensionsDisplay();
   }
 
-  /**
-   * تطبيق القوالب السريعة
-   */
-  applyPreset(presetKey) {
-    const p = PRESETS_DATA[presetKey];
-    if (!p) return;
 
-    this.isPresetApplying = true;
-    try {
-      // مزامنة نوع المطبوع
-    const anatomySelect = document.getElementById('id_order_type') || document.getElementById('id_job_anatomy_type');
-    if (anatomySelect) {
-      let matchedVal = null;
-      for (let i = 0; i < anatomySelect.options.length; i++) {
-        if (anatomySelect.options[i].dataset.archetype === p.type) {
-          matchedVal = anatomySelect.options[i].value;
-          break;
-        }
-      }
-      if (matchedVal) {
-        $(anatomySelect).val(matchedVal).trigger('change');
-      } else {
-        $(anatomySelect).val(p.type).trigger('change');
-      }
-      this.handleAnatomySwitch(p.type);
-    }
-
-    // مزامنة اتجاه الطباعة
-    if (p.orientation === 'landscape') {
-      const landRadio = document.getElementById('orient_landscape');
-      if (landRadio) landRadio.checked = true;
-    } else {
-      const portRadio = document.getElementById('orient_portrait');
-      if (portRadio) portRadio.checked = true;
-    }
-
-    // مزامنة المقاس المقفول وجهة الفتح
-    const closedSwitch = document.getElementById('id_is_closed_size');
-    if (closedSwitch && p.is_closed !== undefined) {
-      closedSwitch.checked = p.is_closed;
-    }
-    if (p.open_dir) {
-      const dirRadio = document.querySelector(`input[name="open_direction"][value="${p.open_dir}"]`);
-      if (dirRadio) dirRadio.checked = true;
-    }
-
-    // مزامنة مقاس المطبوع
-    const sizeSelect = document.getElementById('id_product_size');
-    if (sizeSelect) {
-      let matchedSizeVal = 'custom';
-      for (let i = 0; i < sizeSelect.options.length; i++) {
-        if (p.size_keyword && p.size_keyword !== 'custom' && sizeSelect.options[i].text.includes(p.size_keyword)) {
-          matchedSizeVal = sizeSelect.options[i].value;
-          break;
-        }
-      }
-      $(sizeSelect).val(matchedSizeVal).trigger('change');
-    }
-
-    if (document.getElementById('id_title') && !document.getElementById('id_title').value) {
-      document.getElementById('id_title').value = p.title;
-    }
-    // تحديد نوع الورق بذكاء بمطابقة الاسم العربي
-    const paperSelect = document.getElementById('id_paper_type');
-    if (paperSelect && p.paper) {
-      const targetPaper = (p.paper === 'couche') ? 'كوشيه' : ((p.paper === 'woodfree') ? 'طبع' : p.paper);
-      let matchedVal = null;
-      for (let i = 0; i < paperSelect.options.length; i++) {
-        if (paperSelect.options[i].text.includes(targetPaper) || paperSelect.options[i].value === p.paper) {
-          matchedVal = paperSelect.options[i].value;
-          break;
-        }
-      }
-      $(paperSelect).val(matchedVal || p.paper).trigger('change');
-    }
-
-    // تحديد مقاس الفرخ بذكاء
-    const sheetSelect = document.getElementById('id_sheet_size');
-    if (sheetSelect && p.sheet) {
-      let matchedSheetVal = null;
-      for (let i = 0; i < sheetSelect.options.length; i++) {
-        if (sheetSelect.options[i].value === p.sheet || (sheetSelect.options[i].text.includes('70') && sheetSelect.options[i].text.includes('100'))) {
-          matchedSheetVal = sheetSelect.options[i].value;
-          break;
-        }
-      }
-      if (matchedSheetVal) $(sheetSelect).val(matchedSheetVal).trigger('change');
-    }
-
-    // تحديد وزن الورق بذكاء مع fallback لأقرب وزن مسجل
-    const weightSelect = document.getElementById('id_paper_weight');
-    if (weightSelect && p.weight) {
-      let matchedWeight = null;
-      let closestWeight = null;
-      let minDiff = 999999;
-      const targetGsm = parseInt(p.weight) || 300;
-      for (let i = 0; i < weightSelect.options.length; i++) {
-        const optVal = weightSelect.options[i].value;
-        const optGsm = parseInt(optVal);
-        if (optVal === p.weight || (optGsm && optGsm === targetGsm)) {
-          matchedWeight = optVal;
-          break;
-        }
-        if (optGsm) {
-          const diff = Math.abs(optGsm - targetGsm);
-          if (diff < minDiff) {
-            minDiff = diff;
-            closestWeight = optVal;
-          }
-        }
-      }
-      $(weightSelect).val(matchedWeight || closestWeight || p.weight).trigger('change');
-    }
-
-    // تحديد نوع ووزن الورق الداخلي بذكاء
-    const innerPaperSelect = document.getElementById('id_inner_paper_type');
-    if (innerPaperSelect && p.inner_paper) {
-      const targetInner = (p.inner_paper === 'couche') ? 'كوشيه' : ((p.inner_paper === 'woodfree') ? 'طبع' : p.inner_paper);
-      let matchedInnerVal = null;
-      for (let i = 0; i < innerPaperSelect.options.length; i++) {
-        if (innerPaperSelect.options[i].text.includes(targetInner) || innerPaperSelect.options[i].value === p.inner_paper) {
-          matchedInnerVal = innerPaperSelect.options[i].value;
-          break;
-        }
-      }
-      $(innerPaperSelect).val(matchedInnerVal || p.inner_paper).trigger('change');
-    }
-
-    const innerWeightSelect = document.getElementById('id_inner_paper_weight');
-    if (innerWeightSelect && p.inner_weight) {
-      $(innerWeightSelect).val(p.inner_weight).trigger('change');
-    }
-    if (document.getElementById('id_colors_front')) document.getElementById('id_colors_front').value = p.front_c;
-    if (document.getElementById('id_colors_back')) document.getElementById('id_colors_back').value = p.back_c;
-    if (document.getElementById('id_plate_count')) document.getElementById('id_plate_count').value = p.plates;
-    if (document.getElementById('id_lamination')) $(document.getElementById('id_lamination')).val(p.lam).trigger('change');
-    if (document.getElementById('id_finishing')) $(document.getElementById('id_finishing')).val(p.finishing).trigger('change');
-    if (document.getElementById('id_die_cutting')) $(document.getElementById('id_die_cutting')).val(p.die).trigger('change');
-    if (document.getElementById('id_pages_count')) document.getElementById('id_pages_count').value = p.inner_pages;
-    if (document.getElementById('id_binding_type')) $(document.getElementById('id_binding_type')).val(p.binding).trigger('change');
-
-      this.applySelectedProductSize();
-      this.debouncedRecalculate();
-    } finally {
-      this.isPresetApplying = false;
-    }
-  }
 
   /**
    * تطبيق مقاس المطبوع المختار والقفل الذكي
@@ -1704,7 +1502,7 @@ class OrderFormUIController {
    * الحقل 1: معالجة تغيير نوع الورق وجلب الموردين المتاح لديهم هذه الخامة
    */
   handlePaperTypeChange(userDriven = false) {
-    if (this.isPaperCascadeUpdating || this.isPresetApplying) return;
+    if (this.isPaperCascadeUpdating) return;
     const self = this;
     const paperTypeId = $('#id_paper_type').val();
 
@@ -1769,7 +1567,7 @@ class OrderFormUIController {
    * الحقل 2: معالجة اختيار مورد الورق وجلب مقاسات الفرخ المتوفرة لديه
    */
   handlePaperSupplierChange(userDriven = false) {
-    if (this.isPaperCascadeUpdating || this.isPresetApplying) return;
+    if (this.isPaperCascadeUpdating) return;
     const self = this;
     const supplierId = $('#id_paper_supplier').val();
     const paperTypeId = $('#id_paper_type').val();
@@ -1853,7 +1651,7 @@ class OrderFormUIController {
    * الحقل 3: معالجة مقاس الفرخ وجلب الأوزان المتاحة واقتراح مقاس القطع
    */
   handleSheetSizeChange(userDriven = false) {
-    if (this.isPaperCascadeUpdating || this.isPresetApplying) return;
+    if (this.isPaperCascadeUpdating) return;
     const self = this;
     const supplierId = $('#id_paper_supplier').val();
     const paperTypeId = $('#id_paper_type').val();
@@ -1922,7 +1720,7 @@ class OrderFormUIController {
    * الحقل 4: معالجة جرام الورق واستدعاء السعر المباشر
    */
   handlePaperWeightChange(userDriven = false) {
-    if (this.isPaperCascadeUpdating || this.isPresetApplying) return;
+    if (this.isPaperCascadeUpdating) return;
     this.updateResolvedPackCapacity(false, 'weight');
     this.fetchLivePaperPrice();
     this.debouncedRecalculate();
@@ -2287,7 +2085,7 @@ class OrderFormUIController {
    */
   recalculate() {
     const qty = PricingMath.parseSafeNumber(document.getElementById('id_quantity')?.value, 1000);
-    const selectEl = document.getElementById('id_order_type') || document.getElementById('id_job_anatomy_type');
+    const selectEl = document.getElementById('id_product_type') || document.getElementById('id_order_type') || document.getElementById('id_job_anatomy_type');
     const type = selectEl?.options[selectEl.selectedIndex]?.dataset?.archetype || selectEl?.value || 'flyer';
     const openDir = document.querySelector('input[name="open_direction"]:checked')?.value || 'right';
 
@@ -2765,20 +2563,12 @@ class OrderFormUIController {
     // حساب إجمالي تكلفة كل قسم على حدة لشارات الهيدر
     const step2Cost = costCoverPaper + costPrintingCover + costFinishing + costCoverDie;
     const step3Cost = costInnerPaper + costPrintingInner + costInnerBinding;
-    const step4Cost = costGiveaways;
-    const step5Cost = costLogistics;
 
     const badgeStep2 = document.getElementById('step2_cost_badge');
     if (badgeStep2) badgeStep2.textContent = this.formatMoney(step2Cost);
 
     const badgeStep3 = document.getElementById('step3_cost_badge');
     if (badgeStep3) badgeStep3.textContent = this.formatMoney(step3Cost);
-
-    const badgeStep4 = document.getElementById('step4_cost_badge');
-    if (badgeStep4) badgeStep4.textContent = this.formatMoney(step4Cost);
-
-    const badgeStep5 = document.getElementById('step5_cost_badge');
-    if (badgeStep5) badgeStep5.textContent = this.formatMoney(step5Cost);
 
     // الإجمالي النهائي وهامش الربح
     const totalCost = costPaper + costPrinting + costFinishing + costBinding + costLogistics + costGiveaways;
@@ -3089,5 +2879,4 @@ class OrderFormUIController {
 
 // تصدير الكائن للنطاق العام
 window.PricingMath = PricingMath;
-window.PRESETS_DATA = PRESETS_DATA;
 window.OrderFormUIController = OrderFormUIController;

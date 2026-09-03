@@ -1,76 +1,168 @@
 {% load i18n %}
 {% load django_bootstrap5 %}
 
-<div class="modal-header">
-    <h5 class="modal-title">
-        <i class="fas fa-cut me-2 text-primary"></i>{{ title }}
+<!-- هيدر المودال الفاتح الموحد طبقاً للبند 8 -->
+<div class="modal-header bg-light border-bottom px-4 py-3">
+    <h5 class="modal-title fw-bold text-dark mb-0">
+        <i class="fas fa-cut text-primary me-2"></i>
+        {{ title|default:_("مقاس القطع") }}
     </h5>
-    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{% trans 'إغلاق' %}"></button>
 </div>
 
-<form id="pieceSizeForm" method="post" action="{{ action_url }}">
-    <div class="modal-body">
+<form id="pieceSizeForm" method="post" action="{{ action_url }}" onsubmit="event.preventDefault(); return SettingsCRUD.submitForm(this);">
+    <div class="modal-body p-4">
         {% csrf_token %}
         
-        {% bootstrap_field form.name %}
-        
-        <div class="row">
-            <div class="col-md-6">
-                <div class="mb-3">
-                    <label for="{{ form.width.id_for_label }}" class="form-label">{{ form.width.label }}</label>
-                    <div class="input-group">
-                        {{ form.width }}
-                        <span class="input-group-text">سم</span>
-                    </div>
-                    <div class="invalid-feedback"></div>
-                </div>
-            </div>
-            <div class="col-md-6">
-                <div class="mb-3">
-                    <label for="{{ form.height.id_for_label }}" class="form-label">{{ form.height.label }}</label>
-                    <div class="input-group">
-                        {{ form.height }}
-                        <span class="input-group-text">سم</span>
-                    </div>
-                    <div class="invalid-feedback"></div>
-                </div>
-            </div>
+        <div class="mb-3">
+            <label for="{{ form.name.id_for_label }}" class="form-label fw-semibold text-dark">{{ form.name.label }}</label>
+            {{ form.name }}
+            {% if form.name.errors %}
+                <div class="invalid-feedback d-block">{{ form.name.errors.0 }}</div>
+            {% endif %}
         </div>
         
-        {% bootstrap_field form.paper_type %}
+        <div class="row g-3 mb-3">
+            <div class="col-md-6">
+                <label for="{{ form.width.id_for_label }}" class="form-label fw-semibold text-dark">{{ form.width.label }}</label>
+                <div class="input-group">
+                    {{ form.width }}
+                    <span class="input-group-text bg-light text-muted">سم</span>
+                </div>
+                {% if form.width.errors %}
+                    <div class="invalid-feedback d-block">{{ form.width.errors.0 }}</div>
+                {% endif %}
+            </div>
+            <div class="col-md-6">
+                <label for="{{ form.height.id_for_label }}" class="form-label fw-semibold text-dark">{{ form.height.label }}</label>
+                <div class="input-group">
+                    {{ form.height }}
+                    <span class="input-group-text bg-light text-muted">سم</span>
+                </div>
+                {% if form.height.errors %}
+                    <div class="invalid-feedback d-block">{{ form.height.errors.0 }}</div>
+                {% endif %}
+            </div>
+        </div>
         
         <div class="mb-3">
-            <label for="{{ form.pieces_per_sheet.id_for_label }}" class="form-label">{{ form.pieces_per_sheet.label }}</label>
+            <label for="{{ form.paper_type.id_for_label }}" class="form-label fw-semibold text-dark">
+                {{ form.paper_type.label }}
+                <span class="text-danger">*</span>
+            </label>
+            {{ form.paper_type }}
+            <small class="form-text text-muted d-block mt-1">
+                {% trans "اختر مقاس الفرخ الخام الأساسي الذي سيتم تفصيل وقص القطع منه" %}
+            </small>
+            {% if form.paper_type.errors %}
+                <div class="invalid-feedback d-block">{{ form.paper_type.errors.0 }}</div>
+            {% endif %}
+        </div>
+        
+        <div class="mb-3">
+            <label for="{{ form.pieces_per_sheet.id_for_label }}" class="form-label fw-semibold text-dark">{{ form.pieces_per_sheet.label }}</label>
             <div class="input-group">
                 {{ form.pieces_per_sheet }}
-                <span class="input-group-text">قطعة</span>
-                <button type="button" class="btn btn-outline-secondary" id="calculatePiecesBtn" title="حساب تلقائي" onclick="calculatePieces()">
-                    <i class="fas fa-calculator"></i>
+                <span class="input-group-text bg-light text-muted">{% trans "قطعة / فرخ" %}</span>
+                <button type="button" class="btn btn-outline-primary px-3" id="calculatePiecesBtn" title="{% trans 'حساب تلقائي رياضي نقي' %}" onclick="calculatePiecesAuto()">
+                    <i class="fas fa-calculator me-1"></i> {% trans "حساب الاستغلال" %}
                 </button>
             </div>
-            <small class="form-text text-muted">اتركه فارغاً للحساب التلقائي بناءً على مقاس الورق الأساسي</small>
-            <div class="invalid-feedback"></div>
+            <small class="form-text text-muted d-block mt-1" id="calcHelpText">
+                {% trans "اضغط على حساب الاستغلال أو اتركه فارغاً ليقوم النظام بحسابه تلقائياً من أبعاد الفرخ" %}
+            </small>
+            {% if form.pieces_per_sheet.errors %}
+                <div class="invalid-feedback d-block">{{ form.pieces_per_sheet.errors.0 }}</div>
+            {% endif %}
         </div>
         
-        <div class="row">
+        <div class="row g-3 pt-2 border-top">
             <div class="col-md-6">
-                {% bootstrap_field form.is_active %}
+                <div class="form-check form-switch mt-1">
+                    {{ form.is_active }}
+                    <label class="form-check-label fw-semibold" for="{{ form.is_active.id_for_label }}">{{ form.is_active.label }}</label>
+                </div>
             </div>
             <div class="col-md-6">
-                {% bootstrap_field form.is_default %}
-                <small class="form-text text-muted">سيتم إلغاء الافتراضي من المقاسات الأخرى</small>
+                <div class="form-check form-switch mt-1">
+                    {{ form.is_default }}
+                    <label class="form-check-label fw-semibold" for="{{ form.is_default.id_for_label }}">{{ form.is_default.label }}</label>
+                </div>
+                <small class="form-text text-muted">{% trans "سيتم إلغاء الافتراضي من المقاسات الأخرى تلقائياً" %}</small>
             </div>
         </div>
-        
     </div>
     
-    <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-            <i class="fas fa-times"></i> إلغاء
+    <!-- فوتر المودال الفاتح الموحد طبقاً للبند 8 -->
+    <div class="modal-footer bg-light border-top px-4 py-3">
+        <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">
+            {% trans "إلغاء" %}
         </button>
-        <button type="button" class="btn btn-primary" onclick="submitForm('pieceSizeForm')">
-            <i class="fas fa-save"></i> حفظ
+        <button type="submit" class="btn btn-primary px-4 fw-bold btn-save">
+            <i class="fas fa-save me-1"></i> {% trans "حفظ البيانات" %}
         </button>
     </div>
 </form>
 
+<script>
+// دالة حساب عدد القطع رياضياً بدون Regex بنقاء 100%
+function calculatePiecesAuto() {
+    const paperSelect = document.querySelector('[name="paper_type"]');
+    const widthInput = document.querySelector('[name="width"]');
+    const heightInput = document.querySelector('[name="height"]');
+    const piecesInput = document.querySelector('[name="pieces_per_sheet"]');
+    const helpText = document.getElementById('calcHelpText');
+    
+    if (!paperSelect || !widthInput || !heightInput || !piecesInput) return;
+    
+    const selectedOpt = paperSelect.options[paperSelect.selectedIndex];
+    if (!selectedOpt || !selectedOpt.value) {
+        SettingsCRUD.notify('يرجى اختيار مقاس الفرخ الأساسي أولاً', 'warning');
+        return;
+    }
+    
+    const pieceW = parseFloat(widthInput.value);
+    const pieceH = parseFloat(heightInput.value);
+    
+    if (!pieceW || !pieceH || pieceW <= 0 || pieceH <= 0) {
+        SettingsCRUD.notify('يرجى إدخال أبعاد القطعة (العرض والارتفاع) بشكل صحيح', 'warning');
+        return;
+    }
+    
+    // سحب أبعاد الفرخ الخام مباشرة من data-attributes الرقمية الصريحة
+    let sheetW = parseFloat(selectedOpt.dataset.width);
+    let sheetH = parseFloat(selectedOpt.dataset.height);
+    
+    if (!sheetW || !sheetH) {
+        // محاولة استخراج بديلة في حال عدم توفر data-attributes
+        const match = selectedOpt.text.match(/(\d+(?:\.\d+)?)\s*[×x]\s*(\d+(?:\.\d+)?)/);
+        if (match) {
+            sheetW = parseFloat(match[1]);
+            sheetH = parseFloat(match[2]);
+        }
+    }
+    
+    if (!sheetW || !sheetH) {
+        SettingsCRUD.notify('تعذر استخراج أبعاد الفرخ المختار', 'error');
+        return;
+    }
+    
+    // الحساب بالاتجاه العادي
+    const normalTotal = Math.floor(sheetW / pieceW) * Math.floor(sheetH / pieceH);
+    // الحساب بالاتجاه المعكوس (Rotated)
+    const rotatedTotal = Math.floor(sheetW / pieceH) * Math.floor(sheetH / pieceW);
+    
+    const bestTotal = Math.max(normalTotal, rotatedTotal);
+    
+    if (bestTotal > 0) {
+        piecesInput.value = bestTotal;
+        const orientation = (rotatedTotal > normalTotal) ? 'بتدوير القطعة 90 درجة' : 'بالتوزيع الطولي العادي';
+        if (helpText) {
+            helpText.innerHTML = `<span class="text-success fw-bold"><i class="fas fa-check-circle me-1"></i> تم الحساب: ${bestTotal} قطعة في الفرخ (${orientation}).</span>`;
+        }
+        SettingsCRUD.notify(`تم حساب الاستغلال الأمثل: ${bestTotal} قطعة في الفرخ`, 'success');
+    } else {
+        SettingsCRUD.notify('أبعاد القطعة أكبر من أبعاد الفرخ المختار!', 'warning');
+    }
+}
+</script>

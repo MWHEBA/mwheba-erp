@@ -1,97 +1,33 @@
 {% load i18n %}
-{% load utils_extras %}
-
-<div class="modal-header">
-    <h5 class="modal-title text-danger">
-        <i class="fas fa-exclamation-triangle"></i> تأكيد الحذف
+<!-- هيدر المودال الفاتح الموحد طبقاً للبند 8 -->
+<div class="modal-header bg-light border-bottom px-4 py-3">
+    <h5 class="modal-title fw-bold text-dark mb-0">
+        <i class="fas fa-exclamation-triangle text-danger me-2"></i>
+        {% trans "تأكيد حذف مقاس القطع" %}
     </h5>
-    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{% trans 'إغلاق' %}"></button>
 </div>
 
-<form id="deletePieceSizeForm" method="post" action="{{ action_url }}">
-    <div class="modal-body">
+<form method="post" action="{{ action_url }}" onsubmit="event.preventDefault(); return SettingsCRUD.submitDelete('{{ action_url }}', this, document.getElementById('deleteModal'));">
+    <div class="modal-body p-4">
         {% csrf_token %}
-        
-        <div class="alert alert-warning">
-            <i class="fas fa-exclamation-triangle"></i>
-            <strong>تحذير:</strong> هذا الإجراء لا يمكن التراجع عنه!
+        <p class="text-secondary mb-2">{% trans "هل أنت متأكد من رغبتك في حذف مقاس القطع التالي؟" %}</p>
+        <div class="alert alert-light border py-2 px-3 fw-bold text-dark">
+            <i class="fas fa-cut text-primary me-2"></i>
+            {{ object.name }} ({{ object.width }}×{{ object.height }} سم)
         </div>
-        
-        <p class="mb-3">هل أنت متأكد من حذف مقاس القطع التالي؟</p>
-        
-        <div class="card">
-            <div class="card-body">
-                <h6 class="card-title">{{ piece_size.name }}</h6>
-                <p class="card-text">
-                    <strong>الأبعاد:</strong> {{ piece_size.width|smart_float }}×{{ piece_size.height|smart_float }} سم<br>
-                    {% if piece_size.paper_types.exists %}
-                        <strong>مقاسات الورق الأساسية:</strong> 
-                        {% for paper_type in piece_size.paper_types.all %}
-                            {{ paper_type.name }}{% if not forloop.last %}، {% endif %}
-                        {% endfor %}<br>
-                    {% endif %}
-                    <strong>تاريخ الإنشاء:</strong> {{ piece_size.created_at|date:"d/m/Y" }}
-                </p>
-                {% if piece_size.is_default %}
-                    <span class="badge bg-primary">افتراضي</span>
-                {% endif %}
-                {% if not piece_size.is_active %}
-                    <span class="badge bg-secondary">غير نشط</span>
-                {% endif %}
-            </div>
-        </div>
+        <small class="text-danger d-block mt-2">
+            <i class="fas fa-info-circle me-1"></i>
+            {% trans "تحذير: لا يمكن حذف المقاس إذا كان مرتبطاً بأوامر تسعير أو منتجات مسجلة." %}
+        </small>
     </div>
     
-    <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-            <i class="fas fa-times"></i> إلغاء
+    <div class="modal-footer bg-light border-top px-4 py-3">
+        <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">
+            {% trans "إلغاء" %}
         </button>
-        <button type="submit" class="btn btn-danger">
-            <i class="fas fa-trash"></i> حذف نهائي
+        <button type="submit" class="btn btn-danger px-4 fw-bold">
+            <i class="fas fa-trash-alt me-1"></i> {% trans "تأكيد الحذف" %}
         </button>
     </div>
 </form>
-
-<script>
-document.getElementById('deletePieceSizeForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-    
-    const form = this;
-    const formData = new FormData(form);
-    const submitBtn = form.querySelector('button[type="submit"]');
-    const originalText = submitBtn.innerHTML;
-    
-    // تعطيل الزر وإظهار مؤشر التحميل
-    submitBtn.disabled = true;
-    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الحذف...';
-    
-    fetch(form.action, {
-        method: 'POST',
-        body: formData,
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest',
-            'X-CSRFToken': formData.get('csrfmiddlewaretoken')
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            // إغلاق المودال وإعادة تحميل الصفحة
-            const modal = bootstrap.Modal.getInstance(document.querySelector('.modal'));
-            modal.hide();
-            location.reload();
-        } else {
-            alert('حدث خطأ أثناء الحذف');
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('حدث خطأ أثناء الحذف');
-    })
-    .finally(() => {
-        // إعادة تفعيل الزر
-        submitBtn.disabled = false;
-        submitBtn.innerHTML = originalText;
-    });
-});
-</script>

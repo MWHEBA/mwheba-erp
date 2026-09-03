@@ -22,7 +22,7 @@ class PrintingOrderAdmin(admin.ModelAdmin):
     ]
     
     list_filter = [
-        'status', 'product_type', 'order_type', 'priority',
+        'status', 'product_type', 'order_type',
         'created_at', 'due_date'
     ]
     
@@ -40,7 +40,7 @@ class PrintingOrderAdmin(admin.ModelAdmin):
         (_('معلومات أساسية'), {
             'fields': (
                 'order_number', 'customer', 'title', 'description',
-                'order_type', 'status', 'priority'
+                'order_type', 'status'
             )
         }),
         (_('المواصفات'), {
@@ -51,8 +51,7 @@ class PrintingOrderAdmin(admin.ModelAdmin):
         }),
         (_('التكلفة والتسعير'), {
             'fields': (
-                'estimated_cost', 'final_price', 'profit_margin',
-                'is_rush_order', 'rush_fee'
+                'estimated_cost', 'final_price', 'profit_margin'
             )
         }),
         (_('التواريخ'), {

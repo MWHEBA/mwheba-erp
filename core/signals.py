@@ -52,6 +52,15 @@ def clear_module_cache_on_save(sender, instance, **kwargs):
             pass
         
         logger.info(f"Cache cleared for module: {instance.code}")
+
+        # ✅ تهيئة بيئة الموردين تلقائياً عند تفعيل موديول تسعير الطباعة
+        if instance.code == 'printing_pricing' and instance.is_enabled:
+            try:
+                from printing_pricing.services.supplier_seeder_service import PricingSupplierSeederService
+                result = PricingSupplierSeederService.seed_all()
+                logger.info(f"تم تفعيل موديول التسعير وبذر بيئة الموردين بنجاح: {result}")
+            except Exception as seeder_err:
+                logger.error(f"فشل بذر بيئة الموردين عند تفعيل موديول التسعير: {seeder_err}")
     except Exception as e:
         logger.error(f"Error clearing cache for module {instance.code}: {str(e)}")
 

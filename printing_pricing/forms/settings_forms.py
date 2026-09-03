@@ -379,8 +379,31 @@ class FinishingTypeForm(forms.ModelForm):
         return name
 
 
+class PaperSizeSelectWidget(forms.Select):
+    """Widget مخصص لمقاسات الورق يمرر أبعاد العرض والطول كـ data-width و data-height"""
+    def create_option(self, name, value, label, selected, index, subindex=None, attrs=None):
+        option = super().create_option(name, value, label, selected, index, subindex=subindex, attrs=attrs)
+        if value:
+            try:
+                val_id = int(value.value if hasattr(value, 'value') else value)
+                psize = PaperSize.objects.filter(pk=val_id).only('width', 'height').first()
+                if psize:
+                    option['attrs']['data-width'] = str(psize.width)
+                    option['attrs']['data-height'] = str(psize.height)
+            except (ValueError, TypeError):
+                pass
+        return option
+
+
 class PieceSizeForm(forms.ModelForm):
     """نموذج مقاسات القطع"""
+
+    paper_type = forms.ModelChoiceField(
+        queryset=PaperSize.objects.filter(is_active=True).order_by('sort_order', 'name'),
+        required=False,
+        label=_('مقاس الفرخ الخام الأساسي'),
+        widget=PaperSizeSelectWidget(attrs={'class': 'form-select select2-modal'})
+    )
 
     class Meta:
         model = PieceSize
@@ -402,7 +425,6 @@ class PieceSizeForm(forms.ModelForm):
                 'step': '0.1',
                 'min': '0.1',
             }),
-            'paper_type': forms.Select(attrs={'class': 'form-control'}),
             'pieces_per_sheet': forms.NumberInput(attrs={
                 'class': 'form-control',
                 'min': '1',
@@ -414,7 +436,7 @@ class PieceSizeForm(forms.ModelForm):
             'name': _('اسم مقاس القطع'),
             'width': _('العرض (سم)'),
             'height': _('الطول (سم)'),
-            'paper_type': _('نوع الورق'),
+            'paper_type': _('مقاس الفرخ الخام الأساسي'),
             'pieces_per_sheet': _('عدد القطع في الفرخ'),
             'is_active': _('نشط'),
             'is_default': _('افتراضي'),
@@ -457,33 +479,56 @@ class PieceSizeForm(forms.ModelForm):
 class PlateSizeForm(forms.ModelForm):
     """نموذج مقاسات الزنكات"""
 
+    machine = forms.ModelChoiceField(
+        queryset=OffsetMachineType.objects.filter(is_active=True).order_by('sort_order', 'name'),
+        required=False,
+        label=_('الماكينة المرتبطة (اختياري)'),
+        widget=forms.Select(attrs={'class': 'form-select select2-modal'}),
+        help_text=_('ربط مقاس الزنكة بماكينة أوفست معينة، أو اتركه فارغاً إذا كان مقاس زنك عاماً')
+    )
+
     class Meta:
         model = PlateSize
-        fields = ['name', 'width', 'height', 'is_active']
+        fields = ['name', 'code', 'machine', 'width', 'height', 'description', 'is_active', 'is_default']
         widgets = {
             'name': forms.TextInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'مثال: زنك صغير'
+                'placeholder': 'مثال: زنك هايدلبرج ربع فرخ'
+            }),
+            'code': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'مثال: PLT-52',
+                'maxlength': '20',
             }),
             'width': forms.NumberInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'مثال: 30.0',
+                'placeholder': 'مثال: 45.9',
                 'step': '0.1',
                 'min': '0.1',
             }),
             'height': forms.NumberInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'مثال: 40.0',
+                'placeholder': 'مثال: 52.5',
                 'step': '0.1',
                 'min': '0.1',
             }),
+            'description': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 2,
+                'placeholder': 'وصف اختياري لمقاس الزنكة'
+            }),
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'is_default': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
         labels = {
             'name': _('اسم مقاس الزنك'),
+            'code': _('رمز المقاس'),
+            'machine': _('الماكينة المرتبطة'),
             'width': _('العرض (سم)'),
             'height': _('الطول (سم)'),
+            'description': _('الوصف'),
             'is_active': _('نشط'),
+            'is_default': _('افتراضي'),
         }
 
     def clean_width(self):
@@ -499,6 +544,15 @@ class PlateSizeForm(forms.ModelForm):
         if height and height <= 0:
             raise ValidationError(_('الطول يجب أن يكون أكبر من صفر'))
         return height
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        instance.dimension_type = 'plate'
+        if instance.is_default:
+            PlateSize.objects.filter(is_default=True).exclude(pk=instance.pk).update(is_default=False)
+        if commit:
+            instance.save()
+        return instance
 
 
 class ProductTypeForm(forms.ModelForm):
@@ -643,51 +697,62 @@ class ProductSizeForm(forms.ModelForm):
 
 # ==================== نماذج ماكينات الطباعة ====================
 
+# ==================== نماذج ماكينات الطباعة ====================
+
 class OffsetMachineTypeForm(forms.ModelForm):
     """نموذج أنواع ماكينات الأوفست"""
 
     class Meta:
         model = OffsetMachineType
-        fields = ['name', 'code', 'manufacturer', 'description', 'is_active', 'is_default']
+        fields = ['name', 'code', 'manufacturer', 'max_sheet_size', 'colors_capacity', 'description', 'is_active', 'is_default']
         widgets = {
             'name': forms.TextInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'مثال: ماكينة أوفست 4 ألوان'
+                'placeholder': 'مثال: هايدلبرج سبيد ماستر 4 ألوان'
             }),
             'code': forms.TextInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'مثال: OFF4C',
-                'maxlength': '20',
+                'placeholder': 'مثال: HD-SM52',
+                'maxlength': '50',
             }),
             'manufacturer': forms.TextInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'مثال: هايدلبرج'
+                'placeholder': 'مثال: هايدلبرج (Heidelberg)'
+            }),
+            'max_sheet_size': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'مثال: 37×52 سم'
+            }),
+            'colors_capacity': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': '1',
+                'max': '12',
+                'placeholder': '4'
             }),
             'description': forms.Textarea(attrs={
                 'class': 'form-control',
                 'rows': 3,
-                'placeholder': 'وصف اختياري لنوع الماكينة'
+                'placeholder': 'ملاحظات ومواصفات فنية إضافية لماكينة الأوفست'
             }),
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'is_default': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
         labels = {
-            'name': _('اسم نوع الماكينة'),
-            'code': _('رمز الماكينة'),
+            'name': _('اسم ماكينة الأوفست'),
+            'code': _('رمز الماكينة الكودي'),
             'manufacturer': _('الشركة المصنعة'),
-            'description': _('الوصف'),
-            'is_active': _('نشط'),
-            'is_default': _('افتراضي'),
+            'max_sheet_size': _('أقصى مقاس فرخ (سم)'),
+            'colors_capacity': _('عدد أبراج الألوان'),
+            'description': _('الوصف والملاحظات'),
+            'is_active': _('نشط ومتاح للتشغيل'),
+            'is_default': _('الماكينة الافتراضية'),
         }
 
     def save(self, commit=True):
-        """حفظ النموذج مع إدارة الافتراضي تلقائياً"""
         instance = super().save(commit=False)
-        
-        # إذا تم تعيين هذا العنصر كافتراضي، إلغاء الافتراضي من العناصر الأخرى
+        instance.machine_category = 'offset'
         if instance.is_default:
             OffsetMachineType.objects.filter(is_default=True).exclude(pk=instance.pk).update(is_default=False)
-        
         if commit:
             instance.save()
         return instance
@@ -698,46 +763,55 @@ class DigitalMachineTypeForm(forms.ModelForm):
 
     class Meta:
         model = DigitalMachineType
-        fields = ['name', 'code', 'manufacturer', 'description', 'is_active', 'is_default']
+        fields = ['name', 'code', 'manufacturer', 'max_sheet_size', 'print_quality', 'is_color', 'description', 'is_active', 'is_default']
         widgets = {
             'name': forms.TextInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'مثال: ماكينة ديجيتال ملونة'
+                'placeholder': 'مثال: زيروكس فيرسانت 280'
             }),
             'code': forms.TextInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'مثال: DIG4C',
-                'maxlength': '20',
+                'placeholder': 'مثال: XER-V280',
+                'maxlength': '50',
             }),
             'manufacturer': forms.TextInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'مثال: زيروكس'
+                'placeholder': 'مثال: زيروكس (Xerox)'
             }),
+            'max_sheet_size': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'مثال: 33×66 سم (Banner)'
+            }),
+            'print_quality': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'مثال: 2400×2400 DPI'
+            }),
+            'is_color': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'description': forms.Textarea(attrs={
                 'class': 'form-control',
                 'rows': 3,
-                'placeholder': 'وصف اختياري لنوع الماكينة'
+                'placeholder': 'مواصفات دقة الطباعة وسرعة الماكينة الديجيتال'
             }),
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'is_default': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
         labels = {
-            'name': _('اسم نوع الماكينة'),
-            'code': _('رمز الماكينة'),
+            'name': _('اسم ماكينة الديجيتال'),
+            'code': _('رمز الماكينة الكودي'),
             'manufacturer': _('الشركة المصنعة'),
-            'description': _('الوصف'),
-            'is_active': _('نشط'),
-            'is_default': _('افتراضي'),
+            'max_sheet_size': _('أقصى مقاس شيت (سم)'),
+            'print_quality': _('دقة وجودة الطباعة'),
+            'is_color': _('تدعم الألوان (ألوان + أسود)'),
+            'description': _('الوصف والملاحظات'),
+            'is_active': _('نشط ومتاح للتشغيل'),
+            'is_default': _('الماكينة الافتراضية'),
         }
 
     def save(self, commit=True):
-        """حفظ النموذج مع إدارة الافتراضي تلقائياً"""
         instance = super().save(commit=False)
-        
-        # إذا تم تعيين هذا العنصر كافتراضي، إلغاء الافتراضي من العناصر الأخرى
+        instance.machine_category = 'digital'
         if instance.is_default:
             DigitalMachineType.objects.filter(is_default=True).exclude(pk=instance.pk).update(is_default=False)
-        
         if commit:
             instance.save()
         return instance
@@ -748,60 +822,65 @@ class DigitalMachineTypeForm(forms.ModelForm):
 class OffsetSheetSizeForm(forms.ModelForm):
     """نموذج مقاسات فرخ الأوفست"""
 
+    machine = forms.ModelChoiceField(
+        queryset=OffsetMachineType.objects.filter(is_active=True).order_by('sort_order', 'name'),
+        required=False,
+        label=_('الماكينة المرتبطة (اختياري)'),
+        widget=forms.Select(attrs={'class': 'form-select select2-modal'}),
+        help_text=_('ربط مقاس الشيت بماكينة أوفست معينة، أو اتركه فارغاً إذا كان مقاس تشغيل عاماً')
+    )
+
     class Meta:
         model = OffsetSheetSize
-        fields = ['name', 'code', 'width', 'height', 'description', 'is_active', 'is_default', 'is_custom_size']
+        fields = ['name', 'code', 'machine', 'width', 'height', 'description', 'is_active', 'is_default', 'is_custom_size']
         widgets = {
             'name': forms.TextInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'مثال: فرخ كامل'
+                'placeholder': 'مثال: ربع فرخ 35×50'
             }),
             'code': forms.TextInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'مثال: FULL',
+                'placeholder': 'مثال: Q-35x50',
                 'maxlength': '20',
             }),
             'width': forms.NumberInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'مثال: 70.0',
+                'placeholder': 'مثال: 35.0',
                 'step': '0.1',
                 'min': '0.1',
             }),
             'height': forms.NumberInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'مثال: 100.0',
+                'placeholder': 'مثال: 50.0',
                 'step': '0.1',
                 'min': '0.1',
             }),
             'description': forms.Textarea(attrs={
                 'class': 'form-control',
-                'rows': 3,
-                'placeholder': 'وصف اختياري لمقاس الفرخ'
+                'rows': 2,
+                'placeholder': 'وصف اختياري لمقاس الشيت واستخداماته'
             }),
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'is_default': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'is_custom_size': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
         labels = {
-            'name': _('اسم مقاس الفرخ'),
+            'name': _('اسم مقاس الشيت'),
             'code': _('رمز المقاس'),
+            'machine': _('ماكينة الأوفست المرتبطة'),
             'width': _('العرض (سم)'),
             'height': _('الطول (سم)'),
             'description': _('الوصف'),
             'is_active': _('نشط'),
             'is_default': _('افتراضي'),
-            'is_custom_size': _('مقاس مخصص'),
+            'is_custom_size': _('مقاس تشغيل مخصص'),
         }
 
     def save(self, commit=True):
-        """حفظ النموذج مع إدارة الافتراضي تلقائياً"""
         instance = super().save(commit=False)
         instance.dimension_type = 'sheet'
-        
-        # إذا تم تعيين هذا العنصر كافتراضي، إلغاء الافتراضي من العناصر الأخرى
         if instance.is_default:
             OffsetSheetSize.objects.filter(is_default=True).exclude(pk=instance.pk).update(is_default=False)
-        
         if commit:
             instance.save()
         return instance
@@ -810,17 +889,25 @@ class OffsetSheetSizeForm(forms.ModelForm):
 class DigitalSheetSizeForm(forms.ModelForm):
     """نموذج مقاسات فرخ الديجيتال"""
 
+    machine = forms.ModelChoiceField(
+        queryset=DigitalMachineType.objects.filter(is_active=True).order_by('sort_order', 'name'),
+        required=False,
+        label=_('الماكينة المرتبطة (اختياري)'),
+        widget=forms.Select(attrs={'class': 'form-select select2-modal'}),
+        help_text=_('ربط مقاس الشيت بماكينة ديجيتال معينة، أو اتركه فارغاً إذا كان مقاساً عاماً')
+    )
+
     class Meta:
         model = DigitalSheetSize
-        fields = ['name', 'code', 'width', 'height', 'description', 'is_active', 'is_default', 'is_custom_size']
+        fields = ['name', 'code', 'machine', 'width', 'height', 'description', 'is_active', 'is_default', 'is_custom_size']
         widgets = {
             'name': forms.TextInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'مثال: A3+'
+                'placeholder': 'مثال: A3+ قياسي'
             }),
             'code': forms.TextInput(attrs={
                 'class': 'form-control',
-                'placeholder': 'مثال: A3P',
+                'placeholder': 'مثال: A3P-33x48',
                 'maxlength': '20',
             }),
             'width': forms.NumberInput(attrs={
@@ -837,32 +924,30 @@ class DigitalSheetSizeForm(forms.ModelForm):
             }),
             'description': forms.Textarea(attrs={
                 'class': 'form-control',
-                'rows': 3,
-                'placeholder': 'وصف اختياري لمقاس الفرخ'
+                'rows': 2,
+                'placeholder': 'وصف اختياري لمقاس الشيت واستخداماته'
             }),
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'is_default': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'is_custom_size': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
         labels = {
-            'name': _('اسم مقاس الفرخ'),
+            'name': _('اسم مقاس الشيت'),
             'code': _('رمز المقاس'),
+            'machine': _('ماكينة الديجيتال المرتبطة'),
             'width': _('العرض (سم)'),
             'height': _('الطول (سم)'),
             'description': _('الوصف'),
             'is_active': _('نشط'),
             'is_default': _('افتراضي'),
-            'is_custom_size': _('مقاس مخصص'),
+            'is_custom_size': _('مقاس تشغيل مخصص'),
         }
 
     def save(self, commit=True):
-        """حفظ النموذج مع إدارة الافتراضي تلقائياً"""
         instance = super().save(commit=False)
         instance.dimension_type = 'sheet'
-        
         if instance.is_default:
             DigitalSheetSize.objects.filter(is_default=True).exclude(pk=instance.pk).update(is_default=False)
-        
         if commit:
             instance.save()
         return instance

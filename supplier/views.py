@@ -2232,13 +2232,28 @@ def supplier_service_add(request, pk):
         for cat, types in _grouped.items()
     ]
 
+    # ترشيح الخدمة الذكي بناءً على نوع المورد الأساسي
+    recommended_codes = []
+    if supplier.primary_type and supplier.primary_type.code:
+        try:
+            from printing_pricing.services.supplier_seeder_service import PricingSupplierSeederService
+            recommended_codes = PricingSupplierSeederService.get_recommended_services(supplier.primary_type.code)
+        except Exception:
+            pass
+
+    default_service_type = request.POST.get('service_type', '')
+    if not default_service_type and recommended_codes and request.method == 'GET':
+        matching_st = service_types.filter(code__in=recommended_codes).first()
+        if matching_st:
+            default_service_type = str(matching_st.pk)
+
     form_data = {
         'name':         request.POST.get('name', ''),
         'base_price':   request.POST.get('base_price', '0'),
         'setup_cost':   request.POST.get('setup_cost', '0'),
         'notes':        request.POST.get('notes', ''),
         'is_active':    True,
-        'service_type': request.POST.get('service_type', ''),
+        'service_type': default_service_type,
     }
     import json
     context = {

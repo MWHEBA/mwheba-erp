@@ -47,7 +47,7 @@ class TestPhase1Comprehensive:
         self.client_auth.login(username="test_agency_admin", password="StrongPassword123")
 
     def test_01_canonical_truth_and_pr_numbering(self):
-        """التحقق من بادئة PR- والتوليد الآلي لأمر الشغل وتجميد لقطة العنوان"""
+        """التحقق من بادئة PR- واستقلال مسودة التسعير عن صالة الإنتاج وتوليد أمر الشغل عند الاعتماد"""
         order = PrintingOrder.objects.create(
             customer=self.customer,
             title="حملة مطبوعات الصيف",
@@ -59,13 +59,14 @@ class TestPhase1Comprehensive:
         
         # 1. التحقق من بادئة PR عبر SequenceService الموحد
         assert order.order_number.startswith("PR")
-        # 2. التحقق من التوليد الآلي لـ WorkOrder
+        # 2. التحقق من استقلال المسودة (عدم تلويث صالة الإنتاج بأمر شغل تلقائي للمسودة)
+        assert order.work_order is None
+        # 3. توليد أمر الشغل التنفيذي عند الاعتماد
+        work_order = order.create_work_order(user=self.user)
         assert order.work_order is not None
         assert order.work_order.customer == self.customer
-        # 3. التحقق من تجميد لقطة العنوان
-        assert "شركة الأمل للدعاية" in order.delivery_address_snapshot
-        assert "01012345678" in order.delivery_address_snapshot
-        # 4. التحقق من customer و final_price
+        # 4. التحقق من customer_name و customer و final_price
+        assert order.customer_name == self.customer.name
         assert order.customer == self.customer
         assert order.final_price == Decimal('12000.00')
 
@@ -262,3 +263,27 @@ class TestPhase1Comprehensive:
         assert 'estimated_cost' in data
         assert 'final_price' in data
         assert data['order_id'] == order.id
+
+    def test_10_manual_customer_and_approved_orders_api(self):
+        """التحقق من إنشاء طلب باسم عميل يدوي دون اختيار عميل مسجل وعمل API الطلبات المعتمدة للمبيعات"""
+        order_manual = PrintingOrder.objects.create(
+            customer=None,
+            customer_name="عميل تسعير نقدي سريع بالهاتف",
+            title="فلاير تسعير سريع",
+            order_type="flyer",
+            quantity=2000,
+            final_price=Decimal('5000.00'),
+            status="approved",
+            created_by=self.user
+        )
+        assert order_manual.customer is None
+        assert order_manual.customer_name == "عميل تسعير نقدي سريع بالهاتف"
+        assert order_manual.customer_display_name == "عميل تسعير نقدي سريع بالهاتف"
+
+        # اختبار استدعاء API الطلبات المعتمدة
+        url = reverse('printing_pricing:api_approved_orders')
+        response = self.client_auth.get(url)
+        assert response.status_code == 200
+        data = response.json()
+        assert data['success'] is True
+        assert any(o['id'] == order_manual.id for o in data['orders'])
