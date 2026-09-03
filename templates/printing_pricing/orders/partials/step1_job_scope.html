@@ -132,11 +132,11 @@
               </option>
             {% endfor %}
           {% else %}
-            <option value="" data-width="21" data-height="29.7" selected>A4 معياري (21×29.7 سم)</option>
-            <option value="" data-width="14.8" data-height="21">A5 كتيب / فلاير (14.8×21 سم)</option>
-            <option value="" data-width="29.7" data-height="42">A3 بوستر (29.7×42 سم)</option>
-            <option value="" data-width="9" data-height="5">كارت شخصي فاخر (9×5 سم)</option>
-            <option value="" data-width="22" data-height="31">فولدر شركات مع جيب (22×31 سم)</option>
+            <option value="" data-width="21" data-height="29.7" selected>A4 (21×29.7 سم)</option>
+            <option value="" data-width="14.8" data-height="21">A5 (14.8×21 سم)</option>
+            <option value="" data-width="29.7" data-height="42">A3 (29.7×42 سم)</option>
+            <option value="" data-width="10.5" data-height="14.8">A6 (10.5×14.8 سم)</option>
+            <option value="" data-width="9" data-height="5">كارت شخصي (9×5 سم)</option>
           {% endif %}
           <option value="custom" data-width="" data-height="" {% if form.product_size.value == 'custom' %}selected{% endif %}>
             {% trans "مقاس مخصص (إدخال حر)" %}

@@ -1116,7 +1116,7 @@ class OrderAnatomyPersistenceService:
                         unit_desc = "فرخ"
 
                     # ربط نوع التغطية وتنسيق الاسم العربي
-                    ctype_kw = 'مط' if 'matte' in str(lamination) else ('لميع' if 'gloss' in str(lamination) else str(lamination))
+                    ctype_kw = 'مط' if 'matte' in str(lamination) else ('لامع' if ('gloss' in str(lamination) or 'لميع' in str(lamination)) else str(lamination))
                     matched_ctype = CoatingType.objects.filter(name__icontains=ctype_kw, is_active=True).first()
                     disp_name = matched_ctype.name if matched_ctype else "سلوفان حراري"
 

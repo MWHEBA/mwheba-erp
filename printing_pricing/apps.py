@@ -20,7 +20,9 @@ class PrintingPricingConfig(AppConfig):
             try:
                 from core.models import SystemModule
                 if SystemModule.objects.filter(code='printing_pricing', is_enabled=True).exists():
+                    from printing_pricing.services.pricing_lookup_seeder_service import PricingLookupSeederService
                     from printing_pricing.services.supplier_seeder_service import PricingSupplierSeederService
+                    PricingLookupSeederService.seed_all()
                     PricingSupplierSeederService.seed_all()
             except Exception:
                 pass

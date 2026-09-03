@@ -1062,23 +1062,13 @@ def main():
     # ======================================================
     # المرحلة 8: تحميل بيانات Printing & Pricing
     # ======================================================
-    print_step(8, TOTAL_STEPS, "تحميل بيانات الطباعة ومصفوفة التسعير")
-    printing_fixtures = [
-        {"path": "printing_pricing/fixtures/paper_origins.json",            "description": "مناشئ الورق"},
-        {"path": "printing_pricing/fixtures/paper_sizes.json",              "description": "مقاسات الورق"},
-        {"path": "printing_pricing/fixtures/paper_weights.json",            "description": "أوزان الورق"},
-        {"path": "printing_pricing/fixtures/offset_sheet_sizes.json",       "description": "مقاسات أوفست"},
-        {"path": "printing_pricing/fixtures/digital_sheet_sizes.json",      "description": "مقاسات ديجيتال"},
-        {"path": "printing_pricing/fixtures/offset_machines.json",          "description": "ماكينات أوفست"},
-        {"path": "printing_pricing/fixtures/digital_machines.json",         "description": "ماكينات ديجيتال"},
-        {"path": "printing_pricing/fixtures/coating_finishing.json",        "description": "التغليف والتشطيب"},
-        {"path": "printing_pricing/fixtures/piece_plate_sizes.json",        "description": "مقاسات الألواح"},
-        {"path": "printing_pricing/fixtures/product_types_sizes.json",      "description": "أنواع وأحجام المنتجات"},
-        {"path": "printing_pricing/fixtures/print_settings.json",           "description": "إعدادات الطباعة"},
-        {"path": "printing_pricing/fixtures/printing_pricing_settings.json", "description": "إعدادات التسعير"},
-    ]
-    printing_loaded = load_fixtures_batch(printing_fixtures, "تحميل بيانات التسعير والطباعة...")
-    print_success(f"تم تحميل {printing_loaded} من {len(printing_fixtures)} ملف تسعير")
+    print_step(8, TOTAL_STEPS, "تحميل بيانات ومصفوفة تسعير الطباعة (Pricing Seeder Service)")
+    try:
+        from printing_pricing.services.pricing_lookup_seeder_service import PricingLookupSeederService
+        res = PricingLookupSeederService.seed_all()
+        print_success(f"تم بنجاح بذر كافة بيانات وإعدادات التسعير: {res.get('total_created', 0)} جديد، {res.get('total_updated', 0)} محدث")
+    except Exception as e:
+        print_warning(f"خطأ أثناء بذر بيانات التسعير: {e}")
 
     # ======================================================
     # المرحلة 9: تفعيل الحوكمة والأمان (Governance)
