@@ -11,15 +11,12 @@
 <link rel="stylesheet" href="{% static 'css/select2-enhancements.css' %}">
 <link rel="stylesheet" href="{% static 'css/toastr-override.css' %}">
 <style>
-  .preset-btn {
-    transition: var(--transition-base, all 0.2s ease);
-    border-radius: var(--border-radius-sm, 6px);
-    font-weight: 600;
-    font-size: var(--font-size-sm, 0.85rem);
-  }
-
-  .preset-btn:hover {
-    transform: translateY(-1px);
+  /* تحويل أيقونات أزرار الاتجاه والتجليد للون الأبيض عند التفعيل */
+  .btn-check:checked + .btn i,
+  .btn-check:checked + .btn .fas,
+  .btn-check:checked + .btn .fa,
+  .btn-check:checked + .btn .far {
+    color: var(--white) !important;
   }
 
   /* سنترة محتوى قوائم select2 وحقول الإدخال */
@@ -27,7 +24,10 @@
   select.text-center,
   select.text-center option,
   select.text-center + .select2-container .select2-selection__rendered,
-  select.text-center + .select2-container .select2-selection {
+  select.text-center ~ .select2-container .select2-selection__rendered,
+  select.text-center + .select2-container .select2-selection,
+  select.text-center ~ .select2-container .select2-selection,
+  .select2-container--bootstrap-5 .select2-results__option {
     text-align: center !important;
     text-align-last: center !important;
     justify-content: center !important;
@@ -163,7 +163,6 @@
   "currencySymbol": "{{ currency_symbol|default:'ج.م' }}",
   "urls": {
     "pressesApi": "{% url 'printing_pricing:api_presses' %}",
-    "paperStocksApi": "{% url 'printing_pricing:api_paper_types' %}",
     "paperTypesApi": "{% url 'printing_pricing:api_paper_types' %}",
     "paperSuppliersApi": "{% url 'printing_pricing:api_paper_suppliers' %}",
     "paperSheetTypesApi": "{% url 'printing_pricing:api_paper_sheet_types' %}",
