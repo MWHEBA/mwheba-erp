@@ -453,12 +453,6 @@ class PrintingOrder(BaseModel):
         validators=[MinValueValidator(Decimal('0.00'))],
         verbose_name=_("مبلغ عمولة المبيعات")
     )
-    
-    # الهالك التراكمي للورش
-    cumulative_waste_sheets = models.PositiveIntegerField(
-        default=0,
-        verbose_name=_("إجمالي أفرخ الهالك التراكمي")
-    )
 
     class Meta:
         verbose_name = _("طلب تسعير")

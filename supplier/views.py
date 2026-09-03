@@ -2637,7 +2637,7 @@ def _get_schema_sources(schema):
     """جلب خيارات حقول source من printing_pricing لاستخدامها في server-side rendering."""
     sources = {}
     try:
-        import printing_pricing.models.settings_models as sm
+        import printing_pricing.models as sm
         for key, defn in schema.items():
             if defn.get('type') == 'select' and defn.get('source'):
                 src = defn['source']
@@ -2667,7 +2667,7 @@ def service_type_schema_options_api(request):
         return JsonResponse({'success': False, 'options': []})
 
     try:
-        import printing_pricing.models.settings_models as sm
+        import printing_pricing.models as sm
         model = getattr(sm, source, None)
         if not model:
             return JsonResponse({'success': False, 'options': [], 'message': f'{source} غير موجود'})

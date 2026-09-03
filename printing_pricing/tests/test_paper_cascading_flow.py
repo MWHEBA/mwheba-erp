@@ -6,7 +6,7 @@ from django.test import Client
 from django.urls import reverse
 
 from supplier.models import Supplier, ServiceType, SupplierService
-from printing_pricing.models.settings_models import PaperType, PaperSize, PaperWeight, PaperOrigin
+from printing_pricing.models import PaperType, PaperSize, PaperWeight, PaperOrigin
 from printing_pricing.models import PrintingOrder
 
 User = get_user_model()
@@ -228,7 +228,7 @@ class TestPaperCascadingFlow:
         """التحقق من صمام أمان تجاوز الأبعاد وحاسبة المواد وضمان عدم حدوث ZeroDivisionError"""
         from customer.models import Customer
         from printing_pricing.models import PrintingOrder
-        from printing_pricing.services.calculators import PrintingCalculationEngine
+        from printing_pricing.services import PrintingCalculationEngine
 
         cust = Customer.objects.create(name="عميل اختبار", phone="01012345678")
         order = PrintingOrder.objects.create(

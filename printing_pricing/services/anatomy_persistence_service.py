@@ -9,8 +9,7 @@ from ..models import (
     PrintingOrder, OrderMaterial, OrderService, OrderSummary,
     PriceUnit, ProductType, ProductSize, PaperSpecification, CoatingType
 )
-from .unit_adapter import PrintingUnitAdapter
-from .calculators import PrintingCalculationEngine
+from .pricing_engine import PrintingCalculationEngine
 
 
 class OrderAnatomyPersistenceService:
@@ -672,7 +671,7 @@ class OrderAnatomyPersistenceService:
                 digi_machine_name = post_data.get('cover_digital_machine') or 'Digital Laser Press'
                 
                 try:
-                    from ..models.settings_models import DigitalSheetSize
+                    from ..models import DigitalSheetSize
                     from django.db.models import Q
                     d_size = DigitalSheetSize.objects.filter(Q(code=digi_machine_name) | Q(name__icontains=digi_machine_name), is_active=True).first()
                     if d_size and d_size.width_cm and d_size.height_cm:

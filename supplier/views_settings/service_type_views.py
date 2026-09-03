@@ -33,7 +33,7 @@ def _get_available_sources():
         'PieceSize':          'مقاسات القطع',
     }
     try:
-        import printing_pricing.models.settings_models as sm
+        import printing_pricing.models as sm
         sources = []
         for model_name, label in source_map.items():
             model = getattr(sm, model_name, None)

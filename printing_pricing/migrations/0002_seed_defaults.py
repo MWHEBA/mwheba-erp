@@ -1,9 +1,55 @@
+"""
+تغذية البيانات القياسية لأنواع ومقاسات المنتجات التجارية
+printing_pricing/migrations/0002_seed_defaults.py
+"""
 from decimal import Decimal
 from django.db import migrations
 
 
-def seed_product_sizes(apps, schema_editor):
+def seed_defaults(apps, schema_editor):
+    ProductType = apps.get_model('printing_pricing', 'ProductType')
     ProductSize = apps.get_model('printing_pricing', 'ProductSize')
+
+    standard_types = [
+        {
+            'name': 'مطبوع مفرود (كروت / فلاير)',
+            'base_archetype': 'flyer',
+            'sort_order': 10,
+            'description': 'كروت شخصية، فلايرات، بروشورات، بوسترات، أظرف، ستيكر',
+            'is_active': True,
+            'is_default': True,
+        },
+        {
+            'name': 'مطبوع مع داخلي (كتالوج / بلوك نوت)',
+            'base_archetype': 'catalog',
+            'sort_order': 20,
+            'description': 'كتالوجات، كتب، مجلات، مذكرات، بروفايلات شركات، بلوك نوت (داخلي + غلاف)',
+            'is_active': True,
+            'is_default': False,
+        },
+        {
+            'name': 'مطبوع مع فورمة تكسير',
+            'base_archetype': 'folder',
+            'sort_order': 30,
+            'description': 'فولدرات شركات بجيب، علب كرتون، باكيج وتغليف مع تكسير',
+            'is_active': True,
+            'is_default': False,
+        },
+        {
+            'name': 'دفاتر مكربن',
+            'base_archetype': 'invoice',
+            'sort_order': 40,
+            'description': 'دفاتر فواتير، إيصالات، عقود مكربنة NCR، أذون مخازن',
+            'is_active': True,
+            'is_default': False,
+        },
+    ]
+
+    for item in standard_types:
+        ProductType.objects.update_or_create(
+            name=item['name'],
+            defaults=item
+        )
 
     standard_sizes = [
         {
@@ -87,16 +133,16 @@ def seed_product_sizes(apps, schema_editor):
         )
 
 
-def reverse_seed_product_sizes(apps, schema_editor):
+def reverse_seed(apps, schema_editor):
     pass
 
 
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('printing_pricing', '0011_alter_productsize_options_and_more'),
+        ('printing_pricing', '0001_initial'),
     ]
 
     operations = [
-        migrations.RunPython(seed_product_sizes, reverse_seed_product_sizes),
+        migrations.RunPython(seed_defaults, reverse_seed),
     ]

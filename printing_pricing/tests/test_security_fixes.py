@@ -5,7 +5,7 @@ from decimal import Decimal
 import json
 
 from printing_pricing.models import PrintingOrder, OrderMaterial, OrderService, OrderSummary, PricingStatus, CalculationType
-from printing_pricing.services.validators.order_validator import OrderValidator
+from printing_pricing.services import OrderValidator
 from customer.models import Customer
 
 User = get_user_model()
@@ -60,7 +60,7 @@ class PrintingPricingSecurityTests(TestCase):
 
     def test_get_decimal_helper(self):
         """اختبار دالة _to_decimal المساعدة للتحقق من سلامة التحويل"""
-        from printing_pricing.services.calculators import PrintingCalculationEngine
+        from printing_pricing.services import PrintingCalculationEngine
 
         # مدخلات صحيحة
         self.assertEqual(PrintingCalculationEngine._to_decimal(10), Decimal('10'))
@@ -72,7 +72,7 @@ class PrintingPricingSecurityTests(TestCase):
 
     def test_parameter_boundary_validations(self):
         """اختبار صمامات الأمان للأبعاد الصفرية وتجاوز الأبعاد لمنع التلاعب المالي أو كراش النظام"""
-        from printing_pricing.services.calculators import PrintingCalculationEngine
+        from printing_pricing.services import PrintingCalculationEngine
 
         # أبعاد تتجاوز الفرخ يجب أن ترجع خطأ
         result = PrintingCalculationEngine.calculate({'width': 120, 'height': 85})

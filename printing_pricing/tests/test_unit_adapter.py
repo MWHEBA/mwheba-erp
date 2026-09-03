@@ -6,7 +6,7 @@ from decimal import Decimal
 from unittest.mock import MagicMock
 
 from printing_pricing.services.unit_adapter import PrintingUnitAdapter
-from printing_pricing.services.validators.order_validator import OrderValidator
+from printing_pricing.services import OrderValidator
 from printing_pricing.models.order import PrintingOrder
 
 

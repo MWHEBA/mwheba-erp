@@ -750,7 +750,7 @@ class OffsetSheetSizeForm(forms.ModelForm):
 
     class Meta:
         model = OffsetSheetSize
-        fields = ['name', 'code', 'width_cm', 'height_cm', 'description', 'is_active', 'is_default', 'is_custom_size']
+        fields = ['name', 'code', 'width', 'height', 'description', 'is_active', 'is_default', 'is_custom_size']
         widgets = {
             'name': forms.TextInput(attrs={
                 'class': 'form-control',
@@ -761,13 +761,13 @@ class OffsetSheetSizeForm(forms.ModelForm):
                 'placeholder': 'مثال: FULL',
                 'maxlength': '20',
             }),
-            'width_cm': forms.NumberInput(attrs={
+            'width': forms.NumberInput(attrs={
                 'class': 'form-control',
                 'placeholder': 'مثال: 70.0',
                 'step': '0.1',
                 'min': '0.1',
             }),
-            'height_cm': forms.NumberInput(attrs={
+            'height': forms.NumberInput(attrs={
                 'class': 'form-control',
                 'placeholder': 'مثال: 100.0',
                 'step': '0.1',
@@ -785,8 +785,8 @@ class OffsetSheetSizeForm(forms.ModelForm):
         labels = {
             'name': _('اسم مقاس الفرخ'),
             'code': _('رمز المقاس'),
-            'width_cm': _('العرض (سم)'),
-            'height_cm': _('الطول (سم)'),
+            'width': _('العرض (سم)'),
+            'height': _('الطول (سم)'),
             'description': _('الوصف'),
             'is_active': _('نشط'),
             'is_default': _('افتراضي'),
@@ -796,6 +796,7 @@ class OffsetSheetSizeForm(forms.ModelForm):
     def save(self, commit=True):
         """حفظ النموذج مع إدارة الافتراضي تلقائياً"""
         instance = super().save(commit=False)
+        instance.dimension_type = 'sheet'
         
         # إذا تم تعيين هذا العنصر كافتراضي، إلغاء الافتراضي من العناصر الأخرى
         if instance.is_default:
@@ -811,7 +812,7 @@ class DigitalSheetSizeForm(forms.ModelForm):
 
     class Meta:
         model = DigitalSheetSize
-        fields = ['name', 'code', 'width_cm', 'height_cm', 'description', 'is_active', 'is_default', 'is_custom_size']
+        fields = ['name', 'code', 'width', 'height', 'description', 'is_active', 'is_default', 'is_custom_size']
         widgets = {
             'name': forms.TextInput(attrs={
                 'class': 'form-control',
@@ -822,13 +823,13 @@ class DigitalSheetSizeForm(forms.ModelForm):
                 'placeholder': 'مثال: A3P',
                 'maxlength': '20',
             }),
-            'width_cm': forms.NumberInput(attrs={
+            'width': forms.NumberInput(attrs={
                 'class': 'form-control',
                 'placeholder': 'مثال: 32.9',
                 'step': '0.1',
                 'min': '0.1',
             }),
-            'height_cm': forms.NumberInput(attrs={
+            'height': forms.NumberInput(attrs={
                 'class': 'form-control',
                 'placeholder': 'مثال: 48.3',
                 'step': '0.1',
@@ -846,10 +847,22 @@ class DigitalSheetSizeForm(forms.ModelForm):
         labels = {
             'name': _('اسم مقاس الفرخ'),
             'code': _('رمز المقاس'),
-            'width_cm': _('العرض (سم)'),
-            'height_cm': _('الطول (سم)'),
+            'width': _('العرض (سم)'),
+            'height': _('الطول (سم)'),
             'description': _('الوصف'),
             'is_active': _('نشط'),
             'is_default': _('افتراضي'),
             'is_custom_size': _('مقاس مخصص'),
         }
+
+    def save(self, commit=True):
+        """حفظ النموذج مع إدارة الافتراضي تلقائياً"""
+        instance = super().save(commit=False)
+        instance.dimension_type = 'sheet'
+        
+        if instance.is_default:
+            DigitalSheetSize.objects.filter(is_default=True).exclude(pk=instance.pk).update(is_default=False)
+        
+        if commit:
+            instance.save()
+        return instance

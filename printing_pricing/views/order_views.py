@@ -17,9 +17,7 @@ from core.utils import UnifiedPaginationMixin
 from ..models import (
     PrintingOrder, OrderMaterial, OrderService, OrderSummary,
     PaperSpecification, PricingStatus, OrderType,
-    ProductType, ProductSize
-)
-from ..models.settings_models import (
+    ProductType, ProductSize,
     PaperType, PaperSize, PaperWeight, PaperOrigin, PieceSize,
     PlateSize, CoatingType, PackagingType, FinishingType
 )
@@ -737,80 +735,21 @@ def calculate_order_cost(request, pk):
         if not _has_order_permission(request.user, order):
             return JsonResponse({'success': False, 'error': _('غير مصرح لك بحساب تكلفة هذا الطلب')}, status=403)
         
-        from ..models import CostCalculation, CalculationType
-        from ..services.calculators import BaseCalculator
+        from ..services import OrderAnatomyPersistenceService
         
         with transaction.atomic():
-            calculator = BaseCalculator(order)
-            result = calculator.calculate(CalculationType.TOTAL)
+            summary = OrderAnatomyPersistenceService.persist_order_anatomy(order, {})
+            if not summary:
+                return JsonResponse({'success': False, 'error': _('فشل في حساب التكلفة')})
             
-            if not result.get('success'):
-                return JsonResponse({'success': False, 'error': result.get('error', _('فشل في حساب التكلفة'))})
-            
-            details = result.get('details', {})
-            mat_cost = Decimal(str(details.get('material_cost', 0)))
-            print_cost = Decimal(str(details.get('printing_cost', 0)))
-            fin_cost = Decimal(str(details.get('finishing_cost', 0)))
-            des_cost = Decimal(str(details.get('design_cost', 0)))
-            other_cost = Decimal(str(details.get('installation_cost', 0))) + Decimal(str(details.get('logistics_cost', 0)))
-            
-            subtotal = Decimal(str(result.get('total_cost', 0)))
-            disc_amt = Decimal(str(details.get('discount_amount', 0)))
-            tax_amt = Decimal(str(details.get('tax_amount', 0)))
-            rush_f = Decimal(str(details.get('rush_fee', 0)))
-            final_p = Decimal(str(result.get('final_price', 0)))
-            margin_pct = Decimal(str(details.get('profit_margin', 20)))
-            profit_amt = max(Decimal('0.00'), final_p - subtotal)
-            
-            import json
-            from django.core.serializers.json import DjangoJSONEncoder
+            subtotal = summary.subtotal or summary.total_cost or Decimal('0.00')
+            final_p = summary.final_price or Decimal('0.00')
+            margin_pct = summary.profit_margin_percentage or Decimal('0.00')
+            profit_amt = summary.profit_amount or Decimal('0.00')
+            qty = Decimal(str(order.quantity or 1))
+            cost_unit = (subtotal / qty).quantize(Decimal('0.0001'))
+            price_unit = (final_p / qty).quantize(Decimal('0.0001'))
 
-            qty = max(1, order.quantity or 1)
-            cost_unit = (subtotal / Decimal(str(qty))).quantize(Decimal('0.0001'))
-            price_unit = (final_p / Decimal(str(qty))).quantize(Decimal('0.0001'))
-            
-            # تحديث أو إنشاء ملخص الطلب OrderSummary
-            summary, summary_created = OrderSummary.objects.get_or_create(order=order)
-            summary.material_cost = mat_cost
-            summary.printing_cost = print_cost
-            summary.finishing_cost = fin_cost
-            summary.design_cost = des_cost
-            summary.other_costs = other_cost
-            summary.subtotal = subtotal
-            summary.discount_amount = disc_amt
-            summary.tax_amount = tax_amt
-            summary.rush_fee = rush_f
-            summary.total_cost = subtotal
-            summary.profit_margin_percentage = margin_pct
-            summary.profit_amount = profit_amt
-            summary.final_price = final_p
-            summary.cost_per_unit = cost_unit
-            summary.price_per_unit = price_unit
-            summary.save()
-            
-            # تحويل تفاصيل الحساب إلى JSON آمن
-            json_safe_details = json.loads(json.dumps(details, cls=DjangoJSONEncoder))
-            
-            # تحديث أو إنشاء سجل حساب التكلفة CostCalculation
-            CostCalculation.objects.update_or_create(
-                order=order,
-                calculation_type=CalculationType.TOTAL,
-                is_current=True,
-                defaults={
-                    'base_cost': subtotal,
-                    'additional_costs': tax_amt + rush_f - disc_amt,
-                    'total_cost': subtotal,
-                    'calculation_details': json_safe_details,
-                    'created_by': request.user
-                }
-            )
-            
-            # تحديث الحقول على رأس أمر التسعير
-            order.estimated_cost = subtotal
-            order.final_price = final_p
-            order.profit_margin = margin_pct
-            order.save(update_fields=['estimated_cost', 'final_price', 'profit_margin', 'updated_at'])
-        
         return JsonResponse({
             'success': True,
             'message': _('تم حساب التكلفة والربحية بنجاح'),
@@ -847,7 +786,7 @@ def approve_order(request, pk):
             return JsonResponse({'success': False, 'error': _('غير مصرح لك باعتماد هذا الطلب')}, status=403)
         
         # التحقق من صحة واكتمال الطلب قبل الاعتماد
-        from ..services.validators.order_validator import OrderValidator
+        from ..services import OrderValidator
         validator = OrderValidator()
         validation_result = validator.validate_order_for_approval(order, user=request.user)
         if not validation_result.get('success') or not validation_result.get('can_approve'):

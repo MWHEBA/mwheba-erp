@@ -11,7 +11,7 @@ from printing_pricing.models import (
     PrintingOrder, PaperSpecification,
     OrderMaterial, OrderService, OrderSummary, PricingStatus, CalculationType
 )
-from printing_pricing.services.calculators import PrintingCalculationEngine
+from printing_pricing.services import PrintingCalculationEngine
 from core.templatetags.pricing_filters import status_badge
 
 User = get_user_model()
@@ -242,3 +242,23 @@ class TestPhase1Comprehensive:
         html_rejected = status_badge('rejected')
         assert 'bg-danger' in html_rejected
         assert 'مرفوض' in html_rejected
+
+    def test_09_calculate_order_cost_endpoint(self):
+        """التحقق من عمل نقطة نهاية calculate_order_cost بنجاح بعد إصلاح BaseCalculator الميت"""
+        order = PrintingOrder.objects.create(
+            customer=self.customer,
+            title="طلب حساب تكلفة ذري",
+            order_type="flyer",
+            quantity=1000,
+            width=Decimal('21.00'),
+            height=Decimal('29.70'),
+            created_by=self.user
+        )
+        url = reverse('printing_pricing:calculate_cost', kwargs={'pk': order.pk})
+        response = self.client_auth.post(url)
+        assert response.status_code == 200
+        data = response.json()
+        assert data['success'] is True
+        assert 'estimated_cost' in data
+        assert 'final_price' in data
+        assert data['order_id'] == order.id

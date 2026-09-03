@@ -56,6 +56,49 @@ class BaseModel(models.Model):
         super().save(*args, **kwargs)
 
 
+class BaseLookupModel(BaseModel):
+    """
+    النموذج الأساسي المجرد لجميع جداول التكويد والإعدادات في وحدة التسعير
+    يوفر الحقول القياسية (الاسم، الوصف، الترتيب، النشاط، الافتراضي) مع تطبيق مبدأ DRY
+    """
+    name = models.CharField(
+        _("الاسم"),
+        max_length=100,
+        help_text=_("اسم العنصر أو الإعداد")
+    )
+    description = models.TextField(
+        _("الوصف"),
+        blank=True,
+        null=True,
+        help_text=_("وصف توضيحي اختياري")
+    )
+    sort_order = models.PositiveIntegerField(
+        _("الترتيب"),
+        default=0,
+        help_text=_("ترتيب الظهور في القوائم المنسدلة")
+    )
+    is_default = models.BooleanField(
+        _("افتراضي"),
+        default=False,
+        help_text=_("هل هذا هو العنصر الافتراضي؟")
+    )
+
+    class Meta:
+        abstract = True
+        ordering = ['sort_order', 'name', 'id']
+
+    def __str__(self):
+        return self.name
+
+    def save(self, *args, **kwargs):
+        """
+        حفظ مع إدارة حصرية العنصر الافتراضي
+        """
+        super().save(*args, **kwargs)
+        if self.is_default and self.pk:
+            self.__class__.objects.filter(is_default=True).exclude(pk=self.pk).update(is_default=False)
+
+
 class PricingStatus(models.TextChoices):
     """
     حالات طلبات التسعير
@@ -113,6 +156,7 @@ class PriceUnit(models.TextChoices):
 
 __all__ = [
     'BaseModel',
+    'BaseLookupModel',
     'PricingStatus',
     'OrderType', 
     'CalculationType',

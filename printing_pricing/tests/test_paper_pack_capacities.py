@@ -1,7 +1,7 @@
 import pytest
 from decimal import Decimal
 from django.core.exceptions import ValidationError
-from printing_pricing.models.settings_models import PaperType, PaperWeight
+from printing_pricing.models import PaperType, PaperWeight
 from printing_pricing.forms.settings_forms import PaperTypeForm, PaperWeightForm
 
 

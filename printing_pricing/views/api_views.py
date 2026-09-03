@@ -10,10 +10,10 @@ from decimal import Decimal
 import json
 
 from ..models import PrintingOrder, CostCalculation, OrderSummary, CalculationType
-from ..services.calculators import PrintingCalculationEngine
+from ..services import PrintingCalculationEngine
 
 from supplier.models import Supplier
-from printing_pricing.models.settings_models import PaperOrigin, PieceSize, PaperWeight, PaperType, PaperSize
+from printing_pricing.models import PaperOrigin, PieceSize, PaperWeight, PaperType, PaperSize
 
 # تحميل نماذج خدمات الموردين — متاحة بعد المرحلة الأولى
 try:
@@ -110,7 +110,7 @@ class LivePricingCalculateAPIView(BaseAPIView):
             else:
                 payload = request.POST.dict()
 
-            from ..services.calculators import PrintingCalculationEngine
+            from ..services import PrintingCalculationEngine
             result = PrintingCalculationEngine.calculate(payload)
             return JsonResponse(result)
         except Exception as e:
@@ -308,7 +308,7 @@ class GetProductTypesAPIView(BaseAPIView):
     
     def get(self, request):
         try:
-            from printing_pricing.models.settings_models import ProductType
+            from printing_pricing.models import ProductType
             
             # جلب أنواع المنتجات النشطة
             product_types = ProductType.objects.filter(is_active=True).order_by('name')
@@ -340,7 +340,7 @@ class GetProductSizesAPIView(BaseAPIView):
     
     def get(self, request):
         try:
-            from printing_pricing.models.settings_models import ProductSize
+            from printing_pricing.models import ProductSize
             
             # جلب أحجام المنتجات النشطة
             product_sizes = ProductSize.objects.filter(is_active=True).order_by('name')
@@ -1407,7 +1407,7 @@ class BulkPriceUpdateAPIView(BaseAPIView):
         try:
             data = json.loads(request.body) if request.body else {}
             updates = data.get('updates', [])
-            from ..services.bulk_price_updater import BulkPriceUpdaterService
+            from ..services import BulkPriceUpdaterService
             res = BulkPriceUpdaterService.bulk_update_supplier_services(updates, user=request.user)
             return JsonResponse(res)
         except Exception as e:
@@ -1427,7 +1427,7 @@ class GenerateVendorPOsAPIView(BaseAPIView):
             data = json.loads(request.body) if request.body else {}
             override_reason = data.get('override_reason', '')
             
-            from ..services.procurement_bridge import ProcurementBridgeService
+            from ..services import ProcurementBridgeService
             pos = ProcurementBridgeService.generate_vendor_purchase_orders(
                 order=order,
                 gated=False,

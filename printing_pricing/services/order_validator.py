@@ -6,7 +6,7 @@ from typing import Dict, List, Optional, Any
 from django.utils.translation import gettext_lazy as _
 from django.core.exceptions import ValidationError
 
-from ...models import PrintingOrder, OrderMaterial, OrderService
+from ..models import PrintingOrder, OrderMaterial, OrderService
 
 
 class OrderValidator:

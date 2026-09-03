@@ -4,7 +4,7 @@ from django.contrib.auth import get_user_model
 from django.test import Client
 from django.urls import reverse
 
-from printing_pricing.services.calculators import PrintingCalculationEngine
+from printing_pricing.services import PrintingCalculationEngine
 
 User = get_user_model()
 
