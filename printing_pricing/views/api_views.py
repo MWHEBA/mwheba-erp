@@ -10,10 +10,10 @@ from decimal import Decimal
 import json
 
 from ..models import PrintingOrder, CostCalculation, OrderSummary, CalculationType
-from ..services.calculators.base_calculator import BaseCalculator
+from ..services.calculators import PrintingCalculationEngine
 
 from supplier.models import Supplier
-from printing_pricing.models.settings_models import PaperOrigin, PieceSize
+from printing_pricing.models.settings_models import PaperOrigin, PieceSize, PaperWeight, PaperType, PaperSize
 
 # تحميل نماذج خدمات الموردين — متاحة بعد المرحلة الأولى
 try:
@@ -24,14 +24,7 @@ except ImportError:
     SupplierServiceModel = None
     HAS_SUPPLIER_SERVICES = False
 
-# النماذج القديمة غير موجودة — الـ APIs تعمل بـ fallback حتى تكتمل المرحلة الأولى
-PaperServiceDetails = None
-OffsetPrintingDetails = None
-DigitalPrintingDetails = None
-PlateServiceDetails = None
-HAS_PAPER_SERVICE_DETAILS = False
-HAS_MACHINE_MODELS = False
-HAS_PLATE_MODEL = False
+
 
 
 class BaseAPIView(LoginRequiredMixin, View):
@@ -102,305 +95,28 @@ class BaseAPIView(LoginRequiredMixin, View):
 
 
 @method_decorator(csrf_exempt, name='dispatch')
-class CalculateCostAPIView(BaseAPIView):
+class LivePricingCalculateAPIView(BaseAPIView):
     """
-    API حساب التكلفة الشامل
+    API الحساب اللحظي الموحد لتسعير المطبوعات (Single Source of Truth)
+    يستدعي PrintingCalculationEngine ويرجع هيكل النتائج الكامل بالجنيه المصري في أقل من 3ms.
     """
-    
     def post(self, request):
-        """حساب التكلفة لطلب معين"""
         try:
-            data = json.loads(request.body)
-            
-            # التحقق من المعاملات المطلوبة
-            required_params = ['order_id', 'calculation_types']
-            missing_params = []
-            
-            for param in required_params:
-                if param not in data:
-                    missing_params.append(param)
-            
-            if missing_params:
-                return JsonResponse({
-                    'success': False,
-                    'error': _('معاملات مطلوبة مفقودة: {}').format(', '.join(missing_params)),
-                    'missing_params': missing_params,
-                    'received_params': list(data.keys()),
-                    'suggestion': _('تأكد من إرسال جميع المعاملات المطلوبة')
-                }, status=400)
-            
-            # جلب الطلب
-            order = get_object_or_404(PrintingOrder, pk=data['order_id'], is_active=True)
-            
-            # التحقق من الصلاحية (IDOR)
-            if not self.has_order_permission(request, order):
-                return JsonResponse({
-                    'success': False,
-                    'error': _('غير مصرح لك بإجراء هذه العملية على هذا الطلب'),
-                    'error_code': 'FORBIDDEN'
-                }, status=403)
-            
-            # أنواع الحسابات المطلوبة
-            calculation_types = data['calculation_types']
-            if not isinstance(calculation_types, list):
-                calculation_types = [calculation_types]
-            
-            results = {}
-            total_cost = Decimal('0.00')
-            
-            # تنفيذ الحسابات
-            for calc_type in calculation_types:
+            if request.content_type and 'application/json' in request.content_type:
                 try:
-                    # هنا سيتم استدعاء الحاسبات المتخصصة لاحقاً
-                    calculator = BaseCalculator(order)
-                    result = calculator.calculate(calc_type, data.get('parameters', {}))
-                    
-                    results[calc_type] = result
-                    total_cost += result.get('total_cost', Decimal('0.00'))
-                    
-                    # حفظ نتيجة الحساب
-                    CostCalculation.objects.create(
-                        order=order,
-                        calculation_type=calc_type,
-                        base_cost=result.get('base_cost', Decimal('0.00')),
-                        additional_costs=result.get('additional_costs', Decimal('0.00')),
-                        total_cost=result.get('total_cost', Decimal('0.00')),
-                        calculation_details=result.get('details', {}),
-                        parameters_used=data.get('parameters', {}),
-                        created_by=request.user
-                    )
-                    
-                except Exception as calc_error:
-                    results[calc_type] = {
-                        'success': False,
-                        'error': str(calc_error)
-                    }
-            
-            # تحديث تكلفة الطلب
-            order.estimated_cost = total_cost
-            order.updated_by = request.user
-            order.save()
-            
-            # تحديث ملخص التكاليف
-            try:
-                summary = order.summary
-                summary.update_from_calculations()
-            except OrderSummary.DoesNotExist:
-                OrderSummary.objects.create(order=order)
-            
-            return JsonResponse({
-                'success': True,
-                'message': _('تم حساب التكلفة بنجاح'),
-                'results': results,
-                'total_cost': float(total_cost),
-                'order_id': order.id,
-                'calculation_timestamp': order.updated_at.isoformat()
-            })
-            
+                    payload = json.loads(request.body)
+                except Exception:
+                    payload = {}
+            else:
+                payload = request.POST.dict()
+
+            from ..services.calculators import PrintingCalculationEngine
+            result = PrintingCalculationEngine.calculate(payload)
+            return JsonResponse(result)
         except Exception as e:
-            return self.handle_exception(e, "CalculateCostAPIView.post")
+            return self.handle_exception(e, "LivePricingCalculateAPIView.post")
 
 
-@method_decorator(csrf_exempt, name='dispatch')
-class GetMaterialPriceAPIView(BaseAPIView):
-    """
-    API جلب أسعار المواد
-    """
-    
-    def get(self, request):
-        """جلب سعر مادة معينة"""
-        try:
-            # معاملات البحث
-            material_type = request.GET.get('material_type')
-            material_name = request.GET.get('material_name')
-            supplier_id = request.GET.get('supplier_id')
-            
-            # التحقق من المعاملات
-            if not material_type:
-                return JsonResponse({
-                    'success': False,
-                    'error': _('نوع المادة مطلوب'),
-                    'missing_params': ['material_type'],
-                    'suggestion': _('حدد نوع المادة المطلوبة')
-                }, status=400)
-            
-            # هنا سيتم البحث في قاعدة بيانات المواد والموردين
-            # مؤقتاً نرجع أسعار تجريبية
-            sample_prices = {
-                'paper': {
-                    'unit_cost': 2.50,
-                    'unit': 'sheet',
-                    'supplier': 'مورد الورق الرئيسي',
-                    'last_updated': '2025-01-15'
-                },
-                'ink': {
-                    'unit_cost': 150.00,
-                    'unit': 'kilogram',
-                    'supplier': 'مورد الأحبار',
-                    'last_updated': '2025-01-10'
-                }
-            }
-            
-            price_info = sample_prices.get(material_type)
-            if not price_info:
-                return JsonResponse({
-                    'success': False,
-                    'error': _('لا توجد معلومات أسعار لهذا النوع من المواد'),
-                    'search_criteria': {
-                        'material_type': material_type,
-                        'material_name': material_name,
-                        'supplier_id': supplier_id
-                    },
-                    'suggestion': _('تأكد من صحة نوع المادة أو أضف السعر يدوياً')
-                }, status=404)
-            
-            return JsonResponse({
-                'success': True,
-                'price_info': price_info,
-                'search_criteria': {
-                    'material_type': material_type,
-                    'material_name': material_name,
-                    'supplier_id': supplier_id
-                }
-            })
-            
-        except Exception as e:
-            return self.handle_exception(e, "GetMaterialPriceAPIView.get")
-
-
-@method_decorator(csrf_exempt, name='dispatch')
-class GetServicePriceAPIView(BaseAPIView):
-    """
-    API جلب أسعار الخدمات
-    """
-    
-    def get(self, request):
-        """جلب سعر خدمة معينة"""
-        try:
-            # معاملات البحث
-            service_category = request.GET.get('service_category')
-            service_name = request.GET.get('service_name')
-            supplier_id = request.GET.get('supplier_id')
-            
-            # التحقق من المعاملات
-            if not service_category:
-                return JsonResponse({
-                    'success': False,
-                    'error': _('فئة الخدمة مطلوبة'),
-                    'missing_params': ['service_category'],
-                    'suggestion': _('حدد فئة الخدمة المطلوبة')
-                }, status=400)
-            
-            # أسعار تجريبية للخدمات
-            sample_prices = {
-                'printing': {
-                    'unit_price': 0.50,
-                    'setup_cost': 25.00,
-                    'unit': 'piece',
-                    'supplier': 'مطبعة الجودة',
-                    'execution_time': 2
-                },
-                'finishing': {
-                    'unit_price': 0.25,
-                    'setup_cost': 15.00,
-                    'unit': 'piece',
-                    'supplier': 'ورشة خدمات الطباعة',
-                    'execution_time': 1
-                }
-            }
-            
-            price_info = sample_prices.get(service_category)
-            if not price_info:
-                return JsonResponse({
-                    'success': False,
-                    'error': _('لا توجد معلومات أسعار لهذه الفئة من الخدمات'),
-                    'search_criteria': {
-                        'service_category': service_category,
-                        'service_name': service_name,
-                        'supplier_id': supplier_id
-                    },
-                    'suggestion': _('تأكد من صحة فئة الخدمة أو أضف السعر يدوياً')
-                }, status=404)
-            
-            return JsonResponse({
-                'success': True,
-                'price_info': price_info,
-                'search_criteria': {
-                    'service_category': service_category,
-                    'service_name': service_name,
-                    'supplier_id': supplier_id
-                }
-            })
-            
-        except Exception as e:
-            return self.handle_exception(e, "GetServicePriceAPIView.get")
-
-
-@method_decorator(csrf_exempt, name='dispatch')
-class ValidateOrderAPIView(BaseAPIView):
-    """
-    API التحقق من صحة بيانات الطلب
-    """
-    
-    def post(self, request):
-        """التحقق من صحة بيانات الطلب"""
-        try:
-            data = json.loads(request.body)
-            
-            # قائمة الأخطاء
-            errors = []
-            warnings = []
-            
-            # التحقق من البيانات الأساسية
-            required_fields = ['customer_id', 'title', 'quantity', 'order_type']
-            for field in required_fields:
-                if not data.get(field):
-                    errors.append(_('الحقل {} مطلوب').format(field))
-            
-            # التحقق من الكمية
-            quantity = data.get('quantity')
-            if quantity and (not isinstance(quantity, (int, float)) or quantity <= 0):
-                errors.append(_('الكمية يجب أن تكون رقماً موجباً'))
-            
-            # التحقق من الأبعاد
-            width = data.get('width')
-            height = data.get('height')
-            if width and height:
-                if width <= 0 or height <= 0:
-                    errors.append(_('الأبعاد يجب أن تكون أكبر من صفر'))
-            elif width or height:
-                warnings.append(_('يُفضل تحديد كلا البعدين (العرض والارتفاع)'))
-            
-            # التحقق من هامش الربح
-            profit_margin = data.get('profit_margin')
-            if profit_margin and (profit_margin < 0 or profit_margin > 100):
-                errors.append(_('هامش الربح يجب أن يكون بين 0 و 100%'))
-            
-            # تحذيرات إضافية
-            if quantity and quantity > 10000:
-                warnings.append(_('الكمية كبيرة جداً، تأكد من صحتها'))
-            
-            if not data.get('due_date'):
-                warnings.append(_('لم يتم تحديد تاريخ التسليم'))
-            
-            # النتيجة
-            is_valid = len(errors) == 0
-            
-            return JsonResponse({
-                'success': True,
-                'is_valid': is_valid,
-                'errors': errors,
-                'warnings': warnings,
-                'validated_data': data,
-                'validation_summary': {
-                    'total_errors': len(errors),
-                    'total_warnings': len(warnings),
-                    'status': 'valid' if is_valid else 'invalid'
-                }
-            })
-            
-        except Exception as e:
-            return self.handle_exception(e, "ValidateOrderAPIView.post")
 
 
 @method_decorator(csrf_exempt, name='dispatch')
@@ -656,49 +372,6 @@ class GetProductSizesAPIView(BaseAPIView):
             return self.handle_exception(e, "GetProductSizesAPIView.get")
 
 
-class GetPrintingSuppliersAPIView(BaseAPIView):
-    """
-    API لجلب المطابع المتاحة — يستخدم SupplierService (offset_printing / digital_printing)
-    """
-    
-    def get(self, request):
-        try:
-            order_type = request.GET.get('order_type', '')
-
-            if HAS_SUPPLIER_SERVICES:
-                # تحديد كود نوع الخدمة حسب نوع الطلب
-                if order_type == 'offset':
-                    codes = ['offset_printing']
-                elif order_type == 'digital':
-                    codes = ['digital_printing']
-                else:
-                    codes = ['offset_printing', 'digital_printing']
-
-                from supplier.services.supplier_service import SupplierService as SvcClass
-                results = []
-                seen = set()
-                for code in codes:
-                    for s in SvcClass.get_suppliers_by_service_type(code):
-                        if s.id not in seen:
-                            seen.add(s.id)
-                            offset_count = s.services.filter(service_type__code='offset_printing', is_active=True).count()
-                            digital_count = s.services.filter(service_type__code='digital_printing', is_active=True).count()
-                            machine_info = []
-                            if offset_count: machine_info.append(f"{offset_count} أوفست")
-                            if digital_count: machine_info.append(f"{digital_count} ديجيتال")
-                            display_name = s.name + (f" ({', '.join(machine_info)})" if machine_info else "")
-                            results.append({
-                                'id': s.id, 'text': display_name, 'name': s.name,
-                                'contact_person': s.contact_person or '', 'phone': s.phone or '',
-                                'email': s.email or '', 'address': s.address or '',
-                                'offset_machines': offset_count, 'digital_machines': digital_count,
-                            })
-                return JsonResponse({'success': True, 'suppliers': results, 'total_count': len(results)})
-
-            return JsonResponse({'success': True, 'suppliers': [], 'total_count': 0})
-        except Exception as e:
-            return self.handle_exception(e, "GetPrintingSuppliersAPIView.get")
-
 
 class GetPressesAPIView(BaseAPIView):
     """
@@ -779,417 +452,322 @@ class GetPressesAPIView(BaseAPIView):
             return self.handle_exception(e, "GetPressesAPIView.get")
 
 
-class GetPressPriceAPIView(BaseAPIView):
+
+# ==================== APIs الورق ====================
+
+class GetPaperTypesAPIView(BaseAPIView):
     """
-    API لجلب سعر ماكينة معينة — يستخدم SupplierService
-    """
-    
-    def get(self, request):
-        try:
-            press_id = request.GET.get('press_id')
-            if not press_id:
-                return JsonResponse({'success': False, 'error': _('معرف الماكينة مطلوب'), 'missing_params': ['press_id']}, status=400)
-
-            price_info = None
-
-            if HAS_SUPPLIER_SERVICES:
-                # press_id format: offset_<service_id> or digital_<service_id>
-                for prefix in ('offset_', 'digital_'):
-                    if press_id.startswith(prefix):
-                        svc_id = press_id.replace(prefix, '')
-                        from supplier.services.supplier_service import SupplierService as SvcClass
-                        result = SvcClass.get_service_price(svc_id)
-                        if result:
-                            price_info = {
-                                'price_per_1000': float(result['price']),
-                                'setup_cost':     float(result['setup_cost']),
-                                'minimum_quantity': 500 if prefix == 'offset_' else 100,
-                                'service_id':     svc_id,
-                                'supplier_name':  result['supplier_name'],
-                                'attributes':     result['attributes'],
-                            }
-                        break
-
-            if not price_info:
-                price_info = {
-                    'price_per_1000': 35.00 if 'digital' in press_id.lower() else 50.00,
-                    'setup_cost':     10.00 if 'digital' in press_id.lower() else 20.00,
-                    'minimum_quantity': 200 if 'digital' in press_id.lower() else 500,
-                }
-
-            return JsonResponse({'success': True, 'press_id': press_id,
-                                 'price_per_1000': price_info['price_per_1000'],
-                                 'price':          price_info['price_per_1000'],
-                                 'unit_price':     price_info['price_per_1000'],
-                                 'setup_cost':     price_info['setup_cost'],
-                                 'minimum_quantity': price_info['minimum_quantity'],
-                                 'service_id':     price_info.get('service_id'),
-                                 'supplier_name':  price_info.get('supplier_name', ''),
-                                 'attributes':     price_info.get('attributes', {}),
-                                 })
-        except Exception as e:
-            return self.handle_exception(e, "GetPressPriceAPIView.get")
-
-
-class GetCTPSuppliersAPIView(BaseAPIView):
-    """
-    API لجلب موردي الزنكات — يقتصر حصرياً على الموردين الذين لديهم خدمات زنكات CTP مسجلة ونشطة
-    """
-    
-    def get(self, request):
-        try:
-            from supplier.models import Supplier
-            
-            suppliers_qs = Supplier.objects.filter(
-                is_active=True,
-                services__service_type__code='ctp_plates',
-                services__is_active=True
-            ).distinct().order_by('name')
-
-            results = []
-            for s in suppliers_qs:
-                ctp_count = s.services.filter(service_type__code='ctp_plates', is_active=True).count()
-                results.append({
-                    'id': s.id,
-                    'text': f"{s.name} ({ctp_count} " + _('مقاسات/خدمات زنكات') + ")",
-                    'name': s.name,
-                    'contact_person': s.contact_person or '',
-                    'phone': s.phone or '',
-                    'email': s.email or '',
-                    'address': s.address or '',
-                    'ctp_services_count': ctp_count,
-                })
-            return JsonResponse({'success': True, 'suppliers': results, 'total_count': len(results)})
-        except Exception as e:
-            return self.handle_exception(e, "GetCTPSuppliersAPIView.get")
-
-
-class GetCTPPlatesAPIView(BaseAPIView):
-    """
-    API لجلب خدمات ومقاسات الزنكات المسجلة لمورد CTP خارجي معين حصراً
+    API لجلب أنواع الورق — يدعم الفلترة حسب مورد الورق (supplier_id) مع إرجاع معرفات نموذج PaperType الحقيقية
     """
     
     def get(self, request):
         try:
             supplier_id = request.GET.get('supplier_id')
             
-            if not supplier_id:
-                return JsonResponse({
-                    'success': False,
-                    'error': _('يرجى اختيار مكتب الفصل المعتمد'),
-                    'plates': [],
-                    'total_count': 0,
-                    'has_plates': False
-                }, status=400)
+            # جلب كل أنواع الورق النشطة من نموذج الإعدادات كمرجع أصلي
+            all_paper_types = PaperType.objects.filter(is_active=True).order_by('name')
+            
+            supplier_paper_type_names = set()
+            if supplier_id and HAS_SUPPLIER_SERVICES:
+                for svc in SupplierServiceModel.objects.filter(
+                    service_type__code='paper', supplier_id=supplier_id, is_active=True
+                ).values_list('attributes', flat=True):
+                    if isinstance(svc, dict):
+                        pt = svc.get('paper_type')
+                        if pt:
+                            supplier_paper_type_names.add(str(pt).strip())
 
-            from supplier.models import Supplier
-            try:
-                supplier = Supplier.objects.get(id=supplier_id, is_active=True)
-            except Supplier.DoesNotExist:
-                return JsonResponse({'success': False, 'error': _('المورد المحدد غير موجود أو غير نشط')}, status=404)
+            types_data = []
+            for pt in all_paper_types:
+                # التحقق من توفر هذا النوع لدى المورد المختار
+                is_available = True
+                if supplier_id:
+                    is_available = any(
+                        s_name.lower() in pt.name.lower() or pt.name.lower() in s_name.lower()
+                        for s_name in supplier_paper_type_names
+                    ) if supplier_paper_type_names else False
 
-            plates = []
-            if HAS_SUPPLIER_SERVICES:
-                from supplier.services.supplier_service import SupplierService as SvcClass
-                for svc in SvcClass.get_supplier_services(supplier_id, 'ctp_plates'):
-                    bed_size = svc.attributes.get('bed_size') or ('70x100' if '100' in svc.name else ('50x70' if '70' in svc.name else ('35x50' if '50' in svc.name else 'custom')))
-                    price = float(svc.get_price_for_quantity(1) or svc.base_price)
-                    plates.append({
-                        'id':              f'ctp_{svc.id}',
-                        'service_id':      svc.id,
-                        'bed_size':        bed_size,
-                        'name':            svc.name,
-                        'service_name':    svc.name,
-                        'plate_type':      svc.attributes.get('plate_type', _('معياري')),
-                        'price_per_plate': price,
-                        'attributes':      svc.attributes,
-                    })
+                types_data.append({
+                    'id': pt.id,
+                    'name': pt.name,
+                    'description': pt.description or f'نوع ورق {pt.name}',
+                    'override_sheets_per_pack': pt.override_sheets_per_pack or '',
+                    'is_default': pt.is_default,
+                    'is_available_with_supplier': is_available,
+                })
+
+            # ترتيب القائمة بحيث تظهر الخامات المتوفرة لدى المورد في البداية
+            if supplier_id and supplier_paper_type_names:
+                types_data.sort(key=lambda x: (not x['is_available_with_supplier'], x['name']))
 
             return JsonResponse({
                 'success': True,
-                'plates': plates,
-                'supplier_info': {'id': supplier.id, 'name': supplier.name},
-                'total_count': len(plates),
-                'has_plates': len(plates) > 0,
-                'message': _('تم جلب مقاسات الزنكات المسجلة للمورد بنجاح') if plates else _('لا توجد مقاسات أو خدمات زنكات مسجلة لهذا المورد')
+                'paper_types': types_data,
+                'total_count': len(types_data),
+                'supplier_id': supplier_id
             })
-        except Exception as e:
-            return self.handle_exception(e, "GetCTPPlatesAPIView.get")
-
-
-class GetCTPPriceAPIView(BaseAPIView):
-    """
-    API لجلب سعر زنكة معينة — يستخدم SupplierService
-    """
-    
-    def get(self, request):
-        try:
-            plate_id = request.GET.get('plate_id')
-            if not plate_id:
-                return JsonResponse({'success': False, 'error': _('معرف الزنكة مطلوب'), 'missing_params': ['plate_id']}, status=400)
-
-            price_info = None
-
-            if HAS_SUPPLIER_SERVICES and plate_id.startswith('ctp_'):
-                svc_id = plate_id.replace('ctp_', '')
-                from supplier.services.supplier_service import SupplierService as SvcClass
-                result = SvcClass.get_service_price(svc_id)
-                if result:
-                    price_info = {
-                        'price_per_plate': float(result['price']),
-                        'setup_cost':      float(result['setup_cost']),
-                        'minimum_quantity': 1,
-                        'service_id':      svc_id,
-                        'supplier_name':   result['supplier_name'],
-                        'attributes':      result['attributes'],
-                    }
-
-            if not price_info:
-                price_info = {'price_per_plate': 15.00, 'setup_cost': 5.00, 'minimum_quantity': 1}
-
-            return JsonResponse({'success': True, 'plate_id': plate_id,
-                                 'price_per_plate': price_info['price_per_plate'],
-                                 'price':           price_info['price_per_plate'],
-                                 'unit_price':      price_info['price_per_plate'],
-                                 'setup_cost':      price_info['setup_cost'],
-                                 'minimum_quantity': price_info['minimum_quantity'],
-                                 'service_id':      price_info.get('service_id'),
-                                 'supplier_name':   price_info.get('supplier_name', ''),
-                                 'attributes':      price_info.get('attributes', {}),
-                                 })
-        except Exception as e:
-            return self.handle_exception(e, "GetCTPPriceAPIView.get")
-
-
-# ==================== APIs الورق ====================
-
-class GetPaperTypesAPIView(BaseAPIView):
-    """
-    API لجلب أنواع الورق — من SupplierService.attributes أو PaperType settings
-    """
-    
-    def get(self, request):
-        try:
-            # أولاً: جلب من SupplierService إذا متاح
-            if HAS_SUPPLIER_SERVICES:
-                paper_types_set = set()
-                for svc in SupplierServiceModel.objects.filter(
-                    service_type__code='paper', is_active=True, supplier__is_active=True
-                ).values_list('attributes', flat=True):
-                    pt = svc.get('paper_type') if isinstance(svc, dict) else None
-                    if pt:
-                        paper_types_set.add(pt)
-
-                if paper_types_set:
-                    types_data = [
-                        {'id': i, 'name': pt, 'description': f'نوع ورق {pt}', 'is_default': i == 1}
-                        for i, pt in enumerate(sorted(paper_types_set), 1)
-                    ]
-                    return JsonResponse({'success': True, 'paper_types': types_data, 'total_count': len(types_data)})
-
-            # Fallback: من PaperType settings model
-            if not HAS_PAPER_SERVICE_DETAILS:
-                return JsonResponse({'success': True, 'paper_types': [], 'total_count': 0})
-
-            paper_types = PaperServiceDetails.objects.filter(
-                service__supplier__is_active=True, service__is_active=True
-            ).values_list('paper_type', flat=True).distinct().order_by('paper_type')
-
-            types_data = [
-                {'id': i, 'name': pt, 'description': f'نوع ورق {pt}', 'is_default': i == 1}
-                for i, pt in enumerate(paper_types, 1) if pt
-            ]
-            return JsonResponse({'success': True, 'paper_types': types_data, 'total_count': len(types_data)})
         except Exception as e:
             return self.handle_exception(e, "GetPaperTypesAPIView.get")
 
 
 class GetPaperSuppliersAPIView(BaseAPIView):
     """
-    API لجلب موردي الورق — يستخدم SupplierService (paper)
+    API لجلب موردي الورق — يدعم الفلترة حسب نوع الورق المختار وترشيح الموردين الذين يوفرونه
     """
     
     def get(self, request):
         try:
             paper_type_id = request.GET.get('paper_type_id')
+            
+            # جلب كل موردي الورق النشطين
+            paper_suppliers = Supplier.objects.filter(
+                is_active=True,
+                services__service_type__code='paper',
+                services__is_active=True
+            ).distinct().order_by('name')
+            
+            if not paper_suppliers.exists():
+                paper_suppliers = Supplier.objects.filter(is_active=True).order_by('name')
 
-            if HAS_SUPPLIER_SERVICES:
-                qs = SupplierServiceModel.objects.filter(
-                    service_type__code='paper', is_active=True, supplier__is_active=True
-                ).select_related('supplier')
-
-                # فلتر حسب نوع الورق إذا محدد
-                if paper_type_id:
-                    # paper_type_id هو رقم تسلسلي — نجلب اسم النوع أولاً
-                    all_types = sorted(set(
-                        s.get('paper_type') for s in SupplierServiceModel.objects.filter(
-                            service_type__code='paper', is_active=True
-                        ).values_list('attributes', flat=True)
-                        if isinstance(s, dict) and s.get('paper_type')
-                    ))
-                    try:
-                        paper_type_name = all_types[int(paper_type_id) - 1]
-                        qs = [s for s in qs if s.attributes.get('paper_type') == paper_type_name]
-                    except (IndexError, ValueError):
-                        pass
-
-                suppliers_dict = {}
-                for svc in qs:
-                    s = svc.supplier
-                    if s.id not in suppliers_dict:
-                        suppliers_dict[s.id] = {
-                            'id': s.id, 'name': s.name,
-                            'contact_info': s.contact_person or '',
-                            'phone': s.phone or '', 'email': s.email or '',
-                        }
-                suppliers_data = sorted(suppliers_dict.values(), key=lambda x: x['name'])
-                return JsonResponse({'success': True, 'suppliers': suppliers_data, 'total_count': len(suppliers_data)})
-
-            if not HAS_PAPER_SERVICE_DETAILS:
-                return JsonResponse({'success': True, 'suppliers': [], 'total_count': 0})
-
-            # Fallback legacy
-            filters = {'service__is_active': True, 'service__supplier__is_active': True}
+            paper_type_name = ''
             if paper_type_id:
-                paper_types = list(PaperServiceDetails.objects.filter(**filters).values_list('paper_type', flat=True).distinct().order_by('paper_type'))
                 try:
-                    filters['paper_type'] = paper_types[int(paper_type_id) - 1]
-                except (IndexError, ValueError):
-                    return JsonResponse({'success': False, 'error': 'نوع الورق غير موجود'}, status=404)
+                    pt_obj = PaperType.objects.filter(id=int(paper_type_id)).first()
+                    if pt_obj:
+                        paper_type_name = pt_obj.name
+                except (ValueError, TypeError):
+                    paper_type_name = str(paper_type_id)
 
-            paper_services = PaperServiceDetails.objects.filter(**filters).select_related('service__supplier')
-            suppliers_dict = {}
-            for ps in paper_services:
-                s = ps.service.supplier
-                if s.id not in suppliers_dict:
-                    suppliers_dict[s.id] = {'id': s.id, 'name': s.name, 'contact_info': s.contact_person or '', 'phone': s.phone or '', 'email': s.email or ''}
-            suppliers_data = sorted(suppliers_dict.values(), key=lambda x: x['name'])
-            return JsonResponse({'success': True, 'suppliers': suppliers_data, 'total_count': len(suppliers_data)})
+            suppliers_data = []
+            for s in paper_suppliers:
+                is_available = True
+                if paper_type_name and HAS_SUPPLIER_SERVICES:
+                    matched = SupplierServiceModel.objects.filter(
+                        service_type__code='paper',
+                        supplier_id=s.id,
+                        is_active=True
+                    )
+                    has_type = False
+                    for svc in matched:
+                        attrs = svc.attributes if isinstance(svc.attributes, dict) else {}
+                        pt = attrs.get('paper_type', '')
+                        if pt and (paper_type_name.lower() in str(pt).lower() or str(pt).lower() in paper_type_name.lower()):
+                            has_type = True
+                            break
+                        if paper_type_name.lower() in svc.name.lower():
+                            has_type = True
+                            break
+                    is_available = has_type
+
+                suppliers_data.append({
+                    'id': s.id,
+                    'name': s.name,
+                    'contact_info': getattr(s, 'contact_person', '') or '',
+                    'phone': getattr(s, 'phone', '') or '',
+                    'email': getattr(s, 'email', '') or '',
+                    'is_available_for_paper': is_available,
+                })
+
+            if paper_type_name:
+                suppliers_data.sort(key=lambda x: (not x['is_available_for_paper'], x['name']))
+
+            return JsonResponse({
+                'success': True,
+                'suppliers': suppliers_data,
+                'total_count': len(suppliers_data),
+                'paper_type': paper_type_name
+            })
         except Exception as e:
             return self.handle_exception(e, "GetPaperSuppliersAPIView.get")
 
 
 class GetPaperWeightsAPIView(BaseAPIView):
     """
-    API لجلب أوزان الورق — يستخدم SupplierService.attributes
+    API لجلب أوزان الورق — فلترة شلالية بناءً على المورد ونوع الورق ومقاس الفرخ
     """
     
     def get(self, request):
         try:
             paper_type_id = request.GET.get('paper_type_id')
             supplier_id   = request.GET.get('supplier_id')
+            sheet_size    = request.GET.get('sheet_size')
 
-            if not paper_type_id:
-                return JsonResponse({'success': False, 'error': 'معرف نوع الورق مطلوب', 'missing_params': ['paper_type_id']}, status=400)
+            all_weights = PaperWeight.objects.filter(is_active=True).order_by('gsm')
 
-            if HAS_SUPPLIER_SERVICES:
-                qs = SupplierServiceModel.objects.filter(service_type__code='paper', is_active=True, supplier__is_active=True)
-                if supplier_id:
-                    qs = qs.filter(supplier_id=supplier_id)
+            if not paper_type_id and not supplier_id:
+                weights_data = [{
+                    'id': w.id,
+                    'value': str(w.gsm),
+                    'gsm': w.gsm,
+                    'name': w.name,
+                    'display_name': f"{w.name} ({w.gsm} جم)",
+                    'sheets_per_pack': w.sheets_per_pack,
+                    'is_default': w.is_default,
+                } for w in all_weights]
+                return JsonResponse({'success': True, 'weights': weights_data, 'total_count': len(weights_data)})
 
-                all_types = sorted(set(
-                    s.get('paper_type') for s in SupplierServiceModel.objects.filter(
-                        service_type__code='paper', is_active=True
-                    ).values_list('attributes', flat=True)
-                    if isinstance(s, dict) and s.get('paper_type')
-                ))
+            paper_type_name = ''
+            if paper_type_id:
                 try:
-                    paper_type_name = all_types[int(paper_type_id) - 1]
-                except (IndexError, ValueError):
-                    return JsonResponse({'success': False, 'error': 'نوع الورق غير موجود'}, status=404)
+                    pt_obj = PaperType.objects.filter(id=int(paper_type_id)).first()
+                    if pt_obj:
+                        paper_type_name = pt_obj.name
+                except (ValueError, TypeError):
+                    paper_type_name = str(paper_type_id)
 
-                weights = sorted(set(
-                    s.attributes.get('gsm') for s in qs
-                    if s.attributes.get('paper_type') == paper_type_name and s.attributes.get('gsm')
-                ))
-                weights_data = [{'value': str(w), 'display_name': f"{w} جرام", 'name': f"{w} جرام", 'gsm': w} for w in weights]
-                return JsonResponse({'success': True, 'weights': weights_data,
-                                     'paper_type': {'id': paper_type_id, 'name': paper_type_name},
-                                     'total_count': len(weights_data)})
+            available_gsms = set()
+            if HAS_SUPPLIER_SERVICES and supplier_id:
+                qs = SupplierServiceModel.objects.filter(
+                    service_type__code='paper', supplier_id=supplier_id, is_active=True
+                )
+                for svc in qs:
+                    attrs = svc.attributes if isinstance(svc.attributes, dict) else {}
+                    pt = str(attrs.get('paper_type', ''))
+                    if paper_type_name and not (paper_type_name.lower() in pt.lower() or pt.lower() in paper_type_name.lower()):
+                        continue
+                    if sheet_size:
+                        svc_sheet = str(attrs.get('sheet_size', ''))
+                        if sheet_size not in svc_sheet and svc_sheet not in sheet_size:
+                            import re
+                            req_dims = set(re.findall(r'\d+', sheet_size))
+                            svc_dims = set(re.findall(r'\d+', svc_sheet))
+                            if req_dims and svc_dims and not (req_dims & svc_dims):
+                                continue
+                    gsm_val = attrs.get('gsm')
+                    if gsm_val:
+                        try:
+                            available_gsms.add(int(gsm_val))
+                        except (ValueError, TypeError):
+                            pass
 
-            if not HAS_PAPER_SERVICE_DETAILS:
-                return JsonResponse({'success': True, 'weights': [], 'total_count': 0})
+            if available_gsms:
+                filtered_weights = all_weights.filter(gsm__in=available_gsms)
+                if not filtered_weights.exists():
+                    filtered_weights = all_weights
+            else:
+                filtered_weights = all_weights
 
-            paper_types = list(PaperServiceDetails.objects.filter(service__supplier__is_active=True, service__is_active=True).values_list('paper_type', flat=True).distinct().order_by('paper_type'))
-            try:
-                paper_type_name = paper_types[int(paper_type_id) - 1]
-            except (IndexError, ValueError):
-                return JsonResponse({'success': False, 'error': 'نوع الورق غير موجود'}, status=404)
+            weights_data = [{
+                'id': w.id,
+                'value': str(w.gsm),
+                'gsm': w.gsm,
+                'name': w.name,
+                'display_name': f"{w.name} ({w.gsm} جم)",
+                'sheets_per_pack': w.sheets_per_pack,
+                'is_default': w.is_default,
+                'is_available_with_supplier': w.gsm in available_gsms if available_gsms else True
+            } for w in filtered_weights]
 
-            filters = {'service__supplier__is_active': True, 'service__is_active': True, 'paper_type': paper_type_name}
-            if supplier_id:
-                filters['service__supplier_id'] = supplier_id
-            weights = PaperServiceDetails.objects.filter(**filters).values_list('gsm', flat=True).distinct().order_by('gsm')
-            weights_data = [{'value': str(w), 'display_name': f"{w} جرام", 'name': f"{w} جرام", 'gsm': w} for w in weights if w]
-            return JsonResponse({'success': True, 'weights': weights_data, 'paper_type': {'id': paper_type_id, 'name': paper_type_name}, 'total_count': len(weights_data)})
+            return JsonResponse({
+                'success': True,
+                'weights': weights_data,
+                'total_count': len(weights_data)
+            })
         except Exception as e:
             return self.handle_exception(e, "GetPaperWeightsAPIView.get")
 
 
 class GetPaperSheetTypesAPIView(BaseAPIView):
     """
-    API لجلب مقاسات الفرخ — يستخدم SupplierService.attributes
+    API لجلب مقاسات الفرخ — مخصصة حصراً حسب المورد ونوع الورق المحددين
     """
     
     def get(self, request):
         try:
             supplier_id   = request.GET.get('supplier_id')
             paper_type_id = request.GET.get('paper_type_id')
+            paper_source  = request.GET.get('paper_source')
 
+            all_sizes = PaperSize.objects.filter(is_active=True).order_by('name')
+
+            # لو مصدر الورق من المخزن أو توريد عميل، نرجع المقاسات القياسية فوراً
+            if paper_source in ['warehouse', 'customer_supplied']:
+                sheet_types_data = [{
+                    'id': ps.id,
+                    'sheet_type': ps.name,
+                    'display_name': f"{ps.name} ({float(ps.width):.0f}×{float(ps.height):.0f} سم)",
+                    'sheet_size': ps.name,
+                    'width': float(ps.width),
+                    'height': float(ps.height),
+                } for ps in all_sizes]
+                return JsonResponse({'success': True, 'sheet_types': sheet_types_data, 'total_count': len(sheet_types_data)})
+
+            # شرط ملء المورد ونوع الورق معاً
             if not supplier_id or not paper_type_id:
-                return JsonResponse({'success': False, 'error': 'معرف المورد ونوع الورق مطلوبان',
-                                     'missing_params': [p for p in ['supplier_id', 'paper_type_id'] if not request.GET.get(p)]}, status=400)
+                return JsonResponse({
+                    'success': True,
+                    'requires_supplier_and_paper': True,
+                    'sheet_types': [],
+                    'total_count': 0,
+                    'message': 'يرجى اختيار نوع الورق ومورد الورق أولاً'
+                })
 
+            paper_type_name = ''
             try:
-                supplier = Supplier.objects.get(id=supplier_id, is_active=True)
-            except Supplier.DoesNotExist:
-                return JsonResponse({'success': False, 'error': 'المورد غير موجود أو غير نشط'}, status=404)
+                pt_obj = PaperType.objects.filter(id=int(paper_type_id)).first()
+                if pt_obj:
+                    paper_type_name = pt_obj.name
+            except (ValueError, TypeError):
+                paper_type_name = str(paper_type_id)
 
+            available_sheet_names = set()
             if HAS_SUPPLIER_SERVICES:
-                all_types = sorted(set(
-                    s.get('paper_type') for s in SupplierServiceModel.objects.filter(
-                        service_type__code='paper', is_active=True
-                    ).values_list('attributes', flat=True)
-                    if isinstance(s, dict) and s.get('paper_type')
-                ))
-                try:
-                    paper_type_name = all_types[int(paper_type_id) - 1]
-                except (IndexError, ValueError):
-                    return JsonResponse({'success': False, 'error': 'نوع الورق غير موجود'}, status=404)
+                qs = SupplierServiceModel.objects.filter(
+                    service_type__code='paper', supplier_id=supplier_id, is_active=True
+                )
+                for svc in qs:
+                    attrs = svc.attributes if isinstance(svc.attributes, dict) else {}
+                    pt = str(attrs.get('paper_type', ''))
+                    if paper_type_name and not (paper_type_name.lower() in pt.lower() or pt.lower() in paper_type_name.lower()):
+                        continue
+                    s_size = attrs.get('sheet_size')
+                    if s_size:
+                        available_sheet_names.add(str(s_size).strip())
 
-                sheet_types = sorted(set(
-                    s.attributes.get('sheet_size') for s in SupplierServiceModel.objects.filter(
-                        service_type__code='paper', supplier_id=supplier_id, is_active=True
-                    ) if s.attributes.get('paper_type') == paper_type_name and s.attributes.get('sheet_size')
-                ))
-                sheet_types_data = [{'sheet_type': st, 'display_name': st, 'sheet_size': st} for st in sheet_types]
-                return JsonResponse({'success': True, 'sheet_types': sheet_types_data,
-                                     'supplier': {'id': supplier.id, 'name': supplier.name},
-                                     'paper_type': {'id': paper_type_id, 'name': paper_type_name},
-                                     'total_count': len(sheet_types_data)})
-
-            if not HAS_PAPER_SERVICE_DETAILS:
-                return JsonResponse({'success': True, 'sheet_types': [], 'total_count': 0})
-
-            paper_types = list(PaperServiceDetails.objects.filter(service__supplier__is_active=True, service__is_active=True).values_list('paper_type', flat=True).distinct().order_by('paper_type'))
-            try:
-                paper_type_name = paper_types[int(paper_type_id) - 1]
-            except (IndexError, ValueError):
-                return JsonResponse({'success': False, 'error': 'نوع الورق غير موجود'}, status=404)
-
-            paper_services = PaperServiceDetails.objects.filter(service__supplier=supplier, paper_type=paper_type_name, service__is_active=True).select_related('service')
             sheet_types_data = []
-            seen = set()
-            for svc in paper_services:
-                if svc.sheet_size and svc.sheet_size not in seen:
-                    seen.add(svc.sheet_size)
-                    sheet_types_data.append({'sheet_type': svc.sheet_size, 'display_name': svc.get_sheet_size_display(), 'sheet_size': svc.sheet_size})
-            return JsonResponse({'success': True, 'sheet_types': sheet_types_data,
-                                 'supplier': {'id': supplier.id, 'name': supplier.name},
-                                 'paper_type': {'id': paper_type_id, 'name': paper_type_name},
-                                 'total_count': len(sheet_types_data)})
+            if available_sheet_names:
+                for s_name in sorted(available_sheet_names):
+                    matched_size = None
+                    import re
+                    dims = re.findall(r'\d+', s_name)
+                    if len(dims) >= 2:
+                        d1, d2 = float(dims[0]), float(dims[1])
+                        matched_size = all_sizes.filter(
+                            models.Q(width=d1, height=d2) | models.Q(width=d2, height=d1)
+                        ).first()
+
+                    w = float(matched_size.width) if matched_size else 70.0
+                    h = float(matched_size.height) if matched_size else 100.0
+                    disp_name = matched_size.name if matched_size else s_name
+
+                    sheet_types_data.append({
+                        'id': matched_size.id if matched_size else s_name,
+                        'sheet_type': s_name,
+                        'display_name': f"{disp_name} ({w:.0f}×{h:.0f} سم)",
+                        'sheet_size': s_name,
+                        'width': w,
+                        'height': h,
+                    })
+
+            # Fallback لو المورد مسجل بدون مقاسات تفصيلية
+            if not sheet_types_data:
+                sheet_types_data = [{
+                    'id': ps.id,
+                    'sheet_type': ps.name,
+                    'display_name': f"{ps.name} ({float(ps.width):.0f}×{float(ps.height):.0f} سم)",
+                    'sheet_size': ps.name,
+                    'width': float(ps.width),
+                    'height': float(ps.height),
+                } for ps in all_sizes]
+
+            return JsonResponse({
+                'success': True,
+                'sheet_types': sheet_types_data,
+                'total_count': len(sheet_types_data)
+            })
         except Exception as e:
             return self.handle_exception(e, "GetPaperSheetTypesAPIView.get")
+
 
 
 class GetPaperOriginsAPIView(BaseAPIView):
@@ -1208,28 +786,44 @@ class GetPaperOriginsAPIView(BaseAPIView):
                 return JsonResponse({'success': False, 'error': 'معرف نوع الورق والمورد مطلوبان',
                                      'missing_params': [p for p in ['paper_type_id', 'supplier_id'] if not request.GET.get(p)]}, status=400)
 
+            paper_type_name = ''
+            try:
+                pt_obj = PaperType.objects.filter(id=int(paper_type_id)).first()
+                if pt_obj:
+                    paper_type_name = pt_obj.name
+            except (ValueError, TypeError):
+                paper_type_name = str(paper_type_id)
+
             if HAS_SUPPLIER_SERVICES:
-                all_types = sorted(set(
-                    s.get('paper_type') for s in SupplierServiceModel.objects.filter(
-                        service_type__code='paper', is_active=True
-                    ).values_list('attributes', flat=True)
-                    if isinstance(s, dict) and s.get('paper_type')
-                ))
-                try:
-                    paper_type_name = all_types[int(paper_type_id) - 1]
-                except (IndexError, ValueError):
-                    return JsonResponse({'success': False, 'error': 'نوع الورق غير موجود'}, status=404)
+                if not paper_type_name:
+                    all_types = sorted(set(
+                        s.get('paper_type') for s in SupplierServiceModel.objects.filter(
+                            service_type__code='paper', is_active=True
+                        ).values_list('attributes', flat=True)
+                        if isinstance(s, dict) and s.get('paper_type')
+                    ))
+                    try:
+                        paper_type_name = all_types[int(paper_type_id) - 1]
+                    except (IndexError, ValueError):
+                        return JsonResponse({'success': False, 'error': 'نوع الورق غير موجود'}, status=404)
 
                 qs = SupplierServiceModel.objects.filter(
                     service_type__code='paper', supplier_id=supplier_id, is_active=True
                 )
                 origins = set()
                 for svc in qs:
-                    attrs = svc.attributes
-                    if attrs.get('paper_type') != paper_type_name:
+                    attrs = svc.attributes if isinstance(svc.attributes, dict) else {}
+                    pt = str(attrs.get('paper_type', ''))
+                    if paper_type_name and not (paper_type_name.lower() in pt.lower() or pt.lower() in paper_type_name.lower()):
                         continue
-                    if sheet_type and attrs.get('sheet_size') != sheet_type:
-                        continue
+                    if sheet_type:
+                        svc_sheet = str(attrs.get('sheet_size', ''))
+                        if sheet_type not in svc_sheet and svc_sheet not in sheet_type:
+                            import re
+                            req_dims = set(re.findall(r'\d+', sheet_type))
+                            svc_dims = set(re.findall(r'\d+', svc_sheet))
+                            if req_dims and svc_dims and not (req_dims & svc_dims):
+                                continue
                     if weight and str(attrs.get('gsm', '')) != str(weight):
                         continue
                     origin = attrs.get('origin')
@@ -1242,77 +836,69 @@ class GetPaperOriginsAPIView(BaseAPIView):
                                      'supplier': {'id': supplier_id, 'name': 'المورد المحدد'},
                                      'total_count': len(origins_data)})
 
-            if not HAS_PAPER_SERVICE_DETAILS:
-                return JsonResponse({'success': True, 'origins': [], 'total_count': 0})
-
-            paper_types = list(PaperServiceDetails.objects.filter(service__supplier__is_active=True, service__is_active=True).values_list('paper_type', flat=True).distinct().order_by('paper_type'))
-            try:
-                paper_type_name = paper_types[int(paper_type_id) - 1]
-            except (IndexError, ValueError):
-                return JsonResponse({'success': False, 'error': 'نوع الورق غير موجود'}, status=404)
-
-            filters = {'service__supplier_id': supplier_id, 'paper_type': paper_type_name, 'service__is_active': True}
-            if sheet_type: filters['sheet_size'] = sheet_type
-            if weight:     filters['gsm'] = int(weight)
-
-            code_to_name = {'EG': 'مصر', 'DE': 'ألمانيا', 'CN': 'صيني', 'US': 'أمريكا', 'IT': 'إيطاليا', 'FR': 'فرنسا'}
-            origins_data = []
-            seen = set()
-            for svc in PaperServiceDetails.objects.filter(**filters):
-                if svc.country_of_origin and svc.country_of_origin not in seen:
-                    seen.add(svc.country_of_origin)
-                    name = code_to_name.get(svc.country_of_origin, svc.country_of_origin)
-                    origins_data.append({'origin': name, 'display_name': name, 'code': svc.country_of_origin, 'name': name})
-
-            return JsonResponse({'success': True, 'origins': origins_data,
-                                 'paper_type': {'id': paper_type_id, 'name': paper_type_name},
-                                 'supplier': {'id': supplier_id, 'name': 'المورد المحدد'},
-                                 'total_count': len(origins_data)})
+            return JsonResponse({'success': True, 'origins': [], 'total_count': 0})
         except Exception as e:
             return self.handle_exception(e, "GetPaperOriginsAPIView.get")
 
 
 class GetPaperPriceAPIView(BaseAPIView):
     """
-    API لجلب سعر الورق — يستخدم SupplierService.attributes
+    API لجلب سعر الورق — يستخدم SupplierService.attributes مع مطابقة الأبعاد والمنشأ والعملة
     """
     
     def get(self, request):
         try:
             paper_type_id = request.GET.get('paper_type_id')
             supplier_id   = request.GET.get('supplier_id')
-            sheet_type    = request.GET.get('sheet_type')
+            sheet_type    = request.GET.get('sheet_type') or request.GET.get('sheet_size')
             weight        = request.GET.get('weight')
             origin        = request.GET.get('origin')
 
-            required = ['paper_type_id', 'supplier_id', 'sheet_type', 'weight']
-            missing  = [p for p in required if not request.GET.get(p)]
+            missing = []
+            if not paper_type_id: missing.append('paper_type_id')
+            if not supplier_id: missing.append('supplier_id')
+            if not sheet_type: missing.append('sheet_size')
+            if not weight: missing.append('weight')
             if missing:
                 return JsonResponse({'success': False, 'error': 'معاملات مطلوبة مفقودة',
                                      'missing_params': missing}, status=400)
 
-            if HAS_SUPPLIER_SERVICES:
-                all_types = sorted(set(
-                    s.get('paper_type') for s in SupplierServiceModel.objects.filter(
-                        service_type__code='paper', is_active=True
-                    ).values_list('attributes', flat=True)
-                    if isinstance(s, dict) and s.get('paper_type')
-                ))
-                try:
-                    paper_type_name = all_types[int(paper_type_id) - 1]
-                except (IndexError, ValueError):
-                    return JsonResponse({'success': False, 'error': 'نوع الورق غير موجود'}, status=404)
+            paper_type_name = ''
+            pt_obj = None
+            try:
+                pt_obj = PaperType.objects.filter(id=int(paper_type_id)).first()
+                if pt_obj:
+                    paper_type_name = pt_obj.name
+            except (ValueError, TypeError):
+                paper_type_name = str(paper_type_id)
 
-                # البحث عن الخدمة المطابقة
+            if HAS_SUPPLIER_SERVICES:
+                if not paper_type_name and paper_type_id:
+                    # محاولة استخراج الاسم مباشرة من خدمات المورد بالمعرف
+                    svc_by_id = SupplierServiceModel.objects.filter(id=paper_type_id).first()
+                    if svc_by_id:
+                        paper_type_name = svc_by_id.name
+
+                # البحث عن الخدمة المطابقة في خامات المورد
                 matched = None
                 for svc in SupplierServiceModel.objects.filter(
                     service_type__code='paper', supplier_id=supplier_id, is_active=True
                 ):
-                    attrs = svc.attributes
-                    if attrs.get('paper_type') != paper_type_name:
-                        continue
-                    if sheet_type and attrs.get('sheet_size') != sheet_type:
-                        continue
+                    attrs = svc.attributes if isinstance(svc.attributes, dict) else {}
+                    pt = str(attrs.get('paper_type', ''))
+                    # مطابقة نوع الورق بالاسم أو السمة
+                    if paper_type_name:
+                        p_lower = paper_type_name.lower()
+                        if not (p_lower in pt.lower() or pt.lower() in p_lower or p_lower in svc.name.lower()):
+                            continue
+                    if sheet_type:
+                        svc_sheet = str(attrs.get('sheet_size', ''))
+                        if sheet_type not in svc_sheet and svc_sheet not in sheet_type:
+                            import re
+                            req_dims = set(re.findall(r'\d+', sheet_type))
+                            svc_dims = set(re.findall(r'\d+', svc_sheet))
+                            if req_dims and svc_dims and not (req_dims & svc_dims):
+                                continue
                     if weight and str(attrs.get('gsm', '')) != str(weight):
                         continue
                     if origin and attrs.get('origin') and attrs.get('origin') != origin:
@@ -1321,22 +907,39 @@ class GetPaperPriceAPIView(BaseAPIView):
                     break
 
                 if matched:
-                    price = float(matched.get_price_for_quantity(1))
+                    # حساب سعر الفرخ الفعلي بالمعادلة الصناعية (سواء كان التسعير بالفرخ، الرزمة، أو الطن)
+                    width_val, height_val = None, None
+                    if sheet_type:
+                        import re
+                        dims = re.findall(r'\d+', str(sheet_type))
+                        if len(dims) >= 2:
+                            width_val, height_val = float(dims[0]), float(dims[1])
+
+                    sheet_price = float(matched.get_effective_sheet_price(
+                        width_cm=width_val,
+                        height_cm=height_val,
+                        gsm=weight
+                    ))
                     from core.utils import get_default_currency
+                    detected_origin = matched.attributes.get('origin', '') if isinstance(matched.attributes, dict) else ''
+                    currency_code = matched.currency.code if matched.currency else get_default_currency()
+
                     return JsonResponse({
-                        'success':       True,
-                        'price':         price,
-                        'unit_price':    price,
-                        'price_per_sheet': price,
-                        'currency':      get_default_currency(),
-                        'service_id':    matched.id,
-                        'service_info':  {
+                        'success':         True,
+                        'price':           sheet_price,
+                        'unit_price':      sheet_price,
+                        'price_per_sheet': sheet_price,
+                        'pricing_formula': matched.pricing_formula,
+                        'origin':          detected_origin or origin or '',
+                        'currency':        currency_code,
+                        'service_id':      matched.id,
+                        'service_info':    {
                             'id':              matched.id,
                             'supplier_name':   matched.supplier.name,
-                            'paper_type_name': paper_type_name,
+                            'paper_type_name': paper_type_name or matched.name,
                             'sheet_size':      sheet_type,
                             'weight_gsm':      weight,
-                            'origin_name':     origin or '',
+                            'origin_name':     detected_origin or origin or '',
                             'attributes':      matched.attributes,
                         }
                     })
@@ -1344,42 +947,9 @@ class GetPaperPriceAPIView(BaseAPIView):
                 return JsonResponse({'success': False, 'error': 'لا توجد خدمة ورق متاحة للمعايير المحددة',
                                      'suggestion': 'أضف خدمة ورق للمورد من صفحة تفاصيل المورد'}, status=404)
 
-            if not HAS_PAPER_SERVICE_DETAILS:
-                return JsonResponse({'success': False, 'error': 'لا توجد بيانات أسعار ورق متاحة حالياً',
-                                     'suggestion': 'يرجى إضافة خدمات الورق للموردين أولاً'}, status=404)
 
-            # Fallback legacy
-            paper_types = list(PaperServiceDetails.objects.filter(service__supplier__is_active=True, service__is_active=True).values_list('paper_type', flat=True).distinct().order_by('paper_type'))
-            try:
-                paper_type_name = paper_types[int(paper_type_id) - 1]
-            except (IndexError, ValueError):
-                return JsonResponse({'success': False, 'error': 'نوع الورق غير موجود'}, status=404)
-
-            origin_mapping = {'مصر': 'EG', 'ألمانيا': 'DE', 'صيني': 'CN', 'الصين': 'CN', 'أمريكا': 'US', 'إيطاليا': 'IT', 'فرنسا': 'FR'}
-            origin_code = origin_mapping.get(origin, origin) if origin else None
-
-            filters = {'service__supplier_id': supplier_id, 'paper_type': paper_type_name,
-                       'sheet_size': sheet_type, 'gsm': int(weight), 'service__is_active': True}
-            if origin_code:
-                filters['country_of_origin'] = origin_code
-
-            paper_service = PaperServiceDetails.objects.filter(**filters).first()
-            if not paper_service:
-                return JsonResponse({'success': False, 'error': 'لا توجد خدمة ورق متاحة للمعايير المحددة'}, status=404)
-
-            from core.utils import get_default_currency
-            return JsonResponse({
-                'success': True,
-                'price': float(paper_service.price_per_sheet),
-                'unit_price': float(paper_service.price_per_sheet),
-                'price_per_sheet': float(paper_service.price_per_sheet),
-                'currency': get_default_currency(),
-                'service_info': {
-                    'id': paper_service.id, 'supplier_name': paper_service.service.supplier.name,
-                    'paper_type_name': paper_type_name, 'sheet_size': paper_service.sheet_size,
-                    'weight_gsm': paper_service.gsm, 'origin_name': origin or '',
-                }
-            })
+            return JsonResponse({'success': False, 'error': 'لا توجد بيانات أسعار ورق متاحة حالياً',
+                                 'suggestion': 'يرجى إضافة خدمات الورق للموردين أولاً'}, status=404)
         except Exception as e:
             return self.handle_exception(e, "GetPaperPriceAPIView.get")
 
@@ -1473,19 +1043,17 @@ class GetPieceSizesAPIView(BaseAPIView):
 
 
 __all__ = [
-    'BaseAPIView', 'CalculateCostAPIView', 'GetMaterialPriceAPIView',
-    'GetServicePriceAPIView', 'ValidateOrderAPIView', 'OrderSummaryAPIView',
-    'GetCustomersAPIView', 'GetProductTypesAPIView', 'GetProductSizesAPIView',
-    'GetPrintingSuppliersAPIView', 'GetPressesAPIView', 'GetPressPriceAPIView',
-    'GetCTPSuppliersAPIView', 'GetCTPPlatesAPIView', 'GetCTPPriceAPIView',
+    'BaseAPIView', 'LivePricingCalculateAPIView',
+    'OrderSummaryAPIView', 'GetCustomersAPIView', 'CustomerInfoAPIView',
+    'GetProductTypesAPIView', 'GetProductSizesAPIView',
+    'GetPressesAPIView',
     'GetPaperTypesAPIView', 'GetPaperSuppliersAPIView', 'GetPaperWeightsAPIView',
     'GetPaperSheetTypesAPIView', 'GetPaperOriginsAPIView', 'GetPaperPriceAPIView',
     'GetPieceSizesAPIView',
-    # المرحلة الأولى — APIs خدمات الموردين
     'GetServiceTypesAPIView', 'GetSuppliersByServiceAPIView',
     'GetSupplierServicesAPIView', 'GetServicePriceByIdAPIView',
-    # المرحلة الثالثة — ربط التسعير
     'SaveOrderServiceSupplierAPIView',
+    'BulkPriceUpdateAPIView', 'GenerateVendorPOsAPIView',
 ]
 
 
@@ -1831,118 +1399,14 @@ class CustomerInfoAPIView(BaseAPIView):
             return self.handle_exception(e, "CustomerInfoAPIView")
 
 
-class VendorAdvancesAPIView(BaseAPIView):
-    """
-    API لإدارة وتتبع واستعراض عرابين الموردين والورش
-    """
-    def get(self, request, order_id):
-        try:
-            order = get_object_or_404(PrintingOrder, pk=order_id, is_active=True)
-            if not self.has_order_permission(request, order):
-                return JsonResponse({'success': False, 'error': _('غير مصرح لك بعرض هذا الطلب')}, status=403)
-
-            from ..services.vendor_advance_service import VendorAdvanceService
-            summary = VendorAdvanceService.get_advances_summary(order)
-            return JsonResponse(summary)
-        except Exception as e:
-            return self.handle_exception(e, "VendorAdvancesAPIView.get")
-
-    def post(self, request, order_id):
-        try:
-            order = get_object_or_404(PrintingOrder, pk=order_id, is_active=True)
-            if not self.has_order_permission(request, order):
-                return JsonResponse({'success': False, 'error': _('غير مصرح لك بالتعديل على هذا الطلب')}, status=403)
-
-            data = json.loads(request.body) if request.body else {}
-            action = data.get('action', 'record')
-
-            from ..services.vendor_advance_service import VendorAdvanceService
-
-            if action == 'settle':
-                advance_id = data.get('advance_id')
-                advance = get_object_or_404(order.vendor_advances, pk=advance_id, is_active=True)
-                res = VendorAdvanceService.settle_advance(advance, notes=data.get('notes', ''), user=request.user)
-                return JsonResponse(res)
-
-            supplier_id = data.get('supplier_id')
-            amount = data.get('amount')
-            supplier = get_object_or_404(Supplier, pk=supplier_id, is_active=True)
-
-            res = VendorAdvanceService.record_advance(
-                order=order,
-                supplier=supplier,
-                amount=Decimal(str(amount)),
-                payment_method=data.get('payment_method', 'CASH'),
-                reference_number=data.get('reference_number', ''),
-                notes=data.get('notes', ''),
-                user=request.user
-            )
-            return JsonResponse(res)
-        except Exception as e:
-            return self.handle_exception(e, "VendorAdvancesAPIView.post")
-
-
-class ProofApprovalPublicAPIView(View):
-    """
-    API عام وآمن لاعتماد أو رفض البروفة الرقمية للعميل
-    """
-    @method_decorator(csrf_exempt)
-    def dispatch(self, request, *args, **kwargs):
-        return super().dispatch(request, *args, **kwargs)
-
-    def get(self, request, token):
-        try:
-            from ..models import ProofSignOff
-            signoff = get_object_or_404(ProofSignOff.objects.select_related('order'), token=token)
-            return JsonResponse({
-                'success': True,
-                'token': str(signoff.token),
-                'order_number': signoff.order.order_number,
-                'order_title': signoff.order.title,
-                'status': signoff.status,
-                'status_display': signoff.get_status_display(),
-                'proof_file_url': signoff.proof_file.url if signoff.proof_file else None,
-                'client_feedback': signoff.client_feedback,
-                'approved_by_name': signoff.approved_by_name,
-                'approved_at': signoff.approved_at.strftime('%Y-%m-%d %H:%M') if signoff.approved_at else None
-            })
-        except Exception as e:
-            return JsonResponse({'success': False, 'error': str(e)}, status=400)
-
-    def post(self, request, token):
-        try:
-            data = json.loads(request.body) if request.body else {}
-            action = data.get('action', 'approve').lower()
-            client_name = data.get('client_name', '').strip()
-            client_ip = request.META.get('REMOTE_ADDR')
-
-            if not client_name:
-                return JsonResponse({'success': False, 'error': _('اسم المعتمد مطلوب')}, status=400)
-
-            from ..services.proof_approval_service import ProofApprovalService
-
-            if action == 'approve':
-                res = ProofApprovalService.approve_proof(token, client_name, client_ip)
-            elif action == 'reject':
-                feedback = data.get('feedback', '').strip()
-                res = ProofApprovalService.reject_proof(token, feedback, client_name, client_ip)
-            else:
-                return JsonResponse({'success': False, 'error': _('إجراء غير معروف')}, status=400)
-
-            return JsonResponse(res)
-        except Exception as e:
-            return JsonResponse({'success': False, 'error': str(e)}, status=400)
-
-
 class BulkPriceUpdateAPIView(BaseAPIView):
     """
-    API لتحديث أسعار خدمات الورش والمطابع بشكل مجمع
+    API لتحديث أسعار خدمات الموردين بشكل مجمع
     """
     def post(self, request):
         try:
             data = json.loads(request.body) if request.body else {}
             updates = data.get('updates', [])
-
             from ..services.bulk_price_updater import BulkPriceUpdaterService
             res = BulkPriceUpdaterService.bulk_update_supplier_services(updates, user=request.user)
             return JsonResponse(res)
@@ -1950,232 +1414,33 @@ class BulkPriceUpdateAPIView(BaseAPIView):
             return self.handle_exception(e, "BulkPriceUpdateAPIView.post")
 
 
-class PriceAuditTrailAPIView(BaseAPIView):
-    """
-    API لاسترجاع وتسجيل سجل التدقيق المالي للمقايسات
-    """
-    def get(self, request, order_id):
-        try:
-            order = get_object_or_404(PrintingOrder, pk=order_id, is_active=True)
-            if not self.has_order_permission(request, order):
-                return JsonResponse({'success': False, 'error': _('غير مصرح لك بعرض هذا الطلب')}, status=403)
-
-            from ..services.price_audit_service import PriceAuditService
-            res = PriceAuditService.get_order_audit_trail(order)
-            return JsonResponse(res)
-        except Exception as e:
-            return self.handle_exception(e, "PriceAuditTrailAPIView.get")
-
-    def post(self, request, order_id):
-        try:
-            order = get_object_or_404(PrintingOrder, pk=order_id, is_active=True)
-            if not self.has_order_permission(request, order):
-                return JsonResponse({'success': False, 'error': _('غير مصرح لك بالتعديل على هذا الطلب')}, status=403)
-
-            data = json.loads(request.body) if request.body else {}
-            from ..services.price_audit_service import PriceAuditService
-
-            res = PriceAuditService.log_price_change(
-                order=order,
-                field_name=data.get('field_name', ''),
-                old_value=data.get('old_value', ''),
-                new_value=data.get('new_value', ''),
-                reason=data.get('reason', ''),
-                user=request.user
-            )
-            return JsonResponse(res)
-        except Exception as e:
-            return self.handle_exception(e, "PriceAuditTrailAPIView.post")
-
-
-class MultiLegFreightAPIView(BaseAPIView):
-    """
-    API لحساب تكاليف النقل متعدد المحطات وتطبيق صمام الحد الأدنى
-    """
-    def post(self, request):
-        try:
-            data = json.loads(request.body) if request.body else {}
-            legs = data.get('legs', [])
-            min_drop = Decimal(str(data.get('minimum_drop_fee', '150.00')))
-            drops_count = int(data.get('staggered_drops_count', 1))
-            is_insured = bool(data.get('is_insured_cargo', False))
-            cargo_val = Decimal(str(data.get('cargo_value', '0.00')))
-            payer = data.get('payer', 'AGENCY')
-
-            from ..services.calculators import ServiceCalculator
-            calc = ServiceCalculator(None)
-            res = calc.calculate_multi_leg_freight(
-                legs=legs,
-                minimum_drop_fee=min_drop,
-                staggered_drops_count=drops_count,
-                is_insured_cargo=is_insured,
-                cargo_value=cargo_val,
-                payer=payer
-            )
-            return JsonResponse(res)
-        except Exception as e:
-            return self.handle_exception(e, "MultiLegFreightAPIView.post")
-
-
 class GenerateVendorPOsAPIView(BaseAPIView):
     """
-    API لتوليد أوامر الشراء للورش مشروطة باعتماد البروفة والدفعة المقدمة
+    API لتوليد أوامر الشراء المجمعة للموردين والورش
     """
     def post(self, request, order_id):
         try:
-            order = get_object_or_404(PrintingOrder, pk=order_id)
+            order = get_object_or_404(PrintingOrder, pk=order_id, is_active=True)
             if not self.has_order_permission(request, order):
-                return JsonResponse({'success': False, 'error': _('غير مصرح لك بالتعديل على هذا الطلب')}, status=403)
+                return JsonResponse({'success': False, 'error': _('غير مصرح لك بإصدار أوامر الشراء')}, status=403)
 
             data = json.loads(request.body) if request.body else {}
-            gated = data.get('gated', True)
-            override_reason = data.get('override_reason', None)
-
+            override_reason = data.get('override_reason', '')
+            
             from ..services.procurement_bridge import ProcurementBridgeService
             pos = ProcurementBridgeService.generate_vendor_purchase_orders(
                 order=order,
-                gated=gated,
+                gated=False,
                 override_reason=override_reason,
                 user=request.user
             )
+
             return JsonResponse({
                 'success': True,
-                'created_pos_count': len(pos),
-                'po_numbers': [p.number for p in pos],
-                'message': _('تم توليد أوامر الشراء للورش بنجاح مع خصم 1% ضرائب.')
+                'message': _('تم إصدار أوامر الشراء بنجاح'),
+                'pos_count': len(pos),
+                'po_ids': [p.pk for p in pos]
             })
         except Exception as e:
             return self.handle_exception(e, "GenerateVendorPOsAPIView.post")
-
-
-class QCSignoffAPIView(BaseAPIView):
-    """
-    API لبوابة فحص واعتماد تقرير الجودة الرقمي
-    """
-    def get(self, request, order_id):
-        try:
-            order = get_object_or_404(PrintingOrder, pk=order_id)
-            from ..services.qc_service import QCSignoffService
-            qc = QCSignoffService.get_order_qc(order)
-            if not qc:
-                return JsonResponse({'success': True, 'has_qc': False})
-            return JsonResponse({
-                'success': True,
-                'has_qc': True,
-                'status': qc.status,
-                'inspector_name': qc.inspector_name,
-                'net_quantity_approved': qc.net_quantity_approved,
-                'defect_count': qc.defect_count,
-                'sample_vault_ref': qc.sample_vault_ref,
-                'inspected_at': qc.inspected_at.strftime('%Y-%m-%d %H:%M')
-            })
-        except Exception as e:
-            return self.handle_exception(e, "QCSignoffAPIView.get")
-
-    def post(self, request, order_id):
-        try:
-            order = get_object_or_404(PrintingOrder, pk=order_id)
-            if not self.has_order_permission(request, order):
-                return JsonResponse({'success': False, 'error': _('غير مصرح لك بالتعديل على هذا الطلب')}, status=403)
-
-            # معالجة بيانات POST (سواء JSON أو Form Data)
-            if request.content_type == 'application/json':
-                data = json.loads(request.body) if request.body else {}
-            else:
-                data = request.POST
-
-            from ..services.qc_service import QCSignoffService
-            qc = QCSignoffService.record_inspection(
-                order=order,
-                inspector_name=data.get('inspector_name', request.user.get_full_name() or request.user.username),
-                bleed_verified=bool(data.get('bleed_verified')),
-                barcode_scannable=bool(data.get('barcode_scannable')),
-                color_registration_passed=bool(data.get('color_registration_passed')),
-                physical_swatch_matched=bool(data.get('physical_swatch_matched')),
-                lamination_adhesion_passed=bool(data.get('lamination_adhesion_passed')),
-                ncr_sequence_verified=bool(data.get('ncr_sequence_verified')),
-                sample_vault_archived=bool(data.get('sample_vault_archived')),
-                sample_vault_ref=data.get('sample_vault_ref', ''),
-                net_quantity_approved=int(data.get('net_quantity_approved', order.quantity)),
-                defect_count=int(data.get('defect_count', 0)),
-                status=data.get('status', 'PASSED'),
-                notes=data.get('notes', '')
-            )
-            return JsonResponse({'success': True, 'qc_id': qc.id, 'status': qc.status, 'message': _('تم تسجيل تقرير الجودة بنجاح.')})
-        except Exception as e:
-            return self.handle_exception(e, "QCSignoffAPIView.post")
-
-
-class SupplementalRemakeAPIView(BaseAPIView):
-    """
-    API لأوامر إعادة التشغيل التكميلية للمرتجعات الجزئية
-    """
-    def post(self, request, order_id):
-        try:
-            order = get_object_or_404(PrintingOrder, pk=order_id)
-            if not self.has_order_permission(request, order):
-                return JsonResponse({'success': False, 'error': _('غير مصرح لك بالتعديل على هذا الطلب')}, status=403)
-
-            data = json.loads(request.body) if request.body else {}
-            from ..services.remake_service import SupplementalRemakeService
-            from supplier.models import Supplier
-
-            sup = Supplier.objects.filter(pk=data.get('responsible_supplier_id')).first() if data.get('responsible_supplier_id') else None
-
-            remake = SupplementalRemakeService.create_remake_order(
-                order=order,
-                defective_quantity=int(data.get('defective_quantity', 1)),
-                fault_party=data.get('fault_party', 'VENDOR_FAULT'),
-                reason=data.get('reason', 'عيب إنتاج'),
-                responsible_supplier=sup,
-                estimated_copq=Decimal(str(data.get('estimated_copq', '0.00')))
-            )
-            return JsonResponse({
-                'success': True,
-                'remake_number': remake.remake_number,
-                'defective_quantity': remake.defective_quantity,
-                'message': _('تم إصدار أمر إعادة التشغيل التكميلي بنجاح.')
-            })
-        except Exception as e:
-            return self.handle_exception(e, "SupplementalRemakeAPIView.post")
-
-
-class UpdateOrderStageAPIView(BaseAPIView):
-    """
-    API مباشر لتحديث مرحلة الشغل وموقعه الحالي (الشغل فين دلوقتي؟)
-    مع إمكانية تسجيل أجرة النقل للمندوب كمورد مباشرة
-    """
-    def post(self, request, order_id):
-        try:
-            order = get_object_or_404(PrintingOrder, pk=order_id)
-            if not self.has_order_permission(request, order):
-                return JsonResponse({'success': False, 'error': _('غير مصرح لك بالتعديل على هذا الطلب')}, status=403)
-
-            data = json.loads(request.body) if request.body else {}
-            stage = data.get('stage', order.current_stage)
-            workshop_id = data.get('workshop_id')
-            driver_id = data.get('driver_id')
-            driver_fee = Decimal(str(data.get('driver_fee', '0.00')))
-            notes = data.get('notes', '')
-
-            from supplier.models import Supplier
-            from ..services.stage_tracker_service import StageTrackerService
-
-            workshop = Supplier.objects.filter(pk=workshop_id).first() if workshop_id else None
-            driver = Supplier.objects.filter(pk=driver_id).first() if driver_id else None
-
-            res = StageTrackerService.update_order_stage(
-                order=order,
-                stage=stage,
-                workshop=workshop,
-                driver=driver,
-                driver_fee=driver_fee,
-                notes=notes,
-                user=request.user
-            )
-            return JsonResponse(res)
-        except Exception as e:
-            return self.handle_exception(e, "UpdateOrderStageAPIView.post")
-
-
 

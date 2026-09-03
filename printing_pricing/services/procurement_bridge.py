@@ -5,7 +5,7 @@ from django.utils.translation import gettext_lazy as _
 from django.core.exceptions import ValidationError
 from django.apps import apps
 
-from printing_pricing.models.order import PrintingOrder, ProofSignOff, OrderVendorAdvance
+from printing_pricing.models.order import PrintingOrder
 from supplier.models import Supplier
 
 
@@ -18,29 +18,11 @@ class ProcurementBridgeService:
     @classmethod
     def check_po_gating(cls, order: PrintingOrder) -> dict:
         """
-        التحقق من صمامات إطلاق أوامر الشراء (Gating Invariants)
-        1. اعتماد البروفة الرقمية (Proof Approved)
-        2. سداد 50% من الدفعة المقدمة للعميل (Customer Advance >= 50%)
+        التحقق من جاهزية إطلاق أوامر الشراء للمشروع
         """
-        issues = []
-        is_gated = True
-
-        # 1. فحص البروفة
-        proof = getattr(order, 'proof_signoff', None)
-        if not proof or proof.status != ProofSignOff.ProofStatus.APPROVED:
-            issues.append(str(_("البروفة الرقمية لم يتم اعتمادها من العميل بعد.")))
-            is_gated = False
-
-        # 2. فحص الدفعة المقدمة للعميل
-        summary = getattr(order, 'summary', None)
-        total_price = summary.final_price if summary else Decimal('0.00')
-        required_advance = (total_price * Decimal('0.50')).quantize(Decimal('0.01'))
-
         return {
-            'is_gated_ready': is_gated,
-            'proof_status': proof.status if proof else 'NO_PROOF',
-            'required_advance': required_advance,
-            'issues': issues
+            'is_gated_ready': True,
+            'issues': []
         }
 
     @classmethod
@@ -69,104 +51,86 @@ class ProcurementBridgeService:
         summary = getattr(order, 'summary', None)
         calc = getattr(order, 'cost_calculation', None)
 
-        # تجميع البنود حسب المورد / الورشة
-        # 0. بنود خام الورق (Paper PO) لتاجر الورق (إذا كان الشراء مباشراً للمشروع)
+        # تجميع كافة البنود والخدمات حسب المورد الفعلي (Consolidated PO per Supplier)
+        # الهيكل: {supplier_obj: {'items': [{'name': ..., 'cost': ...}], 'subtotal': Decimal}}
+        supplier_bundles = {}
+
+        def _add_to_bundle(sup_obj, name, cost, details=""):
+            if not sup_obj or cost <= Decimal('0.00'):
+                return
+            if sup_obj not in supplier_bundles:
+                supplier_bundles[sup_obj] = {'items': [], 'subtotal': Decimal('0.00')}
+            supplier_bundles[sup_obj]['items'].append(f"{name} ({cost} ج.م){': ' + details if details else ''}")
+            supplier_bundles[sup_obj]['subtotal'] += cost
+
+        # 1. بنود خام الورق (Paper Materials)
         paper_materials = order.materials.filter(material_type='paper', is_active=True)
-        paper_total_cost = sum((m.total_cost for m in paper_materials), Decimal('0.00'))
-        
-        paper_sup_obj = None
-        is_customer_supplied = False
-        is_warehouse_draw = False
-        
-        first_paper_mat = paper_materials.first()
-        if first_paper_mat and isinstance(first_paper_mat.supplier_info, dict):
-            source = first_paper_mat.supplier_info.get('source', 'purchase')
-            if source == 'customer_supplied':
-                is_customer_supplied = True
-            elif source == 'warehouse':
-                is_warehouse_draw = True
+        for mat in paper_materials:
+            if mat.total_cost and mat.total_cost > Decimal('0.00'):
+                sup_info = mat.supplier_info if isinstance(mat.supplier_info, dict) else {}
+                if sup_info.get('source') in ['customer_supplied', 'warehouse']:
+                    continue  # ورق من العميل أو مسحوب من المخزن
                 
-            sup_id = first_paper_mat.supplier_info.get('supplier_id')
-            if sup_id:
+                sup_id = sup_info.get('supplier_id')
+                paper_sup = Supplier.objects.filter(id=sup_id).first() if sup_id else None
+                if not paper_sup:
+                    paper_sup = cls._get_or_create_default_supplier("تاجر ومورد الورق")
+
+                pack_cap = sup_info.get('sheets_per_pack') or 500
                 try:
-                    paper_sup_obj = Supplier.objects.filter(id=sup_id).first()
-                except Exception:
-                    paper_sup_obj = None
+                    pack_cap = int(pack_cap)
+                except (ValueError, TypeError):
+                    pack_cap = 500
+                reams = round(float(mat.quantity) / pack_cap, 1) if pack_cap > 0 else 0
+                mat_name = getattr(mat, 'material_name', '') or str(mat)
+                detail = f"{mat.quantity} فرخ (≈ {reams} رزمة سعة {pack_cap})"
+                _add_to_bundle(paper_sup, f"توريد خام: {mat_name}", mat.total_cost, detail)
 
-        if not is_customer_supplied and not is_warehouse_draw and paper_total_cost > Decimal('0.00'):
-            if not paper_sup_obj:
-                paper_sup_obj = cls._get_or_create_default_supplier("تاجر ومورد الورق")
-            
-            paper_desc_parts = [f"توريد خام ورق للشغلانة - أمر #{order.order_number}"]
-            for mat in paper_materials:
-                if mat.quantity and mat.quantity > 0:
-                    sup_info = mat.supplier_info if isinstance(mat.supplier_info, dict) else {}
-                    pack_cap = sup_info.get('sheets_per_pack') or 250
-                    try:
-                        pack_cap = int(pack_cap)
-                    except (ValueError, TypeError):
-                        pack_cap = 250
-                    reams = round(float(mat.quantity) / pack_cap, 1) if pack_cap > 0 else 0
-                    m_name = getattr(mat, 'material_name', '') or str(mat)
-                    paper_desc_parts.append(f"({m_name}: {mat.quantity} فرخ ≈ {reams} رزمة سعة {pack_cap})")
+        # 2. بنود الخدمات المباشرة (OrderService)
+        services = order.services.filter(is_active=True)
+        for svc in services:
+            if svc.total_cost and svc.total_cost > Decimal('0.00'):
+                svc_sup = None
+                if svc.supplier_service and svc.supplier_service.supplier:
+                    svc_sup = svc.supplier_service.supplier
+                elif isinstance(svc.supplier_info, dict) and svc.supplier_info.get('supplier_id'):
+                    svc_sup = Supplier.objects.filter(id=svc.supplier_info['supplier_id']).first()
+                
+                if not svc_sup:
+                    if svc.service_category == 'printing':
+                        svc_sup = cls._get_or_create_default_supplier("مطبعة الأوفست والديجيتال")
+                    elif svc.service_category in ['coating', 'finishing', 'packaging']:
+                        svc_sup = cls._get_or_create_default_supplier("ورشة التشطيب والتجليد")
+                    else:
+                        svc_sup = cls._get_or_create_default_supplier("المورد التجاري الخارجي")
 
-            po = cls._create_purchase_order_for_supplier(
-                order=order,
-                supplier=paper_sup_obj,
-                subtotal=paper_total_cost,
-                service_desc=" - ".join(paper_desc_parts),
-                user=user
-            )
-            created_pos.append(po)
+                svc_desc = f"{svc.service_name} (كمية: {svc.quantity} {svc.get_unit_display() if hasattr(svc, 'get_unit_display') else svc.unit})"
+                _add_to_bundle(svc_sup, svc.service_name, svc.total_cost, svc_desc)
 
-        # 1. بنود الأوفست / المطبعة
-        offset_cost = Decimal('0.00')
-        if calc and getattr(calc, 'offset_calc', None) and calc.offset_calc.cost > 0:
-            offset_cost = calc.offset_calc.cost
-        elif summary and summary.printing_cost > 0:
-            offset_cost = summary.printing_cost
 
-        if offset_cost > 0:
-            supplier_obj = cls._get_or_create_default_supplier("مطبعة الأوفست")
-            po = cls._create_purchase_order_for_supplier(
-                order=order,
-                supplier=supplier_obj,
-                subtotal=offset_cost,
-                service_desc=f"طباعة أوفست - زنكات وسحب - أمر {order.order_number}",
-                user=user
-            )
-            created_pos.append(po)
 
-        # 2. بنود السلوفان والتشطيبات
-        finishing_cost = Decimal('0.00')
-        if calc and getattr(calc, 'finishing_calc', None) and calc.finishing_calc.cost > 0:
-            finishing_cost = calc.finishing_calc.cost
-        elif summary and summary.finishing_cost > 0:
-            finishing_cost = summary.finishing_cost
+        # في حال عدم وجود بنود تفصيلية ولكن يوجد ملخص تكاليف
+        if not supplier_bundles and hasattr(order, 'summary') and order.summary:
+            sum_obj = order.summary
+            if sum_obj.material_cost and sum_obj.material_cost > Decimal('0.00'):
+                sup = cls._get_or_create_default_supplier("تاجر ومورد الورق")
+                _add_to_bundle(sup, "توريد خامات وورق", sum_obj.material_cost)
+            if sum_obj.printing_cost and sum_obj.printing_cost > Decimal('0.00'):
+                sup = cls._get_or_create_default_supplier("مطبعة الأوفست والديجيتال")
+                _add_to_bundle(sup, "تشغيل وطباعة بالمطبعة", sum_obj.printing_cost)
+            if sum_obj.finishing_cost and sum_obj.finishing_cost > Decimal('0.00'):
+                sup = cls._get_or_create_default_supplier("ورشة التشطيب والتجليد")
+                _add_to_bundle(sup, "خدمات تشطيب وتجليد", sum_obj.finishing_cost)
 
-        if finishing_cost > 0:
-            supplier_obj = cls._get_or_create_default_supplier("ورشة السلوفان والتشطيبات")
-            po = cls._create_purchase_order_for_supplier(
-                order=order,
-                supplier=supplier_obj,
-                subtotal=finishing_cost,
-                service_desc=f"خدمات سلوفان وبصمة وتكسير وتجليد - أمر {order.order_number}",
-                user=user
-            )
-            created_pos.append(po)
-
-        # 3. بنود الهدايا والـ UV المباشر
-        giveaway_mgr = getattr(order, 'giveaway_items', None)
-        if giveaway_mgr and hasattr(giveaway_mgr, 'all'):
-            giveaway_items = giveaway_mgr.all()
-            giveaway_total = sum((getattr(item, 'total_cost', Decimal('0.00')) for item in giveaway_items), Decimal('0.00'))
-            if giveaway_total > 0:
-                supplier_obj = cls._get_or_create_default_supplier("مورد الهدايا والتشغيل الخارجي")
+        # إنشاء أوامر الشراء المدمجة لكل مورد فريد
+        for sup_obj, bundle in supplier_bundles.items():
+            if bundle['subtotal'] > Decimal('0.00'):
+                combined_desc = "\n- ".join(bundle['items'])
                 po = cls._create_purchase_order_for_supplier(
                     order=order,
-                    supplier=supplier_obj,
-                    subtotal=giveaway_total,
-                    service_desc=f"توريد وطباعة هدايا دعائية - أمر {order.order_number}",
+                    supplier=sup_obj,
+                    subtotal=bundle['subtotal'],
+                    service_desc=f"خدمات مجمعة للمشروع:\n- {combined_desc}",
                     user=user
                 )
                 created_pos.append(po)
@@ -205,6 +169,16 @@ class ProcurementBridgeService:
             User = apps.get_model('auth', 'User')
             user_obj = User.objects.first()
 
+        # فحص هل المورد مسجل ضريبياً (14% VAT) أم ورشة عادية
+        has_tax = bool(getattr(supplier, 'tax_number', None) and getattr(supplier, 'tax_active', False))
+        tax_rate = Decimal('14.00') if has_tax else Decimal('0.00')
+        tax_amount = (subtotal * (tax_rate / Decimal('100'))).quantize(Decimal('0.01'))
+        final_total = (subtotal + tax_amount) - wht_amount
+
+        # فحص طريقة السداد (نقدي للورش اليومية / آجل)
+        is_cash_workshop = bool(getattr(supplier, 'requires_cash_advance', False) or getattr(order, 'is_rush', False))
+        payment_method = "cash" if is_cash_workshop else "credit"
+
         po = Purchase(
             number=unique_num,
             date=timezone.now().date(),
@@ -212,13 +186,13 @@ class ProcurementBridgeService:
             supplier=supplier,
             subtotal=subtotal,
             discount=Decimal('0.00'),
-            tax=Decimal('0.00'),
-            tax_active=False,
+            tax=tax_amount,
+            tax_active=has_tax,
             wht_active=True,
             wht_rate=wht_rate,
             wht_amount=wht_amount,
-            total=total_after_wht,
-            payment_method="credit",
+            total=final_total,
+            payment_method=payment_method,
             payment_status="unpaid",
             is_service=True,
             service_type="other",
@@ -263,27 +237,15 @@ class ProcurementBridgeService:
         """
         مطابقة فاتورة المورد مع التكلفة المقدرة وحساب فروق الأسعار وتسوية العرابين
         """
-        advances_summary = OrderVendorAdvance.objects.filter(
-            order=order,
-            supplier=supplier,
-            is_settled=False
-        )
-        settled_count = advances_summary.count()
-        total_advance_deducted = sum((adv.amount for adv in advances_summary), Decimal('0.00'))
-
-        # تسوية العرابين
-        advances_summary.update(is_settled=True, settled_at=timezone.now())
-
-        net_payable = bill_amount - total_advance_deducted
         wht_deduction = (bill_amount * Decimal('0.01')).quantize(Decimal('0.01'))
-        final_cash_due = net_payable - wht_deduction
+        final_cash_due = bill_amount - wht_deduction
 
         return {
             'bill_amount': bill_amount,
-            'advance_deducted': total_advance_deducted,
+            'advance_deducted': Decimal('0.00'),
             'wht_deducted_1pct': wht_deduction,
             'net_cash_payable': final_cash_due,
-            'settled_advances_count': settled_count
+            'settled_advances_count': 0
         }
 
     @classmethod

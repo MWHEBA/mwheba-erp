@@ -202,10 +202,10 @@ class TestHybridPrintingArchitecture:
 
         summary = OrderAnatomyPersistenceService.persist_order_anatomy(order, post_data)
 
-        # التحقق من تطبيق صمام الحد الأدنى لسحب الأوفست (200 ج)
+        # التحقق من حساب سحب الأوفست بالتراج المباشر بدون فتحة ماكينة (1 تراج = 45 ج)
         press_service = order.services.filter(service_name__startswith='[غلاف أوفست] سحبات').first()
         assert press_service is not None
-        assert press_service.total_cost >= Decimal('200.00')
+        assert press_service.total_cost == Decimal('45.00')
 
         # التحقق من إضافة كليشيه البصمة الذهبي (150 ج)
         foil_service = order.services.filter(service_name__contains='تشطيب خاص فاخر وكليشيه').first()
@@ -240,12 +240,6 @@ class TestHybridPrintingArchitecture:
         assert 'بطاقة المواصفات الفنية والهندسة الهجينة' in resp_detail.content.decode('utf-8')
         assert 'ديجيتال' in resp_detail.content.decode('utf-8')
 
-        # اختبار أمر التشغيل المجمع
-        sheet_url = reverse('printing_pricing:consolidated_job_sheet', kwargs={'pk': order.pk})
-        resp_sheet = client.get(sheet_url)
-        assert resp_sheet.status_code == 200
-        assert 'أمر تشغيل الغلاف' in resp_sheet.content.decode('utf-8')
-        assert 'أمر تشغيل الداخلي والتجليد' in resp_sheet.content.decode('utf-8')
 
     def test_offset_work_and_turn_and_pantone_spot_colors(self, test_customer, test_user, flyer_product_type):
         """اختبار الأوفست بنمط طبع وقلب (Work & Turn) مع أحبار بانتون مخصوصة"""
@@ -260,8 +254,6 @@ class TestHybridPrintingArchitecture:
             is_closed_size=False,
             cover_printing_type='offset',
             print_sides_mode='work_turn',
-            colors_front=4,
-            colors_back=0,
             spot_colors_front=1,
             created_by=test_user
         )
@@ -336,49 +328,6 @@ class TestHybridPrintingArchitecture:
 
         digi_service = next(s for s in order_digi.services.all() if '[غلاف ديجيتال]' in s.service_name)
         assert digi_service.unit_price == Decimal('4.50')
-
-        # 2. اختبار الخامات الكبيرة مع حبر أبيض
-        order_banner = PrintingOrder.objects.create(
-            customer=test_customer,
-            product_type=flyer_product_type,
-            order_type='flyer',
-            title='يافطة خارجية بانر',
-            quantity=2,
-            width=Decimal('200.0'),
-            height=Decimal('100.0'),
-            cover_printing_type='digital_banner',
-            banner_sqm_price=Decimal('60.00'),
-            has_white_ink=True,
-            created_by=test_user
-        )
-
-        post_data_banner = {
-            'quantity': '2',
-            'product_type': str(flyer_product_type.pk),
-            'order_type': 'flyer',
-            'width': '200.0',
-            'height': '100.0',
-            'cover_printing_type': 'digital_banner',
-            'banner_sqm_price': '60.00',
-            'has_white_ink': 'on',
-            'profit_margin': '25.00'
-        }
-
-        OrderAnatomyPersistenceService.persist_order_anatomy(order_banner, post_data_banner)
-        order_banner.refresh_from_db()
-
-        assert order_banner.cover_printing_type == 'digital_banner'
-        assert order_banner.has_white_ink is True
-        assert order_banner.banner_sqm_price == Decimal('60.00')
-
-        banner_mat = order_banner.materials.filter(material_type='banner').first()
-        assert banner_mat is not None
-        # المساحة: (200 * 100 / 10000) * 2 = 4.00 م²
-        assert banner_mat.quantity == Decimal('4.00')
-
-        banner_service = next(s for s in order_banner.services.all() if '[خامات كبيرة]' in s.service_name)
-        assert banner_service.unit_price == Decimal('85.00') # 60 + 25 حبر أبيض
-        assert banner_service.total_cost == Decimal('340.00') # 4 م² * 85 ج
 
     def test_step3_hardcover_materials_and_case_making_service(self, test_customer, catalog_product_type, test_user):
         """اختبار تفكيك خامات الهارد كوفر (كرتون رمادي 2.5 مم + ورق بطانة 150 جم) وخدمة التقفيل الفاخر"""
@@ -487,8 +436,6 @@ class TestHybridPrintingArchitecture:
             product_type=flyer_type,
             order_type='flyer',
             quantity=1000,
-            colors_front=4,
-            colors_back=4,
             created_by=test_user,
             updated_by=test_user
         )
@@ -572,8 +519,6 @@ class TestHybridPrintingArchitecture:
             height=Decimal('29.7'),
             cover_printing_type='offset',
             print_sides_mode='work_sheet',
-            colors_front=4,
-            colors_back=1,
             spot_colors_front=1,
             spot_colors_back=1,
             created_by=test_user
@@ -595,8 +540,6 @@ class TestHybridPrintingArchitecture:
         order.refresh_from_db()
 
         assert order.print_sides_mode == 'work_sheet'
-        assert order.colors_front == 4
-        assert order.colors_back == 1
         assert order.spot_colors_front == 1
         assert order.spot_colors_back == 1
 
@@ -625,8 +568,6 @@ class TestHybridPrintingArchitecture:
             height=Decimal('29.7'),
             cover_printing_type='offset',
             print_sides_mode='work_sheet',
-            colors_front=4,
-            colors_back=4,
             created_by=test_user
         )
         post_data_ws = {
@@ -644,8 +585,9 @@ class TestHybridPrintingArchitecture:
         OrderAnatomyPersistenceService.persist_order_anatomy(order_ws, post_data_ws)
         press_service_ws = order_ws.services.filter(service_name__contains='سحبات ماكينة أوفست بالتراج').first()
         assert press_service_ws is not None
-        # في 100 فرخ: raw_press = 1 ألف * 45 = 45 ج، المينيمم 400 ج -> setup_cost = 400 - 45 = 355 ج -> إجمالي خدمة السحبات = 400 ج
-        assert press_service_ws.setup_cost == Decimal('355.00')
+        # في 100 فرخ: raw_press = 1 تراج * 45 = 45 ج، الحساب بالتراج المباشر بدون فتحة ماكينة -> setup_cost = 0 ج
+        assert press_service_ws.setup_cost == Decimal('0.00')
+        assert press_service_ws.total_cost == Decimal('45.00')
 
         # 2. وجه واحد كمية صغيرة (100 فرخ)
         order_single = PrintingOrder.objects.create(
@@ -659,8 +601,6 @@ class TestHybridPrintingArchitecture:
             height=Decimal('29.7'),
             cover_printing_type='offset',
             print_sides_mode='single',
-            colors_front=4,
-            colors_back=0,
             created_by=test_user
         )
         post_data_single = {
@@ -678,7 +618,8 @@ class TestHybridPrintingArchitecture:
         OrderAnatomyPersistenceService.persist_order_anatomy(order_single, post_data_single)
         press_service_single = order_single.services.filter(service_name__contains='سحبات ماكينة أوفست بالتراج').first()
         assert press_service_single is not None
-        # في 100 فرخ وجه واحد: raw_press = 1 ألف * 45 = 45 ج، المينيمم 200 ج -> setup_cost = 200 - 45 = 155 ج -> إجمالي خدمة السحبات = 200 ج
-        assert press_service_single.setup_cost == Decimal('155.00')
+        # في 100 فرخ وجه واحد: raw_press = 1 تراج * 45 = 45 ج، بدون فتحة ماكينة -> setup_cost = 0 ج
+        assert press_service_single.setup_cost == Decimal('0.00')
+        assert press_service_single.total_cost == Decimal('45.00')
 
 

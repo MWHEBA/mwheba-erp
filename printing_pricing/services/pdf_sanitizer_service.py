@@ -43,18 +43,6 @@ class CustomerPDFSanitizerService:
             'total_price': subtotal,
         })
 
-        # البنود الإضافية مثل الهدايا
-        giveaway_mgr = getattr(order, 'giveaway_items', None)
-        if giveaway_mgr and hasattr(giveaway_mgr, 'all'):
-            giveaway_items = giveaway_mgr.all()
-            for idx, g_item in enumerate(giveaway_items, start=2):
-                items.append({
-                    'index': idx,
-                    'description': f"{getattr(g_item, 'item_name', 'صنف إضافي')} (شامل الطباعة والتخصيص)",
-                    'quantity': getattr(g_item, 'quantity', 1),
-                    'unit_price': getattr(g_item, 'unit_client_price', Decimal('0.00')),
-                    'total_price': getattr(g_item, 'total_client_price', Decimal('0.00')),
-                })
 
         # الشروط والأحكام القانونية المعتمدة
         terms = [

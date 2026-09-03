@@ -146,7 +146,7 @@
     </h5>
 
     <div id="order-table-container">
-      {% include "printing_pricing/orders/partials/order_table.html" %}
+      {% include "components/data_table.html" with table_id="order-table" data=orders headers=headers action_buttons=action_buttons primary_key="id" table_class="hover clickable-rows" empty_message="لا توجد طلبات تسعير متاحة" show_search=False show_length_menu=False disable_pagination=True show_currency=True clickable_rows=True row_click_url="/printing-pricing/orders/0/" %}
     </div>
 
     <!-- التفاف الترقيم السيرفري SSR Pagination -->
@@ -161,10 +161,15 @@
 <script src="{% static 'js/select2.min.js' %}"></script>
 <script>
   function initTableEvents() {
-    $('#order-table-container table tbody tr.clickable-row').off('click').on('click', function(e) {
+    $('#order-table-container table tbody tr[data-clickable="true"], #order-table-container table tbody tr.clickable-row').off('click').on('click', function(e) {
       if ($(e.target).closest('.col-actions, .btn, a, button, input').length > 0) return;
       var href = $(this).data('href');
-      if (href) window.location.href = href;
+      var id = $(this).data('id');
+      if (href) {
+        window.location.href = href;
+      } else if (id) {
+        window.location.href = '/printing-pricing/orders/' + id + '/';
+      }
     }).css('cursor', 'pointer');
   }
 

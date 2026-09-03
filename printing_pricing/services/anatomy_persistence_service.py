@@ -3,11 +3,14 @@
 Anatomy-Driven Order Persistence & Procurement Breakdown Service
 """
 from decimal import Decimal
+import math
 from django.db import transaction
 from ..models import (
     PrintingOrder, OrderMaterial, OrderService, OrderSummary,
-    PriceUnit, ProductType, ProductSize, PaperSpecification
+    PriceUnit, ProductType, ProductSize, PaperSpecification, CoatingType
 )
+from .unit_adapter import PrintingUnitAdapter
+from .calculators import PrintingCalculationEngine
 
 
 class OrderAnatomyPersistenceService:
@@ -20,6 +23,13 @@ class OrderAnatomyPersistenceService:
         """
         قراءة بيانات الفورم وتحويلها ذرياً إلى OrderMaterial و OrderService و OrderSummary
         """
+        # حماية الطلبات المعتمدة تاريخياً من التعديل أو المسح العرضي
+        if order.status == 'approved':
+            summary = getattr(order, 'summary', None)
+            if not summary:
+                summary = OrderSummary.objects.filter(order=order).first()
+            return summary
+
         with transaction.atomic():
             qty = Decimal(str(post_data.get('quantity') or order.quantity or 1000))
             
@@ -82,33 +92,17 @@ class OrderAnatomyPersistenceService:
             order.digital_color_mode = post_data.get('digital_color_mode') or order.digital_color_mode or '4_0'
             
             try:
-                order.colors_front = int(post_data.get('colors_front') if post_data.get('colors_front') is not None else (order.colors_front if order.colors_front is not None else 4))
-            except:
-                order.colors_front = 4
-
-            try:
                 order.spot_colors_front = int(post_data.get('spot_colors_front') or order.spot_colors_front or 0)
             except:
                 order.spot_colors_front = 0
 
             if order.print_sides_mode == 'work_sheet':
                 try:
-                    order.colors_back = int(post_data.get('colors_back') if post_data.get('colors_back') is not None else (order.colors_back or 0))
-                except:
-                    order.colors_back = 0
-                try:
                     order.spot_colors_back = int(post_data.get('spot_colors_back') or order.spot_colors_back or 0)
                 except:
                     order.spot_colors_back = 0
             else:
-                order.colors_back = 0
                 order.spot_colors_back = 0
-
-            try:
-                order.banner_sqm_price = Decimal(str(post_data.get('banner_sqm_price') or order.banner_sqm_price or '50.00'))
-            except:
-                order.banner_sqm_price = Decimal('50.00')
-            order.has_white_ink = bool(post_data.get('has_white_ink'))
 
             # حفظ حقول الداخلي والتجليد والكعب الجديدة
             order.inner_print_sides_mode = post_data.get('inner_print_sides_mode') or order.inner_print_sides_mode or 'work_sheet'
@@ -146,12 +140,11 @@ class OrderAnatomyPersistenceService:
             order.folder_card_slit = post_data.get('folder_card_slit') in ['1', 'true', 'on', True]
 
             order.save(update_fields=[
-                'product_type', 'order_type', 'product_size', 'print_orientation', 
+                'product_type', 'order_type', 'product_size', 'print_orientation',
                 'is_closed_size', 'open_direction', 'width', 'height', 
-                'cover_printing_type', 'inner_printing_type', 'print_sides_mode', 
-                'colors_front', 'colors_back', 'digital_color_mode', 
+                'cover_printing_type', 'inner_printing_type', 'print_sides_mode',
+                'digital_color_mode', 
                 'spot_colors_front', 'spot_colors_back', 
-                'banner_sqm_price', 'has_white_ink',
                 'inner_print_sides_mode', 'inner_color_mode', 'inner_spot_colors',
                 'inner_color_pages', 'inner_bw_pages', 'binding_type',
                 'inner_paper_type', 'inner_paper_weight',
@@ -173,22 +166,55 @@ class OrderAnatomyPersistenceService:
                 paper_weight = Decimal('300')
                 
             open_w, open_h = order.get_open_dimensions()
+            # إذا كان المطبوع كتاباً أو كتالوجاً بتجليد غراء أو هاردكفر، احتساب سمك الكعب وإضافته للعرض المفتوح
+            if order_type in ['book', 'catalog', 'book_catalog', 'magazine'] and order.binding_type in ['perfect_binding', 'hardcover']:
+                inner_pages = Decimal(str(order.pages_count or post_data.get('pages_count') or 64))
+                inner_gsm = Decimal(str(order.inner_paper_weight or post_data.get('inner_paper_weight') or 135))
+                bulk = Decimal('1.1') if str(order.inner_paper_type) == 'couche' else Decimal('1.4')
+                # سمك الكعب بالسم = ((عدد الصفحات / 2) * (الجراماج / 1000) * bulk) / 10
+                spine_cm = ((inner_pages / Decimal('2')) * (inner_gsm / Decimal('1000')) * bulk) / Decimal('10')
+                spine_cm = max(Decimal('0.3'), spine_cm.quantize(Decimal('0.01')))
+                order.spine_thickness = spine_cm * Decimal('10')  # تخزينه بالـ مم في الموديل
+                open_w += spine_cm  # إضافة الكعب للغلاف المفتوح
             
-            # قراءة مقاس الفرخ الخام المقتنى
+            # قراءة مقاس الفرخ القياسي في مصر (70x100 و 60x90 و 57x86 و 66x88)
             sheet_size_str = post_data.get('sheet_size') or '70x100'
             if '66x88' in sheet_size_str:
                 sheet_w, sheet_h = Decimal('88.0'), Decimal('66.0')
-            elif '60x85' in sheet_size_str:
-                sheet_w, sheet_h = Decimal('85.0'), Decimal('60.0')
+            elif '60x90' in sheet_size_str or '90x60' in sheet_size_str or '60x85' in sheet_size_str:
+                sheet_w, sheet_h = Decimal('90.0'), Decimal('60.0')
+            elif '57x86' in sheet_size_str or '86x57' in sheet_size_str:
+                sheet_w, sheet_h = Decimal('86.0'), Decimal('57.0')
             else:
                 sheet_w, sheet_h = Decimal('100.0'), Decimal('70.0')
 
-            # احتساب تقطيع فرخ الغلاف مع خصم 2.0 سم (بنسة 1.5 سم + طهارة مقص 0.5 سم)
-            net_sheet_w = max(Decimal('0.1'), sheet_w - Decimal('2.0'))
-            net_sheet_h = max(Decimal('0.1'), sheet_h - Decimal('2.0'))
-            cuts_normal = (net_sheet_w // open_w) * (net_sheet_h // open_h)
-            cuts_rotated = (net_sheet_w // open_h) * (net_sheet_h // open_w)
-            cuts_per_sheet = max(Decimal('1'), cuts_normal, cuts_rotated)
+            # استدعاء محرك الحسابات الموحد (Single Source of Truth)
+            calc_params = dict(post_data)
+            calc_params.update({
+                'quantity': qty,
+                'width': float(w_val),
+                'height': float(h_val),
+                'is_closed_size': is_closed,
+                'open_direction': post_data.get('open_direction', 'right'),
+                'product_type': order_type,
+                'cover_printing_type': order.cover_printing_type,
+                'print_sides_mode': order.print_sides_mode,
+                'sheet_size': sheet_size_str,
+                'piece_size': post_data.get('piece_size') or getattr(order, 'piece_size', '50x70'),
+                'waste_sheets': post_data.get('waste_sheets'),
+                'paper_weight': float(paper_weight),
+            })
+            engine_res = PrintingCalculationEngine.calculate(calc_params)
+
+            # احتساب المونتاج الحقيقي على شيت الماكينة
+            if engine_res.get('success'):
+                cuts_per_sheet = Decimal(str(engine_res['montage']['cuts_per_sheet']))
+            else:
+                net_sheet_w = max(Decimal('0.1'), sheet_w - Decimal('2.0'))
+                net_sheet_h = max(Decimal('0.1'), sheet_h - Decimal('2.0'))
+                cuts_normal = (net_sheet_w // open_w) * (net_sheet_h // open_h)
+                cuts_rotated = (net_sheet_w // open_h) * (net_sheet_h // open_w)
+                cuts_per_sheet = max(Decimal('1'), cuts_normal, cuts_rotated)
             
             total_materials_cost = Decimal('0.00')
             gross_sheets = Decimal('0')
@@ -208,19 +234,36 @@ class OrderAnatomyPersistenceService:
                 )
                 total_materials_cost += banner_mat_cost
             else:
-                net_sheets = Decimal(str(int(qty / cuts_per_sheet) + (1 if qty % cuts_per_sheet > 0 else 0)))
-                
-                if order.cover_printing_type == 'digital':
-                    waste_rate = Decimal('0.02')
-                elif order.print_sides_mode == 'work_turn':
-                    waste_rate = Decimal('0.04')
+                if engine_res.get('success') and 'paper' in engine_res:
+                    net_sheets = Decimal(str(engine_res['paper']['net_press_sheets']))
+                    if post_data.get('waste_sheets'):
+                        waste_sheets = Decimal(str(post_data['waste_sheets']))
+                        gross_sheets = net_sheets + waste_sheets
+                        waste_rate = waste_sheets / net_sheets if net_sheets > 0 else Decimal('0.05')
+                    elif post_data.get('waste_percentage'):
+                        waste_rate = Decimal(str(post_data['waste_percentage'])) / Decimal('100')
+                        waste_sheets = Decimal(str(int(net_sheets * waste_rate)))
+                        gross_sheets = net_sheets + waste_sheets
+                    elif order.cover_printing_type == 'digital':
+                        waste_rate = Decimal('0.02')
+                        waste_sheets = Decimal('4')
+                        gross_sheets = net_sheets + waste_sheets
+                    elif order.print_sides_mode in ['work_turn', 'work_and_turn']:
+                        waste_rate = Decimal('0.04')
+                        waste_sheets = Decimal(str(int(net_sheets * waste_rate)))
+                        gross_sheets = net_sheets + waste_sheets
+                    else:
+                        waste_sheets = Decimal(str(engine_res['paper']['waste_sheets']))
+                        gross_sheets = net_sheets + waste_sheets
+                        waste_rate = waste_sheets / net_sheets if net_sheets > 0 else Decimal('0.05')
                 else:
-                    waste_rate = Decimal('0.05') if qty > 2000 else Decimal('0.08')
-                    
-                gross_sheets = Decimal(str(int(net_sheets * (Decimal('1') + waste_rate)) + 1))
+                    net_sheets = Decimal(str(int(qty / cuts_per_sheet) + (1 if qty % cuts_per_sheet > 0 else 0)))
+                    waste_sheets = Decimal('20')
+                    gross_sheets = net_sheets + waste_sheets
+                    waste_rate = Decimal('0.05')
                 
-                # سويتش تقريب الرزمة المقفولة بحسب سعة الرزمة (100 - 500 فرخ)
-                ream_rounding = (post_data.get('pack_rounding') in ['on', 'true', '1']) or (post_data.get('ream_rounding') in ['on', 'true', '1'])
+                # فحص اقتراب الرزمة المقفولة استرشادياً فقط بدون إجبار أو أزرار
+                sheets_per_pack = 500
                 try:
                     sheets_per_pack = int(post_data.get('sheets_per_pack') or 500)
                     if sheets_per_pack <= 0:
@@ -228,9 +271,11 @@ class OrderAnatomyPersistenceService:
                 except (ValueError, TypeError):
                     sheets_per_pack = 500
 
-                if ream_rounding and gross_sheets > Decimal('0'):
-                    import math
-                    gross_sheets = Decimal(str(math.ceil(int(gross_sheets) / sheets_per_pack) * sheets_per_pack))
+                ream_remainder = int(gross_sheets) % sheets_per_pack
+                near_ream_advisory = ""
+                if ream_remainder >= (sheets_per_pack - 50):
+                    full_reams_needed = math.ceil(int(gross_sheets) / sheets_per_pack)
+                    near_ream_advisory = f"تنبيه استرشادي: الكمية ({int(gross_sheets)} فرخ) قاربت من رزمة كاملة ({full_reams_needed * sheets_per_pack} فرخ)."
 
                 # قراءة سعر الشروع ومصدر الورق
                 paper_source = post_data.get('paper_source') or 'purchase'
@@ -262,15 +307,18 @@ class OrderAnatomyPersistenceService:
 
                 # أ. تسجيل خامة ورق الغلاف / المطبوع الرئيسي
                 open_desc = f" - مقاس مفتوح ({open_w}×{open_h} سم)" if is_closed else ""
+                paper_name_str = post_data.get('paper_type_name') or post_data.get('paper_type') or 'كوشيه'
+                if hasattr(paper_name_str, 'name'):
+                    paper_name_str = paper_name_str.name
                 OrderMaterial.objects.create(
                     order=order,
                     material_type='paper',
-                    material_name=f"[غلاف / مطبوع رئيسي] ورق {order.paper_type or 'كوشيه'} {paper_weight} جم{open_desc} (فرخ {sheet_size_str})",
+                    material_name=f"[غلاف / مطبوع رئيسي] ورق {paper_name_str} {paper_weight} جم{open_desc} (فرخ {sheet_size_str})",
                     quantity=gross_sheets,
                     unit=PriceUnit.SHEET,
                     unit_cost=sheet_unit_cost.quantize(Decimal('0.01')),
                     total_cost=cover_paper_cost.quantize(Decimal('0.01')),
-                    waste_percentage=waste_rate * Decimal('100'),
+                    waste_percentage=min(Decimal('99.99'), (waste_rate * Decimal('100')).quantize(Decimal('0.01'))),
                     supplier_info=supplier_info_dict
                 )
                 total_materials_cost += cover_paper_cost
@@ -279,7 +327,7 @@ class OrderAnatomyPersistenceService:
                 PaperSpecification.objects.filter(order=order).delete()
                 PaperSpecification.objects.create(
                     order=order,
-                    paper_type_name=getattr(order.paper_type, 'name', None) or str(order.paper_type or 'كوشيه'),
+                    paper_type_name=str(paper_name_str),
                     paper_size_name=sheet_size_str,
                     sheet_width=sheet_w,
                     sheet_height=sheet_h,
@@ -451,8 +499,8 @@ class OrderAnatomyPersistenceService:
             # --- أولاً: طباعة الغلاف / المطبوع الرئيسي ---
             if order.cover_printing_type == 'offset':
                 # احتساب عدد الزنكات بدقة
-                front_colors = int(post_data.get('colors_front') or order.colors_front or 4)
-                back_colors = int(post_data.get('colors_back') or order.colors_back or 0)
+                front_colors = int(post_data.get('colors_front') or 4)
+                back_colors = int(post_data.get('colors_back') or 0)
                 if order.print_sides_mode != 'work_sheet':
                     back_colors = 0
                 
@@ -526,9 +574,19 @@ class OrderAnatomyPersistenceService:
                     )
                     total_printing_cost += plates_total
 
+                # استخراج معامل تفصيل الفرخ للماكينة (machine_cuts)
+                piece_size_val = str(post_data.get('piece_size') or '')
+                press_bed_val = str(post_data.get('cover_press_machine') or press_bed_size or '')
+                if piece_size_val == '35x50' or '35x50' in press_bed_val:
+                    machine_cuts = Decimal('4')
+                elif piece_size_val == '50x70' or '50x70' in press_bed_val:
+                    machine_cuts = Decimal('2')
+                else:
+                    machine_cuts = Decimal('1')
+
                 # حساب السحبات والتراج (يتضاعف في الطبع والقلب أو الوش والضهر المستقل)
                 pulls_multiplier = Decimal('2') if (order.print_sides_mode == 'work_turn' or (order.print_sides_mode == 'work_sheet' and (back_colors > 0 or order.spot_colors_back > 0))) else Decimal('1')
-                press_pulls = gross_sheets * pulls_multiplier
+                press_pulls = gross_sheets * machine_cuts * pulls_multiplier
                 press_rate_str = post_data.get('press_rate') or '45.00'
                 try:
                     press_rate = Decimal(str(press_rate_str))
@@ -551,10 +609,18 @@ class OrderAnatomyPersistenceService:
                         pass
 
                 press_machine_name = post_data.get('cover_press_machine') or press_bed_size
-                min_press_floor = Decimal('400.00') if (order.print_sides_mode == 'work_sheet' and (back_colors > 0 or order.spot_colors_back > 0)) else Decimal('200.00')
-                thousands_pulls = Decimal(str(int(press_pulls / 1000) + (1 if press_pulls % 1000 > 0 else 0)))
-                raw_press = thousands_pulls * press_rate
-                setup_diff = max(Decimal('0.00'), min_press_floor - raw_press)
+
+                # استخدام مخرجات محرك الحسابات الموحد لضمان التطابق التام بالمليم
+                if engine_res.get('success') and 'printing' in engine_res and engine_res['printing']['printing_type'] == 'offset':
+                    raw_press = Decimal(str(engine_res['printing']['applied_press_cost']))
+                    thousands_pulls = Decimal(str(engine_res['printing']['tirages']))
+                    press_pulls = Decimal(str(engine_res['printing']['press_pulls']))
+                    press_rate = Decimal(str(engine_res['printing']['rate_per_1000']))
+                else:
+                    min_press_floor = cover_offset_svc.minimum_charge if (cover_offset_svc and cover_offset_svc.minimum_charge) else Decimal('0.00')
+                    calculated_press = thousands_pulls * press_rate
+                    raw_press = max(min_press_floor, calculated_press)
+                setup_diff = Decimal('0.00')
 
                 offset_press_snapshot = {
                     'supplier_id': cover_offset_supp.id if cover_offset_supp else None,
@@ -569,7 +635,7 @@ class OrderAnatomyPersistenceService:
                     order=order,
                     service_category='printing',
                     service_name=f"[غلاف أوفست] سحبات ماكينة أوفست بالتراج ({press_pulls} سحبة - {thousands_pulls} تراج)",
-                    service_description=f"المطبعة: {offset_press_snapshot['supplier_name']} | الماكينة: {press_machine_name} | سعر التراج: {press_rate} ج/تراج (ألف سحبة)",
+                    service_description=f"المطبعة: {offset_press_snapshot['supplier_name']} | الماكينة: {press_machine_name} | سعر التراج: {press_rate} ج/تراج",
                     quantity=thousands_pulls,
                     unit=PriceUnit.THOUSAND,
                     unit_price=press_rate,
@@ -580,46 +646,50 @@ class OrderAnatomyPersistenceService:
                 )
                 total_printing_cost += (raw_press + setup_diff)
 
-                # تكلفة غسيل حوض الحبر وخام اللون المخصوص
+                # احتساب «صبغة أرضية» وغسيل حوض الحبر للألوان المخصوصة
                 total_spot = order.spot_colors_front + order.spot_colors_back
-                if total_spot > 0:
-                    spot_fee = Decimal(str(total_spot)) * Decimal('150.00')
+                has_solid_dye = (post_data.get('has_solid_dye') in ['1', 'true', 'on', True]) or (total_spot > 0)
+                if has_solid_dye and total_spot > 0:
+                    solid_colors = total_spot
+                    solid_fee = Decimal(str(solid_colors)) * Decimal('150.00')
                     OrderService.objects.create(
                         order=order,
                         service_category='printing',
-                        service_name=f"[أوفست] تجهيز وغسيل حوض حبر لون مخصوص ({total_spot} لون)",
-                        quantity=Decimal(str(total_spot)),
+                        service_name=f"[أوفست] تجهيز وغسيل حوض حبر لون مخصوص (صبغة أرضية) ({solid_colors} لون)",
+                        service_description=f"تجهيز وغسيل حوض حبر للألوان المخصوصة وصبغة الأرضية بالمطبعة",
+                        quantity=Decimal(str(solid_colors)),
                         unit=PriceUnit.PIECE,
                         unit_price=Decimal('150.00'),
-                        total_cost=spot_fee
+                        total_cost=solid_fee,
+                        supplier_service=cover_offset_svc
                     )
-                    total_printing_cost += spot_fee
+                    total_printing_cost += solid_fee
 
             elif order.cover_printing_type == 'digital':
-                # مونتاج شيتات الديجيتال A3+
-                digi_cuts_w = max(Decimal('1'), Decimal('48.7') // open_w)
-                digi_cuts_h = max(Decimal('1'), Decimal('33.0') // open_h)
-                digi_cuts = max(Decimal('1'), digi_cuts_w * digi_cuts_h)
-                req_digital_sheets = Decimal(str(int(qty / digi_cuts) + (1 if qty % digi_cuts > 0 else 0)))
+                # جلب أبعاد ماكينة مورد الديجيتال ديناميكياً من قاعدة البيانات
+                machine_w = Decimal('48.7')
+                machine_h = Decimal('33.0')
+                digi_machine_name = post_data.get('cover_digital_machine') or 'Digital Laser Press'
+                
+                try:
+                    from ..models.settings_models import DigitalSheetSize
+                    from django.db.models import Q
+                    d_size = DigitalSheetSize.objects.filter(Q(code=digi_machine_name) | Q(name__icontains=digi_machine_name), is_active=True).first()
+                    if d_size and d_size.width_cm and d_size.height_cm:
+                        machine_w = Decimal(str(d_size.width_cm))
+                        machine_h = Decimal(str(d_size.height_cm))
+                except Exception:
+                    pass
+
+                # احتساب المونتاج في شيت ماكينة المورد بكلا الاتجاهين (أفقي ورأسي)
+                cuts_opt1 = (machine_w // open_w) * (machine_h // open_h)
+                cuts_opt2 = (machine_w // open_h) * (machine_h // open_w)
+                digi_cuts = max(Decimal('1'), cuts_opt1, cuts_opt2)
+                
+                # عدد الطبعات (الشيتات) المطلوبة + هالك ضبط الماكينة (3 أفرخ)
+                req_digital_sheets = Decimal(str(int(qty / digi_cuts) + (1 if qty % digi_cuts > 0 else 0))) + Decimal('3')
 
                 click_mode = order.digital_color_mode or '4_0'
-                digital_sheet_rate_str = post_data.get('digital_sheet_price')
-                if digital_sheet_rate_str:
-                    try:
-                        digital_sheet_rate = Decimal(str(digital_sheet_rate_str))
-                    except:
-                        digital_sheet_rate = Decimal('2.50')
-                else:
-                    if click_mode == '1_0':
-                        digital_sheet_rate = Decimal('0.80')
-                    elif click_mode == '4_4':
-                        digital_sheet_rate = Decimal('4.50')
-                    elif click_mode == '4_1':
-                        digital_sheet_rate = Decimal('3.25')
-                    elif click_mode == '1_1':
-                        digital_sheet_rate = Decimal('1.50')
-                    else:
-                        digital_sheet_rate = Decimal('2.50')
                 
                 # جلب مركز الديجيتال وماكينته
                 cover_digi_supp_id = post_data.get('cover_digital_supplier')
@@ -636,30 +706,52 @@ class OrderAnatomyPersistenceService:
                     except Exception:
                         pass
 
-                digi_machine_name = post_data.get('cover_digital_machine') or 'Digital Laser Press'
+                # قراءة سعر الطبعة من شرائح كمية المورد التنازلية أو القيمة المدخلة
+                if cover_digi_svc:
+                    digital_sheet_rate = cover_digi_svc.get_price_for_quantity(int(req_digital_sheets))
+                else:
+                    digital_sheet_rate_str = post_data.get('digital_sheet_price')
+                    if digital_sheet_rate_str:
+                        try:
+                            digital_sheet_rate = Decimal(str(digital_sheet_rate_str))
+                        except:
+                            digital_sheet_rate = Decimal('2.50')
+                    else:
+                        rates_map = {
+                            '1_0': Decimal('0.80'),
+                            '1_1': Decimal('1.50'),
+                            '4_0': Decimal('2.50'),
+                            '4_1': Decimal('3.25'),
+                            '4_4': Decimal('4.50')
+                        }
+                        digital_sheet_rate = rates_map.get(click_mode, Decimal('2.50'))
+
                 digi_snapshot = {
                     'supplier_id': cover_digi_supp.id if cover_digi_supp else None,
                     'supplier_name': cover_digi_supp.name if cover_digi_supp else 'مركز ديجيتال معتمد',
                     'machine': digi_machine_name,
                     'color_mode': click_mode,
-                    'click_rate': float(digital_sheet_rate),
-                    'sheets_count': int(req_digital_sheets),
+                    'machine_width': float(machine_w),
+                    'machine_height': float(machine_h),
+                    'prints_rate': float(digital_sheet_rate),
+                    'prints_count': int(req_digital_sheets),
                 }
 
                 raw_dig = req_digital_sheets * digital_sheet_rate
                 OrderService.objects.create(
                     order=order,
                     service_category='printing',
-                    service_name=f"[غلاف ديجيتال] طباعة ليزر شيتات A3+ ({req_digital_sheets} شيت بمونتاج {digi_cuts} قطع/شيت)",
-                    service_description=f"المركز: {digi_snapshot['supplier_name']} | الماكينة: {digi_machine_name} | النمط: {click_mode}",
+                    service_name=f"[غلاف ديجيتال] طبعات شيت ليزر ({click_mode}) - ماكينة {machine_w}×{machine_h} سم (عدد {int(req_digital_sheets)} طبعة)",
+                    service_description=f"المركز: {digi_snapshot['supplier_name']} | الماكينة: {digi_machine_name} ({machine_w}×{machine_h} سم) | سعر الطبعة: {digital_sheet_rate} ج/طبعة",
                     quantity=req_digital_sheets,
-                    unit=PriceUnit.PIECE,
+                    unit=PriceUnit.SHEET,
                     unit_price=digital_sheet_rate,
                     total_cost=raw_dig,
                     supplier_service=cover_digi_svc,
                     supplier_info=digi_snapshot
                 )
                 total_printing_cost += raw_dig
+
 
                 # مصاريف قص ربع الفرخ على المقص للديجيتال
                 guillotine_fee = Decimal('30.00')
@@ -674,22 +766,7 @@ class OrderAnatomyPersistenceService:
                 )
                 total_printing_cost += guillotine_fee
 
-            elif order.cover_printing_type == 'digital_banner':
-                total_sqm = ((open_w * open_h) / Decimal('10000')) * qty
-                effective_rate = order.banner_sqm_price + (Decimal('25.00') if order.has_white_ink else Decimal('0.00'))
-                banner_cost = max(Decimal('50.00'), total_sqm * effective_rate)
-                white_desc = " + طبقة حبر أبيض" if order.has_white_ink else ""
-                
-                OrderService.objects.create(
-                    order=order,
-                    service_category='printing',
-                    service_name=f"[خامات كبيرة] طباعة عريضة رول بالمتر المربع ({total_sqm.quantize(Decimal('0.01'))} م²{white_desc})",
-                    quantity=total_sqm.quantize(Decimal('0.01')),
-                    unit=PriceUnit.SQUARE_METER,
-                    unit_price=effective_rate,
-                    total_cost=banner_cost
-                )
-                total_printing_cost += banner_cost
+
 
             elif order.cover_printing_type == 'screen':
                 screen_colors = Decimal(str(post_data.get('screen_colors_count') or 1))
@@ -863,10 +940,12 @@ class OrderAnatomyPersistenceService:
                         inner_press_rate = Decimal(str(post_data.get('inner_press_rate') or '45.00'))
                         inner_press_machine = post_data.get('inner_press_machine') or inner_bed_size
 
-                        inner_pulls = qty * Decimal(str(total_signatures)) * (Decimal('2') if inner_sides == 'work_turn' else Decimal('1'))
-                        thousands_inner = Decimal(str(int(inner_pulls / 1000) + (1 if inner_pulls % 1000 > 0 else 0)))
+                        sig_pulls = qty * (Decimal('2') if inner_sides == 'work_turn' else Decimal('1'))
+                        sig_tirage = Decimal(str(int(sig_pulls / 1000) + (1 if sig_pulls % 1000 > 0 else 0)))
+                        thousands_inner = sig_tirage * Decimal(str(total_signatures))
+                        inner_pulls = sig_pulls * Decimal(str(total_signatures))
                         raw_inner_press = thousands_inner * inner_press_rate
-                        inner_press_setup = max(Decimal('0.00'), Decimal('250.00') - raw_inner_press)
+                        inner_press_setup = Decimal('0.00')
 
                         inner_press_snapshot = {
                             'supplier_id': inner_offset_supp.id if inner_offset_supp else None,
@@ -879,17 +958,32 @@ class OrderAnatomyPersistenceService:
                         OrderService.objects.create(
                             order=order,
                             service_category='printing',
-                            service_name=f"[داخلي أوفست] سحبات ملازم الداخلي ({inner_pulls} سحبة - {thousands_inner} تراج)",
-                            service_description=f"المطبعة: {inner_press_snapshot['supplier_name']} | الماكينة: {inner_press_machine} | سعر التراج: {inner_press_rate} ج/تراج (ألف سحبة)",
+                            service_name=f"[داخلي أوفست] سحبات ملازم الداخلي ({inner_pulls} سحبة - {thousands_inner} تراج لـ {total_signatures} ملازم)",
+                            service_description=f"المطبعة: {inner_press_snapshot['supplier_name']} | الماكينة: {inner_press_machine} | سعر التراج: {inner_press_rate} ج/تراج ({sig_tirage} تراج لكل ملزمة)",
                             quantity=thousands_inner,
                             unit=PriceUnit.THOUSAND,
                             unit_price=inner_press_rate,
                             setup_cost=inner_press_setup,
-                            total_cost=(raw_inner_press + inner_press_setup),
+                            total_cost=raw_inner_press,
                             supplier_service=inner_offset_svc,
                             supplier_info=inner_press_snapshot
                         )
-                        total_printing_cost += (raw_inner_press + inner_press_setup)
+                        total_printing_cost += raw_inner_press
+
+                        # إضافة خدمة تجهيز وغسيل أحواض الألوان المخصوصة للداخلي
+                        if order.inner_spot_colors > 0:
+                            inner_spot_fee = Decimal(str(order.inner_spot_colors)) * Decimal('150.00')
+                            OrderService.objects.create(
+                                order=order,
+                                service_category='printing',
+                                service_name=f"[داخلي أوفست] تجهيز وغسيل حوض حبر لون مخصوص ({order.inner_spot_colors} لون)",
+                                service_description=f"تجهيز وغسيل أحواض أحبار البانتون المخصوصة لملازم الداخلي",
+                                quantity=Decimal(str(order.inner_spot_colors)),
+                                unit=PriceUnit.PIECE,
+                                unit_price=Decimal('150.00'),
+                                total_cost=inner_spot_fee,
+                            )
+                            total_printing_cost += inner_spot_fee
 
                 elif order.inner_printing_type == 'digital':
                     color_pages = int(post_data.get('digital_inner_color_pages') or order.inner_color_pages or pages_count)
@@ -972,14 +1066,14 @@ class OrderAnatomyPersistenceService:
                 )
                 total_printing_cost += (ncr_plates_cost + ncr_pulls_cost)
 
-            # 4. خدمات التشطيب والسلوفان والتجليد والتكسير
+            # 4. خدمات التشطيب والسلوفان والتجليد والتكسير (المصفوفة الديناميكية الصناعية)
             total_finishing_cost = Decimal('0.00')
-            lamination = post_data.get('coating_type') or post_data.get('lamination') or 'matte_2_sides'
+            lamination = post_data.get('coating_type') or post_data.get('lamination') or 'none'
             if lamination not in ['none', '', '0']:
                 if order.cover_printing_type == 'digital_banner':
                     total_sqm = ((open_w * open_h) / Decimal('10000')) * qty
-                    lam_rate = Decimal('15.00')
-                    raw_lam = max(Decimal('30.00'), total_sqm * lam_rate)
+                    lam_rate = Decimal(str(post_data.get('lamination_face_price') or '15.00'))
+                    raw_lam = total_sqm * lam_rate
                     OrderService.objects.create(
                         order=order,
                         service_category='coating',
@@ -991,82 +1085,215 @@ class OrderAnatomyPersistenceService:
                     )
                     total_finishing_cost += raw_lam
                 else:
-                    lam_rate = Decimal('0.90') if '2_sides' in str(lamination) else Decimal('0.50')
-                    min_lam_floor = Decimal('150.00')
-                    raw_lam = gross_sheets * lam_rate
-                    lam_setup = max(Decimal('0.00'), min_lam_floor - raw_lam)
+                    lam_sides = int(post_data.get('lamination_sides') or (2 if '2_sides' in str(lamination) else 1))
+                    default_face_price = '0.50' if order.cover_printing_type == 'digital' else '0.40'
+                    lam_rate = Decimal(str(post_data.get('lamination_face_price') or default_face_price))
+
+                    # الحساب الصناعي: لا حد أدنى للسلوفان نهائياً
+                    if order.cover_printing_type == 'digital':
+                        raw_lam = qty * lam_rate * Decimal(str(lam_sides))
+                        lam_qty = qty
+                        lam_unit = PriceUnit.PIECE
+                        unit_desc = "طبعة"
+                    else:
+                        raw_lam = gross_sheets * lam_rate * Decimal(str(lam_sides))
+                        lam_qty = gross_sheets
+                        lam_unit = PriceUnit.SHEET
+                        unit_desc = "فرخ"
+
+                    # ربط نوع التغطية وتنسيق الاسم العربي
+                    ctype_kw = 'مط' if 'matte' in str(lamination) else ('لميع' if 'gloss' in str(lamination) else str(lamination))
+                    matched_ctype = CoatingType.objects.filter(name__icontains=ctype_kw, is_active=True).first()
+                    disp_name = matched_ctype.name if matched_ctype else "سلوفان حراري"
+
+                    disp_sides = "وجهين" if lam_sides == 2 else "وجه واحد"
 
                     OrderService.objects.create(
                         order=order,
                         service_category='coating',
-                        service_name=f"سلوفان حراري مط/لامع ({lamination})",
-                        quantity=gross_sheets,
-                        unit=PriceUnit.PIECE,
-                        unit_price=lam_rate,
-                        setup_cost=lam_setup
+                        service_name=f"{disp_name} ({disp_sides}) - {lam_rate} ج/وجه",
+                        service_description=f"سلوفان بدون حد أدنى | الكمية: {lam_qty} {unit_desc} × {lam_sides} وجه × {lam_rate} ج",
+                        quantity=lam_qty,
+                        unit=lam_unit,
+                        unit_price=lam_rate * Decimal(str(lam_sides)),
+                        setup_cost=Decimal('0.00'),
+                        total_cost=raw_lam
                     )
-                    total_finishing_cost += (raw_lam + lam_setup)
+                    total_finishing_cost += raw_lam
 
-            # تشطيبات فاخرة وكليشيهات البصمة والكوفراج
+            # حساب تراجات التشطيب والتكسير (ألف سحبة/شيت)
+            tirage_base = qty if order.cover_printing_type == 'digital' else gross_sheets
+            tirages_count = max(Decimal('1'), Decimal(str(int((tirage_base + 999) // 1000))))
+
+            # 1. ورنيش موضعي سبوت UV (بالتراج + شابلونة)
             finishing = post_data.get('finishing') or 'none'
-            if finishing not in ['none', '']:
-                die_setup = Decimal('150.00') if ('foil' in finishing or 'emboss' in finishing) else Decimal('0.00')
-                raw_uv = qty * Decimal('0.40')
-                uv_setup = die_setup + max(Decimal('0.00'), Decimal('200.00') - raw_uv)
+            has_spot_uv = post_data.get('has_spot_uv') in ['1', 'true', True] or finishing == 'spot_uv'
+            if has_spot_uv:
+                spot_override = Decimal(str(post_data.get('spot_uv_override_price') or '0.00'))
+                if spot_override > Decimal('0.00'):
+                    total_uv = spot_override
+                    uv_rate = (spot_override / tirages_count).quantize(Decimal('0.01'))
+                    screen_cost = Decimal('0.00')
+                    uv_desc = "سعر مقطوع يدوي معتمد"
+                else:
+                    spot_rate = Decimal(str(post_data.get('spot_uv_tirage_price') or '120.00'))
+                    is_screen_archive = post_data.get('spot_uv_screen_mode') == 'archive'
+                    screen_cost = Decimal('0.00') if is_screen_archive else Decimal(str(post_data.get('spot_uv_screen_cost') or '150.00'))
+                    total_uv = (tirages_count * spot_rate) + screen_cost
+                    uv_rate = spot_rate
+                    uv_desc = f"{tirages_count} تراج × {spot_rate} ج + شابلونة {'أرشيف (0 ج)' if is_screen_archive else f'{screen_cost} ج'}"
 
                 OrderService.objects.create(
                     order=order,
                     service_category='finishing',
-                    service_name=f"تشطيب خاص فاخر وكليشيه ({finishing})",
-                    quantity=qty,
-                    unit=PriceUnit.PIECE,
-                    unit_price=Decimal('0.40'),
-                    setup_cost=uv_setup
+                    service_name="ورنيش موضعي بارز سبوت UV (بالتراج)",
+                    service_description=uv_desc,
+                    quantity=tirages_count,
+                    unit=PriceUnit.THOUSAND,
+                    unit_price=uv_rate,
+                    setup_cost=screen_cost,
+                    total_cost=total_uv
                 )
-                total_finishing_cost += (raw_uv + uv_setup)
+                total_finishing_cost += total_uv
 
-            # ريجة للورق السميك المطوي لمنع تشقق الطي
-            if is_closed and paper_weight >= Decimal('250'):
-                raw_cr = qty * Decimal('0.10')
-                cr_setup = max(Decimal('0.00'), Decimal('80.00') - raw_cr)
-                OrderService.objects.create(
-                    order=order,
-                    service_category='finishing',
-                    service_name="ريجة وتكسير خط طي للورق السميك لمنع التشقق",
-                    quantity=qty,
-                    unit=PriceUnit.PIECE,
-                    unit_price=Decimal('0.10'),
-                    setup_cost=cr_setup
-                )
-                total_finishing_cost += (raw_cr + cr_setup)
-
+            # 2. تكسير فورمة سكاكين (بالتراج + فورمة)
             die_cutting = post_data.get('die_cutting') or 'straight_cut'
-            if 'die_cut' in str(die_cutting):
-                die_total = Decimal('250.00')
+            has_die_cutting = post_data.get('has_die_cutting') in ['1', 'true', True] or 'die_cut' in str(die_cutting) or die_cutting == 'kiss_cut'
+            if has_die_cutting:
+                die_override = Decimal(str(post_data.get('die_cut_override_price') or '0.00'))
+                if die_override > Decimal('0.00'):
+                    total_die = die_override
+                    die_rate = (die_override / tirages_count).quantize(Decimal('0.01'))
+                    tooling_cost = Decimal('0.00')
+                    die_desc = "سعر تكسير مقطوع يدوي معتمد"
+                else:
+                    die_rate = Decimal(str(post_data.get('die_cut_tirage_price') or '80.00'))
+                    is_tool_archive = post_data.get('die_tooling_mode') == 'archive'
+                    tooling_cost = Decimal('0.00') if is_tool_archive else Decimal(str(post_data.get('die_tooling_cost') or '250.00'))
+                    total_die = (tirages_count * die_rate) + tooling_cost
+                    die_desc = f"{tirages_count} تراج تكسير × {die_rate} ج + فورمة سكاكين {'أرشيف (0 ج)' if is_tool_archive else f'{tooling_cost} ج'}"
+
                 OrderService.objects.create(
                     order=order,
                     service_category='finishing',
-                    service_name="فورمة سكاكين وقص وتكسير",
-                    quantity=Decimal('1'),
-                    unit=PriceUnit.PIECE,
-                    unit_price=die_total,
-                    total_cost=die_total
+                    service_name="تكسير فورمة سكاكين بالماكينة (بالتراج)",
+                    service_description=die_desc,
+                    quantity=tirages_count,
+                    unit=PriceUnit.THOUSAND,
+                    unit_price=die_rate,
+                    setup_cost=tooling_cost,
+                    total_cost=total_die
                 )
-                total_finishing_cost += die_total
+                total_finishing_cost += total_die
+
+            # 3. بصمة حرارية (Hot Foil)
+            has_foil = post_data.get('has_foil') in ['1', 'true', True] or 'foil' in str(finishing)
+            if has_foil:
+                foil_override = Decimal(str(post_data.get('foil_override_price') or '0.00'))
+                foil_color_label = post_data.get('foil_color') or 'ذهبي'
+                if foil_override > Decimal('0.00'):
+                    total_foil = foil_override
+                    foil_rate = (foil_override / tirages_count).quantize(Decimal('0.01'))
+                    cliche_cost = Decimal('0.00')
+                else:
+                    is_cliche_archive = post_data.get('foil_cliche_mode') == 'archive'
+                    cliche_cost = Decimal('0.00') if is_cliche_archive else Decimal(str(post_data.get('foil_cliche_cost') or '150.00'))
+                    total_foil = max(Decimal('230.00'), (tirages_count * Decimal('100.00')) + cliche_cost)
+                    foil_rate = Decimal('100.00')
+
+                OrderService.objects.create(
+                    order=order,
+                    service_category='finishing',
+                    service_name=f"بصمة حرارية ({foil_color_label}) [تشطيب خاص فاخر وكليشيه]",
+                    service_description=f"سحب بصمة بالتراج {tirages_count} تراج + كليشيه {cliche_cost} ج",
+                    quantity=tirages_count,
+                    unit=PriceUnit.THOUSAND,
+                    unit_price=foil_rate,
+                    setup_cost=cliche_cost,
+                    total_cost=total_foil
+                )
+                total_finishing_cost += total_foil
+
+            # 4. كوفراج بارز (Embossing)
+            has_emboss = post_data.get('has_emboss') in ['1', 'true', True] or 'emboss' in str(finishing)
+            if has_emboss:
+                emboss_override = Decimal(str(post_data.get('emboss_override_price') or '0.00'))
+                if emboss_override > Decimal('0.00'):
+                    total_emboss = emboss_override
+                    emboss_rate = (emboss_override / tirages_count).quantize(Decimal('0.01'))
+                    cliche_cost = Decimal('0.00')
+                else:
+                    is_emboss_archive = post_data.get('emboss_cliche_mode') == 'archive'
+                    cliche_cost = Decimal('0.00') if is_emboss_archive else Decimal(str(post_data.get('emboss_cliche_cost') or '150.00'))
+                    total_emboss = (tirages_count * Decimal('80.00')) + cliche_cost
+                    emboss_rate = Decimal('80.00')
+
+                OrderService.objects.create(
+                    order=order,
+                    service_category='finishing',
+                    service_name="كوفراج بارز وضغط حراري (بالتراج)",
+                    service_description=f"سحب كوفراج بالتراج {tirages_count} تراج + كليشيه {cliche_cost} ج",
+                    quantity=tirages_count,
+                    unit=PriceUnit.THOUSAND,
+                    unit_price=emboss_rate,
+                    setup_cost=cliche_cost,
+                    total_cost=total_emboss
+                )
+                total_finishing_cost += total_emboss
+
+            # 5. ريجة طي (Creasing)
+            has_creasing = post_data.get('has_creasing') in ['1', 'true', True] or 'creasing' in str(die_cutting) or (is_closed and paper_weight >= Decimal('250'))
+            if has_creasing:
+                crease_override = Decimal(str(post_data.get('creasing_override_price') or '0.00'))
+                lines = int(post_data.get('creasing_lines_count') or (2 if 'creasing_2' in str(die_cutting) else 1))
+                if crease_override > Decimal('0.00'):
+                    total_crease = crease_override
+                else:
+                    total_crease = max(Decimal('80.00'), tirages_count * Decimal('40.00') * Decimal(str(lines)))
+
+                OrderService.objects.create(
+                    order=order,
+                    service_category='finishing',
+                    service_name=f"ريجة وتكسير طي بالماكينة ({lines} خط طي)",
+                    service_description=f"ريجة وتكسير خط طي بالماكينة ({tirages_count} تراج × {lines} خطوط)",
+                    quantity=tirages_count,
+                    unit=PriceUnit.THOUSAND,
+                    unit_price=Decimal('40.00') * Decimal(str(lines)),
+                    setup_cost=Decimal('0.00'),
+                    total_cost=total_crease
+                )
+                total_finishing_cost += total_crease
 
             # خدمات التجليد المتخصصة
             if order_type in ['catalog', 'book', 'magazine', 'book_catalog']:
                 binding = order.binding_type
+                
+                # جلب ورشة التجليد لو تم تحديدها
+                binding_sup_id = post_data.get('binding_supplier')
+                binding_sup = None
+                binding_svc = None
+                if binding_sup_id:
+                    try:
+                        from supplier.models import Supplier, SupplierService as SuppSvcModel
+                        binding_sup = Supplier.objects.filter(id=binding_sup_id, is_active=True).first()
+                        if binding_sup:
+                            binding_svc = SuppSvcModel.objects.filter(supplier=binding_sup, is_active=True).first()
+                    except Exception:
+                        pass
+
                 if binding == 'staple':
+                    # خدمة مقفولة ومجمعة من ورشة التجليد: تقفيل دبوس (تجميع + دبوس + قص وترفيل)
                     staple_cost = max(Decimal('75.00'), qty * Decimal('0.50'))
                     OrderService.objects.create(
                         order=order,
                         service_category='packaging',
-                        service_name="تجميع ملازم وتدبيس فرنسي سرج (دبوسين على الكعب)",
+                        service_name="تقفيل دبوس مجمع (تجميع ملازم + ضرب دبوس سرج + قص وترفيل الطهارة)",
+                        service_description="خدمة تجليد مجمعة شاملة التجميع والدبوس والقص النهائي على المقص الثلاثي",
                         quantity=qty,
                         unit=PriceUnit.PIECE,
                         unit_price=Decimal('0.50'),
-                        total_cost=staple_cost
+                        total_cost=staple_cost,
+                        supplier_service=binding_svc
                     )
                     total_finishing_cost += staple_cost
                 elif binding == 'perfect_binding':
@@ -1078,7 +1305,8 @@ class OrderAnatomyPersistenceService:
                         quantity=qty,
                         unit=PriceUnit.PIECE,
                         unit_price=Decimal('1.80'),
-                        total_cost=pb_cost
+                        total_cost=pb_cost,
+                        supplier_service=binding_svc
                     )
                     total_finishing_cost += pb_cost
                 elif binding == 'hardcover':
@@ -1090,19 +1318,26 @@ class OrderAnatomyPersistenceService:
                         quantity=qty,
                         unit=PriceUnit.PIECE,
                         unit_price=Decimal('4.50'),
-                        setup_cost=Decimal('150.00')
+                        setup_cost=Decimal('150.00'),
+                        total_cost=hc_cost,
+                        supplier_service=binding_svc
                     )
                     total_finishing_cost += hc_cost
                 elif binding == 'wire_o':
-                    wire_cost = max(Decimal('120.00'), qty * Decimal('2.50'))
+                    # حساب قطر السلك اللولبي المناسب لسمك البلوك
+                    inner_pages_c = int(post_data.get('pages_count') or order.pages_count or 60)
+                    wire_rate = Decimal('2.50') if inner_pages_c <= 100 else Decimal('3.50')
+                    wire_cost = max(Decimal('120.00'), qty * wire_rate)
+                    wire_size_label = '3/8 بوصة' if inner_pages_c <= 80 else ('1/2 بوصة' if inner_pages_c <= 120 else '5/8 بوصة')
                     OrderService.objects.create(
                         order=order,
                         service_category='packaging',
-                        service_name="تخريم وتركيب سلك لولبي دبل (Wire-O Spiral)",
+                        service_name=f"تخريم وتركيب سلك لولبي دبل (Wire-O مقاس {wire_size_label})",
                         quantity=qty,
                         unit=PriceUnit.PIECE,
-                        unit_price=Decimal('2.50'),
-                        total_cost=wire_cost
+                        unit_price=wire_rate,
+                        total_cost=wire_cost,
+                        supplier_service=binding_svc
                     )
                     total_finishing_cost += wire_cost
                 elif binding == 'pad_glue':
@@ -1114,7 +1349,8 @@ class OrderAnatomyPersistenceService:
                         quantity=qty,
                         unit=PriceUnit.PIECE,
                         unit_price=Decimal('0.75'),
-                        total_cost=pad_cost
+                        total_cost=pad_cost,
+                        supplier_service=binding_svc
                     )
                     total_finishing_cost += pad_cost
                 elif binding == 'sewing_binding':
@@ -1127,31 +1363,37 @@ class OrderAnatomyPersistenceService:
                         quantity=qty,
                         unit=PriceUnit.PIECE,
                         unit_price=(Decimal('2.00') + sewing_rate),
-                        total_cost=sewing_total
+                        total_cost=sewing_total,
+                        supplier_service=binding_svc
                     )
                     total_finishing_cost += sewing_total
 
             elif order_type in ['invoice', 'receipt', 'ncr']:
+                ncr_sets = Decimal(str(order.ncr_sets_count or 2))
                 ncr_cap = Decimal(str(order.ncr_book_capacity or 50))
-                total_nums = qty * ncr_cap
-                numbering_cost = max(Decimal('100.00'), (total_nums / Decimal('1000')) * Decimal('20.00'))
+                # احتساب الترقيم: عدد أطقم الفواتير بالدفاتر = الكمية * سعة الدفتر
+                ncr_sets_total = qty * ncr_cap
+                total_hits = ncr_sets_total * ncr_sets
+                numbering_cost = max(Decimal('100.00'), (total_hits / Decimal('1000')) * Decimal('25.00'))
+                unit_num_rate = (numbering_cost / ncr_sets_total).quantize(Decimal('0.001')) if ncr_sets_total > 0 else Decimal('0.025')
                 OrderService.objects.create(
                     order=order,
                     service_category='finishing',
                     service_name=f"ترقيم سيريال أوتوماتيك من {order.ncr_serial_start} إلى {order.ncr_serial_end}",
-                    quantity=total_nums,
+                    service_description=f"ترقيم أوتوماتيك لدفاتر الفواتير (طقم {int(ncr_sets)} صور - إجمالي ضربات السيريال: {int(total_hits)} ضربة)",
+                    quantity=ncr_sets_total,
                     unit=PriceUnit.PIECE,
-                    unit_price=Decimal('0.02'),
+                    unit_price=unit_num_rate,
                     total_cost=numbering_cost
                 )
-                pad_binding_cost = qty * Decimal('2.50')
+                pad_binding_cost = qty * Decimal('3.00')
                 OrderService.objects.create(
                     order=order,
                     service_category='packaging',
-                    service_name="ريجة تخريم وتجميع وتكعيب دفاتر الفواتير",
+                    service_name="ريجة وتخريم وتجميع وتكعيب دفاتر الفواتير",
                     quantity=qty,
                     unit=PriceUnit.PIECE,
-                    unit_price=Decimal('2.50'),
+                    unit_price=Decimal('3.00'),
                     total_cost=pad_binding_cost
                 )
                 total_finishing_cost += (numbering_cost + pad_binding_cost)
@@ -1166,24 +1408,43 @@ class OrderAnatomyPersistenceService:
                     quantity=qty,
                     unit=PriceUnit.PIECE,
                     unit_price=Decimal('0.60'),
-                    setup_cost=folder_die
+                    setup_cost=folder_die,
+                    total_cost=(folder_die + folder_glue)
                 )
                 total_finishing_cost += (folder_die + folder_glue)
 
-            # 5. اللوجستيات والشحن
-            extra_cost_str = post_data.get('extra_cost') or post_data.get('estimated_shipping_cost') or '0.00'
-            try:
-                shipping_cost = Decimal(str(extra_cost_str))
-            except:
-                shipping_cost = Decimal('0.00')
+            # 5. المشال واللوجستيات ونقل الشغلانات بين الورش والكراتين
+            # احتساب المشال ونقل التروسيكلات والسيارات بين الورش
+            ext_services_count = OrderService.objects.filter(order=order, is_active=True).count()
+            # خطوط سير المشال بين الموردين (50 ج لكل مشوار ورشة كحد أدنى لحماية هامش الوكالة)
+            workshop_legs = max(1, min(4, ext_services_count // 2))
+            workshop_freight = Decimal(str(workshop_legs * 50))
 
-            # 6. الحساب الإجمالي وتحديث OrderSummary
+            # احتساب كراتين التعبئة بناءً على الوزن التقريبي للورق
+            total_weight_kg = Decimal('0.00')
+            for mat in OrderMaterial.objects.filter(order=order, material_type='paper'):
+                w_kg = (open_w * open_h * paper_weight * mat.quantity) / Decimal('10000000')
+                total_weight_kg += w_kg
+
+            cartons_needed = math.ceil(float(total_weight_kg / Decimal('15.0'))) if total_weight_kg > 0 else 1
+            cartons_cost = Decimal(str(cartons_needed * 15))  # 15 ج للكرتونة الواحدة
+
+            extra_cost_str = post_data.get('extra_cost') or post_data.get('estimated_shipping_cost')
+            if extra_cost_str:
+                try:
+                    shipping_cost = Decimal(str(extra_cost_str))
+                except:
+                    shipping_cost = Decimal('0.00')
+            else:
+                client_shipping = Decimal('100.00') if total_weight_kg > 30 else Decimal('50.00')
+                shipping_cost = client_shipping + workshop_freight + cartons_cost
+
+            # 6. الحساب الإجمالي وتحديث OrderSummary بالجنيه المصري (EGP) حصراً
             subtotal_cost = total_materials_cost + total_printing_cost + total_finishing_cost + shipping_cost
 
             profit_margin_pct = Decimal(str(post_data.get('profit_margin') or order.profit_margin or '25.00'))
             margin_factor = profit_margin_pct / Decimal('100')
             
-            import math
             if margin_factor < Decimal('1'):
                 raw_final = subtotal_cost / (Decimal('1') - margin_factor)
                 final_sell_price = Decimal(str(math.ceil(float(raw_final)))).quantize(Decimal('0.01'))
@@ -1191,15 +1452,27 @@ class OrderAnatomyPersistenceService:
                 raw_final = subtotal_cost * Decimal('1.25')
                 final_sell_price = Decimal(str(math.ceil(float(raw_final)))).quantize(Decimal('0.01'))
 
-            # السعر الصافي للبيع (غير شامل الضريبة ومجبور للأعلى)
+            # حماية السعر المتفق عليه يدوياً مع العميل (Manual Agreed Price Override)
+            agreed_price_str = post_data.get('manual_agreed_price') or post_data.get('final_price')
+            if agreed_price_str:
+                try:
+                    agreed_p = Decimal(str(agreed_price_str))
+                    if agreed_p > Decimal('0.00'):
+                        final_sell_price = agreed_p
+                        if agreed_p > subtotal_cost:
+                            profit_margin_pct = (((agreed_p - subtotal_cost) / agreed_p) * Decimal('100')).quantize(Decimal('0.01'))
+                        else:
+                            profit_margin_pct = Decimal('0.00')
+                except:
+                    pass
+
             net_sell_price = final_sell_price
 
             # تحديث حقول الطلب المباشرة بالسعر الصافي
             order.estimated_cost = subtotal_cost
             order.final_price = net_sell_price
-            order.sale_price = net_sell_price
             order.profit_margin = profit_margin_pct
-            order.save(update_fields=['estimated_cost', 'final_price', 'sale_price', 'profit_margin'])
+            order.save(update_fields=['estimated_cost', 'final_price', 'profit_margin'])
 
             # إنشاء أو تحديث OrderSummary
             summary, _ = OrderSummary.objects.get_or_create(order=order)
@@ -1215,3 +1488,4 @@ class OrderAnatomyPersistenceService:
             summary.save()
 
             return summary
+

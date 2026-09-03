@@ -6,46 +6,20 @@ from .views.order_views import (
     OrderUpdateView, OrderDeleteView, dashboard_redirect,
     calculate_order_cost, approve_order, duplicate_order
 )
-# تم حذف calculation_views - الحسابات تتم داخل نموذج الطلب ديناميكياً
 from .views.api_views import (
-    CalculateCostAPIView, GetMaterialPriceAPIView, GetServicePriceAPIView,
-    ValidateOrderAPIView, OrderSummaryAPIView, GetCustomersAPIView,
-    GetProductTypesAPIView, GetProductSizesAPIView, GetPrintingSuppliersAPIView,
-    GetPressesAPIView, GetPressPriceAPIView, GetCTPSuppliersAPIView,
-    GetCTPPlatesAPIView, GetCTPPriceAPIView, GetPaperTypesAPIView,
+    LivePricingCalculateAPIView,
+    OrderSummaryAPIView, GetCustomersAPIView,
+    GetProductTypesAPIView, GetProductSizesAPIView,
+    GetPressesAPIView, GetPaperTypesAPIView,
     GetPaperSuppliersAPIView, GetPaperWeightsAPIView, GetPaperSheetTypesAPIView,
     GetPaperOriginsAPIView, GetPaperPriceAPIView, GetPieceSizesAPIView,
-    # المرحلة الأولى — APIs خدمات الموردين ومعلومات العميل
     GetServiceTypesAPIView, GetSuppliersByServiceAPIView,
     GetSupplierServicesAPIView, GetServicePriceByIdAPIView,
     CustomerInfoAPIView,
-    # المرحلة الثالثة — ربط التسعير وعرابين الموردين والبروفة وسجل التدقيق
     SaveOrderServiceSupplierAPIView,
-    VendorAdvancesAPIView,
-    ProofApprovalPublicAPIView,
     BulkPriceUpdateAPIView,
-    PriceAuditTrailAPIView,
-    MultiLegFreightAPIView,
-    # المرحلة الرابعة — جسر المشتريات ومحاضر التسليم والجودة والتعويضات
     GenerateVendorPOsAPIView,
-    QCSignoffAPIView,
-    SupplementalRemakeAPIView,
-    UpdateOrderStageAPIView,
 )
-from .views.document_views import (
-    ConsolidatedPressJobSheetView,
-    OutsourcedJobSheetView,
-    DeliveryNoteView,
-    CartonLabelsView,
-    ExecutiveSummaryView,
-)
-from .views.mobile_views import (
-    MobilePricingView,
-    generate_mobile_whatsapp_link,
-    save_quick_mobile_quote
-)
-
-
 
 # استيراد عروض الإعدادات
 from .views.settings_views import (
@@ -54,9 +28,6 @@ from .views.settings_views import (
     PaperSizeListView, PaperSizeCreateView, PaperSizeUpdateView, PaperSizeDeleteView,
     PaperWeightListView, PaperWeightCreateView, PaperWeightUpdateView, PaperWeightDeleteView,
     PaperOriginListView, PaperOriginCreateView, PaperOriginUpdateView, PaperOriginDeleteView,
-    PrintDirectionListView, PrintDirectionCreateView, PrintDirectionUpdateView, PrintDirectionDeleteView,
-    PrintSideListView, PrintSideCreateView, PrintSideUpdateView, PrintSideDeleteView,
-    # العروض المتقدمة - تم دمجها في settings_views.py
     CoatingTypeListView, CoatingTypeCreateView, CoatingTypeUpdateView, CoatingTypeDeleteView,
     FinishingTypeListView, FinishingTypeCreateView, FinishingTypeUpdateView, FinishingTypeDeleteView,
     PackagingTypeListView, PackagingTypeCreateView, PackagingTypeUpdateView, PackagingTypeDeleteView,
@@ -66,12 +37,10 @@ from .views.settings_views import (
     ProductTypeReorderView, ProductTypeToggleActiveView,
     ProductSizeListView, ProductSizeCreateView, ProductSizeUpdateView, ProductSizeDeleteView,
     ProductSizeReorderView, ProductSizeToggleActiveView,
-    VATSettingListView, VATSettingCreateView, VATSettingUpdateView, VATSettingDeleteView,
     OffsetMachineTypeListView, OffsetMachineTypeCreateView, OffsetMachineTypeUpdateView, OffsetMachineTypeDeleteView,
     OffsetSheetSizeListView, OffsetSheetSizeCreateView, OffsetSheetSizeUpdateView, OffsetSheetSizeDeleteView,
     DigitalMachineTypeListView, DigitalMachineTypeCreateView, DigitalMachineTypeUpdateView, DigitalMachineTypeDeleteView,
-    DigitalSheetSizeListView, DigitalSheetSizeCreateView, DigitalSheetSizeUpdateView, DigitalSheetSizeDeleteView,
-    SystemSettingListView, SystemSettingCreateView, SystemSettingUpdateView, SystemSettingDeleteView
+    DigitalSheetSizeListView, DigitalSheetSizeCreateView, DigitalSheetSizeUpdateView, DigitalSheetSizeDeleteView
 )
 
 app_name = 'printing_pricing'
@@ -86,24 +55,12 @@ order_patterns = [
     path('<int:pk>/calculate/', calculate_order_cost, name='calculate_cost'),
     path('<int:pk>/calculate-cost/', calculate_order_cost, name='calculate_order_cost'),
     path('<int:pk>/approve/', approve_order, name='approve_order'),
-    path('mobile-pricing/', MobilePricingView.as_view(), name='mobile_pricing'),
     path('<int:pk>/duplicate/', duplicate_order, name='duplicate_order'),
-    # المرحلة الرابعة — مستندات التشغيل والتسليم المعيارية
-    path('<int:pk>/consolidated-job-sheet/', ConsolidatedPressJobSheetView.as_view(), name='consolidated_job_sheet'),
-    path('<int:pk>/outsourced-job-sheet/', OutsourcedJobSheetView.as_view(), name='outsourced_job_sheet'),
-    path('<int:pk>/delivery-note/', DeliveryNoteView.as_view(), name='delivery_note'),
-    path('<int:pk>/carton-labels/', CartonLabelsView.as_view(), name='carton_labels'),
-    path('<int:pk>/executive-summary/', ExecutiveSummaryView.as_view(), name='executive_summary'),
 ]
-
-# تم حذف calculation_patterns - الحسابات تتم داخل نموذج الطلب ديناميكياً
 
 # URLs للAPI
 api_patterns = [
-    path('calculate-cost/', CalculateCostAPIView.as_view(), name='api_calculate_cost'),
-    path('get-material-price/', GetMaterialPriceAPIView.as_view(), name='api_material_price'),
-    path('get-service-price/', GetServicePriceAPIView.as_view(), name='api_service_price'),
-    path('validate-order/', ValidateOrderAPIView.as_view(), name='api_validate_order'),
+    path('live-calculate/', LivePricingCalculateAPIView.as_view(), name='api_live_calculate'),
     path('order-summary/<int:order_id>/', OrderSummaryAPIView.as_view(), name='api_order_summary'),
     
     # APIs للحقول الديناميكية ومعلومات العميل
@@ -113,14 +70,7 @@ api_patterns = [
     path('get-product-sizes/', GetProductSizesAPIView.as_view(), name='api_get_product_sizes'),
     
     # APIs للمطابع والماكينات
-    path('printing-suppliers/', GetPrintingSuppliersAPIView.as_view(), name='api_printing_suppliers'),
     path('presses/', GetPressesAPIView.as_view(), name='api_presses'),
-    path('press-price/', GetPressPriceAPIView.as_view(), name='api_press_price'),
-    
-    # APIs للزنكات
-    path('ctp-suppliers/', GetCTPSuppliersAPIView.as_view(), name='api_ctp_suppliers'),
-    path('ctp-plates/', GetCTPPlatesAPIView.as_view(), name='api_ctp_plates'),
-    path('ctp-price/', GetCTPPriceAPIView.as_view(), name='api_ctp_price'),
     
     # APIs للورق
     path('paper-types/', GetPaperTypesAPIView.as_view(), name='api_paper_types'),
@@ -133,27 +83,18 @@ api_patterns = [
     # APIs لمقاسات القطع
     path('piece-sizes/', GetPieceSizesAPIView.as_view(), name='api_piece_sizes'),
 
-    # APIs خدمات الموردين — المرحلة الأولى
+    # APIs خدمات الموردين
     path('service-types/',        GetServiceTypesAPIView.as_view(),      name='api_service_types'),
     path('suppliers-by-service/', GetSuppliersByServiceAPIView.as_view(), name='api_suppliers_by_service'),
     path('supplier-services/',    GetSupplierServicesAPIView.as_view(),   name='api_supplier_services'),
     path('service-price/',        GetServicePriceByIdAPIView.as_view(),   name='api_service_price_by_id'),
 
-    # المرحلة الثالثة — ربط التسعير وعرابين الموردين والبروفة وسجل التدقيق
+    # ربط الموردين والتسعير الجماعي
     path('save-order-service-supplier/', SaveOrderServiceSupplierAPIView.as_view(), name='api_save_order_service_supplier'),
-    path('order-advances/<int:order_id>/', VendorAdvancesAPIView.as_view(), name='api_order_advances'),
-    path('proof-signoff/<uuid:token>/', ProofApprovalPublicAPIView.as_view(), name='api_proof_signoff'),
     path('bulk-price-update/', BulkPriceUpdateAPIView.as_view(), name='api_bulk_price_update'),
-    path('price-audit-trail/<int:order_id>/', PriceAuditTrailAPIView.as_view(), name='api_price_audit_trail'),
-    path('calculate-freight/', MultiLegFreightAPIView.as_view(), name='api_calculate_freight'),
 
-    # المرحلة الرابعة — جسر المشتريات وتتبع موقع الشغل والتعويضات
+    # جسر المشتريات وتوليد أوامر الشغل للموردين
     path('generate-vendor-pos/<int:order_id>/', GenerateVendorPOsAPIView.as_view(), name='api_generate_vendor_pos'),
-    path('update-order-stage/<int:order_id>/', UpdateOrderStageAPIView.as_view(), name='api_update_order_stage'),
-    path('qc-signoff/<int:order_id>/', QCSignoffAPIView.as_view(), name='api_qc_signoff'),
-    path('supplemental-remake/<int:order_id>/', SupplementalRemakeAPIView.as_view(), name='api_supplemental_remake'),
-    path('whatsapp-quote-link/<int:order_id>/', generate_mobile_whatsapp_link, name='api_whatsapp_quote_link'),
-    path('save-quick-mobile-quote/', save_quick_mobile_quote, name='api_save_quick_mobile_quote'),
 ]
 
 # URLs للإعدادات
@@ -184,18 +125,6 @@ settings_patterns = [
     path('paper-origins/create/', PaperOriginCreateView.as_view(), name='paper_origin_create'),
     path('paper-origins/<int:pk>/edit/', PaperOriginUpdateView.as_view(), name='paper_origin_edit'),
     path('paper-origins/<int:pk>/delete/', PaperOriginDeleteView.as_view(), name='paper_origin_delete'),
-    
-    # اتجاهات الطباعة
-    path('print-directions/', PrintDirectionListView.as_view(), name='print_direction_list'),
-    path('print-directions/create/', PrintDirectionCreateView.as_view(), name='print_direction_create'),
-    path('print-directions/<int:pk>/edit/', PrintDirectionUpdateView.as_view(), name='print_direction_edit'),
-    path('print-directions/<int:pk>/delete/', PrintDirectionDeleteView.as_view(), name='print_direction_delete'),
-    
-    # جوانب الطباعة
-    path('print-sides/', PrintSideListView.as_view(), name='print_side_list'),
-    path('print-sides/create/', PrintSideCreateView.as_view(), name='print_side_create'),
-    path('print-sides/<int:pk>/edit/', PrintSideUpdateView.as_view(), name='print_side_edit'),
-    path('print-sides/<int:pk>/delete/', PrintSideDeleteView.as_view(), name='print_side_delete'),
     
     # أنواع التغطية
     path('coating-types/', CoatingTypeListView.as_view(), name='coating_type_list'),
@@ -243,11 +172,6 @@ settings_patterns = [
     path('product-sizes/reorder/', ProductSizeReorderView.as_view(), name='product_size_reorder'),
     path('product-sizes/<int:pk>/toggle-active/', ProductSizeToggleActiveView.as_view(), name='product_size_toggle_active'),
     
-    # إعدادات ضريبة القيمة المضافة
-    path('vat-settings/', VATSettingListView.as_view(), name='vat_setting_list'),
-    path('vat-settings/create/', VATSettingCreateView.as_view(), name='vat_setting_create'),
-    path('vat-settings/<int:pk>/edit/', VATSettingUpdateView.as_view(), name='vat_setting_edit'),
-    path('vat-settings/<int:pk>/delete/', VATSettingDeleteView.as_view(), name='vat_setting_delete'),
     
     # أنواع ماكينات الأوفست
     path('offset-machine-types/', OffsetMachineTypeListView.as_view(), name='offset_machine_type_list'),
@@ -272,19 +196,13 @@ settings_patterns = [
     path('digital-sheet-sizes/create/', DigitalSheetSizeCreateView.as_view(), name='digital_sheet_size_create'),
     path('digital-sheet-sizes/<int:pk>/edit/', DigitalSheetSizeUpdateView.as_view(), name='digital_sheet_size_edit'),
     path('digital-sheet-sizes/<int:pk>/delete/', DigitalSheetSizeDeleteView.as_view(), name='digital_sheet_size_delete'),
-    
-    # إعدادات النظام
-    path('system-settings/', SystemSettingListView.as_view(), name='system_setting_list'),
-    path('system-settings/create/', SystemSettingCreateView.as_view(), name='system_setting_create'),
-    path('system-settings/<int:pk>/edit/', SystemSettingUpdateView.as_view(), name='system_setting_edit'),
-    path('system-settings/<int:pk>/delete/', SystemSettingDeleteView.as_view(), name='system_setting_delete'),
 ]
 
 urlpatterns = [
     # الصفحة الرئيسية — redirect لقائمة الطلبات
     path('', dashboard_redirect, name='dashboard'),
     
-    # طلبات التسعير (مع حسابات ديناميكية مدمجة)
+    # طلبات التسعير
     path('orders/', include(order_patterns)),
     
     # APIs
@@ -292,8 +210,4 @@ urlpatterns = [
     
     # الإعدادات
     path('settings/', include(settings_patterns)),
-    
-    # تقارير (سيتم إضافتها لاحقاً)
-    # path('reports/', views.ReportsView.as_view(), name='reports'),
-    # path('reports/export/<str:format>/', views.export_report, name='export_report'),
 ]

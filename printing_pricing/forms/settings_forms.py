@@ -9,8 +9,8 @@ from django.core.exceptions import ValidationError
 
 from ..models import (
     PaperType, PaperSize, PaperWeight, PaperOrigin,
-    PrintDirection, PrintSide, CoatingType, FinishingType,
-    PieceSize, PlateSize, ProductType, ProductSize, VATSetting,
+    CoatingType, FinishingType,
+    PieceSize, PlateSize, ProductType, ProductSize,
     OffsetMachineType, DigitalMachineType, OffsetSheetSize, DigitalSheetSize
 )
 from users.models import User
@@ -288,86 +288,7 @@ class PaperOriginForm(forms.ModelForm):
         return instance
 
 
-# ==================== نماذج اتجاهات الطباعة ====================
 
-class PrintDirectionForm(forms.ModelForm):
-    """نموذج اتجاهات الطباعة"""
-
-    class Meta:
-        model = PrintDirection
-        fields = ['name', 'description', 'is_active', 'is_default']
-        widgets = {
-            'name': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'مثال: طولي'
-            }),
-            'description': forms.Textarea(attrs={
-                'class': 'form-control',
-                'rows': 3,
-                'placeholder': 'وصف اختياري لاتجاه الطباعة'
-            }),
-            'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
-            'is_default': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
-        }
-        labels = {
-            'name': _('اسم الاتجاه'),
-            'description': _('الوصف'),
-            'is_active': _('نشط'),
-            'is_default': _('افتراضي'),
-        }
-
-    def save(self, commit=True):
-        """حفظ النموذج مع إدارة الافتراضي تلقائياً"""
-        instance = super().save(commit=False)
-        
-        # إذا تم تعيين هذا العنصر كافتراضي، إلغاء الافتراضي من العناصر الأخرى
-        if instance.is_default:
-            PrintDirection.objects.filter(is_default=True).exclude(pk=instance.pk).update(is_default=False)
-        
-        if commit:
-            instance.save()
-        return instance
-
-
-# ==================== نماذج جوانب الطباعة ====================
-
-class PrintSideForm(forms.ModelForm):
-    """نموذج جوانب الطباعة"""
-
-    class Meta:
-        model = PrintSide
-        fields = ['name', 'description', 'is_active', 'is_default']
-        widgets = {
-            'name': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': 'مثال: وجه واحد'
-            }),
-            'description': forms.Textarea(attrs={
-                'class': 'form-control',
-                'rows': 3,
-                'placeholder': 'وصف اختياري لجانب الطباعة'
-            }),
-            'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
-            'is_default': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
-        }
-        labels = {
-            'name': _('اسم الجانب'),
-            'description': _('الوصف'),
-            'is_active': _('نشط'),
-            'is_default': _('افتراضي'),
-        }
-
-    def save(self, commit=True):
-        """حفظ النموذج مع إدارة الافتراضي تلقائياً"""
-        instance = super().save(commit=False)
-        
-        # إذا تم تعيين هذا العنصر كافتراضي، إلغاء الافتراضي من العناصر الأخرى
-        if instance.is_default:
-            PrintSide.objects.filter(is_default=True).exclude(pk=instance.pk).update(is_default=False)
-        
-        if commit:
-            instance.save()
-        return instance
 
 
 # ==================== النماذج المتقدمة المدموجة ====================
@@ -718,56 +639,6 @@ class ProductSizeForm(forms.ModelForm):
         if commit:
             instance.save()
         return instance
-
-
-
-
-
-class VATSettingForm(forms.ModelForm):
-    """نموذج إعدادات ضريبة القيمة المضافة"""
-
-    class Meta:
-        model = VATSetting
-        fields = ['is_enabled', 'percentage', 'description']
-        widgets = {
-            'is_enabled': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
-            'percentage': forms.NumberInput(attrs={
-                'class': 'form-control',
-                'step': '0.01',
-                'min': '0',
-                'max': '100',
-                'placeholder': 'مثال: 14.00'
-            }),
-            'description': forms.Textarea(attrs={
-                'class': 'form-control',
-                'rows': 3,
-                'placeholder': 'وصف اختياري لإعداد الضريبة'
-            }),
-        }
-        labels = {
-            'is_enabled': _('مفعل'),
-            'percentage': _('النسبة المئوية'),
-            'description': _('الوصف'),
-        }
-
-    def clean_percentage(self):
-        """التحقق من صحة النسبة المئوية"""
-        percentage = self.cleaned_data.get('percentage')
-        if percentage is not None:
-            if percentage < 0 or percentage > 100:
-                raise ValidationError(_('النسبة المئوية يجب أن تكون بين 0 و 100'))
-        return percentage
-
-    def __init__(self, *args, **kwargs):
-        user = kwargs.pop('user', None)
-        super().__init__(*args, **kwargs)
-        
-        # جعل الوصف اختياري
-        self.fields['description'].required = False
-        
-        # تعيين المستخدم المنشئ إذا كان النموذج جديد
-        if user and not self.instance.pk:
-            self.instance.created_by = user
 
 
 # ==================== نماذج ماكينات الطباعة ====================

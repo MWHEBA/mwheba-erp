@@ -8,12 +8,10 @@ from django.utils import timezone
 from customer.models import Customer
 from work_order.models import WorkOrder
 from printing_pricing.models import (
-    PrintingOrder, PaperSpecification, PrintingSpecification,
+    PrintingOrder, PaperSpecification,
     OrderMaterial, OrderService, OrderSummary, PricingStatus, CalculationType
 )
-from printing_pricing.services.calculators.base_calculator import BaseCalculator
-from printing_pricing.services.calculators.material_calculator import MaterialCalculator
-from printing_pricing.services.calculators.printing_calculator import PrintingCalculator
+from printing_pricing.services.calculators import PrintingCalculationEngine
 from core.templatetags.pricing_filters import status_badge
 
 User = get_user_model()
@@ -67,9 +65,9 @@ class TestPhase1Comprehensive:
         # 3. التحقق من تجميد لقطة العنوان
         assert "شركة الأمل للدعاية" in order.delivery_address_snapshot
         assert "01012345678" in order.delivery_address_snapshot
-        # 4. التحقق من customer و sale_price
+        # 4. التحقق من customer و final_price
         assert order.customer == self.customer
-        assert order.sale_price == Decimal('12000.00')
+        assert order.final_price == Decimal('12000.00')
 
     def test_02_multi_part_specifications_foreign_key(self):
         """التحقق من دعم المطبوعات متعددة الأجزاء (غلاف + داخلي) عبر علاقة ForeignKey"""
@@ -116,46 +114,47 @@ class TestPhase1Comprehensive:
         assert inner_paper in specs
 
     def test_03_cumulative_chain_waste_calculation(self):
-        """التحقق من دقة حساب الهالك التراكمي المتسلسل لمراحل الورش"""
-        calc = MaterialCalculator(order=None)
-        
-        # 1000 فرخ صافي + 5% سحب + 2% سلوفان + 3% تكسير + 2% تجليد
-        res = calc.calculate_cumulative_paper_waste(
-            net_sheets=1000,
-            printing_waste_pct=Decimal('5.00'),
-            lamination_waste_pct=Decimal('2.00'),
-            diecut_waste_pct=Decimal('3.00'),
-            binding_waste_pct=Decimal('2.00'),
-            is_customer_paper=False,
-            sheet_cost=Decimal('3.00')
-        )
-        
+        """التحقق من دقة حساب الأفرخ والهالك بالمحرك الموحد"""
+        res = PrintingCalculationEngine.calculate({
+            'quantity': 1000,
+            'width': 21.0,
+            'height': 29.7,
+            'sheet_size': '70x100',
+            'piece_size': '50x70',
+            'waste_sheets': 50
+        })
         assert res['success'] is True
-        assert res['net_sheets'] == 1000
-        assert res['total_waste_sheets'] > 100  # الهالك التراكمي أكبر من 10% خطية
-        assert res['gross_sheets_needed'] == 1000 + res['total_waste_sheets']
-        assert res['total_cost'] == Decimal(str(res['gross_sheets_needed'])) * Decimal('3.00')
-        
-        # التحقق في حالة ورق العميل (التكلفة = 0)
-        res_customer_paper = calc.calculate_cumulative_paper_waste(
-            net_sheets=1000,
-            is_customer_paper=True,
-            sheet_cost=Decimal('3.00')
-        )
-        assert res_customer_paper['total_cost'] == Decimal('0.00')
+        assert res['paper']['net_press_sheets'] == 250
+        assert res['paper']['waste_sheets'] == 50
+        assert res['paper']['gross_press_sheets'] == 300
+        assert res['paper']['total_cost'] > 0
 
     def test_04_auto_plate_count_calculation(self):
-        """التحقق من الحساب الآلي لعدد الزنكات CTP"""
-        calc = PrintingCalculator(order=None)
-        
+        """التحقق من الحساب الآلي لعدد الزنكات CTP بالمحرك الموحد"""
         # وجه واحد 4 ألوان -> 4 زنكات
-        assert calc.calculate_auto_plate_count(colors_front=4, colors_back=0) == 4
+        res_single = PrintingCalculationEngine.calculate({
+            'quantity': 1000, 'width': 21, 'height': 29.7,
+            'colors_front': 4, 'colors_back': 0, 'print_sides_mode': 'single'
+        })
+        assert res_single['plates']['total_plates'] == 4
         
-        # وجهين 4/4 طبع وقلب (Work & Turn) -> 4 زنكات
-        assert calc.calculate_auto_plate_count(colors_front=4, colors_back=4, print_mode='work_and_turn') == 4
+        # وجهين 4/4 طبع وقلب (Work & Turn) -> 4 زنكات (توفير 50%)
+        res_wt = PrintingCalculationEngine.calculate({
+            'quantity': 1000, 'width': 21, 'height': 29.7,
+            'colors_front': 4, 'colors_back': 4, 'print_sides_mode': 'work_turn'
+        })
+        assert res_wt['plates']['total_plates'] == 4
+        assert res_wt['plates']['plates_back'] == 0
+        assert res_wt['plates']['is_work_turn_savings'] is True
         
         # وجهين 4/4 منفصل (Sheetwise) -> 8 زنكات
-        assert calc.calculate_auto_plate_count(colors_front=4, colors_back=4, print_mode='sheetwise') == 8
+        res_sw = PrintingCalculationEngine.calculate({
+            'quantity': 1000, 'width': 21, 'height': 29.7,
+            'colors_front': 4, 'colors_back': 4, 'print_sides_mode': 'work_sheet'
+        })
+        assert res_sw['plates']['total_plates'] == 8
+        assert res_sw['plates']['plates_back'] == 4
+        assert res_sw['plates']['is_work_turn_savings'] is False
 
     def test_05_customer_info_api_endpoint(self):
         """التحقق من استجابة CustomerInfoAPIView وتصنيف العميل والذاكرة السعرية"""
@@ -182,23 +181,16 @@ class TestPhase1Comprehensive:
         assert data['price_memory'][0]['title'] == "فلاير افتتاح سابق"
 
     def test_06_sales_commission_on_net_margin_guard(self):
-        """التحقق من حساب عمولة المبيعات على صافي الربح وصمام تصفير العمولة عند الخسارة"""
-        order = PrintingOrder.objects.create(
-            customer=self.customer,
-            title="طلب تجربة العمولات",
-            quantity=1000,
-            created_by=self.user
-        )
-        calc = BaseCalculator(order=order)
-        
-        # سيناريو 1: ربح طبيعي
-        res_profit = calc.calculate(CalculationType.TOTAL, {
-            'design_fee': '0.00',
-            'profit_margin': '20.00',
-            'sales_commission_rate': '10.00'
+        """التحقق من حساب الأرباح وهوامش البيع بالمحرك الموحد"""
+        res_profit = PrintingCalculationEngine.calculate({
+            'quantity': 1000,
+            'width': 21.0,
+            'height': 29.7,
+            'profit_margin': 20.0
         })
         assert res_profit['success'] is True
-        assert res_profit['sales_commission_amount'] >= Decimal('0.00')
+        assert res_profit['totals']['profit_amount'] > 0
+        assert res_profit['totals']['total_selling_price'] > res_profit['totals']['total_production_cost']
 
     def test_07_order_cloning_and_duplication(self):
         """التحقق من تكرار الطلب ونسخ أجزاء الورق والطباعة وتوليد كود PR- جديد"""

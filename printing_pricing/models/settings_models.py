@@ -117,44 +117,6 @@ class PaperOrigin(models.Model):
         return f"{self.name} ({self.code})"
 
 
-# ==================== نماذج إعدادات الطباعة ====================
-
-class PrintDirection(models.Model):
-    """نموذج اتجاهات الطباعة"""
-
-    name = models.CharField(_("اسم الاتجاه"), max_length=100)
-    description = models.TextField(_("الوصف"), blank=True)
-    is_active = models.BooleanField(_("نشط"), default=True)
-    is_default = models.BooleanField(_("افتراضي"), default=False)
-    created_at = models.DateTimeField(_("تاريخ الإنشاء"), auto_now_add=True)
-
-    class Meta:
-        app_label = "printing_pricing"
-        verbose_name = _("اتجاه الطباعة")
-        verbose_name_plural = _("اتجاهات الطباعة")
-        ordering = ["name"]
-
-    def __str__(self):
-        return self.name
-
-
-class PrintSide(models.Model):
-    """نموذج جوانب الطباعة"""
-
-    name = models.CharField(_("اسم الجانب"), max_length=100)
-    description = models.TextField(_("الوصف"), blank=True)
-    is_active = models.BooleanField(_("نشط"), default=True)
-    is_default = models.BooleanField(_("افتراضي"), default=False)
-    created_at = models.DateTimeField(_("تاريخ الإنشاء"), auto_now_add=True)
-
-    class Meta:
-        app_label = "printing_pricing"
-        verbose_name = _("جانب الطباعة")
-        verbose_name_plural = _("جوانب الطباعة")
-        ordering = ["id"]
-
-    def __str__(self):
-        return self.name
 
 
 # ==================== نماذج إعدادات خدمات الطباعة ====================
@@ -164,6 +126,10 @@ class CoatingType(models.Model):
 
     name = models.CharField(_("اسم نوع التغطية"), max_length=100)
     description = models.TextField(_("الوصف"), blank=True)
+    unit_rate = models.DecimalField(_("سعر الوحدة القياسي"), max_digits=10, decimal_places=2, default=Decimal('0.00'))
+    setup_cost = models.DecimalField(_("فتحة الماكينة / الإعداد"), max_digits=10, decimal_places=2, default=Decimal('0.00'))
+    minimum_charge = models.DecimalField(_("الحد الأدنى للتشغيل"), max_digits=10, decimal_places=2, default=Decimal('0.00'))
+    make_ready_waste_sheets = models.PositiveIntegerField(_("أفرخ هدر التظبيط"), default=15)
     is_active = models.BooleanField(_("نشط"), default=True)
     is_default = models.BooleanField(_("افتراضي"), default=False)
     created_at = models.DateTimeField(_("تاريخ الإنشاء"), auto_now_add=True)
@@ -179,10 +145,15 @@ class CoatingType(models.Model):
 
 
 class FinishingType(models.Model):
-    """نموذج أنواع خدمات الطباعة (قص، ريجة، تكسير)"""
+    """نموذج أنواع خدمات الطباعة (قص، ريجة، تكسير، بصمة، UV)"""
 
     name = models.CharField(_("اسم نوع خدمة الطباعة"), max_length=100)
     description = models.TextField(_("الوصف"), blank=True)
+    unit_rate = models.DecimalField(_("سعر الوحدة القياسي"), max_digits=10, decimal_places=2, default=Decimal('0.00'))
+    setup_cost = models.DecimalField(_("فتحة الماكينة / الإعداد"), max_digits=10, decimal_places=2, default=Decimal('0.00'))
+    minimum_charge = models.DecimalField(_("الحد الأدنى للتشغيل"), max_digits=10, decimal_places=2, default=Decimal('0.00'))
+    tooling_cost = models.DecimalField(_("تكلفة الفورمة / الكليشيه"), max_digits=10, decimal_places=2, default=Decimal('0.00'))
+    make_ready_waste_sheets = models.PositiveIntegerField(_("أفرخ هدر التظبيط"), default=10)
     is_active = models.BooleanField(_("نشط"), default=True)
     created_at = models.DateTimeField(_("تاريخ الإنشاء"), auto_now_add=True)
 
@@ -201,6 +172,9 @@ class PackagingType(models.Model):
 
     name = models.CharField(_("اسم نوع التقفيل"), max_length=100)
     description = models.TextField(_("الوصف"), blank=True)
+    unit_rate = models.DecimalField(_("سعر الوحدة القياسي"), max_digits=10, decimal_places=2, default=Decimal('0.00'))
+    setup_cost = models.DecimalField(_("فتحة الماكينة / الإعداد"), max_digits=10, decimal_places=2, default=Decimal('0.00'))
+    minimum_charge = models.DecimalField(_("الحد الأدنى للتشغيل"), max_digits=10, decimal_places=2, default=Decimal('0.00'))
     is_active = models.BooleanField(_("نشط"), default=True)
     created_at = models.DateTimeField(_("تاريخ الإنشاء"), auto_now_add=True)
 
@@ -325,10 +299,9 @@ class ProductType(models.Model):
 
     ARCHETYPE_CHOICES = [
         ('flyer', _('مطبوع مفرود (كروت / فلاير)')),
-        ('catalog', _('مطبوع مع داخلي (كتالوج / بلوك نوت)')),
-        ('folder', _('مطبوع مع فورمة تكسير')),
-        ('invoice', _('دفاتر مكربن')),
-        ('giveaways', _('هدايا دعائية و UV')),
+        ('catalog', _('مطبوع مع داخلي (كتالوج / بلوك نوت / كتاب)')),
+        ('folder', _('مطبوع مع فورمة تكسير (فولدر / علب)')),
+        ('invoice', _('دفاتر مكربن (فواتير / إيصالات)')),
     ]
 
     name = models.CharField(
@@ -444,39 +417,6 @@ class ProductSize(models.Model):
         return f"{area:.2f} سم²"
 
 
-# ==================== نماذج إعدادات ضريبة القيمة المضافة ====================
-
-class VATSetting(models.Model):
-    """نموذج إعدادات ضريبة القيمة المضافة"""
-
-    is_enabled = models.BooleanField(_("مفعل"), default=False)
-    percentage = models.DecimalField(
-        _("النسبة المئوية"), max_digits=5, decimal_places=2, default=Decimal("15.00")
-    )
-    description = models.TextField(_("الوصف"), blank=True)
-    effective_date = models.DateField(_("تاريخ السريان"), auto_now_add=True)
-    created_by = models.ForeignKey(
-        User,
-        on_delete=models.PROTECT,
-        related_name="printing_pricing_vat_settings",
-        verbose_name=_("تم الإنشاء بواسطة"),
-    )
-    created_at = models.DateTimeField(_("تاريخ الإنشاء"), auto_now_add=True)
-
-    class Meta:
-        app_label = "printing_pricing"
-        verbose_name = _("إعداد ضريبة القيمة المضافة")
-        verbose_name_plural = _("إعدادات ضريبة القيمة المضافة")
-        ordering = ["-created_at"]
-
-    def __str__(self):
-        status = _("مفعل") if self.is_enabled else _("معطل")
-        return f"ضريبة القيمة المضافة {self.percentage}% - {status}"
-
-    @classmethod
-    def get_current_vat(cls):
-        """الحصول على إعدادات الضريبة الحالية"""
-        return cls.objects.filter(is_enabled=True).first()
 
 
 # ==================== نماذج إعدادات الماكينات ====================
@@ -590,55 +530,5 @@ class DigitalSheetSize(models.Model):
         return f"{self.name} ({self.width_cm}×{self.height_cm})"
 
 
-class SystemSetting(models.Model):
-    """نموذج إعدادات النظام العامة"""
-
-    key = models.CharField(_("مفتاح الإعداد"), max_length=100, unique=True)
-    value = models.TextField(_("القيمة"))
-    description = models.TextField(_("الوصف"), blank=True)
-    category = models.CharField(_("الفئة"), max_length=50, default="general")
-    is_active = models.BooleanField(_("نشط"), default=True)
-    created_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        verbose_name=_("تم الإنشاء بواسطة"),
-    )
-    created_at = models.DateTimeField(_("تاريخ الإنشاء"), auto_now_add=True)
-    updated_at = models.DateTimeField(_("تاريخ التحديث"), auto_now=True)
-
-    class Meta:
-        app_label = "printing_pricing"
-        verbose_name = _("إعداد النظام")
-        verbose_name_plural = _("إعدادات النظام")
-        ordering = ["category", "key"]
-
-    def __str__(self):
-        return f"{self.key}: {self.value[:50]}"
-
-    @classmethod
-    def get_setting(cls, key, default=None):
-        """الحصول على قيمة إعداد معين"""
-        try:
-            setting = cls.objects.get(key=key, is_active=True)
-            return setting.value
-        except cls.DoesNotExist:
-            return default
-
-    @classmethod
-    def set_setting(cls, key, value, description="", category="general", user=None):
-        """تعيين قيمة إعداد معين"""
-        setting, created = cls.objects.update_or_create(
-            key=key,
-            defaults={
-                'value': value,
-                'description': description,
-                'category': category,
-                'created_by': user,
-                'is_active': True
-            }
-        )
-        return setting
 
 

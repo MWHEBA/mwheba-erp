@@ -110,11 +110,26 @@ def global_settings(request):
             except Exception:
                 pending_approvals_count = 0
 
+    cache_key_modules = 'enabled_modules_dict_v1'
+    enabled_modules = cache.get(cache_key_modules)
+    if enabled_modules is None:
+        try:
+            from core.models import SystemModule
+            enabled_modules = {
+                m.code: m.is_enabled
+                for m in SystemModule.objects.all()
+            }
+            cache.set(cache_key_modules, enabled_modules, 300)
+        except Exception as e:
+            logger.error(f"Error loading enabled modules: {e}")
+            enabled_modules = {}
+
     return {
         "settings": settings_dict,
         "SITE_NAME": settings_dict.get("site_name", "موهبة ERP"),
         "maintenance_mode": maintenance_value,
         "pending_approvals_count": pending_approvals_count,
+        "enabled_modules": enabled_modules,
     }
 
 

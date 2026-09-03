@@ -70,7 +70,7 @@ class PricingStatus(models.TextChoices):
 
 class OrderType(models.TextChoices):
     """
-    أنواع طلبات التسعير
+    أنواع طلبات التسعير الورقية
     """
     BOOK = 'book', _('كتاب')
     MAGAZINE = 'magazine', _('مجلة')
@@ -83,58 +83,32 @@ class OrderType(models.TextChoices):
     INVOICE = 'invoice', _('فاتورة')
     CATALOG = 'catalog', _('كتالوج')
     CALENDAR = 'calendar', _('تقويم')
-    NOTEBOOK = 'notebook', _('دفتر')
-    FOLDER = 'folder', _('ملف')
-    BOX = 'box', _('علبة')
+    NOTEBOOK = 'notebook', _('دفتر / بلوك نوت')
+    FOLDER = 'folder', _('فولدر / ملف')
+    BOX = 'box', _('علبة كرتون خفيفة')
     LABEL = 'label', _('لصقة')
-    STICKER = 'sticker', _('ستيكر')
-    BANNER = 'banner', _('بانر')
-    ROLLUP = 'rollup', _('رول اب')
-    SIGNAGE = 'signage', _('يافطة / واجهة')
-    GIVEAWAYS = 'giveaways', _('هدايا دعائية')
-    UNIFORM = 'uniform', _('يونيفورم / ملابس')
-    TROPHY = 'trophy', _('دروع وتكريمات')
-    BOOTH = 'booth', _('تجهيز معارض')
-    OTHER = 'other', _('أخرى')
+    STICKER = 'sticker', _('شيت ستيكر')
 
 
 class CalculationType(models.TextChoices):
     """
-    أنواع الحسابات
+    أنواع الحسابات الورقية
     """
-    MATERIAL = 'material', _('تكلفة المواد')
+    MATERIAL = 'material', _('تكلفة المواد والورق')
     PRINTING = 'printing', _('تكلفة الطباعة')
-    FINISHING = 'finishing', _('تكلفة خدمات الطباعة')
+    FINISHING = 'finishing', _('تكلفة خدمات الطباعة والتشطيب')
     DESIGN = 'design', _('تكلفة التصميم')
-    INSTALLATION = 'installation', _('تكلفة التركيبات والمعاينة')
-    LOGISTICS = 'logistics', _('تكلفة النقل والمشاوير')
     TOTAL = 'total', _('التكلفة الإجمالية')
 
 
 class PriceUnit(models.TextChoices):
     """
-    وحدات التسعير
+    وحدات التسعير الورقية
     """
     PIECE = 'piece', _('بالقطعة')
     THOUSAND = 'thousand', _('بالألف')
     SHEET = 'sheet', _('بالفرخ / شيت')
-    METER = 'meter', _('بالمتر الطولي')
-    SQUARE_METER = 'sqm', _('بالمتر المربع')
     PACKAGE = 'package', _('بالباكدج')
-
-
-class ProductionStage(models.TextChoices):
-    """
-    موقع ومرحلة الشغل الحالية (الشغل فين دلوقتي؟)
-    """
-    PREPRESS = 'prepress', _('تجهيز الملفات والزنكات CTP')
-    PRESS = 'press', _('في المطبعة (طباعة أوفست / ديجيتال)')
-    LAMINATION = 'lamination', _('في ورشة السلوفان')
-    DIE_CUTTING = 'die_cutting', _('في ورشة التكسير / البصمة')
-    BINDING = 'binding', _('في ورشة التجليد والتقفيل')
-    PACKING = 'packing', _('في التعبئة والتغليف')
-    READY_FOR_DELIVERY = 'ready_for_delivery', _('جاهز للتسليم بالمخزن')
-    DELIVERED = 'delivered', _('تم التسليم للعميل')
 
 
 __all__ = [
@@ -142,7 +116,6 @@ __all__ = [
     'PricingStatus',
     'OrderType', 
     'CalculationType',
-    'PriceUnit',
-    'ProductionStage'
+    'PriceUnit'
 ]
 

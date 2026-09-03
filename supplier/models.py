@@ -887,6 +887,54 @@ class SupplierService(models.Model):
         related_name='supplier_services',
         verbose_name=_("نوع الخدمة")
     )
+    currency     = models.ForeignKey(
+        'financial.Currency',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='supplier_services',
+        verbose_name=_("العملة"),
+        help_text=_("عملة التسعير (اتركه فارغاً للعملة الافتراضية)")
+    )
+    pricing_formula = models.CharField(
+        _("طريقة / معادلة التسعير"),
+        max_length=30,
+        choices=[
+            ('PER_PIECE', _('بالقطعة / بالنسخة')),
+            ('PER_SHEET', _('بالفرخ')),
+            ('PER_SQM', _('بالمتر المربع')),
+            ('PER_THOUSAND', _('بالألف (سحب / تراج)')),
+            ('PER_SIGNATURE', _('بالملزمة')),
+            ('FIXED_TOOLING', _('قالب / فورمة مقطوعية')),
+            ('PER_REAM', _('بالرزمة (250/500 فرخ)')),
+            ('PER_TON', _('بالطن (مع التحويل للفرخ)')),
+        ],
+        default='PER_PIECE',
+        help_text=_("وحدة وطريقة احتساب تكلفة الخدمة أو الخامة")
+    )
+    minimum_charge = models.DecimalField(
+        _("الحد الأدنى للتشغيل"),
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        validators=[MinValueValidator(Decimal('0.00'))],
+        help_text=_("الحد الأدنى لقيمة أمر الشغل لهذه الخدمة بغض النظر عن صغر الكمية")
+    )
+    sheets_per_pack = models.PositiveIntegerField(
+        _("عدد الأفرخ في الرزمة/الباكيت"),
+        null=True,
+        blank=True,
+        default=500,
+        help_text=_("يستخدم عند التسعير بالرزمة لحساب سعر الفرخ المفرد")
+    )
+    price_per_ton = models.DecimalField(
+        _("سعر الطن"),
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text=_("يستخدم عند التسعير بالطن لحساب سعر الفرخ بناءً على الجراماج والمقاس")
+    )
     name         = models.CharField(_("اسم الخدمة"), max_length=255)
     base_price   = models.DecimalField(
         _("السعر الأساسي"),
@@ -939,6 +987,28 @@ class SupplierService(models.Model):
         ).order_by('-min_quantity').first()
 
         return tier.price_per_unit if tier else self.base_price
+
+    def calculate_cost(self, quantity=1, setup=None):
+        """
+        احتساب التكلفة الإجمالية للخدمة بالمعادلة الصناعية مع احترام الحد الأدنى للتشغيل:
+        Cost = max(minimum_charge, (quantity * unit_price) + setup_cost)
+        """
+        unit_price = self.get_price_for_quantity(quantity)
+        setup_fee = self.setup_cost if setup is None else Decimal(str(setup))
+        calculated = (Decimal(str(quantity)) * unit_price) + setup_fee
+        min_floor = self.minimum_charge or Decimal('0.00')
+        return max(min_floor, calculated)
+
+    def get_effective_sheet_price(self, width_cm=None, height_cm=None, gsm=None):
+        """
+        حساب سعر الفرخ المفرد الفعلي بناءً على نوع التسعير (فرخ / رزمة / طن)
+        """
+        if self.pricing_formula == 'PER_TON' and self.price_per_ton and width_cm and height_cm and gsm:
+            sheet_weight_kg = (Decimal(str(width_cm)) * Decimal(str(height_cm)) * Decimal(str(gsm))) / Decimal('10000000')
+            return (sheet_weight_kg * (self.price_per_ton / Decimal('1000'))).quantize(Decimal('0.0001'))
+        elif self.pricing_formula == 'PER_REAM' and self.base_price and self.sheets_per_pack:
+            return (self.base_price / Decimal(str(self.sheets_per_pack))).quantize(Decimal('0.0001'))
+        return self.base_price
 
 
 class ServicePriceTier(models.Model):

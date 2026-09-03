@@ -1,0 +1,47 @@
+{% load i18n %}
+{% load django_bootstrap5 %}
+
+<div class="modal-header bg-light border-bottom px-4 py-3">
+    <h5 class="modal-title fw-bold text-dark mb-0">
+        <i class="fas fa-clone text-primary me-2"></i>{{ title }}
+    </h5>
+    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+</div>
+
+<form id="plateSizeForm" method="post" action="{{ action_url }}">
+    <div class="modal-body p-4">
+        {% csrf_token %}
+        
+        {% bootstrap_field form.name %}
+        
+        <div class="row">
+            <div class="col-md-6">
+                {% bootstrap_field form.width %}
+            </div>
+            <div class="col-md-6">
+                {% bootstrap_field form.height %}
+            </div>
+        </div>
+        
+        <div class="row">
+            <div class="col-md-12">
+                {% bootstrap_field form.is_active %}
+            </div>
+        </div>
+        
+        {% if form.non_field_errors %}
+            <div class="alert alert-danger">
+                {{ form.non_field_errors }}
+            </div>
+        {% endif %}
+    </div>
+    
+    <div class="modal-footer bg-light border-top px-4 py-3">
+        <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">
+            <i class="fas fa-times me-1"></i>{% translate "إلغاء" %}
+        </button>
+        <button type="button" class="btn btn-primary px-4 fw-bold" onclick="submitForm('plateSizeForm')">
+            <i class="fas fa-save me-1"></i>{% translate "حفظ" %}
+        </button>
+    </div>
+</form>

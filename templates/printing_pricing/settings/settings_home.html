@@ -158,28 +158,21 @@
                     </div>
                 </div>
                 
-                <!-- بطاقة إعدادات الطباعة -->
+                <!-- بطاقة إعدادات الطباعة والماكينات والزنكات -->
                 <div class="col-lg-4 col-md-6 mb-4">
                     <div class="card settings-card h-100">
                         <div class="card-header bg-success text-white">
                             <h5 class="card-title">
                                 <i class="fas fa-print me-2"></i>
-                                {% translate "إعدادات الطباعة" %}
+                                {% translate "إعدادات الماكينات والزنكات" %}
                             </h5>
                         </div>
                         <div class="card-body">
                             <div class="list-group list-group-flush">
-                                <a href="{% url 'printing_pricing:print_direction_list' %}" class="settings-list-item">
+                                <a href="{% url 'printing_pricing:plate_size_list' %}" class="settings-list-item">
                                     <div class="d-flex align-items-center">
-                                        <i class="fas fa-arrows-alt me-3 text-success"></i>
-                                        <span>{% translate "اتجاهات الطباعة" %}</span>
-                                    </div>
-                                    <i class="fas fa-chevron-left"></i>
-                                </a>
-                                <a href="{% url 'printing_pricing:print_side_list' %}" class="settings-list-item">
-                                    <div class="d-flex align-items-center">
-                                        <i class="fas fa-clone me-3 text-success"></i>
-                                        <span>{% translate "جوانب الطباعة" %}</span>
+                                        <i class="fas fa-layer-group me-3 text-success"></i>
+                                        <span>{% translate "مقاسات زنك CTP" %}</span>
                                     </div>
                                     <i class="fas fa-chevron-left"></i>
                                 </a>
@@ -206,7 +199,7 @@
                                 </a>
                                 <a href="{% url 'printing_pricing:digital_sheet_size_list' %}" class="settings-list-item">
                                     <div class="d-flex align-items-center">
-                                        <i class="fas fa-expand-arrows-alt me-3 text-success"></i>
+                                        <i class="fas fa-compress me-3 text-success"></i>
                                         <span>{% translate "مقاسات ماكينات الديجيتال" %}</span>
                                     </div>
                                     <i class="fas fa-chevron-left"></i>
@@ -216,114 +209,49 @@
                     </div>
                 </div>
                 
-                <!-- بطاقة خدمات الطباعة -->
+                <!-- بطاقة المنتجات وخدمات التشطيب والتغليف -->
                 <div class="col-lg-4 col-md-6 mb-4">
                     <div class="card settings-card h-100">
                         <div class="card-header bg-info text-white">
                             <h5 class="card-title">
-                                <i class="fas fa-cut me-2"></i>
-                                {% translate "خدمات الطباعة" %}
-                            </h5>
-                        </div>
-                        <div class="card-body">
-                            <div class="list-group list-group-flush">
-                                <a href="{% url 'printing_pricing:finishing_type_list' %}" class="settings-list-item">
-                                    <div class="d-flex align-items-center">
-                                        <i class="fas fa-cut me-3 text-info"></i>
-                                        <span>{% translate "أنواع خدمات الطباعة" %}</span>
-                                    </div>
-                                    <i class="fas fa-chevron-left"></i>
-                                </a>
-                                <a href="{% url 'printing_pricing:packaging_type_list' %}" class="settings-list-item">
-                                    <div class="d-flex align-items-center">
-                                        <i class="fas fa-box me-3 text-info"></i>
-                                        <span>{% translate "أنواع التقفيل" %}</span>
-                                    </div>
-                                    <i class="fas fa-chevron-left"></i>
-                                </a>
-                                <a href="{% url 'printing_pricing:coating_type_list' %}" class="settings-list-item">
-                                    <div class="d-flex align-items-center">
-                                        <i class="fas fa-paint-brush me-3 text-info"></i>
-                                        <span>{% translate "أنواع التغطية" %}</span>
-                                    </div>
-                                    <i class="fas fa-chevron-left"></i>
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- بطاقة إعدادات المنتجات -->
-                <div class="col-lg-4 col-md-6 mb-4">
-                    <div class="card settings-card h-100">
-                        <div class="card-header bg-primary text-white">
-                            <h5 class="card-title">
-                                <i class="fas fa-box me-2"></i>
-                                {% translate "إعدادات المنتجات" %}
+                                <i class="fas fa-box-open me-2"></i>
+                                {% translate "المنتجات وخدمات التشطيب والتغليف" %}
                             </h5>
                         </div>
                         <div class="card-body">
                             <div class="list-group list-group-flush">
                                 <a href="{% url 'printing_pricing:product_type_list' %}" class="settings-list-item">
                                     <div class="d-flex align-items-center">
-                                        <i class="fas fa-layer-group me-3 text-primary"></i>
+                                        <i class="fas fa-boxes me-3 text-info"></i>
                                         <span>{% translate "أنواع المطبوعات" %}</span>
                                     </div>
                                     <i class="fas fa-chevron-left"></i>
                                 </a>
                                 <a href="{% url 'printing_pricing:product_size_list' %}" class="settings-list-item">
                                     <div class="d-flex align-items-center">
-                                        <i class="fas fa-expand-arrows-alt me-3 text-primary"></i>
+                                        <i class="fas fa-expand-arrows-alt me-3 text-info"></i>
                                         <span>{% translate "مقاسات المنتجات" %}</span>
                                     </div>
                                     <i class="fas fa-chevron-left"></i>
                                 </a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- الصف الثاني -->
-            <div class="row">
-                <!-- بطاقة إعدادات الموردين -->
-                <div class="col-lg-4 col-md-6 mb-4">
-                    <div class="card settings-card h-100">
-                        <div class="card-header" style="background: var(--secondary-color);">
-                            <h5 class="card-title">
-                                <i class="fas fa-industry me-2"></i>
-                                {% translate "إعدادات الموردين" %}
-                            </h5>
-                        </div>
-                        <div class="card-body">
-                            <div class="list-group list-group-flush">
-                                <a href="#" class="settings-list-item">
+                                <a href="{% url 'printing_pricing:coating_type_list' %}" class="settings-list-item">
                                     <div class="d-flex align-items-center">
-                                        <i class="fas fa-tags me-3" style="color: var(--secondary-color);"></i>
-                                        <span>{% translate "أنواع الموردين" %}</span>
+                                        <i class="fas fa-paint-brush me-3 text-info"></i>
+                                        <span>{% translate "أنواع التغطية والسلوفان" %}</span>
                                     </div>
                                     <i class="fas fa-chevron-left"></i>
                                 </a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- بطاقة إعدادات الضرائب -->
-                <div class="col-lg-4 col-md-6 mb-4">
-                    <div class="card settings-card h-100">
-                        <div class="card-header" style="background: var(--warning-color);">
-                            <h5 class="card-title">
-                                <i class="fas fa-percentage me-2"></i>
-                                {% translate "إعدادات الضرائب" %}
-                            </h5>
-                        </div>
-                        <div class="card-body">
-                            <div class="list-group list-group-flush">
-                                <a href="{% url 'printing_pricing:vat_setting_list' %}" class="settings-list-item">
+                                <a href="{% url 'printing_pricing:finishing_type_list' %}" class="settings-list-item">
                                     <div class="d-flex align-items-center">
-                                        <i class="fas fa-percentage me-3 text-warning"></i>
-                                        <span>{% translate "ضريبة القيمة المضافة" %}</span>
+                                        <i class="fas fa-cut me-3 text-info"></i>
+                                        <span>{% translate "خدمات التشطيب" %}</span>
+                                    </div>
+                                    <i class="fas fa-chevron-left"></i>
+                                </a>
+                                <a href="{% url 'printing_pricing:packaging_type_list' %}" class="settings-list-item">
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-box me-3 text-info"></i>
+                                        <span>{% translate "أنواع التقفيل والتغليف" %}</span>
                                     </div>
                                     <i class="fas fa-chevron-left"></i>
                                 </a>

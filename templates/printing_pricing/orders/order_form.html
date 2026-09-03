@@ -112,6 +112,22 @@
     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
   </div>
 
+  {% if order and order.status == 'approved' %}
+  <!-- إشعار القفل التاريخي للطلب المعتمد -->
+  <div class="alert alert-warning border-warning d-flex align-items-center mb-4 p-3 shadow-sm" role="alert">
+    <i class="fas fa-lock fs-3 me-3 text-warning"></i>
+    <div>
+      <h6 class="fw-bold mb-1 text-dark">{% trans "هذا الطلب معتمد ومقفل تاريخياً (Read-Only)" %}</h6>
+      <span class="small text-muted">{% trans "تم اعتماد هذا الطلب مالياً وفنياً ولا يمكن تعديل بنوده لحماية الدورة المحاسبية. لمراجعة البنود يرجى الانتقال لصفحة التفاصيل أو تكرار الطلب." %}</span>
+    </div>
+    <div class="ms-auto d-flex gap-2">
+      <a href="{% url 'printing_pricing:order_detail' order.pk %}" class="btn btn-sm btn-dark">
+        <i class="fas fa-eye me-1"></i>{% trans "عرض التفاصيل" %}
+      </a>
+    </div>
+  </div>
+  {% endif %}
+
   <form method="post" id="order-form" class="needs-validation" novalidate>
     {% csrf_token %}
 
@@ -128,11 +144,6 @@
         <!-- الخطوة 3: تفاصيل الداخلي والتجليد (شرطي) -->
         {% include "printing_pricing/orders/partials/step3_inner_pages.html" %}
 
-        <!-- الخطوة 4: الهدايا الترويجية والـ UV-DTF (شرطي) -->
-        {% include "printing_pricing/orders/partials/step4_giveaways_accessories.html" %}
-
-        <!-- الخطوة 5: اللوجستيات والشحن والتسليم والتعبئة (تقديري للموظف) -->
-        {% include "printing_pricing/orders/partials/step5_logistics.html" %}
 
       </div>
 
@@ -152,7 +163,13 @@
   "currencySymbol": "{{ currency_symbol|default:'ج.م' }}",
   "urls": {
     "pressesApi": "{% url 'printing_pricing:api_presses' %}",
-    "paperStocksApi": "{% url 'printing_pricing:api_paper_types' %}"
+    "paperStocksApi": "{% url 'printing_pricing:api_paper_types' %}",
+    "paperTypesApi": "{% url 'printing_pricing:api_paper_types' %}",
+    "paperSuppliersApi": "{% url 'printing_pricing:api_paper_suppliers' %}",
+    "paperSheetTypesApi": "{% url 'printing_pricing:api_paper_sheet_types' %}",
+    "paperWeightsApi": "{% url 'printing_pricing:api_paper_weights' %}",
+    "paperOriginsApi": "{% url 'printing_pricing:api_paper_origins' %}",
+    "paperPriceApi": "{% url 'printing_pricing:api_paper_price' %}"
   },
   "i18n": {
     "pulls": "{% trans 'سحبة' %}",

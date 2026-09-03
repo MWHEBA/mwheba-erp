@@ -52,3 +52,11 @@ class TestOrderFormRendering:
         response = client.get(url)
         assert response.status_code == 200
         assert 'ORD-TEST-999' in response.content.decode('utf-8')
+
+    def test_plate_size_list_view_renders_successfully(self, client):
+        """التحقق من فتح شاشة مقاسات زنكات CTP بدون أي خطأ في القوالب"""
+        client.force_login(self.user)
+        url = reverse('printing_pricing:plate_size_list')
+        response = client.get(url)
+        assert response.status_code == 200
+        assert 'مقاسات زنكات CTP' in response.content.decode('utf-8')

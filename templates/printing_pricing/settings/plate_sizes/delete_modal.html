@@ -1,0 +1,90 @@
+{% load i18n %}
+
+<div class="modal-header bg-light border-bottom px-4 py-3">
+    <h5 class="modal-title fw-bold text-danger mb-0">
+        <i class="fas fa-exclamation-triangle me-2"></i>
+        {% translate "تأكيد الحذف" %}
+    </h5>
+    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+</div>
+
+<form id="deleteForm" method="post" action="{{ action_url }}">
+    <div class="modal-body p-4">
+        {% csrf_token %}
+        
+        <div class="text-center mb-4">
+            <i class="fas fa-clone fa-4x text-danger mb-3"></i>
+            <h5 class="fw-bold">{% translate "هل أنت متأكد من حذف مقاس الزنك؟" %}</h5>
+            <p class="text-muted">
+                {% blocktranslate with name=plate_size.name %}
+                سيتم حذف مقاس الزنك "{{ name }}" نهائياً ولن يمكن استرداده.
+                {% endblocktranslate %}
+            </p>
+        </div>
+        
+        <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            {% translate "تحذير: قد يؤثر هذا على الحسابات التلقائية لزنكات CTP وماكينات الطباعة المرتبطة بهذا المقاس." %}
+        </div>
+    </div>
+    
+    <div class="modal-footer bg-light border-top px-4 py-3">
+        <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">
+            {% translate "إلغاء" %}
+        </button>
+        <button type="submit" class="btn btn-danger px-4 fw-bold">
+            <i class="fas fa-trash me-2"></i>
+            {% translate "حذف" %}
+        </button>
+    </div>
+</form>
+
+<script>
+document.getElementById('deleteForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const form = this;
+    const formData = new FormData(form);
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const originalText = submitBtn.innerHTML;
+    
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الحذف...';
+    
+    fetch(form.action, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+        }
+    })
+    .then(response => {
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+            return response.json();
+        } else {
+            throw new Error('Server returned HTML instead of JSON');
+        }
+    })
+    .then(data => {
+        if (data.success) {
+            const modalEl = document.getElementById('deleteModal');
+            const modal = bootstrap.Modal.getInstance(modalEl);
+            if (modal) modal.hide();
+            
+            location.reload();
+        } else {
+            alert('حدث خطأ أثناء الحذف');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('حدث خطأ أثناء معالجة الطلب');
+    })
+    .finally(() => {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalText;
+    });
+});
+</script>

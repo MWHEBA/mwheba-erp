@@ -26,11 +26,13 @@ urlpatterns = [
     path("<int:pk>/add-advance/", views.add_supplier_advance_action, name="add_supplier_advance"),
 
     # ── خدمات المورد — المرحلة الثانية ──────────────────────────────
-    path("<int:pk>/services/add/",                          views.supplier_service_add,    name="supplier_service_add"),
-    path("<int:pk>/services/<int:service_pk>/edit/",        views.supplier_service_edit,   name="supplier_service_edit"),
-    path("<int:pk>/services/<int:service_pk>/delete/",      views.supplier_service_delete, name="supplier_service_delete"),
-    path("<int:pk>/services/<int:service_pk>/toggle/",      views.supplier_service_toggle, name="supplier_service_toggle"),
-    path("<int:pk>/api/services/",                          views.supplier_services_api,   name="supplier_services_api"),
+    path("<int:pk>/services/add/",                          views.supplier_service_add,          name="supplier_service_add"),
+    path("<int:pk>/services/bulk-update/",                  views.supplier_services_bulk_update, name="supplier_services_bulk_update"),
+    path("<int:pk>/services/bulk-adjust/",                  views.supplier_services_bulk_adjust, name="supplier_services_bulk_adjust"),
+    path("<int:pk>/services/<int:service_pk>/edit/",        views.supplier_service_edit,         name="supplier_service_edit"),
+    path("<int:pk>/services/<int:service_pk>/delete/",      views.supplier_service_delete,       name="supplier_service_delete"),
+    path("<int:pk>/services/<int:service_pk>/toggle/",      views.supplier_service_toggle,       name="supplier_service_toggle"),
+    path("<int:pk>/api/services/",                          views.supplier_services_api,         name="supplier_services_api"),
 
     # ── الشرائح السعرية — المرحلة الخامسة ──────────────────────────
     path("<int:pk>/services/<int:service_pk>/",                                          views.supplier_service_detail, name="supplier_service_detail"),

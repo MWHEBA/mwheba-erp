@@ -4,16 +4,11 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 
 from ..models import (
-    PaperType, ProductType, ProductSize, PrintDirection, PrintSide,
-    CoatingType, FinishingType, PrintingOrder, PaperSpecification, PrintingSpecification
+    PaperType, PaperWeight, PaperSize, PaperOrigin, PlateSize,
+    ProductType, ProductSize,
+    CoatingType, FinishingType, PrintingOrder, PaperSpecification
 )
 from supplier.models import Supplier
-try:
-    from supplier.models import PaperServiceDetails
-    HAS_PAPER_SERVICE_DETAILS = True
-except ImportError:
-    PaperServiceDetails = None
-    HAS_PAPER_SERVICE_DETAILS = False
 from customer.models import Customer
 
 
@@ -92,7 +87,14 @@ class PricingOrderForm(forms.ModelForm):
         widget=forms.Select(attrs={"class": "form-control"}),
     )
 
-    # حقول الورق المتقدمة
+    # حقول الورق
+    paper_type = forms.ModelChoiceField(
+        label=_("نوع الورق"),
+        queryset=PaperType.objects.filter(is_active=True),
+        required=False,
+        widget=forms.Select(attrs={"class": "form-control select2"}),
+    )
+
     paper_supplier = forms.ModelChoiceField(
         label=_("مورد الورق"),
         queryset=Supplier.objects.none(),  # سيتم تحديثه في __init__
@@ -164,7 +166,6 @@ class PricingOrderForm(forms.ModelForm):
             "order_type",
             "quantity",
             "product_type",
-            "paper_type",
             "product_size",
             "width",
             "height",
@@ -173,13 +174,9 @@ class PricingOrderForm(forms.ModelForm):
             "open_direction",
             "cover_printing_type",
             "print_sides_mode",
-            "colors_front",
-            "colors_back",
             "digital_color_mode",
             "spot_colors_front",
             "spot_colors_back",
-            "banner_sqm_price",
-            "has_white_ink",
             "inner_printing_type",
             "inner_print_sides_mode",
             "inner_color_mode",
@@ -199,26 +196,12 @@ class PricingOrderForm(forms.ModelForm):
             "folder_pocket_type",
             "folder_card_slit",
             "folder_pocket_height",
-            "supplier",
-            "press",
-            "colors_front",
-            "colors_back",
-            "print_sides",
-            "print_direction",
-            "coating_type",
-            "coating_service",
             "design_service_type",
             "design_fee",
             "sales_rep",
             "sales_commission_rate",
-            "has_internal_content",
-            "material_cost",
-            "printing_cost",
-            "finishing_cost",
-            "extra_cost",
             "profit_margin",
             "final_price",
-            "sale_price",
             "status",
         ]
         widgets = {
@@ -252,36 +235,7 @@ class PricingOrderForm(forms.ModelForm):
                 "class": "form-control",
                 "min": "1"
             }),
-            "has_internal_content": forms.CheckboxInput(attrs={
-                "class": "form-check-input"
-            }),
-            "colors_front": forms.NumberInput(attrs={
-                "class": "form-control",
-                "min": "0",
-                "max": "10"
-            }),
-            "colors_back": forms.NumberInput(attrs={
-                "class": "form-control", 
-                "min": "0",
-                "max": "10"
-            }),
-            "material_cost": forms.NumberInput(attrs={
-                "class": "form-control",
-                "step": "0.01"
-            }),
-            "printing_cost": forms.NumberInput(attrs={
-                "class": "form-control",
-                "step": "0.01"
-            }),
-            "finishing_cost": forms.NumberInput(attrs={
-                "class": "form-control",
-                "step": "0.01"
-            }),
             "design_fee": forms.NumberInput(attrs={
-                "class": "form-control",
-                "step": "0.01"
-            }),
-            "extra_cost": forms.NumberInput(attrs={
                 "class": "form-control",
                 "step": "0.01"
             }),
@@ -294,10 +248,6 @@ class PricingOrderForm(forms.ModelForm):
                 "step": "0.01"
             }),
             "final_price": forms.NumberInput(attrs={
-                "class": "form-control",
-                "step": "0.01"
-            }),
-            "sale_price": forms.NumberInput(attrs={
                 "class": "form-control",
                 "step": "0.01"
             }),
@@ -347,20 +297,39 @@ class PricingOrderForm(forms.ModelForm):
         except Exception as e:
             print(f"خطأ في تحديد نوع الورق الافتراضي: {e}")
 
-        # ربط اتجاه الطباعة
+        # ربط أوزان الورق بالإعدادات
         try:
-            self.fields["print_direction"].queryset = PrintDirection.objects.filter(
-                is_active=True
-            ).order_by("name")
-        except:
+            active_weights = PaperWeight.objects.filter(is_active=True).order_by("gsm")
+            self.fields["paper_weight"].choices = [("", _("اختر وزن الورق"))] + [
+                (str(w.gsm), f"{w.name} ({w.gsm} جم)") for w in active_weights
+            ]
+            if not self.instance.pk and not self.initial.get("paper_weight"):
+                default_weight = active_weights.filter(is_default=True).first()
+                if default_weight:
+                    self.initial["paper_weight"] = str(default_weight.gsm)
+                else:
+                    self.initial["paper_weight"] = "300"
+        except Exception as e:
+            print(f"خطأ في تحديد وزن الورق الافتراضي: {e}")
+
+
+
+        # ربط مناشئ الورق ديناميكياً
+        try:
+            active_origins = PaperOrigin.objects.filter(is_active=True).order_by("name")
+            self.fields["paper_origin"].choices = [("", _("اختر المنشأ"))] + [
+                (str(o.id), o.name) for o in active_origins
+            ]
+        except Exception:
             pass
 
-        # ربط جوانب الطباعة
+        # ربط مقاسات الفرخ ديناميكياً
         try:
-            self.fields["print_sides"].queryset = PrintSide.objects.filter(
-                is_active=True
-            ).order_by("name")
-        except:
+            active_sizes = PaperSize.objects.filter(is_active=True).order_by("name")
+            self.fields["paper_sheet_type"].choices = [("", _("اختر مقاس الفرخ"))] + [
+                (s.name, f"{s.name} ({s.width}×{s.height} سم)") for s in active_sizes
+            ]
+        except Exception:
             pass
 
         # ربط أنواع التغطية
@@ -414,29 +383,22 @@ class PricingOrderForm(forms.ModelForm):
         if paper_type in ['', 'undefined', 'null', 'None']:
             cleaned_data["paper_type"] = None
         
-        # التحقق من جوانب الطباعة والألوان
+        # التحقق من جوانب الطباعة والألوان بطريقة ديناميكية مرنة
         print_sides = cleaned_data.get("print_sides")
         colors_front = cleaned_data.get("colors_front")
         colors_back = cleaned_data.get("colors_back")
         
         if print_sides:
-            try:
-                sides_count = getattr(print_sides, "sides_count", None)
-                
-                if sides_count == 2:  # وجهين
-                    if colors_front is None:
-                        self.add_error("colors_front", 
-                                     _("يجب تحديد عدد ألوان الوجه الأمامي"))
-                    if colors_back is None:
-                        self.add_error("colors_back", 
-                                     _("يجب تحديد عدد ألوان الوجه الخلفي"))
-                elif sides_count == 1:  # وجه واحد
-                    if colors_front is None:
-                        self.add_error("colors_front", 
-                                     _("يجب تحديد عدد ألوان الوجه الأمامي"))
-                    cleaned_data["colors_back"] = 0
-            except Exception as e:
-                print(f"خطأ في التحقق من جوانب الطباعة: {e}")
+            sides_str = str(print_sides).lower()
+            if 'double' in sides_str or 'work_sheet' in sides_str or 'وجهين' in sides_str or 'قلب' in sides_str:
+                if colors_front is None:
+                    self.add_error("colors_front", _("يجب تحديد عدد ألوان الوجه الأمامي"))
+                if colors_back is None:
+                    self.add_error("colors_back", _("يجب تحديد عدد ألوان الوجه الخلفي"))
+            elif 'single' in sides_str or 'واحد' in sides_str:
+                if colors_front is None:
+                    self.add_error("colors_front", _("يجب تحديد عدد ألوان الوجه الأمامي"))
+                cleaned_data["colors_back"] = 0
 
         # التحقق من قيم الألوان
         if colors_front is not None and colors_front < 0:
@@ -452,15 +414,29 @@ class PricingOrderForm(forms.ModelForm):
 
         return cleaned_data
 
+    def clean_width(self):
+        """التحقق من العرض الفعلي"""
+        width = self.cleaned_data.get('width')
+        if width is not None and width <= 0:
+            raise ValidationError(_('العرض يجب أن يكون أكبر من صفر'))
+        return width
+
+    def clean_height(self):
+        """التحقق من الارتفاع الفعلي"""
+        height = self.cleaned_data.get('height')
+        if height is not None and height <= 0:
+            raise ValidationError(_('الارتفاع يجب أن يكون أكبر من صفر'))
+        return height
+
     def clean_custom_size_width(self):
-        """التحقق من العرض المخصص"""
+        """التحقق من العرض المخصص ومزامنته"""
         width = self.cleaned_data.get('custom_size_width')
         if width is not None and width <= 0:
             raise ValidationError(_('العرض يجب أن يكون أكبر من صفر'))
         return width
 
     def clean_custom_size_height(self):
-        """التحقق من الطول المخصص"""
+        """التحقق من الطول المخصص ومزامنته"""
         height = self.cleaned_data.get('custom_size_height')
         if height is not None and height <= 0:
             raise ValidationError(_('الطول يجب أن يكون أكبر من صفر'))
@@ -547,167 +523,9 @@ class OrderSearchForm(forms.Form):
         self.fields['order_type'].choices = [("", _("جميع الأنواع"))] + list(OrderType.choices)
 
 
-# ==================== النماذج الإضافية من الملف القديم ====================
-
-class PaperSpecificationForm(forms.ModelForm):
-    """
-    نموذج مواصفات الورق
-    """
-    
-    class Meta:
-        model = PaperSpecification
-        fields = [
-            'paper_type_name', 'paper_weight', 'paper_size_name',
-            'sheet_width', 'sheet_height', 'montage_count',
-            'piece_size', 'sheet_cost'
-        ]
-        
-        widgets = {
-            'paper_type_name': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': _('نوع الورق')
-            }),
-            'paper_weight': forms.NumberInput(attrs={
-                'class': 'form-control',
-                'min': '50',
-                'max': '500',
-                'step': '10'
-            }),
-            'paper_size_name': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': _('مقاس الورق')
-            }),
-            'sheet_width': forms.NumberInput(attrs={
-                'class': 'form-control',
-                'step': '0.1'
-            }),
-            'sheet_height': forms.NumberInput(attrs={
-                'class': 'form-control',
-                'step': '0.1'
-            }),
-            'montage_count': forms.NumberInput(attrs={
-                'class': 'form-control',
-                'min': '1',
-                'step': '1'
-            }),
-            'piece_size': forms.Select(attrs={
-                'class': 'form-control',
-                'placeholder': _('اختر مقاس القطع')
-            }),
-            'sheet_cost': forms.NumberInput(attrs={
-                'class': 'form-control',
-                'step': '0.01',
-                'min': '0'
-            })
-        }
-
-    def clean_paper_weight(self):
-        """التحقق من وزن الورق"""
-        weight = self.cleaned_data.get('paper_weight')
-        if weight and (weight < 50 or weight > 500):
-            raise ValidationError(_('وزن الورق يجب أن يكون بين 50 و 500 جرام'))
-        return weight
-
-    def clean_montage_count(self):
-        """التحقق من عدد القطع في الفرخ"""
-        montage_count = self.cleaned_data.get('montage_count')
-        if montage_count and montage_count <= 0:
-            raise ValidationError(_('عدد القطع في الفرخ يجب أن يكون أكبر من صفر'))
-        return montage_count
-
-
-class PrintingSpecificationForm(forms.ModelForm):
-    """
-    نموذج مواصفات الطباعة
-    """
-    
-    class Meta:
-        model = PrintingSpecification
-        fields = [
-            'printing_type', 'colors_front', 'colors_back',
-            'is_cmyk', 'has_spot_colors', 'spot_colors_count',
-            'resolution_dpi', 'print_quality', 'special_requirements'
-        ]
-        
-        widgets = {
-            'printing_type': forms.Select(attrs={
-                'class': 'form-select'
-            }),
-            'colors_front': forms.NumberInput(attrs={
-                'class': 'form-control',
-                'min': '0',
-                'max': '10',
-                'step': '1'
-            }),
-            'colors_back': forms.NumberInput(attrs={
-                'class': 'form-control',
-                'min': '0',
-                'max': '10',
-                'step': '1'
-            }),
-            'is_cmyk': forms.CheckboxInput(attrs={
-                'class': 'form-check-input'
-            }),
-            'has_spot_colors': forms.CheckboxInput(attrs={
-                'class': 'form-check-input'
-            }),
-            'spot_colors_count': forms.NumberInput(attrs={
-                'class': 'form-control',
-                'min': '0',
-                'max': '5',
-                'step': '1'
-            }),
-            'resolution_dpi': forms.NumberInput(attrs={
-                'class': 'form-control',
-                'min': '150',
-                'max': '2400',
-                'step': '50'
-            }),
-            'print_quality': forms.Select(attrs={
-                'class': 'form-select'
-            }),
-            'special_requirements': forms.Textarea(attrs={
-                'class': 'form-control',
-                'rows': 3,
-                'placeholder': _('متطلبات خاصة للطباعة')
-            })
-        }
-
-    def clean_colors_front(self):
-        """التحقق من عدد ألوان الوجه الأمامي"""
-        colors = self.cleaned_data.get('colors_front')
-        if colors and colors < 0:
-            raise ValidationError(_('عدد الألوان يجب أن يكون موجباً'))
-        return colors
-
-    def clean_colors_back(self):
-        """التحقق من عدد ألوان الوجه الخلفي"""
-        colors = self.cleaned_data.get('colors_back')
-        if colors and colors < 0:
-            raise ValidationError(_('عدد الألوان يجب أن يكون موجباً'))
-        return colors
-
-    def clean_spot_colors_count(self):
-        """التحقق من عدد الألوان الخاصة"""
-        spot_colors = self.cleaned_data.get('spot_colors_count')
-        has_spot_colors = self.cleaned_data.get('has_spot_colors')
-        
-        if has_spot_colors and (not spot_colors or spot_colors <= 0):
-            raise ValidationError(_('يجب تحديد عدد الألوان الخاصة'))
-        
-        return spot_colors
-
-
-# ==================== التوافق مع النظام القديم ====================
-
-# الاحتفاظ بالنموذج القديم للتوافق مع النظام القديم
-PrintingOrderForm = PricingOrderForm
-
-
 __all__ = [
     'PricingOrderForm',
-    'PrintingOrderForm',  # للتوافق مع النظام القديم
-    'PaperSpecificationForm', 
-    'PrintingSpecificationForm',
     'OrderSearchForm'
 ]
+
+

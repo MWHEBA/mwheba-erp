@@ -99,7 +99,6 @@ class SystemResetService:
                 safe_delete('printing_pricing', 'OrderMaterial')
                 safe_delete('printing_pricing', 'PaperSpecification')
                 safe_delete('printing_pricing', 'OrderService')
-                safe_delete('printing_pricing', 'PrintingSpecification')
                 safe_delete('printing_pricing', 'CostCalculation')
                 safe_delete('printing_pricing', 'OrderSummary')
                 safe_delete('printing_pricing', 'PrintingOrder')

@@ -59,11 +59,21 @@
               <label for="id_inner_color_mode" class="form-label fw-bold small">
                 {% trans "نمط ألوان الداخلي" %} <span class="text-danger">*</span>
               </label>
-              <select class="form-select select2-filter" id="id_inner_color_mode" name="inner_color_mode">
-                <option value="all_color" {% if form.inner_color_mode.value == 'all_color' or not form.inner_color_mode.value %}selected{% endif %}>{% trans "ملون بالكامل (4/4)" %}</option>
-                <option value="all_bw" {% if form.inner_color_mode.value == 'all_bw' %}selected{% endif %}>{% trans "أبيض وأسود نصوص (1/1)" %}</option>
-                <option value="mixed" {% if form.inner_color_mode.value == 'mixed' %}selected{% endif %}>{% trans "مختلط (ألوان + أسود)" %}</option>
-              </select>
+              <div class="row g-2">
+                <div class="col-8">
+                  <select class="form-select select2-filter" id="id_inner_color_mode" name="inner_color_mode">
+                    <option value="all_color" {% if form.inner_color_mode.value == 'all_color' or not form.inner_color_mode.value %}selected{% endif %}>{% trans "ملون بالكامل (4/4)" %}</option>
+                    <option value="all_bw" {% if form.inner_color_mode.value == 'all_bw' %}selected{% endif %}>{% trans "أبيض وأسود نصوص (1/1)" %}</option>
+                    <option value="mixed" {% if form.inner_color_mode.value == 'mixed' %}selected{% endif %}>{% trans "مختلط (ألوان + أسود)" %}</option>
+                  </select>
+                </div>
+                <div class="col-4">
+                  <div class="input-group input-group-sm" title="{% trans 'عدد ألوان البانتون المخصوصة للداخلي' %}">
+                    <span class="input-group-text small bg-light">{% trans "مخصوص" %}</span>
+                    <input type="number" class="form-control text-center fw-bold text-primary" id="id_inner_spot_colors" name="inner_spot_colors" value="{{ form.inner_spot_colors.value|default:'0' }}" min="0" max="4">
+                  </div>
+                </div>
+              </div>
             </div>
 
             <!-- أوفست وجه واحد (للبلوكات والروشتات) -->
@@ -77,8 +87,8 @@
                        value="1" min="0" max="8" step="1">
                 <div class="color-divider"></div>
                 <span class="color-label">{% trans "مخصوص" %}</span>
-                <input type="number" class="color-input" id="id_inner_spot_colors_single" 
-                       value="0" min="0" max="4" step="1">
+                <input type="number" class="color-input" id="id_inner_spot_colors_single" name="inner_spot_colors_single" 
+                       value="{{ form.inner_spot_colors.value|default:'0' }}" min="0" max="4" step="1">
               </div>
             </div>
 
@@ -132,9 +142,6 @@
                 <button type="button" class="btn btn-sm btn-outline-primary px-3" id="btn_copy_cover_paper_to_inner" title="{% trans 'نسخ نفس نوع الورق والمورد من كارت الغلاف' %}">
                   <i class="fas fa-copy me-1"></i>{% trans "نسخ خامة ومورد الغلاف" %}
                 </button>
-                <span class="badge bg-light text-dark border px-2 py-1" id="inner_paper_summary_badge">
-                  <span id="badge_inner_gross_sheets">0</span> {% trans "فرخ" %} | <span id="badge_inner_weight">0</span> {% trans "كجم" %} | <strong class="text-primary" id="badge_inner_cost">0</strong> {{ currency_symbol|default:"ج.م" }}
-                </span>
               </div>
             </div>
 
@@ -203,8 +210,16 @@
                 <select class="form-select select2-filter text-center" id="id_inner_paper_weight" name="inner_paper_weight" dir="rtl">
                   {% if paper_weights %}
                     {% for pw in paper_weights %}
-                      <option value="{{ pw.gsm }}" data-sheets-per-pack="{{ pw.sheets_per_pack|default:500 }}" {% if form.inner_paper_weight.value == pw.gsm|stringformat:"s" or pw.gsm == 80 or pw.gsm == 135 %}selected{% endif %}>
-                        {{ pw.gsm }} جم
+                      <option value="{{ pw.gsm }}" data-sheets-per-pack="{{ pw.sheets_per_pack|default:500 }}"
+                        {% if form.inner_paper_weight.value %}
+                          {% if form.inner_paper_weight.value == pw.gsm|stringformat:"s" %}selected{% endif %}
+                        {% else %}
+                          {% if pw.gsm == 135 %}selected
+                          {% elif pw.gsm == 80 %}selected
+                          {% elif pw.is_default and pw.gsm <= 150 %}selected
+                          {% elif forloop.first %}selected{% endif %}
+                        {% endif %}>
+                        {{ pw.name }} ({{ pw.gsm }} جم)
                       </option>
                     {% endfor %}
                   {% else %}
@@ -355,7 +370,6 @@
                   </label>
                   <div class="form-control bg-light d-flex justify-content-between align-items-center">
                     <span class="small text-muted" id="inner_press_pulls_count">2,000 سحبة (2 تراج)</span>
-                    <span class="badge bg-secondary" id="inner_press_floor_badge">250.00 {{ currency_symbol|default:"ج.م" }} {% trans "فتحة" %}</span>
                   </div>
                 </div>
 
@@ -390,6 +404,9 @@
                       {% trans "الزنكات موجودة" %}
                     </label>
                   </div>
+                  <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" id="btn_reset_inner_plates" title="{% trans 'استعادة الحساب التلقائي لزنكات الداخلي' %}">
+                    <i class="fas fa-undo me-1"></i>{% trans "تلقائي" %}
+                  </button>
                   <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1" id="inner_ctp_summary_badge">
                     {% trans "زنكات جديدة" %}
                   </span>
@@ -421,9 +438,20 @@
                     {% trans "مقاس زنك الداخلي (متزامن)" %}
                   </label>
                   <select class="form-select select2-filter text-center" id="id_inner_press_bed_size" name="inner_press_bed_size">
-                    <option value="50x70" data-price="85" selected>{% trans "نصف فرخ 50×70 سم" %}</option>
-                    <option value="70x100" data-price="150">{% trans "فرخ كامل 70×100 سم" %}</option>
-                    <option value="35x50" data-price="60">{% trans "ربع فرخ 35×50 سم" %}</option>
+                    {% if plate_sizes %}
+                      {% for ps in plate_sizes %}
+                        <option value="{% if '70' in ps.name and '100' in ps.name or '100' in ps.width|stringformat:'s' %}70x100{% elif '35' in ps.name and '50' in ps.name or '35' in ps.width|stringformat:'s' %}35x50{% else %}50x70{% endif %}"
+                                data-bed="{% if '70' in ps.name and '100' in ps.name or '100' in ps.width|stringformat:'s' %}70x100{% elif '35' in ps.name and '50' in ps.name or '35' in ps.width|stringformat:'s' %}35x50{% else %}50x70{% endif %}"
+                                data-price="{% if '70' in ps.name and '100' in ps.name or '100' in ps.width|stringformat:'s' %}150{% elif '35' in ps.name and '50' in ps.name or '35' in ps.width|stringformat:'s' %}60{% else %}85{% endif %}"
+                                {% if '50' in ps.name and '70' in ps.name or forloop.first %}selected{% endif %}>
+                          {{ ps.name }} ({{ ps.width|floatformat:0 }}×{{ ps.height|floatformat:0 }} سم)
+                        </option>
+                      {% endfor %}
+                    {% else %}
+                      <option value="50x70" data-bed="50x70" data-price="85" selected>{% trans "نصف فرخ 50×70 سم" %}</option>
+                      <option value="70x100" data-bed="70x100" data-price="150">{% trans "فرخ كامل 70×100 سم" %}</option>
+                      <option value="35x50" data-bed="35x50" data-price="60">{% trans "ربع فرخ 35×50 سم" %}</option>
+                    {% endif %}
                   </select>
                 </div>
 
@@ -491,7 +519,7 @@
                   <i class="fas fa-desktop text-primary me-2"></i>{% trans "طباعة الداخلي ديجيتال شيتات ليزر" %}
                 </span>
                 <span class="badge bg-info-subtle text-info border px-2 py-1" id="inner_digital_badge">
-                  {% trans "كليك ليزر داخلي" %}
+                  {% trans "طبعات ليزر داخلي" %}
                 </span>
               </div>
 
@@ -516,7 +544,7 @@
                 <!-- 2. صفحات ألوان الداخلي -->
                 <div class="col-md-4">
                   <label for="id_digital_inner_color_pages" class="form-label fw-bold">
-                    {% trans "صفحات ألوان" %} (0.80 {{ currency_symbol|default:"ج.م" }}/كليك)
+                    {% trans "صفحات ألوان" %} (0.80 {{ currency_symbol|default:"ج.م" }}/{% trans "طبعة" %})
                   </label>
                   <input type="number" class="form-control fw-bold text-center text-primary" id="id_digital_inner_color_pages" 
                          name="digital_inner_color_pages" value="{{ form.pages_count.value|default:'32' }}" min="0">
@@ -525,7 +553,7 @@
                 <!-- 3. صفحات أسود الداخلي -->
                 <div class="col-md-4">
                   <label for="id_digital_inner_bw_pages" class="form-label fw-bold">
-                    {% trans "صفحات أسود" %} (0.25 {{ currency_symbol|default:"ج.م" }}/كليك)
+                    {% trans "صفحات أسود" %} (0.25 {{ currency_symbol|default:"ج.م" }}/{% trans "طبعة" %})
                   </label>
                   <input type="number" class="form-control fw-bold text-center text-primary" id="id_digital_inner_bw_pages" 
                          name="digital_inner_bw_pages" value="0" min="0">

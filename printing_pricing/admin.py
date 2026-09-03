@@ -6,7 +6,7 @@ from django.utils.safestring import mark_safe
 
 from .models import (
     PrintingOrder, OrderMaterial, PaperSpecification,
-    OrderService, PrintingSpecification, CostCalculation, OrderSummary
+    OrderService, CostCalculation, OrderSummary
 )
 
 
@@ -157,24 +157,6 @@ class OrderServiceAdmin(admin.ModelAdmin):
     
     readonly_fields = ['total_cost', 'created_at', 'updated_at']
 
-
-@admin.register(PrintingSpecification)
-class PrintingSpecificationAdmin(admin.ModelAdmin):
-    """إدارة مواصفات الطباعة"""
-    list_display = [
-        'order', 'printing_type', 'colors_front', 'colors_back',
-        'total_colors_display', 'plates_cost', 'printing_cost'
-    ]
-    
-    list_filter = ['printing_type', 'is_cmyk', 'has_spot_colors']
-    search_fields = ['order__order_number']
-    
-    readonly_fields = ['created_at', 'updated_at']
-    
-    def total_colors_display(self, obj):
-        """عرض إجمالي الألوان"""
-        return f"{obj.total_colors} لون"
-    total_colors_display.short_description = _('إجمالي الألوان')
 
 
 @admin.register(CostCalculation)

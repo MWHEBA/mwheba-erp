@@ -132,7 +132,7 @@
             <span class="badge rounded-pill bg-light text-secondary border ms-1">{{ products_count|default:"0" }}</span>
           </button>
         </li>
-        {% if enabled_modules.printing_pricing %}
+        {% if enabled_modules.printing_pricing or supplier_services_count %}
         <li class="nav-item" role="presentation">
           <button class="nav-link fw-semibold px-3" id="services-tab" data-bs-toggle="tab"
             data-bs-target="#services-tab-pane" type="button" role="tab" aria-controls="services-tab-pane"
@@ -658,13 +658,21 @@
         </div>
 
         <!-- تاب خدمات التسعير -->
-        {% if enabled_modules.printing_pricing %}
+        {% if enabled_modules.printing_pricing or supplier_services_count %}
         <div class="tab-pane fade" id="services-tab-pane" role="tabpanel" aria-labelledby="services-tab" tabindex="0">
           <div class="d-flex justify-content-between align-items-center mb-3">
-            <h5 class="section-title mb-0"><i class="fas fa-tags me-2"></i>خدمات التسعير</h5>
-            <a href="{% url 'supplier:supplier_service_add' supplier.pk %}" class="btn btn-primary btn-sm">
-              <i class="fas fa-plus me-1"></i>إضافة خدمة
-            </a>
+            <h5 class="section-title mb-0"><i class="fas fa-tags me-2"></i>{% trans "خدمات وقوائم أسعار المورد" %}</h5>
+            <div class="d-flex gap-2">
+              <button type="button" class="btn btn-outline-warning btn-sm" data-bs-toggle="modal" data-bs-target="#bulkAdjustModal" title="{% trans "تعديل نسبي لجميع الأسعار لمواجهة التضخم" %}">
+                <i class="fas fa-percentage me-1"></i>{% trans "تعديل مجمع للأسعار" %}
+              </button>
+              <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#bulkMatrixModal" title="{% trans "إدخال أو تعديل قائمة الأسعار دفعة واحدة" %}">
+                <i class="fas fa-table me-1"></i>{% trans "إدخال سريع للقائمة" %}
+              </button>
+              <a href="{% url 'supplier:supplier_service_add' supplier.pk %}" class="btn btn-primary btn-sm">
+                <i class="fas fa-plus me-1"></i>{% trans "إضافة خدمة" %}
+              </a>
+            </div>
           </div>
 
           {% if supplier_services_table_data %}
@@ -1640,7 +1648,365 @@
         </div>
       </div>
     </div>
+  <!-- مودال التعديل النسبي المجمع لمواجهة التضخم -->
+  <div class="modal fade" id="bulkAdjustModal" tabindex="-1" aria-labelledby="bulkAdjustModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 shadow-lg">
+        <div class="modal-header bg-light border-bottom px-4 py-3">
+          <h5 class="modal-title fw-bold text-dark mb-0" id="bulkAdjustModalLabel">
+            <i class="fas fa-percentage text-warning me-2"></i>{% trans "تعديل مجمع لأسعار المورد لمواجهة التضخم" %}
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <form id="bulkAdjustForm" method="POST" action="{% url 'supplier:supplier_services_bulk_adjust' supplier.pk %}">
+          {% csrf_token %}
+          <div class="modal-body p-4">
+            <div class="alert alert-info d-flex align-items-center mb-3">
+              <i class="fas fa-info-circle fa-lg me-2"></i>
+              <div class="small">
+                {% trans "يتيح لك هذا الإجراء تعديل أسعار خامات أو خدمات هذا المورد دفعة واحدة بنسبة مئوية (مثال: أكتب 5 لزيادة 5%، أو -3 لتخفيض 3%)." %}
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label for="adjust_percentage" class="form-label fw-bold">{% trans "نسبة التعديل المئوية (%)" %}</label>
+              <div class="input-group">
+                <input type="number" step="0.1" class="form-control fw-bold" id="adjust_percentage" name="percentage" required placeholder="+5 أو -5">
+                <span class="input-group-text fw-bold">%</span>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label for="adjust_service_type" class="form-label fw-bold">{% trans "فئة / نوع الخدمة المستهدفة" %}</label>
+              <select class="form-select" id="adjust_service_type" name="service_type_id">
+                <option value="">{% trans "جميع أنواع الخدمات والخامات المسجلة" %}</option>
+                {% for st in service_types_available %}
+                <option value="{{ st.pk }}">{{ st.name }} ({{ st.get_category_display }})</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="form-check form-switch mb-2">
+              <input class="form-check-input" type="checkbox" id="adjust_apply_to_setup" name="apply_to_setup" checked>
+              <label class="form-check-label small fw-bold" for="adjust_apply_to_setup">
+                {% trans "تطبيق النسبة أيضاً على فتحة الماكينة والإعداد والحد الأدنى" %}
+              </label>
+            </div>
+          </div>
+          <div class="modal-footer bg-light border-top px-4 py-3">
+            <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+            <button type="submit" class="btn btn-warning fw-bold px-4 text-dark" id="btn-submit-adjust">
+              <i class="fas fa-check me-1"></i>{% trans "تطبيق التعديل الآن" %}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   </div>
+
+  <!-- مودال الإدخال السريع الذكي لقائمة أسعار المورد (Category-Aware Smart Bulk Matrix) -->
+  <div class="modal fade" id="bulkMatrixModal" tabindex="-1" aria-labelledby="bulkMatrixModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+      <div class="modal-content border-0 shadow-lg">
+        <div class="modal-header bg-light border-bottom px-4 py-3">
+          <div class="d-flex align-items-center justify-content-between w-100">
+            <h5 class="modal-title fw-bold text-dark mb-0" id="bulkMatrixModalLabel">
+              <i class="fas fa-table text-primary me-2"></i>{% trans "جدول الإدخال السريع لقائمة أسعار المورد" %} — {{ supplier.name }}
+            </h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+        </div>
+        <div class="modal-body p-4">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <span class="text-muted small">
+              <i class="fas fa-lightbulb text-warning me-1"></i>
+              {% trans "أدخل أو عدل بنود أسعار المورد دفعة واحدة في هذا الجدول، ثم اضغط حفظ لتطبيق التحديثات فورياً." %}
+            </span>
+            <button type="button" class="btn btn-sm btn-outline-primary" id="btn-add-matrix-row">
+              <i class="fas fa-plus me-1"></i>{% trans "إضافة سطر خدمة جديد" %}
+            </button>
+          </div>
+
+          <div class="table-responsive border rounded" style="max-height: 480px; overflow-y: auto;">
+            <table class="table table-sm table-hover align-middle mb-0" id="matrix-services-table">
+              <thead class="table-light sticky-top">
+                <tr>
+                  <th style="width: 16%;">{% trans "نوع الخدمة" %}</th>
+                  <th style="width: 24%;">{% trans "اسم الخدمة / الصنف" %}</th>
+                  <th style="width: 16%;">{% trans "وحدة التسعير" %}</th>
+                  <th style="width: 13%;">{% trans "السعر الأساسي" %}</th>
+                  <th style="width: 12%;">{% trans "فتحة الماكينة" %}</th>
+                  <th style="width: 12%;">{% trans "الحد الأدنى" %}</th>
+                  <th style="width: 7%;" class="text-center">{% trans "حذف" %}</th>
+                </tr>
+              </thead>
+              <tbody id="matrix-services-body">
+                <!-- أسطر الخدمات الحالية إن وجدت -->
+                {% for svc in supplier_services %}
+                <tr class="matrix-row" data-id="{{ svc.pk }}">
+                  <td>
+                    <select class="form-select form-select-sm row-service-type" required>
+                      {% for st in service_types_available %}
+                      <option value="{{ st.pk }}" {% if st.pk == svc.service_type_id %}selected{% endif %}>{{ st.name }}</option>
+                      {% endfor %}
+                    </select>
+                  </td>
+                  <td>
+                    <input type="text" class="form-control form-select-sm row-name" value="{{ svc.name }}" required placeholder="{% trans "اسم الخدمة أو الخامة" %}">
+                  </td>
+                  <td>
+                    <select class="form-select form-select-sm row-formula">
+                      <option value="PER_PIECE" {% if svc.pricing_formula == 'PER_PIECE' %}selected{% endif %}>{% trans "بالقطعة / بالنسخة" %}</option>
+                      <option value="PER_SHEET" {% if svc.pricing_formula == 'PER_SHEET' %}selected{% endif %}>{% trans "بالفرخ" %}</option>
+                      <option value="PER_SQM" {% if svc.pricing_formula == 'PER_SQM' %}selected{% endif %}>{% trans "بالمتر المربع" %}</option>
+                      <option value="PER_THOUSAND" {% if svc.pricing_formula == 'PER_THOUSAND' %}selected{% endif %}>{% trans "بالألف (سحب/تراج)" %}</option>
+                      <option value="PER_SIGNATURE" {% if svc.pricing_formula == 'PER_SIGNATURE' %}selected{% endif %}>{% trans "بالملزمة" %}</option>
+                      <option value="FIXED_TOOLING" {% if svc.pricing_formula == 'FIXED_TOOLING' %}selected{% endif %}>{% trans "قالب/فورمة مقطوعية" %}</option>
+                      <option value="PER_REAM" {% if svc.pricing_formula == 'PER_REAM' %}selected{% endif %}>{% trans "بالرزمة" %}</option>
+                      <option value="PER_TON" {% if svc.pricing_formula == 'PER_TON' %}selected{% endif %}>{% trans "بالطن" %}</option>
+                    </select>
+                  </td>
+                  <td>
+                    <input type="number" step="0.01" class="form-control form-select-sm row-base-price" value="{{ svc.base_price }}" required>
+                  </td>
+                  <td>
+                    <input type="number" step="0.01" class="form-control form-select-sm row-setup-cost" value="{{ svc.setup_cost }}">
+                  </td>
+                  <td>
+                    <input type="number" step="0.01" class="form-control form-select-sm row-min-charge" value="{{ svc.minimum_charge }}">
+                  </td>
+                  <td class="text-center">
+                    <button type="button" class="btn btn-sm btn-outline-danger btn-remove-row" title="{% trans "إزالة السطر" %}">
+                      <i class="fas fa-trash"></i>
+                    </button>
+                  </td>
+                </tr>
+                {% empty %}
+                <tr id="matrix-empty-row">
+                  <td colspan="7" class="text-center py-4 text-muted">
+                    {% trans "لا توجد خدمات مسجلة بعد. اضغط على 'إضافة سطر خدمة جديد' لإدخال الأسعار." %}
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="modal-footer bg-light border-top px-4 py-3">
+          <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+          <button type="button" class="btn btn-primary fw-bold px-4" id="btn-save-matrix">
+            <i class="fas fa-save me-1"></i>{% trans "حفظ قائمة الأسعار كاملة" %}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      // 1. معالجة التعديل النسبي للمورد لمواجهة التضخم
+      const adjustForm = document.getElementById('bulkAdjustForm');
+      if (adjustForm) {
+        adjustForm.addEventListener('submit', function (e) {
+          e.preventDefault();
+          const btn = document.getElementById('btn-submit-adjust');
+          const originalText = btn.innerHTML;
+          btn.disabled = true;
+          btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>جاري التطبيق...';
+
+          const formData = new FormData(adjustForm);
+          fetch(adjustForm.action, {
+            method: 'POST',
+            body: formData,
+            headers: {
+              'X-Requested-With': 'XMLHttpRequest'
+            }
+          })
+          .then(res => res.json())
+          .then(data => {
+            if (data.success) {
+              if (window.showNotification) {
+                window.showNotification(data.message, 'success', 'نجاح');
+              } else if (window.showToastr) {
+                window.showToastr(data.message, 'success');
+              }
+              const modal = bootstrap.Modal.getInstance(document.getElementById('bulkAdjustModal'));
+              if (modal) modal.hide();
+              setTimeout(function () {
+                window.location.reload();
+              }, 3100);
+            } else {
+              alert(data.error || 'حدث خطأ أثناء التعديل');
+              btn.disabled = false;
+              btn.innerHTML = originalText;
+            }
+          })
+          .catch(err => {
+            alert('خطأ في الاتصال بالخادم: ' + err);
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+          });
+        });
+      }
+
+      // 2. معالجة جدول الإدخال السريع لقائمة أسعار المورد
+      const matrixBody = document.getElementById('matrix-services-body');
+      const btnAddRow = document.getElementById('btn-add-matrix-row');
+      const btnSaveMatrix = document.getElementById('btn-save-matrix');
+
+      // خيارات أنواع الخدمات للقالب الديناميكي
+      const serviceTypeOptions = `
+        {% for st in service_types_available %}
+        <option value="{{ st.pk }}">{{ st.name }}</option>
+        {% endfor %}
+      `;
+
+      if (btnAddRow && matrixBody) {
+        btnAddRow.addEventListener('click', function () {
+          const emptyRow = document.getElementById('matrix-empty-row');
+          if (emptyRow) emptyRow.remove();
+
+          const tr = document.createElement('tr');
+          tr.className = 'matrix-row';
+          tr.innerHTML = `
+            <td>
+              <select class="form-select form-select-sm row-service-type" required>
+                ${serviceTypeOptions}
+              </select>
+            </td>
+            <td>
+              <input type="text" class="form-control form-select-sm row-name" required placeholder="اسم الخدمة أو الخامة">
+            </td>
+            <td>
+              <select class="form-select form-select-sm row-formula">
+                <option value="PER_PIECE">بالقطعة / بالنسخة</option>
+                <option value="PER_SHEET">بالفرخ</option>
+                <option value="PER_SQM">بالمتر المربع</option>
+                <option value="PER_THOUSAND">بالألف (سحب/تراج)</option>
+                <option value="PER_SIGNATURE">بالملزمة</option>
+                <option value="FIXED_TOOLING">قالب/فورمة مقطوعية</option>
+                <option value="PER_REAM">بالرزمة</option>
+                <option value="PER_TON">بالطن</option>
+              </select>
+            </td>
+            <td>
+              <input type="number" step="0.01" class="form-control form-select-sm row-base-price" value="0.00" required>
+            </td>
+            <td>
+              <input type="number" step="0.01" class="form-control form-select-sm row-setup-cost" value="0.00">
+            </td>
+            <td>
+              <input type="number" step="0.01" class="form-control form-select-sm row-min-charge" value="0.00">
+            </td>
+            <td class="text-center">
+              <button type="button" class="btn btn-sm btn-outline-danger btn-remove-row" title="إزالة السطر">
+                <i class="fas fa-trash"></i>
+              </button>
+            </td>
+          `;
+          matrixBody.appendChild(tr);
+        });
+      }
+
+      // إزالة سطر
+      if (matrixBody) {
+        matrixBody.addEventListener('click', function (e) {
+          const removeBtn = e.target.closest('.btn-remove-row');
+          if (removeBtn) {
+            const row = removeBtn.closest('.matrix-row');
+            if (row) row.remove();
+          }
+        });
+      }
+
+      // حفظ مصفوفة الأسعار
+      if (btnSaveMatrix) {
+        btnSaveMatrix.addEventListener('click', function () {
+          const rows = document.querySelectorAll('#matrix-services-body .matrix-row');
+          const servicesList = [];
+
+          let hasError = false;
+          rows.forEach(row => {
+            const id = row.getAttribute('data-id') || null;
+            const serviceTypeId = row.querySelector('.row-service-type').value;
+            const nameInput = row.querySelector('.row-name');
+            const name = nameInput ? nameInput.value.trim() : '';
+            const formula = row.querySelector('.row-formula').value;
+            const basePrice = row.querySelector('.row-base-price').value;
+            const setupCost = row.querySelector('.row-setup-cost').value;
+            const minCharge = row.querySelector('.row-min-charge').value;
+
+            if (!name) {
+              if (nameInput) nameInput.classList.add('is-invalid');
+              hasError = true;
+              return;
+            } else {
+              if (nameInput) nameInput.classList.remove('is-invalid');
+            }
+
+            servicesList.push({
+              id: id,
+              service_type_id: serviceTypeId,
+              name: name,
+              pricing_formula: formula,
+              base_price: basePrice,
+              setup_cost: setupCost,
+              minimum_charge: minCharge,
+            });
+          });
+
+          if (hasError) {
+            alert('يرجى كتابة اسم الخدمة لجميع الأسطر.');
+            return;
+          }
+
+          if (servicesList.length === 0) {
+            alert('لا توجد بنود لحفظها.');
+            return;
+          }
+
+          const originalText = btnSaveMatrix.innerHTML;
+          btnSaveMatrix.disabled = true;
+          btnSaveMatrix.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>جاري الحفظ...';
+
+          const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+          fetch("{% url 'supplier:supplier_services_bulk_update' supplier.pk %}", {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRFToken': csrfToken,
+              'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({ services: servicesList })
+          })
+          .then(res => res.json())
+          .then(data => {
+            if (data.success) {
+              if (window.showNotification) {
+                window.showNotification(data.message, 'success', 'نجاح');
+              } else if (window.showToastr) {
+                window.showToastr(data.message, 'success');
+              }
+              const modal = bootstrap.Modal.getInstance(document.getElementById('bulkMatrixModal'));
+              if (modal) modal.hide();
+              setTimeout(function () {
+                window.location.reload();
+              }, 3100);
+            } else {
+              alert(data.error || 'حدث خطأ أثناء حفظ القائمة');
+              btnSaveMatrix.disabled = false;
+              btnSaveMatrix.innerHTML = originalText;
+            }
+          })
+          .catch(err => {
+            alert('خطأ في الاتصال بالخادم: ' + err);
+            btnSaveMatrix.disabled = false;
+            btnSaveMatrix.innerHTML = originalText;
+          });
+        });
+      }
+    });
+  </script>
 
   {% include "components/modals/entity_delete_archive_modal.html" %}
   {% endblock %}

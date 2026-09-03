@@ -103,6 +103,34 @@ class OrderService(BaseModel):
         help_text=_("الخدمة المحددة من المورد لهذا البند")
     )
     
+    finishing_type = models.ForeignKey(
+        'printing_pricing.FinishingType',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='order_services',
+        verbose_name=_("نوع التشطيب"),
+        help_text=_("الربط الصلب بنوع التشطيب (سبوت UV، بصمة، كوفراج)")
+    )
+    coating_type = models.ForeignKey(
+        'printing_pricing.CoatingType',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='order_services',
+        verbose_name=_("نوع التغطية/السلوفان"),
+        help_text=_("الربط الصلب بنوع التغطية (سلوفان مط، لميع، كوي)")
+    )
+    packaging_type = models.ForeignKey(
+        'printing_pricing.PackagingType',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='order_services',
+        verbose_name=_("نوع التقفيل/التجليد"),
+        help_text=_("الربط الصلب بنوع التقفيل والتجليد")
+    )
+
     execution_time = models.PositiveIntegerField(
         null=True,
         blank=True,
@@ -129,12 +157,12 @@ class OrderService(BaseModel):
 
     def calculate_total_cost(self):
         """
-        حساب التكلفة الإجمالية
+        حساب التكلفة الإجمالية مع الحفاظ على صمامات الحد الأدنى
         """
-        if self.quantity and self.unit_price:
-            self.total_cost = (self.quantity * self.unit_price) + self.setup_cost
-        else:
-            self.total_cost = self.setup_cost
+        calculated = (self.quantity * self.unit_price + self.setup_cost) if (self.quantity and self.unit_price) else self.setup_cost
+        if self.total_cost and self.total_cost > calculated:
+            return
+        self.total_cost = calculated
 
     def update_pricing(self, new_unit_price=None, new_quantity=None, new_setup_cost=None):
         """
@@ -149,133 +177,5 @@ class OrderService(BaseModel):
         
         self.calculate_total_cost()
         self.save()
+__all__ = ['OrderService']
 
-
-class PrintingSpecification(BaseModel):
-    """
-    مواصفات الطباعة للطلب
-    """
-    order = models.ForeignKey(
-        PrintingOrder,
-        on_delete=models.CASCADE,
-        related_name="printing_specs",
-        verbose_name=_("الطلب")
-    )
-    
-    # نوع الطباعة
-    printing_type = models.CharField(
-        max_length=20,
-        choices=[
-            ('offset', _('أوفست')),
-            ('digital', _('رقمية')),
-            ('screen', _('سلك سكرين')),
-            ('flexo', _('فلكسو')),
-            ('letterpress', _('ليتر برس')),
-            ('inkjet', _('نفث حبر')),
-            ('laser', _('ليزر'))
-        ],
-        verbose_name=_("نوع الطباعة")
-    )
-    
-    # معلومات الألوان
-    colors_front = models.PositiveIntegerField(
-        default=1,
-        verbose_name=_("عدد الألوان - الوجه")
-    )
-    
-    colors_back = models.PositiveIntegerField(
-        default=0,
-        verbose_name=_("عدد الألوان - الظهر")
-    )
-    
-    is_cmyk = models.BooleanField(
-        default=True,
-        verbose_name=_("طباعة CMYK")
-    )
-    
-    has_spot_colors = models.BooleanField(
-        default=False,
-        verbose_name=_("يحتوي على ألوان خاصة")
-    )
-    
-    spot_colors_count = models.PositiveIntegerField(
-        default=0,
-        verbose_name=_("عدد الألوان الخاصة")
-    )
-    
-    # معلومات الجودة
-    resolution_dpi = models.PositiveIntegerField(
-        default=300,
-        verbose_name=_("دقة الطباعة (DPI)")
-    )
-    
-    print_quality = models.CharField(
-        max_length=20,
-        choices=[
-            ('draft', _('مسودة')),
-            ('normal', _('عادية')),
-            ('high', _('عالية')),
-            ('premium', _('ممتازة'))
-        ],
-        default='normal',
-        verbose_name=_("جودة الطباعة")
-    )
-    
-    # معلومات التكلفة
-    plates_cost = models.DecimalField(
-        max_digits=10,
-        decimal_places=2,
-        default=Decimal('0.00'),
-        validators=[MinValueValidator(Decimal('0.00'))],
-        verbose_name=_("تكلفة الزنكات")
-    )
-    
-    printing_cost = models.DecimalField(
-        max_digits=12,
-        decimal_places=2,
-        default=Decimal('0.00'),
-        validators=[MinValueValidator(Decimal('0.00'))],
-        verbose_name=_("تكلفة الطباعة")
-    )
-    
-    # معلومات إضافية
-    special_requirements = models.TextField(
-        blank=True,
-        null=True,
-        verbose_name=_("متطلبات خاصة")
-    )
-
-    class Meta:
-        verbose_name = _("مواصفات الطباعة")
-        verbose_name_plural = _("مواصفات الطباعة")
-
-    def __str__(self):
-        return f"{self.printing_type} - {self.order.order_number}"
-
-    @property
-    def total_colors(self):
-        """
-        إجمالي عدد الألوان
-        """
-        return self.colors_front + self.colors_back + self.spot_colors_count
-
-    @property
-    def is_double_sided(self):
-        """
-        هل الطباعة على الوجهين
-        """
-        return self.colors_back > 0
-
-    def calculate_plates_cost(self, cost_per_plate=None):
-        """
-        حساب تكلفة الزنكات
-        """
-        if cost_per_plate is None:
-            cost_per_plate = Decimal('50.00')  # سعر افتراضي
-        
-        total_plates = self.colors_front + self.colors_back + self.spot_colors_count
-        self.plates_cost = total_plates * cost_per_plate
-        return self.plates_cost
-
-
-__all__ = ['OrderService', 'PrintingSpecification']

@@ -76,15 +76,15 @@ class AjaxFormMixin:
 
 from ..models import (
     PaperType, PaperSize, PaperWeight, PaperOrigin,
-    PrintDirection, PrintSide, CoatingType, FinishingType, PackagingType,
-    PieceSize, PlateSize, ProductType, ProductSize, VATSetting,
-    OffsetMachineType, OffsetSheetSize, DigitalMachineType, DigitalSheetSize, SystemSetting
+    CoatingType, FinishingType, PackagingType,
+    PieceSize, PlateSize, ProductType, ProductSize,
+    OffsetMachineType, DigitalMachineType, OffsetSheetSize, DigitalSheetSize
 )
 from ..forms.settings_forms import (
     PaperTypeForm, PaperSizeForm, PaperWeightForm, PaperOriginForm,
-    PrintDirectionForm, PrintSideForm, CoatingTypeForm, PieceSizeForm,
-    ProductTypeForm, ProductSizeForm, OffsetMachineTypeForm, DigitalMachineTypeForm,
-    OffsetSheetSizeForm, DigitalSheetSizeForm
+    CoatingTypeForm, PieceSizeForm, PlateSizeForm,
+    ProductTypeForm, ProductSizeForm,
+    OffsetMachineTypeForm, DigitalMachineTypeForm, OffsetSheetSizeForm, DigitalSheetSizeForm
 )
 
 logger = logging.getLogger(__name__)
@@ -500,188 +500,7 @@ class PaperOriginDeleteView(AjaxDeleteMixin, LoginRequiredMixin, DeleteView):
     success_url = reverse_lazy('printing_pricing:paper_origin_list')
 
 
-# ==================== عروض اتجاهات الطباعة ====================
 
-class PrintDirectionListView(LoginRequiredMixin, ListView):
-    """عرض قائمة اتجاهات الطباعة"""
-    model = PrintDirection
-    template_name = 'printing_pricing/settings/print_directions/list.html'
-    context_object_name = 'print_directions'
-    paginate_by = 20
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['page_title'] = _('اتجاهات الطباعة')
-        context['page_icon'] = 'fas fa-arrows-alt'
-        context['page_subtitle'] = _('إدارة اتجاهات الطباعة')
-        context['header_buttons'] = [
-            {
-                'onclick': 'openCreateModal()',
-                'icon': 'fa-plus',
-                'text': _('إضافة جديد'),
-                'class': 'btn-primary',
-            },
-        ]
-        context['breadcrumb_items'] = [
-            {
-                'title': _('الرئيسية'),
-                'url': '/',
-                'icon': 'fas fa-home'
-            },
-            {
-                'title': _('الإعدادات'),
-                'url': reverse_lazy('printing_pricing:settings_home'),
-                'icon': 'fas fa-cog'
-            },
-            {
-                'title': _('اتجاهات الطباعة'),
-                'url': '',
-                'icon': 'fas fa-arrows-alt',
-                'active': True
-            }
-        ]
-        return context
-
-    def get_queryset(self):
-        queryset = super().get_queryset()
-        search = self.request.GET.get('search')
-        if search:
-            queryset = queryset.filter(
-                Q(name__icontains=search) | Q(description__icontains=search)
-            )
-        return queryset.order_by('name')
-
-
-class PrintDirectionCreateView(AjaxFormMixin, LoginRequiredMixin, CreateView):
-    """عرض إنشاء اتجاه طباعة جديد"""
-    model = PrintDirection
-    form_class = PrintDirectionForm
-    template_name = 'printing_pricing/settings/print_directions/form_modal.html'
-    success_url = reverse_lazy('printing_pricing:print_direction_list')
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['title'] = _('إضافة اتجاه طباعة جديد')
-        context['action_url'] = self.request.path
-        return context
-
-    def form_valid(self, form):
-        messages.success(self.request, _('تم إنشاء اتجاه الطباعة بنجاح'))
-        return super().form_valid(form)
-
-
-class PrintDirectionUpdateView(AjaxFormMixin, LoginRequiredMixin, UpdateView):
-    """عرض تحديث اتجاه الطباعة"""
-    model = PrintDirection
-    form_class = PrintDirectionForm
-    template_name = 'printing_pricing/settings/print_directions/form_modal.html'
-    success_url = reverse_lazy('printing_pricing:print_direction_list')
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['title'] = _('تحديث اتجاه الطباعة')
-        context['action_url'] = self.request.path
-        return context
-
-    def form_valid(self, form):
-        messages.success(self.request, _('تم تحديث اتجاه الطباعة بنجاح'))
-        return super().form_valid(form)
-
-
-class PrintDirectionDeleteView(AjaxDeleteMixin, LoginRequiredMixin, DeleteView):
-    """عرض حذف اتجاه الطباعة"""
-    model = PrintDirection
-    template_name = 'printing_pricing/settings/print_directions/delete_modal.html'
-    success_url = reverse_lazy('printing_pricing:print_direction_list')
-
-
-# ==================== عروض جوانب الطباعة ====================
-
-class PrintSideListView(LoginRequiredMixin, ListView):
-    """عرض قائمة جوانب الطباعة"""
-    model = PrintSide
-    template_name = 'printing_pricing/settings/print_side/list.html'
-    context_object_name = 'print_sides'
-    paginate_by = 20
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['page_title'] = _('جوانب الطباعة')
-        context['page_icon'] = 'fas fa-layer-group'
-        context['page_subtitle'] = _('إدارة جوانب الطباعة')
-        context['header_buttons'] = [
-            {
-                'onclick': 'openCreateModal()',
-                'icon': 'fa-plus',
-                'text': _('إضافة جديد'),
-                'class': 'btn-primary',
-            },
-        ]
-        context['breadcrumb_items'] = [
-            {'title': _('الرئيسية'), 'url': '/', 'icon': 'fas fa-home'},
-            {'title': _('الإعدادات'), 'url': reverse_lazy('printing_pricing:settings_home'), 'icon': 'fas fa-cog'},
-            {'title': _('جوانب الطباعة'), 'active': True},
-        ]
-        return context
-
-
-class PrintSideCreateView(AjaxFormMixin, LoginRequiredMixin, CreateView):
-    """عرض إنشاء جانب طباعة جديد"""
-    model = PrintSide
-    form_class = PrintSideForm
-    template_name = 'printing_pricing/settings/print_side/form_modal.html'
-    success_url = reverse_lazy('printing_pricing:print_side_list')
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['title'] = _('إضافة جانب طباعة')
-        context['action_url'] = self.request.path
-        return context
-
-    def form_valid(self, form):
-        response = super().form_valid(form)
-        if self.request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return JsonResponse({'success': True, 'message': _('تم إنشاء جانب الطباعة بنجاح')})
-        messages.success(self.request, _('تم إنشاء جانب الطباعة بنجاح'))
-        return response
-
-    def form_invalid(self, form):
-        if self.request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return JsonResponse({'success': False, 'errors': form.errors})
-        return super().form_invalid(form)
-
-
-class PrintSideUpdateView(AjaxFormMixin, LoginRequiredMixin, UpdateView):
-    """عرض تحديث جانب الطباعة"""
-    model = PrintSide
-    form_class = PrintSideForm
-    template_name = 'printing_pricing/settings/print_side/form_modal.html'
-    success_url = reverse_lazy('printing_pricing:print_side_list')
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['title'] = _('تعديل جانب الطباعة')
-        context['action_url'] = self.request.path
-        return context
-
-    def form_valid(self, form):
-        response = super().form_valid(form)
-        if self.request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return JsonResponse({'success': True, 'message': _('تم تحديث جانب الطباعة بنجاح')})
-        messages.success(self.request, _('تم تحديث جانب الطباعة بنجاح'))
-        return response
-
-    def form_invalid(self, form):
-        if self.request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return JsonResponse({'success': False, 'errors': form.errors})
-        return super().form_invalid(form)
-
-
-class PrintSideDeleteView(AjaxDeleteMixin, LoginRequiredMixin, DeleteView):
-    """عرض حذف جانب الطباعة"""
-    model = PrintSide
-    template_name = 'printing_pricing/settings/print_side/delete_modal.html'
-    success_url = reverse_lazy('printing_pricing:print_side_list')
 
 
 # ==================== عروض أنواع التغطية ====================
@@ -1088,8 +907,6 @@ def settings_home(request):
         'paper_sizes_count': PaperSize.objects.filter(is_active=True).count(),
         'paper_weights_count': PaperWeight.objects.filter(is_active=True).count(),
         'paper_origins_count': PaperOrigin.objects.filter(is_active=True).count(),
-        'print_directions_count': PrintDirection.objects.filter(is_active=True).count(),
-        'print_sides_count': PrintSide.objects.filter(is_active=True).count(),
         'coating_types_count': CoatingType.objects.filter(is_active=True).count(),
         'finishing_types_count': FinishingType.objects.filter(is_active=True).count(),
         'packaging_types_count': PackagingType.objects.filter(is_active=True).count(),
@@ -1097,12 +914,10 @@ def settings_home(request):
         'plate_sizes_count': PlateSize.objects.filter(is_active=True).count(),
         'product_types_count': ProductType.objects.filter(is_active=True).count(),
         'product_sizes_count': ProductSize.objects.filter(is_active=True).count(),
-        'vat_settings_count': VATSetting.objects.filter(is_enabled=True).count(),
         'offset_machine_types_count': OffsetMachineType.objects.filter(is_active=True).count(),
         'offset_sheet_sizes_count': OffsetSheetSize.objects.filter(is_active=True).count(),
         'digital_machine_types_count': DigitalMachineType.objects.filter(is_active=True).count(),
         'digital_sheet_sizes_count': DigitalSheetSize.objects.filter(is_active=True).count(),
-        'system_settings_count': SystemSetting.objects.filter(is_active=True).count(),
         
         # بيانات الهيدر
         'page_title': 'إعدادات التسعير',
@@ -1117,105 +932,6 @@ def settings_home(request):
         ],
     }
     return render(request, 'printing_pricing/settings/settings_home.html', context)
-
-
-# ==================== عروض إعدادات ضريبة القيمة المضافة ====================
-
-class VATSettingListView(LoginRequiredMixin, ListView):
-    """عرض قائمة إعدادات ضريبة القيمة المضافة"""
-    model = VATSetting
-    template_name = 'printing_pricing/settings/vat_settings/list.html'
-    context_object_name = 'vat_settings'
-    paginate_by = 20
-
-    def get_queryset(self):
-        queryset = super().get_queryset()
-        search = self.request.GET.get('search')
-        if search:
-            queryset = queryset.filter(
-                Q(description__icontains=search) | Q(percentage__icontains=search)
-            )
-        return queryset.order_by('-created_at')
-    
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['page_title'] = _('إعدادات ضريبة القيمة المضافة')
-        context['page_icon'] = 'fas fa-percentage'
-        context['page_subtitle'] = _('إدارة إعدادات ضريبة القيمة المضافة')
-        context['header_buttons'] = [
-            {
-                'onclick': 'openCreateModal()',
-                'icon': 'fa-plus',
-                'text': _('إضافة جديد'),
-                'class': 'btn-primary',
-            },
-        ]
-        context['breadcrumb_items'] = [
-            {'title': _('الرئيسية'), 'url': '/', 'icon': 'fas fa-home'},
-            {'title': _('الإعدادات'), 'url': reverse_lazy('printing_pricing:settings_home'), 'icon': 'fas fa-cog'},
-            {'title': _('ضريبة القيمة المضافة'), 'active': True},
-        ]
-        return context
-
-
-class VATSettingCreateView(AjaxFormMixin, LoginRequiredMixin, CreateView):
-    """عرض إنشاء إعداد ضريبة قيمة مضافة جديد"""
-    model = VATSetting
-    template_name = 'printing_pricing/settings/vat_settings/form_modal.html'
-    fields = ['percentage', 'description', 'is_enabled']
-    success_url = reverse_lazy('printing_pricing:vat_setting_list')
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['title'] = _('إضافة ضريبة قيمة مضافة')
-        context['action_url'] = self.request.path
-        return context
-
-    def form_valid(self, form):
-        form.instance.created_by = self.request.user
-        response = super().form_valid(form)
-        if self.request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return JsonResponse({'success': True, 'message': _('تم إنشاء إعداد ضريبة القيمة المضافة بنجاح')})
-        messages.success(self.request, _('تم إنشاء إعداد ضريبة القيمة المضافة بنجاح'))
-        return response
-
-    def form_invalid(self, form):
-        if self.request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return JsonResponse({'success': False, 'errors': form.errors})
-        return super().form_invalid(form)
-
-
-class VATSettingUpdateView(AjaxFormMixin, LoginRequiredMixin, UpdateView):
-    """عرض تحديث إعداد ضريبة القيمة المضافة"""
-    model = VATSetting
-    template_name = 'printing_pricing/settings/vat_settings/form_modal.html'
-    fields = ['percentage', 'description', 'is_enabled']
-    success_url = reverse_lazy('printing_pricing:vat_setting_list')
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['title'] = _('تعديل ضريبة القيمة المضافة')
-        context['action_url'] = self.request.path
-        return context
-
-    def form_valid(self, form):
-        response = super().form_valid(form)
-        if self.request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return JsonResponse({'success': True, 'message': _('تم تحديث إعداد ضريبة القيمة المضافة بنجاح')})
-        messages.success(self.request, _('تم تحديث إعداد ضريبة القيمة المضافة بنجاح'))
-        return response
-
-    def form_invalid(self, form):
-        if self.request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return JsonResponse({'success': False, 'errors': form.errors})
-        return super().form_invalid(form)
-
-
-class VATSettingDeleteView(AjaxDeleteMixin, LoginRequiredMixin, DeleteView):
-    """عرض حذف إعداد ضريبة القيمة المضافة"""
-    model = VATSetting
-    template_name = 'printing_pricing/settings/vat_settings/delete_modal.html'
-    success_url = reverse_lazy('printing_pricing:vat_setting_list')
 
 
 # ==================== عروض أنواع ماكينات الأوفست ====================
@@ -1610,76 +1326,12 @@ class DigitalSheetSizeDeleteView(AjaxDeleteMixin, LoginRequiredMixin, DeleteView
     success_url = reverse_lazy('printing_pricing:digital_sheet_size_list')
 
 
-# ==================== عروض إعدادات النظام ====================
-
-class SystemSettingListView(LoginRequiredMixin, ListView):
-    """عرض قائمة إعدادات النظام"""
-    model = SystemSetting
-    template_name = 'printing_pricing/settings/system_settings/list.html'
-    context_object_name = 'settings'
-    paginate_by = 20
-
-    def get_queryset(self):
-        queryset = super().get_queryset()
-        search = self.request.GET.get('search')
-        category = self.request.GET.get('category')
-        
-        if search:
-            queryset = queryset.filter(
-                Q(key__icontains=search) | Q(description__icontains=search) | Q(value__icontains=search)
-            )
-        
-        if category:
-            queryset = queryset.filter(category=category)
-            
-        return queryset.order_by('category', 'key')
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        # إضافة قائمة الفئات للفلترة
-        context['categories'] = SystemSetting.objects.values_list('category', flat=True).distinct()
-        context['selected_category'] = self.request.GET.get('category', '')
-        return context
-
-
-class SystemSettingCreateView(AjaxFormMixin, LoginRequiredMixin, CreateView):
-    """عرض إنشاء إعداد نظام جديد"""
-    model = SystemSetting
-    template_name = 'printing_pricing/settings/system_settings/form.html'
-    fields = ['key', 'value', 'description', 'category', 'is_active']
-    success_url = reverse_lazy('printing_pricing:system_setting_list')
-
-    def form_valid(self, form):
-        form.instance.created_by = self.request.user
-        messages.success(self.request, _('تم إنشاء إعداد النظام بنجاح'))
-        return super().form_valid(form)
-
-
-class SystemSettingUpdateView(AjaxFormMixin, LoginRequiredMixin, UpdateView):
-    """عرض تحديث إعداد نظام"""
-    model = SystemSetting
-    template_name = 'printing_pricing/settings/system_settings/form.html'
-    fields = ['key', 'value', 'description', 'category', 'is_active']
-    success_url = reverse_lazy('printing_pricing:system_setting_list')
-
-    def form_valid(self, form):
-        messages.success(self.request, _('تم تحديث إعداد النظام بنجاح'))
-        return super().form_valid(form)
-
-
-class SystemSettingDeleteView(AjaxDeleteMixin, LoginRequiredMixin, DeleteView):
-    """عرض حذف إعداد نظام"""
-    model = SystemSetting
-    template_name = 'printing_pricing/settings/system_settings/confirm_delete.html'
-    success_url = reverse_lazy('printing_pricing:system_setting_list')
-
-
 # ==================== عروض مقاسات الزنكات ====================
 
 class PlateSizeListView(LoginRequiredMixin, ListView):
     """عرض قائمة مقاسات الزنكات"""
     model = PlateSize
-    template_name = 'printing_pricing/settings/plate_size/list.html'
+    template_name = 'printing_pricing/settings/plate_sizes/list.html'
     context_object_name = 'plate_sizes'
     paginate_by = 20
 
@@ -1690,13 +1342,39 @@ class PlateSizeListView(LoginRequiredMixin, ListView):
             queryset = queryset.filter(name__icontains=search)
         return queryset.order_by('name')
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['page_title'] = _('مقاسات زنكات CTP')
+        context['page_icon'] = 'fas fa-clone'
+        context['page_subtitle'] = _('إدارة وتخصيص مقاسات زنكات CTP وماكينات الطباعة')
+        context['header_buttons'] = [
+            {
+                'onclick': 'openCreateModal()',
+                'icon': 'fa-plus',
+                'text': _('إضافة مقاس زنك جديد'),
+                'class': 'btn-primary',
+            },
+        ]
+        context['breadcrumb_items'] = [
+            {'title': _('الرئيسية'), 'url': reverse_lazy('core:dashboard'), 'icon': 'fas fa-home'},
+            {'title': _('إعدادات التسعير'), 'url': reverse_lazy('printing_pricing:settings_home'), 'icon': 'fas fa-cog'},
+            {'title': _('مقاسات الزنكات'), 'active': True}
+        ]
+        return context
+
 
 class PlateSizeCreateView(AjaxFormMixin, LoginRequiredMixin, CreateView):
     """عرض إنشاء مقاس زنك جديد"""
     model = PlateSize
-    template_name = 'printing_pricing/settings/plate_sizes/form.html'
-    fields = ['name', 'width', 'height', 'is_active']
+    form_class = PlateSizeForm
+    template_name = 'printing_pricing/settings/plate_sizes/form_modal.html'
     success_url = reverse_lazy('printing_pricing:plate_size_list')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = _('إضافة مقاس زنك جديد')
+        context['action_url'] = self.request.path
+        return context
 
     def form_valid(self, form):
         messages.success(self.request, _('تم إنشاء مقاس الزنك بنجاح'))
@@ -1706,9 +1384,15 @@ class PlateSizeCreateView(AjaxFormMixin, LoginRequiredMixin, CreateView):
 class PlateSizeUpdateView(AjaxFormMixin, LoginRequiredMixin, UpdateView):
     """عرض تحديث مقاس الزنك"""
     model = PlateSize
-    template_name = 'printing_pricing/settings/plate_sizes/form.html'
-    fields = ['name', 'width', 'height', 'is_active']
+    form_class = PlateSizeForm
+    template_name = 'printing_pricing/settings/plate_sizes/form_modal.html'
     success_url = reverse_lazy('printing_pricing:plate_size_list')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = _('تعديل مقاس الزنك')
+        context['action_url'] = self.request.path
+        return context
 
     def form_valid(self, form):
         messages.success(self.request, _('تم تحديث مقاس الزنك بنجاح'))
@@ -1718,7 +1402,8 @@ class PlateSizeUpdateView(AjaxFormMixin, LoginRequiredMixin, UpdateView):
 class PlateSizeDeleteView(AjaxDeleteMixin, LoginRequiredMixin, DeleteView):
     """عرض حذف مقاس الزنك"""
     model = PlateSize
-    template_name = 'printing_pricing/settings/plate_size/confirm_delete.html'
+    template_name = 'printing_pricing/settings/plate_sizes/delete_modal.html'
+    context_object_name = 'plate_size'
     success_url = reverse_lazy('printing_pricing:plate_size_list')
 
 

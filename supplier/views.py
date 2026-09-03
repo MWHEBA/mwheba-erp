@@ -6,7 +6,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.urls import reverse
-from django.db import models
+from django.db import models, transaction
 from django.db.models import Q, Sum
 from django.core.paginator import Paginator
 from django.http import JsonResponse, HttpResponse
@@ -1766,14 +1766,17 @@ def supplier_detail(request, pk):
             }
         services_by_type[code]['services'].append(svc)
 
-    # أعمدة جدول الخدمات الموحد
+    # أعمدة جدول الخدمات الموحد المحدث
     supplier_services_headers = [
-        {'key': 'service_type_name', 'label': 'نوع الخدمة',  'sortable': True,  'class': 'text-center', 'format': 'html', 'width': '20%'},
-        {'key': 'name',              'label': 'اسم الخدمة',  'sortable': True,  'class': 'text-start',  'width': '35%'},
-        {'key': 'base_price',        'label': 'السعر الأساسي','sortable': True,  'class': 'text-center', 'format': 'currency', 'width': '18%'},
-        {'key': 'tiers_count',       'label': 'الشرائح',      'sortable': False, 'class': 'text-center', 'format': 'html',     'width': '12%'},
-        {'key': 'is_active',         'label': 'الحالة',       'sortable': True,  'class': 'text-center', 'format': 'status',   'width': '10%'},
-        {'key': 'actions',           'label': 'الإجراءات',    'sortable': False, 'class': 'text-center', 'width': '5%'},
+        {'key': 'service_type_name', 'label': 'نوع الخدمة',      'sortable': True,  'class': 'text-center', 'format': 'html',     'width': '14%'},
+        {'key': 'name',              'label': 'اسم الخدمة',      'sortable': True,  'class': 'text-start',  'width': '22%'},
+        {'key': 'pricing_formula',   'label': 'وحدة التسعير',    'sortable': True,  'class': 'text-center', 'format': 'html',     'width': '13%'},
+        {'key': 'base_price',        'label': 'السعر / الوحدة',   'sortable': True,  'class': 'text-center', 'format': 'html',     'width': '13%'},
+        {'key': 'setup_cost',        'label': 'فتحة الماكينة',   'sortable': True,  'class': 'text-center', 'format': 'currency', 'width': '11%'},
+        {'key': 'minimum_charge',    'label': 'الحد الأدنى',     'sortable': True,  'class': 'text-center', 'format': 'currency', 'width': '11%'},
+        {'key': 'tiers_count',       'label': 'الشرائح',          'sortable': False, 'class': 'text-center', 'format': 'html',     'width': '6%'},
+        {'key': 'is_active',         'label': 'الحالة',           'sortable': True,  'class': 'text-center', 'format': 'status',   'width': '5%'},
+        {'key': 'actions',           'label': 'الإجراءات',        'sortable': False, 'class': 'text-center', 'width': '5%'},
     ]
 
     supplier_services_table_data = []
@@ -1788,20 +1791,27 @@ def supplier_detail(request, pk):
         )
         icon = svc.service_type.icon
         type_badge = f'<span class="badge" style="background:var(--bs-primary);"><i class="{icon} me-1"></i>{svc.service_type.name}</span>'
+        formula_badge = f'<span class="badge bg-light text-dark border">{svc.get_pricing_formula_display()}</span>'
+        curr_code = svc.currency.code if svc.currency else 'ج.م'
+        price_html = f'<span class="fw-bold">{svc.base_price:,.2f}</span> <small class="text-muted">{curr_code}</small>'
+        if svc.pricing_formula == 'PER_TON' and svc.price_per_ton:
+            price_html += f'<br><small class="text-primary">{svc.price_per_ton:,.0f} {curr_code}/طن</small>'
         actions_html = (
             f'<a href="{reverse("supplier:supplier_service_edit", kwargs={"pk": supplier.pk, "service_pk": svc.pk})}" '
             f'class="btn btn-sm btn-outline-primary" title="تعديل"><i class="fas fa-edit"></i></a>'
         )
         supplier_services_table_data.append({
-            'id':               svc.pk,
+            'id':                svc.pk,
             'service_type_name': type_badge,
-            'name':             svc.name,
-            'base_price':       svc.base_price,
-            'setup_cost':       svc.setup_cost,
-            'tiers_count':      tiers_badge,
-            'is_active':        svc.is_active,
-            'actions':          actions_html,
-            '_row_url':         reverse("supplier:supplier_service_detail", kwargs={"pk": supplier.pk, "service_pk": svc.pk}),
+            'name':              svc.name,
+            'pricing_formula':   formula_badge,
+            'base_price':        price_html,
+            'setup_cost':        svc.setup_cost,
+            'minimum_charge':    svc.minimum_charge,
+            'tiers_count':       tiers_badge,
+            'is_active':         svc.is_active,
+            'actions':           actions_html,
+            '_row_url':          reverse("supplier:supplier_service_detail", kwargs={"pk": supplier.pk, "service_pk": svc.pk}),
         })
 
     # تجميع الخدمات حسب الفئة للعرض (نفس طريقة regroup)
@@ -2819,5 +2829,157 @@ def allocate_supplier_prepaid_action(request, pk):
                         messages.error(request, f"حدث خطأ أثناء التخصيص: {str(e)}")
 
     return redirect("supplier:supplier_detail", pk=pk)
+
+
+@login_required
+def supplier_services_bulk_update(request, pk):
+    """
+    تحديث أو إضافة مصفوفة من الخدمات لمورد دفعة واحدة (Bulk Price Matrix)
+    """
+    supplier = get_object_or_404(Supplier, pk=pk)
+    from supplier.models import SupplierService, ServiceType
+    from decimal import Decimal, InvalidOperation
+    import json
+
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'POST method required'}, status=405)
+
+    try:
+        if request.content_type == 'application/json':
+            data = json.loads(request.body)
+            services_data = data.get('services', [])
+        else:
+            services_raw = request.POST.get('services_json', '[]')
+            services_data = json.loads(services_raw)
+
+        if not services_data or not isinstance(services_data, list):
+            return JsonResponse({'success': False, 'error': 'بيانات الخدمات غير صالحة أو فارغة'}, status=400)
+
+        created_count = 0
+        updated_count = 0
+
+        with transaction.atomic():
+            for item in services_data:
+                svc_id = item.get('id')
+                service_type_id = item.get('service_type_id')
+                name = item.get('name', '').strip()
+                if not name:
+                    continue
+
+                try:
+                    bp = Decimal(str(item.get('base_price', '0') or '0'))
+                    sc = Decimal(str(item.get('setup_cost', '0') or '0'))
+                    mc = Decimal(str(item.get('minimum_charge', '0') or '0'))
+                    ppt = Decimal(str(item.get('price_per_ton', '0') or '0')) if item.get('price_per_ton') else None
+                except (InvalidOperation, ValueError):
+                    bp, sc, mc, ppt = Decimal('0'), Decimal('0'), Decimal('0'), None
+
+                formula = item.get('pricing_formula', 'PER_PIECE')
+                sheets_pack = int(item.get('sheets_per_pack', 500) or 500)
+                attrs = item.get('attributes', {})
+                if not isinstance(attrs, dict):
+                    attrs = {}
+
+                if svc_id:
+                    # Update existing
+                    svc = SupplierService.objects.filter(pk=svc_id, supplier=supplier).first()
+                    if svc:
+                        svc.name = name
+                        svc.base_price = bp
+                        svc.setup_cost = sc
+                        svc.minimum_charge = mc
+                        svc.pricing_formula = formula
+                        svc.sheets_per_pack = sheets_pack
+                        if ppt:
+                            svc.price_per_ton = ppt
+                        if attrs:
+                            svc.attributes.update(attrs)
+                        svc.save()
+                        updated_count += 1
+                else:
+                    # Create new
+                    if not service_type_id:
+                        continue
+                    st = ServiceType.objects.filter(pk=service_type_id, is_active=True).first()
+                    if not st:
+                        continue
+
+                    SupplierService.objects.create(
+                        supplier=supplier,
+                        service_type=st,
+                        name=name,
+                        pricing_formula=formula,
+                        base_price=bp,
+                        setup_cost=sc,
+                        minimum_charge=mc,
+                        sheets_per_pack=sheets_pack,
+                        price_per_ton=ppt,
+                        attributes=attrs,
+                        is_active=True
+                    )
+                    created_count += 1
+
+        messages.success(request, f'تم حفظ قائمة الأسعار بنجاح (إضافة: {created_count}، تحديث: {updated_count})')
+        return JsonResponse({
+            'success': True,
+            'message': f'تم الحفظ بنجاح ({created_count} جديد، {updated_count} محدث)',
+            'created_count': created_count,
+            'updated_count': updated_count
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@login_required
+def supplier_services_bulk_adjust(request, pk):
+    """
+    تعديل نسبي مجمع لأسعار خدمات المورد لمواجهة التضخم أو تقلبات السوق (+/- X%)
+    """
+    supplier = get_object_or_404(Supplier, pk=pk)
+    from supplier.models import SupplierService
+    from decimal import Decimal, InvalidOperation
+
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'POST method required'}, status=405)
+
+    try:
+        percentage_str = request.POST.get('percentage', '0')
+        service_type_id = request.POST.get('service_type_id')
+        apply_to_setup = request.POST.get('apply_to_setup') in ['on', 'true', True]
+
+        try:
+            pct = Decimal(percentage_str)
+        except InvalidOperation:
+            return JsonResponse({'success': False, 'error': 'نسبة التعديل غير صحيحة'}, status=400)
+
+        if pct == Decimal('0'):
+            return JsonResponse({'success': False, 'error': 'يجب تحديد نسبة تعديل أكبر أو أقل من صفر'}, status=400)
+
+        multiplier = Decimal('1') + (pct / Decimal('100'))
+
+        services_qs = SupplierService.objects.filter(supplier=supplier, is_active=True)
+        if service_type_id:
+            services_qs = services_qs.filter(service_type_id=service_type_id)
+
+        count = 0
+        with transaction.atomic():
+            for svc in services_qs:
+                svc.base_price = (svc.base_price * multiplier).quantize(Decimal('0.01'))
+                if apply_to_setup and svc.setup_cost > Decimal('0'):
+                    svc.setup_cost = (svc.setup_cost * multiplier).quantize(Decimal('0.01'))
+                if svc.minimum_charge > Decimal('0'):
+                    svc.minimum_charge = (svc.minimum_charge * multiplier).quantize(Decimal('0.01'))
+                if svc.price_per_ton and svc.price_per_ton > Decimal('0'):
+                    svc.price_per_ton = (svc.price_per_ton * multiplier).quantize(Decimal('0.01'))
+                svc.save()
+                count += 1
+
+        pct_sign = f"+{pct}%" if pct > 0 else f"{pct}%"
+        msg = f"تم تعديل أسعار {count} خدمة للمورد بنسبة {pct_sign} بنجاح."
+        messages.success(request, msg)
+        return JsonResponse({'success': True, 'message': msg, 'adjusted_count': count})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
 
 
