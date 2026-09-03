@@ -98,9 +98,29 @@ class PrintingMachine(BaseLookupModel):
 
 
 class SheetDimensionManager(models.Manager):
-    """مدير استعلام شيتات تشغيل الماكينات"""
+    """مدير استعلام كافة شيتات تشغيل الماكينات"""
     def get_queryset(self):
-        return super().get_queryset().filter(dimension_type='sheet')
+        return super().get_queryset().filter(dimension_type__in=['offset_sheet', 'digital_sheet', 'sheet'])
+
+
+class OffsetSheetDimensionManager(models.Manager):
+    """مدير استعلام شيتات تشغيل ماكينات الأوفست"""
+    def get_queryset(self):
+        return super().get_queryset().filter(
+            models.Q(dimension_type='offset_sheet') |
+            models.Q(dimension_type='sheet', machine__machine_category='offset') |
+            models.Q(dimension_type='sheet', machine__isnull=True, code__in=['quarter_sheet', 'half_sheet', 'full_sheet'])
+        )
+
+
+class DigitalSheetDimensionManager(models.Manager):
+    """مدير استعلام شيتات تشغيل ماكينات الديجيتال"""
+    def get_queryset(self):
+        return super().get_queryset().filter(
+            models.Q(dimension_type='digital_sheet') |
+            models.Q(dimension_type='sheet', machine__machine_category='digital') |
+            models.Q(dimension_type='sheet', machine__isnull=True, code__startswith='digital_')
+        )
 
 
 class PlateDimensionManager(models.Manager):
@@ -114,7 +134,9 @@ class MachineDimension(BaseLookupModel):
     جدول المقاسات الموحد للماكينات: يشمل شيتات التشغيل وزنكات CTP
     """
     DIMENSION_TYPE_CHOICES = [
-        ('sheet', _('شيت تشغيل ماكينة')),
+        ('offset_sheet', _('شيت تشغيل أوفست')),
+        ('digital_sheet', _('شيت تشغيل ديجيتال')),
+        ('sheet', _('شيت تشغيل عام')),
         ('plate', _('زنكة CTP')),
     ]
 
@@ -243,7 +265,7 @@ class DigitalMachineType(PrintingMachine):
 
 class OffsetSheetSize(MachineDimension):
     """Proxy لتمثيل مقاسات ماكينات الأوفست للتوافق العكسي الكامل"""
-    objects = SheetDimensionManager()
+    objects = OffsetSheetDimensionManager()
 
     class Meta:
         proxy = True
@@ -251,13 +273,13 @@ class OffsetSheetSize(MachineDimension):
         verbose_name_plural = _("مقاسات ماكينات الأوفست")
 
     def save(self, *args, **kwargs):
-        self.dimension_type = 'sheet'
+        self.dimension_type = 'offset_sheet'
         super().save(*args, **kwargs)
 
 
 class DigitalSheetSize(MachineDimension):
     """Proxy لتمثيل مقاسات ماكينات الديجيتال للتوافق العكسي الكامل"""
-    objects = SheetDimensionManager()
+    objects = DigitalSheetDimensionManager()
 
     class Meta:
         proxy = True
@@ -265,7 +287,7 @@ class DigitalSheetSize(MachineDimension):
         verbose_name_plural = _("مقاسات ماكينات الديجيتال")
 
     def save(self, *args, **kwargs):
-        self.dimension_type = 'sheet'
+        self.dimension_type = 'digital_sheet'
         super().save(*args, **kwargs)
 
 

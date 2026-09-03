@@ -267,7 +267,7 @@ class PricingLookupSeederService:
         {
             "code": "quarter_sheet",
             "name": "ربع فرخ",
-            "dimension_type": "sheet",
+            "dimension_type": "offset_sheet",
             "width": Decimal("35.00"),
             "height": Decimal("50.00"),
             "description": "مقاس ربع فرخ للأعمال الصغيرة وماكينات SM52 والريوبي",
@@ -277,7 +277,7 @@ class PricingLookupSeederService:
         {
             "code": "half_sheet",
             "name": "نصف فرخ",
-            "dimension_type": "sheet",
+            "dimension_type": "offset_sheet",
             "width": Decimal("50.00"),
             "height": Decimal("70.00"),
             "description": "مقاس نصف فرخ القياسي للأعمال المتوسطة وماكينات SM74",
@@ -287,7 +287,7 @@ class PricingLookupSeederService:
         {
             "code": "full_sheet",
             "name": "فرخ كامل",
-            "dimension_type": "sheet",
+            "dimension_type": "offset_sheet",
             "width": Decimal("70.00"),
             "height": Decimal("100.00"),
             "description": "مقاس فرخ كامل للأعمال الكبيرة والإنتاج الضخم وماكينات CD102",
@@ -297,8 +297,8 @@ class PricingLookupSeederService:
         # شيتات تشغيل الديجيتال
         {
             "code": "digital_a3",
-            "name": "A3 ديجيتال (29.7×42)",
-            "dimension_type": "sheet",
+            "name": "A3",
+            "dimension_type": "digital_sheet",
             "width": Decimal("29.70"),
             "height": Decimal("42.00"),
             "description": "مقاس A3 للبوسترات والكتيبات المفتوحة",
@@ -307,8 +307,8 @@ class PricingLookupSeederService:
         },
         {
             "code": "digital_super_a3_plus",
-            "name": "سوبر A3 بلس ديجيتال (33×48.8)",
-            "dimension_type": "sheet",
+            "name": "A3+",
+            "dimension_type": "digital_sheet",
             "width": Decimal("33.00"),
             "height": Decimal("48.80"),
             "description": "مقاس شيت ماكينات إنديجو وكانون وزيروكس الموسع",
@@ -317,8 +317,8 @@ class PricingLookupSeederService:
         },
         {
             "code": "digital_panorama",
-            "name": "بانوراما ديجيتال (33×66)",
-            "dimension_type": "sheet",
+            "name": "بانوراما",
+            "dimension_type": "digital_sheet",
             "width": Decimal("33.00"),
             "height": Decimal("66.00"),
             "description": "مقاس الشيت الطويل للبروشورات 3 بوابة والمطويات البانورامية",

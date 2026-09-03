@@ -878,7 +878,7 @@ class OffsetSheetSizeForm(forms.ModelForm):
 
     def save(self, commit=True):
         instance = super().save(commit=False)
-        instance.dimension_type = 'sheet'
+        instance.dimension_type = 'offset_sheet'
         if instance.is_default:
             OffsetSheetSize.objects.filter(is_default=True).exclude(pk=instance.pk).update(is_default=False)
         if commit:
@@ -945,7 +945,7 @@ class DigitalSheetSizeForm(forms.ModelForm):
 
     def save(self, commit=True):
         instance = super().save(commit=False)
-        instance.dimension_type = 'sheet'
+        instance.dimension_type = 'digital_sheet'
         if instance.is_default:
             DigitalSheetSize.objects.filter(is_default=True).exclude(pk=instance.pk).update(is_default=False)
         if commit:

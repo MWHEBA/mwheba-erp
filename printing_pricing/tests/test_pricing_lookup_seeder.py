@@ -9,7 +9,7 @@ from printing_pricing.services.pricing_lookup_seeder_service import PricingLooku
 from printing_pricing.models import (
     PaperType, PaperSize, PaperWeight, PaperOrigin, PieceSize,
     PrintingMachine, MachineDimension,
-    OffsetMachineType, DigitalMachineType, OffsetSheetSize, PlateSize,
+    OffsetMachineType, DigitalMachineType, OffsetSheetSize, DigitalSheetSize, PlateSize,
     CoatingType, FinishingType, PackagingType,
     ProductType, ProductSize
 )
@@ -54,8 +54,15 @@ class TestPricingLookupSeederService:
         assert OffsetMachineType.objects.count() == 5
         assert DigitalMachineType.objects.count() == 4
 
-        # التحقق من شيتات التشغيل والزنكات CTP
+        # التحقق من شيتات التشغيل والزنكات CTP مع التأكد من الفصل التام بين الأوفست والديجيتال
         assert OffsetSheetSize.objects.filter(code="half_sheet").exists()
+        assert not OffsetSheetSize.objects.filter(code="digital_a3").exists()
+        assert OffsetSheetSize.objects.count() == 3
+
+        assert DigitalSheetSize.objects.filter(code="digital_a3").exists()
+        assert not DigitalSheetSize.objects.filter(code="half_sheet").exists()
+        assert DigitalSheetSize.objects.count() == 3
+
         assert PlateSize.objects.filter(code="plate_sm74").exists()
         assert PlateSize.objects.count() == 3
 

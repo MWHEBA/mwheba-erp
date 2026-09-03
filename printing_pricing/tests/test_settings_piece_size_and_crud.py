@@ -2,8 +2,8 @@ import pytest
 from decimal import Decimal
 from django.urls import reverse
 from django.contrib.auth import get_user_model
-from printing_pricing.models import PaperSize, PieceSize, OffsetMachineType, OffsetSheetSize, PlateSize
-from printing_pricing.forms.settings_forms import PieceSizeForm, PlateSizeForm, OffsetSheetSizeForm
+from printing_pricing.models import PaperSize, PieceSize, OffsetMachineType, OffsetSheetSize, DigitalSheetSize, PlateSize
+from printing_pricing.forms.settings_forms import PieceSizeForm, PlateSizeForm, OffsetSheetSizeForm, DigitalSheetSizeForm
 
 User = get_user_model()
 
@@ -88,3 +88,85 @@ class TestSettingsPieceSizeAndCRUD:
         plate = form.save()
         assert plate.machine is None
         assert plate.dimension_type == 'plate'
+
+    def test_offset_and_digital_sheet_sizes_isolation(self, db):
+        """التحقق من العزل التام بين شيتات الأوفست والديجيتال في الاستعلامات"""
+        offset_sheet = OffsetSheetSize.objects.create(
+            name='ربع فرخ اختباري',
+            code='test_quarter',
+            width=Decimal('35.00'),
+            height=Decimal('50.00'),
+            dimension_type='offset_sheet',
+            is_active=True
+        )
+        digital_sheet = DigitalSheetSize.objects.create(
+            name='A3 ديجيتال اختباري',
+            code='test_digital_a3',
+            width=Decimal('29.70'),
+            height=Decimal('42.00'),
+            dimension_type='digital_sheet',
+            is_active=True
+        )
+
+        # التحقق من أن كل مدير استعلام لا يرى سوى نوعه
+        assert offset_sheet in OffsetSheetSize.objects.all()
+        assert digital_sheet not in OffsetSheetSize.objects.all()
+
+        assert digital_sheet in DigitalSheetSize.objects.all()
+        assert offset_sheet not in DigitalSheetSize.objects.all()
+
+    def test_offset_and_digital_sheet_size_list_views(self, staff_client, db):
+        """التحقق من أن شاشات العرض تعرض فقط المقاسات الخاصة بكل تقنية"""
+        OffsetSheetSize.objects.create(
+            name='نصف فرخ أوفست',
+            code='offset_50x70',
+            width=Decimal('50.00'),
+            height=Decimal('70.00'),
+            dimension_type='offset_sheet'
+        )
+        DigitalSheetSize.objects.create(
+            name='سوبر A3 ديجيتال',
+            code='digital_33x48',
+            width=Decimal('33.00'),
+            height=Decimal('48.80'),
+            dimension_type='digital_sheet'
+        )
+
+        # 1. شاشة الأوفست
+        offset_resp = staff_client.get(reverse('printing_pricing:offset_sheet_size_list'))
+        assert offset_resp.status_code == 200
+        offset_items = list(offset_resp.context['sheet_sizes'])
+        assert any(s.code == 'offset_50x70' for s in offset_items)
+        assert not any(s.code == 'digital_33x48' for s in offset_items)
+
+        # 2. شاشة الديجيتال
+        digital_resp = staff_client.get(reverse('printing_pricing:digital_sheet_size_list'))
+        assert digital_resp.status_code == 200
+        digital_items = list(digital_resp.context['sheet_sizes'])
+        assert any(s.code == 'digital_33x48' for s in digital_items)
+        assert not any(s.code == 'offset_50x70' for s in digital_items)
+
+    def test_sheet_size_forms_dimension_type_assignment(self, db):
+        """التحقق من أن فورمات الإدخال تعين نوع المقاس dimension_type الصحيح تلقائياً"""
+        # فورم الأوفست
+        offset_form = OffsetSheetSizeForm(data={
+            'name': 'شيت أوفست جديد',
+            'width': '35.0',
+            'height': '50.0',
+            'is_active': True
+        })
+        assert offset_form.is_valid(), offset_form.errors
+        offset_saved = offset_form.save()
+        assert offset_saved.dimension_type == 'offset_sheet'
+
+        # فورم الديجيتال
+        digital_form = DigitalSheetSizeForm(data={
+            'name': 'شيت ديجيتال جديد',
+            'width': '32.9',
+            'height': '48.3',
+            'is_active': True
+        })
+        assert digital_form.is_valid(), digital_form.errors
+        digital_saved = digital_form.save()
+        assert digital_saved.dimension_type == 'digital_sheet'
+
