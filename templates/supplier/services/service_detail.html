@@ -32,7 +32,7 @@
           <div class="stats-card-icon"><i class="fas fa-tag"></i></div>
           <div class="stats-card-title">السعر الأساسي / التراج</div>
           <div class="stats-card-value">{{ service.base_price|smart_float }}</div>
-          <div class="stats-card-unit">{{ currency_symbol|default:"ج.م" }}</div>
+          <div class="stats-card-unit">{{ service.currency_symbol }}</div>
         </div>
       </div>
     </div>
@@ -42,7 +42,7 @@
           <div class="stats-card-icon"><i class="fas fa-tools"></i></div>
           <div class="stats-card-title">فتحة الماكينة</div>
           <div class="stats-card-value">{{ service.setup_cost|smart_float }}</div>
-          <div class="stats-card-unit">{{ currency_symbol|default:"ج.م" }}</div>
+          <div class="stats-card-unit">{{ service.currency_symbol }}</div>
         </div>
       </div>
     </div>
@@ -52,7 +52,7 @@
           <div class="stats-card-icon"><i class="fas fa-shield-alt"></i></div>
           <div class="stats-card-title">الحد الأدنى للتشغيل</div>
           <div class="stats-card-value">{{ service.minimum_charge|smart_float }}</div>
-          <div class="stats-card-unit">{{ currency_symbol|default:"ج.م" }}</div>
+          <div class="stats-card-unit">{{ service.currency_symbol }}</div>
         </div>
       </div>
     </div>
@@ -91,24 +91,137 @@
     {% endif %}
   </div>
 
-  <!-- خصائص الخدمة -->
-  {% if service.attributes %}
-  <div class="section-container">
-    <h5 class="section-title"><i class="fas fa-sliders-h me-2"></i>خصائص الخدمة</h5>
-    <div class="row">
-      {% for key, val in service.attributes.items %}
-      <div class="col-md-3 col-sm-6 mb-3">
-        <small class="text-muted d-block">
-          {% with field_def=service.service_type.attribute_schema|get_item:key %}
-            {{ field_def.label|default:key }}
-          {% endwith %}
-        </small>
-        <strong>{{ val }}</strong>
+  <!-- المواصفات الفنية المعتمدة والربط الصناعي -->
+  <div class="section-container mb-4">
+    <h5 class="section-title"><i class="fas fa-cogs me-2"></i>المواصفات الفنية المعتمدة للخدمة</h5>
+    <div class="row g-3">
+      {% if service.machine %}
+      <div class="col-md-3 col-sm-6">
+        <small class="text-muted d-block"><i class="fas fa-print me-1 text-primary"></i>موديل الماكينة</small>
+        <strong>{{ service.machine.name }}</strong>
       </div>
+      {% endif %}
+
+      {% if service.dimension %}
+      <div class="col-md-3 col-sm-6">
+        <small class="text-muted d-block"><i class="fas fa-ruler me-1 text-info"></i>مقاس السلندر / السرير</small>
+        <strong>{{ service.dimension.name }} ({{ service.dimension.width }}×{{ service.dimension.height }} سم)</strong>
+      </div>
+      {% endif %}
+
+      {% if service.attributes.max_colors %}
+      <div class="col-md-3 col-sm-6">
+        <small class="text-muted d-block"><i class="fas fa-palette me-1 text-warning"></i>عدد أبراج الألوان</small>
+        <strong>{{ service.attributes.max_colors }} ألوان</strong>
+      </div>
+      {% endif %}
+
+      {% if service.plate_size %}
+      <div class="col-md-3 col-sm-6">
+        <small class="text-muted d-block"><i class="fas fa-layer-group me-1 text-info"></i>مقاس لوح الزنك CTP</small>
+        <strong>{{ service.plate_size.name }} ({{ service.plate_size.width }}×{{ service.plate_size.height }} سم)</strong>
+      </div>
+      {% endif %}
+
+      {% if service.coating_type %}
+      <div class="col-md-3 col-sm-6">
+        <small class="text-muted d-block"><i class="fas fa-fill-drip me-1 text-success"></i>نوع السلوفان / التغطية</small>
+        <strong>{{ service.coating_type.name }}</strong>
+      </div>
+      {% endif %}
+
+      {% if service.finishing_type %}
+      <div class="col-md-3 col-sm-6">
+        <small class="text-muted d-block"><i class="fas fa-magic me-1 text-secondary"></i>نوع عملية التشطيب</small>
+        <strong>{{ service.finishing_type.name }}</strong>
+      </div>
+      {% endif %}
+
+      {% if service.tooling_cost and service.tooling_cost > 0 %}
+      <div class="col-md-3 col-sm-6">
+        <small class="text-muted d-block"><i class="fas fa-tools me-1 text-danger"></i>تكلفة الاسطمبة / الكليشه</small>
+        <strong class="text-danger">{{ service.tooling_cost|smart_float }} {{ service.currency_symbol }}</strong>
+      </div>
+      {% endif %}
+
+      {% if service.packaging_type %}
+      <div class="col-md-3 col-sm-6">
+        <small class="text-muted d-block"><i class="fas fa-box me-1 text-warning"></i>نوع التعبئة والتغليف</small>
+        <strong>{{ service.packaging_type.name }}</strong>
+      </div>
+      {% endif %}
+
+      {% if service.paper_type_ref %}
+      <div class="col-md-3 col-sm-6">
+        <small class="text-muted d-block"><i class="fas fa-scroll me-1 text-danger"></i>نوع خامة الورق</small>
+        <strong>{{ service.paper_type_ref.name }}</strong>
+      </div>
+      {% endif %}
+
+      {% if service.paper_size %}
+      <div class="col-md-3 col-sm-6">
+        <small class="text-muted d-block"><i class="fas fa-expand me-1 text-primary"></i>مقاس الفرخ الخام</small>
+        <strong>{{ service.paper_size.name }} ({{ service.paper_size.width }}×{{ service.paper_size.height }} سم)</strong>
+      </div>
+      {% endif %}
+
+      {% if service.paper_origin %}
+      <div class="col-md-3 col-sm-6">
+        <small class="text-muted d-block"><i class="fas fa-globe me-1 text-secondary"></i>بلد المنشأ</small>
+        <strong>{{ service.paper_origin.name }}</strong>
+      </div>
+      {% endif %}
+
+      {% if service.gsm or service.paper_weight %}
+      <div class="col-md-3 col-sm-6">
+        <small class="text-muted d-block"><i class="fas fa-weight-hanging me-1 text-dark"></i>الوزن / الجراماج</small>
+        <strong>{{ service.gsm|default:service.paper_weight.gsm }} GSM</strong>
+      </div>
+      {% endif %}
+
+      {% if service.price_per_ton and service.price_per_ton > 0 %}
+      <div class="col-md-3 col-sm-6">
+        <small class="text-muted d-block"><i class="fas fa-coins me-1 text-success"></i>سعر الطن</small>
+        <strong class="text-success">{{ service.price_per_ton|smart_float }} {{ service.currency_symbol }}</strong>
+      </div>
+      {% endif %}
+
+      {% if service.sheets_per_pack %}
+      <div class="col-md-3 col-sm-6">
+        <small class="text-muted d-block"><i class="fas fa-layer-group me-1 text-muted"></i>أفرخ الباقة / الباليتة</small>
+        <strong>{{ service.sheets_per_pack }} فرخ</strong>
+      </div>
+      {% endif %}
+
+      {% if service.price_per_click_bw %}
+      <div class="col-md-3 col-sm-6">
+        <small class="text-muted d-block"><i class="fas fa-print me-1 text-dark"></i>كليك أبيض وأسود</small>
+        <strong>{{ service.price_per_click_bw }} {{ service.currency_symbol }}</strong>
+      </div>
+      {% endif %}
+
+      {% if service.price_per_click_color %}
+      <div class="col-md-3 col-sm-6">
+        <small class="text-muted d-block"><i class="fas fa-palette me-1 text-primary"></i>كليك ألوان</small>
+        <strong>{{ service.price_per_click_color }} {{ service.currency_symbol }}</strong>
+      </div>
+      {% endif %}
+
+      <!-- أي خصائص إضافية مخصصة -->
+      {% for key, val in service.attributes.items %}
+        {% if key != 'max_colors' and key != 'machine_type' and key != 'sheet_size' and key != 'gsm' %}
+        <div class="col-md-3 col-sm-6">
+          <small class="text-muted d-block">
+            {% with field_def=service.service_type.attribute_schema|get_item:key %}
+              {{ field_def.label|default:key }}
+            {% endwith %}
+          </small>
+          <strong>{{ val }}</strong>
+        </div>
+        {% endif %}
       {% endfor %}
     </div>
   </div>
-  {% endif %}
 
   {% if service.notes %}
   <div class="alert alert-info">

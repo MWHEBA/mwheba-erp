@@ -60,8 +60,9 @@ class TestPricingSupplierSeeder:
         assert SupplierTypeSettings.objects.get(code="finishing_workshop").is_service_provider is True
 
     def test_recommended_services_mapping(self):
-        """التأكد من ترشيح الخدمات المتوافقة مع نوع المورد"""
-        assert PricingSupplierSeederService.get_recommended_services("offset_press") == ["offset_printing"]
+        recommended_offset = PricingSupplierSeederService.get_recommended_services("offset_press")
+        assert "offset_printing" in recommended_offset
+        assert "ctp_plates" in recommended_offset
         assert PricingSupplierSeederService.get_recommended_services("ctp_center") == ["ctp_plates"]
         assert PricingSupplierSeederService.get_recommended_services("paper_supplier") == ["paper"]
         assert "finishing" in PricingSupplierSeederService.get_recommended_services("finishing_workshop")

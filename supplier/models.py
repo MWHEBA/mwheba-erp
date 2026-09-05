@@ -964,6 +964,93 @@ class SupplierService(models.Model):
         related_name='supplier_services',
         verbose_name=_("خامة الورق المعتمدة")
     )
+    coating_type = models.ForeignKey(
+        'printing_pricing.CoatingType',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='supplier_services',
+        verbose_name=_("نوع السلوفان / الورنيش")
+    )
+    finishing_type = models.ForeignKey(
+        'printing_pricing.FinishingType',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='supplier_services',
+        verbose_name=_("عملية التشطيب / التكسير")
+    )
+    packaging_type = models.ForeignKey(
+        'printing_pricing.PackagingType',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='supplier_services',
+        verbose_name=_("نوع التعبئة والتغليف")
+    )
+    paper_size = models.ForeignKey(
+        'printing_pricing.PaperSize',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='supplier_services',
+        verbose_name=_("مقاس الفرخ الخام المعتمد")
+    )
+    paper_origin = models.ForeignKey(
+        'printing_pricing.PaperOrigin',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='supplier_services',
+        verbose_name=_("بلد المنشأ / المصنع")
+    )
+    paper_weight = models.ForeignKey(
+        'printing_pricing.PaperWeight',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='supplier_services',
+        verbose_name=_("وزن وجراماج الورق")
+    )
+    plate_size = models.ForeignKey(
+        'printing_pricing.MachineDimension',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        limit_choices_to={'dimension_type': 'plate'},
+        related_name='supplier_plate_services',
+        verbose_name=_("مقاس ومواصفة زنكة CTP")
+    )
+    gsm = models.PositiveIntegerField(
+        _("الجراماج (جم/م²)"),
+        null=True,
+        blank=True
+    )
+    tooling_cost = models.DecimalField(
+        _("تكلفة الفورمة / الكليشيه"),
+        max_digits=10,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal('0.00'))]
+    )
+    price_per_click_bw = models.DecimalField(
+        _("سعر النقرة أبيض وأسود"),
+        max_digits=8,
+        decimal_places=3,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal('0.00'))]
+    )
+    price_per_click_color = models.DecimalField(
+        _("سعر النقرة ألوان"),
+        max_digits=8,
+        decimal_places=3,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal('0.00'))]
+    )
     pricing_formula = models.CharField(
         _("طريقة / معادلة التسعير"),
         max_length=30,
@@ -1042,6 +1129,58 @@ class SupplierService(models.Model):
     def __str__(self):
         return f"{self.supplier.name} — {self.name}"
 
+    def clean(self):
+        super().clean()
+        if not self.service_type_id:
+            return
+
+        code = self.service_type.code
+        # 1. طباعة أوفست
+        if code == 'offset_printing':
+            if not self.machine:
+                raise ValidationError({'machine': _('ماكينة الطباعة المعتمدة مطلوبة لخدمات طباعة الأوفست')})
+            if not self.dimension:
+                raise ValidationError({'dimension': _('مقاس الشيت مطلوب لخدمات طباعة الأوفست')})
+            if self.coating_type or self.finishing_type or self.packaging_type or self.paper_size:
+                raise ValidationError(_('لا يمكن خلط حقول السلوفان أو التشطيب أو الورق مع خدمة طباعة الأوفست'))
+
+        # 2. زنكات CTP
+        elif code == 'ctp_plates':
+            if not self.plate_size:
+                raise ValidationError({'plate_size': _('مقاس زنكة CTP مطلوب لخدمات الزنكات')})
+            if self.machine or self.coating_type or self.finishing_type or self.paper_size:
+                raise ValidationError(_('لا يمكن خلط حقول الماكينات أو السلوفان أو الورق مع خدمة زنكات CTP'))
+
+        # 3. سلوفان وتغطية
+        elif code == 'coating':
+            if not self.coating_type:
+                raise ValidationError({'coating_type': _('نوع السلوفان / الورنيش مطلوب لخدمات التغطية')})
+            if self.machine or self.paper_size or self.plate_size or self.finishing_type:
+                raise ValidationError(_('لا يمكن خلط حقول الماكينات أو الورق أو الزنكات مع خدمة السلوفان'))
+
+        # 4. تشطيب وتكسير
+        elif code == 'finishing':
+            if not self.finishing_type:
+                raise ValidationError({'finishing_type': _('نوع عملية التشطيب مطلوب لخدمات التشطيب والتكسير')})
+            if self.machine or self.paper_size or self.plate_size or self.coating_type:
+                raise ValidationError(_('لا يمكن خلط حقول الماكينات أو الورق أو السلوفان مع خدمة التشطيب'))
+
+        # 5. تقفيل وتجليد
+        elif code == 'packaging':
+            if not self.packaging_type:
+                raise ValidationError({'packaging_type': _('نوع التعبئة والتغليف مطلوب لخدمات التقفيل والتجليد')})
+            if self.machine or self.paper_size or self.plate_size:
+                raise ValidationError(_('لا يمكن خلط حقول الماكينات أو الورق مع خدمة التقفيل'))
+
+        # 6. خامات الورق
+        elif code == 'paper':
+            if not self.paper_type_ref:
+                raise ValidationError({'paper_type_ref': _('خامة الورق مطلوبة لخدمات توريد الورق')})
+            if not self.paper_size:
+                raise ValidationError({'paper_size': _('مقاس الفرخ الخام مطلوب لخدمات توريد الورق')})
+            if self.machine or self.plate_size or self.coating_type or self.finishing_type:
+                raise ValidationError(_('لا يمكن خلط حقول الماكينات أو الزنكات أو التشطيب مع خدمة خامات الورق'))
+
     def save(self, *args, **kwargs):
         """مزامنة حقل الخصائص attributes تلقائياً من الروابط العلائقية لضمان التوافق العكسي 100%"""
         if not self.attributes or not isinstance(self.attributes, dict):
@@ -1057,6 +1196,22 @@ class SupplierService(models.Model):
                 self.attributes['max_colors'] = self.machine.colors_capacity
         if self.paper_type_ref:
             self.attributes['paper_type'] = self.paper_type_ref.name
+        if self.coating_type:
+            self.attributes['coating_type'] = self.coating_type.name
+        if self.finishing_type:
+            self.attributes['finishing_type'] = self.finishing_type.name
+        if self.packaging_type:
+            self.attributes['packaging_type'] = self.packaging_type.name
+        if self.plate_size:
+            self.attributes['plate_size'] = self.plate_size.name
+        if self.paper_size:
+            self.attributes['parent_sheet_size'] = self.paper_size.name
+        if self.paper_origin:
+            self.attributes['origin'] = self.paper_origin.name
+        if self.gsm:
+            self.attributes['gsm'] = self.gsm
+        elif self.paper_weight:
+            self.attributes['gsm'] = self.paper_weight.gsm
 
         super().save(*args, **kwargs)
 
@@ -1095,6 +1250,27 @@ class SupplierService(models.Model):
         elif self.pricing_formula == 'PER_REAM' and self.base_price and self.sheets_per_pack:
             return (self.base_price / Decimal(str(self.sheets_per_pack))).quantize(Decimal('0.0001'))
         return self.base_price
+
+    @property
+    def effective_currency(self):
+        """تحديد العملة الفعلية بتسلسل هرمي: عملة الخدمة -> عملة المورد -> العملة الوظيفية"""
+        if self.currency:
+            return self.currency
+        if self.supplier and self.supplier.default_currency:
+            return self.supplier.default_currency
+        from financial.services.exchange_rate_service import ExchangeRateService
+        return ExchangeRateService.get_functional_currency()
+
+    @property
+    def currency_symbol(self):
+        curr = self.effective_currency
+        return getattr(curr, 'symbol', None) or getattr(curr, 'code', '')
+
+    @property
+    def currency_code(self):
+        curr = self.effective_currency
+        return getattr(curr, 'code', '')
+
 
 
 class ServicePriceTier(models.Model):

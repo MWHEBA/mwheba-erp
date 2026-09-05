@@ -470,14 +470,25 @@ class PrintingOrder(BaseModel):
         if not self.order_number:
             self.order_number = self.generate_order_number()
 
-        # تثبيت العملة الوظيفية للمؤسسة افتراضياً
-        if not self.currency_id:
-            try:
-                from financial.services.exchange_rate_service import ExchangeRateService
-                self.currency = ExchangeRateService.get_functional_currency()
+        # تثبيت وتجميد سعر الصرف وفق معيار IAS 21
+        try:
+            from financial.services.exchange_rate_service import ExchangeRateService
+            func_curr = ExchangeRateService.get_functional_currency()
+            if not self.currency_id:
+                self.currency = func_curr
                 self.exchange_rate = Decimal("1.000000")
-            except Exception:
-                pass
+            elif func_curr and self.currency.code == func_curr.code:
+                self.exchange_rate = Decimal("1.000000")
+            else:
+                if not self.exchange_rate or self.exchange_rate == Decimal("1.000000"):
+                    self.exchange_rate = ExchangeRateService.get_rate(
+                        from_code=self.currency.code,
+                        to_code=func_curr.code if func_curr else "EGP",
+                        date=self.order_date
+                    )
+        except Exception:
+            if not self.exchange_rate:
+                self.exchange_rate = Decimal("1.000000")
 
         # مزامنة اسم العميل تلقائياً من العميل المسجل إذا لم يكن مكتوباً
         if self.customer and not self.customer_name:
@@ -569,6 +580,44 @@ class PrintingOrder(BaseModel):
         if self.product_type:
             return self.product_type.name
         return self.get_order_type_display() or "-"
+
+    @property
+    def currency_symbol(self):
+        """رمز العملة الخاصة بالطلب أو رمز العملة الوظيفية للنظام"""
+        if self.currency and self.currency.symbol:
+            return self.currency.symbol
+        try:
+            from financial.services.exchange_rate_service import ExchangeRateService
+            func = ExchangeRateService.get_functional_currency()
+            return func.symbol if func and func.symbol else ""
+        except Exception:
+            return ""
+
+    @property
+    def currency_code(self):
+        """كود العملة ISO الخاص بالطلب أو كود العملة الوظيفية للنظام"""
+        if self.currency and self.currency.code:
+            return self.currency.code
+        try:
+            from financial.services.exchange_rate_service import ExchangeRateService
+            func = ExchangeRateService.get_functional_currency()
+            return func.code if func and func.code else ""
+        except Exception:
+            return ""
+
+    @property
+    def estimated_cost_functional(self):
+        """التكلفة المقدرة معبر عنها بالعملة الوظيفية للنظام وفق IAS 21"""
+        cost = self.estimated_cost or Decimal('0.00')
+        rate = self.exchange_rate or Decimal('1.000000')
+        return (cost * rate).quantize(Decimal('0.01'))
+
+    @property
+    def final_price_functional(self):
+        """السعر النهائي معبر عنه بالعملة الوظيفية للنظام وفق IAS 21"""
+        price = self.final_price or Decimal('0.00')
+        rate = self.exchange_rate or Decimal('1.000000')
+        return (price * rate).quantize(Decimal('0.01'))
 
 
     def update_status(self, new_status, user=None):

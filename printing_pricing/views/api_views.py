@@ -111,6 +111,10 @@ class LivePricingCalculateAPIView(BaseAPIView):
                 payload = request.POST.dict()
 
             from ..services import PrintingCalculationEngine
+            if payload.get('currency_id') and not payload.get('currency'):
+                from financial.models import Currency
+                payload['currency'] = Currency.objects.filter(id=payload['currency_id']).first()
+
             result = PrintingCalculationEngine.calculate(payload)
             return JsonResponse(result)
         except Exception as e:
@@ -920,9 +924,10 @@ class GetPaperPriceAPIView(BaseAPIView):
                         height_cm=height_val,
                         gsm=weight
                     ))
-                    from core.utils import get_default_currency
                     detected_origin = matched.attributes.get('origin', '') if isinstance(matched.attributes, dict) else ''
-                    currency_code = matched.currency.code if matched.currency else get_default_currency()
+                    eff_curr = matched.effective_currency
+                    curr_code = eff_curr.code if eff_curr else "EGP"
+                    curr_symbol = eff_curr.symbol if eff_curr else "ج.م"
 
                     return JsonResponse({
                         'success':         True,
@@ -931,7 +936,9 @@ class GetPaperPriceAPIView(BaseAPIView):
                         'price_per_sheet': sheet_price,
                         'pricing_formula': matched.pricing_formula,
                         'origin':          detected_origin or origin or '',
-                        'currency':        currency_code,
+                        'currency':        curr_code,
+                        'currency_code':   curr_code,
+                        'currency_symbol': curr_symbol,
                         'service_id':      matched.id,
                         'service_info':    {
                             'id':              matched.id,

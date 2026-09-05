@@ -8,7 +8,12 @@ def get_currency_symbol(code: str) -> str:
     تحويل كود العملة الـ ISO إلى الرمز الخاص بها (Symbol)
     """
     if not code:
-        return "ج.م"
+        try:
+            from financial.services.exchange_rate_service import ExchangeRateService
+            func = ExchangeRateService.get_functional_currency()
+            return func.symbol if func and func.symbol else "ج.م"
+        except Exception:
+            return "ج.م"
     try:
         from financial.models import Currency
         curr = Currency.objects.filter(code__iexact=code).first()

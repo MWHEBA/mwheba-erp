@@ -48,11 +48,19 @@ def smart_float(value, decimal_places=2):
 
 
 @register.filter
-def get_currency_symbol(item, default_symbol="ج.م"):
+def get_currency_symbol(item, default_symbol=None):
     """
-    يقوم باستخراج رمز أو كود عملة الكائن (فاتورة، عرض سعر، أو قاموس بيانات)
-    إذا كانت العملة غير محددة أو محلية نستخدم الرمز الافتراضي
+    يقوم باستخراج رمز أو كود عملة الكائن (فاتورة، عرض سعر، خدمة مورد، أو قاموس بيانات)
+    إذا كانت العملة غير محددة نستخدم رمز العملة الوظيفية للنظام ديناميكياً
     """
+    if default_symbol is None:
+        try:
+            from financial.services.exchange_rate_service import ExchangeRateService
+            func = ExchangeRateService.get_functional_currency()
+            default_symbol = func.symbol if func and func.symbol else "ج.م"
+        except Exception:
+            default_symbol = "ج.م"
+
     if item is None:
         return default_symbol
     
@@ -70,6 +78,13 @@ def get_currency_symbol(item, default_symbol="ج.م"):
         return default_symbol
 
     try:
+        if hasattr(item, "effective_currency"):
+            eff = getattr(item, "effective_currency")
+            if eff and getattr(eff, "symbol", None):
+                return eff.symbol
+            if eff and getattr(eff, "code", None):
+                return eff.code
+
         if hasattr(item, "currency_symbol"):
             val = getattr(item, "currency_symbol")
             if callable(val):

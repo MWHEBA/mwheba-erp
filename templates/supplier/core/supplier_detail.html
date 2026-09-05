@@ -342,7 +342,7 @@
                 <div class="col-md-6 col-lg-3">
                   <small class="text-muted d-block mb-1">{% trans "العملة الافتراضية" %}</small>
                   <span class="badge bg-light text-dark border fw-bold">
-                    {{ supplier.default_currency.code|default:"EGP" }} ({{ supplier.default_currency.symbol|default:"ج.م" }})
+                    {{ supplier.default_currency.code|default:functional_currency.code }} ({{ supplier.default_currency.symbol|default:functional_currency.symbol }})
                   </span>
                 </div>
 
@@ -689,7 +689,7 @@
                   <div class="stats-card-icon"><i class="fas fa-coins"></i></div>
                   <div class="stats-card-title">متوسط سعر التراج للألف</div>
                   <div class="stats-card-value">{{ services_kpis.avg_tirage|default:"0"|smart_float }}</div>
-                  <div class="stats-card-unit">ج.م / 1,000 طبعة</div>
+                  <div class="stats-card-unit">{% currency_symbol supplier %} / 1,000 طبعة</div>
                 </div>
               </div>
             </div>
@@ -791,31 +791,31 @@
               <div class="col">
                 <div class="p-3 bg-light rounded border">
                   <small class="text-muted d-block mb-1">{% trans "الحالي (غير مستحق)" %}</small>
-                  <div id="val-current" class="fw-bold text-dark fs-6">0 ج.م</div>
+                  <div id="val-current" class="fw-bold text-dark fs-6">0 {% currency_symbol supplier %}</div>
                 </div>
               </div>
               <div class="col">
                 <div class="p-3 bg-info-subtle border border-info-subtle rounded">
                   <small class="text-info-emphasis d-block mb-1">{% trans "1 - 30 يوماً" %}</small>
-                  <div id="val-0-30" class="fw-bold text-info fs-6">0 ج.م</div>
+                  <div id="val-0-30" class="fw-bold text-info fs-6">0 {% currency_symbol supplier %}</div>
                 </div>
               </div>
               <div class="col">
                 <div class="p-3 bg-warning-subtle border border-warning-subtle rounded">
                   <small class="text-warning-emphasis d-block mb-1">{% trans "31 - 60 يوماً" %}</small>
-                  <div id="val-31-60" class="fw-bold text-warning fs-6">0 ج.م</div>
+                  <div id="val-31-60" class="fw-bold text-warning fs-6">0 {% currency_symbol supplier %}</div>
                 </div>
               </div>
               <div class="col">
                 <div class="p-3 bg-danger-subtle border border-danger-subtle rounded">
                   <small class="text-danger-emphasis d-block mb-1">{% trans "61 - 90 يوماً" %}</small>
-                  <div id="val-61-90" class="fw-bold text-danger fs-6">0 ج.م</div>
+                  <div id="val-61-90" class="fw-bold text-danger fs-6">0 {% currency_symbol supplier %}</div>
                 </div>
               </div>
               <div class="col">
                 <div class="p-3 bg-danger text-white rounded">
                   <small class="d-block mb-1 opacity-75">{% trans "+90 يوماً" %}</small>
-                  <div id="val-90-plus" class="fw-bold fs-6">0 ج.م</div>
+                  <div id="val-90-plus" class="fw-bold fs-6">0 {% currency_symbol supplier %}</div>
                 </div>
               </div>
             </div>
@@ -976,7 +976,7 @@
   <script src="{% static 'js/global-table.js' %}"></script>
 
   <script>
-    function formatSmartNumber(val, suffix = ' ج.م') {
+    function formatSmartNumber(val, suffix = ' {% currency_symbol supplier %}') {
       if (val === null || val === undefined || val === '') return '0' + suffix;
       let num = parseFloat(val);
       if (isNaN(num)) return '0' + suffix;
@@ -1891,11 +1891,11 @@
               </div>
               <div class="row g-2">
                 <div class="col-md-6">
-                  <label class="form-label small">سعر التراج / 1,000 طبعة (ج.م)</label>
+                  <label class="form-label small">سعر التراج / 1,000 طبعة ({% currency_symbol supplier %})</label>
                   <input type="number" step="0.5" class="form-control form-control-sm fw-bold" name="press_50x70_price" value="45.00" required>
                 </div>
                 <div class="col-md-6">
-                  <label class="form-label small">فتحة الماكينة / إعداد (ج.م)</label>
+                  <label class="form-label small">فتحة الماكينة / إعداد ({% currency_symbol supplier %})</label>
                   <input type="number" step="0.5" class="form-control form-control-sm" name="press_50x70_setup" value="0.00">
                 </div>
               </div>
@@ -1908,11 +1908,11 @@
               </div>
               <div class="row g-2">
                 <div class="col-md-6">
-                  <label class="form-label small">سعر التراج / 1,000 طبعة (ج.م)</label>
+                  <label class="form-label small">سعر التراج / 1,000 طبعة ({% currency_symbol supplier %})</label>
                   <input type="number" step="0.5" class="form-control form-control-sm fw-bold" name="press_70x100_price" value="75.00" required>
                 </div>
                 <div class="col-md-6">
-                  <label class="form-label small">فتحة الماكينة / إعداد (ج.م)</label>
+                  <label class="form-label small">فتحة الماكينة / إعداد ({% currency_symbol supplier %})</label>
                   <input type="number" step="0.5" class="form-control form-control-sm" name="press_70x100_setup" value="0.00">
                 </div>
               </div>

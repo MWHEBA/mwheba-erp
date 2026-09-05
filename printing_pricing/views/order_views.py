@@ -432,6 +432,14 @@ class OrderCreateView(LoginRequiredMixin, CreateView):
         context['finishing_types'] = FinishingType.objects.filter(is_active=True).order_by('name')
         context['paper_suppliers'] = get_active_paper_suppliers()
         
+        from financial.models import Currency
+        from financial.services.exchange_rate_service import ExchangeRateService
+        func_curr = ExchangeRateService.get_functional_currency()
+        context['currencies'] = Currency.objects.filter(is_active=True).order_by('-is_functional', 'code')
+        context['functional_currency'] = func_curr
+        context['currency_symbol'] = func_curr.symbol if func_curr else 'ج.م'
+        context['currency_code'] = func_curr.code if func_curr else 'EGP'
+
         context['breadcrumb_items'] = [
             {'title': _('الرئيسية'), 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},
             {'title': _('طلبات التسعير'), 'url': reverse('printing_pricing:order_list'), 'icon': 'fas fa-print'},
@@ -593,6 +601,14 @@ class OrderUpdateView(LoginRequiredMixin, UpdateView):
         context['paper_suppliers'] = get_active_paper_suppliers()
         context['saved_paper_spec'] = self.object.paper_specs.filter(is_active=True).first()
         
+        from financial.models import Currency
+        from financial.services.exchange_rate_service import ExchangeRateService
+        func_curr = ExchangeRateService.get_functional_currency()
+        context['currencies'] = Currency.objects.filter(is_active=True).order_by('-is_functional', 'code')
+        context['functional_currency'] = func_curr
+        context['currency_symbol'] = self.object.currency_symbol
+        context['currency_code'] = self.object.currency_code
+
         context['breadcrumb_items'] = [
             {'title': _('الرئيسية'), 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},
             {'title': _('طلبات التسعير'), 'url': reverse('printing_pricing:order_list'), 'icon': 'fas fa-print'},

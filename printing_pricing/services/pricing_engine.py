@@ -44,7 +44,28 @@ class PrintingCalculationEngine:
             Dict: هيكل بيانات متكامل ومفصل لتكاليف ومخرجات الشغلانة.
         """
         try:
-            # 1. استخراج وتدقيق المعاملات الأساسية
+            # 1. تحديد العملة المستهدفة لحسابات التسعير وتاريخ سعر الصرف وفق IAS 21
+            target_curr = params.get('currency')
+            if not target_curr:
+                curr_code = params.get('currency_code')
+                if curr_code:
+                    try:
+                        from financial.models import Currency
+                        target_curr = Currency.objects.filter(code__iexact=curr_code).first()
+                    except Exception:
+                        pass
+            if not target_curr:
+                try:
+                    from financial.services.exchange_rate_service import ExchangeRateService
+                    target_curr = ExchangeRateService.get_functional_currency()
+                except Exception:
+                    pass
+
+            order_date = params.get('order_date')
+            params['_target_curr'] = target_curr
+            params['_order_date'] = order_date
+
+            # 2. استخراج وتدقيق المعاملات الأساسية
             qty = cls._to_int(params.get('quantity'), 1000)
             if qty <= 0:
                 qty = 1000
@@ -158,6 +179,17 @@ class PrintingCalculationEngine:
                 qty=qty
             )
 
+            # استخراج العملة والرمز بشكل نقي وديناميكي
+            final_curr_code = getattr(target_curr, 'code', 'EGP')
+            final_curr_symbol = getattr(target_curr, 'symbol', '')
+            if not final_curr_symbol:
+                try:
+                    from financial.services.exchange_rate_service import ExchangeRateService
+                    func_c = ExchangeRateService.get_functional_currency()
+                    final_curr_symbol = func_c.symbol if func_c else 'ج.م'
+                except Exception:
+                    final_curr_symbol = 'ج.م'
+
             return {
                 'success': True,
                 'dimensions': {
@@ -184,7 +216,9 @@ class PrintingCalculationEngine:
                 'inner': inner_res,
                 'logistics': logistics_res,
                 'totals': totals_res,
-                'currency': 'EGP'
+                'currency': final_curr_code,
+                'currency_code': final_curr_code,
+                'currency_symbol': final_curr_symbol,
             }
 
         except Exception as e:
@@ -259,6 +293,48 @@ class PrintingCalculationEngine:
             return p_h, (p_w / Decimal('2.0')), 2
 
     @classmethod
+    def _convert_currency(
+        cls, amount: Decimal, from_curr=None, to_curr=None, date=None
+    ) -> Decimal:
+        """
+        تحويل المبلغ بين أي عملتين طبقاً لمعيار IAS 21 والخدمة المركزية ExchangeRateService.
+        إذا لم يتم تمرير to_curr أو from_curr يتم استخدام العملة الوظيفية للنظام.
+        """
+        if not amount or amount <= Decimal('0.00'):
+            return Decimal('0.0000')
+
+        try:
+            from financial.services.exchange_rate_service import ExchangeRateService
+            func_curr = ExchangeRateService.get_functional_currency()
+            func_code = func_curr.code if func_curr else 'EGP'
+
+            from_code = getattr(from_curr, 'code', str(from_curr)) if from_curr else func_code
+            to_code = getattr(to_curr, 'code', str(to_curr)) if to_curr else func_code
+
+            if from_code == to_code:
+                return amount
+
+            rate = ExchangeRateService.get_rate(from_code=from_code, to_code=to_code, date=date)
+            if rate and rate > 0:
+                return (amount * rate).quantize(Decimal('0.0001'))
+        except Exception:
+            pass
+        return amount
+
+    @classmethod
+    def _convert_to_egp(cls, amount: Decimal, currency=None) -> Decimal:
+        """دالة متوافقة مع الاستدعاءات القديمة - تحول للعملة الوظيفية للنظام"""
+        return cls._convert_currency(amount, from_curr=currency)
+
+    @classmethod
+    def _get_benchmark_rate(cls, key: str, target_curr=None, date=None) -> Decimal:
+        """جلب السعر الاسترشادي وتحويله لعملة التسعير المستهدفة إذا كانت أجنبية"""
+        base = cls.BENCHMARK_RATES.get(key, Decimal('0.00'))
+        if not target_curr:
+            return base
+        return cls._convert_currency(base, from_curr=None, to_curr=target_curr, date=date)
+
+    @classmethod
     def _calculate_imposition(
         cls, open_w: Decimal, open_h: Decimal, w_cut: Decimal, h_cut: Decimal, grain_dir: str
     ) -> Dict[str, Any]:
@@ -293,22 +369,30 @@ class PrintingCalculationEngine:
     def _calculate_paper_requirements(
         cls, qty: int, montage: int, machine_cuts: int, w_cut: Decimal, h_cut: Decimal, params: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """حساب شيتات الماكينة الصافية، الهادر التفاعلي، وأفرخ الورق الخام وتكلفتها بالجنيه المصري."""
+        """حساب شيتات الماكينة الصافية، الهادر التفاعلي ومراحل التشطيب، وأفرخ الورق الخام وتكلفتها بالجنيه المصري."""
         net_press_sheets = math.ceil(qty / montage)
 
-        # الهادر التفاعلي من المستخدم، أو اقتراح أولي ذكي
+        # الهادر التفاعلي: تظبيط الماكينة + أفرخ هدر التظبيط لمراحل التشطيب والسلوفان
         waste_input = params.get('waste_sheets')
         if waste_input is not None and str(waste_input).strip() != '':
             waste_sheets = cls._to_int(waste_input, 20)
         else:
-            # اقتراح ذكي استرشادي: 20 فرخ لتظبيط الماكينة + 10 لكل مرحلة تشطيب
             waste_sheets = 20
+            # إضافة أفرخ هدر السلوفان إن وجد
+            if str(params.get('lamination') or params.get('coating_type') or 'none').lower() not in ['none', '']:
+                waste_sheets += 15
+            # إضافة أفرخ هدر التكسير إن وجد
+            if cls._to_bool(params.get('has_die_cut')) or cls._to_bool(params.get('has_die_cutting')) or cls._to_bool(params.get('die_cutting')):
+                waste_sheets += 10
+            # إضافة أفرخ هدر البصمة أو الكوفراج
+            if cls._to_bool(params.get('has_foil')) or cls._to_bool(params.get('has_emboss')):
+                waste_sheets += 10
 
         gross_press_sheets = net_press_sheets + waste_sheets
         parent_sheets = math.ceil(gross_press_sheets / machine_cuts)
 
         # قراءة سعر الفرخ الخام من خدمة المورد إن وجدت، أو السعر الاسترشادي
-        sheet_price = cls._resolve_paper_price(params, w_cut, h_cut)
+        sheet_price = cls._resolve_paper_price(params, w_cut, h_cut, machine_cuts)
         total_paper_cost = (Decimal(str(parent_sheets)) * sheet_price).quantize(Decimal('0.01'))
 
         # حساب عدد الرزم (500 فرخ للرزمة قياسياً)
@@ -329,9 +413,15 @@ class PrintingCalculationEngine:
         }
 
     @classmethod
-    def _resolve_paper_price(cls, params: Dict[str, Any], w_cut: Decimal, h_cut: Decimal) -> Decimal:
-        """جلب سعر الفرخ الخام بالجنيه المصري من SupplierService أو استخدام السعر الاسترشادي."""
+    def _resolve_paper_price(cls, params: Dict[str, Any], w_cut: Decimal, h_cut: Decimal, machine_cuts: int = 1) -> Decimal:
+        """
+        جلب سعر الفرخ الخام الكامل بالجنيه المصري من SupplierService المعتمد أو استخدام السعر الاسترشادي.
+        يتم حساب سعر الفرخ الصافي استناداً إلى أبعاد الفرخ الخام الحقيقي للمورد لتجنب عجز التكلفة.
+        """
         paper_price_input = params.get('paper_price')
+        target_curr = params.get('_target_curr')
+        order_date = params.get('_order_date')
+
         if paper_price_input is not None and str(paper_price_input).strip() != '':
             try:
                 return cls._to_decimal(paper_price_input, Decimal('0.00'))
@@ -347,16 +437,43 @@ class PrintingCalculationEngine:
                 from supplier.models import SupplierService
                 svc = SupplierService.objects.filter(id=paper_svc_id, is_active=True).first()
                 if svc:
-                    eff_price = svc.get_effective_sheet_price(width_cm=w_cut, height_cm=h_cut, gsm=gsm)
+                    # تحديد أبعاد الفرخ الخام الحقيقي
+                    if svc.paper_size:
+                        raw_w = Decimal(str(svc.paper_size.width))
+                        raw_h = Decimal(str(svc.paper_size.height))
+                    else:
+                        raw_w = w_cut * Decimal(str(machine_cuts))
+                        raw_h = h_cut
+
+                    eff_price = svc.get_effective_sheet_price(width_cm=raw_w, height_cm=raw_h, gsm=gsm)
+                    eff_price = cls._convert_currency(eff_price, from_curr=svc.effective_currency, to_curr=target_curr, date=order_date)
                     if eff_price and eff_price > Decimal('0.00'):
                         return Decimal(str(eff_price))
                     elif svc.base_price > Decimal('0.00'):
-                        return Decimal(str(svc.base_price))
+                        return cls._convert_currency(Decimal(str(svc.base_price)), from_curr=svc.effective_currency, to_curr=target_curr, date=order_date)
             except Exception:
                 pass
 
+        # استدعاء المورد المفضل لخامات الورق إن وجد
+        try:
+            from supplier.models import SupplierService
+            pref_svc = SupplierService.objects.filter(
+                service_type__code='paper',
+                is_active=True,
+                supplier__is_preferred=True
+            ).first()
+            if pref_svc:
+                raw_w = Decimal(str(pref_svc.paper_size.width)) if pref_svc.paper_size else (w_cut * Decimal(str(machine_cuts)))
+                raw_h = Decimal(str(pref_svc.paper_size.height)) if pref_svc.paper_size else h_cut
+                eff_price = pref_svc.get_effective_sheet_price(width_cm=raw_w, height_cm=raw_h, gsm=gsm)
+                eff_price = cls._convert_currency(eff_price, from_curr=pref_svc.effective_currency, to_curr=target_curr, date=order_date)
+                if eff_price and eff_price > Decimal('0.00'):
+                    return Decimal(str(eff_price))
+        except Exception:
+            pass
+
         # السعر الاسترشادي بحسب الجراماج
-        base_rate = cls.BENCHMARK_RATES['paper_base_rate_300g']
+        base_rate = cls._get_benchmark_rate('paper_base_rate_300g', target_curr=target_curr, date=order_date)
         return (base_rate * (gsm / Decimal('300.0'))).quantize(Decimal('0.01'))
 
     @classmethod
@@ -364,19 +481,43 @@ class PrintingCalculationEngine:
         cls, cover_type: str, sides_mode: str, gross_press_sheets: int, 
         w_cut: Decimal, h_cut: Decimal, params: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """حساب تكاليف الطباعة (أوفست مع صمام فتحة الماكينة والتراج / ديجيتال / بانر) بالجنيه المصري."""
+        """حساب تكاليف الطباعة (أوفست مع صمام فتحة الماكينة والتراج / ديجيتال / بانر) بالعملة المحددة."""
         if cover_type == 'none':
             return {'total_cost': 0.0, 'press_pulls': 0, 'tirages': 0, 'printing_type': 'none'}
 
-        if cover_type == 'digital':
-            # طباعة ليزر ديجيتال
-            is_color = cls._to_bool(params.get('is_digital_color', True))
-            click_rate = cls.BENCHMARK_RATES['digital_click_a3_color'] if is_color else cls.BENCHMARK_RATES['digital_click_a3_bw']
-            sides_mult = 2 if 'double' in sides_mode or 'work' in sides_mode else 1
-            total_clicks = gross_press_sheets * sides_mult
-            cost = (Decimal(str(total_clicks)) * click_rate).quantize(Decimal('0.01'))
+        target_curr = params.get('_target_curr')
+        order_date = params.get('_order_date')
+
+        # طباعة خامات كبيرة / لافتات (Banner/Vinyl)
+        if cover_type in ['digital_banner', 'banner', 'large_format']:
+            sqm_per_sheet = (w_cut * h_cut) / Decimal('10000.0')
+            total_sqm = sqm_per_sheet * Decimal(str(gross_press_sheets))
+            raw_banner_rate = params.get('banner_sqm_rate')
+            if raw_banner_rate is not None and str(raw_banner_rate).strip() != '':
+                banner_rate = cls._to_decimal(raw_banner_rate, Decimal('85.00'))
+            else:
+                banner_rate = cls._convert_currency(Decimal('85.00'), to_curr=target_curr, date=order_date)
+            banner_cost = (total_sqm * banner_rate).quantize(Decimal('0.01'))
             return {
-                'total_cost': float(cost),
+                'total_cost': float(banner_cost),
+                'total_sqm': float(total_sqm),
+                'sqm_rate': float(banner_rate),
+                'press_pulls': gross_press_sheets,
+                'tirages': 0,
+                'printing_type': 'digital_banner'
+            }
+
+        # طباعة ديجيتال (Digital Sheet-fed)
+        if cover_type == 'digital':
+            is_color = cls._to_bool(params.get('is_color', True))
+            default_click = cls._get_benchmark_rate('digital_click_a3_color' if is_color else 'digital_click_a3_bw', target_curr=target_curr, date=order_date)
+            click_rate = cls._to_decimal(params.get('digital_click_rate'), default_click)
+            clicks_mult = 2 if sides_mode in ['work_turn', 'work_and_turn', 'work_sheet'] else 1
+            total_clicks = gross_press_sheets * clicks_mult
+            digital_cost = (Decimal(str(total_clicks)) * click_rate).quantize(Decimal('0.01'))
+            return {
+                'total_cost': float(digital_cost),
+                'total_clicks': total_clicks,
                 'press_pulls': total_clicks,
                 'tirages': 0,
                 'click_rate': float(click_rate),
@@ -388,17 +529,18 @@ class PrintingCalculationEngine:
         press_pulls = gross_press_sheets * pulls_mult
         tirages = math.ceil(press_pulls / 1000)
 
-        # استدعاء سعر التراج والحد الأدنى لفتحة الماكينة من ماكينة المورد المحددة
-        rate_per_1000, min_floor = cls._resolve_press_machine_rates(params, w_cut, h_cut)
+        # استدعاء سعر التراج والحد الأدنى لفتحة الماكينة من ماكينة المورد المحددة مع دعم شرائح الكميات
+        rate_per_1000, min_floor = cls._resolve_press_machine_rates(params, w_cut, h_cut, tirages=tirages)
 
         base_press_cost = Decimal(str(tirages)) * rate_per_1000
         applied_press_cost = max(min_floor, base_press_cost)
         is_floor_applied = (base_press_cost < min_floor)
 
-        # مصاريف الألوان المخصوصة (بنتون - 150 ج لكل لون مخصوص لغسيل حوض الحبر)
+        # مصاريف الألوان المخصوصة (بنتون - لغسيل حوض الحبر)
         spot_front = cls._to_int(params.get('spot_colors_front'), 0)
         spot_back = cls._to_int(params.get('spot_colors_back'), 0) if sides_mode == 'work_sheet' else 0
-        spot_colors_cost = Decimal(str(spot_front + spot_back)) * cls.BENCHMARK_RATES['spot_color_wash_fee']
+        spot_wash_fee = cls._get_benchmark_rate('spot_color_wash_fee', target_curr=target_curr, date=order_date)
+        spot_colors_cost = Decimal(str(spot_front + spot_back)) * spot_wash_fee
 
         total_offset_cost = (applied_press_cost + spot_colors_cost).quantize(Decimal('0.01'))
 
@@ -417,8 +559,11 @@ class PrintingCalculationEngine:
 
     @classmethod
     def _resolve_press_machine_rates(
-        cls, params: Dict[str, Any], w_cut: Decimal, h_cut: Decimal
+        cls, params: Dict[str, Any], w_cut: Decimal, h_cut: Decimal, tirages: int = 1
     ) -> Tuple[Decimal, Decimal]:
+        target_curr = params.get('_target_curr')
+        order_date = params.get('_order_date')
+
         # قراءة سعر التراج الصريح إذا تم تمريره من الفورم أو الاختبار
         press_rate_input = params.get('press_rate')
         if press_rate_input:
@@ -435,8 +580,11 @@ class PrintingCalculationEngine:
                 from supplier.models import SupplierService
                 svc = SupplierService.objects.filter(id=press_svc_id, is_active=True).first()
                 if svc:
-                    rate = Decimal(str(svc.base_price)) if svc.base_price > 0 else cls.BENCHMARK_RATES['press_rate_50x70']
-                    floor = Decimal(str(svc.minimum_charge)) if (svc.minimum_charge and svc.minimum_charge > 0) else Decimal('0.00')
+                    # دعم شرائح الكميات الحية
+                    unit_rate = svc.get_price_for_quantity(tirages)
+                    unit_rate = cls._convert_currency(unit_rate, from_curr=svc.effective_currency, to_curr=target_curr, date=order_date)
+                    rate = unit_rate if unit_rate > 0 else cls._get_benchmark_rate('press_rate_50x70', target_curr=target_curr, date=order_date)
+                    floor = cls._convert_currency(Decimal(str(svc.minimum_charge)), from_curr=svc.effective_currency, to_curr=target_curr, date=order_date) if (svc.minimum_charge and svc.minimum_charge > 0) else Decimal('0.00')
                     return rate, floor
             except Exception:
                 pass
@@ -445,12 +593,10 @@ class PrintingCalculationEngine:
         explicit_floor = params.get('press_floor') or params.get('minimum_charge')
         floor = cls._to_decimal(explicit_floor, Decimal('0.00')) if explicit_floor is not None else Decimal('0.00')
 
-        # التسعيرة الاسترشادية بحسب مقاس الماكينة (50×70 نصف فرخ = 45 ج، أكبر من 70 سم فرخ كامل = 75 ج)
+        # التسعيرة الاسترشادية بحسب مقاس الماكينة
         is_full_sheet = (w_cut > Decimal('70.0') or h_cut > Decimal('70.0'))
-        if is_full_sheet:
-            return cls.BENCHMARK_RATES['press_rate_70x100'], floor
-        else:
-            return cls.BENCHMARK_RATES['press_rate_50x70'], floor
+        bm_key = 'press_rate_70x100' if is_full_sheet else 'press_rate_50x70'
+        return cls._get_benchmark_rate(bm_key, target_curr=target_curr, date=order_date), floor
 
     @classmethod
     def _calculate_ctp_plates(
@@ -495,11 +641,14 @@ class PrintingCalculationEngine:
 
     @classmethod
     def _resolve_plate_price(cls, params: Dict[str, Any], w_cut: Decimal, h_cut: Decimal) -> Decimal:
-        """جلب سعر الزنكة بالجنيه المصري."""
+        """جلب سعر الزنكة بالعملة المحددة."""
+        target_curr = params.get('_target_curr')
+        order_date = params.get('_order_date')
+
         plate_price_input = params.get('plate_price')
         if plate_price_input:
             try:
-                return cls._to_decimal(plate_price_input, cls.BENCHMARK_RATES['plate_price_50x70'])
+                return cls._to_decimal(plate_price_input, cls._get_benchmark_rate('plate_price_50x70', target_curr=target_curr, date=order_date))
             except Exception:
                 pass
 
@@ -509,47 +658,122 @@ class PrintingCalculationEngine:
                 from supplier.models import SupplierService
                 svc = SupplierService.objects.filter(id=ctp_svc_id, is_active=True).first()
                 if svc and svc.base_price > 0:
-                    return Decimal(str(svc.base_price))
+                    return cls._convert_currency(Decimal(str(svc.base_price)), from_curr=svc.effective_currency, to_curr=target_curr, date=order_date)
             except Exception:
                 pass
 
+        # البحث عن المورد المفضل للزنكات إن وجد
+        try:
+            from supplier.models import SupplierService
+            pref_svc = SupplierService.objects.filter(
+                service_type__code='ctp_plates',
+                is_active=True,
+                supplier__is_preferred=True
+            ).first()
+            if pref_svc and pref_svc.base_price > 0:
+                return cls._convert_currency(Decimal(str(pref_svc.base_price)), from_curr=pref_svc.effective_currency, to_curr=target_curr, date=order_date)
+        except Exception:
+            pass
+
         is_full = (w_cut > Decimal('55.0') or h_cut > Decimal('75.0'))
-        return cls.BENCHMARK_RATES['plate_price_70x100'] if is_full else cls.BENCHMARK_RATES['plate_price_50x70']
+        bm_key = 'plate_price_70x100' if is_full else 'plate_price_50x70'
+        return cls._get_benchmark_rate(bm_key, target_curr=target_curr, date=order_date)
 
     @classmethod
     def _calculate_finishing_costs(
         cls, params: Dict[str, Any], gross_press_sheets: int, parent_sheets: int, w_cut: Decimal, h_cut: Decimal
     ) -> Dict[str, Any]:
-        """حساب خدمات ما بعد الطباعة (السلوفان، التكسير، البصمة، اليو في) بالجنيه المصري."""
+        """حساب خدمات ما بعد الطباعة (السلوفان، التكسير، البصمة، اليو في) بالعملة المحددة مع استدعاء أسعار الموردين المعتمدة."""
         total_finishing = Decimal('0.00')
         details = {}
 
+        target_curr = params.get('_target_curr')
+        order_date = params.get('_order_date')
+
+        from supplier.models import SupplierService
+
         # 1. السلوفان (Lamination)
-        lam_type = str(params.get('lamination') or params.get('lamination_type') or 'none').lower()
+        lam_type = str(params.get('lamination') or params.get('lamination_type') or params.get('coating_type') or 'none').lower()
         if lam_type not in ['none', '']:
             sqm_per_sheet = (w_cut * h_cut) / Decimal('10000.0')
             total_sqm = sqm_per_sheet * Decimal(str(gross_press_sheets))
-            sides = 2 if 'double' in lam_type or params.get('lamination_sides') == 'double' else 1
-            rate = cls.BENCHMARK_RATES['lamination_sqm_matte'] if 'matte' in lam_type else cls.BENCHMARK_RATES['lamination_sqm_gloss']
-            lam_cost = max(cls.BENCHMARK_RATES['lamination_floor'], total_sqm * Decimal(str(sides)) * rate)
+            sides = 2 if 'double' in lam_type or str(params.get('lamination_sides')) == '2' else 1
+
+            # البحث عن خدمة المورد المعتمدة للسلوفان
+            lam_svc = None
+            coating_svc_id = params.get('coating_service_id')
+            if coating_svc_id:
+                lam_svc = SupplierService.objects.filter(id=coating_svc_id, is_active=True).first()
+            if not lam_svc:
+                # محاولة المطابقة بنوع السلوفان المفضل أو الأرخص
+                lam_svc = SupplierService.objects.filter(
+                    service_type__code='coating',
+                    is_active=True
+                ).order_by('-supplier__is_preferred', 'base_price').first()
+
+            if lam_svc and lam_svc.base_price > 0:
+                rate = cls._convert_currency(Decimal(str(lam_svc.base_price)), from_curr=lam_svc.effective_currency, to_curr=target_curr, date=order_date)
+                floor = cls._convert_currency(Decimal(str(lam_svc.minimum_charge or '0.00')), from_curr=lam_svc.effective_currency, to_curr=target_curr, date=order_date)
+            else:
+                rate = cls._get_benchmark_rate('lamination_sqm_matte' if 'matte' in lam_type else 'lamination_sqm_gloss', target_curr=target_curr, date=order_date)
+                floor = cls._get_benchmark_rate('lamination_floor', target_curr=target_curr, date=order_date)
+
+            lam_cost = max(floor, total_sqm * Decimal(str(sides)) * rate)
             lam_cost = lam_cost.quantize(Decimal('0.01'))
             total_finishing += lam_cost
             details['lamination'] = float(lam_cost)
 
         # 2. التكسير (Die-Cutting)
-        has_die = cls._to_bool(params.get('has_die_cut')) or cls._to_bool(params.get('die_cutting'))
+        has_die = cls._to_bool(params.get('has_die_cut')) or cls._to_bool(params.get('has_die_cutting')) or cls._to_bool(params.get('die_cutting'))
         if has_die:
-            die_mould_cost = Decimal('250.00')  # فورمة خشب وسكاكين
-            die_pull_cost = Decimal(str(math.ceil(gross_press_sheets / 1000))) * Decimal('50.00')
+            die_svc = SupplierService.objects.filter(
+                service_type__code='finishing',
+                finishing_type__name__icontains='تكسير',
+                is_active=True
+            ).order_by('-supplier__is_preferred', 'base_price').first()
+
+            if die_svc:
+                die_mould_cost = cls._convert_currency(Decimal(str(die_svc.tooling_cost or '250.00')), from_curr=die_svc.effective_currency, to_curr=target_curr, date=order_date)
+                die_pull_rate = cls._convert_currency(Decimal(str(die_svc.base_price or '50.00')), from_curr=die_svc.effective_currency, to_curr=target_curr, date=order_date)
+            else:
+                die_mould_cost = cls._convert_currency(Decimal('250.00'), to_curr=target_curr, date=order_date)
+                die_pull_rate = cls._convert_currency(Decimal('50.00'), to_curr=target_curr, date=order_date)
+
+            die_pull_cost = Decimal(str(math.ceil(gross_press_sheets / 1000))) * die_pull_rate
             die_total = die_mould_cost + die_pull_cost
             total_finishing += die_total
             details['die_cutting'] = float(die_total)
 
         # 3. السبوت يو في (Spot UV)
         if cls._to_bool(params.get('has_spot_uv')):
-            uv_cost = max(Decimal('200.00'), Decimal(str(gross_press_sheets)) * Decimal('0.20'))
+            uv_floor = cls._convert_currency(Decimal('200.00'), to_curr=target_curr, date=order_date)
+            uv_unit = cls._convert_currency(Decimal('0.20'), to_curr=target_curr, date=order_date)
+            uv_cost = max(uv_floor, Decimal(str(gross_press_sheets)) * uv_unit)
             total_finishing += uv_cost
             details['spot_uv'] = float(uv_cost)
+
+        # 4. البصمة الحرارية (Foil)
+        if cls._to_bool(params.get('has_foil')):
+            foil_base = cls._convert_currency(Decimal('180.00'), to_curr=target_curr, date=order_date)
+            foil_rate = cls._convert_currency(Decimal('60.00'), to_curr=target_curr, date=order_date)
+            foil_cost = foil_base + (Decimal(str(math.ceil(gross_press_sheets / 1000))) * foil_rate)
+            total_finishing += foil_cost
+            details['foil'] = float(foil_cost)
+
+        # 5. كوفراج بارز (Embossing)
+        if cls._to_bool(params.get('has_emboss')):
+            emboss_base = cls._convert_currency(Decimal('150.00'), to_curr=target_curr, date=order_date)
+            emboss_rate = cls._convert_currency(Decimal('45.00'), to_curr=target_curr, date=order_date)
+            emboss_cost = emboss_base + (Decimal(str(math.ceil(gross_press_sheets / 1000))) * emboss_rate)
+            total_finishing += emboss_cost
+            details['emboss'] = float(emboss_cost)
+
+        # 6. خط ريجة / طي (Creasing)
+        if cls._to_bool(params.get('has_creasing')):
+            crease_rate = cls._convert_currency(Decimal('25.00'), to_curr=target_curr, date=order_date)
+            crease_cost = Decimal(str(math.ceil(gross_press_sheets / 1000))) * crease_rate
+            total_finishing += crease_cost
+            details['creasing'] = float(crease_cost)
 
         return {
             'total_cost': float(total_finishing),
@@ -558,9 +782,12 @@ class PrintingCalculationEngine:
 
     @classmethod
     def _calculate_inner_pages(cls, params: Dict[str, Any], product_type: str, qty: int) -> Dict[str, Any]:
-        """حساب الملازم والصفحات الداخلية للكتب والكتالوجات بالجنيه المصري."""
+        """حساب الملازم والصفحات الداخلية للكتب والكتالوجات بالعملة المحددة."""
         if product_type not in ['book', 'catalog', 'book_catalog', 'magazine']:
             return {'total_cost': 0.0, 'pages_count': 0, 'signatures_count': 0}
+
+        target_curr = params.get('_target_curr')
+        order_date = params.get('_order_date')
 
         pages = cls._to_int(params.get('pages_count') or params.get('inner_pages'), 32)
         sig_capacity = 16  # ملزمة 16 صفحة
@@ -572,18 +799,18 @@ class PrintingCalculationEngine:
         inner_waste = math.ceil(total_inner_sheets * 0.05)
         gross_inner = total_inner_sheets + inner_waste
 
-        # سعر ورق الداخلي (مثلاً 115 جم أو 135 جم كوشيه = 2.00 ج للفرخ)
-        inner_sheet_price = Decimal('2.00')
+        # سعر ورق الداخلي الاسترشادي
+        inner_sheet_price = cls._convert_currency(Decimal('2.00'), to_curr=target_curr, date=order_date)
         inner_paper_cost = (Decimal(str(gross_inner)) * inner_sheet_price).quantize(Decimal('0.01'))
 
         # طباعة الداخلي: كل ملزمة تحتاج 4 زنكات وش وضهر طبع وقلب أو 8 زنكات
         inner_plates = signatures * 4
-        inner_plate_cost = Decimal(str(inner_plates)) * cls.BENCHMARK_RATES['plate_price_50x70']
+        inner_plate_cost = Decimal(str(inner_plates)) * cls._get_benchmark_rate('plate_price_50x70', target_curr=target_curr, date=order_date)
 
         # سحبات الداخلي
         inner_pulls = gross_inner * 2
         inner_tirages = math.ceil(inner_pulls / 1000)
-        inner_press_cost = Decimal(str(inner_tirages)) * cls.BENCHMARK_RATES['press_rate_50x70']
+        inner_press_cost = Decimal(str(inner_tirages)) * cls._get_benchmark_rate('press_rate_50x70', target_curr=target_curr, date=order_date)
 
         total_inner_cost = inner_paper_cost + inner_plate_cost + inner_press_cost
 
@@ -598,14 +825,17 @@ class PrintingCalculationEngine:
 
     @classmethod
     def _calculate_logistics(cls, params: Dict[str, Any], qty: int) -> Dict[str, Any]:
-        """حساب كراتين التعبئة وتكاليف الشحن والتوصيل بالجنيه المصري."""
+        """حساب كراتين التعبئة وتكاليف الشحن والتوصيل بالعملة المحددة."""
+        target_curr = params.get('_target_curr')
+        order_date = params.get('_order_date')
+
         carton_cost = Decimal('0.00')
         delivery_cost = cls._to_decimal(params.get('shipping_cost') or params.get('delivery_cost'), Decimal('0.00'))
 
         capacity_per_box = cls._to_int(params.get('units_per_box') or params.get('carton_capacity'), 500)
         if capacity_per_box > 0 and cls._to_bool(params.get('has_cartons', True)):
             boxes_count = math.ceil(qty / capacity_per_box)
-            carton_price = Decimal('15.00')  # 15 ج للكرتونة المعيارية
+            carton_price = cls._convert_currency(Decimal('15.00'), to_curr=target_curr, date=order_date)
             carton_cost = Decimal(str(boxes_count)) * carton_price
         else:
             boxes_count = 0

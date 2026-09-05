@@ -42,6 +42,13 @@
                         <tr>
                             <td>
                                 <strong>{{ plate_size.name }}</strong>
+                                {% if plate_size.machine %}
+                                <div class="mt-1">
+                                    <span class="badge bg-light text-primary border" style="font-size:0.75rem;">
+                                        <i class="fas fa-print me-1"></i>{{ plate_size.machine.name }}
+                                    </span>
+                                </div>
+                                {% endif %}
                             </td>
                             <td>
                                 <span class="badge bg-light text-dark border">

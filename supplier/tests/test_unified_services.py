@@ -295,3 +295,107 @@ class SupplierServiceIndustrialPricingTest(TestCase):
 
         d3, err3 = _clean_decimal_input("-10.00")
         self.assertIsNotNone(err3)
+
+    def test_relational_fks_and_mutual_exclusivity(self):
+        """اختبار إنشاء الخدمات بالربط العلائقي المباشر مع التحقق من الحصرية التخصصية"""
+        from django.core.exceptions import ValidationError
+        from ..models import SupplierService
+        from printing_pricing.models import (
+            PrintingMachine, MachineDimension, CoatingType, FinishingType,
+            PackagingType, PaperSize, PaperOrigin, PaperWeight, PaperType
+        )
+
+        plate = MachineDimension.objects.create(
+            name="زنك 50×70 سم",
+            code="plate_50x70",
+            dimension_type="plate",
+            width=Decimal('50.00'),
+            height=Decimal('70.00')
+        )
+        coating = CoatingType.objects.create(
+            name="سلوفان حراري مط",
+            unit_rate=Decimal('0.40')
+        )
+
+        # 1. إنشاء خدمة زنك بالربط المباشر
+        svc_plate = SupplierService(
+            supplier=self.supplier,
+            service_type=self.service_type_lam, # or ctp
+            name="زنك CTP 50x70",
+            base_price=Decimal('75.00'),
+            plate_size=plate
+        )
+        svc_plate.full_clean()
+        svc_plate.save()
+        self.assertEqual(svc_plate.plate_size, plate)
+        self.assertEqual(svc_plate.attributes.get('plate_size'), 'زنك 50×70 سم')
+
+        # 2. التحقق من الحصرية: دمج زنك مع ماكينة طباعة يجب أن يرمي ValidationError
+        mach = PrintingMachine.objects.create(
+            name="SM 52",
+            machine_category="offset",
+            colors_capacity=2
+        )
+        invalid_svc = SupplierService(
+            supplier=self.supplier,
+            service_type=self.service_type_offset,
+            name="خدمة غير صالحة للدمج",
+            base_price=Decimal('100.00'),
+            machine=mach,
+            plate_size=plate
+        )
+        with self.assertRaises(ValidationError):
+            invalid_svc.full_clean()
+
+    def test_tiered_pricing_with_service_price_tier(self):
+        """اختبار حساب الأسعار عبر الشرائح السعرية المتدرجة"""
+        from ..models import SupplierService, ServicePriceTier
+
+        svc = SupplierService.objects.create(
+            supplier=self.supplier,
+            service_type=self.service_type_offset,
+            name="أوفست مع شرائح",
+            base_price=Decimal('50.00'),
+            setup_cost=Decimal('100.00')
+        )
+        ServicePriceTier.objects.create(
+            service=svc,
+            min_quantity=1,
+            max_quantity=3000,
+            price_per_unit=Decimal('50.00')
+        )
+        ServicePriceTier.objects.create(
+            service=svc,
+            min_quantity=3001,
+            max_quantity=6000,
+            price_per_unit=Decimal('42.00')
+        )
+        ServicePriceTier.objects.create(
+            service=svc,
+            min_quantity=6001,
+            max_quantity=None,
+            price_per_unit=Decimal('35.00')
+        )
+
+        # 2000 وحدة -> 50 جنيه
+        self.assertEqual(svc.get_price_for_quantity(2000), Decimal('50.00'))
+        # 5000 وحدة -> 42 جنيه
+        self.assertEqual(svc.get_price_for_quantity(5000), Decimal('42.00'))
+        # 10000 وحدة -> 35 جنيه
+        self.assertEqual(svc.get_price_for_quantity(10000), Decimal('35.00'))
+
+    def test_supplier_service_add_page_renders_successfully(self):
+        """اختبار تحميل صفحة إضافة خدمة للمورد بدون أخطاء قوالب أو متغيرات مفقودة"""
+        from django.urls import reverse
+        from printing_pricing.models import CoatingType, FinishingType, PackagingType
+
+        CoatingType.objects.create(name="سلوفان لامع", unit_rate=Decimal('0.35'), minimum_charge=Decimal('100.00'))
+        FinishingType.objects.create(name="تكسير فورمة", unit_rate=Decimal('0.25'))
+        PackagingType.objects.create(name="كرتونة مضلعة", unit_rate=Decimal('15.00'))
+
+        url = reverse('supplier:supplier_service_add', kwargs={'pk': self.supplier.pk})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "سلوفان لامع")
+        self.assertContains(response, "تكسير فورمة")
+        self.assertContains(response, "كرتونة مضلعة")

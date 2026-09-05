@@ -2,6 +2,7 @@
 {% load static %}
 {% load i18n %}
 {% load utils_extras %}
+{% load custom_filters %}
 
 {% block title %}{{ page_title|default:"حذف / أرشفة المورد" }}{% endblock %}
 
@@ -67,7 +68,7 @@
                                 <div class="col-sm-6">
                                     <span class="text-muted small d-block">{% trans "الاستحقاق الحالي:" %}</span>
                                     <span class="badge {% if supplier.balance != 0 %}bg-danger{% else %}bg-secondary{% endif %} fs-6">
-                                        {{ supplier.balance|smart_float:2 }} {{ supplier.default_currency.symbol|default:"ج.م" }}
+                                        {{ supplier.balance|smart_float:2 }} {% currency_symbol supplier %}
                                     </span>
                                 </div>
                             </div>

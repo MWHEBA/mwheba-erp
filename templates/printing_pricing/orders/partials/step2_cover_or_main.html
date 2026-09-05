@@ -10,7 +10,7 @@
       <span id="step2_header_title">2. {% trans "تفاصيل الطباعة" %}</span>
     </span>
     <span class="badge bg-light text-primary border border-secondary-subtle px-3 py-1 ms-auto me-2 fw-bold" id="step2_cost_badge">
-      0 {{ currency_symbol|default:"ج.م" }}
+      0 {{ currency_symbol|default:functional_currency.symbol }}
     </span>
     <i class="fas fa-chevron-down"></i>
   </h5>
@@ -99,7 +99,7 @@
             <div class="form-check form-switch pt-2">
               <input class="form-check-input" type="checkbox" id="id_has_white_ink" name="has_white_ink" {% if form.has_white_ink.value %}checked{% endif %}>
               <label class="form-check-label small fw-bold" for="id_has_white_ink">
-                {% trans "حبر أبيض" %} (+25 {{ currency_symbol|default:"ج.م" }}/م²)
+                {% trans "حبر أبيض" %} (+25 {{ currency_symbol|default:functional_currency.symbol }}/م²)
               </label>
             </div>
           </div>
@@ -142,7 +142,7 @@
             <div class="input-group">
               <input type="number" class="form-control fw-bold text-primary" id="id_banner_sqm_price" name="banner_sqm_price" 
                      value="{{ form.banner_sqm_price.value|default:'50.00' }}" min="5" step="5">
-              <span class="input-group-text small bg-light">{{ currency_symbol|default:"ج.م" }} / م²</span>
+              <span class="input-group-text small bg-light">{{ currency_symbol|default:functional_currency.symbol }} / م²</span>
             </div>
           </div>
 
@@ -207,7 +207,7 @@
                 <div class="input-group">
                   <input type="number" class="form-control text-center fw-bold" id="id_press_rate" name="press_rate" 
                          value="45" min="0" step="5" title="{% trans 'سعر التراج (ألف سحبة)' %}">
-                  <span class="input-group-text small bg-light">{{ currency_symbol|default:"ج.م" }} / {% trans "تراج" %}</span>
+                  <span class="input-group-text small bg-light">{{ currency_symbol|default:functional_currency.symbol }} / {% trans "تراج" %}</span>
                 </div>
               </div>
 
@@ -231,7 +231,7 @@
                 </label>
                 <div class="form-control bg-light d-flex justify-content-between align-items-center">
                   <span class="small text-muted">{% trans "الإجمالي:" %}</span>
-                  <strong class="text-primary fs-6" id="cover_press_cost_display">0 {{ currency_symbol|default:"ج.م" }}</strong>
+                  <strong class="text-primary fs-6" id="cover_press_cost_display">0 {{ currency_symbol|default:functional_currency.symbol }}</strong>
                 </div>
               </div>
             </div>
@@ -314,7 +314,7 @@
                 <div class="input-group">
                   <input type="number" class="form-control text-center fw-bold" id="id_plate_price" name="plate_price" 
                          value="85" min="0" step="5" title="{% trans 'سعر الزنكة المعتمد' %}">
-                  <span class="input-group-text small bg-light">{{ currency_symbol|default:"ج.م" }}</span>
+                  <span class="input-group-text small bg-light">{{ currency_symbol|default:functional_currency.symbol }}</span>
                 </div>
               </div>
 
@@ -349,7 +349,7 @@
                 </label>
                 <div class="form-control bg-light d-flex justify-content-between align-items-center">
                   <span class="small text-muted">{% trans "الإجمالي:" %}</span>
-                  <strong class="text-primary fs-6" id="cover_ctp_cost_display">0 {{ currency_symbol|default:"ج.م" }}</strong>
+                  <strong class="text-primary fs-6" id="cover_ctp_cost_display">0 {{ currency_symbol|default:functional_currency.symbol }}</strong>
                 </div>
                 <!-- حقل إجمالي الزنكات المخفي للمزامنة البرمجية -->
                 <input type="hidden" id="id_plate_count" name="zinc_plates_count" value="{{ form.zinc_plates_count.value|default:'4' }}">
@@ -434,7 +434,7 @@
                 <div class="input-group">
                   <input type="number" class="form-control fw-bold text-primary text-center" id="id_digital_sheet_price" name="digital_sheet_price" 
                          value="2.50" min="0" step="0.25">
-                  <span class="input-group-text small bg-light">{{ currency_symbol|default:"ج.م" }} / {% trans "طبعة" %}</span>
+                  <span class="input-group-text small bg-light">{{ currency_symbol|default:functional_currency.symbol }} / {% trans "طبعة" %}</span>
                 </div>
               </div>
 
@@ -443,7 +443,7 @@
                 <label class="form-label fw-bold">{% trans "مصاريف القص والريجة" %}</label>
                 <div class="form-control bg-light d-flex justify-content-between align-items-center">
                   <span class="small text-muted">{% trans "مقص إلكتروني:" %}</span>
-                  <span class="badge bg-secondary" id="digital_extra_fees_badge">30.00 {{ currency_symbol|default:"ج.م" }}</span>
+                  <span class="badge bg-secondary" id="digital_extra_fees_badge">30.00 {{ currency_symbol|default:functional_currency.symbol }}</span>
                 </div>
               </div>
 
@@ -452,7 +452,7 @@
                 <label class="form-label fw-bold">{% trans "تكلفة الطباعة الديجيتال" %}</label>
                 <div class="form-control bg-light d-flex justify-content-between align-items-center">
                   <span class="small text-muted">{% trans "الإجمالي:" %}</span>
-                  <strong class="text-primary fs-6" id="cover_digital_cost_display">0 {{ currency_symbol|default:"ج.م" }}</strong>
+                  <strong class="text-primary fs-6" id="cover_digital_cost_display">0 {{ currency_symbol|default:functional_currency.symbol }}</strong>
                 </div>
               </div>
 
@@ -487,14 +487,14 @@
           <label class="form-label fw-bold small text-muted">{% trans "معامل الحبر والسلوفان" %}</label>
           <div class="form-control bg-light d-flex justify-content-between align-items-center">
             <span class="small text-muted" id="banner_ink_mode_label">{% trans "حبر مذيبات CMYK" %}</span>
-            <span class="badge bg-secondary" id="banner_min_floor_badge">{% trans "حد أدنى" %} 50 {{ currency_symbol|default:"ج.م" }}</span>
+            <span class="badge bg-secondary" id="banner_min_floor_badge">{% trans "حد أدنى" %} 50 {{ currency_symbol|default:functional_currency.symbol }}</span>
           </div>
         </div>
         <div class="col-md-4">
           <label class="form-label fw-bold small text-muted">{% trans "إجمالي تكلفة الطباعة" %}</label>
           <div class="form-control bg-light d-flex justify-content-between align-items-center">
             <span class="small text-muted">{% trans "طباعة المتر:" %}</span>
-            <strong class="text-success fs-6" id="banner_total_cost_display">0 {{ currency_symbol|default:"ج.م" }}</strong>
+            <strong class="text-success fs-6" id="banner_total_cost_display">0 {{ currency_symbol|default:functional_currency.symbol }}</strong>
           </div>
         </div>
       </div>
@@ -505,14 +505,14 @@
           <label class="form-label fw-bold small text-muted">{% trans "تجهيز الشابلونات والأفلام" %}</label>
           <div class="form-control bg-light d-flex justify-content-between align-items-center">
             <span class="small text-muted" id="screen_frames_label">{% trans "شابلونات جديدة:" %}</span>
-            <strong class="text-primary fs-6" id="screen_frames_display">0 {{ currency_symbol|default:"ج.م" }}</strong>
+            <strong class="text-primary fs-6" id="screen_frames_display">0 {{ currency_symbol|default:functional_currency.symbol }}</strong>
           </div>
         </div>
         <div class="col-md-6">
           <label class="form-label fw-bold small text-muted">{% trans "سعر طباعة وسحب القطعة" %}</label>
           <div class="form-control bg-light d-flex justify-content-between align-items-center">
             <span class="small text-muted">{% trans "سحب يدوي/نصف أوتوماتيك:" %}</span>
-            <strong class="text-success fs-6" id="screen_pulls_display">0.75 {{ currency_symbol|default:"ج.م" }} / {% trans "قطعة" %}</strong>
+            <strong class="text-success fs-6" id="screen_pulls_display">0.75 {{ currency_symbol|default:functional_currency.symbol }} / {% trans "قطعة" %}</strong>
           </div>
         </div>
       </div>
@@ -766,7 +766,7 @@
                 <div class="input-group">
                   <input type="number" step="0.01" min="0" class="form-control text-center fw-bold" id="id_paper_sheet_price" name="paper_price" 
                          value="{{ form.paper_price.value|default:'3.50' }}" placeholder="3.50">
-                  <span class="input-group-text small bg-light" id="paper_currency_addon">{{ currency_symbol|default:"ج.م" }}</span>
+                  <span class="input-group-text small bg-light" id="paper_currency_addon">{{ currency_symbol|default:functional_currency.symbol }}</span>
                   <button type="button" class="btn btn-outline-primary btn-sm" id="btn_paper_calc_modal" data-bs-toggle="collapse" data-bs-target="#paper_unit_converter_collapse" title="{% trans 'فتح حاسبة تحويل سعر الرزمة أو الطن' %}">
                     <i class="fas fa-calculator"></i>
                   </button>
@@ -794,7 +794,7 @@
                   <i class="fas fa-coins text-warning me-1"></i>{% trans "إجمالي تكلفة الورق" %}
                 </label>
                 <div class="p-2 border rounded bg-white text-center">
-                  <strong class="text-primary fs-5 d-block" id="cover_paper_cost_display">0.00 {{ currency_symbol|default:"ج.م" }}</strong>
+                  <strong class="text-primary fs-5 d-block" id="cover_paper_cost_display">0.00 {{ currency_symbol|default:functional_currency.symbol }}</strong>
                   <div class="d-flex flex-wrap align-items-center justify-content-center gap-2 mt-1 small text-muted">
                     <span><i class="fas fa-tachometer-alt text-success me-1"></i><strong class="text-success" id="display_machine_pulls_count">0 سحبة</strong> <span id="display_machine_tirages">(0 تراج)</span></span>
                     <span>|</span>
@@ -824,7 +824,7 @@
                       <label class="form-label small fw-bold text-secondary">{% trans "سعر الرزمة (رزمة كاملة):" %}</label>
                       <div class="input-group input-group-sm">
                         <input type="number" step="0.5" class="form-control text-center" id="input_ream_price" placeholder="850">
-                        <span class="input-group-text" id="pack_unit_addon">{{ currency_symbol|default:"ج.م" }} / <span id="pack_addon_sheets">500</span> فرخ</span>
+                        <span class="input-group-text" id="pack_unit_addon">{{ currency_symbol|default:functional_currency.symbol }} / <span id="pack_addon_sheets">500</span> فرخ</span>
                       </div>
                     </div>
 
@@ -833,14 +833,14 @@
                       <label class="form-label small fw-bold text-secondary">{% trans "سعر الطن (بالعملة الوظيفية):" %}</label>
                       <div class="input-group input-group-sm">
                         <input type="number" step="10" class="form-control text-center" id="input_ton_price" placeholder="62000">
-                        <span class="input-group-text">{{ currency_symbol|default:"ج.م" }} / طن</span>
+                        <span class="input-group-text">{{ currency_symbol|default:functional_currency.symbol }} / طن</span>
                       </div>
                     </div>
 
                     <div class="col-md-3">
                       <label class="form-label small fw-bold text-secondary">{% trans "الناتج لسعر الفرخ الصافي:" %}</label>
                       <div class="p-1 bg-light text-center border rounded fw-bold text-success" id="calc_converted_sheet_display">
-                        3.50 {{ currency_symbol|default:"ج.م" }}
+                        3.50 {{ currency_symbol|default:functional_currency.symbol }}
                       </div>
                     </div>
 
@@ -931,7 +931,7 @@
             </label>
             <div class="input-group input-group-sm">
               <input type="number" step="0.01" min="0" class="form-control text-center fw-bold" id="id_lamination_face_price" name="lamination_face_price" value="0.40" placeholder="0.40">
-              <span class="input-group-text small bg-light">{{ currency_symbol|default:"ج.م" }}</span>
+              <span class="input-group-text small bg-light">{{ currency_symbol|default:functional_currency.symbol }}</span>
             </div>
             <small class="text-muted d-block mt-1" id="lam_price_unit_hint">{% trans "بالوجه للفرخ (أوفست) وبدون حد أدنى" %}</small>
           </div>
@@ -939,7 +939,7 @@
           <div class="col-12 col-md-3 text-md-end" id="box_lamination_total">
             <label class="form-label fw-bold text-muted small d-block mb-1">{% trans "تكلفة السلوفان الصافية" %}</label>
             <div class="p-2 bg-light border rounded text-center">
-              <strong class="text-primary fs-6" id="display_lamination_cost">0.00 {{ currency_symbol|default:"ج.م" }}</strong>
+              <strong class="text-primary fs-6" id="display_lamination_cost">0.00 {{ currency_symbol|default:functional_currency.symbol }}</strong>
             </div>
           </div>
         </div>
@@ -1013,7 +1013,7 @@
                   </div>
                 </div>
                 <div class="col-6 col-md-2 text-end">
-                  <span class="badge bg-primary text-white fs-7 py-2 px-2" id="display_spot_uv_cost">0.00 {{ currency_symbol|default:"ج.م" }}</span>
+                  <span class="badge bg-primary text-white fs-7 py-2 px-2" id="display_spot_uv_cost">0.00 {{ currency_symbol|default:functional_currency.symbol }}</span>
                   <button type="button" class="btn btn-link btn-sm text-danger p-0 ms-1 btn-close-finishing" data-target="box_settings_spot_uv" data-btn="btn_toggle_spot_uv">&times;</button>
                 </div>
               </div>
@@ -1048,7 +1048,7 @@
                   </div>
                 </div>
                 <div class="col-6 col-md-2 text-end">
-                  <span class="badge bg-primary text-white fs-7 py-2 px-2" id="display_die_cut_cost">0.00 {{ currency_symbol|default:"ج.م" }}</span>
+                  <span class="badge bg-primary text-white fs-7 py-2 px-2" id="display_die_cut_cost">0.00 {{ currency_symbol|default:functional_currency.symbol }}</span>
                   <button type="button" class="btn btn-link btn-sm text-danger p-0 ms-1 btn-close-finishing" data-target="box_settings_die_cut" data-btn="btn_toggle_die_cut">&times;</button>
                 </div>
               </div>
@@ -1084,7 +1084,7 @@
                   </div>
                 </div>
                 <div class="col-6 col-md-2 text-end">
-                  <span class="badge bg-primary text-white fs-7 py-2 px-2" id="display_foil_cost">0.00 {{ currency_symbol|default:"ج.م" }}</span>
+                  <span class="badge bg-primary text-white fs-7 py-2 px-2" id="display_foil_cost">0.00 {{ currency_symbol|default:functional_currency.symbol }}</span>
                   <button type="button" class="btn btn-link btn-sm text-danger p-0 ms-1 btn-close-finishing" data-target="box_settings_foil" data-btn="btn_toggle_foil">&times;</button>
                 </div>
               </div>
@@ -1115,7 +1115,7 @@
                   </div>
                 </div>
                 <div class="col-6 col-md-2 text-end">
-                  <span class="badge bg-primary text-white fs-7 py-2 px-2" id="display_emboss_cost">0.00 {{ currency_symbol|default:"ج.م" }}</span>
+                  <span class="badge bg-primary text-white fs-7 py-2 px-2" id="display_emboss_cost">0.00 {{ currency_symbol|default:functional_currency.symbol }}</span>
                   <button type="button" class="btn btn-link btn-sm text-danger p-0 ms-1 btn-close-finishing" data-target="box_settings_emboss" data-btn="btn_toggle_emboss">&times;</button>
                 </div>
               </div>
@@ -1141,7 +1141,7 @@
                   </div>
                 </div>
                 <div class="col-12 col-md-4 text-end">
-                  <span class="badge bg-primary text-white fs-7 py-2 px-2" id="display_creasing_cost">0.00 {{ currency_symbol|default:"ج.م" }}</span>
+                  <span class="badge bg-primary text-white fs-7 py-2 px-2" id="display_creasing_cost">0.00 {{ currency_symbol|default:functional_currency.symbol }}</span>
                   <button type="button" class="btn btn-link btn-sm text-danger p-0 ms-1 btn-close-finishing" data-target="box_settings_crease" data-btn="btn_toggle_crease">&times;</button>
                 </div>
               </div>

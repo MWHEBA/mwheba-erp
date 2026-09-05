@@ -15,7 +15,7 @@
     <!-- 1. هيدر الحسبة اللحظية المعياري الموحد -->
     <h5 class="section-title">
       <span><i class="fas fa-calculator me-2"></i>{% trans "مركز الحسبة والتسعير اللحظي" %}</span>
-      <span class="badge bg-light text-dark border px-3 py-1 ms-auto" id="currency_symbol_badge">{{ currency_symbol|default:"ج.م" }}</span>
+      <span class="badge bg-light text-dark border px-3 py-1 ms-auto" id="currency_symbol_badge">{{ currency_symbol|default:functional_currency.symbol }}</span>
     </h5>
 
     <!-- 2. جسم كارت الحسبة المالي -->
@@ -26,31 +26,31 @@
       <div class="mb-3 pb-3 border-bottom" id="internal_cost_breakdown">
         <div class="d-flex justify-content-between align-items-center mb-1 small">
           <span class="text-secondary"><i class="fas fa-layer-group me-1 text-primary"></i>{% trans "تكلفة خام الورق:" %}</span>
-          <span class="fw-bold" id="cost_paper_display">0 {{ currency_symbol|default:"ج.م" }}</span>
+          <span class="fw-bold" id="cost_paper_display">0 {{ currency_symbol|default:functional_currency.symbol }}</span>
         </div>
         <div class="d-flex justify-content-between align-items-center mb-1 small">
           <span class="text-secondary"><i class="fas fa-print me-1 text-success"></i>{% trans "تكلفة الطباعة:" %}</span>
-          <span class="fw-bold" id="cost_printing_display">0 {{ currency_symbol|default:"ج.م" }}</span>
+          <span class="fw-bold" id="cost_printing_display">0 {{ currency_symbol|default:functional_currency.symbol }}</span>
         </div>
         <div class="d-flex justify-content-between align-items-center mb-1 small">
           <span class="text-secondary"><i class="fas fa-shield-alt me-1 text-info"></i>{% trans "تكلفة السلوفان والتشطيب:" %}</span>
-          <span class="fw-bold" id="cost_finishing_display">0 {{ currency_symbol|default:"ج.م" }}</span>
+          <span class="fw-bold" id="cost_finishing_display">0 {{ currency_symbol|default:functional_currency.symbol }}</span>
         </div>
         <div class="d-flex justify-content-between align-items-center mb-1 small">
           <span class="text-secondary"><i class="fas fa-cut me-1 text-danger"></i>{% trans "تكلفة التجليد والتكسير:" %}</span>
-          <span class="fw-bold" id="cost_binding_display">0 {{ currency_symbol|default:"ج.م" }}</span>
+          <span class="fw-bold" id="cost_binding_display">0 {{ currency_symbol|default:functional_currency.symbol }}</span>
         </div>
         <div class="d-flex justify-content-between align-items-center mb-2 small">
           <label for="id_extra_cost" class="text-secondary mb-0 cursor-pointer"><i class="fas fa-truck me-1 text-warning"></i>{% trans "انتقالات ولوجستيات:" %}</label>
           <div class="input-group input-group-sm" style="max-width: 125px;">
             <input type="number" class="form-control form-control-sm text-end fw-bold py-0 px-1 border-secondary-subtle" id="id_extra_cost" name="extra_cost" value="{{ form.extra_cost.value|default:'0' }}" min="0" step="5" placeholder="0">
-            <span class="input-group-text py-0 px-1 bg-light text-muted" style="font-size: 0.75rem;">{{ currency_symbol|default:"ج.م" }}</span>
+            <span class="input-group-text py-0 px-1 bg-light text-muted" style="font-size: 0.75rem;">{{ currency_symbol|default:functional_currency.symbol }}</span>
           </div>
         </div>
 
         <div class="d-flex justify-content-between align-items-center pt-2 border-top bg-light p-2 rounded">
           <strong class="text-dark small">{% trans "إجمالي التكلفة:" %}</strong>
-          <strong class="text-danger fs-6" id="total_cost_display">0 {{ currency_symbol|default:"ج.م" }}</strong>
+          <strong class="text-danger fs-6" id="total_cost_display">0 {{ currency_symbol|default:functional_currency.symbol }}</strong>
         </div>
 
         <!-- شريط ومؤشر هامش الربح -->
@@ -71,7 +71,7 @@
         <!-- سعر القطعة للعميل -->
         <div class="d-flex justify-content-between align-items-center mb-2">
           <span class="text-muted fw-semibold">{% trans "سعر القطعة:" %}</span>
-          <strong class="fs-5 text-primary" id="unit_price_display">0 {{ currency_symbol|default:"ج.م" }}</strong>
+          <strong class="fs-5 text-primary" id="unit_price_display">0 {{ currency_symbol|default:functional_currency.symbol }}</strong>
         </div>
 
         <!-- الإجمالي النهائي الصافي للطلب -->
@@ -81,7 +81,7 @@
               <strong class="text-dark fs-6 d-block">{% trans "إجمالي السعر:" %}</strong>
               <small class="text-muted" style="font-size: 0.75rem;">{% trans "(غير شامل الضريبة)" %}</small>
             </div>
-            <strong class="text-primary fs-4 fw-bold" id="final_total_display">0 {{ currency_symbol|default:"ج.م" }}</strong>
+            <strong class="text-primary fs-4 fw-bold" id="final_total_display">0 {{ currency_symbol|default:functional_currency.symbol }}</strong>
           </div>
         </div>
       </div>
@@ -105,18 +105,18 @@
             <tbody>
               <tr id="tier_row_1">
                 <td class="fw-bold" id="tier_qty_1">1,000</td>
-                <td class="text-primary fw-bold" id="tier_unit_1">0 {{ currency_symbol|default:"ج.م" }}</td>
-                <td class="text-dark" id="tier_total_1">0 {{ currency_symbol|default:"ج.م" }}</td>
+                <td class="text-primary fw-bold" id="tier_unit_1">0 {{ currency_symbol|default:functional_currency.symbol }}</td>
+                <td class="text-dark" id="tier_total_1">0 {{ currency_symbol|default:functional_currency.symbol }}</td>
               </tr>
               <tr id="tier_row_2" class="table-light">
                 <td class="fw-bold" id="tier_qty_2">2,500</td>
-                <td class="text-success fw-bold" id="tier_unit_2">0 {{ currency_symbol|default:"ج.م" }}</td>
-                <td class="text-dark" id="tier_total_2">0 {{ currency_symbol|default:"ج.م" }}</td>
+                <td class="text-success fw-bold" id="tier_unit_2">0 {{ currency_symbol|default:functional_currency.symbol }}</td>
+                <td class="text-dark" id="tier_total_2">0 {{ currency_symbol|default:functional_currency.symbol }}</td>
               </tr>
               <tr id="tier_row_3">
                 <td class="fw-bold" id="tier_qty_3">5,000</td>
-                <td class="text-danger fw-bold" id="tier_unit_3">0 {{ currency_symbol|default:"ج.م" }}</td>
-                <td class="text-dark" id="tier_total_3">0 {{ currency_symbol|default:"ج.م" }}</td>
+                <td class="text-danger fw-bold" id="tier_unit_3">0 {{ currency_symbol|default:functional_currency.symbol }}</td>
+                <td class="text-dark" id="tier_total_3">0 {{ currency_symbol|default:functional_currency.symbol }}</td>
               </tr>
             </tbody>
           </table>

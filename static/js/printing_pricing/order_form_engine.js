@@ -169,7 +169,7 @@ const PricingMath = {
 class OrderFormUIController {
   constructor(config = {}) {
     this.config = Object.assign({
-      currencySymbol: 'ج.م',
+      currencySymbol: window.ORDER_CONFIG?.currencySymbol || window.SYSTEM_CURRENCY_SYMBOL || '',
       urls: {
         pressesApi: '/api/printing/presses/',
         paperStocksApi: '/api/printing/paper-stocks/'
@@ -1329,7 +1329,7 @@ class OrderFormUIController {
       if (source === 'customer_supplied') {
         priceInput.prop('disabled', true).addClass('bg-light text-muted');
         $('#paper_price_mode_label').text('خامة توريد العميل');
-        self.showNotification('تم تحديد خامة توريد العميل: سيتم احتساب تكلفة الورق كـ 0.00 ج.م كشغل مصنعية مع استمرار حساب الأفرخ لإذن الاستلام', 'info');
+        self.showNotification(`تم تحديد خامة توريد العميل: سيتم احتساب تكلفة الورق كـ 0.00 ${self.config.currencySymbol} كشغل مصنعية مع استمرار حساب الأفرخ لإذن الاستلام`, 'info');
       } else {
         priceInput.prop('disabled', false).removeClass('bg-light text-muted');
         $('#paper_price_mode_label').text('سعر الفرخ');
@@ -2078,7 +2078,10 @@ class OrderFormUIController {
 
     // 5. السايدبار المالي المركزي
     if (data.totals) {
-      const sym = this.config.currencySymbol || 'ج.م';
+      if (data.currency_symbol) {
+        this.config.currencySymbol = data.currency_symbol;
+      }
+      const sym = this.config.currencySymbol || '';
       $('#cost_paper_display').text(`${this.formatMoney(data.paper.total_cost)} ${sym}`);
       $('#cost_printing_display').text(`${this.formatMoney(data.printing.total_cost + data.plates.total_cost)} ${sym}`);
       $('#cost_finishing_display').text(`${this.formatMoney(data.finishing.total_cost)} ${sym}`);

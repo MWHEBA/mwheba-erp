@@ -30,8 +30,10 @@ def evaluate_cart_api(request):
 
         items = payload.get("items", [])
         customer_id = payload.get("customer_id")
-        price_list_id = payload.get("price_list_id")
-        currency = payload.get("currency", "EGP")
+        from financial.services.exchange_rate_service import ExchangeRateService
+        func_curr = ExchangeRateService.get_functional_currency()
+        default_code = func_curr.code if func_curr else "EGP"
+        currency = payload.get("currency") or default_code
         exchange_rate = payload.get("exchange_rate")
         header_discount = Decimal(str(payload.get("header_discount", 0) or 0))
         header_discount_type = payload.get("header_discount_type", "fixed")

@@ -136,7 +136,7 @@
           <div class="col-md-4">
             <div class="p-3 bg-light rounded text-center border">
               <div class="text-muted small mb-1">{% trans "قيمة البيع للعميل (صافي)" %}</div>
-              <div class="fs-4 fw-bold text-primary">{% if summary %}{{ summary.final_price|smart_float }}{% else %}{{ order.final_price|default:"0.00"|smart_float }}{% endif %} {{ currency_symbol|default:"ج.م" }}</div>
+              <div class="fs-4 fw-bold text-primary">{% if summary %}{{ summary.final_price|smart_float }}{% else %}{{ order.final_price|default:"0.00"|smart_float }}{% endif %} {{ order.currency_symbol }}</div>
               <div class="small text-muted">{{ order.quantity|smart_float }} {% trans "قطعة" %}</div>
             </div>
           </div>
@@ -144,7 +144,7 @@
           <div class="col-md-4">
             <div class="p-3 bg-light rounded text-center border">
               <div class="text-muted small mb-1">{% trans "إجمالي تكاليف الورش والمواد" %}</div>
-              <div class="fs-4 fw-bold text-danger">{% if summary %}{{ summary.subtotal|smart_float }}{% else %}0.00{% endif %} {{ currency_symbol|default:"ج.م" }}</div>
+              <div class="fs-4 fw-bold text-danger">{% if summary %}{{ summary.subtotal|smart_float }}{% else %}0.00{% endif %} {{ order.currency_symbol }}</div>
               <div class="small text-muted">{% trans "تكلفة الإنتاج الإجمالية" %}</div>
             </div>
           </div>
@@ -152,7 +152,7 @@
           <div class="col-md-4">
             <div class="p-3 bg-light rounded text-center border">
               <div class="text-muted small mb-1">{% trans "صافي الربح الفعلي المحقق" %}</div>
-              <div class="fs-4 fw-bold text-success">{% if summary %}{{ summary.net_profit|smart_float }}{% else %}0.00{% endif %} {{ currency_symbol|default:"ج.م" }}</div>
+              <div class="fs-4 fw-bold text-success">{% if summary %}{{ summary.net_profit|smart_float }}{% else %}0.00{% endif %} {{ order.currency_symbol }}</div>
               <div class="small text-success fw-bold">{% if summary %}{{ summary.profit_margin|smart_float }}{% else %}0.00{% endif %}% {% trans "هامش ربح" %}</div>
             </div>
           </div>
@@ -180,8 +180,8 @@
                 <td class="fw-bold">{{ po.purchase_number }}</td>
                 <td>{{ po.supplier.name }}</td>
                 <td>{{ po.notes|default:_("خدمات طباعة وتشطيب") }}</td>
-                <td>{{ po.total_amount|smart_float }} {{ currency_symbol|default:"ج.م" }}</td>
-                <td class="text-success">{{ po.tax_deduction_amount|default:"0.00"|smart_float }} {{ currency_symbol|default:"ج.م" }}</td>
+                <td>{{ po.total_amount|smart_float }} {{ po.currency_symbol|default:order.currency_symbol }}</td>
+                <td class="text-success">{{ po.tax_deduction_amount|default:"0.00"|smart_float }} {{ po.currency_symbol|default:order.currency_symbol }}</td>
                 <td><span class="badge bg-success">{% trans "معتمد" %}</span></td>
               </tr>
               {% empty %}

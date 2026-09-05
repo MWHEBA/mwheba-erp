@@ -1450,7 +1450,7 @@ def sale_edit(request, pk):
         "custom_fields_display_mode": SystemSetting.get_setting('custom_fields_display_mode', 'expanded'),
         "enable_custom_fields": SystemSetting.get_setting('enable_custom_fields', 'true'),
         "duplicate_invoice_type": getattr(sale, 'payment_method', 'credit'),
-        "currency_symbol": "ج.م",
+        "currency_symbol": sale.currency_symbol,
         "page_title": f"تعديل فاتورة مبيعات {sale.number}",
         "page_subtitle": f"العميل: {sale.customer.name}",
         "page_icon": "fas fa-edit",

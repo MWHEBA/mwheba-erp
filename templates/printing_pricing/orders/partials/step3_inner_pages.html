@@ -11,7 +11,7 @@
     </span>
     <span class="badge bg-light text-primary border border-secondary-subtle px-3 py-1 ms-auto me-2 fw-bold"
       id="step3_cost_badge">
-      0 {{ currency_symbol|default:"ج.م" }}
+      0 {{ currency_symbol|default:functional_currency.symbol }}
     </span>
     <i class="fas fa-chevron-down"></i>
   </h5>
@@ -250,7 +250,7 @@
                 </label>
                 <div class="input-group input-group-sm">
                   <input type="number" step="0.01" min="0" class="form-control text-center fw-bold" id="id_inner_sheet_price" name="inner_sheet_price" value="2.40" placeholder="2.40">
-                  <span class="input-group-text small bg-light">{{ currency_symbol|default:"ج.م" }}</span>
+                  <span class="input-group-text small bg-light">{{ currency_symbol|default:functional_currency.symbol }}</span>
                 </div>
               </div>
 
@@ -268,7 +268,7 @@
                 <label class="form-label fw-bold small text-muted">{% trans "إجمالي تكلفة ورق الداخلي" %}</label>
                 <div class="form-control bg-light d-flex justify-content-between align-items-center">
                   <span class="small text-muted">{% trans "التكلفة:" %}</span>
-                  <strong class="text-primary fs-6" id="cost_inner_paper_display">0.00 {{ currency_symbol|default:"ج.م" }}</strong>
+                  <strong class="text-primary fs-6" id="cost_inner_paper_display">0.00 {{ currency_symbol|default:functional_currency.symbol }}</strong>
                 </div>
               </div>
 
@@ -359,7 +359,7 @@
                   <div class="input-group">
                     <input type="number" class="form-control text-center fw-bold" id="id_inner_press_rate" name="inner_press_rate" 
                            value="45" min="0" step="5" title="{% trans 'سعر التراج (ألف سحبة)' %}">
-                    <span class="input-group-text small bg-light">{{ currency_symbol|default:"ج.م" }} / {% trans "تراج" %}</span>
+                    <span class="input-group-text small bg-light">{{ currency_symbol|default:functional_currency.symbol }} / {% trans "تراج" %}</span>
                   </div>
                 </div>
 
@@ -380,7 +380,7 @@
                   </label>
                   <div class="form-control bg-light d-flex justify-content-between align-items-center">
                     <span class="small text-muted">{% trans "الإجمالي:" %}</span>
-                    <strong class="text-primary fs-6" id="inner_press_cost_display">0 {{ currency_symbol|default:"ج.م" }}</strong>
+                    <strong class="text-primary fs-6" id="inner_press_cost_display">0 {{ currency_symbol|default:functional_currency.symbol }}</strong>
                   </div>
                 </div>
               </div>
@@ -463,7 +463,7 @@
                   <div class="input-group">
                     <input type="number" class="form-control text-center fw-bold" id="id_inner_plate_price" name="inner_plate_price" 
                            value="85" min="0" step="5" title="{% trans 'سعر زنكة الداخلي المعتمد' %}">
-                    <span class="input-group-text small bg-light">{{ currency_symbol|default:"ج.م" }}</span>
+                    <span class="input-group-text small bg-light">{{ currency_symbol|default:functional_currency.symbol }}</span>
                   </div>
                 </div>
 
@@ -498,7 +498,7 @@
                   </label>
                   <div class="form-control bg-light d-flex justify-content-between align-items-center">
                     <span class="small text-muted">{% trans "الإجمالي:" %}</span>
-                    <strong class="text-primary fs-6" id="inner_ctp_cost_display">0 {{ currency_symbol|default:"ج.م" }}</strong>
+                    <strong class="text-primary fs-6" id="inner_ctp_cost_display">0 {{ currency_symbol|default:functional_currency.symbol }}</strong>
                   </div>
                   <!-- حقل إجمالي زنكات الداخلي المخفي للمزامنة البرمجية -->
                   <input type="hidden" id="id_inner_plates_count_total" name="inner_plates_count_total" value="16">
@@ -544,7 +544,7 @@
                 <!-- 2. صفحات ألوان الداخلي -->
                 <div class="col-md-4">
                   <label for="id_digital_inner_color_pages" class="form-label fw-bold">
-                    {% trans "صفحات ألوان" %} (0.80 {{ currency_symbol|default:"ج.م" }}/{% trans "طبعة" %})
+                    {% trans "صفحات ألوان" %} (0.80 {{ currency_symbol|default:functional_currency.symbol }}/{% trans "طبعة" %})
                   </label>
                   <input type="number" class="form-control fw-bold text-center text-primary" id="id_digital_inner_color_pages" 
                          name="digital_inner_color_pages" value="{{ form.pages_count.value|default:'32' }}" min="0">
@@ -553,7 +553,7 @@
                 <!-- 3. صفحات أسود الداخلي -->
                 <div class="col-md-4">
                   <label for="id_digital_inner_bw_pages" class="form-label fw-bold">
-                    {% trans "صفحات أسود" %} (0.25 {{ currency_symbol|default:"ج.م" }}/{% trans "طبعة" %})
+                    {% trans "صفحات أسود" %} (0.25 {{ currency_symbol|default:functional_currency.symbol }}/{% trans "طبعة" %})
                   </label>
                   <input type="number" class="form-control fw-bold text-center text-primary" id="id_digital_inner_bw_pages" 
                          name="digital_inner_bw_pages" value="0" min="0">
@@ -563,7 +563,7 @@
                 <div class="col-12">
                   <div class="form-control bg-light d-flex justify-content-between align-items-center">
                     <span class="small text-muted">{% trans "إجمالي تكلفة طباعة الداخلي ديجيتال:" %}</span>
-                    <strong class="text-primary fs-6" id="inner_digital_cost_display">0 {{ currency_symbol|default:"ج.م" }}</strong>
+                    <strong class="text-primary fs-6" id="inner_digital_cost_display">0 {{ currency_symbol|default:functional_currency.symbol }}</strong>
                   </div>
                 </div>
 

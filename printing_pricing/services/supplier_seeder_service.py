@@ -183,7 +183,7 @@ class PricingSupplierSeederService:
 
     SUPPLIER_TYPE_SERVICE_MAP = {
         "paper_supplier": ["paper"],
-        "offset_press": ["offset_printing"],
+        "offset_press": ["offset_printing", "ctp_plates"],
         "digital_center": ["digital_printing"],
         "ctp_center": ["ctp_plates"],
         "finishing_workshop": ["finishing", "coating", "packaging"],

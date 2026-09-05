@@ -60,7 +60,15 @@ class ProcurementBridgeService:
                 return
             if sup_obj not in supplier_bundles:
                 supplier_bundles[sup_obj] = {'items': [], 'subtotal': Decimal('0.00')}
-            supplier_bundles[sup_obj]['items'].append(f"{name} ({cost} ج.م){': ' + details if details else ''}")
+            
+            sym = ""
+            if hasattr(sup_obj, 'default_currency') and sup_obj.default_currency:
+                sym = sup_obj.default_currency.symbol or sup_obj.default_currency.code
+            elif hasattr(order, 'currency_symbol'):
+                sym = order.currency_symbol
+
+            cost_str = f"{cost} {sym}".strip() if sym else str(cost)
+            supplier_bundles[sup_obj]['items'].append(f"{name} ({cost_str}){': ' + details if details else ''}")
             supplier_bundles[sup_obj]['subtotal'] += cost
 
         # 1. بنود خام الورق (Paper Materials)
@@ -149,6 +157,21 @@ class ProcurementBridgeService:
     ):
         """إنشاء سجل فاتورة/أمر شراء للورشة مع خصم 1% WHT"""
         Purchase = apps.get_model('purchase', 'Purchase')
+        from financial.services.exchange_rate_service import ExchangeRateService
+        func_curr = ExchangeRateService.get_functional_currency()
+
+        # تحديد عملة أمر الشراء: عملة المورد الافتراضية، أو عملة الطلب، أو العملة الوظيفية
+        po_currency = getattr(supplier, 'default_currency', None) or getattr(order, 'currency', None) or func_curr
+
+        # تحويل subtotal إذا كانت عملة الطلب مختلفة عن عملة أمر الشراء
+        order_curr = getattr(order, 'currency', None) or func_curr
+        if order_curr and po_currency and order_curr.code != po_currency.code:
+            conversion_rate = ExchangeRateService.get_rate(
+                from_code=order_curr.code,
+                to_code=po_currency.code,
+                date=getattr(order, 'order_date', None)
+            )
+            subtotal = (subtotal * conversion_rate).quantize(Decimal('0.01'))
         
         # حساب ضريبة الخصم 1%
         wht_rate = Decimal('1.00')
@@ -170,8 +193,11 @@ class ProcurementBridgeService:
 
         user_obj = user or order.created_by
         if not user_obj:
-            User = apps.get_model('auth', 'User')
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
             user_obj = User.objects.first()
+            if not user_obj:
+                user_obj, _ = User.objects.get_or_create(username='system_po', defaults={'is_active': True})
 
         # فحص هل المورد مسجل ضريبياً (14% VAT) أم ورشة عادية
         has_tax = bool(getattr(supplier, 'tax_number', None) and getattr(supplier, 'tax_active', False))
@@ -182,6 +208,25 @@ class ProcurementBridgeService:
         # فحص طريقة السداد (نقدي للورش اليومية / آجل)
         is_cash_workshop = bool(getattr(supplier, 'requires_cash_advance', False) or getattr(order, 'is_rush', False))
         payment_method = "cash" if is_cash_workshop else "credit"
+
+        # حساب سعر الصرف والمجاميع الوظيفية والأجنبية وفق معيار IAS 21
+        func_code = func_curr.code if func_curr else 'EGP'
+        po_code = po_currency.code if po_currency else func_code
+        po_sym = po_currency.symbol if po_currency and po_currency.symbol else (func_curr.symbol if func_curr else '')
+
+        if po_code == func_code:
+            exchange_rate = Decimal('1.000000')
+            total_functional = final_total
+            total_foreign = Decimal('0.00')
+        else:
+            rate_to_func = ExchangeRateService.get_rate(
+                from_code=po_code,
+                to_code=func_code,
+                date=getattr(order, 'order_date', None)
+            )
+            exchange_rate = rate_to_func
+            total_foreign = final_total
+            total_functional = (final_total * rate_to_func).quantize(Decimal('0.01'))
 
         po = Purchase(
             number=unique_num,
@@ -196,6 +241,10 @@ class ProcurementBridgeService:
             wht_rate=wht_rate,
             wht_amount=wht_amount,
             total=final_total,
+            currency=po_currency,
+            exchange_rate=exchange_rate,
+            total_foreign=total_foreign,
+            total_functional=total_functional,
             payment_method=payment_method,
             payment_status="unpaid",
             is_service=True,
@@ -207,7 +256,7 @@ class ProcurementBridgeService:
                 f"- الخدمة: {service_desc}\n"
                 f"- رقم أمر التسعير: {order.order_number}\n"
                 f"- شرط التسليم (SLA): يلتزم المورد بموعد التسليم المحدد، وتطبق غرامة تأخير 2% يومياً عن كل يوم تأخير.\n"
-                f"- ضريبة الخصم والتحصيل: تم خصم 1% (نموذج 41 ضرائب بمبلغ {wht_amount} ج)."
+                f"- ضريبة الخصم والتحصيل: تم خصم 1% (نموذج 41 ضرائب بمبلغ {wht_amount} {po_sym})."
             )
         )
         po.save()

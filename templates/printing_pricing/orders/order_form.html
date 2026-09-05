@@ -160,7 +160,7 @@
 <!-- إعدادات المحرك الحسابي الممررة من جانجو عبر JSON Data Contract -->
 <script id="printing-pricing-config" type="application/json">
 {
-  "currencySymbol": "{{ currency_symbol|default:'ج.م' }}",
+  "currencySymbol": "{{ currency_symbol|default:functional_currency.symbol }}",
   "urls": {
     "pressesApi": "{% url 'printing_pricing:api_presses' %}",
     "paperTypesApi": "{% url 'printing_pricing:api_paper_types' %}",
