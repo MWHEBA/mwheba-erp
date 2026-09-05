@@ -1,19 +1,17 @@
 {% load static %}
 {% load custom_filters %}
 
-<!-- Modal Header -->
-<div class="modal-header" style="background-color: var(--bg-light); border-bottom: 1px solid var(--border-color);">
-  <h5 class="modal-title d-flex align-items-center">
-    <div class="me-3"><i class="fas fa-tags text-primary fa-lg"></i></div>
-    <div>
-      <span class="fw-bold" style="color: var(--text-dark);">{{ modal_title }}</span>
-    </div>
+<!-- Modal Header (Rule 8) -->
+<div class="modal-header bg-light border-bottom px-4 py-3">
+  <h5 class="modal-title fw-bold text-dark mb-0 d-flex align-items-center">
+    <i class="fas fa-tags text-primary me-2"></i>
+    <span>{{ modal_title }}</span>
   </h5>
-  <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
 </div>
 
-<!-- Modal Body -->
-<div class="modal-body">
+<!-- Modal Body (Rule 8) -->
+<div class="modal-body p-4">
   <form method="post" id="serviceTypeModalForm" action="{{ action_url }}">
     {% csrf_token %}
 
@@ -169,13 +167,13 @@
   </form>
 </div>
 
-<!-- Modal Footer -->
-<div class="modal-footer">
-  <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+<!-- Modal Footer (Rule 8) -->
+<div class="modal-footer bg-light border-top px-4 py-3">
+  <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">
     <i class="fas fa-times me-1"></i>إلغاء
   </button>
-  <button type="submit" form="serviceTypeModalForm" class="btn btn-primary" id="st-save-btn">
-    <i class="fas fa-save me-1"></i>{% if service_type %}تحديث{% else %}إضافة{% endif %}
+  <button type="submit" form="serviceTypeModalForm" class="btn btn-primary px-4 fw-bold" id="st-save-btn">
+    <i class="fas fa-save me-1"></i>{% if service_type %}تحديث البيانات{% else %}حفظ الخدمة{% endif %}
   </button>
 </div>
 

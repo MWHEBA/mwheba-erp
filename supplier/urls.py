@@ -30,6 +30,7 @@ urlpatterns = [
     path("<int:pk>/services/bulk-update/",                  views.supplier_services_bulk_update, name="supplier_services_bulk_update"),
     path("<int:pk>/services/bulk-adjust/",                  views.supplier_services_bulk_adjust, name="supplier_services_bulk_adjust"),
     path("<int:pk>/services/seed-standard-presses/",         views.supplier_seed_standard_presses, name="supplier_seed_standard_presses"),
+    path("<int:pk>/services/seed-paper-matrix/",            views.supplier_seed_paper_matrix,    name="supplier_seed_paper_matrix"),
     path("<int:pk>/services/<int:service_pk>/edit/",        views.supplier_service_edit,         name="supplier_service_edit"),
     path("<int:pk>/services/<int:service_pk>/delete/",      views.supplier_service_delete,       name="supplier_service_delete"),
     path("<int:pk>/services/<int:service_pk>/toggle/",      views.supplier_service_toggle,       name="supplier_service_toggle"),

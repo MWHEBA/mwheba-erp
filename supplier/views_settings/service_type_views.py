@@ -9,12 +9,13 @@ from django.views.decorators.http import require_POST
 from django.template.loader import render_to_string
 
 from supplier.models import ServiceType
+from supplier.decorators import require_printing_pricing_enabled
 
 
 # ── helpers ──────────────────────────────────────────────────────
 
 def _settings_url():
-    return reverse('supplier:supplier_type_settings_list') + '#service-types-pane'
+    return reverse('supplier:service_type_list')
 
 
 def _get_available_sources():
@@ -44,16 +45,77 @@ def _get_available_sources():
         return [{'value': k, 'label': v} for k, v in source_map.items()]
 
 
-# ── List — redirect للصفحة الموحدة ───────────────────────────────
+# ── List — صفحة رئيسية مستقلة لخدمات وقدرات التسعير ───────────────
 
 @login_required
+@require_printing_pricing_enabled
 def service_type_list(request):
-    return redirect(_settings_url())
+    """عرض قائمة خدمات وقدرات التسعير — صفحة رئيسية مستقلة"""
+    from django.db.models import Count
+    from core.utils import paginate_queryset
+
+    service_types_qs = (
+        ServiceType.objects.all()
+        .annotate(
+            services_count=Count('supplier_services', distinct=True),
+            suppliers_count=Count('supplier_services__supplier', distinct=True)
+        )
+        .order_by('order', 'name')
+    )
+
+    # إحصائيات KPI (Rule 7)
+    total_services = service_types_qs.count()
+    active_services = service_types_qs.filter(is_active=True).count()
+    printing_services = service_types_qs.filter(category='printing').count()
+    total_approved_suppliers = sum(st.suppliers_count for st in service_types_qs)
+
+    stats = {
+        'total': total_services,
+        'active': active_services,
+        'printing': printing_services,
+        'suppliers_total': total_approved_suppliers,
+    }
+
+    pagination_context = paginate_queryset(service_types_qs, request, default_per_page=25)
+    page_obj = pagination_context["page_obj"]
+
+    context = {
+        'page_obj': page_obj,
+        'service_types': page_obj.object_list,
+        **pagination_context,
+        'stats': stats,
+        'page_title': 'خدمات وقدرات التسعير',
+        'page_subtitle': 'إدارة وتوصيف أنواع الخدمات الصناعية والقدرات الإنتاجية المعتمدة للموردين',
+        'page_icon': 'fas fa-tags',
+        'active_menu': 'printing_pricing',
+        'active_submenu': 'service_types',
+        'header_buttons': [
+            {
+                'onclick': "openServiceTypeModal()",
+                'icon': 'fa-plus',
+                'text': 'إضافة نوع خدمة',
+                'class': 'btn-primary',
+            },
+            {
+                'url': reverse('printing_pricing:settings_home'),
+                'icon': 'fa-cog',
+                'text': 'إعدادات التسعير',
+                'class': 'btn-outline-secondary',
+            },
+        ],
+        'breadcrumb_items': [
+            {'title': 'الرئيسية', 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},
+            {'title': 'تسعير المطبوعات', 'url': reverse('printing_pricing:order_list'), 'icon': 'fas fa-print'},
+            {'title': 'خدمات وقدرات التسعير', 'active': True},
+        ],
+    }
+    return render(request, 'supplier/settings/service_types/list.html', context)
 
 
 # ── Create (AJAX modal) ───────────────────────────────────────────
 
 @login_required
+@require_printing_pricing_enabled
 def service_type_create(request):
     """إضافة نوع خدمة — يعمل كـ AJAX modal أو redirect للصفحة الموحدة"""
     is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
@@ -120,6 +182,7 @@ def service_type_create(request):
 # ── Edit (AJAX modal) ─────────────────────────────────────────────
 
 @login_required
+@require_printing_pricing_enabled
 def service_type_edit(request, pk):
     """تعديل نوع خدمة — يعمل كـ AJAX modal"""
     st = get_object_or_404(ServiceType, pk=pk)
@@ -182,6 +245,7 @@ def service_type_edit(request, pk):
 
 @login_required
 @require_POST
+@require_printing_pricing_enabled
 def service_type_delete(request, pk):
     st = get_object_or_404(ServiceType, pk=pk)
     svc_count = st.supplier_services.count()
@@ -205,6 +269,7 @@ def service_type_delete(request, pk):
 # ── Schema Editor ─────────────────────────────────────────────────
 
 @login_required
+@require_printing_pricing_enabled
 def service_type_schema(request, pk):
     """واجهة تعريف attribute_schema — صفحة كاملة (مش مودال لأنها معقدة)"""
     st = get_object_or_404(ServiceType, pk=pk)
@@ -227,12 +292,12 @@ def service_type_schema(request, pk):
         'schema_json':  json.dumps(st.attribute_schema, ensure_ascii=False, indent=2),
         'sources':      _get_available_sources(),
         'header_buttons': [
-            {'url': _settings_url(), 'icon': 'fa-arrow-right', 'text': 'العودة للإعدادات', 'class': 'btn-secondary'},
+            {'url': _settings_url(), 'icon': 'fa-arrow-right', 'text': 'العودة لقائمة الخدمات', 'class': 'btn-secondary'},
         ],
         'breadcrumb_items': [
-            {'title': 'الرئيسية',  'url': _rev('core:dashboard'), 'icon': 'fas fa-home'},
-            {'title': 'الموردين',  'url': _rev('supplier:supplier_list'), 'icon': 'fas fa-truck'},
-            {'title': 'الإعدادات', 'url': _rev('supplier:supplier_type_settings_list'), 'icon': 'fas fa-cog'},
+            {'title': 'الرئيسية', 'url': _rev('core:dashboard'), 'icon': 'fas fa-home'},
+            {'title': 'تسعير المطبوعات', 'url': _rev('printing_pricing:order_list'), 'icon': 'fas fa-print'},
+            {'title': 'خدمات وقدرات التسعير', 'url': _rev('supplier:service_type_list'), 'icon': 'fas fa-tags'},
             {'title': f'حقول: {st.name}', 'active': True},
         ],
     }
@@ -242,5 +307,6 @@ def service_type_schema(request, pk):
 # ── API: sources ──────────────────────────────────────────────────
 
 @login_required
+@require_printing_pricing_enabled
 def service_type_schema_sources_api(request):
     return JsonResponse({'success': True, 'sources': _get_available_sources()})

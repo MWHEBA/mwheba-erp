@@ -112,7 +112,16 @@ class ProcurementBridgeService:
                     else:
                         svc_sup = cls._get_or_create_default_supplier("المورد التجاري الخارجي")
 
-                svc_desc = f"{svc.service_name} (كمية: {svc.quantity} {svc.get_unit_display() if hasattr(svc, 'get_unit_display') else svc.unit})"
+                set_info = ""
+                if svc.supplier_service and getattr(svc.supplier_service, 'set_price', None) and svc.supplier_service.set_price > Decimal('0.00'):
+                    inc_tir = getattr(svc.supplier_service, 'set_included_tirages', 1) or 1
+                    st_code = getattr(svc.supplier_service.service_type, 'code', '') if svc.supplier_service.service_type else ''
+                    if svc.service_category == 'printing' or st_code == 'offset_printing':
+                        set_info = f" [نظام طقم ماكينة: يشمل {inc_tir} تراج]"
+                    elif st_code == 'ctp_plates':
+                        set_info = f" [نظام طقم زنكات 4 ألوان]"
+
+                svc_desc = f"{svc.service_name}{set_info} (كمية: {svc.quantity} {svc.get_unit_display() if hasattr(svc, 'get_unit_display') else svc.unit})"
                 _add_to_bundle(svc_sup, svc.service_name, svc.total_cost, svc_desc)
 
 

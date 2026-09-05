@@ -50,12 +50,18 @@ class SupplierServiceIndustrialPricingTest(TestCase):
         self.user = User.objects.create_user(username='admin_test_pricing', password='password123', is_staff=True)
         self.client.login(username='admin_test_pricing', password='password123')
 
+        from core.models import SystemModule
+        SystemModule.objects.update_or_create(
+            code='printing_pricing',
+            defaults={'name': 'تسعير المطبوعات', 'is_enabled': True}
+        )
+
         self.supplier_type = SupplierType.objects.create(name="مطبعة", code="press_test")
         self.supplier = Supplier.objects.create(name="مطبعة الأهرام", code="SUPP_TEST_01", primary_type=self.supplier_type)
         from ..models import ServiceType
-        self.service_type_lam = ServiceType.objects.create(name="سلوفان حراري", code="lamination", category="coating")
-        self.service_type_paper = ServiceType.objects.create(name="ورق كوشيه", code="paper", category="paper")
-        self.service_type_offset = ServiceType.objects.create(name="طباعة أوفست", code="offset_printing", category="press")
+        self.service_type_lam, _ = ServiceType.objects.get_or_create(code="lamination", defaults={"name": "سلوفان حراري", "category": "coating"})
+        self.service_type_paper, _ = ServiceType.objects.get_or_create(code="paper", defaults={"name": "ورق كوشيه", "category": "paper"})
+        self.service_type_offset, _ = ServiceType.objects.get_or_create(code="offset_printing", defaults={"name": "طباعة أوفست", "category": "press"})
 
     def test_calculate_cost_with_minimum_charge_floor(self):
         """اختبار معادلة التكلفة مع تطبيق الحد الأدنى للتشغيل"""
@@ -399,3 +405,222 @@ class SupplierServiceIndustrialPricingTest(TestCase):
         self.assertContains(response, "سلوفان لامع")
         self.assertContains(response, "تكسير فورمة")
         self.assertContains(response, "كرتونة مضلعة")
+
+    def test_ton_to_sheet_price_calculation_exact(self):
+        """اختبار دقة المعادلة الحسابية لاشتقاق سعر الفرخ من الطن ومزامنة المقاس"""
+        from ..models import SupplierService
+        from printing_pricing.models import PaperSize, PaperType
+
+        ps_70x100 = PaperSize.objects.create(name="70×100 سم", width=Decimal('70.00'), height=Decimal('100.00'))
+        pt_couche = PaperType.objects.create(name="كوشيه فاخر")
+
+        svc = SupplierService.objects.create(
+            supplier=self.supplier,
+            service_type=self.service_type_paper,
+            name="ورق كوشيه 300 جم",
+            pricing_formula="PER_TON",
+            price_per_ton=Decimal('50000.00'),
+            paper_size=ps_70x100,
+            paper_type_ref=pt_couche,
+            gsm=300
+        )
+
+        # 70 * 100 * 300 / 10,000,000 = 0.21 kg
+        # 0.21 * (50000 / 1000) = 10.50 EGP
+        self.assertEqual(svc.base_price, Decimal('10.5000'))
+        self.assertEqual(svc.attributes.get('sheet_size'), '70x100')
+        self.assertEqual(svc.attributes.get('parent_sheet_size'), '70×100 سم')
+
+    def test_form_guards_prevent_disabling_pricing_when_active_services_exist(self):
+        """اختبار صمام الأمان: منع إلغاء اعتماد التسعير لمورد لديه خدمات نشطة"""
+        from ..models import SupplierService
+        from ..forms import SupplierForm
+
+        SupplierService.objects.create(
+            supplier=self.supplier,
+            service_type=self.service_type_offset,
+            name="خدمة طباعة نشطة",
+            base_price=Decimal('50.00')
+        )
+
+        form_data = {
+            'name': self.supplier.name,
+            'code': self.supplier.code,
+            'entity_type': 'company',
+            'primary_type': self.supplier.primary_type.id,
+            'is_active': True,
+            'is_pricing_supplier': False,  # Attempting to disable
+        }
+        form = SupplierForm(data=form_data, instance=self.supplier)
+        self.assertFalse(form.is_valid())
+        self.assertIn('is_pricing_supplier', form.errors)
+
+    def test_backend_authorization_rejects_unauthorized_seed_presses(self):
+        """اختبار رفض تهيئة ماكينات قياسية لمورد غير معتمد لطباعة الأوفست (403)"""
+        from django.urls import reverse
+        paper_type = SupplierType.objects.create(name="مخزن ورق", code="paper_store")
+        paper_supplier = Supplier.objects.create(
+            name="شركة الأهرام للورق",
+            code="PAPER_001",
+            primary_type=paper_type,
+            is_pricing_supplier=True
+        )
+        paper_supplier.provided_services.set([self.service_type_paper])
+
+        url = reverse('supplier:supplier_seed_standard_presses', kwargs={'pk': paper_supplier.pk})
+        response = self.client.post(url, {'press_50x70_price': '50.00'})
+        self.assertEqual(response.status_code, 403)
+        data = response.json()
+        self.assertFalse(data['success'])
+
+    def test_supplier_services_api_includes_currency_metadata(self):
+        """اختبار إرجاع كود العملة ورمزها في API خدمات الموردين"""
+        from django.urls import reverse
+        from ..models import SupplierService
+
+        SupplierService.objects.create(
+            supplier=self.supplier,
+            service_type=self.service_type_offset,
+            name="ماكينة 4 لون",
+            base_price=Decimal('60.00')
+        )
+
+        url = reverse('supplier:supplier_services_api', kwargs={'pk': self.supplier.pk})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data['success'])
+        self.assertGreater(len(data['services']), 0)
+        first_svc = data['services'][0]
+        self.assertIn('currency_code', first_svc)
+        self.assertIn('currency_symbol', first_svc)
+
+    def test_supplier_seed_paper_matrix(self):
+        """اختبار توليد مصفوفة أسعار الورق بالطن والمقاس والجراماجات تلقائياً"""
+        from django.urls import reverse
+        from ..models import SupplierService
+        from printing_pricing.models import PaperType, PaperSize, PaperWeight, PaperOrigin
+
+        pt, _ = PaperType.objects.get_or_create(name="كوشيه فاخر", defaults={'sort_order': 1})
+        ps1, _ = PaperSize.objects.get_or_create(name="70x100", defaults={'width': Decimal('70.00'), 'height': Decimal('100.00'), 'sort_order': 1})
+        pw1, _ = PaperWeight.objects.get_or_create(gsm=150, defaults={'name': "150 جم"})
+        po, _ = PaperOrigin.objects.get_or_create(code="KR", defaults={'name': "كوري"})
+
+        url = reverse('supplier:supplier_seed_paper_matrix', kwargs={'pk': self.supplier.pk})
+        response = self.client.post(url, {
+            'paper_type_id': pt.id,
+            'paper_origin_id': po.id,
+            'price_per_ton': '45000.00',
+            'paper_sizes': [ps1.id],
+            'paper_weights': [pw1.id],
+        })
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data['success'])
+        self.assertEqual(data['created_count'], 1)
+
+        # التحقق من حساب سعر الفرخ: (70 * 100 * 150 / 10000000) * (45000 / 1000) = 0.105 * 45 = 4.7250
+        svc = SupplierService.objects.get(supplier=self.supplier, paper_type_ref=pt, paper_size=ps1, gsm=150)
+        self.assertEqual(svc.pricing_formula, 'PER_TON')
+        self.assertEqual(svc.price_per_ton, Decimal('45000.00'))
+        self.assertEqual(svc.base_price, Decimal('4.73'))
+        self.assertEqual(svc.get_effective_sheet_price(), Decimal('4.7250'))
+        self.assertEqual(svc.paper_origin, po)
+        self.assertTrue(svc.is_active)
+
+    def test_supplier_service_delete_soft_delete_when_used_in_orders(self):
+        """اختبار التعطيل الآمن للخدمة بدلاً من الحذف عند وجود أوامر عمل مرتبطة بها"""
+        from django.urls import reverse
+        from ..models import SupplierService
+        from printing_pricing.models import OrderService, PrintingOrder
+
+        svc = SupplierService.objects.create(
+            supplier=self.supplier,
+            service_type=self.service_type_offset,
+            name="ماكينة طباعة قديمة",
+            base_price=Decimal('50.00'),
+            is_active=True
+        )
+
+        # محاكاة أمر عمل مسجل بهذه الخدمة
+        order = PrintingOrder.objects.create(
+            order_number="ORD-TEST-001",
+            customer_name="عميل اختبار",
+            quantity=1000,
+            created_by=self.user
+        )
+        OrderService.objects.create(
+            order=order,
+            service_category='printing',
+            service_name="طباعة أوفست تجريبية",
+            quantity=Decimal('1.000'),
+            unit='piece',
+            unit_price=Decimal('50.00'),
+            total_cost=Decimal('50.00'),
+            supplier_service=svc
+        )
+
+        url = reverse('supplier:supplier_service_delete', kwargs={'pk': self.supplier.pk, 'service_pk': svc.pk})
+        response = self.client.post(url, HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data['success'])
+        self.assertTrue(data.get('soft_deleted'))
+
+        # الخدمة لم تُحذف من قاعدة البيانات بل تم تعطيلها للحفاظ على السجل التاريخي
+        svc.refresh_from_db()
+        self.assertFalse(svc.is_active)
+
+    def test_supplier_service_sheet_price_fallback_logic(self):
+        """اختبار حساب سعر الفرخ بالسقوط الآمن على الأبعاد في حال عدم وجود قاموس attributes"""
+        from ..models import SupplierService
+        from printing_pricing.models import PaperSize
+
+        ps = PaperSize.objects.create(name="66x88", width=Decimal('66.00'), height=Decimal('88.00'))
+        svc = SupplierService.objects.create(
+            supplier=self.supplier,
+            service_type=self.service_type_paper,
+            name="ورق بدون attributes",
+            pricing_formula='PER_TON',
+            price_per_ton=Decimal('50000.00'),
+            paper_size=ps,
+            gsm=200,
+            attributes={}
+        )
+
+        effective_price = svc.get_effective_sheet_price()
+        # وزن الفرخ: (66 * 88 * 200) / 10000000 = 0.11616 كجم
+        # سعر الفرخ: 0.11616 * (50000 / 1000) = 5.808
+        expected_price = (Decimal('0.11616') * Decimal('50')).quantize(Decimal('0.0001'))
+        self.assertEqual(effective_price, expected_price)
+
+    def test_pricing_endpoints_and_ui_strictly_blocked_when_module_disabled(self):
+        """اختبار حظر جميع مسارات وشاشات ونماذج التسعير تماماً عند تعطيل موديول تسعير الطباعة"""
+        from core.models import SystemModule
+        from django.urls import reverse
+        from supplier.forms import SupplierForm
+
+        # 1. تعطيل موديول التسعير
+        SystemModule.objects.filter(code='printing_pricing').update(is_enabled=False)
+
+        # 2. التحقق من حظر الوصول المباشر لشاشات إضافة وتعديل الخدمات
+        add_url = reverse('supplier:supplier_service_add', kwargs={'pk': self.supplier.pk})
+        resp_add = self.client.get(add_url)
+        self.assertEqual(resp_add.status_code, 302)
+
+        # 3. التحقق من إرجاع 403 Forbidden لطلبات AJAX عند تعطيل الموديول
+        bulk_url = reverse('supplier:supplier_services_bulk_update', kwargs={'pk': self.supplier.pk})
+        resp_bulk = self.client.post(bulk_url, {}, HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        self.assertEqual(resp_bulk.status_code, 403)
+        self.assertIn('موديول تسعير الطباعة غير مفعّل', resp_bulk.json().get('error', ''))
+
+        adjust_url = reverse('supplier:supplier_services_bulk_adjust', kwargs={'pk': self.supplier.pk})
+        resp_adjust = self.client.post(adjust_url, {}, HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+        self.assertEqual(resp_adjust.status_code, 403)
+
+        # 4. التحقق من نموذج المورد SupplierForm: إخفاء حقول التسعير وتحويلها لـ Hidden
+        form = SupplierForm()
+        self.assertEqual(form.fields['is_pricing_supplier'].widget.input_type, 'hidden')
+        self.assertEqual(form.fields['provided_services'].widget.input_type, 'hidden')

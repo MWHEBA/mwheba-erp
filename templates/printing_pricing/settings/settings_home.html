@@ -314,13 +314,13 @@
                     </div>
                     <div class="p-3 bg-light border-top mt-auto">
                         <div class="d-flex flex-column gap-2">
-                            <a href="{% url 'supplier:supplier_list' %}" class="btn btn-outline-primary btn-sm w-100 fw-bold">
+                            <a href="{% url 'supplier:service_type_list' %}" class="btn btn-outline-primary btn-sm w-100 fw-bold">
+                                <i class="fas fa-tags me-1"></i>
+                                {% trans "خدمات وقدرات تسعير المطبوعات" %}
+                            </a>
+                            <a href="{% url 'supplier:supplier_list' %}" class="btn btn-outline-secondary btn-sm w-100 fw-semibold">
                                 <i class="fas fa-handshake me-1"></i>
                                 {% trans "إدارة أسعار وعقود الموردين" %}
-                            </a>
-                            <a href="{% url 'supplier:supplier_type_settings_list' %}" class="btn btn-outline-secondary btn-sm w-100 fw-semibold">
-                                <i class="fas fa-cogs me-1"></i>
-                                {% trans "أنواع الموردين وخدمات التسعير" %}
                             </a>
                         </div>
                     </div>

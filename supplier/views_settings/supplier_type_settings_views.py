@@ -54,30 +54,29 @@ def supplier_type_settings_list(request):
         'page_obj':      page_obj,
         'supplier_types': page_obj.object_list,
         **pagination_context,
-        'service_types':  service_types,
         'stats':          stats,
-        'page_title':    'إعدادات الموردين',
-        'page_subtitle': 'إدارة أنواع الموردين وأنواع خدمات التسعير',
-        'page_icon':     'fas fa-cog',
+        'page_title':    'أنواع الموردين',
+        'page_subtitle': 'إدارة وتصنيف أنواع الموردين وحالاتهم في النظام',
+        'page_icon':     'fas fa-truck',
         'header_buttons': [
             {
                 'onclick': "openCreateModal()",
-                'icon':    'fa-truck',
+                'icon':    'fa-plus',
                 'text':    'إضافة نوع مورد',
-                'class':   'btn-outline-primary',
+                'class':   'btn-primary',
             },
         ] + ([
             {
-                'onclick': "openServiceTypeModal()",
-                'icon':    'fa-tags',
-                'text':    'إضافة نوع خدمة',
-                'class':   'btn-primary',
+                'url':   reverse('supplier:service_type_list'),
+                'icon':  'fa-tags',
+                'text':  'خدمات وقدرات التسعير',
+                'class': 'btn-outline-secondary',
             },
         ] if printing_pricing_enabled else []),
         'breadcrumb_items': [
             {'title': 'الرئيسية', 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},
             {'title': 'الموردين',  'url': reverse('supplier:supplier_list'), 'icon': 'fas fa-truck'},
-            {'title': 'الإعدادات', 'active': True},
+            {'title': 'أنواع الموردين', 'active': True},
         ],
     }
 

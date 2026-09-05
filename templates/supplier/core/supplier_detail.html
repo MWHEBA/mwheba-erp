@@ -5,6 +5,7 @@
 {% load crispy_forms_tags %}
 {% load custom_filters %}
 {% load utils_extras %}
+{% load module_tags %}
 
 {% block title %}{{ supplier.name }} - {% trans "تفاصيل المورد" %}{% endblock %}
 
@@ -132,6 +133,8 @@
             <span class="badge rounded-pill bg-light text-secondary border ms-1">{{ products_count|default:"0" }}</span>
           </button>
         </li>
+        {% is_module_enabled 'printing_pricing' as pricing_enabled %}
+        {% if pricing_enabled %}
         <li class="nav-item" role="presentation">
           <button class="nav-link fw-semibold px-3" id="services-tab" data-bs-toggle="tab"
             data-bs-target="#services-tab-pane" type="button" role="tab" aria-controls="services-tab-pane"
@@ -140,6 +143,7 @@
             <span class="badge rounded-pill bg-light text-secondary border ms-1">{{ supplier_services_count|default:"0" }}</span>
           </button>
         </li>
+        {% endif %}
         <li class="nav-item" role="presentation">
           <button class="nav-link fw-semibold px-3" id="payments-tab" data-bs-toggle="tab"
             data-bs-target="#payments-tab-pane" type="button" role="tab" aria-controls="payments-tab-pane"
@@ -201,6 +205,21 @@
                     {{ supplier.primary_type.name|default:"عام" }}
                   </span>
                 </div>
+                {% if pricing_enabled %}
+                <div class="col-md-12">
+                  <small class="text-muted d-block mb-1">{% trans "الخدمات والقدرات الإنتاجية المعتمدة" %}</small>
+                  <div class="d-flex flex-wrap gap-1 align-items-center">
+                    {% if supplier.is_pricing_supplier %}
+                      <span class="badge bg-primary-subtle text-primary border border-primary-subtle me-1"><i class="fas fa-calculator me-1"></i>{% trans "معتمد للتسعير" %}</span>
+                    {% endif %}
+                    {% for ps in supplier.provided_services.all %}
+                      <span class="badge bg-light text-dark border"><i class="{{ ps.icon|default:'fas fa-tag' }} text-primary me-1"></i>{{ ps.name }}</span>
+                    {% empty %}
+                      <span class="text-muted small">{% trans "لا توجد خدمات محددة يدوياً (يعتمد على التخصص الافتراضي)" %}</span>
+                    {% endfor %}
+                  </div>
+                </div>
+                {% endif %}
                 <div class="col-md-6 col-lg-3">
                   <small class="text-muted d-block mb-1">{% trans "تاريخ التسجيل" %}</small>
                   <span class="text-secondary small">{{ supplier.created_at|date:"Y-m-d H:i" }}</span>
@@ -655,6 +674,7 @@
           {% endwith %}
         </div>
 
+        {% if pricing_enabled %}
         <!-- تاب خدمات التسعير -->
         <div class="tab-pane fade" id="services-tab-pane" role="tabpanel" aria-labelledby="services-tab" tabindex="0">
           
@@ -709,9 +729,16 @@
           <div class="d-flex justify-content-between align-items-center mb-3">
             <h5 class="section-title mb-0"><i class="fas fa-tags me-2"></i>{% trans "خدمات وقوائم أسعار المورد" %}</h5>
             <div class="d-flex gap-2">
+              {% if 'paper' in supplier.get_allowed_service_codes or supplier.is_pricing_supplier %}
+              <button type="button" class="btn btn-outline-info btn-sm fw-bold" data-bs-toggle="modal" data-bs-target="#paperSeederModal" title="{% trans "توليد مصفوفة أسعار أصناف الورق تلقائياً بالطن" %}">
+                <i class="fas fa-layer-group me-1"></i>{% trans "توليد مصفوفة الورق" %}
+              </button>
+              {% endif %}
+              {% if 'offset_printing' in supplier.get_allowed_service_codes %}
               <button type="button" class="btn btn-outline-success btn-sm fw-bold" data-bs-toggle="modal" data-bs-target="#seedPressesModal" title="تهيئة سريعة لماكينات الطباعة الأوفست القياسية">
                 <i class="fas fa-bolt me-1 text-warning"></i>تهيئة ماكينات قياسية
               </button>
+              {% endif %}
               <button type="button" class="btn btn-outline-warning btn-sm" data-bs-toggle="modal" data-bs-target="#bulkAdjustModal" title="{% trans "تعديل نسبي لجميع الأسعار لمواجهة التضخم" %}">
                 <i class="fas fa-percentage me-1"></i>{% trans "تعديل مجمع للأسعار" %}
               </button>
@@ -732,8 +759,8 @@
             <!-- فلتر نوع الخدمة -->
             <select id="services-type-filter" class="form-select form-select-sm" style="width:auto;">
               <option value="">كل الأنواع</option>
-              {% for svc in supplier_services %}
-              <option value="{{ svc.service_type.name }}">{{ svc.service_type.name }}</option>
+              {% for code, data in services_by_type.items %}
+              <option value="{{ data.service_type.name }}">{{ data.service_type.name }}</option>
               {% endfor %}
             </select>
 
@@ -767,9 +794,11 @@
               يمكنك فورياً إضافة ماكينات الأوفست القياسية (Heidelberg SM 74 مقاس 50×70 سم و CD 102 مقاس 70×100 سم) بضغطة زر واحدة، أو تسجيل خدمات مخصصة يدوياً.
             </p>
             <div class="d-flex justify-content-center gap-3">
+              {% if 'offset_printing' in supplier.get_allowed_service_codes %}
               <button type="button" class="btn btn-success fw-bold px-4 py-2" data-bs-toggle="modal" data-bs-target="#seedPressesModal">
                 <i class="fas fa-bolt me-2 text-warning"></i>تهيئة ماكينات الطباعة القياسية فورياً
               </button>
+              {% endif %}
               <a href="{% url 'supplier:supplier_service_add' supplier.pk %}" class="btn btn-outline-primary fw-bold px-4 py-2">
                 <i class="fas fa-plus me-2"></i>إضافة خدمة يدوياً
               </a>
@@ -777,6 +806,7 @@
           </div>
           {% endif %}
         </div>
+        {% endif %}
 
         <!-- تاب أعمار الديون الكسول -->
         <div class="tab-pane fade" id="aging-tab-pane" role="tabpanel" aria-labelledby="aging-tab" tabindex="0">
@@ -1711,6 +1741,7 @@
       </div>
     </div>
   </div>
+  {% if pricing_enabled %}
   <!-- مودال التعديل النسبي المجمع لمواجهة التضخم -->
   <div class="modal fade" id="bulkAdjustModal" tabindex="-1" aria-labelledby="bulkAdjustModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
@@ -1794,13 +1825,14 @@
             <table class="table table-sm table-hover align-middle mb-0" id="matrix-services-table">
               <thead class="table-light sticky-top">
                 <tr>
-                  <th style="width: 16%;">{% trans "نوع الخدمة" %}</th>
-                  <th style="width: 24%;">{% trans "اسم الخدمة / الصنف" %}</th>
-                  <th style="width: 16%;">{% trans "وحدة التسعير" %}</th>
-                  <th style="width: 13%;">{% trans "السعر الأساسي" %}</th>
-                  <th style="width: 12%;">{% trans "فتحة الماكينة" %}</th>
-                  <th style="width: 12%;">{% trans "الحد الأدنى" %}</th>
-                  <th style="width: 7%;" class="text-center">{% trans "حذف" %}</th>
+                  <th style="width: 15%;">{% trans "نوع الخدمة" %}</th>
+                  <th style="width: 21%;">{% trans "اسم الخدمة / الصنف" %}</th>
+                  <th style="width: 14%;">{% trans "وحدة التسعير" %}</th>
+                  <th style="width: 11%;">{% trans "السعر الأساسي" %}</th>
+                  <th style="width: 11%;">{% trans "سعر الطقم" %}</th>
+                  <th style="width: 11%;">{% trans "فتحة الماكينة" %}</th>
+                  <th style="width: 11%;">{% trans "الحد الأدنى" %}</th>
+                  <th style="width: 6%;" class="text-center">{% trans "حذف" %}</th>
                 </tr>
               </thead>
               <tbody id="matrix-services-body">
@@ -1809,6 +1841,9 @@
                 <tr class="matrix-row" data-id="{{ svc.pk }}">
                   <td>
                     <select class="form-select form-select-sm row-service-type" required>
+                      {% if svc.service_type and svc.service_type not in service_types_available %}
+                      <option value="{{ svc.service_type.pk }}" selected>{{ svc.service_type.name }}</option>
+                      {% endif %}
                       {% for st in service_types_available %}
                       <option value="{{ st.pk }}" {% if st.pk == svc.service_type_id %}selected{% endif %}>{{ st.name }}</option>
                       {% endfor %}
@@ -1833,6 +1868,9 @@
                     <input type="number" step="0.01" class="form-control form-select-sm row-base-price" value="{{ svc.base_price }}" required>
                   </td>
                   <td>
+                    <input type="number" step="0.01" class="form-control form-select-sm row-set-price" value="{{ svc.set_price|default:'0.00' }}" placeholder="0.00">
+                  </td>
+                  <td>
                     <input type="number" step="0.01" class="form-control form-select-sm row-setup-cost" value="{{ svc.setup_cost }}">
                   </td>
                   <td>
@@ -1846,7 +1884,7 @@
                 </tr>
                 {% empty %}
                 <tr id="matrix-empty-row">
-                  <td colspan="7" class="text-center py-4 text-muted">
+                  <td colspan="8" class="text-center py-4 text-muted">
                     {% trans "لا توجد خدمات مسجلة بعد. اضغط على 'إضافة سطر خدمة جديد' لإدخال الأسعار." %}
                   </td>
                 </tr>
@@ -1928,6 +1966,8 @@
       </div>
     </div>
   </div>
+  {% include "supplier/components/paper_seeder_modal.html" %}
+  {% endif %}
 
   <script>
     document.addEventListener('DOMContentLoaded', function () {
@@ -2020,6 +2060,9 @@
               <input type="number" step="0.01" class="form-control form-select-sm row-base-price" value="0.00" required>
             </td>
             <td>
+              <input type="number" step="0.01" class="form-control form-select-sm row-set-price" value="0.00" placeholder="0.00">
+            </td>
+            <td>
               <input type="number" step="0.01" class="form-control form-select-sm row-setup-cost" value="0.00">
             </td>
             <td>
@@ -2060,6 +2103,8 @@
             const name = nameInput ? nameInput.value.trim() : '';
             const formula = row.querySelector('.row-formula').value;
             const basePrice = row.querySelector('.row-base-price').value;
+            const setPriceInput = row.querySelector('.row-set-price');
+            const setPrice = setPriceInput ? setPriceInput.value : '0.00';
             const setupCost = row.querySelector('.row-setup-cost').value;
             const minCharge = row.querySelector('.row-min-charge').value;
 
@@ -2077,6 +2122,7 @@
               name: name,
               pricing_formula: formula,
               base_price: basePrice,
+              set_price: setPrice,
               setup_cost: setupCost,
               minimum_charge: minCharge,
             });
@@ -2192,6 +2238,7 @@
         { selector: '[data-bs-target="#seedPressesModal"]', modalId: 'seedPressesModal' },
         { selector: '[data-bs-target="#bulkAdjustModal"]', modalId: 'bulkAdjustModal' },
         { selector: '[data-bs-target="#bulkMatrixModal"]', modalId: 'bulkMatrixModal' },
+        { selector: '[data-bs-target="#paperSeederModal"]', modalId: 'paperSeederModal' },
       ];
       modalBindings.forEach(function (binding) {
         document.querySelectorAll(binding.selector).forEach(function (btn) {

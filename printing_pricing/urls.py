@@ -44,6 +44,11 @@ from .views.settings_views import (
     DigitalSheetSizeListView, DigitalSheetSizeCreateView, DigitalSheetSizeUpdateView, DigitalSheetSizeDeleteView
 )
 
+from supplier.views_settings.service_type_views import (
+    service_type_list, service_type_create, service_type_edit,
+    service_type_delete, service_type_schema
+)
+
 app_name = 'printing_pricing'
 
 # URLs للطلبات
@@ -103,6 +108,13 @@ api_patterns = [
 settings_patterns = [
     # الصفحة الرئيسية للإعدادات
     path('', settings_home, name='settings_home'),
+    
+    # خدمات وقدرات التسعير
+    path('service-types/', service_type_list, name='service_type_list'),
+    path('service-types/create/', service_type_create, name='service_type_create'),
+    path('service-types/<int:pk>/edit/', service_type_edit, name='service_type_edit'),
+    path('service-types/<int:pk>/delete/', service_type_delete, name='service_type_delete'),
+    path('service-types/<int:pk>/schema/', service_type_schema, name='service_type_schema'),
     
     # أنواع الورق
     path('paper-types/', PaperTypeListView.as_view(), name='paper_type_list'),

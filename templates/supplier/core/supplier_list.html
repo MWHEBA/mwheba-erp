@@ -75,12 +75,12 @@
       <div class="filter-section mb-4">
       <form method="GET" action="{% url 'supplier:supplier_list' %}" class="row g-2 align-items-end">
         <input type="hidden" name="status" id="status" value="{{ request.GET.status|default:'active' }}">
-        <div class="col-md-3 col-sm-6">
+        <div class="col-md-2 col-sm-6">
           <label for="search" class="form-label">{% trans "بحث" %}</label>
-          <input type="text" class="form-control" id="search" name="search" value="{{ request.GET.search }}" placeholder="اسم أو كود أو هاتف المورد">
+          <input type="text" class="form-control" id="search" name="search" value="{{ request.GET.search }}" placeholder="اسم أو كود أو هاتف">
         </div>
         <div class="col-md-2 col-sm-6">
-          <label for="primary_type" class="form-label">{% trans "التصنيف / النوع" %}</label>
+          <label for="primary_type" class="form-label">{% trans "التصنيف الأساسي" %}</label>
           <select class="form-select" id="primary_type" name="primary_type">
             <option value="">{% trans "كل التصنيفات" %}</option>
             {% for st in supplier_types %}
@@ -88,6 +88,17 @@
             {% endfor %}
           </select>
         </div>
+        {% if enabled_modules.printing_pricing %}
+        <div class="col-md-2 col-sm-6">
+          <label for="provided_service" class="form-label">{% trans "الخدمة المقدمة" %}</label>
+          <select class="form-select" id="provided_service" name="provided_service">
+            <option value="">{% trans "كل الخدمات" %}</option>
+            {% for ps in provided_services_list %}
+            <option value="{{ ps.code }}" {% if selected_provided_service == ps.code %}selected{% endif %}>{{ ps.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        {% endif %}
         <div class="col-md-2 col-sm-6">
           <label for="currency" class="form-label">{% trans "العملة" %}</label>
           <select class="form-select" id="currency" name="currency">
@@ -105,12 +116,12 @@
             <option value="0" {% if request.GET.has_debt == '0' %}selected{% endif %}>بدون استحقاق</option>
           </select>
         </div>
-        <div class="col-md-3 col-sm-12 d-flex gap-2 align-items-end">
+        <div class="col-md-2 col-sm-12 d-flex gap-1 align-items-end">
           <button type="submit" class="btn btn-primary flex-grow-1">
             <i class="fas fa-search me-1"></i>{% trans "بحث" %}
           </button>
           <a href="{% url 'supplier:supplier_list' %}{% if request.GET.status == 'inactive' %}?status=inactive{% endif %}" class="btn btn-outline-secondary">
-            <i class="fas fa-times me-1"></i>مسح
+            <i class="fas fa-times"></i>
           </a>
         </div>
       </form>

@@ -435,7 +435,7 @@ class PrintingCalculationEngine:
         if paper_svc_id:
             try:
                 from supplier.models import SupplierService
-                svc = SupplierService.objects.filter(id=paper_svc_id, is_active=True).first()
+                svc = SupplierService.objects.filter(id=paper_svc_id, is_active=True, supplier__is_active=True).first()
                 if svc:
                     # تحديد أبعاد الفرخ الخام الحقيقي
                     if svc.paper_size:
@@ -460,6 +460,7 @@ class PrintingCalculationEngine:
             pref_svc = SupplierService.objects.filter(
                 service_type__code='paper',
                 is_active=True,
+                supplier__is_active=True,
                 supplier__is_preferred=True
             ).first()
             if pref_svc:
@@ -529,18 +530,42 @@ class PrintingCalculationEngine:
         press_pulls = gross_press_sheets * pulls_mult
         tirages = math.ceil(press_pulls / 1000)
 
-        # استدعاء سعر التراج والحد الأدنى لفتحة الماكينة من ماكينة المورد المحددة مع دعم شرائح الكميات
-        rate_per_1000, min_floor = cls._resolve_press_machine_rates(params, w_cut, h_cut, tirages=tirages)
-
-        base_press_cost = Decimal(str(tirages)) * rate_per_1000
-        applied_press_cost = max(min_floor, base_press_cost)
-        is_floor_applied = (base_press_cost < min_floor)
+        # فحص وجود خدمة ماكينة بمواصفات الطقم (Set Pricing)
+        press_svc = cls._resolve_press_service(params)
 
         # مصاريف الألوان المخصوصة (بنتون - لغسيل حوض الحبر)
         spot_front = cls._to_int(params.get('spot_colors_front'), 0)
         spot_back = cls._to_int(params.get('spot_colors_back'), 0) if sides_mode == 'work_sheet' else 0
         spot_wash_fee = cls._get_benchmark_rate('spot_color_wash_fee', target_curr=target_curr, date=order_date)
         spot_colors_cost = Decimal(str(spot_front + spot_back)) * spot_wash_fee
+
+        back_colors = cls._to_int(params.get('colors_back'), 4)
+        machine_sets = 2 if (sides_mode == 'work_sheet' and (back_colors > 0 or spot_back > 0)) else 1
+
+        press_rate_input = params.get('press_rate')
+        has_explicit_rate = False
+        if press_rate_input is not None and str(press_rate_input).strip() != '':
+            try:
+                exp_r = cls._to_decimal(press_rate_input, Decimal('0.0'))
+                if exp_r > Decimal('0.00'):
+                    has_explicit_rate = True
+            except Exception:
+                pass
+
+        is_set_pricing = False
+        if press_svc and press_svc.set_price and press_svc.set_price > Decimal('0.00') and not has_explicit_rate:
+            raw_cost = press_svc.calculate_cost(tirages, machine_sets=machine_sets)
+            applied_press_cost = cls._convert_currency(raw_cost, from_curr=press_svc.effective_currency, to_curr=target_curr, date=order_date)
+            base_press_cost = applied_press_cost
+            rate_per_1000 = (applied_press_cost / Decimal(str(tirages))).quantize(Decimal('0.01')) if tirages > 0 else Decimal('0.00')
+            min_floor = cls._convert_currency(Decimal(str(press_svc.minimum_charge)), from_curr=press_svc.effective_currency, to_curr=target_curr, date=order_date) if (press_svc.minimum_charge and press_svc.minimum_charge > 0) else Decimal('0.00')
+            is_floor_applied = (applied_press_cost == min_floor and min_floor > 0)
+            is_set_pricing = True
+        else:
+            rate_per_1000, min_floor = cls._resolve_press_machine_rates(params, w_cut, h_cut, tirages=tirages)
+            base_press_cost = Decimal(str(tirages)) * rate_per_1000
+            applied_press_cost = max(min_floor, base_press_cost)
+            is_floor_applied = (base_press_cost < min_floor)
 
         total_offset_cost = (applied_press_cost + spot_colors_cost).quantize(Decimal('0.01'))
 
@@ -554,8 +579,36 @@ class PrintingCalculationEngine:
             'rate_per_1000': float(rate_per_1000),
             'minimum_charge': float(min_floor),
             'spot_colors_cost': float(spot_colors_cost),
+            'is_set_pricing': is_set_pricing,
+            'set_price': float(press_svc.set_price) if (press_svc and press_svc.set_price) else None,
+            'set_included_tirages': press_svc.set_included_tirages if (press_svc and press_svc.set_included_tirages) else 1,
             'printing_type': 'offset'
         }
+
+    @classmethod
+    def _resolve_press_service(cls, params: Dict[str, Any]):
+        from supplier.models import SupplierService
+        press_param = str(params.get('cover_press_machine') or params.get('press_service_id') or '')
+        svc_id = None
+        if press_param.startswith('offset_'):
+            try:
+                svc_id = int(press_param.split('_')[1])
+            except (IndexError, ValueError):
+                pass
+        elif press_param.isdigit():
+            svc_id = int(press_param)
+
+        if svc_id:
+            svc = SupplierService.objects.filter(id=svc_id, is_active=True, supplier__is_active=True).first()
+            if svc:
+                return svc
+
+        supp_id = params.get('cover_offset_supplier') or params.get('offset_supplier')
+        if supp_id and str(supp_id).isdigit():
+            return SupplierService.objects.filter(
+                supplier_id=int(supp_id), service_type__code='offset_printing', is_active=True, supplier__is_active=True
+            ).first()
+        return None
 
     @classmethod
     def _resolve_press_machine_rates(
@@ -574,20 +627,14 @@ class PrintingCalculationEngine:
             except Exception:
                 pass
 
-        press_svc_id = params.get('cover_press_machine') or params.get('press_service_id')
-        if press_svc_id:
-            try:
-                from supplier.models import SupplierService
-                svc = SupplierService.objects.filter(id=press_svc_id, is_active=True).first()
-                if svc:
-                    # دعم شرائح الكميات الحية
-                    unit_rate = svc.get_price_for_quantity(tirages)
-                    unit_rate = cls._convert_currency(unit_rate, from_curr=svc.effective_currency, to_curr=target_curr, date=order_date)
-                    rate = unit_rate if unit_rate > 0 else cls._get_benchmark_rate('press_rate_50x70', target_curr=target_curr, date=order_date)
-                    floor = cls._convert_currency(Decimal(str(svc.minimum_charge)), from_curr=svc.effective_currency, to_curr=target_curr, date=order_date) if (svc.minimum_charge and svc.minimum_charge > 0) else Decimal('0.00')
-                    return rate, floor
-            except Exception:
-                pass
+        press_svc = cls._resolve_press_service(params)
+        if press_svc:
+            # دعم شرائح الكميات الحية
+            unit_rate = press_svc.get_price_for_quantity(tirages)
+            unit_rate = cls._convert_currency(unit_rate, from_curr=press_svc.effective_currency, to_curr=target_curr, date=order_date)
+            rate = unit_rate if unit_rate > 0 else cls._get_benchmark_rate('press_rate_50x70', target_curr=target_curr, date=order_date)
+            floor = cls._convert_currency(Decimal(str(press_svc.minimum_charge)), from_curr=press_svc.effective_currency, to_curr=target_curr, date=order_date) if (press_svc.minimum_charge and press_svc.minimum_charge > 0) else Decimal('0.00')
+            return rate, floor
 
         # قراءة الحد الأدنى لفتحة الماكينة إن وجد صراحة
         explicit_floor = params.get('press_floor') or params.get('minimum_charge')
@@ -599,10 +646,49 @@ class PrintingCalculationEngine:
         return cls._get_benchmark_rate(bm_key, target_curr=target_curr, date=order_date), floor
 
     @classmethod
+    def _resolve_plate_service(cls, params: Dict[str, Any], press_bed_size: str = ''):
+        from supplier.models import SupplierService
+        from django.db.models import Q
+
+        svc_id = params.get('ctp_service_id') or params.get('cover_ctp_service_id')
+        if svc_id and str(svc_id).isdigit():
+            svc = SupplierService.objects.filter(id=int(svc_id), is_active=True, supplier__is_active=True).first()
+            if svc:
+                return svc
+
+        supp_id = params.get('ctp_supplier') or params.get('cover_ctp_supplier')
+        if supp_id and str(supp_id).isdigit():
+            bed_qs = SupplierService.objects.filter(
+                supplier_id=int(supp_id), service_type__code='ctp_plates', is_active=True, supplier__is_active=True
+            )
+            if not bed_qs.exists():
+                svc = SupplierService.objects.filter(id=int(supp_id), is_active=True, supplier__is_active=True).first()
+                if svc:
+                    return svc
+            else:
+                svc = None
+                if '100' in press_bed_size:
+                    svc = bed_qs.filter(Q(plate_size__code__icontains='100') | Q(plate_size__name__icontains='100') | Q(name__icontains='100')).first()
+                elif '70' in press_bed_size:
+                    svc = bed_qs.filter(Q(plate_size__code__icontains='70') | Q(plate_size__name__icontains='70') | Q(name__icontains='70')).first()
+                elif '50' in press_bed_size or '35' in press_bed_size:
+                    svc = bed_qs.filter(Q(plate_size__code__icontains='35') | Q(plate_size__name__icontains='35') | Q(name__icontains='35') | Q(name__icontains='50')).first()
+                if not svc:
+                    svc = bed_qs.first()
+                if svc:
+                    return svc
+
+        # المورد المفضل للزنكات كـ fallback
+        pref_svc = SupplierService.objects.filter(
+            service_type__code='ctp_plates', is_active=True, supplier__is_active=True, supplier__is_preferred=True
+        ).first()
+        return pref_svc
+
+    @classmethod
     def _calculate_ctp_plates(
         cls, cover_type: str, sides_mode: str, w_cut: Decimal, h_cut: Decimal, params: Dict[str, Any]
     ) -> Dict[str, Any]:
-        """حساب عدد زنكات CTP وتكلفتها بالجنيه المصري مع تصفير الظهر في الطبع والقلب."""
+        """حساب عدد زنكات CTP وتكلفتها بالجنيه المصري مع تصفير الظهر في الطبع والقلب ودعم تسعير الطقم."""
         if cover_type != 'offset':
             return {'total_cost': 0.0, 'total_plates': 0, 'is_archived': False}
 
@@ -622,19 +708,71 @@ class PrintingCalculationEngine:
         else:
             plates_back = 0  # توفير 50% في الطبع والقلب
 
-        total_plates = plates_front + plates_back
+        manual_plates = params.get('zinc_plates_count') or params.get('plates_total')
+        if manual_plates is not None and str(manual_plates).strip() != '':
+            try:
+                m_plates = cls._to_int(manual_plates, 0)
+                if m_plates > 0:
+                    total_plates = m_plates
+            except Exception:
+                total_plates = plates_front + plates_back
+        else:
+            total_plates = plates_front + plates_back
 
-        # سعر الزنكة من خدمة المورد أو الاسترشادي
-        plate_price = cls._resolve_plate_price(params, w_cut, h_cut)
+        if total_plates <= 0:
+            total_plates = 4
 
-        total_cost = Decimal('0.00') if is_archived else (Decimal(str(total_plates)) * plate_price).quantize(Decimal('0.01'))
+        target_curr = params.get('_target_curr')
+        order_date = params.get('_order_date')
+        press_bed_size = str(params.get('press_bed_size') or '')
+
+        ctp_svc = cls._resolve_plate_service(params, press_bed_size=press_bed_size)
+
+        explicit_plate_price = params.get('plate_price')
+        has_explicit_plate_price = False
+        if explicit_plate_price is not None and str(explicit_plate_price).strip() != '':
+            try:
+                exp_p = cls._to_decimal(explicit_plate_price, Decimal('-1.0'))
+                if exp_p >= Decimal('0.00'):
+                    has_explicit_plate_price = True
+            except Exception:
+                pass
+
+        is_set_pricing = False
+        converted_set_price = None
+
+        if is_archived:
+            total_cost = Decimal('0.00')
+            effective_plate_price = Decimal('0.00')
+        elif ctp_svc and ctp_svc.set_price and ctp_svc.set_price > Decimal('0.00') and not has_explicit_plate_price:
+            full_sets = total_plates // 4
+            remainder = total_plates % 4
+            converted_set_price = cls._convert_currency(Decimal(str(ctp_svc.set_price)), from_curr=ctp_svc.effective_currency, to_curr=target_curr, date=order_date)
+            if ctp_svc.base_price and ctp_svc.base_price > Decimal('0.00'):
+                converted_base_price = cls._convert_currency(Decimal(str(ctp_svc.base_price)), from_curr=ctp_svc.effective_currency, to_curr=target_curr, date=order_date)
+            else:
+                converted_base_price = max((converted_set_price / Decimal('4.00')) * Decimal('1.25'), cls._convert_currency(Decimal('50.00'), to_curr=target_curr, date=order_date))
+
+            cost_unit = (Decimal(str(total_plates)) * converted_base_price).quantize(Decimal('0.01'))
+            cost_set_rem = (Decimal(str(full_sets)) * converted_set_price + Decimal(str(remainder)) * converted_base_price).quantize(Decimal('0.01'))
+            cost_next_set = (Decimal(str(full_sets + (1 if remainder > 0 else 0))) * converted_set_price).quantize(Decimal('0.01'))
+
+            total_cost = min(cost_unit, cost_set_rem, cost_next_set)
+            effective_plate_price = (total_cost / Decimal(str(total_plates))).quantize(Decimal('0.01')) if total_plates > 0 else Decimal('0.00')
+            is_set_pricing = True
+        else:
+            plate_price = cls._resolve_plate_price(params, w_cut, h_cut)
+            total_cost = (Decimal(str(total_plates)) * plate_price).quantize(Decimal('0.01'))
+            effective_plate_price = plate_price
 
         return {
             'total_cost': float(total_cost),
             'total_plates': total_plates,
             'plates_front': plates_front,
             'plates_back': plates_back,
-            'unit_price': float(plate_price),
+            'unit_price': float(effective_plate_price),
+            'set_price': float(converted_set_price) if converted_set_price else None,
+            'is_set_pricing': is_set_pricing,
             'is_archived': is_archived,
             'is_work_turn_savings': (sides_mode in ['work_turn', 'work_and_turn'])
         }
@@ -652,28 +790,14 @@ class PrintingCalculationEngine:
             except Exception:
                 pass
 
-        ctp_svc_id = params.get('ctp_supplier') or params.get('ctp_service_id')
-        if ctp_svc_id:
-            try:
-                from supplier.models import SupplierService
-                svc = SupplierService.objects.filter(id=ctp_svc_id, is_active=True).first()
-                if svc and svc.base_price > 0:
-                    return cls._convert_currency(Decimal(str(svc.base_price)), from_curr=svc.effective_currency, to_curr=target_curr, date=order_date)
-            except Exception:
-                pass
-
-        # البحث عن المورد المفضل للزنكات إن وجد
-        try:
-            from supplier.models import SupplierService
-            pref_svc = SupplierService.objects.filter(
-                service_type__code='ctp_plates',
-                is_active=True,
-                supplier__is_preferred=True
-            ).first()
-            if pref_svc and pref_svc.base_price > 0:
-                return cls._convert_currency(Decimal(str(pref_svc.base_price)), from_curr=pref_svc.effective_currency, to_curr=target_curr, date=order_date)
-        except Exception:
-            pass
+        press_bed_size = str(params.get('press_bed_size') or '')
+        svc = cls._resolve_plate_service(params, press_bed_size=press_bed_size)
+        if svc:
+            if svc.base_price and svc.base_price > Decimal('0.00'):
+                return cls._convert_currency(Decimal(str(svc.base_price)), from_curr=svc.effective_currency, to_curr=target_curr, date=order_date)
+            elif svc.set_price and svc.set_price > Decimal('0.00'):
+                calc_unit = max((svc.set_price / Decimal('4.00')) * Decimal('1.25'), Decimal('50.00'))
+                return cls._convert_currency(calc_unit, from_curr=svc.effective_currency, to_curr=target_curr, date=order_date)
 
         is_full = (w_cut > Decimal('55.0') or h_cut > Decimal('75.0'))
         bm_key = 'plate_price_70x100' if is_full else 'plate_price_50x70'
@@ -703,12 +827,13 @@ class PrintingCalculationEngine:
             lam_svc = None
             coating_svc_id = params.get('coating_service_id')
             if coating_svc_id:
-                lam_svc = SupplierService.objects.filter(id=coating_svc_id, is_active=True).first()
+                lam_svc = SupplierService.objects.filter(id=coating_svc_id, is_active=True, supplier__is_active=True).first()
             if not lam_svc:
                 # محاولة المطابقة بنوع السلوفان المفضل أو الأرخص
                 lam_svc = SupplierService.objects.filter(
                     service_type__code='coating',
-                    is_active=True
+                    is_active=True,
+                    supplier__is_active=True
                 ).order_by('-supplier__is_preferred', 'base_price').first()
 
             if lam_svc and lam_svc.base_price > 0:
@@ -729,7 +854,8 @@ class PrintingCalculationEngine:
             die_svc = SupplierService.objects.filter(
                 service_type__code='finishing',
                 finishing_type__name__icontains='تكسير',
-                is_active=True
+                is_active=True,
+                supplier__is_active=True
             ).order_by('-supplier__is_preferred', 'base_price').first()
 
             if die_svc:
@@ -805,12 +931,40 @@ class PrintingCalculationEngine:
 
         # طباعة الداخلي: كل ملزمة تحتاج 4 زنكات وش وضهر طبع وقلب أو 8 زنكات
         inner_plates = signatures * 4
-        inner_plate_cost = Decimal(str(inner_plates)) * cls._get_benchmark_rate('plate_price_50x70', target_curr=target_curr, date=order_date)
+        inner_bed_size = str(params.get('inner_bed_size') or '50x70')
+        inner_ctp_svc = cls._resolve_plate_service({
+            'ctp_service_id': params.get('inner_ctp_service_id'),
+            'ctp_supplier': params.get('inner_ctp_supplier'),
+        }, press_bed_size=inner_bed_size)
+
+        if inner_ctp_svc and inner_ctp_svc.set_price and inner_ctp_svc.set_price > Decimal('0.00') and not params.get('inner_plate_price'):
+            # كل ملزمة تحتاج طقم زنكات 4 ألوان: signatures * set_price
+            converted_inner_set_price = cls._convert_currency(Decimal(str(inner_ctp_svc.set_price)), from_curr=inner_ctp_svc.effective_currency, to_curr=target_curr, date=order_date)
+            inner_plate_cost = Decimal(str(signatures)) * converted_inner_set_price
+        else:
+            inner_plate_rate = cls._to_decimal(params.get('inner_plate_price'), cls._get_benchmark_rate('plate_price_50x70', target_curr=target_curr, date=order_date))
+            inner_plate_cost = Decimal(str(inner_plates)) * inner_plate_rate
 
         # سحبات الداخلي
         inner_pulls = gross_inner * 2
         inner_tirages = math.ceil(inner_pulls / 1000)
-        inner_press_cost = Decimal(str(inner_tirages)) * cls._get_benchmark_rate('press_rate_50x70', target_curr=target_curr, date=order_date)
+
+        # ماكينة طباعة الداخلي
+        inner_press_svc = cls._resolve_press_service({
+            'cover_press_machine': params.get('inner_press_machine'),
+            'cover_offset_supplier': params.get('inner_offset_supplier'),
+        })
+
+        if inner_press_svc and inner_press_svc.set_price and inner_press_svc.set_price > Decimal('0.00') and not params.get('inner_press_rate'):
+            # كل ملزمة تُطبع كوظيفة مستقلة على الماكينة
+            sig_pulls = math.ceil((gross_inner * 2) / signatures) if signatures > 0 else inner_pulls
+            sig_tirages = math.ceil(sig_pulls / 1000)
+            sig_cost = inner_press_svc.calculate_cost(sig_tirages, machine_sets=1)
+            sig_cost_converted = cls._convert_currency(sig_cost, from_curr=inner_press_svc.effective_currency, to_curr=target_curr, date=order_date)
+            inner_press_cost = Decimal(str(signatures)) * sig_cost_converted
+        else:
+            inner_press_rate = cls._to_decimal(params.get('inner_press_rate'), cls._get_benchmark_rate('press_rate_50x70', target_curr=target_curr, date=order_date))
+            inner_press_cost = Decimal(str(inner_tirages)) * inner_press_rate
 
         total_inner_cost = inner_paper_cost + inner_plate_cost + inner_press_cost
 

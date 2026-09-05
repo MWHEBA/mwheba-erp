@@ -436,6 +436,11 @@
                         </li>
                         <div class="nav-divider"></div>
                         <li>
+                            <a href="{% url 'supplier:service_type_list' %}" class="submenu-link {% if active_menu == 'printing_pricing' and active_submenu == 'service_types' %}active{% endif %}">
+                                <i class="fas fa-tags me-2"></i>{% trans "خدمات وقدرات التسعير" %}
+                            </a>
+                        </li>
+                        <li>
                             <a href="{% url 'printing_pricing:settings_home' %}" class="submenu-link">
                                 <i class="fas fa-cog me-2"></i>{% trans "إعدادات التسعير" %}
                             </a>

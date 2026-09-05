@@ -240,6 +240,20 @@ class Supplier(models.Model):
         help_text=_("تصنيف المورد حسب نوع الخدمة المقدمة")
     )
 
+    # تكامل التسعير والخدمات المعتمدة للمورد
+    is_pricing_supplier = models.BooleanField(
+        _("مورد معتمد لموديول التسعير"),
+        default=False,
+        help_text=_("هل هذا المورد معتمد لتقديم خامات أو خدمات طباعة تدخل في تسعير أوامر الشغل؟")
+    )
+    provided_services = models.ManyToManyField(
+        'supplier.ServiceType',
+        blank=True,
+        related_name='suppliers_providing',
+        verbose_name=_("الخدمات المعتمدة"),
+        help_text=_("الخدمات والقدرات التصنيعية المعتمدة لهذا المورد")
+    )
+
 
 
     # معلومات التواصل المحسنة
@@ -319,6 +333,25 @@ class Supplier(models.Model):
             from supplier.services.supplier_allocation_service import SupplierAllocationService
             return SupplierAllocationService.get_available_supplier_prepaid_balance(self.id)
 
+    def get_allowed_service_codes(self):
+        """إرجاع قائمة بأكواد الخدمات المعتمدة للمورد"""
+        codes = list(self.provided_services.values_list('code', flat=True))
+        if not codes:
+            type_code = self.primary_type.code.lower() if self.primary_type else ''
+            if 'press' in type_code or 'offset' in type_code:
+                return ['offset_printing', 'ctp_plates']
+            elif 'paper' in type_code:
+                return ['paper']
+            elif 'ctp' in type_code:
+                return ['ctp_plates']
+            elif any(k in type_code for k in ['coat', 'cellophan', 'laminat']):
+                return ['coating']
+            elif 'finish' in type_code:
+                return ['finishing']
+            elif 'pack' in type_code:
+                return ['packaging']
+        return codes
+
     def __str__(self):
         return str(self.name or f"Supplier {self.pk or ''}")
     
@@ -343,6 +376,11 @@ class Supplier(models.Model):
                 }
             )
             self.primary_type = default_type
+
+        # تفعيل كونه مورد تسعير تلقائياً إذا كان نوع المورد مرتبطاً بموديول التسعير
+        if not self.is_pricing_supplier and hasattr(self, 'primary_type') and self.primary_type:
+            if getattr(self.primary_type, 'settings', None) and getattr(self.primary_type.settings, 'is_pricing_related', False):
+                self.is_pricing_supplier = True
 
         if not self.code:
             # Get the last supplier code (without locking to avoid transaction issues)
@@ -377,6 +415,15 @@ class Supplier(models.Model):
             self.payment_terms = self.default_payment_term.name
 
         super().save(*args, **kwargs)
+
+        # ربط الخدمات المصرح بها تلقائياً إذا كان المورد تسعيرياً ولم تُحدد له خدمات بعد
+        if self.is_pricing_supplier and not self.provided_services.exists():
+            from .models import ServiceType
+            allowed_codes = self.get_allowed_service_codes()
+            if allowed_codes:
+                matching_svcs = ServiceType.objects.filter(code__in=allowed_codes, is_active=True)
+                if matching_svcs.exists():
+                    self.provided_services.set(matching_svcs)
 
         # مزامنة اسم الحساب المحاسبي تلقائياً في شجرة الحسابات بالنمط القياسي
         if self.financial_account:
@@ -603,6 +650,25 @@ class Supplier(models.Model):
         except:
             return None
 
+    @property
+    def currency_symbol(self):
+        """إرجاع رمز العملة الافتراضية للمورد أو العملة الوظيفية للنظام"""
+        if self.default_currency:
+            return getattr(self.default_currency, 'symbol', None) or getattr(self.default_currency, 'code', '')
+        try:
+            from core.utils import get_default_currency
+            return get_default_currency()
+        except Exception:
+            return 'ج.م'
+
+    @property
+    def currency_code(self):
+        """إرجاع كود العملة الافتراضية للمورد أو العملة الوظيفية للنظام"""
+        if self.default_currency:
+            return getattr(self.default_currency, 'code', '')
+        return 'EGP'
+
+
 
 
 
@@ -695,6 +761,11 @@ class SupplierTypeSettings(models.Model):
         _("مقدم خدمات"),
         default=False,
         help_text=_("هل هذا المورد يقدم خدمات (بدون مخزون) أم منتجات (تحتاج مخزون)؟")
+    )
+    is_pricing_related = models.BooleanField(
+        _("مرتبط بموديول التسعير والإنتاج"),
+        default=False,
+        help_text=_("هل هذا النوع مرتبط بحسابات وموديول تسعير الطباعة؟")
     )
     
     # تتبع التغييرات
@@ -1098,6 +1169,22 @@ class SupplierService(models.Model):
         default=Decimal('0.00'),
         validators=[MinValueValidator(Decimal('0.00'))]
     )
+    set_price    = models.DecimalField(
+        _("سعر الطقم"),
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal('0.00'))],
+        help_text=_("سعر الطقم (لزنكات CTP لطقم 4 ألوان، أو لماكينات الأوفست كفتحة ماكينة شاملة تراج)")
+    )
+    set_included_tirages = models.PositiveIntegerField(
+        _("عدد التراجات المشمولة في الطقم"),
+        null=True,
+        blank=True,
+        default=1,
+        help_text=_("خاص بماكينات الأوفست: عدد التراجات (بالألف سحبة) المتضمنة داخل سعر الطقم (افتراضياً 1 تراج)")
+    )
     setup_cost   = models.DecimalField(
         _("تكلفة الإعداد"),
         max_digits=10,
@@ -1180,6 +1267,29 @@ class SupplierService(models.Model):
                 raise ValidationError({'paper_size': _('مقاس الفرخ الخام مطلوب لخدمات توريد الورق')})
             if self.machine or self.plate_size or self.coating_type or self.finishing_type:
                 raise ValidationError(_('لا يمكن خلط حقول الماكينات أو الزنكات أو التشطيب مع خدمة خامات الورق'))
+            if self.pricing_formula == 'PER_TON':
+                if not self.price_per_ton or self.price_per_ton <= Decimal('0.00'):
+                    raise ValidationError({'price_per_ton': _('سعر الطن مطلوب ويجب أن يكون أكبر من الصفر عند اختيار التسعير بالطن')})
+                gsm_val = self.gsm or (self.paper_weight.gsm if self.paper_weight else None)
+                if not gsm_val:
+                    raise ValidationError({'gsm': _('يجب تحديد وزن الجراماج (GSM) لاحتساب سعر الفرخ من الطن')})
+                if not self.paper_size.width or not self.paper_size.height:
+                    raise ValidationError({'paper_size': _('مقاس الورق المحدد يجب أن يحتوي على أبعاد صحيحة (عرض وطول)')})
+            elif self.pricing_formula == 'PER_REAM':
+                if not self.sheets_per_pack or self.sheets_per_pack <= 0:
+                    raise ValidationError({'sheets_per_pack': _('عدد الأفرخ بالرزمة مطلوب ويجب أن يكون أكبر من الصفر')})
+
+        # التحقق من اختصاص حقول الأطقم
+        if self.set_price is not None and self.set_price > Decimal('0.00'):
+            if code not in ['offset_printing', 'ctp_plates']:
+                raise ValidationError({'set_price': _('تسعير الطقم متاح حصرياً لخدمات طباعة الأوفست وزنكات CTP فقط.')})
+            if code == 'offset_printing':
+                if not self.base_price or self.base_price <= Decimal('0.00'):
+                    raise ValidationError({'base_price': _('يجب تحديد سعر التراج الأساسي (للسحبات الزائدة عن الطقم) عند تفعيل سعر الطقم لماكينات الأوفست.')})
+                if self.set_included_tirages is None:
+                    self.set_included_tirages = 1
+            elif code == 'ctp_plates':
+                self.set_included_tirages = None
 
     def save(self, *args, **kwargs):
         """مزامنة حقل الخصائص attributes تلقائياً من الروابط العلائقية لضمان التوافق العكسي 100%"""
@@ -1206,6 +1316,9 @@ class SupplierService(models.Model):
             self.attributes['plate_size'] = self.plate_size.name
         if self.paper_size:
             self.attributes['parent_sheet_size'] = self.paper_size.name
+            w_p = int(self.paper_size.width) if self.paper_size.width == int(self.paper_size.width) else float(self.paper_size.width)
+            h_p = int(self.paper_size.height) if self.paper_size.height == int(self.paper_size.height) else float(self.paper_size.height)
+            self.attributes['sheet_size'] = f"{w_p}x{h_p}"
         if self.paper_origin:
             self.attributes['origin'] = self.paper_origin.name
         if self.gsm:
@@ -1213,7 +1326,24 @@ class SupplierService(models.Model):
         elif self.paper_weight:
             self.attributes['gsm'] = self.paper_weight.gsm
 
+        # اشتقاق سعر الفرخ الفعلي بالمعادلة الصناعية الدقيقة عند التسعير بالطن
+        if self.pricing_formula == 'PER_TON' and self.price_per_ton and self.paper_size:
+            w = self.paper_size.width
+            h = self.paper_size.height
+            g = self.gsm or (self.paper_weight.gsm if self.paper_weight else None)
+            if w and h and g:
+                sheet_weight_kg = (Decimal(str(w)) * Decimal(str(h)) * Decimal(str(g))) / Decimal('10000000')
+                self.base_price = (sheet_weight_kg * (self.price_per_ton / Decimal('1000'))).quantize(Decimal('0.0001'))
+
         super().save(*args, **kwargs)
+
+        # مزامنة الخدمة تلقائياً في قائمة خدمات المورد المعتمدة
+        if self.supplier_id and self.service_type_id:
+            try:
+                if hasattr(self.supplier, 'provided_services') and not self.supplier.provided_services.filter(pk=self.service_type_id).exists():
+                    self.supplier.provided_services.add(self.service_type)
+            except Exception:
+                pass
 
     def get_price_for_quantity(self, quantity=1):
         """
@@ -1229,27 +1359,67 @@ class SupplierService(models.Model):
 
         return tier.price_per_unit if tier else self.base_price
 
-    def calculate_cost(self, quantity=1, setup=None):
+    def calculate_cost(self, quantity=1, setup=None, machine_sets=1):
         """
-        احتساب التكلفة الإجمالية للخدمة بالمعادلة الصناعية مع احترام الحد الأدنى للتشغيل:
+        احتساب التكلفة الإجمالية للخدمة بالمعادلة الصناعية مع دعم الأطقم واحترام الحد الأدنى للتشغيل:
         Cost = max(minimum_charge, (quantity * unit_price) + setup_cost)
         """
+        code = self.service_type.code if self.service_type else None
+        qty_dec = Decimal(str(quantity or 1))
+        m_sets = max(1, int(machine_sets or 1))
+
+        # 1. دعم أطقم زنكات CTP بالمقارنة الثلاثية
+        if code == 'ctp_plates' and self.set_price and self.set_price > Decimal('0.00'):
+            import math
+            n_plates = int(quantity or 1)
+            if self.base_price and self.base_price > Decimal('0.00'):
+                cost_unit = Decimal(str(n_plates)) * self.base_price
+                sets_count = n_plates // 4
+                rem_plates = n_plates % 4
+                cost_set_rem = (Decimal(str(sets_count)) * self.set_price) + (Decimal(str(rem_plates)) * self.base_price)
+                cost_next_set = Decimal(str(math.ceil(n_plates / 4.0))) * self.set_price
+                calculated = min(cost_unit, cost_set_rem, cost_next_set)
+            else:
+                # بيع بالأطقم فقط عند انعدام السعر الفردي
+                calculated = Decimal(str(math.ceil(n_plates / 4.0))) * self.set_price
+            min_floor = self.minimum_charge or Decimal('0.00')
+            return max(min_floor, calculated).quantize(Decimal('0.01'))
+
+        # 2. دعم أطقم طباعة الأوفست (الكمية تمثل عدد التراجات الإجمالي)
+        if code == 'offset_printing' and self.set_price and self.set_price > Decimal('0.00'):
+            tirages_dec = qty_dec
+            included_t = Decimal(str(self.set_included_tirages or 1)) * Decimal(str(m_sets))
+            extra_t = max(Decimal('0.00'), tirages_dec - included_t)
+            extra_rate = self.get_price_for_quantity(quantity)
+            if extra_rate <= Decimal('0.00'):
+                extra_rate = self.base_price if (self.base_price and self.base_price > Decimal('0.00')) else Decimal('45.00')
+            cost_set = (Decimal(str(m_sets)) * self.set_price) + (extra_t * extra_rate)
+            min_floor = self.minimum_charge or Decimal('0.00')
+            return max(min_floor, cost_set).quantize(Decimal('0.01'))
+
+        # 3. الحساب المعياري لكافة الخدمات الأخرى
         unit_price = self.get_price_for_quantity(quantity)
         setup_fee = self.setup_cost if setup is None else Decimal(str(setup))
-        calculated = (Decimal(str(quantity)) * unit_price) + setup_fee
+        calculated = (qty_dec * unit_price) + setup_fee
         min_floor = self.minimum_charge or Decimal('0.00')
-        return max(min_floor, calculated)
+        return max(min_floor, calculated).quantize(Decimal('0.01'))
 
     def get_effective_sheet_price(self, width_cm=None, height_cm=None, gsm=None):
         """
         حساب سعر الفرخ المفرد الفعلي بناءً على نوع التسعير (فرخ / رزمة / طن)
+        مع الاعتماد الذاتي على المقاس والجراماج المسجلين بالخدمة عند غياب المعاملات
         """
-        if self.pricing_formula == 'PER_TON' and self.price_per_ton and width_cm and height_cm and gsm:
-            sheet_weight_kg = (Decimal(str(width_cm)) * Decimal(str(height_cm)) * Decimal(str(gsm))) / Decimal('10000000')
-            return (sheet_weight_kg * (self.price_per_ton / Decimal('1000'))).quantize(Decimal('0.0001'))
+        if self.pricing_formula == 'PER_TON' and self.price_per_ton:
+            w = width_cm or (self.paper_size.width if self.paper_size else None)
+            h = height_cm or (self.paper_size.height if self.paper_size else None)
+            g = gsm or self.gsm or (self.paper_weight.gsm if self.paper_weight else None)
+            if w and h and g:
+                sheet_weight_kg = (Decimal(str(w)) * Decimal(str(h)) * Decimal(str(g))) / Decimal('10000000')
+                return (sheet_weight_kg * (self.price_per_ton / Decimal('1000'))).quantize(Decimal('0.0001'))
+            return Decimal('0.00')
         elif self.pricing_formula == 'PER_REAM' and self.base_price and self.sheets_per_pack:
             return (self.base_price / Decimal(str(self.sheets_per_pack))).quantize(Decimal('0.0001'))
-        return self.base_price
+        return self.base_price or Decimal('0.00')
 
     @property
     def effective_currency(self):

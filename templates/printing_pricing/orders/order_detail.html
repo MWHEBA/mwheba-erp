@@ -228,7 +228,7 @@ document.addEventListener('DOMContentLoaded', function() {
           if (window.showNotification) {
             window.showNotification(data.message || '{% trans "تم توليد أوامر الشغل بنجاح" %}', 'success');
           }
-          setTimeout(function() { location.reload(); }, 1500);
+          setTimeout(function() { location.reload(); }, 3100);
         } else {
           if (window.showNotification) {
             window.showNotification(data.error || '{% trans "تعذر إصدار أوامر الشغل" %}', 'warning');

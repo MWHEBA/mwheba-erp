@@ -1048,10 +1048,39 @@ class OrderFormUIController {
 
     const actualPlates = totalPlates;
     const unitPrice = PricingMath.parseSafeNumber(platePriceInput?.value, 85);
-    let totalCost = isArchived ? 0 : (actualPlates * unitPrice);
+    const setPrice = PricingMath.parseSafeNumber(platePriceInput?.dataset?.setPrice || $(platePriceInput).attr('data-set-price'), 0);
+
+    let totalCost = 0;
+    if (!isArchived && actualPlates > 0) {
+      if (setPrice > 0 && unitPrice > 0) {
+        const fullSets = Math.floor(actualPlates / 4);
+        const remPlates = actualPlates % 4;
+        const costUnit = actualPlates * unitPrice;
+        const costSetRem = (fullSets * setPrice) + (remPlates * unitPrice);
+        const costNextSet = (fullSets + (remPlates > 0 ? 1 : 0)) * setPrice;
+        totalCost = Math.min(costUnit, costSetRem, costNextSet);
+      } else if (setPrice > 0) {
+        const totalSets = Math.ceil(actualPlates / 4);
+        totalCost = totalSets * setPrice;
+      } else {
+        totalCost = actualPlates * unitPrice;
+      }
+    }
 
     if (coverPrintingType !== 'offset') {
       totalCost = 0;
+    }
+
+    const platesTotalInput = document.getElementById('id_plates_total');
+    if (platesTotalInput) platesTotalInput.value = actualPlates;
+
+    const ctpSetBadge = document.getElementById('cover_ctp_set_badge');
+    if (ctpSetBadge) {
+      if (!isArchived && setPrice > 0 && actualPlates >= 4 && coverPrintingType === 'offset') {
+        ctpSetBadge.classList.remove('d-none');
+      } else {
+        ctpSetBadge.classList.add('d-none');
+      }
     }
 
     if (ctpCostDisplay) ctpCostDisplay.textContent = this.formatMoney(totalCost);
@@ -1120,10 +1149,36 @@ class OrderFormUIController {
 
     const actualInnerPlates = PricingMath.parseSafeNumber(innerTotalInput?.value, innerPlates);
     const unitPrice = PricingMath.parseSafeNumber(innerPriceInput?.value, 85);
-    let totalCost = isArchived ? 0 : (actualInnerPlates * unitPrice);
+    const setPrice = PricingMath.parseSafeNumber(innerPriceInput?.dataset?.setPrice || $(innerPriceInput).attr('data-set-price'), 0);
+
+    let totalCost = 0;
+    if (!isArchived && actualInnerPlates > 0) {
+      if (setPrice > 0 && unitPrice > 0) {
+        const fullSets = Math.floor(actualInnerPlates / 4);
+        const remPlates = actualInnerPlates % 4;
+        const costUnit = actualInnerPlates * unitPrice;
+        const costSetRem = (fullSets * setPrice) + (remPlates * unitPrice);
+        const costNextSet = (fullSets + (remPlates > 0 ? 1 : 0)) * setPrice;
+        totalCost = Math.min(costUnit, costSetRem, costNextSet);
+      } else if (setPrice > 0) {
+        const totalSets = Math.ceil(actualInnerPlates / 4);
+        totalCost = totalSets * setPrice;
+      } else {
+        totalCost = actualInnerPlates * unitPrice;
+      }
+    }
 
     if (innerPrintingType !== 'offset') {
       totalCost = 0;
+    }
+
+    const innerCtpSetBadge = document.getElementById('inner_ctp_set_badge');
+    if (innerCtpSetBadge) {
+      if (!isArchived && setPrice > 0 && actualInnerPlates >= 4 && innerPrintingType === 'offset') {
+        innerCtpSetBadge.classList.remove('d-none');
+      } else {
+        innerCtpSetBadge.classList.add('d-none');
+      }
     }
 
     if (innerCostDisplay) innerCostDisplay.textContent = this.formatMoney(totalCost);
@@ -1165,11 +1220,12 @@ class OrderFormUIController {
             data.presses.forEach((p, idx) => {
               const isSel = idx === 0 ? 'selected' : '';
               const bedSize = p.bed_size || '50x70';
-              optionsHtml += `<option value="${p.id}" data-bed="${bedSize}" data-rate="${p.price_per_1000}" data-floor="${p.setup_cost}" data-service-id="${p.service_id}" ${isSel}>${p.name}</option>`;
+              optionsHtml += `<option value="${p.id}" data-bed="${bedSize}" data-rate="${p.price_per_1000}" data-floor="${p.setup_cost}" data-service-id="${p.service_id}" data-set-price="${p.set_price || 0}" data-set-included-tirages="${p.set_included_tirages || 1}" ${isSel}>${p.name}</option>`;
             });
             machineSelect.html(optionsHtml);
             const first = data.presses[0];
             pressRateInput.val(first.price_per_1000);
+            $('#id_cover_press_service_id').val(first.service_id || '');
             $('#id_press_bed_size').val(first.bed_size || '50x70').trigger('change');
           }
           self.debouncedRecalculate();
@@ -1184,6 +1240,8 @@ class OrderFormUIController {
       const selectedOpt = $(this).find('option:selected');
       const optRate = selectedOpt.data('rate');
       const optBed = selectedOpt.data('bed');
+      const svcId = selectedOpt.data('service-id');
+      if (svcId) $('#id_cover_press_service_id').val(svcId);
       if (optRate !== undefined) $('#id_press_rate').val(optRate);
       if (optBed) $('#id_press_bed_size').val(optBed).trigger('change');
 
@@ -1200,6 +1258,31 @@ class OrderFormUIController {
         if (opt.length) pieceSelect.val(opt.val()).trigger('change.select2');
       }
       self.debouncedRecalculate();
+    });
+
+    // مكتب فصل زنكات الغلاف
+    $(document).on('change select2:select', '#id_cover_ctp_supplier', function () {
+      const supplierId = this.value;
+      const bedSize = $('#id_press_bed_size').val() || '50x70';
+      const platePriceInput = $('#id_plate_price');
+
+      if (supplierId) {
+        $.getJSON(`${self.config.urls.pressesApi}?supplier_id=${supplierId}&order_type=ctp`, function (data) {
+          if (data && data.success && data.presses && data.presses.length > 0) {
+            let matched = data.presses.find(p => p.bed_size === bedSize) || data.presses[0];
+            if (matched) {
+              if (matched.price_per_1000) platePriceInput.val(matched.price_per_1000);
+              platePriceInput.attr('data-set-price', matched.set_price || 0);
+              $('#id_cover_ctp_service_id').val(matched.service_id || '');
+            }
+          }
+          self.debouncedRecalculate();
+        });
+      } else {
+        platePriceInput.removeAttr('data-set-price');
+        $('#id_cover_ctp_service_id').val('');
+        self.debouncedRecalculate();
+      }
     });
 
     // مركز ديجيتال الغلاف
@@ -1257,11 +1340,12 @@ class OrderFormUIController {
             data.presses.forEach((p, idx) => {
               const isSel = idx === 0 ? 'selected' : '';
               const bedSize = p.bed_size || '50x70';
-              optionsHtml += `<option value="${p.id}" data-bed="${bedSize}" data-rate="${p.price_per_1000}" data-floor="${p.setup_cost}" data-service-id="${p.service_id}" ${isSel}>${p.name}</option>`;
+              optionsHtml += `<option value="${p.id}" data-bed="${bedSize}" data-rate="${p.price_per_1000}" data-floor="${p.setup_cost}" data-service-id="${p.service_id}" data-set-price="${p.set_price || 0}" data-set-included-tirages="${p.set_included_tirages || 1}" ${isSel}>${p.name}</option>`;
             });
             machineSelect.html(optionsHtml);
             const first = data.presses[0];
             pressRateInput.val(first.price_per_1000);
+            $('#id_inner_press_service_id').val(first.service_id || '');
             $('#id_inner_press_bed_size').val(first.bed_size || '50x70').trigger('change');
           }
           self.debouncedRecalculate();
@@ -1275,6 +1359,8 @@ class OrderFormUIController {
       const selectedOpt = $(this).find('option:selected');
       const optRate = selectedOpt.data('rate');
       const optBed = selectedOpt.data('bed');
+      const svcId = selectedOpt.data('service-id');
+      if (svcId) $('#id_inner_press_service_id').val(svcId);
       if (optRate !== undefined) $('#id_inner_press_rate').val(optRate);
       if (optBed) $('#id_inner_press_bed_size').val(optBed).trigger('change');
 
@@ -1293,6 +1379,31 @@ class OrderFormUIController {
         }
       }
       self.debouncedRecalculate();
+    });
+
+    // مكتب فصل زنكات الداخلي
+    $(document).on('change select2:select', '#id_inner_ctp_supplier', function () {
+      const supplierId = this.value;
+      const bedSize = $('#id_inner_press_bed_size').val() || '50x70';
+      const platePriceInput = $('#id_inner_plate_price');
+
+      if (supplierId) {
+        $.getJSON(`${self.config.urls.pressesApi}?supplier_id=${supplierId}&order_type=ctp`, function (data) {
+          if (data && data.success && data.presses && data.presses.length > 0) {
+            let matched = data.presses.find(p => p.bed_size === bedSize) || data.presses[0];
+            if (matched) {
+              if (matched.price_per_1000) platePriceInput.val(matched.price_per_1000);
+              platePriceInput.attr('data-set-price', matched.set_price || 0);
+              $('#id_inner_ctp_service_id').val(matched.service_id || '');
+            }
+          }
+          self.debouncedRecalculate();
+        });
+      } else {
+        platePriceInput.removeAttr('data-set-price');
+        $('#id_inner_ctp_service_id').val('');
+        self.debouncedRecalculate();
+      }
     });
 
     // سنترة خيارات القوائم المنسدلة عند فتح select2 للحقول المحددة بـ text-center
@@ -2334,6 +2445,11 @@ class OrderFormUIController {
         spotBack = PricingMath.parseSafeNumber(document.getElementById('id_spot_colors_back')?.value, 0);
       }
       const pressRate = PricingMath.parseSafeNumber(document.getElementById('id_press_rate')?.value, 45);
+      const selectedPressOpt = document.getElementById('id_cover_press_machine')?.selectedOptions[0];
+      const setPrice = PricingMath.parseSafeNumber(selectedPressOpt?.dataset?.setPrice, 0);
+      const setIncludedTirages = Math.max(1, PricingMath.parseSafeNumber(selectedPressOpt?.dataset?.setIncludedTirages, 1));
+      const pressSetBadge = document.getElementById('cover_press_set_badge');
+
       const pullsMultiplier = (offsetSides === 'work_turn' || (offsetSides === 'work_sheet' && (backColors > 0 || spotBack > 0))) ? 2 : 1;
       const machinePulls = grossSheets * machineCuts;
       const pullsInfo = PricingMath.calcPullsAndTirage(machinePulls, pullsMultiplier);
@@ -2346,7 +2462,16 @@ class OrderFormUIController {
       $('#display_machine_tirages').text(`(${pullsInfo.tirages} تراج)`);
 
       const pressCostDisplay = document.getElementById('cover_press_cost_display');
-      const basePressCost = pullsInfo.tirages * pressRate;
+      let basePressCost = 0;
+      if (setPrice > 0) {
+        const numSets = (offsetSides === 'work_sheet' && (backColors > 0 || spotBack > 0)) ? 2 : 1;
+        const extraTirages = Math.max(0, pullsInfo.tirages - (numSets * setIncludedTirages));
+        basePressCost = (numSets * setPrice) + (extraTirages * pressRate);
+        if (pressSetBadge) pressSetBadge.classList.remove('d-none');
+      } else {
+        basePressCost = pullsInfo.tirages * pressRate;
+        if (pressSetBadge) pressSetBadge.classList.add('d-none');
+      }
       if (pressCostDisplay) pressCostDisplay.textContent = this.formatMoney(basePressCost);
 
       const coverSpotCost = (spotFront + spotBack) * 150.00;
@@ -2385,6 +2510,11 @@ class OrderFormUIController {
     if (['catalog', 'book', 'magazine', 'book_catalog'].includes(type)) {
       if (innerPrintingType === 'offset') {
         const innerPressRate = PricingMath.parseSafeNumber(document.getElementById('id_inner_press_rate')?.value, 45);
+        const selectedInnerOpt = document.getElementById('id_inner_press_machine')?.selectedOptions[0];
+        const innerSetPrice = PricingMath.parseSafeNumber(selectedInnerOpt?.dataset?.setPrice, 0);
+        const innerIncludedTirages = Math.max(1, PricingMath.parseSafeNumber(selectedInnerOpt?.dataset?.setIncludedTirages, 1));
+        const innerPressSetBadge = document.getElementById('inner_press_set_badge');
+
         const innerSides = document.getElementById('id_inner_print_sides_mode')?.value || 'work_sheet';
         const sigPulls = qty * (innerSides === 'work_turn' ? 2 : 1);
         const sigTirage = Math.max(1, Math.ceil(sigPulls / 1000));
@@ -2394,7 +2524,18 @@ class OrderFormUIController {
         if (innerPullsText) {
           innerPullsText.textContent = `${innerPulls.toLocaleString()} ${this.config.i18n.pulls} (${totalSignatures} ملازم × ${sigTirage} = ${innerTirages} ${this.config.i18n.tirage})`;
         }
-        const innerPressCost = innerTirages * innerPressRate;
+
+        let innerPressCost = 0;
+        if (innerSetPrice > 0) {
+          const numSets = (innerSides === 'single' || innerSides === 'work_turn') ? (1 * totalSignatures) : (2 * totalSignatures);
+          const extraTiragesPerSig = Math.max(0, sigTirage - innerIncludedTirages);
+          innerPressCost = (numSets * innerSetPrice) + (extraTiragesPerSig * totalSignatures * innerPressRate);
+          if (innerPressSetBadge) innerPressSetBadge.classList.remove('d-none');
+        } else {
+          innerPressCost = innerTirages * innerPressRate;
+          if (innerPressSetBadge) innerPressSetBadge.classList.add('d-none');
+        }
+
         const innerPressCostDisplay = document.getElementById('inner_press_cost_display');
         if (innerPressCostDisplay) innerPressCostDisplay.textContent = this.formatMoney(innerPressCost);
 

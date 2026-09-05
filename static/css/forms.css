@@ -1350,6 +1350,27 @@ html[dir="rtl"] .form-floating > .form-select ~ label {
     .select2-selection__clear {
         display: none !important;
     }
+}/* ==========================================================================
+   11. Service Choice Cards (بطاقات اختيار الخدمات والقدرات الإنتاجية)
+   ========================================================================== */
+.service-choice-card {
+    cursor: pointer;
+    transition: border-color var(--transition-fast, 0.15s) ease, background-color var(--transition-fast, 0.15s) ease;
+    border: 1px solid var(--border-color, #dee2e6) !important;
 }
 
+.service-choice-card:hover {
+    border-color: var(--primary-color) !important;
+    background-color: var(--primary-soft) !important;
+}
 
+.service-choice-card.is-selected,
+.service-choice-card:has(.form-check-input:checked) {
+    border-color: var(--primary-color) !important;
+    background-color: var(--primary-soft) !important;
+}
+
+.service-choice-card .form-check-input {
+    cursor: pointer;
+    margin-top: 0;
+}

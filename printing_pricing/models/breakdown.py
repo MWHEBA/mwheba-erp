@@ -345,10 +345,11 @@ class OrderService(BaseModel):
         super().save(*args, **kwargs)
 
     def calculate_total_cost(self):
-        calculated = (self.quantity * self.unit_price + self.setup_cost) if (self.quantity and self.unit_price) else self.setup_cost
-        if self.total_cost and self.total_cost > calculated:
-            return
+        if self.total_cost is not None and self.total_cost > Decimal('0.00'):
+            return self.total_cost
+        calculated = (self.quantity * self.unit_price + self.setup_cost) if (self.quantity and self.unit_price) else (self.setup_cost or Decimal('0.00'))
         self.total_cost = calculated
+        return self.total_cost
 
     def update_pricing(self, new_unit_price=None, new_quantity=None, new_setup_cost=None):
         if new_unit_price is not None:

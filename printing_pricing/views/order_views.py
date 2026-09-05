@@ -330,6 +330,7 @@ def get_active_ctp_suppliers():
             services__is_active=True
         ).filter(
             Q(services__base_price__gt=0) |
+            Q(services__set_price__gt=0) |
             Q(services__attributes__has_key='price_per_plate') |
             Q(services__attributes__has_key='plate_size')
         ).distinct().order_by('name')
@@ -348,6 +349,7 @@ def get_active_offset_suppliers():
             services__is_active=True
         ).filter(
             Q(services__base_price__gt=0) |
+            Q(services__set_price__gt=0) |
             Q(services__attributes__has_key='price_per_1000') |
             Q(services__attributes__has_key='machine_type') |
             Q(services__attributes__has_key='sheet_size')
@@ -385,6 +387,7 @@ def get_active_paper_suppliers():
             services__is_active=True
         ).filter(
             Q(services__base_price__gt=0) |
+            Q(services__price_per_ton__gt=0) |
             Q(services__attributes__has_key='price_per_sheet') |
             Q(services__attributes__has_key='paper_type')
         ).distinct().order_by('name')

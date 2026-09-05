@@ -1,5 +1,6 @@
 {% load static %}
 {% load i18n %}
+{% load module_tags %}
 
 <div id="django-supplier-modal-data" class="d-none"
      data-is-new="{% if not form.instance.pk %}true{% else %}false{% endif %}"
@@ -20,7 +21,7 @@
     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
 </div>
 
-<form method="post" id="supplier-modal-form" action="{% url 'supplier:supplier_create_modal' %}" novalidate>
+<form method="post" id="supplier-modal-form" action="{% if form.instance.pk %}{% url 'supplier:supplier_edit' form.instance.pk %}{% else %}{% url 'supplier:supplier_create_modal' %}{% endif %}" novalidate>
     {% csrf_token %}
     
     <div class="modal-body p-4">
@@ -120,7 +121,7 @@
             </div>
 
             <!-- الخيارات النشطة -->
-            <div class="col-12 d-flex gap-4 pt-2">
+            <div class="col-12 d-flex flex-wrap gap-4 pt-2">
                 <div class="form-check form-switch">
                     {{ form.is_active }}
                     <label class="form-check-label fw-semibold ms-2" for="{{ form.is_active.id_for_label }}">
@@ -134,7 +135,45 @@
                         <i class="fas fa-star text-warning me-1"></i>{% trans "مورد معتمد / مفضل" %}
                     </label>
                 </div>
+
+                {% is_module_enabled 'printing_pricing' as pricing_enabled %}
+                {% if pricing_enabled %}
+                <div class="form-check form-switch">
+                    {{ form.is_pricing_supplier }}
+                    <label class="form-check-label fw-semibold ms-2 text-primary" for="{{ form.is_pricing_supplier.id_for_label }}">
+                        <i class="fas fa-calculator me-1"></i>{% trans "مورد معتمد لموديول التسعير" %}
+                    </label>
+                </div>
+                {% endif %}
             </div>
+
+            {% if pricing_enabled %}
+            <!-- حاوية الخدمات المعتمدة في المودال -->
+            <div class="col-12 {% if not form.is_pricing_supplier.value and not form.instance.is_pricing_supplier %}d-none{% endif %}" id="modal-provided-services-container">
+                <div class="p-3 border rounded bg-light">
+                    <label class="form-label fw-bold small mb-2">
+                        <i class="fas fa-tags text-primary me-1"></i>{% trans "الخدمات والقدرات الإنتاجية المصرح بها:" %}
+                    </label>
+                    <div class="row g-2">
+                        {% for choice in form.provided_services %}
+                        <div class="col-md-4 col-sm-6">
+                            <div class="service-choice-card d-flex align-items-center p-2 px-3 border rounded bg-white w-100 h-100 user-select-none small" style="cursor: pointer;">
+                                {{ choice.tag }}
+                                <label class="form-check-label fw-semibold ms-2 text-dark flex-grow-1 mb-0" for="{{ choice.id_for_label }}" style="cursor: pointer;">
+                                    {{ choice.choice_label }}
+                                </label>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="col-12 text-muted small py-2">
+                            <i class="fas fa-exclamation-triangle text-warning me-1"></i>
+                            {% trans "لا توجد خدمات تسعير مسجلة في النظام حالياً." %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
         </div>
     </div>
     
@@ -152,7 +191,7 @@
             {% endif %}
         </button>
     </div>
-</form>
+</form>\n\n{{ pricing_types_map|json_script:"modal-pricing-types-data" }}
 
 <script>
 $(document).ready(function() {
@@ -208,9 +247,81 @@ $(document).ready(function() {
             $(this).html('<i class="fas fa-edit"></i>').removeClass('btn-warning').addClass('btn-outline-secondary');
         }
     });
+
+    // 4. تفعيل التبديل لحاوية خدمات التسعير في المودال
+    const modalPricingSwitch = $('#supplier-modal-form #id_is_pricing_supplier');
+    const modalProvidedContainer = $('#modal-provided-services-container');
+    if (modalPricingSwitch.length) {
+        modalPricingSwitch.off('change.pricing_ui').on('change.pricing_ui', function() {
+            if ($(this).is(':checked')) {
+                modalProvidedContainer.removeClass('d-none').hide().slideDown(200);
+            } else {
+                modalProvidedContainer.slideUp(200, function() {
+                    $(this).addClass('d-none');
+                });
+            }
+        });
+    }
+
+    // 5. قراءة خريطة تسعير أنواع الموردين ومزامنة الشيك بوكسات
+    let pricingTypesMap = {};
+    const mapScript = document.getElementById('modal-pricing-types-data');
+    if (mapScript) {
+        try {
+            pricingTypesMap = JSON.parse(mapScript.textContent);
+        } catch (e) {
+            pricingTypesMap = {};
+        }
+    }
+
+    function syncPricingServicesWithType(typeId, isUserChange) {
+        if (!typeId || !pricingTypesMap[typeId]) return;
+        const info = pricingTypesMap[typeId];
+
+        if (info.is_pricing) {
+            if (!modalPricingSwitch.is(':checked')) {
+                modalPricingSwitch.prop('checked', true).trigger('change.pricing_ui');
+            }
+            if (info.recommended_service_ids && info.recommended_service_ids.length > 0) {
+                if (isUserChange) {
+                    $('#supplier-modal-form input[name="provided_services"]').prop('checked', false).trigger('change');
+                }
+                info.recommended_service_ids.forEach(function(sId) {
+                    $('#supplier-modal-form input[name="provided_services"][value="' + sId + '"]').prop('checked', true).trigger('change');
+                });
+            }
+        } else if (isUserChange) {
+            modalPricingSwitch.prop('checked', false).trigger('change.pricing_ui');
+            $('#supplier-modal-form input[name="provided_services"]').prop('checked', false).trigger('change');
+        }
+    }
+
+    // تفاعل بطاقات اختيار الخدمات في المودال (النقر على الكارت بالكامل)
+    $('#supplier-modal-form').off('click', '.service-choice-card').on('click', '.service-choice-card', function(e) {
+        if (!$(e.target).is('input[type="checkbox"], label')) {
+            const cb = $(this).find('input[type="checkbox"]');
+            cb.prop('checked', !cb.prop('checked')).trigger('change');
+        }
+    });
+    $('#supplier-modal-form').off('change', '.service-choice-card input[type="checkbox"]').on('change', '.service-choice-card input[type="checkbox"]', function() {
+        $(this).closest('.service-choice-card').toggleClass('is-selected', this.checked);
+    });
+    // تفعيل التحديد الأولي في المودال
+    $('#supplier-modal-form .service-choice-card input[type="checkbox"]:checked').closest('.service-choice-card').addClass('is-selected');
+
+    // ربط اختيار نوع المورد مع مزامنة الخدمات التلقائية
+    $('#id_primary_type').off('select2:select.pricing change.pricing').on('select2:select.pricing change.pricing', function() {
+        syncPricingServicesWithType($(this).val(), true);
+    });
+
+    // تنفيذ المزامنة الأولية عند فتح المودال
+    const initialTypeId = $('#id_primary_type').val();
+    if (initialTypeId) {
+        syncPricingServicesWithType(initialTypeId, false);
+    }
     
-    // 4. معالجة إرسال النموذج بتقنية AJAX والإشعار الموحد المتوافق مع Rule 10
-    $('#supplier-modal-form').on('submit', function(e) {
+    // 6. معالجة إرسال النموذج بتقنية AJAX المحمية (Namespaced Event)
+    $(document).off('submit', '#supplier-modal-form').on('submit', '#supplier-modal-form', function(e) {
         e.preventDefault();
         
         const formEl = this;
@@ -244,8 +355,11 @@ $(document).ready(function() {
                         window.showToastr(msg, 'success');
                     }
 
-                    // دعم الإكمال التلقائي في شاشات أوامر الشراء والفواتير
-                    if (typeof window.onSupplierCreated === 'function') {
+                    if (response.redirect_url) {
+                        setTimeout(function() {
+                            window.location.href = response.redirect_url;
+                        }, 1200);
+                    } else if (typeof window.onSupplierCreated === 'function') {
                         window.onSupplierCreated(response);
                     } else if (typeof refreshSupplierTable === 'function') {
                         refreshSupplierTable(response);
@@ -255,7 +369,7 @@ $(document).ready(function() {
                         }, 3100); // تأخير 3.1 ثانية لاكتمال حركة شريط تقدم التوست وفقاً لـ Rule 10
                     }
                 } else {
-                    submitBtn.prop('disabled', false).html('<i class="fas fa-save me-1"></i> {% trans "حفظ المورد" %}');
+                    submitBtn.prop('disabled', false).html('<i class="fas fa-save me-1"></i> {% if form.instance.pk %}{% trans "تحديث" %}{% else %}{% trans "حفظ المورد" %}{% endif %}');
                     
                     if (response.errors) {
                         for (const field in response.errors) {
@@ -282,7 +396,7 @@ $(document).ready(function() {
                 }
             },
             error: function(xhr, status, error) {
-                submitBtn.prop('disabled', false).html('<i class="fas fa-save me-1"></i> {% trans "حفظ المورد" %}');
+                submitBtn.prop('disabled', false).html('<i class="fas fa-save me-1"></i> {% if form.instance.pk %}{% trans "تحديث" %}{% else %}{% trans "حفظ المورد" %}{% endif %}');
                 const errMsg = $('#django-supplier-modal-data').data('error-save-msg') || error;
                 if (typeof window.showNotification === 'function') {
                     window.showNotification(errMsg, 'error', '{% trans "خطأ" %}');

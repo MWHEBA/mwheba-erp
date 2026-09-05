@@ -159,7 +159,3 @@ def delete_supplier_account_signal(sender, instance, **kwargs):
                     logger.info(f"تم تعطيل الحساب المحاسبي للمورد {instance.name} بنجاح لوجود قيود تاريخية")
         except Exception as e:
             logger.error(f"فشل معالجة الحساب المحاسبي للمورد {instance.name}: {e}")
-
-
-
-

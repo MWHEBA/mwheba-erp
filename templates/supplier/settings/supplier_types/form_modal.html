@@ -101,11 +101,20 @@
                     {% if form.is_service_provider.errors %}
                       <div class="invalid-feedback d-block">{{ form.is_service_provider.errors.0 }}</div>
                     {% endif %}
+                  {% if enabled_modules.printing_pricing %}
+                  <div class="form-check form-switch mt-3 pt-2 border-top">
+                    {{ form.is_pricing_related }}
+                    <label class="form-check-label fw-bold text-dark" for="{{ form.is_pricing_related.id_for_label }}">
+                      <i class="fas fa-calculator text-primary me-1"></i>{{ form.is_pricing_related.label }}
+                    </label>
+                    {% if form.is_pricing_related.errors %}
+                      <div class="invalid-feedback d-block">{{ form.is_pricing_related.errors.0 }}</div>
+                    {% endif %}
                   </div>
                   <small class="text-muted d-block mt-1">
-                    • مقدم خدمات: لا يحتاج مخزون (مثل: استشارات، صيانة، تنظيف)<br>
-                    • مورد منتجات: يحتاج مخزون (مثل: قرطاسية، أجهزة، مواد خام)
+                    • تفعيل هذا الخيار يجعل موردي هذا النوع يظهرون تلقائياً كخيارات في محرك تسعير الطباعة (ورق، ماكينات، سلوفان، إلخ).
                   </small>
+                  {% endif %}
                 </div>
               </div>
             </div>

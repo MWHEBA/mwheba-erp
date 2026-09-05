@@ -404,18 +404,37 @@ class GetPressesAPIView(BaseAPIView):
                 codes = ['offset_printing']
             elif order_type == 'digital':
                 codes = ['digital_printing']
+            elif order_type == 'ctp':
+                codes = ['ctp_plates']
             else:
                 codes = ['offset_printing', 'digital_printing']
 
             presses = []
             for code in codes:
                 for svc in SvcClass.get_supplier_services(supplier_id, code):
-                    svc_type = 'offset' if code == 'offset_printing' else 'digital'
+                    if code == 'offset_printing':
+                        svc_type = 'offset'
+                    elif code == 'digital_printing':
+                        svc_type = 'digital'
+                    else:
+                        svc_type = 'ctp'
                     price = float(svc.get_price_for_quantity(1) or svc.base_price)
                     attrs = svc.attributes or {}
                     
-                    # استخراج مقاس الماكينة ومقاس السلندر
-                    sheet_size = attrs.get('sheet_size')
+                    # استخراج مقاس الماكينة ومقاس السلندر / الزنك
+                    sheet_size = None
+                    if getattr(svc, 'dimension', None) and svc.dimension:
+                        w = int(svc.dimension.width) if svc.dimension.width == int(svc.dimension.width) else float(svc.dimension.width)
+                        h = int(svc.dimension.height) if svc.dimension.height == int(svc.dimension.height) else float(svc.dimension.height)
+                        sheet_size = f"{w}x{h}"
+                    elif getattr(svc, 'plate_size', None) and svc.plate_size:
+                        w = int(svc.plate_size.width) if svc.plate_size.width == int(svc.plate_size.width) else float(svc.plate_size.width)
+                        h = int(svc.plate_size.height) if svc.plate_size.height == int(svc.plate_size.height) else float(svc.plate_size.height)
+                        sheet_size = f"{w}x{h}"
+                    
+                    if not sheet_size:
+                        sheet_size = attrs.get('sheet_size') or attrs.get('plate_size')
+                    
                     if not sheet_size:
                         if '100' in svc.name or 'فرخ كامل' in svc.name:
                             sheet_size = '70x100'
@@ -439,6 +458,8 @@ class GetPressesAPIView(BaseAPIView):
                         'sheet_size':           sheet_size,
                         'max_colors':           max_colors,
                         'price_per_1000':       price,
+                        'set_price':            float(svc.set_price) if getattr(svc, 'set_price', None) else 0.0,
+                        'set_included_tirages': int(svc.set_included_tirages) if getattr(svc, 'set_included_tirages', None) else 1,
                         'setup_cost':           setup_cost,
                         'price_per_page_bw':    price_bw,
                         'price_per_page_color': price_color,
@@ -531,7 +552,18 @@ class GetPaperSuppliersAPIView(BaseAPIView):
             ).distinct().order_by('name')
             
             if not paper_suppliers.exists():
-                paper_suppliers = Supplier.objects.filter(is_active=True).order_by('name')
+                paper_suppliers = Supplier.objects.filter(
+                    is_active=True,
+                    is_pricing_supplier=True,
+                    provided_services__code='paper'
+                ).distinct().order_by('name')
+                if not paper_suppliers.exists():
+                    paper_suppliers = Supplier.objects.filter(
+                        is_active=True,
+                        is_pricing_supplier=True
+                    ).distinct().order_by('name')
+                if not paper_suppliers.exists():
+                    paper_suppliers = Supplier.objects.filter(is_active=True).order_by('name')
 
             paper_type_name = ''
             if paper_type_id:
@@ -553,6 +585,9 @@ class GetPaperSuppliersAPIView(BaseAPIView):
                     )
                     has_type = False
                     for svc in matched:
+                        if paper_type_id and str(paper_type_id).isdigit() and getattr(svc, 'paper_type_ref_id', None) == int(paper_type_id):
+                            has_type = True
+                            break
                         attrs = svc.attributes if isinstance(svc.attributes, dict) else {}
                         pt = attrs.get('paper_type', '')
                         if pt and (paper_type_name.lower() in str(pt).lower() or str(pt).lower() in paper_type_name.lower()):
@@ -890,13 +925,23 @@ class GetPaperPriceAPIView(BaseAPIView):
                 ):
                     attrs = svc.attributes if isinstance(svc.attributes, dict) else {}
                     pt = str(attrs.get('paper_type', ''))
-                    # مطابقة نوع الورق بالاسم أو السمة
-                    if paper_type_name:
+                    # مطابقة نوع الورق بالمعرف العلائقي أو الاسم
+                    is_type_match = False
+                    if paper_type_id and str(paper_type_id).isdigit() and getattr(svc, 'paper_type_ref_id', None) == int(paper_type_id):
+                        is_type_match = True
+                    elif paper_type_name:
                         p_lower = paper_type_name.lower()
-                        if not (p_lower in pt.lower() or pt.lower() in p_lower or p_lower in svc.name.lower()):
-                            continue
+                        if (p_lower in pt.lower() or pt.lower() in p_lower or p_lower in svc.name.lower()):
+                            is_type_match = True
+                    if not is_type_match:
+                        continue
+
                     if sheet_type:
                         svc_sheet = str(attrs.get('sheet_size', ''))
+                        if not svc_sheet and getattr(svc, 'paper_size', None):
+                            w_p = int(svc.paper_size.width) if svc.paper_size.width == int(svc.paper_size.width) else float(svc.paper_size.width)
+                            h_p = int(svc.paper_size.height) if svc.paper_size.height == int(svc.paper_size.height) else float(svc.paper_size.height)
+                            svc_sheet = f"{w_p}x{h_p}"
                         if sheet_type not in svc_sheet and svc_sheet not in sheet_type:
                             import re
                             req_dims = set(re.findall(r'\d+', sheet_type))
@@ -905,8 +950,10 @@ class GetPaperPriceAPIView(BaseAPIView):
                                 continue
                     if weight and str(attrs.get('gsm', '')) != str(weight):
                         continue
-                    if origin and attrs.get('origin') and attrs.get('origin') != origin:
-                        continue
+                    if origin:
+                        origin_name = getattr(svc.paper_origin, 'name', None) if getattr(svc, 'paper_origin', None) else attrs.get('origin')
+                        if origin_name and str(origin_name).strip() != str(origin).strip():
+                            continue
                     matched = svc
                     break
 

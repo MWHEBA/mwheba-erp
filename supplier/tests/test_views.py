@@ -70,3 +70,54 @@ class SupplierCreateModalViewTest(TestCase):
         self.assertFalse(data['success'])
         self.assertIn('errors', data)
         self.assertIn('name', data['errors'])
+
+
+class ServiceTypeSettingsViewsTest(TestCase):
+    """اختبارات صفحة خدمات وقدرات التسعير المستقلة"""
+
+    def setUp(self):
+        self.client = Client()
+        self.user = User.objects.create_superuser(
+            username='adminuser',
+            password='password123',
+            email='admin@example.com'
+        )
+        self.client.login(username='adminuser', password='password123')
+
+        from core.models import SystemModule
+        SystemModule.objects.get_or_create(code='printing_pricing', defaults={'is_enabled': True, 'name': 'تسعير المطبوعات'})
+        SystemModule.objects.filter(code='printing_pricing').update(is_enabled=True)
+
+        from supplier.models import ServiceType
+        self.st1 = ServiceType.objects.create(
+            name='طباعة سلك سكرين',
+            code='silkscreen',
+            category='printing',
+            is_active=True
+        )
+
+    def test_service_type_list_standalone_page(self):
+        """التحقق من أن صفحة خدمات التسعير أصبحت مستقلة وتعرض البيانات والإحصائيات"""
+        url = reverse('supplier:service_type_list')
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'supplier/settings/service_types/list.html')
+        self.assertIn('service_types', response.context)
+        self.assertIn('stats', response.context)
+        self.assertEqual(response.context['stats']['total'], 1)
+        self.assertContains(response, 'طباعة سلك سكرين')
+
+    def test_printing_pricing_service_type_list_alias(self):
+        """التحقق من إمكانية الوصول من خلال namespace الخاص بتسعير المطبوعات"""
+        url = reverse('printing_pricing:service_type_list')
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'supplier/settings/service_types/list.html')
+
+    def test_supplier_types_settings_list(self):
+        """التحقق من صفحة أنواع الموردين النظيفة"""
+        url = reverse('supplier:supplier_type_settings_list')
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'supplier/settings/supplier_types/list.html')
+

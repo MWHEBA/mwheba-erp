@@ -17,7 +17,7 @@ class SupplierTypeSettingsForm(forms.ModelForm):
         model = SupplierTypeSettings
         fields = [
             'name', 'code', 'description', 'icon', 'color', 
-            'is_service_provider', 'display_order', 'is_active'
+            'is_service_provider', 'is_pricing_related', 'display_order', 'is_active'
         ]
         widgets = {
             'name': forms.TextInput(attrs={
@@ -48,6 +48,9 @@ class SupplierTypeSettingsForm(forms.ModelForm):
             'is_service_provider': forms.CheckboxInput(attrs={
                 'class': 'form-check-input'
             }),
+            'is_pricing_related': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
+            }),
             'display_order': forms.NumberInput(attrs={
                 'class': 'form-control',
                 'min': '0',
@@ -69,6 +72,12 @@ class SupplierTypeSettingsForm(forms.ModelForm):
             self.fields['display_order'].initial = self.get_next_display_order()
             self.fields['is_active'].initial = True
             self.fields['icon'].initial = 'fas fa-truck'
+
+        from core.models import SystemModule
+        if not SystemModule.objects.filter(code='printing_pricing', is_enabled=True).exists():
+            self.fields['is_pricing_related'].widget = forms.HiddenInput()
+            self.fields['is_pricing_related'].initial = False
+            self.fields['is_pricing_related'].required = False
     
     def get_icon_choices(self):
         return [

@@ -1,0 +1,320 @@
+{% extends "base.html" %}
+{% load static %}
+{% load i18n %}
+{% load utils_extras %}
+
+{% block title %}{% trans "خدمات وقدرات التسعير" %}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+<style>
+.service-icon-box {
+    width: 36px;
+    height: 36px;
+    border-radius: var(--border-radius-md, 8px);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--bg-soft-primary, #e0e7ff);
+    color: var(--primary-color, #2563eb);
+    font-size: 1rem;
+}
+.service-code-badge {
+    font-family: monospace;
+    font-size: 0.85rem;
+    background-color: var(--bg-soft-secondary, #f1f5f9);
+    color: var(--text-dark, #1e293b);
+    padding: 0.2rem 0.5rem;
+    border-radius: var(--border-radius-sm, 4px);
+    border: 1px solid var(--border-color, #e2e8f0);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  {% include "shared/page_header.html" %}
+  {% csrf_token %}
+
+  <!-- KPI Statistical Cards (Rule 7: rendered directly in row g-3 mb-4 without section-container wrapper) -->
+  <div class="row g-3 mb-4">
+    <!-- إجمالي الخدمات -->
+    <div class="col-xl-3 col-sm-6">
+      <div class="stats-card stats-card-info">
+        <div class="stats-card-body">
+          <div class="stats-card-icon">
+            <i class="fas fa-tags"></i>
+          </div>
+          <div class="stats-card-title">{% trans "إجمالي أنواع الخدمات" %}</div>
+          <div class="stats-card-value">{{ stats.total|default:"0" }}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- الخدمات النشطة -->
+    <div class="col-xl-3 col-sm-6">
+      <div class="stats-card stats-card-success">
+        <div class="stats-card-body">
+          <div class="stats-card-icon">
+            <i class="fas fa-check-circle"></i>
+          </div>
+          <div class="stats-card-title">{% trans "الخدمات النشطة" %}</div>
+          <div class="stats-card-value">{{ stats.active|default:"0" }}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- خدمات الطباعة والإنتاج -->
+    <div class="col-xl-3 col-sm-6">
+      <div class="stats-card stats-card-primary">
+        <div class="stats-card-body">
+          <div class="stats-card-icon">
+            <i class="fas fa-print"></i>
+          </div>
+          <div class="stats-card-title">{% trans "خدمات الطباعة الصناعية" %}</div>
+          <div class="stats-card-value">{{ stats.printing|default:"0" }}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- الموردين المعتمدين -->
+    <div class="col-xl-3 col-sm-6">
+      <div class="stats-card stats-card-warning">
+        <div class="stats-card-body">
+          <div class="stats-card-icon">
+            <i class="fas fa-truck"></i>
+          </div>
+          <div class="stats-card-title">{% trans "اعتمادات الموردين" %}</div>
+          <div class="stats-card-value">{{ stats.suppliers_total|default:"0" }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Data Table Section (Rule 7) -->
+  <div class="section-container mb-4">
+    <h5 class="section-title">
+      <i class="fas fa-tags me-2"></i>{% trans "أنواع الخدمات الصناعية والقدرات الإنتاجية المعتمدة" %}
+    </h5>
+
+    {% if service_types %}
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr>
+            <th class="text-center" style="width: 60px;">{% trans "الترتيب" %}</th>
+            <th class="text-center" style="width: 70px;">{% trans "الأيقونة" %}</th>
+            <th>{% trans "اسم الخدمة والوصف" %}</th>
+            <th class="text-center" style="width: 140px;">{% trans "الرمز الفني" %}</th>
+            <th class="text-center" style="width: 130px;">{% trans "الفئة الصناعية" %}</th>
+            <th class="text-center" style="width: 130px;">{% trans "الحقول الفنية" %}</th>
+            <th class="text-center" style="width: 130px;">{% trans "الموردين المعتمدين" %}</th>
+            <th class="text-center" style="width: 100px;">{% trans "الحالة" %}</th>
+            <th class="text-center" style="width: 150px;">{% trans "الإجراءات" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for st in service_types %}
+          {% with fields_count=st.attribute_schema|length %}
+          <tr>
+            <td class="text-center fw-bold text-muted">{{ st.order }}</td>
+            <td class="text-center">
+              <div class="service-icon-box">
+                <i class="{{ st.icon|default:'fas fa-cog' }}"></i>
+              </div>
+            </td>
+            <td>
+              <div class="fw-bold text-dark">{{ st.name }}</div>
+              {% if st.description %}
+              <small class="text-muted d-block">{{ st.description|truncatechars:70 }}</small>
+              {% endif %}
+            </td>
+            <td class="text-center">
+              <span class="service-code-badge">{{ st.code }}</span>
+            </td>
+            <td class="text-center">
+              {% if st.category == 'printing' %}
+                <span class="badge bg-primary">{% trans "طباعة صناعية" %}</span>
+              {% elif st.category == 'logistics' %}
+                <span class="badge bg-info">{% trans "لوجستيات وتوريد" %}</span>
+              {% elif st.category == 'manufacturing' %}
+                <span class="badge bg-warning text-dark">{% trans "تصنيع وتجهيز" %}</span>
+              {% else %}
+                <span class="badge bg-secondary">{% trans "عام" %}</span>
+              {% endif %}
+            </td>
+            <td class="text-center">
+              {% if fields_count > 0 %}
+                <span class="badge bg-info rounded-pill px-3">{{ fields_count }} {% trans "حقل فني" %}</span>
+              {% else %}
+                <span class="badge bg-secondary rounded-pill px-3">{% trans "بدون حقول" %}</span>
+              {% endif %}
+            </td>
+            <td class="text-center">
+              <span class="badge bg-{% if st.suppliers_count > 0 %}success{% else %}secondary{% endif %} rounded-pill px-3">
+                {{ st.suppliers_count|default:0 }} {% trans "مورد" %}
+              </span>
+            </td>
+            <td class="text-center">
+              {% if st.is_active %}
+                <span class="badge bg-success">{% trans "نشط" %}</span>
+              {% else %}
+                <span class="badge bg-secondary">{% trans "معطل" %}</span>
+              {% endif %}
+            </td>
+            <td class="text-center">
+              <div class="btn-group btn-group-sm" role="group">
+                <button type="button" class="btn btn-outline-primary"
+                        onclick="openServiceTypeModal('{{ st.pk }}')"
+                        title="{% trans 'تعديل البيانات الأساسية' %}">
+                  <i class="fas fa-edit"></i>
+                </button>
+                <a href="{% url 'supplier:service_type_schema' st.pk %}"
+                   class="btn btn-outline-info"
+                   title="{% trans 'تعديل الحقول والمواصفات الفنية' %}">
+                  <i class="fas fa-sliders-h"></i>
+                </a>
+                {% if st.services_count == 0 %}
+                <button type="button" class="btn btn-outline-danger"
+                        onclick="deleteServiceType('{{ st.pk }}', '{{ st.name|escapejs }}')"
+                        title="{% trans 'حذف' %}">
+                  <i class="fas fa-trash"></i>
+                </button>
+                {% else %}
+                <button type="button" class="btn btn-outline-secondary" disabled
+                        title="{% trans 'لا يمكن الحذف — مرتبطة بعروض أسعار موردين' %}">
+                  <i class="fas fa-trash"></i>
+                </button>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% endwith %}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- SSR Pagination -->
+    <div id="pagination-wrapper">
+      {% include "partials/pagination.html" %}
+    </div>
+
+    {% else %}
+    <div class="text-center py-5">
+      <div class="mb-3">
+        <i class="fas fa-tags fa-3x text-muted"></i>
+      </div>
+      <h6 class="fw-bold text-dark">{% trans "لا توجد خدمات أو قدرات تسعير مسجلة حتى الآن" %}</h6>
+      <p class="text-muted mb-3">{% trans "يمكنك إضافة أول نوع خدمة لبدء ربطه بالموردين ومحرك تسعير أوامر الشغل" %}</p>
+      <button type="button" class="btn btn-primary" onclick="openServiceTypeModal()">
+        <i class="fas fa-plus me-1"></i>{% trans "إضافة نوع خدمة جديد" %}
+      </button>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Modal لأنواع خدمات التسعير (Rule 8) -->
+<div class="modal fade" id="serviceTypeModal" tabindex="-1" aria-labelledby="serviceTypeModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg" id="serviceTypeModalContent">
+      <!-- Loaded dynamically via AJAX -->
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// فتح مودال إضافة/تعديل نوع خدمة
+function openServiceTypeModal(pk) {
+    const url = pk
+        ? `/suppliers/settings/service-types/${pk}/edit/`
+        : `/suppliers/settings/service-types/create/`;
+
+    fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+        .then(r => r.json())
+        .then(data => {
+            const modalContent = document.getElementById('serviceTypeModalContent');
+            modalContent.innerHTML = data.html;
+
+            // تنفيذ الـ scripts المضمنة في المحتوى
+            modalContent.querySelectorAll('script').forEach(oldScript => {
+                const newScript = document.createElement('script');
+                newScript.textContent = oldScript.textContent;
+                document.head.appendChild(newScript);
+                document.head.removeChild(newScript);
+            });
+
+            const modalEl = document.getElementById('serviceTypeModal');
+            bootstrap.Modal.getOrCreateInstance(modalEl).show();
+        })
+        .catch(() => {
+            if (typeof toastr !== 'undefined') {
+                toastr.error('حدث خطأ في تحميل النموذج');
+            } else {
+                alert('حدث خطأ في تحميل النموذج');
+            }
+        });
+}
+
+// حذف نوع خدمة التسعير
+function deleteServiceType(id, name) {
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
+
+    const executeDelete = () => {
+        fetch(`/suppliers/settings/service-types/${id}/delete/`, {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': csrfToken
+            },
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                if (typeof window.showNotification === 'function') {
+                    window.showNotification(data.message, 'success', 'تم بنجاح');
+                } else if (typeof toastr !== 'undefined') {
+                    toastr.success(data.message);
+                }
+                setTimeout(() => location.reload(), 1200);
+            } else {
+                if (typeof window.showNotification === 'function') {
+                    window.showNotification(data.message, 'error', 'خطأ');
+                } else if (typeof toastr !== 'undefined') {
+                    toastr.error(data.message);
+                }
+            }
+        })
+        .catch(() => {
+            if (typeof toastr !== 'undefined') {
+                toastr.error('حدث خطأ في تنفيذ العملية');
+            }
+        });
+    };
+
+    if (typeof Swal !== 'undefined') {
+        Swal.fire({
+            title: 'هل أنت متأكد؟',
+            text: `سيتم حذف نوع الخدمة "${name}" نهائياً`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: 'var(--danger-color, #dc2626)',
+            cancelButtonColor: 'var(--secondary-color, #64748b)',
+            confirmButtonText: 'نعم، احذف',
+            cancelButtonText: 'إلغاء'
+        }).then(result => {
+            if (result.isConfirmed) {
+                executeDelete();
+            }
+        });
+    } else {
+        if (confirm(`هل أنت متأكد من حذف "${name}"؟`)) {
+            executeDelete();
+        }
+    }
+}
+</script>
+{% endblock %}

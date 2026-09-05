@@ -446,11 +446,24 @@ def currency(value, arg=None):
 
 
 @register.simple_tag
-def currency_symbol():
+def currency_symbol(obj=None):
     """
-    الحصول على رمز العملة الافتراضية
-    استخدام: {% currency_symbol %}
+    الحصول على رمز العملة (للنظام أو لكائن ممرر كالمورد أو الفاتورة)
+    استخدام: 
+    {% currency_symbol %}
+    {% currency_symbol supplier %}
     """
+    if obj is not None:
+        if hasattr(obj, 'currency_symbol'):
+            sym = getattr(obj, 'currency_symbol')
+            return sym() if callable(sym) else sym
+        if hasattr(obj, 'default_currency') and obj.default_currency:
+            return getattr(obj.default_currency, 'symbol', None) or getattr(obj.default_currency, 'code', '')
+        if hasattr(obj, 'currency') and obj.currency:
+            return getattr(obj.currency, 'symbol', None) or getattr(obj.currency, 'code', '')
+        if isinstance(obj, str) and obj.strip():
+            return obj.strip()
+
     from core.utils import get_default_currency
     return get_default_currency()
 

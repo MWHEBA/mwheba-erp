@@ -21,6 +21,9 @@
         <strong>{{ service.name }}</strong>
         <span class="text-muted ms-2">— {{ service.service_type.name }}</span>
         <span class="ms-3">السعر الأساسي: <strong>{{ service.base_price|smart_float }} {{ currency_symbol }}</strong></span>
+        {% if service.set_price and service.set_price > 0 %}
+        <span class="ms-3 badge bg-success"><i class="fas fa-layer-group me-1"></i>سعر الطقم: <strong>{{ service.set_price|smart_float }} {{ currency_symbol }}</strong></span>
+        {% endif %}
       </div>
 
       <form method="post">

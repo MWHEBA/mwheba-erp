@@ -26,6 +26,8 @@ class SupplierForm(forms.ModelForm):
             "tax_number",
             "is_preferred",
             "is_active",
+            "is_pricing_supplier",
+            "provided_services",
             "contact_person",
             "phone",
             "secondary_phone",
@@ -169,6 +171,8 @@ class SupplierForm(forms.ModelForm):
             ),
             "is_preferred": forms.CheckboxInput(attrs={"class": "form-check-input"}),
             "is_active": forms.CheckboxInput(attrs={"class": "form-check-input"}),
+            "is_pricing_supplier": forms.CheckboxInput(attrs={"class": "form-check-input", "id": "id_is_pricing_supplier"}),
+            "provided_services": forms.CheckboxSelectMultiple(attrs={"class": "form-check-input"}),
         }
 
     def clean_code(self):
@@ -230,6 +234,36 @@ class SupplierForm(forms.ModelForm):
                 error_msg = result.get("error_message") or _("الرقم القومي غير صحيح. يجب أن يتكون من 14 رقماً مصرياً صالحاً.")
                 self.add_error("national_id", error_msg)
 
+        # حماية وتعشيق منظومة التسعير والخدمات (Safety Guards)
+        is_pricing = cleaned_data.get("is_pricing_supplier", False)
+        provided_svcs = cleaned_data.get("provided_services")
+        
+        instance = getattr(self, "instance", None)
+        if instance and instance.pk:
+            from ..models import SupplierService
+            active_services = SupplierService.objects.filter(supplier=instance, is_active=True)
+            has_active_services = active_services.exists()
+
+            # 1. منع إطفاء مفتاح مورد التسعير إذا كان للمورد خدمات نشطة
+            if not is_pricing and has_active_services:
+                self.add_error(
+                    "is_pricing_supplier",
+                    _("لا يمكن إلغاء اعتماد المورد كمورد تسعير لوجود خدمات وأسعار نشطة مسجلة له بالفعل.")
+                )
+
+            # 2. منع إلغاء تحديد خدمة لها بنود أسعار نشطة
+            if has_active_services and provided_svcs is not None:
+                selected_type_ids = set(svc.id for svc in provided_svcs)
+                active_type_ids = set(active_services.values_list('service_type_id', flat=True))
+                removed_type_ids = active_type_ids - selected_type_ids
+                if removed_type_ids:
+                    from ..models import ServiceType
+                    removed_names = list(ServiceType.objects.filter(id__in=removed_type_ids).values_list('name', flat=True))
+                    self.add_error(
+                        "provided_services",
+                        _("لا يمكن إلغاء الخدمات التالية لوجود بنود تسعير نشطة مرتبطة بها للمورد: {}").format("، ".join(removed_names))
+                    )
+
         return cleaned_data
 
     def __init__(self, *args, **kwargs):
@@ -241,6 +275,29 @@ class SupplierForm(forms.ModelForm):
             self.fields["credit_limit"].required = False
         if "grace_period_days" in self.fields:
             self.fields["grace_period_days"].required = False
+        if "is_pricing_supplier" in self.fields:
+            self.fields["is_pricing_supplier"].required = False
+        if "provided_services" in self.fields:
+            from ..models import ServiceType
+            self.fields["provided_services"].queryset = ServiceType.objects.filter(is_active=True).order_by('order', 'name')
+            self.fields["provided_services"].widget = forms.CheckboxSelectMultiple(attrs={"class": "form-check-input"})
+            self.fields["provided_services"].widget.choices = self.fields["provided_services"].choices
+            self.fields["provided_services"].required = False
+
+        # حجب خيارات التسعير تماماً إذا كان موديول التسعير غير مفعّل في النظام
+        try:
+            from core.models import SystemModule
+            is_pricing_enabled = SystemModule.objects.filter(code='printing_pricing', is_enabled=True).exists()
+        except Exception:
+            is_pricing_enabled = True
+
+        if not is_pricing_enabled:
+            if "is_pricing_supplier" in self.fields:
+                self.fields["is_pricing_supplier"].widget = forms.HiddenInput()
+                self.fields["is_pricing_supplier"].initial = False
+            if "provided_services" in self.fields:
+                self.fields["provided_services"].widget = forms.MultipleHiddenInput()
+                self.fields["provided_services"].required = False
 
         if not self.instance.pk and not self.initial.get("default_currency"):
             try:

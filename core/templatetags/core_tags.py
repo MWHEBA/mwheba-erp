@@ -4,10 +4,24 @@ from core.models import SystemSetting
 register = template.Library()
 
 @register.simple_tag
-def currency_symbol():
+def currency_symbol(obj=None):
     """
-    إرجاع رمز العملة من إعدادات النظام
+    إرجاع رمز العملة من إعدادات النظام أو من الكائن الممرر
+    استخدام:
+    {% currency_symbol %}
+    {% currency_symbol supplier %}
     """
+    if obj is not None:
+        if hasattr(obj, 'currency_symbol'):
+            sym = getattr(obj, 'currency_symbol')
+            return sym() if callable(sym) else sym
+        if hasattr(obj, 'default_currency') and obj.default_currency:
+            return getattr(obj.default_currency, 'symbol', None) or getattr(obj.default_currency, 'code', '')
+        if hasattr(obj, 'currency') and obj.currency:
+            return getattr(obj.currency, 'symbol', None) or getattr(obj.currency, 'code', '')
+        if isinstance(obj, str) and obj.strip():
+            return obj.strip()
+
     return SystemSetting.get_currency_symbol()
 
 @register.filter

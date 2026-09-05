@@ -40,30 +40,6 @@
   <div class="row justify-content-center">
     <div class="col-lg-10">
 
-      <!-- تنبيه وتوسيع الخدمات للمطابع المتكاملة -->
-      {% if is_integrated_press and not service %}
-        {% if not show_all %}
-        <div class="alert alert-light border d-flex justify-content-between align-items-center mb-4">
-          <div>
-            <i class="fas fa-info-circle text-primary me-2"></i>
-            يتم حالياً التركيز على خدمات المطابع المباشرة (أوفست + زنكات CTP). هل تقدم هذه المطبعة خدمات تكميلية داخلية (سلوفان، تكسير، تغليف)؟
-          </div>
-          <a href="?show_all=1" class="btn btn-sm btn-outline-primary">
-            <i class="fas fa-plus-circle me-1"></i>إظهار كافة الخدمات التكميلية
-          </a>
-        </div>
-        {% else %}
-        <div class="alert alert-light border d-flex justify-content-between align-items-center mb-4">
-          <div>
-            <i class="fas fa-check-circle text-success me-2"></i>
-            يتم حالياً عرض كافة الخدمات التكميلية للمطبعة المتكاملة.
-          </div>
-          <a href="?show_all=0" class="btn btn-sm btn-outline-secondary">
-            <i class="fas fa-compress-alt me-1"></i>التركيز على خدمات المطبعة فقط
-          </a>
-        </div>
-        {% endif %}
-      {% endif %}
 
       <!-- شريط تبديل التخصص الفوري (Mode Switcher Tabs) -->
       {% if not service and service_types %}
@@ -99,16 +75,18 @@
                 <option value="">اختر نوع الخدمة...</option>
                 {% if service_types_grouped %}
                   {% for group in service_types_grouped %}
-                  <optgroup label="{{ group.label }}">
-                    {% for st in group.types %}
-                    <option value="{{ st.pk }}"
-                            data-code="{{ st.code }}"
-                            data-icon="{{ st.icon }}"
-                            {% if form_data.service_type == st.pk|stringformat:"s" %}selected{% endif %}>
-                      {{ st.name }}
-                    </option>
-                    {% endfor %}
-                  </optgroup>
+                    {% if group.types %}
+                    <optgroup label="{{ group.label|default:group.category }}">
+                      {% for st in group.types %}
+                      <option value="{{ st.pk }}"
+                              data-code="{{ st.code }}"
+                              data-icon="{{ st.icon }}"
+                              {% if form_data.service_type == st.pk|stringformat:"s" %}selected{% endif %}>
+                        {{ st.name }}
+                      </option>
+                      {% endfor %}
+                    </optgroup>
+                    {% endif %}
                   {% endfor %}
                 {% else %}
                   {% for st in service_types %}
@@ -126,11 +104,11 @@
               <label class="form-label fw-bold">وحدة التسعير المعتمدة <span class="text-danger">*</span></label>
               <select name="pricing_formula" id="pricing_formula" class="form-select" required>
                 <option value="PER_THOUSAND" {% if form_data.pricing_formula == 'PER_THOUSAND' %}selected{% endif %}>لكل 1,000 وحدة / طبعة (تراج أوفست)</option>
-                <option value="PER_UNIT" {% if form_data.pricing_formula == 'PER_UNIT' %}selected{% endif %}>لكل وحدة / فرخ / لوح CTP</option>
+                <option value="PER_PIECE" {% if form_data.pricing_formula == 'PER_PIECE' or form_data.pricing_formula == 'PER_UNIT' %}selected{% endif %}>لكل وحدة / قطعة / لوح CTP</option>
                 <option value="PER_SQM" {% if form_data.pricing_formula == 'PER_SQM' %}selected{% endif %}>لكل متر مربع (سلوفان وتغطية)</option>
                 <option value="PER_REAM" {% if form_data.pricing_formula == 'PER_REAM' %}selected{% endif %}>لكل رزمة ورق</option>
                 <option value="PER_TON" {% if form_data.pricing_formula == 'PER_TON' %}selected{% endif %}>لكل طن ورق (مع تسعير الفرخ تلقائياً)</option>
-                <option value="FLAT_FEE" {% if form_data.pricing_formula == 'FLAT_FEE' %}selected{% endif %}>مبلغ مقطوع ثابت</option>
+                <option value="FIXED_TOOLING" {% if form_data.pricing_formula == 'FIXED_TOOLING' or form_data.pricing_formula == 'FLAT_FEE' %}selected{% endif %}>مبلغ مقطوع / اسطمبة ثابتة</option>
               </select>
             </div>
           </div>
@@ -144,11 +122,11 @@
             <div class="w-25">
               <select name="pricing_formula" id="pricing_formula" class="form-select form-select-sm">
                 <option value="PER_THOUSAND" {% if form_data.pricing_formula == 'PER_THOUSAND' %}selected{% endif %}>لكل 1,000 وحدة / طبعة</option>
-                <option value="PER_UNIT" {% if form_data.pricing_formula == 'PER_UNIT' %}selected{% endif %}>لكل وحدة / فرخ / لوح</option>
+                <option value="PER_PIECE" {% if form_data.pricing_formula == 'PER_PIECE' or form_data.pricing_formula == 'PER_UNIT' %}selected{% endif %}>لكل وحدة / قطعة / لوح</option>
                 <option value="PER_SQM" {% if form_data.pricing_formula == 'PER_SQM' %}selected{% endif %}>لكل متر مربع</option>
                 <option value="PER_REAM" {% if form_data.pricing_formula == 'PER_REAM' %}selected{% endif %}>لكل رزمة</option>
                 <option value="PER_TON" {% if form_data.pricing_formula == 'PER_TON' %}selected{% endif %}>لكل طن ورق</option>
-                <option value="FLAT_FEE" {% if form_data.pricing_formula == 'FLAT_FEE' %}selected{% endif %}>مبلغ مقطوع</option>
+                <option value="FIXED_TOOLING" {% if form_data.pricing_formula == 'FIXED_TOOLING' or form_data.pricing_formula == 'FLAT_FEE' %}selected{% endif %}>مبلغ مقطوع / اسطمبة ثابتة</option>
               </select>
             </div>
           </div>
@@ -199,31 +177,30 @@
             </div>
           </div>
 
-          <!-- التوليد التلقائي لزنكات CTP المتوافقة مع الماكينة -->
-          {% if not service %}
-          <div class="card border-0 bg-light p-3 mt-3">
-            <div class="form-check form-switch mb-2">
-              <input class="form-check-input" type="checkbox" name="auto_create_ctp_plate" id="auto_create_ctp_plate" value="1" checked>
-              <label class="form-check-label fw-bold" for="auto_create_ctp_plate">
-                <i class="fas fa-layer-group text-primary me-1"></i>إنشاء خدمة زنك CTP متوافقة تلقائياً لنفس الماكينة
-              </label>
+          <!-- تسعير الطقم لماكينات الأوفست -->
+          <div class="row g-3 mt-1 pt-2 border-top">
+            <div class="col-md-6">
+              <label class="form-label fw-bold"><i class="fas fa-box-open me-1 text-success"></i>سعر الطقم المقفل / فتحة مقفولة (<span class="currency-symbol-badge">{{ currency_symbol }}</span>)</label>
+              <div class="input-group">
+                <input type="number" name="offset_set_price" id="offset_set_price" class="form-control fw-bold" step="0.01" min="0"
+                       value="{{ form_data.set_price|default:'0' }}" placeholder="مثال: 300.00">
+                <span class="input-group-text currency-symbol-badge">{{ currency_symbol }}</span>
+              </div>
+              <div class="form-text small">سعر باقة مقفولة لعدد تراجات محدد شامل فتحة الماكينة والطباعة (اتركه 0 إذا كان الحساب بالتراج المنفرد).</div>
             </div>
-            <div id="ctp-plate-price-wrapper" class="row g-2 align-items-center mt-1">
-              <div class="col-auto">
-                <label class="form-label mb-0 small">سعر اللوح / الزنك للمورد:</label>
+            <div class="col-md-6">
+              <label class="form-label fw-bold">عدد التراجات المشمولة في باقة الطقم</label>
+              <div class="input-group">
+                <input type="number" name="offset_set_included_tirages" id="offset_set_included_tirages" class="form-control fw-bold" min="1" max="100"
+                       value="{{ form_data.set_included_tirages|default:'1' }}">
+                <span class="input-group-text">تراج (1,000 سحبة)</span>
               </div>
-              <div class="col-md-3">
-                <div class="input-group input-group-sm">
-                  <input type="number" name="ctp_plate_price" id="ctp_plate_price" class="form-control fw-bold" step="0.01" min="0" value="75.00">
-                  <span class="input-group-text currency-symbol-badge">{{ currency_symbol }}</span>
-                </div>
-              </div>
-              <div class="col-auto">
-                <small class="text-muted">سيتم ربط لوح CTP بمقاس سلندر الماكينة المختار أعلاه فورياً.</small>
-              </div>
+              <div class="form-text small">عدد التراجات المشمولة ضمن سعر الطقم (الافتراضي: 1 تراج، وما زاد يُحسب بسعر التراج الأساسي).</div>
             </div>
           </div>
-          {% endif %}
+          <div id="offset-set-price-alert" class="alert alert-warning py-2 px-3 small border-0 mt-2 mb-0 d-none">
+            <i class="fas fa-exclamation-circle me-1"></i><strong>تنبيه تجاري:</strong> سعر الطقم أعلى من حاصل جمع سعر التراج مع فتحة الماكينة. سيقوم النظام تلقائياً بتطبيق السعر الأوفر لمصلحة العملية.
+          </div>
 
           <input type="hidden" name="attr_machine_type" id="attr_machine_type" value="{{ form_data.machine_type|default:'' }}">
           <input type="hidden" name="attr_sheet_size" id="attr_sheet_size" value="{{ form_data.sheet_size|default:'' }}">
@@ -233,7 +210,7 @@
         <div class="section-container mb-4 specialized-domain-block" id="ctp-specialized-block" style="display:none;">
           <h5 class="section-title"><i class="fas fa-layer-group me-2 text-info"></i>مواصفات لوح زنك CTP</h5>
           <div class="row g-3">
-            <div class="col-md-8">
+            <div class="col-md-7">
               <label class="form-label fw-bold">مقاس لوح الزنك (Plate Size) <span class="text-danger">*</span></label>
               <select name="plate_size_id" id="plate_size_id" class="form-select">
                 <option value="">اختر مقاس الزنك القياسي...</option>
@@ -249,6 +226,18 @@
               </select>
               <div class="form-text small">يتم استخدام مقاس الزنك لمطابقة استهلاك الماكينات الأوفست عند تسعير الأوامر.</div>
             </div>
+            <div class="col-md-5">
+              <label class="form-label fw-bold"><i class="fas fa-layer-group me-1 text-success"></i>سعر طقم الـ 4 زنكات (<span class="currency-symbol-badge">{{ currency_symbol }}</span>)</label>
+              <div class="input-group">
+                <input type="number" name="ctp_set_price" id="ctp_set_price" class="form-control fw-bold" step="0.01" min="0"
+                       value="{{ form_data.set_price|default:'0' }}" placeholder="مثال: 500.00">
+                <span class="input-group-text currency-symbol-badge">{{ currency_symbol }}</span>
+              </div>
+              <div class="form-text small">سعر الباقة عند طلب طقم كامل (4 زنكات CMYK معاً).</div>
+            </div>
+          </div>
+          <div id="ctp-set-price-alert" class="alert alert-warning py-2 px-3 small border-0 mt-2 mb-0 d-none">
+            <i class="fas fa-exclamation-circle me-1"></i><strong>تنبيه تجاري:</strong> سعر الطقم أعلى من سعر 4 زنكات فردية. سيقوم النظام تلقائياً بتطبيق السعر الأوفر للعملية.
           </div>
         </div>
 
@@ -613,6 +602,13 @@ document.addEventListener('DOMContentLoaded', function() {
   const setupCostInput = document.getElementById('setup_cost');
   const minChargeInput = document.getElementById('minimum_charge');
   const currencySelect = document.getElementById('service_currency_select');
+  const tiersHidden = document.getElementById('inline_tiers_json');
+  let inlineTiers = [];
+  try {
+    inlineTiers = JSON.parse(tiersHidden ? tiersHidden.value || '[]' : '[]');
+  } catch(e) {
+    inlineTiers = [];
+  }
 
   function getActiveCurrencySymbol() {
     if (currencySelect && currencySelect.selectedIndex >= 0) {
@@ -650,6 +646,10 @@ document.addEventListener('DOMContentLoaded', function() {
   const paperWeightSelect = document.getElementById('paper_weight_id');
   const gsmInput = document.getElementById('attr_gsm');
   const pricePerTonInput = document.getElementById('price_per_ton');
+  const sheetsPackInput = document.getElementById('sheets_per_pack');
+  const offsetSetPriceInput = document.getElementById('offset_set_price');
+  const offsetSetIncTiragesInput = document.getElementById('offset_set_included_tirages');
+  const ctpSetPriceInput = document.getElementById('ctp_set_price');
 
   // Mode Tabs handling
   const modeTabs = document.querySelectorAll('.mode-tab-btn');
@@ -694,6 +694,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const basePriceHelp = document.getElementById('base_price_help');
     const activeSymbol = getActiveCurrencySymbol();
 
+    if (offsetSetPriceInput) offsetSetPriceInput.disabled = (code !== 'offset_printing');
+    if (offsetSetIncTiragesInput) offsetSetIncTiragesInput.disabled = (code !== 'offset_printing');
+    if (ctpSetPriceInput) ctpSetPriceInput.disabled = (code !== 'ctp_plates');
+
     // Show appropriate block
     if (code === 'offset_printing') {
       const el = document.getElementById('offset-specialized-block');
@@ -706,26 +710,26 @@ document.addEventListener('DOMContentLoaded', function() {
       if (el) el.style.display = 'block';
       if (basePriceLabel) basePriceLabel.innerText = `سعر لوح الزنك CTP (${activeSymbol}) *`;
       if (basePriceHelp) basePriceHelp.innerText = 'سعر توريد / تجهيز لوح الزنك الواحد.';
-      if (pricingFormulaSelect && !pricingFormulaSelect.value_locked) pricingFormulaSelect.value = 'PER_UNIT';
-    } else if (code === 'lamination') {
-      const el = document.getElementById('coating-specialized-block');
-      if (el) el.style.display = 'block';
-      if (basePriceLabel) basePriceLabel.innerText = `سعر السلوفان / التغطية (${activeSymbol}) *`;
-      if (basePriceHelp) basePriceHelp.innerText = 'سعر المتر المربع (م²) للسلوفان أو الورنيش.';
-      if (pricingFormulaSelect && !pricingFormulaSelect.value_locked) pricingFormulaSelect.value = 'PER_SQM';
-    } else if (code === 'finishing' || code === 'die_cutting' || code === 'spot_uv' || code === 'embossing') {
-      const el = document.getElementById('finishing-specialized-block');
-      if (el) el.style.display = 'block';
-      if (basePriceLabel) basePriceLabel.innerText = `سعر عملية التشطيب (${activeSymbol}) *`;
-      if (basePriceHelp) basePriceHelp.innerText = 'سعر التراج أو الضربة الواحدة.';
-      if (pricingFormulaSelect && !pricingFormulaSelect.value_locked) pricingFormulaSelect.value = 'PER_THOUSAND';
-    } else if (code === 'packaging' || code === 'delivery') {
+      if (pricingFormulaSelect && !pricingFormulaSelect.value_locked) pricingFormulaSelect.value = 'PER_PIECE';
+    } else if (code === 'coating' || code === 'lamination') {
+        const el = document.getElementById('coating-specialized-block');
+        if (el) el.style.display = 'block';
+        if (basePriceLabel) basePriceLabel.innerText = `سعر السلوفان / التغطية (${activeSymbol}) *`;
+        if (basePriceHelp) basePriceHelp.innerText = 'سعر المتر المربع (م²) للسلوفان أو الورنيش.';
+        if (pricingFormulaSelect && !pricingFormulaSelect.value_locked) pricingFormulaSelect.value = 'PER_SQM';
+      } else if (code === 'finishing' || code === 'die_cutting' || code === 'spot_uv' || code === 'embossing') {
+        const el = document.getElementById('finishing-specialized-block');
+        if (el) el.style.display = 'block';
+        if (basePriceLabel) basePriceLabel.innerText = `سعر عملية التشطيب (${activeSymbol}) *`;
+        if (basePriceHelp) basePriceHelp.innerText = 'سعر التراج أو الضربة الواحدة.';
+        if (pricingFormulaSelect && !pricingFormulaSelect.value_locked) pricingFormulaSelect.value = 'PER_THOUSAND';
+      } else if (code === 'packaging' || code === 'delivery') {
       const el = document.getElementById('packaging-specialized-block');
       if (el) el.style.display = 'block';
       if (basePriceLabel) basePriceLabel.innerText = `سعر الوحدة / الكرتونة (${activeSymbol}) *`;
       if (basePriceHelp) basePriceHelp.innerText = 'سعر الكرتونة أو الشيكارة الواحدة.';
-      if (pricingFormulaSelect && !pricingFormulaSelect.value_locked) pricingFormulaSelect.value = 'PER_UNIT';
-    } else if (code === 'paper_sheet') {
+      if (pricingFormulaSelect && !pricingFormulaSelect.value_locked) pricingFormulaSelect.value = 'PER_PIECE';
+    } else if (code === 'paper' || code === 'paper_sheet') {
       const el = document.getElementById('paper-specialized-block');
       if (el) el.style.display = 'block';
       if (basePriceLabel) basePriceLabel.innerText = `سعر الفرخ الأساسي (${activeSymbol}) *`;
@@ -736,7 +740,7 @@ document.addEventListener('DOMContentLoaded', function() {
       if (el) el.style.display = 'block';
       if (basePriceLabel) basePriceLabel.innerText = `سعر طبعة الديجيتال (${activeSymbol}) *`;
       if (basePriceHelp) basePriceHelp.innerText = 'السعر الأساسي لكل طبعة أو فرخ رقمي.';
-      if (pricingFormulaSelect && !pricingFormulaSelect.value_locked) pricingFormulaSelect.value = 'PER_UNIT';
+      if (pricingFormulaSelect && !pricingFormulaSelect.value_locked) pricingFormulaSelect.value = 'PER_PIECE';
     } else {
       if (basePriceLabel) basePriceLabel.innerText = `السعر للوحدة / السعر الأساسي (${activeSymbol}) *`;
       if (basePriceHelp) basePriceHelp.innerText = 'السعر الأساسي المعتمد للوحدة.';
@@ -807,7 +811,7 @@ document.addEventListener('DOMContentLoaded', function() {
       if (selectedPlate) {
         nameInput.value = `زنك CTP — ${selectedPlate}`;
       }
-    } else if (code === 'lamination') {
+    } else if (code === 'coating' || code === 'lamination') {
       const selectedCoating = coatingTypeSelect && coatingTypeSelect.selectedIndex > 0 ? coatingTypeSelect.options[coatingTypeSelect.selectedIndex].text.split('(')[0].trim() : '';
       if (selectedCoating) {
         nameInput.value = `سلوفان وتغطية — ${selectedCoating}`;
@@ -822,7 +826,7 @@ document.addEventListener('DOMContentLoaded', function() {
       if (selectedPkg) {
         nameInput.value = `تعبئة وتغليف — ${selectedPkg}`;
       }
-    } else if (code === 'paper_sheet') {
+    } else if (code === 'paper' || code === 'paper_sheet') {
       const pt = paperTypeSelect && paperTypeSelect.selectedIndex > 0 ? paperTypeSelect.options[paperTypeSelect.selectedIndex].text.trim() : '';
       const origin = paperOriginSelect && paperOriginSelect.selectedIndex > 0 ? paperOriginSelect.options[paperOriginSelect.selectedIndex].text.trim() : '';
       const gsm = gsmInput ? gsmInput.value : '';
@@ -876,23 +880,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
 
-  // Toggle CTP plate price wrapper with checkbox
-  const autoCtpCheckbox = document.getElementById('auto_create_ctp_plate');
-  const ctpPriceWrapper = document.getElementById('ctp-plate-price-wrapper');
-  if (autoCtpCheckbox && ctpPriceWrapper) {
-    autoCtpCheckbox.addEventListener('change', function() {
-      ctpPriceWrapper.style.display = this.checked ? 'flex' : 'none';
-    });
-  }
-
-  // Inline Tiers Management
-  let inlineTiers = [];
-  const tiersHidden = document.getElementById('inline_tiers_json');
-  try {
-    inlineTiers = JSON.parse(tiersHidden.value || '[]');
-  } catch(e) {
-    inlineTiers = [];
-  }
 
   function renderTiersTable() {
     const tbody = document.getElementById('tiers-tbody');
@@ -981,10 +968,47 @@ document.addEventListener('DOMContentLoaded', function() {
     return basePrice;
   }
 
+  function checkPriceInversion() {
+    const bp = parseFloat(basePriceInput ? basePriceInput.value : 0) || 0;
+    const sc = parseFloat(setupCostInput ? setupCostInput.value : 0) || 0;
+    const offsetSetPriceAlert = document.getElementById('offset-set-price-alert');
+    const ctpSetPriceAlert = document.getElementById('ctp-set-price-alert');
+
+    if (offsetSetPriceInput && !offsetSetPriceInput.disabled) {
+      const setP = parseFloat(offsetSetPriceInput.value) || 0;
+      const incT = parseInt(offsetSetIncTiragesInput ? offsetSetIncTiragesInput.value : 1) || 1;
+      const standardForInc = sc + (bp * incT);
+      if (setP > 0 && bp > 0 && setP > standardForInc) {
+        if (offsetSetPriceAlert) offsetSetPriceAlert.classList.remove('d-none');
+      } else {
+        if (offsetSetPriceAlert) offsetSetPriceAlert.classList.add('d-none');
+      }
+    }
+
+    if (ctpSetPriceInput && !ctpSetPriceInput.disabled) {
+      const setP = parseFloat(ctpSetPriceInput.value) || 0;
+      const standard4 = bp * 4;
+      if (setP > 0 && bp > 0 && setP > standard4) {
+        if (ctpSetPriceAlert) ctpSetPriceAlert.classList.remove('d-none');
+      } else {
+        if (ctpSetPriceAlert) ctpSetPriceAlert.classList.add('d-none');
+      }
+    }
+  }
+
   function updateLiveSimulation() {
+    checkPriceInversion();
     const bp = parseFloat(basePriceInput ? basePriceInput.value : 0) || 0;
     const sc = parseFloat(setupCostInput ? setupCostInput.value : 0) || 0;
     const mc = parseFloat(minChargeInput ? minChargeInput.value : 0) || 0;
+
+    let code = '';
+    if (serviceTypeSelect.tagName === 'SELECT') {
+      const selectedOpt = serviceTypeSelect.options[serviceTypeSelect.selectedIndex];
+      code = selectedOpt ? selectedOpt.dataset.code : '';
+    } else {
+      code = serviceTypeSelect.dataset.code || '';
+    }
 
     let formula = pricingFormulaSelect ? pricingFormulaSelect.value : 'PER_THOUSAND';
     const quantities = [1000, 3000, 5000, 10000];
@@ -992,11 +1016,23 @@ document.addEventListener('DOMContentLoaded', function() {
     quantities.forEach(q => {
       const p = getEffectivePriceForQty(q, bp);
       let cost = 0;
-      if (formula === 'PER_THOUSAND') {
+      if (code === 'offset_printing' && offsetSetPriceInput && !offsetSetPriceInput.disabled && parseFloat(offsetSetPriceInput.value) > 0) {
+        const setP = parseFloat(offsetSetPriceInput.value);
+        const incT = parseInt(offsetSetIncTiragesInput ? offsetSetIncTiragesInput.value : 1) || 1;
+        const tirages = q / 1000;
+        const extraT = Math.max(0, tirages - incT);
+        const costSet = setP + (extraT * p);
+        const costStandard = sc + (tirages * p);
+        cost = Math.max(Math.min(costSet, costStandard), mc);
+      } else if (formula === 'PER_THOUSAND') {
         const units = q / 1000;
         cost = Math.max(sc + (units * p), mc);
-      } else if (formula === 'PER_UNIT' || formula === 'PER_SQM') {
+      } else if (formula === 'PER_TON' || formula === 'PER_SHEET' || formula === 'PER_PIECE' || formula === 'PER_UNIT' || formula === 'PER_SQM') {
         cost = Math.max(sc + (q * p), mc);
+      } else if (formula === 'PER_REAM') {
+        const sheetsPerPack = parseInt(sheetsPackInput ? sheetsPackInput.value : 500) || 500;
+        const reams = Math.ceil(q / sheetsPerPack);
+        cost = Math.max(sc + (reams * p), mc);
       } else {
         cost = Math.max(sc + p, mc);
       }
@@ -1013,6 +1049,11 @@ document.addEventListener('DOMContentLoaded', function() {
   if (setupCostInput) setupCostInput.addEventListener('input', updateLiveSimulation);
   if (minChargeInput) minChargeInput.addEventListener('input', updateLiveSimulation);
   if (pricingFormulaSelect) pricingFormulaSelect.addEventListener('change', updateLiveSimulation);
+  if (pricePerTonInput) pricePerTonInput.addEventListener('input', updateLiveSimulation);
+  if (sheetsPackInput) sheetsPackInput.addEventListener('input', updateLiveSimulation);
+  if (offsetSetPriceInput) offsetSetPriceInput.addEventListener('input', updateLiveSimulation);
+  if (offsetSetIncTiragesInput) offsetSetIncTiragesInput.addEventListener('input', updateLiveSimulation);
+  if (ctpSetPriceInput) ctpSetPriceInput.addEventListener('input', updateLiveSimulation);
 
   updateLiveSimulation();
 });

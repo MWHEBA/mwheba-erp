@@ -212,6 +212,7 @@ class PricingSupplierSeederService:
                 "is_active": item["is_active"],
                 "is_system": item["is_system"],
                 "is_service_provider": item["is_service_provider"],
+                "is_pricing_related": True,
             }
             if created_by:
                 defaults["created_by"] = created_by
@@ -226,10 +227,16 @@ class PricingSupplierSeederService:
                 logger.info(f"تم إنشاء نوع مورد جديد: {obj.name} ({code})")
             else:
                 updated_count += 1
+                update_fields = []
                 new_name = str(item["name"])
                 if obj.name != new_name:
                     obj.name = new_name
-                    obj.save(update_fields=["name"])
+                    update_fields.append("name")
+                if not obj.is_pricing_related:
+                    obj.is_pricing_related = True
+                    update_fields.append("is_pricing_related")
+                if update_fields:
+                    obj.save(update_fields=update_fields)
 
             # مزامنة السجل مع SupplierType القديم
             obj.sync_with_supplier_type()

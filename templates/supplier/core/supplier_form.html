@@ -2,6 +2,7 @@
 {% load static %}
 {% load i18n %}
 {% load crispy_forms_tags %}
+{% load module_tags %}
 
 {% block title %}{{ page_title }}{% endblock %}
 
@@ -143,6 +144,51 @@
                             <div class="invalid-feedback d-block">{{ form.is_preferred.errors.0 }}</div>
                         {% endif %}
                     </div>
+
+                    <!-- تكامل موديول التسعير والخدمات المعتمدة -->
+                    {% is_module_enabled 'printing_pricing' as pricing_enabled %}
+                    {% if pricing_enabled %}
+                    <div class="col-12 mt-3">
+                        <div class="card border rounded p-3 bg-light">
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <div class="form-check form-switch mb-0">
+                                    {{ form.is_pricing_supplier }}
+                                    <label class="form-check-label fw-bold ms-2 text-primary" for="id_is_pricing_supplier">
+                                        <i class="fas fa-calculator me-1"></i>{% trans "مورد معتمد لموديول تسعير الطباعة والإنتاج" %}
+                                    </label>
+                                </div>
+                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle small">{% trans "تكامل التسعير الصناعي" %}</span>
+                            </div>
+                            <small class="text-muted d-block mb-3">{% trans "تفعيل هذا الخيار يتيح للمورد تقديم خامات وخدمات تشغيل تدخل مباشرة في تسعير أوامر الشغل." %}</small>
+
+                            <div id="provided-services-container" class="{% if not form.is_pricing_supplier.value and not form.instance.is_pricing_supplier %}d-none{% endif %}">
+                                <label class="form-label fw-bold mb-2">
+                                    <i class="fas fa-tags text-secondary me-1"></i>{% trans "الخدمات والقدرات الإنتاجية المصرح بها للمورد:" %}
+                                </label>
+                                <div class="row g-2">
+                                    {% for choice in form.provided_services %}
+                                    <div class="col-md-4 col-sm-6">
+                                        <div class="service-choice-card d-flex align-items-center p-2 px-3 border rounded bg-white w-100 h-100 user-select-none" style="cursor: pointer;">
+                                            {{ choice.tag }}
+                                            <label class="form-check-label fw-semibold ms-2 text-dark flex-grow-1 mb-0" for="{{ choice.id_for_label }}" style="cursor: pointer;">
+                                                {{ choice.choice_label }}
+                                            </label>
+                                        </div>
+                                    </div>
+                                    {% empty %}
+                                    <div class="col-12 text-muted small py-2">
+                                        <i class="fas fa-exclamation-triangle text-warning me-1"></i>
+                                        {% trans "لا توجد خدمات تسعير مسجلة في النظام حالياً." %}
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                {% if form.provided_services.errors %}
+                                    <div class="invalid-feedback d-block">{{ form.provided_services.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -425,6 +471,8 @@
         </div>
     </form>
 </div>
+
+{{ pricing_types_map|json_script:"pricing-types-data" }}
 {% endblock %}
 
 {% block extra_js %}
@@ -488,12 +536,84 @@ document.addEventListener('DOMContentLoaded', function() {
         updateEntityFields(entityTypeSelect.val());
     }
 
-    // 3. تفعيل Select2 للقوائم
+    // 3. تفعيل التبديل لحاوية خدمات التسعير
+    const pricingSwitch = $('#id_is_pricing_supplier');
+    const providedContainer = $('#provided-services-container');
+    if (pricingSwitch.length) {
+        pricingSwitch.off('change.pricing_ui').on('change.pricing_ui', function() {
+            if ($(this).is(':checked')) {
+                providedContainer.removeClass('d-none').hide().slideDown(200);
+            } else {
+                providedContainer.slideUp(200, function() {
+                    $(this).addClass('d-none');
+                });
+            }
+        });
+    }
+
+    // 4. قراءة خريطة تسعير أنواع الموردين ومزامنة الشيك بوكسات
+    let pricingTypesMap = {};
+    const mapScript = document.getElementById('pricing-types-data');
+    if (mapScript) {
+        try {
+            pricingTypesMap = JSON.parse(mapScript.textContent);
+        } catch (e) {
+            pricingTypesMap = {};
+        }
+    }
+
+    function syncPricingServicesWithType(typeId, isUserChange) {
+        if (!typeId || !pricingTypesMap[typeId]) return;
+        const info = pricingTypesMap[typeId];
+
+        if (info.is_pricing) {
+            if (!pricingSwitch.is(':checked')) {
+                pricingSwitch.prop('checked', true).trigger('change.pricing_ui');
+            }
+            if (info.recommended_service_ids && info.recommended_service_ids.length > 0) {
+                if (isUserChange) {
+                    $('input[name="provided_services"]').prop('checked', false).trigger('change');
+                }
+                info.recommended_service_ids.forEach(function(sId) {
+                    $('input[name="provided_services"][value="' + sId + '"]').prop('checked', true).trigger('change');
+                });
+            }
+        } else if (isUserChange) {
+            pricingSwitch.prop('checked', false).trigger('change.pricing_ui');
+            $('input[name="provided_services"]').prop('checked', false).trigger('change');
+        }
+    }
+
+    // 5. تفاعل بطاقات اختيار الخدمات (جعل الكارت بالكامل قابلاً للنقر والتحديد)
+    $(document).on('click', '.service-choice-card', function(e) {
+        if (!$(e.target).is('input[type="checkbox"], label')) {
+            const cb = $(this).find('input[type="checkbox"]');
+            cb.prop('checked', !cb.prop('checked')).trigger('change');
+        }
+    });
+    $(document).on('change', '.service-choice-card input[type="checkbox"]', function() {
+        $(this).closest('.service-choice-card').toggleClass('is-selected', this.checked);
+    });
+    // تفعيل التحديد الأولي
+    $('.service-choice-card input[type="checkbox"]:checked').closest('.service-choice-card').addClass('is-selected');
+
+    // 6. تفعيل Select2 للقوائم
     $('.select2-filter').select2({
         dir: 'rtl',
         language: 'ar',
         width: '100%'
     });
+
+    // ربط اختيار نوع المورد مع مزامنة الخدمات التلقائية
+    $('#id_primary_type').off('select2:select.pricing change.pricing').on('select2:select.pricing change.pricing', function() {
+        syncPricingServicesWithType($(this).val(), true);
+    });
+
+    // تنفيذ المزامنة الأولية عند فتح الصفحة
+    const initialTypeId = $('#id_primary_type').val();
+    if (initialTypeId) {
+        syncPricingServicesWithType(initialTypeId, false);
+    }
 });
 </script>
 {% endblock %}
