@@ -14,14 +14,15 @@
   {% csrf_token %}
   {% include "shared/page_header.html" %}
 
-  <!-- معلومات الخدمة -->
-  <div class="row mb-4">
+  <!-- معلومات الخدمة والهيكل المالي -->
+  <div class="row g-3 mb-4">
     <div class="col-md-3">
       <div class="stats-card stats-card-primary">
         <div class="stats-card-body">
           <div class="stats-card-icon"><i class="{{ service.service_type.icon }}"></i></div>
-          <div class="stats-card-title">نوع الخدمة</div>
-          <div class="stats-card-value" style="font-size:1rem;">{{ service.service_type.name }}</div>
+          <div class="stats-card-title">نوع الخدمة ووحدة التسعير</div>
+          <div class="stats-card-value" style="font-size:1.05rem;">{{ service.service_type.name }}</div>
+          <div class="stats-card-unit text-muted">{{ service.get_pricing_formula_display }}</div>
         </div>
       </div>
     </div>
@@ -29,23 +30,33 @@
       <div class="stats-card stats-card-success">
         <div class="stats-card-body">
           <div class="stats-card-icon"><i class="fas fa-tag"></i></div>
-          <div class="stats-card-title">السعر الأساسي</div>
+          <div class="stats-card-title">السعر الأساسي / التراج</div>
           <div class="stats-card-value">{{ service.base_price|smart_float }}</div>
-          <div class="stats-card-unit">{{ currency_symbol }}</div>
+          <div class="stats-card-unit">{{ currency_symbol|default:"ج.م" }}</div>
         </div>
       </div>
     </div>
-    <div class="col-md-3">
+    <div class="col-md-2">
       <div class="stats-card stats-card-warning">
         <div class="stats-card-body">
           <div class="stats-card-icon"><i class="fas fa-tools"></i></div>
-          <div class="stats-card-title">تكلفة الإعداد</div>
+          <div class="stats-card-title">فتحة الماكينة</div>
           <div class="stats-card-value">{{ service.setup_cost|smart_float }}</div>
-          <div class="stats-card-unit">{{ currency_symbol }}</div>
+          <div class="stats-card-unit">{{ currency_symbol|default:"ج.م" }}</div>
         </div>
       </div>
     </div>
-    <div class="col-md-3">
+    <div class="col-md-2">
+      <div class="stats-card stats-card-danger">
+        <div class="stats-card-body">
+          <div class="stats-card-icon"><i class="fas fa-shield-alt"></i></div>
+          <div class="stats-card-title">الحد الأدنى للتشغيل</div>
+          <div class="stats-card-value">{{ service.minimum_charge|smart_float }}</div>
+          <div class="stats-card-unit">{{ currency_symbol|default:"ج.م" }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-2">
       <div class="stats-card stats-card-info">
         <div class="stats-card-body">
           <div class="stats-card-icon"><i class="fas fa-layer-group"></i></div>

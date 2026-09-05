@@ -555,9 +555,13 @@ class OrderAnatomyPersistenceService:
                         from supplier.models import Supplier, SupplierService as SuppSvcModel
                         cover_supplier = Supplier.objects.filter(id=cover_supplier_id, is_active=True).first()
                         if cover_supplier:
-                            cover_supp_service = SuppSvcModel.objects.filter(
-                                supplier=cover_supplier, service_type__code='ctp_plates', is_active=True
-                            ).first()
+                            ctp_svc_id = post_data.get('cover_ctp_service_id')
+                            if ctp_svc_id and str(ctp_svc_id).isdigit():
+                                cover_supp_service = SuppSvcModel.objects.filter(id=int(ctp_svc_id), supplier=cover_supplier, is_active=True).first()
+                            if not cover_supp_service:
+                                cover_supp_service = SuppSvcModel.objects.filter(
+                                    supplier=cover_supplier, service_type__code='ctp_plates', is_active=True
+                                ).first()
                     except Exception:
                         pass
 
@@ -616,13 +620,26 @@ class OrderAnatomyPersistenceService:
                         from supplier.models import Supplier, SupplierService as SuppSvcModel
                         cover_offset_supp = Supplier.objects.filter(id=cover_offset_supp_id, is_active=True).first()
                         if cover_offset_supp:
-                            cover_offset_svc = SuppSvcModel.objects.filter(
-                                supplier=cover_offset_supp, service_type__code='offset_printing', is_active=True
-                            ).first()
+                            press_param = str(post_data.get('cover_press_machine') or '')
+                            svc_id = None
+                            if press_param.startswith('offset_'):
+                                try:
+                                    svc_id = int(press_param.split('_')[1])
+                                except (IndexError, ValueError):
+                                    pass
+                            elif press_param.isdigit():
+                                svc_id = int(press_param)
+
+                            if svc_id:
+                                cover_offset_svc = SuppSvcModel.objects.filter(id=svc_id, supplier=cover_offset_supp, is_active=True).first()
+                            if not cover_offset_svc:
+                                cover_offset_svc = SuppSvcModel.objects.filter(
+                                    supplier=cover_offset_supp, service_type__code='offset_printing', is_active=True
+                                ).first()
                     except Exception:
                         pass
 
-                press_machine_name = post_data.get('cover_press_machine') or press_bed_size
+                press_machine_name = cover_offset_svc.name if cover_offset_svc else (post_data.get('cover_press_machine') or press_bed_size)
 
                 # استخدام مخرجات محرك الحسابات الموحد لضمان التطابق التام بالمليم
                 if engine_res.get('success') and 'printing' in engine_res and engine_res['printing']['printing_type'] == 'offset':
@@ -714,9 +731,22 @@ class OrderAnatomyPersistenceService:
                         from supplier.models import Supplier, SupplierService as SuppSvcModel
                         cover_digi_supp = Supplier.objects.filter(id=cover_digi_supp_id, is_active=True).first()
                         if cover_digi_supp:
-                            cover_digi_svc = SuppSvcModel.objects.filter(
-                                supplier=cover_digi_supp, service_type__code='digital_printing', is_active=True
-                            ).first()
+                            digi_param = str(post_data.get('cover_digital_machine') or '')
+                            svc_id = None
+                            if digi_param.startswith('digital_'):
+                                try:
+                                    svc_id = int(digi_param.split('_')[1])
+                                except (IndexError, ValueError):
+                                    pass
+                            elif digi_param.isdigit():
+                                svc_id = int(digi_param)
+
+                            if svc_id:
+                                cover_digi_svc = SuppSvcModel.objects.filter(id=svc_id, supplier=cover_digi_supp, is_active=True).first()
+                            if not cover_digi_svc:
+                                cover_digi_svc = SuppSvcModel.objects.filter(
+                                    supplier=cover_digi_supp, service_type__code='digital_printing', is_active=True
+                                ).first()
                     except Exception:
                         pass
 
@@ -826,9 +856,13 @@ class OrderAnatomyPersistenceService:
                             from supplier.models import Supplier, SupplierService as SuppSvcModel
                             inner_supplier = Supplier.objects.filter(id=inner_supplier_id, is_active=True).first()
                             if inner_supplier:
-                                inner_supp_service = SuppSvcModel.objects.filter(
-                                    supplier=inner_supplier, service_type__code='ctp_plates', is_active=True
-                                ).first()
+                                ctp_svc_id = post_data.get('inner_ctp_service_id')
+                                if ctp_svc_id and str(ctp_svc_id).isdigit():
+                                    inner_supp_service = SuppSvcModel.objects.filter(id=int(ctp_svc_id), supplier=inner_supplier, is_active=True).first()
+                                if not inner_supp_service:
+                                    inner_supp_service = SuppSvcModel.objects.filter(
+                                        supplier=inner_supplier, service_type__code='ctp_plates', is_active=True
+                                    ).first()
                         except Exception:
                             pass
 
@@ -865,14 +899,26 @@ class OrderAnatomyPersistenceService:
                                 from supplier.models import Supplier, SupplierService as SuppSvcModel
                                 inner_offset_supp = Supplier.objects.filter(id=inner_offset_supp_id, is_active=True).first()
                                 if inner_offset_supp:
-                                    inner_offset_svc = SuppSvcModel.objects.filter(
-                                        supplier=inner_offset_supp, service_type__code='offset_printing', is_active=True
-                                    ).first()
+                                    press_param = str(post_data.get('inner_press_machine') or '')
+                                    svc_id = None
+                                    if press_param.startswith('offset_'):
+                                        try:
+                                            svc_id = int(press_param.split('_')[1])
+                                        except (IndexError, ValueError):
+                                            pass
+                                    elif press_param.isdigit():
+                                        svc_id = int(press_param)
+                                    if svc_id:
+                                        inner_offset_svc = SuppSvcModel.objects.filter(id=svc_id, supplier=inner_offset_supp, is_active=True).first()
+                                    if not inner_offset_svc:
+                                        inner_offset_svc = SuppSvcModel.objects.filter(
+                                            supplier=inner_offset_supp, service_type__code='offset_printing', is_active=True
+                                        ).first()
                             except Exception:
                                 pass
 
                         inner_press_rate = Decimal(str(post_data.get('inner_press_rate') or '45.00'))
-                        inner_press_machine = post_data.get('inner_press_machine') or inner_bed_size
+                        inner_press_machine = inner_offset_svc.name if inner_offset_svc else (post_data.get('inner_press_machine') or inner_bed_size)
 
                         single_thousands = Decimal(str(int(inner_gross_sheets / 1000) + 1))
                         single_press_cost = max(Decimal('150.00'), single_thousands * inner_press_rate)
@@ -945,14 +991,26 @@ class OrderAnatomyPersistenceService:
                                 from supplier.models import Supplier, SupplierService as SuppSvcModel
                                 inner_offset_supp = Supplier.objects.filter(id=inner_offset_supp_id, is_active=True).first()
                                 if inner_offset_supp:
-                                    inner_offset_svc = SuppSvcModel.objects.filter(
-                                        supplier=inner_offset_supp, service_type__code='offset_printing', is_active=True
-                                    ).first()
+                                    press_param = str(post_data.get('inner_press_machine') or '')
+                                    svc_id = None
+                                    if press_param.startswith('offset_'):
+                                        try:
+                                            svc_id = int(press_param.split('_')[1])
+                                        except (IndexError, ValueError):
+                                            pass
+                                    elif press_param.isdigit():
+                                        svc_id = int(press_param)
+                                    if svc_id:
+                                        inner_offset_svc = SuppSvcModel.objects.filter(id=svc_id, supplier=inner_offset_supp, is_active=True).first()
+                                    if not inner_offset_svc:
+                                        inner_offset_svc = SuppSvcModel.objects.filter(
+                                            supplier=inner_offset_supp, service_type__code='offset_printing', is_active=True
+                                        ).first()
                             except Exception:
                                 pass
 
                         inner_press_rate = Decimal(str(post_data.get('inner_press_rate') or '45.00'))
-                        inner_press_machine = post_data.get('inner_press_machine') or inner_bed_size
+                        inner_press_machine = inner_offset_svc.name if inner_offset_svc else (post_data.get('inner_press_machine') or inner_bed_size)
 
                         sig_pulls = qty * (Decimal('2') if inner_sides == 'work_turn' else Decimal('1'))
                         sig_tirage = Decimal(str(int(sig_pulls / 1000) + (1 if sig_pulls % 1000 > 0 else 0)))

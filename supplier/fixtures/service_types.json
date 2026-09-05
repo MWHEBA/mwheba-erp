@@ -12,8 +12,7 @@
         "paper_type":      {"type": "select", "source": "PaperType",   "required": true,  "label": "نوع الورق"},
         "gsm":             {"type": "select", "source": "PaperWeight", "required": true,  "label": "الوزن (جم)"},
         "sheet_size":      {"type": "select", "source": "PaperSize",   "required": true,  "label": "مقاس الفرخ"},
-        "origin":          {"type": "select", "source": "PaperOrigin", "required": false, "label": "المنشأ"},
-        "price_per_sheet": {"type": "decimal",                         "required": true,  "label": "سعر الفرخ (ج.م)"}
+        "origin":          {"type": "select", "source": "PaperOrigin", "required": false, "label": "المنشأ"}
       },
       "is_active": true,
       "order": 1,
@@ -32,9 +31,7 @@
       "attribute_schema": {
         "machine_type":         {"type": "select",  "source": "OffsetMachineType", "required": true,  "label": "نوع الماكينة"},
         "sheet_size":           {"type": "select",  "source": "OffsetSheetSize",   "required": true,  "label": "مقاس الفرخ"},
-        "max_colors":           {"type": "integer", "min": 1, "max": 8,            "required": true,  "label": "عدد الألوان"},
-        "price_per_1000":       {"type": "decimal",                                "required": true,  "label": "سعر كل 1000 طبعة (ج.م)"},
-        "setup_cost_per_color": {"type": "decimal",                                "required": false, "label": "تكلفة إعداد لكل لون (ج.م)"}
+        "max_colors":           {"type": "integer", "min": 1, "max": 8,            "required": true,  "label": "عدد الألوان"}
       },
       "is_active": true,
       "order": 2,
@@ -52,8 +49,6 @@
       "description": "خدمات الطباعة الرقمية",
       "attribute_schema": {
         "machine_type":        {"type": "select",  "source": "DigitalMachineType", "required": true,  "label": "نوع الماكينة"},
-        "price_per_page_bw":   {"type": "decimal",                                 "required": true,  "label": "سعر الصفحة أبيض وأسود (ج.م)"},
-        "price_per_page_color":{"type": "decimal",                                 "required": true,  "label": "سعر الصفحة ملون (ج.م)"},
         "min_quantity":        {"type": "integer",                                 "required": false, "label": "الحد الأدنى للكمية"}
       },
       "is_active": true,
@@ -72,9 +67,7 @@
       "description": "خدمات تصنيع الزنكات للطباعة الأوفست",
       "attribute_schema": {
         "plate_size":      {"type": "select",  "source": "PlateSize", "required": true,  "label": "مقاس الزنكة"},
-        "plate_type":      {"type": "select",  "options": ["عادي", "UV", "حساس"],        "required": true,  "label": "نوع الزنكة"},
-        "price_per_plate": {"type": "decimal",                        "required": true,  "label": "سعر الزنكة (ج.م)"},
-        "set_price":       {"type": "decimal",                        "required": false, "label": "سعر الطقم (ج.م)"}
+        "plate_type":      {"type": "select",  "options": ["عادي", "UV", "حساس"],        "required": true,  "label": "نوع الزنكة"}
       },
       "is_active": true,
       "order": 4,
@@ -91,9 +84,7 @@
       "icon": "fas fa-cut",
       "description": "خدمات القص والريجة والتكسير والتثقيب",
       "attribute_schema": {
-        "finishing_type": {"type": "select",  "source": "FinishingType", "required": true,  "label": "نوع التشطيب"},
-        "price_per_1000": {"type": "decimal",                            "required": true,  "label": "سعر كل 1000 قطعة (ج.م)"},
-        "setup_cost":     {"type": "decimal",                            "required": false, "label": "تكلفة الإعداد (ج.م)"}
+        "finishing_type": {"type": "select",  "source": "FinishingType", "required": true,  "label": "نوع التشطيب"}
       },
       "is_active": true,
       "order": 5,
@@ -110,9 +101,7 @@
       "icon": "fas fa-layer-group",
       "description": "خدمات التغطية واللمنيشن والبلاستيك",
       "attribute_schema": {
-        "coating_type":   {"type": "select",  "source": "CoatingType", "required": true,  "label": "نوع التغطية"},
-        "price_per_sqm":  {"type": "decimal",                          "required": true,  "label": "سعر المتر المربع (ج.م)"},
-        "min_area":       {"type": "decimal",                          "required": false, "label": "الحد الأدنى للمساحة (م²)"}
+        "coating_type":   {"type": "select",  "source": "CoatingType", "required": true,  "label": "نوع التغطية"}
       },
       "is_active": true,
       "order": 6,
@@ -129,9 +118,7 @@
       "icon": "fas fa-book",
       "description": "خدمات التقفيل بالدبوس والسلك والتجليد",
       "attribute_schema": {
-        "packaging_type": {"type": "select",  "source": "PackagingType", "required": true,  "label": "نوع التقفيل"},
-        "price_per_1000": {"type": "decimal",                            "required": true,  "label": "سعر كل 1000 قطعة (ج.م)"},
-        "setup_cost":     {"type": "decimal",                            "required": false, "label": "تكلفة الإعداد (ج.م)"}
+        "packaging_type": {"type": "select",  "source": "PackagingType", "required": true,  "label": "نوع التقفيل"}
       },
       "is_active": true,
       "order": 7,

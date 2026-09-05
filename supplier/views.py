@@ -1749,11 +1749,23 @@ def supplier_detail(request, pk):
     from supplier.models import SupplierService, ServiceType
     supplier_services = SupplierService.objects.filter(
         supplier=supplier
-    ).select_related('service_type').prefetch_related('price_tiers').order_by(
+    ).select_related('service_type', 'machine', 'dimension', 'paper_type_ref').prefetch_related('price_tiers').order_by(
         'service_type__order', 'name'
     )
     supplier_services_count = supplier_services.count()
     service_types_available = ServiceType.objects.filter(is_active=True).order_by('order', 'name')
+
+    # حساب مؤشرات الأداء للخدمات (KPIs)
+    active_svcs = [s for s in supplier_services if s.is_active]
+    offset_svcs = [s for s in active_svcs if s.service_type.code == 'offset_printing']
+    avg_tirage = (sum(s.base_price for s in offset_svcs) / len(offset_svcs)) if offset_svcs else Decimal('0.00')
+    services_kpis = {
+        'total_services': len(supplier_services),
+        'active_services': len(active_svcs),
+        'active_presses': len(offset_svcs),
+        'avg_tirage': avg_tirage,
+        'tiered_services_count': sum(1 for s in supplier_services if s.price_tiers.filter(is_active=True).exists()),
+    }
 
     # تجميع الخدمات حسب نوعها
     services_by_type = {}
@@ -1769,11 +1781,11 @@ def supplier_detail(request, pk):
     # أعمدة جدول الخدمات الموحد المحدث
     supplier_services_headers = [
         {'key': 'service_type_name', 'label': 'نوع الخدمة',      'sortable': True,  'class': 'text-center', 'format': 'html',     'width': '14%'},
-        {'key': 'name',              'label': 'اسم الخدمة',      'sortable': True,  'class': 'text-start',  'width': '22%'},
-        {'key': 'pricing_formula',   'label': 'وحدة التسعير',    'sortable': True,  'class': 'text-center', 'format': 'html',     'width': '13%'},
+        {'key': 'name',              'label': 'اسم الخدمة والمواصفات', 'sortable': True,  'class': 'text-start',  'format': 'html',     'width': '24%'},
+        {'key': 'pricing_formula',   'label': 'وحدة التسعير',    'sortable': True,  'class': 'text-center', 'format': 'html',     'width': '12%'},
         {'key': 'base_price',        'label': 'السعر / الوحدة',   'sortable': True,  'class': 'text-center', 'format': 'html',     'width': '13%'},
         {'key': 'setup_cost',        'label': 'فتحة الماكينة',   'sortable': True,  'class': 'text-center', 'format': 'currency', 'width': '11%'},
-        {'key': 'minimum_charge',    'label': 'الحد الأدنى',     'sortable': True,  'class': 'text-center', 'format': 'currency', 'width': '11%'},
+        {'key': 'minimum_charge',    'label': 'الحد الأدنى',     'sortable': True,  'class': 'text-center', 'format': 'currency', 'width': '10%'},
         {'key': 'tiers_count',       'label': 'الشرائح',          'sortable': False, 'class': 'text-center', 'format': 'html',     'width': '6%'},
         {'key': 'is_active',         'label': 'الحالة',           'sortable': True,  'class': 'text-center', 'format': 'status',   'width': '5%'},
         {'key': 'actions',           'label': 'الإجراءات',        'sortable': False, 'class': 'text-center', 'width': '5%'},
@@ -1792,10 +1804,21 @@ def supplier_detail(request, pk):
         icon = svc.service_type.icon
         type_badge = f'<span class="badge" style="background:var(--bs-primary);"><i class="{icon} me-1"></i>{svc.service_type.name}</span>'
         formula_badge = f'<span class="badge bg-light text-dark border">{svc.get_pricing_formula_display()}</span>'
-        curr_code = svc.currency.code if svc.currency else 'ج.م'
-        price_html = f'<span class="fw-bold">{svc.base_price:,.2f}</span> <small class="text-muted">{curr_code}</small>'
+        price_html = f'<span class="fw-bold">{svc.base_price:,.2f}</span> <small class="text-muted">ج.م</small>'
         if svc.pricing_formula == 'PER_TON' and svc.price_per_ton:
-            price_html += f'<br><small class="text-primary">{svc.price_per_ton:,.0f} {curr_code}/طن</small>'
+            price_html += f'<br><small class="text-primary">{svc.price_per_ton:,.0f} ج.م/طن</small>'
+        
+        # المواصفات الفنية المدمجة تحت الاسم
+        specs_badges = []
+        dim_label = svc.dimension.name if svc.dimension else svc.attributes.get('sheet_size', '')
+        if dim_label:
+            specs_badges.append(f'<span class="badge bg-light text-dark border me-1" style="font-size:0.75rem;"><i class="fas fa-ruler me-1"></i>{dim_label}</span>')
+        colors_count = svc.attributes.get('max_colors')
+        if colors_count:
+            specs_badges.append(f'<span class="badge bg-light text-dark border me-1" style="font-size:0.75rem;"><i class="fas fa-palette me-1"></i>{colors_count} ألوان</span>')
+        specs_html = f'<div class="mt-1">{"".join(specs_badges)}</div>' if specs_badges else ''
+        name_html = f'<div class="fw-bold">{svc.name}</div>{specs_html}'
+
         actions_html = (
             f'<a href="{reverse("supplier:supplier_service_edit", kwargs={"pk": supplier.pk, "service_pk": svc.pk})}" '
             f'class="btn btn-sm btn-outline-primary" title="تعديل"><i class="fas fa-edit"></i></a>'
@@ -1803,7 +1826,7 @@ def supplier_detail(request, pk):
         supplier_services_table_data.append({
             'id':                svc.pk,
             'service_type_name': type_badge,
-            'name':              svc.name,
+            'name':              name_html,
             'pricing_formula':   formula_badge,
             'base_price':        price_html,
             'setup_cost':        svc.setup_cost,
@@ -1851,6 +1874,7 @@ def supplier_detail(request, pk):
         "supplier_services": supplier_services,
         "supplier_services_table_data": supplier_services_table_data,
         "supplier_services_headers": supplier_services_headers,
+        "services_kpis": services_kpis,
         "services_by_type": services_by_type,
         "service_types_available": service_types_available,
         "purchase_headers": purchase_headers,  # أعمدة جدول المشتريات
@@ -2159,23 +2183,66 @@ def supplier_create_account(request, pk):
 # - root_cause_analysis_api
 
 
-# ===================================================================
-# خدمات الموردين — المرحلة الثانية
-# ===================================================================
+def _clean_decimal_input(val_str, default='0.00', field_name='القيمة'):
+    from decimal import Decimal, InvalidOperation
+    if not val_str:
+        return Decimal(default), None
+    cleaned = str(val_str).replace(',', '.').replace('،', '.').strip()
+    try:
+        dec = Decimal(cleaned)
+        if dec < Decimal('0.00'):
+            return Decimal(default), f'{field_name} لا يمكن أن تكون سالبة'
+        return dec, None
+    except (InvalidOperation, ValueError):
+        return Decimal(default), f'{field_name} غير صحيحة، يرجى إدخال رقم صحيح'
+
+
+def _get_preinjected_lookups():
+    try:
+        from printing_pricing.models import PrintingMachine, MachineDimension, PaperType, PaperWeight
+        offset_machines = list(PrintingMachine.objects.filter(machine_category='offset', is_active=True).values('id', 'name', 'colors_capacity', 'max_sheet_size'))
+        digital_machines = list(PrintingMachine.objects.filter(machine_category='digital', is_active=True).values('id', 'name', 'colors_capacity'))
+        offset_dimensions = list(MachineDimension.objects.filter(dimension_type__in=['offset_sheet', 'sheet'], is_active=True).values('id', 'name', 'code', 'width', 'height'))
+        plate_sizes = list(MachineDimension.objects.filter(dimension_type='plate', is_active=True).values('id', 'name', 'code', 'width', 'height'))
+        paper_types = list(PaperType.objects.filter(is_active=True).values('id', 'name', 'code'))
+        paper_weights = list(PaperWeight.objects.filter(is_active=True).values('id', 'gsm'))
+        return {
+            'offset_machines': offset_machines,
+            'digital_machines': digital_machines,
+            'offset_dimensions': offset_dimensions,
+            'plate_sizes': plate_sizes,
+            'paper_types': paper_types,
+            'paper_weights': paper_weights,
+        }
+    except Exception:
+        return {}
+
 
 @login_required
 def supplier_service_add(request, pk):
-    """إضافة خدمة جديدة للمورد"""
+    """إضافة خدمة جديدة للمورد مع الربط العلائقي وضمان سلامة التسعير الصناعي"""
     supplier = get_object_or_404(Supplier, pk=pk)
-    from supplier.models import SupplierService, ServiceType
+    from supplier.models import SupplierService, ServiceType, ServicePriceTier
+    from django.db import transaction
+    import json
+
+    service_types = ServiceType.objects.filter(is_active=True).order_by('order', 'name')
 
     if request.method == 'POST':
         service_type_id = request.POST.get('service_type')
         name            = request.POST.get('name', '').strip()
-        base_price      = request.POST.get('base_price', '0') or '0'
-        setup_cost      = request.POST.get('setup_cost', '0') or '0'
+        base_price_raw  = request.POST.get('base_price', '0') or '0'
+        setup_cost_raw  = request.POST.get('setup_cost', '0') or '0'
+        min_charge_raw  = request.POST.get('minimum_charge', '0') or '0'
+        price_ton_raw   = request.POST.get('price_per_ton', '0') or '0'
+        sheets_pack_raw = request.POST.get('sheets_per_pack', '500') or '500'
+        pricing_formula = request.POST.get('pricing_formula') or 'PER_THOUSAND'
         notes           = request.POST.get('notes', '')
         is_active       = request.POST.get('is_active') == 'on'
+
+        machine_id      = request.POST.get('machine_id')
+        dimension_id    = request.POST.get('dimension_id')
+        paper_type_id   = request.POST.get('paper_type_id')
 
         attributes = {}
         for key, val in request.POST.items():
@@ -2185,30 +2252,130 @@ def supplier_service_add(request, pk):
         errors = {}
         if not service_type_id:
             errors['service_type'] = 'نوع الخدمة مطلوب'
+
+        bp, err_bp = _clean_decimal_input(base_price_raw, '0.00', 'سعر التراج / السعر الأساسي')
+        if err_bp:
+            errors['base_price'] = err_bp
+        sc, err_sc = _clean_decimal_input(setup_cost_raw, '0.00', 'تكلفة الإعداد / فتحة الماكينة')
+        if err_sc:
+            errors['setup_cost'] = err_sc
+        mc, err_mc = _clean_decimal_input(min_charge_raw, '0.00', 'الحد الأدنى للتشغيل')
+        if err_mc:
+            errors['minimum_charge'] = err_mc
+        pt, err_pt = _clean_decimal_input(price_ton_raw, '0.00', 'سعر الطن')
+        if err_pt:
+            errors['price_per_ton'] = err_pt
+        
+        try:
+            sp = int(sheets_pack_raw) if sheets_pack_raw else 500
+        except ValueError:
+            sp = 500
+
+        # التحقق الفيزيائي وربط النماذج
+        machine_obj = None
+        dim_obj = None
+        paper_obj = None
+        try:
+            from printing_pricing.models import PrintingMachine, MachineDimension, PaperType
+            if machine_id and str(machine_id).isdigit():
+                machine_obj = PrintingMachine.objects.filter(id=int(machine_id), is_active=True).first()
+            elif attributes.get('machine_type'):
+                machine_obj = PrintingMachine.objects.filter(name=attributes['machine_type'], is_active=True).first()
+
+            if dimension_id and str(dimension_id).isdigit():
+                dim_obj = MachineDimension.objects.filter(id=int(dimension_id), is_active=True).first()
+            elif attributes.get('sheet_size'):
+                dim_obj = MachineDimension.objects.filter(models.Q(code=attributes['sheet_size']) | models.Q(name=attributes['sheet_size']), is_active=True).first()
+
+            if paper_type_id and str(paper_type_id).isdigit():
+                paper_obj = PaperType.objects.filter(id=int(paper_type_id), is_active=True).first()
+            elif attributes.get('paper_type'):
+                paper_obj = PaperType.objects.filter(name=attributes['paper_type'], is_active=True).first()
+
+            if machine_obj and dim_obj and getattr(machine_obj, 'max_sheet_size', None):
+                try:
+                    parts = machine_obj.max_sheet_size.lower().replace('×', 'x').split('x')
+                    if len(parts) == 2:
+                        max_w, max_l = float(parts[0]), float(parts[1])
+                        if dim_obj.width and dim_obj.width > max_w:
+                            errors['dimension'] = f'عرض المقاس ({dim_obj.width} سم) يتجاوز السعة القصوى لماكينة {machine_obj.name} ({max_w} سم)'
+                        if dim_obj.height and dim_obj.height > max_l:
+                            errors['dimension'] = f'طول المقاس ({dim_obj.height} سم) يتجاوز السعة القصوى لماكينة {machine_obj.name} ({max_l} سم)'
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+        # توليد الاسم التلقائي إن لم يُدخل
         if not name:
-            errors['name'] = 'اسم الخدمة مطلوب'
+            if machine_obj:
+                colors = attributes.get('max_colors') or machine_obj.colors_capacity or 4
+                size_lbl = dim_obj.name if dim_obj else attributes.get('sheet_size', '')
+                name = f"{machine_obj.name} — {colors} لون — {size_lbl}".strip(' —')
+            elif paper_obj:
+                gsm = attributes.get('gsm', '')
+                name = f"{paper_obj.name} {gsm} جم".strip()
+            else:
+                errors['name'] = 'اسم الخدمة مطلوب'
+
+        # معالجة الشرائح السعرية المدمجة
+        inline_tiers_data = []
+        tiers_json = request.POST.get('inline_tiers_json')
+        if tiers_json:
+            try:
+                raw_tiers = json.loads(tiers_json)
+                if isinstance(raw_tiers, list) and raw_tiers:
+                    sorted_tiers = sorted(raw_tiers, key=lambda x: int(x.get('min_quantity', 0)))
+                    for i, t in enumerate(sorted_tiers):
+                        t_min = int(t.get('min_quantity', 0))
+                        t_max = int(t.get('max_quantity')) if t.get('max_quantity') else None
+                        t_price, err_tp = _clean_decimal_input(t.get('price_per_unit'), '0.00', 'سعر الشريحة')
+                        if err_tp:
+                            errors['tiers'] = err_tp
+                            break
+                        if t_max and t_max < t_min:
+                            errors['tiers'] = f'الشريحة {t_min}-{t_max}: الحد الأقصى يجب أن يكون أكبر من الحد الأدنى'
+                            break
+                        if i > 0:
+                            prev_t = sorted_tiers[i-1]
+                            prev_max = int(prev_t.get('max_quantity')) if prev_t.get('max_quantity') else None
+                            if prev_max is None or prev_max >= t_min:
+                                errors['tiers'] = f'تداخل في الشرائح: الشريحة من {t_min} تتقاطع مع الشريحة السابقة!'
+                                break
+                        inline_tiers_data.append({'min_quantity': t_min, 'max_quantity': t_max, 'price_per_unit': t_price})
+            except Exception as e:
+                errors['tiers'] = f'خطأ في معالجة الشرائح السعرية: {e}'
 
         if not errors:
             try:
                 service_type = ServiceType.objects.get(pk=service_type_id, is_active=True)
-                from decimal import Decimal, InvalidOperation
-                try:
-                    bp = Decimal(base_price)
-                    sc = Decimal(setup_cost)
-                except InvalidOperation:
-                    bp = Decimal('0')
-                    sc = Decimal('0')
+                with transaction.atomic():
+                    svc = SupplierService.objects.create(
+                        supplier=supplier,
+                        service_type=service_type,
+                        name=name,
+                        base_price=bp,
+                        setup_cost=sc,
+                        minimum_charge=mc,
+                        pricing_formula=pricing_formula,
+                        price_per_ton=pt if pricing_formula == 'PER_TON' else None,
+                        sheets_per_pack=sp if pricing_formula == 'PER_REAM' else None,
+                        machine=machine_obj,
+                        dimension=dim_obj,
+                        paper_type_ref=paper_obj,
+                        attributes=attributes,
+                        notes=notes,
+                        is_active=is_active,
+                    )
+                    for t in inline_tiers_data:
+                        ServicePriceTier.objects.create(
+                            service=svc,
+                            min_quantity=t['min_quantity'],
+                            max_quantity=t['max_quantity'],
+                            price_per_unit=t['price_per_unit'],
+                            is_active=True
+                        )
 
-                SupplierService.objects.create(
-                    supplier=supplier,
-                    service_type=service_type,
-                    name=name,
-                    base_price=bp,
-                    setup_cost=sc,
-                    attributes=attributes,
-                    notes=notes,
-                    is_active=is_active,
-                )
                 messages.success(request, f'تم إضافة الخدمة "{name}" بنجاح')
                 return redirect(reverse('supplier:supplier_detail', kwargs={'pk': pk}) + '#services-tab-pane')
             except ServiceType.DoesNotExist:
@@ -2218,8 +2385,6 @@ def supplier_service_add(request, pk):
 
         for field, msg in errors.items():
             messages.error(request, msg)
-
-    service_types = ServiceType.objects.filter(is_active=True).order_by('order', 'name')
 
     # تجميع حسب الفئة لعرض optgroups
     from collections import defaultdict
@@ -2232,7 +2397,7 @@ def supplier_service_add(request, pk):
         for cat, types in _grouped.items()
     ]
 
-    # ترشيح الخدمة الذكي بناءً على نوع المورد الأساسي
+    # ترشيح الخدمة الذكي بناءً على نوع المورد
     recommended_codes = []
     if supplier.primary_type and supplier.primary_type.code:
         try:
@@ -2248,12 +2413,21 @@ def supplier_service_add(request, pk):
             default_service_type = str(matching_st.pk)
 
     form_data = {
-        'name':         request.POST.get('name', ''),
-        'base_price':   request.POST.get('base_price', '0'),
-        'setup_cost':   request.POST.get('setup_cost', '0'),
-        'notes':        request.POST.get('notes', ''),
-        'is_active':    True,
-        'service_type': default_service_type,
+        'name':            request.POST.get('name', '') if request.method == 'POST' else '',
+        'base_price':      request.POST.get('base_price', '0') if request.method == 'POST' else '0',
+        'setup_cost':      request.POST.get('setup_cost', '0') if request.method == 'POST' else '0',
+        'minimum_charge':  request.POST.get('minimum_charge', '0') if request.method == 'POST' else '0',
+        'price_per_ton':   request.POST.get('price_per_ton', '0') if request.method == 'POST' else '0',
+        'sheets_per_pack': request.POST.get('sheets_per_pack', '500') if request.method == 'POST' else '500',
+        'pricing_formula': request.POST.get('pricing_formula', 'PER_THOUSAND') if request.method == 'POST' else 'PER_THOUSAND',
+        'notes':           request.POST.get('notes', '') if request.method == 'POST' else '',
+        'is_active':       True,
+        'service_type':    default_service_type,
+        'attributes':      attributes if request.method == 'POST' else {},
+        'machine_id':      request.POST.get('machine_id', '') if request.method == 'POST' else '',
+        'dimension_id':    request.POST.get('dimension_id', '') if request.method == 'POST' else '',
+        'paper_type_id':   request.POST.get('paper_type_id', '') if request.method == 'POST' else '',
+        'inline_tiers_json': request.POST.get('inline_tiers_json', '[]') if request.method == 'POST' else '[]',
     }
     import json
     context = {
@@ -2262,6 +2436,8 @@ def supplier_service_add(request, pk):
         'service_types_grouped':  service_types_grouped,
         'service_types_schemas':  json.dumps({str(st.pk): st.attribute_schema for st in service_types}, ensure_ascii=False),
         'form_data':              form_data,
+        'lookups':                _get_preinjected_lookups(),
+        'currency_symbol':        'ج.م',
         'page_title':             f'إضافة خدمة — {supplier.name}',
         'page_icon':              'fas fa-plus-circle',
         'header_buttons': [
@@ -2279,55 +2455,129 @@ def supplier_service_add(request, pk):
 
 @login_required
 def supplier_service_edit(request, pk, service_pk):
-    """تعديل خدمة مورد"""
+    """تعديل خدمة مورد مع تحديث الحقول الصناعية والربط العلائقي"""
     supplier = get_object_or_404(Supplier, pk=pk)
     from supplier.models import SupplierService, ServiceType
+    import json
     service = get_object_or_404(SupplierService, pk=service_pk, supplier=supplier)
 
     if request.method == 'POST':
-        name       = request.POST.get('name', '').strip()
-        base_price = request.POST.get('base_price', '0') or '0'
-        setup_cost = request.POST.get('setup_cost', '0') or '0'
-        notes      = request.POST.get('notes', '')
-        is_active  = request.POST.get('is_active') == 'on'
+        name            = request.POST.get('name', '').strip()
+        base_price_raw  = request.POST.get('base_price', '0') or '0'
+        setup_cost_raw  = request.POST.get('setup_cost', '0') or '0'
+        min_charge_raw  = request.POST.get('minimum_charge', '0') or '0'
+        price_ton_raw   = request.POST.get('price_per_ton', '0') or '0'
+        sheets_pack_raw = request.POST.get('sheets_per_pack', '500') or '500'
+        pricing_formula = request.POST.get('pricing_formula') or service.pricing_formula or 'PER_THOUSAND'
+        notes           = request.POST.get('notes', '')
+        is_active       = request.POST.get('is_active') == 'on'
+
+        machine_id      = request.POST.get('machine_id')
+        dimension_id    = request.POST.get('dimension_id')
+        paper_type_id   = request.POST.get('paper_type_id')
 
         attributes = {}
         for key, val in request.POST.items():
             if key.startswith('attr_'):
                 attributes[key[5:]] = val
 
+        errors = {}
         if not name:
-            messages.error(request, 'اسم الخدمة مطلوب')
-        else:
+            errors['name'] = 'اسم الخدمة مطلوب'
+
+        bp, err_bp = _clean_decimal_input(base_price_raw, '0.00', 'سعر التراج / السعر الأساسي')
+        if err_bp:
+            errors['base_price'] = err_bp
+        sc, err_sc = _clean_decimal_input(setup_cost_raw, '0.00', 'تكلفة الإعداد / فتحة الماكينة')
+        if err_sc:
+            errors['setup_cost'] = err_sc
+        mc, err_mc = _clean_decimal_input(min_charge_raw, '0.00', 'الحد الأدنى للتشغيل')
+        if err_mc:
+            errors['minimum_charge'] = err_mc
+        pt, err_pt = _clean_decimal_input(price_ton_raw, '0.00', 'سعر الطن')
+        if err_pt:
+            errors['price_per_ton'] = err_pt
+
+        try:
+            sp = int(sheets_pack_raw) if sheets_pack_raw else 500
+        except ValueError:
+            sp = 500
+
+        machine_obj = service.machine
+        dim_obj = service.dimension
+        paper_obj = service.paper_type_ref
+        try:
+            from printing_pricing.models import PrintingMachine, MachineDimension, PaperType
+            if machine_id and str(machine_id).isdigit():
+                machine_obj = PrintingMachine.objects.filter(id=int(machine_id), is_active=True).first()
+            if dimension_id and str(dimension_id).isdigit():
+                dim_obj = MachineDimension.objects.filter(id=int(dimension_id), is_active=True).first()
+            if paper_type_id and str(paper_type_id).isdigit():
+                paper_obj = PaperType.objects.filter(id=int(paper_type_id), is_active=True).first()
+
+            if machine_obj and dim_obj and getattr(machine_obj, 'max_sheet_size', None):
+                try:
+                    parts = machine_obj.max_sheet_size.lower().replace('×', 'x').split('x')
+                    if len(parts) == 2:
+                        max_w, max_l = float(parts[0]), float(parts[1])
+                        if dim_obj.width and dim_obj.width > max_w:
+                            errors['dimension'] = f'عرض المقاس ({dim_obj.width} سم) يتجاوز السعة القصوى لماكينة {machine_obj.name}'
+                        if dim_obj.height and dim_obj.height > max_l:
+                            errors['dimension'] = f'طول المقاس ({dim_obj.height} سم) يتجاوز السعة القصوى لماكينة {machine_obj.name}'
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+        if not errors:
             try:
-                from decimal import Decimal
-                service.name       = name
-                service.base_price = Decimal(base_price) if base_price else Decimal('0')
-                service.setup_cost = Decimal(setup_cost) if setup_cost else Decimal('0')
-                service.attributes = attributes
-                service.notes      = notes
-                service.is_active  = is_active
+                service.name            = name
+                service.base_price      = bp
+                service.setup_cost      = sc
+                service.minimum_charge  = mc
+                service.pricing_formula = pricing_formula
+                service.price_per_ton   = pt if pricing_formula == 'PER_TON' else None
+                service.sheets_per_pack = sp if pricing_formula == 'PER_REAM' else None
+                service.machine         = machine_obj
+                service.dimension       = dim_obj
+                service.paper_type_ref  = paper_obj
+                service.attributes      = attributes
+                service.notes           = notes
+                service.is_active       = is_active
                 service.save()
                 messages.success(request, f'تم تحديث الخدمة "{name}" بنجاح')
                 return redirect(reverse('supplier:supplier_detail', kwargs={'pk': pk}) + '#services-tab-pane')
             except Exception as e:
                 messages.error(request, str(e))
+        else:
+            for field, msg in errors.items():
+                messages.error(request, msg)
 
     service_types = ServiceType.objects.filter(is_active=True).order_by('order', 'name')
     form_data = {
-        'name':       service.name,
-        'base_price': service.base_price,
-        'setup_cost': service.setup_cost,
-        'notes':      service.notes,
-        'is_active':  service.is_active,
+        'name':            service.name,
+        'base_price':      service.base_price,
+        'setup_cost':      service.setup_cost,
+        'minimum_charge':  service.minimum_charge,
+        'price_per_ton':   service.price_per_ton or '0',
+        'sheets_per_pack': service.sheets_per_pack or 500,
+        'pricing_formula': service.pricing_formula,
+        'notes':           service.notes,
+        'is_active':       service.is_active,
+        'service_type':    str(service.service_type.pk),
+        'attributes':      service.attributes or {},
+        'machine_id':      service.machine.id if service.machine else '',
+        'dimension_id':    service.dimension.id if service.dimension else '',
+        'paper_type_id':   service.paper_type_ref.id if service.paper_type_ref else '',
     }
-    import json
     context = {
         'supplier':       supplier,
         'service':        service,
         'service_types':  service_types,
         'service_types_schemas': json.dumps({str(st.pk): st.attribute_schema for st in service_types}, ensure_ascii=False),
         'form_data':      form_data,
+        'lookups':        _get_preinjected_lookups(),
+        'currency_symbol': 'ج.م',
         'schema_sources': _get_schema_sources(service.service_type.attribute_schema),
         'page_title':     f'تعديل خدمة — {supplier.name}',
         'page_icon':      'fas fa-edit',
@@ -2346,17 +2596,29 @@ def supplier_service_edit(request, pk, service_pk):
 
 @login_required
 def supplier_service_delete(request, pk, service_pk):
-    """حذف خدمة مورد (POST فقط)"""
+    """حذف خدمة مورد (POST فقط) مع حماية السجلات التاريخية"""
     supplier = get_object_or_404(Supplier, pk=pk)
     from supplier.models import SupplierService
     service = get_object_or_404(SupplierService, pk=service_pk, supplier=supplier)
 
     if request.method == 'POST':
         name = service.name
-        service.delete()
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return JsonResponse({'success': True, 'message': f'تم حذف الخدمة "{name}" بنجاح'})
-        messages.success(request, f'تم حذف الخدمة "{name}" بنجاح')
+        has_orders = False
+        try:
+            from printing_pricing.models.order import OrderService
+            has_orders = OrderService.objects.filter(supplier_service=service).exists()
+        except Exception:
+            pass
+
+        if has_orders:
+            service.is_active = False
+            service.save(update_fields=['is_active'])
+            messages.warning(request, f'تم إيقاف تفعيل الخدمة "{name}" بدلاً من حذفها لاقترانها بأوامر تشغيل سابقة.')
+        else:
+            service.delete()
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'success': True, 'message': f'تم حذف الخدمة "{name}" بنجاح'})
+            messages.success(request, f'تم حذف الخدمة "{name}" بنجاح')
 
     return redirect(reverse('supplier:supplier_detail', kwargs={'pk': pk}) + '#services-tab-pane')
 
@@ -2391,12 +2653,16 @@ def supplier_services_api(request, pk):
 
     data = [
         {
-            'id':           s.id,
-            'name':         s.name,
-            'service_type': s.service_type.code,
-            'base_price':   float(s.base_price),
-            'setup_cost':   float(s.setup_cost),
-            'attributes':   s.attributes,
+            'id':              s.id,
+            'name':            s.name,
+            'service_type':    s.service_type.code,
+            'base_price':      float(s.base_price),
+            'setup_cost':      float(s.setup_cost),
+            'minimum_charge':  float(s.minimum_charge) if s.minimum_charge else 0.0,
+            'pricing_formula': s.pricing_formula,
+            'price_per_ton':   float(s.price_per_ton) if s.price_per_ton else 0.0,
+            'sheets_per_pack': s.sheets_per_pack,
+            'attributes':      s.attributes,
         }
         for s in qs.order_by('service_type__order', 'name')
     ]
@@ -2455,6 +2721,7 @@ def supplier_service_detail(request, pk, service_pk):
             {'url': reverse('supplier:supplier_service_edit', kwargs={'pk': pk, 'service_pk': service_pk}), 'icon': 'fa-edit', 'text': 'تعديل الخدمة', 'class': 'btn-primary'},
             {'url': reverse('supplier:supplier_detail', kwargs={'pk': pk}) + '#services-tab-pane', 'icon': 'fa-arrow-right', 'text': 'العودة', 'class': 'btn-secondary'},
         ],
+        'currency_symbol': 'ج.م',
         'breadcrumb_items': [
             {'title': 'الرئيسية', 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},
             {'title': 'الموردين', 'url': reverse('supplier:supplier_list'), 'icon': 'fas fa-truck'},
@@ -2468,7 +2735,7 @@ def supplier_service_detail(request, pk, service_pk):
 
 @login_required
 def price_tier_add(request, pk, service_pk):
-    """إضافة شريحة سعرية جديدة"""
+    """إضافة شريحة سعرية جديدة مع التحقق من عدم التداخل"""
     supplier = get_object_or_404(Supplier, pk=pk)
     from supplier.models import SupplierService, ServicePriceTier
     from decimal import Decimal, InvalidOperation
@@ -2494,6 +2761,20 @@ def price_tier_add(request, pk, service_pk):
         except (InvalidOperation, ValueError):
             errors['price_per_unit'] = 'السعر مطلوب ويجب أن يكون رقماً'
 
+        # التحقق من عدم تداخل الشرائح السعرية
+        if not errors:
+            new_min = int(min_q)
+            new_max = int(max_q) if max_q else None
+            existing_tiers = service.price_tiers.filter(is_active=True)
+            for ext in existing_tiers:
+                ext_min = ext.min_quantity
+                ext_max = ext.max_quantity
+                overlap = (new_max is None or new_max >= ext_min) and (ext_max is None or ext_max >= new_min)
+                if overlap:
+                    ext_range = f"{ext_min} - {ext_max or 'ما لا نهاية'}"
+                    errors['overlap'] = f'تداخل في الشرائح: الشريحة المدخلة تتقاطع مع الشريحة الحالية ({ext_range})'
+                    break
+
         if not errors:
             ServicePriceTier.objects.create(
                 service=service,
@@ -2511,6 +2792,7 @@ def price_tier_add(request, pk, service_pk):
     context = {
         'supplier': supplier,
         'service':  service,
+        'currency_symbol': 'ج.م',
         'form_data': {
             'min_quantity':   request.POST.get('min_quantity', ''),
             'max_quantity':   request.POST.get('max_quantity', ''),
@@ -2536,7 +2818,7 @@ def price_tier_add(request, pk, service_pk):
 
 @login_required
 def price_tier_edit(request, pk, service_pk, tier_pk):
-    """تعديل شريحة سعرية"""
+    """تعديل شريحة سعرية مع التحقق من عدم التداخل"""
     supplier = get_object_or_404(Supplier, pk=pk)
     from supplier.models import SupplierService, ServicePriceTier
     from decimal import Decimal, InvalidOperation
@@ -2563,6 +2845,20 @@ def price_tier_edit(request, pk, service_pk, tier_pk):
         except (InvalidOperation, ValueError):
             errors['price_per_unit'] = 'السعر مطلوب ويجب أن يكون رقماً'
 
+        # التحقق من عدم تداخل الشرائح السعرية
+        if not errors:
+            new_min = int(min_q)
+            new_max = int(max_q) if max_q else None
+            existing_tiers = service.price_tiers.filter(is_active=True).exclude(pk=tier.pk)
+            for ext in existing_tiers:
+                ext_min = ext.min_quantity
+                ext_max = ext.max_quantity
+                overlap = (new_max is None or new_max >= ext_min) and (ext_max is None or ext_max >= new_min)
+                if overlap:
+                    ext_range = f"{ext_min} - {ext_max or 'ما لا نهاية'}"
+                    errors['overlap'] = f'تداخل في الشرائح: الشريحة المدخلة تتقاطع مع الشريحة الحالية ({ext_range})'
+                    break
+
         if not errors:
             tier.min_quantity   = int(min_q)
             tier.max_quantity   = int(max_q) if max_q else None
@@ -2579,6 +2875,7 @@ def price_tier_edit(request, pk, service_pk, tier_pk):
         'supplier': supplier,
         'service':  service,
         'tier':     tier,
+        'currency_symbol': 'ج.م',
         'form_data': {
             'min_quantity':   request.POST.get('min_quantity', tier.min_quantity),
             'max_quantity':   request.POST.get('max_quantity', tier.max_quantity or ''),
@@ -2987,12 +3284,115 @@ def supplier_services_bulk_adjust(request, pk):
                 if svc.price_per_ton and svc.price_per_ton > Decimal('0'):
                     svc.price_per_ton = (svc.price_per_ton * multiplier).quantize(Decimal('0.01'))
                 svc.save()
+                for tier in svc.price_tiers.all():
+                    tier.price_per_unit = (tier.price_per_unit * multiplier).quantize(Decimal('0.01'))
+                    tier.save(update_fields=['price_per_unit'])
                 count += 1
 
         pct_sign = f"+{pct}%" if pct > 0 else f"{pct}%"
         msg = f"تم تعديل أسعار {count} خدمة للمورد بنسبة {pct_sign} بنجاح."
         messages.success(request, msg)
         return JsonResponse({'success': True, 'message': msg, 'adjusted_count': count})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@login_required
+def supplier_seed_standard_presses(request, pk):
+    """
+    تهيئة فورية للماكينات القياسية (Heidelberg SM 74 و CD 102) للمطابع ومقاولي الباطن
+    """
+    supplier = get_object_or_404(Supplier, pk=pk)
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'POST method required'}, status=405)
+
+    from supplier.models import SupplierService, ServiceType
+    from printing_pricing.models import PrintingMachine, MachineDimension
+    from decimal import Decimal
+    from django.db import transaction
+
+    try:
+        offset_st = ServiceType.objects.filter(code='offset_printing', is_active=True).first()
+        if not offset_st:
+            return JsonResponse({'success': False, 'error': 'نوع خدمة الطباعة الأوفست غير معرف بالنظام'}, status=400)
+
+        p_50x70_price = request.POST.get('press_50x70_price', '45.00') or '45.00'
+        p_50x70_setup = request.POST.get('press_50x70_setup', '0.00') or '0.00'
+        p_70x100_price = request.POST.get('press_70x100_price', '75.00') or '75.00'
+        p_70x100_setup = request.POST.get('press_70x100_setup', '0.00') or '0.00'
+
+        dec_50x70_p, _ = _clean_decimal_input(p_50x70_price, '45.00')
+        dec_50x70_s, _ = _clean_decimal_input(p_50x70_setup, '0.00')
+        dec_70x100_p, _ = _clean_decimal_input(p_70x100_price, '75.00')
+        dec_70x100_s, _ = _clean_decimal_input(p_70x100_setup, '0.00')
+
+        # Relational lookups
+        sm74 = PrintingMachine.objects.filter(name__icontains='SM 74', is_active=True).first()
+        if not sm74:
+            sm74 = PrintingMachine.objects.filter(machine_category='offset', is_active=True).first()
+
+        cd102 = PrintingMachine.objects.filter(name__icontains='CD 102', is_active=True).first()
+        if not cd102:
+            cd102 = PrintingMachine.objects.filter(machine_category='offset', is_active=True).last()
+
+        dim_50x70 = MachineDimension.objects.filter(code='50x70', is_active=True).first()
+        dim_70x100 = MachineDimension.objects.filter(code='70x100', is_active=True).first()
+
+        created_count = 0
+        with transaction.atomic():
+            # 1. SM 74 (50x70)
+            svc_50x70, c1 = SupplierService.objects.get_or_create(
+                supplier=supplier,
+                service_type=offset_st,
+                name="Heidelberg Speedmaster SM 74 — 4 لون — 50×70 سم",
+                defaults={
+                    'base_price': dec_50x70_p,
+                    'setup_cost': dec_50x70_s,
+                    'minimum_charge': Decimal('150.00'),
+                    'pricing_formula': 'PER_THOUSAND',
+                    'machine': sm74,
+                    'dimension': dim_50x70,
+                    'attributes': {'sheet_size': '50x70', 'machine_type': 'هايدلبرج SM 74', 'max_colors': 4},
+                    'is_active': True,
+                }
+            )
+            if c1:
+                created_count += 1
+            else:
+                svc_50x70.base_price = dec_50x70_p
+                svc_50x70.setup_cost = dec_50x70_s
+                svc_50x70.machine = sm74
+                svc_50x70.dimension = dim_50x70
+                svc_50x70.save()
+
+            # 2. CD 102 (70x100)
+            svc_70x100, c2 = SupplierService.objects.get_or_create(
+                supplier=supplier,
+                service_type=offset_st,
+                name="Heidelberg Speedmaster CD 102 — 4 لون — 70×100 سم",
+                defaults={
+                    'base_price': dec_70x100_p,
+                    'setup_cost': dec_70x100_s,
+                    'minimum_charge': Decimal('250.00'),
+                    'pricing_formula': 'PER_THOUSAND',
+                    'machine': cd102,
+                    'dimension': dim_70x100,
+                    'attributes': {'sheet_size': '70x100', 'machine_type': 'هايدلبرج CD 102', 'max_colors': 4},
+                    'is_active': True,
+                }
+            )
+            if c2:
+                created_count += 1
+            else:
+                svc_70x100.base_price = dec_70x100_p
+                svc_70x100.setup_cost = dec_70x100_s
+                svc_70x100.machine = cd102
+                svc_70x100.dimension = dim_70x100
+                svc_70x100.save()
+
+        msg = f"تمت تهيئة ماكينات الطباعة القياسية للمورد {supplier.name} بنجاح!"
+        messages.success(request, msg)
+        return JsonResponse({'success': True, 'message': msg, 'created_count': created_count})
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
 

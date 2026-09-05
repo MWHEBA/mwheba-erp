@@ -155,9 +155,13 @@ class ProcurementBridgeService:
         wht_amount = (subtotal * Decimal('0.01')).quantize(Decimal('0.01'))
         total_after_wht = subtotal - wht_amount
 
-        # توليد رقم تسلسلي
-        today_str = timezone.now().strftime('%y%m%d')
-        unique_num = f"PO-{today_str}-{order.id}-{supplier.id}"
+        # توليد رقم تسلسلي مطابق لـ Rule #3
+        try:
+            from core.services.sequence_service import SequenceService
+            unique_num = SequenceService.get_next_number('purchase_order')
+        except Exception:
+            today_str = timezone.now().strftime('%y%m%d')
+            unique_num = f"PO-{today_str}-{order.id}-{supplier.id}"
 
         # التحقق من عدم وجود أمر شراء مطابق مسبقاً
         existing = Purchase.objects.filter(number=unique_num).first()

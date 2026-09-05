@@ -4,6 +4,7 @@
 
 from django.test import TestCase
 from ..models import Supplier, SupplierType
+from decimal import Decimal
 
 # ملاحظة: تم حذف اختبارات الخدمات المتخصصة كجزء من تنظيف فئات الموردين
 # تم حذف الفئات التالية:
@@ -54,6 +55,7 @@ class SupplierServiceIndustrialPricingTest(TestCase):
         from ..models import ServiceType
         self.service_type_lam = ServiceType.objects.create(name="سلوفان حراري", code="lamination", category="coating")
         self.service_type_paper = ServiceType.objects.create(name="ورق كوشيه", code="paper", category="paper")
+        self.service_type_offset = ServiceType.objects.create(name="طباعة أوفست", code="offset_printing", category="press")
 
     def test_calculate_cost_with_minimum_charge_floor(self):
         """اختبار معادلة التكلفة مع تطبيق الحد الأدنى للتشغيل"""
@@ -191,3 +193,105 @@ class SupplierServiceIndustrialPricingTest(TestCase):
         self.assertIsNotNone(created_lam)
         self.assertEqual(created_lam.base_price, Decimal('0.90'))
         self.assertEqual(created_lam.minimum_charge, Decimal('250.00'))
+
+    def test_relational_bridge_auto_sync(self):
+        """اختبار الجسر العلائقي والمزامنة التلقائية لـ attributes"""
+        from ..models import SupplierService
+        from printing_pricing.models import PrintingMachine, MachineDimension
+
+        mach = PrintingMachine.objects.create(
+            name="Heidelberg Speedmaster SM 74",
+            machine_category="offset",
+            colors_capacity=4,
+            max_sheet_size="53x74"
+        )
+        dim = MachineDimension.objects.create(
+            name="50×70 سم",
+            code="50x70",
+            dimension_type="offset_sheet",
+            width=Decimal('50.00'),
+            height=Decimal('70.00')
+        )
+
+        svc = SupplierService.objects.create(
+            supplier=self.supplier,
+            service_type=self.service_type_offset,
+            name="ماكينة 50x70 تجريبية",
+            base_price=Decimal('45.00'),
+            machine=mach,
+            dimension=dim
+        )
+        # Verify auto-sync hook populated attributes
+        self.assertEqual(svc.attributes.get('sheet_size'), '50x70')
+        self.assertEqual(svc.attributes.get('machine_type'), 'Heidelberg Speedmaster SM 74')
+        self.assertEqual(svc.attributes.get('max_colors'), 4)
+
+    def test_seed_standard_presses_view(self):
+        """اختبار تهيئة ماكينات الطباعة القياسية للمورد بنجاح"""
+        from django.urls import reverse
+        from ..models import SupplierService
+        from printing_pricing.models import PrintingMachine, MachineDimension
+
+        PrintingMachine.objects.create(
+            name="Heidelberg Speedmaster SM 74",
+            machine_category="offset",
+            colors_capacity=4,
+            max_sheet_size="53x74"
+        )
+        PrintingMachine.objects.create(
+            name="Heidelberg Speedmaster CD 102",
+            machine_category="offset",
+            colors_capacity=4,
+            max_sheet_size="72x102"
+        )
+        MachineDimension.objects.create(
+            name="50×70 سم",
+            code="50x70",
+            dimension_type="offset_sheet",
+            width=Decimal('50.00'),
+            height=Decimal('70.00')
+        )
+        MachineDimension.objects.create(
+            name="70×100 سم",
+            code="70x100",
+            dimension_type="offset_sheet",
+            width=Decimal('70.00'),
+            height=Decimal('100.00')
+        )
+
+        url = reverse('supplier:supplier_seed_standard_presses', kwargs={'pk': self.supplier.pk})
+        response = self.client.post(url, {
+            'press_50x70_price': '45.00',
+            'press_70x100_price': '75.00'
+        }, HTTP_X_REQUESTED_WITH='XMLHttpRequest')
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data['success'])
+        self.assertEqual(data['created_count'], 2)
+
+        # Check created services
+        sm_svc = SupplierService.objects.filter(supplier=self.supplier, name__icontains='SM 74').first()
+        self.assertIsNotNone(sm_svc)
+        self.assertEqual(sm_svc.base_price, Decimal('45.00'))
+        self.assertIsNotNone(sm_svc.machine)
+        self.assertIsNotNone(sm_svc.dimension)
+
+        cd_svc = SupplierService.objects.filter(supplier=self.supplier, name__icontains='CD 102').first()
+        self.assertIsNotNone(cd_svc)
+        self.assertEqual(cd_svc.base_price, Decimal('75.00'))
+
+    def test_clean_decimal_input_utility(self):
+        """اختبار تنظيف الفاصلة العربية والإنجليزية في القيم النقدية"""
+        from supplier.views import _clean_decimal_input
+
+        d1, err1 = _clean_decimal_input("45,50")
+        self.assertIsNone(err1)
+        self.assertEqual(d1, Decimal('45.50'))
+
+        d2, err2 = _clean_decimal_input("75،25")
+        self.assertIsNone(err2)
+        self.assertEqual(d2, Decimal('75.25'))
+
+        d3, err3 = _clean_decimal_input("-10.00")
+        self.assertIsNotNone(err3)

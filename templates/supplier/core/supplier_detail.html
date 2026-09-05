@@ -132,7 +132,6 @@
             <span class="badge rounded-pill bg-light text-secondary border ms-1">{{ products_count|default:"0" }}</span>
           </button>
         </li>
-        {% if enabled_modules.printing_pricing or supplier_services_count %}
         <li class="nav-item" role="presentation">
           <button class="nav-link fw-semibold px-3" id="services-tab" data-bs-toggle="tab"
             data-bs-target="#services-tab-pane" type="button" role="tab" aria-controls="services-tab-pane"
@@ -141,7 +140,6 @@
             <span class="badge rounded-pill bg-light text-secondary border ms-1">{{ supplier_services_count|default:"0" }}</span>
           </button>
         </li>
-        {% endif %}
         <li class="nav-item" role="presentation">
           <button class="nav-link fw-semibold px-3" id="payments-tab" data-bs-toggle="tab"
             data-bs-target="#payments-tab-pane" type="button" role="tab" aria-controls="payments-tab-pane"
@@ -658,11 +656,62 @@
         </div>
 
         <!-- تاب خدمات التسعير -->
-        {% if enabled_modules.printing_pricing or supplier_services_count %}
         <div class="tab-pane fade" id="services-tab-pane" role="tabpanel" aria-labelledby="services-tab" tabindex="0">
+          
+          <!-- بطاقات الإحصائيات الفنية (KPIs) لأسطول خدمات المورد - Rule 7 Compliant -->
+          <div class="row g-3 mb-4">
+            <div class="col-md-3">
+              <div class="stats-card stats-card-primary">
+                <div class="stats-card-header"></div>
+                <div class="stats-card-body">
+                  <div class="stats-card-icon"><i class="fas fa-list-check"></i></div>
+                  <div class="stats-card-title">إجمالي الخدمات المسجلة</div>
+                  <div class="stats-card-value">{{ services_kpis.total_services|default:supplier_services_count|default:"0" }}</div>
+                  <div class="stats-card-unit">خدمة / خامة</div>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="stats-card stats-card-info">
+                <div class="stats-card-header"></div>
+                <div class="stats-card-body">
+                  <div class="stats-card-icon"><i class="fas fa-print"></i></div>
+                  <div class="stats-card-title">ماكينات الطباعة النشطة</div>
+                  <div class="stats-card-value">{{ services_kpis.active_presses|default:"0" }}</div>
+                  <div class="stats-card-unit">ماكينة أوفست</div>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="stats-card stats-card-success">
+                <div class="stats-card-header"></div>
+                <div class="stats-card-body">
+                  <div class="stats-card-icon"><i class="fas fa-coins"></i></div>
+                  <div class="stats-card-title">متوسط سعر التراج للألف</div>
+                  <div class="stats-card-value">{{ services_kpis.avg_tirage|default:"0"|smart_float }}</div>
+                  <div class="stats-card-unit">ج.م / 1,000 طبعة</div>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="stats-card stats-card-warning">
+                <div class="stats-card-header"></div>
+                <div class="stats-card-body">
+                  <div class="stats-card-icon"><i class="fas fa-layer-group"></i></div>
+                  <div class="stats-card-title">خدمات بشرائح كميات</div>
+                  <div class="stats-card-value">{{ services_kpis.tiered_services_count|default:"0" }}</div>
+                  <div class="stats-card-unit">خدمة بشرائح</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div class="d-flex justify-content-between align-items-center mb-3">
             <h5 class="section-title mb-0"><i class="fas fa-tags me-2"></i>{% trans "خدمات وقوائم أسعار المورد" %}</h5>
             <div class="d-flex gap-2">
+              <button type="button" class="btn btn-outline-success btn-sm fw-bold" data-bs-toggle="modal" data-bs-target="#seedPressesModal" title="تهيئة سريعة لماكينات الطباعة الأوفست القياسية">
+                <i class="fas fa-bolt me-1 text-warning"></i>تهيئة ماكينات قياسية
+              </button>
               <button type="button" class="btn btn-outline-warning btn-sm" data-bs-toggle="modal" data-bs-target="#bulkAdjustModal" title="{% trans "تعديل نسبي لجميع الأسعار لمواجهة التضخم" %}">
                 <i class="fas fa-percentage me-1"></i>{% trans "تعديل مجمع للأسعار" %}
               </button>
@@ -705,16 +754,29 @@
             {% include "components/data_table.html" %}
           {% endwith %}
           {% else %}
-          <div class="text-center py-5">
-            <i class="fas fa-tools fa-3x text-muted mb-3"></i>
-            <p class="text-muted mb-3">لا توجد خدمات مسجلة لهذا المورد بعد</p>
-            <a href="{% url 'supplier:supplier_service_add' supplier.pk %}" class="btn btn-primary">
-              <i class="fas fa-plus me-1"></i>إضافة أول خدمة
-            </a>
+          <!-- بنر التهيئة الفورية المميز لمطبعة الصالحية ومقاولي الباطن عند عدم وجود خدمات -->
+          <div class="card border-0 bg-light p-4 text-center my-3 shadow-sm rounded">
+            <div class="mb-3">
+              <span class="badge bg-primary-subtle text-primary p-3 rounded-circle fs-3">
+                <i class="fas fa-print"></i>
+              </span>
+            </div>
+            <h5 class="fw-bold text-dark mb-2">لا توجد خدمات أو ماكينات طباعة مسجلة للمورد حتى الآن</h5>
+            <p class="text-muted mx-auto mb-4" style="max-width: 620px;">
+              المورد <strong>«{{ supplier.name }}»</strong> غير مسجل له أسطول ماكينات أو خدمات تسعير بعد.
+              يمكنك فورياً إضافة ماكينات الأوفست القياسية (Heidelberg SM 74 مقاس 50×70 سم و CD 102 مقاس 70×100 سم) بضغطة زر واحدة، أو تسجيل خدمات مخصصة يدوياً.
+            </p>
+            <div class="d-flex justify-content-center gap-3">
+              <button type="button" class="btn btn-success fw-bold px-4 py-2" data-bs-toggle="modal" data-bs-target="#seedPressesModal">
+                <i class="fas fa-bolt me-2 text-warning"></i>تهيئة ماكينات الطباعة القياسية فورياً
+              </button>
+              <a href="{% url 'supplier:supplier_service_add' supplier.pk %}" class="btn btn-outline-primary fw-bold px-4 py-2">
+                <i class="fas fa-plus me-2"></i>إضافة خدمة يدوياً
+              </a>
+            </div>
           </div>
           {% endif %}
         </div>
-        {% endif %}
 
         <!-- تاب أعمار الديون الكسول -->
         <div class="tab-pane fade" id="aging-tab-pane" role="tabpanel" aria-labelledby="aging-tab" tabindex="0">
@@ -1648,6 +1710,7 @@
         </div>
       </div>
     </div>
+  </div>
   <!-- مودال التعديل النسبي المجمع لمواجهة التضخم -->
   <div class="modal fade" id="bulkAdjustModal" tabindex="-1" aria-labelledby="bulkAdjustModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
@@ -1798,6 +1861,70 @@
             <i class="fas fa-save me-1"></i>{% trans "حفظ قائمة الأسعار كاملة" %}
           </button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- مودال التهيئة الفورية للماكينات القياسية للمطبعة - Rule 8 Compliant -->
+  <div class="modal fade" id="seedPressesModal" tabindex="-1" aria-labelledby="seedPressesModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content border-0 shadow-lg">
+        <div class="modal-header bg-light border-bottom px-4 py-3">
+          <div class="d-flex align-items-center justify-content-between w-100">
+            <h5 class="modal-title fw-bold text-dark mb-0" id="seedPressesModalLabel">
+              <i class="fas fa-bolt text-warning me-2"></i>تهيئة ماكينات الطباعة القياسية للمطبعة
+            </h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+        </div>
+        <form id="seedPressesForm" method="POST" action="{% url 'supplier:supplier_seed_standard_presses' supplier.pk %}">
+          {% csrf_token %}
+          <div class="modal-body p-4">
+            <p class="text-muted small mb-4">
+              سيتم تهيئة ماكينات الأوفست القياسية للمورد <strong>«{{ supplier.name }}»</strong> مع ربطها تلقائياً بمحرك التسعير الآلي:
+            </p>
+
+            <!-- الماكينة الأولى: SM 74 50x70 -->
+            <div class="p-3 bg-light rounded border mb-3">
+              <div class="fw-bold text-dark mb-2">
+                <i class="fas fa-print text-primary me-2"></i>1. Heidelberg Speedmaster SM 74 (50×70 سم)
+              </div>
+              <div class="row g-2">
+                <div class="col-md-6">
+                  <label class="form-label small">سعر التراج / 1,000 طبعة (ج.م)</label>
+                  <input type="number" step="0.5" class="form-control form-control-sm fw-bold" name="press_50x70_price" value="45.00" required>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label small">فتحة الماكينة / إعداد (ج.م)</label>
+                  <input type="number" step="0.5" class="form-control form-control-sm" name="press_50x70_setup" value="0.00">
+                </div>
+              </div>
+            </div>
+
+            <!-- الماكينة الثانية: CD 102 70x100 -->
+            <div class="p-3 bg-light rounded border mb-2">
+              <div class="fw-bold text-dark mb-2">
+                <i class="fas fa-print text-primary me-2"></i>2. Heidelberg Speedmaster CD 102 (70×100 سم)
+              </div>
+              <div class="row g-2">
+                <div class="col-md-6">
+                  <label class="form-label small">سعر التراج / 1,000 طبعة (ج.م)</label>
+                  <input type="number" step="0.5" class="form-control form-control-sm fw-bold" name="press_70x100_price" value="75.00" required>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label small">فتحة الماكينة / إعداد (ج.م)</label>
+                  <input type="number" step="0.5" class="form-control form-control-sm" name="press_70x100_setup" value="0.00">
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer bg-light border-top px-4 py-3">
+            <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">إلغاء</button>
+            <button type="submit" class="btn btn-primary fw-bold px-4" id="btn-submit-seed">
+              <i class="fas fa-check me-1"></i>اعتماد وتهيئة الماكينات فورياً
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   </div>
@@ -2005,6 +2132,79 @@
           });
         });
       }
+      // 3. معالجة تهيئة الماكينات القياسية للمطبعة فورياً
+      const seedForm = document.getElementById('seedPressesForm');
+      if (seedForm) {
+        seedForm.addEventListener('submit', function (e) {
+          e.preventDefault();
+          const btn = document.getElementById('btn-submit-seed');
+          const originalText = btn.innerHTML;
+          btn.disabled = true;
+          btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>جاري التهيئة...';
+
+          const formData = new FormData(seedForm);
+          fetch(seedForm.action, {
+            method: 'POST',
+            body: formData,
+            headers: {
+              'X-Requested-With': 'XMLHttpRequest'
+            }
+          })
+          .then(res => res.json())
+          .then(data => {
+            if (data.success) {
+              if (window.showNotification) {
+                window.showNotification(data.message, 'success', 'نجاح');
+              } else if (window.showToastr) {
+                window.showToastr(data.message, 'success');
+              }
+              const modal = bootstrap.Modal.getInstance(document.getElementById('seedPressesModal'));
+              if (modal) modal.hide();
+              setTimeout(function () {
+                window.location.hash = '#services-tab-pane';
+                window.location.reload();
+              }, 3100);
+            } else {
+              alert(data.error || 'حدث خطأ أثناء التهيئة');
+              btn.disabled = false;
+              btn.innerHTML = originalText;
+            }
+          })
+          .catch(err => {
+            alert('خطأ في الاتصال بالخادم: ' + err);
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+          });
+        });
+      }
+
+      // 4. مزامنة الـ URL Hash لفتح التاب المباشر تلقائياً
+      if (window.location.hash) {
+        const targetTab = document.querySelector(`button[data-bs-target="${window.location.hash}"]`);
+        if (targetTab) {
+          const tabInstance = bootstrap.Tab.getOrCreateInstance(targetTab);
+          tabInstance.show();
+        }
+      }
+
+      // 5. ربط أزرار فتح النوافذ المنبثقة برمجياً لضمان الاستجابة الفورية
+      const modalBindings = [
+        { selector: '[data-bs-target="#seedPressesModal"]', modalId: 'seedPressesModal' },
+        { selector: '[data-bs-target="#bulkAdjustModal"]', modalId: 'bulkAdjustModal' },
+        { selector: '[data-bs-target="#bulkMatrixModal"]', modalId: 'bulkMatrixModal' },
+      ];
+      modalBindings.forEach(function (binding) {
+        document.querySelectorAll(binding.selector).forEach(function (btn) {
+          btn.addEventListener('click', function (e) {
+            e.preventDefault();
+            const el = document.getElementById(binding.modalId);
+            if (el && typeof bootstrap !== 'undefined') {
+              const modalInst = bootstrap.Modal.getOrCreateInstance(el);
+              modalInst.show();
+            }
+          });
+        });
+      });
     });
   </script>
 

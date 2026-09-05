@@ -940,6 +940,30 @@ class SupplierService(models.Model):
         verbose_name=_("العملة"),
         help_text=_("عملة التسعير (اتركه فارغاً للعملة الافتراضية)")
     )
+    machine      = models.ForeignKey(
+        'printing_pricing.PrintingMachine',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='supplier_services',
+        verbose_name=_("ماكينة الطباعة المعتمدة")
+    )
+    dimension    = models.ForeignKey(
+        'printing_pricing.MachineDimension',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='supplier_services',
+        verbose_name=_("مقاس الشيت / السلندر")
+    )
+    paper_type_ref = models.ForeignKey(
+        'printing_pricing.PaperType',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='supplier_services',
+        verbose_name=_("خامة الورق المعتمدة")
+    )
     pricing_formula = models.CharField(
         _("طريقة / معادلة التسعير"),
         max_length=30,
@@ -1017,6 +1041,24 @@ class SupplierService(models.Model):
 
     def __str__(self):
         return f"{self.supplier.name} — {self.name}"
+
+    def save(self, *args, **kwargs):
+        """مزامنة حقل الخصائص attributes تلقائياً من الروابط العلائقية لضمان التوافق العكسي 100%"""
+        if not self.attributes or not isinstance(self.attributes, dict):
+            self.attributes = {}
+
+        if self.dimension:
+            w = int(self.dimension.width) if self.dimension.width == int(self.dimension.width) else float(self.dimension.width)
+            h = int(self.dimension.height) if self.dimension.height == int(self.dimension.height) else float(self.dimension.height)
+            self.attributes['sheet_size'] = f"{w}x{h}"
+        if self.machine:
+            self.attributes['machine_type'] = self.machine.name
+            if self.machine.colors_capacity:
+                self.attributes['max_colors'] = self.machine.colors_capacity
+        if self.paper_type_ref:
+            self.attributes['paper_type'] = self.paper_type_ref.name
+
+        super().save(*args, **kwargs)
 
     def get_price_for_quantity(self, quantity=1):
         """

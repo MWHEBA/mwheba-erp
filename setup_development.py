@@ -1067,6 +1067,10 @@ def main():
         from printing_pricing.services.pricing_lookup_seeder_service import PricingLookupSeederService
         res = PricingLookupSeederService.seed_all()
         print_success(f"تم بنجاح بذر كافة بيانات وإعدادات التسعير: {res.get('total_created', 0)} جديد، {res.get('total_updated', 0)} محدث")
+
+        from printing_pricing.services.supplier_seeder_service import PricingSupplierSeederService
+        s_res = PricingSupplierSeederService.seed_all()
+        print_success(f"تم بنجاح بذر ومزامنة خدمات وأنواع الموردين المتخصصة بالطباعة")
     except Exception as e:
         print_warning(f"خطأ أثناء بذر بيانات التسعير: {e}")
 

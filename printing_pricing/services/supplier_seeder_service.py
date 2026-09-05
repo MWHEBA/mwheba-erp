@@ -110,9 +110,7 @@ class PricingSupplierSeederService:
             "attribute_schema": {
                 "machine_type":         {"type": "select",  "source": "OffsetMachineType", "required": True,  "label": "نوع الماكينة"},
                 "sheet_size":           {"type": "select",  "source": "OffsetSheetSize",   "required": True,  "label": "مقاس الفرخ"},
-                "max_colors":           {"type": "integer", "min": 1, "max": 8,            "required": True,  "label": "عدد الألوان"},
-                "price_per_1000":       {"type": "decimal",                                "required": True,  "label": "سعر كل 1000 طبعة (ج.م)"},
-                "setup_cost_per_color": {"type": "decimal",                                "required": False, "label": "تكلفة إعداد لكل لون (ج.م)"}
+                "max_colors":           {"type": "integer", "min": 1, "max": 8,            "required": True,  "label": "عدد الألوان"}
             },
             "is_active": True,
             "order": 2,
@@ -125,8 +123,6 @@ class PricingSupplierSeederService:
             "description": _("خدمات الطباعة الرقمية"),
             "attribute_schema": {
                 "machine_type":         {"type": "select",  "source": "DigitalMachineType", "required": True,  "label": "نوع الماكينة"},
-                "price_per_page_bw":    {"type": "decimal",                                 "required": True,  "label": "سعر الصفحة أبيض وأسود (ج.م)"},
-                "price_per_page_color": {"type": "decimal",                                 "required": True,  "label": "سعر الصفحة ملون (ج.م)"},
                 "min_quantity":         {"type": "integer",                                 "required": False, "label": "الحد الأدنى للكمية"}
             },
             "is_active": True,
@@ -140,9 +136,7 @@ class PricingSupplierSeederService:
             "description": _("خدمات تصنيع وتظهير الزنكات للطباعة الأوفست"),
             "attribute_schema": {
                 "plate_size":      {"type": "select",  "source": "PlateSize", "required": True,  "label": "مقاس الزنكة"},
-                "plate_type":      {"type": "select",  "options": ["عادي", "UV", "حساس"], "required": True,  "label": "نوع الزنكة"},
-                "price_per_plate": {"type": "decimal",                        "required": True,  "label": "سعر الزنكة (ج.م)"},
-                "set_price":       {"type": "decimal",                        "required": False, "label": "سعر الطقم (ج.م)"}
+                "plate_type":      {"type": "select",  "options": ["عادي", "UV", "حساس"], "required": True,  "label": "نوع الزنكة"}
             },
             "is_active": True,
             "order": 4,
@@ -154,9 +148,7 @@ class PricingSupplierSeederService:
             "icon": "fas fa-cut",
             "description": _("خدمات القص والريجة والتكسير والتثقيب"),
             "attribute_schema": {
-                "finishing_type": {"type": "select",  "source": "FinishingType", "required": True,  "label": "نوع التشطيب"},
-                "price_per_1000": {"type": "decimal",                            "required": True,  "label": "سعر كل 1000 قطعة (ج.م)"},
-                "setup_cost":     {"type": "decimal",                            "required": False, "label": "تكلفة الإعداد (ج.م)"}
+                "finishing_type": {"type": "select",  "source": "FinishingType", "required": True,  "label": "نوع التشطيب"}
             },
             "is_active": True,
             "order": 5,
@@ -168,9 +160,7 @@ class PricingSupplierSeederService:
             "icon": "fas fa-layer-group",
             "description": _("خدمات التغطية واللمنيشن والبلاستيك"),
             "attribute_schema": {
-                "coating_type":   {"type": "select",  "source": "CoatingType", "required": True,  "label": "نوع التغطية"},
-                "price_per_sqm":  {"type": "decimal",                          "required": True,  "label": "سعر المتر المربع (ج.م)"},
-                "min_area":       {"type": "decimal",                          "required": False, "label": "الحد الأدنى للمساحة (م²)"}
+                "coating_type":   {"type": "select",  "source": "CoatingType", "required": True,  "label": "نوع التغطية"}
             },
             "is_active": True,
             "order": 6,

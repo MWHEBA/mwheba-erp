@@ -42,8 +42,6 @@ class BulkPriceUpdaterService:
                     service = SupplierService.objects.select_for_update().get(id=service_id)
                     old_price = service.base_price
                     service.base_price = price_val
-                    if user:
-                        service.updated_by = user
                     service.save(update_fields=['base_price', 'updated_at'])
                     updated_count += 1
                 except SupplierService.DoesNotExist:

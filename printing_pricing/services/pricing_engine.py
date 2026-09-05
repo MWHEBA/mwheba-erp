@@ -338,19 +338,24 @@ class PrintingCalculationEngine:
             except Exception:
                 pass
 
+        gsm = cls._to_decimal(params.get('paper_weight'), Decimal('300.0'))
+
         # محاولة قراءة الخدمة من موديول الموردين إذا تم تمرير المعرف
         paper_svc_id = params.get('paper_service_id') or params.get('paper_type_id')
         if paper_svc_id:
             try:
                 from supplier.models import SupplierService
                 svc = SupplierService.objects.filter(id=paper_svc_id, is_active=True).first()
-                if svc and svc.base_price > 0:
-                    return Decimal(str(svc.base_price))
+                if svc:
+                    eff_price = svc.get_effective_sheet_price(width_cm=w_cut, height_cm=h_cut, gsm=gsm)
+                    if eff_price and eff_price > Decimal('0.00'):
+                        return Decimal(str(eff_price))
+                    elif svc.base_price > Decimal('0.00'):
+                        return Decimal(str(svc.base_price))
             except Exception:
                 pass
 
         # السعر الاسترشادي بحسب الجراماج
-        gsm = cls._to_decimal(params.get('paper_weight'), Decimal('300.0'))
         base_rate = cls.BENCHMARK_RATES['paper_base_rate_300g']
         return (base_rate * (gsm / Decimal('300.0'))).quantize(Decimal('0.01'))
 

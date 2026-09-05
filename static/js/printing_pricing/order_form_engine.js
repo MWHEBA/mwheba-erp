@@ -1277,6 +1277,21 @@ class OrderFormUIController {
       const optBed = selectedOpt.data('bed');
       if (optRate !== undefined) $('#id_inner_press_rate').val(optRate);
       if (optBed) $('#id_inner_press_bed_size').val(optBed).trigger('change');
+
+      const machineVal = $(this).val();
+      const innerPieceSelect = $('#id_inner_piece_size');
+      if (innerPieceSelect.length) {
+        if (machineVal === '50x70' || optBed === '50x70') {
+          const opt = innerPieceSelect.find('option[data-cuts="2"]');
+          if (opt.length) innerPieceSelect.val(opt.val()).trigger('change.select2');
+        } else if (machineVal === '35x50' || optBed === '35x50') {
+          const opt = innerPieceSelect.find('option[data-cuts="4"]');
+          if (opt.length) innerPieceSelect.val(opt.val()).trigger('change.select2');
+        } else if (machineVal === '70x100' || optBed === '70x100') {
+          const opt = innerPieceSelect.find('option[data-cuts="1"]');
+          if (opt.length) innerPieceSelect.val(opt.val()).trigger('change.select2');
+        }
+      }
       self.debouncedRecalculate();
     });
 
