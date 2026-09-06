@@ -1,0 +1,82 @@
+{% load i18n %}
+{% load utils_extras %}
+<tr id="service-row-{{ item.id }}" class="align-middle">
+  <td class="text-center">
+    <input type="checkbox" class="form-check-input row-checkbox" value="{{ item.id }}">
+  </td>
+  <td>
+    <a href="{% url 'supplier:supplier_detail' item.supplier.id %}" class="fw-bold text-dark text-decoration-none">
+      {{ item.supplier.name }}
+    </a>
+  </td>
+  <td>
+    <div class="fw-bold text-dark">{{ item.name }}</div>
+    <div class="text-muted small">{{ item.service_type.name }}</div>
+  </td>
+  <td class="text-end">
+    <div>
+      <span class="fw-bold">{{ item.base_price|smart_float }}</span>
+      <span class="text-muted small">{{ item.currency_symbol }}</span>
+    </div>
+    {% if item.base_price_egp and item.is_foreign_currency %}
+    <div class="text-muted small">{{ item.base_price_egp|smart_float }} {{ functional_curr.symbol|default:functional_curr.code }}</div>
+    {% endif %}
+  </td>
+  <td class="text-end">
+    {% if item.set_price %}
+    <div>
+      <span class="fw-bold text-primary">{{ item.set_price|smart_float }}</span>
+      <span class="text-muted small">{{ item.currency_symbol }}</span>
+    </div>
+    {% if item.set_price_egp and item.is_foreign_currency %}
+    <div class="text-muted small">{{ item.set_price_egp|smart_float }} {{ functional_curr.symbol|default:functional_curr.code }}</div>
+    {% endif %}
+    {% else %}
+    <span class="text-muted">-</span>
+    {% endif %}
+  </td>
+  <td class="text-center">
+    {% if item.minimum_charge and item.minimum_charge > 0 %}
+    <span class="badge bg-light text-dark border">{{ item.minimum_charge|smart_float }} {{ item.currency_symbol }}</span>
+    {% else %}
+    <span class="text-muted">-</span>
+    {% endif %}
+  </td>
+  <td class="text-center">
+    {% if item.price_tiers.exists %}
+    <a href="{% url 'supplier:supplier_service_detail' item.supplier.id item.id %}" class="btn btn-outline-info btn-sm py-0 px-2" title="{% trans 'عرض وإدارة شرائح الأسعار' %}">
+      <i class="fas fa-layer-group me-1"></i>{{ item.price_tiers.count|smart_float:0 }} {% trans "شرائح" %}
+    </a>
+    {% else %}
+    <span class="text-muted small">سعر موحد</span>
+    {% endif %}
+  </td>
+  <td class="text-center">
+    {% if item.is_active %}
+    <span class="badge bg-success-subtle text-success border border-success-subtle">{% trans "نشط" %}</span>
+    {% else %}
+    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">{% trans "معطل" %}</span>
+    {% endif %}
+
+    {% if item.is_stale %}
+    <span class="badge bg-warning-subtle text-warning border border-warning-subtle d-block mt-1" title="{% trans 'لم يتم تحديث السعر منذ أكثر من 30 يوماً' %}">
+      <i class="fas fa-clock me-1"></i>{{ item.stale_days|smart_float:0 }} {% trans "يوم" %}
+    </span>
+    {% endif %}
+  </td>
+  <td class="text-center">
+    <div class="btn-group btn-group-sm">
+      <button type="button" class="btn btn-outline-primary btn-quick-price" data-id="{{ item.id }}" data-field="base_price" data-price="{{ item.base_price }}" data-name="{{ item.name }}" data-currency="{{ item.currency_symbol }}" title="{% trans 'تعديل سريع للسعر' %}">
+        <i class="fas fa-tag"></i>
+      </button>
+      <a href="{% url 'supplier:supplier_service_edit' item.supplier.id item.id %}" class="btn btn-outline-secondary" title="{% trans 'تعديل كامل الخدمة' %}">
+        <i class="fas fa-pen"></i>
+      </a>
+      {% if item.is_best_price %}
+      <span class="badge bg-success text-white d-inline-flex align-items-center px-2" title="{% trans 'الأفضل سعراً' %}">
+        <i class="fas fa-star"></i>
+      </span>
+      {% endif %}
+    </div>
+  </td>
+</tr>

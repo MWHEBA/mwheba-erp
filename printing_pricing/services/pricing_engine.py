@@ -416,7 +416,7 @@ class PrintingCalculationEngine:
     def _resolve_paper_price(cls, params: Dict[str, Any], w_cut: Decimal, h_cut: Decimal, machine_cuts: int = 1) -> Decimal:
         """
         جلب سعر الفرخ الخام الكامل بالجنيه المصري من SupplierService المعتمد أو استخدام السعر الاسترشادي.
-        يتم حساب سعر الفرخ الصافي استناداً إلى أبعاد الفرخ الخام الحقيقي للمورد لتجنب عجز التكلفة.
+        يتم حساب سعر الفرخ استناداً إلى أبعاد الفرخ الخام الحقيقي للمورد لتجنب عجز التكلفة.
         """
         paper_price_input = params.get('paper_price')
         target_curr = params.get('_target_curr')

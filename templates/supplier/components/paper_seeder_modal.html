@@ -50,12 +50,12 @@
               </label>
               <div class="input-group">
                 <input type="number" step="0.01" min="0.01" class="form-control fw-bold" id="seeder_price_per_ton" name="price_per_ton" placeholder="0.00" required>
-                <span class="input-group-text">{{ supplier.default_currency.symbol|default:"ج.م" }}</span>
+                <span class="input-group-text">{{ supplier.currency_symbol }}</span>
               </div>
             </div>
             <div class="col-md-6">
               <label class="form-label fw-bold small text-muted mb-1">{% trans "العملة المعتمدة" %}</label>
-              <input type="text" class="form-control bg-light" value="{{ supplier.default_currency.name|default:'الجنيه المصري' }} ({{ supplier.default_currency.symbol|default:'ج.م' }})" readonly>
+              <input type="text" class="form-control bg-light" value="{{ supplier.default_currency.name|default:functional_curr.name }} ({{ supplier.currency_symbol }})" readonly>
             </div>
           </div>
 

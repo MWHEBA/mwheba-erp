@@ -1,0 +1,33 @@
+{% load i18n %}
+{% if services %}
+<div class="table-responsive">
+  <table class="table table-hover align-middle mb-0" id="paper-matrix-table">
+    <thead>
+      <tr>
+        <th class="text-center" style="width: 40px;">
+          <input type="checkbox" class="form-check-input" id="select-all-checkbox">
+        </th>
+        <th style="min-width: 180px;">{% trans "المورد / التاجر" %}</th>
+        <th style="min-width: 180px;">{% trans "خامة الورق والمنشأ" %}</th>
+        <th class="text-center" style="min-width: 110px;">{% trans "الجراماج" %}</th>
+        <th class="text-center" style="min-width: 130px;">{% trans "مقاس الفرخ" %}</th>
+        <th class="text-end" style="min-width: 160px;">{% trans "سعر الطن" %}</th>
+        <th class="text-end" style="min-width: 170px;">
+          {% trans "سعر الفرخ" %}
+          <i class="fas fa-info-circle text-muted ms-1" title="{% trans 'محسوب فيزيائياً من الطن أو الرزمة' %}"></i>
+        </th>
+        <th class="text-center" style="min-width: 120px;">{% trans "التسعير بالرزمة" %}</th>
+        <th class="text-center" style="width: 110px;">{% trans "الحالة" %}</th>
+        <th class="text-center" style="width: 90px;">{% trans "إجراءات" %}</th>
+      </tr>
+    </thead>
+    <tbody id="pricing-table-body">
+      {% for item in services %}
+        {% include "supplier/services/partials/_paper_row.html" with item=item %}
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+  {% include "partials/empty_state.html" with message=_("لا توجد خامات ورق مطابقة لخيارات البحث") icon="newspaper" %}
+{% endif %}

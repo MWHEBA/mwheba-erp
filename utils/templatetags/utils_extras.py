@@ -453,6 +453,9 @@ def smart_float(value, decimal_places=2):
     return currency_format(value, decimal_places)
 
 
+register.filter('smartfloat', smart_float)
+
+
 @register.filter
 def clean_rate(value):
     """

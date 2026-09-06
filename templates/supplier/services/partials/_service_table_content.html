@@ -1,0 +1,61 @@
+{% load i18n %}
+{% if services %}
+<div class="table-responsive">
+  <table class="table table-hover align-middle mb-0" id="service-matrix-table">
+    <thead>
+      <tr>
+        <th class="text-center" style="width: 40px;">
+          <input type="checkbox" class="form-check-input" id="select-all-checkbox">
+        </th>
+        <th style="min-width: 180px;">{% trans "المورد / الجهة المنفذة" %}</th>
+        <th style="min-width: 200px;">
+          {% if active_service_type %}
+            {{ active_service_type.name }}
+          {% else %}
+            {% trans "البند / الخدمة" %}
+          {% endif %}
+        </th>
+        <th class="text-end" style="min-width: 150px;">
+          {% if active_service_type.code == 'offset_printing' %}
+            {% trans "سعر التراج الأساسي (للألف)" %}
+          {% elif active_service_type.code == 'digital_printing' %}
+            {% trans "سعر الورقة / النقرة" %}
+          {% elif active_service_type.code == 'ctp_plates' %}
+            {% trans "سعر الزنكة الواحدة" %}
+          {% elif active_service_type.code == 'coating' %}
+            {% trans "سعر الفرخ / المتر" %}
+          {% elif active_service_type.code == 'packaging' %}
+            {% trans "سعر الوحدة / النسخة" %}
+          {% else %}
+            {% trans "السعر الأساسي / الوحدة" %}
+          {% endif %}
+          <i class="fas fa-info-circle text-muted ms-1" title="{% trans 'السعر الأساسي للوحدة وفق طريقة التسعير المعتمدة' %}"></i>
+        </th>
+        <th class="text-end" style="min-width: 150px;">
+          {% if active_service_type.code == 'offset_printing' %}
+            {% trans "سعر الطقم (فتحة الماكينة)" %}
+          {% elif active_service_type.code == 'ctp_plates' %}
+            {% trans "سعر الطقم (4 زنكات)" %}
+          {% elif active_service_type.code == 'finishing' %}
+            {% trans "تكلفة القالب / الكليشيه" %}
+          {% else %}
+            {% trans "سعر الطقم / التجهيز" %}
+          {% endif %}
+          <i class="fas fa-info-circle text-muted ms-1" title="{% trans 'تكلفة التجهيز الثابتة أو فتحة الماكينة أو الطقم' %}"></i>
+        </th>
+        <th class="text-center" style="min-width: 120px;">{% trans "الحد الأدنى" %}</th>
+        <th class="text-center" style="min-width: 110px;">{% trans "شرائح الكميات" %}</th>
+        <th class="text-center" style="width: 110px;">{% trans "الحالة" %}</th>
+        <th class="text-center" style="width: 90px;">{% trans "إجراءات" %}</th>
+      </tr>
+    </thead>
+    <tbody id="pricing-table-body">
+      {% for item in services %}
+        {% include "supplier/services/partials/_service_row.html" with item=item %}
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+  {% include "partials/empty_state.html" with message=_("لا توجد خدمات مسجلة لهذا النوع حالياً") icon=active_service_type.icon|default:"concierge-bell" %}
+{% endif %}

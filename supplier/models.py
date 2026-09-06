@@ -656,17 +656,27 @@ class Supplier(models.Model):
         if self.default_currency:
             return getattr(self.default_currency, 'symbol', None) or getattr(self.default_currency, 'code', '')
         try:
-            from core.utils import get_default_currency
-            return get_default_currency()
+            from financial.services.exchange_rate_service import ExchangeRateService
+            fc = ExchangeRateService.get_functional_currency()
+            if fc:
+                return fc.symbol or fc.code
         except Exception:
-            return 'ج.م'
+            pass
+        return ''
 
     @property
     def currency_code(self):
         """إرجاع كود العملة الافتراضية للمورد أو العملة الوظيفية للنظام"""
         if self.default_currency:
             return getattr(self.default_currency, 'code', '')
-        return 'EGP'
+        try:
+            from financial.services.exchange_rate_service import ExchangeRateService
+            fc = ExchangeRateService.get_functional_currency()
+            if fc:
+                return fc.code
+        except Exception:
+            pass
+        return ''
 
 
 
@@ -1065,7 +1075,7 @@ class SupplierService(models.Model):
         null=True,
         blank=True,
         related_name='supplier_services',
-        verbose_name=_("مقاس الفرخ الخام المعتمد")
+        verbose_name=_("مقاس الفرخ المعتمد")
     )
     paper_origin = models.ForeignKey(
         'printing_pricing.PaperOrigin',
@@ -1264,7 +1274,7 @@ class SupplierService(models.Model):
             if not self.paper_type_ref:
                 raise ValidationError({'paper_type_ref': _('خامة الورق مطلوبة لخدمات توريد الورق')})
             if not self.paper_size:
-                raise ValidationError({'paper_size': _('مقاس الفرخ الخام مطلوب لخدمات توريد الورق')})
+                raise ValidationError({'paper_size': _('مقاس الفرخ مطلوب لخدمات توريد الورق')})
             if self.machine or self.plate_size or self.coating_type or self.finishing_type:
                 raise ValidationError(_('لا يمكن خلط حقول الماكينات أو الزنكات أو التشطيب مع خدمة خامات الورق'))
             if self.pricing_formula == 'PER_TON':
@@ -1440,6 +1450,12 @@ class SupplierService(models.Model):
     def currency_code(self):
         curr = self.effective_currency
         return getattr(curr, 'code', '')
+
+    @property
+    def is_foreign_currency(self):
+        """هل عملة الخدمة عملة أجنبية مختلفة عن العملة الوظيفية للمؤسسة؟"""
+        curr = self.effective_currency
+        return bool(curr and not getattr(curr, 'is_functional', False))
 
 
 

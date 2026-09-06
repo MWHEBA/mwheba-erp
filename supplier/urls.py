@@ -7,6 +7,12 @@ from .views_settings.service_type_views import (
     service_type_list, service_type_create, service_type_edit,
     service_type_delete, service_type_schema, service_type_schema_sources_api,
 )
+from .views_settings.service_pricing_views import (
+    service_pricing_matrix_view,
+    service_price_quick_update,
+    toggle_preferred_supplier_api,
+    service_price_bulk_update_api,
+)
 
 app_name = "supplier"
 
@@ -52,6 +58,12 @@ urlpatterns = [
     path("settings/service-types/<int:pk>/delete/",         service_type_delete,             name="service_type_delete"),
     path("settings/service-types/<int:pk>/schema/",         service_type_schema,             name="service_type_schema"),
     path("settings/service-types/api/sources/",             service_type_schema_sources_api, name="service_type_schema_sources_api"),
+
+    # ── مصفوفة وقائمة أسعار الخدمات والخامات ─────────────────────────
+    path("services/pricing-matrix/",                        service_pricing_matrix_view,     name="service_pricing_matrix"),
+    path("services/<int:pk>/quick-price-update/",           service_price_quick_update,      name="service_price_quick_update"),
+    path("services/<int:pk>/toggle-preferred-supplier/",     toggle_preferred_supplier_api,   name="toggle_preferred_supplier"),
+    path("services/bulk-price-update-api/",                 service_price_bulk_update_api,   name="service_price_bulk_update_api"),
 
     # API endpoints
     path("api/list/", views.supplier_list_api, name="supplier_list_api"),

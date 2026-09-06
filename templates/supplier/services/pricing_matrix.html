@@ -1,0 +1,593 @@
+{% extends "base.html" %}
+{% load static %}
+{% load i18n %}
+{% load utils_extras %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  {% include "shared/page_header.html" %}
+  {% csrf_token %}
+
+  <!-- كروت المؤشرات الإحصائية وتنبيهات التدقيق والأسعار الصفرية (Rule 7) -->
+  <div id="stats-container">
+    {% include "supplier/services/partials/_stats_cards.html" %}
+  </div>
+
+  <!-- شريط الإجراءات المجمعة العائم (Unified Bulk Toolbar) -->
+  <div id="bulk-toolbar" role="toolbar">
+    <span class="bulk-count">
+      <i class="fas fa-check-square me-2"></i><span id="selected-count">0</span> {% trans "خدمة محددة" %}
+    </span>
+    <div>
+      <button type="button" class="btn btn-light btn-sm ms-2" onclick="openBulkUpdateModal()">
+        <i class="fas fa-percentage me-1"></i>{% trans "تعديل بنسبة مئوية" %}
+      </button>
+      <button type="button" class="btn btn-outline-light btn-sm" onclick="clearSelection()">
+        <i class="fas fa-times me-1"></i>{% trans "إلغاء التحديد" %}
+      </button>
+    </div>
+  </div>
+
+  <!-- شريط التبويبات الصناعية المتخصصة لكل خدمة (Dynamic Service Tabs) -->
+  <div class="tabs-container px-2 mb-3" style="overflow-x: auto; white-space: nowrap;">
+    <ul class="nav nav-tabs flex-nowrap" id="pricing-matrix-tabs" role="tablist">
+      {% for st in service_types %}
+      <li class="nav-item" role="presentation">
+        <button type="button" class="nav-link {% if active_tab == st.code %}active{% endif %}" data-tab="{{ st.code }}" onclick="switchTab('{{ st.code }}')">
+          <i class="{{ st.icon|default:'fas fa-tag' }} me-1"></i>{{ st.name }}
+        </button>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+
+  <!-- حاوية نموذج البيانات وجدول المصفوفة الموحدة -->
+  <form id="matrix-filter-form" method="get" onsubmit="event.preventDefault(); doSearch(1, false);">
+    <input type="hidden" name="tab" id="active-tab-input" value="{{ active_tab }}">
+    <input type="hidden" name="per_page" id="per-page-input" value="{{ request.GET.per_page|default:'50' }}">
+
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-body p-0">
+        <!-- حاوية جدول البيانات المتغير بالـ AJAX -->
+        <div id="pricing-matrix-table-container">
+          {% if active_tab == 'paper' %}
+            {% include "supplier/services/partials/tab_paper.html" %}
+          {% else %}
+            {% include "supplier/services/partials/tab_service.html" %}
+          {% endif %}
+        </div>
+
+        <!-- الترقيم والتصدير SSR Pagination Wrapper (Rule 6) -->
+        <div id="pagination-wrapper">
+          {% include "partials/pagination.html" with page_obj=page_obj %}
+        </div>
+      </div>
+    </div>
+  </form>
+
+</div>
+
+<!-- ======================================================== -->
+<!-- مودال التعديل السريع الذري الموحد (Rule 8 Compliance) -->
+<!-- ======================================================== -->
+<div class="modal fade" id="quickPriceModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header bg-light border-bottom px-4 py-3">
+        <h5 class="modal-title fw-bold text-dark mb-0">
+          <i class="fas fa-tag text-primary me-2"></i>{% trans "تحديث السعر المالي" %}
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="quickPriceForm" onsubmit="submitQuickPrice(event)">
+        <div class="modal-body p-4">
+          <input type="hidden" id="quick-service-id">
+          <input type="hidden" id="quick-field-name">
+
+          <div class="mb-3">
+            <label class="form-label text-muted small mb-1">{% trans "البند / الخدمة" %}</label>
+            <div id="quick-service-name" class="fw-bold text-dark"></div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-bold text-dark" id="quick-field-label">{% trans "السعر الجديد" %}</label>
+            <div class="input-group">
+              <input type="number" step="0.0001" min="0" class="form-control" id="quick-price-value" required>
+              <span class="input-group-text fw-bold" id="quick-price-addon">{{ functional_curr.symbol|default:functional_curr.code }}</span>
+            </div>
+            <div class="form-text small text-muted">{% trans "سيتم إعادة احتساب سعر الفرخ والقيمة المعادلة بالعملة الأساسية تلقائياً." %}</div>
+          </div>
+        </div>
+        <div class="modal-footer bg-light border-top px-4 py-3">
+          <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+          <button type="submit" class="btn btn-primary px-4 fw-bold" id="btn-save-quick-price">
+            <i class="fas fa-save me-1"></i>{% trans "حفظ وتحديث" %}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ======================================================== -->
+<!-- مودال التحديث المجمع للأسعار والشرائح (Rule 8 Compliance) -->
+<!-- ======================================================== -->
+<div class="modal fade" id="bulkPriceModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header bg-light border-bottom px-4 py-3">
+        <h5 class="modal-title fw-bold text-dark mb-0">
+          <i class="fas fa-percentage text-primary me-2"></i>{% trans "تحديث مجمع لأسعار الخدمات والشرائح" %}
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="bulkPriceForm" onsubmit="submitBulkUpdate(event)">
+        <div class="modal-body p-4">
+          <div class="alert alert-info border-0 rounded-3 mb-3 small">
+            <i class="fas fa-info-circle me-1"></i>
+            {% trans "سيتم تطبيق الزيادة أو التخفيض المئوي على كافة الخدمات المحددة (سعر الطن للورق، وسعر فتحة الماكينات، والأسعار الأساسية، وكافة شرائح الكميات التابعة بالتوازي دون حدوث أي فجوة سعرية)." %}
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label fw-bold text-dark" for="bulk-percentage-input">{% trans "نسبة التغيير المئوية (%)" %}</label>
+            <div class="input-group">
+              <input type="number" step="0.1" class="form-control" id="bulk-percentage-input" placeholder="مثال: 5 للزيادة، أو -5 للخصم" required>
+              <span class="input-group-text fw-bold">%</span>
+            </div>
+            <div class="form-text small text-muted">{% trans "اكتب رقماً موجباً للرفع (+10%) أو سالباً للتخفيض (-5%)" %}</div>
+          </div>
+
+          <div class="form-check form-switch mb-2">
+            <input class="form-check-input" type="checkbox" id="bulk-apply-selected-only" checked>
+            <label class="form-check-label small fw-bold" for="bulk-apply-selected-only">
+              {% trans "تطبيق على العناصر المحددة حالياً فقط" %} (<span id="bulk-modal-count">0</span>)
+            </label>
+          </div>
+        </div>
+        <div class="modal-footer bg-light border-top px-4 py-3">
+          <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+          <button type="submit" class="btn btn-primary px-4 fw-bold" id="btn-submit-bulk">
+            <i class="fas fa-check me-1"></i>{% trans "تطبيق التحديث المجمع" %}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let quickPriceModalInstance = null;
+let bulkPriceModalInstance = null;
+let searchDebounceTimer = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+  const qModalEl = document.getElementById('quickPriceModal');
+  if (qModalEl) quickPriceModalInstance = new bootstrap.Modal(qModalEl);
+
+  const bModalEl = document.getElementById('bulkPriceModal');
+  if (bModalEl) bulkPriceModalInstance = new bootstrap.Modal(bModalEl);
+
+  // البحث المباشر بالتفويض (Event Delegation) بـ Debounce (350ms)
+  document.addEventListener('input', function(e) {
+    if (e.target && e.target.id === 'search-input') {
+      clearTimeout(searchDebounceTimer);
+      searchDebounceTimer = setTimeout(function() {
+        doSearch(1, false);
+      }, 350);
+    }
+  });
+
+  // تفويض أحداث الترقيم (Pagination Event Delegation) لمنع إعادة التحميل الكاملة
+  document.addEventListener('click', function(e) {
+    const pageLink = e.target.closest('#pagination-wrapper a.page-link');
+    if (pageLink) {
+      e.preventDefault();
+      const href = pageLink.getAttribute('href');
+      if (href && href !== '#' && !href.startsWith('javascript:')) {
+        const urlObj = new URL(href, window.location.origin);
+        const page = urlObj.searchParams.get('page');
+        if (page) {
+          doSearch(page, false);
+        }
+      }
+      return;
+    }
+
+    // 1. زر التعديل السريع
+    const quickBtn = e.target.closest('.btn-quick-price');
+    if (quickBtn) {
+      e.preventDefault();
+      const serviceId = quickBtn.dataset.id;
+      const fieldName = quickBtn.dataset.field;
+      const priceVal = quickBtn.dataset.price;
+      const serviceName = quickBtn.dataset.name;
+      const currency = quickBtn.dataset.currency || '{{ functional_curr.symbol|default:functional_curr.code }}';
+      openQuickPriceModal(serviceId, fieldName, priceVal, serviceName, currency);
+      return;
+    }
+
+    // 2. تحديد الكل
+    const selectAllCb = e.target.closest('#select-all-checkbox');
+    if (selectAllCb) {
+      toggleSelectAll(selectAllCb);
+      return;
+    }
+
+    // 4. تحديد صف فردي
+    const rowCb = e.target.closest('.row-checkbox');
+    if (rowCb) {
+      updateToolbar();
+      return;
+    }
+  });
+
+  // تفويض تغيير عدد العناصر بالصفحة (Per Page Change Delegation)
+  document.addEventListener('change', function(e) {
+    if (e.target.matches('#pagination-wrapper select, #pagination-wrapper .per-page-select')) {
+      const perPage = e.target.value;
+      const perPageInput = document.getElementById('per-page-input');
+      if (perPageInput) perPageInput.value = perPage;
+      doSearch(1, false);
+    }
+  });
+});
+
+let searchAbortController = null;
+
+function switchTab(tabName) {
+  const form = document.getElementById('matrix-filter-form');
+  if (form) {
+    const inputs = form.querySelectorAll('input:not([type="hidden"]), select');
+    inputs.forEach(el => {
+      if (el.type === 'checkbox') el.checked = false;
+      else el.value = '';
+    });
+  }
+  document.getElementById('active-tab-input').value = tabName;
+  document.querySelectorAll('#pricing-matrix-tabs .nav-link').forEach(btn => btn.classList.remove('active'));
+  const activeBtn = document.querySelector(`#pricing-matrix-tabs button[data-tab="${tabName}"]`);
+  if (activeBtn) activeBtn.classList.add('active');
+  clearSelection();
+  doSearch(1, true);
+}
+
+function doSearch(page, fullTabReload = false) {
+  const form = document.getElementById('matrix-filter-form');
+  const formData = new FormData(form);
+  const params = new URLSearchParams(formData);
+  
+  if (page) {
+    params.set('page', page);
+  }
+
+  // مزامنة الـ URL ورابط تصدير الإكسيل
+  const displayParams = new URLSearchParams(params);
+  history.replaceState(null, '', '?' + displayParams.toString());
+
+  const exportBtn = document.querySelector('a[href*="export=excel"]');
+  if (exportBtn) {
+    const exportParams = new URLSearchParams(params);
+    exportParams.set('export', 'excel');
+    exportBtn.href = '?' + exportParams.toString();
+  }
+
+  params.set('ajax', '1');
+
+  const container = document.getElementById('pricing-matrix-table-container');
+  const tableWrapper = document.getElementById('matrix-table-wrapper');
+  const paginationWrapper = document.getElementById('pagination-wrapper');
+  const statsContainer = document.getElementById('stats-container');
+
+  if (fullTabReload && container) {
+    container.style.opacity = '0.5';
+  } else if (tableWrapper) {
+    tableWrapper.style.opacity = '0.5';
+  }
+
+  if (searchAbortController) {
+    searchAbortController.abort();
+  }
+  searchAbortController = new AbortController();
+
+  fetch('?' + params.toString(), {
+    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+    signal: searchAbortController.signal
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (container) container.style.opacity = '1';
+    const activeTableWrapper = document.getElementById('matrix-table-wrapper');
+    if (activeTableWrapper) activeTableWrapper.style.opacity = '1';
+
+    if (data.success) {
+      if (fullTabReload || !activeTableWrapper) {
+        if (container && data.table_html !== undefined) container.innerHTML = data.table_html;
+      } else {
+        if (activeTableWrapper && data.table_wrapper_html !== undefined) {
+          activeTableWrapper.innerHTML = data.table_wrapper_html;
+        } else if (container && data.table_html !== undefined) {
+          container.innerHTML = data.table_html;
+        }
+      }
+
+      if (paginationWrapper && data.pagination_html !== undefined) paginationWrapper.innerHTML = data.pagination_html;
+      if (statsContainer && data.summary_html !== undefined) statsContainer.innerHTML = data.summary_html;
+      if (data.filters_data) {
+        updateDynamicFilters(data.filters_data);
+      }
+      updateToolbar();
+    }
+  })
+  .catch(err => {
+    if (err.name === 'AbortError') return;
+    if (container) container.style.opacity = '1';
+    const activeTableWrapper = document.getElementById('matrix-table-wrapper');
+    if (activeTableWrapper) activeTableWrapper.style.opacity = '1';
+    console.error(err);
+  });
+}
+
+function updateDynamicFilters(fd) {
+  if (!fd) return;
+  if (fd.suppliers) {
+    updateSelectOptions('supplier-select', fd.suppliers, '{% trans "جميع التجار / الموردين" %}');
+  }
+  if (fd.paper_types) {
+    updateSelectOptions('paper-type-select', fd.paper_types, '{% trans "كافة الخامات" %}');
+  }
+  if (fd.gsms) {
+    updateSelectOptions('gsm-select', fd.gsms, '{% trans "كافة الأوزان" %}');
+  }
+  if (fd.paper_sizes) {
+    updateSelectOptions('paper-size-select', fd.paper_sizes, '{% trans "كافة المقاسات" %}');
+  }
+  if (fd.paper_origins) {
+    updateSelectOptions('paper-origin-select', fd.paper_origins, '{% trans "كافة المناشئ" %}');
+  }
+}
+
+function updateSelectOptions(selectId, items, defaultText) {
+  const sel = document.getElementById(selectId);
+  if (!sel) return;
+  const currentVal = sel.value;
+  let html = `<option value="">${defaultText}</option>`;
+  let hasCurrent = false;
+  items.forEach(item => {
+    const isSel = (String(item.id) === String(currentVal));
+    if (isSel) hasCurrent = true;
+    html += `<option value="${item.id}" ${isSel ? 'selected' : ''}>${item.name}</option>`;
+  });
+  sel.innerHTML = html;
+  if (hasCurrent) {
+    sel.value = currentVal;
+  } else if (currentVal !== "") {
+    sel.value = "";
+  }
+}
+
+function resetFilters() {
+  const form = document.getElementById('matrix-filter-form');
+  if (form) {
+    const inputs = form.querySelectorAll('input:not([type="hidden"]), select');
+    inputs.forEach(el => {
+      if (el.type === 'checkbox') el.checked = false;
+      else el.value = '';
+    });
+  }
+  clearSelection();
+  doSearch(1, false);
+}
+
+window.addEventListener('popstate', function() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const tab = urlParams.get('tab') || 'paper';
+  const tabInput = document.getElementById('active-tab-input');
+  if (tabInput) tabInput.value = tab;
+  document.querySelectorAll('#pricing-matrix-tabs .nav-link').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.tab === tab);
+  });
+  doSearch(urlParams.get('page') || 1, true);
+});
+
+function toggleSelectAll(masterCheckbox) {
+  const checkboxes = document.querySelectorAll('.row-checkbox');
+  checkboxes.forEach(cb => { cb.checked = masterCheckbox.checked; });
+  updateToolbar();
+}
+
+function updateToolbar() {
+  const selected = document.querySelectorAll('.row-checkbox:checked');
+  const count = selected.length;
+  const toolbar = document.getElementById('bulk-toolbar');
+  const countSpan = document.getElementById('selected-count');
+  const modalCountSpan = document.getElementById('bulk-modal-count');
+
+  if (countSpan) countSpan.textContent = smartFloat(count, 0);
+  if (modalCountSpan) modalCountSpan.textContent = smartFloat(count, 0);
+
+  if (toolbar) {
+    toolbar.classList.toggle('visible', count > 0);
+  }
+
+  // مزامنة حالة تشيك بوكس تحديد الكل
+  const allCheckboxes = document.querySelectorAll('.row-checkbox');
+  const masterCheckbox = document.getElementById('select-all-checkbox');
+  if (masterCheckbox && allCheckboxes.length > 0) {
+    masterCheckbox.checked = (selected.length === allCheckboxes.length);
+    masterCheckbox.indeterminate = (selected.length > 0 && selected.length < allCheckboxes.length);
+  }
+}
+
+function clearSelection() {
+  document.querySelectorAll('.row-checkbox, #select-all-checkbox').forEach(cb => {
+    cb.checked = false;
+    cb.indeterminate = false;
+  });
+  updateToolbar();
+}
+
+function openQuickPriceModal(serviceId, fieldName, currentVal, serviceName, currency) {
+  document.getElementById('quick-service-id').value = serviceId;
+  document.getElementById('quick-field-name').value = fieldName;
+  document.getElementById('quick-service-name').textContent = serviceName;
+  document.getElementById('quick-price-value').value = currentVal || 0;
+  
+  const addonEl = document.getElementById('quick-price-addon');
+  if (addonEl) addonEl.textContent = currency || '{{ functional_curr.symbol|default:functional_curr.code }}';
+
+  const labelEl = document.getElementById('quick-field-label');
+  if (fieldName === 'price_per_ton') {
+    labelEl.textContent = '{% trans "سعر الطن الجديد" %}';
+  } else if (fieldName === 'set_price') {
+    labelEl.textContent = '{% trans "سعر الطقم (فتحة الماكينة) الجديد" %}';
+  } else {
+    labelEl.textContent = '{% trans "السعر الأساسي الجديد" %}';
+  }
+
+  if (quickPriceModalInstance) quickPriceModalInstance.show();
+}
+
+function submitQuickPrice(event) {
+  event.preventDefault();
+  const serviceId = document.getElementById('quick-service-id').value;
+  const fieldName = document.getElementById('quick-field-name').value;
+  const newVal = document.getElementById('quick-price-value').value;
+  const btn = document.getElementById('btn-save-quick-price');
+
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>{% trans "جاري الحفظ..." %}';
+
+  const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+  fetch(`/suppliers/services/${serviceId}/quick-price-update/`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': csrftoken,
+      'X-Requested-With': 'XMLHttpRequest'
+    },
+    body: JSON.stringify({ field: fieldName, value: newVal })
+  })
+  .then(res => res.json())
+  .then(data => {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-save me-1"></i>{% trans "حفظ وتحديث" %}';
+
+    if (data.success) {
+      if (quickPriceModalInstance) quickPriceModalInstance.hide();
+      const rowEl = document.getElementById(`service-row-${serviceId}`);
+      if (rowEl && data.row_html) {
+        rowEl.outerHTML = data.row_html;
+      } else {
+        doSearch();
+      }
+      notifyUser(data.message || '{% trans "تم تحديث السعر بنجاح" %}', 'success');
+    } else {
+      notifyUser(data.message || '{% trans "حدث خطأ أثناء الحفظ" %}', 'error');
+    }
+  })
+  .catch(err => {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-save me-1"></i>{% trans "حفظ وتحديث" %}';
+    console.error(err);
+    notifyUser('{% trans "فشل الاتصال بالخادم" %}', 'error');
+  });
+}
+
+function openBulkUpdateModal() {
+  updateToolbar();
+  if (bulkPriceModalInstance) bulkPriceModalInstance.show();
+}
+
+function submitBulkUpdate(event) {
+  event.preventDefault();
+  const percentage = document.getElementById('bulk-percentage-input').value;
+  const applySelectedOnly = document.getElementById('bulk-apply-selected-only').checked;
+  const btn = document.getElementById('btn-submit-bulk');
+
+  let serviceIds = [];
+  if (applySelectedOnly) {
+    document.querySelectorAll('.row-checkbox:checked').forEach(cb => {
+      serviceIds.push(parseInt(cb.value));
+    });
+    if (serviceIds.length === 0) {
+      notifyUser('{% trans "يرجى تحديد خدمة واحدة على الأقل من الجدول" %}', 'warning');
+      return;
+    }
+  }
+
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>{% trans "جاري التحديث..." %}';
+
+  const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+  fetch('/suppliers/services/bulk-price-update-api/', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': csrftoken,
+      'X-Requested-With': 'XMLHttpRequest'
+    },
+    body: JSON.stringify({
+      percentage: percentage,
+      service_ids: serviceIds
+    })
+  })
+  .then(res => res.json())
+  .then(data => {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-check me-1"></i>{% trans "تطبيق التحديث المجمع" %}';
+
+    if (data.success) {
+      if (bulkPriceModalInstance) bulkPriceModalInstance.hide();
+      clearSelection();
+      notifyUser(data.message, 'success');
+      doSearch();
+    } else {
+      notifyUser(data.error || data.message || '{% trans "حدث خطأ" %}', 'error');
+    }
+  })
+  .catch(err => {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-check me-1"></i>{% trans "تطبيق التحديث المجمع" %}';
+    console.error(err);
+    notifyUser('{% trans "فشل الاتصال بالخادم" %}', 'error');
+  });
+}
+
+function smartFloat(value, decimals = 2) {
+  if (value === null || value === undefined || value === '') return '0';
+  let num = parseFloat(value);
+  if (isNaN(num)) return String(value);
+  if (Number.isInteger(num)) return num.toLocaleString('en-US');
+  let str = num.toFixed(decimals);
+  let parts = str.split('.');
+  let intPart = parseInt(parts[0], 10).toLocaleString('en-US');
+  let decPart = parts[1] ? parts[1].replace(/0+$/, '') : '';
+  return decPart ? `${intPart}.${decPart}` : intPart;
+}
+
+function notifyUser(msg, type) {
+  if (window.showNotification) {
+    window.showNotification(msg, type || 'info');
+  } else if (window.showToastr) {
+    window.showToastr(msg, type || 'info');
+  } else if (typeof toastr !== 'undefined') {
+    if (type === 'success') toastr.success(msg);
+    else if (type === 'error') toastr.error(msg);
+    else if (type === 'warning') toastr.warning(msg);
+    else toastr.info(msg);
+  } else {
+    alert(msg);
+  }
+}
+</script>
+{% endblock %}

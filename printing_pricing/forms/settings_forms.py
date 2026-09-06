@@ -401,7 +401,7 @@ class PieceSizeForm(forms.ModelForm):
     paper_type = forms.ModelChoiceField(
         queryset=PaperSize.objects.filter(is_active=True).order_by('sort_order', 'name'),
         required=False,
-        label=_('مقاس الفرخ الخام الأساسي'),
+        label=_('مقاس الفرخ الأساسي'),
         widget=PaperSizeSelectWidget(attrs={'class': 'form-select select2-modal'})
     )
 
@@ -436,7 +436,7 @@ class PieceSizeForm(forms.ModelForm):
             'name': _('اسم مقاس القطع'),
             'width': _('العرض (سم)'),
             'height': _('الطول (سم)'),
-            'paper_type': _('مقاس الفرخ الخام الأساسي'),
+            'paper_type': _('مقاس الفرخ الأساسي'),
             'pieces_per_sheet': _('عدد القطع في الفرخ'),
             'is_active': _('نشط'),
             'is_default': _('افتراضي'),

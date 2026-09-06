@@ -77,7 +77,7 @@ class Migration(migrations.Migration):
                 on_delete=django.db.models.deletion.PROTECT,
                 related_name="supplier_services",
                 to="printing_pricing.papersize",
-                verbose_name="مقاس الفرخ الخام المعتمد",
+                verbose_name="مقاس الفرخ المعتمد",
             ),
         ),
         migrations.AddField(

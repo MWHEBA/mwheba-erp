@@ -1,0 +1,29 @@
+{% load i18n %}
+{% if services %}
+<div class="table-responsive">
+  <table class="table table-hover align-middle mb-0" id="finishing-matrix-table">
+    <thead>
+      <tr>
+        <th class="text-center" style="width: 40px;">
+          <input type="checkbox" class="form-check-input" id="select-all-checkbox">
+        </th>
+        <th style="min-width: 180px;">{% trans "الورشة / المورد" %}</th>
+        <th style="min-width: 200px;">{% trans "خدمة التشطيب أو التغطية" %}</th>
+        <th class="text-end" style="min-width: 150px;">{% trans "سعر الوحدة" %}</th>
+        <th class="text-end" style="min-width: 150px;">{% trans "تكلفة القالب / الكليشيه" %}</th>
+        <th class="text-center" style="min-width: 120px;">{% trans "الحد الأدنى" %}</th>
+        <th class="text-center" style="min-width: 110px;">{% trans "شرائح الكميات" %}</th>
+        <th class="text-center" style="width: 110px;">{% trans "الحالة" %}</th>
+        <th class="text-center" style="width: 90px;">{% trans "إجراءات" %}</th>
+      </tr>
+    </thead>
+    <tbody id="pricing-table-body">
+      {% for item in services %}
+        {% include "supplier/services/partials/_service_row.html" with item=item %}
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+  {% include "partials/empty_state.html" with message=_("لا توجد خدمات تشطيب أو سلوفان مسجلة") icon="magic" %}
+{% endif %}

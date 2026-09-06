@@ -1,0 +1,33 @@
+{% load i18n %}
+{% if services %}
+<div class="table-responsive">
+  <table class="table table-hover align-middle mb-0" id="all-matrix-table">
+    <thead>
+      <tr>
+        <th class="text-center" style="width: 40px;">
+          <input type="checkbox" class="form-check-input" id="select-all-checkbox">
+        </th>
+        <th style="min-width: 170px;">{% trans "المورد" %}</th>
+        <th style="min-width: 200px;">{% trans "البند / الخدمة / الخامة" %}</th>
+        <th style="min-width: 140px;">{% trans "تصنيف الخدمة" %}</th>
+        <th class="text-end" style="min-width: 140px;">{% trans "السعر الأساسي / الطن" %}</th>
+        <th class="text-end" style="min-width: 140px;">{% trans "المعادل" %} ({{ functional_curr.symbol|default:functional_curr.code }})</th>
+        <th class="text-center" style="min-width: 100px;">{% trans "الشرائح" %}</th>
+        <th class="text-center" style="width: 110px;">{% trans "الحالة" %}</th>
+        <th class="text-center" style="width: 90px;">{% trans "إجراءات" %}</th>
+      </tr>
+    </thead>
+    <tbody id="pricing-table-body">
+      {% for item in services %}
+        {% if item.service_type.code == 'paper' %}
+          {% include "supplier/services/partials/_paper_row.html" with item=item %}
+        {% else %}
+          {% include "supplier/services/partials/_service_row.html" with item=item %}
+        {% endif %}
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+  {% include "partials/empty_state.html" with message=_("لا توجد بنود تطابق معايير البحث والفلترة") icon="cubes" %}
+{% endif %}

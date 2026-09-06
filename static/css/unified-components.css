@@ -1412,6 +1412,42 @@ html[dir="rtl"] [dir="ltr"] .input-group > :not(:first-child):not(:last-child) {
     box-shadow: var(--shadow-xs);
 }
 
+/* --- 5.5 Bulk Selection Toolbar (Unified ERP Standard) --- */
+.bulk-checkbox-col {
+    width: 40px;
+    text-align: center;
+}
+
+#select-all-checkbox,
+.row-checkbox {
+    cursor: pointer;
+    width: 16px;
+    height: 16px;
+}
+
+#bulk-toolbar {
+    display: none;
+    position: sticky;
+    top: 60px;
+    z-index: 100;
+    background-color: var(--primary-color);
+    color: var(--white);
+    padding: var(--spacing-2) var(--spacing-4);
+    border-radius: var(--border-radius);
+    margin-bottom: var(--spacing-3);
+    box-shadow: var(--shadow-md);
+}
+
+#bulk-toolbar.visible {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.bulk-count {
+    font-weight: var(--font-weight-medium);
+}
+
 
 /* =================================================================
    SECTION 6: CARDS, STATS & CHARTS SYSTEM
@@ -2281,7 +2317,9 @@ html[dir="rtl"] .border-right-danger {
     margin-bottom: var(--spacing-4);
 }
 
-.empty-state h4 {
+.empty-state h4,
+.empty-state h5,
+.empty-state-title {
     margin-bottom: var(--spacing-4);
     color: var(--text-color);
 }

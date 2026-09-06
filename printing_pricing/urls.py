@@ -48,6 +48,7 @@ from supplier.views_settings.service_type_views import (
     service_type_list, service_type_create, service_type_edit,
     service_type_delete, service_type_schema
 )
+from supplier.views_settings.service_pricing_views import service_pricing_matrix_view
 
 app_name = 'printing_pricing'
 
@@ -224,4 +225,7 @@ urlpatterns = [
     
     # الإعدادات
     path('settings/', include(settings_patterns)),
+    
+    # مصفوفة وقائمة أسعار الخدمات والخامات
+    path('service-pricing-matrix/', service_pricing_matrix_view, name='service_pricing_matrix'),
 ]

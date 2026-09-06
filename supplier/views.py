@@ -2079,8 +2079,8 @@ def supplier_detail(request, pk):
     if vms:
         from financial.services.exchange_rate_service import ExchangeRateService
         fc = ExchangeRateService.get_functional_currency()
-        fc_code = fc.code if fc else 'EGP'
-        fc_sym = fc.symbol if fc else 'ج.م'
+        fc_code = fc.code if fc else ''
+        fc_sym = (fc.symbol or fc.code) if fc else ''
         vms_sorted = sorted(vms, key=lambda vm: 0 if (getattr(vm, 'currency_code', '') == fc_code or getattr(vm, 'currency_symbol', '') == fc_sym) else 1)
         due_parts = [f'<span class="badge-amount-pill">{vm.formatted_amount} {vm.currency_symbol}</span>' for vm in vms_sorted]
         header_badges.append({
@@ -2411,10 +2411,10 @@ def _get_preinjected_lookups():
         active_currencies = list(Currency.objects.filter(is_active=True).values('id', 'code', 'name', 'symbol', 'is_functional'))
         func_curr = ExchangeRateService.get_functional_currency()
         func_currency_dict = {
-            'code': func_curr.code if func_curr else 'EGP',
-            'symbol': func_curr.symbol if func_curr else 'ج.م',
-            'name': func_curr.name if func_curr else 'جنيه مصري',
-        } if func_curr else {'code': 'EGP', 'symbol': 'ج.م', 'name': 'جنيه مصري'}
+            'code': func_curr.code,
+            'symbol': func_curr.symbol or func_curr.code,
+            'name': func_curr.name,
+        } if func_curr else {'code': '', 'symbol': '', 'name': ''}
 
         return {
             'offset_machines': offset_machines,
@@ -2773,7 +2773,7 @@ def supplier_service_add(request, pk):
 
     lookups_dict = _get_preinjected_lookups()
     func_info = lookups_dict.get('functional_currency', {})
-    fallback_sym = func_info.get('symbol', 'ج.م')
+    fallback_sym = func_info.get('symbol') or func_info.get('code', '')
     service_curr_sym = supplier.default_currency.symbol if (supplier.default_currency and supplier.default_currency.symbol) else fallback_sym
 
     context = {

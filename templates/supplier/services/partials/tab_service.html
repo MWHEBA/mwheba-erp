@@ -1,0 +1,32 @@
+{% load i18n %}
+{% load utils_extras %}
+
+<!-- شريط فلاتر الخدمات الرشيق (In-Tab Service Toolbar) -->
+<div class="p-3 border-bottom bg-light bg-opacity-50" id="service-spec-selector-toolbar">
+  <div class="row g-2 align-items-center">
+    <div class="col-md-6">
+      <div class="input-group input-group-sm">
+        <span class="input-group-text bg-white border-end-0 text-muted"><i class="fas fa-search"></i></span>
+        <input type="text" name="q" id="search-input" class="form-control border-start-0" placeholder="{% trans 'بحث: اسم الخدمة، المورد، الماكينة، المعالجة...' %}" value="{{ request.GET.q }}">
+      </div>
+    </div>
+    <div class="col-md-4">
+      <select name="supplier" id="supplier-select" class="form-select form-select-sm" dir="rtl" onchange="doSearch()">
+        <option value="">{% trans "جميع الموردين / الورش" %}</option>
+        {% for sup in suppliers %}
+        <option value="{{ sup.id }}" {% if request.GET.supplier == sup.id|stringformat:'i' %}selected{% endif %}>{{ sup.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-2 text-end">
+      <button type="button" class="btn btn-sm btn-outline-secondary w-100" onclick="resetFilters()">
+        <i class="fas fa-undo me-1"></i>{% trans "إعادة تعيين" %}
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- حاوية جسم جدول الخدمة المتغير بالـ AJAX (Matrix Table Wrapper) -->
+<div id="matrix-table-wrapper">
+  {% include "supplier/services/partials/_service_table_content.html" %}
+</div>

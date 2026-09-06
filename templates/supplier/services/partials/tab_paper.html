@@ -1,0 +1,81 @@
+{% load i18n %}
+{% load utils_extras %}
+
+<!-- شريط محدد مواصفات الورق والمقارنة التخصصي (In-Tab Paper Spec Selector) -->
+<div class="p-3 border-bottom bg-light bg-opacity-50" id="paper-spec-selector-toolbar">
+  <!-- سطر 1: البحث الذكي بالأرقام + التاجر / المورد + إعادة التعيين -->
+  <div class="row g-2 align-items-center mb-2">
+    <div class="col-md-5">
+      <div class="input-group input-group-sm">
+        <span class="input-group-text bg-white border-end-0 text-muted"><i class="fas fa-search"></i></span>
+        <input type="text" name="q" id="search-input" class="form-control border-start-0" placeholder="{% trans 'بحث: 300، 70x100، كوشيه، كوري، تاجر...' %}" value="{{ request.GET.q }}">
+      </div>
+    </div>
+    <div class="col-md-5">
+      <select name="supplier" id="supplier-select" class="form-select form-select-sm" dir="rtl" onchange="doSearch()">
+        <option value="">{% trans "جميع التجار / الموردين" %}</option>
+        {% for sup in suppliers %}
+        <option value="{{ sup.id }}" {% if request.GET.supplier == sup.id|stringformat:'i' %}selected{% endif %}>{{ sup.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-2 text-end">
+      <button type="button" class="btn btn-sm btn-outline-secondary w-100" onclick="resetFilters()">
+        <i class="fas fa-undo me-1"></i>{% trans "إعادة تعيين" %}
+      </button>
+    </div>
+  </div>
+
+  <!-- سطر 2: محدد المواصفات الفيزيائية (خامة، جراماج، مقاس، منشأ) -->
+  <div class="row g-2 align-items-center">
+    <div class="col-md-3">
+      <div class="input-group input-group-sm">
+        <span class="input-group-text bg-white small text-muted"><i class="fas fa-layer-group me-1"></i>{% trans "الخامة" %}</span>
+        <select name="paper_type_ref" id="paper-type-select" class="form-select form-select-sm" dir="rtl" onchange="doSearch()">
+          <option value="">{% trans "كافة الخامات" %}</option>
+          {% for pt in paper_types %}
+          <option value="{{ pt.id }}" {% if request.GET.paper_type_ref == pt.id|stringformat:'i' %}selected{% endif %}>{{ pt.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="input-group input-group-sm">
+        <span class="input-group-text bg-white small text-muted"><i class="fas fa-weight-hanging me-1"></i>{% trans "الجراماج" %}</span>
+        <select name="gsm" id="gsm-select" class="form-select form-select-sm" dir="rtl" onchange="doSearch()">
+          <option value="">{% trans "كافة الأوزان" %}</option>
+          {% for g in available_gsms %}
+          <option value="{{ g }}" {% if request.GET.gsm == g|stringformat:'i' %}selected{% endif %}>{{ g|smart_float:0 }} جم</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="input-group input-group-sm">
+        <span class="input-group-text bg-white small text-muted"><i class="fas fa-expand me-1"></i>{% trans "المقاس" %}</span>
+        <select name="paper_size" id="paper-size-select" class="form-select form-select-sm" dir="rtl" onchange="doSearch()">
+          <option value="">{% trans "كافة المقاسات" %}</option>
+          {% for ps in paper_sizes %}
+          <option value="{{ ps.id }}" {% if request.GET.paper_size == ps.id|stringformat:'i' %}selected{% endif %}>{{ ps.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="input-group input-group-sm">
+        <span class="input-group-text bg-white small text-muted"><i class="fas fa-globe-africa me-1"></i>{% trans "المنشأ" %}</span>
+        <select name="paper_origin" id="paper-origin-select" class="form-select form-select-sm" dir="rtl" onchange="doSearch()">
+          <option value="">{% trans "كافة المناشئ" %}</option>
+          {% for po in paper_origins %}
+          <option value="{{ po.id }}" {% if request.GET.paper_origin == po.id|stringformat:'i' %}selected{% endif %}>{{ po.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- حاوية جسم جدول الورق المتغير بالـ AJAX (Matrix Table Wrapper) -->
+<div id="matrix-table-wrapper">
+  {% include "supplier/services/partials/_paper_table_content.html" %}
+</div>

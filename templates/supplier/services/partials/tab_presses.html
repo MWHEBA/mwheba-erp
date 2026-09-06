@@ -1,0 +1,35 @@
+{% load i18n %}
+{% if services %}
+<div class="table-responsive">
+  <table class="table table-hover align-middle mb-0" id="presses-matrix-table">
+    <thead>
+      <tr>
+        <th class="text-center" style="width: 40px;">
+          <input type="checkbox" class="form-check-input" id="select-all-checkbox">
+        </th>
+        <th style="min-width: 180px;">{% trans "المطبعة / المورد" %}</th>
+        <th style="min-width: 200px;">{% trans "ماكينة الطباعة أو زنكة CTP" %}</th>
+        <th class="text-end" style="min-width: 150px;">
+          {% trans "سعر التراج الأساسي" %}
+          <i class="fas fa-info-circle text-muted ms-1" title="{% trans 'سعر الألف سحبة الإضافية' %}"></i>
+        </th>
+        <th class="text-end" style="min-width: 150px;">
+          {% trans "سعر الطقم (فتحة الماكينة)" %}
+          <i class="fas fa-info-circle text-muted ms-1" title="{% trans 'شامل التراجات المحددة أو طقم 4 زنكات' %}"></i>
+        </th>
+        <th class="text-center" style="min-width: 120px;">{% trans "الحد الأدنى" %}</th>
+        <th class="text-center" style="min-width: 110px;">{% trans "شرائح التراج" %}</th>
+        <th class="text-center" style="width: 110px;">{% trans "الحالة" %}</th>
+        <th class="text-center" style="width: 90px;">{% trans "إجراءات" %}</th>
+      </tr>
+    </thead>
+    <tbody id="pricing-table-body">
+      {% for item in services %}
+        {% include "supplier/services/partials/_service_row.html" with item=item %}
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+  {% include "partials/empty_state.html" with message=_("لا توجد ماكينات طباعة أو زنكات مسعرة حالياً") icon="print" %}
+{% endif %}

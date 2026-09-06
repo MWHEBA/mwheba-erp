@@ -441,6 +441,11 @@
                             </a>
                         </li>
                         <li>
+                            <a href="{% url 'supplier:service_pricing_matrix' %}" class="submenu-link {% if active_menu == 'printing_pricing' and active_submenu == 'pricing_matrix' %}active{% endif %}">
+                                <i class="fas fa-table me-2"></i>{% trans "أسعار الخدمات" %}
+                            </a>
+                        </li>
+                        <li>
                             <a href="{% url 'printing_pricing:settings_home' %}" class="submenu-link">
                                 <i class="fas fa-cog me-2"></i>{% trans "إعدادات التسعير" %}
                             </a>

@@ -47,6 +47,9 @@ def smart_float(value, decimal_places=2):
     return custom_number_format(value, decimal_places)
 
 
+register.filter('smartfloat', smart_float)
+
+
 @register.filter
 def get_currency_symbol(item, default_symbol=None):
     """

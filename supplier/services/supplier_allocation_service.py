@@ -61,8 +61,9 @@ class SupplierAllocationService:
         PeriodControlService.validate_period_open(allocation_date)
 
         from utils.templatetags.utils_extras import smart_float
-        from core.models import SystemSetting
-        currency_sym = purchase.currency.symbol if purchase.currency else SystemSetting.get_setting('currency_symbol', 'ج.م')
+        from financial.services.exchange_rate_service import ExchangeRateService
+        fc = ExchangeRateService.get_functional_currency()
+        currency_sym = purchase.currency.symbol if purchase.currency else ((fc.symbol or fc.code) if fc else '')
 
         supplier = purchase.supplier
         open_bill_amount = (purchase.total - (purchase.amount_paid or Decimal("0.00"))).quantize(Decimal("0.01"))
@@ -375,8 +376,9 @@ class SupplierAllocationService:
 
         from purchase.models import Purchase
         from utils.templatetags.utils_extras import smart_float
-        from core.models import SystemSetting
-        currency_sym = SystemSetting.get_setting('currency_symbol', 'ج.م')
+        from financial.services.exchange_rate_service import ExchangeRateService
+        fc = ExchangeRateService.get_functional_currency()
+        currency_sym = (fc.symbol or fc.code) if fc else ''
 
         valid_allocations = {}
         total_requested = Decimal("0.00")

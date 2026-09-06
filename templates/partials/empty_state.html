@@ -29,7 +29,12 @@
         {% endif %}
     </div>
     <h4 class="empty-state-title">{{ message }}</h4>
-    
+    {% if subtitle %}
+        <p class="empty-state-text text-muted small mb-0">{{ subtitle }}</p>
+    {% elif description %}
+        <p class="empty-state-text text-muted small mb-0">{{ description }}</p>
+    {% endif %}
+
     {% if action_url and action_label %}
     <div class="empty-state-action">
         <a href="{{ action_url }}" class="btn btn-primary">

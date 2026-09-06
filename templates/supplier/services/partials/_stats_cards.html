@@ -1,0 +1,65 @@
+{% load i18n %}
+{% load utils_extras %}
+<div class="row g-3 mb-4">
+  <!-- إجمالي الخدمات -->
+  <div class="col-xl-3 col-sm-6">
+    <div class="stats-card stats-card-info">
+      <div class="stats-card-body">
+        <div class="stats-card-icon">
+          <i class="fas fa-cubes"></i>
+        </div>
+        <div class="stats-card-title">{% trans "إجمالي الخدمات المعروضة" %}</div>
+        <div class="stats-card-value">{{ total_services|default:"0"|smart_float:0 }}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- الموردين المعتمدين -->
+  <div class="col-xl-3 col-sm-6">
+    <div class="stats-card stats-card-success">
+      <div class="stats-card-body">
+        <div class="stats-card-icon">
+          <i class="fas fa-award"></i>
+        </div>
+        <div class="stats-card-title">{% trans "الموردون المعتمدون" %}</div>
+        <div class="stats-card-value">{{ preferred_suppliers_count|default:"0"|smart_float:0 }}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- أسعار راكدة (> 30 يوماً) -->
+  <div class="col-xl-3 col-sm-6">
+    <div class="stats-card stats-card-warning">
+      <div class="stats-card-body">
+        <div class="stats-card-icon">
+          <i class="fas fa-history"></i>
+        </div>
+        <div class="stats-card-title">{% trans "أسعار راكدة (> 30 يوماً)" %}</div>
+        <div class="stats-card-value">
+          {{ stale_price_count|default:"0"|smart_float:0 }}
+          {% if stale_price_count > 0 %}
+          <small class="badge bg-warning-subtle text-warning me-1">{% trans "تحتاج مراجعة" %}</small>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- تنبيه تدقيق الجودة (الأسعار الصفرية والناقصة) -->
+  <div class="col-xl-3 col-sm-6">
+    <div class="stats-card {% if zero_price_count > 0 %}stats-card-danger{% else %}stats-card-secondary{% endif %}">
+      <div class="stats-card-body">
+        <div class="stats-card-icon">
+          <i class="fas fa-exclamation-triangle"></i>
+        </div>
+        <div class="stats-card-title">{% trans "أسعار تحتاج تدقيق (صفرية)" %}</div>
+        <div class="stats-card-value">
+          {{ zero_price_count|default:"0"|smart_float:0 }}
+          {% if zero_price_count > 0 %}
+          <small class="badge bg-danger-subtle text-danger me-1">{% trans "خطر تسعيري" %}</small>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
