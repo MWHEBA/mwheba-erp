@@ -3,7 +3,7 @@ from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
 from django.core.validators import MinValueValidator
 from django.conf import settings
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 import uuid
 
 from .base import BaseModel, PricingStatus, OrderType
@@ -617,7 +617,31 @@ class PrintingOrder(BaseModel):
         """السعر النهائي معبر عنه بالعملة الوظيفية للنظام وفق IAS 21"""
         price = self.final_price or Decimal('0.00')
         rate = self.exchange_rate or Decimal('1.000000')
-        return (price * rate).quantize(Decimal('0.01'))
+        return (price * rate).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+
+    @property
+    def unit_price(self):
+        """سعر بيع القطعة للعميل"""
+        if self.quantity and self.final_price:
+            return (self.final_price / Decimal(str(self.quantity))).quantize(Decimal('0.0001'), rounding=ROUND_HALF_UP)
+        return Decimal('0.00')
+
+    @property
+    def total_cost(self):
+        """التكلفة الإجمالية المقدرة للطلب"""
+        return self.estimated_cost or Decimal('0.00')
+
+    @property
+    def profit_amount(self):
+        """قيمة صافي الربح الفعلي المحقق"""
+        if self.final_price and self.estimated_cost and self.final_price > self.estimated_cost:
+            return (self.final_price - self.estimated_cost).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        return Decimal('0.00')
+
+    @property
+    def profit_amount_functional(self):
+        """صافي الربح بالعملة الوظيفية وفق IAS 21"""
+        return (self.final_price_functional - self.estimated_cost_functional).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
 
 
     def update_status(self, new_status, user=None):

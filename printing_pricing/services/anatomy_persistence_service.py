@@ -2,7 +2,7 @@
 خدمة الحفظ والتحليل الذري لتشريح الشغلانة وتفكيك بنود الخامات والخدمات
 Anatomy-Driven Order Persistence & Procurement Breakdown Service
 """
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 import math
 from django.db import transaction
 from ..models import (
@@ -1603,39 +1603,41 @@ class OrderAnatomyPersistenceService:
 
             # 5. المشال واللوجستيات والنقل اليدوي الصريح (Manual Logistics & Shipping)
             extra_cost_str = post_data.get('extra_cost') or post_data.get('shipping_cost') or post_data.get('logistics_cost') or post_data.get('estimated_shipping_cost')
-            if extra_cost_str:
+            existing_summary = getattr(order, 'summary', None) or OrderSummary.objects.filter(order=order).first()
+            if extra_cost_str is not None and str(extra_cost_str).strip() != '':
                 try:
-                    shipping_cost = Decimal(str(extra_cost_str)).quantize(Decimal('0.01'))
+                    shipping_cost = Decimal(str(extra_cost_str)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
                 except Exception:
                     shipping_cost = Decimal('0.00')
+            elif existing_summary and existing_summary.other_costs:
+                shipping_cost = existing_summary.other_costs
             else:
                 shipping_cost = Decimal('0.00')
 
             # 6. الحساب الإجمالي وتحديث OrderSummary بالجنيه المصري (EGP) حصراً
             subtotal_cost = total_materials_cost + total_printing_cost + total_finishing_cost + shipping_cost
 
-            profit_margin_pct = Decimal(str(post_data.get('profit_margin') or order.profit_margin or '25.00'))
+            raw_margin = post_data.get('profit_margin')
+            if raw_margin is None or str(raw_margin).strip() == '':
+                raw_margin = order.profit_margin if (order and order.profit_margin is not None) else '30.00'
+            profit_margin_pct = min(Decimal('500.00'), max(Decimal('0.00'), Decimal(str(raw_margin))))
+
             margin_factor = profit_margin_pct / Decimal('100')
-            
-            if margin_factor < Decimal('1'):
-                raw_final = subtotal_cost / (Decimal('1') - margin_factor)
-                final_sell_price = Decimal(str(math.ceil(float(raw_final)))).quantize(Decimal('0.01'))
-            else:
-                raw_final = subtotal_cost * Decimal('1.25')
-                final_sell_price = Decimal(str(math.ceil(float(raw_final)))).quantize(Decimal('0.01'))
+            raw_final = subtotal_cost * (Decimal('1') + margin_factor)
+            final_sell_price = Decimal(str(math.ceil(float(raw_final)))).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
 
             # حماية السعر المتفق عليه يدوياً مع العميل (Manual Agreed Price Override)
-            agreed_price_str = post_data.get('manual_agreed_price') or post_data.get('final_price')
-            if agreed_price_str:
+            manual_price_str = post_data.get('manual_agreed_price')
+            if manual_price_str:
                 try:
-                    agreed_p = Decimal(str(agreed_price_str))
+                    agreed_p = Decimal(str(manual_price_str))
                     if agreed_p > Decimal('0.00'):
                         final_sell_price = agreed_p
                         if agreed_p > subtotal_cost:
-                            profit_margin_pct = (((agreed_p - subtotal_cost) / agreed_p) * Decimal('100')).quantize(Decimal('0.01'))
+                            profit_margin_pct = (((agreed_p - subtotal_cost) / subtotal_cost) * Decimal('100')).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
                         else:
                             profit_margin_pct = Decimal('0.00')
-                except:
+                except Exception:
                     pass
 
             net_sell_price = final_sell_price
@@ -1648,15 +1650,16 @@ class OrderAnatomyPersistenceService:
 
             # إنشاء أو تحديث OrderSummary
             summary, _ = OrderSummary.objects.get_or_create(order=order)
-            summary.material_cost = total_materials_cost.quantize(Decimal('0.01'))
-            summary.printing_cost = total_printing_cost.quantize(Decimal('0.01'))
-            summary.finishing_cost = total_finishing_cost.quantize(Decimal('0.01'))
-            summary.other_costs = shipping_cost.quantize(Decimal('0.01'))
-            summary.total_cost = subtotal_cost.quantize(Decimal('0.01'))
-            summary.subtotal = net_sell_price.quantize(Decimal('0.01'))
+            summary.material_cost = total_materials_cost.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+            summary.printing_cost = total_printing_cost.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+            summary.finishing_cost = total_finishing_cost.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+            summary.other_costs = shipping_cost.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+            summary.total_cost = subtotal_cost.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+            summary.subtotal = net_sell_price.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+            summary.profit_amount = (net_sell_price - subtotal_cost).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
             summary.tax_amount = Decimal('0.00')  # التسعير الفني صافي بدون ضريبة
             summary.profit_margin_percentage = profit_margin_pct
-            summary.final_price = net_sell_price.quantize(Decimal('0.01'))
+            summary.final_price = net_sell_price.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
             summary.save()
 
             return summary

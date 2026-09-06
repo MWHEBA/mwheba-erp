@@ -6,9 +6,7 @@
   <input type="hidden" id="id_material_cost" name="material_cost" value="{{ form.material_cost.value|default:'0.00' }}">
   <input type="hidden" id="id_printing_cost" name="printing_cost" value="{{ form.printing_cost.value|default:'0.00' }}">
   <input type="hidden" id="id_finishing_cost" name="finishing_cost" value="{{ form.finishing_cost.value|default:'0.00' }}">
-  <input type="hidden" id="id_profit_margin" name="profit_margin" value="{{ form.profit_margin.value|default:'25.00' }}">
   <input type="hidden" id="id_final_price" name="final_price" value="{{ form.final_price.value|default:'0.00' }}">
-  <input type="hidden" id="id_sale_price" name="sale_price" value="{{ form.sale_price.value|default:'0.00' }}">
 
   <div class="section-container" id="summary_main_card">
     
@@ -48,22 +46,45 @@
           </div>
         </div>
 
-        <div class="d-flex justify-content-between align-items-center pt-1.5 border-top bg-light p-1.5 rounded">
+        <div class="d-flex justify-content-between align-items-center border-top bg-light p-2 rounded">
           <strong class="text-dark small">{% trans "إجمالي التكلفة:" %}</strong>
           <strong class="text-danger fs-6" id="total_cost_display">0 {{ currency_symbol|default:functional_currency.symbol }}</strong>
         </div>
 
-        <!-- شريط ومؤشر هامش الربح -->
-        <div class="mt-2">
-          <div class="d-flex justify-content-between align-items-center small mb-1">
-            <span class="fw-bold text-secondary">{% trans "هامش الربح:" %}</span>
-            <span class="fw-bold text-success" id="margin_percentage_display">25%</span>
+        <!-- هامش الربح بتنسيق مطابق تماماً لحقل الانتقالات -->
+        <div class="d-flex justify-content-between align-items-center mb-2 small mt-2 pt-2 border-top">
+          <label for="id_profit_margin" class="text-secondary mb-0 cursor-pointer"><i class="fas fa-percentage me-1 text-primary"></i>{% trans "هامش الربح:" %}</label>
+          <input type="hidden" name="profit_margin" id="id_profit_margin_raw" value="{{ form.profit_margin.value|default_if_none:'30'|smart_float }}">
+          <input type="hidden" name="margin_type" id="id_margin_type" value="percentage">
+          <div class="input-group input-group-sm" style="max-width: 125px;">
+            {% if form.instance.status == 'approved' %}
+            <input type="number" class="form-control form-control-sm text-end fw-bold py-0 px-1 border-secondary-subtle" id="id_profit_margin" value="{{ form.profit_margin.value|default_if_none:'30'|smart_float }}" min="0" max="500" step="1" disabled>
+            <span class="input-group-text py-0 px-1 bg-light text-muted border-secondary-subtle" style="font-size: 0.75rem; width: 42px; justify-content: center;">
+              <span id="margin_unit_badge">%</span>
+            </span>
+            {% else %}
+            <input type="number" class="form-control form-control-sm text-end fw-bold py-0 px-1 border-secondary-subtle" id="id_profit_margin" value="{{ form.profit_margin.value|default_if_none:'30'|smart_float }}" min="0" step="1" placeholder="30">
+            <span role="button" tabindex="0" class="input-group-text py-0 px-1 bg-light text-muted border-secondary-subtle cursor-pointer user-select-none" id="btn_margin_toggle" style="font-size: 0.75rem; width: 42px; justify-content: center;" title="{% trans 'انقر للتبديل بين نسبة % ومبلغ نقدي' %}">
+              <span id="margin_unit_badge">%</span>
+            </span>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- شريط ومؤشر المستوى المحقق / صافي الربح التبادلي -->
+        <div class="mb-1">
+          <div class="d-flex justify-content-between align-items-center mb-1" style="font-size: 0.75rem;">
+            <span class="text-muted" id="margin_indicator_label">{% trans "صافي الربح:" %}</span>
+            <span class="fw-bold text-success" id="margin_percentage_display">0 {{ currency_symbol|default:functional_currency.symbol }}</span>
           </div>
           <div class="progress" style="height: 6px;">
-            <div class="progress-bar bg-success" id="margin_progress_bar" role="progressbar" style="width: 25%"></div>
+            <div class="progress-bar bg-success" id="margin_progress_bar" role="progressbar" style="width: 30%"></div>
           </div>
         </div>
       </div>
+      {% else %}
+      <!-- حقل مخفي للمستخدمين غير المصرح لهم بالاطلاع على هوامش الربح للحفاظ على القيمة الافتراضية -->
+      <input type="hidden" id="id_profit_margin" name="profit_margin" value="{{ form.profit_margin.value|default_if_none:'30'|smart_float }}">
       {% endif %}
 
       <!-- ب. أسعار البيع الصافية للعميل -->
@@ -88,7 +109,7 @@
 
       <!-- هـ. أزرار الحفظ والإجراءات السريعة -->
       <!-- شارة حالة الاعتماد وأمر الشغل -->
-      <div id="sidebar_commit_gate_alert" class="alert alert-light border border-secondary-subtle py-1.5 px-2 mb-2 small text-center">
+      <div id="sidebar_commit_gate_alert" class="alert alert-light border border-secondary-subtle py-2 px-2 mb-2 small text-center">
         <span id="sidebar_commit_status_text">
           <i class="fas fa-info-circle text-primary me-1"></i>{% trans "تسعير تقديري حر — يلزم تحديد العميل والوصف للحفظ الرسمي" %}
         </span>
@@ -96,17 +117,17 @@
 
       <div class="d-grid gap-2">
         <!-- زر الحفظ واعتماد أمر الشغل -->
-        <button type="submit" class="btn btn-primary py-1.5 fw-bold" id="btn_save_order">
+        <button type="submit" class="btn btn-primary py-2 fw-bold" id="btn_save_order">
           <i class="fas fa-save me-2"></i>{% trans "حفظ واعتماد التسعيرة وأمر الشغل" %}
         </button>
 
         <!-- زر الحفظ كمسودة سريعة -->
-        <button type="button" class="btn btn-outline-secondary py-1.5" id="btn_save_draft">
+        <button type="button" class="btn btn-outline-secondary py-2" id="btn_save_draft">
           <i class="fas fa-file-alt me-2"></i>{% trans "حفظ كمسودة سريعة" %}
         </button>
 
         <!-- زر نسخ رسالة الواتساب السريعة -->
-        <button type="button" class="btn btn-outline-success py-1.5 fw-bold" id="btn_copy_whatsapp">
+        <button type="button" class="btn btn-outline-success py-2 fw-bold" id="btn_copy_whatsapp">
           <i class="fab fa-whatsapp me-2 fs-5"></i>{% trans "نسخ عرض السعر للواتساب" %}
         </button>
       </div>

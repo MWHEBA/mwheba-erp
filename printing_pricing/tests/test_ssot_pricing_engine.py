@@ -305,3 +305,45 @@ class TestSSOTPricingEngine:
         assert res_full['montage']['cuts_per_sheet'] >= 16
         assert res_full['montage']['piece_size_name'] == 'فرخ'
         assert 'فرخ' in res_full['montage']['montage_text']
+
+    def test_10_profit_margin_ssot_markup_and_clamping(self):
+        """
+        التحقق من تطبيق معادلة Markup وحماية الهوامش في الـ SSOT Engine:
+        - معادلة Markup: final_price = math.ceil(total_cost * (1 + margin / 100))
+        - التحقق من هامش 25% الافتراضي
+        - التحقق من هامش 0% (سعر البيع = التكلفة)
+        - التحقق من تقييد الهامش السلبي وهامش أكبر من 500%
+        """
+        base_params = {
+            'quantity': 1000,
+            'width': 14.8,
+            'height': 21.0,
+            'sheet_size': '70x100',
+            'piece_size': '35x50',
+            'profit_margin': 25.0
+        }
+        res_25 = PrintingCalculationEngine.calculate(base_params)
+        assert res_25['success'] is True
+        total_cost = res_25['totals']['total_production_cost']
+        selling_price_25 = res_25['totals']['total_selling_price']
+        import math
+        expected_25 = math.ceil(total_cost * 1.25)
+        assert selling_price_25 == expected_25
+        assert res_25['totals']['profit_margin_percent'] == 25.0
+
+        # هامش 0%
+        params_0 = dict(base_params, profit_margin=0.0)
+        res_0 = PrintingCalculationEngine.calculate(params_0)
+        assert res_0['totals']['total_selling_price'] == math.ceil(total_cost * 1.0)
+        assert res_0['totals']['profit_margin_percent'] == 0.0
+
+        # هامش سالب يتم تقييده إلى 0%
+        params_neg = dict(base_params, profit_margin=-10.0)
+        res_neg = PrintingCalculationEngine.calculate(params_neg)
+        assert res_neg['totals']['profit_margin_percent'] == 0.0
+
+        # هامش فلكي يتم تقييده إلى 500%
+        params_huge = dict(base_params, profit_margin=9999.0)
+        res_huge = PrintingCalculationEngine.calculate(params_huge)
+        assert res_huge['totals']['profit_margin_percent'] == 500.0
+

@@ -4,7 +4,7 @@ printing_pricing/models/breakdown.py
 يشمل: مواصفات الورق والمونتاج، بنود الخامات التموينية، خدمات الورش والموردين، وحسابات وملخص التكاليف (SSOT)
 """
 import math
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from django.core.validators import MinValueValidator
@@ -607,8 +607,11 @@ class OrderSummary(BaseModel):
             self.tax_amount + 
             self.rush_fee
         )
-        self.profit_amount = self.total_cost * (self.profit_margin_percentage / Decimal('100.0'))
-        self.final_price = self.total_cost + self.profit_amount
+        margin_factor = self.profit_margin_percentage / Decimal('100.0')
+        self.profit_amount = (self.total_cost * margin_factor).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        raw_final = self.total_cost + self.profit_amount
+        self.final_price = Decimal(str(math.ceil(float(raw_final)))).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        self.profit_amount = self.final_price - self.total_cost
 
     def update_from_calculations(self):
         calculations = self.order.calculations.filter(is_current=True)
@@ -635,6 +638,20 @@ class OrderSummary(BaseModel):
                 'other_percentage': float((self.other_costs / self.subtotal) * 100),
             }
         return {}
+
+    @property
+    def profit_margin(self):
+        """هامش الربح كنسبة مئوية"""
+        return self.profit_margin_percentage
+
+    @property
+    def net_profit(self):
+        """صافي الربح الفعلي المحقق مع تعويض ديناميكي للطلبات القديمة"""
+        if self.profit_amount and self.profit_amount > Decimal('0.00'):
+            return self.profit_amount
+        if self.final_price and self.total_cost and self.final_price > self.total_cost:
+            return (self.final_price - self.total_cost).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        return Decimal('0.00')
 
 
 __all__ = [

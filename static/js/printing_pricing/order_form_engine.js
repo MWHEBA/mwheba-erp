@@ -121,13 +121,14 @@ const PricingMath = {
   },
 
   /**
-   * حساب السعر النهائي المحاسبي بهامش الربح مع حماية القسمة على صفر
+   * حساب السعر النهائي المحاسبي بهامش الربح وفق نموذج التكلفة الإضافية (Markup)
+   * مع حماية الهامش وتقريبه للأعلى (Math.ceil) للمطابقة التامة مع الباك إند
    */
   calcFinalPrice(totalCost, profitMargin) {
-    // حماية القسمة على صفر (حد أقصى 99%)
-    const safeMargin = Math.min(0.99, Math.max(0, profitMargin));
-    const rawPrice = totalCost / (1 - safeMargin);
-    // جبر الإجمالي النهائي دائمًا للأعلى
+    // تحديد الهامش بين 0% و 500% كحد أقصى آمن
+    const safeMargin = Math.min(5.0, Math.max(0, profitMargin));
+    const rawPrice = totalCost * (1 + safeMargin);
+    // جبر الإجمالي النهائي دائمًا للأعلى لمطابقة الباك إند
     return Math.ceil(rawPrice);
   }
 };
@@ -176,6 +177,8 @@ class OrderFormUIController {
     this.maxMontage = null;
     this.isManualMontage = false;
     this.currentPieceName = '';
+    this.marginMode = 'percent'; // 'percent' أو 'fixed'
+    this.lastKnownTotalCost = 0;
   }
 
   /**
@@ -236,6 +239,7 @@ class OrderFormUIController {
       $('#btn_montage_plus').prop('disabled', true);
     }
     this.updateGatesState();
+    this.updateMarginUI();
     this.recalculate();
   }
 
@@ -595,6 +599,34 @@ class OrderFormUIController {
 
     // مراقبة مدخلات التشطيبات والسلوفان التفصيلية
     $(document).on('change input', '#id_lamination_sides, #id_lamination_face_price, #id_spot_uv_tirage_price, input[name="spot_uv_screen_mode"], #id_spot_uv_override_price, #id_die_cut_tirage_price, input[name="die_tooling_mode"], #id_die_cut_override_price, #id_foil_color, input[name="foil_cliche_mode"], #id_foil_override_price, input[name="emboss_cliche_mode"], #id_emboss_override_price, #id_creasing_lines_count, #id_creasing_override_price', function () {
+      self.debouncedRecalculate();
+    });
+
+    // مراقبة مدخلات التسعير المباشرة في الشريط الجانبي (هامش الربح والانتقالات)
+    $(document).on('input change', '#id_profit_margin', function () {
+      self.updateMarginUI();
+      self.debouncedRecalculate();
+    });
+
+    $(document).on('click', '#btn_margin_toggle', function (e) {
+      e.preventDefault();
+      const nextMode = self.marginMode === 'fixed' ? 'percent' : 'fixed';
+      self.setMarginMode(nextMode);
+    });
+
+    $(document).on('keydown', '#btn_margin_toggle', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        $(this).trigger('click');
+      }
+    });
+
+    $(document).on('change', '#id_margin_type', function () {
+      const mode = $(this).val() === 'fixed' ? 'fixed' : 'percent';
+      self.setMarginMode(mode);
+    });
+
+    $(document).on('input change', '#id_extra_cost', function () {
       self.debouncedRecalculate();
     });
 
@@ -1125,6 +1157,134 @@ class OrderFormUIController {
       if (contInnerDigital) contInnerDigital.classList.remove('d-none');
       if (innerOffsetFields) innerOffsetFields.classList.add('d-none');
     }
+  }
+
+  /**
+   * تحديث شريط ونسبة هامش الربح لحظياً (0ms Direct Reactivity)
+   * يدعم النمطين المزدوجين: النسبة المئوية (%) أو المبلغ المقطوع (ج.م)
+   */
+  updateMarginUI(customVal = null) {
+    let marginPct = 30;
+    const marginInput = document.getElementById('id_profit_margin');
+    const rawHidden = document.getElementById('id_profit_margin_raw');
+
+    let fixedAmount = 0;
+    const totalCost = this.lastKnownTotalCost || 0;
+
+    if (this.marginMode === 'fixed') {
+      // نمط المبلغ المقطوع بالجنيه (المستخدم أدخل مبلغاً مباشراً)
+      if (marginInput) {
+        const raw = marginInput.value.trim();
+        fixedAmount = raw === '' ? 0 : PricingMath.parseSafeNumber(raw, 0);
+      }
+      if (totalCost > 0) {
+        marginPct = parseFloat(((fixedAmount / totalCost) * 100).toFixed(2));
+      } else {
+        marginPct = 0;
+      }
+      // مزامنة النسبة المئوية للحقل المخفي المرسل للداتابيز والـ SSOT
+      if (rawHidden) {
+        rawHidden.value = marginPct.toFixed(2);
+      }
+    } else {
+      // نمط النسبة المئوية المباشرة (%) (المستخدم أدخل نسبة مئوية)
+      if (customVal !== null && !isNaN(customVal)) {
+        marginPct = parseFloat(Number(customVal).toFixed(2));
+      } else if (marginInput) {
+        const raw = marginInput.value.trim();
+        marginPct = raw === '' ? 0 : parseFloat(PricingMath.parseSafeNumber(raw, 30).toFixed(2));
+      }
+      fixedAmount = totalCost > 0 ? (totalCost * (marginPct / 100)) : 0;
+      if (rawHidden) {
+        rawHidden.value = marginPct.toFixed(2);
+      }
+    }
+
+    const marginDisplay = document.getElementById('margin_percentage_display');
+    const marginLabel = document.getElementById('margin_indicator_label');
+    const marginBar = document.getElementById('margin_progress_bar');
+
+    if (this.marginMode === 'fixed') {
+      // المستخدم أدخل مبلغاً -> المؤشر يتحول لنسبة مئوية (%)
+      if (marginLabel) {
+        marginLabel.textContent = (this.config.i18n && this.config.i18n.achievedMarginRate) ? this.config.i18n.achievedMarginRate : 'النسبة المحققة:';
+      }
+      if (marginDisplay) {
+        // إظهار الكسور إن وجدت فقط (مثل 30.5%) وبدون علامة عشرية إطلاقاً طالما رقم صحيح (30%)
+        const formattedMargin = (marginPct % 1 === 0) ? marginPct.toFixed(0) : marginPct.toString();
+        marginDisplay.textContent = `${formattedMargin}%`;
+      }
+    } else {
+      // المستخدم أدخل نسبة مئوية -> المؤشر يتحول لصافي ربح بالجنيه (ج.م)
+      if (marginLabel) {
+        marginLabel.textContent = (this.config.i18n && this.config.i18n.netProfit) ? this.config.i18n.netProfit : 'صافي الربح:';
+      }
+      if (marginDisplay) {
+        marginDisplay.textContent = this.formatMoney(fixedAmount);
+      }
+    }
+
+    if (marginBar) {
+      marginBar.style.width = `${Math.min(100, Math.max(0, marginPct))}%`;
+      marginBar.className = marginPct < 15
+        ? 'progress-bar bg-danger'
+        : (marginPct < 25 ? 'progress-bar bg-primary' : 'progress-bar bg-success');
+    }
+  }
+
+  /**
+   * التبديل بين نمط النسبة المئوية (%) والمبلغ المقطوع (ج.م)
+   */
+  setMarginMode(mode) {
+    if (this.marginMode === mode) return;
+    this.marginMode = mode;
+
+    const selectEl = document.getElementById('id_margin_type');
+    if (selectEl) {
+      selectEl.value = (mode === 'fixed' ? 'fixed' : 'percentage');
+    }
+    const btnPercent = document.getElementById('btn_margin_mode_percent');
+    const btnFixed = document.getElementById('btn_margin_mode_fixed');
+    const badge = document.getElementById('margin_unit_badge');
+    const input = document.getElementById('id_profit_margin');
+    const label = document.getElementById('margin_input_label');
+    const totalCost = this.lastKnownTotalCost || 0;
+
+    if (mode === 'fixed') {
+      if (btnPercent) btnPercent.classList.remove('active');
+      if (btnFixed) btnFixed.classList.add('active');
+      if (badge) badge.textContent = this.config.currencySymbol || 'ج.م';
+
+      if (input) {
+        // تحويل النسبة الحالية إلى مبلغ نقدي
+        const currentPct = PricingMath.parseSafeNumber(input.value, 30);
+        const fixedProfit = Math.round(totalCost * (currentPct / 100));
+        input.value = fixedProfit;
+        input.placeholder = fixedProfit > 0 ? fixedProfit : '0';
+        input.removeAttribute('max'); // المبلغ يمكن أن يكون أي رقم
+        input.setAttribute('step', '1');
+      }
+    } else {
+      if (btnFixed) btnFixed.classList.remove('active');
+      if (btnPercent) btnPercent.classList.add('active');
+      if (badge) badge.textContent = '%';
+
+      if (input) {
+        // تحويل المبلغ النقدي إلى نسبة مئوية
+        const currentFixed = PricingMath.parseSafeNumber(input.value, 0);
+        let pct = 30;
+        if (totalCost > 0) {
+          pct = parseFloat(((currentFixed / totalCost) * 100).toFixed(2));
+        }
+        input.value = (pct % 1 === 0) ? pct.toFixed(0) : pct.toString();
+        input.placeholder = '30';
+        input.setAttribute('max', '500');
+        input.setAttribute('step', '1');
+      }
+    }
+
+    this.updateMarginUI();
+    this.debouncedRecalculate();
   }
 
   /**
@@ -3270,6 +3430,12 @@ class OrderFormUIController {
       formData.delete('montage_count');
     }
 
+    // مزامنة هامش الربح المحسوب بالـ % في حال كان وضع الإدخال مبلغاً مقطوعاً
+    const rawHidden = document.getElementById('id_profit_margin_raw');
+    if (rawHidden && rawHidden.value) {
+      formData.set('profit_margin', rawHidden.value);
+    }
+
     const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
 
     fetch('/printing-pricing/api/live-calculate/', {
@@ -3394,6 +3560,17 @@ class OrderFormUIController {
       $('#total_cost_display').text(this.formatMoney(data.totals.total_production_cost));
       $('#unit_price_display').text(this.formatMoney(data.totals.unit_selling_price, true));
       $('#final_total_display').text(this.formatMoney(data.totals.total_selling_price));
+
+      this.lastKnownTotalCost = data.totals.total_production_cost;
+
+      // تحديث مؤشر وشريط تقدم هامش الربح
+      if (this.marginMode === 'fixed') {
+        this.updateMarginUI();
+      } else if (data.totals && data.totals.profit_margin_percent !== undefined) {
+        this.updateMarginUI(data.totals.profit_margin_percent);
+      } else {
+        this.updateMarginUI();
+      }
 
       // مزامنة الحقول المخفية لحفظ الـ Order
       $('#id_material_cost').val(data.totals.materials_cost);
@@ -4046,10 +4223,28 @@ class OrderFormUIController {
 
     // الإجمالي النهائي وهامش الربح
     const totalCost = costPaper + costPrinting + costFinishing + costBinding + costLogistics + costGiveaways;
-    const profitMarginInput = document.getElementById('id_profit_margin');
-    const profitMargin = profitMarginInput ? (PricingMath.parseSafeNumber(profitMarginInput.value, 25) / 100) : 0.25;
+    this.lastKnownTotalCost = totalCost;
 
-    const grandTotal = PricingMath.calcFinalPrice(totalCost, profitMargin);
+    const profitMarginInput = document.getElementById('id_profit_margin');
+    let profitMargin = 0.30;
+    let grandTotal = 0;
+
+    if (this.marginMode === 'fixed') {
+      let fixedAmount = 0;
+      if (profitMarginInput) {
+        const rawVal = profitMarginInput.value.trim();
+        fixedAmount = rawVal === '' ? 0 : PricingMath.parseSafeNumber(rawVal, 0);
+      }
+      grandTotal = Math.ceil(totalCost + fixedAmount);
+      profitMargin = totalCost > 0 ? (fixedAmount / totalCost) : 0;
+    } else {
+      if (profitMarginInput) {
+        const rawVal = profitMarginInput.value.trim();
+        profitMargin = rawVal === '' ? 0 : (PricingMath.parseSafeNumber(rawVal, 30) / 100);
+      }
+      grandTotal = PricingMath.calcFinalPrice(totalCost, profitMargin);
+    }
+
     const safeQty = Math.max(1, qty);
     const unitPrice = grandTotal / safeQty;
 
@@ -4080,16 +4275,7 @@ class OrderFormUIController {
     if (finalTotalEl) finalTotalEl.textContent = this.formatMoney(grandTotal);
 
     // شريط ومؤشر هامش الربح والتلوين الذكي
-    const marginPct = Math.round(profitMargin * 100);
-    const marginDisplay = document.getElementById('margin_percentage_display');
-    const marginBar = document.getElementById('margin_progress_bar');
-    if (marginDisplay) marginDisplay.textContent = `${marginPct}%`;
-    if (marginBar) {
-      marginBar.style.width = `${Math.min(100, Math.max(0, marginPct))}%`;
-      marginBar.className = marginPct < 15
-        ? 'progress-bar bg-danger'
-        : (marginPct < 25 ? 'progress-bar bg-primary' : 'progress-bar bg-success');
-    }
+    this.updateMarginUI(profitMargin * 100);
 
     // تحديث البدائل اللحظية
     const altNoLam = document.getElementById('alt_no_lam_diff');

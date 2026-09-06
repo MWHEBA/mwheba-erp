@@ -10,7 +10,7 @@ from django.template.loader import render_to_string
 from django.utils.translation import gettext_lazy as _
 from django.db.models import Q, Sum, Count
 from django.core.paginator import Paginator
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 
 from django.db import transaction
 from core.utils import UnifiedPaginationMixin
@@ -765,19 +765,19 @@ def calculate_order_cost(request, pk):
             if not summary:
                 return JsonResponse({'success': False, 'error': _('فشل في حساب التكلفة')})
             
-            subtotal = summary.subtotal or summary.total_cost or Decimal('0.00')
-            final_p = summary.final_price or Decimal('0.00')
-            margin_pct = summary.profit_margin_percentage or Decimal('0.00')
-            profit_amt = summary.profit_amount or Decimal('0.00')
+            cost = summary.total_cost or order.estimated_cost or Decimal('0.00')
+            final_p = summary.final_price or order.final_price or Decimal('0.00')
+            margin_pct = summary.profit_margin_percentage or order.profit_margin or Decimal('0.00')
+            profit_amt = summary.net_profit or summary.profit_amount or (final_p - cost)
             qty = Decimal(str(order.quantity or 1))
-            cost_unit = (subtotal / qty).quantize(Decimal('0.0001'))
-            price_unit = (final_p / qty).quantize(Decimal('0.0001'))
+            cost_unit = (cost / qty).quantize(Decimal('0.0001'), rounding=ROUND_HALF_UP)
+            price_unit = (final_p / qty).quantize(Decimal('0.0001'), rounding=ROUND_HALF_UP)
 
         return JsonResponse({
             'success': True,
             'message': _('تم حساب التكلفة والربحية بنجاح'),
             'order_id': order.id,
-            'estimated_cost': float(subtotal),
+            'estimated_cost': float(cost),
             'final_price': float(final_p),
             'cost_per_unit': float(cost_unit),
             'price_per_unit': float(price_unit),

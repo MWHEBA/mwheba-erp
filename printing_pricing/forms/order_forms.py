@@ -1,3 +1,4 @@
+from decimal import Decimal
 from django import forms
 from django.utils.translation import gettext_lazy as _
 from django.core.exceptions import ValidationError
@@ -280,6 +281,12 @@ class PricingOrderForm(forms.ModelForm):
             if not field.widget.attrs.get("class"):
                 field.widget.attrs["class"] = "form-control"
 
+        # ضبط حقل هامش الربح
+        if "profit_margin" in self.fields:
+            self.fields["profit_margin"].required = False
+            if not self.instance.pk and not self.initial.get("profit_margin"):
+                self.initial["profit_margin"] = Decimal("30.00")
+
         # ضبط حقل العميل والعميل اليدوي
         if "customer" in self.fields:
             self.fields["customer"].required = False
@@ -481,6 +488,19 @@ class PricingOrderForm(forms.ModelForm):
         if height is not None and height <= 0:
             raise ValidationError(_('الطول يجب أن يكون أكبر من صفر'))
         return height
+
+    def clean_profit_margin(self):
+        """التحقق من هامش الربح وحماية قيد NOT NULL وتفادي تجاوز السعة الرقمية"""
+        margin = self.cleaned_data.get('profit_margin')
+        if margin is None:
+            if self.instance and self.instance.pk and self.instance.profit_margin is not None:
+                return self.instance.profit_margin
+            return Decimal('30.00')
+        if margin < Decimal('0.00'):
+            raise ValidationError(_("لا يمكن أن يكون هامش الربح سالباً"))
+        if margin > Decimal('500.00'):
+            raise ValidationError(_("أقصى هامش ربح مسموح به هو 500%"))
+        return margin
 
     def save(self, commit=True):
         """حفظ الطلب داخل معاملة ذرية مع مزامنة الحقول التوافقية"""

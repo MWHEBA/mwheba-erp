@@ -10,6 +10,8 @@ from .unit_adapter import PrintingUnitAdapter
 from .pdf_sanitizer_service import CustomerPDFSanitizerService
 from .bulk_price_updater import BulkPriceUpdaterService
 
+from .price_audit_service import PriceAuditService
+
 __all__ = [
     'PrintingCalculationEngine',
     'OrderAnatomyPersistenceService',
@@ -18,4 +20,5 @@ __all__ = [
     'PrintingUnitAdapter',
     'CustomerPDFSanitizerService',
     'BulkPriceUpdaterService',
+    'PriceAuditService',
 ]

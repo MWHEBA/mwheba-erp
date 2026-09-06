@@ -5,7 +5,7 @@ PrintingCalculationEngine (Single Source of Truth)
 كافة المعاملات والأسعار والأرباح بالجنيه المصري (EGP) حصراً.
 """
 import math
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from typing import Dict, Any, Optional, Tuple
 
 
@@ -1126,23 +1126,53 @@ class PrintingCalculationEngine:
         }
 
     @classmethod
+    def _calculate_binding_cost(cls, params: Dict[str, Any], product_type: str, qty: int, signatures: int) -> Decimal:
+        """حساب تكلفة خدمات التجليد والتقفيل للكتالوجات والكتب والدفاتر بالعملة المحددة."""
+        binding = str(params.get('binding_type') or 'staple').lower()
+        target_curr = params.get('_target_curr')
+        order_date = params.get('_order_date')
+        cost = Decimal('0.00')
+
+        if product_type in ['book', 'catalog', 'book_catalog', 'magazine']:
+            if binding in ['staple', 'saddle_stitch']:
+                cost = max(Decimal('75.00'), Decimal(str(qty)) * Decimal('0.50'))
+            elif binding == 'perfect_binding':
+                cost = max(Decimal('150.00'), Decimal(str(qty)) * Decimal('1.80'))
+            elif binding == 'hardcover':
+                cost = max(Decimal('250.00'), (Decimal(str(qty)) * Decimal('4.50')) + Decimal('150.00'))
+            elif binding == 'wire_o':
+                cost = max(Decimal('120.00'), Decimal(str(qty)) * Decimal('2.50'))
+            elif binding == 'pad_glue':
+                cost = max(Decimal('50.00'), Decimal(str(qty)) * Decimal('0.75'))
+            elif binding == 'sewing_binding':
+                sewing_rate = Decimal('0.20') * Decimal(str(signatures))
+                cost = max(Decimal('200.00'), Decimal(str(qty)) * (Decimal('2.00') + sewing_rate))
+        elif product_type in ['folder', 'box', 'folder_packaging']:
+            cost = Decimal('350.00') + (Decimal(str(qty)) * Decimal('0.60'))
+
+        return cls._convert_currency(cost, to_curr=target_curr, date=order_date)
+
+    @classmethod
     def _calculate_logistics(cls, params: Dict[str, Any], qty: int) -> Dict[str, Any]:
         """حساب كراتين التعبئة وتكاليف الشحن والتوصيل بالعملة المحددة."""
         target_curr = params.get('_target_curr')
         order_date = params.get('_order_date')
 
         carton_cost = Decimal('0.00')
-        delivery_cost = cls._to_decimal(params.get('shipping_cost') or params.get('delivery_cost'), Decimal('0.00'))
+        delivery_cost = cls._to_decimal(
+            params.get('extra_cost') or params.get('shipping_cost') or params.get('delivery_cost'), 
+            Decimal('0.00')
+        )
 
         capacity_per_box = cls._to_int(params.get('units_per_box') or params.get('carton_capacity'), 500)
-        if capacity_per_box > 0 and cls._to_bool(params.get('has_cartons', True)):
+        if capacity_per_box > 0 and cls._to_bool(params.get('has_cartons', False)):
             boxes_count = math.ceil(qty / capacity_per_box)
             carton_price = cls._convert_currency(Decimal('15.00'), to_curr=target_curr, date=order_date)
             carton_cost = Decimal(str(boxes_count)) * carton_price
         else:
             boxes_count = 0
 
-        total_logistics = (carton_cost + delivery_cost).quantize(Decimal('0.01'))
+        total_logistics = (carton_cost + delivery_cost).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
         return {
             'total_cost': float(total_logistics),
             'boxes_count': boxes_count,
@@ -1158,21 +1188,34 @@ class PrintingCalculationEngine:
     ) -> Dict[str, Any]:
         """تجميع تكاليف الإنتاج الإجمالية وحساب الأرباح وسعر البيع النهائي بالجنيه المصري."""
         materials_cost = Decimal(str(paper_res['total_cost'])) + Decimal(str(inner_res.get('inner_paper_cost', 0.0)))
+        binding_cost = cls._calculate_binding_cost(
+            params=params,
+            product_type=params.get('product_type') or params.get('order_type') or 'flyer',
+            qty=qty,
+            signatures=inner_res.get('signatures_count', 0)
+        )
         services_cost = (
             Decimal(str(printing_res['total_cost'])) +
             Decimal(str(plates_res['total_cost'])) +
             Decimal(str(finishing_res['total_cost'])) +
             Decimal(str(inner_res.get('inner_press_cost', 0.0))) +
             Decimal(str(inner_res.get('inner_plates_cost', 0.0))) +
-            Decimal(str(logistics_res['total_cost']))
+            Decimal(str(logistics_res['total_cost'])) +
+            binding_cost
         )
 
-        total_cost = (materials_cost + services_cost).quantize(Decimal('0.01'))
+        total_cost = (materials_cost + services_cost).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
 
-        margin_percent = cls._to_decimal(params.get('profit_margin') or params.get('margin_percentage'), Decimal('25.0'))
-        profit_amount = (total_cost * (margin_percent / Decimal('100.0'))).quantize(Decimal('0.01'))
-        final_price = total_cost + profit_amount
-        unit_price = (final_price / Decimal(str(qty))).quantize(Decimal('0.01'))
+        raw_margin = params.get('profit_margin')
+        if raw_margin is None or str(raw_margin).strip() == '':
+            raw_margin = params.get('margin_percentage')
+        margin_percent = cls._to_decimal(raw_margin, Decimal('30.0'))
+        margin_percent = min(Decimal('500.00'), max(Decimal('0.00'), margin_percent))
+
+        profit_amount = (total_cost * (margin_percent / Decimal('100.0'))).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        raw_final = total_cost + profit_amount
+        final_price = Decimal(str(math.ceil(float(raw_final)))).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        unit_price = (final_price / Decimal(str(qty))).quantize(Decimal('0.0001'), rounding=ROUND_HALF_UP)
 
         return {
             'materials_cost': float(materials_cost),

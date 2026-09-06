@@ -207,6 +207,7 @@ class OrderSummaryAPIView(BaseAPIView):
                     'subtotal': float(summary.subtotal),
                     'total_cost': float(summary.total_cost),
                     'profit_margin': float(summary.profit_margin_percentage),
+                    'profit_amount': float(summary.net_profit),
                     'final_price': float(summary.final_price)
                 }
             except OrderSummary.DoesNotExist:
