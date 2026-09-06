@@ -338,7 +338,9 @@ class Supplier(models.Model):
         codes = list(self.provided_services.values_list('code', flat=True))
         if not codes:
             type_code = self.primary_type.code.lower() if self.primary_type else ''
-            if 'press' in type_code or 'offset' in type_code:
+            if 'digital' in type_code:
+                return ['digital_printing']
+            elif 'press' in type_code or 'offset' in type_code:
                 return ['offset_printing', 'ctp_plates']
             elif 'paper' in type_code:
                 return ['paper']

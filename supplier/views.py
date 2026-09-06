@@ -2395,7 +2395,8 @@ def _get_preinjected_lookups():
                         m['max_sheet_length'] = float(parts[1])
                 except Exception:
                     pass
-        digital_machines = list(PrintingMachine.objects.filter(machine_category='digital', is_active=True).values('id', 'name', 'code', 'colors_capacity'))
+        digital_machines = list(PrintingMachine.objects.filter(machine_category='digital', is_active=True).values('id', 'name', 'code', 'colors_capacity', 'max_sheet_size', 'print_quality', 'is_color'))
+        digital_dimensions = list(MachineDimension.objects.filter(dimension_type__in=['digital_sheet', 'sheet'], is_active=True).values('id', 'name', 'code', 'width', 'height', 'machine_id'))
         offset_dimensions = list(MachineDimension.objects.filter(dimension_type__in=['offset_sheet', 'sheet'], is_active=True).values('id', 'name', 'code', 'width', 'height', 'machine_id'))
         plate_sizes = list(MachineDimension.objects.filter(dimension_type='plate', is_active=True).values('id', 'name', 'code', 'width', 'height', 'machine_id'))
         paper_types = list(PaperType.objects.filter(is_active=True).values('id', 'name'))
@@ -2419,6 +2420,7 @@ def _get_preinjected_lookups():
         return {
             'offset_machines': offset_machines,
             'digital_machines': digital_machines,
+            'digital_dimensions': digital_dimensions,
             'offset_dimensions': offset_dimensions,
             'plate_sizes': plate_sizes,
             'paper_types': paper_types,
@@ -2476,8 +2478,8 @@ def supplier_service_add(request, pk):
         notes           = request.POST.get('notes', '')
         is_active       = request.POST.get('is_active') == 'on'
 
-        machine_id      = request.POST.get('machine_id')
-        dimension_id    = request.POST.get('dimension_id')
+        machine_id      = request.POST.get('machine_id') or request.POST.get('digital_machine_id')
+        dimension_id    = request.POST.get('dimension_id') or request.POST.get('digital_dimension_id')
         paper_type_id   = request.POST.get('paper_type_id')
         coating_type_id = request.POST.get('coating_type_id')
         finishing_type_id = request.POST.get('finishing_type_id')
@@ -2623,7 +2625,9 @@ def supplier_service_add(request, pk):
             elif st_code == 'packaging' and packaging_obj:
                 name = f"تقفيل — {packaging_obj.name}"
             elif st_code == 'digital_printing' and machine_obj:
-                name = f"ديجيتال — {machine_obj.name}"
+                dim_lbl = f" — {dim_obj.name}" if dim_obj else ""
+                color_lbl = " — ألوان" if attributes.get('color_mode') != 'bw' else " — أبيض وأسود"
+                name = f"ديجيتال — {machine_obj.name}{dim_lbl}{color_lbl}".strip(' —')
             elif st_code == 'paper' and paper_obj:
                 ps_lbl = f" — {paper_size_obj.name}" if paper_size_obj else ""
                 gsm_lbl = f" {gsm_val} جم" if gsm_val else ""
@@ -2854,8 +2858,8 @@ def supplier_service_edit(request, pk, service_pk):
         notes           = request.POST.get('notes', '')
         is_active       = request.POST.get('is_active') == 'on'
 
-        machine_id      = request.POST.get('machine_id')
-        dimension_id    = request.POST.get('dimension_id')
+        machine_id      = request.POST.get('machine_id') or request.POST.get('digital_machine_id')
+        dimension_id    = request.POST.get('dimension_id') or request.POST.get('digital_dimension_id')
         paper_type_id   = request.POST.get('paper_type_id')
         coating_type_id = request.POST.get('coating_type_id')
         finishing_type_id = request.POST.get('finishing_type_id')

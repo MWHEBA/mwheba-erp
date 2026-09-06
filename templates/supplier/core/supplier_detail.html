@@ -1224,7 +1224,11 @@
         });
         servicesTab.classList.add('active');
         servicesTab.setAttribute('aria-selected', 'true');
-        document.getElementById('services-tab-pane').classList.add('show', 'active');
+        const svcPane = document.getElementById('services-tab-pane');
+        if (svcPane) {
+          svcPane.classList.add('show', 'active');
+          svcPane.blur();
+        }
       }
     }
 

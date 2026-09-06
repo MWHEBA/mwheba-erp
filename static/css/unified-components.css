@@ -2370,6 +2370,13 @@ html[dir="rtl"] .border-right-danger {
     background-color: var(--bg-hover);
 }
 
+.tab-pane .section-title,
+.tab-pane .unified-section-title,
+.d-flex > .section-title {
+    margin-left: 0;
+    margin-right: 0;
+}
+
 .section-title i {
     color: var(--primary-color);
     font-size: 1.1em;

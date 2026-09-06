@@ -547,9 +547,9 @@ code, kbd, pre, samp {
 }
 
 /* Focus Management */
-.tab-pane:focus {
-    outline: 2px solid var(--primary-color);
-    outline-offset: 2px;
+.tab-pane:focus,
+.tab-pane:focus-visible {
+    outline: none !important;
 }
 
 /* Print Styles */

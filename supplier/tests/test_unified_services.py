@@ -624,3 +624,64 @@ class SupplierServiceIndustrialPricingTest(TestCase):
         form = SupplierForm()
         self.assertEqual(form.fields['is_pricing_supplier'].widget.input_type, 'hidden')
         self.assertEqual(form.fields['provided_services'].widget.input_type, 'hidden')
+
+    def test_digital_printing_service_add_page_and_creation(self):
+        """اختبار توفر ماكينات ومقاسات الديجيتال وحقول النقرات في صفحة إضافة الخدمة وإنشائها بنجاح"""
+        from django.urls import reverse
+        from printing_pricing.models import PrintingMachine, MachineDimension
+        from ..models import ServiceType, SupplierService
+
+        st_digital, _ = ServiceType.objects.get_or_create(
+            code="digital_printing",
+            defaults={"name": "طباعة ديجيتال", "category": "printing"}
+        )
+        self.supplier.provided_services.add(st_digital)
+        digi_machine = PrintingMachine.objects.create(
+            name="HP Indigo 7900 Test",
+            code="indigo_test_7900",
+            machine_category="digital",
+            colors_capacity=4,
+            max_sheet_size="33×50",
+            is_active=True
+        )
+        digi_dim = MachineDimension.objects.create(
+            name="A3+ Digital",
+            code="a3_plus_test",
+            dimension_type="digital_sheet",
+            width=Decimal('33.00'),
+            height=Decimal('48.80'),
+            is_active=True
+        )
+
+        url = reverse('supplier:supplier_service_add', kwargs={'pk': self.supplier.pk})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "digital-specialized-block")
+        self.assertContains(response, "HP Indigo 7900 Test")
+        self.assertContains(response, "A3+ Digital")
+        self.assertContains(response, "price_per_click_color")
+        self.assertContains(response, "price_per_click_bw")
+
+        # تجربة إنشاء خدمة ديجيتال عبر POST
+        post_data = {
+            'service_type': st_digital.id,
+            'pricing_formula': 'PER_PIECE',
+            'digital_machine_id': digi_machine.id,
+            'digital_dimension_id': digi_dim.id,
+            'attr_color_mode': 'color',
+            'attr_print_sides': 'duplex',
+            'price_per_click_color': '0.750',
+            'price_per_click_bw': '0.150',
+            'base_price': '5.00',
+            'minimum_charge': '50.00',
+        }
+        resp_post = self.client.post(url, post_data, follow=True)
+        self.assertEqual(resp_post.status_code, 200)
+
+        svc = SupplierService.objects.filter(supplier=self.supplier, service_type=st_digital).first()
+        self.assertIsNotNone(svc)
+        self.assertEqual(svc.machine, digi_machine)
+        self.assertEqual(svc.dimension, digi_dim)
+        self.assertEqual(svc.price_per_click_color, Decimal('0.750'))
+        self.assertEqual(svc.price_per_click_bw, Decimal('0.150'))
+        self.assertIn('HP Indigo 7900 Test', svc.name)
