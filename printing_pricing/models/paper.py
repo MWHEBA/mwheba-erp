@@ -71,7 +71,9 @@ class PaperWeight(BaseLookupModel):
         ordering = ["gsm"]
 
     def __str__(self):
-        return f"{self.name} ({self.gsm} جم)"
+        if self.name and "جم" not in self.name and "جرام" not in self.name and self.name != str(self.gsm):
+            return f"{self.gsm} جم ({self.name})"
+        return f"{self.gsm} جم"
 
 
 class PaperOrigin(BaseLookupModel):

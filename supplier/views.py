@@ -5,6 +5,7 @@ from functools import wraps
 logger = logging.getLogger(__name__)
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_POST
 from django.contrib import messages
 from django.urls import reverse
 from django.db import models, transaction
@@ -13,6 +14,7 @@ from django.core.paginator import Paginator
 from django.http import JsonResponse, HttpResponse
 from django.template.loader import render_to_string
 from django.utils.translation import gettext_lazy as _
+from django.utils import timezone
 
 from utils.templatetags.utils_extras import smart_float
 from .models import (
@@ -1859,12 +1861,14 @@ def supplier_detail(request, pk):
         active_svcs = [s for s in supplier_services if s.is_active]
         offset_svcs = [s for s in active_svcs if s.service_type.code == 'offset_printing']
         avg_tirage = (sum(s.base_price for s in offset_svcs) / len(offset_svcs)) if offset_svcs else Decimal('0.00')
+        stale_count = sum(1 for s in supplier_services if s.is_price_stale)
         services_kpis = {
             'total_services': len(supplier_services),
             'active_services': len(active_svcs),
             'active_presses': len(offset_svcs),
             'avg_tirage': avg_tirage,
             'tiered_services_count': sum(1 for s in supplier_services if s.price_tiers.filter(is_active=True).exists()),
+            'stale_services_count': stale_count,
         }
 
         # تجميع الخدمات حسب نوعها
@@ -1880,15 +1884,16 @@ def supplier_detail(request, pk):
 
         # أعمدة جدول الخدمات الموحد المحدث
         supplier_services_headers = [
-            {'key': 'service_type_name', 'label': 'نوع الخدمة',      'sortable': True,  'class': 'text-center', 'format': 'html',     'width': '14%'},
-            {'key': 'name',              'label': 'اسم الخدمة والمواصفات', 'sortable': True,  'class': 'text-start',  'format': 'html',     'width': '24%'},
-            {'key': 'pricing_formula',   'label': 'وحدة التسعير',    'sortable': True,  'class': 'text-center', 'format': 'html',     'width': '12%'},
-            {'key': 'base_price',        'label': 'السعر / الوحدة',   'sortable': True,  'class': 'text-center', 'format': 'html',     'width': '13%'},
-            {'key': 'setup_cost',        'label': 'فتحة الماكينة',   'sortable': True,  'class': 'text-center', 'format': 'currency', 'width': '11%'},
-            {'key': 'minimum_charge',    'label': 'الحد الأدنى',     'sortable': True,  'class': 'text-center', 'format': 'currency', 'width': '10%'},
-            {'key': 'tiers_count',       'label': 'الشرائح',          'sortable': False, 'class': 'text-center', 'format': 'html',     'width': '6%'},
+            {'key': 'service_type_name', 'label': 'نوع الخدمة',      'sortable': True,  'class': 'text-center', 'format': 'html',     'width': '12%'},
+            {'key': 'name',              'label': 'اسم الخدمة والمواصفات', 'sortable': True,  'class': 'text-start',  'format': 'html',     'width': '22%'},
+            {'key': 'pricing_formula',   'label': 'وحدة التسعير',    'sortable': True,  'class': 'text-center', 'format': 'html',     'width': '10%'},
+            {'key': 'base_price',        'label': 'السعر / الوحدة',   'sortable': True,  'class': 'text-center', 'format': 'html',     'width': '12%'},
+            {'key': 'price_validity',    'label': 'صلاحية السعر',     'sortable': True,  'class': 'text-center', 'format': 'html',     'width': '10%'},
+            {'key': 'setup_cost',        'label': 'فتحة الماكينة',   'sortable': True,  'class': 'text-center', 'format': 'currency', 'width': '10%'},
+            {'key': 'minimum_charge',    'label': 'الحد الأدنى',     'sortable': True,  'class': 'text-center', 'format': 'currency', 'width': '9%'},
+            {'key': 'tiers_count',       'label': 'الشرائح',          'sortable': False, 'class': 'text-center', 'format': 'html',     'width': '5%'},
             {'key': 'is_active',         'label': 'الحالة',           'sortable': True,  'class': 'text-center', 'format': 'status',   'width': '5%'},
-            {'key': 'actions',           'label': 'الإجراءات',        'sortable': False, 'class': 'text-center', 'width': '5%'},
+            {'key': 'actions',           'label': 'الإجراءات',        'sortable': False, 'class': 'text-center', 'width': '8%'},
         ]
 
         supplier_services_table_data = []
@@ -1912,6 +1917,20 @@ def supplier_detail(request, pk):
                 tir_lbl = f' (يشمل {svc.set_included_tirages} تيرم)' if (svc.service_type.code == 'offset_printing' and svc.set_included_tirages) else ''
                 price_html += f'<br><span class="badge bg-success-subtle text-success border border-success-subtle mt-1" style="font-size:0.75rem;"><i class="fas fa-box-open me-1"></i>طقم: {svc.set_price:,.2f} {sym}{tir_lbl}</span>'
             
+            # حالة صلاحية السعر
+            status = svc.price_staleness_status
+            if status == 'fresh':
+                validity_badge = '<span class="badge bg-success-subtle text-success border border-success-subtle" title="سعر ساري ومحدث"><i class="fas fa-check-circle me-1"></i>ساري</span>'
+            elif status == 'expiring_soon':
+                validity_badge = '<span class="badge bg-warning-subtle text-warning border border-warning-subtle" title="ينتهي سريانه قريباً"><i class="fas fa-clock me-1"></i>ينتهي قريباً</span>'
+            elif status == 'stale':
+                validity_badge = '<span class="badge bg-danger-subtle text-danger border border-danger-subtle" title="سعر متقادم أو منتهي الصلاحية"><i class="fas fa-exclamation-triangle me-1"></i>متقادم</span>'
+            else:
+                validity_badge = '<span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle" title="سعر تاريخي بانتظار التأكيد"><i class="fas fa-history me-1"></i>تاريخي</span>'
+
+            if svc.price_updated_at:
+                validity_badge += f'<div class="text-muted mt-1" style="font-size:0.7rem;">{svc.price_updated_at.strftime("%Y-%m-%d")}</div>'
+
             # المواصفات الفنية المدمجة تحت الاسم
             specs_badges = []
             dim_label = svc.dimension.name if svc.dimension else svc.attributes.get('sheet_size', '')
@@ -1947,8 +1966,15 @@ def supplier_detail(request, pk):
             name_html = f'<div class="fw-bold">{svc.name}</div>{specs_html}'
 
             actions_html = (
+                f'<div class="btn-group btn-group-sm" role="group">'
+                f'<button type="button" class="btn btn-outline-success btn-quick-renew" '
+                f'data-id="{svc.pk}" data-supplier-id="{supplier.pk}" data-name="{svc.name}" '
+                f'data-supplier="{supplier.name}" data-validity-days="{svc.service_type.default_validity_days or 30}" '
+                f'title="تأكيد وتجديد سريان السعر اليوم">'
+                f'<i class="fas fa-check"></i></button>'
                 f'<a href="{reverse("supplier:supplier_service_edit", kwargs={"pk": supplier.pk, "service_pk": svc.pk})}" '
-                f'class="btn btn-sm btn-outline-primary" title="تعديل"><i class="fas fa-edit"></i></a>'
+                f'class="btn btn-outline-primary" title="تعديل"><i class="fas fa-edit"></i></a>'
+                f'</div>'
             )
             supplier_services_table_data.append({
                 'id':                svc.pk,
@@ -1956,6 +1982,7 @@ def supplier_detail(request, pk):
                 'name':              name_html,
                 'pricing_formula':   formula_badge,
                 'base_price':        price_html,
+                'price_validity':    validity_badge,
                 'setup_cost':        svc.setup_cost,
                 'minimum_charge':    svc.minimum_charge,
                 'currency_symbol':   sym,
@@ -2475,8 +2502,19 @@ def supplier_service_add(request, pk):
             pricing_formula = 'FIXED_TOOLING'
         set_price_raw   = request.POST.get('set_price') or request.POST.get('offset_set_price') or request.POST.get('ctp_set_price') or '0'
         set_inc_tir_raw = request.POST.get('set_included_tirages') or request.POST.get('offset_set_included_tirages') or '1'
+        price_valid_until_raw = request.POST.get('price_valid_until', '').strip()
+        is_tax_inclusive = request.POST.get('is_tax_inclusive') == 'on'
+        quote_reference = request.POST.get('quote_reference', '').strip()
         notes           = request.POST.get('notes', '')
         is_active       = request.POST.get('is_active') == 'on'
+
+        price_valid_until = None
+        if price_valid_until_raw:
+            try:
+                from datetime import datetime
+                price_valid_until = datetime.strptime(price_valid_until_raw, '%Y-%m-%d').date()
+            except (ValueError, TypeError):
+                price_valid_until = None
 
         machine_id      = request.POST.get('machine_id') or request.POST.get('digital_machine_id')
         dimension_id    = request.POST.get('dimension_id') or request.POST.get('digital_dimension_id')
@@ -2694,11 +2732,23 @@ def supplier_service_add(request, pk):
                         price_per_click_bw=cbw,
                         price_per_click_color=ccol,
                         attributes=attributes,
+                        price_updated_at=timezone.now(),
+                        price_valid_until=price_valid_until,
+                        is_tax_inclusive=is_tax_inclusive,
                         notes=notes,
                         is_active=is_active,
                     )
                     svc.full_clean()
                     svc.save()
+
+                    from supplier.models import ServicePriceHistory
+                    ServicePriceHistory.log_price_change(
+                        service=svc,
+                        user=request.user,
+                        source='INITIAL',
+                        quote_reference=quote_reference,
+                        notes=notes or 'تسجيل السعر الأولي للخدمة'
+                    )
 
                     for t in inline_tiers_data:
                         ServicePriceTier.objects.create(
@@ -2772,6 +2822,9 @@ def supplier_service_add(request, pk):
         'currency_id':           request.POST.get('currency_id', '') if request.method == 'POST' else '',
         'set_price':             request.POST.get('set_price') or request.POST.get('offset_set_price') or request.POST.get('ctp_set_price') or '0' if request.method == 'POST' else '0',
         'set_included_tirages':  request.POST.get('set_included_tirages') or request.POST.get('offset_set_included_tirages') or '1' if request.method == 'POST' else '1',
+        'price_valid_until':     request.POST.get('price_valid_until', '') if request.method == 'POST' else '',
+        'is_tax_inclusive':      request.POST.get('is_tax_inclusive') == 'on' if request.method == 'POST' else False,
+        'quote_reference':       request.POST.get('quote_reference', '') if request.method == 'POST' else '',
         'inline_tiers_json':     request.POST.get('inline_tiers_json', '[]') if request.method == 'POST' else '[]',
     }
 
@@ -2855,8 +2908,19 @@ def supplier_service_edit(request, pk, service_pk):
             pricing_formula = 'FIXED_TOOLING'
         set_price_raw   = request.POST.get('set_price') or request.POST.get('offset_set_price') or request.POST.get('ctp_set_price') or '0'
         set_inc_tir_raw = request.POST.get('set_included_tirages') or request.POST.get('offset_set_included_tirages') or '1'
+        price_valid_until_raw = request.POST.get('price_valid_until', '').strip()
+        is_tax_inclusive = request.POST.get('is_tax_inclusive') == 'on'
+        quote_reference = request.POST.get('quote_reference', '').strip()
         notes           = request.POST.get('notes', '')
         is_active       = request.POST.get('is_active') == 'on'
+
+        price_valid_until = None
+        if price_valid_until_raw:
+            try:
+                from datetime import datetime
+                price_valid_until = datetime.strptime(price_valid_until_raw, '%Y-%m-%d').date()
+            except (ValueError, TypeError):
+                price_valid_until = None
 
         machine_id      = request.POST.get('machine_id') or request.POST.get('digital_machine_id')
         dimension_id    = request.POST.get('dimension_id') or request.POST.get('digital_dimension_id')
@@ -3005,6 +3069,21 @@ def supplier_service_edit(request, pk, service_pk):
 
         if not errors:
             try:
+                old_snap = service.pricing_snapshot
+                has_price_change = (
+                    service.base_price != bp or
+                    service.setup_cost != sc or
+                    service.minimum_charge != mc or
+                    service.set_price != sp_val or
+                    service.price_per_ton != (pt if pricing_formula == 'PER_TON' else None) or
+                    service.tooling_cost != tc or
+                    service.price_per_click_bw != cbw or
+                    service.price_per_click_color != ccol or
+                    service.pricing_formula != pricing_formula or
+                    service.price_valid_until != price_valid_until or
+                    service.is_tax_inclusive != is_tax_inclusive
+                )
+
                 with transaction.atomic():
                     service.name                  = name
                     service.base_price            = bp
@@ -3031,6 +3110,10 @@ def supplier_service_edit(request, pk, service_pk):
                     service.price_per_click_bw    = cbw
                     service.price_per_click_color = ccol
                     service.attributes            = attributes
+                    service.price_valid_until     = price_valid_until
+                    service.is_tax_inclusive      = is_tax_inclusive
+                    if has_price_change:
+                        service.price_updated_at  = timezone.now()
                     service.notes                 = notes
                     service.is_active             = is_active
                     service.full_clean()
@@ -3047,6 +3130,17 @@ def supplier_service_edit(request, pk, service_pk):
                                 price_per_unit=t['price_per_unit'],
                                 is_active=True
                             )
+
+                    if has_price_change:
+                        from supplier.models import ServicePriceHistory
+                        ServicePriceHistory.log_price_change(
+                            service=service,
+                            user=request.user,
+                            source='MANUAL',
+                            quote_reference=quote_reference,
+                            notes=notes or 'تعديل بيانات وتسعير الخدمة من الشاشة',
+                            old_snapshot=old_snap
+                        )
 
                 messages.success(request, f'تم تحديث الخدمة "{name}" بنجاح')
                 return redirect(reverse('supplier:supplier_detail', kwargs={'pk': pk}) + '#services-tab-pane')
@@ -3097,6 +3191,11 @@ def supplier_service_edit(request, pk, service_pk):
         'currency_id':           service.currency.id if service.currency else '',
         'set_price':             (request.POST.get('set_price') or request.POST.get('offset_set_price') or request.POST.get('ctp_set_price')) if request.method == 'POST' else (str(service.set_price) if service.set_price else '0'),
         'set_included_tirages':  (request.POST.get('set_included_tirages') or request.POST.get('offset_set_included_tirages')) if request.method == 'POST' else (service.set_included_tirages or 1),
+        'price_valid_until':     request.POST.get('price_valid_until', '') if request.method == 'POST' else (service.price_valid_until.strftime('%Y-%m-%d') if service.price_valid_until else ''),
+        'is_tax_inclusive':      (request.POST.get('is_tax_inclusive') == 'on') if request.method == 'POST' else service.is_tax_inclusive,
+        'price_updated_at':      service.price_updated_at.strftime('%Y-%m-%d %H:%M') if service.price_updated_at else '',
+        'price_staleness_status': service.price_staleness_status,
+        'quote_reference':       request.POST.get('quote_reference', '') if request.method == 'POST' else '',
         'inline_tiers_json':     json.dumps(existing_tiers),
     }
     context = {
@@ -3179,6 +3278,52 @@ def supplier_service_toggle(request, pk, service_pk):
 
 
 @login_required
+@require_POST
+def supplier_service_quick_renew_price(request, pk, service_pk):
+    """تأكيد وتجديد سريع لسريان سعر خدمة المورد بتاريخ اليوم"""
+    supplier = get_object_or_404(Supplier, pk=pk)
+    from supplier.models import SupplierService, ServicePriceHistory
+    service = get_object_or_404(SupplierService, pk=service_pk, supplier=supplier)
+
+    days_str = request.POST.get('days')
+    default_days = service.service_type.default_validity_days if (service.service_type and service.service_type.default_validity_days) else 30
+    try:
+        days = int(days_str) if days_str else default_days
+    except (ValueError, TypeError):
+        days = default_days
+
+    old_snap = service.pricing_snapshot
+    today = timezone.now().date()
+    from datetime import timedelta
+    new_valid_until = today + timedelta(days=days)
+
+    service.price_updated_at = timezone.now()
+    service.price_valid_until = new_valid_until
+    service.save(update_fields=['price_updated_at', 'price_valid_until', 'updated_at'])
+
+    ServicePriceHistory.log_price_change(
+        service=service,
+        user=request.user,
+        source='QUICK_RENEW',
+        notes=f'تأكيد وتجديد سريع لسريان السعر لمدة {days} يوماً (ينتهي في {new_valid_until})',
+        old_snapshot=old_snap
+    )
+
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.POST.get('ajax') == '1'
+    if is_ajax:
+        return JsonResponse({
+            'success': True,
+            'message': f'تم تأكيد وتجديد سريان سعر الخدمة بنجاح حتى {new_valid_until}',
+            'new_status': service.price_staleness_status,
+            'price_valid_until': new_valid_until.strftime('%Y-%m-%d'),
+            'price_updated_at': service.price_updated_at.strftime('%Y-%m-%d'),
+        })
+
+    messages.success(request, f'تم تجديد سريان السعر للخدمة "{service.name}" بنجاح حتى {new_valid_until}')
+    return redirect(reverse('supplier:supplier_service_detail', kwargs={'pk': pk, 'service_pk': service_pk}))
+
+
+@login_required
 @require_printing_pricing_enabled
 def supplier_services_api(request, pk):
     """API — جلب خدمات مورد معين (JSON)"""
@@ -3192,18 +3337,23 @@ def supplier_services_api(request, pk):
 
     data = [
         {
-            'id':              s.id,
-            'name':            s.name,
-            'service_type':    s.service_type.code,
-            'base_price':      float(s.base_price),
-            'setup_cost':      float(s.setup_cost),
-            'minimum_charge':  float(s.minimum_charge) if s.minimum_charge else 0.0,
-            'pricing_formula': s.pricing_formula,
-            'price_per_ton':   float(s.price_per_ton) if s.price_per_ton else 0.0,
-            'sheets_per_pack': s.sheets_per_pack,
-            'attributes':      s.attributes,
-            'currency_code':   s.effective_currency.code if s.effective_currency else 'EGP',
-            'currency_symbol': s.currency_symbol,
+            'id':                     s.id,
+            'name':                   s.name,
+            'service_type':           s.service_type.code,
+            'base_price':             float(s.base_price),
+            'setup_cost':             float(s.setup_cost),
+            'minimum_charge':         float(s.minimum_charge) if s.minimum_charge else 0.0,
+            'pricing_formula':        s.pricing_formula,
+            'price_per_ton':          float(s.price_per_ton) if s.price_per_ton else 0.0,
+            'sheets_per_pack':        s.sheets_per_pack,
+            'attributes':             s.attributes,
+            'currency_code':          s.effective_currency.code if s.effective_currency else 'EGP',
+            'currency_symbol':        s.currency_symbol,
+            'is_price_stale':         s.is_price_stale,
+            'price_staleness_status': s.price_staleness_status,
+            'is_tax_inclusive':       s.is_tax_inclusive,
+            'price_updated_at':       s.price_updated_at.strftime('%Y-%m-%d') if s.price_updated_at else None,
+            'price_valid_until':      s.price_valid_until.strftime('%Y-%m-%d') if s.price_valid_until else None,
         }
         for s in qs.order_by('service_type__order', 'name')
     ]
@@ -3217,7 +3367,7 @@ def supplier_services_api(request, pk):
 @login_required
 @require_printing_pricing_enabled
 def supplier_service_detail(request, pk, service_pk):
-    """صفحة تفاصيل الخدمة مع جدول الشرائح السعرية"""
+    """صفحة تفاصيل الخدمة مع جدول الشرائح السعرية وتتبع تاريخ وتطور الأسعار"""
     supplier = get_object_or_404(Supplier, pk=pk)
     from supplier.models import SupplierService, ServicePriceTier
     service = get_object_or_404(SupplierService, pk=service_pk, supplier=supplier)
@@ -3250,14 +3400,17 @@ def supplier_service_detail(request, pk, service_pk):
             'actions':       actions_html,
         })
 
+    price_histories = service.price_history.select_related('changed_by', 'currency').order_by('-change_date')[:50]
+
     context = {
-        'supplier':    supplier,
-        'service':     service,
-        'tiers':       tiers,
-        'tiers_headers': tiers_headers,
-        'tiers_data':  tiers_data,
-        'title':       f'خدمة: {service.name}',
-        'page_icon':   service.service_type.icon,
+        'supplier':        supplier,
+        'service':         service,
+        'tiers':           tiers,
+        'tiers_headers':   tiers_headers,
+        'tiers_data':      tiers_data,
+        'price_histories': price_histories,
+        'title':           f'خدمة: {service.name}',
+        'page_icon':       service.service_type.icon,
         'header_buttons': [
             {'url': reverse('supplier:price_tier_add', kwargs={'pk': pk, 'service_pk': service_pk}), 'icon': 'fa-plus', 'text': 'إضافة شريحة', 'class': 'btn-success'},
             {'url': reverse('supplier:supplier_service_edit', kwargs={'pk': pk, 'service_pk': service_pk}), 'icon': 'fa-edit', 'text': 'تعديل الخدمة', 'class': 'btn-primary'},
@@ -3698,8 +3851,9 @@ def supplier_services_bulk_update(request, pk):
     تحديث أو إضافة مصفوفة من الخدمات لمورد دفعة واحدة (Bulk Price Matrix)
     """
     supplier = get_object_or_404(Supplier, pk=pk)
-    from supplier.models import SupplierService, ServiceType
+    from supplier.models import SupplierService, ServiceType, ServicePriceHistory
     from decimal import Decimal, InvalidOperation
+    from datetime import timedelta
     import json
 
     if request.method != 'POST':
@@ -3767,6 +3921,7 @@ def supplier_services_bulk_update(request, pk):
                     # Update existing
                     svc = SupplierService.objects.filter(pk=svc_id, supplier=supplier).first()
                     if svc:
+                        old_bp = svc.base_price
                         svc.name = name
                         svc.base_price = bp
                         svc.setup_cost = sc
@@ -3780,7 +3935,20 @@ def supplier_services_bulk_update(request, pk):
                             svc.set_included_tirages = set_inc_tir
                         if attrs:
                             svc.attributes.update(attrs)
+                        svc.price_updated_at = timezone.now()
+                        validity_days = svc.service_type.default_validity_days or 30
+                        svc.price_valid_until = timezone.now().date() + timedelta(days=validity_days)
                         svc.save()
+                        if old_bp != bp:
+                            user_obj = request.user if getattr(request, 'user', None) and request.user.is_authenticated else None
+                            ServicePriceHistory.log_price_change(
+                                service=svc,
+                                old_price=old_bp,
+                                new_price=bp,
+                                changed_by=user_obj,
+                                change_source='BULK_UPDATE',
+                                notes='تحديث مجمع من شاشة بروفايل المورد'
+                            )
                         updated_count += 1
                 else:
                     # Create new
@@ -3792,7 +3960,9 @@ def supplier_services_bulk_update(request, pk):
                     if allowed_codes is not None and st.code not in allowed_codes:
                         continue
 
-                    SupplierService.objects.create(
+                    validity_days = st.default_validity_days or 30
+                    now_dt = timezone.now()
+                    new_svc = SupplierService.objects.create(
                         supplier=supplier,
                         service_type=st,
                         name=name,
@@ -3805,7 +3975,18 @@ def supplier_services_bulk_update(request, pk):
                         sheets_per_pack=sheets_pack,
                         price_per_ton=ppt,
                         attributes=attrs,
+                        price_updated_at=now_dt,
+                        price_valid_until=now_dt.date() + timedelta(days=validity_days),
                         is_active=True
+                    )
+                    user_obj = request.user if getattr(request, 'user', None) and request.user.is_authenticated else None
+                    ServicePriceHistory.log_price_change(
+                        service=new_svc,
+                        old_price=Decimal('0.00'),
+                        new_price=bp,
+                        changed_by=user_obj,
+                        change_source='MANUAL',
+                        notes='إنشاء خدمة جديدة من بروفايل المورد'
                     )
                     created_count += 1
 
@@ -3827,8 +4008,9 @@ def supplier_services_bulk_adjust(request, pk):
     تعديل نسبي مجمع لأسعار خدمات المورد لمواجهة التضخم أو تقلبات السوق (+/- X%)
     """
     supplier = get_object_or_404(Supplier, pk=pk)
-    from supplier.models import SupplierService
+    from supplier.models import SupplierService, ServicePriceHistory
     from decimal import Decimal, InvalidOperation
+    from datetime import timedelta
 
     if request.method != 'POST':
         return JsonResponse({'success': False, 'error': 'POST method required'}, status=405)
@@ -3853,8 +4035,11 @@ def supplier_services_bulk_adjust(request, pk):
             services_qs = services_qs.filter(service_type_id=service_type_id)
 
         count = 0
+        now_dt = timezone.now()
+        user_obj = request.user if getattr(request, 'user', None) and request.user.is_authenticated else None
         with transaction.atomic():
             for svc in services_qs:
+                old_bp = svc.base_price
                 svc.base_price = (svc.base_price * multiplier).quantize(Decimal('0.01'))
                 if apply_to_setup and svc.setup_cost > Decimal('0'):
                     svc.setup_cost = (svc.setup_cost * multiplier).quantize(Decimal('0.01'))
@@ -3864,10 +4049,21 @@ def supplier_services_bulk_adjust(request, pk):
                     svc.price_per_ton = (svc.price_per_ton * multiplier).quantize(Decimal('0.01'))
                 if svc.set_price and svc.set_price > Decimal('0'):
                     svc.set_price = (svc.set_price * multiplier).quantize(Decimal('0.01'))
+                svc.price_updated_at = now_dt
+                validity_days = svc.service_type.default_validity_days or 30
+                svc.price_valid_until = now_dt.date() + timedelta(days=validity_days)
                 svc.save()
                 for tier in svc.price_tiers.all():
                     tier.price_per_unit = (tier.price_per_unit * multiplier).quantize(Decimal('0.01'))
                     tier.save(update_fields=['price_per_unit'])
+                ServicePriceHistory.log_price_change(
+                    service=svc,
+                    old_price=old_bp,
+                    new_price=svc.base_price,
+                    changed_by=user_obj,
+                    change_source='BULK_PERCENTAGE',
+                    notes=f'تعديل نسبي مجمع بنسبة {pct}%'
+                )
                 count += 1
 
         pct_sign = f"+{pct}%" if pct > 0 else f"{pct}%"

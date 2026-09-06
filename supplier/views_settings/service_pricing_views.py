@@ -86,8 +86,11 @@ def _compute_best_market_prices(services_qs, rates_map: Dict[Any, Decimal]) -> D
     مع اشتراط وجود منافسين اثنين فأكثر (>= 2) وسعر نشط ساري لمنح شارة الأفضل سعراً.
     """
     spec_groups = {} # spec_key -> list of {service_id, egp_price}
-
     for s in services_qs:
+        # استبعاد الخدمات ذات الأسعار المتقادمة أو المنتهية من المنافسة على الأفضل سعراً
+        if s.is_price_stale:
+            continue
+
         code = s.service_type.code if s.service_type else ''
         if code == 'paper':
             spec_key = (
@@ -606,11 +609,18 @@ def _export_matrix_to_excel(qs, tab: str, rates_map: Dict[Any, Decimal], best_se
     functional_curr = ExchangeRateService.get_functional_currency()
     fc_sym = (getattr(functional_curr, 'symbol', None) or getattr(functional_curr, 'code', '')) if functional_curr else ''
 
+    status_labels = {
+        'fresh': 'ساري ومحدث',
+        'expiring_soon': 'ينتهي قريباً',
+        'stale': 'منتهي / متقادم',
+        'legacy_unconfirmed': 'بانتظار التأكيد'
+    }
+
     if tab == 'paper':
         writer.writerow([
             'المورد', 'خامة الورق', 'المنشأ', 'الجراماج', 'المقاس (سم)',
             'سعر الطن (العملة)', 'العملة', f'سعر الطن ({fc_sym})' if fc_sym else 'سعر الطن المعادل', f'سعر الفرخ ({fc_sym})' if fc_sym else 'سعر الفرخ المعادل',
-            'سعر الرزمة', 'الأفضل سعراً', 'مورد معتمد', 'تاريخ التحديث'
+            'سعر الرزمة', 'شامل الضريبة', 'حالة الصلاحية', 'تاريخ انتهاء السريان', 'الأفضل سعراً', 'مورد معتمد', 'تاريخ تحديث السعر'
         ])
         for s in qs:
             sheet_p = s.get_effective_sheet_price()
@@ -627,14 +637,18 @@ def _export_matrix_to_excel(qs, tab: str, rates_map: Dict[Any, Decimal], best_se
                 ton_egp,
                 sheet_egp,
                 s.base_price if s.pricing_formula == 'PER_REAM' else '',
+                'نعم' if s.is_tax_inclusive else 'لا (صافي)',
+                status_labels.get(s.price_staleness_status, ''),
+                s.price_valid_until.strftime('%Y-%m-%d') if s.price_valid_until else 'تلقائي',
                 'نعم' if s.id in best_service_ids else 'لا',
                 'نعم' if getattr(s.supplier, 'is_preferred', False) else 'لا',
-                s.updated_at.strftime('%Y-%m-%d') if s.updated_at else ''
+                s.price_updated_at.strftime('%Y-%m-%d') if s.price_updated_at else (s.updated_at.strftime('%Y-%m-%d') if s.updated_at else '')
             ])
     else:
         writer.writerow([
             'المورد', 'الخدمة', 'نوع الخدمة', 'السعر الأساسي', 'سعر الطقم',
-            'العملة', f'السعر المعادل ({fc_sym})' if fc_sym else 'السعر المعادل', 'الحد الأدنى', 'تاريخ التحديث'
+            'العملة', f'السعر المعادل ({fc_sym})' if fc_sym else 'السعر المعادل', 'الحد الأدنى',
+            'شامل الضريبة', 'حالة الصلاحية', 'تاريخ انتهاء السريان', 'الأفضل سعراً', 'تاريخ تحديث السعر'
         ])
         for s in qs:
             base_egp = _convert_to_egp(s.base_price, s, rates_map)
@@ -647,7 +661,11 @@ def _export_matrix_to_excel(qs, tab: str, rates_map: Dict[Any, Decimal], best_se
                 s.currency_code,
                 base_egp,
                 s.minimum_charge or '',
-                s.updated_at.strftime('%Y-%m-%d') if s.updated_at else ''
+                'نعم' if s.is_tax_inclusive else 'لا (صافي)',
+                status_labels.get(s.price_staleness_status, ''),
+                s.price_valid_until.strftime('%Y-%m-%d') if s.price_valid_until else 'تلقائي',
+                'نعم' if s.id in best_service_ids else 'لا',
+                s.price_updated_at.strftime('%Y-%m-%d') if s.price_updated_at else (s.updated_at.strftime('%Y-%m-%d') if s.updated_at else '')
             ])
 
     return response

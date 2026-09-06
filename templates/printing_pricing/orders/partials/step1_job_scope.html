@@ -2,14 +2,22 @@
 {% load app_tags %}
 
 <div class="section-container mb-4" id="card_step1_scope">
-  <h5 class="section-title">
-    <span><i class="fas fa-layer-group me-2"></i>1. {% trans "بيانات الطلب والعميل" %}</span>
-    <div class="form-check form-switch ms-auto mb-0 d-flex align-items-center">
-      <input class="form-check-input me-2 mt-0" type="checkbox" role="switch" id="id_is_cash_customer" name="is_cash_customer"
-             {% if form.instance.customer_name and not form.instance.customer %}checked{% endif %}>
-      <label class="form-check-label fw-bold small text-dark mb-0" for="id_is_cash_customer" style="cursor: pointer;">
-        {% trans "عميل نقدي" %}
-      </label>
+  <h5 class="section-title d-flex align-items-center flex-wrap gap-2">
+    <span><i class="fas fa-layer-group me-2"></i>1. {% trans "بيانات الطلب والعميل ومقاس الشغلانة" %}</span>
+    <span id="step1_status_badge" class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1 small">
+      <i class="fas fa-info-circle me-1"></i><span id="step1_status_badge_text">{% trans "بيانات إدارية قيد الإدخال" %}</span>
+    </span>
+    <div class="ms-auto mb-0 d-flex align-items-center gap-2">
+      <button type="button" class="btn btn-sm btn-outline-secondary py-1 px-2" id="btn_quick_quote_fill" title="{% trans 'ملء بيانات استفسار تليفوني سريع بنقرة واحدة' %}">
+        <i class="fas fa-bolt text-warning me-1"></i>{% trans "تسعير سريع" %}
+      </button>
+      <div class="form-check form-switch mb-0 d-flex align-items-center">
+        <input class="form-check-input me-2 mt-0" type="checkbox" role="switch" id="id_is_cash_customer" name="is_cash_customer"
+               {% if form.instance.customer_name and not form.instance.customer %}checked{% endif %}>
+        <label class="form-check-label fw-bold small text-dark mb-0" for="id_is_cash_customer" style="cursor: pointer;">
+          {% trans "عميل نقدي" %}
+        </label>
+      </div>
     </div>
   </h5>
   
@@ -192,13 +200,14 @@
 
       <!-- 8. خيار المقاس المقفول (المطوي) وجهة الفتح وشارة المقاس المفتوح للماكينة -->
       <div class="col-12 {% if not form.instance.is_closed_size and not form.is_closed_size.value %}d-none{% endif %}" id="closed_size_container">
-        <div class="p-2 px-3 bg-light rounded border d-flex flex-wrap align-items-center justify-content-between gap-3">
+        <div class="p-2 px-3 bg-light rounded border d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3">
+          <!-- الجانب الأيمن: مفتاح التفعيل وخيارات جهة الفتح والتجليد -->
           <div class="d-flex align-items-center gap-3 flex-wrap">
-            <div class="form-check form-switch mb-0">
-              <input class="form-check-input" type="checkbox" role="switch" id="id_is_closed_size" name="is_closed_size" 
+            <div class="form-check form-switch mb-0 d-flex align-items-center">
+              <input class="form-check-input mt-0 me-2" type="checkbox" role="switch" id="id_is_closed_size" name="is_closed_size" 
                      {% if form.instance.is_closed_size or form.is_closed_size.value %}checked{% endif %}>
-              <label class="form-check-label fw-bold text-dark ms-1" for="id_is_closed_size">
-                <i class="fas fa-book-open text-primary me-1"></i>{% trans "المقاس المدخل مقفول بعد الطي (مطوي)" %}
+              <label class="form-check-label fw-bold text-dark mb-0 cursor-pointer" for="id_is_closed_size">
+                <i class="fas fa-book-open text-primary me-1"></i>{% trans "المقاس مقفول بعد الطي" %}
               </label>
             </div>
 
@@ -224,24 +233,28 @@
             </div>
           </div>
 
-          <div class="small text-muted" id="open_dimensions_indicator">
-            <i class="fas fa-ruler-horizontal text-secondary me-1"></i>
-            <span>{% trans "المقاس المفتوح على ماكينة الطباعة:" %}</span>
-            <strong class="text-primary fs-6 ms-1" id="open_dims_text">42 × 29.7 سم</strong>
+          <!-- الجانب الأيسر: كبسولة المقاس المفتوح كـ Badge تقني بارز -->
+          <div id="open_dimensions_indicator" class="d-flex align-items-center">
+            <span class="badge bg-white text-dark border shadow-sm px-3 py-2 d-inline-flex align-items-center gap-2">
+              <i class="fas fa-ruler-combined text-primary"></i>
+              <span class="text-muted fw-normal small">{% trans "المقاس المفتوح على ماكينة الطباعة:" %}</span>
+              <strong class="text-primary fs-6" id="open_dims_text">42 × 29.7 سم</strong>
+            </span>
           </div>
         </div>
       </div>
 
-      <!-- شارة مستشار تقليل هدر الورق الذكي -->
-      <div class="col-12 d-none" id="trim_advisor_alert">
-        <div class="alert alert-warning py-2 px-3 mb-0 d-flex align-items-center justify-content-between small">
-          <div>
-            <i class="fas fa-lightbulb text-warning fs-5 me-2"></i>
-            <strong>{% trans "مستشار توفير الهالك الذكي:" %}</strong>
-            <span id="trim_advisor_text">{% trans "المقاس الحالي يسبب هدر 22% من الفرخ. اقتراح تعديل 5 مم لزيادة عدد القطع." %}</span>
-          </div>
-          <button type="button" class="btn btn-sm btn-dark py-0" id="btn_apply_trim_suggestion">{% trans "تطبيق المقترح" %}</button>
+      <!-- زر التوجيه والانتقال للخطوة الثانية -->
+      <div class="col-12 mt-3 pt-3 border-top d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div class="text-muted small">
+          <span id="step1_technical_summary">
+            <i class="fas fa-check-circle text-success me-1"></i>{% trans "المعطيات الفنية محددة وجاهزة لتخصيص الخامات" %}
+          </span>
         </div>
+        <button type="button" class="btn btn-primary px-4 fw-bold shadow-sm" id="btn_proceed_to_step2">
+          <span>{% trans "المتابعة لمواصفات الطباعة والخامات" %}</span>
+          <i class="fas fa-chevron-down ms-2"></i>
+        </button>
       </div>
     </div>
   </div>

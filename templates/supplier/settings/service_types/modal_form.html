@@ -42,7 +42,7 @@
           <input type="text" name="code" id="st-code" class="form-control font-monospace" required
                  value="{{ form_data.code|default:'' }}"
                  placeholder="offset_printing"
-                 {% if service_type %}readonly style="background-color: var(--bg-soft-secondary, #f1f5f9); color: var(--text-muted, #64748b);"{% endif %}>
+                 {% if service_type %}readonly style="background-color: var(--bg-soft-secondary); color: var(--text-muted);"{% endif %}>
           {% if service_type %}
           <small class="text-muted d-block mt-1">{% trans "الرمز الفني فريد وثابت بعد الإنشاء لضمان تكامل الحسابات" %}</small>
           {% else %}
@@ -52,7 +52,7 @@
         </div>
 
         <!-- الفئة الصناعية -->
-        <div class="col-md-6">
+        <div class="col-md-4">
           <label class="form-label fw-semibold text-dark">
             {% trans "الفئة الصناعية والتشغيلية" %}
           </label>
@@ -63,10 +63,21 @@
           </select>
         </div>
 
-        <!-- الترتيب -->
+        <!-- صلاحية الأسعار (أيام) -->
         <div class="col-md-3">
           <label class="form-label fw-semibold text-dark">
-            {% trans "ترتيب العرض" %}
+            {% trans "صلاحية الأسعار (أيام)" %}
+          </label>
+          <input type="number" name="default_validity_days" class="form-control" min="1" max="365"
+                 value="{{ form_data.default_validity_days|default:'30' }}"
+                 placeholder="30">
+          <small class="text-muted d-block mt-1">{% trans "صلاحية عروض الموردين" %}</small>
+        </div>
+
+        <!-- الترتيب -->
+        <div class="col-md-2">
+          <label class="form-label fw-semibold text-dark">
+            {% trans "الترتيب" %}
           </label>
           <input type="number" name="order" class="form-control" min="0"
                  value="{{ form_data.order|default:'0' }}">

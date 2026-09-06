@@ -127,6 +127,7 @@ def service_type_create(request):
         icon      = request.POST.get('icon', 'fas fa-cog').strip()
         desc      = request.POST.get('description', '').strip()
         order     = int(request.POST.get('order', 0) or 0)
+        default_validity_days = int(request.POST.get('default_validity_days', 30) or 30)
         is_active = request.POST.get('is_active') == 'on'
 
         errors = {}
@@ -138,7 +139,9 @@ def service_type_create(request):
         if not errors:
             st = ServiceType.objects.create(
                 name=name, code=code, category=category,
-                icon=icon, description=desc, order=order, is_active=is_active,
+                icon=icon, description=desc, order=order,
+                default_validity_days=default_validity_days,
+                is_active=is_active,
             )
             if is_ajax:
                 return JsonResponse({
@@ -157,13 +160,14 @@ def service_type_create(request):
 
     # GET — إرجاع HTML المودال
     form_data = {
-        'name':        request.POST.get('name', ''),
-        'code':        request.POST.get('code', ''),
-        'category':    request.POST.get('category', 'general'),
-        'icon':        request.POST.get('icon', 'fas fa-cog'),
-        'description': request.POST.get('description', ''),
-        'order':       request.POST.get('order', '0'),
-        'is_active':   True,
+        'name':                  request.POST.get('name', ''),
+        'code':                  request.POST.get('code', ''),
+        'category':              request.POST.get('category', 'general'),
+        'icon':                  request.POST.get('icon', 'fas fa-cog'),
+        'description':           request.POST.get('description', ''),
+        'order':                 request.POST.get('order', '0'),
+        'default_validity_days': request.POST.get('default_validity_days', '30'),
+        'is_active':             True,
     }
     ctx = {
         'form_data':  form_data,
@@ -195,6 +199,7 @@ def service_type_edit(request, pk):
         icon      = request.POST.get('icon', 'fas fa-cog').strip()
         desc      = request.POST.get('description', '').strip()
         order     = int(request.POST.get('order', 0) or 0)
+        default_validity_days = int(request.POST.get('default_validity_days', 30) or 30)
         is_active = request.POST.get('is_active') == 'on'
 
         errors = {}
@@ -207,6 +212,7 @@ def service_type_edit(request, pk):
             st.name = name; st.code = code; st.category = category
             st.icon = icon; st.description = desc
             st.order = order; st.is_active = is_active
+            st.default_validity_days = default_validity_days
             st.save()
             if is_ajax:
                 return JsonResponse({'success': True, 'message': f'تم تحديث "{name}" بنجاح'})
@@ -221,13 +227,14 @@ def service_type_edit(request, pk):
     # GET — إرجاع HTML المودال
     ctx = {
         'form_data': {
-            'name':        st.name,
-            'code':        st.code,
-            'category':    st.category,
-            'icon':        st.icon,
-            'description': st.description,
-            'order':       st.order,
-            'is_active':   st.is_active,
+            'name':                  st.name,
+            'code':                  st.code,
+            'category':              st.category,
+            'icon':                  st.icon,
+            'description':           st.description,
+            'order':                 st.order,
+            'default_validity_days': st.default_validity_days or 30,
+            'is_active':             st.is_active,
         },
         'categories':  ServiceType.CATEGORY_CHOICES,
         'action_url':  reverse('supplier:service_type_edit', kwargs={'pk': pk}),

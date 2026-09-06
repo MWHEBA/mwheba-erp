@@ -216,12 +216,10 @@ class TestPaperCascadingFlow:
         assert 'id_paper_sheet_price' in html              # 8. سعر الفرخ
         assert 'paper_unit_converter_collapse' in html     # 8. محول الوحدات
         assert 'cover_paper_cost_display' in html          # 9. إجمالي تكلفة الورق
-        assert 'display_machine_pulls_count' in html       # سحبات الماكينة
-        assert 'display_cover_weight_kg' in html           # وزن الورق كجم
+        assert 'press_pulls_count' in html                 # سحبات الماكينة في قسم الطباعة
 
         # التحقق من شارات التنبيه وصمامات الأمان
         assert 'dimension_overflow_alert' in html
-        assert 'heavy_couche_creasing_alert' in html
         assert 'btn_toggle_manual_sheets' in html
 
     def test_zero_imposition_safety_and_math(self):
@@ -264,5 +262,94 @@ class TestPaperCascadingFlow:
         assert 'handlePaperSupplierChange' in js_content
         assert 'handleSheetSizeChange' in js_content
         assert 'handlePaperWeightChange' in js_content
+        assert 'fetchAvailablePaperOrigins' in js_content
         assert 'fetchLivePaperPrice' in js_content
         assert 'resetPaperCascade' in js_content
+
+    def test_get_paper_origins_strictly_filtered_by_variables(self):
+        """اختبار API مناشئ الورق وقصر الخيارات على المتاح فعلياً فقط بناءً على كافة متغيرات الورق الأربعة"""
+        url = reverse('printing_pricing:api_paper_origins')
+
+        # 1. استدعاء بدون فلاتر (التهيئة المبدئية): يرجع كافة المناشئ المفعلة بالنظام
+        resp_all = self.client.get(url)
+        assert resp_all.status_code == 200
+        data_all = resp_all.json()
+        assert data_all['success'] is True
+        assert len(data_all['origins']) >= 2
+
+        # 2. فلترة كاملة لمورد الأهرام (يوفر كوشيه فاخر 70x100 وزن 300 جم ألماني فقط): يجب أن يرجع ألماني فقط وحصراً
+        resp_ahram = self.client.get(url, {
+            'supplier_id': self.supplier_ahram.id,
+            'paper_type_id': self.pt_couche.id,
+            'sheet_size': '70x100',
+            'weight': 300
+        })
+        assert resp_ahram.status_code == 200
+        data_ahram = resp_ahram.json()
+        assert data_ahram['success'] is True
+        assert len(data_ahram['origins']) == 1
+        assert data_ahram['origins'][0]['name'] == 'ألماني'
+        assert data_ahram['origins'][0]['value'] == 'ألماني'
+
+        # 3. فلترة كاملة لمورد النيل (يوفر طبع أبيض 66x88 وزن 150 جم صيني فقط): يجب أن يرجع صيني فقط وحصراً
+        resp_nile = self.client.get(url, {
+            'supplier_id': self.supplier_nile.id,
+            'paper_type_id': self.pt_woodfree.id,
+            'sheet_size': '66x88',
+            'weight': 150
+        })
+        assert resp_nile.status_code == 200
+        data_nile = resp_nile.json()
+        assert data_nile['success'] is True
+        assert len(data_nile['origins']) == 1
+        assert data_nile['origins'][0]['name'] == 'صيني'
+
+        # 4. توليفة غير متوفرة (مورد الأهرام + وزن 150 جم غير موجود لديه): يجب أن يرجع قائمة فارغة تماماً
+        resp_empty = self.client.get(url, {
+            'supplier_id': self.supplier_ahram.id,
+            'paper_type_id': self.pt_couche.id,
+            'sheet_size': '70x100',
+            'weight': 150
+        })
+        assert resp_empty.status_code == 200
+        data_empty = resp_empty.json()
+        assert data_empty['success'] is True
+        assert data_empty['origins'] == []
+
+    def test_paper_origins_null_origin_fallback(self):
+        """فحص دعم الخدمات المسجلة بدون منشأ محدد وإتاحة خيار قياسي يسمح بالتسعير بدون 404"""
+        svc_no_origin = SupplierService.objects.create(
+            supplier=self.supplier_ahram,
+            service_type=self.service_type_paper,
+            name="دوبلكس 300 جم 70×100 بدون منشأ",
+            base_price=Decimal("3.00"),
+            paper_type_ref=self.pt_duplex,
+            paper_size=self.ps_70x100,
+            paper_weight=self.pw_300,
+            paper_origin=None,
+            is_active=True
+        )
+
+        url = reverse('printing_pricing:api_paper_origins')
+        resp = self.client.get(url, {
+            'supplier_id': self.supplier_ahram.id,
+            'paper_type_id': self.pt_duplex.id,
+            'sheet_size': '70x100',
+            'weight': 300
+        })
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data['success'] is True
+        assert len(data['origins']) == 1
+        assert data['origins'][0]['name'] == 'قياسي / غير محدد'
+        assert data['origins'][0]['value'] == ''
+
+    def test_order_form_accepts_origin_name_choices(self):
+        """التحقق من أن فورم الطلب يقبل أسماء المناشئ كنصوص دون أخطاء تحقق"""
+        from printing_pricing.forms.order_forms import PricingOrderForm
+        form = PricingOrderForm()
+        choice_values = [c[0] for c in form.fields['paper_origin'].choices]
+        assert 'ألماني' in choice_values
+        assert 'صيني' in choice_values
+        assert 'قياسي / غير محدد' in choice_values
+

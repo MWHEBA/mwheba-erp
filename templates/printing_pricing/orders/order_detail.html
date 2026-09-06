@@ -59,6 +59,44 @@
   <div class="row g-4">
     <!-- لوحة مركز الأرباح 360 درجة ومواصفات التشغيل -->
     <div class="col-12">
+      <!-- تنبيه بوابة صلاحية أسعار الموردين -->
+      {% if po_gating and not po_gating.is_gated_ready %}
+      <div class="alert alert-warning border border-warning-subtle shadow-sm mb-4" role="alert">
+        <div class="d-flex align-items-start gap-3">
+          <div class="fs-4 text-warning mt-1">
+            <i class="fas fa-exclamation-triangle"></i>
+          </div>
+          <div class="flex-grow-1">
+            <h6 class="fw-bold text-dark mb-1">
+              {% trans "تنبيه حوكمة الأسعار: بنود مسعرة بأسعار موردين متقادمة أو منتهية الصلاحية" %}
+            </h6>
+            <p class="text-muted small mb-2">
+              {% trans "تم رصد خدمات أو خامات مرتبطة بهذا الطلب تعتمد على عروض أسعار متقادمة. لن يُسمح بإصدار أوامر الشراء (Vendor POs) آلياً إلا بعد تحديث وتأكيد الأسعار أو الحصول على اعتماد إداري مع سبب التجاوز." %}
+            </p>
+            <div class="row g-2">
+              {% for svc in po_gating.stale_services %}
+              <div class="col-md-6 col-12">
+                <div class="p-2 bg-white rounded border d-flex justify-content-between align-items-center small">
+                  <div>
+                    <strong class="text-dark">{{ svc.name }}</strong>
+                    <span class="text-muted d-block" style="font-size: 0.75rem;">{{ svc.supplier }}</span>
+                  </div>
+                  <span class="badge bg-danger-subtle text-danger border border-danger-subtle">
+                    {% if svc.status == 'legacy_unconfirmed' %}
+                      {% trans "غير مؤكد" %}
+                    {% else %}
+                      {% trans "منتهي منذ" %} {{ svc.age_days }} {% trans "يوم" %}
+                    {% endif %}
+                  </span>
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
       <!-- 0. بطاقة المواصفات الفنية والهندسة الهجينة للطلب -->
       <div class="section-container mb-4">
         <h5 class="section-title text-primary mb-3">
@@ -90,7 +128,7 @@
                   {% if ps and ps.montage_count %}
                   <li class="mb-1">
                     <strong>{% trans "المونتاج على شيت الماكينة:" %}</strong> 
-                    <span class="badge bg-info-subtle text-dark border">{{ ps.montage_count }} {% trans "قطعة على مقاس القطع" %} ({{ ps.piece_size|default:"50×70" }})</span>
+                    <span class="badge bg-info-subtle text-dark border"><i class="fas fa-th-large text-primary me-1"></i>{{ ps.montage_count }} / {{ ps.piece_size|default:_("شيت الماكينة") }}</span>
                   </li>
                   {% endif %}
                 {% endwith %}
@@ -203,45 +241,93 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
   const orderId = "{{ order.pk }}";
+  const isGatedReady = '{% if po_gating and po_gating.is_gated_ready %}1{% else %}0{% endif %}' === '1';
+  const canOverrideGating = '{% if request.user.is_superuser or request.user.is_staff %}1{% else %}0{% endif %}' === '1';
 
   // تشغيل وتوليد أوامر الشغل للورش والموردين (Vendor POs)
   const btnConvertWorkOrder = document.getElementById('btn_convert_work_order');
   if (btnConvertWorkOrder) {
     btnConvertWorkOrder.addEventListener('click', function() {
-      btnConvertWorkOrder.disabled = true;
-      btnConvertWorkOrder.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> {% trans "جارٍ المعالجة..." %}';
+      const executeGenerate = function(overrideReason = '') {
+        btnConvertWorkOrder.disabled = true;
+        btnConvertWorkOrder.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> {% trans "جارٍ المعالجة..." %}';
 
-      fetch('/printing-pricing/api/generate-vendor-pos/' + orderId + '/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRFToken': '{{ csrf_token }}'
-        },
-        body: JSON.stringify({})
-      })
-      .then(function(res) { return res.json(); })
-      .then(function(data) {
-        btnConvertWorkOrder.disabled = false;
-        btnConvertWorkOrder.innerHTML = '<i class="fas fa-cogs me-1"></i> {% trans "بدء التشغيل وتوليد أمر الشغل (PO)" %}';
+        fetch("{% url 'printing_pricing:api_generate_vendor_pos' order.pk %}", {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+          },
+          body: JSON.stringify({ override_reason: overrideReason })
+        })
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+          btnConvertWorkOrder.disabled = false;
+          btnConvertWorkOrder.innerHTML = '<i class="fas fa-cogs me-1"></i> {% trans "بدء التشغيل وتوليد أمر الشغل (PO)" %}';
 
-        if (data.success) {
-          if (window.showNotification) {
-            window.showNotification(data.message || '{% trans "تم توليد أوامر الشغل بنجاح" %}', 'success');
+          if (data.success) {
+            if (window.showNotification) {
+              window.showNotification(data.message || '{% trans "تم توليد أوامر الشغل بنجاح" %}', 'success');
+            }
+            setTimeout(function() { location.reload(); }, 3100);
+          } else {
+            if (window.showNotification) {
+              window.showNotification(data.error || '{% trans "تعذر إصدار أوامر الشغل" %}', 'warning');
+            }
           }
-          setTimeout(function() { location.reload(); }, 3100);
-        } else {
+        })
+        .catch(function(err) {
+          btnConvertWorkOrder.disabled = false;
+          btnConvertWorkOrder.innerHTML = '<i class="fas fa-cogs me-1"></i> {% trans "بدء التشغيل وتوليد أمر الشغل (PO)" %}';
           if (window.showNotification) {
-            window.showNotification(data.error || '{% trans "تعذر إصدار أوامر الشغل" %}', 'warning');
+            window.showNotification('{% trans "حدث خطأ أثناء الاتصال بالخادم" %}', 'error');
           }
+        });
+      };
+
+      // إذا كانت الأسعار متقادمة
+      if (!isGatedReady) {
+        if (!canOverrideGating) {
+          if (typeof Swal !== 'undefined') {
+            Swal.fire({
+              title: '{% trans "بوابة حوكمة الأسعار مغلقة" %}',
+              text: '{% trans "لا يمكن إصدار أوامر الشراء للموردين لوجود خدمات أو خامات بأسعار منتهية الصلاحية. يرجى تجديد أسعار الموردين أولاً أو مراجعة المدير المالي." %}',
+              icon: 'warning',
+              confirmButtonText: '{% trans "حسناً" %}'
+            });
+          } else if (window.showNotification) {
+            window.showNotification('{% trans "لا يمكن إصدار أوامر الشراء لوجود أسعار منتهية الصلاحية" %}', 'error');
+          }
+          return;
         }
-      })
-      .catch(function(err) {
-        btnConvertWorkOrder.disabled = false;
-        btnConvertWorkOrder.innerHTML = '<i class="fas fa-cogs me-1"></i> {% trans "بدء التشغيل وتوليد أمر الشغل (PO)" %}';
-        if (window.showNotification) {
-          window.showNotification('{% trans "حدث خطأ أثناء الاتصال بالخادم" %}', 'error');
+
+        // المدير أو المسؤول: طلب سبب التجاوز
+        if (typeof Swal !== 'undefined') {
+          Swal.fire({
+            title: '{% trans "تجاوز بوابة حوكمة الأسعار" %}',
+            text: '{% trans "يحتوي الطلب على أسعار موردين منتهية الصلاحية. بصفتك مديراً، يمكنك اعتماد الإصدار الاستثنائي مع تدوين سبب التجاوز للتدقيق المالي:" %}',
+            input: 'textarea',
+            inputPlaceholder: '{% trans "اكتب سبب التجاوز الاستثنائي (مطلوب للتدقيق المالي)..." %}',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: '{% trans "اعتماد وتجاوز" %}',
+            cancelButtonText: '{% trans "إلغاء" %}',
+            inputValidator: (value) => {
+              if (!value || !value.trim()) {
+                return '{% trans "يجب كتابة سبب التجاوز للاستمرار" %}';
+              }
+            }
+          }).then((res) => {
+            if (res.isConfirmed && res.value) {
+              executeGenerate(res.value.trim());
+            }
+          });
+          return;
         }
-      });
+      }
+
+      // الحالة العادية: تنفيذ فوري
+      executeGenerate();
     });
   }
 });

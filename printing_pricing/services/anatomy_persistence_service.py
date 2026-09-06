@@ -342,14 +342,24 @@ class OrderAnatomyPersistenceService:
 
                 # بيانات المورد والمنشأ والألياف والرزم
                 paper_sup_id = post_data.get('paper_supplier')
+                origin_val = post_data.get('paper_origin') or ''
                 supplier_info_dict = {
-                    'origin': post_data.get('paper_origin') or 'ألماني',
+                    'origin': origin_val,
                     'source': paper_source,
                     'grain_direction': post_data.get('grain_direction', 'LG'),
                     'gross_sheets': int(gross_sheets),
                     'packs': float(gross_sheets / Decimal(str(sheets_per_pack))),
                     'sheets_per_pack': sheets_per_pack,
                 }
+                if origin_val:
+                    try:
+                        from printing_pricing.models import PaperOrigin
+                        po_match = PaperOrigin.objects.filter(models.Q(id=int(origin_val)) if str(origin_val).isdigit() else models.Q(name=origin_val)).first()
+                        if po_match:
+                            supplier_info_dict['origin_id'] = po_match.id
+                            supplier_info_dict['origin'] = po_match.name
+                    except Exception:
+                        pass
                 if paper_sup_id:
                     supplier_info_dict['supplier_id'] = paper_sup_id
 
@@ -372,6 +382,10 @@ class OrderAnatomyPersistenceService:
                 total_materials_cost += cover_paper_cost
 
                 # حفظ وتحديث مواصفات الورق الرسمية للغلاف PaperSpecification
+                piece_name = engine_res.get('montage', {}).get('piece_size_name') if engine_res.get('success') else None
+                if not piece_name or str(piece_name).lower() == 'custom':
+                    piece_name = post_data.get('piece_size') or 'custom'
+
                 PaperSpecification.objects.filter(order=order).delete()
                 PaperSpecification.objects.create(
                     order=order,
@@ -379,7 +393,7 @@ class OrderAnatomyPersistenceService:
                     paper_size_name=sheet_size_str,
                     sheet_width=sheet_w,
                     sheet_height=sheet_h,
-                    piece_size=post_data.get('piece_size') or 'custom',
+                    piece_size=piece_name,
                     paper_weight=int(paper_weight),
                     sheets_needed=int(gross_sheets),
                     montage_count=int(cuts_per_sheet),

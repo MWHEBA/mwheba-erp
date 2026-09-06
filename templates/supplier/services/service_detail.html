@@ -14,9 +14,9 @@
   {% csrf_token %}
   {% include "shared/page_header.html" %}
 
-  <!-- معلومات الخدمة والهيكل المالي -->
+  <!-- معلومات الخدمة والهيكل المالي والصلاحية -->
   <div class="row g-3 mb-4">
-    <div class="{% if service.set_price and service.set_price > 0 %}col-md-2 col-sm-6{% else %}col-md-3 col-sm-6{% endif %}">
+    <div class="col-md-2 col-sm-6">
       <div class="stats-card stats-card-primary">
         <div class="stats-card-body">
           <div class="stats-card-icon"><i class="{{ service.service_type.icon }}"></i></div>
@@ -26,13 +26,13 @@
         </div>
       </div>
     </div>
-    <div class="{% if service.set_price and service.set_price > 0 %}col-md-2 col-sm-6{% else %}col-md-3 col-sm-6{% endif %}">
+    <div class="col-md-2 col-sm-6">
       <div class="stats-card stats-card-success">
         <div class="stats-card-body">
           <div class="stats-card-icon"><i class="fas fa-tag"></i></div>
           <div class="stats-card-title">السعر الأساسي / التراج</div>
           <div class="stats-card-value">{{ service.base_price|smart_float }}</div>
-          <div class="stats-card-unit">{{ service.currency_symbol }}</div>
+          <div class="stats-card-unit">{{ service.currency_symbol }}{% if service.is_tax_inclusive %} (شامل الضريبة){% else %} (صافي){% endif %}</div>
         </div>
       </div>
     </div>
@@ -76,14 +76,57 @@
       </div>
     </div>
     <div class="col-md-2 col-sm-6">
-      <div class="stats-card stats-card-info">
+      <div class="stats-card {% if service.price_staleness_status == 'fresh' %}stats-card-success{% elif service.price_staleness_status == 'expiring_soon' %}stats-card-warning{% elif service.price_staleness_status == 'stale' %}stats-card-danger{% else %}stats-card-info{% endif %}">
         <div class="stats-card-body">
-          <div class="stats-card-icon"><i class="fas fa-layer-group"></i></div>
-          <div class="stats-card-title">الشرائح السعرية</div>
-          <div class="stats-card-value">{{ tiers|length }}</div>
-          <div class="stats-card-unit">شريحة</div>
+          <div class="stats-card-icon"><i class="fas fa-calendar-check"></i></div>
+          <div class="stats-card-title">صلاحية السعر</div>
+          <div class="stats-card-value" style="font-size: 1rem;">
+            {% if service.price_staleness_status == 'fresh' %}
+              <span class="text-success fw-bold">ساري ومحدث</span>
+            {% elif service.price_staleness_status == 'expiring_soon' %}
+              <span class="text-warning fw-bold">ينتهي قريباً</span>
+            {% elif service.price_staleness_status == 'stale' %}
+              <span class="text-danger fw-bold">منتهي / متقادم</span>
+            {% else %}
+              <span class="text-muted fw-bold">بانتظار التأكيد</span>
+            {% endif %}
+          </div>
+          <div class="stats-card-unit text-muted small">
+            {% if service.price_valid_until %}
+              حتى {{ service.price_valid_until|date:"Y-m-d" }}
+            {% else %}
+              منذ {{ service.price_age_days }} يوم
+            {% endif %}
+          </div>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- تنبيه تجديد الصلاحية وسعر الصرف -->
+  <div class="card border mb-4 p-3 bg-light d-flex flex-row justify-content-between align-items-center">
+    <div>
+      <h6 class="mb-1 fw-bold">
+        <i class="fas fa-clock me-2 text-primary"></i>حوكمة صلاحية التسعير والمصدر المعتمد
+      </h6>
+      <span class="text-muted small">
+        آخر تحديث للسعر: <strong>{{ service.price_updated_at|date:"Y-m-d H:i"|default:"—" }}</strong> 
+        (عمر السعر: {{ service.price_age_days }} يوماً)
+        {% if service.price_valid_until %} | تاريخ انتهاء السريان: <strong>{{ service.price_valid_until|date:"Y-m-d" }}</strong>{% endif %}
+        {% if service.is_foreign_currency %}
+          | العملة: <strong>{{ service.currency_code }}</strong>
+          {% if service.is_fx_rate_stale %}
+          <span class="badge bg-danger ms-2"><i class="fas fa-exclamation-triangle me-1"></i>سعر الصرف متقادم وفق IAS 21</span>
+          {% else %}
+          <span class="badge bg-success ms-2"><i class="fas fa-check me-1"></i>سعر الصرف محدث</span>
+          {% endif %}
+        {% endif %}
+      </span>
+    </div>
+    <div>
+      <button type="button" class="btn btn-outline-success btn-sm fw-bold" onclick="quickRenewPrice()">
+        <i class="fas fa-check-circle me-1"></i>تأكيد وتجديد سريان السعر اليوم
+      </button>
     </div>
   </div>
 
@@ -254,6 +297,86 @@
     </div>
   </div>
 
+  <!-- سجل تاريخ وتطور أسعار الخدمة -->
+  <div class="section-container mb-4" id="history-section">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h5 class="section-title mb-0"><i class="fas fa-history me-2 text-primary"></i>سجل تاريخ وتطور أسعار الخدمة</h5>
+      <span class="badge bg-light text-dark border">{{ price_histories|length }} حركة مسجلة</span>
+    </div>
+
+    {% if price_histories %}
+    <div class="table-responsive">
+      <table class="table table-hover table-bordered table-sm align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th style="width: 15%;">التاريخ والوقت</th>
+            <th style="width: 12%;">المستخدم</th>
+            <th style="width: 14%;">مصدر الحركة</th>
+            <th style="width: 11%; text-align: center;">السعر السابق</th>
+            <th style="width: 11%; text-align: center;">السعر الجديد</th>
+            <th style="width: 10%; text-align: center;">نسبة التغير</th>
+            <th style="width: 9%; text-align: center;">سعر الصرف</th>
+            <th style="width: 8%;">رقم الإثبات</th>
+            <th style="width: 10%;">ملاحظات</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for h in price_histories %}
+          <tr>
+            <td class="text-nowrap">
+              <i class="far fa-calendar-alt text-muted me-1"></i>{{ h.change_date|date:"Y-m-d H:i" }}
+            </td>
+            <td>
+              <span class="text-dark fw-bold">{{ h.changed_by.get_full_name|default:h.changed_by.username|default:"النظام الآلي" }}</span>
+            </td>
+            <td>
+              <span class="badge bg-light text-dark border">{{ h.get_change_source_display }}</span>
+            </td>
+            <td class="text-center">
+              {% if h.old_unit_price is not None %}
+                <span class="text-muted">{{ h.old_unit_price|smart_float }} {{ service.currency_symbol }}</span>
+              {% else %}
+                <span class="text-muted">—</span>
+              {% endif %}
+            </td>
+            <td class="text-center fw-bold text-success">
+              {{ h.new_unit_price|smart_float }} {{ service.currency_symbol }}
+            </td>
+            <td class="text-center">
+              {% if h.price_variance_percentage is not None %}
+                {% if h.price_variance_percentage > 0 %}
+                  <span class="badge bg-danger"><i class="fas fa-arrow-up me-1"></i>+{{ h.price_variance_percentage }}%</span>
+                {% elif h.price_variance_percentage < 0 %}
+                  <span class="badge bg-success"><i class="fas fa-arrow-down me-1"></i>{{ h.price_variance_percentage }}%</span>
+                {% else %}
+                  <span class="badge bg-secondary">0%</span>
+                {% endif %}
+              {% else %}
+                <span class="badge bg-light text-dark border">سعر أولي</span>
+              {% endif %}
+            </td>
+            <td class="text-center small">
+              {{ h.exchange_rate_at_change|floatformat:4 }}
+            </td>
+            <td class="small">
+              {{ h.quote_reference|default:"—" }}
+            </td>
+            <td class="small text-muted" title="{{ h.notes }}">
+              {{ h.notes|truncatewords:8|default:"—" }}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="text-center py-4 text-muted">
+      <i class="fas fa-history fa-2x mb-2 d-block"></i>
+      لا يوجد سجل تاريخي سابق للأسعار. سيتم توثيق كل حركة تغيير أو تجديد تلقائياً هنا.
+    </div>
+    {% endif %}
+  </div>
+
   {% if service.notes %}
   <div class="alert alert-info">
     <i class="fas fa-sticky-note me-2"></i><strong>ملاحظات:</strong> {{ service.notes }}
@@ -296,6 +419,52 @@ $(document).ready(function() {
         });
     }
 });
+
+function quickRenewPrice() {
+    Swal.fire({
+        title: 'تأكيد سريان السعر',
+        html: `
+            <div class="text-start">
+                <p>هل ترغب في تأكيد وتجديد سريان سعر الخدمة <strong>"{{ service.name }}"</strong> للمورد <strong>"{{ supplier.name }}"</strong> بتاريخ اليوم؟</p>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">فترة الصلاحية بالأيام:</label>
+                    <input type="number" id="swal_validity_days" class="form-control" value="{{ service.service_type.default_validity_days|default:30 }}" min="1">
+                </div>
+            </div>
+        `,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: 'var(--primary-color, #1976d2)',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: '<i class="fas fa-check me-1"></i>تأكيد وتجديد',
+        cancelButtonText: 'إلغاء'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            const days = document.getElementById('swal_validity_days').value || 30;
+            $.ajax({
+                url: "{% url 'supplier:supplier_service_quick_renew_price' pk=supplier.pk service_pk=service.pk %}",
+                method: "POST",
+                headers: { "X-CSRFToken": document.querySelector('[name=csrfmiddlewaretoken]').value },
+                data: { days: days, ajax: "1" },
+                success: function(resp) {
+                    if (resp.success) {
+                        if (typeof window.showNotification === 'function') {
+                            window.showNotification(resp.message, 'success');
+                        } else if (typeof toastr !== 'undefined') {
+                            toastr.success(resp.message);
+                        }
+                        setTimeout(() => location.reload(), 1200);
+                    } else {
+                        Swal.fire('خطأ', resp.error || 'تعذر تجديد السعر', 'error');
+                    }
+                },
+                error: function() {
+                    Swal.fire('خطأ', 'حدث خطأ في الاتصال بالخادم', 'error');
+                }
+            });
+        }
+    });
+}
 
 function deleteTier(tierId, rangeLabel) {
     Swal.fire({

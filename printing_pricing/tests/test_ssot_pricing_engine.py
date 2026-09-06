@@ -150,3 +150,158 @@ class TestSSOTPricingEngine:
         assert 'totals' in data
         assert data['currency'] == 'EGP'
         assert data['totals']['total_selling_price'] > 0
+
+    def test_06_montage_naming_and_formatting(self):
+        """
+        التحقق من اشتقاق مسمى مقاس القطع وصيغة المونتاج بسوق المطابع:
+        - 70×100 مع ربع -> ربع (مثلاً: 4 / ربع)
+        - 66×88 مع ربع -> ربع جاير (مثلاً: 4 / ربع جاير)
+        - 60×85 مع ربع -> ربع طبع جاير (مثلاً: 4 / ربع طبع جاير)
+        - 70×100 مع نصف -> نصف (مثلاً: 8 / نصف)
+        """
+        # 1. ربع عادي 70×100
+        res1 = PrintingCalculationEngine.calculate({
+            'quantity': 1000,
+            'width': 14.8,
+            'height': 21.0,
+            'sheet_size': '70x100',
+            'piece_size': '35x50',
+        })
+        assert res1['success'] is True
+        assert res1['montage']['piece_size_name'] == 'ربع'
+        assert res1['montage']['montage_text'] == f"{res1['montage']['cuts_per_sheet']} / ربع"
+
+        # 2. ربع جاير 66×88
+        res2 = PrintingCalculationEngine.calculate({
+            'quantity': 1000,
+            'width': 14.8,
+            'height': 21.0,
+            'sheet_size': '66x88',
+            'piece_size': 'quarter',
+        })
+        assert res2['success'] is True
+        assert res2['montage']['piece_size_name'] == 'ربع جاير'
+        assert res2['montage']['montage_text'] == f"{res2['montage']['cuts_per_sheet']} / ربع جاير"
+
+        # 3. ربع طبع جاير 60×85
+        res3 = PrintingCalculationEngine.calculate({
+            'quantity': 1000,
+            'width': 14.8,
+            'height': 21.0,
+            'sheet_size': '60x85',
+            'piece_size': 'quarter',
+        })
+        assert res3['success'] is True
+        assert res3['montage']['piece_size_name'] == 'ربع طبع جاير'
+        assert res3['montage']['montage_text'] == f"{res3['montage']['cuts_per_sheet']} / ربع طبع جاير"
+
+        # 4. نصف عادي 70×100
+        res4 = PrintingCalculationEngine.calculate({
+            'quantity': 1000,
+            'width': 14.8,
+            'height': 21.0,
+            'sheet_size': '70x100',
+            'piece_size': '50x70',
+        })
+        assert res4['success'] is True
+        assert res4['montage']['piece_size_name'] == 'نصف'
+        assert res4['montage']['montage_text'] == f"{res4['montage']['cuts_per_sheet']} / نصف"
+
+    def test_07_montage_ceiling_capping_and_manual_reduction(self):
+        """
+        التحقق من كبح السقف الهندسي والتعديل للأقل فقط:
+        - إذا كان السقف 4 وتم تمرير 2: يُعتمد 2 وتتضاعف أفرخ الورق المطلوبة.
+        - إذا تم تمرير 10 (أكبر من السقف 4): يُكبح فوراً إلى 4.
+        - إذا تم تمرير 0 أو سالب: يُحدد بـ 1 كحد أدنى.
+        """
+        base_params = {
+            'quantity': 1000,
+            'width': 14.8,
+            'height': 21.0,
+            'sheet_size': '66x88',
+            'piece_size': '35x50',  # ربع جاير -> السقف 4 قطع
+        }
+        # الحساب التلقائي بالسقف الأقصى
+        res_auto = PrintingCalculationEngine.calculate(base_params)
+        max_montage = res_auto['montage']['cuts_per_sheet']
+        assert max_montage == 4
+        assert res_auto['montage']['max_cuts_per_sheet'] == 4
+        assert res_auto['montage']['is_manual'] is False
+        assert res_auto['paper']['net_press_sheets'] == 250
+
+        # تقليل المونتاج يدوي إلى 2 (أقل من السقف)
+        params_reduced = dict(base_params)
+        params_reduced['montage_count'] = 2
+        res_reduced = PrintingCalculationEngine.calculate(params_reduced)
+        assert res_reduced['montage']['cuts_per_sheet'] == 2
+        assert res_reduced['montage']['max_cuts_per_sheet'] == 4
+        assert res_reduced['montage']['is_manual'] is True
+        assert res_reduced['montage']['montage_text'] == '2 / ربع جاير'
+        # مضاعفة الأفرخ الصافية: 1000 / 2 = 500
+        assert res_reduced['paper']['net_press_sheets'] == 500
+        assert res_reduced['montage']['parent_sheet_yield'] == 8  # 2 قطع × 4 قطعات للماكينة
+
+        # محاولة تجاوز السقف وتمرير 10
+        params_exceed = dict(base_params)
+        params_exceed['montage_count'] = 10
+        res_exceed = PrintingCalculationEngine.calculate(params_exceed)
+        assert res_exceed['montage']['cuts_per_sheet'] == 4  # كبح فوري عند السقف
+        assert res_exceed['montage']['is_manual'] is False
+
+        # محاولة تمرير صفر
+        params_zero = dict(base_params)
+        params_zero['montage_count'] = 0
+        res_zero = PrintingCalculationEngine.calculate(params_zero)
+        assert res_zero['montage']['cuts_per_sheet'] == 1  # حد أدنى 1
+
+    def test_08_montage_reduction_to_one_disallows_work_and_turn(self):
+        """
+        التحقق من صمام أمان الطبع والقلب (Work & Turn Guard):
+        عند تقليل المونتاج إلى 1، لا يمكن فيزيائياً الطبع والقلب، فيتم التحويل تلقائياً لسكتين.
+        """
+        params = {
+            'quantity': 1000,
+            'width': 14.8,
+            'height': 21.0,
+            'sheet_size': '70x100',
+            'piece_size': '35x50',
+            'print_sides_mode': 'work_turn',
+            'montage_count': 1,  # مونتاج قطعة واحدة
+        }
+        res = PrintingCalculationEngine.calculate(params)
+        assert res['montage']['cuts_per_sheet'] == 1
+        assert res['montage']['is_work_turn_allowed'] is False
+        # الزنكات = 8 كاملة (سكتين) بدلاً من 4 زنكات (طبع وقلب)
+        assert res['plates']['total_plates'] == 8
+
+    def test_09_piece_size_selection_directly_impacts_montage(self):
+        """
+        التحقق من أن تغيير مقاس القطع (piece_size) يؤثر مباشرة على المونتاج والمسمى:
+        - ربع فرخ 35×50 -> مونتاج 4 قطع A5 / ربع
+        - نصف فرخ 50×70 -> مونتاج 8 قطع A5 / نصف
+        - فرخ كامل 70×100 -> مونتاج 16 قطعة A5 / فرخ
+        """
+        base = {
+            'quantity': 1000,
+            'width': 14.8,
+            'height': 21.0,
+            'sheet_size': '70x100',
+        }
+
+        # 1. ربع فرخ
+        res_quarter = PrintingCalculationEngine.calculate(dict(base, piece_size='35x50'))
+        assert res_quarter['montage']['cuts_per_sheet'] == 4
+        assert res_quarter['montage']['piece_size_name'] == 'ربع'
+        assert res_quarter['montage']['montage_text'] == '4 / ربع'
+
+        # 2. نصف فرخ
+        res_half = PrintingCalculationEngine.calculate(dict(base, piece_size='50x70'))
+        assert res_half['montage']['cuts_per_sheet'] >= 8
+        assert res_half['montage']['piece_size_name'] == 'نصف'
+        assert 'نصف' in res_half['montage']['montage_text']
+
+        # 3. فرخ كامل
+        res_full = PrintingCalculationEngine.calculate(dict(base, piece_size='70x100'))
+        assert res_full['montage']['cuts_per_sheet'] >= 16
+        assert res_full['montage']['piece_size_name'] == 'فرخ'
+        assert 'فرخ' in res_full['montage']['montage_text']

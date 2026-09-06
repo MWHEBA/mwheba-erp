@@ -983,6 +983,11 @@ class ServiceType(models.Model):
     )
     is_active        = models.BooleanField(_("نشط"), default=True)
     order            = models.PositiveIntegerField(_("الترتيب"), default=0)
+    default_validity_days = models.PositiveIntegerField(
+        _("صلاحية السعر الافتراضية بالأيام"),
+        default=30,
+        help_text=_("الفترة الافتراضية لصلاحية أسعار هذا النوع من الخدمات بالأيام")
+    )
     created_at       = models.DateTimeField(_("تاريخ الإنشاء"), auto_now_add=True)
 
     class Meta:
@@ -1211,6 +1216,23 @@ class SupplierService(models.Model):
         help_text=_("القيم الفعلية حسب attribute_schema الخاص بنوع الخدمة")
     )
     is_active    = models.BooleanField(_("نشط"), default=True)
+    price_updated_at = models.DateTimeField(
+        _("تاريخ آخر تحديث للسعر"),
+        default=timezone.now,
+        db_index=True
+    )
+    price_valid_until = models.DateField(
+        _("تاريخ انتهاء الصلاحية"),
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text=_("تاريخ انتهاء سريان السعر المعطى من المورد")
+    )
+    is_tax_inclusive = models.BooleanField(
+        _("السعر شامل ضريبة القيمة المضافة"),
+        default=False,
+        help_text=_("هل هذا السعر يتضمن ضريبة القيمة المضافة (14%)؟")
+    )
     notes        = models.TextField(_("ملاحظات"), blank=True)
     created_at   = models.DateTimeField(_("تاريخ الإنشاء"), auto_now_add=True)
     updated_at   = models.DateTimeField(_("تاريخ التحديث"), auto_now=True)
@@ -1223,6 +1245,7 @@ class SupplierService(models.Model):
         indexes             = [
             models.Index(fields=['supplier', 'service_type']),
             models.Index(fields=['service_type', 'is_active']),
+            models.Index(fields=['service_type', 'is_active', 'price_valid_until']),
         ]
 
     def __str__(self):
@@ -1459,6 +1482,118 @@ class SupplierService(models.Model):
         curr = self.effective_currency
         return bool(curr and not getattr(curr, 'is_functional', False))
 
+    @property
+    def price_age_days(self) -> int:
+        """عدد الأيام منذ آخر تحديث لسعر الخدمة"""
+        if not self.price_updated_at:
+            return 0
+        delta = timezone.now().date() - self.price_updated_at.date()
+        return max(0, delta.days)
+
+    @property
+    def is_price_stale(self) -> bool:
+        """
+        هل السعر متقادم أو منتهي الصلاحية؟
+        يفحص أولاً تاريخ الصلاحية الصريح price_valid_until، 
+        ثم المدة الافتراضية لنوع الخدمة default_validity_days.
+        """
+        today = timezone.now().date()
+        if self.price_valid_until:
+            return self.price_valid_until < today
+
+        validity_days = 30
+        if self.service_type and getattr(self.service_type, 'default_validity_days', None):
+            validity_days = self.service_type.default_validity_days
+
+        if self.price_updated_at:
+            return (today - self.price_updated_at.date()).days > validity_days
+        return False
+
+    @property
+    def price_staleness_status(self) -> str:
+        """
+        حالة تقادم السعر:
+        - 'fresh': ساري ومحدث
+        - 'expiring_soon': ينتهي قريباً (خلال 7 أيام)
+        - 'stale': منتهي الصلاحية أو قديم
+        - 'legacy_unconfirmed': سعر تاريخي بانتظار التأكيد الأول
+        """
+        today = timezone.now().date()
+        if self.price_valid_until:
+            if self.price_valid_until < today:
+                return 'stale'
+            days_left = (self.price_valid_until - today).days
+            if days_left <= 7:
+                return 'expiring_soon'
+            return 'fresh'
+
+        validity_days = 30
+        if self.service_type and getattr(self.service_type, 'default_validity_days', None):
+            validity_days = self.service_type.default_validity_days
+
+        if not self.price_updated_at:
+            return 'legacy_unconfirmed'
+
+        age = (today - self.price_updated_at.date()).days
+        if age > validity_days:
+            return 'stale'
+        elif age >= max(1, validity_days - 7):
+            return 'expiring_soon'
+        return 'fresh'
+
+    @property
+    def is_fx_rate_stale(self) -> bool:
+        """فحص عمر سعر الصرف للعملات الأجنبية وفق معيار IAS 21 (قاعدة 7 أيام)"""
+        if not self.is_foreign_currency:
+            return False
+        curr = self.effective_currency
+        if not curr or not getattr(curr, 'code', None):
+            return False
+        from financial.models.currency import ExchangeRate
+        rate_obj = ExchangeRate.objects.filter(
+            from_currency__code=curr.code
+        ).order_by('-effective_date', '-created_at').first()
+        if rate_obj:
+            return (timezone.now().date() - rate_obj.effective_date).days > 7
+        return True
+
+    @property
+    def pricing_snapshot(self) -> dict:
+        """
+        لقطة شاملة ونقية لهيكل تسعير الوحدة الصافي والشرائح والعملة
+        لحفظها في سجل التاريخ ومنع أي تلاعب أو غموض
+        """
+        tiers_data = list(self.price_tiers.filter(is_active=True).values('min_quantity', 'max_quantity', 'price_per_unit'))
+        for t in tiers_data:
+            if 'price_per_unit' in t:
+                t['price_per_unit'] = str(t['price_per_unit'])
+
+        return {
+            'service_id': self.id,
+            'service_name': self.name,
+            'supplier_id': self.supplier_id,
+            'supplier_name': getattr(self.supplier, 'name', ''),
+            'service_type_code': getattr(self.service_type, 'code', ''),
+            'service_type_name': getattr(self.service_type, 'name', ''),
+            'pricing_formula': self.pricing_formula,
+            'base_price': str(self.base_price or '0.00'),
+            'set_price': str(self.set_price or '0.00') if self.set_price else None,
+            'set_included_tirages': self.set_included_tirages,
+            'setup_cost': str(self.setup_cost or '0.00'),
+            'minimum_charge': str(self.minimum_charge or '0.00'),
+            'price_per_ton': str(self.price_per_ton or '0.00') if self.price_per_ton else None,
+            'sheets_per_pack': self.sheets_per_pack,
+            'tooling_cost': str(self.tooling_cost or '0.00') if self.tooling_cost else None,
+            'price_per_click_bw': str(self.price_per_click_bw) if self.price_per_click_bw is not None else None,
+            'price_per_click_color': str(self.price_per_click_color) if self.price_per_click_color is not None else None,
+            'currency_code': self.currency_code,
+            'is_tax_inclusive': self.is_tax_inclusive,
+            'price_valid_until': self.price_valid_until.isoformat() if self.price_valid_until else None,
+            'price_updated_at': self.price_updated_at.isoformat() if self.price_updated_at else None,
+            'price_tiers': tiers_data,
+            'attributes': dict(self.attributes or {}),
+        }
+
 
 
 class ServicePriceTier(models.Model):
@@ -1503,6 +1638,220 @@ class ServicePriceTier(models.Model):
     def __str__(self):
         if self.max_quantity:
             return f"{self.service.name}: {self.min_quantity}–{self.max_quantity} → {self.price_per_unit}"
+        return f"{self.service.name}: {self.min_quantity}+ → {self.price_per_unit}"
+
+
+class ServicePriceHistory(models.Model):
+    """
+    سجل تتبع تطورات وتاريخ أسعار خدمات وخامات الموردين.
+    يوثق كل حركة تغيير لسعر الوحدة الصافي وهوية المستخدم ومصدر الحركة واللقطات السابقة والجديدة.
+    """
+    SOURCE_CHOICES = [
+        ('MANUAL', _('تعديل يدوي من صفحة الخدمة')),
+        ('QUICK_RENEW', _('تجديد سريع لسريان السعر')),
+        ('ORDER_FLOW', _('تحديث أثناء تسعير أمر شغل')),
+        ('BULK_PERCENTAGE', _('تحديث مجمع بنسبة مئوية')),
+        ('INITIAL', _('تسجيل السعر الأولي')),
+    ]
+
+    service = models.ForeignKey(
+        SupplierService,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='price_history',
+        verbose_name=_("الخدمة")
+    )
+    service_name = models.CharField(
+        _("اسم الخدمة وقت التغيير"),
+        max_length=255
+    )
+    supplier = models.ForeignKey(
+        Supplier,
+        on_delete=models.PROTECT,
+        related_name='service_price_history',
+        verbose_name=_("المورد")
+    )
+    supplier_name = models.CharField(
+        _("اسم المورد وقت التغيير"),
+        max_length=255
+    )
+    change_date = models.DateTimeField(
+        _("تاريخ ووقت التغيير"),
+        default=timezone.now,
+        db_index=True
+    )
+    changed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='service_price_changes',
+        verbose_name=_("المستخدم المسؤول")
+    )
+    change_source = models.CharField(
+        _("مصدر التغيير"),
+        max_length=30,
+        choices=SOURCE_CHOICES,
+        default='MANUAL'
+    )
+    quote_reference = models.CharField(
+        _("رقم عرض السعر المرجعي / الإثبات"),
+        max_length=150,
+        blank=True
+    )
+    currency = models.ForeignKey(
+        'financial.Currency',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='service_price_histories',
+        verbose_name=_("العملة")
+    )
+    exchange_rate_at_change = models.DecimalField(
+        _("سعر الصرف وقت التغيير"),
+        max_digits=12,
+        decimal_places=6,
+        default=Decimal('1.000000')
+    )
+    old_unit_price = models.DecimalField(
+        _("سعر الوحدة القديم"),
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True
+    )
+    new_unit_price = models.DecimalField(
+        _("سعر الوحدة الجديد"),
+        max_digits=12,
+        decimal_places=2
+    )
+    price_variance_percentage = models.DecimalField(
+        _("نسبة التغير السعري (%)"),
+        max_digits=7,
+        decimal_places=2,
+        null=True,
+        blank=True
+    )
+    old_snapshot = models.JSONField(
+        _("اللقطة الكاملة السابقة"),
+        default=dict,
+        blank=True
+    )
+    new_snapshot = models.JSONField(
+        _("اللقطة الكاملة الجديدة"),
+        default=dict
+    )
+    notes = models.TextField(
+        _("ملاحظات التغيير"),
+        blank=True
+    )
+
+    class Meta:
+        verbose_name = _("سجل تاريخ سعر الخدمة")
+        verbose_name_plural = _("سجلات تاريخ أسعار الخدمات")
+        ordering = ['-change_date']
+        db_table = 'supplier_service_price_history'
+        indexes = [
+            models.Index(fields=['service', '-change_date']),
+            models.Index(fields=['supplier', '-change_date']),
+            models.Index(fields=['change_source']),
+        ]
+
+    def __str__(self):
+        svc_name = self.service_name or (self.service.name if self.service else 'Unknown')
+        return f"{svc_name} @ {self.change_date.strftime('%Y-%m-%d %H:%M')}"
+
+    @property
+    def percentage_change(self):
+        """خاصية للتوافق مع استدعاءات percentage_change السابقة"""
+        return self.price_variance_percentage
+
+    @classmethod
+    def log_price_change(
+        cls,
+        service: SupplierService,
+        user=None,
+        source: str = 'MANUAL',
+        quote_reference: str = '',
+        notes: str = '',
+        old_snapshot: dict = None,
+        percentage_change: Decimal = None,
+        old_unit_price: Decimal = None,
+        new_unit_price: Decimal = None,
+        **kwargs
+    ):
+        """
+        دالة موحدة ومؤمنة لتوثيق حركة تغيير السعر في السجل.
+        """
+        if user is None and 'changed_by' in kwargs:
+            user = kwargs['changed_by']
+        if old_unit_price is None and 'old_price' in kwargs:
+            old_unit_price = kwargs['old_price']
+        if new_unit_price is None and 'new_price' in kwargs:
+            new_unit_price = kwargs['new_price']
+        if source == 'MANUAL' and 'change_source' in kwargs:
+            source = kwargs['change_source']
+
+        new_snap = service.pricing_snapshot
+        old_snap = old_snapshot or {}
+
+        # استنتاج سعر الوحدة الصافي الجديد
+        if new_unit_price is None:
+            if service.pricing_formula == 'PER_TON' and service.price_per_ton:
+                new_unit_price = service.price_per_ton
+            elif service.set_price and service.set_price > Decimal('0.00'):
+                new_unit_price = service.set_price
+            else:
+                new_unit_price = service.base_price or Decimal('0.00')
+
+        # استنتاج سعر الوحدة الصافي القديم من اللقطة السابقة إن لم يُمرر
+        if old_unit_price is None and old_snap:
+            try:
+                if old_snap.get('pricing_formula') == 'PER_TON' and old_snap.get('price_per_ton'):
+                    old_unit_price = Decimal(str(old_snap.get('price_per_ton')))
+                elif old_snap.get('set_price') and Decimal(str(old_snap.get('set_price'))) > Decimal('0.00'):
+                    old_unit_price = Decimal(str(old_snap.get('set_price')))
+                elif old_snap.get('base_price'):
+                    old_unit_price = Decimal(str(old_snap.get('base_price')))
+            except Exception:
+                old_unit_price = None
+
+        # حساب نسبة التغير السعري تلقائياً لو لم تُمرر
+        variance = percentage_change
+        if variance is None and old_unit_price and old_unit_price > Decimal('0.00'):
+            try:
+                variance = (((new_unit_price - old_unit_price) / old_unit_price) * Decimal('100.0')).quantize(Decimal('0.01'))
+            except Exception:
+                variance = None
+
+        rate = Decimal('1.000000')
+        curr = service.effective_currency
+        db_curr = curr if isinstance(curr, models.Model) else None
+        if curr and hasattr(curr, 'code'):
+            try:
+                from financial.services.exchange_rate_service import ExchangeRateService
+                rate = ExchangeRateService.get_exchange_rate(curr)
+            except Exception:
+                rate = Decimal('1.000000')
+
+        return cls.objects.create(
+            service=service,
+            service_name=service.name,
+            supplier=service.supplier,
+            supplier_name=getattr(service.supplier, 'name', ''),
+            changed_by=user if (user and getattr(user, 'is_authenticated', False)) else None,
+            change_source=source,
+            quote_reference=quote_reference,
+            currency=db_curr,
+            exchange_rate_at_change=rate,
+            old_unit_price=old_unit_price,
+            new_unit_price=new_unit_price,
+            price_variance_percentage=variance,
+            old_snapshot=old_snap,
+            new_snapshot=new_snap,
+            notes=notes
+        )
 
 class SupplierTransaction(models.Model):
     """

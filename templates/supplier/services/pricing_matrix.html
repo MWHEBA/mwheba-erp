@@ -214,6 +214,19 @@ document.addEventListener('DOMContentLoaded', function() {
       return;
     }
 
+    // 1.1 زر التأكيد والتجديد السريع للسعر
+    const renewBtn = e.target.closest('.btn-quick-renew');
+    if (renewBtn) {
+      e.preventDefault();
+      const serviceId = renewBtn.dataset.id;
+      const supplierId = renewBtn.dataset.supplierId;
+      const serviceName = renewBtn.dataset.name;
+      const supplierName = renewBtn.dataset.supplier;
+      const defaultDays = renewBtn.dataset.validityDays || 30;
+      openQuickRenewSweetAlert(serviceId, supplierId, serviceName, supplierName, defaultDays);
+      return;
+    }
+
     // 2. تحديد الكل
     const selectAllCb = e.target.closest('#select-all-checkbox');
     if (selectAllCb) {
@@ -432,6 +445,53 @@ function clearSelection() {
     cb.indeterminate = false;
   });
   updateToolbar();
+}
+
+function openQuickRenewSweetAlert(serviceId, supplierId, serviceName, supplierName, defaultDays) {
+  Swal.fire({
+    title: 'تأكيد سريان السعر',
+    html: `
+      <div class="text-start">
+        <p class="mb-2">هل ترغب في تأكيد وتجديد سريان سعر الخدمة <strong>"${serviceName}"</strong> للمورد <strong>"${supplierName}"</strong> بتاريخ اليوم؟</p>
+        <div class="mb-2">
+          <label class="form-label fw-bold">فترة الصلاحية بالأيام:</label>
+          <input type="number" id="swal_matrix_validity_days" class="form-control" value="${defaultDays}" min="1">
+        </div>
+      </div>
+    `,
+    icon: 'question',
+    showCancelButton: true,
+    confirmButtonColor: 'var(--primary-color, #1976d2)',
+    cancelButtonColor: '#6c757d',
+    confirmButtonText: '<i class="fas fa-check me-1"></i>تأكيد وتجديد السعر',
+    cancelButtonText: 'إلغاء'
+  }).then((result) => {
+    if (result.isConfirmed) {
+      const days = document.getElementById('swal_matrix_validity_days').value || defaultDays;
+      const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]') ? document.querySelector('[name=csrfmiddlewaretoken]').value : '';
+      $.ajax({
+        url: `/suppliers/${supplierId}/services/${serviceId}/quick-renew/`,
+        method: "POST",
+        headers: { "X-CSRFToken": csrfToken },
+        data: { days: days, ajax: "1" },
+        success: function(resp) {
+          if (resp.success) {
+            if (typeof window.showNotification === 'function') {
+              window.showNotification(resp.message, 'success');
+            } else if (typeof toastr !== 'undefined') {
+              toastr.success(resp.message);
+            }
+            doSearch(1, false);
+          } else {
+            Swal.fire('خطأ', resp.error || 'تعذر تجديد السعر', 'error');
+          }
+        },
+        error: function() {
+          Swal.fire('خطأ', 'حدث خطأ في الاتصال بالخادم', 'error');
+        }
+      });
+    }
+  });
 }
 
 function openQuickPriceModal(serviceId, fieldName, currentVal, serviceName, currency) {

@@ -20,6 +20,7 @@ from .views.api_views import (
     BulkPriceUpdateAPIView,
     GenerateVendorPOsAPIView,
     ApprovedOrdersAPIView,
+    SyncOrderUnitPricesAPIView,
 )
 
 # استيراد عروض الإعدادات
@@ -103,6 +104,7 @@ api_patterns = [
 
     # جسر المشتريات وتوليد أوامر الشغل للموردين
     path('generate-vendor-pos/<int:order_id>/', GenerateVendorPOsAPIView.as_view(), name='api_generate_vendor_pos'),
+    path('sync-order-unit-prices/', SyncOrderUnitPricesAPIView.as_view(), name='api_sync_order_unit_prices'),
 ]
 
 # URLs للإعدادات

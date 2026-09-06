@@ -680,7 +680,7 @@
           
           <!-- بطاقات الإحصائيات الفنية (KPIs) لأسطول خدمات المورد - Rule 7 Compliant -->
           <div class="row g-3 mb-4">
-            <div class="col-md-3">
+            <div class="col-xl col-md-4 col-sm-6">
               <div class="stats-card stats-card-primary">
                 <div class="stats-card-header"></div>
                 <div class="stats-card-body">
@@ -691,7 +691,7 @@
                 </div>
               </div>
             </div>
-            <div class="col-md-3">
+            <div class="col-xl col-md-4 col-sm-6">
               <div class="stats-card stats-card-info">
                 <div class="stats-card-header"></div>
                 <div class="stats-card-body">
@@ -702,7 +702,7 @@
                 </div>
               </div>
             </div>
-            <div class="col-md-3">
+            <div class="col-xl col-md-4 col-sm-6">
               <div class="stats-card stats-card-success">
                 <div class="stats-card-header"></div>
                 <div class="stats-card-body">
@@ -713,7 +713,7 @@
                 </div>
               </div>
             </div>
-            <div class="col-md-3">
+            <div class="col-xl col-md-6 col-sm-6">
               <div class="stats-card stats-card-warning">
                 <div class="stats-card-header"></div>
                 <div class="stats-card-body">
@@ -721,6 +721,17 @@
                   <div class="stats-card-title">خدمات بشرائح كميات</div>
                   <div class="stats-card-value">{{ services_kpis.tiered_services_count|default:"0" }}</div>
                   <div class="stats-card-unit">خدمة بشرائح</div>
+                </div>
+              </div>
+            </div>
+            <div class="col-xl col-md-6 col-sm-6">
+              <div class="stats-card stats-card-danger">
+                <div class="stats-card-header"></div>
+                <div class="stats-card-body">
+                  <div class="stats-card-icon"><i class="fas fa-exclamation-triangle"></i></div>
+                  <div class="stats-card-title">أسعار منتهية ومتقادمة</div>
+                  <div class="stats-card-value">{{ services_kpis.stale_services_count|default:"0" }}</div>
+                  <div class="stats-card-unit">تحتاج تجديد فوري</div>
                 </div>
               </div>
             </div>
@@ -2255,6 +2266,96 @@
             }
           });
         });
+      });
+
+      // 6. معالجة التأكيد والتجديد السريع لصلاحية سعر الخدمة (Quick Renew)
+      document.addEventListener('click', function (e) {
+        const renewBtn = e.target.closest('.btn-quick-renew');
+        if (renewBtn) {
+          e.preventDefault();
+          e.stopPropagation();
+          const serviceId = renewBtn.dataset.id;
+          const supplierId = renewBtn.dataset.supplierId;
+          const serviceName = renewBtn.dataset.name;
+          const supplierName = renewBtn.dataset.supplier;
+          const defaultDays = renewBtn.dataset.validityDays || 30;
+
+          if (typeof Swal !== 'undefined') {
+            Swal.fire({
+              title: 'تأكيد سريان السعر',
+              html: `
+                <div class="text-start">
+                  <p class="mb-2">هل ترغب في تأكيد وتجديد سريان سعر الخدمة <strong>"${serviceName}"</strong> للمورد <strong>"${supplierName}"</strong> بتاريخ اليوم؟</p>
+                  <div class="mb-2">
+                    <label class="form-label fw-bold">فترة الصلاحية بالأيام:</label>
+                    <input type="number" id="swal_detail_validity_days" class="form-control" value="${defaultDays}" min="1">
+                  </div>
+                </div>
+              `,
+              icon: 'question',
+              showCancelButton: true,
+              confirmButtonColor: 'var(--primary-color)',
+              cancelButtonColor: 'var(--secondary-color)',
+              confirmButtonText: '<i class="fas fa-check me-1"></i>تأكيد وتجديد السعر',
+              cancelButtonText: 'إلغاء'
+            }).then((result) => {
+              if (result.isConfirmed) {
+                const days = document.getElementById('swal_detail_validity_days').value || defaultDays;
+                const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]') ? document.querySelector('[name=csrfmiddlewaretoken]').value : '';
+                fetch(`/suppliers/${supplierId}/services/${serviceId}/quick-renew/`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest'
+                  },
+                  body: `days=${encodeURIComponent(days)}&ajax=1`
+                })
+                .then(res => res.json())
+                .then(data => {
+                  if (data.success) {
+                    if (window.showNotification) {
+                      window.showNotification(data.message, 'success', 'نجاح');
+                    } else if (window.showToastr) {
+                      window.showToastr(data.message, 'success');
+                    }
+                    setTimeout(function () {
+                      window.location.hash = '#services-tab-pane';
+                      window.location.reload();
+                    }, 1200);
+                  } else {
+                    alert(data.message || 'حدث خطأ أثناء تجديد السعر');
+                  }
+                })
+                .catch(err => {
+                  alert('خطأ في الاتصال بالخادم: ' + err);
+                });
+              }
+            });
+          } else {
+            if (confirm(`هل ترغب في تأكيد وتجديد سريان سعر "${serviceName}"؟`)) {
+              const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]') ? document.querySelector('[name=csrfmiddlewaretoken]').value : '';
+              fetch(`/suppliers/${supplierId}/services/${serviceId}/quick-renew/`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/x-www-form-urlencoded',
+                  'X-CSRFToken': csrfToken,
+                  'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: `days=${encodeURIComponent(defaultDays)}&ajax=1`
+              })
+              .then(res => res.json())
+              .then(data => {
+                if (data.success) {
+                  window.location.hash = '#services-tab-pane';
+                  window.location.reload();
+                } else {
+                  alert(data.message || 'حدث خطأ');
+                }
+              });
+            }
+          }
+        }
       });
     });
   </script>

@@ -510,10 +510,36 @@
 
         <!-- هيكل الأسعار الصناعي والشروط المالية -->
         <div class="section-container mb-4">
-          <h5 class="section-title"><i class="fas fa-money-bill-wave me-2"></i>هيكل التسعير الصناعي والعملة</h5>
+          <h5 class="section-title"><i class="fas fa-money-bill-wave me-2"></i>هيكل التسعير الصناعي والعملة وصلاحية الأسعار</h5>
           
+          {% if service %}
+          <div class="alert alert-light border d-flex justify-content-between align-items-center mb-3 p-3">
+            <div>
+              <span class="text-muted small d-block mb-1">حالة سريان السعر الحالية:</span>
+              {% if service.price_staleness_status == 'fresh' %}
+                <span class="badge bg-success fs-6"><i class="fas fa-check-circle me-1"></i>سعر ساري ومحدث</span>
+              {% elif service.price_staleness_status == 'expiring_soon' %}
+                <span class="badge bg-warning text-dark fs-6"><i class="fas fa-clock me-1"></i>ينتهي سريانه قريباً</span>
+              {% elif service.price_staleness_status == 'stale' %}
+                <span class="badge bg-danger fs-6"><i class="fas fa-exclamation-triangle me-1"></i>سعر متقادم أو منتهي الصلاحية</span>
+              {% else %}
+                <span class="badge bg-secondary fs-6"><i class="fas fa-history me-1"></i>سعر تاريخي بانتظار التأكيد</span>
+              {% endif %}
+              <span class="ms-3 text-muted small">آخر تحديث للسعر: <strong>{{ service.price_updated_at|date:"Y-m-d H:i"|default:"—" }}</strong> (منذ {{ service.price_age_days }} يوم)</span>
+              {% if service.is_fx_rate_stale %}
+              <span class="badge bg-warning text-dark ms-2"><i class="fas fa-coins me-1"></i>سعر صرف العملة الأجنبية متقادم وفق IAS 21</span>
+              {% endif %}
+            </div>
+            <div>
+              <a href="{% url 'supplier:supplier_service_detail' pk=supplier.pk service_pk=service.pk %}" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-history me-1"></i>عرض سجل الأسعار
+              </a>
+            </div>
+          </div>
+          {% endif %}
+
           <div class="row g-3 mb-3">
-            <div class="col-md-6">
+            <div class="col-md-4">
               <label class="form-label fw-bold">عملة الخدمة والتسعير <span class="text-danger">*</span></label>
               <select name="currency_id" id="service_currency_select" class="form-select fw-bold">
                 {% for curr in currencies %}
@@ -523,7 +549,37 @@
                 </option>
                 {% endfor %}
               </select>
-              <div class="form-text small">العملة التي يتقاضاها المورد لهذه الخدمة (يتم تحويلها آلياً حسب معيار IAS 21 لأوامر الإنتاج والمشتريات).</div>
+              <div class="form-text small">العملة التي يتقاضاها المورد للخدمة (IAS 21).</div>
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label fw-bold">تاريخ انتهاء سريان السعر</label>
+              <input type="date" name="price_valid_until" id="price_valid_until" class="form-control"
+                     value="{{ form_data.price_valid_until|default:'' }}">
+              <div class="form-text small">اتركه فارغاً للاعتماد على الصلاحية الافتراضية لنوع الخدمة ({{ service.service_type.default_validity_days|default:30 }} يوماً).</div>
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label fw-bold">رقم عرض السعر المرجعي / الإثبات</label>
+              <input type="text" name="quote_reference" id="quote_reference" class="form-control"
+                     placeholder="مثال: QUO-2026-089"
+                     value="{{ form_data.quote_reference|default:'' }}">
+              <div class="form-text small">كود أو رقم عرض سعر المورد لتوثيق مصدر التسعير في سجل التاريخ.</div>
+            </div>
+          </div>
+
+          <div class="row g-3 mb-3">
+            <div class="col-12">
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" name="is_tax_inclusive" id="is_tax_inclusive"
+                       {% if form_data.is_tax_inclusive %}checked{% endif %}>
+                <label class="form-check-label fw-bold" for="is_tax_inclusive">
+                  السعر شامل ضريبة القيمة المضافة (14%)
+                </label>
+                <div class="form-text small text-muted">
+                  إذا تم تفعيل هذا الخيار، سيتم تسجيل أن السعر شامل الضريبة ويقوم النظام بمعالجته بدقة أثناء حساب تكاليف أوامر الشغل.
+                </div>
+              </div>
             </div>
           </div>
 

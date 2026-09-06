@@ -432,29 +432,31 @@ class GetPressesAPIView(BaseAPIView):
                         h = int(svc.plate_size.height) if svc.plate_size.height == int(svc.plate_size.height) else float(svc.plate_size.height)
                         sheet_size = f"{w}x{h}"
                     
+                    def _normalize_bed(val, name):
+                        combined = f"{val or ''} {name or ''}".lower()
+                        if any(k in combined for k in ['100', '102', '103', '79x103', 'فرخ كامل']):
+                            return '70x100'
+                        if any(k in combined for k in ['70', '74', '60.5x74.5', 'نصف فرخ', 'نص فرخ']):
+                            return '50x70'
+                        if any(k in combined for k in ['50', '52', '35', '45.9x52.5', 'ربع فرخ']):
+                            return '35x50'
+                        return '50x70'
+
+                    std_bed_size = _normalize_bed(sheet_size, svc.name)
                     if not sheet_size:
-                        sheet_size = attrs.get('sheet_size') or attrs.get('plate_size')
-                    
-                    if not sheet_size:
-                        if '100' in svc.name or 'فرخ كامل' in svc.name:
-                            sheet_size = '70x100'
-                        elif '70' in svc.name or 'نصف فرخ' in svc.name:
-                            sheet_size = '50x70'
-                        elif '50' in svc.name or 'ربع فرخ' in svc.name:
-                            sheet_size = '35x50'
-                        else:
-                            sheet_size = '50x70'
+                        sheet_size = std_bed_size
 
                     max_colors = int(attrs.get('max_colors') or (4 if '4' in svc.name else 2))
-                    setup_cost = float(svc.setup_cost) if svc.setup_cost else (200.0 if svc_type == 'offset' else 30.0)
-                    price_bw = float(attrs.get('price_per_page_bw') or 0.80)
-                    price_color = float(attrs.get('price_per_page_color') or (price if price > 0 else 2.50))
+                    setup_cost = float(svc.setup_cost) if svc.setup_cost else 0.0
+                    price_bw = float(attrs.get('price_per_page_bw') or (0.0 if svc_type == 'digital' else 0.0))
+                    price_color = float(attrs.get('price_per_page_color') or (price if price > 0 else 0.0))
 
                     presses.append({
                         'id':                   f'{svc_type}_{svc.id}',
                         'name':                 svc.name,
                         'type':                 svc_type,
                         'bed_size':             sheet_size,
+                        'standard_bed_size':    std_bed_size,
                         'sheet_size':           sheet_size,
                         'max_colors':           max_colors,
                         'price_per_1000':       price,
@@ -549,21 +551,21 @@ class GetPaperSuppliersAPIView(BaseAPIView):
                 is_active=True,
                 services__service_type__code='paper',
                 services__is_active=True
-            ).distinct().order_by('name')
+            ).distinct().order_by('-is_preferred', 'name')
             
             if not paper_suppliers.exists():
                 paper_suppliers = Supplier.objects.filter(
                     is_active=True,
                     is_pricing_supplier=True,
                     provided_services__code='paper'
-                ).distinct().order_by('name')
+                ).distinct().order_by('-is_preferred', 'name')
                 if not paper_suppliers.exists():
                     paper_suppliers = Supplier.objects.filter(
                         is_active=True,
                         is_pricing_supplier=True
-                    ).distinct().order_by('name')
+                    ).distinct().order_by('-is_preferred', 'name')
                 if not paper_suppliers.exists():
-                    paper_suppliers = Supplier.objects.filter(is_active=True).order_by('name')
+                    paper_suppliers = Supplier.objects.filter(is_active=True).order_by('-is_preferred', 'name')
 
             paper_type_name = ''
             if paper_type_id:
@@ -588,8 +590,7 @@ class GetPaperSuppliersAPIView(BaseAPIView):
                         if paper_type_id and str(paper_type_id).isdigit() and getattr(svc, 'paper_type_ref_id', None) == int(paper_type_id):
                             has_type = True
                             break
-                        attrs = svc.attributes if isinstance(svc.attributes, dict) else {}
-                        pt = attrs.get('paper_type', '')
+                        pt = getattr(svc, 'paper_type_ref', None) or svc.attributes.get('paper_type')
                         if pt and (paper_type_name.lower() in str(pt).lower() or str(pt).lower() in paper_type_name.lower()):
                             has_type = True
                             break
@@ -604,11 +605,11 @@ class GetPaperSuppliersAPIView(BaseAPIView):
                     'contact_info': getattr(s, 'contact_person', '') or '',
                     'phone': getattr(s, 'phone', '') or '',
                     'email': getattr(s, 'email', '') or '',
+                    'is_preferred': getattr(s, 'is_preferred', False),
                     'is_available_for_paper': is_available,
                 })
 
-            if paper_type_name:
-                suppliers_data.sort(key=lambda x: (not x['is_available_for_paper'], x['name']))
+            suppliers_data.sort(key=lambda x: (not x['is_available_for_paper'], not x.get('is_preferred', False), x['name']))
 
             return JsonResponse({
                 'success': True,
@@ -633,13 +634,18 @@ class GetPaperWeightsAPIView(BaseAPIView):
 
             all_weights = PaperWeight.objects.filter(is_active=True).order_by('gsm')
 
+            def _format_weight_display(w):
+                if w.name and "جم" not in w.name and "جرام" not in w.name and w.name != str(w.gsm):
+                    return f"{w.gsm} جم ({w.name})"
+                return f"{w.gsm} جم"
+
             if not paper_type_id and not supplier_id:
                 weights_data = [{
                     'id': w.id,
                     'value': str(w.gsm),
                     'gsm': w.gsm,
                     'name': w.name,
-                    'display_name': f"{w.name} ({w.gsm} جم)",
+                    'display_name': _format_weight_display(w),
                     'sheets_per_pack': w.sheets_per_pack,
                     'is_default': w.is_default,
                 } for w in all_weights]
@@ -691,7 +697,7 @@ class GetPaperWeightsAPIView(BaseAPIView):
                 'value': str(w.gsm),
                 'gsm': w.gsm,
                 'name': w.name,
-                'display_name': f"{w.name} ({w.gsm} جم)",
+                'display_name': _format_weight_display(w),
                 'sheets_per_pack': w.sheets_per_pack,
                 'is_default': w.is_default,
                 'is_available_with_supplier': w.gsm in available_gsms if available_gsms else True
@@ -811,71 +817,160 @@ class GetPaperSheetTypesAPIView(BaseAPIView):
 
 class GetPaperOriginsAPIView(BaseAPIView):
     """
-    API لجلب منشأ الورق — يستخدم SupplierService.attributes
+    API لجلب بلاد المنشأ المتاحة فقط بناءً على كافة متغيرات الورق
+    (المورد، نوع الورق، مقاس الفرخ، الجراماج)
     """
     
     def get(self, request):
         try:
-            paper_type_id = request.GET.get('paper_type_id')
             supplier_id   = request.GET.get('supplier_id')
-            sheet_type    = request.GET.get('sheet_type')
-            weight        = request.GET.get('weight')
+            paper_type_id = request.GET.get('paper_type_id')
+            sheet_size    = request.GET.get('sheet_size') or request.GET.get('sheet_type')
+            weight        = request.GET.get('weight') or request.GET.get('gsm')
+            paper_source  = request.GET.get('paper_source')
 
-            if not paper_type_id or not supplier_id:
-                return JsonResponse({'success': False, 'error': 'معرف نوع الورق والمورد مطلوبان',
-                                     'missing_params': [p for p in ['paper_type_id', 'supplier_id'] if not request.GET.get(p)]}, status=400)
+            all_origins = PaperOrigin.objects.filter(is_active=True).order_by('sort_order', 'name')
+            origins_by_name = {o.name.strip().lower(): o for o in all_origins}
 
+            # 1. إذا كان مصدر الورق من المخزن أو توريد عميل، أو لم يتم إدخال أي متغيرات (التهيئة المبدئية)
+            if paper_source in ['warehouse', 'customer_supplied'] or (not supplier_id and not paper_type_id and not sheet_size and not weight):
+                origins_data = [{
+                    'id': o.id,
+                    'name': o.name,
+                    'display_name': o.name,
+                    'code': o.code or '',
+                    'value': o.name,
+                } for o in all_origins]
+                return JsonResponse({
+                    'success': True,
+                    'origins': origins_data,
+                    'total_count': len(origins_data)
+                })
+
+            if not HAS_SUPPLIER_SERVICES:
+                origins_data = [{
+                    'id': o.id,
+                    'name': o.name,
+                    'display_name': o.name,
+                    'code': o.code or '',
+                    'value': o.name,
+                } for o in all_origins]
+                return JsonResponse({'success': True, 'origins': origins_data, 'total_count': len(origins_data)})
+
+            # استنتاج اسم نوع الورق إن وجد
             paper_type_name = ''
-            try:
-                pt_obj = PaperType.objects.filter(id=int(paper_type_id)).first()
-                if pt_obj:
-                    paper_type_name = pt_obj.name
-            except (ValueError, TypeError):
-                paper_type_name = str(paper_type_id)
+            if paper_type_id:
+                try:
+                    pt_obj = PaperType.objects.filter(id=int(paper_type_id)).first()
+                    if pt_obj:
+                        paper_type_name = pt_obj.name
+                except (ValueError, TypeError):
+                    paper_type_name = str(paper_type_id)
 
-            if HAS_SUPPLIER_SERVICES:
-                if not paper_type_name:
-                    all_types = sorted(set(
-                        s.get('paper_type') for s in SupplierServiceModel.objects.filter(
-                            service_type__code='paper', is_active=True
-                        ).values_list('attributes', flat=True)
-                        if isinstance(s, dict) and s.get('paper_type')
-                    ))
-                    try:
-                        paper_type_name = all_types[int(paper_type_id) - 1]
-                    except (IndexError, ValueError):
-                        return JsonResponse({'success': False, 'error': 'نوع الورق غير موجود'}, status=404)
+            qs = SupplierServiceModel.objects.filter(
+                service_type__code='paper', is_active=True
+            ).select_related('paper_origin', 'paper_type_ref', 'paper_size', 'paper_weight')
 
-                qs = SupplierServiceModel.objects.filter(
-                    service_type__code='paper', supplier_id=supplier_id, is_active=True
-                )
-                origins = set()
-                for svc in qs:
-                    attrs = svc.attributes if isinstance(svc.attributes, dict) else {}
-                    pt = str(attrs.get('paper_type', ''))
-                    if paper_type_name and not (paper_type_name.lower() in pt.lower() or pt.lower() in paper_type_name.lower()):
+            if supplier_id:
+                qs = qs.filter(supplier_id=supplier_id)
+
+            available_origins_dict = {}
+            has_null_origin_service = False
+
+            for svc in qs:
+                attrs = svc.attributes if isinstance(svc.attributes, dict) else {}
+
+                # 1. مطابقة نوع الورق
+                if paper_type_id or paper_type_name:
+                    is_type_match = False
+                    if paper_type_id and str(paper_type_id).isdigit() and getattr(svc, 'paper_type_ref_id', None) == int(paper_type_id):
+                        is_type_match = True
+                    elif paper_type_name:
+                        pt_attr = str(attrs.get('paper_type', ''))
+                        svc_title = svc.name or ''
+                        p_lower = paper_type_name.lower()
+                        if (p_lower in pt_attr.lower() or pt_attr.lower() in p_lower or p_lower in svc_title.lower()):
+                            is_type_match = True
+                    if not is_type_match:
                         continue
-                    if sheet_type:
-                        svc_sheet = str(attrs.get('sheet_size', ''))
-                        if sheet_type not in svc_sheet and svc_sheet not in sheet_type:
-                            import re
-                            req_dims = set(re.findall(r'\d+', sheet_type))
-                            svc_dims = set(re.findall(r'\d+', svc_sheet))
-                            if req_dims and svc_dims and not (req_dims & svc_dims):
-                                continue
-                    if weight and str(attrs.get('gsm', '')) != str(weight):
+
+                # 2. مطابقة مقاس الفرخ
+                if sheet_size:
+                    svc_sheet = str(attrs.get('sheet_size', ''))
+                    if not svc_sheet and getattr(svc, 'paper_size', None):
+                        w_p = int(svc.paper_size.width) if svc.paper_size.width == int(svc.paper_size.width) else float(svc.paper_size.width)
+                        h_p = int(svc.paper_size.height) if svc.paper_size.height == int(svc.paper_size.height) else float(svc.paper_size.height)
+                        svc_sheet = f"{w_p}x{h_p}"
+                    if sheet_size not in svc_sheet and svc_sheet not in sheet_size:
+                        import re
+                        req_dims = set(re.findall(r'\d+', sheet_size))
+                        svc_dims = set(re.findall(r'\d+', svc_sheet))
+                        if req_dims and svc_dims and not (req_dims & svc_dims):
+                            continue
+
+                # 3. مطابقة الجراماج / الوزن
+                if weight:
+                    svc_gsm = None
+                    if getattr(svc, 'paper_weight', None) and svc.paper_weight.gsm:
+                        svc_gsm = str(svc.paper_weight.gsm)
+                    elif getattr(svc, 'gsm', None):
+                        svc_gsm = str(svc.gsm)
+                    elif 'gsm' in attrs:
+                        svc_gsm = str(attrs.get('gsm', ''))
+
+                    if svc_gsm and str(svc_gsm).strip() != str(weight).strip():
                         continue
-                    origin = attrs.get('origin')
-                    if origin:
-                        origins.add(origin)
 
-                origins_data = [{'origin': o, 'display_name': o, 'code': o, 'name': o} for o in sorted(origins)]
-                return JsonResponse({'success': True, 'origins': origins_data,
-                                     'paper_type': {'id': paper_type_id, 'name': paper_type_name},
-                                     'supplier': {'id': supplier_id, 'name': 'المورد المحدد'},
-                                     'total_count': len(origins_data)})
+                # 4. استخراج المنشأ
+                origin_obj = getattr(svc, 'paper_origin', None)
+                origin_name = ''
+                origin_code = ''
+                origin_id = None
 
-            return JsonResponse({'success': True, 'origins': [], 'total_count': 0})
+                if origin_obj:
+                    origin_name = origin_obj.name.strip()
+                    origin_code = origin_obj.code or ''
+                    origin_id = origin_obj.id
+                elif attrs.get('origin'):
+                    raw_origin = str(attrs.get('origin')).strip()
+                    matched_po = origins_by_name.get(raw_origin.lower())
+                    if matched_po:
+                        origin_name = matched_po.name
+                        origin_code = matched_po.code or ''
+                        origin_id = matched_po.id
+                    else:
+                        origin_name = raw_origin
+                else:
+                    has_null_origin_service = True
+
+                if origin_name:
+                    key = origin_name.lower()
+                    if key not in available_origins_dict:
+                        available_origins_dict[key] = {
+                            'id': origin_id,
+                            'name': origin_name,
+                            'display_name': origin_name,
+                            'code': origin_code,
+                            'value': origin_name,
+                        }
+
+            origins_data = sorted(list(available_origins_dict.values()), key=lambda x: x['name'])
+
+            # إذا توفرت خامة مطابقة للمورد لكن بدون منشأ محدد في الداتابيز
+            if has_null_origin_service and not origins_data:
+                origins_data.append({
+                    'id': '',
+                    'name': 'قياسي / غير محدد',
+                    'display_name': 'قياسي / غير محدد',
+                    'code': '',
+                    'value': '',
+                })
+
+            return JsonResponse({
+                'success': True,
+                'origins': origins_data,
+                'total_count': len(origins_data),
+            })
         except Exception as e:
             return self.handle_exception(e, "GetPaperOriginsAPIView.get")
 
@@ -950,8 +1045,8 @@ class GetPaperPriceAPIView(BaseAPIView):
                                 continue
                     if weight and str(attrs.get('gsm', '')) != str(weight):
                         continue
-                    if origin:
-                        origin_name = getattr(svc.paper_origin, 'name', None) if getattr(svc, 'paper_origin', None) else attrs.get('origin')
+                    if origin and str(origin).strip() and str(origin).strip() not in ['قياسي / عام', 'قياسي / غير محدد', 'عام / غير محدد']:
+                        origin_name = getattr(svc.paper_origin, 'name', None) if getattr(svc, 'paper_origin', None) else (attrs.get('origin') if isinstance(attrs, dict) else '')
                         if origin_name and str(origin_name).strip() != str(origin).strip():
                             continue
                     matched = svc
@@ -971,7 +1066,7 @@ class GetPaperPriceAPIView(BaseAPIView):
                         height_cm=height_val,
                         gsm=weight
                     ))
-                    detected_origin = matched.attributes.get('origin', '') if isinstance(matched.attributes, dict) else ''
+                    detected_origin = matched.paper_origin.name if getattr(matched, 'paper_origin', None) else (matched.attributes.get('origin', '') if isinstance(matched.attributes, dict) else '')
                     eff_curr = matched.effective_currency
                     curr_code = eff_curr.code if eff_curr else "EGP"
                     curr_symbol = eff_curr.symbol if eff_curr else "ج.م"
@@ -1018,31 +1113,47 @@ class GetPieceSizesAPIView(BaseAPIView):
         
         try:
             # الحصول على المعاملات
-            paper_sheet_type = request.GET.get('paper_sheet_type')
+            paper_sheet_type = request.GET.get('paper_sheet_type') or request.GET.get('sheet_size')
+            sheet_size_id = request.GET.get('sheet_size_id') or request.GET.get('paper_size_id')
             
             # بناء الاستعلام الأساسي
-            piece_sizes = PieceSize.objects.filter(is_active=True)
+            piece_sizes = PieceSize.objects.filter(is_active=True).select_related('paper_type')
             
             # فلترة حسب مقاس الورق الأساسي إذا تم تحديده
-            if paper_sheet_type:
-                # استخراج أبعاد الفرخ من النص (مثل: "70.00x100.00")
+            if sheet_size_id:
                 try:
-                    sheet_width, sheet_height = paper_sheet_type.split('x')
-                    sheet_width = float(sheet_width)
-                    sheet_height = float(sheet_height)
-                    
-                    # فلترة المقاسات التي لها نفس مقاس الورق الأساسي
+                    paper_size = PaperSize.objects.get(id=sheet_size_id)
+                    w = float(paper_size.width)
+                    h = float(paper_size.height)
                     piece_sizes = piece_sizes.filter(
-                        paper_type__width=sheet_width,
-                        paper_type__height=sheet_height
+                        models.Q(paper_type_id=paper_size.id) |
+                        models.Q(paper_type__width=w, paper_type__height=h) |
+                        models.Q(paper_type__width=h, paper_type__height=w) |
+                        models.Q(paper_type__isnull=True)
                     )
-                    
-                except (ValueError, AttributeError):
-                    # في حالة فشل تحليل مقاس الفرخ، لا نطبق الفلتر
+                except (PaperSize.DoesNotExist, ValueError):
                     pass
+            elif paper_sheet_type:
+                cleaned = str(paper_sheet_type).replace('×', 'x').strip()
+                import re
+                match = re.search(r'(\d+(?:\.\d+)?)\s*x\s*(\d+(?:\.\d+)?)', cleaned)
+                if match:
+                    dim1 = float(match.group(1))
+                    dim2 = float(match.group(2))
+                    w, h = min(dim1, dim2), max(dim1, dim2)
+                    piece_sizes = piece_sizes.filter(
+                        models.Q(paper_type__width=w, paper_type__height=h) |
+                        models.Q(paper_type__width=h, paper_type__height=w) |
+                        models.Q(paper_type__isnull=True)
+                    )
+                else:
+                    piece_sizes = piece_sizes.filter(
+                        models.Q(paper_type__name__icontains=paper_sheet_type) |
+                        models.Q(paper_type__isnull=True)
+                    )
             
             # ترتيب النتائج
-            piece_sizes = piece_sizes.order_by('name')
+            piece_sizes = piece_sizes.order_by('pieces_per_sheet', 'name')
             
             def format_number(value):
                 """تنسيق الأرقام: بدون علامة عشرية للأرقام الصحيحة، مع علامة عشرية للكسور"""
@@ -1056,6 +1167,7 @@ class GetPieceSizesAPIView(BaseAPIView):
                 # تنسيق الأبعاد
                 width_formatted = format_number(piece_size.width)
                 height_formatted = format_number(piece_size.height)
+                cuts_text = f"{piece_size.pieces_per_sheet} قطع بالفرخ" if piece_size.pieces_per_sheet else f"{width_formatted}×{height_formatted} سم"
                 
                 piece_sizes_data.append({
                     'id': piece_size.id,
@@ -1064,27 +1176,27 @@ class GetPieceSizesAPIView(BaseAPIView):
                     'height': float(piece_size.height),
                     'width_formatted': width_formatted,
                     'height_formatted': height_formatted,
-                    'display_name': f"{piece_size.name} ({width_formatted}×{height_formatted} سم)",
+                    'display_name': f"{piece_size.name} ({cuts_text})",
                     'paper_type': piece_size.get_paper_type_display(),
                     'paper_type_id': piece_size.paper_type.id if piece_size.paper_type else None,
-                    'pieces_per_sheet': piece_size.pieces_per_sheet,
+                    'pieces_per_sheet': piece_size.pieces_per_sheet or 1,
                     'pieces_per_sheet_display': piece_size.get_pieces_per_sheet_display(),
                     'is_default': piece_size.is_default
                 })
             
-            # رسائل حالة مختلفة حسب الفلاتر المطبقة
             status_message = ""
-            if not paper_sheet_type:
+            if not paper_sheet_type and not sheet_size_id:
                 status_message = "جميع مقاسات القطع"
             else:
-                status_message = f"مقاسات القطع المتاحة للورق {paper_sheet_type}"
+                status_message = f"مقاسات القطع المتماشية مع الفرخ"
             
             return JsonResponse({
                 'success': True,
                 'piece_sizes': piece_sizes_data,
                 'total_count': len(piece_sizes_data),
                 'filters_applied': {
-                    'paper_sheet_type': paper_sheet_type
+                    'paper_sheet_type': paper_sheet_type,
+                    'sheet_size_id': sheet_size_id
                 },
                 'status_message': status_message
             })
@@ -1484,7 +1596,7 @@ class GenerateVendorPOsAPIView(BaseAPIView):
             from ..services import ProcurementBridgeService
             pos = ProcurementBridgeService.generate_vendor_purchase_orders(
                 order=order,
-                gated=False,
+                gated=True,
                 override_reason=override_reason,
                 user=request.user
             )
@@ -1530,4 +1642,119 @@ class ApprovedOrdersAPIView(BaseAPIView):
             return JsonResponse({'success': True, 'orders': orders_data})
         except Exception as e:
             return self.handle_exception(e, "ApprovedOrdersAPIView.get")
+
+
+class SyncOrderUnitPricesAPIView(BaseAPIView):
+    """
+    تحديث ومزامنة أسعار الوحدة الصافية للموردين من شاشة تسعير أمر الشغل (SweetAlert Option B).
+    يطبق حصرياً على سعر الوحدة الصافي للخدمة/الخامة وليس إجمالي أمر الشغل.
+    """
+    def post(self, request, *args, **kwargs):
+        try:
+            data = json.loads(request.body)
+        except Exception:
+            data = request.POST
+
+        updates = data.get('updates', [])
+        order_number = data.get('order_number', '')
+
+        if not updates or not isinstance(updates, list):
+            return JsonResponse({'success': False, 'error': _('لا توجد بنود لتحديثها')}, status=400)
+
+        from supplier.models import SupplierService, ServicePriceHistory
+        from django.utils import timezone
+        from datetime import timedelta
+
+        updated_count = 0
+        from django.db import transaction
+        with transaction.atomic():
+            for item in updates:
+                service_id = item.get('service_id')
+                new_unit_price_raw = item.get('new_unit_price')
+                if new_unit_price_raw is None:
+                    continue
+
+                try:
+                    new_unit_price = Decimal(str(new_unit_price_raw))
+                    if new_unit_price < Decimal('0.00'):
+                        continue
+
+                    service = None
+                    if service_id:
+                        service = SupplierService.objects.select_for_update().filter(id=service_id).first()
+                    elif item.get('supplier_id') and item.get('service_type'):
+                        supp_id = item.get('supplier_id')
+                        st = item.get('service_type')
+                        if st == 'paper':
+                            qs = SupplierService.objects.select_for_update().filter(supplier_id=supp_id, service_type__code='paper', is_active=True)
+                            if item.get('paper_type_id') and str(item.get('paper_type_id')).isdigit():
+                                qs_pt = qs.filter(paper_type_ref_id=int(item.get('paper_type_id')))
+                                if qs_pt.exists():
+                                    qs = qs_pt
+                            if item.get('gsm'):
+                                qs_gsm = qs.filter(gsm=item.get('gsm'))
+                                if qs_gsm.exists():
+                                    qs = qs_gsm
+                            service = qs.first()
+                        elif st in ['offset', 'ctp', 'digital']:
+                            code_filter = ['ctp', 'plates'] if st == 'ctp' else ([st] if st != 'digital' else ['digital', 'digital_click'])
+                            service = SupplierService.objects.select_for_update().filter(
+                                supplier_id=supp_id,
+                                service_type__code__in=code_filter,
+                                is_active=True
+                            ).first()
+
+                    if not service:
+                        continue
+
+                    old_snap = service.pricing_snapshot
+
+                    # تحديث سعر الوحدة الصافي بحسب صيغة التسعير
+                    if service.pricing_formula == 'PER_TON':
+                        ton_price_raw = item.get('price_per_ton')
+                        if ton_price_raw:
+                            service.price_per_ton = Decimal(str(ton_price_raw)).quantize(Decimal('0.01'))
+                        else:
+                            # إعادة الحساب العكسي لسعر الطن من سعر الفرخ: ton_price = (sheet_price * 10,000,000) / (w * h * gsm)
+                            w = item.get('width') or (service.paper_size.width if service.paper_size else None)
+                            h = item.get('height') or (service.paper_size.height if service.paper_size else None)
+                            g = item.get('gsm') or service.gsm or (service.paper_weight.gsm if service.paper_weight else None)
+                            if w and h and g:
+                                sheet_weight_kg = (Decimal(str(w)) * Decimal(str(h)) * Decimal(str(g))) / Decimal('10000000')
+                                if sheet_weight_kg > 0:
+                                    service.price_per_ton = ((new_unit_price / sheet_weight_kg) * Decimal('1000')).quantize(Decimal('0.01'))
+                                else:
+                                    service.base_price = new_unit_price
+                            else:
+                                service.base_price = new_unit_price
+                    elif service.set_price and service.set_price > Decimal('0.00') and item.get('is_set_price'):
+                        service.set_price = new_unit_price
+                    else:
+                        service.base_price = new_unit_price
+
+                    service.price_updated_at = timezone.now()
+                    validity_days = service.service_type.default_validity_days if service.service_type else 30
+                    service.price_valid_until = timezone.now().date() + timedelta(days=validity_days)
+                    service.save()
+
+                    ref_text = f"أمر شغل {order_number}".strip() if order_number else "تسعير أمر شغل"
+                    ServicePriceHistory.log_price_change(
+                        service=service,
+                        user=request.user,
+                        source='ORDER_FLOW',
+                        quote_reference=ref_text,
+                        notes=f'تحديث سعر الوحدة الصافي أثناء تسعير {ref_text}',
+                        old_snapshot=old_snap
+                    )
+                    updated_count += 1
+                except Exception as e:
+                    import logging
+                    logging.getLogger(__name__).warning(f"Error updating service {service_id}: {e}")
+
+        return JsonResponse({
+            'success': True,
+            'updated_count': updated_count,
+            'message': _('تم تحديث أسعار {} خدمة للموردين بتاريخ اليوم بنجاح').format(updated_count)
+        })
+
 

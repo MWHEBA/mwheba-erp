@@ -27,18 +27,18 @@
     </div>
   </div>
 
-  <!-- أسعار راكدة (> 30 يوماً) -->
+  <!-- أسعار منتهية الصلاحية ومتقادمة -->
   <div class="col-xl-3 col-sm-6">
     <div class="stats-card stats-card-warning">
       <div class="stats-card-body">
         <div class="stats-card-icon">
           <i class="fas fa-history"></i>
         </div>
-        <div class="stats-card-title">{% trans "أسعار راكدة (> 30 يوماً)" %}</div>
+        <div class="stats-card-title">{% trans "أسعار منتهية الصلاحية ومتقادمة" %}</div>
         <div class="stats-card-value">
           {{ stale_price_count|default:"0"|smart_float:0 }}
           {% if stale_price_count > 0 %}
-          <small class="badge bg-warning-subtle text-warning me-1">{% trans "تحتاج مراجعة" %}</small>
+          <small class="badge bg-warning-subtle text-warning me-1">{% trans "تحتاج تجديد" %}</small>
           {% endif %}
         </div>
       </div>

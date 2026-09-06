@@ -15,18 +15,18 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    background-color: var(--bg-soft-primary, #e0e7ff);
-    color: var(--primary-color, #2563eb);
+    background-color: var(--bg-soft-primary);
+    color: var(--primary-color);
     font-size: 1rem;
 }
 .service-code-badge {
     font-family: monospace;
     font-size: 0.85rem;
-    background-color: var(--bg-soft-secondary, #f1f5f9);
-    color: var(--text-dark, #1e293b);
+    background-color: var(--bg-soft-secondary);
+    color: var(--text-dark);
     padding: 0.2rem 0.5rem;
     border-radius: var(--border-radius-sm, 4px);
-    border: 1px solid var(--border-color, #e2e8f0);
+    border: 1px solid var(--border-color);
 }
 </style>
 {% endblock %}
@@ -107,6 +107,7 @@
             <th>{% trans "اسم الخدمة والوصف" %}</th>
             <th class="text-center" style="width: 140px;">{% trans "الرمز الفني" %}</th>
             <th class="text-center" style="width: 130px;">{% trans "الفئة الصناعية" %}</th>
+            <th class="text-center" style="width: 120px;">{% trans "صلاحية الأسعار" %}</th>
             <th class="text-center" style="width: 130px;">{% trans "الحقول الفنية" %}</th>
             <th class="text-center" style="width: 130px;">{% trans "الموردين المعتمدين" %}</th>
             <th class="text-center" style="width: 100px;">{% trans "الحالة" %}</th>
@@ -142,6 +143,11 @@
               {% else %}
                 <span class="badge bg-secondary">{% trans "عام" %}</span>
               {% endif %}
+            </td>
+            <td class="text-center">
+              <span class="badge bg-light text-dark border">
+                <i class="fas fa-clock me-1 text-muted"></i>{{ st.default_validity_days|default:30 }} {% trans "يوم" %}
+              </span>
             </td>
             <td class="text-center">
               {% if fields_count > 0 %}

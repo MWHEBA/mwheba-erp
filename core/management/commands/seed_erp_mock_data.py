@@ -156,6 +156,7 @@ class Command(BaseCommand):
                     "default_payment_term": terms["NET30"],
                     "grace_period_days": 5,
                     "is_pricing_supplier": True,
+                    "is_preferred": True,
                     "provided_services": [st_offset, st_ctp],
                     "supplier_services": [
                         {
@@ -212,6 +213,7 @@ class Command(BaseCommand):
                     "default_payment_term": terms["CASH"],
                     "grace_period_days": 0,
                     "is_pricing_supplier": True,
+                    "is_preferred": True,
                     "provided_services": [st_digital],
                     "supplier_services": [
                         {
@@ -252,6 +254,7 @@ class Command(BaseCommand):
                     "default_payment_term": terms["NET15"],
                     "grace_period_days": 3,
                     "is_pricing_supplier": True,
+                    "is_preferred": True,
                     "provided_services": [st_paper],
                     "supplier_services": [
                         {
@@ -338,6 +341,7 @@ class Command(BaseCommand):
                     "default_payment_term": terms["NET15"],
                     "grace_period_days": 3,
                     "is_pricing_supplier": True,
+                    "is_preferred": True,
                     "provided_services": [st_finishing, st_coating, st_packaging],
                     "supplier_services": [
                         {
@@ -407,6 +411,7 @@ class Command(BaseCommand):
                     "default_payment_term": terms["CASH"],
                     "grace_period_days": 0,
                     "is_pricing_supplier": True,
+                    "is_preferred": True,
                     "provided_services": [st_ctp],
                     "supplier_services": [
                         {

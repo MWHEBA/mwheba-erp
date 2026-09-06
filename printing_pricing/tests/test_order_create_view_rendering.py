@@ -27,15 +27,22 @@ class TestOrderFormRendering:
         )
 
     def test_order_create_view_renders_successfully(self, client):
-        """التحقق من فتح شاشة إنشاء طلب تسعير جديد بدون أي خطأ في القوالب"""
+        """التحقق من فتح شاشة إنشاء طلب تسعير جديد بدون أي خطأ في القوالب وبوجود عناصر البوابات"""
         client.force_login(self.user)
         url = reverse('printing_pricing:order_create')
         response = client.get(url)
         assert response.status_code == 200
-        assert 'card_step1_scope' in response.content.decode('utf-8')
-        assert 'card_step2_cover' in response.content.decode('utf-8')
-        assert 'card_step3_inner' in response.content.decode('utf-8')
-        assert 'summary_main_card' in response.content.decode('utf-8')
+        content = response.content.decode('utf-8')
+        assert 'card_step1_scope' in content
+        assert 'card_step2_cover' in content
+        assert 'card_step3_inner' in content
+        assert 'summary_main_card' in content
+        # التحقق من عناصر معمارية البوابة المزدوجة
+        assert 'step1_status_badge' in content
+        assert 'btn_quick_quote_fill' in content
+        assert 'btn_proceed_to_step2' in content
+        assert 'step2_technical_gate_notice' in content
+        assert 'sidebar_commit_gate_alert' in content
 
     def test_order_update_view_renders_successfully(self, client):
         """التحقق من فتح شاشة تعديل طلب تسعير قائم بدون أي خطأ في القوالب"""
@@ -60,3 +67,33 @@ class TestOrderFormRendering:
         response = client.get(url)
         assert response.status_code == 200
         assert 'مقاسات زنكات CTP' in response.content.decode('utf-8')
+
+    def test_pricing_order_form_requires_customer_and_title(self):
+        """التحقق من رفض النموذج عند غياب العميل أو وصف الطلب"""
+        from printing_pricing.forms import PricingOrderForm
+        form = PricingOrderForm(data={
+            'quantity': 1000,
+            'order_type': 'flyer',
+            'width': 21.0,
+            'height': 29.7,
+        })
+        assert not form.is_valid()
+        assert 'customer_name' in form.errors
+        assert 'title' in form.errors
+
+    def test_pricing_order_form_valid_with_cash_customer_and_title(self):
+        """التحقق من خلو أخطاء العميل والوصف عند ملء العميل النقدي والوصف"""
+        from printing_pricing.forms import PricingOrderForm
+        form = PricingOrderForm(data={
+            'customer_name': 'عميل استفسار سريع',
+            'title': 'طباعة فلاير A4',
+            'quantity': 1000,
+            'order_type': 'flyer',
+            'width': 21.0,
+            'height': 29.7,
+            'order_date': '2026-09-06',
+        })
+        form.is_valid()
+        assert 'customer_name' not in form.errors
+        assert 'customer' not in form.errors
+        assert 'title' not in form.errors

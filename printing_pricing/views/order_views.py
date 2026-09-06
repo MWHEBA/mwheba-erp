@@ -316,6 +316,10 @@ class OrderDetailView(LoginRequiredMixin, DetailView):
             
         context['can_convert_to_work_order'] = not order.work_order and order.status in ['approved', 'completed']
         
+        # فحص بوابة صلاحية أسعار الموردين قبل إصدار أوامر الشراء
+        from ..services import ProcurementBridgeService
+        context['po_gating'] = ProcurementBridgeService.check_po_gating(order)
+        
         return context
 
 
@@ -333,7 +337,7 @@ def get_active_ctp_suppliers():
             Q(services__set_price__gt=0) |
             Q(services__attributes__has_key='price_per_plate') |
             Q(services__attributes__has_key='plate_size')
-        ).distinct().order_by('name')
+        ).distinct().order_by('-is_preferred', 'name')
     except Exception:
         return []
 
@@ -353,7 +357,7 @@ def get_active_offset_suppliers():
             Q(services__attributes__has_key='price_per_1000') |
             Q(services__attributes__has_key='machine_type') |
             Q(services__attributes__has_key='sheet_size')
-        ).distinct().order_by('name')
+        ).distinct().order_by('-is_preferred', 'name')
     except Exception:
         return []
 
@@ -371,7 +375,7 @@ def get_active_digital_suppliers():
             Q(services__base_price__gt=0) |
             Q(services__attributes__has_key='price_per_page_bw') |
             Q(services__attributes__has_key='price_per_page_color')
-        ).distinct().order_by('name')
+        ).distinct().order_by('-is_preferred', 'name')
     except Exception:
         return []
 
@@ -390,7 +394,7 @@ def get_active_paper_suppliers():
             Q(services__price_per_ton__gt=0) |
             Q(services__attributes__has_key='price_per_sheet') |
             Q(services__attributes__has_key='paper_type')
-        ).distinct().order_by('name')
+        ).distinct().order_by('-is_preferred', 'name')
     except Exception:
         return []
 

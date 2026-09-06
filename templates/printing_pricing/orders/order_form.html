@@ -87,12 +87,40 @@
     flex-shrink: 0;
   }
 
-  @media (max-width: 991px) {
+  /* تحرير مسار الـ Sticky من أي Overflow حاجب على مستوى الصفحة والأسلاف */
+  html,
+  body,
+  .wrapper,
+  .main-content,
+  .content-wrapper,
+  #order-form {
+    overflow: visible !important;
+    overflow-x: visible !important;
+    overflow-y: visible !important;
+  }
+
+  /* مركز الحسبة والتسعير Sticky مثبت طبيعياً ونظيف بدون أي سكرول بار منفصل */
+  @media (min-width: 992px) {
+    .order-sidebar-col {
+      align-self: flex-start !important;
+      position: -webkit-sticky !important;
+      position: sticky !important;
+      top: calc(var(--header-height, 60px) + 15px) !important;
+      z-index: 100;
+    }
+
     .summary-sidebar-container {
-      position: sticky;
-      bottom: 0;
-      top: auto;
-      z-index: 1050;
+      position: -webkit-sticky !important;
+      position: sticky !important;
+      top: calc(var(--header-height, 60px) + 15px) !important;
+      width: 100%;
+    }
+  }
+
+  @media (max-width: 991px) {
+    .order-sidebar-col,
+    .summary-sidebar-container {
+      position: static !important;
       margin-top: var(--spacing-4, 1.5rem);
     }
   }
@@ -148,7 +176,7 @@
       </div>
 
       <!-- العمود الأيسر: كارت الحسبة اللحظية الفورية والبدائل وأوامر الشراء -->
-      <div class="col-lg-3 col-12">
+      <div class="col-lg-3 col-12 order-sidebar-col">
         {% include "printing_pricing/orders/partials/summary_sidebar.html" %}
       </div>
     </div>
@@ -160,6 +188,7 @@
 <!-- إعدادات المحرك الحسابي الممررة من جانجو عبر JSON Data Contract -->
 <script id="printing-pricing-config" type="application/json">
 {
+  "isEdit": {% if form.instance.pk %}true{% else %}false{% endif %},
   "currencySymbol": "{{ currency_symbol|default:functional_currency.symbol }}",
   "urls": {
     "pressesApi": "{% url 'printing_pricing:api_presses' %}",
@@ -168,7 +197,9 @@
     "paperSheetTypesApi": "{% url 'printing_pricing:api_paper_sheet_types' %}",
     "paperWeightsApi": "{% url 'printing_pricing:api_paper_weights' %}",
     "paperOriginsApi": "{% url 'printing_pricing:api_paper_origins' %}",
-    "paperPriceApi": "{% url 'printing_pricing:api_paper_price' %}"
+    "paperPriceApi": "{% url 'printing_pricing:api_paper_price' %}",
+    "pieceSizesApi": "{% url 'printing_pricing:api_piece_sizes' %}",
+    "syncOrderUnitPricesApi": "{% url 'printing_pricing:api_sync_order_unit_prices' %}"
   },
   "i18n": {
     "pulls": "{% trans 'سحبة' %}",
@@ -191,7 +222,7 @@
 </script>
 
 <!-- استدعاء المحرك المعياري المستقل (Enterprise Two-Tier Pricing Engine) -->
-<script src="{% static 'js/printing_pricing/order_form_engine.js' %}"></script>
+<script src="{% static 'js/printing_pricing/order_form_engine.js' %}?v={% now 'U' %}"></script>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
     let config = {};

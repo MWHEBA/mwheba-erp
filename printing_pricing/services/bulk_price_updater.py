@@ -33,6 +33,10 @@ class BulkPriceUpdaterService:
         """
         update_fields = ['updated_at']
 
+        from django.utils import timezone
+        from supplier.models import ServicePriceHistory
+        old_snap = service.pricing_snapshot
+
         if price_per_ton is not None:
             if price_per_ton < Decimal('0.00'):
                 raise ValueError(_('سعر الطن لا يمكن أن يكون سالباً'))
@@ -51,8 +55,20 @@ class BulkPriceUpdaterService:
             service.base_price = base_price
             update_fields.append('base_price')
 
+        service.price_updated_at = timezone.now()
+        update_fields.append('price_updated_at')
+
         # استدعاء save مع تحديث الحقول لإطلاق منطق save() في الموديل
         service.save()
+
+        # توثيق حركة السعر في سجل التاريخ
+        ServicePriceHistory.log_price_change(
+            service=service,
+            user=user,
+            source='MANUAL',
+            notes='تحديث سريع لسعر الخدمة من مصفوفة الأسعار',
+            old_snapshot=old_snap
+        )
 
         # تسجيل حركة التعديل
         if user:
@@ -95,6 +111,7 @@ class BulkPriceUpdaterService:
                 services_qs = SupplierService.objects.select_for_update().filter(id__in=service_ids)
                 for service in services_qs:
                     try:
+                        old_snap = service.pricing_snapshot
                         # 1. تحديث السعر المعني بحسب طبيعة الخدمة
                         if service.pricing_formula == 'PER_TON' and service.price_per_ton:
                             service.price_per_ton = (service.price_per_ton * factor).quantize(Decimal('0.01'))
@@ -106,12 +123,25 @@ class BulkPriceUpdaterService:
                             if service.base_price:
                                 service.base_price = (service.base_price * factor).quantize(Decimal('0.01'))
 
+                        from django.utils import timezone
+                        service.price_updated_at = timezone.now()
                         service.save()
 
                         # 2. تحديث شرائح الأسعار التابعة بالتوازي بنفس النسبة المئوية
                         for tier in service.price_tiers.select_for_update().all():
                             tier.price_per_unit = (tier.price_per_unit * factor).quantize(Decimal('0.01'))
                             tier.save(update_fields=['price_per_unit'])
+
+                        # 3. توثيق الحركة في سجل التاريخ
+                        from supplier.models import ServicePriceHistory
+                        ServicePriceHistory.log_price_change(
+                            service=service,
+                            user=user,
+                            source='BULK_PERCENTAGE',
+                            percentage_change=Decimal(str(percentage_change)),
+                            notes=f'تحديث مجمع للأسعار بنسبة {percentage_change}%',
+                            old_snapshot=old_snap
+                        )
 
                         updated_count += 1
                     except Exception as e:
@@ -151,6 +181,7 @@ class BulkPriceUpdaterService:
                         continue
 
                     service = SupplierService.objects.select_for_update().get(id=service_id)
+                    old_snap = service.pricing_snapshot
 
                     if field_name == 'price_per_ton' or (service.pricing_formula == 'PER_TON' and field_name != 'base_price'):
                         service.price_per_ton = price_val
@@ -159,7 +190,19 @@ class BulkPriceUpdaterService:
                     else:
                         service.base_price = price_val
 
+                    from django.utils import timezone
+                    service.price_updated_at = timezone.now()
                     service.save()
+
+                    from supplier.models import ServicePriceHistory
+                    ServicePriceHistory.log_price_change(
+                        service=service,
+                        user=user,
+                        source='MANUAL',
+                        notes='تحديث مجمع للأسعار بقائمة قيم صريحة',
+                        old_snapshot=old_snap
+                    )
+
                     updated_count += 1
                 except SupplierService.DoesNotExist:
                     errors.append({'service_id': service_id, 'error': _('الخدمة غير موجودة')})

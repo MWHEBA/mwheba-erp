@@ -58,14 +58,29 @@
     <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">{% trans "معطل" %}</span>
     {% endif %}
 
-    {% if item.is_stale %}
-    <span class="badge bg-warning-subtle text-warning border border-warning-subtle d-block mt-1" title="{% trans 'لم يتم تحديث السعر منذ أكثر من 30 يوماً' %}">
-      <i class="fas fa-clock me-1"></i>{{ item.stale_days|smart_float:0 }} {% trans "يوم" %}
+    {% if item.price_staleness_status == 'fresh' %}
+    <span class="badge bg-success-subtle text-success border border-success-subtle d-block mt-1" title="سعر ساري ومحدث">
+      <i class="fas fa-check-circle me-1"></i>ساري
+    </span>
+    {% elif item.price_staleness_status == 'expiring_soon' %}
+    <span class="badge bg-warning-subtle text-warning border border-warning-subtle d-block mt-1" title="ينتهي سريانه قريباً">
+      <i class="fas fa-clock me-1"></i>ينتهي قريباً
+    </span>
+    {% elif item.price_staleness_status == 'stale' %}
+    <span class="badge bg-danger-subtle text-danger border border-danger-subtle d-block mt-1" title="سعر متقادم أو منتهي الصلاحية">
+      <i class="fas fa-exclamation-triangle me-1"></i>متقادم
+    </span>
+    {% else %}
+    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle d-block mt-1" title="سعر تاريخي بانتظار التأكيد">
+      <i class="fas fa-history me-1"></i>تاريخي
     </span>
     {% endif %}
   </td>
   <td class="text-center">
     <div class="btn-group btn-group-sm">
+      <button type="button" class="btn btn-outline-success btn-quick-renew" data-id="{{ item.id }}" data-supplier-id="{{ item.supplier.id }}" data-name="{{ item.name }}" data-supplier="{{ item.supplier.name }}" data-validity-days="{{ item.service_type.default_validity_days|default:30 }}" title="{% trans 'تأكيد وتجديد سريان السعر اليوم' %}">
+        <i class="fas fa-check"></i>
+      </button>
       <button type="button" class="btn btn-outline-primary btn-quick-price" data-id="{{ item.id }}" data-field="base_price" data-price="{{ item.base_price }}" data-name="{{ item.name }}" data-currency="{{ item.currency_symbol }}" title="{% trans 'تعديل سريع للسعر' %}">
         <i class="fas fa-tag"></i>
       </button>

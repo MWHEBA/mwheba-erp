@@ -18,11 +18,59 @@ class ProcurementBridgeService:
     @classmethod
     def check_po_gating(cls, order: PrintingOrder) -> dict:
         """
-        التحقق من جاهزية إطلاق أوامر الشراء للمشروع
+        التحقق من جاهزية إطلاق أوامر الشراء للمشروع وفحص حوكمة وصلاحية أسعار الموردين
         """
+        issues = []
+        stale_services = []
+
+        # 1. فحص بنود الخدمات
+        if hasattr(order, 'services'):
+            for svc in order.services.filter(is_active=True):
+                target_svc = getattr(svc, 'supplier_service', None)
+                if not target_svc and isinstance(svc.supplier_info, dict):
+                    sid = svc.supplier_info.get('supplier_service_id') or svc.supplier_info.get('service_id')
+                    if sid:
+                        from supplier.models import SupplierService
+                        target_svc = SupplierService.objects.filter(id=sid).first()
+
+                if target_svc and target_svc.is_price_stale:
+                    stale_services.append({
+                        'name': target_svc.name,
+                        'supplier': getattr(target_svc.supplier, 'name', ''),
+                        'status': target_svc.price_staleness_status,
+                        'age_days': target_svc.price_age_days
+                    })
+                    issues.append(
+                        _("سعر خدمة '{}' للمورد '{}' متقادم أو منتهي الصلاحية (منذ {} يوم)").format(
+                            target_svc.name, getattr(target_svc.supplier, 'name', ''), target_svc.price_age_days
+                        )
+                    )
+
+        # 2. فحص بنود الخامات والورق
+        if hasattr(order, 'materials'):
+            for mat in order.materials.filter(material_type='paper', is_active=True):
+                if isinstance(mat.supplier_info, dict):
+                    sid = mat.supplier_info.get('supplier_service_id') or mat.supplier_info.get('service_id')
+                    if sid:
+                        from supplier.models import SupplierService
+                        target_svc = SupplierService.objects.filter(id=sid).first()
+                        if target_svc and target_svc.is_price_stale:
+                            stale_services.append({
+                                'name': target_svc.name,
+                                'supplier': getattr(target_svc.supplier, 'name', ''),
+                                'status': target_svc.price_staleness_status,
+                                'age_days': target_svc.price_age_days
+                            })
+                            issues.append(
+                                _("سعر خامة الورق '{}' للمورد '{}' متقادم أو منتهي الصلاحية (منذ {} يوم)").format(
+                                    target_svc.name, getattr(target_svc.supplier, 'name', ''), target_svc.price_age_days
+                                )
+                            )
+
         return {
-            'is_gated_ready': True,
-            'issues': []
+            'is_gated_ready': len(issues) == 0,
+            'issues': issues,
+            'stale_services': stale_services
         }
 
     @classmethod
@@ -237,6 +285,15 @@ class ProcurementBridgeService:
             total_foreign = final_total
             total_functional = (final_total * rate_to_func).quantize(Decimal('0.01'))
 
+        # التأكد من تمرير كائن نموذج Currency صالح لقاعدة البيانات
+        from django.db import models as dj_models
+        db_currency = None
+        if isinstance(po_currency, dj_models.Model):
+            db_currency = po_currency
+        elif po_currency:
+            Currency = apps.get_model('financial', 'Currency')
+            db_currency = Currency.objects.filter(code=getattr(po_currency, 'code', 'EGP')).first()
+
         po = Purchase(
             number=unique_num,
             date=timezone.now().date(),
@@ -250,7 +307,7 @@ class ProcurementBridgeService:
             wht_rate=wht_rate,
             wht_amount=wht_amount,
             total=final_total,
-            currency=po_currency,
+            currency=db_currency,
             exchange_rate=exchange_rate,
             total_foreign=total_foreign,
             total_functional=total_functional,

@@ -342,7 +342,12 @@ class PricingOrderForm(forms.ModelForm):
         try:
             active_origins = PaperOrigin.objects.filter(is_active=True).order_by("name")
             self.fields["paper_origin"].choices = [("", _("اختر المنشأ"))] + [
+                (o.name, o.name) for o in active_origins
+            ] + [
                 (str(o.id), o.name) for o in active_origins
+            ] + [
+                ("قياسي / غير محدد", _("قياسي / غير محدد")),
+                ("قياسي / عام", _("قياسي / عام")),
             ]
         except Exception:
             pass
@@ -412,6 +417,11 @@ class PricingOrderForm(forms.ModelForm):
         customer_name = cleaned_data.get("customer_name")
         if not customer and not customer_name:
             self.add_error("customer_name", _("يرجى اختيار العميل المسجل أو كتابة اسم العميل يدوياً."))
+
+        # التحقق من وصف الطلب
+        title = cleaned_data.get("title")
+        if not title or not str(title).strip():
+            self.add_error("title", _("يرجى إدخال وصف أو عنوان للطلب."))
 
         # التحقق من جوانب الطباعة والألوان بطريقة ديناميكية مرنة
         print_sides = cleaned_data.get("print_sides_mode") or cleaned_data.get("print_sides")

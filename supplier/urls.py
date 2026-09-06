@@ -40,6 +40,7 @@ urlpatterns = [
     path("<int:pk>/services/<int:service_pk>/edit/",        views.supplier_service_edit,         name="supplier_service_edit"),
     path("<int:pk>/services/<int:service_pk>/delete/",      views.supplier_service_delete,       name="supplier_service_delete"),
     path("<int:pk>/services/<int:service_pk>/toggle/",      views.supplier_service_toggle,       name="supplier_service_toggle"),
+    path("<int:pk>/services/<int:service_pk>/quick-renew/", views.supplier_service_quick_renew_price, name="supplier_service_quick_renew_price"),
     path("<int:pk>/api/services/",                          views.supplier_services_api,         name="supplier_services_api"),
 
     # ── الشرائح السعرية — المرحلة الخامسة ──────────────────────────

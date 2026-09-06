@@ -1,7 +1,7 @@
 {% load i18n %}
 {% load app_tags %}
 
-<div class="sticky-top summary-sidebar-container" style="top: 20px; z-index: 100;">
+<div class="summary-sidebar-container">
   <!-- حقول مخفية لنقل نتائج المحرك الحسابي إلى الـ Django Backend -->
   <input type="hidden" id="id_material_cost" name="material_cost" value="{{ form.material_cost.value|default:'0.00' }}">
   <input type="hidden" id="id_printing_cost" name="printing_cost" value="{{ form.printing_cost.value|default:'0.00' }}">
@@ -14,7 +14,7 @@
     
     <!-- 1. هيدر الحسبة اللحظية المعياري الموحد -->
     <h5 class="section-title">
-      <span><i class="fas fa-calculator me-2"></i>{% trans "مركز الحسبة والتسعير اللحظي" %}</span>
+      <span><i class="fas fa-calculator me-2"></i>{% trans "مركز الحسبة والتسعير" %}</span>
       <span class="badge bg-light text-dark border px-3 py-1 ms-auto" id="currency_symbol_badge">{{ currency_symbol|default:functional_currency.symbol }}</span>
     </h5>
 
@@ -23,7 +23,7 @@
       
       <!-- أ. تفصيل عناصر التكلفة المباشرة (محمية للمديرين فقط) -->
       {% if can_view_margins or perms.printing_pricing.view_cost_breakdown or request.user.is_superuser %}
-      <div class="mb-3 pb-3 border-bottom" id="internal_cost_breakdown">
+      <div class="mb-2 pb-2 border-bottom" id="internal_cost_breakdown">
         <div class="d-flex justify-content-between align-items-center mb-1 small">
           <span class="text-secondary"><i class="fas fa-layer-group me-1 text-primary"></i>{% trans "تكلفة خام الورق:" %}</span>
           <span class="fw-bold" id="cost_paper_display">0 {{ currency_symbol|default:functional_currency.symbol }}</span>
@@ -41,20 +41,20 @@
           <span class="fw-bold" id="cost_binding_display">0 {{ currency_symbol|default:functional_currency.symbol }}</span>
         </div>
         <div class="d-flex justify-content-between align-items-center mb-2 small">
-          <label for="id_extra_cost" class="text-secondary mb-0 cursor-pointer"><i class="fas fa-truck me-1 text-warning"></i>{% trans "انتقالات ولوجستيات:" %}</label>
+          <label for="id_extra_cost" class="text-secondary mb-0 cursor-pointer"><i class="fas fa-truck me-1 text-warning"></i>{% trans "انتقالات:" %}</label>
           <div class="input-group input-group-sm" style="max-width: 125px;">
             <input type="number" class="form-control form-control-sm text-end fw-bold py-0 px-1 border-secondary-subtle" id="id_extra_cost" name="extra_cost" value="{{ form.extra_cost.value|default:'0' }}" min="0" step="5" placeholder="0">
             <span class="input-group-text py-0 px-1 bg-light text-muted" style="font-size: 0.75rem;">{{ currency_symbol|default:functional_currency.symbol }}</span>
           </div>
         </div>
 
-        <div class="d-flex justify-content-between align-items-center pt-2 border-top bg-light p-2 rounded">
+        <div class="d-flex justify-content-between align-items-center pt-1.5 border-top bg-light p-1.5 rounded">
           <strong class="text-dark small">{% trans "إجمالي التكلفة:" %}</strong>
           <strong class="text-danger fs-6" id="total_cost_display">0 {{ currency_symbol|default:functional_currency.symbol }}</strong>
         </div>
 
         <!-- شريط ومؤشر هامش الربح -->
-        <div class="mt-3">
+        <div class="mt-2">
           <div class="d-flex justify-content-between align-items-center small mb-1">
             <span class="fw-bold text-secondary">{% trans "هامش الربح:" %}</span>
             <span class="fw-bold text-success" id="margin_percentage_display">25%</span>
@@ -67,15 +67,15 @@
       {% endif %}
 
       <!-- ب. أسعار البيع الصافية للعميل -->
-      <div class="mb-4">
+      <div class="mb-3">
         <!-- سعر القطعة للعميل -->
-        <div class="d-flex justify-content-between align-items-center mb-2">
+        <div class="d-flex justify-content-between align-items-center mb-1">
           <span class="text-muted fw-semibold">{% trans "سعر القطعة:" %}</span>
           <strong class="fs-5 text-primary" id="unit_price_display">0 {{ currency_symbol|default:functional_currency.symbol }}</strong>
         </div>
 
         <!-- الإجمالي النهائي الصافي للطلب -->
-        <div class="card bg-light border p-3 mt-3">
+        <div class="card bg-light border p-2 mt-2">
           <div class="d-flex justify-content-between align-items-center">
             <div>
               <strong class="text-dark fs-6 d-block">{% trans "إجمالي السعر:" %}</strong>
@@ -86,57 +86,27 @@
         </div>
       </div>
 
-
-
-      <!-- د. جدول مقارنة الشرائح الكمية الحدي (Marginal Tiers) -->
-      <div class="mb-4">
-        <label class="form-label fw-bold text-secondary small text-uppercase mb-2">
-          <i class="fas fa-chart-line text-primary me-1"></i>{% trans "مقارنة الشرائح الكمية" %}
-        </label>
-        <div class="table-responsive">
-          <table class="table table-sm table-bordered text-center align-middle mb-0 small">
-            <thead class="table-light">
-              <tr>
-                <th>{% trans "الكمية" %}</th>
-                <th>{% trans "سعر الوحدة" %}</th>
-                <th>{% trans "الإجمالي" %}</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr id="tier_row_1">
-                <td class="fw-bold" id="tier_qty_1">1,000</td>
-                <td class="text-primary fw-bold" id="tier_unit_1">0 {{ currency_symbol|default:functional_currency.symbol }}</td>
-                <td class="text-dark" id="tier_total_1">0 {{ currency_symbol|default:functional_currency.symbol }}</td>
-              </tr>
-              <tr id="tier_row_2" class="table-light">
-                <td class="fw-bold" id="tier_qty_2">2,500</td>
-                <td class="text-success fw-bold" id="tier_unit_2">0 {{ currency_symbol|default:functional_currency.symbol }}</td>
-                <td class="text-dark" id="tier_total_2">0 {{ currency_symbol|default:functional_currency.symbol }}</td>
-              </tr>
-              <tr id="tier_row_3">
-                <td class="fw-bold" id="tier_qty_3">5,000</td>
-                <td class="text-danger fw-bold" id="tier_unit_3">0 {{ currency_symbol|default:functional_currency.symbol }}</td>
-                <td class="text-dark" id="tier_total_3">0 {{ currency_symbol|default:functional_currency.symbol }}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+      <!-- هـ. أزرار الحفظ والإجراءات السريعة -->
+      <!-- شارة حالة الاعتماد وأمر الشغل -->
+      <div id="sidebar_commit_gate_alert" class="alert alert-light border border-secondary-subtle py-1.5 px-2 mb-2 small text-center">
+        <span id="sidebar_commit_status_text">
+          <i class="fas fa-info-circle text-primary me-1"></i>{% trans "تسعير تقديري حر — يلزم تحديد العميل والوصف للحفظ الرسمي" %}
+        </span>
       </div>
 
-      <!-- هـ. أزرار الحفظ والإجراءات السريعة -->
       <div class="d-grid gap-2">
         <!-- زر الحفظ واعتماد أمر الشغل -->
-        <button type="submit" class="btn btn-primary py-2 fw-bold" id="btn_save_order">
+        <button type="submit" class="btn btn-primary py-1.5 fw-bold" id="btn_save_order">
           <i class="fas fa-save me-2"></i>{% trans "حفظ واعتماد التسعيرة وأمر الشغل" %}
         </button>
 
         <!-- زر الحفظ كمسودة سريعة -->
-        <button type="button" class="btn btn-outline-secondary py-2" id="btn_save_draft">
+        <button type="button" class="btn btn-outline-secondary py-1.5" id="btn_save_draft">
           <i class="fas fa-file-alt me-2"></i>{% trans "حفظ كمسودة سريعة" %}
         </button>
 
         <!-- زر نسخ رسالة الواتساب السريعة -->
-        <button type="button" class="btn btn-outline-success py-2 fw-bold" id="btn_copy_whatsapp">
+        <button type="button" class="btn btn-outline-success py-1.5 fw-bold" id="btn_copy_whatsapp">
           <i class="fab fa-whatsapp me-2 fs-5"></i>{% trans "نسخ عرض السعر للواتساب" %}
         </button>
       </div>
