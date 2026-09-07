@@ -2,212 +2,533 @@
 {% load static %}
 {% load i18n %}
 {% load app_tags %}
+{% load custom_filters %}
 
 {% block title %}
-{{ order.order_number }} - {{ order.title|default:_("تفاصيل طلب التسعير") }}
+{{ order.title|default:_("تفاصيل طلب التسعير") }}
 {% endblock %}
 
 {% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
 <link rel="stylesheet" href="{% static 'css/components.css' %}">
 <link rel="stylesheet" href="{% static 'css/printing_pricing/components.css' %}">
-<style>
-  .hub-card { border: 1px solid var(--border-color); border-radius: var(--border-radius); }
-</style>
 {% endblock %}
 
 {% block content %}
 <div class="container-fluid">
-  <!-- رأس الصفحة المركزي -->
-  <div class="page-header mb-4">
-    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
-      <div>
-        <h4 class="page-title fw-bold text-dark mb-1">
-          <i class="fas fa-print text-primary me-2"></i>{{ order.order_number }} - {{ order.title }}
-        </h4>
-        <div class="d-flex align-items-center gap-2 text-muted small">
-          <span><i class="fas fa-user me-1"></i>{{ order.customer.name }}</span>
-          <span>•</span>
-          <span><i class="fas fa-layer-group me-1"></i>{{ order.product_type.name|default:order.get_order_type_display }}</span>
-          <span>•</span>
-          <span><i class="fas fa-ruler-combined me-1"></i>{{ order.get_dimensions_display }}</span>
-          <span>•</span>
-          <span><i class="fas fa-calendar-alt me-1"></i>{{ order.created_at|date:"Y-m-d" }}</span>
+  <!-- رأس الصفحة المركزي الموحد -->
+  {% include "shared/page_header.html" %}
+
+  <!-- كروت المؤشرات المالية والإنتاجية السريعة (KPI Stats Cards) -->
+  <div class="row g-3 mb-4">
+    <!-- قيمة البيع للعميل -->
+    <div class="col-xl-3 col-md-6 col-12">
+      <div class="stats-card stats-card-primary">
+        <div class="stats-card-body">
+          <div class="stats-card-icon">
+            <i class="fas fa-coins"></i>
+          </div>
+          <div class="stats-card-title">{% trans "قيمة البيع للعميل (صافي)" %}</div>
+          <div class="stats-card-value">
+            {% if summary %}{{ summary.final_price|smart_float:2 }}{% else %}{{ order.final_price|default:"0.00"|smart_float:2 }}{% endif %}
+          </div>
+          <div class="stats-card-unit">{{ order.currency_symbol }}</div>
+          <div class="text-muted small mt-2">
+            <span>{% trans "سعر الوحدة:" %} {{ order.unit_price|smart_float:2 }} {{ order.currency_symbol }}</span>
+          </div>
         </div>
       </div>
+    </div>
 
-      <!-- أزرار الإجراءات السريعة -->
-      <div class="d-flex flex-wrap gap-2">
-        <a href="{% url 'printing_pricing:order_update' order.pk %}" class="btn btn-outline-secondary btn-sm">
-          <i class="fas fa-edit me-1"></i>{% trans "تعديل" %}
-        </a>
+    {% if can_view_margins or perms.printing_pricing.view_cost_margins or request.user.is_superuser %}
+    <!-- إجمالي التكاليف المقدرة -->
+    <div class="col-xl-3 col-md-6 col-12">
+      <div class="stats-card stats-card-danger">
+        <div class="stats-card-body">
+          <div class="stats-card-icon">
+            <i class="fas fa-calculator"></i>
+          </div>
+          <div class="stats-card-title">{% trans "إجمالي تكلفة الإنتاج" %}</div>
+          <div class="stats-card-value">
+            {% if summary %}{{ summary.total_cost|smart_float:2 }}{% else %}{{ order.estimated_cost|default:"0.00"|smart_float:2 }}{% endif %}
+          </div>
+          <div class="stats-card-unit">{{ order.currency_symbol }}</div>
+          <div class="text-muted small mt-2">
+            <span>{% trans "خامات، طباعة، وخدمات تشغيل" %}</span>
+          </div>
+        </div>
+      </div>
+    </div>
 
-        <!-- زر التحويل إلى أمر شغل -->
-        {% if can_convert_to_work_order %}
-        <button type="button" class="btn btn-success btn-sm fw-bold shadow-sm" id="btn_convert_work_order" data-order-id="{{ order.pk }}">
-          <i class="fas fa-cogs me-1"></i>{% trans "بدء التشغيل وتوليد أمر الشغل (PO)" %}
-        </button>
-        {% elif order.work_order %}
-        <a href="{% url 'work_order:work_order_detail' order.work_order.pk %}" class="btn btn-info btn-sm text-white fw-bold">
-          <i class="fas fa-link me-1"></i>{% trans "أمر الشغل" %} #{{ order.work_order.number }}
-        </a>
-        {% endif %}
+    <!-- صافي الأرباح المحققة -->
+    <div class="col-xl-3 col-md-6 col-12">
+      <div class="stats-card {% if summary.net_profit >= 0 or order.profit_amount >= 0 %}stats-card-success{% else %}stats-card-danger{% endif %}">
+        <div class="stats-card-body">
+          <div class="stats-card-icon">
+            <i class="fas fa-chart-line"></i>
+          </div>
+          <div class="stats-card-title">{% trans "صافي الربح الفعلي" %}</div>
+          <div class="stats-card-value">
+            {% if summary %}{{ summary.profit_amount|default:summary.net_profit|default:"0.00"|smart_float:2 }}{% else %}{{ order.profit_amount|default:"0.00"|smart_float:2 }}{% endif %}
+          </div>
+          <div class="stats-card-unit">{{ order.currency_symbol }}</div>
+          <div class="text-muted small mt-2">
+            <span>{% trans "هامش الربح:" %} {% if summary %}{{ summary.profit_margin_percentage|smart_float:1 }}{% else %}{{ order.profit_margin|smart_float:1 }}{% endif %}%</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
 
+    <!-- الكمية ومواصفات الحجم -->
+    <div class="col-xl-{% if can_view_margins or perms.printing_pricing.view_cost_margins or request.user.is_superuser %}3{% else %}9{% endif %} col-md-6 col-12">
+      <div class="stats-card stats-card-info">
+        <div class="stats-card-body">
+          <div class="stats-card-icon">
+            <i class="fas fa-layer-group"></i>
+          </div>
+          <div class="stats-card-title">{% trans "الكمية المطلوبة" %}</div>
+          <div class="stats-card-value">{{ order.quantity|smart_float }}</div>
+          <div class="stats-card-unit">{% trans "قطعة" %}</div>
+          <div class="text-muted small mt-2">
+            {% if order.pages_count > 1 %}
+              <span>{{ order.pages_count }} {% trans "صفحة" %} ({{ order.total_pages }} {% trans "إجمالي" %})</span>
+            {% else %}
+              <span>{% trans "مطبوع مفرد (Single Sheet)" %}</span>
+            {% endif %}
+          </div>
+        </div>
       </div>
     </div>
   </div>
 
-  <div class="row g-4">
-    <!-- لوحة مركز الأرباح 360 درجة ومواصفات التشغيل -->
-    <div class="col-12">
-      <!-- تنبيه بوابة صلاحية أسعار الموردين -->
-      {% if po_gating and not po_gating.is_gated_ready %}
-      <div class="alert alert-warning border border-warning-subtle shadow-sm mb-4" role="alert">
-        <div class="d-flex align-items-start gap-3">
-          <div class="fs-4 text-warning mt-1">
-            <i class="fas fa-exclamation-triangle"></i>
+  <!-- تنبيه بوابة صلاحية أسعار الموردين إن وجدت -->
+  {% if po_gating and not po_gating.is_gated_ready %}
+  <div class="alert alert-warning border border-warning-subtle shadow-sm mb-4" role="alert">
+    <div class="d-flex align-items-start gap-3">
+      <div class="fs-4 text-warning mt-1">
+        <i class="fas fa-exclamation-triangle"></i>
+      </div>
+      <div class="flex-grow-1">
+        <h6 class="fw-bold text-dark mb-1">
+          {% trans "تنبيه حوكمة الأسعار: بنود مسعرة بأسعار موردين متقادمة أو منتهية الصلاحية" %}
+        </h6>
+        <p class="text-muted small mb-2">
+          {% trans "تم رصد خدمات أو خامات مرتبطة بهذا الطلب تعتمد على عروض أسعار متقادمة. لن يُسمح بإصدار أوامر الشراء (Vendor POs) آلياً إلا بعد تحديث وتأكيد الأسعار أو الحصول على اعتماد إداري مع سبب التجاوز." %}
+        </p>
+        <div class="row g-2">
+          {% for svc in po_gating.stale_services %}
+          <div class="col-md-6 col-12">
+            <div class="p-2 bg-white rounded border d-flex justify-content-between align-items-center small">
+              <div>
+                <strong class="text-dark">{{ svc.name }}</strong>
+                <span class="text-muted d-block small">{{ svc.supplier }}</span>
+              </div>
+              <span class="badge bg-danger-subtle text-danger border border-danger-subtle">
+                {% if svc.status == 'legacy_unconfirmed' %}
+                  {% trans "غير مؤكد" %}
+                {% else %}
+                  {% trans "منتهي منذ" %} {{ svc.age_days }} {% trans "يوم" %}
+                {% endif %}
+              </span>
+            </div>
           </div>
-          <div class="flex-grow-1">
-            <h6 class="fw-bold text-dark mb-1">
-              {% trans "تنبيه حوكمة الأسعار: بنود مسعرة بأسعار موردين متقادمة أو منتهية الصلاحية" %}
-            </h6>
-            <p class="text-muted small mb-2">
-              {% trans "تم رصد خدمات أو خامات مرتبطة بهذا الطلب تعتمد على عروض أسعار متقادمة. لن يُسمح بإصدار أوامر الشراء (Vendor POs) آلياً إلا بعد تحديث وتأكيد الأسعار أو الحصول على اعتماد إداري مع سبب التجاوز." %}
-            </p>
-            <div class="row g-2">
-              {% for svc in po_gating.stale_services %}
-              <div class="col-md-6 col-12">
-                <div class="p-2 bg-white rounded border d-flex justify-content-between align-items-center small">
-                  <div>
-                    <strong class="text-dark">{{ svc.name }}</strong>
-                    <span class="text-muted d-block" style="font-size: 0.75rem;">{{ svc.supplier }}</span>
-                  </div>
-                  <span class="badge bg-danger-subtle text-danger border border-danger-subtle">
-                    {% if svc.status == 'legacy_unconfirmed' %}
-                      {% trans "غير مؤكد" %}
-                    {% else %}
-                      {% trans "منتهي منذ" %} {{ svc.age_days }} {% trans "يوم" %}
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- 1. البيانات الأساسية وتفاصيل العميل والطلب -->
+  <div class="section-container mb-4">
+    <h5 class="section-title">
+      <i class="fas fa-info-circle me-2"></i>{% trans "البيانات الأساسية وتفاصيل العميل والطلب" %}
+    </h5>
+    <div class="row g-3">
+      <!-- 1. بيانات العميل ومسؤول المبيعات -->
+      <div class="col-lg-4 col-md-6 col-12">
+        <div class="p-3 bg-light rounded border h-100">
+          <h6 class="fw-bold text-dark mb-3 border-bottom pb-2">
+            <i class="fas fa-user-tie text-primary me-2"></i>{% trans "بيانات العميل ومسؤول المبيعات" %}
+          </h6>
+          <table class="table table-borderless table-sm small mb-0">
+            <tbody>
+              <tr>
+                <td class="text-muted" style="width: 42%;">{% trans "العميل:" %}</td>
+                <td class="fw-bold text-dark">
+                  {% if order.customer %}
+                    <a href="{% url 'customer:customer_detail' order.customer.pk %}" class="text-primary text-decoration-none">
+                      <i class="fas fa-external-link-alt me-1"></i>{{ order.customer.name }}
+                    </a>
+                    {% if order.customer.phone %}
+                      <div class="small text-muted fw-normal mt-1"><i class="fas fa-phone-alt me-1"></i>{{ order.customer.phone }}</div>
                     {% endif %}
+                  {% else %}
+                    {{ order.customer_display_name }}
+                  {% endif %}
+                </td>
+              </tr>
+              <tr>
+                <td class="text-muted">{% trans "مسؤول المبيعات:" %}</td>
+                <td class="text-dark">{% if order.sales_rep %}{{ order.sales_rep.get_full_name|default:order.sales_rep.username }}{% else %}-{% endif %}</td>
+              </tr>
+              <tr>
+                <td class="text-muted">{% trans "تاريخ الطلب:" %}</td>
+                <td class="text-dark">{{ order.order_date|date:"Y-m-d" }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 2. مواصفات المطبوع والأبعاد -->
+      <div class="col-lg-4 col-md-6 col-12">
+        <div class="p-3 bg-light rounded border h-100">
+          <h6 class="fw-bold text-dark mb-3 border-bottom pb-2">
+            <i class="fas fa-ruler-combined text-primary me-2"></i>{% trans "مواصفات المطبوع والأبعاد" %}
+          </h6>
+          <table class="table table-borderless table-sm small mb-0">
+            <tbody>
+              <tr>
+                <td class="text-muted" style="width: 42%;">{% trans "المقاس والأبعاد:" %}</td>
+                <td class="fw-bold text-dark">{{ order.get_dimensions_display }}</td>
+              </tr>
+              <tr>
+                <td class="text-muted">{% trans "الكمية والنسخ:" %}</td>
+                <td class="text-dark">{{ order.quantity|smart_float }} {% trans "قطعة" %} {% if order.copies_count > 1 %}<span class="text-muted small">({{ order.copies_count }} {% trans "نسخ" %})</span>{% endif %}</td>
+              </tr>
+              <tr>
+                <td class="text-muted">{% trans "حالة الطي:" %}</td>
+                <td class="text-dark">
+                  {% if order.is_closed_size %}
+                    <span class="badge bg-warning-subtle text-warning border">{% trans "مقاس مقفول" %}</span>
+                    <span class="text-muted ms-1 small">({{ order.get_open_direction_display }})</span>
+                  {% else %}
+                    <span class="badge bg-info-subtle text-info border">{% trans "مقاس مفتوح" %}</span>
+                  {% endif %}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 3. حالة التشغيل والتنفيذ -->
+      <div class="col-lg-4 col-md-12 col-12">
+        <div class="p-3 bg-light rounded border h-100">
+          <h6 class="fw-bold text-dark mb-3 border-bottom pb-2">
+            <i class="fas fa-tasks text-primary me-2"></i>{% trans "حالة التشغيل والتنفيذ" %}
+          </h6>
+          <table class="table table-borderless table-sm small mb-0">
+            <tbody>
+              <tr>
+                <td class="text-muted" style="width: 42%;">{% trans "أمر الشغل التنفيذي:" %}</td>
+                <td>
+                  {% if order.work_order %}
+                    <a href="{% url 'work_order:work_order_detail' order.work_order.pk %}" class="badge bg-info-subtle text-info text-decoration-none border border-info-subtle">
+                      <i class="fas fa-cogs me-1"></i>{% trans "أمر شغل" %} #{{ order.work_order.number }}
+                    </a>
+                  {% else %}
+                    <span class="badge bg-secondary-subtle text-secondary border">{% trans "لم يصدر بعد" %}</span>
+                  {% endif %}
+                </td>
+              </tr>
+              <tr>
+                <td class="text-muted">{% trans "خدمة التصميم:" %}</td>
+                <td class="text-dark">
+                  {{ order.get_design_service_type_display }}
+                  {% if order.design_fee > 0 %}
+                    <span class="badge bg-success-subtle text-success ms-1">{{ order.design_fee|smart_float:2 }} {{ order.currency_symbol }}</span>
+                  {% endif %}
+                </td>
+              </tr>
+              <tr>
+                <td class="text-muted">{% trans "ملاحظات الطلب:" %}</td>
+                <td class="text-dark">
+                  {% if order.description %}
+                    <span>{{ order.description }}</span>
+                  {% else %}
+                    <span class="text-muted">-</span>
+                  {% endif %}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. بطاقة المواصفات الفنية والهندسة الهجينة للطلب -->
+  <div class="section-container mb-4">
+    <h5 class="section-title">
+      <i class="fas fa-clipboard-list me-2"></i>{% trans "بطاقة المواصفات الفنية والهندسة الهجينة" %}
+    </h5>
+
+    <div class="row g-3">
+      <div class="col-md-6">
+        <div class="p-3 bg-light rounded border h-100">
+          <h6 class="fw-bold text-dark mb-2">
+            <i class="fas fa-scroll text-success me-2"></i>{% if order.order_type in 'catalog,book,magazine,notebook' %}{% trans "مواصفات الغلاف" %}{% else %}{% trans "مواصفات المطبوع" %}{% endif %}
+          </h6>
+          <ul class="list-unstyled mb-0 small">
+            <li class="mb-1"><strong>{% trans "تقنية الطباعة:" %}</strong> <span class="badge bg-primary-subtle text-primary border">{{ order.get_cover_printing_type_display }}</span></li>
+            <li class="mb-1"><strong>{% trans "الخامة ومقاس الفرخ:" %}</strong> 
+              {% with ps=order.paper_specs.first %}
+                {% if ps %}
+                  {{ ps.paper_type_name|default:_("كوشيه") }} 
+                  ({{ ps.paper_weight|default:"300" }} جم) - 
+                  {% trans "فرخ" %} {{ ps.paper_size_name|default:"70×100" }}
+                  {% if ps.piece_size %}({{ ps.piece_size }}){% endif %}
+                  {% if ps.sheets_count %}<span class="badge bg-secondary-subtle text-secondary ms-1">{{ ps.sheets_count }} {% trans "فرخ" %}</span>{% endif %}
+                {% else %}
+                  {{ order.paper_specs.first.paper_type_name|default:_("كوشيه") }}
+                {% endif %}
+              {% endwith %}
+            </li>
+            {% with ps=order.paper_specs.first %}
+              {% if ps and ps.montage_count %}
+              <li class="mb-1">
+                <strong>{% trans "المونتاج على شيت الماكينة:" %}</strong> 
+                <span class="badge bg-info-subtle text-dark border"><i class="fas fa-th-large text-primary me-1"></i>{{ ps.montage_count }} / {{ ps.piece_size|default:_("شيت الماكينة") }}</span>
+              </li>
+              {% endif %}
+            {% endwith %}
+            <li class="mb-1"><strong>{% trans "الأوجه والنمط:" %}</strong> {{ order.get_print_sides_mode_display }} - {{ order.get_digital_color_mode_display|default:"4/0" }}{% if order.spot_colors_front or order.spot_colors_back %} + {{ order.spot_colors_front|add:order.spot_colors_back }} {% trans "لون مخصوص" %}{% endif %}</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="col-md-6">
+        <div class="p-3 bg-light rounded border h-100">
+          <h6 class="fw-bold text-dark mb-2">
+            <i class="fas fa-book-open text-primary me-2"></i>{% trans "مواصفات الداخلي والتجليد" %}
+          </h6>
+          <ul class="list-unstyled mb-0 small">
+            {% if order.order_type in 'catalog,book,magazine,notebook' %}
+            <li class="mb-1"><strong>{% trans "تقنية الداخلي:" %}</strong> <span class="badge bg-info-subtle text-info border">{{ order.get_inner_printing_type_display }}</span> - {{ order.get_inner_print_sides_mode_display }}</li>
+            <li class="mb-1"><strong>{% trans "ورق الداخلي:" %}</strong> {{ order.get_inner_paper_type_display|default:_("كوشيه") }} ({{ order.inner_paper_weight|default:"135" }} جم)</li>
+            <li class="mb-1"><strong>{% trans "عدد الصفحات والملازم:" %}</strong> {{ order.pages_count }} صفحة ({{ order.inner_signatures_count|default:"-" }} ملازم)</li>
+            <li class="mb-1"><strong>{% trans "نوع التجليد:" %}</strong> <span class="badge bg-secondary-subtle text-dark border">{{ order.get_binding_type_display|default:_("دبوس سرج") }}</span></li>
+            <li><strong>{% trans "سمك الكعب المحسوب:" %}</strong> <span class="fw-bold text-dark">{{ order.spine_thickness|default:"0.0" }} مم</span></li>
+            {% elif order.order_type in 'invoice,receipt' %}
+            <li class="mb-1"><strong>{% trans "دفاتر فواتير NCR:" %}</strong> طقم {{ order.ncr_sets_count|default:"2" }} ألوان (سعة {{ order.ncr_book_capacity|default:"50" }} إيصال/دفتر)</li>
+            <li><strong>{% trans "نطاق الترقيم:" %}</strong> من {{ order.ncr_serial_start }} إلى {{ order.ncr_serial_end }}</li>
+            {% elif order.order_type in 'folder,box' %}
+            <li class="mb-1"><strong>{% trans "نوع الجيب:" %}</strong> {{ order.get_folder_pocket_type_display }}</li>
+            <li><strong>{% trans "شلاقة بيزنس كارد:" %}</strong> {% if order.folder_card_slit %}{% trans "نعم (موجودة)" %}{% else %}{% trans "بدون" %}{% endif %}</li>
+            {% else %}
+            <li class="text-muted">{% trans "مطبوع مفرد (لا يتضمن صفحات داخلية مستقلة)" %}</li>
+            {% endif %}
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. جدول تشريح خامات وأوراق الطباعة ومواصفات المونتاج -->
+  <div class="section-container mb-4">
+    <h5 class="section-title">
+      <i class="fas fa-boxes me-2"></i>{% trans "خامات وأوراق الطباعة" %}
+    </h5>
+
+    <div class="table-responsive">
+      <table class="table table-bordered table-hover table-sm align-middle text-center small mb-0">
+        <thead class="table-light">
+          <tr>
+            <th style="width: 45px;">#</th>
+            <th style="width: 105px;">{% trans "نوع الخامة" %}</th>
+            <th class="text-start">{% trans "البيان" %}</th>
+            <th>{% trans "مقاس الفرخ والقص" %}</th>
+            <th style="width: 100px;">{% trans "الكمية المطلوبة" %}</th>
+            <th style="width: 85px;">{% trans "الوحدة" %}</th>
+            <th style="width: 100px;">{% trans "الهالك" %}</th>
+            {% if can_view_margins %}
+            <th style="width: 110px;">{% trans "تكلفة الوحدة" %}</th>
+            <th style="width: 130px;">{% trans "التكلفة الإجمالية" %}</th>
+            {% endif %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for mat in materials %}
+          <tr>
+            <td>{{ forloop.counter }}</td>
+            <td>
+              {% if mat.material_type == 'paper' %}
+                <span class="badge bg-primary-subtle text-primary border border-primary-subtle">
+                  <i class="fas fa-scroll me-1"></i>{% trans "ورق" %}
+                </span>
+              {% elif mat.material_type == 'cardboard' %}
+                <span class="badge bg-warning-subtle text-warning border border-warning-subtle">
+                  <i class="fas fa-box me-1"></i>{% trans "كرتون" %}
+                </span>
+              {% elif mat.material_type == 'plates' %}
+                <span class="badge bg-info-subtle text-info border border-info-subtle">
+                  <i class="fas fa-layer-group me-1"></i>{% trans "زنكات" %}
+                </span>
+              {% elif mat.material_type == 'ink' %}
+                <span class="badge bg-danger-subtle text-danger border border-danger-subtle">
+                  <i class="fas fa-fill-drip me-1"></i>{% trans "أحبار" %}
+                </span>
+              {% else %}
+                <span class="badge bg-secondary-subtle text-secondary border">
+                  {{ mat.get_material_type_display|default:mat.material_type }}
+                </span>
+              {% endif %}
+            </td>
+            <td class="fw-bold text-start">
+              {{ mat.material_name }}
+            </td>
+            <td>
+              {% if mat.paper_spec %}
+                <div class="d-flex flex-column align-items-center gap-1 py-1">
+                  <span class="badge bg-light text-dark border">
+                    <i class="fas fa-ruler-combined text-secondary me-1"></i>{{ mat.paper_spec.clean_paper_size_name|default:mat.paper_spec.paper_size_name }}
+                  </span>
+                  <span class="badge bg-secondary-subtle text-secondary border" title="{% trans 'مقاس قطع شيت الماكينة' %}">
+                    <i class="fas fa-cut me-1"></i>قص: {{ mat.paper_spec.clean_piece_size_name|default:mat.paper_spec.piece_size|default:_("كامل الفرخ") }}
                   </span>
                 </div>
-              </div>
-              {% endfor %}
-            </div>
-          </div>
-        </div>
-      </div>
-      {% endif %}
-
-      <!-- 0. بطاقة المواصفات الفنية والهندسة الهجينة للطلب -->
-      <div class="section-container mb-4">
-        <h5 class="section-title text-primary mb-3">
-          <i class="fas fa-clipboard-list me-2"></i>{% trans "بطاقة المواصفات الفنية والهندسة الهجينة" %}
-        </h5>
-
-        <div class="row g-3">
-          <div class="col-md-6">
-            <div class="p-3 bg-light rounded border h-100">
-              <h6 class="fw-bold text-dark mb-2">
-                <i class="fas fa-scroll text-success me-2"></i>{% trans "مواصفات الغلاف / المطبوع الرئيسي" %}
-              </h6>
-              <ul class="list-unstyled mb-0 small">
-                <li class="mb-1"><strong>{% trans "تقنية الطباعة:" %}</strong> <span class="badge bg-primary-subtle text-primary border">{{ order.get_cover_printing_type_display }}</span></li>
-                <li class="mb-1"><strong>{% trans "الخامة ومقاس الفرخ:" %}</strong> 
-                  {% with ps=order.paper_specs.first %}
-                    {% if ps %}
-                      {{ ps.paper_type_name|default:_("كوشيه") }} 
-                      ({{ ps.paper_weight|default:"300" }} جم) - 
-                      {% trans "فرخ" %} {{ ps.paper_size_name|default:"70×100" }}
-                      {% if ps.piece_size %}({{ ps.piece_size }}){% endif %}
-                      {% if ps.sheets_count %}<span class="badge bg-secondary-subtle text-secondary ms-1">{{ ps.sheets_count }} {% trans "فرخ" %}</span>{% endif %}
-                    {% else %}
-                      {{ order.paper_specs.first.paper_type_name|default:_("كوشيه") }}
-                    {% endif %}
-                  {% endwith %}
-                </li>
-                {% with ps=order.paper_specs.first %}
-                  {% if ps and ps.montage_count %}
-                  <li class="mb-1">
-                    <strong>{% trans "المونتاج على شيت الماكينة:" %}</strong> 
-                    <span class="badge bg-info-subtle text-dark border"><i class="fas fa-th-large text-primary me-1"></i>{{ ps.montage_count }} / {{ ps.piece_size|default:_("شيت الماكينة") }}</span>
-                  </li>
-                  {% endif %}
-                {% endwith %}
-                <li class="mb-1"><strong>{% trans "الأوجه والنمط:" %}</strong> {{ order.get_print_sides_mode_display }} - {{ order.get_digital_color_mode_display|default:"4/0" }}{% if order.spot_colors_front or order.spot_colors_back %} + {{ order.spot_colors_front|add:order.spot_colors_back }} {% trans "لون مخصوص" %}{% endif %}</li>
-              </ul>
-            </div>
-          </div>
-
-          <div class="col-md-6">
-            <div class="p-3 bg-light rounded border h-100">
-              <h6 class="fw-bold text-dark mb-2">
-                <i class="fas fa-book-open text-primary me-2"></i>{% trans "مواصفات الداخلي والتجليد" %}
-              </h6>
-              <ul class="list-unstyled mb-0 small">
-                {% if order.order_type in 'catalog,book,magazine,notebook' %}
-                <li class="mb-1"><strong>{% trans "تقنية الداخلي:" %}</strong> <span class="badge bg-info-subtle text-info border">{{ order.get_inner_printing_type_display }}</span> - {{ order.get_inner_print_sides_mode_display }}</li>
-                <li class="mb-1"><strong>{% trans "ورق الداخلي:" %}</strong> {{ order.get_inner_paper_type_display|default:_("كوشيه") }} ({{ order.inner_paper_weight|default:"135" }} جم)</li>
-                <li class="mb-1"><strong>{% trans "عدد الصفحات والملازم:" %}</strong> {{ order.pages_count }} صفحة ({{ order.inner_signatures_count|default:"-" }} ملازم)</li>
-                <li class="mb-1"><strong>{% trans "نوع التجليد:" %}</strong> <span class="badge bg-secondary-subtle text-dark border">{{ order.get_binding_type_display|default:_("دبوس سرج") }}</span></li>
-                <li><strong>{% trans "سمك الكعب المحسوب:" %}</strong> <span class="fw-bold text-dark">{{ order.spine_thickness|default:"0.0" }} مم</span></li>
-                {% elif order.order_type in 'invoice,receipt' %}
-                <li class="mb-1"><strong>{% trans "دفاتر فواتير NCR:" %}</strong> طقم {{ order.ncr_sets_count|default:"2" }} ألوان (سعة {{ order.ncr_book_capacity|default:"50" }} إيصال/دفتر)</li>
-                <li><strong>{% trans "نطاق الترقيم:" %}</strong> من {{ order.ncr_serial_start }} إلى {{ order.ncr_serial_end }}</li>
-                {% elif order.order_type in 'folder,box' %}
-                <li class="mb-1"><strong>{% trans "نوع الجيب:" %}</strong> {{ order.get_folder_pocket_type_display }}</li>
-                <li><strong>{% trans "شلاقة بيزنس كارد:" %}</strong> {% if order.folder_card_slit %}{% trans "نعم (موجودة)" %}{% else %}{% trans "بدون" %}{% endif %}</li>
-                {% else %}
-                <li class="text-muted">{% trans "مطبوع مفرد (لا يتضمن صفحات داخلية مستقلة)" %}</li>
+              {% else %}
+                <span class="text-muted">-</span>
+              {% endif %}
+            </td>
+            <td>
+              <span class="fw-bold text-dark">{{ mat.quantity|smart_float:2 }}</span>
+            </td>
+            <td>{{ mat.clean_unit_name|default:mat.get_unit_display|default:mat.unit }}</td>
+            <td>
+              {% if mat.waste_percentage > 0 %}
+                <span class="badge bg-warning-subtle text-warning border">{{ mat.waste_percentage|smart_float:1 }}%</span>
+                {% if mat.waste_quantity %}
+                  <small class="text-muted d-block mt-1">{{ mat.waste_quantity|smart_float:0 }} {{ mat.clean_unit_name|default:mat.get_unit_display }}</small>
                 {% endif %}
-              </ul>
-            </div>
-          </div>
-        </div>
-      </div>
+              {% else %}
+                <span class="text-muted">0%</span>
+              {% endif %}
+            </td>
+            {% if can_view_margins %}
+            <td>{{ mat.unit_cost|smart_float:2 }} {{ order.currency_symbol }}</td>
+            <td>
+              <strong class="text-dark">{{ mat.total_cost|smart_float:2 }}</strong> {{ order.currency_symbol }}
+              <small class="text-muted d-block" style="font-size: 0.72rem;">({% trans "شامل الهالك" %})</small>
+            </td>
+            {% endif %}
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="{% if can_view_margins %}9{% else %}7{% endif %}" class="text-muted py-3">
+              <i class="fas fa-info-circle me-1"></i>{% trans "لم يتم تسجيل بنود خامات لهذا الطلب بعد" %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        {% if can_view_margins and materials %}
+        <tfoot class="table-light border-top">
+          <tr>
+            <th colspan="7" class="text-end fw-bold py-2">{% trans "إجمالي تكلفة الخامات:" %}</th>
+            <th colspan="2" class="text-center fw-bold text-primary fs-6 py-2">
+              {% if summary %}{{ summary.material_cost|smart_float:2 }}{% else %}{{ order.estimated_cost|smart_float:2 }}{% endif %} {{ order.currency_symbol }}
+            </th>
+          </tr>
+        </tfoot>
+        {% endif %}
+      </table>
+    </div>
+  </div>
 
-      <!-- 1. لوحة 360 درجة للربحية (مقارنة سطر العميل المجمع vs أوامر شراء الورش) -->
-      <div class="section-container mb-4">
-        <h5 class="section-title text-primary mb-3">
-          <i class="fas fa-chart-pie me-2"></i>{% trans "مركز أرباح الشغلانة (Profit & Cost Breakdown)" %}
-        </h5>
+  <!-- 4. جدول خدمات وعمليات الورش والمطابع والموردين -->
+  <div class="section-container mb-4">
+    <h5 class="section-title">
+      <i class="fas fa-cogs me-2"></i>{% trans "خدمات وعمليات الورش والمطابع ومقاولي الباطن" %}
+    </h5>
+    <div class="table-responsive">
+      <table class="table table-bordered table-hover table-sm align-middle text-center small mb-0">
+        <thead class="table-light">
+          <tr>
+            <th style="width: 50px;">#</th>
+            <th>{% trans "فئة الخدمة" %}</th>
+            <th>{% trans "اسم الخدمة والعملية" %}</th>
+            <th>{% trans "المورد / الورشة المسند إليها" %}</th>
+            <th>{% trans "الكمية" %}</th>
+            <th>{% trans "الوحدة" %}</th>
+            {% if can_view_margins %}
+            <th>{% trans "سعر الوحدة" %}</th>
+            <th>{% trans "تكلفة الإعداد (Setup)" %}</th>
+            <th>{% trans "إجمالي التكلفة" %}</th>
+            {% endif %}
+            <th>{% trans "النوع" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for svc in services %}
+          <tr>
+            <td>{{ forloop.counter }}</td>
+            <td>
+              <span class="badge {% if svc.service_category == 'printing' %}bg-primary-subtle text-primary{% elif svc.service_category == 'finishing' %}bg-info-subtle text-info{% elif svc.service_category == 'coating' %}bg-secondary-subtle text-secondary{% else %}bg-light text-dark{% endif %} border">
+                {{ svc.get_service_category_display }}
+              </span>
+            </td>
+            <td class="fw-bold text-start">
+              {{ svc.service_name }}
+              {% if svc.service_description %}
+                <div class="text-muted small fw-normal">{{ svc.service_description }}</div>
+              {% endif %}
+            </td>
+            <td class="text-start">
+              {% if svc.supplier_service and svc.supplier_service.supplier %}
+                <span class="fw-bold text-dark"><i class="fas fa-store-alt text-secondary me-1"></i>{{ svc.supplier_service.supplier.name }}</span>
+              {% elif svc.supplier_info.supplier_name %}
+                <span class="text-dark">{{ svc.supplier_info.supplier_name }}</span>
+              {% else %}
+                <span class="text-muted">-</span>
+              {% endif %}
+            </td>
+            <td>{{ svc.quantity|smart_float:2 }}</td>
+            <td>{{ svc.get_unit_display|default:svc.unit }}</td>
+            {% if can_view_margins %}
+            <td>{{ svc.unit_price|smart_float:2 }} {{ order.currency_symbol }}</td>
+            <td>{{ svc.setup_cost|default:"0.00"|smart_float:2 }} {{ order.currency_symbol }}</td>
+            <td class="fw-bold text-danger">{{ svc.total_cost|smart_float:2 }} {{ order.currency_symbol }}</td>
+            {% endif %}
+            <td>
+              {% if svc.is_optional %}
+                <span class="badge bg-warning-subtle text-warning border">{% trans "اختيارية" %}</span>
+              {% else %}
+                <span class="badge bg-success-subtle text-success border">{% trans "أساسية" %}</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="{% if can_view_margins %}10{% else %}7{% endif %}" class="text-muted py-3">
+              <i class="fas fa-info-circle me-1"></i>{% trans "لم يتم تسجيل خدمات أو عمليات ورش لهذا الطلب بعد" %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
 
-        <div class="row g-3 mb-4">
-          <div class="col-md-{% if can_view_margins or perms.printing_pricing.view_cost_breakdown or request.user.is_superuser %}4{% else %}12{% endif %}">
-            <div class="p-3 bg-light rounded text-center border">
-              <div class="text-muted small mb-1">{% trans "قيمة البيع للعميل (صافي)" %}</div>
-              <div class="fs-4 fw-bold text-primary">{% if summary %}{{ summary.final_price|smart_float }}{% else %}{{ order.final_price|default:"0.00"|smart_float }}{% endif %} {{ order.currency_symbol }}</div>
-              <div class="small text-muted">{{ order.quantity|smart_float }} {% trans "قطعة" %}</div>
-            </div>
-          </div>
+  <!-- 5. لوحة 360 درجة للربحية وتفكيك التكلفة وأوامر شراء الورش -->
+  <div class="section-container mb-4">
+    <h5 class="section-title">
+      <i class="fas fa-chart-pie me-2"></i>{% trans "مركز أرباح الشغلانة والتوزيع المالي (Cost Breakdown & Margin)" %}
+    </h5>
 
-          {% if can_view_margins or perms.printing_pricing.view_cost_breakdown or request.user.is_superuser %}
-          <div class="col-md-4">
-            <div class="p-3 bg-light rounded text-center border">
-              <div class="text-muted small mb-1">{% trans "إجمالي تكاليف الورش والمواد" %}</div>
-              <div class="fs-4 fw-bold text-danger">{% if summary %}{{ summary.total_cost|smart_float }}{% else %}0.00{% endif %} {{ order.currency_symbol }}</div>
-              <div class="small text-muted">{% trans "تكلفة الإنتاج الإجمالية" %}</div>
-            </div>
-          </div>
-
-          <div class="col-md-4">
-            <div class="p-3 bg-light rounded text-center border">
-              <div class="text-muted small mb-1">{% trans "صافي الربح الفعلي المحقق" %}</div>
-              <div class="fs-4 fw-bold text-success">{% if summary %}{{ summary.net_profit|smart_float }}{% else %}0.00{% endif %} {{ order.currency_symbol }}</div>
-              <div class="small text-success fw-bold">{% if summary %}{{ summary.profit_margin|smart_float }}{% else %}0.00{% endif %}% {% trans "هامش ربح" %}</div>
-            </div>
-          </div>
-          {% endif %}
-        </div>
-
-        {% if can_view_margins or perms.printing_pricing.view_cost_breakdown or request.user.is_superuser %}
-        <!-- جدول أوامر شراء الورش المفككة -->
-        <h6 class="fw-bold text-dark mb-2">
-          <i class="fas fa-file-invoice-dollar text-secondary me-2"></i>{% trans "أوامر شراء خدمات الورش المرتبطة (Unbundled Vendor POs):" %}
+    <div class="row g-4">
+      <!-- العمود الأول: أوامر شراء الورش المفككة -->
+      <div class="col-lg-7 col-12">
+        <h6 class="fw-bold text-dark mb-3">
+          <i class="fas fa-file-invoice-dollar text-primary me-2"></i>{% trans "أوامر شراء خدمات الورش المرتبطة (Unbundled Vendor POs):" %}
         </h6>
         <div class="table-responsive">
-          <table class="table table-bordered table-sm align-middle text-center small bg-white mb-0">
+          <table class="table table-bordered table-hover table-sm align-middle text-center small mb-0">
             <thead class="table-light">
               <tr>
-                <th>{% trans "رقم الـ PO" %}</th>
+                <th>{% trans "رقم أمر الشراء" %}</th>
                 <th>{% trans "المورد / الورشة" %}</th>
                 <th>{% trans "الخدمة / البند" %}</th>
                 <th>{% trans "القيمة" %}</th>
@@ -218,25 +539,109 @@
             <tbody>
               {% for po in unbundled_pos %}
               <tr>
-                <td class="fw-bold">{{ po.purchase_number }}</td>
+                <td class="fw-bold">
+                  <a href="{% url 'purchase:purchase_detail' po.pk %}" class="text-primary text-decoration-none">
+                    {{ po.purchase_number }}
+                  </a>
+                </td>
                 <td>{{ po.supplier.name }}</td>
                 <td>{{ po.notes|default:_("خدمات طباعة وتشطيب") }}</td>
-                <td>{{ po.total_amount|smart_float }} {{ po.currency_symbol|default:order.currency_symbol }}</td>
-                <td class="text-success">{{ po.tax_deduction_amount|default:"0.00"|smart_float }} {{ po.currency_symbol|default:order.currency_symbol }}</td>
-                <td><span class="badge bg-success">{% trans "معتمد" %}</span></td>
+                <td class="fw-bold">{{ po.total_amount|smart_float:2 }} {{ po.currency_symbol|default:order.currency_symbol }}</td>
+                <td class="text-success">{{ po.tax_deduction_amount|default:"0.00"|smart_float:2 }} {{ po.currency_symbol|default:order.currency_symbol }}</td>
+                <td><span class="badge bg-success-subtle text-success border">{% trans "معتمد" %}</span></td>
               </tr>
               {% empty %}
               <tr>
-                <td colspan="6" class="text-muted py-3">{% trans "لم يتم إصدار أوامر شراء ورش حتى الآن (اضغط 'بدء التشغيل وتوليد أمر الشغل' بالأعلى لإصدارها)." %}</td>
+                <td colspan="6" class="text-muted py-3">
+                  <i class="fas fa-info-circle me-1"></i>{% trans "لم يتم إصدار أوامر شراء ورش حتى الآن (اضغط 'بدء التشغيل وتوليد أمر الشغل' بالأعلى لإصدارها)." %}
+                </td>
               </tr>
               {% endfor %}
             </tbody>
           </table>
         </div>
-        {% endif %}
+      </div>
+
+      <!-- العمود الثاني: كشف تفكيك التكاليف والهوامش المالية -->
+      <div class="col-lg-5 col-12">
+        <div class="p-3 bg-light rounded border">
+          <h6 class="fw-bold text-dark mb-3 border-bottom pb-2">
+            <i class="fas fa-receipt text-primary me-2"></i>{% trans "ملخص الحساب المالي الموحد (SSOT Summary)" %}
+          </h6>
+          <table class="table table-borderless table-sm small mb-0">
+            <tbody>
+              {% if can_view_margins or perms.printing_pricing.view_cost_margins or request.user.is_superuser %}
+                {% if summary %}
+                <tr>
+                  <td class="text-muted">{% trans "تكلفة خامات وأوراق الطباعة:" %}</td>
+                  <td class="text-end fw-bold text-dark">{{ summary.material_cost|smart_float:2 }} {{ order.currency_symbol }}</td>
+                </tr>
+                <tr>
+                  <td class="text-muted">{% trans "تكلفة الطباعة والمطابع:" %}</td>
+                  <td class="text-end fw-bold text-dark">{{ summary.printing_cost|smart_float:2 }} {{ order.currency_symbol }}</td>
+                </tr>
+                <tr>
+                  <td class="text-muted">{% trans "تكلفة التشطيب والتجليد:" %}</td>
+                  <td class="text-end fw-bold text-dark">{{ summary.finishing_cost|smart_float:2 }} {{ order.currency_symbol }}</td>
+                </tr>
+                <tr>
+                  <td class="text-muted">{% trans "أتعاب التصميم والمونتاج:" %}</td>
+                  <td class="text-end fw-bold text-dark">{{ summary.design_cost|smart_float:2 }} {{ order.currency_symbol }}</td>
+                </tr>
+                {% if summary.other_costs or summary.rush_fee %}
+                <tr>
+                  <td class="text-muted">{% trans "مصروفات إضافية واستعجال:" %}</td>
+                  <td class="text-end fw-bold text-dark">{{ summary.other_costs|add:summary.rush_fee|smart_float:2 }} {{ order.currency_symbol }}</td>
+                </tr>
+                {% endif %}
+                <tr class="border-top">
+                  <td class="fw-bold text-danger">{% trans "إجمالي التكلفة المقدرة:" %}</td>
+                  <td class="text-end fw-bold text-danger fs-6">{{ summary.total_cost|smart_float:2 }} {{ order.currency_symbol }}</td>
+                </tr>
+                <tr>
+                  <td class="fw-bold text-success">{% trans "صافي الربح المحقق:" %}</td>
+                  <td class="text-end fw-bold text-success fs-6">{{ summary.profit_amount|default:summary.net_profit|smart_float:2 }} {{ order.currency_symbol }}</td>
+                </tr>
+                <tr>
+                  <td class="text-muted">{% trans "نسبة هامش الربح:" %}</td>
+                  <td class="text-end fw-bold text-success">{{ summary.profit_margin_percentage|smart_float:1 }}%</td>
+                </tr>
+                {% endif %}
+              {% endif %}
+
+              <tr class="border-top">
+                <td class="text-muted">{% trans "المجموع الفرعي (قبل الخصم والضريبة):" %}</td>
+                <td class="text-end fw-bold text-dark">{% if summary %}{{ summary.subtotal|smart_float:2 }}{% else %}{{ order.final_price|default:"0.00"|smart_float:2 }}{% endif %} {{ order.currency_symbol }}</td>
+              </tr>
+              {% if summary and summary.discount_amount > 0 %}
+              <tr>
+                <td class="text-muted">{% trans "قيمة الخصم الممنوح:" %}</td>
+                <td class="text-end text-danger">-{{ summary.discount_amount|smart_float:2 }} {{ order.currency_symbol }}</td>
+              </tr>
+              {% endif %}
+              {% if summary and summary.tax_amount > 0 %}
+              <tr>
+                <td class="text-muted">{% trans "ضريبة القيمة المضافة:" %}</td>
+                <td class="text-end text-dark">+{{ summary.tax_amount|smart_float:2 }} {{ order.currency_symbol }}</td>
+              </tr>
+              {% endif %}
+              <tr class="border-top bg-white rounded">
+                <td class="fw-bold text-primary p-2">{% trans "السعر النهائي للبيع:" %}</td>
+                <td class="text-end fw-bold text-primary fs-5 p-2">
+                  {% if summary %}{{ summary.final_price|smart_float:2 }}{% else %}{{ order.final_price|default:"0.00"|smart_float:2 }}{% endif %} {{ order.currency_symbol }}
+                </td>
+              </tr>
+              {% if order.exchange_rate != 1 %}
+              <tr>
+                <td class="text-muted small">{% trans "المعادل بالعملة الوظيفية (IAS 21):" %}</td>
+                <td class="text-end text-muted small fw-bold">{{ order.final_price_functional|smart_float:2 }} EGP</td>
+              </tr>
+              {% endif %}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
-
   </div>
 </div>
 {% endblock %}
@@ -248,7 +653,115 @@ document.addEventListener('DOMContentLoaded', function() {
   const isGatedReady = '{% if po_gating and po_gating.is_gated_ready %}1{% else %}0{% endif %}' === '1';
   const canOverrideGating = '{% if request.user.is_superuser or request.user.is_staff %}1{% else %}0{% endif %}' === '1';
 
-  // تشغيل وتوليد أوامر الشغل للورش والموردين (Vendor POs)
+  // 1. إعادة حساب التكلفة عبر AJAX
+  window.recalculateOrderCost = function(pk) {
+    const btn = document.getElementById('btn_recalculate_cost');
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> {% trans "جارٍ الحساب..." %}';
+    }
+
+    fetch("{% url 'printing_pricing:calculate_order_cost' order.pk %}", {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': '{{ csrf_token }}'
+      }
+    })
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-sync-alt me-1"></i> {% trans "إعادة حساب التكلفة" %}';
+      }
+      if (data.success) {
+        if (window.showNotification) {
+          window.showNotification(data.message || '{% trans "تم إعادة حساب التكلفة والربحية بنجاح" %}', 'success');
+        }
+        setTimeout(function() { location.reload(); }, 3100);
+      } else {
+        if (window.showNotification) {
+          window.showNotification(data.error || '{% trans "فشل في إعادة الحساب" %}', 'warning');
+        }
+      }
+    })
+    .catch(function(err) {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-sync-alt me-1"></i> {% trans "إعادة حساب التكلفة" %}';
+      }
+      if (window.showNotification) {
+        window.showNotification('{% trans "حدث خطأ أثناء الاتصال بالخادم" %}', 'error');
+      }
+    });
+  };
+
+  // 2. اعتماد طلب التسعير
+  window.approveOrder = function(pk) {
+    const confirmApprove = function() {
+      const btn = document.getElementById('btn_approve_order');
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> {% trans "جارٍ الاعتماد..." %}';
+      }
+
+      fetch("{% url 'printing_pricing:approve_order' order.pk %}", {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': '{{ csrf_token }}'
+        }
+      })
+      .then(function(res) { return res.json(); })
+      .then(function(data) {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '<i class="fas fa-check-double me-1"></i> {% trans "اعتماد الطلب" %}';
+        }
+        if (data.success) {
+          if (window.showNotification) {
+            window.showNotification(data.message || '{% trans "تم اعتماد طلب التسعير وتوليد أمر الشغل بنجاح" %}', 'success');
+          }
+          setTimeout(function() { location.reload(); }, 3100);
+        } else {
+          if (window.showNotification) {
+            window.showNotification(data.error || '{% trans "تعذر اعتماد الطلب" %}', 'warning');
+          }
+        }
+      })
+      .catch(function(err) {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '<i class="fas fa-check-double me-1"></i> {% trans "اعتماد الطلب" %}';
+        }
+        if (window.showNotification) {
+          window.showNotification('{% trans "حدث خطأ أثناء الاتصال بالخادم" %}', 'error');
+        }
+      });
+    };
+
+    if (typeof Swal !== 'undefined') {
+      Swal.fire({
+        title: '{% trans "تأكيد اعتماد طلب التسعير" %}',
+        text: '{% trans "هل أنت متأكد من اعتماد هذا الطلب؟ سيتم تثبيت المقايسة وإنشاء أمر الشغل التنفيذي لصالة الإنتاج." %}',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: '{% trans "نعم، اعتمد الطلب" %}',
+        cancelButtonText: '{% trans "إلغاء" %}',
+        confirmButtonColor: 'var(--success-color, #198754)'
+      }).then(function(res) {
+        if (res.isConfirmed) {
+          confirmApprove();
+        }
+      });
+    } else {
+      if (confirm('{% trans "هل أنت متأكد من اعتماد هذا الطلب؟" %}')) {
+        confirmApprove();
+      }
+    }
+  };
+
+  // 3. تشغيل وتوليد أوامر الشغل للورش والموردين (Vendor POs)
   const btnConvertWorkOrder = document.getElementById('btn_convert_work_order');
   if (btnConvertWorkOrder) {
     btnConvertWorkOrder.addEventListener('click', function() {

@@ -292,7 +292,7 @@ class TestHybridPrintingArchitecture:
         assert spot_service.total_cost == Decimal('150.00')
 
         # هدر ورق الطبع والقلب (4%)
-        cover_mat = order.materials.filter(material_name__startswith='[غلاف').first()
+        cover_mat = order.materials.filter(material_type='paper').first()
         assert cover_mat.waste_percentage == Decimal('4.00')
 
     def test_digital_click_modes_and_large_format_banner(self, test_customer, test_user, flyer_product_type):

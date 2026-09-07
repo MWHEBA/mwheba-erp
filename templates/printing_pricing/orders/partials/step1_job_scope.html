@@ -60,7 +60,7 @@
           {% trans "تاريخ التسعير" %} <span class="text-danger">*</span>
         </label>
         <input type="date" class="form-control" id="id_order_date" name="order_date" 
-               value="{% if form.order_date.value %}{{ form.order_date.value|date:'Y-m-d' }}{% elif form.instance.order_date %}{{ form.instance.order_date|date:'Y-m-d' }}{% else %}{% now 'Y-m-d' %}{% endif %}" required>
+               value="{% if form.order_date.value %}{% if form.order_date.value.year %}{{ form.order_date.value|date:'Y-m-d' }}{% else %}{{ form.order_date.value }}{% endif %}{% elif form.instance.order_date %}{{ form.instance.order_date|date:'Y-m-d' }}{% else %}{% now 'Y-m-d' %}{% endif %}" required>
       </div>
 
       <!-- 3. وصف الطلب -->
@@ -79,7 +79,7 @@
         <label for="id_product_type" class="form-label fw-bold">
           {% trans "نوع المطبوع" %} <span class="text-danger">*</span>
         </label>
-        <select class="form-select select2-filter text-center" id="id_product_type" name="product_type" required>
+        <select class="form-select select2-filter text-center" id="id_product_type" name="product_type">
           {% if product_types %}
             {% for pt in product_types %}
               <option value="{{ pt.pk }}" data-archetype="{{ pt.base_archetype }}" 
@@ -88,12 +88,13 @@
               </option>
             {% endfor %}
           {% else %}
-            <option value="" data-archetype="flyer" {% if form.order_type.value == 'flyer' or form.instance.order_type == 'flyer' %}selected{% endif %}>{% trans "مطبوع مفرود (كروت / فلاير)" %}</option>
-            <option value="" data-archetype="catalog" {% if form.order_type.value == 'catalog' or form.instance.order_type == 'catalog' or form.instance.order_type == 'book' %}selected{% endif %}>{% trans "مطبوع مع داخلي (كتالوج / بلوك نوت)" %}</option>
-            <option value="" data-archetype="folder" {% if form.order_type.value == 'folder' or form.instance.order_type == 'folder' %}selected{% endif %}>{% trans "مطبوع مع فورمة تكسير" %}</option>
-            <option value="" data-archetype="invoice" {% if form.order_type.value == 'invoice' or form.instance.order_type == 'invoice' %}selected{% endif %}>{% trans "دفاتر مكربن" %}</option>
+            <option value="flyer" data-archetype="flyer" {% if form.order_type.value == 'flyer' or form.instance.order_type == 'flyer' %}selected{% endif %}>{% trans "مطبوع مفرود (كروت / فلاير)" %}</option>
+            <option value="catalog" data-archetype="catalog" {% if form.order_type.value == 'catalog' or form.instance.order_type == 'catalog' or form.instance.order_type == 'book' %}selected{% endif %}>{% trans "مطبوع مع داخلي (كتالوج / بلوك نوت)" %}</option>
+            <option value="folder" data-archetype="folder" {% if form.order_type.value == 'folder' or form.instance.order_type == 'folder' %}selected{% endif %}>{% trans "مطبوع مع فورمة تكسير" %}</option>
+            <option value="invoice" data-archetype="invoice" {% if form.order_type.value == 'invoice' or form.instance.order_type == 'invoice' %}selected{% endif %}>{% trans "دفاتر مكربن" %}</option>
           {% endif %}
         </select>
+        <input type="hidden" name="order_type" id="id_order_type" value="{{ form.order_type.value|default:form.instance.order_type|default:'flyer' }}">
       </div>
 
       <!-- 5. الكمية المطلوبة -->

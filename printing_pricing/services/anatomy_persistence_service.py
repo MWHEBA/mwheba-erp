@@ -348,6 +348,8 @@ class OrderAnatomyPersistenceService:
                     'source': paper_source,
                     'grain_direction': post_data.get('grain_direction', 'LG'),
                     'gross_sheets': int(gross_sheets),
+                    'net_sheets': int(net_sheets),
+                    'waste_sheets': int(waste_sheets),
                     'packs': float(gross_sheets / Decimal(str(sheets_per_pack))),
                     'sheets_per_pack': sheets_per_pack,
                 }
@@ -368,10 +370,30 @@ class OrderAnatomyPersistenceService:
                 paper_name_str = post_data.get('paper_type_name') or post_data.get('paper_type') or 'كوشيه'
                 if hasattr(paper_name_str, 'name'):
                     paper_name_str = paper_name_str.name
+                elif str(paper_name_str).isdigit():
+                    try:
+                        from ..models import PaperType
+                        pt_obj = PaperType.objects.filter(id=int(paper_name_str)).first()
+                        if pt_obj and pt_obj.name:
+                            paper_name_str = pt_obj.name
+                    except Exception:
+                        pass
+
+                clean_sheet_size = str(sheet_size_str or '').strip()
+                if clean_sheet_size.startswith('فرخ '):
+                    sheet_display_str = clean_sheet_size
+                elif clean_sheet_size:
+                    sheet_display_str = f"فرخ {clean_sheet_size}"
+                else:
+                    sheet_display_str = "فرخ قياسي"
+
+                has_inner = order_type in ['catalog', 'book', 'magazine', 'book_catalog', 'notebook']
+                cover_prefix = "[غلاف] " if has_inner else ""
+
                 OrderMaterial.objects.create(
                     order=order,
                     material_type='paper',
-                    material_name=f"[غلاف / مطبوع رئيسي] ورق {paper_name_str} {paper_weight} جم{open_desc} (فرخ {sheet_size_str})",
+                    material_name=f"{cover_prefix}ورق {paper_name_str} {paper_weight} جم{open_desc}",
                     quantity=gross_sheets,
                     unit=PriceUnit.SHEET,
                     unit_cost=sheet_unit_cost.quantize(Decimal('0.01')),
@@ -458,7 +480,7 @@ class OrderAnatomyPersistenceService:
                 OrderMaterial.objects.create(
                     order=order,
                     material_type='paper',
-                    material_name=f"[داخلي] {inner_paper_name} ({pages_count} صفحة - {total_signatures} ملازم) (فرخ {inner_sheet_size_str})",
+                    material_name=f"[داخلي] {inner_paper_name} ({pages_count} صفحة - {total_signatures} ملازم)",
                     quantity=inner_gross_sheets,
                     unit=PriceUnit.SHEET,
                     unit_cost=inner_sheet_cost.quantize(Decimal('0.01')),

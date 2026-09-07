@@ -2330,7 +2330,7 @@ class Migration(migrations.Migration):
                         choices=[
                             ("piece", "بالقطعة"),
                             ("thousand", "بالألف"),
-                            ("sheet", "بالفرخ / شيت"),
+                            ("sheet", "بالفرخ"),
                             ("package", "بالباكدج"),
                         ],
                         max_length=20,
@@ -2534,7 +2534,7 @@ class Migration(migrations.Migration):
                         choices=[
                             ("piece", "بالقطعة"),
                             ("thousand", "بالألف"),
-                            ("sheet", "بالفرخ / شيت"),
+                            ("sheet", "بالفرخ"),
                             ("package", "بالباكدج"),
                         ],
                         max_length=20,

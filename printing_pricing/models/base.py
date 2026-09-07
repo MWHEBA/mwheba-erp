@@ -150,7 +150,7 @@ class PriceUnit(models.TextChoices):
     """
     PIECE = 'piece', _('بالقطعة')
     THOUSAND = 'thousand', _('بالألف')
-    SHEET = 'sheet', _('بالفرخ / شيت')
+    SHEET = 'sheet', _('بالفرخ')
     PACKAGE = 'package', _('بالباكدج')
 
 

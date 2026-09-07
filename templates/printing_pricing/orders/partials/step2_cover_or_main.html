@@ -205,7 +205,7 @@
                   {% if offset_suppliers %}
                     <option value="">{% trans "-- اختر مطبعة الأوفست --" %}</option>
                     {% for supp in offset_suppliers %}
-                      <option value="{{ supp.id }}" {% if supp.is_preferred %}data-preferred="true"{% endif %}>
+                      <option value="{{ supp.id }}" {% if supp.is_preferred %}data-preferred="true"{% endif %} {% if form.cover_offset_supplier.value == supp.id or form.cover_offset_supplier.value == supp.id|stringformat:"s" or saved_cover_offset_supplier_id == supp.id %}selected{% endif %}>
                         {{ supp.name }}{% if supp.is_preferred %} ⭐ ({% trans "معتمد" %}){% endif %}
                       </option>
                     {% endfor %}
@@ -221,7 +221,13 @@
                   {% trans "ماكينة ومقاس الأوفست" %}
                 </label>
                 <select class="form-select select2-filter text-center" id="id_cover_press_machine" name="cover_press_machine">
-                  <option value="">{% trans "-- اختر مطبعة الأوفست أولاً --" %}</option>
+                  {% if saved_cover_press_machine %}
+                    <option value="{{ saved_cover_press_machine }}" selected>{{ saved_cover_press_machine }}</option>
+                  {% elif form.cover_press_machine.value %}
+                    <option value="{{ form.cover_press_machine.value }}" selected>{{ form.cover_press_machine.value }}</option>
+                  {% else %}
+                    <option value="">{% trans "-- اختر مطبعة الأوفست أولاً --" %}</option>
+                  {% endif %}
                 </select>
               </div>
 
@@ -232,7 +238,7 @@
                 </label>
                 <div class="input-group">
                   <input type="number" class="form-control text-center fw-bold" id="id_press_rate" name="press_rate" 
-                         value="" placeholder="0.00" min="0" step="1" title="{% trans 'سعر التراج (ألف سحبة)' %}">
+                         value="{% if saved_press_rate %}{{ saved_press_rate }}{% elif form.press_rate.value %}{{ form.press_rate.value }}{% endif %}" placeholder="0.00" min="0" step="1" title="{% trans 'سعر التراج (ألف سحبة)' %}">
                   <span class="input-group-text small bg-light">{{ currency_symbol|default:functional_currency.symbol }} / {% trans "تراج" %}</span>
                 </div>
               </div>
@@ -243,7 +249,7 @@
                   {% trans "إجمالي التراج (السحبات)" %}
                 </label>
                 <div class="form-control bg-light d-flex justify-content-between align-items-center">
-                  <span class="small text-muted" id="press_pulls_count">1,000 سحبة (1 تراج)</span>
+                  <span class="small text-muted" id="press_pulls_count">{% if saved_pulls_count %}{{ saved_pulls_count|floatformat:0 }} سحبة{% else %}1,000 سحبة (1 تراج){% endif %}</span>
                   <span class="badge bg-white text-dark border small" id="press_montage_ref_badge" title="{% trans 'المونتاج المعتمد في الحسبة' %}">
                     <i class="fas fa-th-large text-primary me-1"></i>{% trans "المونتاج:" %} <span id="press_montage_ref_val">{% if saved_paper_spec and saved_paper_spec.montage_count %}{{ saved_paper_spec.montage_count }} / {{ saved_paper_spec.piece_size|default:_("ربع") }}{% else %}- / --{% endif %}</span>
                   </span>
@@ -257,7 +263,7 @@
                 </label>
                 <div class="form-control bg-light d-flex justify-content-between align-items-center">
                   <span class="small text-muted">{% trans "الإجمالي:" %}</span>
-                  <strong class="text-primary fs-6" id="cover_press_cost_display">0 {{ currency_symbol|default:functional_currency.symbol }}</strong>
+                  <strong class="text-primary fs-6" id="cover_press_cost_display">{% if saved_cover_press_cost %}{{ saved_cover_press_cost }}{% else %}0{% endif %} {{ currency_symbol|default:functional_currency.symbol }}</strong>
                 </div>
               </div>
             </div>
@@ -304,7 +310,7 @@
                   {% if ctp_suppliers %}
                     <option value="">{% trans "-- اختر مكتب فصل زنكات CTP --" %}</option>
                     {% for supp in ctp_suppliers %}
-                      <option value="{{ supp.id }}" {% if supp.is_preferred %}data-preferred="true"{% endif %}>
+                      <option value="{{ supp.id }}" {% if supp.is_preferred %}data-preferred="true"{% endif %} {% if form.cover_ctp_supplier.value == supp.id or form.cover_ctp_supplier.value == supp.id|stringformat:"s" or saved_cover_ctp_supplier_id == supp.id %}selected{% endif %}>
                         {{ supp.name }}{% if supp.is_preferred %} ⭐ ({% trans "معتمد" %}){% endif %}
                       </option>
                     {% endfor %}
@@ -324,14 +330,14 @@
                     {% for ps in plate_sizes %}
                       <option value="{% if '102' in ps.code or '100' in ps.name or 'كامل' in ps.name %}70x100{% elif '74' in ps.code or '70' in ps.name or 'نصف' in ps.name %}50x70{% else %}35x50{% endif %}"
                               data-bed="{% if '102' in ps.code or '100' in ps.name or 'كامل' in ps.name %}70x100{% elif '74' in ps.code or '70' in ps.name or 'نصف' in ps.name %}50x70{% else %}35x50{% endif %}"
-                              {% if saved_paper_spec.press_bed_size %}{% if saved_paper_spec.press_bed_size == '70x100' and '102' in ps.code %}selected{% elif saved_paper_spec.press_bed_size == '50x70' and '74' in ps.code %}selected{% elif saved_paper_spec.press_bed_size == '35x50' and '52' in ps.code %}selected{% endif %}{% else %}{% if '52' in ps.code or 'ربع' in ps.name or '35' in ps.name %}selected{% endif %}{% endif %}>
+                              {% if saved_press_bed_size %}{% if saved_press_bed_size == '70x100' and '102' in ps.code or saved_press_bed_size == '70x100' and '100' in ps.name %}selected{% elif saved_press_bed_size == '50x70' and '74' in ps.code or saved_press_bed_size == '50x70' and '70' in ps.name %}selected{% elif saved_press_bed_size == '35x50' and '52' in ps.code or saved_press_bed_size == '35x50' and '35' in ps.name %}selected{% endif %}{% elif form.press_bed_size.value %}{% if form.press_bed_size.value == '70x100' and '100' in ps.name %}selected{% elif form.press_bed_size.value == '50x70' and '70' in ps.name %}selected{% elif form.press_bed_size.value == '35x50' and '35' in ps.name %}selected{% endif %}{% else %}{% if '52' in ps.code or 'ربع' in ps.name or '35' in ps.name %}selected{% endif %}{% endif %}>
                         {{ ps.name }} ({{ ps.width|floatformat:0 }}×{{ ps.height|floatformat:0 }} سم)
                       </option>
                     {% endfor %}
                   {% else %}
-                    <option value="35x50" data-bed="35x50" selected>{% trans "ربع فرخ 35×50 سم" %}</option>
-                    <option value="50x70" data-bed="50x70">{% trans "نصف فرخ 50×70 سم" %}</option>
-                    <option value="70x100" data-bed="70x100">{% trans "فرخ كامل 70×100 سم" %}</option>
+                    <option value="35x50" data-bed="35x50" {% if saved_press_bed_size == '35x50' %}selected{% endif %}>{% trans "ربع فرخ 35×50 سم" %}</option>
+                    <option value="50x70" data-bed="50x70" {% if saved_press_bed_size == '50x70' %}selected{% endif %}>{% trans "نصف فرخ 50×70 سم" %}</option>
+                    <option value="70x100" data-bed="70x100" {% if saved_press_bed_size == '70x100' or not saved_press_bed_size %}selected{% endif %}>{% trans "فرخ كامل 70×100 سم" %}</option>
                   {% endif %}
                 </select>
               </div>
@@ -343,7 +349,7 @@
                 </label>
                 <div class="input-group">
                   <input type="number" class="form-control text-center fw-bold" id="id_plate_price" name="plate_price" 
-                         value="" placeholder="0.00" min="0" step="1" title="{% trans 'سعر الزنكة المعتمد' %}">
+                         value="{% if saved_plate_price %}{{ saved_plate_price }}{% elif form.plate_price.value %}{{ form.plate_price.value }}{% endif %}" placeholder="0.00" min="0" step="1" title="{% trans 'سعر الزنكة المعتمد' %}">
                   <span class="input-group-text small bg-light">{{ currency_symbol|default:functional_currency.symbol }}</span>
                 </div>
               </div>
@@ -355,7 +361,7 @@
                 </label>
                 <div class="input-group">
                   <input type="number" class="form-control fw-bold text-center text-primary" 
-                         id="id_plate_count_front" name="plate_count_front" value="4" min="0" max="10">
+                         id="id_plate_count_front" name="plate_count_front" value="{{ form.plate_count_front.value|default:'4' }}" min="0" max="10">
                   <span class="input-group-text small bg-light">{% trans "زنكة" %}</span>
                 </div>
               </div>
@@ -368,7 +374,7 @@
                 <div class="input-group">
                   <input type="number" class="form-control fw-bold text-center text-primary" 
                          id="id_plate_count_back" name="plate_count_back" 
-                         value="{% if form.print_sides_mode.value == 'work_sheet' %}{{ form.plate_count_back.value|default:'4' }}{% else %}0{% endif %}" 
+                         value="{% if form.print_sides_mode.value == 'work_sheet' %}{{ form.plate_count_back.value|default:'0' }}{% else %}0{% endif %}" 
                          min="0" max="10"
                          {% if form.print_sides_mode.value != 'work_sheet' %}disabled{% endif %}>
                   <span class="input-group-text small bg-light">{% trans "زنكة" %}</span>
@@ -382,7 +388,7 @@
                 </label>
                 <div class="form-control bg-light d-flex justify-content-between align-items-center">
                   <span class="small text-muted">{% trans "الإجمالي:" %}</span>
-                  <strong class="text-primary fs-6" id="cover_ctp_cost_display">0 {{ currency_symbol|default:functional_currency.symbol }}</strong>
+                  <strong class="text-primary fs-6" id="cover_ctp_cost_display">{% if saved_cover_ctp_cost %}{{ saved_cover_ctp_cost }}{% else %}0{% endif %} {{ currency_symbol|default:functional_currency.symbol }}</strong>
                 </div>
                 <!-- حقل إجمالي الزنكات المخفي للمزامنة البرمجية -->
                 <input type="hidden" id="id_plate_count" name="zinc_plates_count" value="{{ form.zinc_plates_count.value|default:'4' }}">
@@ -656,7 +662,9 @@
                 <select class="form-select select2-filter text-center" id="id_sheet_size" name="sheet_size" dir="rtl">
                   {% if paper_sizes %}
                     {% for psize in paper_sizes %}
-                      <option value="{{ psize.name }}" data-id="{{ psize.id }}" data-width="{{ psize.width }}" data-height="{{ psize.height }}" {% if form.sheet_size.value == psize.name or forloop.first %}selected{% endif %}>
+                      <option value="{{ psize.name }}" data-id="{{ psize.id }}" data-width="{{ psize.width }}" data-height="{{ psize.height }}" 
+                        {% if form.sheet_size.value == psize.name or saved_sheet_size == psize.name %}selected
+                        {% elif not form.sheet_size.value and not saved_sheet_size and forloop.first %}selected{% endif %}>
                         {{ psize.name }} ({{ psize.width|floatformat:0 }}×{{ psize.height|floatformat:0 }} سم)
                       </option>
                     {% endfor %}
@@ -706,10 +714,11 @@
                   {% trans "مقاس القطع" %}
                 </label>
                 <select class="form-select select2-filter text-center" id="id_piece_size" name="piece_size" dir="rtl">
-                  <option value="auto" data-cuts="auto" selected>{% trans "تلقائي (حسب المونتاج الحر)" %}</option>
+                  <option value="auto" data-cuts="auto" {% if not saved_piece_size_id and not form.piece_size.value %}selected{% endif %}>{% trans "تلقائي (حسب المونتاج الحر)" %}</option>
                   {% if piece_sizes %}
                     {% for psize in piece_sizes %}
-                      <option value="{{ psize.id }}" data-name="{{ psize.name }}" data-cuts="{{ psize.pieces_per_sheet|default:1 }}" data-width="{{ psize.width }}" data-height="{{ psize.height }}" data-paper-type="{{ psize.paper_type_id|default:'' }}" data-paper-width="{{ psize.paper_type.width|default:'' }}" data-paper-height="{{ psize.paper_type.height|default:'' }}">
+                      <option value="{{ psize.id }}" data-name="{{ psize.name }}" data-cuts="{{ psize.pieces_per_sheet|default:1 }}" data-width="{{ psize.width }}" data-height="{{ psize.height }}" data-paper-type="{{ psize.paper_type_id|default:'' }}" data-paper-width="{{ psize.paper_type.width|default:'' }}" data-paper-height="{{ psize.paper_type.height|default:'' }}"
+                        {% if form.piece_size.value == psize.id|stringformat:"s" or saved_piece_size_id == psize.id|stringformat:"s" or saved_piece_size_id == psize.id or saved_paper_spec.piece_size == psize.name %}selected{% endif %}>
                         {{ psize.name }} ({% if psize.pieces_per_sheet %}{{ psize.pieces_per_sheet }} قطع بالفرخ{% else %}{{ psize.width }}×{{ psize.height }} سم{% endif %})
                       </option>
                     {% endfor %}
@@ -784,14 +793,14 @@
                 <!-- وضع العرض التلقائي -->
                 <div id="box_auto_sheets_display" class="p-2 border rounded bg-white text-center">
                   <div class="d-flex align-items-center justify-content-center gap-1 mb-1">
-                    <strong class="text-primary fs-5" id="display_cover_gross_sheets">0 فرخ</strong>
+                    <strong class="text-primary fs-5" id="display_cover_gross_sheets">{% if saved_paper_spec.sheets_needed %}{{ saved_paper_spec.sheets_needed }} فرخ{% else %}0 فرخ{% endif %}</strong>
                     <span class="badge bg-secondary-subtle text-secondary small" id="display_cover_reams_breakdown">0 رزمة</span>
                   </div>
                   <div class="d-flex flex-wrap align-items-center justify-content-center gap-2 small text-muted">
                     <span>{% trans "صافي:" %} <strong class="text-dark" id="display_cover_net_sheets">0</strong></span>
                     <span>+</span>
                     <span>{% trans "الهادر:" %}</span>
-                    <input type="number" min="0" step="1" class="form-control form-control-sm text-center fw-bold text-danger d-inline-block" style="width: 75px;" id="id_cover_waste_sheets" name="waste_sheets" value="20" title="{% trans 'أفرخ الهالك/الهادر القابلة للتعديل' %}">
+                    <input type="number" min="0" step="1" class="form-control form-control-sm text-center fw-bold text-danger d-inline-block" style="width: 75px;" id="id_cover_waste_sheets" name="waste_sheets" value="{% if saved_waste_sheets %}{{ saved_waste_sheets }}{% elif form.waste_sheets.value %}{{ form.waste_sheets.value }}{% else %}20{% endif %}" title="{% trans 'أفرخ الهالك/الهادر القابلة للتعديل' %}">
                   </div>
                 </div>
 
@@ -835,7 +844,7 @@
                 </label>
                 <div class="form-control bg-light d-flex justify-content-between align-items-center">
                   <span class="small text-muted">{% trans "الإجمالي:" %}</span>
-                  <strong class="text-primary fs-6" id="cover_paper_cost_display">0 {{ currency_symbol|default:functional_currency.symbol }}</strong>
+                  <strong class="text-primary fs-6" id="cover_paper_cost_display">{% if saved_paper_spec and saved_paper_spec.total_paper_cost %}{{ saved_paper_spec.total_paper_cost }}{% else %}0{% endif %} {{ currency_symbol|default:functional_currency.symbol }}</strong>
                 </div>
               </div>
 

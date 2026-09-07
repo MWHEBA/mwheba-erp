@@ -209,6 +209,59 @@ class OrderMaterial(BaseModel):
         else:
             self.total_cost = Decimal('0.00')
 
+    @property
+    def waste_quantity(self):
+        """
+        حساب كمية الهالك الفعلية (بالعدد أو بوحدة القياس)
+        """
+        if not self.waste_percentage or self.waste_percentage <= Decimal('0'):
+            return Decimal('0')
+
+        # 1. إذا كانت مسجلة صراحة في بيانات المورد supplier_info
+        if self.supplier_info and isinstance(self.supplier_info, dict):
+            if self.supplier_info.get('waste_sheets') is not None:
+                try:
+                    return Decimal(str(self.supplier_info['waste_sheets']))
+                except (ValueError, TypeError):
+                    pass
+
+        # 2. احتساب الهالك من الكمية الإجمالية ونسبة الهالك
+        if self.quantity:
+            qty = Decimal(str(self.quantity))
+            pct = Decimal(str(self.waste_percentage))
+            # الكمية المسجلة هي الإجمالية (gross = net * (1 + pct/100))
+            # وبالتالي net = qty / (1 + pct/100) و waste = qty - net
+            net_qty = qty / (Decimal('1.00') + (pct / Decimal('100.00')))
+            waste = qty - net_qty
+            if self.unit in [PriceUnit.SHEET, PriceUnit.PIECE]:
+                return Decimal(str(round(waste)))
+            return Decimal(str(round(waste, 2)))
+
+        return Decimal('0')
+
+    @property
+    def clean_unit_name(self):
+        """
+        اسم وحدة القياس كتمييز معدود (فرخ، قطعة، متر، كجم، إلخ) بدلاً من صيغة التسعير (بالفرخ)
+        """
+        unit_map = {
+            'sheet': _('فرخ'),
+            'piece': _('قطعة'),
+            'thousand': _('ألف'),
+            'package': _('باكدج'),
+            'pack': _('رزمة'),
+            'meter': _('متر'),
+            'sqm': _('م²'),
+            'kg': _('كجم'),
+            'click': _('سحبة'),
+        }
+        if self.unit in unit_map:
+            return str(unit_map[self.unit])
+        raw_display = str(self.get_unit_display() or self.unit or '')
+        if raw_display.startswith('بال'):
+            return raw_display[3:]
+        return raw_display
+
 
 # ==============================================================================
 # 3. خدمات وعمليات الورش والموردين (Order Services Breakdown)

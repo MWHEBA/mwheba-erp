@@ -941,6 +941,11 @@ class OrderFormUIController {
     this.updatePrintingTypeUI();
     this.updateOpenDimensionsDisplay();
     this.updateGatesState();
+
+    const orderTypeEl = document.getElementById('id_order_type');
+    if (orderTypeEl) {
+      orderTypeEl.value = type;
+    }
   }
 
 
@@ -1305,7 +1310,7 @@ class OrderFormUIController {
     if (salePriceHidden) salePriceHidden.value = grandTotal.toFixed(2);
 
     const rawHidden = document.getElementById('id_profit_margin_raw');
-    if (rawHidden) rawHidden.value = marginPct.toFixed(4);
+    if (rawHidden) rawHidden.value = marginPct.toFixed(2);
   }
 
   /**
@@ -1327,25 +1332,25 @@ class OrderFormUIController {
         fixedAmount = raw === '' ? 0 : PricingMath.parseSafeNumber(raw, 0);
       }
       if (totalCost > 0) {
-        marginPct = parseFloat(((fixedAmount / totalCost) * 100).toFixed(4));
+        marginPct = parseFloat(((fixedAmount / totalCost) * 100).toFixed(2));
       } else {
         marginPct = 0;
       }
       // مزامنة النسبة المئوية للحقل المخفي المرسل للداتابيز والـ SSOT
       if (rawHidden) {
-        rawHidden.value = marginPct.toFixed(4);
+        rawHidden.value = marginPct.toFixed(2);
       }
     } else {
       // نمط النسبة المئوية المباشرة (%) (المستخدم أدخل نسبة مئوية)
       if (customVal !== null && !isNaN(customVal)) {
-        marginPct = parseFloat(Number(customVal).toFixed(4));
+        marginPct = parseFloat(Number(customVal).toFixed(2));
       } else if (marginInput) {
         const raw = marginInput.value.trim();
-        marginPct = raw === '' ? 0 : parseFloat(PricingMath.parseSafeNumber(raw, 30).toFixed(4));
+        marginPct = raw === '' ? 0 : parseFloat(PricingMath.parseSafeNumber(raw, 30).toFixed(2));
       }
       fixedAmount = totalCost > 0 ? (totalCost * (marginPct / 100)) : 0;
       if (rawHidden) {
-        rawHidden.value = marginPct.toFixed(4);
+        rawHidden.value = marginPct.toFixed(2);
       }
     }
 
@@ -3210,8 +3215,8 @@ class OrderFormUIController {
     $('#cost_finishing_display').text(`-- ${sym}`);
     $('#cost_binding_display').text(`-- ${sym}`);
     $('#total_cost_display').text(`-- ${sym}`);
-    $('#unit_price_display').text(`-- ${sym}`);
-    $('#final_total_display').text(`-- ${sym}`);
+    $('#unit_price_display').text('--');
+    $('#final_total_display').text('--');
     $('#step2_cost_badge').text(`-- ${sym}`);
     $('#step3_cost_badge').text(`-- ${sym}`);
 
@@ -4062,10 +4067,11 @@ class OrderFormUIController {
    * توليد ونسخ رسالة عرض السعر للواتساب (Universal Clipboard)
    */
   generateWhatsAppQuote() {
-    const title = document.getElementById('id_title')?.value || 'مطبوعات فاخرة';
-    const qty = document.getElementById('id_quantity')?.value || '1000';
-    const total = document.getElementById('final_total_display')?.textContent || `0.00 ${this.config.currencySymbol}`;
-    const unit = document.getElementById('unit_price_display')?.textContent || `0.00 ${this.config.currencySymbol}`;
+    const sym = this.config.currencySymbol || '';
+    const rawTotal = document.getElementById('final_total_display')?.textContent?.trim() || '0.00';
+    const total = (rawTotal.includes(sym) || !sym) ? rawTotal : `${rawTotal} ${sym}`;
+    const rawUnit = document.getElementById('unit_price_display')?.textContent?.trim() || '0.00';
+    const unit = (rawUnit.includes(sym) || !sym) ? rawUnit : `${rawUnit} ${sym}`;
     const isClosed = document.getElementById('id_is_closed_size')?.checked || false;
     const openDimsText = document.getElementById('open_dims_text')?.textContent || '';
     const sizeSelect = document.getElementById('id_product_size');
