@@ -34,6 +34,19 @@
 // كلاس التحكم بالواجهة والأحداث (UI & Event Orchestrator)
 // ============================================================================
 class OrderFormUIController {
+  // السجل المركزي الموحد والشامل لكافة بنود التسعير المباشرة في النموذج
+  static PRICING_REGISTRY = [
+    { id: '#id_paper_sheet_price', rawId: 'id_paper_sheet_price', supplier_sel: '#id_paper_supplier', supplierRawId: 'id_paper_supplier', machine_sel: null, service_id_sel: '#id_paper_service_id', badge_id: '#paper_price_staleness_badge', date_id: '#paper_price_date_display', default_label: 'ورق الغلاف', unit: 'فرخ', service_type: 'paper', section: 'cover_paper', is_inner: false },
+    { id: '#id_press_rate', rawId: 'id_press_rate', supplier_sel: '#id_cover_offset_supplier', supplierRawId: 'id_cover_offset_supplier', machine_sel: '#id_cover_press_machine', service_id_sel: '#id_cover_press_service_id', badge_id: '#press_rate_staleness_badge', date_id: null, default_label: 'طباعة أوفست الغلاف', unit: 'تراج', service_type: 'offset', section: 'cover_offset', is_inner: false },
+    { id: '#id_plate_price', rawId: 'id_plate_price', supplier_sel: '#id_cover_ctp_supplier', supplierRawId: 'id_cover_ctp_supplier', machine_sel: null, service_id_sel: '#id_cover_ctp_service_id', badge_id: '#plate_price_staleness_badge', date_id: null, default_label: 'زنكات CTP الغلاف', unit: 'زنكة', service_type: 'ctp', section: 'cover_ctp', is_inner: false },
+    { id: '#id_digital_sheet_price', rawId: 'id_digital_sheet_price', supplier_sel: '#id_cover_digital_supplier', supplierRawId: 'id_cover_digital_supplier', machine_sel: '#id_cover_digital_machine', service_id_sel: '#id_cover_digital_service_id', badge_id: '#digital_price_staleness_badge', date_id: null, default_label: 'طبعة ديجيتال الغلاف', unit: 'طبعة', service_type: 'digital', section: 'cover_digital', is_inner: false },
+    { id: '#id_inner_sheet_price', rawId: 'id_inner_sheet_price', supplier_sel: '#id_inner_paper_supplier', supplierRawId: 'id_inner_paper_supplier', machine_sel: null, service_id_sel: '#id_inner_paper_service_id', badge_id: '#inner_paper_price_staleness_badge', date_id: '#inner_paper_price_date_display', default_label: 'ورق الداخلي', unit: 'فرخ', service_type: 'paper', section: 'inner_paper', is_inner: true },
+    { id: '#id_inner_press_rate', rawId: 'id_inner_press_rate', supplier_sel: '#id_inner_offset_supplier', supplierRawId: 'id_inner_offset_supplier', machine_sel: '#id_inner_press_machine', service_id_sel: '#id_inner_press_service_id', badge_id: '#inner_press_rate_staleness_badge', date_id: null, default_label: 'طباعة أوفست الداخلي', unit: 'تراج', service_type: 'offset', section: 'inner_offset', is_inner: true },
+    { id: '#id_inner_plate_price', rawId: 'id_inner_plate_price', supplier_sel: '#id_inner_ctp_supplier', supplierRawId: 'id_inner_ctp_supplier', machine_sel: null, service_id_sel: '#id_inner_ctp_service_id', badge_id: '#inner_plate_price_staleness_badge', date_id: null, default_label: 'زنكات CTP الداخلي', unit: 'زنكة', service_type: 'ctp', section: 'inner_ctp', is_inner: true },
+    { id: '#id_digital_inner_color_price', rawId: 'id_digital_inner_color_price', supplier_sel: '#id_inner_digital_supplier', supplierRawId: 'id_inner_digital_supplier', machine_sel: '#id_inner_digital_machine', service_id_sel: '#id_inner_digital_service_id', badge_id: '#inner_digital_badge', date_id: null, default_label: 'طبعة ألوان ديجيتال الداخلي', unit: 'طبعة', service_type: 'digital', section: 'inner_digital', is_inner: true },
+    { id: '#id_digital_inner_bw_price', rawId: 'id_digital_inner_bw_price', supplier_sel: '#id_inner_digital_supplier', supplierRawId: 'id_inner_digital_supplier', machine_sel: '#id_inner_digital_machine', service_id_sel: '#id_inner_digital_service_id', badge_id: '#inner_digital_badge', date_id: null, default_label: 'طبعة أسود ديجيتال الداخلي', unit: 'طبعة', service_type: 'digital', section: 'inner_digital', is_inner: true }
+  ];
+
   constructor(config = {}) {
     this.config = Object.assign({
       currencySymbol: window.ORDER_CONFIG?.currencySymbol || window.SYSTEM_CURRENCY_SYMBOL || '',
@@ -157,45 +170,40 @@ class OrderFormUIController {
     this.checkDesignZeroFeeAlert();
     this.updateGatesState();
 
-    // فحص الأسعار المحفوظة مسبقاً في وضع التعديل وتفعيل الأقسام المستحقة بدون إتلافها (Edit Mode Hydration)
-    const priceFieldsWithSuppliers = [
-      { priceId: 'id_paper_sheet_price', supplierId: 'id_paper_supplier' },
-      { priceId: 'id_press_rate', supplierId: 'id_cover_offset_supplier' },
-      { priceId: 'id_plate_price', supplierId: 'id_cover_ctp_supplier' },
-      { priceId: 'id_digital_sheet_price', supplierId: 'id_cover_digital_supplier' },
-      { priceId: 'id_inner_sheet_price', supplierId: 'id_inner_paper_supplier' },
-      { priceId: 'id_inner_press_rate', supplierId: 'id_inner_offset_supplier' },
-      { priceId: 'id_inner_plate_price', supplierId: 'id_inner_ctp_supplier' },
-    ];
+    // فحص الأسعار المحفوظة مسبقاً في وضع التعديل وتفعيل شارة السعر المخصص للأسعار الحرة بدون مورد (Edit Mode Hydration)
+    const isEditMode = Boolean(this.config && this.config.isEdit);
 
-    priceFieldsWithSuppliers.forEach(item => {
-      const pInput = document.getElementById(item.priceId);
-      const sVal = document.getElementById(item.supplierId)?.value;
-      if (pInput) {
-        const val = parseFloat(pInput.value) || 0;
-        if (val > 0 && !sVal) {
-          pInput.dataset.manual = 'true';
-          pInput.classList.add('border-primary');
-          const badgeMap = {
-            'id_paper_sheet_price': ['#paper_price_staleness_badge', '#paper_price_date_display'],
-            'id_press_rate': ['#press_rate_staleness_badge', null],
-            'id_plate_price': ['#plate_price_staleness_badge', null],
-            'id_digital_sheet_price': ['#digital_price_staleness_badge', null],
-            'id_inner_sheet_price': ['#inner_paper_price_staleness_badge', '#inner_paper_price_date_display'],
-            'id_inner_press_rate': ['#inner_press_rate_staleness_badge', null],
-            'id_inner_plate_price': ['#inner_plate_price_staleness_badge', null],
-          };
-          if (badgeMap[item.priceId]) {
-            const dateSel = badgeMap[item.priceId][1];
-            this.renderManualPriceBadge($(badgeMap[item.priceId][0]), dateSel ? $(dateSel) : null);
-          }
+    OrderFormUIController.PRICING_REGISTRY.forEach(item => {
+      const pInput = document.getElementById(item.rawId);
+      const sVal = document.getElementById(item.supplierRawId)?.value;
+      if (!pInput) return;
+      const val = PricingMath.parseSafeNumber(pInput.value, 0);
+
+      if (val > 0 && !sVal) {
+        pInput.dataset.manual = 'true';
+        pInput.classList.add('border-primary');
+        if (item.badge_id) {
+          this.renderManualPriceBadge($(item.badge_id), item.date_id ? $(item.date_id) : null);
         }
       }
     });
 
-    // جلب حداثة وتاريخ سعر الورق تلقائياً إذا كان المورد والورق محددين مسبقاً
+    // حماية هالك الورق في وضع التعديل من مسح أول استدعاء تلقائي للحساب الحي
+    if (isEditMode) {
+      const wasteEl = document.getElementById('id_cover_waste_sheets');
+      if (wasteEl && PricingMath.parseSafeNumber(wasteEl.value, -1) >= 0) {
+        wasteEl.dataset.manual = 'true';
+      }
+    }
+
+    // جلب حداثة وتاريخ سعر الورق تلقائياً مع حماية السعر المحفوظ في وضع التعديل
     if ($('#id_paper_supplier').val() && $('#id_paper_type').val()) {
-      this.fetchLivePaperPrice();
+      const existingPaperPrice = PricingMath.parseSafeNumber($('#id_paper_sheet_price').val(), 0);
+      this.fetchLivePaperPrice({ preserveSavedPrice: isEditMode && existingPaperPrice > 0 }, false);
+    }
+    if ($('#id_inner_paper_supplier').val() && $('#id_inner_paper_type').val()) {
+      const existingInnerPrice = PricingMath.parseSafeNumber($('#id_inner_sheet_price').val(), 0);
+      this.fetchLivePaperPrice({ preserveSavedPrice: isEditMode && existingInnerPrice > 0 }, true);
     }
 
     this.updateSupplierDependentSections();
@@ -544,7 +552,7 @@ class OrderFormUIController {
       self.debouncedRecalculate();
     });
 
-    $(document).on('input', '#id_cover_waste_sheets, #id_plate_count_front, #id_plate_count_back, #id_plate_count, #id_inner_plates_count_total, #id_plate_price, #id_inner_plate_price, #id_press_rate, #id_inner_press_rate, #id_digital_sheet_price, #id_digital_inner_color_price, #id_digital_inner_bw_price', function () {
+    $(document).on('input', '#id_cover_waste_sheets, #id_plate_count_front, #id_plate_count_back, #id_plate_count, #id_inner_plates_count_total', function () {
       this.dataset.manual = "true";
       $(this).addClass('border-primary');
       if (this.id === 'id_plate_count_front' || this.id === 'id_plate_count_back') {
@@ -735,7 +743,16 @@ class OrderFormUIController {
         const optRate = selectedOpt.data('rate');
         if (optRate !== undefined && optRate !== '') {
           pressRateInput.value = optRate;
+          $(pressRateInput).attr('data-baseline-price', PricingMath.parseSafeNumber(optRate, 0).toFixed(2));
         }
+        self.renderPriceStalenessBadge(
+          selectedOpt.data('price-date'),
+          selectedOpt.data('price-age'),
+          selectedOpt.data('staleness'),
+          selectedOpt.data('valid-until'),
+          $('#press_rate_staleness_badge'),
+          null
+        );
       }
       self.debouncedRecalculate();
       self.showNotification('تمت إعادة حساب طباعة الأوفست بنجاح', 'info');
@@ -751,7 +768,16 @@ class OrderFormUIController {
         const optRate = selectedOpt.data('rate');
         if (optRate !== undefined && optRate !== '') {
           innerRateInput.value = optRate;
+          $(innerRateInput).attr('data-baseline-price', PricingMath.parseSafeNumber(optRate, 0).toFixed(2));
         }
+        self.renderPriceStalenessBadge(
+          selectedOpt.data('price-date'),
+          selectedOpt.data('price-age'),
+          selectedOpt.data('staleness'),
+          selectedOpt.data('valid-until'),
+          $('#inner_press_rate_staleness_badge'),
+          null
+        );
       }
       self.debouncedRecalculate();
       self.showNotification('تمت إعادة حساب طباعة أوفست الداخلي بنجاح', 'info');
@@ -767,9 +793,21 @@ class OrderFormUIController {
         if (selectedOpt.length && selectedOpt.val()) {
           const colorMode = $('#id_digital_color_mode').val() || '4_0';
           const isColor = colorMode.includes('4');
-          const priceColor = parseFloat(selectedOpt.data('price-color')) || 0;
-          const priceBw = parseFloat(selectedOpt.data('price-bw')) || 0;
-          digPriceInput.value = isColor ? (priceColor || '') : (priceBw || '');
+          const priceColor = PricingMath.parseSafeNumber(selectedOpt.data('price-color'), 0);
+          const priceBw = PricingMath.parseSafeNumber(selectedOpt.data('price-bw'), 0);
+          const restoredPrice = isColor ? (priceColor || '') : (priceBw || '');
+          digPriceInput.value = restoredPrice;
+          if (restoredPrice !== '') {
+            $(digPriceInput).attr('data-baseline-price', PricingMath.parseSafeNumber(restoredPrice, 0).toFixed(2));
+          }
+          self.renderPriceStalenessBadge(
+            selectedOpt.data('price-date'),
+            selectedOpt.data('price-age'),
+            selectedOpt.data('staleness'),
+            selectedOpt.data('valid-until'),
+            $('#digital_price_staleness_badge'),
+            null
+          );
         }
       }
       self.debouncedRecalculate();
@@ -796,7 +834,7 @@ class OrderFormUIController {
     // 12. زر الحفظ كمسودة
     $(document).on('click', '#btn_save_draft', function (e) {
       e.preventDefault();
-      const form = document.getElementById('order-form');
+      const form = document.getElementById('order-form') || document.getElementById('orderForm');
       if (form) {
         let statusInput = document.getElementById('id_status');
         if (!statusInput) {
@@ -808,12 +846,12 @@ class OrderFormUIController {
         }
         statusInput.value = 'draft';
         self.isDirty = false;
-        form.submit();
+        $('#btn_save_order').trigger('click');
       }
     });
 
     // 14. التحقق قبل إرسال النموذج وتوسيع الأكورديونات المطوية
-    const form = document.getElementById('order-form');
+    const form = document.getElementById('order-form') || document.getElementById('orderForm');
     if (form) {
       form.addEventListener('submit', function (e) {
         self.sanitizePayloadOnSubmit();
@@ -821,6 +859,7 @@ class OrderFormUIController {
         if (!form.checkValidity()) {
           e.preventDefault();
           e.stopPropagation();
+          self.isSyncPromptHandled = false;
           self.validateAndUnfoldCollapsedSections(form);
         } else {
           self.isDirty = false;
@@ -1493,8 +1532,8 @@ class OrderFormUIController {
   fetchAvailablePaperOrigins(userDriven = false) {
     return this.sheetPrinting ? this.sheetPrinting.fetchAvailablePaperOrigins(userDriven) : null;
   }
-  fetchLivePaperPrice() {
-    return this.sheetPrinting ? this.sheetPrinting.fetchLivePaperPrice() : null;
+  fetchLivePaperPrice(options = {}, isInner = false) {
+    return this.sheetPrinting ? this.sheetPrinting.fetchLivePaperPrice(options, isInner) : null;
   }
   toggleManualGrossSheets() {
     return this.sheetPrinting ? this.sheetPrinting.toggleManualGrossSheets() : null;
@@ -1892,7 +1931,7 @@ class OrderFormUIController {
     const paperSupplier = $('#id_paper_supplier').val();
     const paperSource = $('input[name="paper_source"]:checked').val() || 'purchase';
     const paperPriceInput = document.getElementById('id_paper_sheet_price');
-    const hasPaperManual = paperPriceInput && (paperPriceInput.dataset.manual === 'true' || (parseFloat(paperPriceInput.value) > 0 && !paperSupplier));
+    const hasPaperManual = Boolean(paperPriceInput && paperPriceInput.dataset.manual === 'true');
     const isPaperActive = (paperSource === 'customer_supplied') || (paperSource === 'warehouse') || Boolean(paperSupplier) || hasPaperManual;
     const $coverPaperWrapper = $('#cover_paper_pricing_fields_wrapper');
     if ($coverPaperWrapper.length) {
@@ -1906,7 +1945,7 @@ class OrderFormUIController {
     // 2. الغلاف - مطبعة أوفست
     const coverPressSup = $('#id_cover_offset_supplier').val();
     const coverPressRateInput = document.getElementById('id_press_rate');
-    const hasCoverPressManual = coverPressRateInput && (coverPressRateInput.dataset.manual === 'true' || (parseFloat(coverPressRateInput.value) > 0 && !coverPressSup));
+    const hasCoverPressManual = Boolean(coverPressRateInput && coverPressRateInput.dataset.manual === 'true');
     const isCoverPressActive = Boolean(coverPressSup) || hasCoverPressManual;
     const $coverPressWrapper = $('#cover_offset_press_fields_wrapper');
     if ($coverPressWrapper.length) {
@@ -1920,7 +1959,7 @@ class OrderFormUIController {
     // 3. الغلاف - فصل زنكات CTP
     const coverCtpSup = $('#id_cover_ctp_supplier').val();
     const coverPlatePriceInput = document.getElementById('id_plate_price');
-    const hasCoverCtpManual = coverPlatePriceInput && (coverPlatePriceInput.dataset.manual === 'true' || (parseFloat(coverPlatePriceInput.value) > 0 && !coverCtpSup));
+    const hasCoverCtpManual = Boolean(coverPlatePriceInput && coverPlatePriceInput.dataset.manual === 'true');
     const isCoverPlatesArchived = document.getElementById('id_is_plates_archived')?.checked || document.getElementById('id_plates_option')?.value === 'archived';
     const isCoverCtpActive = (!isCoverPlatesArchived && (Boolean(coverCtpSup) || hasCoverCtpManual));
     const $coverCtpWrapper = $('#cover_ctp_pricing_wrapper');
@@ -1935,7 +1974,7 @@ class OrderFormUIController {
     // 4. الغلاف - مركز ديجيتال
     const coverDigitalSup = $('#id_cover_digital_supplier').val();
     const coverDigitalPriceInput = document.getElementById('id_digital_sheet_price');
-    const hasCoverDigitalManual = coverDigitalPriceInput && (coverDigitalPriceInput.dataset.manual === 'true' || (parseFloat(coverDigitalPriceInput.value) > 0 && !coverDigitalSup));
+    const hasCoverDigitalManual = Boolean(coverDigitalPriceInput && coverDigitalPriceInput.dataset.manual === 'true');
     const isCoverDigitalActive = Boolean(coverDigitalSup) || hasCoverDigitalManual;
     const $coverDigitalWrapper = $('#cover_digital_fields_wrapper');
     if ($coverDigitalWrapper.length) {
@@ -1948,9 +1987,10 @@ class OrderFormUIController {
 
     // 5. الداخلي - كارت تسعير الورق
     const innerPaperSup = $('#id_inner_paper_supplier').val();
+    const effectiveInnerPaperSup = innerPaperSup || paperSupplier;
     const innerPaperPriceInput = document.getElementById('id_inner_sheet_price');
-    const hasInnerPaperManual = innerPaperPriceInput && (innerPaperPriceInput.dataset.manual === 'true' || (parseFloat(innerPaperPriceInput.value) > 0 && !innerPaperSup));
-    const isInnerPaperActive = (paperSource === 'customer_supplied') || (paperSource === 'warehouse') || Boolean(innerPaperSup) || hasInnerPaperManual;
+    const hasInnerPaperManual = Boolean(innerPaperPriceInput && innerPaperPriceInput.dataset.manual === 'true');
+    const isInnerPaperActive = (paperSource === 'customer_supplied') || (paperSource === 'warehouse') || Boolean(effectiveInnerPaperSup) || hasInnerPaperManual;
     const $innerPaperWrapper = $('#inner_paper_pricing_fields_wrapper');
     if ($innerPaperWrapper.length) {
       if (isInnerPaperActive) {
@@ -1963,7 +2003,7 @@ class OrderFormUIController {
     // 6. الداخلي - مطبعة أوفست
     const innerPressSup = $('#id_inner_offset_supplier').val();
     const innerPressRateInput = document.getElementById('id_inner_press_rate');
-    const hasInnerPressManual = innerPressRateInput && (innerPressRateInput.dataset.manual === 'true' || (parseFloat(innerPressRateInput.value) > 0 && !innerPressSup));
+    const hasInnerPressManual = Boolean(innerPressRateInput && innerPressRateInput.dataset.manual === 'true');
     const isInnerPressActive = Boolean(innerPressSup) || hasInnerPressManual;
     const $innerPressWrapper = $('#inner_offset_press_fields_wrapper');
     if ($innerPressWrapper.length) {
@@ -1977,7 +2017,7 @@ class OrderFormUIController {
     // 7. الداخلي - فصل زنكات CTP
     const innerCtpSup = $('#id_inner_ctp_supplier').val();
     const innerPlatePriceInput = document.getElementById('id_inner_plate_price');
-    const hasInnerCtpManual = innerPlatePriceInput && (innerPlatePriceInput.dataset.manual === 'true' || (parseFloat(innerPlatePriceInput.value) > 0 && !innerCtpSup));
+    const hasInnerCtpManual = Boolean(innerPlatePriceInput && innerPlatePriceInput.dataset.manual === 'true');
     const isInnerPlatesArchived = document.getElementById('id_is_inner_plates_archived')?.checked || document.getElementById('id_inner_plates_option')?.value === 'archived';
     const isInnerCtpActive = (!isInnerPlatesArchived && (Boolean(innerCtpSup) || hasInnerCtpManual));
     const $innerCtpWrapper = $('#inner_ctp_pricing_wrapper');
@@ -1986,6 +2026,22 @@ class OrderFormUIController {
         $innerCtpWrapper.removeClass('is-dormant').addClass('is-active');
       } else {
         $innerCtpWrapper.addClass('is-dormant').removeClass('is-active');
+      }
+    }
+
+    // 8. الداخلي - مركز ديجيتال
+    const innerDigitalSup = $('#id_inner_digital_supplier').val();
+    const innerColorPriceInput = document.getElementById('id_digital_inner_color_price');
+    const innerBwPriceInput = document.getElementById('id_digital_inner_bw_price');
+    const hasInnerDigitalManual = (innerColorPriceInput && innerColorPriceInput.dataset.manual === 'true') ||
+                                  (innerBwPriceInput && innerBwPriceInput.dataset.manual === 'true');
+    const isInnerDigitalActive = Boolean(innerDigitalSup) || hasInnerDigitalManual;
+    const $innerDigitalFields = $('#inner_digital_fields');
+    if ($innerDigitalFields.length) {
+      if (isInnerDigitalActive) {
+        $innerDigitalFields.removeClass('is-dormant').addClass('is-active');
+      } else {
+        $innerDigitalFields.addClass('is-dormant').removeClass('is-active');
       }
     }
   }
@@ -2098,6 +2154,7 @@ class OrderFormUIController {
 
           status.missingField.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
+        self.isSyncPromptHandled = false;
         return false;
       }
 
@@ -2116,7 +2173,12 @@ class OrderFormUIController {
           self.isSyncPromptHandled = true;
           const targetForm = document.getElementById('order-form') || document.getElementById('orderForm');
           if (targetForm) {
-            targetForm.submit();
+            self.sanitizePayloadOnSubmit();
+            if (targetForm.requestSubmit) {
+              targetForm.requestSubmit();
+            } else {
+              targetForm.submit();
+            }
           }
         });
         return false;
@@ -2126,7 +2188,6 @@ class OrderFormUIController {
     };
 
     $(document).on('click', '#btn_save_order', guardSubmit);
-    $(document).on('click', '#btn_save_draft', guardSubmit);
     $(document).on('submit', '#order-form, #orderForm', guardSubmit);
   }
 
@@ -2134,30 +2195,19 @@ class OrderFormUIController {
    * تهيئة وتثبيت الأسعار المرجعية للموردين عند فتح الشاشة
    */
   initBaselinePrices() {
-    const fields = [
-      { id: '#id_paper_sheet_price', supplier_sel: '#id_paper_supplier', service_id_sel: '#id_paper_service_id', default_label: 'ورق الغلاف', unit: 'فرخ', service_type: 'paper' },
-      { id: '#id_press_rate', supplier_sel: '#id_cover_offset_supplier', service_id_sel: '#id_cover_press_service_id', default_label: 'طباعة أوفست الغلاف', unit: 'تراج', service_type: 'offset' },
-      { id: '#id_plate_price', supplier_sel: '#id_cover_ctp_supplier', service_id_sel: '#id_cover_ctp_service_id', default_label: 'زنكات CTP الغلاف', unit: 'زنكة', service_type: 'ctp' },
-      { id: '#id_digital_sheet_price', supplier_sel: '#id_cover_digital_supplier', service_id_sel: '#id_cover_digital_service_id', default_label: 'طبعة ديجيتال الغلاف', unit: 'طبعة', service_type: 'digital' },
-      { id: '#id_inner_sheet_price', supplier_sel: '#id_inner_paper_supplier', service_id_sel: '#id_inner_paper_service_id', default_label: 'ورق الداخلي', unit: 'فرخ', service_type: 'paper' },
-      { id: '#id_inner_press_rate', supplier_sel: '#id_inner_offset_supplier', service_id_sel: '#id_inner_press_service_id', default_label: 'طباعة أوفست الداخلي', unit: 'تراج', service_type: 'offset' },
-      { id: '#id_inner_plate_price', supplier_sel: '#id_inner_ctp_supplier', service_id_sel: '#id_inner_ctp_service_id', default_label: 'زنكات CTP الداخلي', unit: 'زنكة', service_type: 'ctp' },
-      { id: '#id_inner_digital_sheet_price', supplier_sel: '#id_inner_digital_supplier', service_id_sel: '#id_inner_digital_service_id', default_label: 'طبعة ديجيتال الداخلي', unit: 'طبعة', service_type: 'digital' }
-    ];
-
-    fields.forEach(f => {
+    OrderFormUIController.PRICING_REGISTRY.forEach(f => {
       const $el = $(f.id);
       if (!$el.length) return;
       const $supp = $(f.supplier_sel);
-      const val = parseFloat($el.val());
+      const val = PricingMath.parseSafeNumber($el.val(), 0);
       const suppId = $supp.length ? $supp.val() : null;
-      if (suppId && !isNaN(val) && val > 0) {
+      if (suppId && val > 0) {
         if (!$el.attr('data-baseline-price')) {
           $el.attr('data-baseline-price', val.toFixed(2));
           $el.attr('data-supplier-id', suppId);
           $el.attr('data-item-label', f.default_label);
           $el.attr('data-unit-label', f.unit);
-          const svcId = $(f.service_id_sel).val();
+          const svcId = f.service_id_sel ? $(f.service_id_sel).val() : null;
           if (svcId) $el.attr('data-service-id', svcId);
         }
       }
@@ -2169,36 +2219,73 @@ class OrderFormUIController {
    */
   detectChangedSupplierPrices() {
     const changed = [];
-    const fields = [
-      { id: '#id_paper_sheet_price', supplier_sel: '#id_paper_supplier', default_label: 'ورق الغلاف', unit: 'فرخ', service_type: 'paper' },
-      { id: '#id_press_rate', supplier_sel: '#id_cover_offset_supplier', default_label: 'طباعة أوفست الغلاف', unit: 'تراج', service_type: 'offset' },
-      { id: '#id_plate_price', supplier_sel: '#id_cover_ctp_supplier', default_label: 'زنكات CTP الغلاف', unit: 'زنكة', service_type: 'ctp' },
-      { id: '#id_digital_sheet_price', supplier_sel: '#id_cover_digital_supplier', default_label: 'طبعة ديجيتال الغلاف', unit: 'طبعة', service_type: 'digital' },
-      { id: '#id_inner_sheet_price', supplier_sel: '#id_inner_paper_supplier', default_label: 'ورق الداخلي', unit: 'فرخ', service_type: 'paper' },
-      { id: '#id_inner_press_rate', supplier_sel: '#id_inner_offset_supplier', default_label: 'طباعة أوفست الداخلي', unit: 'تراج', service_type: 'offset' },
-      { id: '#id_inner_plate_price', supplier_sel: '#id_inner_ctp_supplier', default_label: 'زنكات CTP الداخلي', unit: 'زنكة', service_type: 'ctp' },
-      { id: '#id_inner_digital_sheet_price', supplier_sel: '#id_inner_digital_supplier', default_label: 'طبعة ديجيتال الداخلي', unit: 'طبعة', service_type: 'digital' }
-    ];
+    const hasInner = $('#card_step3_inner').length && !$('#card_step3_inner').hasClass('d-none');
+    const coverType = $('#id_cover_printing_type').val() || 'offset';
+    const innerType = $('#id_inner_printing_type').val() || 'offset';
+    const paperSource = $('input[name="paper_source"]:checked').val() || 'purchase';
+    const isCoverPlatesArchived = document.getElementById('id_is_plates_archived')?.checked || document.getElementById('id_plates_option')?.value === 'archived';
+    const isInnerPlatesArchived = document.getElementById('id_is_inner_plates_archived')?.checked || document.getElementById('id_inner_plates_option')?.value === 'archived';
 
-    fields.forEach(f => {
+    OrderFormUIController.PRICING_REGISTRY.forEach(f => {
+      // 1. استبعاد حقول الداخلي كلياً للأصناف المفردة (فلاير، كروت، علب)
+      if (f.is_inner && !hasInner) return;
+
+      // 2. استبعاد ورق المخزن أو خامة العميل
+      if (f.service_type === 'paper' && (paperSource === 'warehouse' || paperSource === 'customer_supplied')) return;
+
+      // 3. استبعاد زنكات الأرشيف
+      if (f.service_type === 'ctp') {
+        if (!f.is_inner && isCoverPlatesArchived) return;
+        if (f.is_inner && isInnerPlatesArchived) return;
+      }
+
+      // 4. استبعاد ما لا يتطابق مع نوع الطباعة
+      if (!f.is_inner) {
+        if (coverType === 'offset' && f.service_type === 'digital') return;
+        if (coverType === 'digital' && (f.service_type === 'offset' || f.service_type === 'ctp')) return;
+        if (coverType === 'none') return;
+      } else {
+        if (innerType === 'offset' && f.service_type === 'digital') return;
+        if (innerType === 'digital' && (f.service_type === 'offset' || f.service_type === 'ctp')) return;
+      }
+
       const $el = $(f.id);
       if (!$el.length) return;
       const $supp = $(f.supplier_sel);
       const suppId = $el.attr('data-supplier-id') || ($supp.length ? $supp.val() : null);
       if (!suppId) return;
 
-      const currentVal = parseFloat($el.val());
-      const baselineVal = parseFloat($el.attr('data-baseline-price'));
+      const currentVal = PricingMath.parseSafeNumber($el.val(), 0);
+      const baselineVal = PricingMath.parseSafeNumber($el.attr('data-baseline-price'), 0);
 
-      if (!isNaN(baselineVal) && !isNaN(currentVal) && baselineVal > 0 && currentVal > 0 && Math.abs(currentVal - baselineVal) >= 0.01) {
+      if (baselineVal > 0 && currentVal > 0 && Math.abs(currentVal - baselineVal) >= 0.01) {
         const suppName = ($supp.find('option:selected').text() || 'المورد').replace(/⭐.*$/, '').trim();
         const itemLabel = $el.attr('data-item-label') || f.default_label;
         const unitLabel = $el.attr('data-unit-label') || f.unit;
-        const svcId = $el.attr('data-service-id') || null;
+        const svcId = $el.attr('data-service-id') || (f.service_id_sel ? $(f.service_id_sel).val() : null) || null;
         const formula = $el.attr('data-formula') || null;
 
-        const sheetSize = $('#id_sheet_size').val() || '';
-        const gsm = $('#id_paper_weight').val() || '';
+        // فصل مواصفات الداخلي عن الغلاف بدقة تامة
+        let sheetSize = '';
+        let gsm = '';
+        let paperTypeId = null;
+        let bedSize = null;
+
+        if (f.is_inner) {
+          sheetSize = $('#id_inner_sheet_size').val() || '';
+          gsm = $('#id_inner_paper_weight').val() || '';
+          paperTypeId = $('#id_inner_paper_type').val() || null;
+          if (f.machine_sel) {
+            bedSize = $(f.machine_sel).find('option:selected').data('bed') || $('#id_inner_press_bed_size').val() || null;
+          }
+        } else {
+          sheetSize = $('#id_sheet_size').val() || '';
+          gsm = $('#id_paper_weight').val() || '';
+          paperTypeId = $('#id_paper_type').val() || null;
+          if (f.machine_sel) {
+            bedSize = $(f.machine_sel).find('option:selected').data('bed') || null;
+          }
+        }
 
         changed.push({
           field_id: f.id,
@@ -2212,7 +2299,10 @@ class OrderFormUIController {
           service_type: f.service_type,
           pricing_formula: formula,
           gsm: gsm,
-          sheet_size: sheetSize
+          sheet_size: sheetSize,
+          paper_type_id: paperTypeId,
+          bed_size: bedSize,
+          is_inner: f.is_inner
         });
       }
     });
@@ -2285,7 +2375,8 @@ class OrderFormUIController {
               supplier_id: cp.supplier_id,
               service_type: cp.service_type,
               new_unit_price: cp.new_price,
-              paper_type_id: $('#id_paper_type').val() || null,
+              paper_type_id: cp.paper_type_id || null,
+              bed_size: cp.bed_size || null,
               gsm: cp.gsm || null,
               width: width,
               height: height
@@ -2537,7 +2628,9 @@ class OrderFormUIController {
         this.updateTextSafely('display_cover_reams_breakdown', `${data.paper.packs_count} رزمة`);
         this.updateTextSafely('cover_paper_cost_display', this.formatMoney(data.paper.total_cost));
         this.updateTextSafely('cost_paper_display', this.formatMoney(data.paper.total_cost));
-        if ($('#id_cover_waste_sheets').length && !$('#id_cover_waste_sheets').is(':focus')) {
+        if ($('#id_cover_waste_sheets').length && 
+            !$('#id_cover_waste_sheets').is(':focus') && 
+            !document.getElementById('id_cover_waste_sheets')?.dataset?.manual) {
           $('#id_cover_waste_sheets').val(data.paper.waste_sheets);
         }
         const finTirages = Math.max(1, Math.ceil((data.paper.gross_press_sheets || 0) / 1000));
@@ -2957,3 +3050,4 @@ class OrderFormUIController {
 
 // تصدير الكائن للنطاق العام
 window.OrderFormUIController = OrderFormUIController;
+window.PRICING_REGISTRY = OrderFormUIController.PRICING_REGISTRY;

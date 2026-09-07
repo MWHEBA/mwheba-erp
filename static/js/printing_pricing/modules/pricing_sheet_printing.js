@@ -106,6 +106,18 @@ class PricingSheetPrintingSubsystem {
     });
   }
 
+  renderPressOptionsHtml(presses, selectedIdx = 0) {
+    if (!presses || !presses.length) return '';
+    let optionsHtml = '';
+    presses.forEach((p, idx) => {
+      const isSel = idx === selectedIdx ? 'selected' : '';
+      const bedSize = p.bed_size || '50x70';
+      const stdBed = p.standard_bed_size || bedSize;
+      optionsHtml += `<option value="${p.id}" data-bed="${bedSize}" data-std-bed="${stdBed}" data-rate="${p.price_per_1000 || 0}" data-floor="${p.setup_cost || 0}" data-service-id="${p.service_id}" data-set-price="${p.set_price || 0}" data-set-included-tirages="${p.set_included_tirages || 1}" data-price-date="${p.price_updated_at || ''}" data-price-age="${p.price_age_days !== undefined ? p.price_age_days : ''}" data-staleness="${p.price_staleness_status || 'fresh'}" data-valid-until="${p.price_valid_until || ''}" ${isSel}>${p.name}</option>`;
+    });
+    return optionsHtml;
+  }
+
   updateCoverPlatesUI() {
     const coverPrintingType = document.getElementById('id_cover_printing_type')?.value || 'offset';
     const offsetSides = document.getElementById('id_print_sides_mode_offset')?.value || 'single';
@@ -328,8 +340,8 @@ class PricingSheetPrintingSubsystem {
     const self = this;
 
     // استيقاظ فوري ولحظي متزامن عند أي تفاعل أو اختيار للموردين (Instant Gating Wakeup)
-    $(document).on('change select2:select select2:clear input',
-      '#id_paper_supplier, #id_cover_offset_supplier, #id_cover_ctp_supplier, #id_cover_digital_supplier, #id_inner_paper_supplier, #id_inner_offset_supplier, #id_inner_ctp_supplier, #id_inner_digital_supplier, input[name="paper_source"], #id_is_plates_archived, #id_is_inner_plates_archived, #id_press_rate, #id_plate_price, #id_digital_sheet_price, #id_paper_sheet_price, #id_inner_press_rate, #id_inner_plate_price, #id_inner_sheet_price',
+    $(document).on('change select2:select select2:clear',
+      '#id_paper_supplier, #id_cover_offset_supplier, #id_cover_ctp_supplier, #id_cover_digital_supplier, #id_inner_paper_supplier, #id_inner_offset_supplier, #id_inner_ctp_supplier, #id_inner_digital_supplier, input[name="paper_source"], #id_is_plates_archived, #id_is_inner_plates_archived',
       function () {
         self.updateSupplierDependentSections();
       }
@@ -347,6 +359,7 @@ class PricingSheetPrintingSubsystem {
       if (!supplierId) {
         machineSelect.html('<option value="">-- اختر مطبعة الأوفست أولاً --</option>');
         pressRateInput.val('');
+        pressRateInput.removeAttr('data-baseline-price data-supplier-id data-service-id');
         $('#id_cover_press_service_id').val('');
         delete pressRateInput[0]?.dataset?.manual;
         pressRateInput.removeClass('border-primary');
@@ -365,16 +378,13 @@ class PricingSheetPrintingSubsystem {
               if (matchIdx !== -1) selectedIdx = matchIdx;
             }
 
-            let optionsHtml = '';
-            data.presses.forEach((p, idx) => {
-              const isSel = idx === selectedIdx ? 'selected' : '';
-              const bedSize = p.bed_size || '50x70';
-              const stdBed = p.standard_bed_size || bedSize;
-              optionsHtml += `<option value="${p.id}" data-bed="${bedSize}" data-std-bed="${stdBed}" data-rate="${p.price_per_1000 || 0}" data-floor="${p.setup_cost || 0}" data-service-id="${p.service_id}" data-set-price="${p.set_price || 0}" data-set-included-tirages="${p.set_included_tirages || 1}" data-price-date="${p.price_updated_at || ''}" data-price-age="${p.price_age_days !== undefined ? p.price_age_days : ''}" data-staleness="${p.price_staleness_status || 'fresh'}" data-valid-until="${p.price_valid_until || ''}" ${isSel}>${p.name}</option>`;
-            });
-            machineSelect.html(optionsHtml);
+            machineSelect.html(self.renderPressOptionsHtml(data.presses, selectedIdx));
             const chosen = data.presses[selectedIdx];
-            pressRateInput.val(chosen.price_per_1000 || '');
+            const chosenRate = chosen.price_per_1000 || '';
+            pressRateInput.val(chosenRate);
+            pressRateInput.attr('data-baseline-price', chosenRate);
+            pressRateInput.attr('data-supplier-id', supplierId);
+            pressRateInput.attr('data-service-id', chosen.service_id || '');
             $('#id_cover_press_service_id').val(chosen.service_id || '');
             self.renderPriceStalenessBadge(
               chosen.price_updated_at,
@@ -389,6 +399,7 @@ class PricingSheetPrintingSubsystem {
           } else {
             machineSelect.html('<option value="">-- لا توجد ماكينات مسجلة لهذا المورد --</option>');
             pressRateInput.val('');
+            pressRateInput.removeAttr('data-baseline-price data-supplier-id data-service-id');
             $('#id_cover_press_service_id').val('');
             self.clearPriceStalenessBadge($('#press_rate_staleness_badge'), null);
           }
@@ -397,6 +408,7 @@ class PricingSheetPrintingSubsystem {
         }).fail(() => {
           machineSelect.html('<option value="">-- فشل جلب ماكينات المورد --</option>');
           pressRateInput.val('');
+          pressRateInput.removeAttr('data-baseline-price data-supplier-id data-service-id');
           $('#id_cover_press_service_id').val('');
           self.clearPriceStalenessBadge($('#press_rate_staleness_badge'), null);
           self.updateSupplierDependentSections();
@@ -412,8 +424,18 @@ class PricingSheetPrintingSubsystem {
       const optRate = selectedOpt.data('rate');
       const optBed = selectedOpt.data('std-bed') || selectedOpt.data('bed');
       const svcId = selectedOpt.data('service-id');
-      if (svcId) $('#id_cover_press_service_id').val(svcId);
-      if (optRate !== undefined) $('#id_press_rate').val(optRate);
+      const pressRateInput = $('#id_press_rate');
+      delete pressRateInput[0]?.dataset?.manual;
+      pressRateInput.removeClass('border-primary');
+      if (svcId) {
+        $('#id_cover_press_service_id').val(svcId);
+        pressRateInput.attr('data-service-id', svcId);
+      }
+      if (optRate !== undefined) {
+        pressRateInput.val(optRate);
+        pressRateInput.attr('data-baseline-price', optRate);
+      }
+      pressRateInput.attr('data-supplier-id', $('#id_cover_offset_supplier').val() || '');
 
       self.renderPriceStalenessBadge(
         selectedOpt.data('price-date'),
@@ -460,7 +482,11 @@ class PricingSheetPrintingSubsystem {
           if (data && data.success && data.presses && data.presses.length > 0) {
             let matched = data.presses.find(p => (p.standard_bed_size === bedSize || p.bed_size === bedSize));
             if (matched) {
-              platePriceInput.val(matched.price_per_1000 || '');
+              const matchedRate = matched.price_per_1000 || '';
+              platePriceInput.val(matchedRate);
+              platePriceInput.attr('data-baseline-price', matchedRate);
+              platePriceInput.attr('data-supplier-id', supplierId);
+              platePriceInput.attr('data-service-id', matched.service_id || '');
               platePriceInput.attr('data-set-price', matched.set_price || 0);
               $('#id_cover_ctp_service_id').val(matched.service_id || '');
               self.renderPriceStalenessBadge(
@@ -472,12 +498,12 @@ class PricingSheetPrintingSubsystem {
                 null
               );
             } else {
-              platePriceInput.val('').removeAttr('data-set-price');
+              platePriceInput.val('').removeAttr('data-set-price data-baseline-price data-supplier-id data-service-id');
               $('#id_cover_ctp_service_id').val('');
               self.clearPriceStalenessBadge($('#plate_price_staleness_badge'), null);
             }
           } else {
-            platePriceInput.val('').removeAttr('data-set-price');
+            platePriceInput.val('').removeAttr('data-set-price data-baseline-price data-supplier-id data-service-id');
             $('#id_cover_ctp_service_id').val('');
             self.clearPriceStalenessBadge($('#plate_price_staleness_badge'), null);
           }
@@ -485,7 +511,7 @@ class PricingSheetPrintingSubsystem {
           self.updateSupplierDependentSections();
           self.debouncedRecalculate();
         }).fail(() => {
-          platePriceInput.val('').removeAttr('data-set-price');
+          platePriceInput.val('').removeAttr('data-set-price data-baseline-price data-supplier-id data-service-id');
           $('#id_cover_ctp_service_id').val('');
           self.clearPriceStalenessBadge($('#plate_price_staleness_badge'), null);
           self.updateCoverPlatesUI();
@@ -493,7 +519,7 @@ class PricingSheetPrintingSubsystem {
           self.debouncedRecalculate();
         });
       } else {
-        platePriceInput.val('').removeAttr('data-set-price');
+        platePriceInput.val('').removeAttr('data-set-price data-baseline-price data-supplier-id data-service-id');
         $('#id_cover_ctp_service_id').val('');
         delete platePriceInput[0]?.dataset?.manual;
         platePriceInput.removeClass('border-primary');
@@ -516,6 +542,7 @@ class PricingSheetPrintingSubsystem {
       if (!supplierId) {
         machineSelect.html('<option value="">-- اختر مركز الديجيتال أولاً --</option>');
         clickPriceInput.val('');
+        clickPriceInput.removeAttr('data-baseline-price data-supplier-id data-service-id');
         $('#id_cover_digital_service_id').val('');
         delete clickPriceInput[0]?.dataset?.manual;
         clickPriceInput.removeClass('border-primary');
@@ -540,6 +567,9 @@ class PricingSheetPrintingSubsystem {
             const isColor = colorMode.includes('4');
             const unitPrice = isColor ? (first.price_per_page_color || first.price_per_1000) : (first.price_per_page_bw || 0);
             clickPriceInput.val(unitPrice || '');
+            clickPriceInput.attr('data-baseline-price', unitPrice || '');
+            clickPriceInput.attr('data-supplier-id', supplierId);
+            clickPriceInput.attr('data-service-id', first.service_id || '');
             $('#id_cover_digital_service_id').val(first.service_id || '');
             self.renderPriceStalenessBadge(
               first.price_updated_at,
@@ -552,6 +582,7 @@ class PricingSheetPrintingSubsystem {
           } else {
             machineSelect.html('<option value="">-- لا توجد ماكينات ديجيتال مسجلة لهذا المورد --</option>');
             clickPriceInput.val('');
+            clickPriceInput.removeAttr('data-baseline-price data-supplier-id data-service-id');
             $('#id_cover_digital_service_id').val('');
             self.clearPriceStalenessBadge($('#digital_price_staleness_badge'), null);
           }
@@ -560,6 +591,7 @@ class PricingSheetPrintingSubsystem {
         }).fail(() => {
           machineSelect.html('<option value="">-- فشل جلب ماكينات المورد --</option>');
           clickPriceInput.val('');
+          clickPriceInput.removeAttr('data-baseline-price data-supplier-id data-service-id');
           $('#id_cover_digital_service_id').val('');
           self.clearPriceStalenessBadge($('#digital_price_staleness_badge'), null);
           self.updateSupplierDependentSections();
@@ -577,8 +609,17 @@ class PricingSheetPrintingSubsystem {
         const priceColor = parseFloat(selectedOpt.data('price-color')) || 0;
         const priceBw = parseFloat(selectedOpt.data('price-bw')) || 0;
         const svcId = selectedOpt.data('service-id');
-        if (svcId) $('#id_cover_digital_service_id').val(svcId);
-        $('#id_digital_sheet_price').val(isColor ? (priceColor || '') : (priceBw || ''));
+        const clickPriceInput = $('#id_digital_sheet_price');
+        delete clickPriceInput[0]?.dataset?.manual;
+        clickPriceInput.removeClass('border-primary');
+        if (svcId) {
+          $('#id_cover_digital_service_id').val(svcId);
+          clickPriceInput.attr('data-service-id', svcId);
+        }
+        const unitP = isColor ? (priceColor || '') : (priceBw || '');
+        clickPriceInput.val(unitP);
+        clickPriceInput.attr('data-baseline-price', unitP);
+        clickPriceInput.attr('data-supplier-id', $('#id_cover_digital_supplier').val() || '');
         self.renderPriceStalenessBadge(
           selectedOpt.data('price-date'),
           selectedOpt.data('price-age'),
@@ -604,6 +645,7 @@ class PricingSheetPrintingSubsystem {
       if (!supplierId) {
         machineSelect.html('<option value="">-- اختر مطبعة الأوفست أولاً --</option>');
         pressRateInput.val('');
+        pressRateInput.removeAttr('data-baseline-price data-supplier-id data-service-id');
         $('#id_inner_press_service_id').val('');
         delete pressRateInput[0]?.dataset?.manual;
         pressRateInput.removeClass('border-primary');
@@ -622,16 +664,13 @@ class PricingSheetPrintingSubsystem {
               if (matchIdx !== -1) selectedIdx = matchIdx;
             }
 
-            let optionsHtml = '';
-            data.presses.forEach((p, idx) => {
-              const isSel = idx === selectedIdx ? 'selected' : '';
-              const bedSize = p.bed_size || '50x70';
-              const stdBed = p.standard_bed_size || bedSize;
-              optionsHtml += `<option value="${p.id}" data-bed="${bedSize}" data-std-bed="${stdBed}" data-rate="${p.price_per_1000 || 0}" data-floor="${p.setup_cost || 0}" data-service-id="${p.service_id}" data-set-price="${p.set_price || 0}" data-set-included-tirages="${p.set_included_tirages || 1}" data-price-date="${p.price_updated_at || ''}" data-price-age="${p.price_age_days !== undefined ? p.price_age_days : ''}" data-staleness="${p.price_staleness_status || 'fresh'}" data-valid-until="${p.price_valid_until || ''}" ${isSel}>${p.name}</option>`;
-            });
-            machineSelect.html(optionsHtml);
+            machineSelect.html(self.renderPressOptionsHtml(data.presses, selectedIdx));
             const chosen = data.presses[selectedIdx];
-            pressRateInput.val(chosen.price_per_1000 || '');
+            const chosenRate = chosen.price_per_1000 || '';
+            pressRateInput.val(chosenRate);
+            pressRateInput.attr('data-baseline-price', chosenRate);
+            pressRateInput.attr('data-supplier-id', supplierId);
+            pressRateInput.attr('data-service-id', chosen.service_id || '');
             $('#id_inner_press_service_id').val(chosen.service_id || '');
             self.renderPriceStalenessBadge(
               chosen.price_updated_at,
@@ -646,6 +685,7 @@ class PricingSheetPrintingSubsystem {
           } else {
             machineSelect.html('<option value="">-- لا توجد ماكينات مسجلة لهذا المورد --</option>');
             pressRateInput.val('');
+            pressRateInput.removeAttr('data-baseline-price data-supplier-id data-service-id');
             $('#id_inner_press_service_id').val('');
             self.clearPriceStalenessBadge($('#inner_press_rate_staleness_badge'), null);
           }
@@ -654,6 +694,7 @@ class PricingSheetPrintingSubsystem {
         }).fail(() => {
           machineSelect.html('<option value="">-- فشل جلب ماكينات المورد --</option>');
           pressRateInput.val('');
+          pressRateInput.removeAttr('data-baseline-price data-supplier-id data-service-id');
           $('#id_inner_press_service_id').val('');
           self.clearPriceStalenessBadge($('#inner_press_rate_staleness_badge'), null);
           self.updateSupplierDependentSections();
@@ -667,8 +708,18 @@ class PricingSheetPrintingSubsystem {
       const optRate = selectedOpt.data('rate');
       const optBed = selectedOpt.data('std-bed') || selectedOpt.data('bed');
       const svcId = selectedOpt.data('service-id');
-      if (svcId) $('#id_inner_press_service_id').val(svcId);
-      if (optRate !== undefined) $('#id_inner_press_rate').val(optRate);
+      const pressRateInput = $('#id_inner_press_rate');
+      delete pressRateInput[0]?.dataset?.manual;
+      pressRateInput.removeClass('border-primary');
+      if (svcId) {
+        $('#id_inner_press_service_id').val(svcId);
+        pressRateInput.attr('data-service-id', svcId);
+      }
+      if (optRate !== undefined) {
+        pressRateInput.val(optRate);
+        pressRateInput.attr('data-baseline-price', optRate);
+      }
+      pressRateInput.attr('data-supplier-id', $('#id_inner_offset_supplier').val() || '');
 
       self.renderPriceStalenessBadge(
         selectedOpt.data('price-date'),
@@ -715,7 +766,11 @@ class PricingSheetPrintingSubsystem {
           if (data && data.success && data.presses && data.presses.length > 0) {
             let matched = data.presses.find(p => (p.standard_bed_size === bedSize || p.bed_size === bedSize));
             if (matched) {
-              platePriceInput.val(matched.price_per_1000 || '');
+              const matchedRate = matched.price_per_1000 || '';
+              platePriceInput.val(matchedRate);
+              platePriceInput.attr('data-baseline-price', matchedRate);
+              platePriceInput.attr('data-supplier-id', supplierId);
+              platePriceInput.attr('data-service-id', matched.service_id || '');
               platePriceInput.attr('data-set-price', matched.set_price || 0);
               $('#id_inner_ctp_service_id').val(matched.service_id || '');
               self.renderPriceStalenessBadge(
@@ -727,12 +782,12 @@ class PricingSheetPrintingSubsystem {
                 null
               );
             } else {
-              platePriceInput.val('').removeAttr('data-set-price');
+              platePriceInput.val('').removeAttr('data-set-price data-baseline-price data-supplier-id data-service-id');
               $('#id_inner_ctp_service_id').val('');
               self.clearPriceStalenessBadge($('#inner_plate_price_staleness_badge'), null);
             }
           } else {
-            platePriceInput.val('').removeAttr('data-set-price');
+            platePriceInput.val('').removeAttr('data-set-price data-baseline-price data-supplier-id data-service-id');
             $('#id_inner_ctp_service_id').val('');
             self.clearPriceStalenessBadge($('#inner_plate_price_staleness_badge'), null);
           }
@@ -740,7 +795,7 @@ class PricingSheetPrintingSubsystem {
           self.updateSupplierDependentSections();
           self.debouncedRecalculate();
         }).fail(() => {
-          platePriceInput.val('').removeAttr('data-set-price');
+          platePriceInput.val('').removeAttr('data-set-price data-baseline-price data-supplier-id data-service-id');
           $('#id_inner_ctp_service_id').val('');
           self.clearPriceStalenessBadge($('#inner_plate_price_staleness_badge'), null);
           self.updateInnerPlatesUI();
@@ -748,7 +803,7 @@ class PricingSheetPrintingSubsystem {
           self.debouncedRecalculate();
         });
       } else {
-        platePriceInput.val('').removeAttr('data-set-price');
+        platePriceInput.val('').removeAttr('data-set-price data-baseline-price data-supplier-id data-service-id');
         $('#id_inner_ctp_service_id').val('');
         delete platePriceInput[0]?.dataset?.manual;
         platePriceInput.removeClass('border-primary');
@@ -773,6 +828,8 @@ class PricingSheetPrintingSubsystem {
         machineSelect.html('<option value="">-- اختر مركز الديجيتال أولاً --</option>');
         colorPriceInput.val('');
         bwPriceInput.val('');
+        colorPriceInput.removeAttr('data-baseline-price data-supplier-id data-service-id');
+        bwPriceInput.removeAttr('data-baseline-price data-supplier-id data-service-id');
         $('#id_inner_digital_service_id').val('');
         delete colorPriceInput[0]?.dataset?.manual;
         delete bwPriceInput[0]?.dataset?.manual;
@@ -796,13 +853,24 @@ class PricingSheetPrintingSubsystem {
             });
             machineSelect.html(optionsHtml);
             const first = data.presses[0];
-            colorPriceInput.val(first.price_per_page_color || first.price_per_1000 || '');
-            bwPriceInput.val(first.price_per_page_bw || '');
+            const colorPrice = first.price_per_page_color || first.price_per_1000 || '';
+            const bwPrice = first.price_per_page_bw || '';
+            colorPriceInput.val(colorPrice);
+            colorPriceInput.attr('data-baseline-price', colorPrice);
+            colorPriceInput.attr('data-supplier-id', supplierId);
+            colorPriceInput.attr('data-service-id', first.service_id || '');
+
+            bwPriceInput.val(bwPrice);
+            bwPriceInput.attr('data-baseline-price', bwPrice);
+            bwPriceInput.attr('data-supplier-id', supplierId);
+            bwPriceInput.attr('data-service-id', first.service_id || '');
             $('#id_inner_digital_service_id').val(first.service_id || '');
           } else {
             machineSelect.html('<option value="">-- لا توجد ماكينات ديجيتال مسجلة لهذا المورد --</option>');
             colorPriceInput.val('');
             bwPriceInput.val('');
+            colorPriceInput.removeAttr('data-baseline-price data-supplier-id data-service-id');
+            bwPriceInput.removeAttr('data-baseline-price data-supplier-id data-service-id');
             $('#id_inner_digital_service_id').val('');
           }
           self.updateSupplierDependentSections();
@@ -811,6 +879,8 @@ class PricingSheetPrintingSubsystem {
           machineSelect.html('<option value="">-- فشل جلب ماكينات المورد --</option>');
           colorPriceInput.val('');
           bwPriceInput.val('');
+          colorPriceInput.removeAttr('data-baseline-price data-supplier-id data-service-id');
+          bwPriceInput.removeAttr('data-baseline-price data-supplier-id data-service-id');
           $('#id_inner_digital_service_id').val('');
           self.updateSupplierDependentSections();
           self.debouncedRecalculate();
@@ -824,9 +894,25 @@ class PricingSheetPrintingSubsystem {
         const priceColor = parseFloat(selectedOpt.data('price-color')) || 0;
         const priceBw = parseFloat(selectedOpt.data('price-bw')) || 0;
         const svcId = selectedOpt.data('service-id');
-        if (svcId) $('#id_inner_digital_service_id').val(svcId);
-        $('#id_digital_inner_color_price').val(priceColor || '');
-        $('#id_digital_inner_bw_price').val(priceBw || '');
+        const colorInput = $('#id_digital_inner_color_price');
+        const bwInput = $('#id_digital_inner_bw_price');
+        delete colorInput[0]?.dataset?.manual;
+        delete bwInput[0]?.dataset?.manual;
+        colorInput.removeClass('border-primary');
+        bwInput.removeClass('border-primary');
+        if (svcId) {
+          $('#id_inner_digital_service_id').val(svcId);
+          colorInput.attr('data-service-id', svcId);
+          bwInput.attr('data-service-id', svcId);
+        }
+        colorInput.val(priceColor || '');
+        colorInput.attr('data-baseline-price', priceColor || '');
+        colorInput.attr('data-supplier-id', $('#id_inner_digital_supplier').val() || '');
+
+        bwInput.val(priceBw || '');
+        bwInput.attr('data-baseline-price', priceBw || '');
+        bwInput.attr('data-supplier-id', $('#id_inner_digital_supplier').val() || '');
+
         self.updateSupplierDependentSections();
         self.debouncedRecalculate();
       }
@@ -1118,26 +1204,31 @@ class PricingSheetPrintingSubsystem {
       if (this.value) {
         self.updateSuppliersForPaperType(this.value, '#id_inner_paper_supplier', true);
       }
+      self.fetchLivePaperPrice({}, true);
       self.debouncedRecalculate(50);
     });
 
     $(document).on('change', '#id_inner_paper_weight', function () {
       self.updateResolvedInnerPackCapacity(false, 'weight');
+      self.fetchLivePaperPrice({}, true);
       self.debouncedRecalculate(50);
     });
 
     $(document).on('change select2:select', '#id_inner_paper_supplier', function () {
       if (!this.value && !$('#id_inner_sheet_price')[0]?.dataset?.manual) {
         $('#id_inner_sheet_price').val('0.00');
+        $('#id_inner_sheet_price').removeAttr('data-baseline-price data-supplier-id data-service-id');
       }
       if (self.config.urls && self.config.urls.paperTypesApi) {
         self.updatePaperTypesForSupplier(this.value, '#id_inner_paper_type');
       }
+      self.fetchLivePaperPrice({}, true);
       self.updateSupplierDependentSections();
       self.debouncedRecalculate(50);
     });
 
     $(document).on('change', '#id_inner_sheet_size', function () {
+      self.fetchLivePaperPrice({}, true);
       self.debouncedRecalculate(50);
     });
 
@@ -1148,12 +1239,20 @@ class PricingSheetPrintingSubsystem {
       const coverSheetSize = $('#id_sheet_size').val();
       const coverWeight = $('#id_paper_weight').val();
       const coverPrice = $('#id_paper_sheet_price').val();
+      const coverBaseline = $('#id_paper_sheet_price').attr('data-baseline-price');
+      const coverServiceId = $('#id_paper_sheet_price').attr('data-service-id');
 
       if (coverSup) $('#id_inner_paper_supplier').val(coverSup).trigger('change');
       if (coverType) $('#id_inner_paper_type').val(coverType).trigger('change');
       if (coverSheetSize) $('#id_inner_sheet_size').val(coverSheetSize).trigger('change');
       if (coverWeight) $('#id_inner_paper_weight').val(coverWeight).trigger('change');
-      if (coverPrice) $('#id_inner_sheet_price').val(coverPrice);
+      if (coverPrice) {
+        const $inPaper = $('#id_inner_sheet_price');
+        $inPaper.val(coverPrice);
+        if (coverBaseline) $inPaper.attr('data-baseline-price', coverBaseline);
+        if (coverSup) $inPaper.attr('data-supplier-id', coverSup);
+        if (coverServiceId) $inPaper.attr('data-service-id', coverServiceId);
+      }
 
       // نسخ شارة تاريخ وحالة سعر الورق إلى ورق الداخلي
       const $covBadge = $('#paper_price_staleness_badge');
@@ -1171,12 +1270,8 @@ class PricingSheetPrintingSubsystem {
       self.showNotification('تم نسخ خامة ومقاس ومورد الغلاف إلى كارت الداخلي بنجاح', 'success');
     });
 
-    $(document).on('input', '#id_paper_sheet_price, #id_inner_sheet_price', function () {
-      self.debouncedRecalculate();
-    });
-
     // مراقبة التعديل اليدوي لحقول الأسعار للاستيقاظ من الخمول فوراً وعرض شارة السعر المخصص
-    $(document).on('input change', '#id_paper_sheet_price, #id_press_rate, #id_plate_price, #id_digital_sheet_price, #id_inner_sheet_price, #id_inner_press_rate, #id_inner_plate_price', function () {
+    $(document).on('input change', '#id_paper_sheet_price, #id_press_rate, #id_plate_price, #id_digital_sheet_price, #id_inner_sheet_price, #id_inner_press_rate, #id_inner_plate_price, #id_digital_inner_color_price, #id_digital_inner_bw_price', function () {
       const val = parseFloat($(this).val()) || 0;
       const inputId = this.id;
       let badgeSel = null;
@@ -1199,6 +1294,7 @@ class PricingSheetPrintingSubsystem {
         if (badgeSel) self.clearPriceStalenessBadge($(badgeSel), dateSel ? $(dateSel) : null);
       }
       self.updateSupplierDependentSections();
+      self.debouncedRecalculate();
     });
   }
 
@@ -1704,20 +1800,27 @@ class PricingSheetPrintingSubsystem {
   }
 
   /**
-   * استعلام السعر المباشر ومزامنة بلد المنشأ آلياً
+   * استعلام السعر المباشر ومزامنة بلد المنشأ آلياً (دعم الغلاف والداخلي)
    */
-  fetchLivePaperPrice() {
+  fetchLivePaperPrice(options = {}, isInner = false) {
     const self = this;
-    const supplierId = $('#id_paper_supplier').val();
-    const paperTypeId = $('#id_paper_type').val();
-    const sheetSize = $('#id_sheet_size').val();
-    const weight = $('#id_paper_weight').val();
-    const origin = $('#id_paper_origin').val();
+    const prefix = isInner ? 'inner_' : '';
+    const supplierId = isInner
+      ? ($('#id_inner_paper_supplier').val() || $('#id_paper_supplier').val())
+      : $('#id_paper_supplier').val();
+    const paperTypeId = $(`#id_${prefix}paper_type`).val();
+    const sheetSize = $(`#id_${prefix}sheet_size`).val();
+    const weight = $(`#id_${prefix}paper_weight`).val();
+    const origin = isInner ? '' : $('#id_paper_origin').val();
     const paperSource = $('input[name="paper_source"]:checked').val() || 'purchase';
+    const $paperInput = $(`#id_${prefix}paper_sheet_price`);
+    const $badge = $(`#${prefix}paper_price_staleness_badge`);
+    const $date = $(`#${prefix}paper_price_date_display`);
 
     if (paperSource === 'customer_supplied') {
-      $('#id_paper_sheet_price').val('0.00');
-      this.clearPriceStalenessBadge($('#paper_price_staleness_badge'), $('#paper_price_date_display'));
+      $paperInput.val('0.00');
+      $paperInput.attr('data-baseline-price', '0.00');
+      this.clearPriceStalenessBadge($badge, $date);
       this.updateSupplierDependentSections();
       this.recalculate();
       return;
@@ -1737,13 +1840,17 @@ class PricingSheetPrintingSubsystem {
       this.api.getLivePaperPrice(paramsObj)
         .then(data => {
           const sheetPrice = parseFloat(data.price) || 0.0;
-          const $paperInput = $('#id_paper_sheet_price');
-          $paperInput.val(sheetPrice.toFixed(2));
-          $paperInput.attr('data-baseline-price', sheetPrice.toFixed(2));
+          const formattedPrice = sheetPrice.toFixed(2);
+
+          // الحفاظ على السعر المحفوظ إذا طُلب صراحة ووجد سعر حالي صالح
+          if (!options.preserveSavedPrice || !$paperInput.val() || parseFloat($paperInput.val()) === 0) {
+            $paperInput.val(formattedPrice);
+          }
+          $paperInput.attr('data-baseline-price', formattedPrice);
           $paperInput.attr('data-service-id', data.service_id || '');
           $paperInput.attr('data-supplier-id', supplierId);
           $paperInput.attr('data-formula', data.pricing_formula || '');
-          const ptName = $('#id_paper_type option:selected').text().trim() || 'ورق';
+          const ptName = $(`#id_${prefix}paper_type option:selected`).text().trim() || 'ورق';
           $paperInput.attr('data-item-label', `${ptName} (${sheetSize} - ${weight} جم)`);
           $paperInput.attr('data-unit-label', 'فرخ');
 
@@ -1753,12 +1860,12 @@ class PricingSheetPrintingSubsystem {
             data.price_age_days,
             data.price_staleness_status,
             data.price_valid_until,
-            $('#paper_price_staleness_badge'),
-            $('#paper_price_date_display')
+            $badge,
+            $date
           );
 
-          // مزامنة بلد المنشأ تلقائياً مع خامة المورد المسجلة لمنع تضارب الجودة
-          if (data.origin) {
+          // مزامنة بلد المنشأ تلقائياً مع خامة المورد المسجلة للغلاف فقط
+          if (!isInner && data.origin) {
             const $originSelect = $('#id_paper_origin');
             let matchedOrigin = null;
             $originSelect.find('option').each(function () {
