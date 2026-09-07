@@ -44,6 +44,12 @@ class PrintingCalculationEngine:
             Dict: هيكل بيانات متكامل ومفصل لتكاليف ومخرجات الشغلانة.
         """
         try:
+            # 0. تطبيع المعطيات المدخلة وفك أي قوائم صادرة من QueryDict
+            if hasattr(params, 'dict'):
+                params = params.dict()
+            elif isinstance(params, dict):
+                params = {k: (v[0] if isinstance(v, (list, tuple)) and len(v) == 1 else v) for k, v in params.items()}
+
             # 1. تحديد العملة المستهدفة لحسابات التسعير وتاريخ سعر الصرف وفق IAS 21
             target_curr = params.get('currency')
             if not target_curr:
@@ -1317,24 +1323,30 @@ class PrintingCalculationEngine:
 
     @staticmethod
     def _to_decimal(val: Any, default: Decimal = Decimal('0.0')) -> Decimal:
+        if isinstance(val, (list, tuple)):
+            val = val[0] if val else None
         if val is None or str(val).strip() == '':
             return default
         try:
-            return Decimal(str(val))
+            return Decimal(str(val).strip())
         except Exception:
             return default
 
     @staticmethod
     def _to_int(val: Any, default: int = 0) -> int:
+        if isinstance(val, (list, tuple)):
+            val = val[0] if val else None
         if val is None or str(val).strip() == '':
             return default
         try:
-            return int(float(str(val)))
+            return int(float(str(val).strip()))
         except Exception:
             return default
 
     @staticmethod
     def _to_bool(val: Any) -> bool:
+        if isinstance(val, (list, tuple)):
+            val = val[0] if val else False
         if isinstance(val, bool):
             return val
         s = str(val).lower().strip()

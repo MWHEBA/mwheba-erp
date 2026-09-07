@@ -109,8 +109,8 @@ class PrintingOrder(BaseModel):
     print_orientation = models.CharField(
         max_length=20,
         choices=[
-            ('portrait', _('طولي (رأسي)')),
-            ('landscape', _('عرضي (أفقي)'))
+            ('portrait', _('طولي')),
+            ('landscape', _('عرضي'))
         ],
         default='portrait',
         verbose_name=_("اتجاه الطباعة")
@@ -172,7 +172,7 @@ class PrintingOrder(BaseModel):
         choices=[
             ('right', _('عربي (يمين)')),
             ('left', _('إنجليزي (يسار)')),
-            ('top', _('من أعلى (رأسي)')),
+            ('top', _('من أعلى')),
         ],
         default='right',
         verbose_name=_("جهة الفتح والتجليد")
@@ -663,6 +663,14 @@ class PrintingOrder(BaseModel):
         # يمكن إضافة signal هنا لتسجيل تغيير الحالة
         return old_status, new_status
 
+    @property
+    def is_single_sheet(self):
+        """هل الطلب مطبوع مفرد / مفرود ليس له طي أو صفحات داخلية"""
+        if self.is_closed_size:
+            return False
+        archetype = self.product_type.base_archetype if self.product_type else (self.order_type or 'flyer')
+        return archetype in ['flyer', 'single_sheet', 'business_card', 'poster', 'letterhead', 'envelope', 'label', 'sticker']
+
     def get_open_dimensions(self):
         """حساب المقاس المفتوح الفعلي على ماكينة الطباعة بناءً على نوع المطبوع وحالة الطي وجهة الفتح والتجليد"""
         w = Decimal(str(self.width or 21))
@@ -695,7 +703,7 @@ class PrintingOrder(BaseModel):
 
     def get_dimensions_display(self):
         """عرض منسق للأبعاد ومقاس المطبوع والاتجاه وحالة الطي وجهة الفتح"""
-        orient = self.get_print_orientation_display() if hasattr(self, 'get_print_orientation_display') else ('عرضي (أفقي)' if self.print_orientation == 'landscape' else 'طولي (رأسي)')
+        orient = self.get_print_orientation_display() if hasattr(self, 'get_print_orientation_display') else ('عرضي' if self.print_orientation == 'landscape' else 'طولي')
         w = float(self.width) if self.width is not None else 0
         h = float(self.height) if self.height is not None else 0
         w_str = f"{w:.1f}".rstrip('0').rstrip('.') if w else '0'
@@ -703,7 +711,7 @@ class PrintingOrder(BaseModel):
 
         fold_info = ""
         if self.is_closed_size:
-            dir_label = self.get_open_direction_display() if hasattr(self, 'get_open_direction_display') else ('من أعلى (رأسي)' if self.open_direction == 'top' else ('إنجليزي (يسار)' if self.open_direction == 'left' else 'عربي (يمين)'))
+            dir_label = self.get_open_direction_display() if hasattr(self, 'get_open_direction_display') else ('من أعلى' if self.open_direction == 'top' else ('إنجليزي (يسار)' if self.open_direction == 'left' else 'عربي (يمين)'))
             fold_info = f" (مقفول) [فتح: {dir_label}]"
 
         if self.product_size:

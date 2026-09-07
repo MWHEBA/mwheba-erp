@@ -37,10 +37,10 @@
         </button>
       </div>
 
-      <!-- 1. السطر الأول التفاعلي: تقنية الطباعة، الأوجه، ألوان التصميم -->
+      <!-- 1. السطر الأول التفاعلي: نوع الطباعة، الأوجه، ألوان التصميم -->
       <div class="row g-3 mb-4 pb-3 border-bottom align-items-end" id="row_print_tech_master">
         
-        <!-- أ. نوع وتقنية الطباعة -->
+        <!-- أ. نوع الطباعة -->
         <div class="col-md-3" id="col_cover_type_wrapper">
           <label for="id_cover_printing_type" class="form-label fw-bold">
             {% trans "نوع الطباعة" %} <span class="text-danger">*</span>
@@ -168,7 +168,7 @@
 
       </div>
 
-      <!-- 2. كروت التفاصيل الفنية والماكينات المعتمدة (تتبدل حسب تقنية الطباعة) -->
+      <!-- 2. كروت التفاصيل الفنية والماكينات المعتمدة (تتبدل حسب نوع الطباعة) -->
 
       <!-- أ. تفاصيل ماكينة الأوفست وزنكات CTP والتراج -->
       <div id="cover_offset_fields" class="row g-3 mb-4 pb-3 border-bottom">
@@ -903,7 +903,7 @@
                 <!-- صمام تجاوز أبعاد الفرخ -->
                 <div class="alert alert-danger py-2 px-3 mb-2 d-none" id="dimension_overflow_alert">
                   <i class="fas fa-exclamation-triangle me-2"></i>
-                  <span class="fw-bold">{% trans "⚠️ خطأ في الأبعاد: مقاس المطبوع المفتوح يتجاوز مساحة الفرخ الخام المتاح! يرجى اختيار مقاس فرخ أكبر أو تحويل تقنية الطباعة إلى رولات خامات كبيرة (Banner)." %}</span>
+                  <span class="fw-bold">{% trans "⚠️ خطأ في الأبعاد: مقاس المطبوع المفتوح يتجاوز مساحة الفرخ الخام المتاح! يرجى اختيار مقاس فرخ أكبر أو تحويل نوع الطباعة إلى رولات خامات كبيرة (Banner)." %}</span>
                 </div>
 
                 <!-- صمام تقوس السلوفان وجه واحد -->

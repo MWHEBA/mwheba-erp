@@ -264,7 +264,7 @@ class OrderMaterial(BaseModel):
 
 
 # ==============================================================================
-# 3. خدمات وعمليات الورش والموردين (Order Services Breakdown)
+# 3. خدمات الورش والموردين (Order Services Breakdown)
 # ==============================================================================
 
 class OrderService(BaseModel):
@@ -413,6 +413,36 @@ class OrderService(BaseModel):
             self.setup_cost = new_setup_cost
         self.calculate_total_cost()
         self.save()
+
+    @property
+    def clean_unit_name(self):
+        """
+        اسم وحدة القياس كتمييز معدود (زنكة، تراج، قطعة، ألف، إلخ) بدلاً من صيغ التسعير (بالألف، بالقطعة)
+        """
+        s_name = (self.service_name or '').lower()
+        if self.unit in ['thousand', PriceUnit.THOUSAND]:
+            if 'تراج' in s_name or self.service_category == 'printing':
+                return _('تراج')
+            return _('ألف')
+        if self.unit in ['piece', PriceUnit.PIECE]:
+            if 'زنك' in s_name or 'ctp' in s_name:
+                return _('زنكة')
+            return _('قطعة')
+        if self.unit in ['sheet', PriceUnit.SHEET]:
+            return _('فرخ')
+        unit_map = {
+            'click': _('سحبة'),
+            'sqm': _('م²'),
+            'meter': _('متر'),
+            'package': _('باكدج'),
+            'pack': _('رزمة'),
+        }
+        if self.unit in unit_map:
+            return str(unit_map[self.unit])
+        raw_display = str(self.get_unit_display() or self.unit or '')
+        if raw_display.startswith('بال'):
+            return raw_display[3:]
+        return raw_display
 
 
 # ==============================================================================

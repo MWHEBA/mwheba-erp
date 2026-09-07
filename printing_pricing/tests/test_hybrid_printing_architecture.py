@@ -237,7 +237,7 @@ class TestHybridPrintingArchitecture:
         detail_url = reverse('printing_pricing:order_detail', kwargs={'pk': order.pk})
         resp_detail = client.get(detail_url)
         assert resp_detail.status_code == 200
-        assert 'بطاقة المواصفات الفنية والهندسة الهجينة' in resp_detail.content.decode('utf-8')
+        assert 'نوع الطباعة:' in resp_detail.content.decode('utf-8')
         assert 'ديجيتال' in resp_detail.content.decode('utf-8')
 
 

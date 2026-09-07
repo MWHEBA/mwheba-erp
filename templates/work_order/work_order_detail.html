@@ -30,8 +30,10 @@
                 <i class="fas fa-file-invoice-dollar"></i>
               </div>
               <div class="stats-card-title">{% trans "إجمالي الإيرادات" %}</div>
-              <div class="stats-card-value">{{ total_revenue|smart_float:2 }}</div>
-              <div class="stats-card-unit">{% currency_symbol %}</div>
+              <div class="stats-card-value">
+                {{ total_revenue|smart_float:2 }}
+                <span class="fs-6 fw-normal text-muted ms-1">{% currency_symbol %}</span>
+              </div>
               <div class="text-muted small mt-2">
                 <span>{% trans "الفواتير:" %} {{ sales_total|smart_float:2 }}</span> |
                 <span>{% trans "مباشر:" %} {{ incomes_direct_total|smart_float:2 }}</span>
@@ -49,8 +51,10 @@
                 <i class="fas fa-calculator"></i>
               </div>
               <div class="stats-card-title">{% trans "إجمالي التكاليف" %}</div>
-              <div class="stats-card-value">{{ total_cost|smart_float:2 }}</div>
-              <div class="stats-card-unit">{% currency_symbol %}</div>
+              <div class="stats-card-value">
+                {{ total_cost|smart_float:2 }}
+                <span class="fs-6 fw-normal text-muted ms-1">{% currency_symbol %}</span>
+              </div>
               <div class="text-muted small mt-2">
                 <span>{% trans "المشتريات:" %} {{ purchases_total|smart_float:2 }}</span> |
                 <span>{% trans "مباشر:" %} {{ expenses_direct_total|smart_float:2 }}</span>
@@ -68,8 +72,10 @@
                 <i class="fas fa-chart-line"></i>
               </div>
               <div class="stats-card-title">{% trans "صافي الأرباح" %}</div>
-              <div class="stats-card-value">{{ net_profit|smart_float:2 }}</div>
-              <div class="stats-card-unit">{% currency_symbol %}</div>
+              <div class="stats-card-value">
+                {{ net_profit|smart_float:2 }}
+                <span class="fs-6 fw-normal text-muted ms-1">{% currency_symbol %}</span>
+              </div>
               <div class="stats-card-trend {% if net_profit >= 0 %}up{% else %}down{% endif %} mt-2">
                 {% if net_profit >= 0 %}
                 <i class="fas fa-arrow-up me-1"></i>{% trans "ربح إيجابي" %} ({{ profit_margin|floatformat:1 }}%)
@@ -90,8 +96,10 @@
                 <i class="fas fa-piggy-bank"></i>
               </div>
               <div class="stats-card-title">{% trans "الدفعات المقدمة" %}</div>
-              <div class="stats-card-value">{{ remaining_deposit|smart_float:2 }}</div>
-              <div class="stats-card-unit">{% currency_symbol %}</div>
+              <div class="stats-card-value">
+                {{ remaining_deposit|smart_float:2 }}
+                <span class="fs-6 fw-normal text-muted ms-1">{% currency_symbol %}</span>
+              </div>
               <div class="text-muted small mt-2">
                 <span>{% trans "المقبوض:" %} {{ total_deposits|smart_float:2 }}</span> |
                 <span>{% trans "المستهلك:" %} {{ total_allocated|smart_float:2 }}</span>

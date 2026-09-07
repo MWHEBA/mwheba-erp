@@ -261,6 +261,36 @@ def check_can_view_margins(user):
     return user.is_authenticated and (user.is_superuser or user.has_perm('printing_pricing.view_cost_margins') or user.is_staff)
 
 
+def _get_friendly_bed_plate_name(bed_str):
+    """تحويل مقاس الفرخ إلى المصطلح الدارج للزنكات في السوق المصري (ربع / نص / فرخ كامل)"""
+    if not bed_str:
+        return ""
+    bed_norm = str(bed_str).lower().replace(' ', '').replace('×', 'x')
+    if any(k in bed_norm for k in ['35x50', '50x35', '52', 'ربع']):
+        return 'مقاس ربع'
+    elif any(k in bed_norm for k in ['50x70', '70x50', '74', 'نص']):
+        return 'مقاس نص'
+    elif any(k in bed_norm for k in ['70x100', '100x70', '102', 'كامل', 'فرخ']):
+        return 'مقاس كامل'
+    dim = str(bed_str).replace('x', '×').replace('X', '×')
+    return f"مقاس {dim}"
+
+
+def _get_friendly_bed_machine_name(bed_str):
+    """تحويل مقاس الفرخ إلى المصطلح الدارج لماكينات الأوفست في السوق المصري (ماكينة ربع / ماكينة نص / ماكينة فرخ)"""
+    if not bed_str:
+        return ""
+    bed_norm = str(bed_str).lower().replace(' ', '').replace('×', 'x')
+    if any(k in bed_norm for k in ['35x50', '50x35', '52', 'ربع']):
+        return 'ماكينة ربع'
+    elif any(k in bed_norm for k in ['50x70', '70x50', '74', 'نص']):
+        return 'ماكينة نص'
+    elif any(k in bed_norm for k in ['70x100', '100x70', '102', 'كامل', 'فرخ']):
+        return 'ماكينة فرخ'
+    dim = str(bed_str).replace('x', '×').replace('X', '×')
+    return f"ماكينة {dim}"
+
+
 class OrderDetailView(LoginRequiredMixin, DetailView):
     """
     عرض تفاصيل طلب التسعير ومركز الأرباح 360 درجة
@@ -290,10 +320,28 @@ class OrderDetailView(LoginRequiredMixin, DetailView):
         can_view_margins = check_can_view_margins(user)
         context['can_view_margins'] = can_view_margins
         
+        # رابط العميل القابل للنقر في رأس الصفحة والكارت
+        from customer.models import Customer
+        import urllib.parse
+        customer_url = None
+        if order.customer:
+            customer_url = reverse('customer:customer_detail', kwargs={'pk': order.customer.pk})
+        elif order.customer_name:
+            matched = Customer.objects.filter(name__iexact=order.customer_name.strip(), is_active=True).first()
+            if matched:
+                customer_url = reverse('customer:customer_detail', kwargs={'pk': matched.pk})
+            else:
+                customer_url = f"{reverse('customer:customer_list')}?search={urllib.parse.quote(order.customer_name.strip())}"
+        else:
+            customer_url = reverse('customer:customer_list')
+
+        context['customer_url'] = customer_url
+
         # رأس الصفحة ومسار التنقل الموحد
         context['page_title'] = order.title or _('تفاصيل طلب التسعير')
+        customer_link_html = f'<a href="{customer_url}" class="text-primary fw-bold text-decoration-none hover-primary" title="{_("عرض بيانات العميل")}"><i class="fas fa-user me-1"></i>{order.customer_display_name}</a>'
         context['page_subtitle'] = _('العميل: %(customer)s | تاريخ الطلب: %(date)s') % {
-            'customer': order.customer_display_name,
+            'customer': customer_link_html,
             'date': order.order_date
         }
         context['page_icon'] = 'fas fa-print'
@@ -398,6 +446,74 @@ class OrderDetailView(LoginRequiredMixin, DetailView):
             
         context['header_buttons'] = buttons
         
+        # تنظيف وصياغة الأوجه ونمط الألوان وفقاً للمعايير المطبعية المصرية
+        def _format_face_colors(cmyk_count, spot_count):
+            parts = []
+            if cmyk_count > 0:
+                parts.append(f"{cmyk_count} لون")
+            if spot_count > 0:
+                parts.append(f"{spot_count} لون مخصوص")
+            return " + ".join(parts) if parts else ""
+
+        if order.cover_printing_type == 'digital':
+            d_mode = order.digital_color_mode
+            if d_mode == '4_0':
+                sides_display = _('وجه واحد (4 لون)')
+            elif d_mode == '1_0':
+                sides_display = _('وجه واحد (1 لون أسود)')
+            elif d_mode == '4_4':
+                sides_display = _('وجهين (4/4 لون)')
+            elif d_mode == '4_1':
+                sides_display = _('وجهين (الوجه: 4 لون - الظهر: 1 لون أسود)')
+            elif d_mode == '1_1':
+                sides_display = _('وجهين (1/1 لون أسود)')
+            else:
+                sides_display = order.get_digital_color_mode_display()
+        elif order.cover_printing_type == 'none':
+            sides_display = _('بدون طباعة')
+        else:  # offset or other
+            plate_svc = order.services.filter(service_category='printing', service_name__icontains='زنك', is_active=True).first()
+            s_info = plate_svc.supplier_info if (plate_svc and isinstance(plate_svc.supplier_info, dict)) else {}
+            
+            spot_front = order.spot_colors_front or 0
+            spot_back = order.spot_colors_back or 0
+            
+            raw_fp = s_info.get('front_plates')
+            raw_bp = s_info.get('back_plates')
+            
+            # استخراج ألوان الـ CMYK عبر خصم الألوان المخصوصة من إجمالي الزنكات المسجلة إن وجدت
+            if raw_fp is not None:
+                front_cmyk = max(0, int(raw_fp) - spot_front)
+            else:
+                front_cmyk = 4
+                
+            if raw_bp is not None:
+                back_cmyk = max(0, int(raw_bp) - spot_back)
+            else:
+                back_cmyk = 4 if order.print_sides_mode == 'work_sheet' else 0
+
+            # صياغة النص المطبعي النظيف
+            if order.print_sides_mode == 'single':
+                face_text = _format_face_colors(front_cmyk, spot_front) or _("4 لون")
+                sides_display = f"وجه واحد ({face_text})"
+            elif order.print_sides_mode == 'work_turn':
+                # طبع وقلب (استخدام نفس الزنكات للوجهين)
+                if spot_front == 0:
+                    sides_display = f"طبع وقلب ({front_cmyk}/{front_cmyk} لون)"
+                else:
+                    face_text = _format_face_colors(front_cmyk, spot_front)
+                    sides_display = f"طبع وقلب ({face_text})"
+            else:  # work_sheet (وجهين)
+                if spot_front == 0 and spot_back == 0 and front_cmyk == back_cmyk and front_cmyk > 0:
+                    sides_display = f"وجهين ({front_cmyk}/{back_cmyk} لون)"
+                else:
+                    front_desc = _format_face_colors(front_cmyk, spot_front) or _("بدون طباعة")
+                    back_desc = _format_face_colors(back_cmyk, spot_back) or _("بدون طباعة")
+                    sides_display = f"وجهين (الوجه: {front_desc} - الظهر: {back_desc})"
+
+        order.clean_sides_and_colors = sides_display
+        order.total_spot_colors = (order.spot_colors_front or 0) + (order.spot_colors_back or 0)
+
         # المواد والخدمات مع ربط المواصفات الفنية للورق والمونتاج
         materials = list(order.materials.filter(is_active=True))
         paper_specs = list(order.paper_specs.filter(is_active=True))
@@ -463,7 +579,134 @@ class OrderDetailView(LoginRequiredMixin, DetailView):
             ps.clean_piece_size_name = p_name
 
         context['materials'] = materials
-        context['services'] = order.services.filter(is_active=True)
+
+        # تنظيف وتجهيز خدمات الورش
+        services = list(order.services.filter(is_active=True))
+        total_services_cost = Decimal('0.00')
+
+        for svc in services:
+            total_services_cost += (svc.total_cost or Decimal('0.00'))
+            s_name = (svc.service_name or '').strip()
+            s_info = svc.supplier_info if isinstance(svc.supplier_info, dict) else {}
+
+            # استخراج مقاس الفرخ من supplier_info أو اسم الخدمة
+            bed = s_info.get('bed_size') or ''
+            if not bed:
+                m = re.search(r'(\d+\s*[xX×]\s*\d+)', s_name)
+                if m:
+                    bed = m.group(1)
+
+            # تحديد سياق الجزء المطبوع (غلاف أم صفحات داخلية أم بدون بادئة)
+            is_inner_part = 'داخلي' in s_name or 'inner' in s_name.lower()
+            if is_inner_part:
+                prefix = '[داخلي] '
+            elif has_inner and ('غلاف' in s_name or 'cover' in s_name.lower()):
+                prefix = '[غلاف] '
+            else:
+                prefix = ''
+
+            # 1. ضبط وتحسين اسم الخدمة حسب الأعراف المهنية للمطابع المصرية
+            is_plate = 'زنك' in s_name or 'ctp' in s_name.lower()
+            is_offset = ('سحب' in s_name or 'أوفست' in s_name or svc.service_category == 'printing') and not is_plate and 'ديجيتال' not in s_name and 'digital' not in s_name.lower()
+
+            if is_plate:
+                friendly_plate = _get_friendly_bed_plate_name(bed)
+                svc.clean_service_name = f"{prefix}زنكات CTP ({friendly_plate})" if friendly_plate else f"{prefix}زنكات CTP"
+            elif is_offset and ('سحب' in s_name or 'تراج' in s_name):
+                friendly_mach = _get_friendly_bed_machine_name(bed)
+                svc.clean_service_name = f"{prefix}طباعة أوفست ({friendly_mach})" if friendly_mach else f"{prefix}طباعة أوفست"
+            else:
+                # تنظيف البادئات والأقواس المكررة من الأسماء الأخرى (سلوفان، تكسير، ديجيتال...)
+                if not has_inner:
+                    s_name = re.sub(r'^\[(?:غلاف\s*أوفست|غلاف)\]\s*', '', s_name).strip()
+                else:
+                    s_name = s_name.replace('[غلاف أوفست]', '[غلاف]').strip()
+                s_name = re.sub(r'\s*\(\s*عدد\s*\d+\s*(?:زنكة|قطعة)?\s*\)', '', s_name).strip()
+                s_name = re.sub(r'\s*\(\s*[\d,]+\s*سحبة\s*-\s*[\d,]+\s*تراج\s*\)', '', s_name).strip()
+                svc.clean_service_name = s_name
+
+            # 2. تحديد فئة الخدمة المهنية والأيقونة وشارة العرض
+            if is_plate:
+                svc.category_display = _('فصل زنكات')
+                svc.category_icon = 'fas fa-layer-group'
+                svc.category_badge_class = 'bg-info-subtle text-info border border-info-subtle'
+            elif is_offset:
+                svc.category_display = _('طباعة أوفست')
+                svc.category_icon = 'fas fa-print'
+                svc.category_badge_class = 'bg-primary-subtle text-primary border border-primary-subtle'
+            elif 'ديجيتال' in s_name or 'digital' in s_name.lower():
+                svc.category_display = _('طباعة ديجيتال')
+                svc.category_icon = 'fas fa-desktop'
+                svc.category_badge_class = 'bg-primary-subtle text-primary border border-primary-subtle'
+            elif svc.service_category == 'coating' or 'سلوفان' in s_name or 'ورنيش' in s_name or 'uv' in s_name.lower():
+                svc.category_display = _('سلوفان وتغطية')
+                svc.category_icon = 'fas fa-paint-roller'
+                svc.category_badge_class = 'bg-warning-subtle text-warning border border-warning-subtle'
+            elif svc.service_category == 'finishing' or any(k in s_name for k in ['تكسير', 'ريجة', 'طي', 'تجليد', 'تدبيس', 'قص', 'فورمة']):
+                svc.category_display = _('تشطيب وتجهيز')
+                svc.category_icon = 'fas fa-cut'
+                svc.category_badge_class = 'bg-success-subtle text-success border border-success-subtle'
+            elif svc.service_category == 'packaging' or any(k in s_name for k in ['تعبئة', 'تغليف', 'شرنك', 'كرتون']):
+                svc.category_display = _('تقفيل وتغليف')
+                svc.category_icon = 'fas fa-box'
+                svc.category_badge_class = 'bg-secondary-subtle text-secondary border border-secondary-subtle'
+            else:
+                svc.category_display = svc.get_service_category_display() or _('خدمات أخرى')
+                svc.category_icon = 'fas fa-cogs'
+                svc.category_badge_class = 'bg-light text-dark border'
+
+            # 3. تحديد المورد الفعلي لتنظيف جدول الخدمات
+            supp_name = ''
+            if svc.supplier_service and svc.supplier_service.supplier:
+                supp_name = svc.supplier_service.supplier.name
+            elif svc.supplier_info and isinstance(svc.supplier_info, dict):
+                supp_name = svc.supplier_info.get('supplier_name', '')
+
+            if not supp_name or supp_name == 'مطبعة أوفست معتمدة':
+                from supplier.models import Supplier
+                pref_supp = Supplier.objects.filter(is_active=True, is_preferred=True, services__service_type__code='offset_printing').first()
+                if pref_supp:
+                    supp_name = pref_supp.name
+
+            if supp_name:
+                supp_name = re.sub(r'\s*/\s*سعر\s*معياري', '', supp_name).strip()
+            svc.effective_supplier_name = supp_name
+
+            # 3. صياغة الوصف الفني المركز (بدون تكرار اسم المورد لأن له عمود مخصص)
+            desc_parts = []
+            if is_plate:
+                is_arch = s_info.get('is_archived')
+                desc_parts.append("من الأرشيف" if is_arch else "زنكات جديدة")
+                if bed:
+                    dim_formatted = str(bed).replace('x', '×').replace('X', '×')
+                    desc_parts.append(f"أبعاد {dim_formatted} سم")
+                svc.clean_description = " • ".join(desc_parts)
+            elif is_offset:
+                mach = s_info.get('machine') or ''
+                # لو اسم الماكينة يحتوي على طراز أو ماركة فعلية وليس مجرد أبعاد (استبعاد حرف x المستخدم في المقاس)
+                has_model_name = bool(re.search(r'[a-wy-zA-WY-Z\u0600-\u06FF]', mach))
+                if mach and has_model_name:
+                    desc_parts.append(mach)
+                elif bed or mach:
+                    dim_src = bed or mach
+                    dim_formatted = str(dim_src).replace('x', '×').replace('X', '×')
+                    desc_parts.append(f"أبعاد {dim_formatted} سم")
+
+                pulls = s_info.get('pulls_count')
+                if pulls:
+                    try:
+                        desc_parts.append(f"{int(pulls):,} سحبة فعلية")
+                    except (ValueError, TypeError):
+                        desc_parts.append(f"{pulls} سحبة فعلية")
+                svc.clean_description = " • ".join(desc_parts)
+            else:
+                raw_desc = svc.service_description or ''
+                raw_desc = re.sub(r'(?:المورد|المطبعة)\s*:\s*[^•\|]+[•\|]?', '', raw_desc)
+                raw_desc = re.sub(r'سعر التراج:\s*[\d\.]+\s*ج\/تراج\s*\|?', '', raw_desc).strip(' |•')
+                svc.clean_description = raw_desc.replace('|', '•').strip()
+
+        context['services'] = services
+        context['total_services_cost'] = total_services_cost
         
         # ملخص التكاليف
         try:

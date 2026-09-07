@@ -124,3 +124,40 @@ class TestPreferredSuppliersAndZeroPricing:
         )
         assert 'placeholder="2.40"' not in rendered_step3
         assert 'value="2.40"' not in rendered_step3
+
+    def test_explicit_user_unit_prices_persisted_from_post_data_querydict(self):
+        """التحقق من أن تعديل أسعار الوحدة وحفظها عبر POST (QueryDict) يُحفظ دون تصفير"""
+        from django.http import QueryDict
+        from printing_pricing.models import PrintingOrder
+        from printing_pricing.services.anatomy_persistence_service import OrderAnatomyPersistenceService
+
+        order = PrintingOrder.objects.create(
+            title="طلب تجربة تعديل سعر الوحدة",
+            order_number="ORD-UNIT-PRICE-TEST",
+            quantity=5000,
+            width=Decimal('21.0'),
+            height=Decimal('29.7'),
+            pages_count=1,
+            cover_printing_type='offset',
+            currency=self.currency,
+            created_by=self.user
+        )
+
+        qd = QueryDict(
+            f'quantity=5000&width=21&height=29.7&cover_printing_type=offset'
+            f'&cover_offset_supplier={self.supp_pref.id}&press_bed_size=50x70'
+            f'&press_rate=65.00&plate_price=55.00&colors_front=4&paper_price=4.20'
+        )
+
+        OrderAnatomyPersistenceService.persist_order_anatomy(order, qd)
+
+        # التحقق من بنود الخدمات
+        press_svc = order.services.filter(service_category='printing', service_name__icontains='سحب').first()
+        assert press_svc is not None
+        assert press_svc.unit_price == Decimal('65.00')
+        assert press_svc.total_cost > Decimal('0.00')
+
+        plate_svc = order.services.filter(service_category='printing', service_name__icontains='زنك').first()
+        assert plate_svc is not None
+        assert plate_svc.unit_price == Decimal('55.00')
+        assert plate_svc.total_cost == Decimal('55.00') * 4

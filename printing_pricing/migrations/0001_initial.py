@@ -1256,7 +1256,7 @@ class Migration(migrations.Migration):
                             ("digital", "ماكينة ديجيتال"),
                         ],
                         default="offset",
-                        help_text="تقنية الطباعة (أوفست / ديجيتال)",
+                        help_text="نوع الطباعة (أوفست / ديجيتال)",
                         max_length=20,
                         verbose_name="نوع وتقنية الماكينة",
                     ),

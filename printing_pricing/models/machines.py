@@ -34,7 +34,7 @@ class PrintingMachine(BaseLookupModel):
         max_length=20,
         choices=CATEGORY_CHOICES,
         default='offset',
-        help_text=_("تقنية الطباعة (أوفست / ديجيتال)")
+        help_text=_("نوع الطباعة (أوفست / ديجيتال)")
     )
     code = models.CharField(
         _("رمز الماكينة"),

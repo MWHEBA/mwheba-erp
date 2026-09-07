@@ -170,7 +170,7 @@ class TestOrderProductSizeIntegration:
             created_by=admin_user
         )
 
-        assert order.get_dimensions_display() == 'A4 معياري (29.7×21 سم) - عرضي (أفقي)'
+        assert order.get_dimensions_display() == 'A4 معياري (29.7×21 سم) - عرضي'
 
     def test_order_custom_size_display(self, client, admin_user, test_customer):
         order = PrintingOrder.objects.create(
@@ -184,7 +184,7 @@ class TestOrderProductSizeIntegration:
             created_by=admin_user
         )
 
-        assert order.get_dimensions_display() == 'مقاس مخصص (15.5×35 سم) - طولي (رأسي)'
+        assert order.get_dimensions_display() == 'مقاس مخصص (15.5×35 سم) - طولي'
 
     def test_anatomy_persistence_preserves_size_and_orientation(self, admin_user, test_customer, sample_product_sizes):
         size = sample_product_sizes[2] # كارت شخصي
@@ -281,7 +281,7 @@ class TestOrderProductSizeIntegration:
         open_w, open_h = order.get_open_dimensions()
         assert open_w == Decimal('21.0')
         assert open_h == Decimal('59.4')
-        assert 'من أعلى (رأسي)' in order.get_dimensions_display()
+        assert 'من أعلى' in order.get_dimensions_display()
 
     def test_trifold_brochure_open_dimensions(self, admin_user, test_customer):
         pt_brochure = ProductType.objects.create(name='بروشور 3 بوابة', base_archetype='brochure')

@@ -161,13 +161,13 @@
         <div class="btn-group w-100" role="group" id="orientation_toggle_group">
           <input type="radio" class="btn-check" name="print_orientation" id="orient_portrait" value="portrait" 
                  {% if form.print_orientation.value != 'landscape' and form.instance.print_orientation != 'landscape' %}checked{% endif %} autocomplete="off">
-          <label class="btn btn-outline-secondary btn-sm d-flex align-items-center justify-content-center py-2" for="orient_portrait" title="{% trans 'طولي / رأسي' %}">
+          <label class="btn btn-outline-secondary btn-sm d-flex align-items-center justify-content-center py-2" for="orient_portrait" title="{% trans 'طولي' %}">
             <i class="fas fa-arrows-alt-v me-1 text-primary"></i>{% trans "طولي" %}
           </label>
 
           <input type="radio" class="btn-check" name="print_orientation" id="orient_landscape" value="landscape" 
                  {% if form.print_orientation.value == 'landscape' or form.instance.print_orientation == 'landscape' %}checked{% endif %} autocomplete="off">
-          <label class="btn btn-outline-secondary btn-sm d-flex align-items-center justify-content-center py-2" for="orient_landscape" title="{% trans 'عرضي / أفقي' %}">
+          <label class="btn btn-outline-secondary btn-sm d-flex align-items-center justify-content-center py-2" for="orient_landscape" title="{% trans 'عرضي' %}">
             <i class="fas fa-arrows-alt-h me-1 text-info"></i>{% trans "عرضي" %}
           </label>
         </div>
@@ -228,8 +228,8 @@
 
               <input type="radio" class="btn-check" name="open_direction" id="open_dir_top" value="top" 
                      {% if form.open_direction.value == 'top' or form.instance.open_direction == 'top' %}checked{% endif %} autocomplete="off">
-              <label class="btn btn-outline-secondary py-1 px-2" for="open_dir_top" title="{% trans 'فتح رأسي من الرأس (بلوك نوت / كالندر)' %}">
-                <i class="fas fa-calendar-alt me-1 text-success"></i>{% trans "من أعلى (رأسي)" %}
+              <label class="btn btn-outline-secondary py-1 px-2" for="open_dir_top" title="{% trans 'فتح من الرأس (بلوك نوت / كالندر)' %}">
+                <i class="fas fa-calendar-alt me-1 text-success"></i>{% trans "من أعلى" %}
               </label>
             </div>
           </div>
