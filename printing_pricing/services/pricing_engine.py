@@ -210,6 +210,28 @@ class PrintingCalculationEngine:
                 except Exception:
                     final_curr_symbol = 'ج.م'
 
+            # حساب الوزن الإجمالي بالكيلوجرام للطلب
+            sheet_w_cm = float(w_cut * Decimal(str(machine_cuts)))
+            sheet_h_cm = float(h_cut)
+            paper_gsm = float(cls._to_decimal(params.get('paper_weight'), Decimal('300.0')))
+            gross_p_sheets = float(paper_res.get('gross_press_sheets', 0))
+            # معادلة الوزن: (الطول بالسم * العرض بالسم * الجراماج * عدد الأفرخ) / 10,000,000
+            total_weight_kg = round((sheet_w_cm * sheet_h_cm * paper_gsm * gross_p_sheets) / 10000000.0, 2)
+            boxes_count = logistics_res.get('boxes_count', 0)
+
+            # سعر الصرف المستخدم مقابل العملة الوظيفية
+            applied_exchange_rate = 1.0
+            if target_curr:
+                try:
+                    from financial.services.exchange_rate_service import ExchangeRateService
+                    func_curr = ExchangeRateService.get_functional_currency()
+                    if func_curr and getattr(target_curr, 'code', '') != func_curr.code:
+                        rate_dec = ExchangeRateService.get_rate(from_code=func_curr.code, to_code=target_curr.code, date=order_date)
+                        if rate_dec:
+                            applied_exchange_rate = float(rate_dec)
+                except Exception:
+                    pass
+
             return {
                 'success': True,
                 'dimensions': {
@@ -240,9 +262,14 @@ class PrintingCalculationEngine:
                 'inner': inner_res,
                 'logistics': logistics_res,
                 'totals': totals_res,
+                'weight': {
+                    'total_kg': total_weight_kg,
+                    'boxes_count': boxes_count,
+                },
                 'currency': final_curr_code,
                 'currency_code': final_curr_code,
                 'currency_symbol': final_curr_symbol,
+                'exchange_rate': applied_exchange_rate,
             }
 
         except Exception as e:

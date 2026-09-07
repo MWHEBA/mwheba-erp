@@ -92,7 +92,10 @@
         <!-- سعر القطعة للعميل -->
         <div class="d-flex justify-content-between align-items-center mb-1">
           <span class="text-muted fw-semibold">{% trans "سعر القطعة:" %}</span>
-          <strong class="fs-5 text-primary" id="unit_price_display">0 {{ currency_symbol|default:functional_currency.symbol }}</strong>
+          <strong class="fs-5 text-primary text-end" style="font-variant-numeric: tabular-nums;">
+            <span id="unit_price_display">0</span>
+            <small class="fs-6 fw-normal text-muted ms-1">{{ currency_symbol|default:functional_currency.symbol }}</small>
+          </strong>
         </div>
 
         <!-- الإجمالي النهائي الصافي للطلب -->
@@ -102,7 +105,10 @@
               <strong class="text-dark fs-6 d-block">{% trans "إجمالي السعر:" %}</strong>
               <small class="text-muted" style="font-size: 0.75rem;">{% trans "(غير شامل الضريبة)" %}</small>
             </div>
-            <strong class="text-primary fs-4 fw-bold" id="final_total_display">0 {{ currency_symbol|default:functional_currency.symbol }}</strong>
+            <strong class="text-primary fs-4 fw-bold text-end" style="font-variant-numeric: tabular-nums;">
+              <span id="final_total_display">0</span>
+              <small class="fs-6 fw-normal text-muted ms-1">{{ currency_symbol|default:functional_currency.symbol }}</small>
+            </strong>
           </div>
         </div>
       </div>
