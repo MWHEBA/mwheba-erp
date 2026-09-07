@@ -242,13 +242,11 @@
 }
 </script>
 
-<!-- استدعاء موديول الحسابات الرياضية الصرفة (Pure Math Engine) -->
-<script src="{% static 'js/printing_pricing/modules/pricing_math.js' %}?v={% now 'U' %}"></script>
-<!-- استدعاء موديول أدوات التصدير والواتساب (Export & WhatsApp Engine) -->
-<script src="{% static 'js/printing_pricing/modules/pricing_export.js' %}?v={% now 'U' %}"></script>
-<!-- استدعاء موديول عميل الشبكة الموحد (Pricing API Client) -->
-<script src="{% static 'js/printing_pricing/modules/pricing_api.js' %}?v={% now 'U' %}"></script>
-<!-- استدعاء المحرك المعياري المستقل (Enterprise Two-Tier Pricing Engine) -->
+<!-- 1. مكتبة الأساس المشتركة (رياضيات + عميل شبكة موحد + تصدير) -->
+<script src="{% static 'js/printing_pricing/modules/pricing_core.js' %}?v={% now 'U' %}"></script>
+<!-- 2. خط إنتاج الطباعة الورقية الشيت المتكامل (خامات + ماكينات + زنكات) -->
+<script src="{% static 'js/printing_pricing/modules/pricing_sheet_printing.js' %}?v={% now 'U' %}"></script>
+<!-- 3. المحرك المعياري والمنسق العام للطلب (Master Job Orchestrator) -->
 <script src="{% static 'js/printing_pricing/order_form_engine.js' %}?v={% now 'U' %}"></script>
 <script>
   document.addEventListener('DOMContentLoaded', function () {
