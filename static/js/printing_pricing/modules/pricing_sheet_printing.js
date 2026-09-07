@@ -310,6 +310,8 @@ class PricingSheetPrintingSubsystem {
     }
 
     if (innerPrintingType !== 'offset') {
+      actualInnerPlates = 0;
+      if (innerTotalInput) innerTotalInput.value = 0;
       totalCost = 0;
     }
 
@@ -1582,6 +1584,20 @@ class PricingSheetPrintingSubsystem {
           height: minSW,
         }
       ];
+    }
+
+    // تصفية مقاسات القطع الخاصة بالدفاتر (11، 9، 5) إذا لم يكن المنتج دفترياً
+    const selectEl = document.getElementById('id_order_type') || document.getElementById('id_job_anatomy_type') || document.getElementById('id_product_type');
+    const type = selectEl?.options?.[selectEl.selectedIndex]?.dataset?.archetype || selectEl?.dataset?.archetype || selectEl?.value || 'flyer';
+    const isNotebookOrAdmin = ['invoice', 'receipt', 'ncr', 'notebook', 'دفاتر'].some(t => type.toLowerCase().includes(t));
+
+    if (!isNotebookOrAdmin) {
+      matched = matched.filter(item => {
+        const cuts = parseInt(item.cuts) || 0;
+        const n = (item.name || item.text || '').toLowerCase();
+        const isIrregular = [11, 9, 5].includes(cuts) || n.includes('حداشر') || n.includes('تسعات') || n.includes('خمسات');
+        return !isIrregular;
+      });
     }
 
     const opts = [

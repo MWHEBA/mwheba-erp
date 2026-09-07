@@ -1,0 +1,163 @@
+{% load i18n %}
+{% if enabled_modules.printing_pricing %}
+<!-- Modal استيراد تسعير مطبوعات معتمد الموحد -->
+<div class="modal fade" id="importPrintingOrderModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header bg-light border-bottom px-4 py-3">
+        <h5 class="modal-title fw-bold text-dark mb-0">
+          <i class="fas fa-print text-primary me-2"></i>{% trans "استيراد تسعير مطبوعات معتمد" %}
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-4">
+        <div class="mb-3">
+          <label class="form-label fw-bold">{% trans "اختر طلب التسعير المعتمد" %}</label>
+          <select class="form-select select2-modal" id="modal_printing_order_select" style="width: 100%;">
+            <option value="">{% trans "جاري البحث عن طلبات التسعير المعتمدة..." %}</option>
+          </select>
+        </div>
+        <div id="printing_order_preview" class="p-3 bg-light rounded border d-none">
+          <div class="row g-2">
+            <div class="col-6"><strong>{% trans "اسم العمل:" %}</strong> <span id="po_title">-</span></div>
+            <div class="col-6"><strong>{% trans "الكمية:" %}</strong> <span id="po_qty">-</span></div>
+            <div class="col-6"><strong>{% trans "السعر البيعي الإجمالي:" %}</strong> <span id="po_price" class="text-success fw-bold">-</span></div>
+            <div class="col-6"><strong>{% trans "سعر الوحدة:" %}</strong> <span id="po_unit_price">-</span></div>
+            <div class="col-12 mt-2 pt-2 border-top d-none" id="po_design_row">
+              <span class="badge bg-warning-subtle text-dark border border-warning-subtle me-2"><i class="fas fa-paint-brush me-1"></i>{% trans "يشمل خدمة تصميم:" %}</span>
+              <span id="po_design_fee" class="fw-bold text-primary"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer bg-light border-top px-4 py-3">
+        <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+        <button type="button" class="btn btn-primary px-4 fw-bold" id="btn_confirm_import_printing_order" disabled>
+          <i class="fas fa-check-circle me-1"></i>{% trans "إدراج في المستند" %}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const $modal = $('#importPrintingOrderModal');
+  if (!$modal.length) return;
+
+  $modal.on('show.bs.modal', function () {
+    const custId = $('#id_customer').val() || $('select[name="customer"]').val();
+    let url = '/printing-pricing/api/approved-orders/';
+    if (custId) url += '?customer_id=' + custId;
+
+    fetch(url)
+      .then(res => res.json())
+      .then(data => {
+        const select = $('#modal_printing_order_select');
+        select.empty().append('<option value="">{% trans "اختر طلب التسعير..." %}</option>');
+        if (data.orders && data.orders.length > 0) {
+          data.orders.forEach(o => {
+            select.append(`<option value="${o.id}" data-title="${o.title}" data-qty="${o.quantity}" data-price="${o.final_price}" data-unit="${o.unit_price}" data-print-unit="${o.print_unit_price || o.unit_price}" data-design-fee="${o.design_fee || 0}" data-has-design="${o.has_design ? '1' : '0'}" data-design-name="${o.design_service_name || ''}" data-product="${o.product_id}">${o.order_number} - ${o.title} (${o.customer_name}) - ${o.final_price} {{ currency_symbol|default:'ج.م' }}</option>`);
+          });
+        } else {
+          select.append('<option value="" disabled>{% trans "لا توجد طلبات تسعير معتمدة جاهزة" %}</option>');
+        }
+      });
+  });
+
+  $('#modal_printing_order_select').on('change', function() {
+    const opt = $(this).find(':selected');
+    if (opt.val()) {
+      $('#po_title').text(opt.data('title'));
+      $('#po_qty').text(opt.data('qty'));
+      $('#po_price').text(opt.data('price') + ' {{ currency_symbol|default:"ج.م" }}');
+      $('#po_unit_price').text(opt.data('unit') + ' {{ currency_symbol|default:"ج.م" }}');
+      
+      const hasDesign = opt.data('has-design') === '1' || opt.data('has-design') === 1;
+      const designFee = parseFloat(opt.data('design-fee')) || 0;
+      if (hasDesign && designFee > 0) {
+        $('#po_design_row').removeClass('d-none');
+        $('#po_design_fee').text(designFee.toFixed(2) + ' {{ currency_symbol|default:"ج.م" }}');
+      } else {
+        $('#po_design_row').addClass('d-none');
+      }
+
+      $('#printing_order_preview').removeClass('d-none');
+      $('#btn_confirm_import_printing_order').prop('disabled', false);
+    } else {
+      $('#printing_order_preview').addClass('d-none');
+      $('#btn_confirm_import_printing_order').prop('disabled', true);
+    }
+  });
+
+  $('#btn_confirm_import_printing_order').on('click', function() {
+    const opt = $('#modal_printing_order_select').find(':selected');
+    const title = opt.data('title');
+    const qty = opt.data('qty');
+    const productId = opt.data('product');
+    const hasDesign = opt.data('has-design') === '1' || opt.data('has-design') === 1;
+    const designFee = parseFloat(opt.data('design-fee')) || 0;
+    const designName = opt.data('design-name') || '{% trans "خدمة تصميم وتجهيز" %}';
+    const printUnitPrice = hasDesign ? (opt.data('print-unit') || opt.data('unit')) : opt.data('unit');
+
+    // تحديد زر الإضافة المتاح حسب المستند (عروض أسعار / أوامر بيع / فواتير بيع)
+    const addBtn = $('#add-item-btn').length ? $('#add-item-btn') : ($('#add-item').length ? $('#add-item') : $('#add-row'));
+    if (addBtn.length) {
+      addBtn.trigger('click');
+    }
+
+    let lastRow = $('#items-container .item-row:last');
+    if (!lastRow.length) {
+      lastRow = $('table#items-table tbody tr:last');
+    }
+    
+    // ضبط الصنف
+    let prodSelect = lastRow.find('select[name$="-product"], select.product-select, select[name="product[]"]');
+    if (productId && prodSelect.find(`option[value="${productId}"]`).length) {
+      prodSelect.val(productId).trigger('change');
+    } else if (prodSelect.length && prodSelect.find('option:not([value=""]):first').length) {
+      prodSelect.val(prodSelect.find('option:not([value=""]):first').val()).trigger('change');
+    }
+
+    // ضبط حقول البيان والكمية وسعر الوحدة
+    const descField = lastRow.find('.item-description, textarea[name$="-description"], input[name$="-description"], input[name="description[]"]');
+    if (descField.length) descField.val(title);
+
+    const qtyField = lastRow.find('input[name$="-quantity"], input.quantity, input[name="quantity[]"]');
+    if (qtyField.length) qtyField.val(qty).trigger('input').trigger('change');
+
+    const priceField = lastRow.find('input[name$="-unit_price"], input.unit-price, input[name="unit_price[]"]');
+    if (priceField.length) priceField.val(printUnitPrice).trigger('input').trigger('change');
+
+    // 2. إضافة سطر أتعاب التصميم المستقل إذا وُجدت
+    if (hasDesign && designFee > 0 && addBtn.length) {
+      addBtn.trigger('click');
+      let designRow = $('#items-container .item-row:last');
+      if (!designRow.length) {
+        designRow = $('table#items-table tbody tr:last');
+      }
+      let designProdSelect = designRow.find('select[name$="-product"], select.product-select, select[name="product[]"]');
+      if (productId && designProdSelect.find(`option[value="${productId}"]`).length) {
+        designProdSelect.val(productId).trigger('change');
+      } else if (designProdSelect.length && designProdSelect.find('option:not([value=""]):first').length) {
+        designProdSelect.val(designProdSelect.find('option:not([value=""]):first').val()).trigger('change');
+      }
+
+      const dDesc = designRow.find('.item-description, textarea[name$="-description"], input[name$="-description"], input[name="description[]"]');
+      if (dDesc.length) dDesc.val(`${designName} - ${title}`);
+
+      const dQty = designRow.find('input[name$="-quantity"], input.quantity, input[name="quantity[]"]');
+      if (dQty.length) dQty.val(1).trigger('input').trigger('change');
+
+      const dPrice = designRow.find('input[name$="-unit_price"], input.unit-price, input[name="unit_price[]"]');
+      if (dPrice.length) dPrice.val(designFee.toFixed(2)).trigger('input').trigger('change');
+    }
+
+    $modal.modal('hide');
+    if (typeof window.showNotification === 'function') {
+      window.showNotification('تم استيراد بنود أمر التسعير بنجاح', 'success');
+    }
+  });
+});
+</script>
+{% endif %}

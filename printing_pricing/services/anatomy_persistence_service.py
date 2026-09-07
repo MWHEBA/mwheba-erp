@@ -305,26 +305,27 @@ class OrderAnatomyPersistenceService:
                 total_materials_cost += banner_mat_cost
             else:
                 if engine_res.get('success') and 'paper' in engine_res:
-                    net_sheets = Decimal(str(engine_res['paper']['net_press_sheets']))
-                    if post_data.get('waste_sheets'):
+                    paper_data = engine_res['paper']
+                    net_sheets = Decimal(str(paper_data.get('net_press_sheets', 0)))
+                    if post_data.get('waste_sheets') and str(post_data.get('waste_sheets')).strip() != '':
                         waste_sheets = Decimal(str(post_data['waste_sheets']))
                         gross_sheets = net_sheets + waste_sheets
                         waste_rate = waste_sheets / net_sheets if net_sheets > 0 else Decimal('0.05')
-                    elif post_data.get('waste_percentage'):
+                    elif post_data.get('waste_percentage') and str(post_data.get('waste_percentage')).strip() != '':
                         waste_rate = Decimal(str(post_data['waste_percentage'])) / Decimal('100')
                         waste_sheets = Decimal(str(int(net_sheets * waste_rate)))
                         gross_sheets = net_sheets + waste_sheets
                     elif order.cover_printing_type == 'digital':
                         waste_rate = Decimal('0.02')
-                        waste_sheets = Decimal('4')
+                        waste_sheets = Decimal(str(paper_data.get('waste_sheets', 4)))
                         gross_sheets = net_sheets + waste_sheets
                     elif order.print_sides_mode in ['work_turn', 'work_and_turn']:
                         waste_rate = Decimal('0.04')
                         waste_sheets = Decimal(str(int(net_sheets * waste_rate)))
                         gross_sheets = net_sheets + waste_sheets
                     else:
-                        waste_sheets = Decimal(str(engine_res['paper']['waste_sheets']))
-                        gross_sheets = net_sheets + waste_sheets
+                        waste_sheets = Decimal(str(paper_data.get('waste_sheets', 0)))
+                        gross_sheets = Decimal(str(paper_data.get('gross_press_sheets', net_sheets + waste_sheets)))
                         waste_rate = waste_sheets / net_sheets if net_sheets > 0 else Decimal('0.05')
                 else:
                     net_sheets = Decimal(str(int(qty / cuts_per_sheet) + (1 if qty % cuts_per_sheet > 0 else 0)))
@@ -482,30 +483,38 @@ class OrderAnatomyPersistenceService:
                 inner_cuts_h = max(Decimal('1'), inner_net_sheet_h // inner_leaf_h)
                 inner_cuts_per_sheet = max(Decimal('1'), inner_cuts_w * inner_cuts_h)
 
-                sheets_needed_total = qty * Decimal(str(actual_sheets_per_unit if inner_sides == 'single' else (actual_sheets_per_unit + 1) // 2))
-                net_inner_sheets = Decimal(str(int(sheets_needed_total / inner_cuts_per_sheet) + 1))
-                inner_waste_rate = Decimal('0.03') if order.inner_printing_type == 'digital' else Decimal('0.08')
-                inner_gross_sheets = Decimal(str(int(net_inner_sheets * (Decimal('1') + inner_waste_rate)) + 1))
-
-                # صمام هدر تضبيط الملازم للأوفست (20 فرخ لكل ملزمة كحد أدنى)
-                if order.inner_printing_type == 'offset':
-                    min_make_ready = Decimal(str(total_signatures * 20))
-                    if (inner_gross_sheets - net_inner_sheets) < min_make_ready:
-                        inner_gross_sheets = net_inner_sheets + min_make_ready
-
-                inner_price_str = post_data.get('inner_sheet_price')
-                paper_source = post_data.get('paper_source') or 'purchase'
-                if paper_source == 'customer_supplied':
-                    inner_sheet_cost = Decimal('0.00')
-                elif inner_price_str:
-                    try:
-                        inner_sheet_cost = Decimal(str(inner_price_str))
-                    except:
-                        inner_sheet_cost = Decimal('2.40')
+                if engine_res.get('inner') and engine_res['inner'].get('gross_sheets'):
+                    inner_res = engine_res['inner']
+                    net_inner_sheets = Decimal(str(inner_res.get('net_sheets', 0)))
+                    inner_gross_sheets = Decimal(str(inner_res.get('gross_sheets', 0)))
+                    inner_waste_rate = ((inner_gross_sheets - net_inner_sheets) / net_inner_sheets) if net_inner_sheets > 0 else Decimal('0.05')
+                    inner_sheet_cost = Decimal(str(inner_res.get('inner_sheet_price', '2.40')))
+                    inner_paper_cost = Decimal(str(inner_res.get('inner_paper_cost', inner_gross_sheets * inner_sheet_cost)))
                 else:
-                    inner_sheet_cost = (Decimal('2.10') * (inner_gsm / Decimal('80'))) if order.inner_paper_type == 'woodfree' else (Decimal('2.40') * (inner_gsm / Decimal('135')))
-                    
-                inner_paper_cost = inner_gross_sheets * inner_sheet_cost
+                    sheets_needed_total = qty * Decimal(str(actual_sheets_per_unit if inner_sides == 'single' else (actual_sheets_per_unit + 1) // 2))
+                    net_inner_sheets = Decimal(str(int(sheets_needed_total / inner_cuts_per_sheet) + 1))
+                    inner_waste_rate = Decimal('0.03') if order.inner_printing_type == 'digital' else Decimal('0.08')
+                    inner_gross_sheets = Decimal(str(int(net_inner_sheets * (Decimal('1') + inner_waste_rate)) + 1))
+
+                    # صمام هدر تضبيط الملازم للأوفست (20 فرخ لكل ملزمة كحد أدنى)
+                    if order.inner_printing_type == 'offset':
+                        min_make_ready = Decimal(str(total_signatures * 20))
+                        if (inner_gross_sheets - net_inner_sheets) < min_make_ready:
+                            inner_gross_sheets = net_inner_sheets + min_make_ready
+
+                    inner_price_str = post_data.get('inner_sheet_price')
+                    paper_source = post_data.get('paper_source') or 'purchase'
+                    if paper_source == 'customer_supplied':
+                        inner_sheet_cost = Decimal('0.00')
+                    elif inner_price_str:
+                        try:
+                            inner_sheet_cost = Decimal(str(inner_price_str))
+                        except:
+                            inner_sheet_cost = Decimal('2.40')
+                    else:
+                        inner_sheet_cost = (Decimal('2.10') * (inner_gsm / Decimal('80'))) if order.inner_paper_type == 'woodfree' else (Decimal('2.40') * (inner_gsm / Decimal('135')))
+                        
+                    inner_paper_cost = inner_gross_sheets * inner_sheet_cost
 
                 OrderMaterial.objects.create(
                     order=order,

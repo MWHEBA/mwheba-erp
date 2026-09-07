@@ -631,7 +631,7 @@
                 <select class="form-select select2-filter" id="id_paper_type" name="paper_type" dir="rtl">
                   {% if paper_types %}
                     {% for ptype in paper_types %}
-                      <option value="{{ ptype.pk }}" data-code="{{ ptype.name|lower }}" data-override-pack="{{ ptype.override_sheets_per_pack|default:'' }}"
+                      <option value="{{ ptype.pk }}" data-code="{{ ptype.name|lower }}" data-override-pack="{{ ptype.override_sheets_per_pack|default:'' }}" data-single-sided="{% if ptype.is_single_sided %}true{% else %}false{% endif %}"
                         {% if form.paper_type.value == ptype.pk or form.instance.paper_type_id == ptype.pk %}selected
                         {% elif not form.paper_type.value and not form.instance.paper_type_id %}
                           {% if 'كوشيه' in ptype.name %}selected
@@ -642,12 +642,12 @@
                       </option>
                     {% endfor %}
                   {% else %}
-                    <option value="couche" data-override-pack="" selected>{% trans "ورق كوشيه فاخر (Couche)" %}</option>
-                    <option value="duplex" data-override-pack="100">{% trans "كرتون دوبلكس ظهر رمادي (Duplex)" %}</option>
-                    <option value="bristol" data-override-pack="125">{% trans "برستول كرتون أبيض (Bristol)" %}</option>
-                    <option value="woodfree" data-override-pack="500">{% trans "ورق طبع أبيض / كريمي (Woodfree)" %}</option>
-                    <option value="kraft" data-override-pack="250">{% trans "ورق كرافت بني (Kraft)" %}</option>
-                    <option value="sticker" data-override-pack="100">{% trans "ورق ستيكر لاصق (Sticker Paper)" %}</option>
+                    <option value="couche" data-override-pack="" data-single-sided="false" selected>{% trans "ورق كوشيه فاخر (Couche)" %}</option>
+                    <option value="duplex" data-override-pack="100" data-single-sided="true">{% trans "كرتون دوبلكس ظهر رمادي (Duplex)" %}</option>
+                    <option value="bristol" data-override-pack="125" data-single-sided="false">{% trans "برستول كرتون أبيض (Bristol)" %}</option>
+                    <option value="woodfree" data-override-pack="500" data-single-sided="false">{% trans "ورق طبع أبيض / كريمي (Woodfree)" %}</option>
+                    <option value="kraft" data-override-pack="250" data-single-sided="false">{% trans "ورق كرافت بني (Kraft)" %}</option>
+                    <option value="sticker" data-override-pack="100" data-single-sided="true">{% trans "ورق ستيكر لاصق (Sticker Paper)" %}</option>
                   {% endif %}
                 </select>
                 <small class="text-muted d-block mt-1" id="paper_type_note">{% trans "الخامات المتاحة والمسعرة لدى الموردين المعتمدين" %}</small>

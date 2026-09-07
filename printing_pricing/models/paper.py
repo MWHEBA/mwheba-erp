@@ -19,6 +19,11 @@ class PaperType(BaseLookupModel):
         validators=[MinValueValidator(1)],
         help_text=_("سعة خاصة تتجاوز الجراماج (مثل: 100 فرخ للدوبلكس، 100 للستيكر). اتركه فارغاً للاعتماد على سعة الجراماج.")
     )
+    is_single_sided = models.BooleanField(
+        _("خامة أحادية الوجه"),
+        default=False,
+        help_text=_("خامة ذات وجه واحد مطلي (مثل كرتون الدوبلكس ظهر رمادي أو ورق الستيكر)، تمنع الطبع والقلب آلياً.")
+    )
 
     class Meta:
         db_table = "printing_pricing_papertype"

@@ -1070,37 +1070,6 @@
     });
 </script>
 
-{% if enabled_modules.printing_pricing %}
-<!-- نافذة استيراد تسعير مطبوعات معتمد -->
-<div class="modal fade" id="importPrintingOrderModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow-lg">
-            <div class="modal-header bg-light border-bottom px-4 py-3">
-                <h5 class="modal-title fw-bold text-dark mb-0">
-                    <i class="fas fa-print text-primary me-2"></i>{% trans "استيراد تسعير مطبوعات معتمد" %}
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body p-4">
-                <p class="text-muted small mb-3">
-                    {% trans "اختر طلب التسعير المعتمد لإدراجه تلقائياً كبند مجمع نظيف بسعر البيع النهائي وشروط التعاقد." %}
-                </p>
-                <div class="mb-3">
-                    <label class="form-label fw-bold">{% trans "رقم / عنوان طلب التسعير" %}</label>
-                    <select class="form-select select2-filter" id="printing_order_import_select" style="width: 100%;">
-                        <option value="">{% trans "جاري تحميل طلبات التسعير..." %}</option>
-                    </select>
-                </div>
-            </div>
-            <div class="modal-footer bg-light border-top px-4 py-3">
-                <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
-                <button type="button" class="btn btn-primary px-4 fw-bold" id="btn_confirm_import_printing">
-                    <i class="fas fa-file-import me-1"></i>{% trans "استيراد البند" %}
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-{% endif %}
+{% include "sale/partials/modal_import_printing_order.html" %}
 {% endblock %}
 

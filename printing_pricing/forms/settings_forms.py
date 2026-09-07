@@ -23,7 +23,7 @@ class PaperTypeForm(forms.ModelForm):
 
     class Meta:
         model = PaperType
-        fields = ['name', 'description', 'override_sheets_per_pack', 'is_active', 'is_default']
+        fields = ['name', 'description', 'override_sheets_per_pack', 'is_single_sided', 'is_active', 'is_default']
         widgets = {
             'name': forms.TextInput(attrs={
                 'class': 'form-control',
@@ -39,6 +39,7 @@ class PaperTypeForm(forms.ModelForm):
                 'placeholder': 'اتركه فارغاً للاعتماد على الجراماج، أو اكتب مثلاً: 100 للدوبلكس',
                 'min': '1',
             }),
+            'is_single_sided': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'is_default': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
@@ -46,6 +47,7 @@ class PaperTypeForm(forms.ModelForm):
             'name': _('اسم نوع الورق'),
             'description': _('الوصف'),
             'override_sheets_per_pack': _('سعة رزمة خاصة بالخامة (فرخ)'),
+            'is_single_sided': _('خامة ذات وجه واحد (دوبلكس/ستيكر - قفل الطبع والقلب)'),
             'is_active': _('نشط'),
             'is_default': _('افتراضي'),
         }

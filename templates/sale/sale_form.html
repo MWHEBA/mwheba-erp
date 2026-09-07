@@ -417,6 +417,11 @@
                     <button type="button" class="btn btn-sm btn-outline-success add-more-btn mt-3 ms-2" id="btn-sale-new-product" onclick="if(window.openQuickProductModal) window.openQuickProductModal();">
                         <i class="fas fa-plus-circle me-1"></i> صنف جديد
                     </button>
+                    {% if enabled_modules.printing_pricing %}
+                    <button type="button" class="btn btn-sm btn-outline-primary add-more-btn mt-3 ms-2" data-bs-toggle="modal" data-bs-target="#importPrintingOrderModal">
+                        <i class="fas fa-print me-1"></i> {% trans "استيراد تسعير مطبوعات" %}
+                    </button>
+                    {% endif %}
                 </div>
 
                 <!-- القسم الثالث: الملخص المالي والخصومات -->
@@ -823,7 +828,7 @@
 
             // 3. جلب الكود التلقائي من السيرفر في الخلفية
             $.ajax({
-                url: "{% url "customer:customer_add_ajax" %}",
+                url: "{% url 'customer:customer_add_ajax' %}",
                 type: "GET",
                 success: function(response) {
                     if (response.success) {
@@ -867,7 +872,7 @@
             $('#modal-error-list').empty();
 
             $.ajax({
-                url: "{% url "customer:customer_add_ajax" %}",
+                url: "{% url 'customer:customer_add_ajax' %}",
                 type: "POST",
                 data: $form.serialize(),
                 success: function(response) {
@@ -1593,5 +1598,7 @@
     });
 </script>
 {% endif %}
+
+{% include "sale/partials/modal_import_printing_order.html" %}
 
 {% endblock %}

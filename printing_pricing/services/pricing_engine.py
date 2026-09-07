@@ -97,7 +97,7 @@ class PrintingCalculationEngine:
 
             # 4. حساب المونتاج هندسياً (عدد القطع في مقاس القطع)
             grain_dir = str(params.get('grain_direction') or 'LG').upper()
-            imposition = cls._calculate_imposition(open_w, open_h, w_cut, h_cut, grain_dir)
+            imposition = cls._calculate_imposition(open_w, open_h, w_cut, h_cut, grain_dir, is_digital=(cover_type == 'digital'))
 
             # فحص صمام الأمان لمنع القسمة على صفر
             if imposition['montage'] <= 0:
@@ -137,8 +137,30 @@ class PrintingCalculationEngine:
             parent_yield = montage * machine_cuts
 
             # 5. فحص نمط الطباعة وصمامات الأمان الخاصة بالطبع والقلب
+            # أ. فحص خامة الورق إذا كانت أحادية الوجه (دوبلكس ظهر رمادي / كرافت / ستيكر)
+            is_single_sided_sub = False
+            paper_type_param = params.get('paper_type_id') or params.get('paper_type')
+            if paper_type_param:
+                try:
+                    from printing_pricing.models import PaperType
+                    if str(paper_type_param).isdigit():
+                        pt_obj = PaperType.objects.filter(pk=int(paper_type_param)).first()
+                    else:
+                        pt_obj = PaperType.objects.filter(name__icontains=str(paper_type_param)).first()
+                    if pt_obj and getattr(pt_obj, 'is_single_sided', False):
+                        is_single_sided_sub = True
+                except Exception:
+                    pass
+
+            p_name_str = str(params.get('paper_type_name') or params.get('paper_type') or '').lower()
+            if 'دوبلكس' in p_name_str or 'duplex' in p_name_str or 'ستيكر' in p_name_str or 'sticker' in p_name_str:
+                is_single_sided_sub = True
+
             if sides_mode in ['work_turn', 'work_and_turn']:
-                if montage < 2:
+                if is_single_sided_sub:
+                    # صمام أمان فيزيائي: الخامات أحادية الوجه لا تطبع طبع وقلب لأن الظهر رمادي أو لاصق
+                    sides_mode = 'work_sheet'
+                elif montage < 2:
                     # صمام أمان فيزيائي: لا يمكن طبع وقلب لقطعة واحدة في الشيت
                     sides_mode = 'work_sheet'  # تحويل تلقائي لسكتين
                 is_work_turn = (sides_mode in ['work_turn', 'work_and_turn'])
@@ -364,15 +386,23 @@ class PrintingCalculationEngine:
 
         # 4. تحديد مقاس القطع ومعامل تفصيل الفرخ
         piece_lower = piece_size_str.lower()
-        if 'full' in piece_lower or '100' in piece_lower or 'فرخ كامل' in piece_lower:
+
+        # فحص قصات الدفاتر الخاصة (N-Cuts) أولاً قبل التقسيم الهندسي القياسي
+        if '20x30' in piece_lower or '30x20' in piece_lower or 'حداشر' in piece_lower or piece_lower == '11':
+            return Decimal('20.0'), Decimal('30.0'), 11
+        elif '23x33' in piece_lower or '33x23' in piece_lower or 'تسعات' in piece_lower or piece_lower == '9':
+            return Decimal('23.0'), Decimal('33.0'), 9
+        elif '30x40' in piece_lower or '40x30' in piece_lower or 'خمسات' in piece_lower or piece_lower == '5':
+            return Decimal('30.0'), Decimal('40.0'), 5
+        elif 'full' in piece_lower or '100' in piece_lower or 'فرخ كامل' in piece_lower:
             return p_w, p_h, 1
         elif 'half' in piece_lower or 'نصف' in piece_lower or '50x70' in piece_lower or '42' in piece_lower or '44' in piece_lower:
             # نصف الفرخ: يقص الضلع الأكبر للفرخ بالنصف
             return p_h, (p_w / Decimal('2.0')), 2
-        elif 'quarter' in piece_lower or 'ربع' in piece_lower or '35x50' in piece_lower or '30' in piece_lower or '33' in piece_lower:
+        elif 'quarter' in piece_lower or 'ربع' in piece_lower or '35x50' in piece_lower or '33x44' in piece_lower or '30x42' in piece_lower:
             # ربع الفرخ: نصف النصف
             return (p_w / Decimal('2.0')), (p_h / Decimal('2.0')), 4
-        elif 'eighth' in piece_lower or 'ثمن' in piece_lower or '25x35' in piece_lower:
+        elif 'eighth' in piece_lower or 'ثمن' in piece_lower or '25x35' in piece_lower or '22x33' in piece_lower:
             # ثمن الفرخ
             return (p_h / Decimal('2.0')), (p_w / Decimal('4.0')), 8
         else:
@@ -398,7 +428,7 @@ class PrintingCalculationEngine:
         cls, sheet_size_str: str, piece_size_str: str, machine_cuts: int, params: Dict[str, Any]
     ) -> str:
         """
-        تحديد المسمى المعتمد لمقاس القطع في المطابع المصرية (مثلاً: ربع، ربع جاير، نصف، نصف جاير).
+        تحديد المسمى المعتمد لمقاس القطع في المطابع المصرية (مثلاً: ربع، ربع جاير، نصف، نصف جاير، حداشر، تسعات، خمسات).
         """
         explicit_name = params.get('piece_size_name')
         if explicit_name and str(explicit_name).strip() and str(explicit_name).lower() != 'auto':
@@ -417,7 +447,13 @@ class PrintingCalculationEngine:
         is_taba_gayer = ('60x85' in sheet_str or '85x60' in sheet_str or 'طبع جاير' in sheet_str)
         is_gayer = ('66x88' in sheet_str or '88x66' in sheet_str or 'جاير' in sheet_str)
 
-        if machine_cuts == 4:
+        if machine_cuts == 11:
+            return 'حداشر'
+        elif machine_cuts == 9:
+            return 'تسعات'
+        elif machine_cuts == 5:
+            return 'خمسات'
+        elif machine_cuts == 4:
             if is_taba_gayer:
                 return 'ربع طبع جاير'
             elif is_gayer:
@@ -436,6 +472,8 @@ class PrintingCalculationEngine:
                 return 'فرخ جاير'
             return 'فرخ'
         elif machine_cuts == 8:
+            if is_gayer:
+                return 'ثمن جاير'
             return 'ثمن'
 
         return f'{machine_cuts} قطعات'
@@ -484,14 +522,25 @@ class PrintingCalculationEngine:
 
     @classmethod
     def _calculate_imposition(
-        cls, open_w: Decimal, open_h: Decimal, w_cut: Decimal, h_cut: Decimal, grain_dir: str
+        cls, open_w: Decimal, open_h: Decimal, w_cut: Decimal, h_cut: Decimal, grain_dir: str, is_digital: bool = False
     ) -> Dict[str, Any]:
         """
-        حساب المونتاج هندسياً بعد استقطاع 2.0 سم (1.5 سم بنسة ماكينة + 0.5 سم طهارة مقص).
+        حساب المونتاج هندسياً:
+        - للأوفست: خصم ديناميكي 1.0 سم (0.8 سم بنسة ماكينة + 0.2 سم طهارة مقص).
+        - للديجيتال A3+: صافي 32×48 سم قياسي لضمان عدم القص في حواف الطباعة.
         """
-        margin = Decimal('2.0')
-        net_w = max(Decimal('0.1'), w_cut - margin)
-        net_h = max(Decimal('0.1'), h_cut - margin)
+        if is_digital:
+            # مقاس شيت الديجيتال القياسي A3+ (33×48.8) صافيه الطباعي المعتمد 32×48 سم
+            if (w_cut >= Decimal('32.0') and h_cut >= Decimal('48.0')) or (w_cut >= Decimal('48.0') and h_cut >= Decimal('32.0')):
+                net_w = Decimal('32.0') if w_cut < h_cut else Decimal('48.0')
+                net_h = Decimal('48.0') if w_cut < h_cut else Decimal('32.0')
+            else:
+                net_w = max(Decimal('0.1'), w_cut - Decimal('1.0'))
+                net_h = max(Decimal('0.1'), h_cut - Decimal('1.0'))
+        else:
+            margin = Decimal('1.0')
+            net_w = max(Decimal('0.1'), w_cut - margin)
+            net_h = max(Decimal('0.1'), h_cut - margin)
 
         if open_w <= 0 or open_h <= 0 or (net_w < open_w and net_w < open_h) or (net_h < open_w and net_h < open_h):
             return {'montage': 0, 'net_w': net_w, 'net_h': net_h, 'orientation': 'none'}
@@ -525,7 +574,15 @@ class PrintingCalculationEngine:
         if waste_input is not None and str(waste_input).strip() != '':
             waste_sheets = cls._to_int(waste_input, 20)
         else:
-            waste_sheets = 20
+            is_digital = str(params.get('cover_printing_type') or '').lower() == 'digital'
+            if is_digital:
+                base_waste = 5
+            elif qty < 250 and (str(params.get('colors_front') or '4') == '4' or int(params.get('colors_front') or 4) >= 4):
+                base_waste = 40  # 40 شيت للأوفست 4 ألوان كميات صغيرة لتظبيط رجلاش الألوان الأربعة
+            else:
+                base_waste = 20
+
+            waste_sheets = base_waste
             # إضافة أفرخ هدر السلوفان إن وجد
             if str(params.get('lamination') or params.get('coating_type') or 'none').lower() not in ['none', '']:
                 waste_sheets += 15
@@ -695,7 +752,8 @@ class PrintingCalculationEngine:
                 'press_pulls': total_clicks,
                 'tirages': 0,
                 'click_rate': float(click_rate),
-                'printing_type': 'digital'
+                'printing_type': 'digital',
+                'sides_mode': sides_mode
             }
 
 
@@ -779,7 +837,8 @@ class PrintingCalculationEngine:
             'is_set_pricing': is_set_pricing,
             'set_price': float(press_svc.set_price) if (press_svc and press_svc.set_price) else None,
             'set_included_tirages': press_svc.set_included_tirages if (press_svc and press_svc.set_included_tirages) else 1,
-            'printing_type': 'offset'
+            'printing_type': 'offset',
+            'sides_mode': sides_mode
         }
 
     @classmethod
@@ -814,29 +873,35 @@ class PrintingCalculationEngine:
         target_curr = params.get('_target_curr')
         order_date = params.get('_order_date')
 
-        # قراءة سعر التراج الصريح إذا تم تمريره من الفورم أو ماكينة المورد
+        # 1. تحديد الحد الأدنى لفتحة الماكينة (Floor Rate) أولاً
+        press_svc = cls._resolve_press_service(params)
+        floor = Decimal('0.00')
+        if press_svc and press_svc.minimum_charge and press_svc.minimum_charge > 0:
+            floor = cls._convert_currency(Decimal(str(press_svc.minimum_charge)), from_curr=press_svc.effective_currency, to_curr=target_curr, date=order_date)
+        elif params.get('press_floor') or params.get('minimum_charge'):
+            floor = cls._to_decimal(params.get('press_floor') or params.get('minimum_charge'), Decimal('0.00'))
+        elif 'cover_press_machine' not in params and 'cover_offset_supplier' not in params and not params.get('press_rate'):
+            is_full_sheet = (w_cut > Decimal('70.0') or h_cut > Decimal('70.0'))
+            floor_key = 'press_floor_70x100' if is_full_sheet else 'press_floor_50x70'
+            floor = cls._get_benchmark_rate(floor_key, target_curr=target_curr, date=order_date)
+
+        # 2. قراءة سعر التراج الصريح إذا تم تمريره من الفورم أو ماكينة المورد
         press_rate_input = params.get('press_rate')
         if press_rate_input is not None:
             if str(press_rate_input).strip() == '':
                 # تم إرسال حقل الفورم فارغاً (لم يتم اختيار ماكينة مورد بعد)
-                return Decimal('0.00'), Decimal('0.00')
+                return Decimal('0.00'), floor
             try:
                 explicit_rate = cls._to_decimal(press_rate_input, Decimal('0.0'))
-                return explicit_rate, Decimal('0.00')
+                return explicit_rate, floor
             except Exception:
-                return Decimal('0.00'), Decimal('0.00')
+                return Decimal('0.00'), floor
 
-        press_svc = cls._resolve_press_service(params)
         if press_svc:
             unit_rate = press_svc.get_price_for_quantity(tirages)
             unit_rate = cls._convert_currency(unit_rate, from_curr=press_svc.effective_currency, to_curr=target_curr, date=order_date)
             rate = unit_rate if unit_rate > 0 else (press_svc.base_price or Decimal('0.00'))
-            floor = cls._convert_currency(Decimal(str(press_svc.minimum_charge)), from_curr=press_svc.effective_currency, to_curr=target_curr, date=order_date) if (press_svc.minimum_charge and press_svc.minimum_charge > 0) else Decimal('0.00')
             return rate, floor
-
-        # قراءة الحد الأدنى لفتحة الماكينة إن وجد صراحة
-        explicit_floor = params.get('press_floor') or params.get('minimum_charge')
-        floor = cls._to_decimal(explicit_floor, Decimal('0.00')) if explicit_floor is not None else Decimal('0.00')
 
         # إذا كانت حقول الفورم موجودة ولم يختر المستخدم ماكينة مورد
         if 'cover_press_machine' in params or 'cover_offset_supplier' in params:
@@ -1163,6 +1228,17 @@ class PrintingCalculationEngine:
             total_finishing += crease_cost
             details['creasing'] = float(crease_cost)
 
+        # 7. أجرة قص المخرطة غير القياسي (Shearing Fee) لقصات الدفاتر (11، 9، 5)
+        machine_cuts = params.get('machine_cuts') or 1
+        p_name = str(params.get('piece_size_name') or params.get('piece_size') or '')
+        is_irregular_cut = (machine_cuts in [11, 9, 5] or 'حداشر' in p_name or 'تسعات' in p_name or 'خمسات' in p_name or '20x30' in p_name or '23x33' in p_name or '30x40' in p_name)
+        if is_irregular_cut:
+            shearing_rate = cls._convert_currency(Decimal('20.00'), to_curr=target_curr, date=order_date)
+            shearing_count = max(1, math.ceil(parent_sheets / 1000)) if parent_sheets > 0 else 1
+            shearing_cost = max(Decimal('40.00'), Decimal(str(shearing_count)) * shearing_rate)
+            total_finishing += shearing_cost
+            details['shearing'] = float(shearing_cost)
+
         return {
             'total_cost': float(total_finishing),
             'details': details
@@ -1206,73 +1282,100 @@ class PrintingCalculationEngine:
             inner_sheet_price = cls._convert_currency(Decimal('2.00'), to_curr=target_curr, date=order_date)
             inner_paper_cost = (Decimal(str(gross_inner)) * inner_sheet_price).quantize(Decimal('0.01'))
 
-        # طباعة الداخلي: كل ملزمة تحتاج 4 زنكات وش وضهر طبع وقلب أو 8 زنكات
-        inner_plates = signatures * 4
-        inner_bed_size = str(params.get('inner_bed_size') or '50x70')
-        inner_ctp_svc = cls._resolve_plate_service({
-            'ctp_service_id': params.get('inner_ctp_service_id'),
-            'ctp_supplier': params.get('inner_ctp_supplier'),
-        }, press_bed_size=inner_bed_size)
+        # فحص نوع طباعة الداخلي (أوفست / ديجيتال / بدون)
+        inner_type = str(params.get('inner_printing_type') or params.get('inner_cover_type') or 'offset').lower()
 
-        if inner_ctp_svc and inner_ctp_svc.set_price and inner_ctp_svc.set_price > Decimal('0.00') and not params.get('inner_plate_price'):
-            # كل ملزمة تحتاج طقم زنكات 4 ألوان: signatures * set_price
-            converted_inner_set_price = cls._convert_currency(Decimal(str(inner_ctp_svc.set_price)), from_curr=inner_ctp_svc.effective_currency, to_curr=target_curr, date=order_date)
-            inner_plate_cost = Decimal(str(signatures)) * converted_inner_set_price
+        if inner_type == 'digital':
+            # تصفير زنكات الداخلي للديجيتال تماماً
+            inner_plates = 0
+            inner_plate_cost = Decimal('0.00')
+            # كل شيت A3+ يستوعب 4 صفحات A4
+            digital_sheets_per_book = math.ceil(pages / 4)
+            total_digital_prints = digital_sheets_per_book * qty
+            raw_click = params.get('inner_digital_click_price') or params.get('inner_click_price') or '1.50'
+            inner_digital_rate = cls._to_decimal(raw_click, Decimal('1.50'))
+            inner_digital_rate = cls._convert_currency(inner_digital_rate, to_curr=target_curr, date=order_date)
+            inner_press_cost = Decimal(str(total_digital_prints)) * inner_digital_rate
+            total_inner_tirages = 0
+            total_inner_pulls = total_digital_prints
+            sig_tirage = 0
+            sig_pulls = 0
+        elif inner_type == 'none':
+            inner_plates = 0
+            inner_plate_cost = Decimal('0.00')
+            inner_press_cost = Decimal('0.00')
+            total_inner_tirages = 0
+            total_inner_pulls = 0
+            sig_tirage = 0
+            sig_pulls = 0
         else:
-            raw_inner_plate = params.get('inner_plate_price')
-            if raw_inner_plate is not None:
-                if str(raw_inner_plate).strip() == '':
+            # طباعة أوفست الداخلي: كل ملزمة تحتاج 4 زنكات وش وضهر طبع وقلب أو 8 زنكات
+            inner_plates = signatures * 4
+            inner_bed_size = str(params.get('inner_bed_size') or '50x70')
+            inner_ctp_svc = cls._resolve_plate_service({
+                'ctp_service_id': params.get('inner_ctp_service_id'),
+                'ctp_supplier': params.get('inner_ctp_supplier'),
+            }, press_bed_size=inner_bed_size)
+
+            if inner_ctp_svc and inner_ctp_svc.set_price and inner_ctp_svc.set_price > Decimal('0.00') and not params.get('inner_plate_price'):
+                # كل ملزمة تحتاج طقم زنكات 4 ألوان: signatures * set_price
+                converted_inner_set_price = cls._convert_currency(Decimal(str(inner_ctp_svc.set_price)), from_curr=inner_ctp_svc.effective_currency, to_curr=target_curr, date=order_date)
+                inner_plate_cost = Decimal(str(signatures)) * converted_inner_set_price
+            else:
+                raw_inner_plate = params.get('inner_plate_price')
+                if raw_inner_plate is not None:
+                    if str(raw_inner_plate).strip() == '':
+                        inner_plate_rate = Decimal('0.00')
+                    else:
+                        inner_plate_rate = cls._to_decimal(raw_inner_plate, Decimal('0.00'))
+                elif inner_ctp_svc and inner_ctp_svc.base_price:
+                    inner_plate_rate = cls._convert_currency(Decimal(str(inner_ctp_svc.base_price)), from_curr=inner_ctp_svc.effective_currency, to_curr=target_curr, date=order_date)
+                elif 'inner_ctp_supplier' in params or 'inner_plate_price' in params:
                     inner_plate_rate = Decimal('0.00')
                 else:
-                    inner_plate_rate = cls._to_decimal(raw_inner_plate, Decimal('0.00'))
-            elif inner_ctp_svc and inner_ctp_svc.base_price:
-                inner_plate_rate = cls._convert_currency(Decimal(str(inner_ctp_svc.base_price)), from_curr=inner_ctp_svc.effective_currency, to_curr=target_curr, date=order_date)
-            elif 'inner_ctp_supplier' in params or 'inner_plate_price' in params:
-                inner_plate_rate = Decimal('0.00')
+                    inner_plate_rate = cls._get_benchmark_rate('plate_price_50x70', target_curr=target_curr, date=order_date)
+                inner_plate_cost = Decimal(str(inner_plates)) * inner_plate_rate
+
+            # سحبات الداخلي: كل ملزمة تُطبع كوظيفة مستقلة على الماكينة
+            inner_sides = params.get('inner_print_sides_mode') or params.get('print_sides_mode') or 'work_turn'
+            sig_multiplier = 2 if inner_sides in ['work_turn', 'work_and_turn', 'work_sheet'] else 1
+            sig_pulls = qty * sig_multiplier
+
+            if inner_sides == 'work_sheet':
+                sig_t_front = max(1, math.ceil(qty / 1000)) if qty > 0 else 0
+                sig_t_back = max(1, math.ceil(qty / 1000)) if qty > 0 else 0
+                sig_tirage = sig_t_front + sig_t_back
             else:
-                inner_plate_rate = cls._get_benchmark_rate('plate_price_50x70', target_curr=target_curr, date=order_date)
-            inner_plate_cost = Decimal(str(inner_plates)) * inner_plate_rate
+                sig_tirage = max(1, math.ceil(sig_pulls / 1000)) if sig_pulls > 0 else 0
 
-        # سحبات الداخلي: كل ملزمة تُطبع كوظيفة مستقلة على الماكينة
-        inner_sides = params.get('inner_print_sides_mode') or params.get('print_sides_mode') or 'work_turn'
-        sig_multiplier = 2 if inner_sides in ['work_turn', 'work_and_turn', 'work_sheet'] else 1
-        sig_pulls = qty * sig_multiplier
+            total_inner_tirages = sig_tirage * signatures
+            total_inner_pulls = sig_pulls * signatures
 
-        if inner_sides == 'work_sheet':
-            sig_t_front = max(1, math.ceil(qty / 1000)) if qty > 0 else 0
-            sig_t_back = max(1, math.ceil(qty / 1000)) if qty > 0 else 0
-            sig_tirage = sig_t_front + sig_t_back
-        else:
-            sig_tirage = max(1, math.ceil(sig_pulls / 1000)) if sig_pulls > 0 else 0
+            # ماكينة طباعة الداخلي
+            inner_press_svc = cls._resolve_press_service({
+                'cover_press_machine': params.get('inner_press_machine'),
+                'cover_offset_supplier': params.get('inner_offset_supplier'),
+            })
 
-        total_inner_tirages = sig_tirage * signatures
-        total_inner_pulls = sig_pulls * signatures
-
-        # ماكينة طباعة الداخلي
-        inner_press_svc = cls._resolve_press_service({
-            'cover_press_machine': params.get('inner_press_machine'),
-            'cover_offset_supplier': params.get('inner_offset_supplier'),
-        })
-
-        if inner_press_svc and inner_press_svc.set_price and inner_press_svc.set_price > Decimal('0.00') and not params.get('inner_press_rate'):
-            machine_sets_per_sig = 2 if inner_sides == 'work_sheet' else 1
-            sig_cost = inner_press_svc.calculate_cost(sig_tirage, machine_sets=machine_sets_per_sig)
-            sig_cost_converted = cls._convert_currency(sig_cost, from_curr=inner_press_svc.effective_currency, to_curr=target_curr, date=order_date)
-            inner_press_cost = Decimal(str(signatures)) * sig_cost_converted
-        else:
-            raw_inner_press = params.get('inner_press_rate')
-            if raw_inner_press is not None:
-                if str(raw_inner_press).strip() == '':
+            if inner_press_svc and inner_press_svc.set_price and inner_press_svc.set_price > Decimal('0.00') and not params.get('inner_press_rate'):
+                machine_sets_per_sig = 2 if inner_sides == 'work_sheet' else 1
+                sig_cost = inner_press_svc.calculate_cost(sig_tirage, machine_sets=machine_sets_per_sig)
+                sig_cost_converted = cls._convert_currency(sig_cost, from_curr=inner_press_svc.effective_currency, to_curr=target_curr, date=order_date)
+                inner_press_cost = Decimal(str(signatures)) * sig_cost_converted
+            else:
+                raw_inner_press = params.get('inner_press_rate')
+                if raw_inner_press is not None:
+                    if str(raw_inner_press).strip() == '':
+                        inner_press_rate = Decimal('0.00')
+                    else:
+                        inner_press_rate = cls._to_decimal(raw_inner_press, Decimal('0.00'))
+                elif inner_press_svc and inner_press_svc.base_price:
+                    inner_press_rate = cls._convert_currency(Decimal(str(inner_press_svc.base_price)), from_curr=inner_press_svc.effective_currency, to_curr=target_curr, date=order_date)
+                elif 'inner_offset_supplier' in params or 'inner_press_machine' in params:
                     inner_press_rate = Decimal('0.00')
                 else:
-                    inner_press_rate = cls._to_decimal(raw_inner_press, Decimal('0.00'))
-            elif inner_press_svc and inner_press_svc.base_price:
-                inner_press_rate = cls._convert_currency(Decimal(str(inner_press_svc.base_price)), from_curr=inner_press_svc.effective_currency, to_curr=target_curr, date=order_date)
-            elif 'inner_offset_supplier' in params or 'inner_press_machine' in params:
-                inner_press_rate = Decimal('0.00')
-            else:
-                inner_press_rate = cls._get_benchmark_rate('press_rate_50x70', target_curr=target_curr, date=order_date)
-            inner_press_cost = Decimal(str(total_inner_tirages)) * inner_press_rate
+                    inner_press_rate = cls._get_benchmark_rate('press_rate_50x70', target_curr=target_curr, date=order_date)
+                inner_press_cost = Decimal(str(total_inner_tirages)) * inner_press_rate
 
         total_inner_cost = inner_paper_cost + inner_plate_cost + inner_press_cost
 
@@ -1281,8 +1384,12 @@ class PrintingCalculationEngine:
             'pages_count': pages,
             'signatures_count': signatures,
             'inner_paper_cost': float(inner_paper_cost),
+            'inner_sheet_price': float(inner_sheet_price),
+            'net_sheets': int(total_inner_sheets),
+            'gross_sheets': int(gross_inner),
             'inner_press_cost': float(inner_press_cost),
             'inner_plates_cost': float(inner_plate_cost),
+            'inner_plates_count': int(inner_plates),
             'inner_pulls': int(total_inner_pulls),
             'inner_tirages': int(total_inner_tirages),
             'sig_tirage': int(sig_tirage),

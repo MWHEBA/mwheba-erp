@@ -22,6 +22,7 @@
                 <thead>
                     <tr>
                         <th>{% trans "اسم النوع" %}</th>
+                        <th>{% trans "طبيعة الوجه" %}</th>
                         <th>{% trans "سعة رزمة خاصة" %}</th>
                         <th>{% trans "الوصف" %}</th>
                         <th>{% trans "الحالة" %}</th>
@@ -34,6 +35,13 @@
                     <tr>
                         <td>
                             <strong>{{ paper_type.name }}</strong>
+                        </td>
+                        <td>
+                            {% if paper_type.is_single_sided %}
+                                <span class="badge bg-warning-subtle text-dark border border-warning-subtle">{% trans "وجه واحد (دوبلكس/ستيكر)" %}</span>
+                            {% else %}
+                                <span class="badge bg-light text-secondary border">{% trans "وجهين / طبع وقلب" %}</span>
+                            {% endif %}
                         </td>
                         <td>
                             {% if paper_type.override_sheets_per_pack %}

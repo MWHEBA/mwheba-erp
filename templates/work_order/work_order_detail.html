@@ -152,6 +152,62 @@
         </div>
       </div>
     </div>
+    {% with paper_spec=p_order.paper_specifications.first %}
+    <div class="row g-3 mt-1">
+      <div class="col-md-3 col-sm-6">
+        <div class="p-2 bg-white rounded border small">
+          <span class="text-muted d-block mb-1"><i class="fas fa-cut text-primary me-1"></i>{% trans "تفصيل الفرخ للماكينة:" %}</span>
+          <strong class="text-dark">
+            {% if paper_spec and paper_spec.clean_piece_size_name %}
+              {{ paper_spec.clean_piece_size_name }}
+            {% elif paper_spec and paper_spec.piece_size %}
+              {{ paper_spec.piece_size }}
+            {% elif p_order.piece_size %}
+              {{ p_order.piece_size }}
+            {% else %}
+              {% trans "تلقائي" %}
+            {% endif %}
+          </strong>
+        </div>
+      </div>
+      <div class="col-md-3 col-sm-6">
+        <div class="p-2 bg-white rounded border small">
+          <span class="text-muted d-block mb-1"><i class="fas fa-th-large text-primary me-1"></i>{% trans "المونتاج بالشيت:" %}</span>
+          <strong class="text-primary">
+            {% if paper_spec and paper_spec.montage_count %}
+              {{ paper_spec.montage_count }} {% trans "قطعة / شيت" %}
+            {% else %}
+              --
+            {% endif %}
+          </strong>
+        </div>
+      </div>
+      <div class="col-md-3 col-sm-6">
+        <div class="p-2 bg-white rounded border small">
+          <span class="text-muted d-block mb-1"><i class="fas fa-layer-group text-primary me-1"></i>{% trans "أفرخ الماكينة (صافي + هالك):" %}</span>
+          <strong class="text-dark">
+            {% if paper_spec %}
+              {{ paper_spec.net_sheets|default:"0" }} + {{ paper_spec.waste_sheets|default:"0" }} = <span class="text-primary">{{ paper_spec.gross_sheets|default:"0" }}</span>
+            {% else %}
+              --
+            {% endif %}
+          </strong>
+        </div>
+      </div>
+      <div class="col-md-3 col-sm-6">
+        <div class="p-2 bg-white rounded border small">
+          <span class="text-muted d-block mb-1"><i class="fas fa-boxes text-primary me-1"></i>{% trans "طلب صرف المخزن (فروخ خام):" %}</span>
+          <strong class="text-dark">
+            {% if paper_spec and paper_spec.parent_sheets_count %}
+              {{ paper_spec.parent_sheets_count }} {% trans "فرخ كامل" %}
+            {% else %}
+              --
+            {% endif %}
+          </strong>
+        </div>
+      </div>
+    </div>
+    {% endwith %}
   </div>
   {% endwith %}
   {% endif %}

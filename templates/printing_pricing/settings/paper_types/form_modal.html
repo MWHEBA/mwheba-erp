@@ -17,10 +17,13 @@
         {% bootstrap_field form.description %}
         
         <div class="row">
-            <div class="col-md-6">
+            <div class="col-md-4">
+                {% bootstrap_field form.is_single_sided %}
+            </div>
+            <div class="col-md-4">
                 {% bootstrap_field form.is_active %}
             </div>
-            <div class="col-md-6">
+            <div class="col-md-4">
                 {% bootstrap_field form.is_default %}
             </div>
         </div>

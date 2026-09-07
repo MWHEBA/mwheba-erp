@@ -45,13 +45,18 @@ const PricingMath = {
   },
 
   /**
-   * حساب استغلال الفرخ والمونتاج الهندسي مع خصم 2.0 سم (بنسة الماكينة 1.5 سم + طهارة المقص 0.5 سم)
-   * وصمام أمان عند تجاوز مقاس المطبوع لمساحة الفرخ
+   * حساب استغلال الفرخ والمونتاج الهندسي بمحاكاة دقيقة لمحرك التسعير
+   * خصم 1.0 سم للأوفست (0.5 سم من كل جانب) ومقاس ثابت 32×48 سم لديجيتال A3+
    */
-  calcImposition(sheetW, sheetH, openW, openH) {
-    // خصم 1.5 سم للبنسة و 0.5 سم لطهارة المقص
-    const netW = Math.max(0, sheetW - 2.0);
-    const netH = Math.max(0, sheetH - 2.0);
+  calcImposition(sheetW, sheetH, openW, openH, printingType = 'offset') {
+    let netW, netH;
+    if (printingType === 'digital') {
+      netW = 32.0;
+      netH = 48.0;
+    } else {
+      netW = Math.max(0, sheetW - 1.0);
+      netH = Math.max(0, sheetH - 1.0);
+    }
     const safeW = Math.max(0.1, openW);
     const safeH = Math.max(0.1, openH);
 
@@ -74,14 +79,16 @@ const PricingMath = {
       cutsW: isOverflow ? 0 : (isRotated ? cutsRotW : cutsNormalW),
       cutsH: isOverflow ? 0 : (isRotated ? cutsRotH : cutsNormalH),
       isRotated: isRotated,
-      isOverflow: isOverflow
+      isOverflow: isOverflow,
+      netW: netW,
+      netH: netH
     };
   },
 
   /**
-   * حساب الفروخ الصافية والفاقد وتجهيز الماكينة مع معالجة التصفير عند التجاوز
+   * حساب الفروخ الصافية والفاقد وهالك التجهيز الطبقي المتطابق مع الباك إند
    */
-  calcGrossSheets(qty, cutsPerSheet, wasteRate, minMakeReady = 20) {
+  calcGrossSheets(qty, cutsPerSheet, wasteRate, minMakeReady = null, printingType = 'offset') {
     if (cutsPerSheet <= 0) {
       return {
         netSheets: 0,
@@ -91,14 +98,31 @@ const PricingMath = {
     }
     const safeCuts = Math.max(1, cutsPerSheet);
     const netSheets = Math.ceil(qty / safeCuts);
-    let gross = Math.ceil(netSheets * (1 + wasteRate));
-    if (gross - netSheets < minMakeReady) {
-      gross = netSheets + minMakeReady;
+
+    // احتساب هالك التجهيز الأساسي طبقياً (40، 60، 80 للأوفست و 5 للديجيتال)
+    let makeReady = minMakeReady;
+    if (makeReady === null || makeReady === undefined) {
+      if (printingType === 'digital') {
+        makeReady = 5;
+      } else {
+        if (netSheets < 250) {
+          makeReady = 40;
+        } else if (netSheets < 1000) {
+          makeReady = 60;
+        } else {
+          makeReady = 80;
+        }
+      }
     }
+
+    const runWaste = Math.ceil(netSheets * (wasteRate || 0.02));
+    const totalWaste = makeReady + runWaste;
+    const gross = netSheets + totalWaste;
+
     return {
       netSheets: netSheets,
       grossSheets: gross,
-      wasteSheets: gross - netSheets
+      wasteSheets: totalWaste
     };
   },
 

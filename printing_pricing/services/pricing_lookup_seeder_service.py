@@ -25,6 +25,7 @@ class PricingLookupSeederService:
             "sort_order": 10,
             "is_default": True,
             "override_sheets_per_pack": None,
+            "is_single_sided": False,
         },
         {
             "name": "طبع",
@@ -32,6 +33,7 @@ class PricingLookupSeederService:
             "sort_order": 20,
             "is_default": False,
             "override_sheets_per_pack": None,
+            "is_single_sided": False,
         },
         {
             "name": "بريستول كرتون",
@@ -39,6 +41,7 @@ class PricingLookupSeederService:
             "sort_order": 30,
             "is_default": False,
             "override_sheets_per_pack": None,
+            "is_single_sided": False,
         },
         {
             "name": "دوبلكس",
@@ -46,6 +49,7 @@ class PricingLookupSeederService:
             "sort_order": 40,
             "is_default": False,
             "override_sheets_per_pack": 100,
+            "is_single_sided": True,
         },
         {
             "name": "ستيكر لاصق",
@@ -53,6 +57,7 @@ class PricingLookupSeederService:
             "sort_order": 50,
             "is_default": False,
             "override_sheets_per_pack": 100,
+            "is_single_sided": True,
         },
         {
             "name": "كرافت تغليف",
@@ -60,6 +65,7 @@ class PricingLookupSeederService:
             "sort_order": 60,
             "is_default": False,
             "override_sheets_per_pack": None,
+            "is_single_sided": False,
         },
         {
             "name": "كربون NCR فواتير",
@@ -67,6 +73,7 @@ class PricingLookupSeederService:
             "sort_order": 70,
             "is_default": False,
             "override_sheets_per_pack": 500,
+            "is_single_sided": False,
         },
         {
             "name": "فبريانو",
@@ -74,6 +81,7 @@ class PricingLookupSeederService:
             "sort_order": 80,
             "is_default": False,
             "override_sheets_per_pack": None,
+            "is_single_sided": False,
         },
         {
             "name": "كونكورد",
@@ -81,6 +89,7 @@ class PricingLookupSeederService:
             "sort_order": 90,
             "is_default": False,
             "override_sheets_per_pack": None,
+            "is_single_sided": False,
         },
     ]
 
@@ -366,11 +375,13 @@ class PricingLookupSeederService:
         {"name": "ربع فرخ",   "parent_sheet": "70×100", "width": Decimal("35.00"), "height": Decimal("50.00"),  "pieces_per_sheet": 4,  "sort_order": 30, "is_default": False},
         {"name": "ثمن فرخ",   "parent_sheet": "70×100", "width": Decimal("25.00"), "height": Decimal("35.00"),  "pieces_per_sheet": 8,  "sort_order": 40, "is_default": False},
         {"name": "مقاس 30×40",        "parent_sheet": "70×100", "width": Decimal("30.00"), "height": Decimal("40.00"),  "pieces_per_sheet": 5,  "sort_order": 50, "is_default": False},
+        {"name": "مقاس 23×33",        "parent_sheet": "70×100", "width": Decimal("23.00"), "height": Decimal("33.00"),  "pieces_per_sheet": 9,  "sort_order": 55, "is_default": False},
         {"name": "مقاس 20×30",        "parent_sheet": "70×100", "width": Decimal("20.00"), "height": Decimal("30.00"),  "pieces_per_sheet": 11, "sort_order": 60, "is_default": False},
         # مقاسات مقصوصة من فرخ جاير 66×88
         {"name": "فرخ جاير",  "parent_sheet": "66×88",  "width": Decimal("66.00"), "height": Decimal("88.00"), "pieces_per_sheet": 1,  "sort_order": 70, "is_default": False},
         {"name": "نصف جاير",  "parent_sheet": "66×88",  "width": Decimal("44.00"), "height": Decimal("66.00"), "pieces_per_sheet": 2,  "sort_order": 80, "is_default": False},
         {"name": "ربع جاير",  "parent_sheet": "66×88",  "width": Decimal("33.00"), "height": Decimal("44.00"), "pieces_per_sheet": 4,  "sort_order": 90, "is_default": False},
+        {"name": "ثمن جاير",  "parent_sheet": "66×88",  "width": Decimal("22.00"), "height": Decimal("33.00"), "pieces_per_sheet": 8,  "sort_order": 95, "is_default": False},
         # مقاسات مقصوصة من فرخ طبع جاير 60×85
         {"name": "فرخ طبع جاير", "parent_sheet": "60×85", "width": Decimal("60.00"), "height": Decimal("85.00"), "pieces_per_sheet": 1,  "sort_order": 100, "is_default": False},
         {"name": "نصف طبع جاير","parent_sheet": "60×85", "width": Decimal("42.50"), "height": Decimal("60.00"), "pieces_per_sheet": 2,  "sort_order": 110, "is_default": False},
@@ -387,6 +398,7 @@ class PricingLookupSeederService:
     # 9. خدمات التشطيب (Finishing)
     FINISHING_TYPES = [
         {"name": "قص وتقطيع",       "unit_rate": Decimal("15.00"), "setup_cost": Decimal("30.00"),  "minimum_charge": Decimal("30.00"),  "tooling_cost": Decimal("0.00"),   "make_ready_waste_sheets": 5,  "sort_order": 10, "is_default": True,  "description": "طهارة وقص المطبوع بالمقص الكمبيوتر إلى المقاس النهائي"},
+        {"name": "قص مخرطة غير قياسي", "unit_rate": Decimal("20.00"), "setup_cost": Decimal("40.00"),  "minimum_charge": Decimal("40.00"),  "tooling_cost": Decimal("0.00"),   "make_ready_waste_sheets": 5,  "sort_order": 15, "is_default": False, "description": "أجرة مخرطة وقص الورق إلى مقاسات غير قياسية للدفاتر (11، 9، 5)"},
         {"name": "ريجة", "unit_rate": Decimal("25.00"), "setup_cost": Decimal("50.00"),  "minimum_charge": Decimal("50.00"),  "tooling_cost": Decimal("0.00"),   "make_ready_waste_sheets": 10, "sort_order": 20, "is_default": False, "description": "تحديد خطوط الطي في الورق السميك لمنع تشقق الطباعة"},
         {"name": "فورمة تكسير", "unit_rate": Decimal("40.00"), "setup_cost": Decimal("80.00"),  "minimum_charge": Decimal("80.00"),  "tooling_cost": Decimal("250.00"), "make_ready_waste_sheets": 25, "sort_order": 30, "is_default": False, "description": "قص هندسي خاص للعلب والفولدرات بواسطة اسطمبة ليزر خشبية"},
         {"name": "بصمة", "unit_rate": Decimal("60.00"), "setup_cost": Decimal("120.00"), "minimum_charge": Decimal("120.00"), "tooling_cost": Decimal("180.00"), "make_ready_waste_sheets": 20, "sort_order": 40, "is_default": False, "description": "تذهيب أو تفضيض حراري لشعارات ونصوص المطبوع بكليشيه زنك"},

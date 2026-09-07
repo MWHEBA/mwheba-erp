@@ -572,6 +572,12 @@ class OrderDetailView(LoginRequiredMixin, DetailView):
                 p_name = 'ثمن فرخ'
             elif p_raw in ['كامل', 'full']:
                 p_name = 'فرخ كامل'
+            elif '11' in p_raw or 'حداشر' in p_raw or '20x30' in p_raw or '20×30' in p_raw:
+                p_name = 'حداشر (20×30 سم - 11 قطعة)'
+            elif '9' in p_raw or 'تسعات' in p_raw or '23x33' in p_raw or '23×33' in p_raw:
+                p_name = 'تسعات (23×33 سم - 9 قطع)'
+            elif '5' in p_raw or 'خمسات' in p_raw or '30x40' in p_raw or '30×40' in p_raw:
+                p_name = 'خمسات (30×40 سم - 5 قطع)'
             elif p_raw:
                 p_name = p_raw if 'فرخ' in p_raw else f"{p_raw} فرخ"
             else:

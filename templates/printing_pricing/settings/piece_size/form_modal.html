@@ -152,11 +152,30 @@ function calculatePiecesAuto() {
     // الحساب بالاتجاه المعكوس (Rotated)
     const rotatedTotal = Math.floor(sheetW / pieceH) * Math.floor(sheetH / pieceW);
     
-    const bestTotal = Math.max(normalTotal, rotatedTotal);
+    // فحص القصات المركبة غير المتماثلة الشائعة في المطابع التجارية (N-Cuts)
+    let irregularCuts = 0;
+    let irregularDesc = '';
+    const minP = Math.min(pieceW, pieceH);
+    const maxP = Math.max(pieceW, pieceH);
+    const minS = Math.min(sheetW, sheetH);
+    const maxS = Math.max(sheetW, sheetH);
+
+    if (Math.abs(minP - 20) <= 0.5 && Math.abs(maxP - 30) <= 0.5 && Math.abs(minS - 70) <= 1.0 && Math.abs(maxS - 100) <= 1.0) {
+        irregularCuts = 11;
+        irregularDesc = 'بقصة مركبة غير متماثلة (حداشر 11 قطعة)';
+    } else if (Math.abs(minP - 23) <= 0.5 && Math.abs(maxP - 33) <= 0.5 && Math.abs(minS - 70) <= 1.0 && Math.abs(maxS - 100) <= 1.0) {
+        irregularCuts = 9;
+        irregularDesc = 'بقصة مركبة غير متماثلة (تسعات 9 قطع)';
+    } else if (Math.abs(minP - 30) <= 0.5 && Math.abs(maxP - 40) <= 0.5 && Math.abs(minS - 70) <= 1.0 && Math.abs(maxS - 100) <= 1.0) {
+        irregularCuts = 5;
+        irregularDesc = 'بقصة مركبة غير متماثلة (خمسات 5 قطع)';
+    }
+
+    const bestTotal = Math.max(normalTotal, rotatedTotal, irregularCuts);
     
     if (bestTotal > 0) {
         piecesInput.value = bestTotal;
-        const orientation = (rotatedTotal > normalTotal) ? 'بتدوير القطعة 90 درجة' : 'بالتوزيع الطولي العادي';
+        const orientation = irregularDesc || ((rotatedTotal > normalTotal) ? 'بتدوير القطعة 90 درجة' : 'بالتوزيع الطولي العادي');
         if (helpText) {
             helpText.innerHTML = `<span class="text-success fw-bold"><i class="fas fa-check-circle me-1"></i> تم الحساب: ${bestTotal} قطعة في الفرخ (${orientation}).</span>`;
         }

@@ -1225,6 +1225,25 @@ class OrderFormUIController {
     const duplexWarning = document.getElementById('duplex_greyback_warning');
     if (duplexWarning) duplexWarning.classList.toggle('d-none', !isDuplex);
 
+    const isSingleSided = (selectedPaperOpt?.dataset?.singleSided === 'true') ||
+                          (selectedPaperOpt?.getAttribute('data-single-sided') === 'true') ||
+                          isSticker || isDuplex;
+
+    // قفل الطبع والقلب للخامات ذات الوجه الواحد (دوبلكس رمادي أو ستيكر لاصق)
+    const $offsetSidesSelect = $('#id_print_sides_mode_offset');
+    const $workTurnOption = $offsetSidesSelect.find('option[value="work_turn"]');
+    if (isSingleSided) {
+      $workTurnOption.prop('disabled', true);
+      if ($offsetSidesSelect.val() === 'work_turn') {
+        $offsetSidesSelect.val('work_sheet').trigger('change');
+        if (typeof window.showNotification === 'function') {
+          window.showNotification('تم تحويل نمط الطباعة تلقائياً إلى «وجهين (سكتين)» لعدم إمكانية الطبع والقلب على هذه الخامة (دوبلكس/ستيكر).', 'warning', 'تنبيه هندسي');
+        }
+      }
+    } else {
+      $workTurnOption.prop('disabled', false);
+    }
+
     const gsmWarning = document.getElementById('digital_gsm_warning');
     if (gsmWarning) gsmWarning.classList.toggle('d-none', !(coverType === 'digital' && paperWeight > 350));
 
@@ -1237,9 +1256,11 @@ class OrderFormUIController {
     const contInnerSingle = document.getElementById('container_inner_color_mode_single');
     const contInnerDigital = document.getElementById('container_inner_color_mode_digital');
     const innerOffsetFields = document.getElementById('inner_offset_fields');
+    const innerDigiFields = document.getElementById('inner_digital_fields');
 
     if (innerType === 'offset') {
       if (contInnerDigital) contInnerDigital.classList.add('d-none');
+      if (innerDigiFields) innerDigiFields.classList.add('d-none');
       if (innerSides === 'single') {
         if (contInnerSingle) contInnerSingle.classList.remove('d-none');
         if (contInnerOffset) contInnerOffset.classList.add('d-none');
@@ -1255,6 +1276,7 @@ class OrderFormUIController {
       if (contInnerOffset) contInnerOffset.classList.add('d-none');
       if (contInnerDigital) contInnerDigital.classList.remove('d-none');
       if (innerOffsetFields) innerOffsetFields.classList.add('d-none');
+      if (innerDigiFields) innerDigiFields.classList.remove('d-none');
     }
   }
 
