@@ -178,15 +178,16 @@ class OrderFormUIController {
           pInput.classList.add('border-primary');
           const badgeMap = {
             'id_paper_sheet_price': ['#paper_price_staleness_badge', '#paper_price_date_display'],
-            'id_press_rate': ['#press_rate_staleness_badge', '#press_rate_date_display'],
-            'id_plate_price': ['#plate_price_staleness_badge', '#plate_price_date_display'],
-            'id_digital_sheet_price': ['#digital_price_staleness_badge', '#digital_price_date_display'],
+            'id_press_rate': ['#press_rate_staleness_badge', null],
+            'id_plate_price': ['#plate_price_staleness_badge', null],
+            'id_digital_sheet_price': ['#digital_price_staleness_badge', null],
             'id_inner_sheet_price': ['#inner_paper_price_staleness_badge', '#inner_paper_price_date_display'],
-            'id_inner_press_rate': ['#inner_press_rate_staleness_badge', '#inner_press_rate_date_display'],
-            'id_inner_plate_price': ['#inner_plate_price_staleness_badge', '#inner_plate_price_date_display'],
+            'id_inner_press_rate': ['#inner_press_rate_staleness_badge', null],
+            'id_inner_plate_price': ['#inner_plate_price_staleness_badge', null],
           };
           if (badgeMap[item.priceId]) {
-            this.renderManualPriceBadge($(badgeMap[item.priceId][0]), $(badgeMap[item.priceId][1]));
+            const dateSel = badgeMap[item.priceId][1];
+            this.renderManualPriceBadge($(badgeMap[item.priceId][0]), dateSel ? $(dateSel) : null);
           }
         }
       }

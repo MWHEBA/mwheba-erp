@@ -384,7 +384,6 @@
                                value="{% if saved_inner_press_rate %}{{ saved_inner_press_rate }}{% elif form.inner_press_rate.value %}{{ form.inner_press_rate.value }}{% endif %}" placeholder="0.00" min="0" step="1" title="{% trans 'سعر التراج (ألف سحبة)' %}">
                         <span class="input-group-text small bg-light">{{ currency_symbol|default:functional_currency.symbol }} / {% trans "تراج" %}</span>
                       </div>
-                      <div id="inner_press_rate_date_display" class="d-none small mt-1"></div>
                     </div>
 
                     <!-- 4. سحبات ملازم الداخلي -->
@@ -503,7 +502,6 @@
                                value="{% if saved_inner_plate_price %}{{ saved_inner_plate_price }}{% elif form.inner_plate_price.value %}{{ form.inner_plate_price.value }}{% endif %}" placeholder="0.00" min="0" step="1" title="{% trans 'سعر زنكة الداخلي المعتمد' %}">
                         <span class="input-group-text small bg-light">{{ currency_symbol|default:functional_currency.symbol }}</span>
                       </div>
-                      <div id="inner_plate_price_date_display" class="d-none small mt-1"></div>
                     </div>
 
                     <!-- 4. ملازم ملونة -->
