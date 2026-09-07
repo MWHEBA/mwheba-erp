@@ -157,6 +157,25 @@ class TestPhase1Comprehensive:
         assert res_sw['plates']['plates_back'] == 4
         assert res_sw['plates']['is_work_turn_savings'] is False
 
+        # إرسال أعداد صريحة للوجه والظهر مع وجهين (work_sheet)
+        res_explicit = PrintingCalculationEngine.calculate({
+            'quantity': 1000, 'width': 21, 'height': 29.7,
+            'colors_front': 4, 'colors_back': 4, 'print_sides_mode': 'work_sheet',
+            'plate_count_front': 4, 'plate_count_back': 2
+        })
+        assert res_explicit['plates']['total_plates'] == 6
+        assert res_explicit['plates']['plates_front'] == 4
+        assert res_explicit['plates']['plates_back'] == 2
+
+        # التحقق من تصفير زنكات الظهر إجبارياً في الوجه الواحد
+        res_single_with_back = PrintingCalculationEngine.calculate({
+            'quantity': 1000, 'width': 21, 'height': 29.7,
+            'colors_front': 4, 'colors_back': 4, 'print_sides_mode': 'single',
+            'plate_count_front': 4, 'plate_count_back': 4
+        })
+        assert res_single_with_back['plates']['plates_back'] == 0
+        assert res_single_with_back['plates']['total_plates'] == 4
+
     def test_05_customer_info_api_endpoint(self):
         """التحقق من استجابة CustomerInfoAPIView وتصنيف العميل والذاكرة السعرية"""
         # إنشاء أوردر سابق للعميل

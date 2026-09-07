@@ -1122,17 +1122,29 @@ class OrderAnatomyPersistenceService:
                         inner_press_rate = Decimal(str(post_data.get('inner_press_rate') or '45.00'))
                         inner_press_machine = inner_offset_svc.name if inner_offset_svc else (post_data.get('inner_press_machine') or inner_bed_size)
 
-                        sig_pulls = qty * (Decimal('2') if inner_sides == 'work_turn' else Decimal('1'))
-                        sig_tirage = Decimal(str(int(sig_pulls / 1000) + (1 if sig_pulls % 1000 > 0 else 0)))
-                        thousands_inner = sig_tirage * Decimal(str(total_signatures))
-                        inner_pulls = sig_pulls * Decimal(str(total_signatures))
-                        
-                        if inner_offset_svc and inner_offset_svc.set_price and inner_offset_svc.set_price > Decimal('0.00') and not post_data.get('inner_press_rate'):
-                            sig_cost = inner_offset_svc.calculate_cost(int(sig_tirage), machine_sets=1)
-                            raw_inner_press = Decimal(str(total_signatures)) * sig_cost
+                        if engine_res.get('success') and 'inner' in engine_res and engine_res['inner'].get('inner_pulls') is not None:
+                            thousands_inner = Decimal(str(engine_res['inner']['inner_tirages']))
+                            inner_pulls = Decimal(str(engine_res['inner']['inner_pulls']))
+                            sig_tirage = Decimal(str(engine_res['inner']['sig_tirage']))
+                            raw_inner_press = Decimal(str(engine_res['inner']['inner_press_cost']))
                             inner_press_rate = (raw_inner_press / thousands_inner).quantize(Decimal('0.01')) if thousands_inner > 0 else Decimal('0.00')
                         else:
-                            raw_inner_press = thousands_inner * inner_press_rate
+                            sig_mult = Decimal('2') if inner_sides in ['work_turn', 'work_and_turn', 'work_sheet'] else Decimal('1')
+                            sig_pulls = qty * sig_mult
+                            if inner_sides == 'work_sheet':
+                                sig_tirage = Decimal(str(max(1, math.ceil(qty / 1000)) * 2))
+                            else:
+                                sig_tirage = Decimal(str(max(1, math.ceil(sig_pulls / 1000))))
+                            thousands_inner = sig_tirage * Decimal(str(total_signatures))
+                            inner_pulls = sig_pulls * Decimal(str(total_signatures))
+                            
+                            if inner_offset_svc and inner_offset_svc.set_price and inner_offset_svc.set_price > Decimal('0.00') and not post_data.get('inner_press_rate'):
+                                m_sets = 2 if inner_sides == 'work_sheet' else 1
+                                sig_cost = inner_offset_svc.calculate_cost(int(sig_tirage), machine_sets=m_sets)
+                                raw_inner_press = Decimal(str(total_signatures)) * sig_cost
+                                inner_press_rate = (raw_inner_press / thousands_inner).quantize(Decimal('0.01')) if thousands_inner > 0 else Decimal('0.00')
+                            else:
+                                raw_inner_press = thousands_inner * inner_press_rate
                         inner_press_setup = Decimal('0.00')
 
                         inner_press_snapshot = {

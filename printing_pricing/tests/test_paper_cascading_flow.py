@@ -215,7 +215,7 @@ class TestPaperCascadingFlow:
         assert 'box_manual_sheets_input' in html           # 7. عدد الأفرخ (يدوي)
         assert 'id_paper_sheet_price' in html              # 8. سعر الفرخ
         assert 'paper_unit_converter_collapse' in html     # 8. محول الوحدات
-        assert 'cover_paper_cost_display' in html          # 9. إجمالي تكلفة الورق
+        assert 'cover_paper_cost_display' in html          # 9. تكلفة الورق
         assert 'press_pulls_count' in html                 # سحبات الماكينة في قسم الطباعة
 
         # التحقق من شارات التنبيه وصمامات الأمان

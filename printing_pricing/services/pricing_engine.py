@@ -669,13 +669,6 @@ class PrintingCalculationEngine:
                 'printing_type': 'digital'
             }
 
-        # طباعة أوفست (Offset)
-        pulls_mult = 2 if sides_mode in ['work_turn', 'work_and_turn', 'work_sheet'] else 1
-        press_pulls = gross_press_sheets * pulls_mult
-        tirages = math.ceil(press_pulls / 1000)
-
-        # فحص وجود خدمة ماكينة بمواصفات الطقم (Set Pricing)
-        press_svc = cls._resolve_press_service(params)
 
         # مصاريف الألوان المخصوصة (بنتون - لغسيل حوض الحبر)
         spot_front = cls._to_int(params.get('spot_colors_front'), 0)
@@ -684,7 +677,33 @@ class PrintingCalculationEngine:
         spot_colors_cost = Decimal(str(spot_front + spot_back)) * spot_wash_fee
 
         back_colors = cls._to_int(params.get('colors_back'), 4)
-        machine_sets = 2 if (sides_mode == 'work_sheet' and (back_colors > 0 or spot_back > 0)) else 1
+        has_back_print = (sides_mode == 'work_sheet' and (back_colors > 0 or spot_back > 0))
+        machine_sets = 2 if has_back_print else 1
+
+        # طباعة أوفست (Offset): احتساب السحبات والتراجات بالمعادلة الصناعية الدقيقة
+        tirages_front = 0
+        tirages_back = 0
+        if sides_mode == 'work_sheet':
+            if has_back_print:
+                press_pulls = gross_press_sheets * 2
+                tirages_front = max(1, math.ceil(gross_press_sheets / 1000)) if gross_press_sheets > 0 else 0
+                tirages_back = max(1, math.ceil(gross_press_sheets / 1000)) if gross_press_sheets > 0 else 0
+                tirages = tirages_front + tirages_back
+            else:
+                press_pulls = gross_press_sheets
+                tirages_front = max(1, math.ceil(gross_press_sheets / 1000)) if gross_press_sheets > 0 else 0
+                tirages_back = 0
+                tirages = tirages_front
+        elif sides_mode in ['work_turn', 'work_and_turn']:
+            press_pulls = gross_press_sheets * 2
+            tirages = max(1, math.ceil(press_pulls / 1000)) if gross_press_sheets > 0 else 0
+        else:
+            press_pulls = gross_press_sheets
+            tirages = max(1, math.ceil(press_pulls / 1000)) if gross_press_sheets > 0 else 0
+            tirages_front = tirages
+
+        # فحص وجود خدمة ماكينة بمواصفات الطقم (Set Pricing)
+        press_svc = cls._resolve_press_service(params)
 
         press_rate_input = params.get('press_rate')
         has_explicit_rate = False
@@ -720,9 +739,14 @@ class PrintingCalculationEngine:
             'is_floor_applied': is_floor_applied,
             'press_pulls': press_pulls,
             'tirages': tirages,
+            'tirages_front': tirages_front,
+            'tirages_back': tirages_back,
             'rate_per_1000': float(rate_per_1000),
             'minimum_charge': float(min_floor),
             'spot_colors_cost': float(spot_colors_cost),
+            'spot_wash_fee': float(spot_wash_fee),
+            'spot_colors_count': spot_front + spot_back,
+            'machine_sets': machine_sets,
             'is_set_pricing': is_set_pricing,
             'set_price': float(press_svc.set_price) if (press_svc and press_svc.set_price) else None,
             'set_included_tirages': press_svc.set_included_tirages if (press_svc and press_svc.set_included_tirages) else 1,
@@ -846,24 +870,35 @@ class PrintingCalculationEngine:
         spot_back = cls._to_int(params.get('spot_colors_back'), 0)
 
         # حساب زنكات الوجه
-        plates_front = front_colors + spot_front
+        raw_front_plates = params.get('plate_count_front')
+        if raw_front_plates is not None and str(raw_front_plates).strip() != '':
+            plates_front = cls._to_int(raw_front_plates, front_colors + spot_front)
+        else:
+            plates_front = front_colors + spot_front
 
         # حساب زنكات الظهر (تتصفر تماماً في الوجه الواحد وفي الطبع والقلب)
         if sides_mode == 'work_sheet':
-            plates_back = back_colors + spot_back
+            raw_back_plates = params.get('plate_count_back')
+            if raw_back_plates is not None and str(raw_back_plates).strip() != '':
+                plates_back = cls._to_int(raw_back_plates, back_colors + spot_back)
+            else:
+                plates_back = back_colors + spot_back
         else:
             plates_back = 0  # توفير 50% في الطبع والقلب
 
+        calculated_plates = plates_front + plates_back
         manual_plates = params.get('zinc_plates_count') or params.get('plates_total')
         if manual_plates is not None and str(manual_plates).strip() != '':
             try:
                 m_plates = cls._to_int(manual_plates, 0)
                 if m_plates > 0:
                     total_plates = m_plates
+                else:
+                    total_plates = calculated_plates
             except Exception:
-                total_plates = plates_front + plates_back
+                total_plates = calculated_plates
         else:
-            total_plates = plates_front + plates_back
+            total_plates = calculated_plates
 
         if total_plates <= 0:
             total_plates = 4
@@ -1018,18 +1053,27 @@ class PrintingCalculationEngine:
                 die_mould_cost = cls._convert_currency(Decimal('250.00'), to_curr=target_curr, date=order_date)
                 die_pull_rate = cls._convert_currency(Decimal('50.00'), to_curr=target_curr, date=order_date)
 
-            die_pull_cost = Decimal(str(math.ceil(gross_press_sheets / 1000))) * die_pull_rate
+            finishing_tirages = max(1, math.ceil(gross_press_sheets / 1000)) if gross_press_sheets > 0 else 0
+            die_pull_cost = Decimal(str(finishing_tirages)) * die_pull_rate
             die_total = die_mould_cost + die_pull_cost
             total_finishing += die_total
             details['die_cutting'] = float(die_total)
+            details['die_cutting_tirages'] = finishing_tirages
 
         # 3. السبوت يو في (Spot UV)
         if cls._to_bool(params.get('has_spot_uv')):
+            finishing_tirages = max(1, math.ceil(gross_press_sheets / 1000)) if gross_press_sheets > 0 else 0
             uv_floor = cls._convert_currency(Decimal('200.00'), to_curr=target_curr, date=order_date)
             uv_unit = cls._convert_currency(Decimal('0.20'), to_curr=target_curr, date=order_date)
-            uv_cost = max(uv_floor, Decimal(str(gross_press_sheets)) * uv_unit)
+            uv_tirage_price_raw = params.get('spot_uv_tirage_price')
+            if uv_tirage_price_raw and str(uv_tirage_price_raw).strip() != '':
+                uv_rate = cls._to_decimal(uv_tirage_price_raw, Decimal('0.00'))
+                uv_cost = max(uv_floor, Decimal(str(finishing_tirages)) * uv_rate)
+            else:
+                uv_cost = max(uv_floor, Decimal(str(gross_press_sheets)) * uv_unit)
             total_finishing += uv_cost
             details['spot_uv'] = float(uv_cost)
+            details['spot_uv_tirages'] = finishing_tirages
 
         # 4. البصمة الحرارية (Foil)
         if cls._to_bool(params.get('has_foil')):
@@ -1109,9 +1153,20 @@ class PrintingCalculationEngine:
                 inner_plate_rate = cls._get_benchmark_rate('plate_price_50x70', target_curr=target_curr, date=order_date)
             inner_plate_cost = Decimal(str(inner_plates)) * inner_plate_rate
 
-        # سحبات الداخلي
-        inner_pulls = gross_inner * 2
-        inner_tirages = math.ceil(inner_pulls / 1000)
+        # سحبات الداخلي: كل ملزمة تُطبع كوظيفة مستقلة على الماكينة
+        inner_sides = params.get('inner_print_sides_mode') or params.get('print_sides_mode') or 'work_turn'
+        sig_multiplier = 2 if inner_sides in ['work_turn', 'work_and_turn', 'work_sheet'] else 1
+        sig_pulls = qty * sig_multiplier
+
+        if inner_sides == 'work_sheet':
+            sig_t_front = max(1, math.ceil(qty / 1000)) if qty > 0 else 0
+            sig_t_back = max(1, math.ceil(qty / 1000)) if qty > 0 else 0
+            sig_tirage = sig_t_front + sig_t_back
+        else:
+            sig_tirage = max(1, math.ceil(sig_pulls / 1000)) if sig_pulls > 0 else 0
+
+        total_inner_tirages = sig_tirage * signatures
+        total_inner_pulls = sig_pulls * signatures
 
         # ماكينة طباعة الداخلي
         inner_press_svc = cls._resolve_press_service({
@@ -1120,10 +1175,8 @@ class PrintingCalculationEngine:
         })
 
         if inner_press_svc and inner_press_svc.set_price and inner_press_svc.set_price > Decimal('0.00') and not params.get('inner_press_rate'):
-            # كل ملزمة تُطبع كوظيفة مستقلة على الماكينة
-            sig_pulls = math.ceil((gross_inner * 2) / signatures) if signatures > 0 else inner_pulls
-            sig_tirages = math.ceil(sig_pulls / 1000)
-            sig_cost = inner_press_svc.calculate_cost(sig_tirages, machine_sets=1)
+            machine_sets_per_sig = 2 if inner_sides == 'work_sheet' else 1
+            sig_cost = inner_press_svc.calculate_cost(sig_tirage, machine_sets=machine_sets_per_sig)
             sig_cost_converted = cls._convert_currency(sig_cost, from_curr=inner_press_svc.effective_currency, to_curr=target_curr, date=order_date)
             inner_press_cost = Decimal(str(signatures)) * sig_cost_converted
         else:
@@ -1139,7 +1192,7 @@ class PrintingCalculationEngine:
                 inner_press_rate = Decimal('0.00')
             else:
                 inner_press_rate = cls._get_benchmark_rate('press_rate_50x70', target_curr=target_curr, date=order_date)
-            inner_press_cost = Decimal(str(inner_tirages)) * inner_press_rate
+            inner_press_cost = Decimal(str(total_inner_tirages)) * inner_press_rate
 
         total_inner_cost = inner_paper_cost + inner_plate_cost + inner_press_cost
 
@@ -1150,6 +1203,10 @@ class PrintingCalculationEngine:
             'inner_paper_cost': float(inner_paper_cost),
             'inner_press_cost': float(inner_press_cost),
             'inner_plates_cost': float(inner_plate_cost),
+            'inner_pulls': int(total_inner_pulls),
+            'inner_tirages': int(total_inner_tirages),
+            'sig_tirage': int(sig_tirage),
+            'sig_pulls': int(sig_pulls),
         }
 
     @classmethod

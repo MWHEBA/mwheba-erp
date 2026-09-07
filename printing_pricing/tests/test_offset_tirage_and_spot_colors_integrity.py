@@ -333,3 +333,71 @@ class TestOffsetTirageAndSpotColorsIntegrity:
         # التراج يحسب طبيعياً (2000 سحبة على ربع فرخ = 1 تراج = 45 ج)
         assert press_svc is not None
         assert press_svc.total_cost == Decimal('45.00')
+
+    def test_work_sheet_vs_work_turn_tirages_separation(self):
+        """8. التحقق الدقيق من فصل تراجات الوجه والظهر في السكتين (work_sheet) وعدم دمجها بشكل خاطئ"""
+        from printing_pricing.services.pricing_engine import PrintingCalculationEngine
+
+        # أ. كمية صغيرة (250 فرخ + 20 هالك = 270 فرخ)
+        # في السكتين: 1 تراج للوجه + 1 تراج للظهر = 2 تراج (وليس 1 تراج بالدمج)
+        res_ws = PrintingCalculationEngine.calculate({
+            'quantity': 1000,
+            'width': 21.0,
+            'height': 29.7,
+            'sheet_size': '70x100',
+            'piece_size': '50x70',
+            'print_sides_mode': 'work_sheet',
+            'cover_printing_type': 'offset',
+            'colors_front': 4,
+            'colors_back': 4,
+            'waste_sheets': 20,
+            'press_rate': '45.00'
+        })
+        assert res_ws['success'] is True
+        assert res_ws['printing']['press_pulls'] == 540
+        assert res_ws['printing']['tirages_front'] == 1
+        assert res_ws['printing']['tirages_back'] == 1
+        assert res_ws['printing']['tirages'] == 2
+        assert res_ws['printing']['applied_press_cost'] == 90.0
+
+        # ب. نفس الكمية في الطبع والقلب (work_turn)
+        # سحبات متصلة على نفس الزنكات = 540 سحبة = 1 تراج
+        res_wt = PrintingCalculationEngine.calculate({
+            'quantity': 1000,
+            'width': 21.0,
+            'height': 29.7,
+            'sheet_size': '70x100',
+            'piece_size': '50x70',
+            'print_sides_mode': 'work_turn',
+            'cover_printing_type': 'offset',
+            'colors_front': 4,
+            'colors_back': 4,
+            'waste_sheets': 20,
+            'press_rate': '45.00'
+        })
+        assert res_wt['success'] is True
+        assert res_wt['printing']['press_pulls'] == 540
+        assert res_wt['printing']['tirages'] == 1
+        assert res_wt['printing']['applied_press_cost'] == 45.0
+
+        # ج. كمية متوسطة (1200 فرخ):
+        # في السكتين: الوجه 1200 فرخ = 2 تراج، الظهر 1200 فرخ = 2 تراج -> الإجمالي 4 تراج (وليس 3 تراج بالدمج)
+        res_ws_1200 = PrintingCalculationEngine.calculate({
+            'quantity': 4800,
+            'width': 21.0,
+            'height': 29.7,
+            'sheet_size': '70x100',
+            'piece_size': '50x70',
+            'print_sides_mode': 'work_sheet',
+            'cover_printing_type': 'offset',
+            'colors_front': 4,
+            'colors_back': 4,
+            'waste_sheets': 0,
+            'press_rate': '45.00'
+        })
+        assert res_ws_1200['success'] is True
+        assert res_ws_1200['paper']['gross_press_sheets'] == 1200
+        assert res_ws_1200['printing']['tirages_front'] == 2
+        assert res_ws_1200['printing']['tirages_back'] == 2
+        assert res_ws_1200['printing']['tirages'] == 4
+        assert res_ws_1200['printing']['applied_press_cost'] == 180.0

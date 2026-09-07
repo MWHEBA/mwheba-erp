@@ -111,12 +111,25 @@ const PricingMath = {
   /**
    * حساب السحبات وعدد التراج (ألف سحبة)
    */
-  calcPullsAndTirage(grossSheets, sidesMultiplier = 1) {
+  calcPullsAndTirage(grossSheets, sidesMultiplier = 1, sidesMode = 'single') {
+    if (sidesMode === 'work_sheet') {
+      const pulls = Math.ceil(grossSheets * 2);
+      const tiragesFront = grossSheets > 0 ? Math.max(1, Math.ceil(grossSheets / 1000)) : 0;
+      const tiragesBack = grossSheets > 0 ? Math.max(1, Math.ceil(grossSheets / 1000)) : 0;
+      return {
+        pulls: pulls,
+        tirages: tiragesFront + tiragesBack,
+        tiragesFront: tiragesFront,
+        tiragesBack: tiragesBack
+      };
+    }
     const pulls = Math.ceil(grossSheets * sidesMultiplier);
-    const tirages = Math.max(1, Math.ceil(pulls / 1000));
+    const tirages = pulls > 0 ? Math.max(1, Math.ceil(pulls / 1000)) : 0;
     return {
       pulls: pulls,
-      tirages: tirages
+      tirages: tirages,
+      tiragesFront: tirages,
+      tiragesBack: 0
     };
   },
 
@@ -211,6 +224,8 @@ class OrderFormUIController {
     }
     this.applySelectedProductSize();
     this.updatePrintingTypeUI();
+    this.updateCoverPlatesUI();
+    this.updateInnerPlatesUI();
     this.initPieceSizesMasterList();
     const initSheetOpt = $('#id_sheet_size option:selected');
     if (initSheetOpt.length) {
@@ -501,7 +516,7 @@ class OrderFormUIController {
         if (offsetSel) offsetSel.value = this.value;
       } else if (this.id === 'id_print_sides_mode_offset') {
         const stdSel = document.getElementById('id_print_sides_mode_standard');
-        if (stdSel) stdSel.value = this.value === 'work_sheet' ? 'double' : 'single';
+        if (stdSel) stdSel.value = this.value === 'work_sheet' ? 'work_sheet' : 'single';
       }
 
       // مزامنة مقاس السلندر/الزنك مع مواصفات زنك المورد المختار فقط دون فرض أسعار عشوائية
@@ -519,6 +534,12 @@ class OrderFormUIController {
       }
 
       self.updatePrintingTypeUI();
+      if (['id_print_sides_mode_offset', 'id_print_sides_mode_standard', 'id_cover_printing_type'].includes(this.id)) {
+        self.updateCoverPlatesUI();
+      }
+      if (['id_inner_print_sides_mode', 'id_inner_printing_type', 'id_inner_color_mode'].includes(this.id)) {
+        self.updateInnerPlatesUI();
+      }
       self.updateOpenDimensionsDisplay();
       self.debouncedRecalculate(50);
     });
@@ -527,6 +548,12 @@ class OrderFormUIController {
     $(document).on('input', '#id_quantity, #id_profit_margin, #id_extra_cost, #id_giveaway_item_cost, #id_paper_weight, #id_inner_paper_weight, #id_pages_count, #id_colors_front, #id_colors_back, #id_spot_colors_front, #id_spot_colors_back, #id_screen_colors_count, #id_inner_colors_single, #id_inner_spot_colors_single, #id_inner_spot_colors, #id_digital_inner_color_pages, #id_digital_inner_bw_pages, #id_color_signatures_count, #id_bw_signatures_count, #id_ncr_sets_count, #id_ncr_book_capacity, #id_ncr_serial_start, #id_banner_sqm_price', function () {
       self.isDirty = true;
       self.updatePrintingTypeUI();
+      if (['id_colors_front', 'id_colors_back', 'id_spot_colors_front', 'id_spot_colors_back'].includes(this.id)) {
+        self.updateCoverPlatesUI();
+      }
+      if (['id_inner_colors_single', 'id_inner_spot_colors_single', 'id_inner_spot_colors', 'id_pages_count', 'id_color_signatures_count', 'id_bw_signatures_count'].includes(this.id)) {
+        self.updateInnerPlatesUI();
+      }
       self.updateOpenDimensionsDisplay();
       self.debouncedRecalculate(250);
     });
@@ -545,6 +572,11 @@ class OrderFormUIController {
     $(document).on('input', '#id_cover_waste_sheets, #id_plate_count_front, #id_plate_count_back, #id_plate_count, #id_inner_plates_count_total, #id_plate_price, #id_inner_plate_price, #id_press_rate, #id_inner_press_rate, #id_digital_sheet_price, #id_digital_inner_color_price, #id_digital_inner_bw_price', function () {
       this.dataset.manual = "true";
       $(this).addClass('border-primary');
+      if (this.id === 'id_plate_count_front' || this.id === 'id_plate_count_back') {
+        self.updateCoverPlatesUI();
+      } else if (this.id === 'id_inner_plates_count_total') {
+        self.updateInnerPlatesUI();
+      }
       self.debouncedRecalculate();
     });
 
@@ -1433,17 +1465,22 @@ class OrderFormUIController {
     const ctpCostDisplay = document.getElementById('cover_ctp_cost_display');
     const ctpBadge = document.getElementById('cover_ctp_summary_badge');
 
-    if (offsetSides === 'work_sheet') {
+    if (coverPrintingType === 'offset' && offsetSides === 'work_sheet') {
       backColors = PricingMath.parseSafeNumber(backColorsInput?.value, 4);
       spotBack = PricingMath.parseSafeNumber(spotBackInput?.value, 0);
+      const expectedBack = backColors + spotBack;
       if (plateBackInput) {
         plateBackInput.disabled = false;
-        if (!plateBackInput.dataset.manual) plateBackInput.value = (backColors + spotBack);
+        if (!plateBackInput.dataset.manual || parseInt(plateBackInput.value, 10) === 0) {
+          plateBackInput.value = expectedBack;
+        }
       }
     } else {
       if (plateBackInput) {
         plateBackInput.value = 0;
         plateBackInput.disabled = true;
+        delete plateBackInput.dataset.manual;
+        $(plateBackInput).removeClass('border-primary');
       }
     }
 
@@ -1453,7 +1490,9 @@ class OrderFormUIController {
     }
 
     const curFront = PricingMath.parseSafeNumber(plateFrontInput?.value, calculatedFront);
-    const curBack = PricingMath.parseSafeNumber(plateBackInput?.value, (offsetSides === 'work_sheet' ? (backColors + spotBack) : 0));
+    const curBack = (coverPrintingType === 'offset' && offsetSides === 'work_sheet')
+      ? PricingMath.parseSafeNumber(plateBackInput?.value, (backColors + spotBack))
+      : 0;
     const totalPlates = curFront + curBack;
 
     if (plateTotalInput) {
@@ -1487,6 +1526,15 @@ class OrderFormUIController {
 
     const platesTotalInput = document.getElementById('id_plates_total');
     if (platesTotalInput) platesTotalInput.value = actualPlates;
+
+    const workTurnAlert = document.getElementById('work_turn_advisor_alert');
+    if (workTurnAlert) {
+      if (coverPrintingType === 'offset' && (offsetSides === 'work_turn' || offsetSides === 'work_and_turn')) {
+        workTurnAlert.classList.remove('d-none');
+      } else {
+        workTurnAlert.classList.add('d-none');
+      }
+    }
 
     const ctpSetBadge = document.getElementById('cover_ctp_set_badge');
     if (ctpSetBadge) {
@@ -2473,7 +2521,7 @@ class OrderFormUIController {
 
             const opts = [];
             weights.forEach(w => {
-              const label = w.is_available_with_supplier ? `★ ${w.display_name}` : w.display_name;
+              const label = w.display_name;
               opts.push({
                 value: w.value || w.gsm,
                 text: label,
@@ -3542,6 +3590,17 @@ class OrderFormUIController {
     if (sidesEl && sidesEl.value) {
       formData.set('print_sides_mode', sidesEl.value);
     }
+    const coverPrintingType = document.getElementById('id_cover_printing_type')?.value || 'offset';
+    const sidesMode = sidesEl?.value || 'single';
+    if (coverPrintingType === 'offset') {
+      const pFront = parseInt($('#id_plate_count_front').val(), 10) || 4;
+      const pBack = (sidesMode === 'work_sheet') ? (parseInt($('#id_plate_count_back').val(), 10) || 0) : 0;
+      const pTotal = pFront + pBack;
+      formData.set('plate_count_front', pFront);
+      formData.set('plate_count_back', pBack);
+      formData.set('zinc_plates_count', pTotal);
+      formData.set('plates_total', pTotal);
+    }
     const pieceSizeSelect = $('#id_piece_size');
     const selectedPieceOpt = pieceSizeSelect.find('option:selected');
     const pieceVal = pieceSizeSelect.val();
@@ -3678,6 +3737,9 @@ class OrderFormUIController {
         if ($('#id_cover_waste_sheets').length && !$('#id_cover_waste_sheets').is(':focus')) {
           $('#id_cover_waste_sheets').val(data.paper.waste_sheets);
         }
+        const finTirages = Math.max(1, Math.ceil((data.paper.gross_press_sheets || 0) / 1000));
+        this.updateTextSafely('spot_uv_tirage_badge', `${finTirages} تراج`);
+        this.updateTextSafely('die_cut_tirage_badge', `${finTirages} تراج`);
       }
 
       // 3. وزن الورق بالكيلوجرام
@@ -3688,26 +3750,49 @@ class OrderFormUIController {
       // 4. سحبات وتكلفة الماكينة (مع فتحة الماكينة)
       if (data.printing) {
         this.updateTextSafely('display_machine_pulls_count', `${data.printing.press_pulls.toLocaleString()} سحبة`);
-        this.updateTextSafely('display_machine_tirages', `(${data.printing.tirages} تراج)`);
+        let tirageLabel = `(${data.printing.tirages} تراج)`;
+        let detailedPulls = `${data.printing.press_pulls.toLocaleString()} سحبة (${data.printing.tirages} تراج)`;
+        if (data.printing.tirages_front !== undefined && data.printing.tirages_back > 0) {
+          tirageLabel = `(${data.printing.tirages} تراج: ${data.printing.tirages_front} وجه + ${data.printing.tirages_back} ظهر)`;
+          detailedPulls = `${data.printing.press_pulls.toLocaleString()} سحبة (${data.printing.tirages} تراج: ${data.printing.tirages_front} وجه + ${data.printing.tirages_back} ظهر)`;
+        }
+        this.updateTextSafely('display_machine_tirages', tirageLabel);
         this.updateTextSafely('cover_press_cost_display', this.formatMoney(data.printing.applied_press_cost));
         const pullsText = document.getElementById('press_pulls_count');
         if (pullsText) {
-          this.updateTextSafely(pullsText, `${data.printing.press_pulls.toLocaleString()} سحبة (${data.printing.tirages} تراج)`);
+          this.updateTextSafely(pullsText, detailedPulls);
         }
       }
 
       // 5. الزنكات وتوفير الطبع والقلب
       if (data.plates) {
         this.updateTextSafely('cover_ctp_cost_display', this.formatMoney(data.plates.total_cost));
-        if (data.plates.is_work_turn_savings) {
+        const currentSides = document.getElementById('id_print_sides_mode_offset')?.value || 'single';
+        const isOffset = (document.getElementById('id_cover_printing_type')?.value || 'offset') === 'offset';
+
+        if (currentSides === 'work_turn' || data.plates.is_work_turn_savings) {
           $('#id_plate_count_back').val(0).prop('disabled', true);
           $('#work_turn_advisor_alert').removeClass('d-none');
-        } else {
+        } else if (currentSides === 'work_sheet' && isOffset) {
           $('#id_plate_count_back').prop('disabled', false);
           $('#work_turn_advisor_alert').addClass('d-none');
+          if (!$('#id_plate_count_back').is(':focus') && !document.getElementById('id_plate_count_back')?.dataset?.manual) {
+            $('#id_plate_count_back').val(data.plates.plates_back);
+          }
+        } else {
+          // single أو غير أوفست
+          $('#id_plate_count_back').val(0).prop('disabled', true);
+          $('#work_turn_advisor_alert').addClass('d-none');
+        }
+
+        if (!$('#id_plate_count_front').is(':focus') && !document.getElementById('id_plate_count_front')?.dataset?.manual) {
+          $('#id_plate_count_front').val(data.plates.plates_front);
         }
         if (!$('#id_plate_count').is(':focus')) {
           $('#id_plate_count').val(data.plates.total_plates);
+        }
+        if ($('#id_plates_total').length) {
+          $('#id_plates_total').val(data.plates.total_plates);
         }
       }
 
@@ -3744,6 +3829,18 @@ class OrderFormUIController {
       // 8. اللوجستيات
       if (data.logistics) {
         this.updateTextSafely('cost_logistics_display', this.formatMoney(data.logistics.delivery_cost || data.logistics.total_cost));
+      }
+
+      // 8.5 ملازم الداخلي
+      if (data.inner) {
+        if (data.inner.inner_pulls !== undefined && data.inner.inner_tirages !== undefined) {
+          const sigs = data.inner.signatures_count || 1;
+          const sigT = data.inner.sig_tirage || 1;
+          this.updateTextSafely('inner_press_pulls_count', `${data.inner.inner_pulls.toLocaleString()} سحبة (${data.inner.inner_tirages} تراج لـ ${sigs} ملازم - ${sigT} تراج/ملزمة)`);
+        }
+        if (data.inner.inner_press_cost !== undefined) {
+          this.updateTextSafely('inner_press_cost_display', this.formatMoney(data.inner.inner_press_cost));
+        }
       }
 
       // 9. السايدبار المالي المركزي والحقول المخفية
@@ -4107,6 +4204,14 @@ class OrderFormUIController {
         if (backC) backC.value = '0';
         const backSpot = document.getElementById('id_spot_colors_back');
         if (backSpot) backSpot.value = '0';
+        const backPlate = document.getElementById('id_plate_count_back');
+        if (backPlate) {
+          backPlate.disabled = false;
+          backPlate.value = '0';
+        }
+      } else {
+        const backPlate = document.getElementById('id_plate_count_back');
+        if (backPlate) backPlate.disabled = false;
       }
     } else if (coverType === 'none') {
       ['id_colors_front', 'id_colors_back', 'id_spot_colors_front', 'id_spot_colors_back'].forEach(id => {

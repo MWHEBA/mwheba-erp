@@ -84,7 +84,7 @@ class PaperSpecification(BaseModel):
         decimal_places=2,
         default=Decimal('0.00'),
         validators=[MinValueValidator(Decimal('0.00'))],
-        verbose_name=_("إجمالي تكلفة الورق")
+        verbose_name=_("تكلفة الورق")
     )
 
     class Meta:

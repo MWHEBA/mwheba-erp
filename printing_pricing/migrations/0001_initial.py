@@ -1775,7 +1775,7 @@ class Migration(migrations.Migration):
                         validators=[
                             django.core.validators.MinValueValidator(Decimal("0.00"))
                         ],
-                        verbose_name="إجمالي تكلفة الورق",
+                        verbose_name="تكلفة الورق",
                     ),
                 ),
                 (

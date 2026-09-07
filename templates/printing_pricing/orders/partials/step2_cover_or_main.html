@@ -317,7 +317,7 @@
               <!-- 2. ماكينة ومقاس الزنك المتزامن ميكانيكياً -->
               <div class="col-md-4">
                 <label for="id_press_bed_size" class="form-label fw-bold">
-                  {% trans "مقاس زنك CTP (متزامن)" %}
+                  {% trans "مقاس زنك CTP" %}
                 </label>
                 <select class="form-select select2-filter text-center" id="id_press_bed_size" name="press_bed_size">
                   {% if plate_sizes %}
@@ -367,7 +367,10 @@
                 </label>
                 <div class="input-group">
                   <input type="number" class="form-control fw-bold text-center text-primary" 
-                         id="id_plate_count_back" name="plate_count_back" value="0" min="0" max="10">
+                         id="id_plate_count_back" name="plate_count_back" 
+                         value="{% if form.print_sides_mode.value == 'work_sheet' %}{{ form.plate_count_back.value|default:'4' }}{% else %}0{% endif %}" 
+                         min="0" max="10"
+                         {% if form.print_sides_mode.value != 'work_sheet' %}disabled{% endif %}>
                   <span class="input-group-text small bg-light">{% trans "زنكة" %}</span>
                 </div>
               </div>
@@ -816,7 +819,7 @@
                   </button>
                 </div>
                 <!-- سعة الرزمة المعتمدة كمرجع لحاسبة تحويل الأسعار والمؤشر التشغيلي -->
-                <div class="d-flex align-items-center justify-content-end gap-1 mt-1 text-muted small">
+                <div class="d-flex align-items-center justify-content-start gap-1 mt-1 text-muted small">
                   <i class="fas fa-boxes text-secondary me-1"></i>
                   <span class="small">{% trans "سعة الرزمة:" %}</span>
                   <strong class="text-secondary" id="val_sheets_per_pack">250</strong>
@@ -828,10 +831,11 @@
               <!-- 9. إجمالي تكلفة الورق -->
               <div class="col-12 col-md-4" id="wrapper_total_paper_cost">
                 <label class="form-label fw-bold">
-                  {% trans "إجمالي تكلفة الورق" %}
+                  {% trans "تكلفة الورق" %}
                 </label>
-                <div class="p-2 border rounded bg-white text-center">
-                  <strong class="text-primary fs-5 d-block" id="cover_paper_cost_display">0.00 {{ currency_symbol|default:functional_currency.symbol }}</strong>
+                <div class="form-control bg-light d-flex justify-content-between align-items-center">
+                  <span class="small text-muted">{% trans "الإجمالي:" %}</span>
+                  <strong class="text-primary fs-6" id="cover_paper_cost_display">0 {{ currency_symbol|default:functional_currency.symbol }}</strong>
                 </div>
               </div>
 

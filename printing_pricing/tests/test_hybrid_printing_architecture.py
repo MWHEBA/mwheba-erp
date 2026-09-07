@@ -585,9 +585,9 @@ class TestHybridPrintingArchitecture:
         OrderAnatomyPersistenceService.persist_order_anatomy(order_ws, post_data_ws)
         press_service_ws = order_ws.services.filter(service_name__contains='سحبات ماكينة أوفست بالتراج').first()
         assert press_service_ws is not None
-        # في 100 فرخ: raw_press = 1 تراج * 45 = 45 ج، الحساب بالتراج المباشر بدون فتحة ماكينة -> setup_cost = 0 ج
+        # في 100 فرخ وجهين مستقلين (سكتين): تراج وجه (45 ج) + تراج ظهر (45 ج) = 2 تراج = 90 ج
         assert press_service_ws.setup_cost == Decimal('0.00')
-        assert press_service_ws.total_cost == Decimal('45.00')
+        assert press_service_ws.total_cost == Decimal('90.00')
 
         # 2. وجه واحد كمية صغيرة (100 فرخ)
         order_single = PrintingOrder.objects.create(
