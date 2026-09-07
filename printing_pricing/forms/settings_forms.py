@@ -435,11 +435,11 @@ class PieceSizeForm(forms.ModelForm):
             'is_default': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
         labels = {
-            'name': _('اسم مقاس القطع'),
+            'name': _('اسم مقاس الشيت'),
             'width': _('العرض (سم)'),
             'height': _('الطول (سم)'),
             'paper_type': _('مقاس الفرخ الأساسي'),
-            'pieces_per_sheet': _('عدد القطع في الفرخ'),
+            'pieces_per_sheet': _('عدد الشيتات في الفرخ'),
             'is_active': _('نشط'),
             'is_default': _('افتراضي'),
         }

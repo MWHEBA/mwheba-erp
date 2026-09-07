@@ -958,7 +958,7 @@ class OrderCreateView(LoginRequiredMixin, CreateView):
         context['paper_sizes'] = PaperSize.objects.filter(is_active=True).order_by('name')
         context['paper_weights'] = PaperWeight.objects.filter(is_active=True).order_by('gsm')
         context['paper_origins'] = PaperOrigin.objects.filter(is_active=True).order_by('name')
-        context['piece_sizes'] = PieceSize.objects.filter(is_active=True).select_related('paper_type').order_by('name')
+        context['piece_sizes'] = PieceSize.objects.filter(is_active=True).select_related('paper_type').order_by('-is_default', 'sort_order', 'name')
         context['plate_sizes'] = PlateSize.objects.filter(is_active=True).order_by('id')
         context['coating_types'] = CoatingType.objects.filter(is_active=True).order_by('name')
         context['packaging_types'] = PackagingType.objects.filter(is_active=True).order_by('name')
@@ -1062,7 +1062,7 @@ class OrderUpdateView(LoginRequiredMixin, UpdateView):
             if piece_obj:
                 initial['piece_size'] = str(piece_obj.id)
             else:
-                initial['piece_size'] = paper_spec.piece_size or 'auto'
+                initial['piece_size'] = paper_spec.piece_size or ''
 
             initial['paper_price'] = paper_spec.sheet_cost
             initial['montage_count'] = paper_spec.montage_count
@@ -1280,7 +1280,7 @@ class OrderUpdateView(LoginRequiredMixin, UpdateView):
         context['paper_sizes'] = PaperSize.objects.filter(is_active=True).order_by('name')
         context['paper_weights'] = PaperWeight.objects.filter(is_active=True).order_by('gsm')
         context['paper_origins'] = PaperOrigin.objects.filter(is_active=True).order_by('name')
-        context['piece_sizes'] = PieceSize.objects.filter(is_active=True).select_related('paper_type').order_by('name')
+        context['piece_sizes'] = PieceSize.objects.filter(is_active=True).select_related('paper_type').order_by('-is_default', 'sort_order', 'name')
         context['plate_sizes'] = PlateSize.objects.filter(is_active=True).order_by('id')
         context['coating_types'] = CoatingType.objects.filter(is_active=True).order_by('name')
         context['packaging_types'] = PackagingType.objects.filter(is_active=True).order_by('name')

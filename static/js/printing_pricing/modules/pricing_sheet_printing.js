@@ -111,7 +111,7 @@ class PricingSheetPrintingSubsystem {
     let optionsHtml = '';
     presses.forEach((p, idx) => {
       const isSel = idx === selectedIdx ? 'selected' : '';
-      const bedSize = p.bed_size || '50x70';
+      const bedSize = p.bed_size || '';
       const stdBed = p.standard_bed_size || bedSize;
       optionsHtml += `<option value="${p.id}" data-bed="${bedSize}" data-std-bed="${stdBed}" data-rate="${p.price_per_1000 || 0}" data-floor="${p.setup_cost || 0}" data-service-id="${p.service_id}" data-set-price="${p.set_price || 0}" data-set-included-tirages="${p.set_included_tirages || 1}" data-price-date="${p.price_updated_at || ''}" data-price-age="${p.price_age_days !== undefined ? p.price_age_days : ''}" data-staleness="${p.price_staleness_status || 'fresh'}" data-valid-until="${p.price_valid_until || ''}" ${isSel}>${p.name}</option>`;
     });
@@ -449,19 +449,11 @@ class PricingSheetPrintingSubsystem {
       );
 
       self.isSyncingFields = true;
-      if (optBed) $('#id_press_bed_size').val(optBed).trigger('change');
-
-      const machineVal = $(this).val();
-      const pieceSelect = $('#id_piece_size');
-      if (machineVal === '50x70' || optBed === '50x70') {
-        const opt = pieceSelect.find('option[data-cuts="2"]');
-        if (opt.length && pieceSelect.val() !== opt.val()) pieceSelect.val(opt.val()).trigger('change.select2');
-      } else if (machineVal === '35x50' || optBed === '35x50') {
-        const opt = pieceSelect.find('option[data-cuts="4"]');
-        if (opt.length && pieceSelect.val() !== opt.val()) pieceSelect.val(opt.val()).trigger('change.select2');
-      } else if (machineVal === '70x100' || optBed === '70x100') {
-        const opt = pieceSelect.find('option[data-cuts="1"]');
-        if (opt.length && pieceSelect.val() !== opt.val()) pieceSelect.val(opt.val()).trigger('change.select2');
+      if (optBed && $('#id_press_bed_size').val() !== optBed) {
+        const matchingPlate = $('#id_press_bed_size').find(`option[value="${optBed}"], option[data-bed="${optBed}"]`);
+        if (matchingPlate.length) {
+          $('#id_press_bed_size').val(matchingPlate.val()).trigger('change');
+        }
       }
       self.isSyncingFields = false;
       self.updateSupplierDependentSections();
@@ -471,7 +463,7 @@ class PricingSheetPrintingSubsystem {
     // 2. مكتب فصل زنكات الغلاف CTP — السعر يتحدد فقط من مواصفات زنك المورد للمقاس المطلوب
     $(document).on('change select2:select', '#id_cover_ctp_supplier', function () {
       const supplierId = this.value;
-      const bedSize = $('#id_press_bed_size').val() || '50x70';
+      const bedSize = $('#id_press_bed_size').val() || $('#id_press_bed_size option:selected').data('bed') || '';
       const platePriceInput = $('#id_plate_price');
 
       // تنشيط القسم فورياً وبشكل متزامن بمجرد اختيار المورد
@@ -732,20 +724,10 @@ class PricingSheetPrintingSubsystem {
         null
       );
 
-      if (optBed) $('#id_inner_press_bed_size').val(optBed).trigger('change');
-
-      const machineVal = $(this).val();
-      const innerPieceSelect = $('#id_inner_piece_size');
-      if (innerPieceSelect.length) {
-        if (machineVal === '50x70' || optBed === '50x70') {
-          const opt = innerPieceSelect.find('option[data-cuts="2"]');
-          if (opt.length && innerPieceSelect.val() !== opt.val()) innerPieceSelect.val(opt.val()).trigger('change.select2');
-        } else if (machineVal === '35x50' || optBed === '35x50') {
-          const opt = innerPieceSelect.find('option[data-cuts="4"]');
-          if (opt.length && innerPieceSelect.val() !== opt.val()) innerPieceSelect.val(opt.val()).trigger('change.select2');
-        } else if (machineVal === '70x100' || optBed === '70x100') {
-          const opt = innerPieceSelect.find('option[data-cuts="1"]');
-          if (opt.length && innerPieceSelect.val() !== opt.val()) innerPieceSelect.val(opt.val()).trigger('change.select2');
+      if (optBed && $('#id_inner_press_bed_size').val() !== optBed) {
+        const matchingPlate = $('#id_inner_press_bed_size').find(`option[value="${optBed}"], option[data-bed="${optBed}"]`);
+        if (matchingPlate.length) {
+          $('#id_inner_press_bed_size').val(matchingPlate.val()).trigger('change');
         }
       }
       self.updateSupplierDependentSections();
@@ -755,7 +737,7 @@ class PricingSheetPrintingSubsystem {
     // 5. مكتب فصل زنكات الداخلي CTP
     $(document).on('change select2:select', '#id_inner_ctp_supplier', function () {
       const supplierId = this.value;
-      const bedSize = $('#id_inner_press_bed_size').val() || '50x70';
+      const bedSize = $('#id_inner_press_bed_size').val() || $('#id_inner_press_bed_size option:selected').data('bed') || '';
       const platePriceInput = $('#id_inner_plate_price');
 
       // تنشيط القسم فورياً وبشكل متزامن بمجرد اختيار المورد
@@ -1132,26 +1114,38 @@ class PricingSheetPrintingSubsystem {
       const plateSelect = $('#id_press_bed_size');
 
       self.isSyncingFields = true;
-      if (cuts === 2) {
-        if (plateSelect.length && plateSelect.find('option[value="50x70"]').length && plateSelect.val() !== '50x70') {
-          plateSelect.val('50x70').trigger('change.select2');
-        }
-        if (machineSelect.find('option[value="50x70"]').length && machineSelect.val() !== '50x70') {
-          machineSelect.val('50x70').trigger('change.select2');
-        }
-      } else if (cuts === 4) {
-        if (plateSelect.length && plateSelect.find('option[value="35x50"]').length && plateSelect.val() !== '35x50') {
-          plateSelect.val('35x50').trigger('change.select2');
-        }
-        if (machineSelect.find('option[value="35x50"]').length && machineSelect.val() !== '35x50') {
-          machineSelect.val('35x50').trigger('change.select2');
-        }
-      } else if (cuts === 1) {
-        if (plateSelect.length && plateSelect.find('option[value="70x100"]').length && plateSelect.val() !== '70x100') {
-          plateSelect.val('70x100').trigger('change.select2');
-        }
-        if (machineSelect.find('option[value="70x100"]').length && machineSelect.val() !== '70x100') {
-          machineSelect.val('70x100').trigger('change.select2');
+      const pW = PricingMath.parseSafeNumber(selected.data('width'), 0);
+      const pH = PricingMath.parseSafeNumber(selected.data('height'), 0);
+      if (pW && pH && plateSelect.length) {
+        const pieceMin = Math.min(pW, pH);
+        const pieceMax = Math.max(pW, pH);
+
+        let bestPlateVal = null;
+        let minAreaDiff = Infinity;
+
+        plateSelect.find('option').each(function () {
+          const $opt = $(this);
+          const optVal = $opt.val();
+          if (!optVal) return;
+          const optText = $opt.text();
+          const match = optText.match(/(\d+(?:\.\d+)?)\s*[×xX*]\s*(\d+(?:\.\d+)?)/);
+          if (match) {
+            const bW = parseFloat(match[1]);
+            const bH = parseFloat(match[2]);
+            const bedMin = Math.min(bW, bH);
+            const bedMax = Math.max(bW, bH);
+            if (bedMin >= pieceMin - 1.0 && bedMax >= pieceMax - 1.0) {
+              const diff = (bedMin * bedMax) - (pieceMin * pieceMax);
+              if (diff >= 0 && diff < minAreaDiff) {
+                minAreaDiff = diff;
+                bestPlateVal = optVal;
+              }
+            }
+          }
+        });
+
+        if (bestPlateVal && plateSelect.val() !== bestPlateVal) {
+          plateSelect.val(bestPlateVal).trigger('change.select2');
         }
       }
       self.isSyncingFields = false;
@@ -1507,23 +1501,30 @@ class PricingSheetPrintingSubsystem {
     $pieceSelect.find('option').each((idx, el) => {
       const $el = $(el);
       const val = $el.val();
-      if (val === 'auto') return;
+      if (!val || val === 'auto') return;
       this.masterPieceSizes.push({
         value: val,
         text: $el.text().trim(),
         name: $el.data('name') || '',
-        cuts: $el.data('cuts') || 1,
+        cuts: parseInt($el.data('cuts')) || 1,
         width: parseFloat($el.data('width')) || 0,
         height: parseFloat($el.data('height')) || 0,
         paperType: String($el.data('paper-type') || ''),
         paperWidth: parseFloat($el.data('paper-width')) || 0,
         paperHeight: parseFloat($el.data('paper-height')) || 0,
+        isDefault: $el.data('is-default') === true || $el.data('is-default') === 'true' || $el.attr('data-is-default') === 'true',
+        sortOrder: parseInt($el.data('sort-order')) || 0
       });
     });
   }
 
   /**
    * فلترة وتحديث خيارات مقاس القطع لتناسب حصراً مقاس الفرخ المختار
+   * مع تطبيق شجرة الاختيار الذكي المتزن (Smart Best-Fit Hierarchy)
+   */
+  /**
+   * فلترة وتحديث خيارات مقاس القطع لتناسب حصراً مقاس الفرخ المختار
+   * ديناميكي 100% استناداً إلى المقاس الافتراضي (is_default) المخصص للفرخ في قاعدة البيانات
    */
   updatePieceSizesForSheet(sheetSize, sheetSizeId, sheetW, sheetH) {
     const self = this;
@@ -1534,17 +1535,24 @@ class PricingSheetPrintingSubsystem {
 
     const currentPieceVal = $pieceSelect.val();
     const sheetIdStr = String(sheetSizeId || '');
-    const sW = parseFloat(sheetW) || 0;
-    const sH = parseFloat(sheetH) || 0;
+    let sW = parseFloat(sheetW) || 0;
+    let sH = parseFloat(sheetH) || 0;
+    if (!sW || !sH) {
+      const match = String(sheetSize).match(/(\d+(?:\.\d+)?)\s*[×xX*]\s*(\d+(?:\.\d+)?)/);
+      if (match) {
+        sW = parseFloat(match[1]);
+        sH = parseFloat(match[2]);
+      }
+    }
     const minSW = (sW > 0 && sH > 0) ? Math.min(sW, sH) : 0;
     const maxSW = (sW > 0 && sH > 0) ? Math.max(sW, sH) : 0;
 
     let matched = [];
     if (this.masterPieceSizes && this.masterPieceSizes.length > 0) {
       matched = this.masterPieceSizes.filter(item => {
-        // إذا كان مقاس قطع عام
+        // إذا كان مقاس شيت عام
         if (!item.paperType && !item.paperWidth && !item.paperHeight) return true;
-        // تطابق بالـ ID المباشر لمقاس الورق
+        // تطابق بالـ ID المباشر لمقاس الفرخ الخام
         if (sheetIdStr && item.paperType === sheetIdStr) return true;
         // تطابق بالأبعاد الهندسية المتبادلة
         if (minSW > 0 && maxSW > 0 && item.paperWidth > 0 && item.paperHeight > 0) {
@@ -1556,58 +1564,14 @@ class PricingSheetPrintingSubsystem {
       });
     }
 
-    // المولد الهندسي الاحتياطي لمقاسات القطع في حال عدم وجود سجلات مطابقة في قاعدة البيانات
-    if (matched.length === 0 && minSW > 0 && maxSW > 0) {
-      matched = [
-        {
-          value: `${Math.round(minSW)}x${Math.round(maxSW / 2)}`,
-          name: 'نصف فرخ',
-          text: `نصف فرخ (${Math.round(minSW)}×${Math.round(maxSW / 2)} سم - 2 قطعة للماكينة)`,
-          cuts: 2,
-          width: minSW,
-          height: maxSW / 2,
-        },
-        {
-          value: `${Math.round(maxSW / 2)}x${Math.round(minSW / 2)}`,
-          name: 'ربع فرخ',
-          text: `ربع فرخ (${Math.round(maxSW / 2)}×${Math.round(minSW / 2)} سم - 4 قطع للماكينة)`,
-          cuts: 4,
-          width: maxSW / 2,
-          height: minSW / 2,
-        },
-        {
-          value: `${Math.round(maxSW)}x${Math.round(minSW)}`,
-          name: 'فرخ كامل',
-          text: `فرخ كامل (${Math.round(maxSW)}×${Math.round(minSW)} سم - 1 قطعة للماكينة)`,
-          cuts: 1,
-          width: maxSW,
-          height: minSW,
-        }
-      ];
-    }
+    // ترتيب العناصر ديناميكياً بحيث يتصدر المقاس الافتراضي (is_default) ثم الترتيب (sort_order)
+    matched.sort((a, b) => {
+      if (a.isDefault && !b.isDefault) return -1;
+      if (!a.isDefault && b.isDefault) return 1;
+      return (a.sortOrder || 0) - (b.sortOrder || 0);
+    });
 
-    // تصفية مقاسات القطع الخاصة بالدفاتر (11، 9، 5) إذا لم يكن المنتج دفترياً
-    const selectEl = document.getElementById('id_order_type') || document.getElementById('id_job_anatomy_type') || document.getElementById('id_product_type');
-    const type = selectEl?.options?.[selectEl.selectedIndex]?.dataset?.archetype || selectEl?.dataset?.archetype || selectEl?.value || 'flyer';
-    const isNotebookOrAdmin = ['invoice', 'receipt', 'ncr', 'notebook', 'دفاتر'].some(t => type.toLowerCase().includes(t));
-
-    if (!isNotebookOrAdmin) {
-      matched = matched.filter(item => {
-        const cuts = parseInt(item.cuts) || 0;
-        const n = (item.name || item.text || '').toLowerCase();
-        const isIrregular = [11, 9, 5].includes(cuts) || n.includes('حداشر') || n.includes('تسعات') || n.includes('خمسات');
-        return !isIrregular;
-      });
-    }
-
-    const opts = [
-      {
-        value: 'auto',
-        text: 'تلقائي (حسب المونتاج الحر)',
-        data: { cuts: 'auto' }
-      }
-    ];
-
+    const opts = [];
     matched.forEach(item => {
       opts.push({
         value: item.value,
@@ -1619,28 +1583,34 @@ class PricingSheetPrintingSubsystem {
           height: item.height,
           'paper-type': item.paperType,
           'paper-width': item.paperWidth,
-          'paper-height': item.paperHeight
+          'paper-height': item.paperHeight,
+          'is-default': item.isDefault ? 'true' : 'false'
         }
       });
     });
 
-    const retainsCurrent = matched.some(m => String(m.value) === String(currentPieceVal));
-    const targetPiece = (currentPieceVal === 'auto' || retainsCurrent) ? currentPieceVal : 'auto';
+    // الاختيار الديناميكي النقي 100%:
+    // 1. الاحتفاظ باختيار المسعر إن كان صالحاً ضمن مقاسات الفرخ
+    // 2. اختيار المقاس الافتراضي (is_default) المحدد لهذا الفرخ في قاعدة البيانات
+    // 3. أول مقاس متاح وفق الترتيب (sort_order) كصمام أمان
+    let targetPiece = '';
+    const retainsCurrent = currentPieceVal && currentPieceVal !== 'auto' && matched.some(m => String(m.value) === String(currentPieceVal));
+
+    if (retainsCurrent) {
+      targetPiece = currentPieceVal;
+    } else {
+      const defaultItem = matched.find(m => m.isDefault);
+      targetPiece = defaultItem ? defaultItem.value : (matched[0]?.value || '');
+    }
 
     self.syncSelect2Options($pieceSelect, opts, targetPiece);
 
-    // التحقق من توافر API مقاسات القطع لجلب أي مقاسات مضافة حديثاً في قاعدة البيانات
+    // التحقق من توافر API مقاسات الشيت لجلب أي مقاسات مضافة حديثاً في قاعدة البيانات
     if (this.api) {
       this.api.getPieceSizes(sheetSize, sheetSizeId)
         .then(data => {
           if (data && data.success && data.piece_sizes && data.piece_sizes.length > 0) {
-            const apiOpts = [
-              {
-                value: 'auto',
-                text: 'تلقائي (حسب المونتاج الحر)',
-                data: { cuts: 'auto' }
-              }
-            ];
+            const apiOpts = [];
             data.piece_sizes.forEach(ps => {
               apiOpts.push({
                 value: ps.id,
@@ -1650,12 +1620,22 @@ class PricingSheetPrintingSubsystem {
                   cuts: ps.pieces_per_sheet || 1,
                   width: ps.width,
                   height: ps.height,
-                  'paper-type': ps.paper_type_id || ''
+                  'paper-type': ps.paper_type_id || '',
+                  'is-default': ps.is_default ? 'true' : 'false'
                 }
               });
             });
-            const stillValid = data.piece_sizes.some(p => String(p.id) === String($pieceSelect.val()));
-            const nextTarget = (stillValid || $pieceSelect.val() === 'auto') ? $pieceSelect.val() : 'auto';
+
+            const currentVal = $pieceSelect.val();
+            const stillValid = currentVal && currentVal !== 'auto' && data.piece_sizes.some(p => String(p.id) === String(currentVal));
+            let nextTarget = '';
+
+            if (stillValid) {
+              nextTarget = currentVal;
+            } else {
+              const def = data.piece_sizes.find(p => p.is_default);
+              nextTarget = def ? def.id : (data.piece_sizes[0]?.id || '');
+            }
             self.syncSelect2Options($pieceSelect, apiOpts, nextTarget);
           }
         })
@@ -1673,12 +1653,17 @@ class PricingSheetPrintingSubsystem {
     const paperTypeId = $('#id_paper_type').val();
     const sheetSize = $('#id_sheet_size').val();
     const sheetOpt = $('#id_sheet_size option:selected');
-    const sheetSizeId = sheetOpt.data('id') || '';
-    const sheetW = sheetOpt.data('width') || '';
-    const sheetH = sheetOpt.data('height') || '';
+    const sheetSizeId = sheetOpt.data('id') || sheetOpt.attr('data-id') || '';
+    const sheetW = sheetOpt.data('width') || sheetOpt.attr('data-width') || '';
+    const sheetH = sheetOpt.data('height') || sheetOpt.attr('data-height') || '';
 
     // تحديث مقاسات القطع المتماشية مع مقاس الفرخ
     this.updatePieceSizesForSheet(sheetSize, sheetSizeId, sheetW, sheetH);
+
+    // تحديث المعاينة الهندسية وتفصيل الفرخ لحظياً فور تغيير الاختيار
+    if (this.controller && this.controller.updateImpositionPreview) {
+      this.controller.updateImpositionPreview();
+    }
 
     // احترام اختيار المسعر اليدوي لمقاس القطع وعدم الفرض الإجباري للنصوص
     const pressMachine = $('#id_cover_press_machine').val();

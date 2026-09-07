@@ -170,3 +170,54 @@ class TestSettingsPieceSizeAndCRUD:
         digital_saved = digital_form.save()
         assert digital_saved.dimension_type == 'digital_sheet'
 
+    def test_piece_size_scoped_default_behavior(self, db):
+        """التحقق من أن حصرية الافتراضي محصورة فقط داخل نفس مقاس الفرخ الخام ولا تتعداه"""
+        paper_70_100 = PaperSize.objects.create(name='70x100', width=Decimal('70'), height=Decimal('100'))
+        paper_66_88 = PaperSize.objects.create(name='66x88', width=Decimal('66'), height=Decimal('88'))
+
+        # إنشاء مقاسين لـ 70x100
+        p1_half = PieceSize.objects.create(name='نصف فرخ', paper_type=paper_70_100, width=Decimal('50'), height=Decimal('70'), is_default=True)
+        p1_quarter = PieceSize.objects.create(name='ربع فرخ', paper_type=paper_70_100, width=Decimal('35'), height=Decimal('50'), is_default=False)
+
+        # إنشاء مقاسين لـ 66x88
+        p2_half = PieceSize.objects.create(name='نصف جاير', paper_type=paper_66_88, width=Decimal('44'), height=Decimal('66'), is_default=False)
+        p2_quarter = PieceSize.objects.create(name='ربع جاير', paper_type=paper_66_88, width=Decimal('33'), height=Decimal('44'), is_default=True)
+
+        # كلا الفرخين يمتلك مقاساً افتراضياً في نفس الوقت
+        p1_half.refresh_from_db()
+        p2_quarter.refresh_from_db()
+        assert p1_half.is_default is True
+        assert p2_quarter.is_default is True
+
+        # تبديل الافتراضي لـ 70x100 ليصبح ربع الفرخ
+        p1_quarter.is_default = True
+        p1_quarter.save()
+
+        p1_half.refresh_from_db()
+        p1_quarter.refresh_from_db()
+        p2_quarter.refresh_from_db()
+
+        # ربع الفرخ أصبح افتراضياً ونصف الفرخ تم إلغاؤه، بينما ربع الجاير لا يزال افتراضياً دون تأثر!
+        assert p1_quarter.is_default is True
+        assert p1_half.is_default is False
+        assert p2_quarter.is_default is True
+
+    def test_get_piece_sizes_api_default_ordering(self, staff_client, db):
+        """التحقق من أن API مقاسات الشيت يُرجع العنصر الافتراضي في الصدارة مع خلوه من خيار auto"""
+        paper = PaperSize.objects.create(name='فرخ كامل', width=Decimal('70'), height=Decimal('100'))
+        PieceSize.objects.create(name='نصف فرخ', paper_type=paper, width=Decimal('50'), height=Decimal('70'), pieces_per_sheet=2, is_default=False, sort_order=10)
+        PieceSize.objects.create(name='ربع فرخ', paper_type=paper, width=Decimal('35'), height=Decimal('50'), pieces_per_sheet=4, is_default=True, sort_order=20)
+
+        url = reverse('printing_pricing:api_piece_sizes') + f'?sheet_size_id={paper.id}'
+        response = staff_client.get(url)
+        assert response.status_code == 200
+        data = response.json()
+        assert data['success'] is True
+        piece_sizes = data['piece_sizes']
+        assert len(piece_sizes) >= 2
+        # العنصر الأول يجب أن يكون الافتراضي (ربع فرخ)
+        assert piece_sizes[0]['is_default'] is True
+        assert piece_sizes[0]['name'] == 'ربع فرخ'
+        # التأكد من عدم وجود أي عنصر تلقائي
+        assert not any(p['name'] == 'auto' or 'تلقائي' in p['name'] for p in piece_sizes)
+

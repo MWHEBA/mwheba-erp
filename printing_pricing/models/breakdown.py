@@ -56,7 +56,7 @@ class PaperSpecification(BaseModel):
     )
 
     PIECE_SIZE_CHOICES = [
-        ('', '-- اختر مقاس القطع --'),
+        ('', '-- اختر مقاس الشيت --'),
         ('A4', 'A4 (21×29.7 سم)'),
         ('A5', 'A5 (14.8×21 سم)'),
         ('A6', 'A6 (10.5×14.8 سم)'),
@@ -71,21 +71,21 @@ class PaperSpecification(BaseModel):
         choices=PIECE_SIZE_CHOICES,
         blank=True,
         null=True,
-        verbose_name=_("مقاس القطع")
+        verbose_name=_("مقاس الشيت")
     )
     piece_width = models.DecimalField(
         max_digits=8,
         decimal_places=2,
         null=True,
         blank=True,
-        verbose_name=_("عرض القطع (سم)")
+        verbose_name=_("عرض الشيت (سم)")
     )
     piece_height = models.DecimalField(
         max_digits=8,
         decimal_places=2,
         null=True,
         blank=True,
-        verbose_name=_("طول القطع (سم)")
+        verbose_name=_("طول الشيت (سم)")
     )
     machine_cuts = models.PositiveSmallIntegerField(
         default=1,

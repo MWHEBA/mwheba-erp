@@ -942,30 +942,29 @@
 
             <!-- شبكة حقول المونتاج المتناسقة بالعرض الكامل -->
             <div class="row g-3 align-items-center">
-              <!-- 1. مقاس القطع / تفصيل الفرخ للماكينة -->
+              <!-- 1. مقاس الشيت / تفصيل الفرخ للماكينة -->
               <div class="col-12 col-md-5" id="wrapper_piece_size">
                 <label for="id_piece_size" class="form-label fw-bold small text-muted">
-                  {% trans "مقاس القطع للماكينة" %}
+                  {% trans "مقاس الشيت للماكينة" %}
                 </label>
                 <select class="form-select select2-filter text-center fw-semibold" id="id_piece_size" name="piece_size" dir="rtl" style="width: 100%;">
-                  <option value="auto" data-cuts="auto" {% if not saved_piece_size_id and not form.piece_size.value %}selected{% endif %}>{% trans "تلقائي (حسب المونتاج الحر)" %}</option>
                   {% if piece_sizes %}
                     {% for psize in piece_sizes %}
-                      <option value="{{ psize.id }}" data-name="{{ psize.name }}" data-cuts="{{ psize.pieces_per_sheet|default:1 }}" data-width="{{ psize.width }}" data-height="{{ psize.height }}" data-paper-type="{{ psize.paper_type_id|default:'' }}" data-paper-width="{{ psize.paper_type.width|default:'' }}" data-paper-height="{{ psize.paper_type.height|default:'' }}"
-                        {% if form.piece_size.value == psize.id|stringformat:"s" or saved_piece_size_id == psize.id|stringformat:"s" or saved_piece_size_id == psize.id or saved_paper_spec.piece_size == psize.name %}selected{% endif %}>
-                        {{ psize.name }} ({% if psize.pieces_per_sheet %}{{ psize.pieces_per_sheet }} قطع بالفرخ{% else %}{{ psize.width }}×{{ psize.height }} سم{% endif %})
+                      <option value="{{ psize.id }}" data-name="{{ psize.name }}" data-cuts="{{ psize.pieces_per_sheet|default:1 }}" data-width="{{ psize.width }}" data-height="{{ psize.height }}" data-paper-type="{{ psize.paper_type_id|default:'' }}" data-paper-width="{{ psize.paper_type.width|default:'' }}" data-paper-height="{{ psize.paper_type.height|default:'' }}" data-is-default="{{ psize.is_default|yesno:'true,false' }}" data-sort-order="{{ psize.sort_order }}"
+                        {% if form.piece_size.value == psize.id|stringformat:"s" or saved_piece_size_id == psize.id|stringformat:"s" or saved_piece_size_id == psize.id or saved_paper_spec.piece_size == psize.name %}selected{% elif not saved_piece_size_id and not form.piece_size.value and psize.is_default %}selected{% endif %}>
+                        {{ psize.name }} ({% if psize.pieces_per_sheet %}{{ psize.pieces_per_sheet }} شيت بالفرخ{% else %}{{ psize.width }}×{{ psize.height }} سم{% endif %})
                       </option>
                     {% endfor %}
                   {% else %}
-                    <option value="50x70" data-cuts="2">نصف فرخ 50×70 سم (2 قطعة للماكينة)</option>
-                    <option value="35x50" data-cuts="4">ربع فرخ 35×50 سم (4 قطع للماكينة)</option>
-                    <option value="70x100" data-cuts="1">فرخ كامل 70×100 سم (1 قطعة للماكينة)</option>
+                    <option value="35x50" data-cuts="4" data-is-default="true" selected>ربع فرخ 35×50 سم (4 شيت للماكينة)</option>
+                    <option value="50x70" data-cuts="2" data-is-default="false">نصف فرخ 50×70 سم (2 شيت للماكينة)</option>
+                    <option value="70x100" data-cuts="1" data-is-default="false">فرخ كامل 70×100 سم (1 شيت للماكينة)</option>
                   {% endif %}
                 </select>
-                <small class="text-muted d-block mt-1" id="piece_size_note">{% trans "تفصيل الفرخ المتوافق مع ماكينة الطباعة" %}</small>
+                <small class="text-muted d-block mt-1" id="piece_size_note">{% trans "تفصيل الفرخ لشيتات متوافقة مع ماكينة الطباعة" %}</small>
               </div>
 
-              <!-- 2. المونتاج (عدد القطع في مقاس القطع) والـ Stepper -->
+              <!-- 2. المونتاج (عدد القطع في مقاس الشيت) والـ Stepper -->
               <div class="col-12 col-md-4" id="wrapper_montage_count">
                 <label for="id_montage_count" class="form-label fw-bold small text-muted mb-1">
                   <i class="fas fa-th-large me-1"></i>{% trans "المونتاج (عدد القطع بالشيت)" %}

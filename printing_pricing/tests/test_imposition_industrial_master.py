@@ -317,3 +317,39 @@ class TestImpositionIndustrialMaster:
         assert cover_data['press_sheet_h'] == 50.0
         assert cover_data['montage_count'] == 4
         assert cover_data['printing_type'] == 'offset'
+
+    def test_dynamic_parent_sheet_dimensions_in_engine(self):
+        """التحقق من اشتقاق أبعاد الفرخ الخام ديناميكياً لكافة المقاسات (جاير 66x88 وطبع جاير 60x85 ومقاس مخصص)"""
+        # 1. اختبار فرخ جاير 66×88
+        res_gayer = PrintingCalculationEngine.calculate({
+            'product_type': 'flyer',
+            'width': 21.0,
+            'height': 29.7,
+            'quantity': 1000,
+            'sheet_size': '66x88',
+            'piece_size': 'ربع جاير',
+            'cover_printing_type': 'offset',
+        })
+        assert res_gayer['success'] is True
+        assert res_gayer['montage']['parent_sheet_w'] == 88.0
+        assert res_gayer['montage']['parent_sheet_h'] == 66.0
+        assert res_gayer['montage']['press_sheet_w'] == 44.0
+        assert res_gayer['montage']['press_sheet_h'] == 33.0
+        assert res_gayer['montage']['machine_cuts'] == 4
+
+        # 2. اختبار مقاس فرخ مخصص عبر sheet_width و sheet_height
+        res_custom = PrintingCalculationEngine.calculate({
+            'product_type': 'flyer',
+            'width': 21.0,
+            'height': 29.7,
+            'quantity': 1000,
+            'sheet_width': 70.0,
+            'sheet_height': 90.0,
+            'sheet_size': '70x90',
+            'piece_size': 'نصف فرخ',
+            'cover_printing_type': 'offset',
+        })
+        assert res_custom['success'] is True
+        assert res_custom['montage']['parent_sheet_w'] == 70.0
+        assert res_custom['montage']['parent_sheet_h'] == 90.0
+        assert res_custom['montage']['machine_cuts'] == 2

@@ -810,9 +810,9 @@ class PieceSizeListView(LoginRequiredMixin, ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['page_title'] = _('مقاسات القطع')
+        context['page_title'] = _('مقاسات الشيت')
         context['page_icon'] = 'fas fa-cut'
-        context['page_subtitle'] = _('إدارة مقاسات القطع المتاحة')
+        context['page_subtitle'] = _('إدارة مقاسات الشيت المتاحة')
         create_url = reverse_lazy('printing_pricing:piece_size_create')
         context['header_buttons'] = [
             {
@@ -834,7 +834,7 @@ class PieceSizeListView(LoginRequiredMixin, ListView):
                 'icon': 'fas fa-cog'
             },
             {
-                'title': _('مقاسات القطع'),
+                'title': _('مقاسات الشيت'),
                 'url': '',
                 'icon': 'fas fa-cut',
                 'active': True
@@ -851,7 +851,7 @@ class PieceSizeListView(LoginRequiredMixin, ListView):
 
 
 class PieceSizeCreateView(AjaxFormMixin, LoginRequiredMixin, CreateView):
-    """عرض إنشاء مقاس قطع جديد"""
+    """عرض إنشاء مقاس شيت جديد"""
     model = PieceSize
     form_class = PieceSizeForm
     template_name = 'printing_pricing/settings/piece_size/form_modal.html'
@@ -859,15 +859,15 @@ class PieceSizeCreateView(AjaxFormMixin, LoginRequiredMixin, CreateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['title'] = _('إضافة مقاس قطع جديد')
+        context['title'] = _('إضافة مقاس شيت جديد')
         context['action_url'] = self.request.path
         return context
 
     def form_valid(self, form):
         response = super().form_valid(form)
         if self.request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return JsonResponse({'success': True, 'message': _('تم إنشاء مقاس القطع بنجاح')})
-        messages.success(self.request, _('تم إنشاء مقاس القطع بنجاح'))
+            return JsonResponse({'success': True, 'message': _('تم إنشاء مقاس الشيت بنجاح')})
+        messages.success(self.request, _('تم إنشاء مقاس الشيت بنجاح'))
         return response
 
     def form_invalid(self, form):
@@ -877,7 +877,7 @@ class PieceSizeCreateView(AjaxFormMixin, LoginRequiredMixin, CreateView):
 
 
 class PieceSizeUpdateView(AjaxFormMixin, LoginRequiredMixin, UpdateView):
-    """عرض تحديث مقاس القطع"""
+    """عرض تحديث مقاس الشيت"""
     model = PieceSize
     form_class = PieceSizeForm
     template_name = 'printing_pricing/settings/piece_size/form_modal.html'
@@ -885,15 +885,15 @@ class PieceSizeUpdateView(AjaxFormMixin, LoginRequiredMixin, UpdateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['title'] = _('تحديث مقاس القطع')
+        context['title'] = _('تحديث مقاس الشيت')
         context['action_url'] = self.request.path
         return context
 
     def form_valid(self, form):
         response = super().form_valid(form)
         if self.request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return JsonResponse({'success': True, 'message': _('تم تحديث مقاس القطع بنجاح')})
-        messages.success(self.request, _('تم تحديث مقاس القطع بنجاح'))
+            return JsonResponse({'success': True, 'message': _('تم تحديث مقاس الشيت بنجاح')})
+        messages.success(self.request, _('تم تحديث مقاس الشيت بنجاح'))
         return response
 
     def form_invalid(self, form):
@@ -903,7 +903,7 @@ class PieceSizeUpdateView(AjaxFormMixin, LoginRequiredMixin, UpdateView):
 
 
 class PieceSizeDeleteView(AjaxDeleteMixin, LoginRequiredMixin, DeleteView):
-    """عرض حذف مقاس القطع"""
+    """عرض حذف مقاس الشيت"""
     model = PieceSize
     template_name = 'printing_pricing/settings/piece_size/delete_modal.html'
     success_url = reverse_lazy('printing_pricing:piece_size_list')

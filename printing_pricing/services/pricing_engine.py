@@ -283,6 +283,8 @@ class PrintingCalculationEngine:
                     'montage_text': f"{montage} / {piece_name}",
                     'parent_sheet_yield': parent_yield,
                     'machine_cuts': machine_cuts,
+                    'parent_sheet_w': float(params.get('_resolved_parent_w', Decimal('70.0'))),
+                    'parent_sheet_h': float(params.get('_resolved_parent_h', Decimal('100.0'))),
                     'press_sheet_w': float(w_cut),
                     'press_sheet_h': float(h_cut),
                     'net_press_w': float(imposition['net_w']),
@@ -299,7 +301,11 @@ class PrintingCalculationEngine:
                     'orientation_applied': imposition['orientation'],
                     'is_work_turn_allowed': (montage >= 2),
                 },
-                'paper': paper_res,
+                'paper': {
+                    **paper_res,
+                    'parent_sheet_w': float(params.get('_resolved_parent_w', Decimal('70.0'))),
+                    'parent_sheet_h': float(params.get('_resolved_parent_h', Decimal('100.0'))),
+                },
                 'printing': printing_res,
                 'plates': plates_res,
                 'finishing': finishing_res,
@@ -381,24 +387,60 @@ class PrintingCalculationEngine:
         if piece_size_str and str(piece_size_str).strip().isdigit():
             try:
                 from ..models import PieceSize
-                ps = PieceSize.objects.filter(id=int(piece_size_str)).first()
+                ps = PieceSize.objects.filter(id=int(piece_size_str)).select_related('paper_type').first()
                 if ps and ps.width and ps.height:
                     w_cut = Decimal(str(ps.width))
                     h_cut = Decimal(str(ps.height))
                     cuts = ps.pieces_per_sheet or (4 if w_cut <= 35 and h_cut <= 50 else 2)
+                    if ps.paper_type and ps.paper_type.width and ps.paper_type.height:
+                        params['_resolved_parent_w'] = Decimal(str(ps.paper_type.width))
+                        params['_resolved_parent_h'] = Decimal(str(ps.paper_type.height))
                     return w_cut, h_cut, cuts
             except Exception:
                 pass
 
-        # 3. تحديد أبعاد الفرخ الخام القياسية بمصر
-        if '66x88' in sheet_size_str or '88x66' in sheet_size_str:
-            p_w, p_h = Decimal('88.0'), Decimal('66.0')
-        elif '60x85' in sheet_size_str or '85x60' in sheet_size_str or '60x90' in sheet_size_str or '90x60' in sheet_size_str:
-            p_w, p_h = Decimal('85.0'), Decimal('60.0')
-        elif '57x86' in sheet_size_str or '86x57' in sheet_size_str:
-            p_w, p_h = Decimal('86.0'), Decimal('57.0')
-        else:
-            p_w, p_h = Decimal('100.0'), Decimal('70.0')  # الافتراضي 70×100
+        # 3. تحديد أبعاد الفرخ الخام القياسية أو المخصصة
+        p_w = None
+        p_h = None
+        if params.get('sheet_width') and params.get('sheet_height'):
+            try:
+                p_w = Decimal(str(params['sheet_width']))
+                p_h = Decimal(str(params['sheet_height']))
+            except Exception:
+                pass
+
+        if (not p_w or not p_h) and sheet_size_str:
+            try:
+                from ..models import PaperSize
+                psz = None
+                if str(sheet_size_str).strip().isdigit():
+                    psz = PaperSize.objects.filter(id=int(sheet_size_str)).first()
+                if not psz:
+                    psz = PaperSize.objects.filter(name__iexact=str(sheet_size_str).strip()).first()
+                if not psz:
+                    psz = PaperSize.objects.filter(name__icontains=str(sheet_size_str).strip()).first()
+                if psz and psz.width and psz.height:
+                    p_w, p_h = Decimal(str(psz.width)), Decimal(str(psz.height))
+            except Exception:
+                pass
+
+        if not p_w or not p_h:
+            import re
+            m = re.search(r'(\d+(?:\.\d+)?)\s*[×xX*]\s*(\d+(?:\.\d+)?)', str(sheet_size_str))
+            if m:
+                d1, d2 = Decimal(m.group(1)), Decimal(m.group(2))
+                p_w, p_h = max(d1, d2), min(d1, d2)
+            elif 'طبع' in sheet_size_str or '60x85' in sheet_size_str or '85x60' in sheet_size_str or '60x90' in sheet_size_str or '90x60' in sheet_size_str:
+                p_w, p_h = Decimal('85.0'), Decimal('60.0')
+            elif 'جاير' in sheet_size_str or '66x88' in sheet_size_str or '88x66' in sheet_size_str:
+                p_w, p_h = Decimal('88.0'), Decimal('66.0')
+            elif '57x86' in sheet_size_str or '86x57' in sheet_size_str:
+                p_w, p_h = Decimal('86.0'), Decimal('57.0')
+            else:
+                p_w, p_h = Decimal('100.0'), Decimal('70.0')  # الافتراضي 70×100
+
+        params['_resolved_parent_w'] = p_w
+        params['_resolved_parent_h'] = p_h
 
         # 4. تحديد مقاس القطع ومعامل تفصيل الفرخ
         piece_lower = piece_size_str.lower()
@@ -422,7 +464,7 @@ class PrintingCalculationEngine:
             # ثمن الفرخ
             return (p_h / Decimal('2.0')), (p_w / Decimal('4.0')), 8
         else:
-            # الافتراضي الشائع ربع فرخ 35×50 سم (4 قطع بالفرخ)
+            # الافتراضي الشائع ربع فرخ (4 قطع بالفرخ)
             # ولكن إذا كانت أبعاد المطبوع المفتوح كبيرة لا تتسع لربع الفرخ، نختار هندسياً نصف الفرخ أو الفرخ الكامل
             prod_w = Decimal(str(params.get('open_size_width') or params.get('width') or 0))
             prod_h = Decimal(str(params.get('open_size_height') or params.get('height') or 0))

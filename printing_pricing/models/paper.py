@@ -113,7 +113,7 @@ class PieceSize(BaseLookupModel):
     width = models.DecimalField(_("العرض (سم)"), max_digits=8, decimal_places=2)
     height = models.DecimalField(_("الطول (سم)"), max_digits=8, decimal_places=2)
     pieces_per_sheet = models.PositiveIntegerField(
-        _("عدد القطع في الفرخ"),
+        _("عدد الشيتات في الفرخ"),
         blank=True,
         null=True,
         help_text=_("اتركه فارغاً للحساب التلقائي")
@@ -121,8 +121,8 @@ class PieceSize(BaseLookupModel):
 
     class Meta:
         db_table = "printing_pricing_piecesize"
-        verbose_name = _("مقاس القطع")
-        verbose_name_plural = _("مقاسات القطع")
+        verbose_name = _("مقاس الشيت")
+        verbose_name_plural = _("مقاسات الشيت")
         ordering = ["sort_order", "name"]
 
     def __str__(self):
@@ -153,11 +153,11 @@ class PieceSize(BaseLookupModel):
         return "عام"
 
     def calculate_pieces_per_sheet(self):
-        """حساب عدد القطع في الفرخ تلقائياً"""
+        """حساب عدد الشيتات في الفرخ تلقائياً"""
         if not self.paper_type or not self.paper_type.width or not self.paper_type.height:
             return self.pieces_per_sheet
         
-        # حساب عدد القطع بناءً على الأبعاد
+        # حساب عدد الشيتات بناءً على الأبعاد
         pieces_width = int(self.paper_type.width // self.width)
         pieces_height = int(self.paper_type.height // self.height)
         
@@ -170,13 +170,27 @@ class PieceSize(BaseLookupModel):
         
         return max(normal_pieces, rotated_pieces)
 
+    def save(self, *args, **kwargs):
+        """
+        حفظ مقاس الشيت مع تخصيص حصرية العنصر الافتراضي لكل مقاس فرخ أساسي (paper_type)
+        بحيث يمتلك كل مقاس فرخ خام مقاس شيت افتراضي خاص به دون تعارض على مستوى كامل الجدول
+        """
+        super(BaseLookupModel, self).save(*args, **kwargs)
+        if self.is_default and self.pk:
+            qs = PieceSize.objects.filter(is_default=True).exclude(pk=self.pk)
+            if self.paper_type_id:
+                qs = qs.filter(paper_type_id=self.paper_type_id)
+            else:
+                qs = qs.filter(paper_type__isnull=True)
+            qs.update(is_default=False)
+
     def get_pieces_per_sheet_display(self):
-        """عرض عدد القطع في الفرخ"""
+        """عرض عدد الشيتات في الفرخ"""
         if self.pieces_per_sheet:
-            return f"{self.pieces_per_sheet} قطعة"
+            return f"{self.pieces_per_sheet} شيت"
         calculated = self.calculate_pieces_per_sheet()
         if calculated:
-            return f"{calculated} قطعة (محسوب)"
+            return f"{calculated} شيت (محسوب)"
         return "غير محدد"
 
 

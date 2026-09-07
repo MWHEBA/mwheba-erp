@@ -5,7 +5,7 @@
 <div class="modal-header bg-light border-bottom px-4 py-3">
     <h5 class="modal-title fw-bold text-dark mb-0">
         <i class="fas fa-cut text-primary me-2"></i>
-        {{ title|default:_("مقاس القطع") }}
+        {{ title|default:_("مقاس الشيت") }}
     </h5>
     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{% trans 'إغلاق' %}"></button>
 </div>
@@ -52,7 +52,7 @@
             </label>
             {{ form.paper_type }}
             <small class="form-text text-muted d-block mt-1">
-                {% trans "اختر مقاس الفرخ الأساسي الذي سيتم تفصيل وقص القطع منه" %}
+                {% trans "اختر مقاس الفرخ الأساسي الذي سيتم تفصيل وقص الشيتات منه" %}
             </small>
             {% if form.paper_type.errors %}
                 <div class="invalid-feedback d-block">{{ form.paper_type.errors.0 }}</div>
@@ -63,7 +63,7 @@
             <label for="{{ form.pieces_per_sheet.id_for_label }}" class="form-label fw-semibold text-dark">{{ form.pieces_per_sheet.label }}</label>
             <div class="input-group">
                 {{ form.pieces_per_sheet }}
-                <span class="input-group-text bg-light text-muted">{% trans "قطعة / فرخ" %}</span>
+                <span class="input-group-text bg-light text-muted">{% trans "شيت / فرخ" %}</span>
                 <button type="button" class="btn btn-outline-primary px-3" id="calculatePiecesBtn" title="{% trans 'حساب تلقائي رياضي نقي' %}" onclick="calculatePiecesAuto()">
                     <i class="fas fa-calculator me-1"></i> {% trans "حساب الاستغلال" %}
                 </button>
@@ -88,7 +88,7 @@
                     {{ form.is_default }}
                     <label class="form-check-label fw-semibold" for="{{ form.is_default.id_for_label }}">{{ form.is_default.label }}</label>
                 </div>
-                <small class="form-text text-muted">{% trans "سيتم إلغاء الافتراضي من المقاسات الأخرى تلقائياً" %}</small>
+                <small class="form-text text-muted">{% trans "سيتم تعيين هذا المقاس كافتراضي لمقاس الفرخ الخام المختار فقط" %}</small>
             </div>
         </div>
     </div>
@@ -125,7 +125,7 @@ function calculatePiecesAuto() {
     const pieceH = parseFloat(heightInput.value);
     
     if (!pieceW || !pieceH || pieceW <= 0 || pieceH <= 0) {
-        SettingsCRUD.notify('يرجى إدخال أبعاد القطعة (العرض والارتفاع) بشكل صحيح', 'warning');
+        SettingsCRUD.notify('يرجى إدخال أبعاد الشيت (العرض والارتفاع) بشكل صحيح', 'warning');
         return;
     }
     

@@ -624,19 +624,28 @@ class OrderFormUIController {
       $('#id_montage_count').val('');
       $('#manual_montage_indicator').addClass('d-none');
 
-      self.updateImpositionPreview();
-      self.debouncedRecalculate();
+      self.updateImpositionPreview(self.lastServerPayload);
+      self.debouncedRecalculate(50);
     });
 
-    // تفاعل مودال التكبير للمعاينة الموسعة
+    // تفاعل مودال التكبير للمعاينة الموسعة (شاشة كاملة حقيقية 100% Fullscreen)
     $('#modal_imposition_zoom').on('shown.bs.modal', function () {
       const zoomBox = document.getElementById('imposition_zoom_container');
-      const pressBox = document.getElementById('press_sheet_visualizer_container');
-      if (zoomBox && pressBox) {
-        zoomBox.innerHTML = pressBox.innerHTML;
+      const isShearingActive = $('#tab-shearing-map').hasClass('active');
+      const sourceBox = isShearingActive
+        ? document.getElementById('shearing_map_visualizer_container')
+        : document.getElementById('press_sheet_visualizer_container');
+
+      if (zoomBox && sourceBox) {
+        zoomBox.innerHTML = sourceBox.innerHTML;
         const svg = zoomBox.querySelector('svg');
         if (svg) {
-          svg.style.maxHeight = '65vh';
+          svg.style.maxWidth = '100%';
+          svg.style.width = '100%';
+          svg.style.height = 'calc(100vh - 145px)';
+          svg.style.maxHeight = 'calc(100vh - 145px)';
+          svg.style.display = 'block';
+          svg.style.margin = '0 auto';
         }
       }
     });
@@ -2565,13 +2574,20 @@ class OrderFormUIController {
       formData.set('zinc_plates_count', pTotal);
       formData.set('plates_total', pTotal);
     }
+    const sheetOpt = $('#id_sheet_size option:selected');
+    const sW = sheetOpt.data('width') || sheetOpt.attr('data-width');
+    const sH = sheetOpt.data('height') || sheetOpt.attr('data-height');
+    if (sW && sH) {
+      formData.set('sheet_width', sW);
+      formData.set('sheet_height', sH);
+    }
+
     const pieceSizeSelect = $('#id_piece_size');
     const selectedPieceOpt = pieceSizeSelect.find('option:selected');
     const pieceVal = pieceSizeSelect.val();
 
     if (pieceVal && pieceVal !== 'auto') {
       formData.set('piece_size', pieceVal);
-      const optName = selectedPieceOpt.data('name') || selectedPieceOpt.text() || '';
       const optCuts = selectedPieceOpt.data('cuts');
       const optW = selectedPieceOpt.data('width');
       const optH = selectedPieceOpt.data('height');
@@ -2586,8 +2602,8 @@ class OrderFormUIController {
       formData.set('piece_size_name', this.getCleanPieceName());
     } else {
       const pressBedEl = document.getElementById('id_press_bed_size') || document.getElementById('id_cover_press_machine');
-      const bedVal = (pressBedEl && pressBedEl.value) ? pressBedEl.value : '35x50';
-      formData.set('piece_size', bedVal);
+      const bedVal = (pressBedEl && pressBedEl.value) ? pressBedEl.value : '';
+      if (bedVal) formData.set('piece_size', bedVal);
       formData.set('piece_size_name', this.getCleanPieceName());
     }
 
@@ -2885,45 +2901,10 @@ class OrderFormUIController {
   getCleanPieceName() {
     const pieceOpt = $('#id_piece_size option:selected');
     let name = pieceOpt.data('name') || pieceOpt.text() || '';
-    if (name && !name.includes('تلقائي') && pieceOpt.val() !== 'auto') {
-      name = name.replace(/\(.*?\)/g, '').trim();
-      if (name.endsWith(' فرخ') && !name.includes('جاير')) {
-        name = name.replace(/ فرخ$/, '').trim();
-      }
-      if (name === 'فرخ كامل') name = 'فرخ';
-      return name;
+    if (name) {
+      return name.replace(/\(.*?\)/g, '').trim();
     }
-
-    // اشتقاق المسمى تلقائياً من مقاس الفرخ والماكينة
-    const sheetOpt = $('#id_sheet_size option:selected');
-    const sheetText = (sheetOpt.val() || sheetOpt.text() || '').toLowerCase();
-    const isTabaGayer = sheetText.includes('60x85') || sheetText.includes('85x60') || sheetText.includes('طبع جاير');
-    const isGayer = sheetText.includes('66x88') || sheetText.includes('88x66') || sheetText.includes('جاير');
-
-    let machineCuts = PricingMath.parseSafeNumber(pieceOpt.data('cuts'), 0);
-    if (machineCuts <= 0) {
-      const pressBed = $('#id_cover_press_machine').val() || $('#id_press_bed_size').val() || '35x50';
-      if (pressBed === '50x70') machineCuts = 2;
-      else if (pressBed === '70x100') machineCuts = 1;
-      else machineCuts = 4; // الافتراضي ربع فرخ
-    }
-
-    if (machineCuts === 4) {
-      if (isTabaGayer) return 'ربع طبع جاير';
-      if (isGayer) return 'ربع جاير';
-      return 'ربع';
-    } else if (machineCuts === 2) {
-      if (isTabaGayer) return 'نصف طبع جاير';
-      if (isGayer) return 'نصف جاير';
-      return 'نصف';
-    } else if (machineCuts === 1) {
-      if (isTabaGayer) return 'فرخ طبع جاير';
-      if (isGayer) return 'فرخ جاير';
-      return 'فرخ';
-    } else if (machineCuts === 8) {
-      return 'ثمن';
-    }
-    return `${machineCuts} قطعات`;
+    return '';
   }
 
   /**
@@ -3004,37 +2985,60 @@ class OrderFormUIController {
     const shearBox = document.getElementById('shearing_map_visualizer_container');
     if (!pressBox) return;
 
-    // استخراج أبعاد المطبوع المفتوحة
-    const openW = data?.dimensions?.open_width || PricingMath.parseSafeNumber($('#id_width').val(), 21);
-    const openH = data?.dimensions?.open_height || PricingMath.parseSafeNumber($('#id_height').val(), 29.7);
+    const payload = data || this.lastServerPayload;
 
-    // أبعاد شيت الماكينة
-    let pressW = data?.montage?.press_sheet_w;
-    let pressH = data?.montage?.press_sheet_h;
-    if (!pressW || !pressH) {
-      const pieceSelect = $('#id_piece_size');
-      const selectedPieceText = pieceSelect.find('option:selected').text();
-      const match = selectedPieceText.match(/(\d+(?:\.\d+)?)\s*[×xX]\s*(\d+(?:\.\d+)?)/);
+    // استخراج أبعاد المطبوع المفتوحة
+    const openW = payload?.dimensions?.open_width || PricingMath.parseSafeNumber($('#id_width').val(), 21);
+    const openH = payload?.dimensions?.open_height || PricingMath.parseSafeNumber($('#id_height').val(), 29.7);
+
+    // استخراج أبعاد الفرخ الخام بشكل ديناميكي كامل
+    const sheetOpt = $('#id_sheet_size option:selected');
+    let parentW = PricingMath.parseSafeNumber(sheetOpt.data('width') || sheetOpt.attr('data-width'), 0);
+    let parentH = PricingMath.parseSafeNumber(sheetOpt.data('height') || sheetOpt.attr('data-height'), 0);
+
+    const sheetText = String(sheetOpt.text() || sheetOpt.val() || $('#id_sheet_size').val() || '');
+    if (!parentW || !parentH) {
+      const match = sheetText.match(/(\d+(?:\.\d+)?)\s*[×xX*]\s*(\d+(?:\.\d+)?)/);
       if (match) {
-        pressW = parseFloat(match[1]);
-        pressH = parseFloat(match[2]);
-      } else {
-        pressW = 35.0;
-        pressH = 50.0;
+        parentW = parseFloat(match[1]);
+        parentH = parseFloat(match[2]);
       }
     }
 
-    // أبعاد الفرخ الخام
-    let parentW = 70.0;
-    let parentH = 100.0;
-    const sheetSizeVal = String($('#id_sheet_size').val() || '');
-    if (sheetSizeVal.includes('66x88') || sheetSizeVal.includes('88x66')) {
-      parentW = 66.0; parentH = 88.0;
-    } else if (sheetSizeVal.includes('60x85') || sheetSizeVal.includes('85x60')) {
-      parentW = 60.0; parentH = 85.0;
+    if (!parentW || !parentH) {
+      parentW = payload?.montage?.parent_sheet_w || payload?.paper?.parent_sheet_w || 0;
+      parentH = payload?.montage?.parent_sheet_h || payload?.paper?.parent_sheet_h || 0;
     }
 
-    const machineCuts = data?.montage?.machine_cuts || 4;
+    // استخراج أبعاد شيت الماكينة (مقاس القطع) بشكل ديناميكي كامل
+    const pieceOpt = $('#id_piece_size option:selected');
+    let pressW = PricingMath.parseSafeNumber(pieceOpt.data('width') || pieceOpt.attr('data-width'), 0);
+    let pressH = PricingMath.parseSafeNumber(pieceOpt.data('height') || pieceOpt.attr('data-height'), 0);
+
+    if (!pressW || !pressH) {
+      pressW = PricingMath.parseSafeNumber($('#id_piece_width').val(), 0);
+      pressH = PricingMath.parseSafeNumber($('#id_piece_height').val(), 0);
+    }
+
+    if (!pressW || !pressH) {
+      pressW = payload?.montage?.press_sheet_w || 0;
+      pressH = payload?.montage?.press_sheet_h || 0;
+    }
+
+    if (!pressW || !pressH) {
+      const pieceText = String(pieceOpt.text() || pieceOpt.val() || '');
+      const match = pieceText.match(/(\d+(?:\.\d+)?)\s*[×xX*]\s*(\d+(?:\.\d+)?)/);
+      if (match) {
+        pressW = parseFloat(match[1]);
+        pressH = parseFloat(match[2]);
+      }
+    }
+
+    // استخراج معامل تفصيل الفرخ للماكينة (عدد الشيتات بالفرخ)
+    let machineCuts = PricingMath.parseSafeNumber(pieceOpt.data('cuts') || pieceOpt.attr('data-cuts'), 0);
+    if (!machineCuts) {
+      machineCuts = payload?.montage?.machine_cuts || parseInt($('#id_machine_cuts').val(), 10) || 0;
+    }
     const montageCount = this.isManualMontage ? (parseInt($('#id_montage_count').val(), 10) || null) : null;
     const printingType = $('#id_cover_printing_type').val() || 'offset';
     const productType = this.currentArchetype || 'flyer';
@@ -3069,6 +3073,10 @@ class OrderFormUIController {
     ImpositionVisualizer.renderPressSheet(pressBox, opts);
 
     if (shearBox) {
+      const activeMontageCount = (montageCount !== null && montageCount > 0)
+        ? montageCount
+        : (payload?.montage?.montage_count || (pressW && pressH ? PricingMath.calcImposition(pressW, pressH, openW, openH, printingType, orientation).cutsPerSheet : 1));
+
       ImpositionVisualizer.renderShearingMap(shearBox, {
         parentW: parentW,
         parentH: parentH,
@@ -3076,7 +3084,7 @@ class OrderFormUIController {
         pieceH: pressH,
         machineCuts: machineCuts,
         paperSource: paperSource,
-        cutsPerSheet: montageCount
+        cutsPerSheet: activeMontageCount
       });
     }
 
@@ -3091,7 +3099,7 @@ class OrderFormUIController {
         pressSheetH: pressH,
         openW: innerW,
         openH: innerH,
-        montageCount: Math.min(montageCount, 4),
+        montageCount: montageCount || null,
         printingType: innerPressType,
         productType: 'flyer',
         sidesMode: $('#id_inner_print_sides_mode').val() || 'work_sheet',

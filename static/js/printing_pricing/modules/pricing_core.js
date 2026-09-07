@@ -32,6 +32,15 @@ const PricingMath = {
   },
 
   /**
+   * تنسيق المقاسات الهندسية (إزالة الأصفار الزائدة والعلامة العشرية للأرقام الصحيحة)
+   */
+  formatDimension(val) {
+    if (val === undefined || val === null || val === '') return '0';
+    const num = parseFloat(Number(val).toFixed(2));
+    return isNaN(num) ? '0' : String(num);
+  },
+
+  /**
    * تسوية ومطابقة النصوص العربية وإزالة الهمزات والتشكيل والتاء المربوطة
    */
   normalizeArabic(text) {

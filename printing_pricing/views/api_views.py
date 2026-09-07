@@ -800,18 +800,30 @@ class GetPaperSheetTypesAPIView(BaseAPIView):
             sheet_types_data = []
             if available_sheet_names:
                 for s_name in sorted(available_sheet_names):
-                    matched_size = None
-                    import re
-                    dims = re.findall(r'\d+', s_name)
-                    if len(dims) >= 2:
-                        d1, d2 = float(dims[0]), float(dims[1])
-                        matched_size = all_sizes.filter(
-                            models.Q(width=d1, height=d2) | models.Q(width=d2, height=d1)
-                        ).first()
+                    matched_size = all_sizes.filter(name__iexact=s_name.strip()).first()
+                    if not matched_size:
+                        matched_size = all_sizes.filter(name__icontains=s_name.strip()).first()
+                    if not matched_size:
+                        import re
+                        dims = re.findall(r'\d+', s_name)
+                        if len(dims) >= 2:
+                            d1, d2 = float(dims[0]), float(dims[1])
+                            matched_size = all_sizes.filter(
+                                models.Q(width=d1, height=d2) | models.Q(width=d2, height=d1)
+                            ).first()
 
-                    w = float(matched_size.width) if matched_size else 70.0
-                    h = float(matched_size.height) if matched_size else 100.0
-                    disp_name = matched_size.name if matched_size else s_name
+                    if matched_size:
+                        w = float(matched_size.width)
+                        h = float(matched_size.height)
+                        disp_name = matched_size.name
+                    else:
+                        if 'طبع' in s_name or '85' in s_name or '60' in s_name:
+                            w, h = 60.0, 85.0
+                        elif 'جاير' in s_name or '66' in s_name or '88' in s_name:
+                            w, h = 66.0, 88.0
+                        else:
+                            w, h = 70.0, 100.0
+                        disp_name = s_name
 
                     sheet_types_data.append({
                         'id': matched_size.id if matched_size else s_name,
@@ -1191,8 +1203,8 @@ class GetPieceSizesAPIView(BaseAPIView):
                         models.Q(paper_type__isnull=True)
                     )
             
-            # ترتيب النتائج
-            piece_sizes = piece_sizes.order_by('pieces_per_sheet', 'name')
+            # ترتيب النتائج بحيث تتصدر المقاسات الافتراضية أولاً ثم الترتيب والقطع
+            piece_sizes = piece_sizes.order_by('-is_default', 'sort_order', 'pieces_per_sheet', 'name')
             
             # تنسيق الأرقام
             def format_number(value):
@@ -1213,7 +1225,7 @@ class GetPieceSizesAPIView(BaseAPIView):
 
                 width_formatted = format_number(piece_size.width)
                 height_formatted = format_number(piece_size.height)
-                cuts_text = f"{piece_size.pieces_per_sheet} قطع بالفرخ" if piece_size.pieces_per_sheet else f"{width_formatted}×{height_formatted} سم"
+                cuts_text = f"{piece_size.pieces_per_sheet} شيت بالفرخ" if piece_size.pieces_per_sheet else f"{width_formatted}×{height_formatted} سم"
                 
                 piece_sizes_data.append({
                     'id': piece_size.id,
@@ -1256,7 +1268,7 @@ class GetPieceSizesAPIView(BaseAPIView):
                 for idx, div in enumerate(standard_divisions, start=99000):
                     w_fmt = format_number(div['w'])
                     h_fmt = format_number(div['h'])
-                    cuts_txt = f"{div['cuts']} قطع بالفرخ"
+                    cuts_txt = f"{div['cuts']} شيت بالفرخ"
                     piece_sizes_data.append({
                         'id': idx,
                         'name': div['name'],
@@ -1268,7 +1280,7 @@ class GetPieceSizesAPIView(BaseAPIView):
                         'paper_type': str(paper_sheet_type or f"{sw}×{sh}"),
                         'paper_type_id': sheet_size_id,
                         'pieces_per_sheet': div['cuts'],
-                        'pieces_per_sheet_display': f"{div['cuts']} قطع بالفرخ",
+                        'pieces_per_sheet_display': f"{div['cuts']} شيت بالفرخ",
                         'is_default': (div['cuts'] == 4)
                     })
             

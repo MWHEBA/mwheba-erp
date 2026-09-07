@@ -259,7 +259,7 @@ class PricingOrderForm(forms.ModelForm):
     )
 
     piece_size = forms.CharField(
-        label=_("مقاس القطع"),
+        label=_("مقاس الشيت"),
         required=False,
         widget=forms.Select(attrs={"class": "form-control"}),
     )

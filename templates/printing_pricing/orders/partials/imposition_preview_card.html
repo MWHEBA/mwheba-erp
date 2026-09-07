@@ -1,17 +1,61 @@
 {% load i18n %}
 <!-- كارت المعاينة المرئية للمونتاج والتفريد الصناعي -->
+<style>
+  #impositionTabs .nav-link {
+    color: var(--secondary-color, #6c757d);
+    background-color: transparent;
+    border-radius: var(--border-radius, 6px);
+    transition: all 0.2s ease-in-out;
+  }
+  #impositionTabs .nav-link i {
+    color: inherit;
+    transition: color 0.2s ease-in-out;
+  }
+  #impositionTabs .nav-link:hover,
+  #impositionTabs .nav-link:focus {
+    color: var(--white, #ffffff) !important;
+    background-color: var(--primary-color, #04578d) !important;
+  }
+  #impositionTabs .nav-link:hover i,
+  #impositionTabs .nav-link:focus i {
+    color: var(--white, #ffffff) !important;
+  }
+  #impositionTabs .nav-link.active {
+    color: var(--white, #ffffff) !important;
+    background-color: var(--primary-color, #04578d) !important;
+  }
+  #impositionTabs .nav-link.active i {
+    color: var(--white, #ffffff) !important;
+  }
+  #imposition_orientation_group .btn:hover,
+  #imposition_orientation_group .btn:focus,
+  #imposition_orientation_group .btn.active,
+  #btn_zoom_imposition:hover,
+  #btn_zoom_imposition:focus {
+    color: var(--white, #ffffff) !important;
+    background-color: var(--primary-color, #04578d) !important;
+    border-color: var(--primary-color, #04578d) !important;
+  }
+  #imposition_orientation_group .btn:hover i,
+  #imposition_orientation_group .btn:focus i,
+  #imposition_orientation_group .btn.active i,
+  #btn_zoom_imposition:hover i,
+  #btn_zoom_imposition:focus i {
+    color: var(--white, #ffffff) !important;
+  }
+</style>
 <div class="card border shadow-sm mb-4" id="imposition_preview_card" style="border-color: var(--border-color, #dee2e6) !important;">
   <div class="card-header bg-light d-flex flex-wrap align-items-center justify-content-between px-3 py-2 border-bottom">
     <!-- تبويبات العرض -->
     <ul class="nav nav-pills card-header-pills gap-1" id="impositionTabs" role="tablist">
       <li class="nav-item" role="presentation">
         <button class="nav-link active btn-sm px-3 py-1 fw-bold" id="tab-press-sheet" data-bs-toggle="pill" data-bs-target="#pane-press-sheet" type="button" role="tab">
-          <i class="fas fa-th-large me-1 text-primary"></i> {% trans "شيت الماكينة (المونتاج)" %}
+          <i class="fas fa-th-large me-1"></i> {% trans "شيت الماكينة (المونتاج)" %}
         </button>
       </li>
       <li class="nav-item" role="presentation">
-        <button class="nav-link btn-sm px-3 py-1 fw-bold text-secondary" id="tab-shearing-map" data-bs-toggle="pill" data-bs-target="#pane-shearing-map" type="button" role="tab">
-          <i class="fas fa-cut me-1 text-secondary"></i> {% trans "تفصيل الفرخ الخام (المقصدار)" %}
+        <button class="nav-link btn-sm px-3 py-1 fw-bold" id="tab-shearing-map" data-bs-toggle="pill" data-bs-target="#pane-shearing-map" type="button" role="tab">
+          <i class="fas fa-cut me-1"></i> {% trans "تفصيل الفرخ الخام (المقصدار)" %}
         </button>
       </li>
     </ul>
@@ -51,7 +95,7 @@
 
       <!-- 2. تفصيل الفرخ الخام -->
       <div class="tab-pane fade" id="pane-shearing-map" role="tabpanel">
-        <div id="shearing_map_visualizer_container" class="position-relative d-flex align-items-center justify-content-center p-2 rounded" style="background-color: var(--card-bg, #ffffff); min-height: 280px; width: 100%; border: 1px solid var(--border-color, #dee2e6);">
+        <div id="shearing_map_visualizer_container" class="position-relative d-flex flex-column align-items-center justify-content-center p-2 rounded" style="background-color: var(--card-bg, #ffffff); min-height: 280px; width: 100%; border: 1px solid var(--border-color, #dee2e6);">
           <!-- يتم حقن SVG لتفصيل الفرخ الخام -->
         </div>
       </div>
@@ -59,25 +103,30 @@
   </div>
 </div>
 
-<!-- مودال التكبير للعرض التفصيلي الشامل -->
+<!-- مودال التكبير للعرض التفصيلي الشامل (شاشة كاملة حقيقية Fullscreen) -->
 <div class="modal fade" id="modal_imposition_zoom" tabindex="-1" aria-labelledby="modalImpositionZoomLabel" aria-hidden="true">
-  <div class="modal-dialog modal-xl modal-dialog-centered">
-    <div class="modal-content border-0 shadow-lg">
+  <div class="modal-dialog modal-fullscreen">
+    <div class="modal-content border-0">
       <div class="modal-header bg-light border-bottom px-4 py-3">
-        <h5 class="modal-title fw-bold text-dark mb-0" id="modalImpositionZoomLabel">
-          <i class="fas fa-search-plus text-primary me-2"></i> {% trans "المعاينة الهندسية الموسعة للمونتاج وتفريد الورق" %}
-        </h5>
+        <div class="d-flex align-items-center gap-2">
+          <h5 class="modal-title fw-bold text-dark mb-0" id="modalImpositionZoomLabel">
+            <i class="fas fa-search-plus text-primary me-2"></i>{% trans "المعاينة الهندسية الموسعة للمونتاج وتفريد الورق" %}
+          </h5>
+          <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1 small">
+            <i class="fas fa-expand-arrows-alt me-1"></i>{% trans "شاشة كاملة" %}
+          </span>
+        </div>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{% trans 'إغلاق' %}"></button>
       </div>
-      <div class="modal-body p-4 text-center" id="imposition_zoom_container">
-        <!-- نسخة مكبرة تفاعلية للـ SVG -->
+      <div class="modal-body p-2 d-flex align-items-center justify-content-center" id="imposition_zoom_container" style="background-color: var(--gray-100, #f8f9fa); min-height: calc(100vh - 130px); overflow: hidden;">
+        <!-- نسخة مكبرة تفاعلية للـ SVG تمتد لكامل الشاشة -->
       </div>
-      <div class="modal-footer bg-light border-top px-4 py-2 d-flex justify-content-between">
+      <div class="modal-footer bg-light border-top px-4 py-2 d-flex justify-content-between align-items-center">
         <span class="small text-muted">
-          <i class="fas fa-info-circle me-1 text-primary"></i> {% trans "نظام إحداثيات متري نقي بمقياس رسم 1:1 مليمتر، يوضح مواضع البنسة والدوبل تكسير وتفصيل المقصدار" %}
+          <i class="fas fa-info-circle me-1 text-primary"></i>{% trans "نظام إحداثيات متري نقي بمقياس رسم 1:1 مليمتر، يوضح مواضع البنسة والدوبل تكسير وتفصيل المقصدار" %}
         </span>
-        <button type="button" class="btn btn-secondary btn-sm px-4" data-bs-dismiss="modal">
-          {% trans "إغلاق" %}
+        <button type="button" class="btn btn-secondary btn-sm px-4 fw-bold" data-bs-dismiss="modal">
+          <i class="fas fa-times me-1"></i>{% trans "إغلاق" %}
         </button>
       </div>
     </div>

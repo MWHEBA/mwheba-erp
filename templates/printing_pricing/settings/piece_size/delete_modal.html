@@ -3,7 +3,7 @@
 <div class="modal-header bg-light border-bottom px-4 py-3">
     <h5 class="modal-title fw-bold text-dark mb-0">
         <i class="fas fa-exclamation-triangle text-danger me-2"></i>
-        {% trans "تأكيد حذف مقاس القطع" %}
+        {% trans "تأكيد حذف مقاس الشيت" %}
     </h5>
     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{% trans 'إغلاق' %}"></button>
 </div>
@@ -11,7 +11,7 @@
 <form method="post" action="{{ action_url }}" onsubmit="event.preventDefault(); return SettingsCRUD.submitDelete('{{ action_url }}', this, document.getElementById('deleteModal'));">
     <div class="modal-body p-4">
         {% csrf_token %}
-        <p class="text-secondary mb-2">{% trans "هل أنت متأكد من رغبتك في حذف مقاس القطع التالي؟" %}</p>
+        <p class="text-secondary mb-2">{% trans "هل أنت متأكد من رغبتك في حذف مقاس الشيت التالي؟" %}</p>
         <div class="alert alert-light border py-2 px-3 fw-bold text-dark">
             <i class="fas fa-cut text-primary me-2"></i>
             {{ object.name }} ({{ object.width }}×{{ object.height }} سم)

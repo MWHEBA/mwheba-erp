@@ -43,6 +43,17 @@ const ImpositionVisualizer = (function() {
   }
 
   /**
+   * تنسيق المقاسات الهندسية (إزالة الأصفار الزائدة والعلامة العشرية للأرقام الصحيحة)
+   */
+  function formatDimension(val) {
+    if (typeof PricingMath !== 'undefined' && typeof PricingMath.formatDimension === 'function') {
+      return PricingMath.formatDimension(val);
+    }
+    const num = parseFloat(Number(val).toFixed(2));
+    return isNaN(num) ? '0' : String(num);
+  }
+
+  /**
    * رسم شيت الانتظار التجريدي (Skeleton Guard)
    */
   function renderSkeleton(container, message = 'بانتظار اكتمال بيانات المقاس والتفصيل...') {
@@ -63,6 +74,84 @@ const ImpositionVisualizer = (function() {
     wrapper.appendChild(icon);
     wrapper.appendChild(text);
     container.appendChild(wrapper);
+  }
+
+  /**
+   * رسم خط بُعد هندسي أنيق بمؤشرات نهايات القياس والتسمية (CAD Dimension Line)
+   */
+  function createDimensionLine(x1, y1, x2, y2, labelText, isVertical = false, color = 'var(--secondary, #6c757d)', textColor = 'var(--dark, #212529)', fontSize = 14, hasBg = true) {
+    const g = createSvgEl('g', { class: 'cad-dimension-line' });
+
+    // نهايات القياس على الطرفين (Ticks)
+    const tickLen = 3.5;
+    if (isVertical) {
+      const tick1 = createSvgEl('line', { x1: x1 - tickLen, y1: y1, x2: x1 + tickLen, y2: y1, stroke: color, 'stroke-width': 0.8 });
+      const tick2 = createSvgEl('line', { x1: x2 - tickLen, y1: y2, x2: x2 + tickLen, y2: y2, stroke: color, 'stroke-width': 0.8 });
+      g.appendChild(tick1);
+      g.appendChild(tick2);
+    } else {
+      const tick1 = createSvgEl('line', { x1: x1, y1: y1 - tickLen, x2: x1, y2: y1 + tickLen, stroke: color, 'stroke-width': 0.8 });
+      const tick2 = createSvgEl('line', { x1: x2, y1: y2 - tickLen, x2: x2, y2: y2 + tickLen, stroke: color, 'stroke-width': 0.8 });
+      g.appendChild(tick1);
+      g.appendChild(tick2);
+    }
+
+    // المنتصف
+    const midX = (x1 + x2) / 2;
+    const midY = (y1 + y2) / 2;
+
+    const textLen = String(labelText).length;
+    const gapW = Math.max(26, textLen * (fontSize * 0.58) + 8);
+    const lineLen = Math.abs(isVertical ? (y2 - y1) : (x2 - x1));
+    const safeGapW = lineLen > 20 ? Math.min(gapW, lineLen - 6) : gapW;
+
+    if (hasBg) {
+      // خط متصل مع خلفية بيضاء حامية للنص
+      const line = createSvgEl('line', { x1, y1, x2, y2, stroke: color, 'stroke-width': 0.8 });
+      g.appendChild(line);
+
+      const boxW = safeGapW + 4;
+      const boxH = fontSize + 5;
+      const bgRect = createSvgEl('rect', {
+        x: isVertical ? midX - (boxH / 2) : midX - (boxW / 2),
+        y: isVertical ? midY - (boxW / 2) : midY - (boxH / 2),
+        width: isVertical ? boxH : boxW,
+        height: isVertical ? boxW : boxH,
+        fill: 'var(--card-bg, #ffffff)',
+        rx: 2
+      });
+      g.appendChild(bgRect);
+    } else {
+      // خط مقطوع بنقاء CAD هندسي (بدون خلفية إطلاقاً) يمر قبله ويستأنف بعده
+      if (isVertical) {
+        const seg1 = createSvgEl('line', { x1: x1, y1: y1, x2: x1, y2: midY - (safeGapW / 2), stroke: color, 'stroke-width': 0.8 });
+        const seg2 = createSvgEl('line', { x1: x1, y1: midY + (safeGapW / 2), x2: x1, y2: y2, stroke: color, 'stroke-width': 0.8 });
+        g.appendChild(seg1);
+        g.appendChild(seg2);
+      } else {
+        const seg1 = createSvgEl('line', { x1: x1, y1: y1, x2: midX - (safeGapW / 2), y2: y1, stroke: color, 'stroke-width': 0.8 });
+        const seg2 = createSvgEl('line', { x1: midX + (safeGapW / 2), y1: y1, x2: x2, y2: y1, stroke: color, 'stroke-width': 0.8 });
+        g.appendChild(seg1);
+        g.appendChild(seg2);
+      }
+    }
+
+    // النص الرقمي
+    const txt = createSvgEl('text', {
+      x: midX,
+      y: isVertical ? midY : midY + (fontSize * 0.35),
+      'text-anchor': 'middle',
+      'dominant-baseline': isVertical ? 'middle' : 'auto',
+      fill: textColor,
+      'font-size': fontSize,
+      'font-weight': 'bold',
+      'font-family': 'inherit',
+      transform: isVertical ? `rotate(-90, ${midX}, ${midY})` : ''
+    });
+    txt.textContent = labelText;
+    g.appendChild(txt);
+
+    return g;
   }
 
   /**
@@ -103,7 +192,7 @@ const ImpositionVisualizer = (function() {
     // 1. حسابات المونتاج الهندسية الصرفة
     const calc = PricingMath.calcImposition(sheetW_cm, sheetH_cm, openW, openH, printingType, orientation);
     if (calc.isOverflow || calc.cutsPerSheet <= 0) {
-      renderSkeleton(container, `مقاس المطبوع (${openW}×${openH} سم) لا يتسع داخل شيت الماكينة (${sheetW_cm}×${sheetH_cm} سم)`);
+      renderSkeleton(container, `مقاس المطبوع (${formatDimension(openW)}×${formatDimension(openH)} سم) لا يتسع داخل شيت الماكينة (${formatDimension(sheetW_cm)}×${formatDimension(sheetH_cm)} سم)`);
       return;
     }
 
@@ -161,11 +250,29 @@ const ImpositionVisualizer = (function() {
       startY_mm = digitalBorder + marginY_mm;
     }
 
+    // أبعاد ومساحة بلوك صافي القطع الإجمالي للمونتاج (Net Cuts Block Bounds)
+    const usedW_mm = (calc.cols * itemW_mm) + (Math.max(0, calc.cols - 1) * gapX_mm);
+    const usedH_mm = (calc.rows * itemH_mm) + (Math.max(0, calc.rows - 1) * gapY_mm);
+    const blockW_cm = usedW_mm / 10.0;
+    const blockH_cm = usedH_mm / 10.0;
+    const blockX1 = startX_mm;
+    const blockX2 = startX_mm + usedW_mm;
+    const blockY1 = startY_mm;
+    const blockY2 = startY_mm + usedH_mm;
+
     // 3. بناء SVG
     clearContainer(container);
 
+    // هوامش خارجية متوازنة لاستيعاب خطوط أبعاد الشيت وصافي مساحة الطباعة
+    const padLeft = 32;
+    const padBottom = 28;
+    const padTop = 28;
+    const padRight = 34;
+    const totalW_mm = sheetW_mm + padLeft + padRight;
+    const totalH_mm = sheetH_mm + padTop + padBottom;
+
     const svg = createSvgEl('svg', {
-      viewBox: `0 0 ${sheetW_mm} ${sheetH_mm}`,
+      viewBox: `-${padLeft} -${padTop} ${totalW_mm} ${totalH_mm}`,
       width: '100%',
       height: '100%',
       preserveAspectRatio: 'xMidYMid meet',
@@ -298,6 +405,20 @@ const ImpositionVisualizer = (function() {
       svg.appendChild(digLabel);
     }
 
+    // إطار بلوك صافي المونتاج على الشيت (Net Montage Bounding Frame)
+    const blockRect = createSvgEl('rect', {
+      x: blockX1,
+      y: blockY1,
+      width: usedW_mm,
+      height: usedH_mm,
+      fill: 'none',
+      stroke: 'var(--primary, #0d6efd)',
+      'stroke-width': 0.8,
+      'stroke-dasharray': '3,3',
+      opacity: 0.5
+    });
+    svg.appendChild(blockRect);
+
     // 4. خط الطبع والقلب (Work & Turn)
     const isWorkTurn = (sidesMode === 'work_turn' && activeMontage >= 2);
     if (isWorkTurn) {
@@ -344,7 +465,9 @@ const ImpositionVisualizer = (function() {
         slotIndex++;
         const isActive = (slotIndex <= activeMontage);
 
-        const x = startX_mm + (c * (itemW_mm + gapX_mm));
+        // ترقيم وتموضع بالاتجاه العربي (RTL: الأعمدة من اليمين إلى اليسار)
+        const cRtl = (cols - 1 - c);
+        const x = startX_mm + (cRtl * (itemW_mm + gapX_mm));
         const y = startY_mm + (r * (itemH_mm + gapY_mm));
 
         // حاوية القطعة
@@ -419,7 +542,7 @@ const ImpositionVisualizer = (function() {
                 'font-weight': 'bold',
                 'font-family': 'inherit'
               });
-              pocketLabel.textContent = `جيب متصل (${folderPocketHeight} سم)`;
+              pocketLabel.textContent = `جيب متصل (${formatDimension(folderPocketHeight)} سم)`;
               itemG.appendChild(pocketLabel);
             }
           } else if (productType === 'catalog' || productType === 'book' || productType === 'book_catalog') {
@@ -446,7 +569,7 @@ const ImpositionVisualizer = (function() {
                 'font-weight': 'bold',
                 transform: `rotate(-90, ${spineX + (spineW_mm / 2)}, ${y + (itemH_mm / 2)})`
               });
-              spineText.textContent = `كعب ${spineThickness} سم`;
+              spineText.textContent = `كعب ${formatDimension(spineThickness)} سم`;
               itemG.appendChild(spineText);
             }
           } else if (productType === 'invoice') {
@@ -471,18 +594,44 @@ const ImpositionVisualizer = (function() {
             itemG.appendChild(perfLine);
           }
 
-          // حساب المقاسات والخطوط المتناسقة والمريحة للعين (خط متزن أوضح بدرجة)
-          const minDim = Math.min(itemW_mm, itemH_mm);
-          const titleSize = Math.max(10, Math.min(18, minDim * 0.1));
-          const dimSize = Math.max(8.5, Math.min(13, titleSize * 0.72));
+          // حساب المقاسات والخطوط المعتمدة من المستخدم
+          const titleSize = 16; // مقاس كلمة القطعة المطلوب (16)
 
           const centerX = x + (itemW_mm / 2);
           const centerY = y + (itemH_mm / 2);
 
-          // رقم القطعة
+          // خطوط الأبعاد الهندسية لمقاس القطعة على أضلاع القطعة الأولى كمرجع رئيسي (أسود وبدون خلفية)
+          if (slotIndex === 1) {
+            const pieceDimColor = 'var(--dark, #212529)';
+            const pieceTextColor = 'var(--dark, #212529)';
+            const pieceDimFontSize = 14; // مقاس خط البُعد 14
+
+            const wFormatted = formatDimension(itemW_mm / 10);
+            const hFormatted = formatDimension(itemH_mm / 10);
+
+            // الضلع العلوي (عرض القطعة) - خط ورقم أسود بدون أي خلفية
+            const topDim = createDimensionLine(
+              x + 8, y + 12,
+              x + itemW_mm - 8, y + 12,
+              `${wFormatted} سم`,
+              false, pieceDimColor, pieceTextColor, pieceDimFontSize, false
+            );
+            itemG.appendChild(topDim);
+
+            // الضلع الرأسي (طول القطعة) - خط ورقم أسود بدون أي خلفية، ويبدأ بعد الخط العلوي لمنع التقاطع
+            const leftDim = createDimensionLine(
+              x + 12, y + 26,
+              x + 12, y + itemH_mm - 8,
+              `${hFormatted} سم`,
+              true, pieceDimColor, pieceTextColor, pieceDimFontSize, false
+            );
+            itemG.appendChild(leftDim);
+          }
+
+          // رقم واسم القطعة في المنتصف بهدوء وتوازن بصري بدون تكرار أرقام
           const labelNum = createSvgEl('text', {
             x: centerX,
-            y: centerY - 2,
+            y: centerY + (titleSize * 0.35),
             'text-anchor': 'middle',
             fill: 'var(--primary, #0d6efd)',
             'font-size': titleSize,
@@ -491,26 +640,12 @@ const ImpositionVisualizer = (function() {
           });
           labelNum.textContent = `قطعة #${slotIndex}`;
           itemG.appendChild(labelNum);
-
-          // أبعاد القطعة
-          const labelDim = createSvgEl('text', {
-            x: centerX,
-            y: centerY + dimSize + 2,
-            'text-anchor': 'middle',
-            fill: 'var(--secondary, #6c757d)',
-            'font-size': dimSize,
-            'font-weight': '500',
-            'font-family': 'inherit'
-          });
-          labelDim.textContent = `${(itemW_mm / 10).toFixed(1)} × ${(itemH_mm / 10).toFixed(1)} سم`;
-          itemG.appendChild(labelDim);
         } else {
           // خانة شاغرة (فاقد تفريد)
-          const minDim = Math.min(itemW_mm, itemH_mm);
-          const idleSize = Math.max(9, Math.min(14, minDim * 0.085));
+          const idleSize = 16;
           const idleText = createSvgEl('text', {
             x: x + (itemW_mm / 2),
-            y: y + (itemH_mm / 2) + 3,
+            y: y + (itemH_mm / 2) + 4,
             'text-anchor': 'middle',
             fill: 'var(--secondary, #6c757d)',
             'font-size': idleSize,
@@ -525,6 +660,64 @@ const ImpositionVisualizer = (function() {
       }
     }
 
+    // 5.5 خطوط الأبعاد الهندسية لشيت الماكينة وصافي القطع (مقاس موحد 14 لكافة المقاسات)
+    const outerDimColor = 'var(--secondary, #6c757d)';
+    const outerTextColor = 'var(--dark, #212529)';
+    const sheetDimFontSize = 14; // مقاس خط أبعاد الشيت 14
+
+    const sheetWFormatted = formatDimension(sheetW_cm);
+    const sheetHFormatted = formatDimension(sheetH_cm);
+    const blockWFormatted = formatDimension(blockW_cm);
+    const blockHFormatted = formatDimension(blockH_cm);
+
+    // خط بُعد عرض شيت الماكينة أسفل الشيت
+    const dimBottom = createDimensionLine(
+      0, sheetH_mm + 15,
+      sheetW_mm, sheetH_mm + 15,
+      `عرض الشيت: ${sheetWFormatted} سم`,
+      false, outerDimColor, outerTextColor, sheetDimFontSize, true
+    );
+    svg.appendChild(dimBottom);
+
+    // خط بُعد طول شيت الماكينة يسار الشيت
+    const dimLeft = createDimensionLine(
+      -16, 0,
+      -16, sheetH_mm,
+      `طول الشيت: ${sheetHFormatted} سم`,
+      true, outerDimColor, outerTextColor, sheetDimFontSize, true
+    );
+    svg.appendChild(dimLeft);
+
+    // خط بُعد صافي عرض المونتاج أعلى الشيت (يقيس بالضبط من أول عمود لآخر عمود مع الفواصل)
+    const dimTop = createDimensionLine(
+      blockX1, -15,
+      blockX2, -15,
+      `صافي المونتاج: ${blockWFormatted} سم`,
+      false, outerDimColor, outerTextColor, sheetDimFontSize, true
+    );
+    svg.appendChild(dimTop);
+
+    // خطوط إسقاط هندسية خفيفة تصل مؤشرات القياس بأول وآخر عمود قطع
+    const witTop1 = createSvgEl('line', { x1: blockX1, y1: blockY1, x2: blockX1, y2: -18, stroke: 'var(--border-color, #dee2e6)', 'stroke-width': 0.7, 'stroke-dasharray': '2,2' });
+    const witTop2 = createSvgEl('line', { x1: blockX2, y1: blockY1, x2: blockX2, y2: -18, stroke: 'var(--border-color, #dee2e6)', 'stroke-width': 0.7, 'stroke-dasharray': '2,2' });
+    svg.appendChild(witTop1);
+    svg.appendChild(witTop2);
+
+    // خط بُعد صافي طول المونتاج يمين الشيت (يقيس بالضبط من أول صف لآخر صف مع الفواصل)
+    const dimRight = createDimensionLine(
+      sheetW_mm + 16, blockY1,
+      sheetW_mm + 16, blockY2,
+      `صافي المونتاج: ${blockHFormatted} سم`,
+      true, outerDimColor, outerTextColor, sheetDimFontSize, true
+    );
+    svg.appendChild(dimRight);
+
+    // خطوط إسقاط هندسية خفيفة تصل مؤشرات القياس بأول وآخر صف قطع
+    const witRight1 = createSvgEl('line', { x1: blockX2, y1: blockY1, x2: sheetW_mm + 19, y2: blockY1, stroke: 'var(--border-color, #dee2e6)', 'stroke-width': 0.7, 'stroke-dasharray': '2,2' });
+    const witRight2 = createSvgEl('line', { x1: blockX2, y1: blockY2, x2: sheetW_mm + 19, y2: blockY2, stroke: 'var(--border-color, #dee2e6)', 'stroke-width': 0.7, 'stroke-dasharray': '2,2' });
+    svg.appendChild(witRight1);
+    svg.appendChild(witRight2);
+
     container.appendChild(svg);
 
     // 6. شريط الإحصائية التشغيلية المباشرة وشارات الحالة (Live Batch Stats & Badges)
@@ -536,6 +729,8 @@ const ImpositionVisualizer = (function() {
       hasBleedGutters: calc.hasBleedGutters,
       pressSheetW: sheetW_cm,
       pressSheetH: sheetH_cm,
+      blockW: blockW_cm,
+      blockH: blockH_cm,
       printingType,
       productType,
       folderPocketType
@@ -562,10 +757,13 @@ const ImpositionVisualizer = (function() {
 
     // 1. إحصائيات السحب والتشغيل
     const leftStats = document.createElement('div');
-    leftStats.className = 'd-flex align-items-center gap-2';
+    leftStats.className = 'd-flex align-items-center gap-2 flex-wrap';
     leftStats.innerHTML = `
       <span class="badge bg-light text-dark border">
         <i class="fas fa-th me-1 text-primary"></i> المونتاج: <strong>${info.activeMontage}</strong> قطعة
+      </span>
+      <span class="badge bg-light text-dark border" title="المساحة الإجمالية الصافية لشبكة المونتاج على الشيت مع الفواصل">
+        <i class="fas fa-th-large me-1 text-primary"></i> صافي المونتاج: <strong>${formatDimension(info.blockW)}×${formatDimension(info.blockH)}</strong> سم
       </span>
       <span class="badge bg-light text-dark border">
         صافي الشيتات: <strong>${netSheets.toLocaleString('en-US')}</strong>
@@ -638,7 +836,7 @@ const ImpositionVisualizer = (function() {
         <i class="fas fa-warehouse fa-2x me-3 text-info"></i>
         <div>
           <strong class="d-block mb-1">الخامة منصرفة مقصوصة جاهزة من مخزن المنشأة</strong>
-          <span class="small text-muted">مقاس القطع (${pieceW}×${pieceH} سم) منصرف ومجهز مسبقاً ولا يتطلب تقطيع فرخ خام بالمقصدار.</span>
+          <span class="small text-muted">مقاس الشيت (${formatDimension(pieceW)}×${formatDimension(pieceH)} سم) منصرف ومجهز مسبقاً ولا يتطلب تقطيع فرخ خام بالمقصدار.</span>
         </div>
       `;
       container.appendChild(notice);
@@ -651,8 +849,16 @@ const ImpositionVisualizer = (function() {
     const parentW_mm = effParentW * 10.0;          // 1000 مم
     const parentH_mm = effParentH * 10.0;          // 700 مم
 
+    // هوامش خارجية متوازنة لاستيعاب خطوط الأبعاد الهندسية للفرخ الخام
+    const padLeft = 32;
+    const padBottom = 28;
+    const padTop = 26;
+    const padRight = 32;
+    const totalW_mm = parentW_mm + padLeft + padRight;
+    const totalH_mm = parentH_mm + padTop + padBottom;
+
     const svg = createSvgEl('svg', {
-      viewBox: `0 0 ${parentW_mm} ${parentH_mm}`,
+      viewBox: `-${padLeft} -${padTop} ${totalW_mm} ${totalH_mm}`,
       width: '100%',
       height: '100%',
       preserveAspectRatio: 'xMidYMid meet',
@@ -665,37 +871,119 @@ const ImpositionVisualizer = (function() {
       y: 0,
       width: parentW_mm,
       height: parentH_mm,
-      fill: 'var(--gray-100, #f8f9fa)',
-      stroke: 'var(--border-color, #212529)',
+      fill: 'var(--card-bg, #ffffff)',
+      stroke: 'var(--border-color, #495057)',
       'stroke-width': 1.5,
       rx: 2
     });
     svg.appendChild(parentBg);
 
     // فحص حالات التقطيع المركب للمقصدار في الفرخ 70×100
-    const isStandard70x100 = (Math.min(parentW, parentH) >= 69.0 && Math.max(parentW, parentH) <= 101.0);
+    const isStandard70x100 = (Math.abs(effParentW - 100.0) <= 2.0 && Math.abs(effParentH - 70.0) <= 2.0);
+    let scrapAreaRatio = 0;
 
     if (machineCuts === 11 && isStandard70x100) {
       // تفصيل 11 قطعة مقاس 20×30 سم (حداشر)
       _draw11CutsPattern(svg, parentW_mm, parentH_mm);
+      scrapAreaRatio = (1000 * 100) / (parentW_mm * parentH_mm);
     } else if (machineCuts === 5 && isStandard70x100) {
       // تفصيل 5 قطع مقاس 30×40 سم (خمسات)
       _draw5CutsPattern(svg, parentW_mm, parentH_mm);
+      scrapAreaRatio = (100 * 400 + 200 * 300) / (parentW_mm * parentH_mm);
     } else {
-      // التقطيع المتناظر القياسي (ربع 4 قطع، نصف قطعتين، ثمن 8 قطع)
-      _drawStandardCutsPattern(svg, parentW_mm, parentH_mm, pieceW * 10.0, pieceH * 10.0, machineCuts);
+      // التقطيع الديناميكي الهندسي التام لكافة مقاسات الفرخ ومقاسات الشيتات
+      scrapAreaRatio = _drawDynamicCuts(svg, parentW_mm, parentH_mm, pieceW, pieceH, machineCuts);
     }
+
+    // خطوط الأبعاد الهندسية للفرخ الخام الخارجي
+    const outerDimColor = 'var(--secondary, #6c757d)';
+    const outerTextColor = 'var(--dark, #212529)';
+    const dimFontSize = 14; // مقاس خط أبعاد الفرخ الخام 14
+
+    // خط بُعد عرض الفرخ الخام أسفل الرسم
+    const dimBottom = createDimensionLine(
+      0, parentH_mm + 15,
+      parentW_mm, parentH_mm + 15,
+      `عرض الفرخ الخام: ${formatDimension(effParentW)} سم`,
+      false, outerDimColor, outerTextColor, dimFontSize, true
+    );
+    svg.appendChild(dimBottom);
+
+    // خط بُعد طول الفرخ الخام يسار الرسم
+    const dimLeft = createDimensionLine(
+      -16, 0,
+      -16, parentH_mm,
+      `طول الفرخ الخام: ${formatDimension(effParentH)} سم`,
+      true, outerDimColor, outerTextColor, dimFontSize, true
+    );
+    svg.appendChild(dimLeft);
 
     container.appendChild(svg);
 
-    // شريط إحصائية الفرخ الخام
-    const totalItemsPerParent = (machineCuts || 1) * (cutsPerSheet || 1);
-    const summaryDiv = document.createElement('div');
-    summaryDiv.className = 'text-center small text-muted mt-2 fw-bold';
-    summaryDiv.innerHTML = `
-      <i class="fas fa-cut me-1 text-primary"></i> الفرخ الخام (${effParentW}×${effParentH} سم) يعطي <strong>${machineCuts}</strong> شيت للماكينة × <strong>${cutsPerSheet}</strong> مونتاج = <strong>${totalItemsPerParent}</strong> قطعة بالفرخ
+    // شريط إحصائية الفرخ الخام بنظام الشارات المتناسق
+    const safeMontage = (cutsPerSheet && cutsPerSheet > 0) ? cutsPerSheet : 1;
+    _renderShearingStatsBar(container, {
+      parentW: effParentW,
+      parentH: effParentH,
+      machineCuts,
+      cutsPerSheet: safeMontage,
+      scrapAreaRatio
+    });
+  }
+
+  /**
+   * شريط إحصائيات الفرخ الخام بنظام الشارات المتناسق خارج الـ SVG
+   */
+  function _renderShearingStatsBar(container, info) {
+    const oldBar = container.parentNode?.querySelector('.shearing-stats-bar');
+    if (oldBar) oldBar.remove();
+
+    const statsBar = document.createElement('div');
+    statsBar.className = 'shearing-stats-bar d-flex flex-wrap align-items-center justify-content-between p-2 mt-2 border rounded';
+    statsBar.style.backgroundColor = 'var(--card-bg, #ffffff)';
+    statsBar.style.borderColor = 'var(--border-color, #dee2e6)';
+    statsBar.style.fontSize = '0.85rem';
+
+    const safeMontage = (info.cutsPerSheet && info.cutsPerSheet > 0) ? info.cutsPerSheet : 1;
+    const totalItems = (info.machineCuts || 1) * safeMontage;
+
+    const leftStats = document.createElement('div');
+    leftStats.className = 'd-flex align-items-center gap-2 flex-wrap';
+    leftStats.innerHTML = `
+      <span class="badge bg-light text-dark border">
+        <i class="fas fa-layer-group me-1 text-primary"></i> الفرخ الخام: <strong>${formatDimension(info.parentW)}×${formatDimension(info.parentH)}</strong> سم
+      </span>
+      <span class="badge bg-light text-dark border">
+        <i class="fas fa-cut me-1 text-info"></i> عدد الشيتات: <strong>${info.machineCuts}</strong> شيت للماكينة
+      </span>
+      <span class="badge bg-light text-dark border">
+        <i class="fas fa-th me-1 text-primary"></i> مونتاج الشيت: <strong>${safeMontage}</strong> قطعة
+      </span>
+      <span class="badge bg-primary text-white">
+        إجمالي القطع بالفرخ: <strong>${totalItems.toLocaleString('en-US')}</strong> قطعة
+      </span>
     `;
-    container.appendChild(summaryDiv);
+
+    const rightBadges = document.createElement('div');
+    rightBadges.className = 'd-flex align-items-center gap-1';
+    if (info.scrapAreaRatio > 0.01) {
+      rightBadges.innerHTML = `
+        <span class="badge bg-warning-subtle text-warning border border-warning-subtle">
+          <i class="fas fa-exclamation-triangle me-1"></i> فاقد تقطيع خام: ${formatDimension(info.scrapAreaRatio * 100)}%
+        </span>
+      `;
+    } else {
+      rightBadges.innerHTML = `
+        <span class="badge bg-success-subtle text-success border border-success-subtle">
+          <i class="fas fa-check-circle me-1"></i> استغلال 100% للفرخ الخام
+        </span>
+      `;
+    }
+
+    statsBar.appendChild(leftStats);
+    statsBar.appendChild(rightBadges);
+
+    container.parentNode?.insertBefore(statsBar, container);
   }
 
   /**
@@ -716,13 +1004,22 @@ const ImpositionVisualizer = (function() {
         svg.appendChild(rect);
 
         const txt = createSvgEl('text', {
-          x: x + 150, y: y + 105,
+          x: x + 150, y: y + 95,
           'text-anchor': 'middle',
           fill: 'var(--primary, #0d6efd)',
-          'font-size': 18, 'font-weight': 'bold'
+          'font-size': 16, 'font-weight': 'bold'
         });
-        txt.textContent = `شيت #${r * 3 + c + 1} (20×30)`;
+        txt.textContent = `شيت #${r * 3 + c + 1}`;
         svg.appendChild(txt);
+
+        const subTxt = createSvgEl('text', {
+          x: x + 150, y: y + 120,
+          'text-anchor': 'middle',
+          fill: 'var(--secondary, #6c757d)',
+          'font-size': 14, 'font-weight': 'bold'
+        });
+        subTxt.textContent = '20 × 30 سم';
+        svg.appendChild(subTxt);
       }
     }
 
@@ -742,10 +1039,10 @@ const ImpositionVisualizer = (function() {
         x: x + 50, y: y + 150,
         'text-anchor': 'middle',
         fill: 'var(--info, #0dcaf0)',
-        'font-size': 13, 'font-weight': 'bold',
+        'font-size': 14, 'font-weight': 'bold',
         transform: `rotate(-90, ${x + 50}, ${y + 150})`
       });
-      txt.textContent = `شيت #${10 + i} (20×30 مركب)`;
+      txt.textContent = `شيت #${10 + i} (20×30)`;
       svg.appendChild(txt);
     }
 
@@ -768,9 +1065,7 @@ const ImpositionVisualizer = (function() {
     scrapTxt.textContent = 'فاقد تقطيع الفرخ الخام (10×100 سم)';
     svg.appendChild(scrapTxt);
 
-    // ضربات سكين المقصدار
-    _drawKnifeStep(svg, 0, 600, pW, 600, '[1] ضربة سكين رئيسية أولى (فصل شريط الفائض 10 سم)');
-    _drawKnifeStep(svg, 900, 0, 900, 600, '[2] ضربة سكين ثانية (فصل شريحة الشيتين المركبين)');
+
   }
 
   /**
@@ -790,13 +1085,22 @@ const ImpositionVisualizer = (function() {
       svg.appendChild(rect);
 
       const txt = createSvgEl('text', {
-        x: x + 150, y: 205,
+        x: x + 150, y: 195,
         'text-anchor': 'middle',
         fill: 'var(--primary, #0d6efd)',
-        'font-size': 20, 'font-weight': 'bold'
+        'font-size': 16, 'font-weight': 'bold'
       });
-      txt.textContent = `شيت #${c + 1} (30×40)`;
+      txt.textContent = `شيت #${c + 1}`;
       svg.appendChild(txt);
+
+      const subTxt = createSvgEl('text', {
+        x: x + 150, y: 220,
+        'text-anchor': 'middle',
+        fill: 'var(--secondary, #6c757d)',
+        'font-size': 14, 'font-weight': 'bold'
+      });
+      subTxt.textContent = '30 × 40 سم';
+      svg.appendChild(subTxt);
     }
 
     // قطعتين 400×300 مم في الصف السفلي (مساحة 800×300)
@@ -812,13 +1116,22 @@ const ImpositionVisualizer = (function() {
       svg.appendChild(rect);
 
       const txt = createSvgEl('text', {
-        x: x + 200, y: y + 155,
+        x: x + 200, y: y + 145,
         'text-anchor': 'middle',
         fill: 'var(--info, #0dcaf0)',
-        'font-size': 20, 'font-weight': 'bold'
+        'font-size': 16, 'font-weight': 'bold'
       });
-      txt.textContent = `شيت #${4 + c} (30×40 مركب)`;
+      txt.textContent = `شيت #${4 + c}`;
       svg.appendChild(txt);
+
+      const subTxt = createSvgEl('text', {
+        x: x + 200, y: y + 170,
+        'text-anchor': 'middle',
+        fill: 'var(--secondary, #6c757d)',
+        'font-size': 14, 'font-weight': 'bold'
+      });
+      subTxt.textContent = '30 × 40 سم (مركب)';
+      svg.appendChild(subTxt);
     }
 
     // مساحات الفائض
@@ -838,85 +1151,207 @@ const ImpositionVisualizer = (function() {
     });
     svg.appendChild(scrap2);
 
-    _drawKnifeStep(svg, 0, 400, pW, 400, '[1] ضربة سكين رئيسية (فصل الـ 40 سم عن الـ 30 سم)');
-    _drawKnifeStep(svg, 900, 0, 900, 400, '[2] ضربة تشذيب الفائض العلوي (10 سم)');
-    _drawKnifeStep(svg, 800, 400, 800, 700, '[3] ضربة تشذيب الفائض السفلي (20 سم)');
+
   }
 
   /**
-   * رسم التقطيع القياسي المتناظر (أرباع، أنصاف، أثمان) على الفرخ العرضي
+   * رسم التقطيع الهندسي الديناميكي التام لكافة مقاسات الفرخ والشيتات
    */
-  function _drawStandardCutsPattern(svg, pW, pH, pieceW_mm, pieceH_mm, cuts) {
-    let cols = 2, rows = 2;
-    if (cuts === 2) {
-      cols = 2; rows = 1; // 500x700 mm
-    } else if (cuts === 4) {
-      cols = 2; rows = 2; // 500x350 mm
-    } else if (cuts === 8) {
-      cols = 4; rows = 2; // 250x350 mm
-    } else if (cuts === 6) {
-      cols = 3; rows = 2; // 333x350 mm
-    } else if (cuts === 3) {
-      cols = 3; rows = 1; // 333x700 mm
-    } else if (cuts === 16) {
-      cols = 4; rows = 4;
-    } else if (cuts > 0) {
-      cols = Math.ceil(Math.sqrt(cuts * (pW / pH)));
-      rows = Math.ceil(cuts / cols);
+  function _drawDynamicCuts(svg, pW_mm, pH_mm, pieceW, pieceH, machineCuts) {
+    const pW_cm = pW_mm / 10.0;
+    const pH_cm = pH_mm / 10.0;
+
+    let pcW = parseFloat(pieceW) || 0;
+    let pcH = parseFloat(pieceH) || 0;
+    let cuts = parseInt(machineCuts, 10) || 4;
+
+    // إذا لم تكن مقاسات القطع صريحة، نشتقها هندسياً من أبعاد الفرخ
+    if (pcW <= 0 || pcH <= 0) {
+      if (cuts === 1) {
+        pcW = pW_cm; pcH = pH_cm;
+      } else if (cuts === 2) {
+        pcW = pW_cm / 2; pcH = pH_cm;
+      } else if (cuts === 4) {
+        pcW = pW_cm / 2; pcH = pH_cm / 2;
+      } else if (cuts === 8) {
+        pcW = pW_cm / 4; pcH = pH_cm / 2;
+      } else if (cuts === 16) {
+        pcW = pW_cm / 4; pcH = pH_cm / 4;
+      } else if (cuts === 6) {
+        pcW = pW_cm / 3; pcH = pH_cm / 2;
+      } else if (cuts === 3) {
+        pcW = pW_cm / 3; pcH = pH_cm;
+      } else {
+        const c = Math.ceil(Math.sqrt(cuts * (pW_cm / pH_cm)));
+        const r = Math.ceil(cuts / c);
+        pcW = pW_cm / c; pcH = pH_cm / r;
+      }
     }
 
-    const itemW = pW / cols;
-    const itemH = pH / rows;
+    const pMax = Math.max(pcW, pcH);
+    const pMin = Math.min(pcW, pcH);
 
+    // فحص أفضل توجيه للشيتات داخل الفرخ (أفقي أو رأسي)
+    const colsA = Math.max(1, Math.floor((pW_cm + 0.05) / pMax));
+    const rowsA = Math.max(1, Math.floor((pH_cm + 0.05) / pMin));
+    const yieldA = colsA * rowsA;
+
+    const colsB = Math.max(1, Math.floor((pW_cm + 0.05) / pMin));
+    const rowsB = Math.max(1, Math.floor((pH_cm + 0.05) / pMax));
+    const yieldB = colsB * rowsB;
+
+    let itemW_cm, itemH_cm, cols, rows;
+
+    if (cuts === yieldA && cuts !== yieldB) {
+      itemW_cm = pMax; itemH_cm = pMin; cols = colsA; rows = rowsA;
+    } else if (cuts === yieldB && cuts !== yieldA) {
+      itemW_cm = pMin; itemH_cm = pMax; cols = colsB; rows = rowsB;
+    } else if (yieldA >= yieldB) {
+      itemW_cm = pMax; itemH_cm = pMin; cols = colsA; rows = rowsA;
+    } else {
+      itemW_cm = pMin; itemH_cm = pMax; cols = colsB; rows = rowsB;
+    }
+
+    const drawCount = Math.min(cuts, cols * rows);
+    const itemW_mm = itemW_cm * 10.0;
+    const itemH_mm = itemH_cm * 10.0;
+
+    // رسم الشيتات الصافية بنظام RTL
     let idx = 0;
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
-        if (idx >= cuts) break;
+        if (idx >= drawCount) break;
         idx++;
-        const x = c * itemW;
-        const y = r * itemH;
+
+        const cRtl = (cols - 1 - c);
+        const x = cRtl * itemW_mm;
+        const y = r * itemH_mm;
 
         const rect = createSvgEl('rect', {
-          x, y, width: itemW, height: itemH,
+          x, y,
+          width: itemW_mm,
+          height: itemH_mm,
           fill: 'var(--primary-subtle, #e7f1ff)',
           stroke: 'var(--primary, #0d6efd)',
           'stroke-width': 1.0
         });
         svg.appendChild(rect);
 
+        // شيت #1 يحمل خطوط أبعاد هندسية CAD على أضلاعه
+        if (idx === 1) {
+          const cutDimColor = 'var(--dark, #212529)';
+          const topDim = createDimensionLine(
+            x + 12, y + 15,
+            x + itemW_mm - 12, y + 15,
+            `${formatDimension(itemW_cm)} سم`,
+            false, cutDimColor, cutDimColor, 14, false
+          );
+          svg.appendChild(topDim);
+
+          const leftDim = createDimensionLine(
+            x + 16, y + 32,
+            x + 16, y + itemH_mm - 12,
+            `${formatDimension(itemH_cm)} سم`,
+            true, cutDimColor, cutDimColor, 14, false
+          );
+          svg.appendChild(leftDim);
+        }
+
+        // اسم ورقم الشيت
         const txt = createSvgEl('text', {
-          x: x + (itemW / 2),
-          y: y + (itemH / 2) + 5,
+          x: x + (itemW_mm / 2),
+          y: y + (itemH_mm / 2) - 6,
           'text-anchor': 'middle',
           fill: 'var(--primary, #0d6efd)',
-          'font-size': Math.max(14, Math.min(24, itemH * 0.12)),
-          'font-weight': 'bold'
+          'font-size': 16,
+          'font-weight': 'bold',
+          'font-family': 'inherit'
         });
         txt.textContent = `شيت #${idx}`;
         svg.appendChild(txt);
+
+        // مقاس الشيت تحت التسمية
+        const subTxt = createSvgEl('text', {
+          x: x + (itemW_mm / 2),
+          y: y + (itemH_mm / 2) + 16,
+          'text-anchor': 'middle',
+          fill: 'var(--secondary, #6c757d)',
+          'font-size': 14,
+          'font-weight': 'bold',
+          'font-family': 'inherit'
+        });
+        subTxt.textContent = `${formatDimension(itemW_cm)} × ${formatDimension(itemH_cm)} سم`;
+        svg.appendChild(subTxt);
       }
     }
-  }
 
-  function _drawKnifeStep(svg, x1, y1, x2, y2, label) {
-    const line = createSvgEl('line', {
-      x1, y1, x2, y2,
-      stroke: 'var(--danger, #dc3545)',
-      'stroke-width': 1.5,
-      'stroke-dasharray': '5,3'
-    });
-    svg.appendChild(line);
+    // رسم مساحات الفاقد / العوادم إن وجدت
+    const usedW_mm = cols * itemW_mm;
+    const usedH_mm = rows * itemH_mm;
+    const remW_mm = pW_mm - usedW_mm;
+    const remH_mm = pH_mm - usedH_mm;
 
-    const txt = createSvgEl('text', {
-      x: (x1 + x2) / 2,
-      y: (y1 + y2) / 2 - 4,
-      'text-anchor': 'middle',
-      fill: 'var(--danger, #dc3545)',
-      'font-size': 10,
-      'font-weight': 'bold'
-    });
-    txt.textContent = label;
-    svg.appendChild(txt);
+    // فاقد جانبي (يسار في RTL)
+    if (remW_mm >= 5.0) {
+      const scrapLeft = createSvgEl('rect', {
+        x: 0,
+        y: 0,
+        width: remW_mm,
+        height: pH_mm,
+        fill: 'var(--gray-200, #e9ecef)',
+        stroke: 'var(--secondary, #adb5bd)',
+        'stroke-width': 0.8,
+        'stroke-dasharray': '4,4'
+      });
+      svg.appendChild(scrapLeft);
+
+      if (remW_mm >= 30.0 && pH_mm >= 60.0) {
+        const scrapTxt = createSvgEl('text', {
+          x: remW_mm / 2,
+          y: pH_mm / 2,
+          'text-anchor': 'middle',
+          fill: 'var(--secondary, #6c757d)',
+          'font-size': 12,
+          'font-weight': 'bold',
+          transform: `rotate(-90, ${remW_mm / 2}, ${pH_mm / 2})`
+        });
+        scrapTxt.textContent = `فاقد (${formatDimension(remW_mm / 10)}×${formatDimension(pH_cm)} سم)`;
+        svg.appendChild(scrapTxt);
+      }
+    }
+
+    // فاقد سفلي
+    if (remH_mm >= 5.0) {
+      const scrapBottom = createSvgEl('rect', {
+        x: pW_mm - usedW_mm,
+        y: usedH_mm,
+        width: usedW_mm,
+        height: remH_mm,
+        fill: 'var(--gray-200, #e9ecef)',
+        stroke: 'var(--secondary, #adb5bd)',
+        'stroke-width': 0.8,
+        'stroke-dasharray': '4,4'
+      });
+      svg.appendChild(scrapBottom);
+
+      if (remH_mm >= 20.0 && usedW_mm >= 60.0) {
+        const scrapTxt = createSvgEl('text', {
+          x: (pW_mm - usedW_mm) + (usedW_mm / 2),
+          y: usedH_mm + (remH_mm / 2) + 4,
+          'text-anchor': 'middle',
+          fill: 'var(--secondary, #6c757d)',
+          'font-size': 12,
+          'font-weight': 'bold'
+        });
+        scrapTxt.textContent = `فاقد تقطيع (${formatDimension(usedW_mm / 10)}×${formatDimension(remH_mm / 10)} سم)`;
+        svg.appendChild(scrapTxt);
+      }
+    }
+
+    const totalPiecesArea = drawCount * itemW_cm * itemH_cm;
+    const parentArea = pW_cm * pH_cm;
+    const scrapRatio = Math.max(0, (parentArea - totalPiecesArea) / parentArea);
+    return scrapRatio;
   }
 
   /**
