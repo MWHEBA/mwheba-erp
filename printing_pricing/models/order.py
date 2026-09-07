@@ -401,9 +401,9 @@ class PrintingOrder(BaseModel):
     design_service_type = models.CharField(
         max_length=20,
         choices=(
-            ("CUSTOMER_READY", _("تصميم جاهز للطباعة من العميل")),
-            ("PREPRESS_EDIT", _("تعديل فني ومونتاج وفصل ألوان")),
-            ("NEW_CONCEPT", _("تصميم إبداعي جديد بالكامل")),
+            ("CUSTOMER_READY", _("تصميم جاهز من العميل")),
+            ("PREPRESS_EDIT", _("تعديل ومونتاج")),
+            ("NEW_CONCEPT", _("تصميم جديد")),
         ),
         default="CUSTOMER_READY",
         verbose_name=_("خدمة التصميم")
@@ -511,6 +511,8 @@ class PrintingOrder(BaseModel):
             notes_text = f"أمر شغل معتمد لطلب التسعير {self.order_number} - {self.title or ''}"
             if customer_display:
                 notes_text += f" | العميل: {customer_display}"
+            if self.design_service_type and self.design_service_type != 'CUSTOMER_READY':
+                notes_text += f" | [تنبيه إنتاج: أمر الشغل يتطلب تصميم ومونتاج ({self.get_design_service_type_display()}) - لا يتم سحب الخامات أو تخريج الزنكات إلا بعد اعتماد البروفة]"
 
             self.work_order = WorkOrder.objects.create(
                 customer=self.customer,

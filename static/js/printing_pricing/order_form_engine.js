@@ -377,6 +377,30 @@ class OrderFormUIController {
       self.debouncedRecalculate(50);
     });
 
+    // 2.5 مراقبة خدمة التصميم والتجهيز الفني
+    $(document).on('change', '#id_design_service_type', function () {
+      const val = this.value;
+      const feeBox = document.getElementById('box_design_fee');
+      const feeInput = document.getElementById('id_design_fee');
+      if (val === 'CUSTOMER_READY') {
+        if (feeBox) feeBox.classList.add('d-none');
+        if (feeInput) feeInput.value = '0.00';
+      } else {
+        if (feeBox) {
+          feeBox.classList.remove('d-none');
+          if (feeInput) {
+            feeInput.focus();
+            feeInput.select();
+          }
+        }
+      }
+      self.debouncedRecalculate(50);
+    });
+
+    $(document).on('input change', '#id_design_fee', function () {
+      self.debouncedRecalculate(100);
+    });
+
     // 3. التبديل بين العميل المسجل والعميل النقدي
     $(document).on('change', '#id_is_cash_customer', function () {
       const isCash = this.checked;
@@ -1263,17 +1287,23 @@ class OrderFormUIController {
     const extraCost = PricingMath.parseSafeNumber(document.getElementById('id_extra_cost')?.value, 0);
     const totalCost = (this.lastKnownTotalCost || 0) + extraCost;
 
+    // أتعاب التصميم والتجهيز الفني
+    const designType = document.getElementById('id_design_service_type')?.value || 'CUSTOMER_READY';
+    const designFee = (designType !== 'CUSTOMER_READY')
+      ? PricingMath.parseSafeNumber(document.getElementById('id_design_fee')?.value, 0)
+      : 0;
+
     const profitMarginInput = document.getElementById('id_profit_margin');
     let marginPct = 30;
     let fixedProfit = 0;
-    let grandTotal = 0;
+    let productionTotal = 0;
 
     if (this.marginMode === 'fixed') {
       if (profitMarginInput) {
         const raw = profitMarginInput.value.trim();
         fixedProfit = raw === '' ? 0 : PricingMath.parseSafeNumber(raw, 0);
       }
-      grandTotal = Math.ceil(totalCost + fixedProfit);
+      productionTotal = Math.ceil(totalCost + fixedProfit);
       marginPct = totalCost > 0 ? ((fixedProfit / totalCost) * 100) : 0;
     } else {
       if (profitMarginInput) {
@@ -1281,20 +1311,37 @@ class OrderFormUIController {
         marginPct = raw === '' ? 0 : PricingMath.parseSafeNumber(raw, 30);
       }
       fixedProfit = totalCost > 0 ? (totalCost * (marginPct / 100)) : 0;
-      grandTotal = PricingMath.calcFinalPrice(totalCost, marginPct / 100);
+      productionTotal = PricingMath.calcFinalPrice(totalCost, marginPct / 100);
     }
 
-    const unitPrice = grandTotal / safeQty;
+    const pureUnitPrice = productionTotal / safeQty;
+    const grandTotal = productionTotal + designFee;
 
     // تحديث شاشات العرض المالية بالسايدبار
     const costLogEl = document.getElementById('cost_logistics_display');
     if (costLogEl) this.updateTextSafely(costLogEl, this.formatMoney(extraCost));
 
+    const costDesignEl = document.getElementById('cost_design_display');
+    if (costDesignEl) this.updateTextSafely(costDesignEl, this.formatMoney(designFee));
+
+    const sidebarDesignFeeEl = document.getElementById('sidebar_design_fee_display');
+    if (sidebarDesignFeeEl) this.updateTextSafely(sidebarDesignFeeEl, this.formatNumber(designFee));
+
+    const rowDesignBreakdown = document.getElementById('row_cost_design_breakdown');
+    const rowSidebarDesign = document.getElementById('row_sidebar_design_fee');
+    if (designFee > 0) {
+      if (rowDesignBreakdown) rowDesignBreakdown.classList.remove('d-none');
+      if (rowSidebarDesign) rowSidebarDesign.classList.remove('d-none');
+    } else {
+      if (rowDesignBreakdown) rowDesignBreakdown.classList.add('d-none');
+      if (rowSidebarDesign) rowSidebarDesign.classList.add('d-none');
+    }
+
     const totalCostEl = document.getElementById('total_cost_display');
     if (totalCostEl && totalCost > 0) this.updateTextSafely(totalCostEl, this.formatMoney(totalCost));
 
     const unitPriceEl = document.getElementById('unit_price_display');
-    if (unitPriceEl) this.updateTextSafely(unitPriceEl, this.formatNumber(unitPrice));
+    if (unitPriceEl) this.updateTextSafely(unitPriceEl, this.formatNumber(pureUnitPrice));
 
     const finalTotalEl = document.getElementById('final_total_display');
     if (finalTotalEl) this.updateTextSafely(finalTotalEl, this.formatNumber(grandTotal));
@@ -1302,7 +1349,10 @@ class OrderFormUIController {
     // تحديث المؤشر وشريط تقدم هامش الربح
     this.updateMarginUI(marginPct);
 
-    // مزامنة الحقول المخفية للباك إند بدقة 4 أرقام عشرية لمنع انحراف الجنيه بالتقريب
+    // مزامنة الحقول المخفية للباك إند بدقة رقمين عشريين
+    const designCostHidden = document.getElementById('id_design_cost');
+    if (designCostHidden) designCostHidden.value = designFee.toFixed(2);
+
     const finalPriceHidden = document.getElementById('id_final_price');
     if (finalPriceHidden) finalPriceHidden.value = grandTotal.toFixed(2);
 
@@ -2984,7 +3034,7 @@ class OrderFormUIController {
       $inDig.val($optInDig.val()).trigger('change');
     }
 
-    this.showNotification('تم تطبيق حزمة الموردين المعتمدين وجاري جلب أسعار مواصفات الشغلانة', 'success');
+    this.showNotification('تم تطبيق حزمة الموردين المعتمدين وجاري جلب أسعار مواصفات أمر الطباعة', 'success');
     this.debouncedRecalculate();
   }
 
@@ -3004,7 +3054,7 @@ class OrderFormUIController {
   }
 
   /**
-   * 1. التحقق من اكتمال كافة الحقول الإلزامية في الخطوة 1 (بيانات الطلب والعميل ومقاس الشغلانة)
+   * 1. التحقق من اكتمال كافة الحقول الإلزامية في الخطوة 1 (بيانات الطلب والعميل ومقاس المطبوع)
    * تشترط:
    *  - العميل (المسجل أو النقدي)
    *  - وصف الطلب

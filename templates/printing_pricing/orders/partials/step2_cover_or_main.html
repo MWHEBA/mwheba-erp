@@ -584,7 +584,7 @@
                 <!-- أ. مفتاح مصدر الورق الثلاثي -->
                 <div class="btn-group btn-group-sm" role="group" aria-label="{% trans 'مصدر الورق' %}">
                   <input type="radio" class="btn-check" name="paper_source" id="paper_source_purchase" value="purchase" {% if form.paper_source.value == 'purchase' or not form.paper_source.value %}checked{% endif %}>
-                  <label class="btn btn-outline-primary" for="paper_source_purchase" title="{% trans 'شراء مباشر للشغلانة من تاجر الورق وتوليد أمر توريد PO' %}">
+                  <label class="btn btn-outline-primary" for="paper_source_purchase" title="{% trans 'شراء مباشر لأمر الطباعة من تاجر الورق وتوليد أمر توريد PO' %}">
                     <i class="fas fa-shopping-cart fa-xs me-1"></i>{% trans "شراء مباشر" %}
                   </label>
 
@@ -935,7 +935,7 @@
         <div class="row g-3 align-items-end mb-3 pb-3 border-bottom" id="lamination_control_box">
           <div class="col-12 col-md-4">
             <label for="id_lamination" class="form-label fw-bold">
-              <i class="fas fa-shield-alt text-primary me-1"></i>{% trans "نوع السلوفان" %}
+              {% trans "نوع السلوفان" %}
             </label>
             <select class="form-select select2-filter" id="id_lamination" name="coating_type">
               <option value="none">{% trans "بدون سلوفان" %}</option>
@@ -956,7 +956,7 @@
 
           <div class="col-6 col-md-2" id="box_lamination_sides">
             <label for="id_lamination_sides" class="form-label fw-bold small">
-              <i class="fas fa-clone text-secondary me-1"></i>{% trans "الأوجه" %}
+              {% trans "الأوجه" %}
             </label>
             <select class="form-select" id="id_lamination_sides" name="lamination_sides">
               <option value="1" selected>{% trans "وجه واحد" %}</option>
@@ -966,7 +966,7 @@
 
           <div class="col-6 col-md-3" id="box_lamination_rate">
             <label for="id_lamination_face_price" class="form-label fw-bold small">
-              <i class="fas fa-tag text-success me-1"></i><span id="label_lam_face_rate">{% trans "سعر الوجه للفرخ" %}</span>
+              <span id="label_lam_face_rate">{% trans "سعر الوجه للفرخ" %}</span>
             </label>
             <div class="input-group input-group-sm">
               <input type="number" step="0.01" min="0" class="form-control text-center fw-bold" id="id_lamination_face_price" name="lamination_face_price" value="" placeholder="0.00">
@@ -975,7 +975,7 @@
           </div>
 
           <div class="col-12 col-md-3 text-md-end" id="box_lamination_total">
-            <label class="form-label fw-bold text-muted small d-block mb-1">{% trans "تكلفة السلوفان الصافية" %}</label>
+            <label class="form-label fw-bold text-muted small d-block mb-1">{% trans "تكلفة السلوفان" %}</label>
             <div class="p-2 bg-light border rounded text-center">
               <strong class="text-primary fs-6" id="display_lamination_cost">0.00 {{ currency_symbol|default:functional_currency.symbol }}</strong>
             </div>

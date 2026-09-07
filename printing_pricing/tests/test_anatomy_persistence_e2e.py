@@ -17,7 +17,7 @@ User = get_user_model()
 
 @pytest.mark.django_db
 class TestAnatomyPersistenceWorkflow:
-    """اختبارات تفكيك الشغلانة وحفظها وتوليد أوامر الشراء"""
+    """اختبارات تفكيك أمر الطباعة وحفظها وتوليد أوامر الشراء"""
 
     def setup_method(self):
         self.user = User.objects.create_user(

@@ -135,7 +135,7 @@ class TestOrderDetailViewRendering:
         assert 'نوع الطباعة:' in content
         assert 'خامات الطباعة' in content
         assert 'خدمات الورش والمطابع' in content
-        assert 'مركز أرباح الشغلانة والتوزيع المالي' in content
+        assert 'تحليل التكاليف وهامش الربحية' in content
 
         # 4. التحقق من ظهور بيانات العميل والمواد والخدمات
         assert 'مؤسسة الأهرام للطباعة' in content

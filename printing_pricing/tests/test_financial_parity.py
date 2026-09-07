@@ -128,7 +128,7 @@ class FinancialParityAndCleanArchitectureTest(TestCase):
     def test_dynamic_paper_size_lookup_by_pk_and_name(self):
         """التحقق من قراءة أبعاد الورق من جدول PaperSize رقمياً"""
         order = PrintingOrder.objects.create(
-            title="شغلانة على فرخ 66x88",
+            title="مطبوع على فرخ 66x88",
             product_type=self.pt_flyer,
             quantity=500,
             width=Decimal("15.00"),

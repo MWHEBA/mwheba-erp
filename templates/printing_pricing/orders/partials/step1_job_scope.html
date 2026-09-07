@@ -3,7 +3,7 @@
 
 <div class="section-container mb-4" id="card_step1_scope">
   <h5 class="section-title d-flex align-items-center flex-wrap gap-2">
-    <span><i class="fas fa-layer-group me-2"></i>1. {% trans "بيانات الطلب والعميل ومقاس الشغلانة" %}</span>
+    <span><i class="fas fa-layer-group me-2"></i>1. {% trans "بيانات الطلب والعميل ومقاس المطبوع" %}</span>
     <span id="step1_status_badge" class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1 small">
       <i class="fas fa-info-circle me-1"></i><span id="step1_status_badge_text">{% trans "بيانات إدارية قيد الإدخال" %}</span>
     </span>
@@ -115,6 +115,35 @@
                value="{% if object and object.sales_rep %}{{ object.sales_rep.get_full_name|default:object.sales_rep.username }}{% elif object and object.created_by %}{{ object.created_by.get_full_name|default:object.created_by.username }}{% else %}{{ request.user.get_full_name|default:request.user.username }}{% endif %}" readonly tabindex="-1">
         <input type="hidden" name="sales_rep" id="id_sales_rep" 
                value="{% if object and object.sales_rep_id %}{{ object.sales_rep_id }}{% elif object and object.created_by_id %}{{ object.created_by_id }}{% else %}{{ request.user.pk }}{% endif %}">
+      </div>
+
+      <!-- الصف 3: خدمات التصميم والتجهيز الفني -->
+      <div class="col-12 col-md-7" id="box_design_service_type">
+        <label for="id_design_service_type" class="form-label fw-bold">
+          {% trans "خدمة التصميم والتجهيز الفني" %}
+        </label>
+        <select class="form-select text-center" id="id_design_service_type" name="design_service_type">
+          <option value="CUSTOMER_READY" {% if form.design_service_type.value == 'CUSTOMER_READY' or form.instance.design_service_type == 'CUSTOMER_READY' or not form.instance.design_service_type %}selected{% endif %}>
+            {% trans "تصميم جاهز من العميل" %}
+          </option>
+          <option value="PREPRESS_EDIT" {% if form.design_service_type.value == 'PREPRESS_EDIT' or form.instance.design_service_type == 'PREPRESS_EDIT' %}selected{% endif %}>
+            {% trans "تعديل ومونتاج" %}
+          </option>
+          <option value="NEW_CONCEPT" {% if form.design_service_type.value == 'NEW_CONCEPT' or form.instance.design_service_type == 'NEW_CONCEPT' %}selected{% endif %}>
+            {% trans "تصميم جديد" %}
+          </option>
+        </select>
+      </div>
+
+      <div class="col-12 col-md-5 {% if not form.instance.design_fee and form.design_service_type.value != 'PREPRESS_EDIT' and form.design_service_type.value != 'NEW_CONCEPT' and form.instance.design_service_type != 'PREPRESS_EDIT' and form.instance.design_service_type != 'NEW_CONCEPT' %}d-none{% endif %}" id="box_design_fee">
+        <label for="id_design_fee" class="form-label fw-bold">
+          <span id="label_design_fee">{% trans "أتعاب التصميم للعميل" %}</span>
+        </label>
+        <div class="input-group">
+          <input type="number" step="0.01" min="0" class="form-control text-center fw-bold" id="id_design_fee" name="design_fee"
+                 value="{{ form.design_fee.value|default:form.instance.design_fee|default:'0' }}" placeholder="0.00">
+          <span class="input-group-text bg-light small">{{ currency_symbol|default:functional_currency.symbol }}</span>
+        </div>
       </div>
 
       <!-- الصف 4: ملاحظات ومتطلبات العميل الخاصة (12 عمود) -->

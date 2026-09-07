@@ -509,131 +509,156 @@
     </div>
   </div>
 
-  <!-- 5. لوحة 360 درجة للربحية وتفكيك التكلفة وأوامر شراء الورش -->
+  <!-- 5. مركز الربحية والتحليل المالي للطلب وأوامر تشغيل الورش -->
   <div class="section-container mb-4">
     <h5 class="section-title">
-      <i class="fas fa-chart-pie me-2"></i>{% trans "مركز أرباح الشغلانة والتوزيع المالي (Cost Breakdown & Margin)" %}
+      <i class="fas fa-chart-pie me-2"></i>{% trans "تحليل التكاليف وهامش الربحية" %}
     </h5>
 
-    <div class="row g-4">
-      <!-- العمود الأول: أوامر شراء الورش المفككة -->
+    <div class="row g-3">
+      <!-- العمود الأول: أوامر تشغيل الورش والمطابع الخارجية المرتبطة -->
       <div class="col-lg-7 col-12">
-        <h6 class="fw-bold text-dark mb-3">
-          <i class="fas fa-file-invoice-dollar text-primary me-2"></i>{% trans "أوامر شراء خدمات الورش المرتبطة (Unbundled Vendor POs):" %}
-        </h6>
-        <div class="table-responsive">
-          <table class="table table-bordered table-hover table-sm align-middle text-center small mb-0">
-            <thead class="table-light">
-              <tr>
-                <th>{% trans "رقم أمر الشراء" %}</th>
-                <th>{% trans "المورد / الورشة" %}</th>
-                <th>{% trans "الخدمة / البند" %}</th>
-                <th>{% trans "القيمة" %}</th>
-                <th>{% trans "خصم 1% أ.ت.ص" %}</th>
-                <th>{% trans "الحالة" %}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for po in unbundled_pos %}
-              <tr>
-                <td class="fw-bold">
-                  <a href="{% url 'purchase:purchase_detail' po.pk %}" class="text-primary text-decoration-none">
-                    {{ po.purchase_number }}
-                  </a>
-                </td>
-                <td>{{ po.supplier.name }}</td>
-                <td>{{ po.notes|default:_("خدمات طباعة وتشطيب") }}</td>
-                <td class="fw-bold">{{ po.total_amount|smart_float:2 }} {{ po.currency_symbol|default:order.currency_symbol }}</td>
-                <td class="text-success">{{ po.tax_deduction_amount|default:"0.00"|smart_float:2 }} {{ po.currency_symbol|default:order.currency_symbol }}</td>
-                <td><span class="badge bg-success-subtle text-success border">{% trans "معتمد" %}</span></td>
-              </tr>
-              {% empty %}
-              <tr>
-                <td colspan="6" class="text-muted py-3">
-                  <i class="fas fa-info-circle me-1"></i>{% trans "لم يتم إصدار أوامر شراء ورش حتى الآن (اضغط 'بدء التشغيل وتوليد أمر الشغل' بالأعلى لإصدارها)." %}
-                </td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
+        <div class="p-3 bg-light rounded border h-100 d-flex flex-column">
+          <h6 class="fw-bold text-dark mb-3 border-bottom pb-2">
+            <i class="fas fa-file-invoice-dollar text-primary me-2"></i>{% trans "أوامر تشغيل الورش المرتبطة" %}
+          </h6>
+          {% if unbundled_pos %}
+          <div class="table-responsive bg-white rounded border flex-grow-1">
+            <table class="table table-bordered table-hover table-sm align-middle text-center small mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>{% trans "رقم أمر الشراء" %}</th>
+                  <th>{% trans "المورد / الورشة" %}</th>
+                  <th>{% trans "الخدمة / البند" %}</th>
+                  <th>{% trans "القيمة" %}</th>
+                  <th>{% trans "خصم 1% أ.ت.ص" %}</th>
+                  <th>{% trans "الحالة" %}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for po in unbundled_pos %}
+                <tr>
+                  <td class="fw-bold">
+                    <a href="{% url 'purchase:purchase_detail' po.pk %}" class="text-primary text-decoration-none">
+                      {{ po.purchase_number }}
+                    </a>
+                  </td>
+                  <td>{{ po.supplier.name }}</td>
+                  <td>{{ po.notes|default:_("خدمات طباعة وتشطيب") }}</td>
+                  <td class="fw-bold">{{ po.total_amount|smart_float:2 }} {{ po.currency_symbol|default:order.currency_symbol }}</td>
+                  <td class="text-success">{{ po.tax_deduction_amount|default:"0.00"|smart_float:2 }} {{ po.currency_symbol|default:order.currency_symbol }}</td>
+                  <td><span class="badge bg-success-subtle text-success border">{% trans "معتمد" %}</span></td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% else %}
+          <div class="my-auto text-center py-4">
+            <div class="mb-2 text-muted opacity-50">
+              <i class="fas fa-clipboard-list fa-2x"></i>
+            </div>
+            <div class="fw-bold text-dark mb-1">{% trans "لا توجد أوامر شراء ورش صادرة حتى الآن" %}</div>
+            <p class="text-muted small mb-0 mx-auto" style="max-width: 440px;">
+              {% trans "يتم إصدار وتوزيع أوامر الشراء (Vendor POs) للمطابع والورش الخارجية آلياً بمجرد بدء التشغيل وتوليد أمر الشغل التنفيذي." %}
+            </p>
+          </div>
+          {% endif %}
         </div>
       </div>
 
       <!-- العمود الثاني: كشف تفكيك التكاليف والهوامش المالية -->
       <div class="col-lg-5 col-12">
-        <div class="p-3 bg-light rounded border">
+        <div class="p-3 bg-light rounded border h-100 d-flex flex-column">
           <h6 class="fw-bold text-dark mb-3 border-bottom pb-2">
-            <i class="fas fa-receipt text-primary me-2"></i>{% trans "ملخص الحساب المالي الموحد (SSOT Summary)" %}
+            <i class="fas fa-receipt text-primary me-2"></i>{% trans "الملخص المالي للتسعير" %}
           </h6>
           <table class="table table-borderless table-sm small mb-0">
             <tbody>
               {% if can_view_margins or perms.printing_pricing.view_cost_margins or request.user.is_superuser %}
                 {% if summary %}
+                {% if summary.material_cost > 0 %}
                 <tr>
-                  <td class="text-muted">{% trans "تكلفة خامات الطباعة:" %}</td>
-                  <td class="text-end fw-bold text-dark">{{ summary.material_cost|smart_float:2 }} {{ order.currency_symbol }}</td>
+                  <td class="text-muted py-1">{% trans "تكلفة خامات الطباعة:" %}</td>
+                  <td class="text-end fw-bold text-dark py-1">{{ summary.material_cost|smart_float:2 }} {{ order.currency_symbol }}</td>
                 </tr>
+                {% endif %}
+                {% if summary.printing_cost > 0 %}
                 <tr>
-                  <td class="text-muted">{% trans "تكلفة الطباعة والمطابع:" %}</td>
-                  <td class="text-end fw-bold text-dark">{{ summary.printing_cost|smart_float:2 }} {{ order.currency_symbol }}</td>
+                  <td class="text-muted py-1">{% trans "تكلفة الطباعة والمطابع:" %}</td>
+                  <td class="text-end fw-bold text-dark py-1">{{ summary.printing_cost|smart_float:2 }} {{ order.currency_symbol }}</td>
                 </tr>
+                {% endif %}
+                {% if summary.finishing_cost > 0 %}
                 <tr>
-                  <td class="text-muted">{% trans "تكلفة التشطيب والتجليد:" %}</td>
-                  <td class="text-end fw-bold text-dark">{{ summary.finishing_cost|smart_float:2 }} {{ order.currency_symbol }}</td>
+                  <td class="text-muted py-1">{% trans "تكلفة التشطيب والتجليد:" %}</td>
+                  <td class="text-end fw-bold text-dark py-1">{{ summary.finishing_cost|smart_float:2 }} {{ order.currency_symbol }}</td>
                 </tr>
+                {% endif %}
+                {% if summary.design_cost > 0 %}
                 <tr>
-                  <td class="text-muted">{% trans "أتعاب التصميم والمونتاج:" %}</td>
-                  <td class="text-end fw-bold text-dark">{{ summary.design_cost|smart_float:2 }} {{ order.currency_symbol }}</td>
+                  <td class="text-muted py-1">{% trans "أتعاب التصميم والمونتاج:" %}</td>
+                  <td class="text-end fw-bold text-dark py-1">{{ summary.design_cost|smart_float:2 }} {{ order.currency_symbol }}</td>
                 </tr>
+                {% endif %}
                 {% if summary.other_costs or summary.rush_fee %}
                 <tr>
-                  <td class="text-muted">{% trans "مصروفات إضافية واستعجال:" %}</td>
-                  <td class="text-end fw-bold text-dark">{{ summary.other_costs|add:summary.rush_fee|smart_float:2 }} {{ order.currency_symbol }}</td>
+                  <td class="text-muted py-1">{% trans "مصروفات إضافية واستعجال:" %}</td>
+                  <td class="text-end fw-bold text-dark py-1">{{ summary.other_costs|add:summary.rush_fee|smart_float:2 }} {{ order.currency_symbol }}</td>
                 </tr>
                 {% endif %}
                 <tr class="border-top">
-                  <td class="fw-bold text-danger">{% trans "إجمالي التكلفة المقدرة:" %}</td>
-                  <td class="text-end fw-bold text-danger fs-6">{{ summary.total_cost|smart_float:2 }} {{ order.currency_symbol }}</td>
+                  <td class="fw-bold text-dark py-2">{% trans "إجمالي التكلفة المقدرة:" %}</td>
+                  <td class="text-end fw-bold text-danger py-2 fs-6">{{ summary.total_cost|smart_float:2 }} {{ order.currency_symbol }}</td>
                 </tr>
                 <tr>
-                  <td class="fw-bold text-success">{% trans "صافي الربح المحقق:" %}</td>
-                  <td class="text-end fw-bold text-success fs-6">{{ summary.profit_amount|default:summary.net_profit|smart_float:2 }} {{ order.currency_symbol }}</td>
-                </tr>
-                <tr>
-                  <td class="text-muted">{% trans "نسبة هامش الربح:" %}</td>
-                  <td class="text-end fw-bold text-success">{{ summary.profit_margin_percentage|smart_float:1 }}%</td>
+                  <td class="fw-bold text-dark py-2 align-middle">{% trans "صافي الربح المحقق:" %}</td>
+                  <td class="text-end py-2 align-middle">
+                    <span class="fw-bold text-success fs-6">{{ summary.profit_amount|default:summary.net_profit|smart_float:2 }} {{ order.currency_symbol }}</span>
+                    <span class="badge bg-success-subtle text-success border border-success-subtle ms-1">
+                      {{ summary.profit_margin_percentage|smart_float:1 }}%
+                    </span>
+                  </td>
                 </tr>
                 {% endif %}
               {% endif %}
 
+              {% if summary and summary.discount_amount > 0 or summary and summary.tax_amount > 0 %}
               <tr class="border-top">
-                <td class="text-muted">{% trans "المجموع الفرعي (قبل الخصم والضريبة):" %}</td>
-                <td class="text-end fw-bold text-dark">{% if summary %}{{ summary.subtotal|smart_float:2 }}{% else %}{{ order.final_price|default:"0.00"|smart_float:2 }}{% endif %} {{ order.currency_symbol }}</td>
+                <td class="text-muted py-1">{% trans "المجموع الفرعي (قبل الخصم والضريبة):" %}</td>
+                <td class="text-end fw-bold text-dark py-1">{% if summary %}{{ summary.subtotal|smart_float:2 }}{% else %}{{ order.final_price|default:"0.00"|smart_float:2 }}{% endif %} {{ order.currency_symbol }}</td>
               </tr>
+              {% endif %}
               {% if summary and summary.discount_amount > 0 %}
               <tr>
-                <td class="text-muted">{% trans "قيمة الخصم الممنوح:" %}</td>
-                <td class="text-end text-danger">-{{ summary.discount_amount|smart_float:2 }} {{ order.currency_symbol }}</td>
+                <td class="text-muted py-1">{% trans "قيمة الخصم الممنوح:" %}</td>
+                <td class="text-end text-danger py-1">-{{ summary.discount_amount|smart_float:2 }} {{ order.currency_symbol }}</td>
               </tr>
               {% endif %}
               {% if summary and summary.tax_amount > 0 %}
               <tr>
-                <td class="text-muted">{% trans "ضريبة القيمة المضافة:" %}</td>
-                <td class="text-end text-dark">+{{ summary.tax_amount|smart_float:2 }} {{ order.currency_symbol }}</td>
+                <td class="text-muted py-1">{% trans "ضريبة القيمة المضافة:" %}</td>
+                <td class="text-end text-dark py-1">+{{ summary.tax_amount|smart_float:2 }} {{ order.currency_symbol }}</td>
               </tr>
               {% endif %}
-              <tr class="border-top bg-white rounded">
-                <td class="fw-bold text-primary p-2">{% trans "السعر النهائي للبيع:" %}</td>
-                <td class="text-end fw-bold text-primary fs-5 p-2">
-                  {% if summary %}{{ summary.final_price|smart_float:2 }}{% else %}{{ order.final_price|default:"0.00"|smart_float:2 }}{% endif %} {{ order.currency_symbol }}
+              <tr>
+                <td colspan="2" class="pt-3 pb-0 px-0">
+                  <div class="p-3 bg-white rounded border border-primary-subtle d-flex justify-content-between align-items-center shadow-xs">
+                    <div>
+                      <div class="fw-bold text-dark">{% trans "السعر النهائي للبيع" %}</div>
+                      {% if order.exchange_rate != 1 %}
+                        <div class="text-muted small mt-1">{% trans "المعادل بالعملة الوظيفية:" %} {{ order.final_price_functional|smart_float:2 }} EGP</div>
+                      {% endif %}
+                    </div>
+                    <div class="text-end">
+                      <span class="fw-bold text-primary fs-4">
+                        {% if summary %}{{ summary.final_price|smart_float:2 }}{% else %}{{ order.final_price|default:"0.00"|smart_float:2 }}{% endif %}
+                      </span>
+                      <span class="text-muted small ms-1">{{ order.currency_symbol }}</span>
+                    </div>
+                  </div>
                 </td>
               </tr>
-              {% if order.exchange_rate != 1 %}
-              <tr>
-                <td class="text-muted small">{% trans "المعادل بالعملة الوظيفية (IAS 21):" %}</td>
-                <td class="text-end text-muted small fw-bold">{{ order.final_price_functional|smart_float:2 }} EGP</td>
-              </tr>
-              {% endif %}
             </tbody>
           </table>
         </div>

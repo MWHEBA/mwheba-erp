@@ -41,7 +41,7 @@ class PrintingCalculationEngine:
             params: قاموس المعطيات الخام من الـ Request أو من الموديل.
             
         Returns:
-            Dict: هيكل بيانات متكامل ومفصل لتكاليف ومخرجات الشغلانة.
+            Dict: هيكل بيانات متكامل ومفصل لتكاليف ومخرجات أمر الطباعة.
         """
         try:
             # 0. تطبيع المعطيات المدخلة وفك أي قوائم صادرة من QueryDict
@@ -1304,17 +1304,33 @@ class PrintingCalculationEngine:
 
         profit_amount = (total_cost * (margin_percent / Decimal('100.0'))).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
         raw_final = total_cost + profit_amount
-        final_price = Decimal(str(math.ceil(float(raw_final)))).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-        unit_price = (final_price / Decimal(str(qty))).quantize(Decimal('0.0001'), rounding=ROUND_HALF_UP)
+        production_selling_price = Decimal(str(math.ceil(float(raw_final)))).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        pure_unit_price = (production_selling_price / Decimal(str(qty))).quantize(Decimal('0.0001'), rounding=ROUND_HALF_UP)
+
+        # أتعاب التصميم والتجهيز الفني المستقلة
+        design_service_type = params.get('design_service_type', 'CUSTOMER_READY')
+        if design_service_type == 'CUSTOMER_READY':
+            design_fee = Decimal('0.00')
+        else:
+            design_fee = cls._to_decimal(params.get('design_fee'), Decimal('0.00'))
+            if design_fee < Decimal('0.00'):
+                design_fee = Decimal('0.00')
+
+        total_selling_price = (production_selling_price + design_fee).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
 
         return {
             'materials_cost': float(materials_cost),
             'services_cost': float(services_cost),
             'total_production_cost': float(total_cost),
+            'design_cost': float(design_fee),
+            'design_fee': float(design_fee),
+            'design_service_type': design_service_type,
             'profit_margin_percent': float(margin_percent),
             'profit_amount': float(profit_amount),
-            'total_selling_price': float(final_price),
-            'unit_selling_price': float(unit_price)
+            'production_selling_price': float(production_selling_price),
+            'total_selling_price': float(total_selling_price),
+            'unit_selling_price': float(pure_unit_price),
+            'pure_unit_price': float(pure_unit_price)
         }
 
     # -------------------------------------------------------------------------

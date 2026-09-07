@@ -875,7 +875,7 @@ class OrderCreateView(LoginRequiredMixin, CreateView):
         
         response = super().form_valid(form)
         
-        # تفكيك وتوليد بنود الخامات والخدمات وملخص التكاليف بناءً على معمارية تشريح الشغلانة
+        # تفكيك وتوليد بنود الخامات والخدمات وملخص التكاليف بناءً على معمارية تشريح أمر الطباعة
         try:
             from ..services.anatomy_persistence_service import OrderAnatomyPersistenceService
             OrderAnatomyPersistenceService.persist_order_anatomy(self.object, self.request.POST)
@@ -1274,7 +1274,7 @@ class OrderUpdateView(LoginRequiredMixin, UpdateView):
                 import logging
                 logging.getLogger(__name__).warning(f"Error logging price audit: {e}")
 
-        # تفكيك وتوليد بنود الخامات والخدمات وملخص التكاليف بناءً على معمارية تشريح الشغلانة
+        # تفكيك وتوليد بنود الخامات والخدمات وملخص التكاليف بناءً على معمارية تشريح أمر الطباعة
         try:
             from ..services.anatomy_persistence_service import OrderAnatomyPersistenceService
             OrderAnatomyPersistenceService.persist_order_anatomy(self.object, self.request.POST)

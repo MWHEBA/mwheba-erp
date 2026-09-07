@@ -11,7 +11,7 @@ from supplier.models import SupplierService
 
 class PrintingUnitAdapter:
     """
-    محول فيزيائي يربط مواصفات ومقاسات الشغلانة بالوحدة المحددة في معادلة تسعير المورد (pricing_formula).
+    محول فيزيائي يربط مواصفات ومقاسات المطبوع بالوحدة المحددة في معادلة تسعير المورد (pricing_formula).
     """
 
     @staticmethod

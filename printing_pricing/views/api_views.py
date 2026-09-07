@@ -1629,7 +1629,14 @@ class ApprovedOrdersAPIView(BaseAPIView):
 
             orders_data = []
             for o in qs[:50]:
+                d_fee = o.design_fee or Decimal('0.00')
+                if o.design_service_type == 'CUSTOMER_READY':
+                    d_fee = Decimal('0.00')
+                has_design = d_fee > Decimal('0.00')
+                print_selling_price = max(Decimal('0.00'), (o.final_price or Decimal('0.00')) - d_fee)
+                pure_unit_price = round(print_selling_price / o.quantity, 4) if o.quantity else Decimal('0.00')
                 u_price = round((o.final_price or Decimal('0.00')) / o.quantity, 4) if o.quantity else Decimal('0.00')
+
                 orders_data.append({
                     'id': o.id,
                     'order_number': o.order_number,
@@ -1638,6 +1645,12 @@ class ApprovedOrdersAPIView(BaseAPIView):
                     'quantity': o.quantity,
                     'final_price': str(o.final_price or 0),
                     'unit_price': str(u_price),
+                    'print_unit_price': str(pure_unit_price),
+                    'print_selling_price': str(print_selling_price),
+                    'design_fee': str(d_fee),
+                    'design_service_type': o.design_service_type or 'CUSTOMER_READY',
+                    'design_service_name': o.get_design_service_type_display() if o.design_service_type else '',
+                    'has_design': has_design,
                     'product_id': prod_id,
                 })
             return JsonResponse({'success': True, 'orders': orders_data})

@@ -1,5 +1,5 @@
 """
-خدمة الحفظ والتحليل الذري لتشريح الشغلانة وتفكيك بنود الخامات والخدمات
+خدمة الحفظ والتحليل الذري لتشريح أمر الطباعة وتفكيك بنود الخامات والخدمات
 Anatomy-Driven Order Persistence & Procurement Breakdown Service
 """
 from decimal import Decimal, ROUND_HALF_UP
@@ -15,7 +15,7 @@ from .pricing_engine import PrintingCalculationEngine
 
 class OrderAnatomyPersistenceService:
     """
-    خدمة تفكيك وتوليد بنود الخامات والخدمات وملخص التكاليف بناءً على معمارية تشريح الشغلانة
+    خدمة تفكيك وتوليد بنود الخامات والخدمات وملخص التكاليف بناءً على معمارية تشريح أمر الطباعة
     """
 
     @classmethod
@@ -1723,8 +1723,41 @@ class OrderAnatomyPersistenceService:
             else:
                 shipping_cost = Decimal('0.00')
 
+            # 5.5 معالجة خدمة وأتعاب التصميم والتجهيز الفني
+            design_service_type = post_data.get('design_service_type') or order.design_service_type or 'CUSTOMER_READY'
+            raw_design_fee = post_data.get('design_fee')
+            if design_service_type == 'CUSTOMER_READY':
+                design_fee = Decimal('0.00')
+            elif raw_design_fee is not None and str(raw_design_fee).strip() != '':
+                try:
+                    design_fee = max(Decimal('0.00'), Decimal(str(raw_design_fee)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP))
+                except Exception:
+                    design_fee = Decimal('0.00')
+            else:
+                design_fee = order.design_fee or Decimal('0.00')
+
+            order.design_service_type = design_service_type
+            order.design_fee = design_fee
+
+            # إدارة بند OrderService للتصميم
+            if design_fee > Decimal('0.00') and design_service_type != 'CUSTOMER_READY':
+                OrderService.objects.update_or_create(
+                    order=order,
+                    service_category='design',
+                    defaults={
+                        'service_name': order.get_design_service_type_display(),
+                        'quantity': Decimal('1.000'),
+                        'unit': PriceUnit.PIECE,
+                        'unit_price': design_fee,
+                        'total_cost': design_fee,
+                        'service_description': f"أتعاب خدمة {order.get_design_service_type_display()}"
+                    }
+                )
+            else:
+                OrderService.objects.filter(order=order, service_category='design').delete()
+
             # 6. الحساب الإجمالي وتحديث OrderSummary بالجنيه المصري (EGP) حصراً
-            subtotal_cost = total_materials_cost + total_printing_cost + total_finishing_cost + shipping_cost
+            production_cost = total_materials_cost + total_printing_cost + total_finishing_cost + shipping_cost
 
             raw_margin = post_data.get('profit_margin')
             if raw_margin is None or str(raw_margin).strip() == '':
@@ -1732,8 +1765,8 @@ class OrderAnatomyPersistenceService:
             profit_margin_pct = min(Decimal('500.00'), max(Decimal('0.00'), Decimal(str(raw_margin))))
 
             margin_factor = profit_margin_pct / Decimal('100')
-            raw_final = subtotal_cost * (Decimal('1') + margin_factor)
-            final_sell_price = Decimal(str(math.ceil(float(raw_final)))).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+            raw_final = production_cost * (Decimal('1') + margin_factor)
+            production_selling_price = Decimal(str(math.ceil(float(raw_final)))).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
 
             # حماية السعر المتفق عليه يدوياً مع العميل (Manual Agreed Price Override)
             manual_price_str = post_data.get('manual_agreed_price')
@@ -1741,21 +1774,27 @@ class OrderAnatomyPersistenceService:
                 try:
                     agreed_p = Decimal(str(manual_price_str))
                     if agreed_p > Decimal('0.00'):
-                        final_sell_price = agreed_p
-                        if agreed_p > subtotal_cost:
-                            profit_margin_pct = (((agreed_p - subtotal_cost) / subtotal_cost) * Decimal('100')).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+                        # خصم أتعاب التصميم لتحديد ما تم الاتفاق عليه للطباعة
+                        agreed_production = max(Decimal('0.00'), agreed_p - design_fee)
+                        production_selling_price = agreed_production
+                        if agreed_production > production_cost:
+                            profit_margin_pct = (((agreed_production - production_cost) / production_cost) * Decimal('100')).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
                         else:
                             profit_margin_pct = Decimal('0.00')
                 except Exception:
                     pass
 
-            net_sell_price = final_sell_price
+            net_sell_price = (production_selling_price + design_fee).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
 
             # تحديث حقول الطلب المباشرة بالسعر الصافي
-            order.estimated_cost = subtotal_cost
+            order.estimated_cost = production_cost
             order.final_price = net_sell_price
             order.profit_margin = profit_margin_pct
-            order.save(update_fields=['estimated_cost', 'final_price', 'profit_margin'])
+            order.save(update_fields=['estimated_cost', 'final_price', 'profit_margin', 'design_service_type', 'design_fee'])
+
+            # تحويل أتعاب التصميم للعملة الوظيفية (EGP) بحسب معيار IAS 21
+            rate = order.exchange_rate or Decimal('1.000000')
+            design_fee_functional = (design_fee * rate).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
 
             # إنشاء أو تحديث OrderSummary
             summary, _ = OrderSummary.objects.get_or_create(order=order)
@@ -1763,9 +1802,10 @@ class OrderAnatomyPersistenceService:
             summary.printing_cost = total_printing_cost.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
             summary.finishing_cost = total_finishing_cost.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
             summary.other_costs = shipping_cost.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-            summary.total_cost = subtotal_cost.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+            summary.design_cost = design_fee_functional
+            summary.total_cost = production_cost.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
             summary.subtotal = net_sell_price.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-            summary.profit_amount = (net_sell_price - subtotal_cost).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+            summary.profit_amount = (net_sell_price - production_cost).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
             summary.tax_amount = Decimal('0.00')  # التسعير الفني صافي بدون ضريبة
             summary.profit_margin_percentage = profit_margin_pct
             summary.final_price = net_sell_price.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)

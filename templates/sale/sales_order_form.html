@@ -1205,7 +1205,7 @@ document.addEventListener('DOMContentLoaded', function() {
         select.empty().append('<option value="">{% trans "اختر طلب التسعير..." %}</option>');
         if (data.orders && data.orders.length > 0) {
           data.orders.forEach(o => {
-            select.append(`<option value="${o.id}" data-title="${o.title}" data-qty="${o.quantity}" data-price="${o.final_price}" data-unit="${o.unit_price}" data-product="${o.product_id}">${o.order_number} - ${o.title} (${o.customer_name}) - ${o.final_price} ج.م</option>`);
+            select.append(`<option value="${o.id}" data-title="${o.title}" data-qty="${o.quantity}" data-price="${o.final_price}" data-unit="${o.unit_price}" data-print-unit="${o.print_unit_price || o.unit_price}" data-design-fee="${o.design_fee || 0}" data-has-design="${o.has_design ? '1' : '0'}" data-design-name="${o.design_service_name || ''}" data-product="${o.product_id}">${o.order_number} - ${o.title} (${o.customer_name}) - ${o.final_price} ج.م</option>`);
           });
         } else {
           select.append('<option value="" disabled>{% trans "لا توجد طلبات تسعير معتمدة جاهزة" %}</option>');
@@ -1232,14 +1232,17 @@ document.addEventListener('DOMContentLoaded', function() {
     const opt = $('#modal_printing_order_select').find(':selected');
     const title = opt.data('title');
     const qty = opt.data('qty');
-    const unitPrice = opt.data('unit');
     const productId = opt.data('product');
+    const hasDesign = opt.data('has-design') === '1' || opt.data('has-design') === 1;
+    const designFee = parseFloat(opt.data('design-fee')) || 0;
+    const designName = opt.data('design-name') || '{% trans "خدمة تصميم وتجهيز" %}';
+    const printUnitPrice = hasDesign ? (opt.data('print-unit') || opt.data('unit')) : opt.data('unit');
 
+    // 1. إضافة سطر المطبوعات بسعر طباعة القطعة الصافي
     $('#add-item-btn').trigger('click');
-    const lastRow = $('#items-container .item-row:last');
+    let lastRow = $('#items-container .item-row:last');
     
-    // اختيار الصنف المرجعي لمنع خطأ التحقق
-    const prodSelect = lastRow.find('select[name$="-product"]');
+    let prodSelect = lastRow.find('select[name$="-product"]');
     if (productId && prodSelect.find(`option[value="${productId}"]`).length) {
       prodSelect.val(productId).trigger('change');
     } else if (prodSelect.length && prodSelect.find('option:not([value=""]):first').length) {
@@ -1248,7 +1251,23 @@ document.addEventListener('DOMContentLoaded', function() {
 
     lastRow.find('.item-description, textarea[name$="-description"]').val(title);
     lastRow.find('input[name$="-quantity"]').val(qty).trigger('input');
-    lastRow.find('input[name$="-unit_price"]').val(unitPrice).trigger('input');
+    lastRow.find('input[name$="-unit_price"]').val(printUnitPrice).trigger('input');
+
+    // 2. إضافة سطر أتعاب التصميم المستقل إذا وُجدت أتعاب
+    if (hasDesign && designFee > 0) {
+      $('#add-item-btn').trigger('click');
+      let designRow = $('#items-container .item-row:last');
+      let designProdSelect = designRow.find('select[name$="-product"]');
+      if (productId && designProdSelect.find(`option[value="${productId}"]`).length) {
+        designProdSelect.val(productId).trigger('change');
+      } else if (designProdSelect.length && designProdSelect.find('option:not([value=""]):first').length) {
+        designProdSelect.val(designProdSelect.find('option:not([value=""]):first').val()).trigger('change');
+      }
+
+      designRow.find('.item-description, textarea[name$="-description"]').val(`${designName} - ${title}`);
+      designRow.find('input[name$="-quantity"]').val(1).trigger('input');
+      designRow.find('input[name$="-unit_price"]').val(designFee.toFixed(2)).trigger('input');
+    }
 
     $('#importPrintingOrderModal').modal('hide');
     window.showNotification && window.showNotification('تم استيراد بنود التسعير بنجاح', 'success');

@@ -1050,9 +1050,9 @@ class Migration(migrations.Migration):
                     "design_service_type",
                     models.CharField(
                         choices=[
-                            ("CUSTOMER_READY", "تصميم جاهز للطباعة من العميل"),
-                            ("PREPRESS_EDIT", "تعديل فني ومونتاج وفصل ألوان"),
-                            ("NEW_CONCEPT", "تصميم إبداعي جديد بالكامل"),
+                            ("CUSTOMER_READY", "تصميم جاهز من العميل"),
+                            ("PREPRESS_EDIT", "تعديل ومونتاج"),
+                            ("NEW_CONCEPT", "تصميم جديد"),
                         ],
                         default="CUSTOMER_READY",
                         max_length=20,

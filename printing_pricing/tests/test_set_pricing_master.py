@@ -255,7 +255,7 @@ class TestSetPricingMaster:
         assert res['printing']['applied_press_cost'] == 300.0
 
     # -------------------------------------------------------------------------
-    # 4. اختبار تفكيك الشغلانة وحل مشكلة Recalculate Amnesia
+    # 4. اختبار تفكيك أمر الطباعة وحل مشكلة Recalculate Amnesia
     # -------------------------------------------------------------------------
     def test_08_anatomy_persistence_and_recalculate_amnesia_cure(self):
         """
