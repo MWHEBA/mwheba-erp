@@ -794,12 +794,14 @@ def get_active_digital_suppliers():
         return []
 
 
-def get_active_paper_suppliers():
-    """جلب تجار وموردي خامات الورق المعتمدين الذين لديهم أصناف وأسعار ورق نشطة ومسجلة في النظام حصراً 100%"""
+def get_active_paper_suppliers(paper_type_id=None):
+    """جلب تجار وموردي خامات الورق المعتمدين الذين لديهم أصناف وأسعار ورق نشطة ومسجلة في النظام حصراً (مع دعم الفلترة بنوع الورق)"""
     try:
         from supplier.models import Supplier
+        from printing_pricing.models import PaperType
         from django.db.models import Q
-        return Supplier.objects.filter(
+
+        qs = Supplier.objects.filter(
             is_active=True,
             services__service_type__code='paper',
             services__is_active=True
@@ -808,9 +810,70 @@ def get_active_paper_suppliers():
             Q(services__price_per_ton__gt=0) |
             Q(services__attributes__has_key='price_per_sheet') |
             Q(services__attributes__has_key='paper_type')
-        ).distinct().order_by('-is_preferred', 'name')
+        )
+
+        if paper_type_id:
+            pt_id = int(paper_type_id) if str(paper_type_id).isdigit() else None
+            pt_name = ''
+            if pt_id:
+                pt_obj = PaperType.objects.filter(id=pt_id).first()
+                if pt_obj:
+                    pt_name = pt_obj.name
+            else:
+                pt_name = str(paper_type_id)
+
+            matching_cond = Q()
+            if pt_id:
+                matching_cond |= Q(services__paper_type_ref_id=pt_id)
+            if pt_name:
+                matching_cond |= Q(services__name__icontains=pt_name) | Q(services__attributes__paper_type__icontains=pt_name)
+
+            qs = qs.filter(matching_cond)
+
+        return qs.distinct().order_by('-is_preferred', 'name')
     except Exception:
         return []
+
+
+def get_active_paper_types(supplier_id=None):
+    """جلب خامات الورق المتاحة حصراً لدى الموردين المسجلين في النظام أو لدى مورد محدد"""
+    try:
+        from supplier.models import SupplierService
+        from printing_pricing.models import PaperType
+        from django.db.models import Q
+
+        qs = SupplierService.objects.filter(
+            service_type__code='paper',
+            is_active=True,
+            supplier__is_active=True,
+        )
+        if supplier_id:
+            qs = qs.filter(supplier_id=supplier_id)
+
+        # جمع معرفات خامات الورق المرتبطة بخدمات الموردين عبر المفتاح الأجنبي المباشر
+        paper_type_ids = set(qs.filter(paper_type_ref__isnull=False).values_list('paper_type_ref_id', flat=True).distinct())
+
+        # دعم احتياطي للخدمات التي لم يُربط فيها المفتاح الأجنبي بعد
+        attr_names = set()
+        for attr in qs.filter(paper_type_ref__isnull=True).values_list('attributes', flat=True):
+            if isinstance(attr, dict) and attr.get('paper_type'):
+                attr_names.add(str(attr['paper_type']).strip())
+
+        paper_type_filter = Q(id__in=paper_type_ids)
+        if attr_names:
+            name_q = Q()
+            for name in attr_names:
+                name_q |= Q(name__iexact=name)
+            paper_type_filter |= name_q
+
+        active_types = PaperType.objects.filter(is_active=True).filter(paper_type_filter).distinct().order_by('sort_order', 'name')
+        if active_types.exists():
+            return active_types
+
+        # إذا لم يكن هناك خامات مسجلة لدى الموردين، نرجع الأنواع النشطة كإجراء احتياطي
+        return PaperType.objects.filter(is_active=True).order_by('sort_order', 'name')
+    except Exception:
+        return PaperType.objects.filter(is_active=True).order_by('name')
 
 
 class OrderCreateView(LoginRequiredMixin, CreateView):
@@ -842,7 +905,7 @@ class OrderCreateView(LoginRequiredMixin, CreateView):
         context['digital_suppliers'] = get_active_digital_suppliers()
         
         # تمرير إعدادات الورق الخمسة المعيارية وموردي الورق وباقي إعدادات الطباعة
-        context['paper_types'] = PaperType.objects.filter(is_active=True).order_by('name')
+        context['paper_types'] = get_active_paper_types()
         context['paper_sizes'] = PaperSize.objects.filter(is_active=True).order_by('name')
         context['paper_weights'] = PaperWeight.objects.filter(is_active=True).order_by('gsm')
         context['paper_origins'] = PaperOrigin.objects.filter(is_active=True).order_by('name')
@@ -1156,7 +1219,14 @@ class OrderUpdateView(LoginRequiredMixin, UpdateView):
         context['offset_suppliers'] = get_active_offset_suppliers()
         context['digital_suppliers'] = get_active_digital_suppliers()
         
-        context['paper_types'] = PaperType.objects.filter(is_active=True).order_by('name')
+        # استرجاع ملخص التكاليف والمواصفات للحقن المباشر في القالب
+        paper_spec = order.paper_specs.filter(is_active=True).first()
+        context['saved_paper_spec'] = paper_spec
+
+        active_paper_types = list(get_active_paper_types())
+        if paper_spec and getattr(paper_spec, 'paper_type', None) and paper_spec.paper_type not in active_paper_types:
+            active_paper_types.append(paper_spec.paper_type)
+        context['paper_types'] = active_paper_types
         context['paper_sizes'] = PaperSize.objects.filter(is_active=True).order_by('name')
         context['paper_weights'] = PaperWeight.objects.filter(is_active=True).order_by('gsm')
         context['paper_origins'] = PaperOrigin.objects.filter(is_active=True).order_by('name')
@@ -1166,10 +1236,6 @@ class OrderUpdateView(LoginRequiredMixin, UpdateView):
         context['packaging_types'] = PackagingType.objects.filter(is_active=True).order_by('name')
         context['finishing_types'] = FinishingType.objects.filter(is_active=True).order_by('name')
         context['paper_suppliers'] = get_active_paper_suppliers()
-        
-        # استرجاع ملخص التكاليف والمواصفات للحقن المباشر في القالب
-        paper_spec = order.paper_specs.filter(is_active=True).first()
-        context['saved_paper_spec'] = paper_spec
         
         ctp_srv = order.services.filter(is_active=True).filter(
             Q(service_name__icontains='زنك') | Q(service_name__icontains='ctp')

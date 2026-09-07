@@ -124,6 +124,25 @@
       margin-top: var(--spacing-4, 1.5rem);
     }
   }
+
+  /* الأقسام التابعة للموردين - الحالة الهادئة الخافتة وفق متغيرات النظام الصارمة */
+  .supplier-dependent-section {
+    transition: opacity 0.25s ease-in-out, background-color 0.25s ease-in-out;
+  }
+  .supplier-dependent-section.is-dormant {
+    opacity: 0.55 !important;
+  }
+  .supplier-dependent-section.is-dormant .form-control:not(:focus),
+  .supplier-dependent-section.is-dormant .form-select:not(:focus) {
+    background-color: var(--bg-light);
+  }
+  .supplier-dependent-section.is-active {
+    opacity: 1 !important;
+  }
+  .supplier-dependent-section.is-active .form-control,
+  .supplier-dependent-section.is-active .form-select {
+    background-color: transparent;
+  }
 </style>
 {% endblock %}
 
@@ -223,6 +242,12 @@
 }
 </script>
 
+<!-- استدعاء موديول الحسابات الرياضية الصرفة (Pure Math Engine) -->
+<script src="{% static 'js/printing_pricing/modules/pricing_math.js' %}?v={% now 'U' %}"></script>
+<!-- استدعاء موديول أدوات التصدير والواتساب (Export & WhatsApp Engine) -->
+<script src="{% static 'js/printing_pricing/modules/pricing_export.js' %}?v={% now 'U' %}"></script>
+<!-- استدعاء موديول عميل الشبكة الموحد (Pricing API Client) -->
+<script src="{% static 'js/printing_pricing/modules/pricing_api.js' %}?v={% now 'U' %}"></script>
 <!-- استدعاء المحرك المعياري المستقل (Enterprise Two-Tier Pricing Engine) -->
 <script src="{% static 'js/printing_pricing/order_form_engine.js' %}?v={% now 'U' %}"></script>
 <script>

@@ -13,6 +13,7 @@ from printing_pricing.views.order_views import (
     get_active_digital_suppliers,
     get_active_ctp_suppliers,
     get_active_paper_suppliers,
+    get_active_paper_types,
     OrderCreateView
 )
 
@@ -161,3 +162,38 @@ class TestPreferredSuppliersAndZeroPricing:
         assert plate_svc is not None
         assert plate_svc.unit_price == Decimal('55.00')
         assert plate_svc.total_cost == Decimal('55.00') * 4
+
+    def test_get_active_paper_types_filters_by_supplier_services(self):
+        """التحقق من أن get_active_paper_types تقتصر حصراً على الخامات المسجلة كخدمات للموردين"""
+        from printing_pricing.models import PaperType
+
+        pt_active = PaperType.objects.create(name='ورق نشط للمورد', is_active=True)
+        pt_unused = PaperType.objects.create(name='ورق مهمل بدون مورد', is_active=True)
+
+        # ربط الخامة الأولى بخدمة مورد
+        SupplierService.objects.create(
+            supplier=self.supp_pref,
+            service_type=self.st_paper,
+            name='خدمة توريد ورق نشط',
+            paper_type_ref=pt_active,
+            base_price=Decimal('15.00'),
+            is_active=True
+        )
+
+        active_types = get_active_paper_types()
+        active_ids = list(active_types.values_list('id', flat=True))
+
+        assert pt_active.id in active_ids
+        assert pt_unused.id not in active_ids
+
+        # التحقق عند استدعاء OrderCreateView أن سياق القالب يحوي فقط الخامات المتاحة لدى الموردين
+        view = OrderCreateView()
+        req = self.rf.get('/printing-pricing/orders/create/')
+        req.user = self.user
+        view.request = req
+        view.object = None
+        ctx = view.get_context_data()
+
+        ctx_types = list(ctx['paper_types'].values_list('id', flat=True))
+        assert pt_active.id in ctx_types
+        assert pt_unused.id not in ctx_types

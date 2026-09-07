@@ -246,12 +246,19 @@ class TestPaperCascadingFlow:
         assert res_zero['success'] is True
         assert res_zero['paper']['total_cost'] == 0.0
 
-        # فحص وجود صمامات الأمان الحسابية في ملف الجافاسكريبت الموحد
+        # فحص وجود صمامات الأمان الحسابية في محرك التسعير وموديولاته المعمارية
         import os
         from django.conf import settings
-        js_path = os.path.join(settings.BASE_DIR, 'static', 'js', 'printing_pricing', 'order_form_engine.js')
+        js_dir = os.path.join(settings.BASE_DIR, 'static', 'js', 'printing_pricing')
+        js_path = os.path.join(js_dir, 'order_form_engine.js')
         with open(js_path, 'r', encoding='utf-8') as f:
             js_content = f.read()
+        modules_dir = os.path.join(js_dir, 'modules')
+        if os.path.exists(modules_dir):
+            for mod_file in os.listdir(modules_dir):
+                if mod_file.endswith('.js'):
+                    with open(os.path.join(modules_dir, mod_file), 'r', encoding='utf-8') as f:
+                        js_content += '\n' + f.read()
 
         # التحقق من وجود صمامات تجاوز الأبعاد وعدم القسمة على صفر
         assert 'cutsPerSheet <= 0' in js_content

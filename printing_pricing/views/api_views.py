@@ -453,6 +453,9 @@ class GetPressesAPIView(BaseAPIView):
                     price_bw = float(attrs.get('price_per_page_bw') or (0.0 if svc_type == 'digital' else 0.0))
                     price_color = float(attrs.get('price_per_page_color') or (price if price > 0 else 0.0))
 
+                    price_date_str = svc.price_updated_at.strftime('%Y-%m-%d') if getattr(svc, 'price_updated_at', None) else (svc.updated_at.strftime('%Y-%m-%d') if getattr(svc, 'updated_at', None) else '')
+                    valid_until_str = svc.price_valid_until.strftime('%Y-%m-%d') if getattr(svc, 'price_valid_until', None) else None
+
                     presses.append({
                         'id':                   f'{svc_type}_{svc.id}',
                         'name':                 svc.name,
@@ -469,6 +472,10 @@ class GetPressesAPIView(BaseAPIView):
                         'price_per_page_color': price_color,
                         'attributes':           attrs,
                         'service_id':           svc.id,
+                        'price_updated_at':     price_date_str,
+                        'price_age_days':       getattr(svc, 'price_age_days', 0),
+                        'price_staleness_status': getattr(svc, 'price_staleness_status', 'fresh'),
+                        'price_valid_until':    valid_until_str,
                     })
 
             return JsonResponse({
@@ -492,29 +499,39 @@ class GetPaperTypesAPIView(BaseAPIView):
     def get(self, request):
         try:
             supplier_id = request.GET.get('supplier_id')
+            only_available = request.GET.get('only_available') or request.GET.get('available_only')
             
-            # جلب كل أنواع الورق النشطة من نموذج الإعدادات كمرجع أصلي
-            all_paper_types = PaperType.objects.filter(is_active=True).order_by('name')
-            
+            from .order_views import get_active_paper_types
+            available_types_qs = get_active_paper_types(supplier_id=supplier_id if supplier_id else None)
+            available_ids = set(available_types_qs.values_list('id', flat=True))
+
             supplier_paper_type_names = set()
             if supplier_id and HAS_SUPPLIER_SERVICES:
                 for svc in SupplierServiceModel.objects.filter(
                     service_type__code='paper', supplier_id=supplier_id, is_active=True
-                ).values_list('attributes', flat=True):
-                    if isinstance(svc, dict):
-                        pt = svc.get('paper_type')
+                ):
+                    if svc.paper_type_ref_id:
+                        available_ids.add(svc.paper_type_ref_id)
+                    if isinstance(svc.attributes, dict):
+                        pt = svc.attributes.get('paper_type')
                         if pt:
                             supplier_paper_type_names.add(str(pt).strip())
 
+            # إذا طُلبت الخامات المتاحة فقط يتم قصر القائمة عليها
+            if only_available in ['1', 'true', 'True']:
+                target_types = available_types_qs
+            else:
+                target_types = PaperType.objects.filter(is_active=True).order_by('sort_order', 'name')
+
             types_data = []
-            for pt in all_paper_types:
+            for pt in target_types:
                 # التحقق من توفر هذا النوع لدى المورد المختار
                 is_available = True
                 if supplier_id:
-                    is_available = any(
+                    is_available = (pt.id in available_ids) or any(
                         s_name.lower() in pt.name.lower() or pt.name.lower() in s_name.lower()
                         for s_name in supplier_paper_type_names
-                    ) if supplier_paper_type_names else False
+                    )
 
                 types_data.append({
                     'id': pt.id,
@@ -526,7 +543,7 @@ class GetPaperTypesAPIView(BaseAPIView):
                 })
 
             # ترتيب القائمة بحيث تظهر الخامات المتوفرة لدى المورد في البداية
-            if supplier_id and supplier_paper_type_names:
+            if supplier_id and not (only_available in ['1', 'true', 'True']):
                 types_data.sort(key=lambda x: (not x['is_available_with_supplier'], x['name']))
 
             return JsonResponse({
@@ -547,20 +564,25 @@ class GetPaperSuppliersAPIView(BaseAPIView):
     def get(self, request):
         try:
             paper_type_id = request.GET.get('paper_type_id')
+            only_available = request.GET.get('only_available') or request.GET.get('available_only')
+
+            from .order_views import get_active_paper_suppliers
+            # إذا حُدد نوع ورق، يتم جلب الموردين الذين يوفرون هذه الخامة حصراً
+            paper_suppliers = get_active_paper_suppliers(paper_type_id=paper_type_id if paper_type_id else None)
             
-            # جلب كل موردي الورق النشطين
-            paper_suppliers = Supplier.objects.filter(
-                is_active=True,
-                services__service_type__code='paper',
-                services__is_active=True
-            ).distinct().order_by('-is_preferred', 'name')
-            
-            if not paper_suppliers.exists():
+            if not paper_suppliers and not paper_type_id:
                 paper_suppliers = Supplier.objects.filter(
                     is_active=True,
-                    is_pricing_supplier=True,
-                    provided_services__code='paper'
+                    services__service_type__code='paper',
+                    services__is_active=True
                 ).distinct().order_by('-is_preferred', 'name')
+                
+                if not paper_suppliers.exists():
+                    paper_suppliers = Supplier.objects.filter(
+                        is_active=True,
+                        is_pricing_supplier=True,
+                        provided_services__code='paper'
+                    ).distinct().order_by('-is_preferred', 'name')
                 if not paper_suppliers.exists():
                     paper_suppliers = Supplier.objects.filter(
                         is_active=True,
@@ -592,7 +614,7 @@ class GetPaperSuppliersAPIView(BaseAPIView):
                         if paper_type_id and str(paper_type_id).isdigit() and getattr(svc, 'paper_type_ref_id', None) == int(paper_type_id):
                             has_type = True
                             break
-                        pt = getattr(svc, 'paper_type_ref', None) or svc.attributes.get('paper_type')
+                        pt = getattr(svc, 'paper_type_ref', None) or (svc.attributes.get('paper_type') if isinstance(svc.attributes, dict) else None)
                         if pt and (paper_type_name.lower() in str(pt).lower() or str(pt).lower() in paper_type_name.lower()):
                             has_type = True
                             break
@@ -600,6 +622,10 @@ class GetPaperSuppliersAPIView(BaseAPIView):
                             has_type = True
                             break
                     is_available = has_type
+
+                # إذا تم اختيار نوع ورق، لا تُرجع سوى الموردين الذين يوفرون هذه الخامة حصراً
+                if paper_type_id and not is_available:
+                    continue
 
                 suppliers_data.append({
                     'id': s.id,
@@ -611,7 +637,7 @@ class GetPaperSuppliersAPIView(BaseAPIView):
                     'is_available_for_paper': is_available,
                 })
 
-            suppliers_data.sort(key=lambda x: (not x['is_available_for_paper'], not x.get('is_preferred', False), x['name']))
+            suppliers_data.sort(key=lambda x: (not x.get('is_preferred', False), x['name']))
 
             return JsonResponse({
                 'success': True,
@@ -1073,25 +1099,36 @@ class GetPaperPriceAPIView(BaseAPIView):
                     curr_code = eff_curr.code if eff_curr else "EGP"
                     curr_symbol = eff_curr.symbol if eff_curr else "ج.م"
 
+                    price_date_str = matched.price_updated_at.strftime('%Y-%m-%d') if matched.price_updated_at else (matched.updated_at.strftime('%Y-%m-%d') if matched.updated_at else '')
+                    valid_until_str = matched.price_valid_until.strftime('%Y-%m-%d') if matched.price_valid_until else None
+
                     return JsonResponse({
-                        'success':         True,
-                        'price':           sheet_price,
-                        'unit_price':      sheet_price,
-                        'price_per_sheet': sheet_price,
-                        'pricing_formula': matched.pricing_formula,
-                        'origin':          detected_origin or origin or '',
-                        'currency':        curr_code,
-                        'currency_code':   curr_code,
-                        'currency_symbol': curr_symbol,
-                        'service_id':      matched.id,
-                        'service_info':    {
-                            'id':              matched.id,
-                            'supplier_name':   matched.supplier.name,
-                            'paper_type_name': paper_type_name or matched.name,
-                            'sheet_size':      sheet_type,
-                            'weight_gsm':      weight,
-                            'origin_name':     detected_origin or origin or '',
-                            'attributes':      matched.attributes,
+                        'success':                True,
+                        'price':                  sheet_price,
+                        'unit_price':             sheet_price,
+                        'price_per_sheet':        sheet_price,
+                        'pricing_formula':        matched.pricing_formula,
+                        'origin':                 detected_origin or origin or '',
+                        'currency':               curr_code,
+                        'currency_code':          curr_code,
+                        'currency_symbol':        curr_symbol,
+                        'service_id':             matched.id,
+                        'price_updated_at':       price_date_str,
+                        'price_age_days':         matched.price_age_days,
+                        'price_staleness_status': matched.price_staleness_status,
+                        'price_valid_until':      valid_until_str,
+                        'service_info':           {
+                            'id':                     matched.id,
+                            'supplier_name':          matched.supplier.name,
+                            'paper_type_name':        paper_type_name or matched.name,
+                            'sheet_size':             sheet_type,
+                            'weight_gsm':             weight,
+                            'origin_name':            detected_origin or origin or '',
+                            'attributes':             matched.attributes,
+                            'price_updated_at':       price_date_str,
+                            'price_age_days':         matched.price_age_days,
+                            'price_staleness_status': matched.price_staleness_status,
+                            'price_valid_until':      valid_until_str,
                         }
                     })
 

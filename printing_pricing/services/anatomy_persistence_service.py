@@ -251,26 +251,26 @@ class OrderAnatomyPersistenceService:
                 if saved_spec.machine_cuts and not calc_params.get('machine_cuts'):
                     calc_params['machine_cuts'] = int(saved_spec.machine_cuts)
 
-            # الحفاظ على ذاكرة الموردين في محرك الحسابات الموحد عند استدعاء الحفظ بدون post_data (Recalculate Amnesia Guard)
-            if not calc_params.get('cover_offset_supplier') and 'offset_printing' in cached_service_map:
+            # الحفاظ على ذاكرة الموردين في محرك الحسابات الموحد فقط عند الاستدعاء البرمجي بدون فورم صريح
+            if 'cover_offset_supplier' not in post_data and 'offset_printing' in cached_service_map:
                 svc = cached_service_map['offset_printing']
                 calc_params['cover_offset_supplier'] = svc.supplier_id
                 calc_params['cover_press_machine'] = f"offset_{svc.id}"
                 if not calc_params.get('press_bed_size') and svc.plate_size:
                     calc_params['press_bed_size'] = svc.plate_size.code
 
-            if not calc_params.get('cover_ctp_supplier') and 'ctp_plates' in cached_service_map:
+            if 'cover_ctp_supplier' not in post_data and 'ctp_plates' in cached_service_map:
                 svc = cached_service_map['ctp_plates']
                 calc_params['cover_ctp_supplier'] = svc.supplier_id
                 if not calc_params.get('press_bed_size') and svc.plate_size:
                     calc_params['press_bed_size'] = svc.plate_size.code
 
-            if not calc_params.get('inner_offset_supplier') and 'inner_offset_printing' in cached_service_map:
+            if 'inner_offset_supplier' not in post_data and 'inner_offset_printing' in cached_service_map:
                 svc = cached_service_map['inner_offset_printing']
                 calc_params['inner_offset_supplier'] = svc.supplier_id
                 calc_params['inner_press_machine'] = f"offset_{svc.id}"
 
-            if not calc_params.get('inner_ctp_supplier') and 'inner_ctp_plates' in cached_service_map:
+            if 'inner_ctp_supplier' not in post_data and 'inner_ctp_plates' in cached_service_map:
                 svc = cached_service_map['inner_ctp_plates']
                 calc_params['inner_ctp_supplier'] = svc.supplier_id
 
@@ -636,18 +636,18 @@ class OrderAnatomyPersistenceService:
 
                 # قراءة مقاس وسعر الزنك
                 press_bed_size = post_data.get('press_bed_size') or '70x100'
-                default_rate = '150.00' if press_bed_size == '70x100' else ('85.00' if press_bed_size == '50x70' else '60.00')
-                plate_rate_str = post_data.get('plate_price') or default_rate
+                has_explicit_plate_price = bool(post_data.get('plate_price') and str(post_data.get('plate_price')).strip() != '')
+                plate_rate_str = post_data.get('plate_price') or '0.00'
                 try:
                     plate_rate = Decimal(str(plate_rate_str))
                 except:
-                    plate_rate = Decimal(default_rate)
+                    plate_rate = Decimal('0.00')
 
                 # معالجة مورد زنكات CTP
                 cover_supplier_id = post_data.get('cover_ctp_supplier')
                 cover_supplier = None
                 cover_supp_service = None
-                if not cover_supplier_id and 'ctp_plates' in cached_service_map:
+                if 'cover_ctp_supplier' not in post_data and 'ctp_plates' in cached_service_map:
                     cover_supp_service = cached_service_map['ctp_plates']
                     cover_supplier = cover_supp_service.supplier
 
@@ -679,27 +679,30 @@ class OrderAnatomyPersistenceService:
                 if is_archived:
                     plates_total = Decimal('0.00')
                     effective_plate_rate = Decimal('0.00')
-                elif post_data.get('plate_price'):
-                    try:
-                        explicit_p_price = Decimal(str(post_data.get('plate_price')))
-                        if explicit_p_price > Decimal('0.00'):
-                            effective_plate_rate = explicit_p_price
-                            plates_total = Decimal(str(total_plates_count)) * effective_plate_rate
-                        else:
-                            effective_plate_rate = Decimal('0.00')
-                            plates_total = Decimal('0.00')
-                    except Exception:
-                        effective_plate_rate = plate_rate
-                        plates_total = Decimal(str(total_plates_count)) * effective_plate_rate
+                elif has_explicit_plate_price:
+                    effective_plate_rate = plate_rate
+                    plates_total = (Decimal(str(total_plates_count)) * effective_plate_rate).quantize(Decimal('0.01'))
                 elif cover_supp_service and cover_supp_service.set_price and cover_supp_service.set_price > Decimal('0.00'):
                     plates_total = cover_supp_service.calculate_cost(total_plates_count)
                     effective_plate_rate = (plates_total / Decimal(str(total_plates_count))).quantize(Decimal('0.01')) if total_plates_count > 0 else Decimal('0.00')
-                elif engine_res.get('success') and 'plates' in engine_res and engine_res['plates'].get('total_cost') is not None and engine_res['plates'].get('total_cost') > 0:
-                    plates_total = Decimal(str(engine_res['plates']['total_cost']))
-                    effective_plate_rate = (plates_total / Decimal(str(total_plates_count))).quantize(Decimal('0.01')) if total_plates_count > 0 else Decimal('0.00')
+                elif cover_supplier:
+                    # يوجد مورد ولكن لم يُدخل المستخدم سعراً يدوياً
+                    default_rate = Decimal('150.00') if press_bed_size == '70x100' else (Decimal('85.00') if press_bed_size == '50x70' else Decimal('60.00'))
+                    effective_plate_rate = default_rate
+                    plates_total = (Decimal(str(total_plates_count)) * effective_plate_rate).quantize(Decimal('0.01'))
+                elif 'cover_ctp_supplier' not in post_data:
+                    # استدعاء برمجي بدون واجهة مستخدم (Headless / API / Test)
+                    if engine_res.get('success') and 'plates' in engine_res and engine_res['plates'].get('total_cost') is not None and engine_res['plates'].get('total_cost') > 0:
+                        plates_total = Decimal(str(engine_res['plates']['total_cost']))
+                        effective_plate_rate = (plates_total / Decimal(str(total_plates_count))).quantize(Decimal('0.01')) if total_plates_count > 0 else Decimal('0.00')
+                    else:
+                        default_rate = Decimal('150.00') if press_bed_size == '70x100' else (Decimal('85.00') if press_bed_size == '50x70' else Decimal('60.00'))
+                        effective_plate_rate = default_rate
+                        plates_total = (Decimal(str(total_plates_count)) * effective_plate_rate).quantize(Decimal('0.01'))
                 else:
-                    effective_plate_rate = plate_rate
-                    plates_total = Decimal(str(total_plates_count)) * effective_plate_rate
+                    # تم تقديم الفورم من المستخدم ومسح المورد بدون تحديد سعر يدوي -> صفر تكلفة
+                    effective_plate_rate = Decimal('0.00')
+                    plates_total = Decimal('0.00')
 
                 supplier_snapshot = {
                     'supplier_id': cover_supplier.id if cover_supplier else None,
@@ -712,7 +715,7 @@ class OrderAnatomyPersistenceService:
                     'back_plates': back_colors + order.spot_colors_back,
                 }
 
-                if total_plates_count > 0:
+                if total_plates_count > 0 and (plates_total > Decimal('0.00') or is_archived):
                     status_desc = "من الأرشيف (0 ج)" if is_archived else f"جديدة ({press_bed_size})"
                     set_desc = f" | تسعير طقم: {cover_supp_service.set_price} ج" if (cover_supp_service and cover_supp_service.set_price) else ""
                     OrderService.objects.create(
@@ -742,17 +745,18 @@ class OrderAnatomyPersistenceService:
                 # حساب السحبات والتراج (يتضاعف في الطبع والقلب أو الوش والضهر المستقل)
                 pulls_multiplier = Decimal('2') if (order.print_sides_mode == 'work_turn' or (order.print_sides_mode == 'work_sheet' and (back_colors > 0 or order.spot_colors_back > 0))) else Decimal('1')
                 press_pulls = gross_sheets * pulls_multiplier
-                press_rate_str = post_data.get('press_rate') or '45.00'
+                has_explicit_press_rate = bool(post_data.get('press_rate') and str(post_data.get('press_rate')).strip() != '')
+                press_rate_str = post_data.get('press_rate') or '0.00'
                 try:
                     press_rate = Decimal(str(press_rate_str))
                 except:
-                    press_rate = Decimal('45.00')
+                    press_rate = Decimal('0.00')
                 
                 # جلب مطبعة الأوفست وماكينتها
                 cover_offset_supp_id = post_data.get('cover_offset_supplier')
                 cover_offset_supp = None
                 cover_offset_svc = None
-                if not cover_offset_supp_id and 'offset_printing' in cached_service_map:
+                if 'cover_offset_supplier' not in post_data and 'offset_printing' in cached_service_map:
                     cover_offset_svc = cached_service_map['offset_printing']
                     cover_offset_supp = cover_offset_svc.supplier
 
@@ -780,55 +784,59 @@ class OrderAnatomyPersistenceService:
                     except Exception:
                         pass
 
-                if not cover_offset_supp:
-                    try:
-                        from supplier.models import Supplier, SupplierService as SuppSvcModel
-                        cover_offset_supp = Supplier.objects.filter(
-                            is_active=True, is_preferred=True, services__service_type__code='offset_printing', services__is_active=True
-                        ).first() or Supplier.objects.filter(
-                            is_active=True, services__service_type__code='offset_printing', services__is_active=True
-                        ).first()
-                        if cover_offset_supp and not cover_offset_svc:
-                            cover_offset_svc = SuppSvcModel.objects.filter(
-                                supplier=cover_offset_supp, service_type__code='offset_printing', is_active=True
-                            ).first()
-                    except Exception:
-                        pass
-
                 press_machine_name = cover_offset_svc.name if cover_offset_svc else (post_data.get('cover_press_machine') or press_bed_size)
 
                 # استخدام مخرجات محرك الحسابات الموحد لضمان التطابق التام بالمليم
                 sides_mult = 2 if post_data.get('print_sides_mode') in ['work_turn', 'work_sheet'] else 1
                 fallback_pulls = int(press_pulls)
                 fallback_tirages = Decimal(str(max(1, math.ceil(fallback_pulls / 1000))))
-                fallback_rate = Decimal(str(cover_offset_svc.base_price)) if (cover_offset_svc and cover_offset_svc.base_price) else Decimal('45.00')
 
-                if post_data.get('press_rate'):
-                    try:
-                        explicit_pr = Decimal(str(post_data.get('press_rate')))
-                        if explicit_pr > Decimal('0.00'):
-                            press_rate = explicit_pr
-                            thousands_pulls = Decimal(str(engine_res['printing']['tirages'])) if (engine_res.get('success') and 'printing' in engine_res) else fallback_tirages
-                            press_pulls = Decimal(str(engine_res['printing']['press_pulls'])) if (engine_res.get('success') and 'printing' in engine_res) else Decimal(str(fallback_pulls))
-                            min_press_floor = cover_offset_svc.minimum_charge if (cover_offset_svc and cover_offset_svc.minimum_charge) else Decimal('0.00')
-                            raw_press = max(min_press_floor, thousands_pulls * press_rate)
-                        else:
-                            press_rate = Decimal('0.00')
-                            raw_press = Decimal('0.00')
-                    except Exception:
-                        pass
-                elif engine_res.get('success') and 'printing' in engine_res and engine_res['printing']['printing_type'] == 'offset' and engine_res['printing'].get('rate_per_1000', 0) > 0:
-                    raw_press = Decimal(str(engine_res['printing']['applied_press_cost']))
-                    thousands_pulls = Decimal(str(engine_res['printing']['tirages']))
-                    press_pulls = Decimal(str(engine_res['printing']['press_pulls']))
-                    press_rate = Decimal(str(engine_res['printing']['rate_per_1000']))
-                else:
+                if has_explicit_press_rate:
+                    if press_rate > Decimal('0.00'):
+                        thousands_pulls = Decimal(str(engine_res['printing']['tirages'])) if (engine_res.get('success') and 'printing' in engine_res) else fallback_tirages
+                        press_pulls = Decimal(str(engine_res['printing']['press_pulls'])) if (engine_res.get('success') and 'printing' in engine_res) else Decimal(str(fallback_pulls))
+                        min_press_floor = cover_offset_svc.minimum_charge if (cover_offset_svc and cover_offset_svc.minimum_charge) else Decimal('0.00')
+                        raw_press = max(min_press_floor, thousands_pulls * press_rate)
+                    else:
+                        thousands_pulls = fallback_tirages
+                        raw_press = Decimal('0.00')
+                elif cover_offset_svc and cover_offset_svc.set_price and cover_offset_svc.set_price > Decimal('0.00'):
+                    machine_sets = 2 if order.print_sides_mode == 'work_sheet' else 1
+                    raw_press = cover_offset_svc.calculate_cost(int(fallback_tirages), machine_sets=machine_sets)
+                    press_rate = (raw_press / fallback_tirages).quantize(Decimal('0.01')) if fallback_tirages > 0 else Decimal('0.00')
                     press_pulls = Decimal(str(fallback_pulls))
                     thousands_pulls = fallback_tirages
-                    press_rate = fallback_rate
-                    min_press_floor = cover_offset_svc.minimum_charge if (cover_offset_svc and cover_offset_svc.minimum_charge) else Decimal('0.00')
-                    calculated_press = thousands_pulls * press_rate
-                    raw_press = max(min_press_floor, calculated_press)
+                elif cover_offset_svc and cover_offset_svc.base_price and cover_offset_svc.base_price > Decimal('0.00'):
+                    press_pulls = Decimal(str(fallback_pulls))
+                    thousands_pulls = fallback_tirages
+                    press_rate = Decimal(str(cover_offset_svc.base_price))
+                    min_press_floor = cover_offset_svc.minimum_charge or Decimal('0.00')
+                    raw_press = max(min_press_floor, thousands_pulls * press_rate)
+                elif cover_offset_supp:
+                    # يوجد مطبعة مختارة لكن لم تُحدد ماكينة ذات سعر محدد
+                    press_pulls = Decimal(str(fallback_pulls))
+                    thousands_pulls = fallback_tirages
+                    press_rate = Decimal('45.00')
+                    raw_press = thousands_pulls * press_rate
+                elif 'cover_offset_supplier' not in post_data:
+                    # استدعاء برمجي بدون واجهة مستخدم (Headless / API / Test)
+                    if engine_res.get('success') and 'printing' in engine_res and engine_res['printing'].get('press_cost') is not None and engine_res['printing'].get('press_cost') > 0:
+                        thousands_pulls = Decimal(str(engine_res['printing']['tirages']))
+                        press_pulls = Decimal(str(engine_res['printing']['press_pulls']))
+                        raw_press = Decimal(str(engine_res['printing']['press_cost']))
+                        press_rate = (raw_press / thousands_pulls).quantize(Decimal('0.01')) if thousands_pulls > 0 else Decimal('0.00')
+                    else:
+                        press_pulls = Decimal(str(fallback_pulls))
+                        thousands_pulls = fallback_tirages
+                        press_rate = Decimal('45.00')
+                        raw_press = thousands_pulls * press_rate
+                else:
+                    # تم تقديم الفورم والمستخدم لم يختر مورد طباعة ولم يحدد سعراً صريحاً -> صفر تكلفة
+                    press_pulls = Decimal(str(fallback_pulls))
+                    thousands_pulls = fallback_tirages
+                    press_rate = Decimal('0.00')
+                    raw_press = Decimal('0.00')
+
                 setup_diff = Decimal('0.00')
 
                 offset_press_snapshot = {
@@ -1015,21 +1023,19 @@ class OrderAnatomyPersistenceService:
                         post_data.get('is_inner_plates_archived') in ['1', 'true', 'on', True]
                     )
                     inner_bed_size = post_data.get('inner_press_bed_size') or '70x100'
-                    default_inner_rate = '150.00' if inner_bed_size == '70x100' else ('85.00' if inner_bed_size == '50x70' else '60.00')
-                    inner_plate_rate_str = post_data.get('inner_plate_price') or default_inner_rate
+                    has_explicit_inner_plate_price = bool(post_data.get('inner_plate_price') and str(post_data.get('inner_plate_price')).strip() != '')
+                    inner_plate_rate_str = post_data.get('inner_plate_price') or '0.00'
                     try:
                         inner_plate_rate = Decimal(str(inner_plate_rate_str))
                     except:
-                        inner_plate_rate = Decimal(default_inner_rate)
-
-                    effective_inner_plate_rate = Decimal('0.00') if is_inner_archived else inner_plate_rate
+                        inner_plate_rate = Decimal('0.00')
 
                     # جلب مورد زنكات الداخلي
                     inner_supplier_id = post_data.get('inner_ctp_supplier')
                     inner_supplier = None
                     inner_supp_service = None
-                    if not inner_supplier_id and 'ctp_plates' in cached_service_map:
-                        inner_supp_service = cached_service_map['ctp_plates']
+                    if 'inner_ctp_supplier' not in post_data and 'inner_ctp_plates' in cached_service_map:
+                        inner_supp_service = cached_service_map['inner_ctp_plates']
                         inner_supplier = inner_supp_service.supplier
 
                     if inner_supplier_id:
@@ -1056,6 +1062,22 @@ class OrderAnatomyPersistenceService:
                         except Exception:
                             pass
 
+                    # تحديد السعر الفعلي لزنكة الداخلي
+                    if is_inner_archived:
+                        effective_inner_plate_rate = Decimal('0.00')
+                    elif has_explicit_inner_plate_price:
+                        effective_inner_plate_rate = inner_plate_rate
+                    elif inner_supp_service and inner_supp_service.set_price and inner_supp_service.set_price > Decimal('0.00'):
+                        effective_inner_plate_rate = Decimal(str(inner_supp_service.base_price or '0.00'))
+                    elif inner_supplier:
+                        default_inner_rate = Decimal('150.00') if inner_bed_size == '70x100' else (Decimal('85.00') if inner_bed_size == '50x70' else Decimal('60.00'))
+                        effective_inner_plate_rate = default_inner_rate
+                    elif 'inner_ctp_supplier' not in post_data:
+                        default_inner_rate = Decimal('150.00') if inner_bed_size == '70x100' else (Decimal('85.00') if inner_bed_size == '50x70' else Decimal('60.00'))
+                        effective_inner_plate_rate = default_inner_rate
+                    else:
+                        effective_inner_plate_rate = Decimal('0.00')
+
                     inner_supplier_snapshot = {
                         'supplier_id': inner_supplier.id if inner_supplier else None,
                         'supplier_name': inner_supplier.name if inner_supplier else 'زنكات داخلية',
@@ -1069,18 +1091,19 @@ class OrderAnatomyPersistenceService:
                         single_colors = int(post_data.get('inner_colors_single') or 4)
                         single_plates_cost = Decimal(str(single_colors)) * effective_inner_plate_rate
                         single_status = "من الأرشيف (0 ج)" if is_inner_archived else f"جديدة ({inner_bed_size})"
-                        OrderService.objects.create(
-                            order=order,
-                            service_category='printing',
-                            service_name=f"[داخلي أوفست] زنكات CTP لوجه واحد {single_status} ({single_colors} زنكة)",
-                            service_description=f"مقاس الماكينة: {inner_bed_size} | المصدر: {'أرشيف' if is_inner_archived else 'جديد'} | المورد: {inner_supplier_snapshot['supplier_name']}",
-                            quantity=Decimal(str(single_colors)),
-                            unit=PriceUnit.PIECE,
-                            unit_price=effective_inner_plate_rate,
-                            total_cost=single_plates_cost,
-                            supplier_service=inner_supp_service,
-                            supplier_info=inner_supplier_snapshot
-                        )
+                        if single_colors > 0 and (single_plates_cost > Decimal('0.00') or is_inner_archived):
+                            OrderService.objects.create(
+                                order=order,
+                                service_category='printing',
+                                service_name=f"[داخلي أوفست] زنكات CTP لوجه واحد {single_status} ({single_colors} زنكة)",
+                                service_description=f"مقاس الماكينة: {inner_bed_size} | المصدر: {'أرشيف' if is_inner_archived else 'جديد'} | المورد: {inner_supplier_snapshot['supplier_name']}",
+                                quantity=Decimal(str(single_colors)),
+                                unit=PriceUnit.PIECE,
+                                unit_price=effective_inner_plate_rate,
+                                total_cost=single_plates_cost,
+                                supplier_service=inner_supp_service,
+                                supplier_info=inner_supplier_snapshot
+                            )
                         inner_offset_supp_id = post_data.get('inner_offset_supplier')
                         inner_offset_supp = None
                         inner_offset_svc = None
@@ -1107,11 +1130,26 @@ class OrderAnatomyPersistenceService:
                             except Exception:
                                 pass
 
-                        inner_press_rate = Decimal(str(post_data.get('inner_press_rate') or '45.00'))
+                        has_explicit_inner_press_rate = bool(post_data.get('inner_press_rate') and str(post_data.get('inner_press_rate')).strip() != '')
+                        inner_press_rate_str = post_data.get('inner_press_rate') or '0.00'
+                        try:
+                            inner_press_rate = Decimal(str(inner_press_rate_str))
+                        except:
+                            inner_press_rate = Decimal('0.00')
+
                         inner_press_machine = inner_offset_svc.name if inner_offset_svc else (post_data.get('inner_press_machine') or inner_bed_size)
 
                         single_thousands = Decimal(str(int(inner_gross_sheets / 1000) + 1))
-                        single_press_cost = max(Decimal('150.00'), single_thousands * inner_press_rate)
+                        if has_explicit_inner_press_rate:
+                            single_press_cost = single_thousands * inner_press_rate
+                        elif inner_offset_supp:
+                            inner_press_rate = Decimal('45.00')
+                            single_press_cost = max(Decimal('150.00'), single_thousands * inner_press_rate)
+                        elif 'inner_offset_supplier' not in post_data:
+                            inner_press_rate = Decimal('45.00')
+                            single_press_cost = max(Decimal('150.00'), single_thousands * inner_press_rate)
+                        else:
+                            single_press_cost = Decimal('0.00')
 
                         single_press_snapshot = {
                             'supplier_id': inner_offset_supp.id if inner_offset_supp else None,
@@ -1121,18 +1159,19 @@ class OrderAnatomyPersistenceService:
                             'pulls_count': int(inner_gross_sheets),
                         }
 
-                        OrderService.objects.create(
-                            order=order,
-                            service_category='printing',
-                            service_name=f"[داخلي أوفست] سحب أوفست للداخلي ({inner_gross_sheets} سحبة - {single_thousands} تراج)",
-                            service_description=f"المطبعة: {single_press_snapshot['supplier_name']} | الماكينة: {inner_press_machine} | سعر التراج: {inner_press_rate} ج/تراج (ألف سحبة)",
-                            quantity=single_thousands,
-                            unit=PriceUnit.THOUSAND,
-                            unit_price=inner_press_rate,
-                            total_cost=single_press_cost,
-                            supplier_service=inner_offset_svc,
-                            supplier_info=single_press_snapshot
-                        )
+                        if single_press_cost > Decimal('0.00'):
+                            OrderService.objects.create(
+                                order=order,
+                                service_category='printing',
+                                service_name=f"[داخلي أوفست] سحب أوفست للداخلي ({inner_gross_sheets} سحبة - {single_thousands} تراج)",
+                                service_description=f"المطبعة: {single_press_snapshot['supplier_name']} | الماكينة: {inner_press_machine} | سعر التراج: {inner_press_rate} ج/تراج (ألف سحبة)",
+                                quantity=single_thousands,
+                                unit=PriceUnit.THOUSAND,
+                                unit_price=inner_press_rate,
+                                total_cost=single_press_cost,
+                                supplier_service=inner_offset_svc,
+                                supplier_info=single_press_snapshot
+                            )
                         total_printing_cost += (single_plates_cost + single_press_cost)
                     else:
                         color_sigs = total_signatures
@@ -1158,24 +1197,25 @@ class OrderAnatomyPersistenceService:
                         if is_inner_archived:
                             inner_plates_cost = Decimal('0.00')
                             effective_inner_plate_rate = Decimal('0.00')
-                        elif post_data.get('inner_plate_price'):
-                            try:
-                                exp_inner_plate_p = Decimal(str(post_data.get('inner_plate_price')))
-                                if exp_inner_plate_p > Decimal('0.00'):
-                                    effective_inner_plate_rate = exp_inner_plate_p
-                                    inner_plates_cost = Decimal(str(inner_plates)) * effective_inner_plate_rate
-                                else:
-                                    effective_inner_plate_rate = Decimal('0.00')
-                                    inner_plates_cost = Decimal('0.00')
-                            except Exception:
-                                inner_plates_cost = Decimal(str(inner_plates)) * effective_inner_plate_rate
+                        elif has_explicit_inner_plate_price:
+                            effective_inner_plate_rate = inner_plate_rate
+                            inner_plates_cost = (Decimal(str(inner_plates)) * effective_inner_plate_rate).quantize(Decimal('0.01'))
                         elif inner_supp_service and inner_supp_service.set_price and inner_supp_service.set_price > Decimal('0.00'):
                             inner_plates_cost = inner_supp_service.calculate_cost(inner_plates)
                             effective_inner_plate_rate = (inner_plates_cost / Decimal(str(inner_plates))).quantize(Decimal('0.01')) if inner_plates > 0 else Decimal('0.00')
+                        elif inner_supplier:
+                            default_inner_rate = Decimal('150.00') if inner_bed_size == '70x100' else (Decimal('85.00') if inner_bed_size == '50x70' else Decimal('60.00'))
+                            effective_inner_plate_rate = default_inner_rate
+                            inner_plates_cost = (Decimal(str(inner_plates)) * effective_inner_plate_rate).quantize(Decimal('0.01'))
+                        elif 'inner_ctp_supplier' not in post_data:
+                            default_inner_rate = Decimal('150.00') if inner_bed_size == '70x100' else (Decimal('85.00') if inner_bed_size == '50x70' else Decimal('60.00'))
+                            effective_inner_plate_rate = default_inner_rate
+                            inner_plates_cost = (Decimal(str(inner_plates)) * effective_inner_plate_rate).quantize(Decimal('0.01'))
                         else:
-                            inner_plates_cost = Decimal(str(inner_plates)) * effective_inner_plate_rate
+                            effective_inner_plate_rate = Decimal('0.00')
+                            inner_plates_cost = Decimal('0.00')
                         
-                        if inner_plates > 0:
+                        if inner_plates > 0 and (inner_plates_cost > Decimal('0.00') or is_inner_archived):
                             inner_status = "من الأرشيف (0 ج)" if is_inner_archived else f"جديدة ({inner_bed_size})"
                             set_desc = f" | تسعير طقم: {inner_supp_service.set_price} ج" if (inner_supp_service and inner_supp_service.set_price) else ""
                             OrderService.objects.create(
@@ -1195,8 +1235,8 @@ class OrderAnatomyPersistenceService:
                         inner_offset_supp_id = post_data.get('inner_offset_supplier')
                         inner_offset_supp = None
                         inner_offset_svc = None
-                        if not inner_offset_supp_id and 'offset_printing' in cached_service_map:
-                            inner_offset_svc = cached_service_map['offset_printing']
+                        if 'inner_offset_supplier' not in post_data and 'inner_offset_printing' in cached_service_map:
+                            inner_offset_svc = cached_service_map['inner_offset_printing']
                             inner_offset_supp = inner_offset_svc.supplier
 
                         if inner_offset_supp_id:
@@ -1222,7 +1262,13 @@ class OrderAnatomyPersistenceService:
                             except Exception:
                                 pass
 
-                        inner_press_rate = Decimal(str(post_data.get('inner_press_rate') or '45.00'))
+                        has_explicit_inner_pr = bool(post_data.get('inner_press_rate') and str(post_data.get('inner_press_rate')).strip() != '')
+                        inner_press_rate_str = post_data.get('inner_press_rate') or '0.00'
+                        try:
+                            inner_press_rate = Decimal(str(inner_press_rate_str))
+                        except:
+                            inner_press_rate = Decimal('0.00')
+
                         inner_press_machine = inner_offset_svc.name if inner_offset_svc else (post_data.get('inner_press_machine') or inner_bed_size)
 
                         sig_mult = Decimal('2') if inner_sides in ['work_turn', 'work_and_turn', 'work_sheet'] else Decimal('1')
@@ -1234,36 +1280,22 @@ class OrderAnatomyPersistenceService:
                         thousands_inner = sig_tirage * Decimal(str(total_signatures))
                         inner_pulls = sig_pulls * Decimal(str(total_signatures))
 
-                        if post_data.get('inner_press_rate'):
-                            try:
-                                exp_inner_pr = Decimal(str(post_data.get('inner_press_rate')))
-                                if exp_inner_pr > Decimal('0.00'):
-                                    inner_press_rate = exp_inner_pr
-                                    if engine_res.get('success') and 'inner' in engine_res and engine_res['inner'].get('inner_tirages'):
-                                        thousands_inner = Decimal(str(engine_res['inner']['inner_tirages']))
-                                        inner_pulls = Decimal(str(engine_res['inner']['inner_pulls']))
-                                        if engine_res['inner'].get('sig_tirage'):
-                                            sig_tirage = Decimal(str(engine_res['inner']['sig_tirage']))
-                                    raw_inner_press = thousands_inner * inner_press_rate
-                                else:
-                                    inner_press_rate = Decimal('0.00')
-                                    raw_inner_press = Decimal('0.00')
-                            except Exception:
-                                raw_inner_press = thousands_inner * inner_press_rate
-                        elif engine_res.get('success') and 'inner' in engine_res and engine_res['inner'].get('inner_pulls') is not None and engine_res['inner'].get('inner_press_cost', 0) > 0:
-                            thousands_inner = Decimal(str(engine_res['inner']['inner_tirages']))
-                            inner_pulls = Decimal(str(engine_res['inner']['inner_pulls']))
-                            sig_tirage = Decimal(str(engine_res['inner']['sig_tirage']))
-                            raw_inner_press = Decimal(str(engine_res['inner']['inner_press_cost']))
+                        if has_explicit_inner_pr:
+                            raw_inner_press = thousands_inner * inner_press_rate
+                        elif inner_offset_svc and inner_offset_svc.set_price and inner_offset_svc.set_price > Decimal('0.00'):
+                            m_sets = 2 if inner_sides == 'work_sheet' else 1
+                            sig_cost = inner_offset_svc.calculate_cost(int(sig_tirage), machine_sets=m_sets)
+                            raw_inner_press = Decimal(str(total_signatures)) * sig_cost
                             inner_press_rate = (raw_inner_press / thousands_inner).quantize(Decimal('0.01')) if thousands_inner > 0 else Decimal('0.00')
+                        elif inner_offset_supp:
+                            inner_press_rate = Decimal('45.00')
+                            raw_inner_press = thousands_inner * inner_press_rate
+                        elif 'inner_offset_supplier' not in post_data:
+                            inner_press_rate = Decimal('45.00')
+                            raw_inner_press = thousands_inner * inner_press_rate
                         else:
-                            if inner_offset_svc and inner_offset_svc.set_price and inner_offset_svc.set_price > Decimal('0.00'):
-                                m_sets = 2 if inner_sides == 'work_sheet' else 1
-                                sig_cost = inner_offset_svc.calculate_cost(int(sig_tirage), machine_sets=m_sets)
-                                raw_inner_press = Decimal(str(total_signatures)) * sig_cost
-                                inner_press_rate = (raw_inner_press / thousands_inner).quantize(Decimal('0.01')) if thousands_inner > 0 else Decimal('0.00')
-                            else:
-                                raw_inner_press = thousands_inner * inner_press_rate
+                            inner_press_rate = Decimal('0.00')
+                            raw_inner_press = Decimal('0.00')
                         inner_press_setup = Decimal('0.00')
 
                         inner_press_snapshot = {
@@ -1457,7 +1489,14 @@ class OrderAnatomyPersistenceService:
                 else:
                     spot_rate = Decimal(str(post_data.get('spot_uv_tirage_price') or '120.00'))
                     is_screen_archive = post_data.get('spot_uv_screen_mode') == 'archive'
-                    screen_cost = Decimal('0.00') if is_screen_archive else Decimal(str(post_data.get('spot_uv_screen_cost') or '150.00'))
+                    if is_screen_archive:
+                        screen_cost = Decimal('0.00')
+                    elif post_data.get('spot_uv_screen_cost') and str(post_data.get('spot_uv_screen_cost')).strip() != '':
+                        screen_cost = Decimal(str(post_data.get('spot_uv_screen_cost')))
+                    elif 'spot_uv_screen_cost' in post_data:
+                        screen_cost = Decimal('0.00')
+                    else:
+                        screen_cost = Decimal('150.00')
                     total_uv = (tirages_count * spot_rate) + screen_cost
                     uv_rate = spot_rate
                     uv_desc = f"{tirages_count} تراج × {spot_rate} ج + شابلونة {'أرشيف (0 ج)' if is_screen_archive else f'{screen_cost} ج'}"
@@ -1488,7 +1527,14 @@ class OrderAnatomyPersistenceService:
                 else:
                     die_rate = Decimal(str(post_data.get('die_cut_tirage_price') or '80.00'))
                     is_tool_archive = post_data.get('die_tooling_mode') == 'archive'
-                    tooling_cost = Decimal('0.00') if is_tool_archive else Decimal(str(post_data.get('die_tooling_cost') or '250.00'))
+                    if is_tool_archive:
+                        tooling_cost = Decimal('0.00')
+                    elif post_data.get('die_tooling_cost') and str(post_data.get('die_tooling_cost')).strip() != '':
+                        tooling_cost = Decimal(str(post_data.get('die_tooling_cost')))
+                    elif 'die_tooling_cost' in post_data:
+                        tooling_cost = Decimal('0.00')
+                    else:
+                        tooling_cost = Decimal('250.00')
                     total_die = (tirages_count * die_rate) + tooling_cost
                     die_desc = f"{tirages_count} تراج تكسير × {die_rate} ج + فورمة سكاكين {'أرشيف (0 ج)' if is_tool_archive else f'{tooling_cost} ج'}"
 
@@ -1516,7 +1562,14 @@ class OrderAnatomyPersistenceService:
                     cliche_cost = Decimal('0.00')
                 else:
                     is_cliche_archive = post_data.get('foil_cliche_mode') == 'archive'
-                    cliche_cost = Decimal('0.00') if is_cliche_archive else Decimal(str(post_data.get('foil_cliche_cost') or '150.00'))
+                    if is_cliche_archive:
+                        cliche_cost = Decimal('0.00')
+                    elif post_data.get('foil_cliche_cost') and str(post_data.get('foil_cliche_cost')).strip() != '':
+                        cliche_cost = Decimal(str(post_data.get('foil_cliche_cost')))
+                    elif 'foil_cliche_cost' in post_data:
+                        cliche_cost = Decimal('0.00')
+                    else:
+                        cliche_cost = Decimal('150.00')
                     total_foil = max(Decimal('230.00'), (tirages_count * Decimal('100.00')) + cliche_cost)
                     foil_rate = Decimal('100.00')
 
@@ -1543,7 +1596,14 @@ class OrderAnatomyPersistenceService:
                     cliche_cost = Decimal('0.00')
                 else:
                     is_emboss_archive = post_data.get('emboss_cliche_mode') == 'archive'
-                    cliche_cost = Decimal('0.00') if is_emboss_archive else Decimal(str(post_data.get('emboss_cliche_cost') or '150.00'))
+                    if is_emboss_archive:
+                        cliche_cost = Decimal('0.00')
+                    elif post_data.get('emboss_cliche_cost') and str(post_data.get('emboss_cliche_cost')).strip() != '':
+                        cliche_cost = Decimal(str(post_data.get('emboss_cliche_cost')))
+                    elif 'emboss_cliche_cost' in post_data:
+                        cliche_cost = Decimal('0.00')
+                    else:
+                        cliche_cost = Decimal('150.00')
                     total_emboss = (tirages_count * Decimal('80.00')) + cliche_cost
                     emboss_rate = Decimal('80.00')
 

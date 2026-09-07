@@ -635,18 +635,23 @@ class PricingOrderForm(forms.ModelForm):
         except:
             pass
 
-        # ربط نوع الورق بالإعدادات
+        # ربط نوع الورق بالخامات المسجلة والمتاحة لدى الموردين
         try:
-            self.fields["paper_type"].queryset = PaperType.objects.filter(
-                is_active=True
-            ).order_by("name")
+            from printing_pricing.views.order_views import get_active_paper_types
+            active_types = get_active_paper_types()
+            if self.instance and getattr(self.instance, 'paper_type_id', None):
+                self.fields["paper_type"].queryset = PaperType.objects.filter(
+                    Q(id=self.instance.paper_type_id) | Q(id__in=active_types.values_list('id', flat=True))
+                ).distinct().order_by('sort_order', 'name')
+            else:
+                self.fields["paper_type"].queryset = active_types
             self.fields["paper_type"].empty_label = "اختر نوع الورق"
             
             # تعيين قيمة افتراضية
             if not self.instance.pk and not self.initial.get("paper_type"):
-                default_paper_type = PaperType.objects.filter(
-                    is_active=True, is_default=True
-                ).first()
+                default_paper_type = active_types.filter(
+                    is_default=True
+                ).first() or active_types.filter(name__icontains='كوشيه').first() or active_types.first()
                 if default_paper_type:
                     self.initial["paper_type"] = default_paper_type.pk
         except Exception as e:

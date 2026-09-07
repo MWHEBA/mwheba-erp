@@ -1196,8 +1196,12 @@ class PrintingCalculationEngine:
             inner_sheet_price = Decimal('0.00')
             inner_paper_cost = Decimal('0.00')
         elif params.get('inner_sheet_price') and str(params.get('inner_sheet_price')).strip() != '':
-            inner_sheet_price = cls._to_decimal(params.get('inner_sheet_price'), Decimal('2.00'))
+            inner_sheet_price = cls._to_decimal(params.get('inner_sheet_price'), Decimal('0.00'))
             inner_paper_cost = (Decimal(str(gross_inner)) * inner_sheet_price).quantize(Decimal('0.01'))
+        elif 'inner_paper_supplier' in params or 'inner_sheet_price' in params:
+            # تم تفريغ أو عدم اختيار مورد ورق الداخلي في الفورم -> صفر تكلفة وهمية
+            inner_sheet_price = Decimal('0.00')
+            inner_paper_cost = Decimal('0.00')
         else:
             inner_sheet_price = cls._convert_currency(Decimal('2.00'), to_curr=target_curr, date=order_date)
             inner_paper_cost = (Decimal(str(gross_inner)) * inner_sheet_price).quantize(Decimal('0.01'))
