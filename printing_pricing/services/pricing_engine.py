@@ -96,8 +96,15 @@ class PrintingCalculationEngine:
             w_cut, h_cut, machine_cuts = cls._resolve_cut_dimensions(sheet_size_str, piece_size_str, params)
 
             # 4. حساب المونتاج هندسياً (عدد القطع في مقاس القطع)
-            grain_dir = str(params.get('grain_direction') or 'LG').upper()
-            imposition = cls._calculate_imposition(open_w, open_h, w_cut, h_cut, grain_dir, is_digital=(cover_type == 'digital'))
+            orientation_pref = str(params.get('imposition_orientation') or 'auto').lower()
+            imposition = cls._calculate_imposition(
+                open_w=open_w,
+                open_h=open_h,
+                w_cut=w_cut,
+                h_cut=h_cut,
+                orientation_pref=orientation_pref,
+                is_digital=(cover_type == 'digital')
+            )
 
             # فحص صمام الأمان لمنع القسمة على صفر
             if imposition['montage'] <= 0:
@@ -280,6 +287,15 @@ class PrintingCalculationEngine:
                     'press_sheet_h': float(h_cut),
                     'net_press_w': float(imposition['net_w']),
                     'net_press_h': float(imposition['net_h']),
+                    'cols': imposition.get('cols', 0),
+                    'rows': imposition.get('rows', 0),
+                    'margin_x': float(imposition.get('margin_x', 0)),
+                    'margin_y': float(imposition.get('margin_y', 0)),
+                    'gap_x': float(imposition.get('gap_x', 0)),
+                    'gap_y': float(imposition.get('gap_y', 0)),
+                    'has_bleed_gutters': imposition.get('has_bleed_gutters', False),
+                    'can_fit_normal': imposition.get('can_fit_normal', False),
+                    'can_fit_rotated': imposition.get('can_fit_rotated', False),
                     'orientation_applied': imposition['orientation'],
                     'is_work_turn_allowed': (montage >= 2),
                 },
@@ -522,44 +538,158 @@ class PrintingCalculationEngine:
 
     @classmethod
     def _calculate_imposition(
-        cls, open_w: Decimal, open_h: Decimal, w_cut: Decimal, h_cut: Decimal, grain_dir: str, is_digital: bool = False
+        cls,
+        open_w: Decimal,
+        open_h: Decimal,
+        w_cut: Decimal,
+        h_cut: Decimal,
+        orientation_pref: str = 'auto',
+        is_digital: bool = False,
+        **kwargs
     ) -> Dict[str, Any]:
         """
-        حساب المونتاج هندسياً:
-        - للأوفست: خصم ديناميكي 1.0 سم (0.8 سم بنسة ماكينة + 0.2 سم طهارة مقص).
-        - للديجيتال A3+: صافي 32×48 سم قياسي لضمان عدم القص في حواف الطباعة.
+        حساب المونتاج والتفريد هندسياً وميكانيكياً:
+        1. هندسة البنسة على سلندر الأوفست:
+           - ضلع التغذية الموازي للسلندر هو الضلع الأطول لشيت الماكينة max(w_cut, h_cut).
+           - البنسة الميكانيكية (1.2 سم = 12 مم) تخصم من البعد العمودي على ضلع التغذية (اتجاه السحب).
+           - هامش الديل (0.5 سم = 5 مم) يخصم في الطرف المقابل للبنسة.
+           - هامش الجانبين (0.3 سم لكل جانب = 0.6 سم إجمالي) يخصم لطهارة المقعدة والنيشان.
+        2. هوامش الديجيتال:
+           - إطار محيطي غير قابل للطباعة 4 مم (0.4 سم) داير ما يدور (0.8 سم من كل بعد).
+        3. الدوبل تكسير (Bleed Gutters) مقابل القص المشترك:
+           - يختبر إمكانية ترك 3 مم (0.3 سم) دوبل تكسير بين القطع المتجاورة.
+           - إذا توفرت المساحة: gap_x = 0.3 سم، has_bleed_gutters = True.
+           - إذا لم تتوفر: gap_x = 0.0 سم (قص مشترك بضربة سكين واحدة)، has_bleed_gutters = False.
+        4. السنترة الميكانيكية:
+           - موازنة الفائض بالتساوي على جانبي الشيت margin_x و margin_y.
+        5. صمام الارتداد التلقائي للتوجيه (Auto-Fallback to Auto):
+           - إذا طلب المستخدم normal أو rotated ولم يتسع الشيت لهندسة ذلك الوضع، يرتد المحرك فوراً لـ auto.
         """
+        if open_w <= Decimal('0.0') or open_h <= Decimal('0.0') or w_cut <= Decimal('0.0') or h_cut <= Decimal('0.0'):
+            return {
+                'montage': 0,
+                'cols': 0,
+                'rows': 0,
+                'net_w': Decimal('0.0'),
+                'net_h': Decimal('0.0'),
+                'margin_x': Decimal('0.0'),
+                'margin_y': Decimal('0.0'),
+                'gap_x': Decimal('0.0'),
+                'gap_y': Decimal('0.0'),
+                'has_bleed_gutters': False,
+                'can_fit_normal': False,
+                'can_fit_rotated': False,
+                'orientation': 'none',
+                'orientation_applied': 'none',
+            }
+
+        # تحديد الصافي الطباعي وفقاً لتقنية الطباعة
         if is_digital:
-            # مقاس شيت الديجيتال القياسي A3+ (33×48.8) صافيه الطباعي المعتمد 32×48 سم
-            if (w_cut >= Decimal('32.0') and h_cut >= Decimal('48.0')) or (w_cut >= Decimal('48.0') and h_cut >= Decimal('32.0')):
-                net_w = Decimal('32.0') if w_cut < h_cut else Decimal('48.0')
-                net_h = Decimal('48.0') if w_cut < h_cut else Decimal('32.0')
+            # هامش 0.4 سم من كل جهة (0.8 سم إجمالي)
+            net_w = max(Decimal('0.1'), w_cut - Decimal('0.8'))
+            net_h = max(Decimal('0.1'), h_cut - Decimal('0.8'))
+        else:
+            # الأوفست: الضلع الأطول موازي للسلندر (ضلع التغذية)
+            # البنسة 1.2 سم والديل 0.5 سم يخصمان من البعد الأقصر (اتجاه السحب)
+            # الجوانب 0.3 + 0.3 = 0.6 سم تخصم من البعد الأطول
+            if w_cut >= h_cut:
+                net_w = max(Decimal('0.1'), w_cut - Decimal('0.6'))
+                net_h = max(Decimal('0.1'), h_cut - Decimal('1.7'))  # 1.2 بنسة + 0.5 ديل
             else:
-                net_w = max(Decimal('0.1'), w_cut - Decimal('1.0'))
-                net_h = max(Decimal('0.1'), h_cut - Decimal('1.0'))
+                net_w = max(Decimal('0.1'), w_cut - Decimal('1.7'))
+                net_h = max(Decimal('0.1'), h_cut - Decimal('0.6'))
+
+        # دالة فحص تركيب القطع مع دوبل تكسير 3 مم (0.3 سم) والقص المشترك
+        def _calc_fit(item_w: Decimal, item_h: Decimal):
+            if item_w <= Decimal('0.0') or item_h <= Decimal('0.0') or item_w > net_w or item_h > net_h:
+                return 0, 0, 0, Decimal('0.0'), Decimal('0.0'), Decimal('0.0'), Decimal('0.0'), False
+
+            bleed_gap = Decimal('0.3')
+            cols_with_bleed = int((net_w + bleed_gap) // (item_w + bleed_gap))
+            rows_with_bleed = int((net_h + bleed_gap) // (item_h + bleed_gap))
+
+            cols_raw = int(net_w // item_w)
+            rows_raw = int(net_h // item_h)
+
+            if cols_with_bleed >= cols_raw and rows_with_bleed >= rows_raw and cols_with_bleed > 0 and rows_with_bleed > 0:
+                cols = cols_with_bleed
+                rows = rows_with_bleed
+                gap_x = bleed_gap if cols > 1 else Decimal('0.0')
+                gap_y = bleed_gap if rows > 1 else Decimal('0.0')
+                has_bleed = True
+            elif cols_raw > 0 and rows_raw > 0:
+                cols = cols_raw
+                rows = rows_raw
+                rem_x = net_w - (Decimal(cols) * item_w)
+                gap_x = bleed_gap if (cols > 1 and rem_x >= (Decimal(cols - 1) * bleed_gap)) else Decimal('0.0')
+                rem_y = net_h - (Decimal(rows) * item_h)
+                gap_y = bleed_gap if (rows > 1 and rem_y >= (Decimal(rows - 1) * bleed_gap)) else Decimal('0.0')
+                has_bleed = (gap_x > 0 or cols == 1) and (gap_y > 0 or rows == 1)
+            else:
+                return 0, 0, 0, Decimal('0.0'), Decimal('0.0'), Decimal('0.0'), Decimal('0.0'), False
+
+            total = cols * rows
+            used_w = (Decimal(cols) * item_w) + (Decimal(max(0, cols - 1)) * gap_x)
+            used_h = (Decimal(rows) * item_h) + (Decimal(max(0, rows - 1)) * gap_y)
+            margin_x = max(Decimal('0.0'), (net_w - used_w) / Decimal('2.0'))
+            margin_y = max(Decimal('0.0'), (net_h - used_h) / Decimal('2.0'))
+
+            return total, cols, rows, margin_x, margin_y, gap_x, gap_y, has_bleed
+
+        # حساب الوضعين
+        tot_norm, cols_norm, rows_norm, mx_norm, my_norm, gx_norm, gy_norm, bleed_norm = _calc_fit(open_w, open_h)
+        tot_rot, cols_rot, rows_rot, mx_rot, my_rot, gx_rot, gy_rot, bleed_rot = _calc_fit(open_h, open_w)
+
+        can_fit_normal = (tot_norm > 0)
+        can_fit_rotated = (tot_rot > 0)
+
+        # تحديد التوجيه المعتمد وصمام الارتداد التلقائي
+        pref = str(orientation_pref or 'auto').lower()
+        if pref == 'normal' and can_fit_normal:
+            chosen = 'normal'
+        elif pref == 'rotated' and can_fit_rotated:
+            chosen = 'rotated'
         else:
-            margin = Decimal('1.0')
-            net_w = max(Decimal('0.1'), w_cut - margin)
-            net_h = max(Decimal('0.1'), h_cut - margin)
+            if tot_rot > tot_norm:
+                chosen = 'rotated'
+            elif tot_norm > 0:
+                chosen = 'normal'
+            elif tot_rot > 0:
+                chosen = 'rotated'
+            else:
+                chosen = 'none'
 
-        if open_w <= 0 or open_h <= 0 or (net_w < open_w and net_w < open_h) or (net_h < open_w and net_h < open_h):
-            return {'montage': 0, 'net_w': net_w, 'net_h': net_h, 'orientation': 'none'}
-
-        cuts_normal = int(net_w // open_w) * int(net_h // open_h)
-        cuts_rotated = int(net_w // open_h) * int(net_h // open_w)
-
-        if cuts_rotated > cuts_normal:
-            montage = cuts_rotated
-            orientation = 'rotated'
+        if chosen == 'rotated':
+            total, cols, rows = tot_rot, cols_rot, rows_rot
+            margin_x, margin_y = mx_rot, my_rot
+            gap_x, gap_y = gx_rot, gy_rot
+            has_bleed = bleed_rot
+        elif chosen == 'normal':
+            total, cols, rows = tot_norm, cols_norm, rows_norm
+            margin_x, margin_y = mx_norm, my_norm
+            gap_x, gap_y = gx_norm, gy_norm
+            has_bleed = bleed_norm
         else:
-            montage = cuts_normal
-            orientation = 'normal'
+            total, cols, rows = 0, 0, 0
+            margin_x, margin_y = Decimal('0.0'), Decimal('0.0')
+            gap_x, gap_y = Decimal('0.0'), Decimal('0.0')
+            has_bleed = False
 
         return {
-            'montage': montage,
+            'montage': total,
+            'cols': cols,
+            'rows': rows,
             'net_w': net_w,
             'net_h': net_h,
-            'orientation': orientation
+            'margin_x': margin_x,
+            'margin_y': margin_y,
+            'gap_x': gap_x,
+            'gap_y': gap_y,
+            'has_bleed_gutters': has_bleed,
+            'can_fit_normal': can_fit_normal,
+            'can_fit_rotated': can_fit_rotated,
+            'orientation': chosen,
+            'orientation_applied': chosen,
         }
 
     @classmethod

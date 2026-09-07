@@ -270,6 +270,13 @@ class PricingOrderForm(forms.ModelForm):
         widget=forms.NumberInput(attrs={"class": "form-control"}),
     )
 
+    imposition_orientation = forms.CharField(
+        label=_("توجيه المونتاج"),
+        required=False,
+        initial="auto",
+        widget=forms.HiddenInput(),
+    )
+
     waste_sheets = forms.IntegerField(
         label=_("أفرخ الهالك"),
         required=False,

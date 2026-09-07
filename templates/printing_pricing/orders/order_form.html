@@ -244,9 +244,11 @@
 
 <!-- 1. مكتبة الأساس المشتركة (رياضيات + عميل شبكة موحد + تصدير) -->
 <script src="{% static 'js/printing_pricing/modules/pricing_core.js' %}?v={% now 'U' %}"></script>
-<!-- 2. خط إنتاج الطباعة الورقية الشيت المتكامل (خامات + ماكينات + زنكات) -->
+<!-- 2. محرك المعاينة المرئية للمونتاج والتفريد الصناعي -->
+<script src="{% static 'js/printing_pricing/modules/imposition_visualizer.js' %}?v={% now 'U' %}"></script>
+<!-- 3. خط إنتاج الطباعة الورقية الشيت المتكامل (خامات + ماكينات + زنكات) -->
 <script src="{% static 'js/printing_pricing/modules/pricing_sheet_printing.js' %}?v={% now 'U' %}"></script>
-<!-- 3. المحرك المعياري والمنسق العام للطلب (Master Job Orchestrator) -->
+<!-- 4. المحرك المعياري والمنسق العام للطلب (Master Job Orchestrator) -->
 <script src="{% static 'js/printing_pricing/order_form_engine.js' %}?v={% now 'U' %}"></script>
 <script>
   document.addEventListener('DOMContentLoaded', function () {

@@ -452,6 +452,8 @@ class OrderAnatomyPersistenceService:
                     montage_count=int(cuts_per_sheet),
                     sheet_cost=sheet_unit_cost.quantize(Decimal('0.01')),
                     total_paper_cost=cover_paper_cost.quantize(Decimal('0.01')),
+                    is_inner=False,
+                    imposition_orientation=post_data.get('imposition_orientation') or 'auto',
                     is_active=True,
                 )
 
@@ -541,6 +543,8 @@ class OrderAnatomyPersistenceService:
                     montage_count=int(inner_cuts_per_sheet),
                     sheet_cost=inner_sheet_cost.quantize(Decimal('0.01')),
                     total_paper_cost=inner_paper_cost.quantize(Decimal('0.01')),
+                    is_inner=True,
+                    imposition_orientation='auto',
                     is_active=True,
                 )
 

@@ -705,14 +705,19 @@ class PrintingOrder(BaseModel):
         return archetype in ['flyer', 'single_sheet', 'business_card', 'poster', 'letterhead', 'envelope', 'label', 'sticker']
 
     def get_open_dimensions(self):
-        """حساب المقاس المفتوح الفعلي على ماكينة الطباعة بناءً على نوع المطبوع وحالة الطي وجهة الفتح والتجليد"""
+        """حساب المقاس المفتوح الفعلي على ماكينة الطباعة بناءً على نوع المطبوع وحالة الطي وجهة الفتح والتجليد وجيوب الفولدرات"""
         w = Decimal(str(self.width or 21))
         h = Decimal(str(self.height or 29.7))
         
+        archetype = self.product_type.base_archetype if self.product_type else (self.order_type or 'flyer')
+        
         if not self.is_closed_size:
+            # معالجة جيب الفولدر حتى لو كان المقاس مفتوحاً صراحة
+            if archetype == 'folder' and getattr(self, 'folder_pocket_type', 'same_sheet') == 'same_sheet':
+                p_h = Decimal(str(self.folder_pocket_height if self.folder_pocket_height is not None else 7.5))
+                h = h + p_h
             return w, h
             
-        archetype = self.product_type.base_archetype if self.product_type else (self.order_type or 'flyer')
         direction = self.open_direction or 'right'
         
         # مضاعف البوابات: 3 للبروشورات و 2 للكتالوجات والفولدرات والمطويات
@@ -721,9 +726,12 @@ class PrintingOrder(BaseModel):
         # حساب سمك كعب الغلاف (Spine) للكتالوجات والكتب
         spine = Decimal('0.0')
         if archetype in ['catalog', 'book', 'magazine', 'book_catalog']:
-            pages = Decimal(str(self.pages_count or 0))
-            if pages > 4:
-                spine = ((pages / Decimal('2')) * Decimal('0.012')).quantize(Decimal('0.1'))
+            if getattr(self, 'spine_thickness', None) and self.spine_thickness > Decimal('0.0'):
+                spine = Decimal(str(self.spine_thickness))
+            else:
+                pages = Decimal(str(self.pages_count or 0))
+                if pages > 4:
+                    spine = ((pages / Decimal('2')) * Decimal('0.012')).quantize(Decimal('0.1'))
         
         if direction == 'top':
             open_w = w
@@ -731,8 +739,25 @@ class PrintingOrder(BaseModel):
         else:  # right or left
             open_w = (w * multiplier) + spine
             open_h = h
+
+        # إضافة لسان جيب الفولدر في حالة الجيب المتصل في نفس الفرخ
+        if archetype == 'folder' and getattr(self, 'folder_pocket_type', 'same_sheet') == 'same_sheet':
+            p_h = Decimal(str(self.folder_pocket_height if self.folder_pocket_height is not None else 7.5))
+            open_h = open_h + p_h
             
         return open_w, open_h
+
+    @property
+    def open_width(self) -> Decimal:
+        """العرض المفتوح الفعلي للمطبوع بعد فك الطيات وحساب الكعب (سم)"""
+        w, _ = self.get_open_dimensions()
+        return w
+
+    @property
+    def open_height(self) -> Decimal:
+        """الارتفاع المفتوح الفعلي للمطبوع بعد فك الطيات وجيوب الفولدرات (سم)"""
+        _, h = self.get_open_dimensions()
+        return h
 
     def get_dimensions_display(self):
         """عرض منسق للأبعاد ومقاس المطبوع والاتجاه وحالة الطي وجهة الفتح"""

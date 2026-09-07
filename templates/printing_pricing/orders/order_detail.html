@@ -375,13 +375,35 @@
               <tr>
                 <td class="text-muted">{% trans "استغلال الفرخ الخام:" %}</td>
                 <td class="fw-bold text-success">
-                  {% if saved_paper_spec and saved_paper_spec.parent_yield_val %}
+                  {% if saved_paper_spec and saved_paper_spec.parent_yield %}
+                    {{ saved_paper_spec.parent_yield }} {% trans "قطعة" %}
+                  {% elif saved_paper_spec and saved_paper_spec.parent_yield_val %}
                     {{ saved_paper_spec.parent_yield_val }} {% trans "قطعة" %}
                   {% else %}
                     --
                   {% endif %}
                 </td>
               </tr>
+              {% if montage_data_cover %}
+              <tr>
+                <td colspan="2" class="pt-2 pb-1 text-center">
+                  <div class="d-flex flex-column align-items-center">
+                    <span class="small text-muted mb-1" style="font-size: 0.72rem;">
+                      <i class="fas fa-stamp text-secondary me-1"></i>{% trans "طابع تفريد الشيت (مخطط المونتاج)" %}
+                    </span>
+                    <div id="micro_stamp_container" class="border rounded bg-white p-1 shadow-xs" style="max-width: 130px; width: 100%;"
+                         data-press-w="{{ montage_data_cover.press_sheet_w|stringformat:'.2f' }}"
+                         data-press-h="{{ montage_data_cover.press_sheet_h|stringformat:'.2f' }}"
+                         data-open-w="{{ montage_data_cover.open_w|stringformat:'.2f' }}"
+                         data-open-h="{{ montage_data_cover.open_h|stringformat:'.2f' }}"
+                         data-montage="{{ montage_data_cover.montage_count }}"
+                         data-printing-type="{{ montage_data_cover.printing_type }}">
+                      <!-- SVG طابع المونتاج المصغر -->
+                    </div>
+                  </div>
+                </td>
+              </tr>
+              {% endif %}
             </tbody>
           </table>
         </div>
@@ -751,6 +773,8 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="{% static 'js/printing_pricing/modules/pricing_core.js' %}"></script>
+<script src="{% static 'js/printing_pricing/modules/imposition_visualizer.js' %}"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
   const orderId = "{{ order.pk }}";
@@ -950,6 +974,23 @@ document.addEventListener('DOMContentLoaded', function() {
       // الحالة العادية: تنفيذ فوري
       executeGenerate();
     });
+  }
+
+  // رسم طابع المونتاج المصغر إن وجد
+  try {
+    const stampBox = document.getElementById('micro_stamp_container');
+    if (stampBox && stampBox.dataset.pressW && typeof ImpositionVisualizer !== 'undefined') {
+      ImpositionVisualizer.renderMicroStamp(stampBox, {
+        pressSheetW: parseFloat(stampBox.dataset.pressW),
+        pressSheetH: parseFloat(stampBox.dataset.pressH),
+        openW: parseFloat(stampBox.dataset.openW),
+        openH: parseFloat(stampBox.dataset.openH),
+        montageCount: parseInt(stampBox.dataset.montage, 10),
+        printingType: stampBox.dataset.printingType || 'offset'
+      });
+    }
+  } catch (err) {
+    console.warn('MicroStamp render error:', err);
   }
 });
 </script>

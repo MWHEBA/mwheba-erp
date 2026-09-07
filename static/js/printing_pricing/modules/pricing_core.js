@@ -48,37 +48,141 @@ const PricingMath = {
    * حساب استغلال الفرخ والمونتاج الهندسي بمحاكاة دقيقة لمحرك التسعير
    * خصم 1.0 سم للأوفست (0.5 سم من كل جانب) ومقاس ثابت 32×48 سم لديجيتال A3+
    */
-  calcImposition(sheetW, sheetH, openW, openH, printingType = 'offset') {
+  /**
+   * حساب استغلال الفرخ والمونتاج الهندسي بمحاكاة دقيقة 100% لمحرك التسعير في الباك إند:
+   * - بنسة الأوفست (12 مم على طول الضلع الأطول مخصومة من اتجاه السحب، 5 مم ديل، 3 مم جوانب).
+   * - إطار ديجيتال محيطي 4 مم داير ما يدور (0.8 سم إجمالي).
+   * - دوبل تكسير 3 مم (0.3 سم) بين القطع، أو قص مشترك إذا لم تتوفر المساحة.
+   * - سنترة هندسية لموازنة الفائض على جانبي الشيت.
+   * - صمام الارتداد التلقائي للتوجيه (Auto-fallback).
+   */
+  calcImposition(sheetW, sheetH, openW, openH, printingType = 'offset', orientationPref = 'auto') {
+    const sW = this.parseSafeNumber(sheetW, 0);
+    const sH = this.parseSafeNumber(sheetH, 0);
+    const oW = this.parseSafeNumber(openW, 0);
+    const oH = this.parseSafeNumber(openH, 0);
+
+    if (sW <= 0 || sH <= 0 || oW <= 0 || oH <= 0) {
+      return {
+        cutsPerSheet: 0,
+        cols: 0,
+        rows: 0,
+        cutsW: 0,
+        cutsH: 0,
+        marginX: 0,
+        marginY: 0,
+        gapX: 0,
+        gapY: 0,
+        hasBleedGutters: false,
+        canFitNormal: false,
+        canFitRotated: false,
+        orientationApplied: 'none',
+        isRotated: false,
+        isOverflow: true,
+        netW: 0,
+        netH: 0
+      };
+    }
+
     let netW, netH;
     if (printingType === 'digital') {
-      netW = 32.0;
-      netH = 48.0;
+      netW = Math.max(0.1, sW - 0.8);
+      netH = Math.max(0.1, sH - 0.8);
     } else {
-      netW = Math.max(0, sheetW - 1.0);
-      netH = Math.max(0, sheetH - 1.0);
+      // الأوفست: الضلع الأطول موازي للسلندر
+      if (sW >= sH) {
+        netW = Math.max(0.1, sW - 0.6);
+        netH = Math.max(0.1, sH - 1.7); // 1.2 بنسة + 0.5 ديل
+      } else {
+        netW = Math.max(0.1, sW - 1.7);
+        netH = Math.max(0.1, sH - 0.6);
+      }
     }
-    const safeW = Math.max(0.1, openW);
-    const safeH = Math.max(0.1, openH);
 
-    // الوضع الطبيعي
-    const cutsNormalW = Math.floor(netW / safeW);
-    const cutsNormalH = Math.floor(netH / safeH);
-    const normalTotal = cutsNormalW * cutsNormalH;
+    const bleedGap = 0.3; // 3 mm دوبل تكسير ثابت
 
-    // وضع التدوير 90 درجة
-    const cutsRotW = Math.floor(netW / safeH);
-    const cutsRotH = Math.floor(netH / safeW);
-    const rotTotal = cutsRotW * cutsRotH;
+    const calcFit = (itemW, itemH) => {
+      if (itemW <= 0 || itemH <= 0 || itemW > netW || itemH > netH) {
+        return { total: 0, cols: 0, rows: 0, marginX: 0, marginY: 0, gapX: 0, gapY: 0, hasBleed: false };
+      }
 
-    const bestCuts = Math.max(normalTotal, rotTotal);
-    const isOverflow = bestCuts <= 0;
-    const isRotated = rotTotal > normalTotal;
+      const colsWithBleed = Math.floor((netW + bleedGap) / (itemW + bleedGap));
+      const rowsWithBleed = Math.floor((netH + bleedGap) / (itemH + bleedGap));
+
+      const colsRaw = Math.floor(netW / itemW);
+      const rowsRaw = Math.floor(netH / itemH);
+
+      let cols, rows, gapX, gapY, hasBleed;
+
+      if (colsWithBleed >= colsRaw && rowsWithBleed >= rowsRaw && colsWithBleed > 0 && rowsWithBleed > 0) {
+        cols = colsWithBleed;
+        rows = rowsWithBleed;
+        gapX = cols > 1 ? bleedGap : 0;
+        gapY = rows > 1 ? bleedGap : 0;
+        hasBleed = true;
+      } else if (colsRaw > 0 && rowsRaw > 0) {
+        cols = colsRaw;
+        rows = rowsRaw;
+        const remX = netW - (cols * itemW);
+        gapX = (cols > 1 && remX >= ((cols - 1) * bleedGap)) ? bleedGap : 0;
+        const remY = netH - (rows * itemH);
+        gapY = (rows > 1 && remY >= ((rows - 1) * bleedGap)) ? bleedGap : 0;
+        hasBleed = (gapX > 0 || cols === 1) && (gapY > 0 || rows === 1);
+      } else {
+        return { total: 0, cols: 0, rows: 0, marginX: 0, marginY: 0, gapX: 0, gapY: 0, hasBleed: false };
+      }
+
+      const total = cols * rows;
+      const usedW = (cols * itemW) + (Math.max(0, cols - 1) * gapX);
+      const usedH = (rows * itemH) + (Math.max(0, rows - 1) * gapY);
+      const marginX = Math.max(0, (netW - usedW) / 2);
+      const marginY = Math.max(0, (netH - usedH) / 2);
+
+      return { total, cols, rows, marginX, marginY, gapX, gapY, hasBleed };
+    };
+
+    const fitNorm = calcFit(oW, oH);
+    const fitRot = calcFit(oH, oW);
+
+    const canFitNormal = fitNorm.total > 0;
+    const canFitRotated = fitRot.total > 0;
+
+    let chosen = 'none';
+    const pref = String(orientationPref || 'auto').toLowerCase();
+    if (pref === 'normal' && canFitNormal) {
+      chosen = 'normal';
+    } else if (pref === 'rotated' && canFitRotated) {
+      chosen = 'rotated';
+    } else {
+      if (fitRot.total > fitNorm.total) {
+        chosen = 'rotated';
+      } else if (fitNorm.total > 0) {
+        chosen = 'normal';
+      } else if (fitRot.total > 0) {
+        chosen = 'rotated';
+      } else {
+        chosen = 'none';
+      }
+    }
+
+    const activeFit = (chosen === 'rotated') ? fitRot : (chosen === 'normal' ? fitNorm : { total: 0, cols: 0, rows: 0, marginX: 0, marginY: 0, gapX: 0, gapY: 0, hasBleed: false });
+    const isOverflow = activeFit.total <= 0;
 
     return {
-      cutsPerSheet: isOverflow ? 0 : bestCuts,
-      cutsW: isOverflow ? 0 : (isRotated ? cutsRotW : cutsNormalW),
-      cutsH: isOverflow ? 0 : (isRotated ? cutsRotH : cutsNormalH),
-      isRotated: isRotated,
+      cutsPerSheet: isOverflow ? 0 : activeFit.total,
+      cols: activeFit.cols,
+      rows: activeFit.rows,
+      cutsW: activeFit.cols,
+      cutsH: activeFit.rows,
+      marginX: activeFit.marginX,
+      marginY: activeFit.marginY,
+      gapX: activeFit.gapX,
+      gapY: activeFit.gapY,
+      hasBleedGutters: activeFit.hasBleed,
+      canFitNormal: canFitNormal,
+      canFitRotated: canFitRotated,
+      orientationApplied: chosen,
+      isRotated: (chosen === 'rotated'),
       isOverflow: isOverflow,
       netW: netW,
       netH: netH

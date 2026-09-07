@@ -90,6 +90,18 @@ class OrderFormUIController {
   }
 
   /**
+   * تحويل وقراءة الأرقام بأمان مع fallback
+   */
+  parseSafeNumber(val, fallback = 0) {
+    if (typeof PricingMath !== 'undefined' && PricingMath.parseSafeNumber) {
+      return PricingMath.parseSafeNumber(val, fallback);
+    }
+    if (val === undefined || val === null || val === '') return fallback;
+    const parsed = parseFloat(val);
+    return isNaN(parsed) ? fallback : parsed;
+  }
+
+  /**
    * تهيئة المنظومة
    */
   init() {
@@ -139,10 +151,14 @@ class OrderFormUIController {
     this.updateResolvedInnerPackCapacity(true);
     if (this.config && this.config.isEdit) {
       this.currentPieceName = this.getCleanPieceName();
-      const initMontageVal = parseInt($('#id_montage_count').val(), 10);
-      if (!isNaN(initMontageVal) && initMontageVal > 0) {
-        this.isManualMontage = true;
-      }
+      this.isManualMontage = false;
+      // تهيئة أزرار التوجيه والمعاينة المرئية فوراً من الـ DOM
+      const savedOri = $('#id_imposition_orientation').val() || 'auto';
+      $('#imposition_orientation_group button').removeClass('btn-primary text-white active').addClass('btn-outline-secondary');
+      $(`#imposition_orientation_group button[data-orientation="${savedOri}"]`).removeClass('btn-outline-secondary').addClass('btn-primary text-white active');
+      setTimeout(() => {
+        this.updateImpositionPreview();
+      }, 50);
     } else {
       this.isManualMontage = false;
       this.currentPieceName = '';
@@ -592,6 +608,36 @@ class OrderFormUIController {
     $(document).on('click', '.montage-value-display', function (e) {
       if (e.target.id !== 'id_montage_count') {
         $('#id_montage_count').focus().select();
+      }
+    });
+
+    // 8.04 مراقبة أزرار توجيه المونتاج (تلقائي / أفقي / رأسي)
+    $(document).on('click', '#imposition_orientation_group button', function (e) {
+      e.preventDefault();
+      $('#imposition_orientation_group button').removeClass('btn-primary text-white active').addClass('btn-outline-secondary');
+      $(this).removeClass('btn-outline-secondary').addClass('btn-primary text-white active');
+      const ori = this.dataset.orientation || 'auto';
+      $('#id_imposition_orientation').val(ori);
+
+      // تصفير المونتاج اليدوي لتبدأ الوضعية الجديدة بكامل طاقتها الاستيعابية القصوى بدون خانات شاغرة متبقية
+      self.isManualMontage = false;
+      $('#id_montage_count').val('');
+      $('#manual_montage_indicator').addClass('d-none');
+
+      self.updateImpositionPreview();
+      self.debouncedRecalculate();
+    });
+
+    // تفاعل مودال التكبير للمعاينة الموسعة
+    $('#modal_imposition_zoom').on('shown.bs.modal', function () {
+      const zoomBox = document.getElementById('imposition_zoom_container');
+      const pressBox = document.getElementById('press_sheet_visualizer_container');
+      if (zoomBox && pressBox) {
+        zoomBox.innerHTML = pressBox.innerHTML;
+        const svg = zoomBox.querySelector('svg');
+        if (svg) {
+          svg.style.maxHeight = '65vh';
+        }
       }
     });
 
@@ -2552,6 +2598,9 @@ class OrderFormUIController {
       formData.delete('montage_count');
     }
 
+    const oriVal = $('#id_imposition_orientation').val() || 'auto';
+    formData.set('imposition_orientation', oriVal);
+
     // مزامنة هامش الربح المحسوب بالـ % في حال كان وضع الإدخال مبلغاً مقطوعاً
     const rawHidden = document.getElementById('id_profit_margin_raw');
     if (rawHidden && rawHidden.value) {
@@ -2640,6 +2689,7 @@ class OrderFormUIController {
         this.updateTextSafely('press_montage_ref_val', montageText);
         this.updateTextSafely('insp_montage_summary', `المونتاج: ${montageText} (${data.montage.machine_cuts} قطعات/فرخ)`);
         this.updateTextSafely('pieces_per_sheet_display', `${data.montage.cuts_per_sheet} قطع`);
+        this.updateImpositionPreview(data);
       }
 
       // 2. أفرخ الورق والهالك
@@ -2921,6 +2971,9 @@ class OrderFormUIController {
     const pieceName = this.currentPieceName || this.getCleanPieceName();
     $('#press_montage_ref_val').text(`${val} / ${pieceName}`);
 
+    // تحديث المعاينة المرئية للمونتاج والخانات الشاغرة فوراً (< 1ms)
+    this.updateImpositionPreview();
+
     if (isCommit) {
       this.debouncedRecalculate();
     }
@@ -2939,6 +2992,114 @@ class OrderFormUIController {
     const pieceName = this.currentPieceName || this.getCleanPieceName();
     $('#press_montage_ref_val').text(`${max} / ${pieceName}`);
     this.debouncedRecalculate();
+  }
+
+  /**
+   * تحديث ورسم المعاينة المرئية للمونتاج والتفريد الصناعي لحظياً
+   */
+  updateImpositionPreview(data = null) {
+    if (typeof ImpositionVisualizer === 'undefined') return;
+
+    const pressBox = document.getElementById('press_sheet_visualizer_container');
+    const shearBox = document.getElementById('shearing_map_visualizer_container');
+    if (!pressBox) return;
+
+    // استخراج أبعاد المطبوع المفتوحة
+    const openW = data?.dimensions?.open_width || PricingMath.parseSafeNumber($('#id_width').val(), 21);
+    const openH = data?.dimensions?.open_height || PricingMath.parseSafeNumber($('#id_height').val(), 29.7);
+
+    // أبعاد شيت الماكينة
+    let pressW = data?.montage?.press_sheet_w;
+    let pressH = data?.montage?.press_sheet_h;
+    if (!pressW || !pressH) {
+      const pieceSelect = $('#id_piece_size');
+      const selectedPieceText = pieceSelect.find('option:selected').text();
+      const match = selectedPieceText.match(/(\d+(?:\.\d+)?)\s*[×xX]\s*(\d+(?:\.\d+)?)/);
+      if (match) {
+        pressW = parseFloat(match[1]);
+        pressH = parseFloat(match[2]);
+      } else {
+        pressW = 35.0;
+        pressH = 50.0;
+      }
+    }
+
+    // أبعاد الفرخ الخام
+    let parentW = 70.0;
+    let parentH = 100.0;
+    const sheetSizeVal = String($('#id_sheet_size').val() || '');
+    if (sheetSizeVal.includes('66x88') || sheetSizeVal.includes('88x66')) {
+      parentW = 66.0; parentH = 88.0;
+    } else if (sheetSizeVal.includes('60x85') || sheetSizeVal.includes('85x60')) {
+      parentW = 60.0; parentH = 85.0;
+    }
+
+    const machineCuts = data?.montage?.machine_cuts || 4;
+    const montageCount = this.isManualMontage ? (parseInt($('#id_montage_count').val(), 10) || null) : null;
+    const printingType = $('#id_cover_printing_type').val() || 'offset';
+    const productType = this.currentArchetype || 'flyer';
+    const sidesMode = $('#id_print_sides_mode').val() || 'single';
+    const orientation = $('#id_imposition_orientation').val() || 'auto';
+    const folderPocketType = $('#id_folder_pocket_type').val() || 'same_sheet';
+    const folderPocketHeight = PricingMath.parseSafeNumber($('#id_folder_pocket_height').val(), 7.5);
+    const folderCardSlit = $('#id_folder_card_slit').is(':checked');
+    const spineThickness = PricingMath.parseSafeNumber($('#id_spine_thickness').val(), 0);
+    const quantity = parseInt($('#id_quantity').val(), 10) || 1000;
+    const wasteSheets = parseInt($('#id_waste_sheets').val(), 10) || 20;
+    const paperSource = $('#id_paper_source').val() || 'purchase';
+
+    const opts = {
+      pressSheetW: pressW,
+      pressSheetH: pressH,
+      openW: openW,
+      openH: openH,
+      montageCount: montageCount,
+      printingType: printingType,
+      productType: productType,
+      sidesMode: sidesMode,
+      orientation: orientation,
+      folderPocketType: folderPocketType,
+      folderPocketHeight: folderPocketHeight,
+      folderCardSlit: folderCardSlit,
+      spineThickness: spineThickness,
+      quantity: quantity,
+      wasteSheets: wasteSheets
+    };
+
+    ImpositionVisualizer.renderPressSheet(pressBox, opts);
+
+    if (shearBox) {
+      ImpositionVisualizer.renderShearingMap(shearBox, {
+        parentW: parentW,
+        parentH: parentH,
+        pieceW: pressW,
+        pieceH: pressH,
+        machineCuts: machineCuts,
+        paperSource: paperSource,
+        cutsPerSheet: montageCount
+      });
+    }
+
+    // تحديث شيت ملزمة الداخلي إن وجد
+    const innerBox = document.getElementById('inner_press_sheet_container');
+    if (innerBox && (productType === 'catalog' || productType === 'book' || productType === 'book_catalog')) {
+      const innerW = PricingMath.parseSafeNumber($('#id_width').val(), 21);
+      const innerH = PricingMath.parseSafeNumber($('#id_height').val(), 29.7);
+      const innerPressType = $('#id_inner_printing_type').val() || 'offset';
+      ImpositionVisualizer.renderPressSheet(innerBox, {
+        pressSheetW: pressW,
+        pressSheetH: pressH,
+        openW: innerW,
+        openH: innerH,
+        montageCount: Math.min(montageCount, 4),
+        printingType: innerPressType,
+        productType: 'flyer',
+        sidesMode: $('#id_inner_print_sides_mode').val() || 'work_sheet',
+        orientation: 'auto',
+        quantity: quantity,
+        wasteSheets: wasteSheets
+      });
+    }
   }
 
 

@@ -104,6 +104,25 @@ class PaperSpecification(BaseModel):
         validators=[MinValueValidator(Decimal('0.00'))],
         verbose_name=_("تكلفة الورق")
     )
+    is_inner = models.BooleanField(
+        default=False,
+        verbose_name=_("ورق الصفحات الداخلية")
+    )
+    imposition_orientation = models.CharField(
+        max_length=20,
+        choices=[
+            ('auto', _('تلقائي (الأفضل هندسياً)')),
+            ('normal', _('أفقي (عادي)')),
+            ('rotated', _('رأسي (مدور 90°)')),
+        ],
+        default='auto',
+        verbose_name=_("توجيه المونتاج")
+    )
+
+    @property
+    def parent_yield(self) -> int:
+        """إجمالي عدد القطع الممكن استخراجها من الفرخ الخام كاملاً"""
+        return (self.machine_cuts or 1) * (self.montage_count or 1)
 
     class Meta:
         db_table = "printing_pricing_paperspecification"

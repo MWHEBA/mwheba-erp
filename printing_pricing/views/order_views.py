@@ -585,6 +585,49 @@ class OrderDetailView(LoginRequiredMixin, DetailView):
             ps.clean_piece_size_name = p_name
 
         context['materials'] = materials
+        context['paper_specs'] = paper_specs
+        context['saved_paper_spec'] = cover_spec
+        context['inner_paper_spec'] = inner_spec
+
+        # تجهيز بيانات المونتاج والتفريد البصري للرسم الفوري SSR
+        if cover_spec:
+            context['montage_data_cover'] = {
+                'open_w': float(order.open_width),
+                'open_h': float(order.open_height),
+                'press_sheet_w': float(cover_spec.piece_width or cover_spec.sheet_width or 35),
+                'press_sheet_h': float(cover_spec.piece_height or cover_spec.sheet_height or 50),
+                'parent_w': float(cover_spec.sheet_width or 70),
+                'parent_h': float(cover_spec.sheet_height or 100),
+                'machine_cuts': int(cover_spec.machine_cuts or 1),
+                'montage_count': int(cover_spec.montage_count or 1),
+                'printing_type': str(order.cover_printing_type or 'offset'),
+                'product_type': str(order.product_type.base_archetype if order.product_type else (order.order_type or 'flyer')),
+                'sides_mode': str(order.print_sides_mode or 'single'),
+                'orientation': str(getattr(cover_spec, 'imposition_orientation', 'auto') or 'auto'),
+                'folder_pocket_type': str(getattr(order, 'folder_pocket_type', 'same_sheet') or 'same_sheet'),
+                'folder_pocket_height': float(order.folder_pocket_height or 7.5) if getattr(order, 'folder_pocket_height', None) else 7.5,
+                'folder_card_slit': bool(getattr(order, 'folder_card_slit', True)),
+            }
+        else:
+            context['montage_data_cover'] = None
+
+        if inner_spec:
+            context['montage_data_inner'] = {
+                'open_w': float(order.width or 21),
+                'open_h': float(order.height or 29.7),
+                'press_sheet_w': float(inner_spec.piece_width or inner_spec.sheet_width or 35),
+                'press_sheet_h': float(inner_spec.piece_height or inner_spec.sheet_height or 50),
+                'parent_w': float(inner_spec.sheet_width or 70),
+                'parent_h': float(inner_spec.sheet_height or 100),
+                'machine_cuts': int(inner_spec.machine_cuts or 1),
+                'montage_count': int(inner_spec.montage_count or 1),
+                'printing_type': str(order.inner_printing_type or 'offset'),
+                'product_type': 'book_inner',
+                'sides_mode': str(order.inner_print_sides_mode or 'work_sheet'),
+                'orientation': str(getattr(inner_spec, 'imposition_orientation', 'auto') or 'auto'),
+            }
+        else:
+            context['montage_data_inner'] = None
 
         # تنظيف وتجهيز خدمات الورش
         services = list(order.services.filter(is_active=True))
@@ -1023,6 +1066,7 @@ class OrderUpdateView(LoginRequiredMixin, UpdateView):
 
             initial['paper_price'] = paper_spec.sheet_cost
             initial['montage_count'] = paper_spec.montage_count
+            initial['imposition_orientation'] = getattr(paper_spec, 'imposition_orientation', 'auto') or 'auto'
             initial['sheets_needed'] = paper_spec.sheets_needed
             initial['total_paper_cost'] = paper_spec.total_paper_cost
         
@@ -1632,6 +1676,8 @@ def duplicate_order(request, pk):
                     machine_cuts=p_spec.machine_cuts,
                     sheet_cost=p_spec.sheet_cost,
                     total_paper_cost=p_spec.total_paper_cost,
+                    is_inner=getattr(p_spec, 'is_inner', False),
+                    imposition_orientation=getattr(p_spec, 'imposition_orientation', 'auto'),
                     created_by=request.user
                 )
                 
