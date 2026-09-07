@@ -377,7 +377,21 @@ class PrintingCalculationEngine:
             return (p_h / Decimal('2.0')), (p_w / Decimal('4.0')), 8
         else:
             # الافتراضي الشائع ربع فرخ 35×50 سم (4 قطع بالفرخ)
-            return (p_w / Decimal('2.0')), (p_h / Decimal('2.0')), 4
+            # ولكن إذا كانت أبعاد المطبوع المفتوح كبيرة لا تتسع لربع الفرخ، نختار هندسياً نصف الفرخ أو الفرخ الكامل
+            prod_w = Decimal(str(params.get('open_size_width') or params.get('width') or 0))
+            prod_h = Decimal(str(params.get('open_size_height') or params.get('height') or 0))
+            qw, qh = (p_w / Decimal('2.0')), (p_h / Decimal('2.0'))
+            hw, hh = p_h, (p_w / Decimal('2.0'))
+            fw, fh = p_w, p_h
+            if prod_w > 0 and prod_h > 0:
+                fits_quarter = (prod_w <= qw and prod_h <= qh) or (prod_w <= qh and prod_h <= qw)
+                if fits_quarter:
+                    return qw, qh, 4
+                fits_half = (prod_w <= hw and prod_h <= hh) or (prod_w <= hh and prod_h <= hw)
+                if fits_half:
+                    return hw, hh, 2
+                return fw, fh, 1
+            return qw, qh, 4
 
     @classmethod
     def _resolve_piece_name(
@@ -526,8 +540,13 @@ class PrintingCalculationEngine:
         parent_sheets = math.ceil(gross_press_sheets / machine_cuts)
 
         # قراءة سعر الفرخ الخام من خدمة المورد إن وجدت، أو السعر الاسترشادي
-        sheet_price = cls._resolve_paper_price(params, w_cut, h_cut, machine_cuts)
-        total_paper_cost = (Decimal(str(parent_sheets)) * sheet_price).quantize(Decimal('0.01'))
+        paper_source = str(params.get('paper_source') or 'purchase').lower()
+        if paper_source == 'customer_supplied':
+            sheet_price = Decimal('0.00')
+            total_paper_cost = Decimal('0.00')
+        else:
+            sheet_price = cls._resolve_paper_price(params, w_cut, h_cut, machine_cuts)
+            total_paper_cost = (Decimal(str(parent_sheets)) * sheet_price).quantize(Decimal('0.01'))
 
         # حساب عدد الرزم (500 فرخ للرزمة قياسياً)
         sheets_per_pack = cls._to_int(params.get('sheets_per_pack'), 500)
@@ -552,6 +571,10 @@ class PrintingCalculationEngine:
         جلب سعر الفرخ الخام الكامل بالجنيه المصري من SupplierService المعتمد أو استخدام السعر الاسترشادي.
         يتم حساب سعر الفرخ استناداً إلى أبعاد الفرخ الخام الحقيقي للمورد لتجنب عجز التكلفة.
         """
+        paper_source = str(params.get('paper_source') or 'purchase').lower()
+        if paper_source == 'customer_supplied':
+            return Decimal('0.00')
+
         paper_price_input = params.get('paper_price')
         target_curr = params.get('_target_curr')
         order_date = params.get('_order_date')
@@ -1013,94 +1036,130 @@ class PrintingCalculationEngine:
         # 1. السلوفان (Lamination)
         lam_type = str(params.get('lamination') or params.get('lamination_type') or params.get('coating_type') or 'none').lower()
         if lam_type not in ['none', '']:
-            sqm_per_sheet = (w_cut * h_cut) / Decimal('10000.0')
-            total_sqm = sqm_per_sheet * Decimal(str(gross_press_sheets))
             sides = 2 if 'double' in lam_type or str(params.get('lamination_sides')) == '2' else 1
-
-            # البحث عن خدمة المورد المعتمدة للسلوفان
-            lam_svc = None
-            coating_svc_id = params.get('coating_service_id')
-            if coating_svc_id:
-                lam_svc = SupplierService.objects.filter(id=coating_svc_id, is_active=True, supplier__is_active=True).first()
-            if not lam_svc:
-                # محاولة المطابقة بنوع السلوفان المفضل أو الأرخص
-                lam_svc = SupplierService.objects.filter(
-                    service_type__code='coating',
-                    is_active=True,
-                    supplier__is_active=True
-                ).order_by('-supplier__is_preferred', 'base_price').first()
-
-            if lam_svc and lam_svc.base_price > 0:
-                rate = cls._convert_currency(Decimal(str(lam_svc.base_price)), from_curr=lam_svc.effective_currency, to_curr=target_curr, date=order_date)
-                floor = cls._convert_currency(Decimal(str(lam_svc.minimum_charge or '0.00')), from_curr=lam_svc.effective_currency, to_curr=target_curr, date=order_date)
+            lam_face_price = params.get('lamination_face_price')
+            if lam_face_price is not None and str(lam_face_price).strip() != '':
+                face_rate = cls._to_decimal(lam_face_price, Decimal('0.00'))
+                lam_cost = (Decimal(str(gross_press_sheets)) * Decimal(str(sides)) * face_rate).quantize(Decimal('0.01'))
             else:
-                rate = cls._get_benchmark_rate('lamination_sqm_matte' if 'matte' in lam_type else 'lamination_sqm_gloss', target_curr=target_curr, date=order_date)
-                floor = cls._get_benchmark_rate('lamination_floor', target_curr=target_curr, date=order_date)
+                sqm_per_sheet = (w_cut * h_cut) / Decimal('10000.0')
+                total_sqm = sqm_per_sheet * Decimal(str(gross_press_sheets))
 
-            lam_cost = max(floor, total_sqm * Decimal(str(sides)) * rate)
-            lam_cost = lam_cost.quantize(Decimal('0.01'))
+                # البحث عن خدمة المورد المعتمدة للسلوفان
+                lam_svc = None
+                coating_svc_id = params.get('coating_service_id')
+                if coating_svc_id:
+                    lam_svc = SupplierService.objects.filter(id=coating_svc_id, is_active=True, supplier__is_active=True).first()
+                if not lam_svc:
+                    lam_svc = SupplierService.objects.filter(
+                        service_type__code='coating',
+                        is_active=True,
+                        supplier__is_active=True
+                    ).order_by('-supplier__is_preferred', 'base_price').first()
+
+                if lam_svc and lam_svc.base_price > 0:
+                    rate = cls._convert_currency(Decimal(str(lam_svc.base_price)), from_curr=lam_svc.effective_currency, to_curr=target_curr, date=order_date)
+                    floor = cls._convert_currency(Decimal(str(lam_svc.minimum_charge or '0.00')), from_curr=lam_svc.effective_currency, to_curr=target_curr, date=order_date)
+                else:
+                    rate = cls._get_benchmark_rate('lamination_sqm_matte' if 'matte' in lam_type else 'lamination_sqm_gloss', target_curr=target_curr, date=order_date)
+                    floor = Decimal('0.00')  # إلغاء الحد الأدنى الإجباري للتطابق مع السيرفس
+
+                lam_cost = max(floor, total_sqm * Decimal(str(sides)) * rate)
+                lam_cost = lam_cost.quantize(Decimal('0.01'))
             total_finishing += lam_cost
             details['lamination'] = float(lam_cost)
 
         # 2. التكسير (Die-Cutting)
-        has_die = cls._to_bool(params.get('has_die_cut')) or cls._to_bool(params.get('has_die_cutting')) or cls._to_bool(params.get('die_cutting'))
+        has_die = cls._to_bool(params.get('has_die_cut')) or cls._to_bool(params.get('has_die_cutting')) or cls._to_bool(params.get('die_cutting')) or str(params.get('die_cutting') or '') in ['die_cut', 'kiss_cut']
         if has_die:
-            die_svc = SupplierService.objects.filter(
-                service_type__code='finishing',
-                finishing_type__name__icontains='تكسير',
-                is_active=True,
-                supplier__is_active=True
-            ).order_by('-supplier__is_preferred', 'base_price').first()
-
-            if die_svc:
-                die_mould_cost = cls._convert_currency(Decimal(str(die_svc.tooling_cost or '250.00')), from_curr=die_svc.effective_currency, to_curr=target_curr, date=order_date)
-                die_pull_rate = cls._convert_currency(Decimal(str(die_svc.base_price or '50.00')), from_curr=die_svc.effective_currency, to_curr=target_curr, date=order_date)
-            else:
-                die_mould_cost = cls._convert_currency(Decimal('250.00'), to_curr=target_curr, date=order_date)
-                die_pull_rate = cls._convert_currency(Decimal('50.00'), to_curr=target_curr, date=order_date)
-
             finishing_tirages = max(1, math.ceil(gross_press_sheets / 1000)) if gross_press_sheets > 0 else 0
-            die_pull_cost = Decimal(str(finishing_tirages)) * die_pull_rate
-            die_total = die_mould_cost + die_pull_cost
+            die_override = cls._to_decimal(params.get('die_cut_override_price'), Decimal('0.00'))
+            if die_override > Decimal('0.00'):
+                die_total = die_override
+            else:
+                is_tool_archive = (str(params.get('die_tooling_mode') or '').lower() == 'archive')
+                die_svc = SupplierService.objects.filter(
+                    service_type__code='finishing',
+                    finishing_type__name__icontains='تكسير',
+                    is_active=True,
+                    supplier__is_active=True
+                ).order_by('-supplier__is_preferred', 'base_price').first()
+
+                if is_tool_archive:
+                    die_mould_cost = Decimal('0.00')
+                elif params.get('die_tooling_cost'):
+                    die_mould_cost = cls._to_decimal(params.get('die_tooling_cost'), Decimal('250.00'))
+                elif die_svc:
+                    die_mould_cost = cls._convert_currency(Decimal(str(die_svc.tooling_cost or '250.00')), from_curr=die_svc.effective_currency, to_curr=target_curr, date=order_date)
+                else:
+                    die_mould_cost = cls._convert_currency(Decimal('250.00'), to_curr=target_curr, date=order_date)
+
+                if params.get('die_cut_tirage_price'):
+                    die_pull_rate = cls._to_decimal(params.get('die_cut_tirage_price'), Decimal('80.00'))
+                elif die_svc:
+                    die_pull_rate = cls._convert_currency(Decimal(str(die_svc.base_price or '80.00')), from_curr=die_svc.effective_currency, to_curr=target_curr, date=order_date)
+                else:
+                    die_pull_rate = cls._convert_currency(Decimal('80.00'), to_curr=target_curr, date=order_date)
+
+                die_pull_cost = Decimal(str(finishing_tirages)) * die_pull_rate
+                die_total = die_mould_cost + die_pull_cost
+
             total_finishing += die_total
             details['die_cutting'] = float(die_total)
             details['die_cutting_tirages'] = finishing_tirages
 
         # 3. السبوت يو في (Spot UV)
-        if cls._to_bool(params.get('has_spot_uv')):
+        has_spot = cls._to_bool(params.get('has_spot_uv')) or str(params.get('finishing') or '') == 'spot_uv'
+        if has_spot:
             finishing_tirages = max(1, math.ceil(gross_press_sheets / 1000)) if gross_press_sheets > 0 else 0
-            uv_floor = cls._convert_currency(Decimal('200.00'), to_curr=target_curr, date=order_date)
-            uv_unit = cls._convert_currency(Decimal('0.20'), to_curr=target_curr, date=order_date)
-            uv_tirage_price_raw = params.get('spot_uv_tirage_price')
-            if uv_tirage_price_raw and str(uv_tirage_price_raw).strip() != '':
-                uv_rate = cls._to_decimal(uv_tirage_price_raw, Decimal('0.00'))
-                uv_cost = max(uv_floor, Decimal(str(finishing_tirages)) * uv_rate)
+            spot_override = cls._to_decimal(params.get('spot_uv_override_price'), Decimal('0.00'))
+            if spot_override > Decimal('0.00'):
+                uv_cost = spot_override
             else:
-                uv_cost = max(uv_floor, Decimal(str(gross_press_sheets)) * uv_unit)
+                is_screen_archive = (str(params.get('spot_uv_screen_mode') or '').lower() == 'archive')
+                screen_cost = Decimal('0.00') if is_screen_archive else cls._to_decimal(params.get('spot_uv_screen_cost'), Decimal('150.00'))
+                spot_rate = cls._to_decimal(params.get('spot_uv_tirage_price'), Decimal('120.00'))
+                uv_cost = (Decimal(str(finishing_tirages)) * spot_rate) + screen_cost
             total_finishing += uv_cost
             details['spot_uv'] = float(uv_cost)
             details['spot_uv_tirages'] = finishing_tirages
 
         # 4. البصمة الحرارية (Foil)
-        if cls._to_bool(params.get('has_foil')):
-            foil_base = cls._convert_currency(Decimal('180.00'), to_curr=target_curr, date=order_date)
-            foil_rate = cls._convert_currency(Decimal('60.00'), to_curr=target_curr, date=order_date)
-            foil_cost = foil_base + (Decimal(str(math.ceil(gross_press_sheets / 1000))) * foil_rate)
+        has_foil_flag = cls._to_bool(params.get('has_foil')) or 'foil' in str(params.get('finishing') or '')
+        if has_foil_flag:
+            foil_override = cls._to_decimal(params.get('foil_override_price'), Decimal('0.00'))
+            if foil_override > Decimal('0.00'):
+                foil_cost = foil_override
+            else:
+                is_cliche_archive = (str(params.get('foil_cliche_mode') or '').lower() == 'archive')
+                cliche_cost = Decimal('0.00') if is_cliche_archive else cls._to_decimal(params.get('foil_cliche_cost'), Decimal('150.00'))
+                foil_tirages = max(1, math.ceil(gross_press_sheets / 1000))
+                foil_cost = max(Decimal('230.00'), (Decimal(str(foil_tirages)) * Decimal('100.00')) + cliche_cost)
             total_finishing += foil_cost
             details['foil'] = float(foil_cost)
 
         # 5. كوفراج بارز (Embossing)
-        if cls._to_bool(params.get('has_emboss')):
-            emboss_base = cls._convert_currency(Decimal('150.00'), to_curr=target_curr, date=order_date)
-            emboss_rate = cls._convert_currency(Decimal('45.00'), to_curr=target_curr, date=order_date)
-            emboss_cost = emboss_base + (Decimal(str(math.ceil(gross_press_sheets / 1000))) * emboss_rate)
+        has_emboss_flag = cls._to_bool(params.get('has_emboss')) or 'emboss' in str(params.get('finishing') or '')
+        if has_emboss_flag:
+            emboss_override = cls._to_decimal(params.get('emboss_override_price'), Decimal('0.00'))
+            if emboss_override > Decimal('0.00'):
+                emboss_cost = emboss_override
+            else:
+                is_emboss_archive = (str(params.get('emboss_cliche_mode') or '').lower() == 'archive')
+                cliche_cost = Decimal('0.00') if is_emboss_archive else cls._to_decimal(params.get('emboss_cliche_cost'), Decimal('150.00'))
+                emboss_tirages = max(1, math.ceil(gross_press_sheets / 1000))
+                emboss_cost = (Decimal(str(emboss_tirages)) * Decimal('80.00')) + cliche_cost
             total_finishing += emboss_cost
             details['emboss'] = float(emboss_cost)
 
         # 6. خط ريجة / طي (Creasing)
         if cls._to_bool(params.get('has_creasing')):
-            crease_rate = cls._convert_currency(Decimal('25.00'), to_curr=target_curr, date=order_date)
-            crease_cost = Decimal(str(math.ceil(gross_press_sheets / 1000))) * crease_rate
+            crease_override = cls._to_decimal(params.get('creasing_override_price'), Decimal('0.00'))
+            if crease_override > Decimal('0.00'):
+                crease_cost = crease_override
+            else:
+                crease_rate = cls._convert_currency(Decimal('25.00'), to_curr=target_curr, date=order_date)
+                crease_cost = Decimal(str(math.ceil(gross_press_sheets / 1000))) * crease_rate
             total_finishing += crease_cost
             details['creasing'] = float(crease_cost)
 
@@ -1119,7 +1178,10 @@ class PrintingCalculationEngine:
         order_date = params.get('_order_date')
 
         pages = cls._to_int(params.get('pages_count') or params.get('inner_pages'), 32)
-        sig_capacity = 16  # ملزمة 16 صفحة
+        w_val = cls._to_decimal(params.get('width'), Decimal('21.0'))
+        h_val = cls._to_decimal(params.get('height'), Decimal('29.7'))
+        # إذا كان مقاس الصفحة A5 أو أصغر (15.5 × 22 سم أو أقل)، الفرخ يستوعب ملزمة 32 صفحة
+        sig_capacity = 32 if ((w_val <= Decimal('15.5') and h_val <= Decimal('22.0')) or (h_val <= Decimal('15.5') and w_val <= Decimal('22.0'))) else 16
         signatures = math.ceil(pages / sig_capacity)
 
         # ورق الداخلي: كل ملزمة 16 صفحة تأخذ نصف فرخ وش وضهر
@@ -1128,9 +1190,17 @@ class PrintingCalculationEngine:
         inner_waste = math.ceil(total_inner_sheets * 0.05)
         gross_inner = total_inner_sheets + inner_waste
 
-        # سعر ورق الداخلي الاسترشادي
-        inner_sheet_price = cls._convert_currency(Decimal('2.00'), to_curr=target_curr, date=order_date)
-        inner_paper_cost = (Decimal(str(gross_inner)) * inner_sheet_price).quantize(Decimal('0.01'))
+        # فحص مصدر ورق الداخلي وسعره
+        inner_source = str(params.get('inner_paper_source') or params.get('paper_source') or 'purchase').lower()
+        if inner_source == 'customer_supplied':
+            inner_sheet_price = Decimal('0.00')
+            inner_paper_cost = Decimal('0.00')
+        elif params.get('inner_sheet_price') and str(params.get('inner_sheet_price')).strip() != '':
+            inner_sheet_price = cls._to_decimal(params.get('inner_sheet_price'), Decimal('2.00'))
+            inner_paper_cost = (Decimal(str(gross_inner)) * inner_sheet_price).quantize(Decimal('0.01'))
+        else:
+            inner_sheet_price = cls._convert_currency(Decimal('2.00'), to_curr=target_curr, date=order_date)
+            inner_paper_cost = (Decimal(str(gross_inner)) * inner_sheet_price).quantize(Decimal('0.01'))
 
         # طباعة الداخلي: كل ملزمة تحتاج 4 زنكات وش وضهر طبع وقلب أو 8 زنكات
         inner_plates = signatures * 4
@@ -1231,7 +1301,9 @@ class PrintingCalculationEngine:
             elif binding == 'hardcover':
                 cost = max(Decimal('250.00'), (Decimal(str(qty)) * Decimal('4.50')) + Decimal('150.00'))
             elif binding == 'wire_o':
-                cost = max(Decimal('120.00'), Decimal(str(qty)) * Decimal('2.50'))
+                inner_pages_c = cls._to_int(params.get('pages_count') or params.get('inner_pages'), 60)
+                wire_rate = Decimal('2.50') if inner_pages_c <= 100 else Decimal('3.50')
+                cost = max(Decimal('120.00'), Decimal(str(qty)) * wire_rate)
             elif binding == 'pad_glue':
                 cost = max(Decimal('50.00'), Decimal(str(qty)) * Decimal('0.75'))
             elif binding == 'sewing_binding':

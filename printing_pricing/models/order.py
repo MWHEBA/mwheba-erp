@@ -513,14 +513,45 @@ class PrintingOrder(BaseModel):
                 notes_text += f" | العميل: {customer_display}"
             if self.design_service_type and self.design_service_type != 'CUSTOMER_READY':
                 notes_text += f" | [تنبيه إنتاج: أمر الشغل يتطلب تصميم ومونتاج ({self.get_design_service_type_display()}) - لا يتم سحب الخامات أو تخريج الزنكات إلا بعد اعتماد البروفة]"
+            try:
+                if hasattr(self, 'paper_specs') and self.paper_specs.exists():
+                    ps = self.paper_specs.first()
+                    if ps and ps.montage_count:
+                        notes_text += f" | [المونتاج والتفريد: {ps.montage_count} في الشيت ({ps.piece_size or self.piece_size or 'تلقائي'})]"
+            except Exception:
+                pass
+
+            customer_obj = self.customer
+            if not customer_obj:
+                try:
+                    from customer.models import Customer
+                    customer_obj = Customer.objects.filter(name__icontains="عميل نقدي").first()
+                    if not customer_obj:
+                        customer_obj = Customer.objects.create(
+                            name="عميل نقدي / تسعير سريع",
+                            notes="حساب افتراضي عام لتسعيرات العملاء النقدية السريعة"
+                        )
+                except Exception:
+                    pass
 
             self.work_order = WorkOrder.objects.create(
-                customer=self.customer,
+                customer=customer_obj,
                 created_by=user or getattr(self, 'created_by', None),
                 delivery_date=self.due_date.date() if self.due_date else None,
                 notes=notes_text
             )
             self.save(update_fields=['work_order'])
+        elif self.work_order:
+            # تحديث ملاحظات أمر الشغل القائم في حال تعديل حالة التصميم
+            try:
+                wo = self.work_order
+                if self.design_service_type == 'CUSTOMER_READY' and 'تنبيه إنتاج: أمر الشغل يتطلب تصميم ومونتاج' in (wo.notes or ''):
+                    # إزالة تنبيه الحظر لفك تعليق صالة الإنتاج
+                    import re
+                    wo.notes = re.sub(r' \| \[تنبيه إنتاج: أمر الشغل يتطلب تصميم ومونتاج [^\]]+\]', '', wo.notes)
+                    wo.save(update_fields=['notes'])
+            except Exception:
+                pass
         return self.work_order
 
     def generate_order_number(self):

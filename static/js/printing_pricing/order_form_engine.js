@@ -24,6 +24,19 @@ const PricingMath = {
   },
 
   /**
+   * تسوية ومطابقة النصوص العربية وإزالة الهمزات والتشكيل والتاء المربوطة
+   */
+  normalizeArabic(text) {
+    if (!text) return '';
+    return String(text)
+      .trim()
+      .replace(/[إأآا]/g, 'ا')
+      .replace(/ة/g, 'ه')
+      .replace(/ى/g, 'ي')
+      .replace(/[\u064B-\u065F]/g, '');
+  },
+
+  /**
    * حساب استغلال الفرخ والمونتاج الهندسي مع خصم 2.0 سم (بنسة الماكينة 1.5 سم + طهارة المقص 0.5 سم)
    * وصمام أمان عند تجاوز مقاس المطبوع لمساحة الفرخ
    */
@@ -247,12 +260,10 @@ class OrderFormUIController {
     } else {
       this.isManualMontage = false;
       this.currentPieceName = '';
-      $('#id_montage_count').val('').attr('placeholder', '-');
-      $('#id_montage_piece_name').text('/ --');
-      $('#press_montage_ref_val').text('- / --');
-      $('#parent_yield_val').text('-- قطعة');
-      $('#btn_montage_minus').prop('disabled', true);
-      $('#btn_montage_plus').prop('disabled', true);
+      // بدء الشاشة بحسابات مفعلة وتفريد تلقائي
+      setTimeout(() => {
+        this.debouncedRecalculate();
+      }, 50);
     }
 
     // التهيئة الصامتة الأولية للتكلفة الإجمالية من الـ DOM لمنع التصفير في وضع التعديل (Edit Mode Hydration)
@@ -269,6 +280,8 @@ class OrderFormUIController {
       }
     }
 
+    this.updateMontageWaitingState();
+    this.checkDesignZeroFeeAlert();
     this.updateGatesState();
     this.updateMarginUI();
     this.recalculate();
@@ -378,26 +391,44 @@ class OrderFormUIController {
     });
 
     // 2.5 مراقبة خدمة التصميم والتجهيز الفني
+    $(document).on('change', 'input[name="design_service_choice"]', function () {
+      const val = this.value;
+      const select = $('#id_design_service_type');
+      if (select.val() !== val) {
+        select.val(val).trigger('change');
+      }
+    });
+
     $(document).on('change', '#id_design_service_type', function () {
       const val = this.value;
-      const feeBox = document.getElementById('box_design_fee');
+      $(`input[name="design_service_choice"][value="${val}"]`).prop('checked', true);
       const feeInput = document.getElementById('id_design_fee');
       if (val === 'CUSTOMER_READY') {
-        if (feeBox) feeBox.classList.add('d-none');
-        if (feeInput) feeInput.value = '0.00';
+        if (feeInput) {
+          feeInput.value = '0';
+          feeInput.readOnly = true;
+          feeInput.style.backgroundColor = 'var(--gray-100)';
+          feeInput.style.cursor = 'not-allowed';
+        }
       } else {
-        if (feeBox) {
-          feeBox.classList.remove('d-none');
-          if (feeInput) {
-            feeInput.focus();
-            feeInput.select();
-          }
+        if (feeInput) {
+          feeInput.readOnly = false;
+          feeInput.style.backgroundColor = '';
+          feeInput.style.cursor = 'text';
+          feeInput.focus();
+          feeInput.select();
         }
       }
       self.debouncedRecalculate(50);
     });
 
-    $(document).on('input change', '#id_design_fee', function () {
+    $(document).on('input change', '#id_design_fee', function (e) {
+      if (e.type === 'change' && this.value && this.value.includes('.')) {
+        const parsed = parseFloat(this.value);
+        if (!isNaN(parsed)) {
+          this.value = Math.round(parsed);
+        }
+      }
       self.debouncedRecalculate(100);
     });
 
@@ -527,6 +558,7 @@ class OrderFormUIController {
         }
       }
       self.updateOpenDimensionsDisplay();
+      self.updateMontageWaitingState();
       self.debouncedRecalculate();
     });
 
@@ -579,6 +611,9 @@ class OrderFormUIController {
         self.updateInnerPlatesUI();
       }
       self.updateOpenDimensionsDisplay();
+      if (this.id === 'id_quantity') {
+        self.updateMontageWaitingState();
+      }
       self.debouncedRecalculate(250);
     });
 
@@ -634,6 +669,13 @@ class OrderFormUIController {
       if (e.target.id !== 'id_montage_count') {
         $('#id_montage_count').focus().select();
       }
+    });
+
+    // 8.05 مراقبة حقول أستوديو التصميم (نوع الخدمة، الأتعاب)
+    $(document).on('change input', '#id_design_service_type, #id_design_fee', function () {
+      self.checkDesignZeroFeeAlert();
+      self.updateFinancialsLocally();
+      self.debouncedRecalculate();
     });
 
     // 8.1 مراقبة أزرار شريط التشطيبات السريعة (Multi-Finishing Pill Badges)
@@ -1287,11 +1329,12 @@ class OrderFormUIController {
     const extraCost = PricingMath.parseSafeNumber(document.getElementById('id_extra_cost')?.value, 0);
     const totalCost = (this.lastKnownTotalCost || 0) + extraCost;
 
-    // أتعاب التصميم والتجهيز الفني
+    // أتعاب التصميم والتجهيز الفني بدون كسور
     const designType = document.getElementById('id_design_service_type')?.value || 'CUSTOMER_READY';
-    const designFee = (designType !== 'CUSTOMER_READY')
+    const rawDesignFee = (designType !== 'CUSTOMER_READY')
       ? PricingMath.parseSafeNumber(document.getElementById('id_design_fee')?.value, 0)
       : 0;
+    const designFee = Math.round(rawDesignFee);
 
     const profitMarginInput = document.getElementById('id_profit_margin');
     let marginPct = 30;
@@ -1322,10 +1365,10 @@ class OrderFormUIController {
     if (costLogEl) this.updateTextSafely(costLogEl, this.formatMoney(extraCost));
 
     const costDesignEl = document.getElementById('cost_design_display');
-    if (costDesignEl) this.updateTextSafely(costDesignEl, this.formatMoney(designFee));
+    if (costDesignEl) this.updateTextSafely(costDesignEl, `${designFee} ${this.currencySymbol}`);
 
     const sidebarDesignFeeEl = document.getElementById('sidebar_design_fee_display');
-    if (sidebarDesignFeeEl) this.updateTextSafely(sidebarDesignFeeEl, this.formatNumber(designFee));
+    if (sidebarDesignFeeEl) this.updateTextSafely(sidebarDesignFeeEl, designFee.toString());
 
     const rowDesignBreakdown = document.getElementById('row_cost_design_breakdown');
     const rowSidebarDesign = document.getElementById('row_sidebar_design_fee');
@@ -2072,11 +2115,11 @@ class OrderFormUIController {
       const source = this.value;
       const priceInput = $('#id_paper_sheet_price');
       if (source === 'customer_supplied') {
-        priceInput.prop('disabled', true).addClass('bg-light text-muted');
+        priceInput.prop('readonly', true).val('0.00').addClass('bg-light text-muted');
         $('#paper_price_mode_label').text('خامة توريد العميل');
         self.showNotification(`تم تحديد خامة توريد العميل: سيتم احتساب تكلفة الورق كـ 0.00 ${self.config.currencySymbol} كشغل مصنعية مع استمرار حساب الأفرخ لإذن الاستلام`, 'info');
       } else {
-        priceInput.prop('disabled', false).removeClass('bg-light text-muted');
+        priceInput.prop('readonly', false).removeClass('bg-light text-muted');
         $('#paper_price_mode_label').text('سعر الفرخ');
       }
       self.debouncedRecalculate();
@@ -2466,6 +2509,36 @@ class OrderFormUIController {
       });
     }
 
+    // المولد الهندسي الاحتياطي لمقاسات القطع في حال عدم وجود سجلات مطابقة في قاعدة البيانات
+    if (matched.length === 0 && minSW > 0 && maxSW > 0) {
+      matched = [
+        {
+          value: `${Math.round(minSW)}x${Math.round(maxSW / 2)}`,
+          name: 'نصف فرخ',
+          text: `نصف فرخ (${Math.round(minSW)}×${Math.round(maxSW / 2)} سم - 2 قطعة للماكينة)`,
+          cuts: 2,
+          width: minSW,
+          height: maxSW / 2,
+        },
+        {
+          value: `${Math.round(maxSW / 2)}x${Math.round(minSW / 2)}`,
+          name: 'ربع فرخ',
+          text: `ربع فرخ (${Math.round(maxSW / 2)}×${Math.round(minSW / 2)} سم - 4 قطع للماكينة)`,
+          cuts: 4,
+          width: maxSW / 2,
+          height: minSW / 2,
+        },
+        {
+          value: `${Math.round(maxSW)}x${Math.round(minSW)}`,
+          name: 'فرخ كامل',
+          text: `فرخ كامل (${Math.round(maxSW)}×${Math.round(minSW)} سم - 1 قطعة للماكينة)`,
+          cuts: 1,
+          width: maxSW,
+          height: minSW,
+        }
+      ];
+    }
+
     const opts = [
       {
         value: 'auto',
@@ -2548,16 +2621,9 @@ class OrderFormUIController {
     // تحديث مقاسات القطع المتماشية مع مقاس الفرخ
     this.updatePieceSizesForSheet(sheetSize, sheetSizeId, sheetW, sheetH);
 
-    // مزامنة مقاس القطع التلقائية مع ماكينة الأوفست
+    // احترام اختيار المسعر اليدوي لمقاس القطع وعدم الفرض الإجباري للنصوص
     const pressMachine = $('#id_cover_press_machine').val();
     const $pieceSelect = $('#id_piece_size');
-    if (sheetSize && pressMachine && $pieceSelect.length) {
-      if (pressMachine === '50x70' && (sheetSize.includes('70') && sheetSize.includes('100'))) {
-        $pieceSelect.val('50x70').trigger('change.select2');
-      } else if (pressMachine === '35x50' && (sheetSize.includes('70') && sheetSize.includes('100'))) {
-        $pieceSelect.val('35x50').trigger('change.select2');
-      }
-    }
 
     // جلب الأوزان المتاحة حسب الخامة والمورد ومقاس الفرخ
     if (this.config.urls && this.config.urls.paperWeightsApi) {
@@ -3126,9 +3192,76 @@ class OrderFormUIController {
   }
 
   /**
+   * تحديث ومزامنة حالة انتظار المونتاج الذكي (Montage Waiting State & Studio Activation)
+   */
+  updateMontageWaitingState() {
+    const widthEl = document.getElementById('id_width');
+    const heightEl = document.getElementById('id_height');
+    const qtyEl = document.getElementById('id_quantity');
+
+    const w = PricingMath.parseSafeNumber(widthEl?.value, 0);
+    const h = PricingMath.parseSafeNumber(heightEl?.value, 0);
+    const q = PricingMath.parseSafeNumber(qtyEl?.value, 0);
+
+    const overlay = document.getElementById('montage_waiting_overlay');
+    const statusBadge = document.getElementById('montage_status_indicator');
+    const isReady = (w >= 3 && h >= 3 && q >= 1);
+
+    if (isReady) {
+      if (overlay) {
+        overlay.classList.add('d-none');
+      }
+      if (statusBadge) {
+        statusBadge.className = 'badge bg-success-subtle text-success border border-success-subtle small';
+        statusBadge.innerHTML = '<i class="fas fa-check-circle me-1"></i>جاهز ومفعل للحساب';
+      }
+      // إعادة ضبط مقاس Select2 لمنع انكماش القائمة عند إزالة الـ Overlay
+      const $pieceSelect = $('#id_piece_size');
+      if ($pieceSelect.length && $pieceSelect.hasClass('select2-hidden-accessible')) {
+        $pieceSelect.select2({ width: '100%', dir: 'rtl' });
+      }
+    } else {
+      if (overlay) {
+        overlay.classList.remove('d-none');
+      }
+      if (statusBadge) {
+        statusBadge.className = 'badge bg-secondary-subtle text-secondary border border-secondary-subtle small';
+        statusBadge.innerHTML = '<i class="fas fa-clock me-1"></i>بانتظار المقاس والكمية';
+      }
+    }
+
+    // تنبيه أبعاد المطبوع الكبيرة
+    const oversizedAlert = document.getElementById('oversized_montage_alert');
+    if (oversizedAlert) {
+      if ((w > 100 || h > 100) || (w > 70 && h > 70)) {
+        oversizedAlert.classList.remove('d-none');
+      } else {
+        oversizedAlert.classList.add('d-none');
+      }
+    }
+  }
+
+  /**
+   * فحص وتنبيه أتعاب التصميم الصفرية في حال اختيار تصميم جديد
+   */
+  checkDesignZeroFeeAlert() {
+    const sType = $('#id_design_service_type').val();
+    const feeVal = parseFloat($('#id_design_fee').val()) || 0;
+    const alertEl = $('#design_zero_fee_alert');
+    if (!alertEl.length) return;
+
+    if (sType === 'NEW_CONCEPT' && feeVal === 0) {
+      alertEl.removeClass('d-none');
+    } else {
+      alertEl.addClass('d-none');
+    }
+  }
+
+  /**
    * 2. مزامنة وتحديث حالة إظهار وإخفاء الأقسام (الخطوة 2 و 3) في الواجهة
    */
   updateGatesState() {
+    this.updateMontageWaitingState();
     const gateStatus = this.isStep1Complete();
     const isDone = gateStatus.isComplete;
 
@@ -3734,8 +3867,12 @@ class OrderFormUIController {
     if (!data) return;
 
     requestAnimationFrame(() => {
-      // 1. المونتاج واستغلال الفرخ
+      // 1. المونتاج واستغلال الفرخ ومزامنة الحقول الفيزيائية المخفية
       if (data.montage) {
+        if (data.montage.press_sheet_w) $('#id_piece_width').val(data.montage.press_sheet_w);
+        if (data.montage.press_sheet_h) $('#id_piece_height').val(data.montage.press_sheet_h);
+        if (data.montage.machine_cuts) $('#id_machine_cuts').val(data.montage.machine_cuts);
+
         const maxMontage = data.montage.max_cuts_per_sheet || data.montage.cuts_per_sheet;
         this.maxMontage = maxMontage;
         const pieceName = data.montage.piece_size_name || this.getCleanPieceName();
@@ -4117,6 +4254,8 @@ class OrderFormUIController {
    * توليد ونسخ رسالة عرض السعر للواتساب (Universal Clipboard)
    */
   generateWhatsAppQuote() {
+    const title = document.getElementById('id_title')?.value || document.getElementById('id_product_type')?.options[document.getElementById('id_product_type')?.selectedIndex]?.text || 'مطبوع تجاري';
+    const qty = document.getElementById('id_quantity')?.value || '1000';
     const sym = this.config.currencySymbol || '';
     const rawTotal = document.getElementById('final_total_display')?.textContent?.trim() || '0.00';
     const total = (rawTotal.includes(sym) || !sym) ? rawTotal : `${rawTotal} ${sym}`;

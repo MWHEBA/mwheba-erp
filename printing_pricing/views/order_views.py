@@ -1511,11 +1511,39 @@ def duplicate_order(request, pk):
                 design_fee=original_order.design_fee,
                 sales_rep=original_order.sales_rep,
                 sales_commission_rate=original_order.sales_commission_rate,
+                # نسخ كافة خصائص الطباعة المتقدمة والتجليد
+                cover_printing_type=original_order.cover_printing_type,
+                print_sides_mode=original_order.print_sides_mode,
+                digital_color_mode=original_order.digital_color_mode,
+                spot_colors_front=original_order.spot_colors_front,
+                spot_colors_back=original_order.spot_colors_back,
+                inner_printing_type=original_order.inner_printing_type,
+                inner_print_sides_mode=original_order.inner_print_sides_mode,
+                inner_color_mode=original_order.inner_color_mode,
+                inner_spot_colors=original_order.inner_spot_colors,
+                inner_color_pages=original_order.inner_color_pages,
+                inner_bw_pages=original_order.inner_bw_pages,
+                inner_signatures_count=original_order.inner_signatures_count,
+                binding_type=original_order.binding_type,
+                spine_thickness=original_order.spine_thickness,
+                inner_paper_type=original_order.inner_paper_type,
+                inner_paper_weight=original_order.inner_paper_weight,
+                inner_coating_type=original_order.inner_coating_type,
+                ncr_sets_count=original_order.ncr_sets_count,
+                ncr_book_capacity=original_order.ncr_book_capacity,
+                ncr_serial_start=original_order.ncr_serial_start,
+                ncr_serial_end=original_order.ncr_serial_end,
+                folder_pocket_type=original_order.folder_pocket_type,
+                folder_card_slit=original_order.folder_card_slit,
+                folder_pocket_height=original_order.folder_pocket_height,
+                estimated_cost=original_order.estimated_cost,
+                final_price=original_order.final_price,
+                sales_commission_amount=original_order.sales_commission_amount,
                 created_by=request.user,
                 updated_by=request.user
             )
             
-            # نسخ مواصفات الورق
+            # نسخ مواصفات الورق مع الحفاظ على مقاس القطع الفيزيائي وسحبات الماكينة
             for p_spec in original_order.paper_specs.filter(is_active=True):
                 PaperSpecification.objects.create(
                     order=new_order,
@@ -1527,6 +1555,9 @@ def duplicate_order(request, pk):
                     sheets_needed=p_spec.sheets_needed,
                     montage_count=p_spec.montage_count,
                     piece_size=p_spec.piece_size,
+                    piece_width=p_spec.piece_width,
+                    piece_height=p_spec.piece_height,
+                    machine_cuts=p_spec.machine_cuts,
                     sheet_cost=p_spec.sheet_cost,
                     total_paper_cost=p_spec.total_paper_cost,
                     created_by=request.user
@@ -1543,6 +1574,8 @@ def duplicate_order(request, pk):
                     unit=material.unit,
                     unit_cost=material.unit_cost,
                     waste_percentage=material.waste_percentage,
+                    total_cost=material.total_cost,
+                    is_customer_material=material.is_customer_material,
                     created_by=request.user
                 )
             
@@ -1565,8 +1598,30 @@ def duplicate_order(request, pk):
                     created_by=request.user
                 )
             
-            # إنشاء ملخص للطلب الجديد
-            OrderSummary.objects.create(order=new_order)
+            # استنساخ المركز المالي الموحد (OrderSummary) من الطلب الأصلي
+            orig_sum = getattr(original_order, 'summary', None)
+            if orig_sum:
+                OrderSummary.objects.create(
+                    order=new_order,
+                    material_cost=orig_sum.material_cost,
+                    printing_cost=orig_sum.printing_cost,
+                    finishing_cost=orig_sum.finishing_cost,
+                    design_cost=orig_sum.design_cost,
+                    other_costs=orig_sum.other_costs,
+                    subtotal=orig_sum.subtotal,
+                    discount_amount=orig_sum.discount_amount,
+                    tax_amount=orig_sum.tax_amount,
+                    rush_fee=orig_sum.rush_fee,
+                    total_cost=orig_sum.total_cost,
+                    profit_margin_percentage=orig_sum.profit_margin_percentage,
+                    profit_amount=orig_sum.profit_amount,
+                    final_price=orig_sum.final_price,
+                    calculation_notes=orig_sum.calculation_notes,
+                    created_by=request.user,
+                    updated_by=request.user
+                )
+            else:
+                OrderSummary.objects.create(order=new_order, created_by=request.user, updated_by=request.user)
         
         messages.success(
             request,

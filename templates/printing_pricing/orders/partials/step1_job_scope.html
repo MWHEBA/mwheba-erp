@@ -117,34 +117,6 @@
                value="{% if object and object.sales_rep_id %}{{ object.sales_rep_id }}{% elif object and object.created_by_id %}{{ object.created_by_id }}{% else %}{{ request.user.pk }}{% endif %}">
       </div>
 
-      <!-- الصف 3: خدمات التصميم والتجهيز الفني -->
-      <div class="col-12 col-md-7" id="box_design_service_type">
-        <label for="id_design_service_type" class="form-label fw-bold">
-          {% trans "خدمة التصميم والتجهيز الفني" %}
-        </label>
-        <select class="form-select text-center" id="id_design_service_type" name="design_service_type">
-          <option value="CUSTOMER_READY" {% if form.design_service_type.value == 'CUSTOMER_READY' or form.instance.design_service_type == 'CUSTOMER_READY' or not form.instance.design_service_type %}selected{% endif %}>
-            {% trans "تصميم جاهز من العميل" %}
-          </option>
-          <option value="PREPRESS_EDIT" {% if form.design_service_type.value == 'PREPRESS_EDIT' or form.instance.design_service_type == 'PREPRESS_EDIT' %}selected{% endif %}>
-            {% trans "تعديل ومونتاج" %}
-          </option>
-          <option value="NEW_CONCEPT" {% if form.design_service_type.value == 'NEW_CONCEPT' or form.instance.design_service_type == 'NEW_CONCEPT' %}selected{% endif %}>
-            {% trans "تصميم جديد" %}
-          </option>
-        </select>
-      </div>
-
-      <div class="col-12 col-md-5 {% if not form.instance.design_fee and form.design_service_type.value != 'PREPRESS_EDIT' and form.design_service_type.value != 'NEW_CONCEPT' and form.instance.design_service_type != 'PREPRESS_EDIT' and form.instance.design_service_type != 'NEW_CONCEPT' %}d-none{% endif %}" id="box_design_fee">
-        <label for="id_design_fee" class="form-label fw-bold">
-          <span id="label_design_fee">{% trans "أتعاب التصميم للعميل" %}</span>
-        </label>
-        <div class="input-group">
-          <input type="number" step="0.01" min="0" class="form-control text-center fw-bold" id="id_design_fee" name="design_fee"
-                 value="{{ form.design_fee.value|default:form.instance.design_fee|default:'0' }}" placeholder="0.00">
-          <span class="input-group-text bg-light small">{{ currency_symbol|default:functional_currency.symbol }}</span>
-        </div>
-      </div>
 
       <!-- الصف 4: ملاحظات ومتطلبات العميل الخاصة (12 عمود) -->
       <div class="col-12">
@@ -271,6 +243,64 @@
               <strong class="text-primary fs-6" id="open_dims_text">42 × 29.7 سم</strong>
             </span>
           </div>
+        </div>
+      </div>
+
+      <!-- 9. خدمات وأتعاب التصميم الفورية (متكاملة داخل شبكة حقول النموذج 100%) -->
+      <!-- أ. خدمة التصميم -->
+      <div class="col-md-8" id="box_design_service_type">
+        <label class="form-label fw-bold">
+          <i class="fas fa-paint-brush text-primary me-1"></i>{% trans "خدمة التصميم" %}
+        </label>
+        <div class="btn-group w-100" role="group" id="design_service_toggle_group">
+          <input type="radio" class="btn-check" name="design_service_choice" id="design_choice_ready" value="CUSTOMER_READY"
+                 {% if form.design_service_type.value == 'CUSTOMER_READY' or form.instance.design_service_type == 'CUSTOMER_READY' or not form.instance.design_service_type and not form.design_service_type.value %}checked{% endif %} autocomplete="off">
+          <label class="btn btn-outline-secondary d-flex align-items-center justify-content-center py-2" for="design_choice_ready" title="{% trans 'الملف جاهز للطباعة مباشرة من العميل' %}">
+            <i class="fas fa-check-circle me-1 text-success"></i>{% trans "تصميم جاهز من العميل" %}
+          </label>
+
+          <input type="radio" class="btn-check" name="design_service_choice" id="design_choice_edit" value="PREPRESS_EDIT"
+                 {% if form.design_service_type.value == 'PREPRESS_EDIT' or form.instance.design_service_type == 'PREPRESS_EDIT' %}checked{% endif %} autocomplete="off">
+          <label class="btn btn-outline-secondary d-flex align-items-center justify-content-center py-2" for="design_choice_edit" title="{% trans 'تعديل ومونتاج على ملف العميل' %}">
+            <i class="fas fa-edit me-1 text-primary"></i>{% trans "تعديل ومونتاج" %}
+          </label>
+
+          <input type="radio" class="btn-check" name="design_service_choice" id="design_choice_new" value="NEW_CONCEPT"
+                 {% if form.design_service_type.value == 'NEW_CONCEPT' or form.instance.design_service_type == 'NEW_CONCEPT' %}checked{% endif %} autocomplete="off">
+          <label class="btn btn-outline-secondary d-flex align-items-center justify-content-center py-2" for="design_choice_new" title="{% trans 'ابتكار فكرة وتصميم جديد' %}">
+            <i class="fas fa-magic me-1 text-warning"></i>{% trans "تصميم جديد" %}
+          </label>
+        </div>
+
+        <!-- عنصر select الأصلي مخفي للمحافظة على التوافق التام مع الباك إند والـ DOM -->
+        <select class="d-none" id="id_design_service_type" name="design_service_type">
+          <option value="CUSTOMER_READY" {% if form.design_service_type.value == 'CUSTOMER_READY' or form.instance.design_service_type == 'CUSTOMER_READY' or not form.instance.design_service_type and not form.design_service_type.value %}selected{% endif %}>
+            {% trans "تصميم جاهز من العميل" %}
+          </option>
+          <option value="PREPRESS_EDIT" {% if form.design_service_type.value == 'PREPRESS_EDIT' or form.instance.design_service_type == 'PREPRESS_EDIT' %}selected{% endif %}>
+            {% trans "تعديل ومونتاج" %}
+          </option>
+          <option value="NEW_CONCEPT" {% if form.design_service_type.value == 'NEW_CONCEPT' or form.instance.design_service_type == 'NEW_CONCEPT' %}selected{% endif %}>
+            {% trans "تصميم جديد" %}
+          </option>
+        </select>
+      </div>
+
+      <!-- ب. أتعاب التصميم للعميل -->
+      <div class="col-md-4" id="box_design_fee">
+        <label for="id_design_fee" class="form-label fw-bold">
+          <span id="label_design_fee">{% trans "أتعاب التصميم للعميل" %}</span>
+        </label>
+        <div class="input-group">
+          <input type="number" class="form-control text-center fw-bold text-primary" id="id_design_fee" name="design_fee"
+                 value="{{ form.instance.design_fee|floatformat:0|default:form.design_fee.value|floatformat:0|default:'0' }}" min="0" step="1" placeholder="0"
+                 {% if form.design_service_type.value == 'CUSTOMER_READY' or form.instance.design_service_type == 'CUSTOMER_READY' or not form.instance.design_service_type and not form.design_service_type.value %}readonly style="background-color: var(--gray-100); cursor: not-allowed;"{% endif %}>
+          <span class="input-group-text bg-light text-muted small" id="badge_design_fee_currency">
+            {{ form.instance.currency.symbol|default:currency_symbol|default:"ج.م" }}
+          </span>
+        </div>
+        <div id="design_zero_fee_alert" class="small text-warning mt-1 d-none">
+          <i class="fas fa-exclamation-circle me-1"></i>{% trans "تنبيه: تم تحديد تصميم جديد بأتعاب صفرية." %}
         </div>
       </div>
 

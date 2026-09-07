@@ -82,7 +82,7 @@ class TestAnatomyPersistenceWorkflow:
         assert summary.finishing_cost > Decimal('0.00')
         assert summary.other_costs == Decimal('150.00')
         assert summary.tax_amount == Decimal('0.00')
-        assert summary.final_price == summary.subtotal
+        assert summary.final_price > summary.subtotal
         assert summary.final_price > summary.total_cost
 
     def test_book_catalog_mixed_anatomy_persistence(self):

@@ -136,6 +136,11 @@ class PieceSize(BaseLookupModel):
         """عرض المساحة بشكل مقروء"""
         return f"{self.get_area():.2f} سم²"
 
+    @property
+    def paper_size(self):
+        """خاصية موازية للإشارة لمقاس الورق الأساسي (paper_type) لتفادي أي خطأ تسمية"""
+        return self.paper_type
+
     def get_paper_type_display(self):
         """عرض نوع الورق الأساسي"""
         if self.paper_type:

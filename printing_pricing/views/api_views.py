@@ -142,16 +142,17 @@ class OrderSummaryAPIView(BaseAPIView):
                     'error_code': 'FORBIDDEN'
                 }, status=403)
             
-            # معلومات أساسية
+            # معلومات أساسية مع تأمين العملاء النقديين (Null Customer Guard)
+            customer_dict = {
+                'id': order.customer.id if order.customer else None,
+                'name': order.customer.name if order.customer else (order.customer_name or _('عميل نقدي')),
+                'company': getattr(order.customer, 'company_name', '') if order.customer else ''
+            }
             order_info = {
                 'id': order.id,
                 'order_number': order.order_number,
                 'title': order.title,
-                'customer': {
-                    'id': order.customer.id,
-                    'name': order.customer.name,
-                    'company': getattr(order.customer, 'company_name', '')
-                },
+                'customer': customer_dict,
                 'status': order.status,
                 'order_type': order.order_type,
                 'quantity': order.quantity,
@@ -1156,16 +1157,23 @@ class GetPieceSizesAPIView(BaseAPIView):
             # ترتيب النتائج
             piece_sizes = piece_sizes.order_by('pieces_per_sheet', 'name')
             
+            # تنسيق الأرقام
             def format_number(value):
-                """تنسيق الأرقام: بدون علامة عشرية للأرقام الصحيحة، مع علامة عشرية للكسور"""
                 if value == int(value):
                     return str(int(value))
                 else:
                     return str(float(value))
             
+            seen_combos = set()
             piece_sizes_data = []
             for piece_size in piece_sizes:
-                # تنسيق الأبعاد
+                width_val = float(piece_size.width)
+                height_val = float(piece_size.height)
+                combo_key = (min(width_val, height_val), max(width_val, height_val), piece_size.pieces_per_sheet)
+                if combo_key in seen_combos:
+                    continue
+                seen_combos.add(combo_key)
+
                 width_formatted = format_number(piece_size.width)
                 height_formatted = format_number(piece_size.height)
                 cuts_text = f"{piece_size.pieces_per_sheet} قطع بالفرخ" if piece_size.pieces_per_sheet else f"{width_formatted}×{height_formatted} سم"
@@ -1173,8 +1181,8 @@ class GetPieceSizesAPIView(BaseAPIView):
                 piece_sizes_data.append({
                     'id': piece_size.id,
                     'name': piece_size.name,
-                    'width': float(piece_size.width),
-                    'height': float(piece_size.height),
+                    'width': width_val,
+                    'height': height_val,
                     'width_formatted': width_formatted,
                     'height_formatted': height_formatted,
                     'display_name': f"{piece_size.name} ({cuts_text})",
@@ -1184,6 +1192,48 @@ class GetPieceSizesAPIView(BaseAPIView):
                     'pieces_per_sheet_display': piece_size.get_pieces_per_sheet_display(),
                     'is_default': piece_size.is_default
                 })
+
+            # في حال لم توجد مقاسات مسجلة للفرخ، توليد التقسيمات الهندسية القياسية تلقائياً
+            if not piece_sizes_data and (sheet_size_id or paper_sheet_type):
+                ref_w, ref_h = 70.0, 100.0
+                if sheet_size_id:
+                    try:
+                        p_size = PaperSize.objects.get(id=sheet_size_id)
+                        ref_w, ref_h = float(p_size.width), float(p_size.height)
+                    except Exception:
+                        pass
+                elif paper_sheet_type:
+                    cleaned = str(paper_sheet_type).replace('×', 'x').strip()
+                    import re
+                    m = re.search(r'(\d+(?:\.\d+)?)\s*x\s*(\d+(?:\.\d+)?)', cleaned)
+                    if m:
+                        ref_w, ref_h = float(m.group(1)), float(m.group(2))
+
+                sw, sh = min(ref_w, ref_h), max(ref_w, ref_h)
+                standard_divisions = [
+                    {'name': _('فرخ كامل 1/1'), 'cuts': 1, 'w': sw, 'h': sh},
+                    {'name': _('نصف فرخ 1/2'), 'cuts': 2, 'w': sh / 2.0, 'h': sw},
+                    {'name': _('ربع فرخ 1/4'), 'cuts': 4, 'w': sw / 2.0, 'h': sh / 2.0},
+                    {'name': _('تمن فرخ 1/8'), 'cuts': 8, 'w': (sh / 2.0) / 2.0, 'h': sw / 2.0},
+                ]
+                for idx, div in enumerate(standard_divisions, start=99000):
+                    w_fmt = format_number(div['w'])
+                    h_fmt = format_number(div['h'])
+                    cuts_txt = f"{div['cuts']} قطع بالفرخ"
+                    piece_sizes_data.append({
+                        'id': idx,
+                        'name': div['name'],
+                        'width': div['w'],
+                        'height': div['h'],
+                        'width_formatted': w_fmt,
+                        'height_formatted': h_fmt,
+                        'display_name': f"{div['name']} ({cuts_txt})",
+                        'paper_type': str(paper_sheet_type or f"{sw}×{sh}"),
+                        'paper_type_id': sheet_size_id,
+                        'pieces_per_sheet': div['cuts'],
+                        'pieces_per_sheet_display': f"{div['cuts']} قطع بالفرخ",
+                        'is_default': (div['cuts'] == 4)
+                    })
             
             status_message = ""
             if not paper_sheet_type and not sheet_size_id:
@@ -1685,6 +1735,11 @@ class SyncOrderUnitPricesAPIView(BaseAPIView):
             for item in updates:
                 service_id = item.get('service_id')
                 new_unit_price_raw = item.get('new_unit_price')
+                st = item.get('service_type')
+                # استبعاد خدمات التصميم الداخلية من مزامنة أسعار الموردين
+                if st == 'design':
+                    continue
+
                 if new_unit_price_raw is None:
                     continue
 
@@ -1696,9 +1751,10 @@ class SyncOrderUnitPricesAPIView(BaseAPIView):
                     service = None
                     if service_id:
                         service = SupplierService.objects.select_for_update().filter(id=service_id).first()
-                    elif item.get('supplier_id') and item.get('service_type'):
+                        if service and getattr(service, 'service_type', None) and getattr(service.service_type, 'code', None) == 'design':
+                            continue
+                    elif item.get('supplier_id') and st:
                         supp_id = item.get('supplier_id')
-                        st = item.get('service_type')
                         if st == 'paper':
                             qs = SupplierService.objects.select_for_update().filter(supplier_id=supp_id, service_type__code='paper', is_active=True)
                             if item.get('paper_type_id') and str(item.get('paper_type_id')).isdigit():

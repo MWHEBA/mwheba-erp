@@ -1,4 +1,5 @@
 {% load i18n %}
+{% load l10n %}
 {% load app_tags %}
 
 <div class="section-container mb-4 {% if not object %}d-none{% endif %}" id="card_step2_cover" style="scroll-margin-top: 90px;">
@@ -7,7 +8,7 @@
       aria-expanded="true" aria-controls="collapse_step2">
     <span>
       <i class="fas fa-print me-2 text-primary"></i>
-      <span id="step2_header_title">2. {% trans "تفاصيل الطباعة والخامات" %}</span>
+      <span id="step2_header_title">3. {% trans "تفاصيل الورق والطباعة والألوان" %}</span>
     </span>
     <span class="badge bg-light text-primary border border-secondary-subtle px-3 py-1 ms-auto me-2 fw-bold" id="step2_cost_badge">
       0 {{ currency_symbol|default:functional_currency.symbol }}
@@ -250,9 +251,7 @@
                 </label>
                 <div class="form-control bg-light d-flex justify-content-between align-items-center">
                   <span class="small text-muted" id="press_pulls_count">{% if saved_pulls_count %}{{ saved_pulls_count|floatformat:0 }} سحبة{% else %}1,000 سحبة (1 تراج){% endif %}</span>
-                  <span class="badge bg-white text-dark border small" id="press_montage_ref_badge" title="{% trans 'المونتاج المعتمد في الحسبة' %}">
-                    <i class="fas fa-th-large text-primary me-1"></i>{% trans "المونتاج:" %} <span id="press_montage_ref_val">{% if saved_paper_spec and saved_paper_spec.montage_count %}{{ saved_paper_spec.montage_count }} / {{ saved_paper_spec.piece_size|default:_("ربع") }}{% else %}- / --{% endif %}</span>
-                  </span>
+                  <span id="press_montage_ref_val" class="d-none">{% if saved_paper_spec and saved_paper_spec.montage_count %}{{ saved_paper_spec.montage_count }} / {{ saved_paper_spec.piece_size|default:_("ربع") }}{% else %}- / --{% endif %}</span>
                 </div>
               </div>
 
@@ -708,31 +707,8 @@
                 <small class="text-muted d-block mt-1" id="paper_weight_note">{% trans "الأوزان المتاحة حسب الخامة والمورد ومقاس الفرخ" %}</small>
               </div>
 
-              <!-- 5. مقاس القطع / تفصيل الفرخ للماكينة -->
-              <div class="col-12 col-md-4" id="wrapper_piece_size">
-                <label for="id_piece_size" class="form-label fw-bold text-primary">
-                  {% trans "مقاس القطع" %}
-                </label>
-                <select class="form-select select2-filter text-center" id="id_piece_size" name="piece_size" dir="rtl">
-                  <option value="auto" data-cuts="auto" {% if not saved_piece_size_id and not form.piece_size.value %}selected{% endif %}>{% trans "تلقائي (حسب المونتاج الحر)" %}</option>
-                  {% if piece_sizes %}
-                    {% for psize in piece_sizes %}
-                      <option value="{{ psize.id }}" data-name="{{ psize.name }}" data-cuts="{{ psize.pieces_per_sheet|default:1 }}" data-width="{{ psize.width }}" data-height="{{ psize.height }}" data-paper-type="{{ psize.paper_type_id|default:'' }}" data-paper-width="{{ psize.paper_type.width|default:'' }}" data-paper-height="{{ psize.paper_type.height|default:'' }}"
-                        {% if form.piece_size.value == psize.id|stringformat:"s" or saved_piece_size_id == psize.id|stringformat:"s" or saved_piece_size_id == psize.id or saved_paper_spec.piece_size == psize.name %}selected{% endif %}>
-                        {{ psize.name }} ({% if psize.pieces_per_sheet %}{{ psize.pieces_per_sheet }} قطع بالفرخ{% else %}{{ psize.width }}×{{ psize.height }} سم{% endif %})
-                      </option>
-                    {% endfor %}
-                  {% else %}
-                    <option value="50x70" data-cuts="2">نصف فرخ 50×70 سم (2 قطعة للماكينة)</option>
-                    <option value="35x50" data-cuts="4">ربع فرخ 35×50 سم (4 قطع للماكينة)</option>
-                    <option value="70x100" data-cuts="1">فرخ كامل 70×100 سم (1 قطعة للماكينة)</option>
-                  {% endif %}
-                </select>
-                <small class="text-muted d-block mt-1" id="piece_size_note">{% trans "تفصيل الفرخ المتوافق مع ماكينة الأوفست أو شيتات الديجيتال" %}</small>
-              </div>
-
-              <!-- 6. بلد المنشأ -->
-              <div class="col-12 col-md-4" id="wrapper_paper_origin">
+              <!-- بلد المنشأ -->
+              <div class="col-12 col-md-6" id="wrapper_paper_origin">
                 <label for="id_paper_origin" class="form-label fw-bold">
                   {% trans "بلد المنشأ" %}
                 </label>
@@ -750,37 +726,8 @@
                 <small class="text-muted d-block mt-1" id="paper_origin_note">{% trans "يتزامن تلقائياً مع بلد منشأ خامة المورد" %}</small>
               </div>
 
-              <!-- 5.ب. المونتاج (عدد القطع في مقاس القطع) -->
-              <div class="col-12 col-md-4" id="wrapper_montage_count">
-                <label for="id_montage_count" class="form-label fw-bold text-primary mb-1">
-                  <i class="fas fa-th-large me-1"></i>{% trans "المونتاج (عدد القطع / مقاس القطع)" %}
-                </label>
-                <div class="montage-stepper-container" id="wrapper_montage_stepper">
-                  <button type="button" class="montage-stepper-btn" id="btn_montage_minus" title="{% trans 'تقليل المونتاج' %}" {% if not saved_paper_spec.montage_count %}disabled{% endif %}>
-                    <i class="fas fa-minus"></i>
-                  </button>
-                  <div class="montage-value-display" title="{% trans 'اضغط للتعديل اليدوي' %}">
-                    <input type="number" class="montage-number-input" id="id_montage_count" name="montage_count" 
-                           value="{% if saved_paper_spec.montage_count %}{{ saved_paper_spec.montage_count }}{% endif %}" placeholder="-" min="1" max="{% if saved_paper_spec.montage_count %}{{ saved_paper_spec.montage_count }}{% endif %}"
-                           title="{% trans 'عدد القطع في الشيت (بحد أقصى السقف الهندسي)' %}">
-                    <span class="montage-piece-text" id="id_montage_piece_name">
-                      / {% if saved_paper_spec.piece_size %}{{ saved_paper_spec.piece_size }}{% else %}--{% endif %}
-                    </span>
-                  </div>
-                  <button type="button" class="montage-stepper-btn" id="btn_montage_plus" title="{% trans 'زيادة المونتاج حتى السقف' %}" disabled>
-                    <i class="fas fa-plus"></i>
-                  </button>
-                </div>
-                <div class="d-flex justify-content-between align-items-center small text-muted mt-1" id="id_parent_sheet_yield_display">
-                  <span>{% trans "استغلال الفرخ الخام:" %} <strong class="text-success" id="parent_yield_val">{% if saved_paper_spec.parent_yield_val %}{{ saved_paper_spec.parent_yield_val }} قطع{% else %}-- قطعة{% endif %}</strong></span>
-                  <span class="text-warning d-none" id="manual_montage_indicator">
-                    <i class="fas fa-info-circle me-1"></i>{% trans "أقل من السقف" %}
-                  </span>
-                </div>
-              </div>
-
-              <!-- 7. عدد الأفرخ (Dual-Mode: حساب آلي مع إمكانية التثبيت اليدوي) -->
-              <div class="col-12 col-md-4" id="wrapper_paper_sheets_count">
+              <!-- عدد الأفرخ (Dual-Mode: حساب آلي مع إمكانية التثبيت اليدوي) -->
+              <div class="col-12 col-md-6" id="wrapper_paper_sheets_count">
                 <div class="d-flex align-items-center justify-content-between mb-1">
                   <label class="form-label fw-bold mb-0">
                     {% trans "عدد الأفرخ" %}
@@ -928,7 +875,119 @@
         </div>
       </div>
 
-      <!-- 4. السلوفان والتشطيب والتكسير (المصفوفة الديناميكية الصناعية) -->
+      <!-- 4. شريط المونتاج وتفريد الفرخ للماكينة (موقعها الهندسي الطبيعي أسفل مواصفات الفرخ الخام) -->
+      <div class="row g-3 mb-4 pb-3 border-bottom" id="row_montage_imposition_section">
+        <div class="col-12">
+          <div class="p-3 border rounded bg-white shadow-xs position-relative" id="box_montage_card_container">
+            <!-- الحقول المخفية للقطع الفيزيائي وسحبات الماكينة -->
+            <input type="hidden" id="id_piece_width" name="piece_width" value="{{ saved_paper_spec.piece_width|unlocalize|default:'' }}">
+            <input type="hidden" id="id_piece_height" name="piece_height" value="{{ saved_paper_spec.piece_height|unlocalize|default:'' }}">
+            <input type="hidden" id="id_machine_cuts" name="machine_cuts" value="{{ saved_paper_spec.machine_cuts|default:'1' }}">
+
+            <!-- طبقة الانتظار الذكية الملساء -->
+            <div id="montage_waiting_overlay" class="position-absolute top-0 start-0 w-100 h-100 bg-white bg-opacity-95 rounded d-flex flex-column align-items-center justify-content-center p-3 text-center transition-all d-none" style="z-index: 5; backdrop-filter: blur(2px);">
+              <div class="text-secondary mb-2">
+                <i class="fas fa-clock fa-2x"></i>
+              </div>
+              <h6 class="fw-bold text-dark mb-1">{% trans "بانتظار تحديد مقاس المطبوع" %}</h6>
+              <p class="small text-muted mb-0">{% trans "يرجى إدخال أبعاد المنتج والكمية في الخطوة 1 لتفعيل وحساب تفريد المونتاج آلياً." %}</p>
+            </div>
+
+            <!-- ترويسة المونتاج مع شارة الحالة -->
+            <div class="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2">
+              <div class="d-flex align-items-center gap-2">
+                <span class="fw-bold text-dark fs-6">
+                  <i class="fas fa-th-large text-primary me-2"></i>{% trans "المونتاج وتفريد الفرخ للماكينة" %}
+                </span>
+                <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1 small" id="step_studio_status_badge">
+                  <i class="fas fa-info-circle me-1"></i><span id="step_studio_status_badge_text">{% trans "تجهيز فني ومونتاج" %}</span>
+                </span>
+              </div>
+              <span class="badge bg-success-subtle text-success border border-success-subtle small" id="montage_status_indicator">
+                <i class="fas fa-check-circle me-1"></i>{% trans "تفريد هندسي تلقائي" %}
+              </span>
+            </div>
+
+            <!-- شبكة حقول المونتاج المتناسقة بالعرض الكامل -->
+            <div class="row g-3 align-items-center">
+              <!-- 1. مقاس القطع / تفصيل الفرخ للماكينة -->
+              <div class="col-12 col-md-5" id="wrapper_piece_size">
+                <label for="id_piece_size" class="form-label fw-bold small text-muted">
+                  {% trans "مقاس القطع للماكينة" %}
+                </label>
+                <select class="form-select select2-filter text-center fw-semibold" id="id_piece_size" name="piece_size" dir="rtl" style="width: 100%;">
+                  <option value="auto" data-cuts="auto" {% if not saved_piece_size_id and not form.piece_size.value %}selected{% endif %}>{% trans "تلقائي (حسب المونتاج الحر)" %}</option>
+                  {% if piece_sizes %}
+                    {% for psize in piece_sizes %}
+                      <option value="{{ psize.id }}" data-name="{{ psize.name }}" data-cuts="{{ psize.pieces_per_sheet|default:1 }}" data-width="{{ psize.width }}" data-height="{{ psize.height }}" data-paper-type="{{ psize.paper_type_id|default:'' }}" data-paper-width="{{ psize.paper_type.width|default:'' }}" data-paper-height="{{ psize.paper_type.height|default:'' }}"
+                        {% if form.piece_size.value == psize.id|stringformat:"s" or saved_piece_size_id == psize.id|stringformat:"s" or saved_piece_size_id == psize.id or saved_paper_spec.piece_size == psize.name %}selected{% endif %}>
+                        {{ psize.name }} ({% if psize.pieces_per_sheet %}{{ psize.pieces_per_sheet }} قطع بالفرخ{% else %}{{ psize.width }}×{{ psize.height }} سم{% endif %})
+                      </option>
+                    {% endfor %}
+                  {% else %}
+                    <option value="50x70" data-cuts="2">نصف فرخ 50×70 سم (2 قطعة للماكينة)</option>
+                    <option value="35x50" data-cuts="4">ربع فرخ 35×50 سم (4 قطع للماكينة)</option>
+                    <option value="70x100" data-cuts="1">فرخ كامل 70×100 سم (1 قطعة للماكينة)</option>
+                  {% endif %}
+                </select>
+                <small class="text-muted d-block mt-1" id="piece_size_note">{% trans "تفصيل الفرخ المتوافق مع ماكينة الطباعة" %}</small>
+              </div>
+
+              <!-- 2. المونتاج (عدد القطع في مقاس القطع) والـ Stepper -->
+              <div class="col-12 col-md-4" id="wrapper_montage_count">
+                <label for="id_montage_count" class="form-label fw-bold small text-muted mb-1">
+                  <i class="fas fa-th-large me-1"></i>{% trans "المونتاج (عدد القطع بالشيت)" %}
+                </label>
+                <div class="montage-stepper-container" id="wrapper_montage_stepper">
+                  <button type="button" class="montage-stepper-btn" id="btn_montage_minus" title="{% trans 'تقليل المونتاج' %}" {% if not saved_paper_spec.montage_count %}disabled{% endif %}>
+                    <i class="fas fa-minus"></i>
+                  </button>
+                  <div class="montage-value-display" title="{% trans 'اضغط للتعديل اليدوي' %}">
+                    <input type="number" class="montage-number-input" id="id_montage_count" name="montage_count" 
+                           value="{% if saved_paper_spec.montage_count %}{{ saved_paper_spec.montage_count }}{% endif %}" placeholder="-" min="1" max="{% if saved_paper_spec.montage_count %}{{ saved_paper_spec.montage_count }}{% endif %}"
+                           title="{% trans 'عدد القطع في الشيت (بحد أقصى السقف الهندسي)' %}">
+                    <span class="montage-piece-text" id="id_montage_piece_name">
+                      / {% if saved_paper_spec.piece_size %}{{ saved_paper_spec.piece_size }}{% else %}--{% endif %}
+                    </span>
+                  </div>
+                  <button type="button" class="montage-stepper-btn" id="btn_montage_plus" title="{% trans 'زيادة المونتاج حتى السقف' %}" disabled>
+                    <i class="fas fa-plus"></i>
+                  </button>
+                </div>
+                <div class="justify-content-between align-items-center small text-muted mt-1">
+                  <span class="text-warning d-none" id="manual_montage_indicator">
+                    <i class="fas fa-info-circle me-1"></i>{% trans "أقل من السقف" %}
+                  </span>
+                  <span class="ms-auto">{% trans "شامل هوامش البنسة والقص" %}</span>
+                </div>
+              </div>
+
+              <!-- 3. كارت استغلال الفرخ الخام -->
+              <div class="col-12 col-md-3" id="wrapper_parent_yield">
+                <label class="form-label fw-bold small text-muted mb-1 d-block text-center">
+                  {% trans "استغلال الفرخ الخام" %}
+                </label>
+                <div class="p-2 border rounded bg-light text-center" id="id_parent_sheet_yield_display">
+                  <div class="fw-bold text-success fs-5" id="parent_yield_val">
+                    {% if saved_paper_spec.parent_yield_val %}{{ saved_paper_spec.parent_yield_val }} قطع{% else %}-- قطعة{% endif %}
+                  </div>
+                  <small class="text-muted d-block" style="font-size: 0.75rem;">{% trans "إجمالي القطع من الفرخ الكامل" %}</small>
+                </div>
+              </div>
+
+              <!-- تنبيه المقاسات الكبيرة -->
+              <div class="col-12 d-none" id="oversized_montage_alert">
+                <div class="alert alert-warning py-2 px-3 small mb-0">
+                  <i class="fas fa-exclamation-triangle me-1"></i>{% trans "تنبيه: أبعاد المطبوع تتجاوز مقاسات أفرخ الأوفست القياسية (70×100 سم). قد يتطلب المطبوع طباعة لارج فورمات." %}
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- 5. السلوفان والتشطيب والتكسير (المصفوفة الديناميكية الصناعية) -->
       <div class="border rounded p-3 bg-white mb-3" id="row_finishing_section">
         
         <!-- أ. السلوفان والحماية (بدون حد أدنى: بالوجه للفرخ في الأوفست وبالوجه للطبعة في الديجيتال) -->
@@ -1191,23 +1250,6 @@
       </div>
 
       <!-- 5. زر الخيارات المتقدمة المطوية -->
-      <div class="mt-3">
-        <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#advanced_step2_options">
-          <i class="fas fa-cog me-1"></i>{% trans "⚙️ خيارات تشغيل متقدمة (مصدر الورق والتخزين)" %}
-        </button>
-
-        <div class="collapse mt-3 p-3 bg-light border rounded" id="advanced_step2_options">
-          <div class="row g-3">
-            <div class="col-md-6">
-              <label class="form-label fw-bold small">{% trans "مصدر خام الورق" %}</label>
-              <select class="form-select form-select-sm" id="id_paper_source" name="paper_source">
-                <option value="purchase" selected>{% trans "شراء مباشر للمشروع من المورد" %}</option>
-                <option value="warehouse">{% trans "سحب وصرف من مخزن المنشأة (مع احتساب التكلفة)" %}</option>
-              </select>
-            </div>
-          </div>
-        </div>
-      </div>
       <!-- نهاية step2_content_wrapper -->
       </div>
 

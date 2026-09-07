@@ -35,6 +35,8 @@ class TestOrderFormRendering:
         assert response.status_code == 200
         content = response.content.decode('utf-8')
         assert 'card_step1_scope' in content
+        assert 'id_design_service_type' in content
+        assert 'montage_waiting_overlay' in content
         assert 'card_step2_cover' in content
         assert 'card_step3_inner' in content
         assert 'summary_main_card' in content

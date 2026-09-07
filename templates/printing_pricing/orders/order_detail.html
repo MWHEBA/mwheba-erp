@@ -305,9 +305,91 @@
         </div>
       </div>
     </div>
+  <!-- 2. خدمات التصميم والتجهيز الفني والمونتاج -->
+  <div class="section-container mb-4" id="card_detail_design_studio">
+    <h5 class="section-title">
+      <i class="fas fa-palette me-2 text-primary"></i>{% trans "خدمات التصميم والتجهيز الفني والمونتاج" %}
+    </h5>
+    <div class="row g-3">
+      <!-- شق التصميم -->
+      <div class="col-md-6 col-12">
+        <div class="p-3 bg-light rounded border h-100">
+          <h6 class="fw-bold text-dark mb-3 border-bottom pb-2">
+            <i class="fas fa-paint-brush text-primary me-2"></i>{% trans "بيانات التصميم والإبداع" %}
+          </h6>
+          <table class="table table-borderless table-sm small mb-0">
+            <tbody>
+              <tr>
+                <td class="text-muted" style="width: 40%;">{% trans "حالة الخدمة:" %}</td>
+                <td class="fw-bold text-dark">
+                  {% if order.design_service_type == 'CUSTOMER_READY' %}
+                    <span class="badge bg-secondary-subtle text-secondary border">{% trans "تصميم جاهز من العميل" %}</span>
+                  {% elif order.design_service_type == 'PREPRESS_EDIT' %}
+                    <span class="badge bg-info-subtle text-info border">{% trans "تعديل ومونتاج" %}</span>
+                  {% else %}
+                    <span class="badge bg-primary-subtle text-primary border">{% trans "تصميم جديد" %}</span>
+                  {% endif %}
+                </td>
+              </tr>
+              <tr>
+                <td class="text-muted">{% trans "أتعاب التصميم للعميل:" %}</td>
+                <td class="fw-bold text-success">
+                  {{ order.design_fee|smart_float:2 }} {{ order.currency_symbol }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- شق المونتاج -->
+      <div class="col-md-6 col-12">
+        <div class="p-3 bg-light rounded border h-100">
+          <h6 class="fw-bold text-dark mb-3 border-bottom pb-2">
+            <i class="fas fa-th-large text-primary me-2"></i>{% trans "المونتاج وتفريد الفرخ" %}
+          </h6>
+          <table class="table table-borderless table-sm small mb-0">
+            <tbody>
+              <tr>
+                <td class="text-muted" style="width: 40%;">{% trans "مقاس القطع:" %}</td>
+                <td class="fw-bold text-dark">
+                  {% if saved_paper_spec and saved_paper_spec.piece_size %}
+                    {{ saved_paper_spec.piece_size }}
+                  {% elif order.piece_size %}
+                    {{ order.piece_size }}
+                  {% else %}
+                    <span class="badge bg-light text-muted border">{% trans "تلقائي (حسب المونتاج الحر)" %}</span>
+                  {% endif %}
+                </td>
+              </tr>
+              <tr>
+                <td class="text-muted">{% trans "المونتاج المعتمد:" %}</td>
+                <td class="fw-bold text-primary">
+                  {% if saved_paper_spec and saved_paper_spec.montage_count %}
+                    {{ saved_paper_spec.montage_count }} {% trans "قطعة / شيت" %}
+                  {% else %}
+                    --
+                  {% endif %}
+                </td>
+              </tr>
+              <tr>
+                <td class="text-muted">{% trans "استغلال الفرخ الخام:" %}</td>
+                <td class="fw-bold text-success">
+                  {% if saved_paper_spec and saved_paper_spec.parent_yield_val %}
+                    {{ saved_paper_spec.parent_yield_val }} {% trans "قطعة" %}
+                  {% else %}
+                    --
+                  {% endif %}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
   </div>
 
-  <!-- 3. جدول تشريح خامات الطباعة ومواصفات المونتاج -->
+  <!-- 3. جدول تشريح خامات الطباعة -->
   <div class="section-container mb-4">
     <h5 class="section-title">
       <i class="fas fa-boxes me-2"></i>{% trans "خامات الطباعة" %}

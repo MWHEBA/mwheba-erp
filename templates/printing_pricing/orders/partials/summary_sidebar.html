@@ -41,7 +41,7 @@
         </div>
         <div class="d-flex justify-content-between align-items-center mb-1 small {% if not summary.design_cost and not form.design_fee.value and not object.design_fee %}d-none{% endif %}" id="row_cost_design_breakdown">
           <span class="text-secondary"><i class="fas fa-paint-brush me-1 text-warning"></i>{% trans "أتعاب التصميم:" %}</span>
-          <span class="fw-bold" id="cost_design_display">{% if summary and summary.design_cost %}{{ summary.design_cost }}{% elif form.design_fee.value %}{{ form.design_fee.value }}{% elif object and object.design_fee %}{{ object.design_fee }}{% else %}0{% endif %} {{ currency_symbol|default:functional_currency.symbol }}</span>
+          <span class="fw-bold" id="cost_design_display">{% if summary and summary.design_cost %}{{ summary.design_cost|floatformat:0 }}{% elif form.design_fee.value %}{{ form.design_fee.value|floatformat:0 }}{% elif object and object.design_fee %}{{ object.design_fee|floatformat:0 }}{% else %}0{% endif %} {{ currency_symbol|default:functional_currency.symbol }}</span>
         </div>
         <div class="d-flex justify-content-between align-items-center mb-2 small">
           <label for="id_extra_cost" class="text-secondary mb-0 cursor-pointer"><i class="fas fa-truck me-1 text-warning"></i>{% trans "انتقالات:" %}</label>
@@ -109,7 +109,7 @@
             <i class="fas fa-paint-brush text-warning me-1"></i>{% trans "أتعاب التصميم:" %}
           </span>
           <strong class="text-dark text-end" style="font-variant-numeric: tabular-nums;">
-            <span id="sidebar_design_fee_display">{% if summary and summary.design_cost %}{{ summary.design_cost|floatformat:2 }}{% elif form.design_fee.value %}{{ form.design_fee.value|floatformat:2 }}{% elif object and object.design_fee %}{{ object.design_fee|floatformat:2 }}{% else %}0{% endif %}</span>
+            <span id="sidebar_design_fee_display">{% if summary and summary.design_cost %}{{ summary.design_cost|floatformat:0 }}{% elif form.design_fee.value %}{{ form.design_fee.value|floatformat:0 }}{% elif object and object.design_fee %}{{ object.design_fee|floatformat:0 }}{% else %}0{% endif %}</span>
             <small class="fw-normal text-muted ms-1">{{ currency_symbol|default:functional_currency.symbol }}</small>
           </strong>
         </div>

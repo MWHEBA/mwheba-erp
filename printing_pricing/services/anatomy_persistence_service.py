@@ -195,8 +195,14 @@ class OrderAnatomyPersistenceService:
                 order.spine_thickness = spine_cm * Decimal('10')  # تخزينه بالـ مم في الموديل
                 open_w += spine_cm  # إضافة الكعب للغلاف المفتوح
             
-            # الاستعلام الديناميكي لمقاس الفرخ من جدول PaperSize (بدون أي هارد كود)
+            # الاستعلام الديناميكي لمقاس الفرخ من جدول PaperSize (بدون أي هارد كود) مع صمام الاسترجاع
             sheet_size_str = post_data.get('sheet_size') or ''
+            saved_spec = None
+            if hasattr(order, 'paper_specs') and order.paper_specs.exists():
+                saved_spec = order.paper_specs.first()
+                if not sheet_size_str:
+                    sheet_size_str = saved_spec.paper_size_name
+
             paper_size_obj = None
             if sheet_size_str:
                 if str(sheet_size_str).isdigit():
@@ -222,6 +228,7 @@ class OrderAnatomyPersistenceService:
 
             # استدعاء محرك الحسابات الموحد (Single Source of Truth)
             calc_params = dict(post_data)
+            saved_piece = saved_spec.piece_size if saved_spec else None
             calc_params.update({
                 'quantity': qty,
                 'width': float(w_val),
@@ -232,10 +239,17 @@ class OrderAnatomyPersistenceService:
                 'cover_printing_type': order.cover_printing_type,
                 'print_sides_mode': order.print_sides_mode,
                 'sheet_size': sheet_size_str,
-                'piece_size': post_data.get('piece_size') or getattr(order, 'piece_size', '50x70'),
+                'piece_size': post_data.get('piece_size') or saved_piece or getattr(order, 'piece_size', '50x70'),
                 'waste_sheets': post_data.get('waste_sheets'),
                 'paper_weight': float(paper_weight),
             })
+            if saved_spec:
+                if saved_spec.piece_width and not calc_params.get('piece_width'):
+                    calc_params['piece_width'] = float(saved_spec.piece_width)
+                if saved_spec.piece_height and not calc_params.get('piece_height'):
+                    calc_params['piece_height'] = float(saved_spec.piece_height)
+                if saved_spec.machine_cuts and not calc_params.get('machine_cuts'):
+                    calc_params['machine_cuts'] = int(saved_spec.machine_cuts)
 
             # الحفاظ على ذاكرة الموردين في محرك الحسابات الموحد عند استدعاء الحفظ بدون post_data (Recalculate Amnesia Guard)
             if not calc_params.get('cover_offset_supplier') and 'offset_printing' in cached_service_map:
@@ -417,6 +431,11 @@ class OrderAnatomyPersistenceService:
                     piece_name = post_data.get('piece_size') or 'custom'
 
                 PaperSpecification.objects.filter(order=order).delete()
+                montage_info = engine_res.get('montage', {}) if engine_res.get('success') else {}
+                p_w_val = Decimal(str(montage_info.get('press_sheet_w'))) if montage_info.get('press_sheet_w') else None
+                p_h_val = Decimal(str(montage_info.get('press_sheet_h'))) if montage_info.get('press_sheet_h') else None
+                m_cuts_val = int(montage_info.get('machine_cuts') or 1)
+
                 PaperSpecification.objects.create(
                     order=order,
                     paper_type_name=str(paper_name_str),
@@ -424,6 +443,9 @@ class OrderAnatomyPersistenceService:
                     sheet_width=sheet_w,
                     sheet_height=sheet_h,
                     piece_size=piece_name,
+                    piece_width=p_w_val,
+                    piece_height=p_h_val,
+                    machine_cuts=m_cuts_val,
                     paper_weight=int(paper_weight),
                     sheets_needed=int(gross_sheets),
                     montage_count=int(cuts_per_sheet),
@@ -719,7 +741,7 @@ class OrderAnatomyPersistenceService:
 
                 # حساب السحبات والتراج (يتضاعف في الطبع والقلب أو الوش والضهر المستقل)
                 pulls_multiplier = Decimal('2') if (order.print_sides_mode == 'work_turn' or (order.print_sides_mode == 'work_sheet' and (back_colors > 0 or order.spot_colors_back > 0))) else Decimal('1')
-                press_pulls = gross_sheets * machine_cuts * pulls_multiplier
+                press_pulls = gross_sheets * pulls_multiplier
                 press_rate_str = post_data.get('press_rate') or '45.00'
                 try:
                     press_rate = Decimal(str(press_rate_str))
@@ -1786,26 +1808,31 @@ class OrderAnatomyPersistenceService:
 
             net_sell_price = (production_selling_price + design_fee).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
 
+            # احتساب عمولة المبيعات (Vulnerability 17)
+            comm_rate = order.sales_commission_rate or Decimal('0.00')
+            order.sales_commission_amount = (net_sell_price * comm_rate / Decimal('100.00')).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+
             # تحديث حقول الطلب المباشرة بالسعر الصافي
             order.estimated_cost = production_cost
             order.final_price = net_sell_price
             order.profit_margin = profit_margin_pct
-            order.save(update_fields=['estimated_cost', 'final_price', 'profit_margin', 'design_service_type', 'design_fee'])
+            order.save(update_fields=['estimated_cost', 'final_price', 'profit_margin', 'design_service_type', 'design_fee', 'sales_commission_amount'])
 
             # تحويل أتعاب التصميم للعملة الوظيفية (EGP) بحسب معيار IAS 21
             rate = order.exchange_rate or Decimal('1.000000')
             design_fee_functional = (design_fee * rate).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
 
-            # إنشاء أو تحديث OrderSummary
+            # إنشاء أو تحديث OrderSummary بتطابق كامل لمجموع البنود والخدمات (Vulnerability 29)
             summary, _ = OrderSummary.objects.get_or_create(order=order)
             summary.material_cost = total_materials_cost.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
             summary.printing_cost = total_printing_cost.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
             summary.finishing_cost = total_finishing_cost.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
             summary.other_costs = shipping_cost.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
             summary.design_cost = design_fee_functional
-            summary.total_cost = production_cost.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-            summary.subtotal = net_sell_price.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-            summary.profit_amount = (net_sell_price - production_cost).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+            total_combined_cost = (production_cost + design_fee_functional).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+            summary.subtotal = total_combined_cost
+            summary.total_cost = total_combined_cost
+            summary.profit_amount = (net_sell_price - total_combined_cost).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
             summary.tax_amount = Decimal('0.00')  # التسعير الفني صافي بدون ضريبة
             summary.profit_margin_percentage = profit_margin_pct
             summary.final_price = net_sell_price.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)

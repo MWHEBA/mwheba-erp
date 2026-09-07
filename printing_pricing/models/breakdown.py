@@ -73,6 +73,24 @@ class PaperSpecification(BaseModel):
         null=True,
         verbose_name=_("مقاس القطع")
     )
+    piece_width = models.DecimalField(
+        max_digits=8,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name=_("عرض القطع (سم)")
+    )
+    piece_height = models.DecimalField(
+        max_digits=8,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name=_("طول القطع (سم)")
+    )
+    machine_cuts = models.PositiveSmallIntegerField(
+        default=1,
+        verbose_name=_("عدد قصات الفرخ للماكينة")
+    )
     sheet_cost = models.DecimalField(
         max_digits=8,
         decimal_places=2,
@@ -199,13 +217,12 @@ class OrderMaterial(BaseModel):
         super().save(*args, **kwargs)
 
     def calculate_total_cost(self):
+        # إذا تم تحديد total_cost صراحة من المحرك أو السيرفس (بما فيها 0.00 لخامة العميل)، نحافظ عليها ولا نكرر ضرب الهالك
+        if self.total_cost is not None:
+            return
         if self.quantity and self.unit_cost:
-            base_cost = self.quantity * self.unit_cost
-            if self.waste_percentage:
-                waste_multiplier = Decimal('1.00') + (self.waste_percentage / Decimal('100.00'))
-                self.total_cost = base_cost * waste_multiplier
-            else:
-                self.total_cost = base_cost
+            # quantity تمثل كمية الأفرخ/الخامات الإجمالية (gross) شاملة الهالك، فلا نضاعف ضرب الهالك مرة ثانية
+            self.total_cost = (self.quantity * self.unit_cost).quantize(Decimal('0.01'))
         else:
             self.total_cost = Decimal('0.00')
 

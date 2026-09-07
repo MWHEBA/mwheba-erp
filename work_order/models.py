@@ -59,7 +59,7 @@ class WorkOrder(models.Model):
                 try:
                     last_num = int(last_order.number.split('-')[-1])
                     new_num = last_num + 1
-                except (ValueError, IndexErr):
+                except (ValueError, IndexError):
                     new_num = 1
             else:
                 new_num = 1

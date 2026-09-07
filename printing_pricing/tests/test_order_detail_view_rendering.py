@@ -130,6 +130,8 @@ class TestOrderDetailViewRendering:
         # 3. التحقق من الأقسام الموحدة section-container & section-title
         assert 'section-container' in content
         assert 'section-title' in content
+        assert 'card_detail_design_studio' in content
+        assert 'خدمات التصميم والتجهيز الفني والمونتاج' in content
         assert 'البيانات الأساسية وتفاصيل العميل والطلب' in content
         assert 'الأوجه:' in content
         assert 'نوع الطباعة:' in content

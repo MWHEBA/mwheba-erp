@@ -49,6 +49,11 @@ class PrintingOrderAdmin(admin.ModelAdmin):
                 'width', 'height'
             )
         }),
+        (_('خدمات التصميم والمونتاج والتجهيز'), {
+            'fields': (
+                'design_service_type', 'design_fee'
+            )
+        }),
         (_('التكلفة والتسعير'), {
             'fields': (
                 'estimated_cost', 'final_price', 'profit_margin'
