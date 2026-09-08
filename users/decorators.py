@@ -21,78 +21,6 @@ from .services.permission_service import PermissionService
 logger = logging.getLogger('users.decorators')
 
 
-def require_reception_or_admin(view_func: Callable) -> Callable:
-    """
-    Decorator للتحقق من صلاحيات الريسيبشن أو الإدارة
-    يعتمد على الصلاحيات الفعلية مش hardcoded roles
-    """
-    @wraps(view_func)
-    @login_required
-    def wrapper(request, *args, **kwargs):
-        user = request.user
-        
-        # السماح للمدير العام والمدير
-        if user.is_superuser or user.is_admin:
-            return view_func(request, *args, **kwargs)
-        
-        # التحقق من صلاحيات التقديمات
-        if user.can_view_applications():
-            return view_func(request, *args, **kwargs)
-        
-        # رفض الوصول للآخرين
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-            return JsonResponse({
-                'success': False,
-                'message': 'ليس لديك صلاحية للوصول - مطلوب صلاحيات التقديمات'
-            }, status=403)
-        
-        raise PermissionDenied("ليس لديك صلاحية للوصول - مطلوب صلاحيات التقديمات")
-    
-    return wrapper
-
-
-def require_applications_permission(permission_type: str = 'view'):
-    """
-    Decorator للتحقق من صلاحيات التقديمات
-    
-    Args:
-        permission_type: نوع الصلاحية ('view', 'add', 'change')
-    """
-    def decorator(view_func: Callable) -> Callable:
-        @wraps(view_func)
-        @login_required
-        def wrapper(request, *args, **kwargs):
-            user = request.user
-            
-            # السماح للمدير العام
-            if user.is_superuser:
-                return view_func(request, *args, **kwargs)
-            
-            # التحقق من الصلاحية المطلوبة
-            permission_map = {
-                'view': user.can_view_applications,
-                'add': user.can_add_applications,
-                'change': user.can_change_applications
-            }
-            
-            if permission_type in permission_map and permission_map[permission_type]():
-                return view_func(request, *args, **kwargs)
-            
-            # رفض الوصول
-            error_message = f"ليس لديك صلاحية {permission_type} للتقديمات"
-            
-            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                return JsonResponse({
-                    'success': False,
-                    'message': error_message
-                }, status=403)
-            
-            raise PermissionDenied(error_message)
-        
-        return wrapper
-    return decorator
-
-
 def require_permission(permission_name: str, return_json: bool = False):
     """
     Decorator to require specific permission for view access.
@@ -149,7 +77,8 @@ def require_admin(return_json: bool = False):
             user = request.user
             
             if not (user.is_superuser or user.is_admin):
-                error_message = f"يتطلب الوصول صلاحيات المدير. نوع المستخدم الحالي: {user.user_type}"
+                role_label = user.role.display_name if user.role else 'بدون دور'
+                error_message = f"يتطلب الوصول صلاحيات المدير. الدور الحالي: {role_label}"
                 
                 if return_json or request.headers.get('Content-Type') == 'application/json' or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                     return JsonResponse({
@@ -436,8 +365,6 @@ def secure_admin_operation(operation_name: str = None):
 
 # Export all decorators
 __all__ = [
-    'require_reception_or_admin',
-    'require_applications_permission',
     'require_permission', 
     'require_admin',
     'require_superuser',

@@ -1,14 +1,14 @@
 <!-- Modal عرض وتعديل صلاحيات المستخدم -->
 <div class="modal fade" id="userPermissionsModal" tabindex="-1" aria-labelledby="userPermissionsModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-xl">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="userPermissionsModalLabel">
-                    <i class="fas fa-key me-2"></i>صلاحيات المستخدم المخصصة
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-light border-bottom px-4 py-3">
+                <h5 class="modal-title fw-bold text-dark mb-0" id="userPermissionsModalLabel">
+                    <i class="fas fa-key text-primary me-2"></i>صلاحيات المستخدم المخصصة
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="إغلاق"></button>
             </div>
-            <div class="modal-body">
+            <div class="modal-body p-4">
                 <!-- User Info -->
                 <div class="row mb-3">
                     <div class="col-md-4">
@@ -25,7 +25,7 @@
                 <!-- Info Alert -->
                 <div class="alert alert-info">
                     <i class="fas fa-info-circle me-2"></i>
-                    يتم عرض الصلاحيات المخصصة فقط (42 صلاحية). صلاحيات Django الأساسية مخفية لتبسيط الواجهة.
+                    يتم عرض صلاحيات الأعمال والتطبيقات المعتمدة في النظام.
                 </div>
                 
                 <!-- Statistics -->
@@ -87,11 +87,11 @@
                     <!-- سيتم ملء الفئات هنا بواسطة JavaScript -->
                 </div>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-primary" id="saveUserPermissions">
+            <div class="modal-footer bg-light border-top px-4 py-3">
+                <button type="button" class="btn btn-secondary px-3" data-bs-dismiss="modal">إلغاء</button>
+                <button type="button" class="btn btn-primary px-4 fw-bold" id="saveUserPermissions">
                     <i class="fas fa-save me-2"></i>حفظ التغييرات
                 </button>
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
             </div>
         </div>
     </div>

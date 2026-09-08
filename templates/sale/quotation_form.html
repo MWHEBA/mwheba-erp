@@ -14,7 +14,7 @@
 <div class="container-fluid">
     <div id="django-sales-form-data" class="d-none"
          data-sale-id="{{ quotation.id|default:0 }}"
-         data-is-sales-rep-only="{% if user.user_type == 'sales_rep' and not user.is_superuser and not user.is_admin %}true{% else %}false{% endif %}"
+         data-is-sales-rep-only="{% if not perms.sale.change_quotation_price %}true{% else %}false{% endif %}"
          data-currency-symbol="{{ currency_symbol }}"
          data-allowed-item-types="{{ allowed_item_types|default:'both' }}"
     ></div>
@@ -211,7 +211,7 @@
                         </div>
                         <div class="col-6 col-md-2">
                             <label class="form-label form-label-sm required-field">سعر الوحدة</label>
-                            <input type="text" inputmode="decimal" name="unit_price[]" class="form-control form-control-sm unit-price" value="{{ item.unit_price|smart_float }}" required {% if user.user_type == 'sales_rep' and not user.is_superuser and not user.is_admin %}readonly{% endif %}>
+                            <input type="text" inputmode="decimal" name="unit_price[]" class="form-control form-control-sm unit-price" value="{{ item.unit_price|smart_float }}" required {% if not perms.sale.change_quotation_price %}readonly{% endif %}>
                         </div>
                         <div class="col-6 col-md-2">
                             <div class="discount-header-row d-flex align-items-center mb-2 justify-content-center">
@@ -257,7 +257,7 @@
                     </div>
                     <div class="col-6 col-md-2">
                         <label class="form-label form-label-sm required-field">سعر الوحدة</label>
-                        <input type="text" inputmode="decimal" name="unit_price[]" class="form-control form-control-sm unit-price" required {% if user.user_type == 'sales_rep' and not user.is_superuser and not user.is_admin %}readonly{% endif %}>
+                        <input type="text" inputmode="decimal" name="unit_price[]" class="form-control form-control-sm unit-price" required {% if not perms.sale.change_quotation_price %}readonly{% endif %}>
                     </div>
                     <div class="col-6 col-md-2">
                         <div class="discount-header-row d-flex align-items-center mb-2 justify-content-center">

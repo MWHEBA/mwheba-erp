@@ -38,7 +38,7 @@ Deprecated==1.2.18
 diff-match-patch==20241021
 dill==0.4.0
 dj-database-url==2.3.0
-Django==4.2.26
+Django==5.2.17
 # django-allauth==65.7.0  # ✅ REMOVED: Not in INSTALLED_APPS, not used
 django-appconf==1.1.0
 # django-bleach==3.1.0  # ✅ REMOVED: Not in INSTALLED_APPS, has broken dependency metadata (tinycss2 >=1.1.0<1.2)

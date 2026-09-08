@@ -125,56 +125,32 @@ class RoleForm(forms.ModelForm):
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # الحصول على الصلاحيات المخصصة فقط (بالعربي)
-        from users.models import User
-        user_content_type = ContentType.objects.get_for_model(User)
-        self.fields['permissions'].queryset = Permission.objects.filter(
-            content_type=user_content_type
-        ).order_by('name')
+        self.fields['permissions'].queryset = Permission.objects.select_related(
+            'content_type'
+        ).order_by('content_type__app_label', 'codename')
         
     def get_grouped_permissions(self):
-        """تجميع الصلاحيات حسب الفئة"""
-        permissions = self.fields['permissions'].queryset
-        
-        groups = {
-            'المبيعات': [],
-            'المشتريات': [],
-            'العملاء': [],
-            'الموردين': [],
-            'المنتجات والمخزون': [],
-            'المحاسبة والمالية': [],
-            'التقارير': [],
-            'المستخدمين والنظام': [],
-            'الإعدادات': [],
-            'صلاحيات خاصة': [],
+        """تجميع الصلاحيات حسب التطبيق المعياري"""
+        app_labels_ar = {
+            'sale': 'المبيعات وعروض الأسعار',
+            'purchase': 'المشتريات',
+            'financial': 'الإدارة المالية والحسابات',
+            'product': 'المخازن والمنتجات',
+            'customer': 'العملاء',
+            'supplier': 'الموردين',
+            'users': 'المستخدمين والأدوار',
+            'hr': 'الموارد البشرية والرواتب',
+            'printing_pricing': 'التسعير وتكاليف الطباعة',
+            'work_order': 'أوامر العمل والتشغيل',
         }
-        
-        for perm in permissions:
-            codename = perm.codename
-            
-            if 'مبيعات' in codename:
-                groups['المبيعات'].append(perm)
-            elif 'مشتريات' in codename:
-                groups['المشتريات'].append(perm)
-            elif 'عملاء' in codename:
-                groups['العملاء'].append(perm)
-            elif 'موردين' in codename:
-                groups['الموردين'].append(perm)
-            elif 'منتجات' in codename or 'مخزون' in codename or 'مخازن' in codename:
-                groups['المنتجات والمخزون'].append(perm)
-            elif 'محاسبة' in codename or 'مصروفات' in codename or 'ايرادات' in codename or 'خزن' in codename or 'فترات' in codename:
-                groups['المحاسبة والمالية'].append(perm)
-            elif 'تقارير' in codename:
-                groups['التقارير'].append(perm)
-            elif 'مستخدمين' in codename or 'ادوار' in codename or 'نشاطات' in codename:
-                groups['المستخدمين والنظام'].append(perm)
-            elif 'اعدادات' in codename or 'نسخ' in codename or 'سلامة' in codename or 'تسعير' in codename or 'خدمات' in codename:
-                groups['الإعدادات'].append(perm)
-            elif 'حذف' in codename or 'اعتماد' in codename or 'تعديل_المعاملات' in codename:
-                groups['صلاحيات خاصة'].append(perm)
-        
-        # إزالة المجموعات الفارغة
-        return {k: v for k, v in groups.items() if v}
+        groups = {}
+        for perm in self.fields['permissions'].queryset:
+            app_label = perm.content_type.app_label
+            group_name = app_labels_ar.get(app_label, app_label)
+            if group_name not in groups:
+                groups[group_name] = []
+            groups[group_name].append(perm)
+        return groups
 
 
 class UserRoleForm(forms.ModelForm):

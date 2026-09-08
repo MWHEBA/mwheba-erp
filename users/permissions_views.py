@@ -140,9 +140,7 @@ def permissions_dashboard(request):
         user_can_manage_roles = request.user.is_superuser or request.user.is_admin
         user_can_view_permissions = (
             user_can_manage_roles or 
-            request.user.can_manage_users() or
-            request.user.is_reception or
-            request.user.user_type == 'reception'
+            request.user.can_manage_users()
         )
         
         # Base context for all tabs
@@ -187,7 +185,8 @@ def permissions_dashboard(request):
             'user_permissions_info': {
                 'is_admin': request.user.is_admin,
                 'is_superuser': request.user.is_superuser,
-                'user_type': getattr(request.user, 'user_type', 'unknown'),
+                'role': request.user.role.name if request.user.role else 'no_role',
+                'role_display': request.user.role.display_name if request.user.role else 'بدون دور',
                 'can_manage_users': request.user.can_manage_users() if hasattr(request.user, 'can_manage_users') else False,
             }
         }
@@ -630,97 +629,110 @@ def user_permissions_detail(request, user_id):
     """Get detailed user custom permissions for modal display."""
     user = get_object_or_404(User, id=user_id)
     
-    # Import the services here to avoid circular imports
-    from .services.user_management_service import UserManagementService
-    from django.contrib.contenttypes.models import ContentType
-    
     try:
-        # Get user's role permissions (custom permissions only)
-        role_permissions = []
+        # Get business-relevant permissions
+        available_permissions = list(PermissionService.get_custom_permissions_only().select_related('content_type'))
+        available_ids = {p.id for p in available_permissions}
+        
+        # Role permissions
+        role_permissions_set = set()
         if user.role:
-            user_content_type = ContentType.objects.get_for_model(User)
-            role_custom_permissions = user.role.permissions.filter(content_type=user_content_type)
+            role_permissions_set = set(user.role.permissions.filter(id__in=available_ids).select_related('content_type'))
             
-            for perm in role_custom_permissions:
-                role_permissions.append({
-                    'id': perm.id,
-                    'name': perm.name,
-                    'codename': perm.codename,
-                    'category': _get_permission_category(perm.codename),
-                    'category_name': _get_category_display_name(_get_permission_category(perm.codename)),
-                    'category_icon': _get_category_icon(_get_permission_category(perm.codename)),
-                    'category_color': _get_category_color(_get_permission_category(perm.codename))
-                })
+        # Direct custom permissions
+        direct_permissions_set = set(
+            user.custom_permissions.filter(id__in=available_ids).select_related('content_type')
+        ) | set(
+            user.user_permissions.filter(id__in=available_ids).select_related('content_type')
+        )
         
-        # Get user's custom permissions (direct assignments)
-        user_content_type = ContentType.objects.get_for_model(User)
-        user_custom_permissions = user.user_permissions.filter(content_type=user_content_type)
-        
-        custom_permissions = []
-        for perm in user_custom_permissions:
-            custom_permissions.append({
-                'id': perm.id,
-                'name': perm.name,
-                'codename': perm.codename,
-                'category': _get_permission_category(perm.codename)
-            })
-        
-        # Get all available custom permissions
-        all_custom_permissions = Permission.objects.filter(content_type=user_content_type)
-        available_custom_permissions = []
-        
-        for perm in all_custom_permissions:
-            available_custom_permissions.append({
-                'id': perm.id,
-                'name': perm.name,
-                'codename': perm.codename,
-                'category': _get_permission_category(perm.codename),
-                'category_name': _get_category_display_name(_get_permission_category(perm.codename)),
-                'category_icon': _get_category_icon(_get_permission_category(perm.codename)),
-                'category_color': _get_category_color(_get_permission_category(perm.codename))
-            })
-        
-        # Calculate summary
-        total_role_permissions = len(role_permissions)
-        total_custom_permissions = len(custom_permissions)
-        
-        # Categories breakdown
-        categories_breakdown = {}
-        categories = ['customers_suppliers', 'inventory', 'financial', 'reports', 'system_admin']
-        
-        for category in categories:
-            category_perms = [p for p in available_custom_permissions if p['category'] == category]
-            assigned_role_perms = [p for p in role_permissions if p['category'] == category]
-            assigned_custom_perms = [p for p in custom_permissions if p['category'] == category]
-            
-            categories_breakdown[category] = {
-                'name': _get_category_display_name(category),
-                'icon': _get_category_icon(category),
-                'color': _get_category_color(category),
-                'total': len(category_perms),
-                'assigned': len(assigned_role_perms) + len(assigned_custom_perms)
+        # Format lists
+        role_permissions = [
+            {
+                'id': p.id,
+                'name': _get_arabic_permission_name(p),
+                'codename': p.codename,
+                'category': _get_permission_category(p),
+                'category_name': _get_category_display_name(_get_permission_category(p)),
+                'category_icon': _get_category_icon(_get_permission_category(p)),
+                'category_color': _get_category_color(_get_permission_category(p))
             }
+            for p in role_permissions_set
+        ]
+        
+        custom_permissions = [
+            {
+                'id': p.id,
+                'name': _get_arabic_permission_name(p),
+                'codename': p.codename,
+                'category': _get_permission_category(p),
+                'category_name': _get_category_display_name(_get_permission_category(p)),
+                'category_icon': _get_category_icon(_get_permission_category(p)),
+                'category_color': _get_category_color(_get_permission_category(p))
+            }
+            for p in direct_permissions_set
+        ]
+        
+        available_custom_permissions = [
+            {
+                'id': p.id,
+                'name': _get_arabic_permission_name(p),
+                'codename': p.codename,
+                'category': _get_permission_category(p),
+                'category_name': _get_category_display_name(_get_permission_category(p)),
+                'category_icon': _get_category_icon(_get_permission_category(p)),
+                'category_color': _get_category_color(_get_permission_category(p))
+            }
+            for p in available_permissions
+        ]
+        
+        # Categories breakdown for UI and JS
+        categories_dict = {}
+        all_categories = ['customers_suppliers', 'inventory', 'financial', 'hr', 'reports', 'system_admin']
+        
+        for cat in all_categories:
+            cat_role_perms = [p for p in role_permissions if p['category'] == cat]
+            cat_direct_perms = [p for p in custom_permissions if p['category'] == cat]
+            cat_total_perms = [p for p in available_custom_permissions if p['category'] == cat]
+            
+            categories_dict[cat] = {
+                'name': _get_category_display_name(cat),
+                'icon': _get_category_icon(cat),
+                'color': _get_category_color(cat),
+                'total': len(cat_total_perms),
+                'assigned': len(cat_role_perms) + len(cat_direct_perms),
+                'role_permissions': cat_role_perms,
+                'direct_permissions': cat_direct_perms,
+            }
+        
+        total_unique = len({p['id'] for p in role_permissions} | {p['id'] for p in custom_permissions})
         
         return JsonResponse({
             'success': True,
             'user': {
                 'id': user.id,
                 'username': user.username,
-                'full_name': user.get_full_name(),
+                'full_name': user.get_full_name() or user.username,
                 'email': user.email,
                 'is_active': user.is_active,
                 'is_superuser': user.is_superuser,
-                'role_name': user.role.display_name if user.role else None,
-                'user_type': user.user_type
+                'role_name': user.role.display_name if user.role else 'بدون دور',
+                'role_code': user.role.name if user.role else None
             },
+            'permissions_overview': {
+                'total_custom_permissions': total_unique,
+                'role_permissions_count': len(role_permissions),
+                'direct_permissions_count': len(custom_permissions),
+            },
+            'categories': categories_dict,
             'role_permissions': role_permissions,
             'custom_permissions': custom_permissions,
             'available_custom_permissions': available_custom_permissions,
             'summary': {
-                'role_permissions_count': total_role_permissions,
-                'custom_permissions_count': total_custom_permissions,
-                'total_permissions_count': total_role_permissions + total_custom_permissions,
-                'categories_breakdown': categories_breakdown
+                'role_permissions_count': len(role_permissions),
+                'custom_permissions_count': len(custom_permissions),
+                'total_permissions_count': total_unique,
+                'categories_breakdown': categories_dict
             },
             'last_updated': user.last_login.isoformat() if user.last_login else None
         })
@@ -732,17 +744,33 @@ def user_permissions_detail(request, user_id):
         }, status=500)
 
 
-def _get_permission_category(codename):
-    """Get category for permission based on codename."""
-    codename = codename.lower()
-    
-    if any(keyword in codename for keyword in ['عملاء', 'موردين', 'مدفوعات']):
+def _get_permission_category(perm):
+    """Get category for permission based on app_label or codename."""
+    if hasattr(perm, 'content_type'):
+        app_label = perm.content_type.app_label
+        if app_label in ['customer', 'supplier']:
+            return 'customers_suppliers'
+        elif app_label in ['product', 'sale', 'purchase', 'printing_pricing', 'work_order']:
+            return 'inventory'
+        elif app_label in ['financial']:
+            return 'financial'
+        elif app_label in ['hr']:
+            return 'hr'
+        elif app_label in ['core', 'governance']:
+            return 'reports'
+        elif app_label in ['users', 'auth']:
+            return 'system_admin'
+            
+    codename = str(getattr(perm, 'codename', perm)).lower()
+    if any(k in codename for k in ['customer', 'supplier', 'عملاء', 'موردين']):
         return 'customers_suppliers'
-    elif any(keyword in codename for keyword in ['منتجات', 'مخزون', 'مخازن', 'مبيعات', 'مشتريات', 'مرتجعات']):
+    elif any(k in codename for k in ['sale', 'purchase', 'order', 'quotation', 'product', 'stock', 'warehouse', 'مبيعات', 'مشتريات', 'مخزون']):
         return 'inventory'
-    elif any(keyword in codename for keyword in ['محاسبة', 'مالية', 'مصروفات', 'ايرادات', 'خزن', 'حسابات', 'فترات']):
+    elif any(k in codename for k in ['financial', 'journal', 'account', 'voucher', 'period', 'revaluation', 'مالية', 'محاسبة']):
         return 'financial'
-    elif 'تقارير' in codename:
+    elif any(k in codename for k in ['employee', 'salary', 'payroll', 'leave', 'attendance', 'hr']):
+        return 'hr'
+    elif any(k in codename for k in ['report', 'export', 'audit', 'تقارير']):
         return 'reports'
     else:
         return 'system_admin'
@@ -752,9 +780,10 @@ def _get_category_display_name(category):
     """Get display name for category."""
     names = {
         'customers_suppliers': 'العملاء والموردين',
-        'inventory': 'المنتجات والمخزون',
+        'inventory': 'المبيعات والمخزون والتشغيل',
         'financial': 'المالية والمحاسبة',
-        'reports': 'التقارير',
+        'hr': 'الموارد البشرية والرواتب',
+        'reports': 'التقارير والمراقبة',
         'system_admin': 'إدارة النظام'
     }
     return names.get(category, category)
@@ -763,9 +792,10 @@ def _get_category_display_name(category):
 def _get_category_icon(category):
     """Get icon for category."""
     icons = {
-        'customers_suppliers': 'fas fa-users',
+        'customers_suppliers': 'fas fa-handshake',
         'inventory': 'fas fa-boxes',
-        'financial': 'fas fa-money-bill-wave',
+        'financial': 'fas fa-calculator',
+        'hr': 'fas fa-user-tie',
         'reports': 'fas fa-chart-bar',
         'system_admin': 'fas fa-cogs'
     }
@@ -777,8 +807,9 @@ def _get_category_color(category):
     colors = {
         'customers_suppliers': 'info',
         'inventory': 'warning',
-        'financial': 'success',
-        'reports': 'secondary',
+        'financial': 'primary',
+        'hr': 'secondary',
+        'reports': 'info',
         'system_admin': 'danger'
     }
     return colors.get(category, 'primary')
@@ -796,22 +827,20 @@ def get_available_permissions(request):
         can_view_permissions = (
             user.is_superuser or 
             user.is_admin or 
-            user.can_manage_roles() or
-            user.is_reception or
-            user.user_type == 'reception'
+            user.can_manage_roles()
         )
         
         if not can_view_permissions:
+            role_label = user.role.display_name if user.role else 'بدون دور'
             return JsonResponse({
                 'success': False,
                 'error': 'permission_denied',
-                'message': f'ليس لديك صلاحية للوصول لهذه البيانات. نوع المستخدم: {user.user_type}',
+                'message': f'ليس لديك صلاحية للوصول لهذه البيانات. الدور الحالي: {role_label}',
                 'debug': {
-                    'user_type': user.user_type,
+                    'role': user.role.name if user.role else None,
                     'is_admin': user.is_admin,
                     'is_superuser': user.is_superuser,
                     'can_manage_roles': user.can_manage_roles(),
-                    'is_reception': getattr(user, 'is_reception', False)
                 }
             }, status=403)
         
@@ -1036,7 +1065,7 @@ def export_roles(request):
 @login_required
 @require_admin()
 def user_update_custom_permissions(request, user_id):
-    """AJAX endpoint for updating user's custom permissions (42 custom permissions only)."""
+    """AJAX endpoint for updating user's custom permissions."""
     if request.method == 'POST':
         user = get_object_or_404(User, id=user_id)
         
@@ -1044,50 +1073,40 @@ def user_update_custom_permissions(request, user_id):
             data = json.loads(request.body)
             permission_ids = data.get('permission_ids', [])
             
-            # Validate that all permissions are custom permissions only
-            from django.contrib.contenttypes.models import ContentType
-            user_content_type = ContentType.objects.get_for_model(User)
+            # Fetch valid permissions
+            valid_permissions = Permission.objects.filter(id__in=permission_ids)
             
-            # Get only custom permissions
-            custom_permissions = Permission.objects.filter(
-                id__in=permission_ids,
-                content_type=user_content_type
-            )
+            # Update user's custom_permissions (using dedicated field)
+            user.custom_permissions.set(valid_permissions)
             
-            if len(custom_permissions) != len(permission_ids):
-                return JsonResponse({
-                    'success': False,
-                    'message': 'بعض الصلاحيات المحددة غير صحيحة أو ليست من الصلاحيات المخصصة'
-                }, status=400)
-            
-            # Update user's custom permissions (replace existing custom permissions)
-            user.user_permissions.filter(content_type=user_content_type).delete()
-            user.user_permissions.add(*custom_permissions)
+            # Clear cached permissions if cached
+            if hasattr(user, '_cached_permissions'):
+                delattr(user, '_cached_permissions')
             
             # Log the change
             from .models import ActivityLog
             from utils.logs import get_client_ip
             ActivityLog.objects.create(
                 user=request.user,
-                action='تحديث صلاحيات مخصصة',
+                action='تحديث صلاحيات إضافية',
                 model_name='User',
                 object_id=user.id,
                 ip_address=get_client_ip(request),
                 user_agent=request.META.get('HTTP_USER_AGENT', ''),
                 extra_data={
-                    'description': f'تحديث الصلاحيات المخصصة للمستخدم {user.get_full_name() or user.username}',
+                    'description': f'تحديث الصلاحيات الإضافية للمستخدم {user.get_full_name() or user.username}',
                     'target_user_id': user.id,
                     'target_user_name': user.get_full_name() or user.username,
-                    'custom_permissions_count': len(custom_permissions),
-                    'permission_ids': permission_ids
+                    'custom_permissions_count': valid_permissions.count(),
+                    'permission_ids': list(valid_permissions.values_list('id', flat=True))
                 }
             )
             
             return JsonResponse({
                 'success': True,
-                'message': f'تم تحديث الصلاحيات المخصصة للمستخدم "{user.get_full_name()}" بنجاح',
-                'custom_permissions_count': len(custom_permissions),
-                'total_custom_available': Permission.objects.filter(content_type=user_content_type).count()
+                'message': f'تم تحديث الصلاحيات الإضافية للمستخدم "{user.get_full_name() or user.username}" بنجاح',
+                'custom_permissions_count': valid_permissions.count(),
+                'total_custom_available': PermissionService.get_custom_permissions_only().count()
             })
             
         except json.JSONDecodeError:

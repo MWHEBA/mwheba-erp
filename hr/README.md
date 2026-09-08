@@ -31,140 +31,137 @@ python manage.py migrate hr
 python manage.py loaddata hr/fixtures/initial_data.json
 ```
 
-## الهيكل
+## الهيكل الحقيقي للموديول
 
 ```
 hr/
-├── models/              # النماذج (11 نموذج)
-├── services/            # الخدمات (4 خدمات)
-├── views.py             # Views
-├── urls.py              # URLs
-├── admin.py             # Admin
-└── fixtures/            # البيانات الأولية
+├── models/              # نماذج البيانات (21 ملفاً وأكثر من 25 نموذجاً)
+├── services/            # طبقة الخدمات (34 خدمة متخصصة للأعمال)
+├── views.py             # دوال وعروض الواجهة الموحدة
+├── api_views.py         # واجهات REST API لنظام الموارد البشرية
+├── urls.py / api_urls.py# مسارات الويب وواجهات البرمجة
+├── forms/               # نماذج الإدخال والتحقق
+├── templatetags/        # فلاتر ووسوم القوالب المخصصة
+├── tests/               # حزم اختبارات pytest الشاملة
+└── fixtures/            # البيانات الأولية والإعدادات
 ```
 
-## النماذج
+## النماذج (Models Architecture)
 
-### الأساسية
-- **Employee**: الموظف
-- **Department**: القسم
-- **JobTitle**: المسمى الوظيفي
+### 1. النماذج الأساسية والهيكل التنظيمي (`hr/models/`)
+- **`Employee`** (`employee.py`): ملف الموظف الشامل، البيانات الشخصية، الرقم الوظيفي، وتفضيلات العمل.
+- **`Department`** (`organization.py`): الأقسام والمراكز التنظيمية.
+- **`JobTitle`** (`organization.py`): المسميات والدرجات الوظيفية.
 
-### الحضور
-- **Shift**: الوردية
-- **Attendance**: الحضور
+### 2. منظومة العقود ومكونات الراتب
+- **`Contract`** (`contract.py`): عقود العمل، بنود الراتب الأساسي، مدد التعاقد، وحالات سريان العقد.
+- **`ContractSalaryComponent`** (`contract_salary_component.py`): بنود الراتب المربوطة بالعقد.
+- **`SalaryComponent`** (`salary_component.py`): بنود البدلات والاستقطاعات الديناميكية.
+- **`SalaryComponentTemplate`** (`salary_component_template.py`): قوالب هياكل الرواتب الجاهزة.
 
-### الإجازات
-- **LeaveType**: نوع الإجازة
-- **LeaveBalance**: رصيد الإجازات
-- **Leave**: الإجازة
+### 3. منظومة الحضور والانصراف والورديات
+- **`Shift`** (`attendance.py`): الورديات ومواعيد العمل وفترات السماح.
+- **`Attendance`** (`attendance.py`): سجلات الحضور والانصراف اليومية وحساب ساعات العمل والتأخير.
+- **`AttendanceSummary`** & **`AttendanceMonthlyReport`** (`attendance_summary.py`): تجميعات وملخصات الحضور الشهرية المعتمدة لاحتساب الرواتب.
 
-### الرواتب
-- **Salary**: الراتب
-- **Payroll**: قسيمة الراتب
-- **Advance**: السلفة
+### 4. منظومة أجهزة وسجلات البصمة (Biometric System)
+- **`BiometricDevice`** (`biometric.py`): أجهزة البصمة المربوطة بالشبكة وإعدادات الاتصال بها.
+- **`BiometricLog`** (`biometric.py`): السجلات الخام الواردة من أجهزة البصمة قبل المعالجة.
+- **`BiometricSyncLog`** (`biometric.py`): سجلات عمليات المزامنة والتتبع.
+- **`BiometricUserMapping`** (`biometric_mapping.py`): مطابقة أرقام الموظفين في أجهزة البصمة بحسابات الموظفين في النظام.
 
-## الخدمات
+### 5. منظومة الإجازات والأذونات الرسمية
+- **`LeaveType`** (`leave.py`): أنواع الإجازات (اعتيادي، عارضة، مرضي، استثنائي، غير مدفوع).
+- **`LeaveBalance`** (`leave.py`): أرصدة الإجازات السنوية ومحرك الاستحقاق التراكمي.
+- **`LeaveRequest`** (`leave.py`): طلبات الإجازات ومسار الموافقات الإدارية.
+- **`LeaveSummary`** (`leave_summary.py`): الملخصات الدورية لاستهلاك الإجازات.
+- **`PermissionRequest`** (`permission.py`): أذونات الخروج والانصراف المؤقت للموظفين أثناء العمل (مع مراعاة الفصل التام عن صلاحيات النظام `auth.Permission`).
+- **`OfficialHoliday`** (`official_holiday.py`): الإجازات والمناسبات الرسمية المعطلة للعمل.
 
-### EmployeeService
+### 6. منظومة الرواتب والسلف والجزاءات (Payroll & Advances)
+- **`PayrollPeriod`** (`payroll_period.py`): الفترات المالية لاحتساب الرواتب الشهرية.
+- **`Payroll`** (`payroll.py`): قسيمة مسير الرواتب المعتمدة للموظف.
+- **`PayrollLine`** (`payroll_line.py`): البنود التفصيلية للراتب (مستحقات واستقطاعات).
+- **`PayrollPayment`** (`payroll_payment.py`): سندات صرف الرواتب وربطها بالخزائن والبنوك.
+- **`Advance`** (`payroll.py`): طلبات السلف المالية وسقف الاستحقاق.
+- **`AdvanceInstallment`** (`payroll.py`): جدولة أقساط السلف والخصم الآلي من مسيرات الرواتب.
+- **`PenaltyReward`** (`penalty_reward.py`): سجل الجزاءات والمكافآت الإدارية وتأثيرها المالي.
+- **`InsurancePayment`** (`insurance_payment.py`): مدفوعات التأمينات الاجتماعية وحصص الشركة والموظف.
+- **`EndOfServiceBenefit`** (`end_of_service.py`): حساب مستحقات مكافأة نهاية الخدمة.
+
+---
+
+## الخدمات المتخصصة (Services Architecture — 34 خدمة)
+
+تعتمد وحدة الموارد البشرية على طبقة خدمات متطورة (Service-Oriented Architecture) تشمل 34 خدمة موزعة تخصصياً:
+
+1. **خدمات الرواتب والحسابات المالية (Payroll & Finance Integration)**:
+   - `IntegratedPayrollService`: مسير الرواتب الموحد والشامل.
+   - `PayrollService`: محرك حساب الراتب الفردي والبدلات.
+   - `PayrollAccountingService`: توليد وتوجيه القيود المحاسبية لمسير الرواتب عبر `AccountingGateway`.
+   - `PayrollGatewayService`: بوابة تأمين وحوكمة مدفوعات الرواتب.
+   - `SecurePayrollService`: حماية بيانات الرواتب ومنع التلاعب بالأرقام.
+   - `PayrollAuditService`: سجل تدقيق عمليات تعديل وصرف الرواتب.
+   - `PayrollSecurityMonitor`: مراقبة العمليات المالية الحساسة للرواتب.
+
+2. **خدمات الإجازات والاستحقاقات (Leaves & Accruals)**:
+   - `LeaveService`: إدارة دورة تقديم واعتماد طلبات الإجازات.
+   - `LeaveAccrualService`: الاحتساب التراكمي اليومي والشهري لاستحقاق الإجازات.
+   - `LeaveEncashmentService`: حاسبة المقابل النقدي لرصيد الإجازات المتبقي عند التسوية.
+
+3. **خدمات الحضور والبصمة (Attendance & Biometrics)**:
+   - `AttendanceService`: تسجيل ومطابقة الحضور والانصراف مع جدول الورديات.
+   - `AttendanceSummaryService`: استخراج تقارير التجميع الشهري ومؤشرات الالتزام.
+   - `AutoTransferEngine`: المعالجة الآلية لسجلات البصمة الخام وتحويلها لحضور وانصراف.
+   - `BiometricService`: إدارة الاتصال بأجهزة البصمة ومزامنة الحركات.
+
+4. **خدمات الموظفين والهيكل الإداري (Personnel & Organization)**:
+   - `EmployeeService`: العمليات الحيوية للموظف (التعيين، الترقية، إنهاء الخدمة).
+   - `OrganizationService`: إدارة شجرة الأقسام وتوزيع المسميات الوظيفية.
+   - `UserEmployeeService`: ربط الموظف بحساب المستخدم والصلاحيات المؤسسية.
+
+5. **خدمات السلف، المكافآت، والتأمينات**:
+   - `AdvanceService`: جدولة ومتابعة خصم أقساط السلف من الرواتب.
+   - `PenaltyRewardService`: تطبيق الجزاءات والمكافآت المعتمدة على الرواتب.
+   - `InsurancePaymentService`: احتساب وتوزيع حصص التأمينات الاجتماعية.
+
+6. **خدمات أذونات الموظفين (Work Permissions)**:
+   - `PermissionService`: تقديم واعتماد أذونات الخروج والانصراف المؤقت.
+   - `PermissionQuotaService`: مراقبة الرصيد الشهري المسموح به لأذونات العمل.
+
+7. **خدمات العقود الذكية وهياكل الأجور (Contracts & Intelligence)**:
+   - `UnifiedContractService` & `ContractActivationService`: إدارة وتفعيل عقود العمل.
+   - `ContractComponentService`: ربط البدلات المخصصة ببنود العقد.
+   - `SmartContractAnalyzer`: فحص الامتثال القانوني والمالي لبنود التعاقد.
+   - `UnifiedSalaryComponentService` & `SalaryComponentService`: تصنيف ومعالجة بنود الأجور.
+   - `ComponentClassificationService` & `ComponentIntelligence`: التحليل الذكي للبدلات الخاضعة للضريبة والتأمينات.
+   - `TemplateService`: إنشاء وإدارة قوالب بنود الأجور الجاهزة.
+
+8. **خدمات الصيانة والدعم الإداري**:
+   - `HrService`: نقطة الوصول المركزية للعمليات المشتركة.
+   - `AdminMaintenanceService`: أدوات الصيانة الدورية ومعالجة تضارب البيانات.
+
+---
+
+## الصلاحيات المؤسسية المعتمدة (Enterprise RBAC)
+
+تخضع وحدة الموارد البشرية لنظام صلاحيات جانغو القياسي المربوط بـ `RolePermissionBackend`:
+
 ```python
-from hr.services import EmployeeService
-
-# إنشاء موظف
-employee = EmployeeService.create_employee(data, created_by)
-
-# إنهاء خدمة
-EmployeeService.terminate_employee(employee, termination_data, user)
+# أمثلة على الصلاحيات المعيارية (app_label.codename)
+'hr.view_employee'          # استعراض بيانات الموظفين
+'hr.add_employee'           # إضافة موظف جديد
+'hr.change_employee'        # تعديل بيانات الموظف
+'hr.approve_leave'          # اعتماد طلبات الإجازات
+'hr.process_payroll'        # احتساب وتوليد مسيرات الرواتب
+'hr.approve_payroll'        # الاعتماد النهائي لمسير الرواتب وترحيله للحسابات
+'hr.manage_biometric'       # إدارة أجهزة البصمة والمزامنة
 ```
 
-### AttendanceService
-```python
-from hr.services import AttendanceService
+## الإصدار والهوية
 
-# تسجيل حضور
-attendance = AttendanceService.record_check_in(employee)
-
-# تسجيل انصراف
-AttendanceService.record_check_out(employee)
-```
-
-### LeaveService
-```python
-from hr.services import LeaveService
-
-# طلب إجازة
-leave = LeaveService.request_leave(employee, leave_data)
-
-# اعتماد إجازة
-LeaveService.approve_leave(leave, approver)
-```
-
-### PayrollService
-```python
-from hr.services import PayrollService
-
-# حساب راتب
-payroll = PayrollService.calculate_payroll(employee, month, user)
-
-# معالجة رواتب شهرية
-results = PayrollService.process_monthly_payroll(month, user)
-```
-
-## URLs
-
-```python
-# Dashboard
-/hr/
-
-# الموظفين
-/hr/employees/
-/hr/employees/add/
-/hr/employees/<id>/
-
-# الحضور
-/hr/attendance/
-/hr/attendance/check-in/
-/hr/attendance/check-out/
-
-# الإجازات
-/hr/leaves/
-/hr/leaves/request/
-
-# الرواتب
-/hr/payroll/
-/hr/payroll/process/<month>/
-```
-
-## الصلاحيات
-
-```python
-# في settings.py
-HR_PERMISSIONS = [
-    'can_manage_employees',
-    'can_approve_leaves',
-    'can_process_payroll',
-    'can_view_all_salaries',
-]
-```
-
-## التكامل المالي
-
-عند اعتماد قسيمة الراتب، يتم إنشاء قيد محاسبي تلقائي:
-
-```
-من حـ/ مصروف الرواتب (5101)
-    إلى حـ/ البنك (1102)
-    إلى حـ/ التأمينات (2103)
-    إلى حـ/ الضرائب (2104)
-```
-
-## الإصدار
-
-**v1.0.0** - 2025-11-03
-
-## المطورون
-
-Corporate ERP Team
+**v2.0 Enterprise** — سبتمبر 2026  
+**فريق التطوير**: MWHEBA ERP Team
 
 
 ## استكشاف الأخطاء وإصلاحها (Troubleshooting)

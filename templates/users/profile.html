@@ -169,23 +169,43 @@
                     <div class="mb-2">
                         {% if user.role.name == 'admin' %}
                             <span class="badge bg-danger px-3 py-2">
-                                <i class="fas fa-crown me-1"></i>{{ user.role.display_name }}
+                                <i class="fas fa-shield-alt me-1"></i>{{ user.role.display_name }}
                             </span>
-                        {% elif user.role.name == 'manager' %}
+                        {% elif user.role.name == 'financial_manager' %}
                             <span class="badge bg-primary px-3 py-2">
-                                <i class="fas fa-user-tie me-1"></i>{{ user.role.display_name }}
+                                <i class="fas fa-calculator me-1"></i>{{ user.role.display_name }}
                             </span>
-                        {% elif user.role.name == 'user' %}
+                        {% elif user.role.name == 'accountant' %}
+                            <span class="badge bg-info text-dark px-3 py-2">
+                                <i class="fas fa-file-invoice-dollar me-1"></i>{{ user.role.display_name }}
+                            </span>
+                        {% elif user.role.name == 'sales_manager' %}
                             <span class="badge bg-success px-3 py-2">
-                                <i class="fas fa-user me-1"></i>{{ user.role.display_name }}
+                                <i class="fas fa-chart-line me-1"></i>{{ user.role.display_name }}
                             </span>
-                        {% elif user.role.name == 'employee' %}
-                            <span class="badge bg-info px-3 py-2">
-                                <i class="fas fa-user-clock me-1"></i>{{ user.role.display_name }}
+                        {% elif user.role.name == 'sales_rep' %}
+                            <span class="badge bg-success px-3 py-2">
+                                <i class="fas fa-user-tag me-1"></i>{{ user.role.display_name }}
                             </span>
-                        {% elif user.role.name == 'reception' %}
+                        {% elif user.role.name == 'procurement_officer' %}
                             <span class="badge bg-warning text-dark px-3 py-2">
-                                <i class="fas fa-concierge-bell me-1"></i>{{ user.role.display_name }}
+                                <i class="fas fa-shopping-cart me-1"></i>{{ user.role.display_name }}
+                            </span>
+                        {% elif user.role.name == 'inventory_manager' %}
+                            <span class="badge bg-warning text-dark px-3 py-2">
+                                <i class="fas fa-warehouse me-1"></i>{{ user.role.display_name }}
+                            </span>
+                        {% elif user.role.name == 'production_supervisor' %}
+                            <span class="badge bg-secondary px-3 py-2">
+                                <i class="fas fa-cogs me-1"></i>{{ user.role.display_name }}
+                            </span>
+                        {% elif user.role.name == 'hr_officer' %}
+                            <span class="badge bg-info px-3 py-2">
+                                <i class="fas fa-users-cog me-1"></i>{{ user.role.display_name }}
+                            </span>
+                        {% elif user.role.name == 'viewer' %}
+                            <span class="badge bg-light text-dark border px-3 py-2">
+                                <i class="fas fa-eye me-1"></i>{{ user.role.display_name }}
                             </span>
                         {% else %}
                             <span class="badge bg-secondary px-3 py-2">

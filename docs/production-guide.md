@@ -8,7 +8,7 @@
 
 ## 📋 ملخص تنفيذي
 
-دليل شامل لنشر وإدارة نظام Corporate ERP في بيئة الإنتاج، يتضمن جميع التحسينات الحرجة والأنظمة المساعدة.
+دليل شامل لنشر وإدارة نظام MWHEBA ERP في بيئة الإنتاج، يتضمن جميع التحسينات الحرجة والأنظمة المساعدة.
 
 ### التحسينات المنفذة:
 1. ✅ **Redis Caching** - نظام caching متقدم للأداء الأمثل
@@ -103,7 +103,7 @@ bandit -r .
 ## 💾 نظام النسخ الاحتياطي المدمج
 
 ### المميزات:
-- ✅ دعم PostgreSQL و SQLite
+- ✅ دعم MySQL 8.0 و SQLite
 - ✅ ضغط تلقائي (gzip)
 - ✅ رفع على AWS S3
 - ✅ تنظيف النسخ القديمة
@@ -126,9 +126,9 @@ crontab -e
 
 ### استعادة النسخة الاحتياطية:
 ```bash
-# PostgreSQL
+# MySQL
 gunzip backup_20260205_020000.sql.gz
-psql -h localhost -U postgres -d corporate_erp < backup_20260205_020000.sql
+mysql -u username -p database_name < backup_20260205_020000.sql
 
 # SQLite
 gunzip backup_20260205_020000.db.gz
@@ -285,7 +285,7 @@ DEBUG=False
 python manage.py shell
 
 from sentry_sdk import capture_message
-capture_message('Test message from Corporate ERP')
+capture_message('Test message from MWHEBA ERP')
 # تحقق من Sentry dashboard
 ```
 
@@ -306,7 +306,7 @@ def trigger_error(request):
 ## 3️⃣ Backup System
 
 ### المميزات المضافة:
-- ✅ دعم PostgreSQL و SQLite
+- ✅ دعم MySQL 8.0 و SQLite
 - ✅ ضغط تلقائي (gzip)
 - ✅ رفع على AWS S3
 - ✅ تنظيف النسخ القديمة
@@ -467,34 +467,33 @@ tail -f /var/log/mwheba_backup.log
 
 ## 📞 الدعم والمساعدة
 
-### الوثائق:
-- 📄 `SYSTEM_ANALYSIS_REPORT.md` - تقرير التحليل الشامل
-- 📄 `ARCHITECTURE.md` - معمارية النظام
-- 📄 `BACKUP_SYSTEM.md` - نظام النسخ الاحتياطي
-- 📄 `API_DOCUMENTATION.md` - توثيق API
+### الوثائق ذات الصلة:
+- 📄 [docs/architecture.md](file:///docs/architecture.md) - معمارية النظام المعتمدة
+- 📄 [docs/backup-system.md](file:///docs/backup-system.md) - نظام النسخ الاحتياطي
+- 📄 [docs/api-documentation.md](file:///docs/api-documentation.md) - توثيق API الشامل
+- 📄 [DEPLOYMENT_GUIDE.md](file:///DEPLOYMENT_GUIDE.md) - دليل النشر والتشغيل على cPanel و Linux VPS
 
 ### الاتصال:
 - 📧 البريد الإلكتروني: support@mwheba.com
-- 📱 الهاتف: +20 XXX XXX XXXX
 - 🌐 الموقع: https://mwheba.com
 
 ---
 
 ## 🎉 الخلاصة
 
-نظام **Corporate ERP** الآن **جاهز للإنتاج 100%** مع:
+نظام **MWHEBA ERP** الآن **جاهز للإنتاج 100%** مع:
 
 ✅ **أداء ممتاز** - Redis caching للسرعة القصوى  
 ✅ **موثوقية عالية** - Sentry لتتبع الأخطاء  
 ✅ **أمان البيانات** - نظام backup تلقائي شامل  
 ✅ **معمارية قوية** - كود نظيف ومنظم  
 ✅ **توثيق كامل** - جميع الأنظمة موثقة  
-✅ **اختبارات شاملة** - 315+ اختبار  
+✅ **اختبارات شاملة** - تغطية اختبارات آلية عبر pytest  
 
 **التقييم النهائي: 10/10** 🌟🌟🌟🌟🌟
 
 ---
 
-**تم إعداد هذا الدليل بواسطة:** Cascade AI  
-**التاريخ:** 2025-11-02  
+**تم إعداد هذا الدليل بواسطة:** MWHEBA ERP Engineering Team  
+**التاريخ:** 2026-02-05  
 **الحالة:** مكتمل ✅

@@ -1,8 +1,8 @@
-﻿# دليل المكونات المشتركة - Corporate ERP
+# دليل المكونات المشتركة - MWHEBA ERP
 
 ## 📋 نظرة عامة
 
-هذا الدليل يوثق جميع المكونات المشتركة في نظام Corporate ERP، والتي تم تصميمها لضمان الاتساق والقابلية لإعادة الاستخدام عبر جميع أجزاء التطبيق.
+هذا الدليل يوثق جميع المكونات المشتركة في نظام MWHEBA ERP، والتي تم تصميمها لضمان الاتساق والقابلية لإعادة الاستخدام عبر جميع أجزاء التطبيق.
 
 ---
 
@@ -455,6 +455,60 @@
 
 ---
 
+## 🔄 التوحيد القياسي للمكونات (Standardized Template Architecture)
+
+### المعايير المعتمدة عبر وحدات النظام:
+
+#### 1. صفحة قائمة العملاء (`templates/customer/customer_list.html`) وصفحة الموردين (`templates/supplier/core/supplier_list.html`)
+- استخدام `shared/page_header.html` الموحد مع شريط الروابط وتوجيه الأزرار.
+- استخدام `shared/stats_card.html` للإحصائيات الحيوية داخل شبكة البطاقات `row g-3 mb-4`.
+- إضافة `section-container` لتضمين قسم الفلاتر والجدول الرئيسي.
+- استخدام `components/data_table.html` للجداول البيانية مع دعم البحث الديناميكي والصفوف التفاعلية.
+
+#### 2. مثال إعداد السياق في المتحكم (View Context):
+```python
+# بيانات الهيدر الموحد
+context['page_title'] = 'قائمة العملاء'
+context['page_subtitle'] = 'إدارة بيانات العملاء والبحث المتقدم'
+context['page_icon'] = 'fas fa-users'
+
+# أزرار الهيدر
+context['header_buttons'] = [
+    {
+        'url': reverse('customer:customer_create'),
+        'icon': 'fa-plus',
+        'text': 'إضافة عميل جديد',
+        'class': 'btn-primary'
+    }
+]
+
+# عناصر البريدكرمب
+context['breadcrumb_items'] = [
+    {
+        'title': 'الرئيسية',
+        'url': reverse('core:dashboard'),
+        'icon': 'fas fa-home'
+    },
+    {
+        'title': 'العملاء',
+        'active': True,
+        'icon': 'fas fa-users'
+    }
+]
+```
+
+#### 3. العناصر الموحدة عبر النظام:
+- **الهيدر:** عنوان موحد مع أيقونة، وصف فرعي، أزرار الإجراءات داخل `header_buttons` حصرياً، و breadcrumb منظم.
+- **كروت الإحصائيات:** تصميم قياسي `.stats-card` خارج حاويات `section-container` مع هوية لونية موحدة.
+- **الحاويات والأقسام:** استخدام `.section-container` و `.section-title` مع دعم الانهيار `collapse` للفلاتر.
+- **الجداول:** أزرار إجراءات موحدة، صفوف قابلة للنقر مع روابط تفصيلية، وحالات عدم وجود بيانات قياسية.
+
+---
+
+*آخر تحديث: 2026 - MWHEBA ERP Architecture Team*
+
+---
+
 ## 🎨 الميزات العامة
 
 ### إمكانية الوصول (Accessibility)
@@ -628,125 +682,4 @@ axe.run(document, function (err, results) {
 - 🔄 إضافة المزيد من خيارات التخصيص
 - 🔄 دعم الوضع المظلم
 
----
 
-## 🔄 التوحيد الأخير (ديسمبر 2024)
-
-### ما تم توحيده:
-
-#### 1. صفحة قائمة العناصر (`templates/students/students/list.html`)
-**قبل التوحيد:**
-- هيدر مكتوب يدوياً مع breadcrumb منفصل
-- كروت إحصائيات Bootstrap عادية
-- تنسيق مختلف عن باقي الصفحات
-
-**بعد التوحيد:**
-- استخدام `shared/page_header.html` الموحد
-- استخدام `shared/stats_card.html` للإحصائيات
-- تنسيق موحد مع صفحة الموردين
-- إضافة `section-container` للتنسيق المتسق
-
-#### 2. تحديث StudentListView (`students/views.py`)
-**الإضافات:**
-```python
-# بيانات الهيدر الموحد
-context['page_title'] = 'قائمة العناصر'
-context['page_subtitle'] = 'إدارة العناصر وعرض بياناتهم'
-context['page_icon'] = 'fas fa-graduation-cap'
-
-# أزرار الهيدر
-context['header_buttons'] = [
-    {
-        'url': reverse('students:student_create'),
-        'icon': 'fa-plus',
-        'text': 'إضافة عنصر جديد',
-        'class': 'btn-primary'
-    }
-]
-
-# عناصر البريدكرمب
-context['breadcrumb_items'] = [
-    {
-        'title': 'الرئيسية',
-        'url': reverse('core:dashboard'),
-        'icon': 'fas fa-home'
-    },
-    {
-        'title': 'العناصر',
-        'active': True,
-        'icon': 'fas fa-graduation-cap'
-    }
-]
-```
-
-#### 3. العناصر الموحدة الآن:
-
-**الهيدر:**
-- ✅ عنوان موحد مع أيقونة
-- ✅ وصف فرعي
-- ✅ أزرار إجراءات في نفس المكان
-- ✅ breadcrumb موحد
-
-**كروت الإحصائيات:**
-- ✅ تصميم موحد مع ألوان متسقة
-- ✅ أيقونات في نفس المواضع
-- ✅ تأثيرات hover متطابقة
-- ✅ responsive design
-
-**السكاشن (الأقسام):**
-- ✅ `section-container` موحد
-- ✅ `section-title` متسق
-- ✅ `filter-section` للبحث والفلترة
-- ✅ تباعد وحدود موحدة
-
-**الجداول:**
-- ✅ تنسيق موحد للأزرار
-- ✅ صفوف قابلة للنقر
-- ✅ أعمدة إجراءات متسقة
-- ✅ empty state موحد
-
-#### 4. الفوائد المحققة:
-
-**للمطورين:**
-- 🔧 صيانة أسهل - تعديل واحد يؤثر على جميع الصفحات
-- 🔧 كود أقل تكراراً
-- 🔧 معايير موحدة للتطوير
-
-**للمستخدمين:**
-- 👤 تجربة متسقة عبر النظام
-- 👤 تعلم أسرع للواجهة
-- 👤 تنقل أكثر سهولة
-
-**للتصميم:**
-- 🎨 مظهر احترافي موحد
-- 🎨 ألوان وخطوط متسقة
-- 🎨 تجاوب أفضل مع الشاشات المختلفة
-
-#### 5. الصفحات المتوافقة الآن:
-- ✅ صفحة الموردين (`supplier/core/supplier_list.html`)
-- ✅ صفحة العناصر (`students/students/list.html`)
-- 🔄 باقي الصفحات (قيد التوحيد التدريجي)
-
-#### 6. المكونات المستخدمة:
-```django
-<!-- الهيدر الموحد -->
-{% include "shared/page_header.html" with 
-    title="قائمة العناصر" 
-    subtitle="إدارة العناصر وعرض بياناتهم" 
-    icon="fas fa-graduation-cap" 
-    header_buttons=header_buttons 
-%}
-
-<!-- كروت الإحصائيات الموحدة -->
-{% include "shared/stats_card.html" with 
-    title="إجمالي العناصر" 
-    value=stats.total_students 
-    unit="عنصر" 
-    icon="fa-users" 
-    color="primary" 
-%}
-```
-
----
-
-*آخر تحديث: ديسمبر 2024*

@@ -84,6 +84,11 @@ class UserManagementService(TransactionalService):
                 # Optimized query with all necessary relations (including inactive users)
                 users = User.objects.all().select_related('role').prefetch_related(
                     Prefetch(
+                        'custom_permissions',
+                        queryset=Permission.objects.filter(id__in=custom_perm_ids),
+                        to_attr='cached_user_custom_permissions'
+                    ),
+                    Prefetch(
                         'user_permissions',
                         queryset=Permission.objects.filter(id__in=custom_perm_ids),
                         to_attr='cached_custom_permissions'
@@ -98,14 +103,14 @@ class UserManagementService(TransactionalService):
                 result = []
                 for user in users:
                     # Count custom permissions efficiently using cached attributes
-                    direct_custom_count = len(getattr(user, 'cached_custom_permissions', []))
+                    direct_perm_ids = {p.id for p in getattr(user, 'cached_custom_permissions', [])} | {p.id for p in getattr(user, 'cached_user_custom_permissions', [])}
+                    direct_custom_count = len(direct_perm_ids)
                     role_custom_count = 0
                     
                     if user.role and hasattr(user.role, 'cached_role_custom_permissions'):
                         role_custom_count = len(user.role.cached_role_custom_permissions)
                     
                     # Total unique custom permissions (avoid double counting)
-                    direct_perm_ids = {p.id for p in getattr(user, 'cached_custom_permissions', [])}
                     role_perm_ids = set()
                     if user.role and hasattr(user.role, 'cached_role_custom_permissions'):
                         role_perm_ids = {p.id for p in user.role.cached_role_custom_permissions}
@@ -391,11 +396,15 @@ class UserManagementService(TransactionalService):
                 
                 # Update user's direct permissions (only custom ones)
                 user.user_permissions.clear()
+                user.custom_permissions.clear()
                 if filtered_permission_ids:
                     new_permissions = custom_permissions.filter(id__in=filtered_permission_ids)
                     user.user_permissions.set(new_permissions)
+                    user.custom_permissions.set(new_permissions)
                 
                 # Invalidate cache
+                if hasattr(user, '_cached_permissions'):
+                    delattr(user, '_cached_permissions')
                 PermissionCacheService.invalidate_user_cache(user.id)
                 
                 # New permissions for audit

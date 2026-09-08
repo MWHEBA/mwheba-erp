@@ -68,7 +68,7 @@ Comprehensive exception hierarchy for structured error handling:
 Database-appropriate concurrency control:
 
 #### DatabaseLockManager
-- Adapts to different database backends (SQLite vs PostgreSQL)
+- Adapts to different database backends (SQLite vs MySQL)
 - Provides `select_for_update()` when supported
 - Falls back to atomic transactions for SQLite
 
@@ -170,7 +170,7 @@ Optimized indexes for:
 
 ### Database-Level Concurrency
 - **SQLite**: Atomic transactions with existence checks
-- **PostgreSQL**: Row-level locking with `select_for_update()`
+- **MySQL 8.0**: Row-level locking with `select_for_update()`
 - **All Databases**: Idempotency keys as primary concurrency protection
 
 ### Context Management

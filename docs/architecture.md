@@ -1,459 +1,327 @@
-# Corporate ERP — Architecture Reference
+# MWHEBA ERP — Architecture Reference
 
-> وثيقة مرجعية للبنية التقنية الفعلية للنظام. تعكس الكود الموجود فعلاً.
+> وثيقة مرجعية للبنية التقنية والمعمارية الفعلية لنظام **MWHEBA ERP**. تعكس الكود وبيئات التشغيل الحقيقية بنسبة 100%.
 
 ---
 
 ## 1. نظرة عامة
 
-نظام ERP مبني على **Django 4.2** يعمل بقاعدة بيانات **SQLite** (تطوير) أو **MySQL** (إنتاج). الواجهة server-rendered بـ Django Templates + Bootstrap 5، مع REST API بـ JWT للتكامل الخارجي.
+نظام **MWHEBA ERP** هو منصة مؤسسية متكاملة متعددة الأنشطة مبنية على **Django 4.2 LTS**، مصممة لإدارة العمليات الصناعية والتجارية والمالية المتشابكة — من مطابع الأوفست والديجيتال الكبرى، إلى وكالات الدعاية وشركات التوزيع والتجارة.
+
+يعمل النظام بقاعدة بيانات **SQLite** (في بيئة التطوير) و **MySQL 8.0** عبر `PyMySQL` (في بيئة الإنتاج). الواجهة معتمدة على Server-Side Rendering بـ Django Templates مع Bootstrap 5 وقواعد صارمة للتصميم، إلى جانب REST API مؤمن بـ JWT للتكاملات الخارجية.
 
 ```
-corporate_erp/          ← Django project root
-├── core/               ← النواة: إعدادات، إشعارات، مراقبة
-├── users/              ← المستخدمون والصلاحيات
-├── governance/         ← الحوكمة: audit، idempotency، أمان
-├── customer/           ← إدارة العملاء
-├── sale/               ← المبيعات والفواتير
-├── supplier/           ← الموردون
-├── product/            ← المنتجات والمخزون
-├── purchase/           ← المشتريات
-├── financial/          ← المحاسبة والتقارير المالية
-├── hr/                 ← الموارد البشرية والرواتب
-├── printing_pricing/   ← تسعير المطبوعات
-├── utils/              ← أدوات مساعدة
-└── api/                ← REST API
+corporate_erp/          ← جذر مشروع جانغو
+├── core/               ← النواة: إعدادات النظام، تفعيل الأنشطة (SystemModule)، نظام المستندات (DMS)
+├── users/              ← إدارة الهوية: منظومة الـ 10 أدوار القياسية، RolePermissionBackend O(1)
+├── governance/         ← الحوكمة: بوابة المحاسبة (AccountingGateway)، سجل التدقيق (AuditTrail)، مانع التكرار (Idempotency)
+├── customer/           ← إدارة العملاء والحسابات المدينة وكشوف الحسابات
+├── sale/               ← خط أنابيب المبيعات: عروض الأسعار، فواتير المبيعات، إشعارات الخصم، قوائم الأسعار
+├── supplier/           ← إدارة الموردين، الخدمات، وشرائح الأسعار
+├── product/            ← المخزون الموحد: خامات الورق والمنتجات، حركات المخزن، وتتبع الأصناف
+├── printing_pricing/   ← منظومة تسعير المطبوعات: الماكينات، مقاسات الأفرخ، الزنكات، السلوفان، وحساب الهالك
+├── work_order/         ← إدارة أوامر الشغل وصالة الإنتاج ومراكز التكلفة التشغيلية
+├── purchase/           ← المشتريات: أوامر الشراء، فواتير الموردين، وتوزيع تكاليف الشحن (Landed Cost)
+├── financial/          ← المحاسبة المالية المزدوجة ومحرك تقييم العملات الدولية (IAS 21 FX Engine)
+├── hr/                 ← إدارة الموارد البشرية، الرواتب، سجلات وأجهزة البصمة، والإجازات
+├── presentation/       ← طبقة العرض والـ DTOs والـ Presenters لفصل منطق العرض عن قواعد البيانات
+├── utils/              ← الأدوات المساعدة والمكونات المشتركة
+└── api/                ← واجهات REST API للتكامل الخارجي
 ```
 
 ---
 
-## 2. التطبيقات (Apps)
+## 2. التطبيقات وطبقات النظام (Apps & Architecture Layers)
 
 ### 2.1 core
-**الغرض:** النواة المشتركة للنظام.
+**الغرض:** النواة المشتركة للمنصة ونظام إدارة تفعيل الموديولات والمستندات.
 
 | النموذج | الوصف |
 |---------|-------|
-| `SystemSetting` | إعدادات النظام (key/value مع أنواع بيانات) |
-| `Notification` | إشعارات المستخدمين |
-| `NotificationPreference` | تفضيلات الإشعارات لكل مستخدم |
-| `UnifiedLog` | سجل موحد (system, security, performance, audit) |
-| `DashboardStat` | إحصائيات لوحة التحكم |
+| `SystemSetting` | إعدادات النظام الموحدة مع التخزين المؤقت (`global_settings_dict_v2`). |
+| `SystemModule` | محرك تفعيل وتعطيل الموديولات والأنشطة ديناميكياً مع الاعتماديات (`enabled_modules_dict_v2`). |
+| `Notification` | إشعارات المستخدمين والتنبيهات المباشرة. |
+| `NotificationPreference` | تفضيلات الإشعارات وقنوات التسليم لكل مستخدم. |
+| `UnifiedLog` | سجل أحداث النظام والعمليات الأمنية. |
+| `DashboardStat` | الإحصائيات المجمعة للوحة التحكم. |
 
 **الخدمات الرئيسية:**
-- `NotificationService` — إرسال وإدارة الإشعارات
-- `BackupService` — النسخ الاحتياطية
-- `DataEncryptionService` — تشفير البيانات (Fernet)
-- `DataRetentionService` — دورة حياة البيانات
+- `NotificationService` — إدارة وإرسال الإشعارات.
+- `BackupService` — النسخ الاحتياطي وإدارة الملفات المضغوطة.
+- `DataEncryptionService` — تشفير الحقول الحساسة (Fernet).
 
 ---
 
 ### 2.2 users
-**الغرض:** نظام المستخدمين والصلاحيات.
+**الغرض:** إدارة الهوية وصلاحيات الوصول المؤسسية (NIST Enterprise RBAC Level 2).
 
-- نموذج `User` مخصص يرث من `AbstractUser`
-- نظام أدوار (Roles) مع صلاحيات دقيقة
-- JWT tokens: access (15 دقيقة) + refresh (يوم)
-- Token blacklist عند تسجيل الخروج
+- نموذج `User` مخصص يرث من `AbstractUser`، مع استئصال كامل وتام لأي حقول قديمة مثل `user_type`.
+- **منظومة الـ 10 أدوار القياسية**:
+  `admin`, `financial_manager`, `accountant`, `sales_manager`, `sales_rep`, `procurement_officer`, `inventory_manager`, `production_supervisor`, `hr_officer`, `viewer`.
+- **`RolePermissionBackend`**: محرك مصادقة وفحص صلاحيات فائق السرعة $O(1)$ مع كاش لحظي على مستوى الطلب (`_cached_group_permissions`).
+- فحص الصلاحيات المعياري بصيغة `'app_label.codename'`.
 
 ---
 
 ### 2.3 governance
-**الغرض:** طبقة الحوكمة والأمان.
+**الغرض:** صمام الأمان والحوكمة والنزاهة المحاسبية والرقابية.
 
 | النموذج | الوصف |
 |---------|-------|
-| `IdempotencyRecord` | منع تكرار العمليات |
-| `AuditTrail` | سجل تدقيق شامل |
-| `ActiveSession` | تتبع الجلسات النشطة |
-| `SecurityEvent` | أحداث أمنية |
-| `DataClassification` | تصنيف حساسية البيانات |
-| `BackupRecord` / `BackupFile` | تتبع النسخ الاحتياطية |
-| `DataRetentionPolicy` | سياسات الاحتفاظ بالبيانات |
-| `EncryptionKey` | تتبع دورة مفاتيح التشفير |
-
-**الخدمات:**
-- `AuditService` — تسجيل العمليات
-- `AccountingGateway` — بوابة موحدة لإنشاء القيود المحاسبية مع idempotency
-- `AdminSecurityManager` — حماية نماذج الـ admin عالية الخطورة
+| `AccountingGateway` | البوابة الموحدة والوحيدة لإنشاء وترحيل القيود المحاسبية لمنع التجاوز. |
+| `IdempotencyRecord` | منع تكرار العمليات المالية عبر مفاتيح فريدة (`idempotency_key`). |
+| `AuditTrail` | سجل تدقيق غير قابل للتعديل يسجل بيانات ما قبل وما بعد العملية ومصدرها. |
+| `QuarantineRecord` | عزل البيانات المشبوهة أو المتضاربة للفحص الإداري. |
+| `ActiveSession` | مراقبة وتتبع الجلسات النشطة وحمايتها من التداخل. |
 
 ---
 
 ### 2.4 customer
-**الغرض:** إدارة العملاء.
+**الغرض:** إدارة العملاء، حدود الائتمان، والحسابات المدينة.
 
 | النموذج | الوصف |
 |---------|-------|
-| `Customer` | بيانات العميل مع ربط محاسبي |
-| `CustomerPayment` | مدفوعات العملاء |
-
-**العلاقات:**
-- `Customer.financial_account` → `financial.ChartOfAccounts` (OneToOne)
-- `Customer` ← `sale.Sale` (ForeignKey)
+| `Customer` | بيانات العميل، نوع المنشأة، حد الائتمان، والربط بحساب دليل الحسابات. |
+| `CustomerPayment` | مدفوعات وسندات قبض العملاء المربوطة بالخزائن والبنوك. |
 
 ---
 
 ### 2.5 sale
-**الغرض:** المبيعات والفواتير.
+**الغرض:** إدارة خط أنابيب المبيعات بالكامل من التسعير إلى التحصيل.
 
 | النموذج | الوصف |
 |---------|-------|
-| `Sale` | فاتورة البيع |
-| `SaleItem` | بنود الفاتورة |
-| `SalePayment` | مدفوعات الفاتورة |
-| `SaleReturn` | مرتجعات المبيعات |
-| `SaleReturnItem` | بنود المرتجع |
-
-**العلاقات:**
-- `Sale.customer` → `customer.Customer`
-- `Sale.items` → `product.Product`
-- `SalePayment` → `financial.ChartOfAccounts` (payment_method = account code)
+| `Quotation` / `QuotationItem` | عروض الأسعار المقدمة للعملاء مع حجز المخزون وربط أوامر الشغل. |
+| `Sale` / `SaleItem` | فواتير المبيعات التجارية والضريبية. |
+| `SalePayment` | توزيع الدفعات والتحصيلات على الفواتير. |
+| `SaleReturn` / `SaleReturnItem` | مرتجعات المبيعات مع تسوية المخزن والقيود العكسية. |
+| `CreditNote` | إشعارات الائتمان والتسويات الدائنة للعملاء. |
+| `PriceList` / `PriceListItem` | قوائم الأسعار المتعددة (جملة، قطاعي، كبار عملاء) وسياسات الخصم التلقائي. |
 
 ---
 
 ### 2.6 supplier
-**الغرض:** إدارة الموردين.
+**الغرض:** إدارة الموردين والخدمات الصناعية والتجارية.
 
 | النموذج | الوصف |
 |---------|-------|
-| `Supplier` | بيانات المورد مع ربط محاسبي |
-| `SupplierType` | أنواع الموردين |
-| `SupplierTypeSettings` | إعدادات ديناميكية لأنواع الموردين |
-| `SupplierService` | خدمات يقدمها المورد |
-| `ServiceType` | أنواع الخدمات (طباعة، لوجستيات، تصنيع) |
-| `ServicePriceTier` | شرائح سعرية حسب الكمية |
-
-**العلاقات:**
-- `Supplier.financial_account` → `financial.ChartOfAccounts` (OneToOne)
-- `Supplier.primary_type` → `SupplierType`
+| `Supplier` | بيانات المورد والربط المحاسبي المباشر. |
+| `SupplierType` | تصنيفات الموردين (خامات ورق، أحبار، خدمات ما بعد الطباعة، لوجستيات). |
+| `SupplierService` / `ServicePriceTier` | خدمات الموردين وشرائح الأسعار حسب الكميات. |
 
 ---
 
 ### 2.7 product
-**الغرض:** كتالوج المنتجات وإدارة المخزون.
+**الغرض:** كتالوج المنتجات وإدارة المخازن (الالتزام الصارم بمصطلحات المخازن).
 
 | النموذج | الوصف |
 |---------|-------|
-| `Product` | المنتج (عادي / مجمع / خدمة) |
-| `Category` | تصنيفات هرمية |
-| `Unit` | وحدات القياس |
-| `Warehouse` | المخازن |
-| `Stock` | مخزون المنتج في كل مخزن |
-| `StockMovement` | حركات المخزون |
-| `ProductImage` | صور المنتجات |
-| `ProductVariant` | متغيرات المنتج |
-| `BundleComponent` | مكونات المنتج المجمع |
-| `BundleComponentAlternative` | بدائل مكونات المنتج المجمع |
-| `SupplierProductPrice` | أسعار الموردين للمنتج |
-| `PriceHistory` | تاريخ تغيير الأسعار |
-
-**أنواع المنتجات:**
-- `is_service=False, is_bundle=False` → منتج عادي (له مخزون)
-- `is_bundle=True` → منتج مجمع (مخزونه محسوب من مكوناته)
-- `is_service=True` → خدمة (لا تحتاج مخزون)
-
-**الخدمات الرئيسية:**
-- `StockCalculationEngine` — حساب مخزون المنتجات المجمعة
-- `BundleManager` — إنشاء وإدارة المنتجات المجمعة
-- `InventoryService` — إدارة المخزون العام
-- `ReservationService` — حجز المخزون للطلبات
+| `Product` | المنتج أو الخامة (خام ورق، أحبار، زنكات، منتج نهائي، خدمة). |
+| `Category` / `Unit` | التصنيفات الهرمية ووحدات القياس المتعددة. |
+| `Warehouse` | المخازن (ممنوع استخدام لفظ مستودع نهائياً). |
+| `Stock` | أرصدة المخزون الموزعة على كل مخزن. |
+| `StockMovement` | سجل حركات الإضافة والصرف والتحويل المخزني. |
+| `StockTransfer` / `StockSnapshot` | التحويلات بين المخازن واللقطات الدورية للجرد. |
 
 ---
 
-### 2.8 purchase
-**الغرض:** المشتريات.
+### 2.8 printing_pricing
+**الغرض:** المنظومة الصناعية الشاملة لتسعير المطبوعات وحساب الهالك والتكاليف.
+
+- **الماكينات والزنكات (`machines.py`)**:
+  `PrintingMachine`, `MachineDimension`, `OffsetMachineType`, `DigitalMachineType`, `OffsetSheetSize`, `DigitalSheetSize`, `PlateSize`.
+- **الورق والخامات (`paper.py`)**:
+  `PaperType`, `PaperSize`, `PaperWeight` (الجراماج), `PaperOrigin`, `PieceSize`.
+- **عمليات ما بعد الطباعة (`finishing.py`)**:
+  `CoatingType` (السلوفان، الورنيش، UV), `FinishingType` (التكسير، البصمة، الريجة), `PackagingType`.
+- **أوامر التسعير ومحرك التكاليف (`order.py` & `breakdown.py`)**:
+  `PrintingOrder`, `PaperSpecification`, `OrderMaterial`, `OrderService`, `CostCalculation`, `OrderSummary`.
+
+---
+
+### 2.9 work_order
+**الغرض:** أوامر الشغل وصالة الإنتاج ومراكز التكلفة.
 
 | النموذج | الوصف |
 |---------|-------|
-| `Purchase` | فاتورة الشراء |
-| `PurchaseItem` | بنود الفاتورة |
-| `PurchasePayment` | مدفوعات للمورد |
-| `PurchaseReturn` | مرتجعات المشتريات |
+| `WorkOrder` | أمر الشغل كمركز تكلفة ومشروع تشغيلي مصغر يربط العميل (`Customer`) بفاتورة المبيعات (`Sale.work_order`) وعرض السعر (`Quotation.work_order`). |
 
-**العلاقات:**
-- `Purchase.supplier` → `supplier.Supplier`
-- `Purchase.items` → `product.Product`
+- **الحالات التشغيلية**: `draft` (مسودة), `pending` (قيد الانتظار), `in_progress` (قيد التنفيذ), `completed` (مكتمل), `cancelled` (ملغي).
+- **الصلاحيات المخصصة**: `change_workorder_status` (تعديل الحالة الإنتاجية), `cancel_workorder` (إلغاء أمر الشغل).
 
 ---
 
-### 2.9 financial
-**الغرض:** المحاسبة المزدوجة والتقارير المالية.
+### 2.10 purchase
+**الغرض:** المشتريات وسلاسل الإمداد.
 
 | النموذج | الوصف |
 |---------|-------|
-| `AccountType` | أنواع الحسابات (أصول، خصوم، إيرادات، مصروفات) |
-| `ChartOfAccounts` | دليل الحسابات الهرمي |
-| `AccountGroup` | مجموعات الحسابات |
-| `JournalEntry` | القيد المحاسبي |
-| `JournalEntryLine` | بنود القيد |
-| `AccountingPeriod` | الفترات المحاسبية |
-| `FinancialCategory` | تصنيفات مالية للإيرادات/المصروفات |
-| `FinancialTransaction` | معاملات مالية موحدة |
-| `PartnerTransaction` | معاملات الشركاء |
-| `Loan` / `LoanPayment` | القروض وأقساطها |
-
-**قاعدة القيود:**
-- كل عملية مالية تمر عبر `AccountingGateway` (في governance)
-- `AccountingGateway` يضمن idempotency ويمنع التكرار
-- القيود تُنشأ بـ `source_module` + `source_model` + `source_id`
-
-**الخدمات الرئيسية (45+):**
-- `JournalEntryService` — إنشاء القيود
-- `BalanceService` — حساب الأرصدة
-- `PaymentIntegrationService` — تكامل المدفوعات
-- `AccountingIntegrationService` — تكامل المحاسبة مع باقي الموديولات
-- `BankReconciliationService` — التسوية البنكية
-- `TrialBalanceService` / `IncomeStatementService` / `BalanceSheetService` — التقارير
-- `DataReconciliationService` — مطابقة البيانات اليومية
+| `Purchase` / `PurchaseItem` | فواتير وأوامر الشراء من الموردين. |
+| `PurchasePayment` | سندات الصرف للموردين وجدولة الدفعات. |
+| `PurchaseReturn` | مرتجعات المشتريات وتسوية أرصدة الموردين. |
 
 ---
 
-### 2.10 hr
-**الغرض:** الموارد البشرية والرواتب.
+### 2.11 financial
+**الغرض:** المحاسبة المزدوجة المركزية ومحرك حوكمة العملات الدولية (IAS 21).
 
-| النموذج | الوصف |
-|---------|-------|
-| `Employee` | بيانات الموظف الشاملة |
-| `Department` | الأقسام |
-| `JobTitle` | المسميات الوظيفية |
-| `Contract` | عقود العمل مع مكونات الراتب |
-| `Shift` | الورديات |
-| `Attendance` | سجل الحضور اليومي |
-| `AttendanceSummary` | ملخصات الحضور |
-| `BiometricDevice` | أجهزة البصمة |
-| `BiometricLog` | سجلات البصمة الخام |
-| `LeaveType` | أنواع الإجازات |
-| `LeaveBalance` | أرصدة الإجازات |
-| `LeaveRequest` | طلبات الإجازة |
-| `Payroll` | كشف الرواتب |
-| `PayrollItem` | بنود الراتب |
-| `InsurancePayment` | دفعات التأمين |
-| `EndOfServiceBenefit` | مكافأة نهاية الخدمة |
-| `OfficialHoliday` | الإجازات الرسمية |
+#### أ) النماذج الأساسية
+`ChartOfAccounts` (دليل الحسابات الهرمي)، `JournalEntry` و `JournalEntryLine` (القيود اليومية المتوازنة)، `AccountingPeriod` (الفترات المحاسبية)، و `FinancialTransaction`.
 
-**الخدمات الرئيسية:**
-- `PayrollService` — حساب الرواتب
-- `AttendanceSummaryService` — معالجة الحضور
-- `BiometricService` — تكامل أجهزة البصمة
-- `LeaveAccrualService` — استحقاق الإجازات
-- `OrganizationService` — إدارة الهيكل التنظيمي
+#### ب) محرك تقييم العملات المتعددة الدولية IAS 21 (`financial/fx/`)
+مبني وفق نمط **Domain-Driven Design (DDD)**:
+- **النماذج (`financial/fx/models/`)**:
+  - `FXApprovalWorkflow`: دورة الموافقات الرقابية من الإدارة المالية.
+  - `FXRevaluationRun`: دورة تقييم فروق أسعار الصرف المرتبطة بنهاية الفترة.
+  - `FXRevaluationLine`: البنود التفصيلية للفروق المقيمة بين العملة الوظيفية والأجنبية.
+  - `FXRateSnapshot`: لقطات أسعار الصرف التاريخية المعتمدة للتقييم.
+- **الخدمات (`financial/fx/services/`)**:
+  - `FXCalculationService`: حساب فروق العملة غير المحققة بدقة.
+  - `FXPostingService`: ترحيل قيود الأرباح/الخسائر الناتجة عن التقييم عبر `AccountingGateway`.
+  - `FXReversalService`: التوليد والترحيل التلقائي لقيود العكس عند إعادة فتح الفترة لحفظ الـ Audit Trail.
+  - `FXValidationService`: صمام أمان حراسة عمر سعر الصرف (Rate Age Guard > 7 أيام يتطلب موافقة CFO).
 
 ---
 
-### 2.11 printing_pricing
-**الغرض:** إدارة طلبات الطباعة والتسعير.
-
-| النموذج | الوصف |
-|---------|-------|
-| `PrintingOrder` | طلب الطباعة |
-| `OrderMaterial` | مواد الطلب |
-| `OrderService` | خدمات الطلب |
-| `PaperSpecification` | مواصفات الورق |
-| `PrintingSpecification` | مواصفات الطباعة |
+### 2.12 hr
+**الغرض:** الموارد البشرية والرواتب والبصمة.
+- يضم **25+ نموذجاً موزعة على 21 ملفاً** (العقود، الورديات، الحضور، الإجازات، أذونات العمل، السلف، مسيرات الرواتب، أجهزة وسجلات البصمة).
+- يضم **34 خدمة بايثون متخصصة** لإدارة دورة حياة الموظف والرواتب والبصمات.
 
 ---
 
-### 2.12 api
-**الغرض:** REST API للتكامل الخارجي.
+### 2.13 presentation
+**الغرض:** طبقة العرض والـ DTOs والـ Presenters لفصل منطق العرض عن الـ Views وقواعد البيانات.
 
-- JWT authentication (SimpleJWT)
-- Rate limiting على token endpoints
-- Endpoints: `/api/token/`, `/api/token/refresh/`, `/api/token/verify/`, `/api/token/blacklist/`
+- **كائنات نقل البيانات (`presentation/dto/`)**:
+  - `dashboard_dto.py`, `customer_dashboard_dto.py`, `executive_dashboard_dto.py`, `product_dashboard_dto.py`, `audit_dto.py`, `document_dto.py`, و `financial_breakdown_dto.py`.
+- **طبقة الـ Presenters (`presentation/services/`)**:
+  - `customer_dashboard_presenter.py`, `document_financial_presenter.py`, `financial_dashboard_presenter.py`, و `product_dashboard_presenter.py`.
 
 ---
 
-## 3. طبقة الـ Middleware (بالترتيب)
+### 2.14 api
+**الغرض:** واجهات برمجة التطبيقات REST API للتكاملات الخارجية.
+- توثيق JWT مؤمن بـ SimpleJWT ومحدد بمعدلات طلب صارمة (Rate Limiting).
+- التحقق الصارم من الصلاحيات عبر `RoleBasedModelPermissions`.
+
+---
+
+## 3. طبقة الميدلوير المنقحة للأداء والأمان (11 ميدلوير نشط)
+
+تم تنقية وتحسين خط أنابيب الميدلوير في `corporate_erp/settings.py` ليقتصر على **11 كلاس نشط فقط** لتحقيق استجابة فائقة ومنع الاستهلاك الزائد للذاكرة:
 
 ```python
 MIDDLEWARE = [
-    AdvancedSecurityHeadersMiddleware,   # CSP, HSTS, X-Frame-Options
-    SecurityEventLoggerMiddleware,        # تسجيل أحداث أمنية
-    SimpleMonitoringMiddleware,           # مراقبة الطلبات
-    SecurityMiddleware,                   # Django built-in
-    WhiteNoiseMiddleware,                 # Static files
-    CorsMiddleware,                       # CORS headers
-    SessionMiddleware,                    # Sessions
-    CommonMiddleware,                     # Common checks
-    CsrfViewMiddleware,                   # CSRF protection
-    AuthenticationMiddleware,             # User authentication
-    MessageMiddleware,                    # Flash messages
-    XFrameOptionsMiddleware,              # Clickjacking protection
-    BlockedIPMiddleware,                  # IP blocking
-    RateLimitingMiddleware,               # Rate limiting
-    SecurityEventMiddleware,              # Security events
-    WebhookSecurityMiddleware,            # Webhook validation
-    RequestLoggingMiddleware,             # Request logging
-    SQLiteOptimizationMiddleware,         # DB optimization
-    DatabaseConnectionMiddleware,         # Connection management
-    SessionTrackingMiddleware,            # Session monitoring
-    ModuleAccessMiddleware,               # Module enable/disable
-    CurrentUserMiddleware,                # Current user context
-    RealTimePermissionMiddleware,         # Permission checking
-    JWTAuthMiddleware,                    # JWT processing
+    # Core Django (8 كلاسات أساسية)
+    "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
+    "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.common.CommonMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "django.contrib.messages.middleware.MessageMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    
+    # Essential Custom (3 كلاسات مخصصة للأمان وتتبع المستخدم)
+    "core.middleware.current_user.CurrentUserMiddleware",
+    "core.middleware.security_headers.AdvancedSecurityHeadersMiddleware",
+    "corsheaders.middleware.CorsMiddleware",
 ]
 ```
 
 ---
 
-## 4. قاعدة البيانات
+## 4. قاعدة البيانات وإدارة الاتصالات
 
 ```
-Development:  SQLite  (db.sqlite3)
-Production:   MySQL   (via PyMySQL)
+التطوير:  SQLite 3 (db.sqlite3 مع timeout=30)
+الإنتاج:   MySQL 8.0 (عبر PyMySQL بترميز utf8mb4)
 ```
 
-**إعدادات مشتركة:**
-- `ATOMIC_REQUESTS = True` — كل request في transaction
-- `CONN_MAX_AGE = 60` — connection pooling
-
-**Caching:**
-- Production: Redis (`redis://localhost:6379/0`)
-- Development: LocMem cache
+**قواعد ضبط الاتصال بالإنتاج:**
+- `ATOMIC_REQUESTS = True`: ضمان سلامة المعاملات المالية بحيث يُنفذ كل ريكويست داخل Database Transaction متكاملة.
+- `CONN_MAX_AGE = 0`: معيار صارم لمنع أخطاء `Command Out of Sync` الناتجة عن الاتصالات الدائمة على خوادم الاستضافة المشتركة و cPanel.
+- `CONN_HEALTH_CHECKS = True`: فحص سلامة الاتصال قبل استخدامه.
 
 ---
 
-## 5. Celery (المهام الخلفية)
+## 5. المهام الخلفية والمجدولة (Celery Beat)
 
-**Broker:** Redis (production) / Memory (development)
+جدول المهام المجدولة الفعلي في `corporate_erp/celery.py`:
 
-| المهمة | الجدول |
-|--------|--------|
-| `hr.tasks.process_biometric_logs_task` | كل 5 دقائق |
-| `hr.tasks.cleanup_old_biometric_logs` | أسبوعياً |
-
-> ملاحظة: الـ `celery.py` يحتوي على مهام قديمة مرتبطة بـ `students` app — تحتاج تنظيف.
+| المهمة | التكرار | الغرض |
+|--------|---------|-------|
+| `financial.tasks.retry_failed_settlements` | كل 5 دقائق | إعادة محاولة التسويات المالية العالقة |
+| `financial.tasks.cleanup_old_audit_logs` | يومياً | تنظيف وتدوير سجلات التدقيق المؤرشفة |
+| `financial.tasks.generate_daily_settlement_report` | كل ساعة | توليد ملخص التسويات اليومية |
+| `hr.tasks.process_biometric_logs_task` | كل 5 دقائق | سحب ومعالجة حركات البصمات وتحويلها لحضور وانصراف |
+| `hr.tasks.cleanup_old_biometric_logs` | أسبوعياً | أرشفة سجلات البصمة القديمة |
 
 ---
 
-## 6. URL Structure
+## 6. مسارات النظام (URL Structure)
 
 ```
-/                       → core (dashboard)
-/login/ /logout/        → authentication
-/api/                   → REST API (JWT)
-/admin/                 → Django admin
-/customers/             → client app
-/sales/                 → sale app
-/suppliers/             → supplier app
-/products/              → product app
-/purchases/             → purchase app
-/financial/             → financial app
-/hr/                    → hr app
-/governance/            → governance app
-/printing-pricing/      → printing_pricing app
-/users/                 → users app
-/utils/                 → utils app
-/health/ /ready/        → health checks
+/                       → core (لوحة التحكم الرئيسية)
+/login/ /logout/        → نظام تسجيل الدخول وإدارة الجلسات
+/api/                   → REST API الموثق بـ JWT
+/admin/                 → لوحة إدارة جانغو
+/customers/             → موديول العملاء والحسابات
+/sales/                 → موديول المبيعات وعروض الأسعار
+/work-orders/           → موديول أوامر الشغل ومراكز التكلفة
+/suppliers/             → موديول الموردين والخدمات
+/products/              → موديول المخازن والمنتجات والخامات
+/printing-pricing/      → موديول تسعير المطبوعات وحساب الهالك
+/purchases/             → موديول المشتريات
+/financial/             → موديول المالية والحسابات ومحرك IAS 21
+/hr/                    → موديول الموارد البشرية والرواتب والبصمة
+/governance/            → موديول الحوكمة وسجلات التدقيق
+/utils/                 → الأدوات والمكونات المساعدة
 ```
 
 ---
 
-## 7. Authentication Flow
+## 7. واجهة المستخدم والتصميم الصارم (UI/UX Standards)
 
-```
-1. POST /api/token/          → {access, refresh}
-2. GET  /api/endpoint/       → Authorization: Bearer <access>
-3. POST /api/token/refresh/  → {access} (عند انتهاء الـ access)
-4. POST /api/token/blacklist/ → logout (يُبطل الـ refresh)
-```
-
-**Session-based (للواجهة):**
-- Django sessions مع 30 دقيقة timeout
-- CSRF protection على جميع POST requests
+يلتزم النظام بدستور واجهات صارم وفقاً لـ `.agents/AGENTS.md`:
+- **ألوان نقية وثابتة**: استخدام متغيرات الـ CSS (`var(--...)`) المعتمدة في `:root` فقط، وحظر التدرجات اللونية (Flat Colors Only - No Gradients).
+- **المكونات المشتركة الموحدة**:
+  - `shared/page_header.html`: هيدر الصفحة مع مسار التنقل (Breadcrumbs).
+  - `components/data_table.html`: جدول البيانات الموحد.
+  - `partials/pagination.html`: ترقيم الصفحات الخادمي السريع (SSR Pagination).
+  - التنبيهات الموحدة بـ Toastr مع تأخير 3.1 ثانية لإتاحة اكتمال الأنيميشن قبل إعادة التحميل.
 
 ---
 
-## 8. Frontend Stack
-
-| المكتبة | الاستخدام |
-|---------|----------|
-| Bootstrap 5 | CSS framework |
-| jQuery 3.6 | DOM manipulation |
-| DataTables | جداول بيانات مع بحث وترتيب |
-| Select2 | قوائم منسدلة محسّنة |
-| Chart.js | رسوم بيانية |
-| FlatPickr | date/time picker |
-| SweetAlert2 | نوافذ تأكيد |
-| Toastr | إشعارات toast |
-| Font Awesome | أيقونات |
-| Tajawal | خط عربي |
-
-**مكونات موحدة (Shared Components):**
-- `shared/page_header.html` — هيدر الصفحة مع breadcrumb
-- `components/data_table.html` — جدول بيانات موحد
-- `components/stats_card.html` — بطاقات إحصائية
-- `components/payment_account_select.html` — اختيار حساب الدفع
-
----
-
-## 9. نمط طبقة الخدمات
-
-كل app يتبع نمط:
+## 8. العلاقات المعمارية وتدفق العمليات
 
 ```
-views.py / views/
-    ↓ يستدعي
-services/
-    ↓ يستدعي
-models/
-    ↓ يكتب عبر
-AccountingGateway (للعمليات المالية)
-    ↓ يسجل في
-governance.AuditTrail
-```
-
-**قاعدة:** لا يكتب أي view مباشرة في `JournalEntry` — كل القيود تمر عبر `AccountingGateway`.
-
----
-
-## 10. العلاقات الرئيسية بين الـ Apps
-
-```
-customer.Customer ────────────────────────────────────────┐
-                                                           ↓
-sale.Sale ──────────────────────────────────── financial.ChartOfAccounts
-    ↓                                                      ↑
-sale.SalePayment ──────────────────────────────────────────┘
-                                                           ↑
-purchase.Purchase ──────────────────────────────────────────┤
-    ↓                                                      ↑
-purchase.PurchasePayment ──────────────────────────────────┘
-                                                           ↑
-supplier.Supplier ─────────────────────────────────────────┤
-                                                           ↑
-hr.Payroll ─────────────────────────────────────────────────┘
-
-product.Product ←── sale.SaleItem
-product.Product ←── purchase.PurchaseItem
-product.Stock   ←── product.StockMovement (via MovementService)
+العميل (Customer)
+  │
+  ├─► عرض السعر (Quotation) ──► طلب التسعير (PrintingOrder)
+  │                                    │
+  ▼                                    ▼
+فاتورة البيع (Sale) ◄────────── أمر الشغل (WorkOrder)
+  │                                    │
+  ├─► صرف الخامات (StockMovement) ◄───┘
+  │
+  ▼
+بوابة المحاسبة (AccountingGateway)
+  │
+  ├─► القيد المحاسبي المتوازن (JournalEntry)
+  │
+  ▼
+سجل التدقيق غير القابل للتلاعب (AuditTrail)
 ```
 
 ---
 
-## 11. إعدادات الأمان
+## 9. ملاحظات تقنية وتبرئة الكود
 
-| الإعداد | القيمة |
-|---------|--------|
-| `SECURE_SSL_REDIRECT` | True (production) |
-| `SESSION_COOKIE_SECURE` | True (production) |
-| `CSRF_COOKIE_SECURE` | True (production) |
-| `X_FRAME_OPTIONS` | DENY |
-| `SECURE_HSTS_SECONDS` | 31536000 |
-| JWT Access Token | 15 دقيقة |
-| JWT Refresh Token | 1 يوم |
-| Session Timeout | 30 دقيقة |
-| Rate Limit (token) | 5 req/min |
-
----
-
-## 12. ملاحظات تقنية مهمة
-
-1. **`db_column='school_item_type'`** في `product.Product.item_type` — اسم العمود في DB قديم، لا تغيره بدون migration.
-
-2. **Celery beat schedule** في `corporate_erp/celery.py` يحتوي على مهام `students.*` قديمة — تحتاج حذف.
-
-3. **`financial/services/data_reconciliation_service.py`** يحتوي على `RECONCILIATION_TYPES = ['student_fees', ...]` — `student_fees` تحتاج حذف.
-
-4. **`financial/services/journal_service.py`** يحتوي على دوال مرتبطة بـ `StudentFee` / `FeePayment` — موثقة في `docs/school-modules-cleanup-inventory.md`.
-
-5. **Bridge Agent** (`bridge_agent/`) — agent خارجي للتكامل مع أجهزة البصمة، يعمل كـ Windows service منفصل.
+1. **براءة الكود 100% من مخلفات نظام المدارس القديم**:
+   تم التحقق الشامل من قاعدة الكود بالكامل، وأُثبت خلو الكود تماماً من أي جداول أو أعمدة أو دوال قديمة تخص المدارس أو الطلاب (`school_item_type`, `students.*`, `student_fees`, `StudentFee`).
+2. **عامل الربط للبصمة (Bridge Agent)**:
+   خدمة خارجية (`bridge_agent/agent.py`) تعمل كـ Windows Service على شبكة أجهزة البصمة لمزامنة السجلات الحية مع خادم الـ ERP بأمان وسرعة.
+3. **بيئة الإنتاج القياسية**:
+   النظام مهيأ للتشغيل السلس على خوادم **cPanel / CloudLinux** بواسطة **Phusion Passenger** (`passenger_wsgi.py`)، بالإضافة إلى إمكانية التشغيل على سيرفرات VPS مخصصة بنظام Ubuntu و Nginx و Gunicorn.

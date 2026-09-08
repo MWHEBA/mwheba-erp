@@ -360,7 +360,6 @@ def user_edit(request, user_id):
             user.email = request.POST.get('email', user.email)
             user.phone = request.POST.get('phone', user.phone)
             user.address = request.POST.get('address', user.address)
-            user.user_type = request.POST.get('user_type', user.user_type)
             user.is_active = request.POST.get('is_active') == 'on'
 
             role_id = request.POST.get('role_id')
@@ -393,12 +392,10 @@ def user_edit(request, user_id):
             'email': user.email,
             'phone': user.phone or '',
             'address': user.address or '',
-            'user_type': user.user_type,
             'is_active': user.is_active,
             'role_id': user.role.id if user.role else None,
         },
         'roles': roles,
-        'user_types': [{'value': k, 'label': str(v)} for k, v in User.USER_TYPES],
     })
 
 

@@ -78,6 +78,11 @@ class AccountingPeriod(models.Model):
         verbose_name_plural = _("الفترات المحاسبية")
         ordering = ["-start_date"]
         unique_together = ["start_date", "end_date"]
+        permissions = [
+            ("close_accounting_period", _("إغلاق الفترة المحاسبية")),
+            ("reopen_accounting_period", _("إعادة فتح فترة محاسبية مغلقة")),
+            ("run_fx_revaluation", _("تشغيل إعادة تقييم فروق العملات IAS 21")),
+        ]
 
     def __str__(self):
         return f"{self.name} ({self.start_date} - {self.end_date})"
@@ -468,11 +473,13 @@ class JournalEntry(models.Model):
         return str(self.get_entry_type_display()) if self.entry_type else _("قيد يومية")
 
     class Meta:
-
-
         verbose_name = _("قيد يومي")
         verbose_name_plural = _("القيود اليومية")
         ordering = ["-created_at", "-date", "-id"]
+        permissions = [
+            ("post_journal_entry", _("ترحيل/اعتماد القيد المحاسبي")),
+            ("reverse_journal_entry", _("عكس قيد محاسبي معتمد")),
+        ]
         indexes = [
             models.Index(fields=["date", "status"]),
             models.Index(fields=["number"]),

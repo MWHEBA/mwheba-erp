@@ -71,7 +71,7 @@
                     
                     <div class="quick-actions-body">
                         <!-- المبيعات -->
-                        {% if perms.users.عرض_المبيعات or perms.users.ادارة_المبيعات or user.is_superuser or user.is_admin %}
+                        {% if perms.sale.view_sale or perms.sale.add_sale or user.is_superuser or user.is_admin %}
                         <div class="quick-actions-category">
                             <h6 class="dropdown-header text-primary">
                                 <i class="fas fa-shopping-cart me-2"></i>
@@ -90,7 +90,7 @@
                         {% endif %}
                         
                         <!-- المشتريات -->
-                        {% if perms.users.عرض_المشتريات or perms.users.ادارة_المشتريات or user.is_superuser or user.is_admin %}
+                        {% if perms.purchase.view_purchase or perms.purchase.add_purchase or user.is_superuser or user.is_admin %}
                         <div class="quick-actions-category">
                             <h6 class="dropdown-header text-success">
                                 <i class="fas fa-truck me-2"></i>
@@ -109,7 +109,7 @@
                         {% endif %}
                         
                         <!-- المالية -->
-                        {% if perms.users.عرض_المحاسبة or perms.users.ادارة_المحاسبة or user.is_superuser or user.is_admin %}
+                        {% if perms.financial.view_journalentry or perms.financial.view_account or user.is_superuser or user.is_admin %}
                         <div class="quick-actions-category">
                             <h6 class="dropdown-header text-warning">
                                 <i class="fas fa-money-bill-wave me-2"></i>
@@ -128,7 +128,7 @@
                         {% endif %}
                         
                         <!-- المنتجات والمخزون -->
-                        {% if perms.users.عرض_المنتجات or perms.users.ادارة_المنتجات or user.is_superuser or user.is_admin %}
+                        {% if perms.product.view_product or perms.product.add_product or user.is_superuser or user.is_admin %}
                         <div class="quick-actions-category">
                             <h6 class="dropdown-header text-secondary">
                                 <i class="fas fa-box-open me-2"></i>
@@ -158,7 +158,7 @@
                 </div>
             </div>
             <!-- صندوق الموافقات الإدارية -->
-            {% if perms.governance.approve_workflow or perms.users.ادارة_المالية or user.is_superuser or user.is_admin %}
+            {% if perms.governance.approve_workflow or perms.financial.change_journalentry or user.is_superuser or user.is_admin %}
             <div class="approvals-inbox-header">
                 <a href="{% url 'financial:approval_inbox' %}" class="btn-icon notification-btn text-decoration-none" title="{% trans "صندوق موافقات المؤسسة" %}">
                     <i class="fas fa-user-check"></i>

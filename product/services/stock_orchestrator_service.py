@@ -406,7 +406,7 @@ class StockOrchestratorService:
                     
                     # Get authorized users for inventory alerts
                     authorized_users = User.objects.filter(
-                        Q(user_type__in=['admin', 'inventory_manager']) | Q(is_superuser=True),
+                        Q(role__name__in=['admin', 'inventory_manager']) | Q(is_superuser=True),
                         is_active=True
                     ).distinct()
                     

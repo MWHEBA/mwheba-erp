@@ -216,6 +216,11 @@ class Sale(models.Model):
         permissions = [
             ("change_sale_salesman", "تغيير مسؤول المبيعات في الفواتير وعروض الأسعار"),
             ("manage_custom_fields", "إدارة وتعديل الحقول الإضافية المخصصة"),
+            ("change_unit_price", _("تعديل سعر البيع الرسمي")),
+            ("apply_special_discount", _("تطبيق خصم إضافي/استثنائي")),
+            ("cancel_approved_sale", _("إلغاء فاتورة مبيعات معتمدة")),
+            ("print_sale_invoice", _("طباعة فاتورة المبيعات")),
+            ("view_all_sales", _("الاطلاع على فواتير كافة المناديب")),
         ]
         indexes = [
             models.Index(fields=["-date", "-number"]),

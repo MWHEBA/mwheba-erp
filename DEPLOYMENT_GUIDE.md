@@ -1,541 +1,264 @@
-﻿# دليل النشر - Corporate ERP
+# دليل النشر وتشغيل الإنتاج الشامل — MWHEBA ERP 🚀
 
-## نظرة عامة
+> **المرجع التنفيذي لنشر وتشغيل نظام MWHEBA ERP في بيئات الإنتاج الحقيقية**  
+> يوثق هذا الدليل آليات النشر الفعلية المعمول بها في المشروع: استضافات **cPanel / CloudLinux (Phusion Passenger)**، وخوادم **Linux VPS (Ubuntu / Nginx / Gunicorn)** المعتمدة على **MySQL 8.0**.
 
-هذا الدليل يوضح كيفية نشر النظام في بيئة الإنتاج مع جميع التحسينات والتكوينات المطلوبة.
+---
 
-## 📋 متطلبات النظام
+## 📋 1. متطلبات النظام الأساسية
 
-### الحد الأدنى للمتطلبات
+### البيئة البرمجية القياسية
+- **Python**: 3.9 أو 3.10 أو 3.11 أو 3.12
+- **قاعدة البيانات**: **MySQL 8.0+** أو MariaDB 10.5+ (مع دعم كامل لـ `utf8mb4`)
+- **خادم التخزين المؤقت**: Redis 6+ (اختياري للـ Caching والمهام الخلفية)
+- **محرك التشغيل**:
+  - خيار أ (الأساسي للعملاء): **Phusion Passenger** (عبر cPanel / CloudLinux).
+  - خيار ب (الخوادم المخصصة): **Gunicorn + Nginx** (على Ubuntu 22.04 LTS).
 
-- **نظام التشغيل**: Ubuntu 20.04 LTS أو أحدث / CentOS 8 أو أحدث
-- **الذاكرة**: 4 GB RAM (8 GB مُوصى به)
-- **المعالج**: 2 CPU cores (4 cores مُوصى به)
-- **التخزين**: 50 GB مساحة فارغة (100 GB مُوصى به)
-- **الشبكة**: اتصال إنترنت مستقر
+---
 
-### البرامج المطلوبة
+## 🗄️ 2. إعداد وضبط قاعدة البيانات (MySQL 8.0)
 
-- Python 3.9+
-- PostgreSQL 13+
-- Redis 6+
-- Nginx 1.18+
-- Supervisor
-- Git
+النظام مصمم للعمل مع **MySQL** كقاعدة بيانات الإنتاج القياسية (تم حظر واستئصال PostgreSQL لعدم تطابقه مع كود `corporate_erp/settings.py`).
 
-## 🚀 خطوات النشر
-
-### 1. إعداد الخادم
-
+### أ) إنشاء قاعدة البيانات والمستخدم
+قم بتسجيل الدخول إلى سيرفر MySQL:
 ```bash
-# تحديث النظام
-sudo apt update && sudo apt upgrade -y
-
-# تثبيت البرامج الأساسية
-sudo apt install -y python3 python3-pip python3-venv postgresql postgresql-contrib redis-server nginx supervisor git
-
-# تثبيت مكتبات إضافية
-sudo apt install -y build-essential libpq-dev python3-dev
+mysql -u root -p
 ```
 
-### 2. إعداد قاعدة البيانات
+نفذ استعلامات التهيئة المتوافقة مع معايير المشروع:
+```sql
+-- 1. إنشاء قاعدة البيانات بترميز utf8mb4 الكامل
+CREATE DATABASE mwheba_erp CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
-```bash
-# تسجيل الدخول إلى PostgreSQL
-sudo -u postgres psql
+-- 2. إنشاء مستخدم مخصص مع كلمة مرور قوية
+CREATE USER 'mwheba_user'@'localhost' IDENTIFIED BY 'Your_Strong_Password_Here!';
 
-# إنشاء قاعدة البيانات والمستخدم
-CREATE DATABASE corporate_erp;
-CREATE USER erp_user WITH PASSWORD 'secure_password_here';
-ALTER ROLE erp_user SET client_encoding TO 'utf8';
-ALTER ROLE erp_user SET default_transaction_isolation TO 'read committed';
-ALTER ROLE erp_user SET timezone TO 'UTC';
-GRANT ALL PRIVILEGES ON DATABASE corporate_erp TO erp_user;
-\q
+-- 3. منح كافة الصلاحيات على قاعدة البيانات
+GRANT ALL PRIVILEGES ON mwheba_erp.* TO 'mwheba_user'@'localhost';
+
+-- 4. تطبيق التغييرات
+FLUSH PRIVILEGES;
+EXIT;
 ```
 
-### 3. إعداد Redis
-
-```bash
-# تحرير تكوين Redis
-sudo nano /etc/redis/redis.conf
-
-# إضافة كلمة مرور (اختياري)
-requirepass your_redis_password_here
-
-# إعادة تشغيل Redis
-sudo systemctl restart redis-server
-sudo systemctl enable redis-server
+### ب) ضبط خادم MySQL (`my.cnf`)
+لضمان استقرار العمليات المحاسبية ومنع اقتطاع النصوص العربية:
+```ini
+[mysqld]
+character-set-server = utf8mb4
+collation-server = utf8mb4_unicode_ci
+sql_mode = "STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION"
+max_connections = 300
+connect_timeout = 60
+wait_timeout = 300
+interactive_timeout = 300
 ```
 
-### 4. نسخ المشروع
+---
 
-```bash
-# إنشاء مستخدم للتطبيق
-sudo adduser --system --group --home /opt/corporate_erp erp_app
+## ⚙️ 3. تكوين المتغيرات البيئية (`.env`)
 
-# التبديل للمستخدم الجديد
-sudo -u erp_app -i
-
-# نسخ المشروع
-cd /opt/corporate_erp
-git clone https://github.com/your-repo/corporate-erp.git .
-
-# إنشاء البيئة الافتراضية
-python3 -m venv venv
-source venv/bin/activate
-
-# تثبيت المتطلبات
-pip install -r requirements.txt
-```
-
-### 5. تكوين المتغيرات البيئية
-
-```bash
-# إنشاء ملف .env
-sudo -u erp_app nano /opt/corporate_erp/.env
-```
+أنشئ ملف `.env` في جذر المشروع ليتطابق مع شروط `corporate_erp/settings.py`:
 
 ```env
-# إعدادات Django
-SECRET_KEY=your_very_secure_secret_key_here
+# إعدادات Django الأساسية
+SECRET_KEY=your-production-super-secret-key-change-in-prod
 DEBUG=False
-ALLOWED_HOSTS=your-domain.com,www.your-domain.com,server-ip
+ALLOWED_HOSTS=your-domain.com,www.your-domain.com,127.0.0.1
 
-# قاعدة البيانات
-DB_ENGINE=postgresql
-DB_NAME=corporate_erp
-DB_USER=erp_user
-DB_PASSWORD=secure_password_here
-DB_HOST=localhost
-DB_PORT=5432
+# محرك وقاعدة البيانات (MySQL حصراً)
+DB_ENGINE=mysql
+DB_NAME=mwheba_erp
+DB_USER=mwheba_user
+DB_PASSWORD=Your_Strong_Password_Here!
+DB_HOST=127.0.0.1
+DB_PORT=3306
 
-# Redis
-REDIS_URL=redis://localhost:6379/0
-
-# البريد الإلكتروني
-EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
-EMAIL_HOST=smtp.gmail.com
-EMAIL_PORT=587
-EMAIL_USE_TLS=True
-EMAIL_HOST_USER=your-email@gmail.com
-EMAIL_HOST_PASSWORD=your-app-password
-DEFAULT_FROM_EMAIL=your-email@gmail.com
-
-# Sentry (اختياري)
-SENTRY_DSN=your-sentry-dsn-here
+# إعدادات التخزين المؤقت (Redis)
+REDIS_URL=redis://127.0.0.1:6379/0
 
 # إعدادات الأمان
 SECURE_SSL_REDIRECT=True
+SESSION_COOKIE_SECURE=True
+CSRF_COOKIE_SECURE=True
+X_FRAME_OPTIONS=DENY
 SECURE_HSTS_SECONDS=31536000
+
+# تنبيه هندسي لقواعد الاتصال
+# في settings.py تم ضبط CONN_MAX_AGE = 0 لمنع أخطاء Command Out of Sync
+# على سيرفرات الاستضافة المشتركة و cPanel، مع تفعيل CONN_HEALTH_CHECKS = True
 ```
 
-### 6. إعداد قاعدة البيانات
+---
 
+## 🌐 4. خيار النشر الأول (الأساسي): cPanel / CloudLinux Passenger
+
+هذا هو الخيار الفعلي المطبق في بيئات عملاء MWHEBA ERP الموثقة في مجلد `deployments/`.
+
+### خطوات النشر عبر cPanel:
+1. **إنشاء تطبيق Python من لوحة cPanel**:
+   - توجه إلى **Setup Python App**.
+   - اختر إصدار Python (3.9 أو 3.11).
+   - حدد مسار التطبيق (Application Root): مثلاً `mwheba_erp`.
+   - حدد مسار الـ URI (Application URL): النطاق الأساسي أو الفرعي.
+2. **رفع الكود وملفات المشروع**:
+   - رفع الكود المصدري داخل مجلد التطبيق.
+3. **ضبط ملف `passenger_wsgi.py`**:
+   تأكد من وجود ملف `passenger_wsgi.py` في جذر المشروع بهذا المحتوى القياسي:
+   ```python
+   import os
+   import sys
+
+   # تحديد مسار المشروع والبيئة الافتراضية
+   app_path = os.path.dirname(os.path.abspath(__file__))
+   sys.path.insert(0, app_path)
+
+   os.environ['DJANGO_SETTINGS_MODULE'] = 'corporate_erp.settings'
+
+   from django.core.wsgi import get_wsgi_application
+   application = get_wsgi_application()
+   ```
+4. **تثبيت الاعتماديات عبر SSH أو cPanel Terminal**:
+   ```bash
+   source /home/username/virtualenv/mwheba_erp/3.11/bin/activate
+   pip install --upgrade pip
+   pip install -r requirements.txt
+   ```
+5. **تطبيق الميجريشن وتجميع الملفات الثابتة**:
+   ```bash
+   python manage.py migrate
+   python manage.py collectstatic --noinput
+   ```
+6. **إعادة تشغيل التطبيق**:
+   - الضغط على **Restart** من واجهة cPanel Python App، أو إنشاء ملف لإعادة التشغيل:
+     ```bash
+     touch tmp/restart.txt
+     ```
+
+---
+
+## 🖥️ 5. خيار النشر الثاني: خادم Linux VPS مخصص (Ubuntu 22.04 LTS)
+
+### أ) تثبيت الحزم الأساسية على السيرفر
 ```bash
-# تطبيق الهجرات
-sudo -u erp_app -i
-cd /opt/corporate_erp
-source venv/bin/activate
+sudo apt update && sudo apt upgrade -y
+sudo apt install -y python3-pip python3-venv python3-dev default-libmysqlclient-dev pkg-config mysql-server redis-server nginx supervisor git
+```
 
+### ب) إعداد بيئة التطبيق
+```bash
+sudo mkdir -p /var/www/mwheba_erp
+sudo chown -R $USER:$USER /var/www/mwheba_erp
+cd /var/www/mwheba_erp
+
+# استنساخ الكود وإنشاء البيئة الافتراضية
+git clone https://github.com/your-repo/mwheba-erp.git .
+python3 -m venv venv
+source venv/bin/activate
+pip install --upgrade pip
+pip install -r requirements.txt
+pip install gunicorn
+
+# إعداد ملف .env وتطبيق الميجريشن
+cp .env.example .env
+# قم بتعديل بيانات الداتابيز في .env
 python manage.py migrate
 python manage.py collectstatic --noinput
-
-# إنشاء مستخدم مدير
-python manage.py createsuperuser
-
-# تحميل البيانات الأولية (اختياري)
-python manage.py loaddata initial_data.json
 ```
 
-### 7. تكوين Gunicorn
-
-```bash
-# إنشاء ملف تكوين Gunicorn
-sudo nano /opt/corporate_erp/gunicorn.conf.py
-```
-
-```python
-# Gunicorn Configuration
-bind = "127.0.0.1:8000"
-workers = 4
-worker_class = "sync"
-worker_connections = 1000
-max_requests = 1000
-max_requests_jitter = 100
-timeout = 30
-keepalive = 2
-preload_app = True
-user = "erp_app"
-group = "erp_app"
-tmp_upload_dir = None
-errorlog = "/var/log/corporate_erp/gunicorn_error.log"
-accesslog = "/var/log/corporate_erp/gunicorn_access.log"
-access_log_format = '%(h)s %(l)s %(u)s %(t)s "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s" %(D)s'
-loglevel = "info"
-```
-
-### 8. تكوين Supervisor
-
-```bash
-# إنشاء ملف تكوين Supervisor
-sudo nano /etc/supervisor/conf.d/corporate_erp.conf
-```
-
+### ج) تكوين Gunicorn (`/etc/systemd/system/gunicorn.service`)
 ```ini
-[program:corporate_erp]
-command=/opt/corporate_erp/venv/bin/gunicorn corporate_erp.wsgi:application -c /opt/corporate_erp/gunicorn.conf.py
-directory=/opt/corporate_erp
-user=erp_app
-autostart=true
-autorestart=true
-redirect_stderr=true
-stdout_logfile=/var/log/corporate_erp/supervisor.log
-stdout_logfile_maxbytes=50MB
-stdout_logfile_backups=10
-environment=PATH="/opt/corporate_erp/venv/bin"
+[Unit]
+Description=gunicorn daemon for MWHEBA ERP
+After=network.target
+
+[Service]
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/mwheba_erp
+ExecStart=/var/www/mwheba_erp/venv/bin/gunicorn \
+          --access-logfile /var/log/mwheba_erp/access.log \
+          --error-logfile /var/log/mwheba_erp/error.log \
+          --workers 3 \
+          --bind unix:/run/gunicorn_mwheba.sock \
+          corporate_erp.wsgi:application
+
+[Install]
+WantedBy=multi-user.target
 ```
 
-```bash
-# إعادة تحميل Supervisor
-sudo supervisorctl reread
-sudo supervisorctl update
-sudo supervisorctl start corporate_erp
-```
-
-### 9. تكوين Nginx
-
-```bash
-# إنشاء ملف تكوين Nginx
-sudo nano /etc/nginx/sites-available/corporate_erp
-```
-
+### د) تكوين Nginx (`/etc/nginx/sites-available/mwheba_erp`)
 ```nginx
 server {
     listen 80;
     server_name your-domain.com www.your-domain.com;
-    return 301 https://$server_name$request_uri;
-}
 
-server {
-    listen 443 ssl http2;
-    server_name your-domain.com www.your-domain.com;
+    client_max_body_size 50M;
 
-    # SSL Configuration
-    ssl_certificate /etc/letsencrypt/live/your-domain.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/your-domain.com/privkey.pem;
-    ssl_protocols TLSv1.2 TLSv1.3;
-    ssl_ciphers ECDHE-RSA-AES256-GCM-SHA512:DHE-RSA-AES256-GCM-SHA512:ECDHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES256-GCM-SHA384;
-    ssl_prefer_server_ciphers off;
-    ssl_session_cache shared:SSL:10m;
-    ssl_session_timeout 10m;
-
-    # Security Headers
-    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
-    add_header X-Content-Type-Options nosniff;
-    add_header X-Frame-Options DENY;
-    add_header X-XSS-Protection "1; mode=block";
-    add_header Referrer-Policy "strict-origin-when-cross-origin";
-
-    # Gzip Compression
-    gzip on;
-    gzip_vary on;
-    gzip_min_length 1024;
-    gzip_types text/plain text/css text/xml text/javascript application/javascript application/xml+rss application/json;
-
-    # Static Files
     location /static/ {
-        alias /opt/corporate_erp/staticfiles/;
-        expires 1y;
-        add_header Cache-Control "public, immutable";
-    }
-
-    location /media/ {
-        alias /opt/corporate_erp/media/;
-        expires 1y;
-        add_header Cache-Control "public";
-    }
-
-    # Health Check
-    location /health/ {
-        proxy_pass http://127.0.0.1:8000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        alias /var/www/mwheba_erp/staticfiles/;
+        expires 30d;
         access_log off;
     }
 
-    # Main Application
+    location /media/ {
+        alias /var/www/mwheba_erp/media/;
+        expires 7d;
+        access_log off;
+    }
+
     location / {
-        proxy_pass http://127.0.0.1:8000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        
-        # Timeouts
-        proxy_connect_timeout 60s;
-        proxy_send_timeout 60s;
-        proxy_read_timeout 60s;
-        
-        # Buffer settings
-        proxy_buffering on;
-        proxy_buffer_size 128k;
-        proxy_buffers 4 256k;
-        proxy_busy_buffers_size 256k;
-    }
-
-    # Rate Limiting
-    location /api/ {
-        limit_req zone=api burst=20 nodelay;
-        proxy_pass http://127.0.0.1:8000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        include proxy_params;
+        proxy_pass http://unix:/run/gunicorn_mwheba.sock;
     }
 }
-
-# Rate Limiting Configuration
-http {
-    limit_req_zone $binary_remote_addr zone=api:10m rate=10r/s;
-}
 ```
-
-```bash
-# تفعيل الموقع
-sudo ln -s /etc/nginx/sites-available/corporate_erp /etc/nginx/sites-enabled/
-sudo nginx -t
-sudo systemctl reload nginx
-```
-
-### 10. إعداد SSL Certificate
-
-```bash
-# تثبيت Certbot
-sudo apt install certbot python3-certbot-nginx
-
-# الحصول على شهادة SSL
-sudo certbot --nginx -d your-domain.com -d www.your-domain.com
-
-# إعداد التجديد التلقائي
-sudo crontab -e
-# إضافة السطر التالي:
-0 12 * * * /usr/bin/certbot renew --quiet
-```
-
-## 📊 إعداد المراقبة
-
-### 1. إعداد السجلات
-
-```bash
-# إنشاء مجلدات السجلات
-sudo mkdir -p /var/log/corporate_erp
-sudo chown erp_app:erp_app /var/log/corporate_erp
-
-# إعداد دوران السجلات
-sudo cp corporate-erp-logrotate /etc/logrotate.d/
-```
-
-### 2. إعداد المراقبة الصحية
-
-```bash
-# إضافة فحص صحي إلى crontab
-sudo crontab -e
-# إضافة:
-*/5 * * * * curl -f http://localhost/health/ || echo "Health check failed" | mail -s "Corporate ERP Health Alert" admin@company.com
-```
-
-## 🔒 إعدادات الأمان
-
-### 1. جدار الحماية
-
-```bash
-# تكوين UFW
-sudo ufw default deny incoming
-sudo ufw default allow outgoing
-sudo ufw allow ssh
-sudo ufw allow 'Nginx Full'
-sudo ufw enable
-```
-
-### 2. تحديثات الأمان
-
-```bash
-# إعداد التحديثات التلقائية
-sudo apt install unattended-upgrades
-sudo dpkg-reconfigure -plow unattended-upgrades
-```
-
-### 3. مراقبة الأمان
-
-```bash
-# تثبيت fail2ban
-sudo apt install fail2ban
-
-# تكوين fail2ban
-sudo nano /etc/fail2ban/jail.local
-```
-
-```ini
-[DEFAULT]
-bantime = 3600
-findtime = 600
-maxretry = 5
-
-[sshd]
-enabled = true
-
-[nginx-http-auth]
-enabled = true
-
-[nginx-limit-req]
-enabled = true
-filter = nginx-limit-req
-action = iptables-multiport[name=ReqLimit, port="http,https", protocol=tcp]
-logpath = /var/log/nginx/error.log
-maxretry = 10
-findtime = 600
-bantime = 7200
-```
-
-## 📦 النسخ الاحتياطية
-
-### 1. إعداد النسخ الاحتياطية التلقائية
-
-```bash
-# إنشاء سكريبت النسخ الاحتياطي
-sudo nano /opt/corporate_erp/backup.sh
-```
-
-```bash
-#!/bin/bash
-# Corporate ERP Backup Script
-
-BACKUP_DIR="/var/backups/corporate_erp"
-DATE=$(date +%Y%m%d_%H%M%S)
-DB_BACKUP="$BACKUP_DIR/db_backup_$DATE.sql"
-MEDIA_BACKUP="$BACKUP_DIR/media_backup_$DATE.tar.gz"
-
-# إنشاء مجلد النسخ الاحتياطية
-mkdir -p $BACKUP_DIR
-
-# نسخ احتياطية لقاعدة البيانات
-pg_dump -h localhost -U erp_user -d corporate_erp > $DB_BACKUP
-
-# ضغط النسخة الاحتياطية
-gzip $DB_BACKUP
-
-# نسخ احتياطية للملفات
-tar -czf $MEDIA_BACKUP /opt/corporate_erp/media/
-
-# حذف النسخ القديمة (أكثر من 30 يوم)
-find $BACKUP_DIR -name "*.gz" -mtime +30 -delete
-
-echo "Backup completed: $DATE"
-```
-
-```bash
-# جعل السكريبت قابل للتنفيذ
-sudo chmod +x /opt/corporate_erp/backup.sh
-
-# إضافة إلى crontab
-sudo crontab -e
-# إضافة:
-0 2 * * * /opt/corporate_erp/backup.sh
-```
-
-## 🔧 استكشاف الأخطاء وإصلاحها
-
-### مشاكل شائعة وحلولها
-
-#### 1. خطأ في الاتصال بقاعدة البيانات
-
-```bash
-# فحص حالة PostgreSQL
-sudo systemctl status postgresql
-
-# فحص السجلات
-sudo tail -f /var/log/postgresql/postgresql-13-main.log
-
-# إعادة تشغيل الخدمة
-sudo systemctl restart postgresql
-```
-
-#### 2. مشاكل في الأداء
-
-```bash
-# فحص استخدام الموارد
-htop
-df -h
-free -m
-
-# فحص سجلات الأداء
-tail -f /var/log/corporate_erp/performance.log
-```
-
-#### 3. مشاكل SSL
-
-```bash
-# فحص شهادة SSL
-sudo certbot certificates
-
-# تجديد الشهادة يدوياً
-sudo certbot renew --dry-run
-```
-
-## 📈 تحسين الأداء
-
-### 1. تحسين PostgreSQL
-
-```sql
--- في ملف postgresql.conf
-shared_buffers = 256MB
-effective_cache_size = 1GB
-maintenance_work_mem = 64MB
-checkpoint_completion_target = 0.9
-wal_buffers = 16MB
-default_statistics_target = 100
-random_page_cost = 1.1
-effective_io_concurrency = 200
-```
-
-### 2. تحسين Redis
-
-```bash
-# في ملف redis.conf
-maxmemory 512mb
-maxmemory-policy allkeys-lru
-save 900 1
-save 300 10
-save 60 10000
-```
-
-### 3. تحسين Nginx
-
-```nginx
-# في ملف nginx.conf
-worker_processes auto;
-worker_connections 1024;
-keepalive_timeout 65;
-client_max_body_size 50M;
-```
-
-## 📞 الدعم والصيانة
-
-### جهات الاتصال
-
-- **الدعم التقني**: tech-support@company.com
-- **الطوارئ**: +20-xxx-xxx-xxxx
-- **التوثيق**: https://docs.company.com
-
-### جدولة الصيانة
-
-- **النسخ الاحتياطية**: يومياً في الساعة 2:00 صباحاً
-- **تحديثات الأمان**: أسبوعياً يوم الأحد
-- **صيانة النظام**: شهرياً في نهاية الشهر
 
 ---
 
-**تم إنشاء هذا الدليل كجزء من المهمة 7.4 - إنشاء أدلة النشر والصيانة**
+## ⏱️ 6. تشغيل المهام الخلفية المجدولة (Celery Worker & Beat)
+
+لتشغيل معالجة سجلات البصمات كل 5 دقائق والتسويات المالية عبر Supervisor:
+
+```ini
+; /etc/supervisor/conf.d/mwheba_celery.conf
+
+[program:mwheba_celery_worker]
+command=/var/www/mwheba_erp/venv/bin/celery -A corporate_erp worker -l info -Q notifications,reports,accounting,bulk_processing
+directory=/var/www/mwheba_erp
+user=www-data
+autostart=true
+autorestart=true
+redirect_stderr=true
+stdout_logfile=/var/log/mwheba_erp/celery_worker.log
+
+[program:mwheba_celery_beat]
+command=/var/www/mwheba_erp/venv/bin/celery -A corporate_erp beat -l info
+directory=/var/www/mwheba_erp
+user=www-data
+autostart=true
+autorestart=true
+redirect_stderr=true
+stdout_logfile=/var/log/mwheba_erp/celery_beat.log
+```
+
+---
+
+## 🔒 7. خطة النسخ الاحتياطي التلقائي (MySQL Backup Automation)
+
+سكريبت النسخ الاحتياطي اليومي لقاعدة بيانات MySQL:
+```bash
+#!/bin/bash
+BACKUP_DIR="/var/backups/mwheba_erp"
+DATE=$(date +"%Y%m%d_%H%M%S")
+mkdir -p $BACKUP_DIR
+
+# أخذ نسخة احتياطية مشفرة بـ mysqldump
+mysqldump -u mwheba_user -p'Your_Strong_Password_Here!' --single-transaction --quick --routines mwheba_erp | gzip > "$BACKUP_DIR/db_backup_$DATE.sql.gz"
+
+# الاحتفاظ بنسخ آخر 30 يوماً فقط
+find $BACKUP_DIR -name "db_backup_*.sql.gz" -mtime +30 -delete
+```
+قم بجدولة السكريبت في `crontab` ليعمل يومياً في تمام الساعة 2:00 صباحاً.

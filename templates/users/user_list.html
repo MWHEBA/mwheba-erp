@@ -123,16 +123,10 @@
                         </div>
                     </div>
 
-                    <!-- نوع المستخدم والدور -->
+                    <!-- الدور المؤسسي -->
                     <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label for="edit_user_type" class="form-label">نوع المستخدم</label>
-                            <select class="form-select" id="edit_user_type" name="user_type">
-                                <!-- يتم تعبئتها ديناميكياً -->
-                            </select>
-                        </div>
-                        <div class="col-md-6">
-                            <label for="edit_role_id" class="form-label">الدور</label>
+                        <div class="col-md-12">
+                            <label for="edit_role_id" class="form-label fw-bold">الدور المؤسسي</label>
                             <select class="form-select" id="edit_role_id" name="role_id">
                                 <option value="">بدون دور</option>
                                 <!-- يتم تعبئتها ديناميكياً -->
@@ -323,17 +317,6 @@ function openEditModal(userId) {
         document.getElementById('edit_phone').value = user.phone || '';
         document.getElementById('edit_address').value = user.address || '';
         document.getElementById('edit_is_active').checked = user.is_active;
-
-        // تعبئة قائمة نوع المستخدم
-        const userTypeSelect = document.getElementById('edit_user_type');
-        userTypeSelect.innerHTML = '';
-        data.user_types.forEach(type => {
-            const opt = document.createElement('option');
-            opt.value = type.value;
-            opt.textContent = type.label;
-            if (type.value === user.user_type) opt.selected = true;
-            userTypeSelect.appendChild(opt);
-        });
 
         // تعبئة قائمة الأدوار
         const roleSelect = document.getElementById('edit_role_id');

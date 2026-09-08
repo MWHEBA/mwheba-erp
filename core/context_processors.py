@@ -103,7 +103,7 @@ def global_settings(request):
 
     pending_approvals_count = 0
     if getattr(request, 'user', None) and request.user.is_authenticated:
-        if request.user.is_superuser or getattr(request.user, 'is_admin', False) or request.user.has_perm('users.ادارة_المالية') or request.user.has_perm('governance.approve_workflow'):
+        if request.user.is_superuser or getattr(request.user, 'is_admin', False) or getattr(request.user, 'is_financial_manager', False) or request.user.has_perm('governance.approve_workflow'):
             try:
                 from financial.models.approval import EnterpriseApprovalRequest
                 pending_approvals_count = EnterpriseApprovalRequest.objects.filter(status="PENDING").count()

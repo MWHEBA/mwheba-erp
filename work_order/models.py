@@ -46,6 +46,10 @@ class WorkOrder(models.Model):
         verbose_name = _("أمر شغل")
         verbose_name_plural = _("أوامر الشغل")
         ordering = ["-created_at"]
+        permissions = [
+            ("change_workorder_status", _("Can change work order status")),
+            ("cancel_workorder", _("Can cancel work order")),
+        ]
 
     def __str__(self):
         return f"{self.number} - {self.customer.name}"

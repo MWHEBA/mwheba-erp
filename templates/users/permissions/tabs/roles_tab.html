@@ -95,7 +95,7 @@
             <div class="mb-0">
                 <h6>معلومات حسابك:</h6>
                 <ul class="list-unstyled mb-0">
-                    <li><i class="fas fa-user me-2"></i><strong>نوع المستخدم:</strong> {{ user_permissions_info.user_type|default:"غير محدد" }}</li>
+                    <li><i class="fas fa-user me-2"></i><strong>الدور المؤسسي:</strong> {{ user_permissions_info.role_display|default:"غير محدد" }}</li>
                     <li><i class="fas fa-shield-alt me-2"></i><strong>مدير عام:</strong> {% if user_permissions_info.is_superuser %}نعم{% else %}لا{% endif %}</li>
                     <li><i class="fas fa-user-cog me-2"></i><strong>مدير:</strong> {% if user_permissions_info.is_admin %}نعم{% else %}لا{% endif %}</li>
                 </ul>

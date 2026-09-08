@@ -134,7 +134,7 @@
                 <!-- الموردين -->
                 {% is_module_enabled 'suppliers_purchases' as suppliers_purchases_enabled %}
                 {% if suppliers_purchases_enabled %}
-                {% if perms.users.عرض_الموردين or perms.users.ادارة_الموردين or user.is_superuser or user.is_admin %}
+                {% if perms.supplier.view_supplier or perms.supplier.add_supplier or user.is_superuser or user.is_admin %}
                 <li class="sidebar-item">
                     <a href="#supplierMenu" class="sidebar-link collapsed {% if active_menu == 'suppliers' %}active{% endif %}" data-bs-toggle="collapse" aria-expanded="false">
                         <i class="fas fa-people-carry sidebar-icon"></i>
@@ -161,7 +161,7 @@
                 {% endif %}
 
                 <!-- المشتريات -->
-                {% if perms.users.عرض_المشتريات or perms.users.ادارة_المشتريات or user.is_superuser or user.is_admin %}
+                {% if perms.purchase.view_purchase or perms.purchase.add_purchase or user.is_superuser or user.is_admin %}
                 <li class="sidebar-item">
                     <a href="#purchaseMenu" class="sidebar-link collapsed {% if active_menu == 'purchases' %}active{% endif %}" data-bs-toggle="collapse" aria-expanded="false">
                         <i class="fas fa-shopping-bag sidebar-icon"></i>
@@ -221,7 +221,7 @@
                 <!-- المنتجات والخدمات -->
                 {% is_module_enabled 'warehouses' as warehouses_enabled %}
                 {% if warehouses_enabled %}
-                {% if perms.users.عرض_المنتجات or perms.users.ادارة_المنتجات or user.is_superuser or user.is_admin %}
+                {% if perms.product.view_product or perms.product.add_product or user.is_superuser or user.is_admin %}
                 <li class="sidebar-item">
                     <a href="#productsMenu" class="sidebar-link collapsed {% if active_menu == 'products' %}active{% endif %}" data-bs-toggle="collapse" aria-expanded="false">
                         <i class="fas fa-box sidebar-icon"></i>
@@ -258,7 +258,7 @@
 
 
                 <!-- المخازن والمخزون -->
-                {% if perms.users.عرض_المخازن or perms.users.ادارة_المخازن or perms.users.ادارة_المخزون or perms.users.عرض_تقارير_المخزون or user.is_superuser or user.is_admin %}
+                {% if perms.product.view_warehouse or perms.product.view_stock or user.is_superuser or user.is_admin %}
                 <li class="sidebar-item">
                     <a href="#warehousesMenu" class="sidebar-link collapsed {% if active_menu == 'warehouses' %}active{% endif %}" data-bs-toggle="collapse" aria-expanded="false">
                         <i class="fas fa-warehouse sidebar-icon"></i>
@@ -676,7 +676,7 @@
                 {% endif %}
 
                 <!-- التقارير -->
-                {% if perms.users.عرض_التقارير_المالية or perms.users.عرض_تقارير_المبيعات or perms.users.عرض_تقارير_المشتريات or perms.users.عرض_تقارير_المخزون or perms.users.عرض_تقارير_العملاء or perms.users.عرض_تقارير_الموردين or user.is_superuser or user.is_admin %}
+                {% if perms.financial.view_journalentry or perms.sale.view_sale or perms.purchase.view_purchase or perms.product.view_stock or user.is_superuser or user.is_admin %}
                 <li class="sidebar-item">
                     <a href="#reportsMenu" class="sidebar-link collapsed {% if active_menu == 'reports' %}active{% endif %}" data-bs-toggle="collapse" aria-expanded="false">
                         <i class="fas fa-chart-bar sidebar-icon"></i>

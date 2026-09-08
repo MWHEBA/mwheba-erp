@@ -32,57 +32,80 @@ class EmailOrUsernameModelBackend(ModelBackend):
         return None
 
 
-class RolePermissionBackend:
+from django.contrib.auth.models import Permission
+
+
+class RolePermissionBackend(ModelBackend):
     """
-    Backend يضيف Role-based permissions لـ Django's has_perm() system.
-    بيشتغل جنب EmailOrUsernameModelBackend.
+    الباك إند المعياري الحقيقي لـ MWHEBA ERP.
+    - متوافق 100% مع عقد جانغو.
+    - كاش لحظي فائق السرعة O(1) على مستوى الطلب بصفر استعلامات متكررة.
+    - مطابقة صريحة على مستوى (app_label.codename) بدون أي تجريد أو ترقيع.
     """
 
     def authenticate(self, request, **kwargs):
-        # مش بنعمل authentication هنا
         return None
 
-    def has_perm(self, user_obj, perm, obj=None):
-        if not user_obj.is_active:
-            return False
+    def get_group_permissions(self, user_obj, obj=None):
+        if not user_obj.is_authenticated or not user_obj.is_active:
+            return set()
+        if not hasattr(user_obj, '_cached_group_permissions'):
+            if hasattr(user_obj, 'role') and user_obj.role:
+                user_obj._cached_group_permissions = {
+                    f"{p.content_type.app_label}.{p.codename}"
+                    for p in user_obj.role.permissions.select_related('content_type')
+                }
+            else:
+                user_obj._cached_group_permissions = set()
+        return user_obj._cached_group_permissions
 
-        # superuser و admin عندهم كل الصلاحيات
+    def get_user_permissions(self, user_obj, obj=None):
+        if not user_obj.is_authenticated or not user_obj.is_active:
+            return set()
+        if not hasattr(user_obj, '_cached_user_permissions'):
+            perms = set()
+            if hasattr(user_obj, 'custom_permissions'):
+                perms.update(
+                    f"{p.content_type.app_label}.{p.codename}"
+                    for p in user_obj.custom_permissions.select_related('content_type')
+                )
+            if hasattr(user_obj, 'user_permissions'):
+                perms.update(
+                    f"{p.content_type.app_label}.{p.codename}"
+                    for p in user_obj.user_permissions.select_related('content_type')
+                )
+            user_obj._cached_user_permissions = perms
+        return user_obj._cached_user_permissions
+
+    def get_all_permissions(self, user_obj, obj=None):
+        if not user_obj.is_authenticated or not user_obj.is_active:
+            return set()
+
+        if not hasattr(user_obj, '_cached_permissions'):
+            if user_obj.is_superuser or getattr(user_obj, 'is_admin', False):
+                user_obj._cached_permissions = {
+                    f"{p.content_type.app_label}.{p.codename}"
+                    for p in Permission.objects.select_related('content_type').all()
+                }
+            else:
+                user_obj._cached_permissions = (
+                    self.get_group_permissions(user_obj, obj) |
+                    self.get_user_permissions(user_obj, obj)
+                )
+
+        return user_obj._cached_permissions
+
+    def has_perm(self, user_obj, perm, obj=None):
+        if not user_obj.is_authenticated or not user_obj.is_active:
+            return False
         if user_obj.is_superuser or getattr(user_obj, 'is_admin', False):
             return True
-
-        # استخراج الـ codename من الـ perm (مثال: 'customer.view_customer' → 'view_customer')
-        codename = perm.split('.')[-1] if '.' in perm else perm
-
-        # التحقق من Role permissions
-        if hasattr(user_obj, 'role') and user_obj.role:
-            if user_obj.role.permissions.filter(codename=codename).exists():
-                return True
-
-        # التحقق من custom_permissions
-        if hasattr(user_obj, 'custom_permissions'):
-            if user_obj.custom_permissions.filter(codename=codename).exists():
-                return True
-
-        return False
+        return perm in self.get_all_permissions(user_obj, obj)
 
     def has_module_perms(self, user_obj, app_label):
-        if not user_obj.is_active:
+        if not user_obj.is_authenticated or not user_obj.is_active:
             return False
-
         if user_obj.is_superuser or getattr(user_obj, 'is_admin', False):
             return True
+        return any(p.startswith(f"{app_label}.") for p in self.get_all_permissions(user_obj))
 
-        # التحقق من وجود أي permission للـ app في الـ Role
-        if hasattr(user_obj, 'role') and user_obj.role:
-            if user_obj.role.permissions.filter(
-                content_type__app_label=app_label
-            ).exists():
-                return True
-
-        if hasattr(user_obj, 'custom_permissions'):
-            if user_obj.custom_permissions.filter(
-                content_type__app_label=app_label
-            ).exists():
-                return True
-
-        return False

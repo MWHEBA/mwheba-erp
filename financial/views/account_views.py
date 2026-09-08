@@ -489,7 +489,7 @@ def quick_add_cash_bank_account(request):
 # ============== قائمة الخزن والحسابات النقدية ==============
 
 @login_required
-@permission_required('ادارة_الخزن_والحسابات', raise_exception=True)
+@permission_required('financial.view_chartofaccounts', raise_exception=True)
 def cash_and_bank_accounts_list(request):
     """عرض قائمة الحسابات النقدية والبنكية فقط (الخزن) متوافقة 100% مع العملات المتعددة"""
     from decimal import Decimal

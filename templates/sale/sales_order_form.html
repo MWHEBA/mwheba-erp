@@ -14,7 +14,7 @@
 <div class="container-fluid">
     <div id="django-sales-form-data" class="d-none"
          data-sale-id="{{ quotation.id|default:0 }}"
-         data-is-sales-rep-only="{% if user.user_type == 'sales_rep' and not user.is_superuser and not user.is_admin %}true{% else %}false{% endif %}"
+         data-is-sales-rep-only="{% if not perms.sale.change_unit_price %}true{% else %}false{% endif %}"
          data-currency-symbol="{{ currency_symbol }}"
          data-allowed-item-types="{{ allowed_item_types|default:'both' }}"
     ></div>

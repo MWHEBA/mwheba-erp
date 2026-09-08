@@ -59,39 +59,53 @@ class PermissionService:
         
         # Focus on high-level business permissions only
         high_level_patterns = [
-            # Management permissions (إدارة شاملة)
-            'can_manage_', 'ادارة_', 'manage_',
-            # Processing permissions (معالجة العمليات)
-            'can_process_', 'معالجة_', 'process_',
-            # Export and reporting (التقارير والتصدير)
-            'can_export_', 'تصدير_', 'export_', 'view_report',
-            # Dashboard and monitoring (المراقبة واللوحات)
+            # Management permissions
+            'can_manage_', 'manage_',
+            # Processing permissions
+            'can_process_', 'process_',
+            # Export and reporting
+            'can_export_', 'export_', 'view_report',
+            # Dashboard and monitoring
             'dashboard', 'monitor',
-            # Administrative permissions (الصلاحيات الإدارية)
-            'admin', 'supervisor', 'مشرف'
+            # Administrative permissions
+            'admin', 'supervisor'
         ]
         
         # Build query for high-level patterns
         pattern_query = Q()
         for pattern in high_level_patterns:
-            pattern_query |= Q(codename__icontains=pattern) | Q(name__icontains=pattern)
+            pattern_query |= Q(codename__icontains=pattern)
         
         # Include specific important permissions for key business areas
         specific_permissions = [
-            # Financial
-            'add_transaction', 'change_transaction', 'view_transaction',
-            'add_invoice', 'change_invoice', 'view_invoice',
+            # Financial & IAS 21
+            'close_accounting_period', 'reopen_accounting_period', 'run_fx_revaluation',
+            'post_journal_entry', 'reverse_journal_entry',
+            'add_journalentry', 'change_journalentry', 'view_journalentry',
+            'add_paymentvoucher', 'view_paymentvoucher',
+            'add_receiptvoucher', 'view_receiptvoucher',
             
-            # HR
-            'add_employee', 'change_employee', 'view_employee',
-            'add_qrapplication', 'change_qrapplication', 'view_qrapplication',
-            'can_convert_application', 'view_qrcode',
+            # Sales & Pricing
+            'change_unit_price', 'apply_special_discount', 'cancel_approved_sale',
+            'print_sale_invoice', 'view_all_sales', 'change_sale_salesman',
+            'change_quotation_price', 'view_all_quotations', 'convert_to_order',
+            'add_sale', 'change_sale', 'view_sale',
+            'add_quotation', 'change_quotation', 'view_quotation',
             
-            # Products and Purchases
-            'add_product', 'change_product', 'view_product',
+            # Printing & Work Order
+            'view_cost_breakdown', 'view_profit_margins', 'view_all_orders',
+            'override_pricing_rules', 'manage_pricing_settings',
+            'change_workorder_status', 'cancel_workorder',
+            'add_workorder', 'change_workorder', 'view_workorder',
+            'add_printingorder', 'change_printingorder', 'view_printingorder',
+            
+            # Purchases & Suppliers
+            'approve_purchase', 'change_unit_cost', 'cancel_approved_purchase',
             'add_purchase', 'change_purchase', 'view_purchase',
+            'add_supplier', 'change_supplier', 'view_supplier',
             
-            # Customers
+            # Products & Customers
+            'add_product', 'change_product', 'view_product',
             'add_customer', 'change_customer', 'view_customer',
             'add_customerpayment', 'change_customerpayment', 'view_customerpayment',
             
@@ -104,9 +118,10 @@ class PermissionService:
         for perm in specific_permissions:
             specific_query |= Q(codename=perm)
         
-        # Get permissions from business apps only
+        # Get permissions from business apps
         business_apps = [
-            'financial', 'hr', 'product', 'purchase', 'supplier',
+            'financial', 'sale', 'purchase', 'customer', 'supplier',
+            'product', 'printing_pricing', 'work_order', 'hr',
             'core', 'users', 'governance'
         ]
         

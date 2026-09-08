@@ -159,6 +159,11 @@ class Purchase(models.Model):
         verbose_name = _("فاتورة مشتريات")
         verbose_name_plural = _("فواتير المشتريات")
         ordering = ["-date", "-number"]
+        permissions = [
+            ("approve_purchase", _("اعتماد فاتورة المشتريات")),
+            ("change_unit_cost", _("تعديل تكلفة الشراء")),
+            ("cancel_approved_purchase", _("إلغاء فاتورة مشتريات معتمدة")),
+        ]
         indexes = [
             models.Index(fields=["-date", "-number"]),
             models.Index(fields=["supplier", "-date"]),

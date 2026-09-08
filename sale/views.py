@@ -262,8 +262,8 @@ def sale_create(request, customer_id=None):
                 discounts = request.POST.getlist("discount[]")
                 cost_centers = request.POST.getlist("item_cost_center[]")
                 
-                # التحقق من أن مندوب المبيعات لم يغير أسعار المنتجات
-                if request.user.user_type == "sales_rep" and not request.user.is_superuser and not request.user.is_admin:
+                # التحقق من أن المستخدم لديه صلاحية تغيير أسعار المنتجات
+                if not request.user.has_perm('sale.change_unit_price'):
                     for i in range(len(product_ids)):
                         if product_ids[i]:
                             prod_id = int(product_ids[i])

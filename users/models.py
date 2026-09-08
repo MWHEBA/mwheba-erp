@@ -2,10 +2,7 @@ from django.db import models
 from django.contrib.auth.models import AbstractUser, Permission
 from django.utils.translation import gettext_lazy as _
 from django.core.validators import RegexValidator
-try:
-    from core.security.file_validators import validate_secure_image, secure_upload_path
-except ImportError:
-    from core.security.file_validators_temp import validate_secure_image, secure_upload_path
+from core.security.file_validators import validate_secure_image, secure_upload_path
 
 
 class Role(models.Model):
@@ -47,25 +44,19 @@ class Role(models.Model):
     @property
     def users_count(self):
         """عدد المستخدمين في هذا الدور"""
-        # Try to use annotated value first (if available from queryset)
         if hasattr(self, 'users_count_annotated'):
             return self.users_count_annotated
-        
-        # Fallback to query
         return self.users.count()
     
     @property
     def permissions_count(self):
         """عدد الصلاحيات في هذا الدور"""
-        # Try to use annotated value first (if available from queryset)
         if hasattr(self, 'permissions_count_annotated'):
             return self.permissions_count_annotated
-        
-        # Fallback to query
         return self.permissions.count()
     
     def get_total_users(self):
-        """الحصول على عدد المستخدمين (method بدلاً من property)"""
+        """الحصول على عدد المستخدمين"""
         return self.users.count()
     
     def has_permission(self, permission_codename):
@@ -75,30 +66,12 @@ class Role(models.Model):
     def get_permissions_by_app(self, app_label):
         """الحصول على صلاحيات الدور لتطبيق معين"""
         return self.permissions.filter(content_type__app_label=app_label)
-    
-    def can_access_applications(self):
-        """التحقق من إمكانية الوصول للتقديمات"""
-        return self.has_permission('view_qrapplication')
-    
-    def can_manage_applications(self):
-        """التحقق من إمكانية إدارة التقديمات"""
-        return (self.has_permission('view_qrapplication') and 
-                self.has_permission('add_qrapplication') and 
-                self.has_permission('change_qrapplication'))
 
 
 class User(AbstractUser):
     """
     نموذج المستخدم المخصص يوسع نموذج Django الأساسي
     """
-
-    USER_TYPES = (
-        ("admin", _("مدير")),
-        ("accountant", _("محاسب")),
-        ("inventory_manager", _("أمين مخزن")),
-        ("sales_rep", _("مندوب مبيعات")),
-        ("reception", _("موظف استقبال")),
-    )
 
     USER_STATUS = (
         ("active", _("نشط")),
@@ -124,15 +97,12 @@ class User(AbstractUser):
         validators=[validate_secure_image],
         help_text=_("الحد الأقصى: 5MB، الأنواع المسموحة: JPG, PNG, GIF")
     )
-    user_type = models.CharField(
-        _("نوع المستخدم"), max_length=20, choices=USER_TYPES, default="sales_rep"
-    )
     status = models.CharField(
         _("الحالة"), max_length=10, choices=USER_STATUS, default="active"
     )
     address = models.TextField(_("العنوان"), blank=True, null=True)
     
-    # نظام الأدوار والصلاحيات الجديد
+    # نظام الأدوار والصلاحيات الموحد
     role = models.ForeignKey(
         Role,
         on_delete=models.SET_NULL,
@@ -155,7 +125,6 @@ class User(AbstractUser):
         verbose_name_plural = _("المستخدمين")
         indexes = [
             models.Index(fields=['is_active']),
-            models.Index(fields=['user_type']),
             models.Index(fields=['role']),
             models.Index(fields=['is_active', 'role']),
             models.Index(fields=['email']),
@@ -171,94 +140,104 @@ class User(AbstractUser):
 
     @property
     def is_admin(self):
-        return self.user_type == "admin"
-
-    @property
-    def is_accountant(self):
-        return self.user_type == "accountant"
-
-    @property
-    def is_inventory_manager(self):
-        return self.user_type == "inventory_manager"
+        return self.is_superuser or bool(self.role and self.role.name == "admin")
 
     @property
     def is_sales_rep(self):
-        return self.user_type == "sales_rep"
-    
+        return bool(self.role and self.role.name == "sales_rep")
+
     @property
-    def is_reception_user(self):
-        return self.user_type == "reception"
-    
-    def get_all_permissions(self):
+    def is_accountant(self):
+        return bool(self.role and self.role.name == "accountant")
+
+    @property
+    def is_financial_manager(self):
+        return bool(self.role and self.role.name == "financial_manager")
+
+    @property
+    def is_procurement_officer(self):
+        return bool(self.role and self.role.name == "procurement_officer")
+
+    @property
+    def is_inventory_manager(self):
+        return bool(self.role and self.role.name == "inventory_manager")
+
+    @property
+    def is_production_supervisor(self):
+        return bool(self.role and self.role.name == "production_supervisor")
+
+    @property
+    def is_sales_manager(self):
+        return bool(self.role and self.role.name == "sales_manager")
+
+    @property
+    def is_hr_officer(self):
+        return bool(self.role and self.role.name == "hr_officer")
+
+    @property
+    def is_viewer(self):
+        return bool(self.role and self.role.name == "viewer")
+
+    def get_all_permissions(self, obj=None):
         """
-        الحصول على جميع صلاحيات المستخدم (من الدور + الصلاحيات الإضافية)
+        الحصول على جميع صلاحيات المستخدم كنصوص قياسية بصيغة 'app_label.codename'
+        متوافقة 100% مع عقد جانغو القياسي.
         """
+        if not self.is_authenticated or not self.is_active:
+            return set()
+
+        if self.is_superuser or self.is_admin:
+            return {f"{p.content_type.app_label}.{p.codename}" for p in Permission.objects.all()}
+
         perms = set()
-        
-        # صلاحيات Django الأساسية
-        if self.is_superuser:
-            from django.contrib.auth.models import Permission
-            return set(Permission.objects.all())
-        
-        # صلاحيات من الدور
         if self.role:
-            perms.update(self.role.permissions.all())
-        
-        # الصلاحيات الإضافية
-        perms.update(self.custom_permissions.all())
-        
-        # صلاحيات Django Groups - محسّن لتجنب N+1
-        # Note: يفترض أن الـ user محضّر بـ prefetch_related('groups__permissions')
-        for group in self.groups.all():
-            perms.update(group.permissions.all())
-        
+            perms.update(
+                f"{p.content_type.app_label}.{p.codename}"
+                for p in self.role.permissions.select_related('content_type')
+            )
+        if hasattr(self, 'custom_permissions'):
+            perms.update(
+                f"{p.content_type.app_label}.{p.codename}"
+                for p in self.custom_permissions.select_related('content_type')
+            )
         return perms
-    
-    def has_role_permission(self, perm):
+
+    def get_all_permission_objects(self):
         """
-        التحقق من وجود صلاحية معينة
-        perm: اسم الصلاحية (مثال: 'view_qrapplication')
+        الحصول على كائنات Permission للمستخدم لمن يحتاجها.
         """
         if self.is_superuser or self.is_admin:
-            return True
-        
-        # التحقق من الصلاحيات المباشرة
-        if self.has_perm(perm) if '.' in perm else self.user_permissions.filter(codename=perm).exists():
-            return True
-        
-        # التحقق من صلاحيات الدور
+            return set(Permission.objects.all())
+        perms = set()
         if self.role:
-            return self.role.permissions.filter(codename=perm).exists()
-        
-        return False
-    
+            perms.update(self.role.permissions.select_related('content_type'))
+        if hasattr(self, 'custom_permissions'):
+            perms.update(self.custom_permissions.select_related('content_type'))
+        return perms
+
+    def has_role_permission(self, perm):
+        """
+        التحقق من وجود صلاحية معينة عبر المسار القياسي الموحد لجانغو.
+        """
+        return self.has_perm(perm)
+
     def can_manage_users(self):
         """التحقق من صلاحية إدارة المستخدمين"""
-        return self.is_superuser or self.is_admin or self.has_role_permission('ادارة_المستخدمين')
-    
+        return self.is_superuser or self.is_admin or self.has_perm('users.change_user')
+
     def can_manage_roles(self):
         """التحقق من صلاحية إدارة الأدوار"""
-        return self.is_superuser or self.is_admin or self.has_role_permission('ادارة_الادوار_والصلاحيات')
-    
+        return self.is_superuser or self.is_admin or self.has_perm('users.change_role')
+
     def has_role_by_name(self, role_name):
         """التحقق من وجود دور معين بالاسم"""
-        return self.role and self.role.name == role_name
-    
+        return bool(self.role and self.role.name == role_name)
+
     def get_role_permissions_list(self):
         """الحصول على قائمة بأسماء صلاحيات الدور"""
         if not self.role:
             return []
-        return list(self.role.permissions.values_list('codename', flat=True))
-    
-    @property
-    def is_reception(self):
-        """التحقق من كون المستخدم موظف استقبال"""
-        return (self.role and self.role.name == 'reception') or self.user_type == 'reception'
-
-    def can_generate_reception_reports(self):
-        """التحقق من صلاحية إنشاء تقارير الريسيبشن"""
-        return (self.is_superuser or self.is_admin or
-                self.has_role_permission('can_generate_reception_reports'))
+        return [f"{p.content_type.app_label}.{p.codename}" for p in self.role.permissions.select_related('content_type')]
 
 
 

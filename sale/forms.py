@@ -148,8 +148,7 @@ class SaleForm(forms.ModelForm):
             can_change_salesman = (
                 user.is_superuser or
                 getattr(user, 'is_admin', False) or
-                user.has_perm('sale.change_sale_salesman') or
-                user.has_perm('users.تغيير_مسؤول_المبيعات')
+                user.has_perm('sale.change_sale_salesman')
             )
         self.can_change_salesman = can_change_salesman
 
@@ -291,8 +290,7 @@ class SaleForm(forms.ModelForm):
             user and (
                 user.is_superuser or
                 getattr(user, 'is_admin', False) or
-                user.has_perm('sale.change_sale_salesman') or
-                user.has_perm('users.تغيير_مسؤول_المبيعات')
+                user.has_perm('sale.change_sale_salesman')
             )
         )
         if not can_change:
@@ -826,8 +824,7 @@ class QuotationForm(forms.ModelForm):
             can_change_salesman = (
                 user.is_superuser or
                 getattr(user, 'is_admin', False) or
-                user.has_perm('sale.change_sale_salesman') or
-                user.has_perm('users.تغيير_مسؤول_المبيعات')
+                user.has_perm('sale.change_sale_salesman')
             )
         self.can_change_salesman = can_change_salesman
 
@@ -881,8 +878,7 @@ class QuotationForm(forms.ModelForm):
             user and (
                 user.is_superuser or
                 getattr(user, 'is_admin', False) or
-                user.has_perm('sale.change_sale_salesman') or
-                user.has_perm('users.تغيير_مسؤول_المبيعات')
+                user.has_perm('sale.change_sale_salesman')
             )
         )
         if not can_change:

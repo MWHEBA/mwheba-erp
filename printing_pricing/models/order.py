@@ -450,6 +450,13 @@ class PrintingOrder(BaseModel):
             models.Index(fields=['created_at']),
             models.Index(fields=['due_date']),
         ]
+        permissions = [
+            ("view_cost_breakdown", _("Can view printing order cost breakdown")),
+            ("view_profit_margins", _("Can view printing profit margins")),
+            ("view_all_orders", _("Can view all printing pricing orders")),
+            ("override_pricing_rules", _("Can override pricing rules")),
+            ("manage_pricing_settings", _("Can manage pricing master settings")),
+        ]
 
     def __str__(self):
         return f"{self.order_number} - {self.title}"

@@ -137,6 +137,9 @@ class Quotation(models.Model):
         ordering = ["-date", "-number"]
         permissions = [
             ("convert_quotation", _("تحويل عروض الأسعار إلى فواتير")),
+            ("change_quotation_price", _("تعديل أسعار عروض الأسعار")),
+            ("view_all_quotations", _("الاطلاع على عروض أسعار كافة المناديب")),
+            ("convert_to_order", _("تحويل عرض السعر إلى أمر بيع")),
         ]
         indexes = [
             models.Index(fields=["-date", "-number"]),

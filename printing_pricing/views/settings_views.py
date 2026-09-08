@@ -14,16 +14,20 @@ from django.http import JsonResponse
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView, View
 from django.shortcuts import render
 
-class StaffRequiredMixin(UserPassesTestMixin):
-    """Mixin to ensure only staff/admin users can access system settings."""
+class LoginRequiredMixin(DjangoLoginRequiredMixin, UserPassesTestMixin):
+    """Mixin to ensure authorized users can access pricing master settings."""
     raise_exception = True
 
     def test_func(self):
-        return self.request.user.is_authenticated and (self.request.user.is_staff or self.request.user.is_superuser)
-
-# Override LoginRequiredMixin locally so all views in this file inherit StaffRequiredMixin automatically
-class LoginRequiredMixin(StaffRequiredMixin):
-    pass
+        user = self.request.user
+        if not user.is_authenticated:
+            return False
+        return (
+            user.is_superuser or
+            getattr(user, 'is_admin', False) or
+            user.is_staff or
+            user.has_perm('printing_pricing.manage_pricing_settings')
+        )
 from django.utils.translation import gettext_lazy as _
 from django.http import JsonResponse
 from django.core.paginator import Paginator
