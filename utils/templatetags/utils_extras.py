@@ -2,6 +2,7 @@ from django import template
 from django.template.defaultfilters import floatformat
 from django.utils.safestring import mark_safe
 from django.utils import timezone
+import datetime
 from decimal import Decimal, InvalidOperation
 import pytz
 
@@ -494,7 +495,7 @@ def system_time(value):
     
     # إذا كان التاريخ naive، اجعله aware بـ UTC أولاً
     if timezone.is_naive(value):
-        value = timezone.make_aware(value, timezone.utc)
+        value = timezone.make_aware(value, datetime.timezone.utc)
     
     # الحصول على المنطقة الزمنية من الإعدادات
     try:

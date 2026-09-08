@@ -48,7 +48,8 @@ class LoginRequiredMiddleware(MiddlewareMixin):
                     return None
 
             # إعادة توجيه المستخدم غير المسجل
-            if request.is_ajax():
+            is_ajax_request = request.headers.get('x-requested-with') == 'XMLHttpRequest' or getattr(request, 'is_ajax', lambda: False)()
+            if is_ajax_request:
                 return JsonResponse({"redirect": settings.LOGIN_URL}, status=401)
             else:
                 return redirect_to_login(request.get_full_path(), settings.LOGIN_URL)
@@ -430,7 +431,8 @@ class AjaxRedirectMiddleware(MiddlewareMixin):
         """
         معالجة الاستجابة والتعامل مع طلبات AJAX
         """
-        if request.is_ajax() and response.status_code in [302, 301]:
+        is_ajax_request = request.headers.get('x-requested-with') == 'XMLHttpRequest' or getattr(request, 'is_ajax', lambda: False)()
+        if is_ajax_request and response.status_code in [302, 301]:
             # تحويل الاستجابة إلى JSON للتعامل مع إعادة التوجيه في الجانب الأمامي
             return JsonResponse({"redirect": response.url})
 

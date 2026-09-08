@@ -4,7 +4,7 @@ MWHEBA ERP - Main Sequence Service (Facade & Orchestrator)
 Handles atomic, thread-safe, multi-tenant sequence number generation.
 """
 from typing import Optional
-from django.db import transaction, DatabaseError
+from django.db import transaction, DatabaseError, IntegrityError
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
@@ -254,16 +254,25 @@ class SequenceService:
                     version=1,
                 ).first()
                 if not rule:
-                    rule = DocumentSequenceRule.objects.create(
-                        company_code=company_code,
-                        warehouse=warehouse,
-                        document_type=document_type,
-                        version=1,
-                        prefix=cls.get_default_prefix(document_type),
-                        padding=4,
-                        numbering_basis="POSTING_DATE",
-                        status="ACTIVE",
-                    )
+                    try:
+                        with transaction.atomic():
+                            rule = DocumentSequenceRule.objects.create(
+                                company_code=company_code,
+                                warehouse=warehouse,
+                                document_type=document_type,
+                                version=1,
+                                prefix=cls.get_default_prefix(document_type),
+                                padding=4,
+                                numbering_basis="POSTING_DATE",
+                                status="ACTIVE",
+                            )
+                    except IntegrityError:
+                        rule = DocumentSequenceRule.objects.get(
+                            company_code=company_code,
+                            warehouse=warehouse,
+                            document_type=document_type,
+                            version=1,
+                        )
 
                 # 2. Get or Create Counter with Atomic Lock
                 counter = (
@@ -295,14 +304,26 @@ class SequenceService:
                             except Exception:
                                 pass
 
-                    counter = DocumentSequenceCounter.objects.create(
-                        rule=rule,
-                        company_code=company_code,
-                        warehouse=warehouse,
-                        document_type=document_type,
-                        year=year,
-                        last_number=seed_number,
-                    )
+                    try:
+                        with transaction.atomic():
+                            counter = DocumentSequenceCounter.objects.create(
+                                rule=rule,
+                                company_code=company_code,
+                                warehouse=warehouse,
+                                document_type=document_type,
+                                year=year,
+                                last_number=seed_number,
+                            )
+                    except IntegrityError:
+                        counter = (
+                            DocumentSequenceCounter.objects.select_for_update()
+                            .get(
+                                company_code=company_code,
+                                warehouse=warehouse,
+                                document_type=document_type,
+                                year=year,
+                            )
+                        )
 
 
                 # 3. Increment Counter with collision protection

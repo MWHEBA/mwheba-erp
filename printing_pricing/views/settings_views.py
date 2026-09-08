@@ -1537,7 +1537,7 @@ class ProductTypeDeleteView(AjaxDeleteMixin, LoginRequiredMixin, DeleteView):
             return super().post(request, *args, **kwargs)
         except models.ProtectedError:
             err_msg = _('لا يمكن حذف هذا الصنف لوجود طلبات تسعير سابقة مرتبطة به. يرجى إيقاف تفعيله بدلاً من الحذف.')
-            if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.is_ajax():
+            if request.headers.get('x-requested-with') == 'XMLHttpRequest':
                 return JsonResponse({'success': False, 'message': err_msg}, status=400)
             messages.error(request, err_msg)
             return redirect(self.success_url)

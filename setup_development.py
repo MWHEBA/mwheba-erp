@@ -813,7 +813,7 @@ def main():
                 print_colored("="*60, Colors.RED)
                 print_colored("\n💡 الحلول الممكنة:", Colors.YELLOW)
                 print_colored("   1. تأكد من تشغيل MySQL أولاً", Colors.WHITE)
-                print_colored("      يمكنك استخدام: python start_xampp.py", Colors.GRAY)
+                print_colored("      يمكنك استخدام: python start_db.py", Colors.GRAY)
                 print_colored("\n   2. أو شغّل XAMPP Control Panel يدوياً", Colors.WHITE)
                 print_colored("      وتأكد من تشغيل MySQL من هناك", Colors.GRAY)
                 print_colored("\n   3. تحقق من إعدادات الاتصال في ملف .env:", Colors.WHITE)
@@ -837,85 +837,6 @@ def main():
             print_colored("\n" + "="*60 + "\n", Colors.RED)
             sys.exit(1)
     
-    # فحص وجود snapshot
-    snapshot_dir = Path(".db_snapshots")
-    snapshot_exists = snapshot_dir.exists() and get_snapshot_info() is not None
-    use_snapshot = False
-    
-    if snapshot_exists:
-        if auto_mode:
-            # في الوضع التلقائي، دائماً اختر الإعداد الجديد الكامل (خيار 2)
-            print_colored("\n🤖 الوضع التلقائي: سيتم الإعداد الجديد الكامل", Colors.CYAN)
-            use_snapshot = False
-        else:
-            # في الوضع العادي، اسأل المستخدم
-            print_colored("\n📸 تم العثور على Database Snapshot!", Colors.CYAN + Colors.BOLD)
-            
-            # فحص التوافق
-            is_compatible, compatibility_msg = check_snapshot_compatibility(db_type)
-            snapshot_info = get_snapshot_info()
-            
-            print_colored("\n� معلومات الـ Snapshot:", Colors.CYAN)
-            print_colored(f"   • تاريخ الإنشاء: {snapshot_info.get('created_at', 'غير معروف')}", Colors.GRAY)
-            print_colored(f"   • نوع قاعدة البيانات: {snapshot_info.get('db_type', 'غير معروف').upper()}", Colors.GRAY)
-            print_colored(f"   • Django Version: {snapshot_info.get('django_version', 'غير معروف')}", Colors.GRAY)
-            
-            if is_compatible:
-                print_colored(f"   • الحالة: ✅ متوافق", Colors.GREEN)
-            else:
-                print_colored(f"   • الحالة: ⚠️  {compatibility_msg}", Colors.YELLOW)
-            
-            print_colored("\n🔄 اختر طريقة الإعداد:", Colors.CYAN + Colors.BOLD)
-            print_colored("   [1] استعادة من Snapshot (سريع - 20-30 ثانية) ⚡", Colors.GREEN)
-            print_colored("   [2] إعداد جديد كامل (بطيء - 3-5 دقائق) 🐢", Colors.YELLOW)
-            
-            if not is_compatible:
-                print_colored("\n   ⚠️  تحذير: الـ Snapshot قد يكون قديم، يُنصح بالإعداد الجديد", Colors.RED)
-            
-            choice = input("\nاختيارك (1 أو 2): ").strip()
-            
-            if choice == "1":
-                if not is_compatible:
-                    confirm = input("⚠️  الـ Snapshot قد لا يكون متوافق، هل تريد المتابعة؟ (yes/no): ").strip().lower()
-                    if confirm != "yes":
-                        print_colored("\n🔄 سيتم الإعداد الجديد الكامل...", Colors.YELLOW)
-                        use_snapshot = False
-                    else:
-                        use_snapshot = True
-                else:
-                    use_snapshot = True
-            else:
-                use_snapshot = False
-    
-    # استعادة من snapshot إذا تم اختياره
-    if use_snapshot:
-        if restore_snapshot(db_type):
-            print_colored("\n🎉 تم استعادة قاعدة البيانات بنجاح من Snapshot!", Colors.GREEN + Colors.BOLD)
-            
-            # عرض إحصائيات سريعة
-            try:
-                from django.contrib.auth import get_user_model
-                User = get_user_model()
-                users_count = User.objects.count()
-                
-                print_colored("\n📊 الإحصائيات:", Colors.CYAN)
-                print_success(f"✅ المستخدمين: {users_count}")
-                
-                print_colored("\n🚀 النظام جاهز للاستخدام!", Colors.GREEN + Colors.BOLD)
-                print_colored("\n📝 معلومات تسجيل الدخول:", Colors.CYAN)
-                print_colored("   المستخدم: admin", Colors.WHITE)
-                print_colored("   كلمة المرور: admin123", Colors.WHITE)
-                
-                print_colored("\n💡 لبدء السيرفر:", Colors.YELLOW)
-                print_colored("   python manage.py runserver", Colors.WHITE)
-                
-            except Exception as e:
-                print_info(f"تعذر عرض الإحصائيات: {e}")
-            
-            sys.exit(0)
-        else:
-            print_colored("\n⚠️  فشل استعادة الـ Snapshot، سيتم الإعداد الجديد الكامل...", Colors.YELLOW)
-            time.sleep(2)
     
     # تأكيد المتابعة للإعداد الجديد - تم إزالة السؤال للتشغيل المباشر
     print_colored("\n🛠️  إعداد النظام الكامل", Colors.CYAN)

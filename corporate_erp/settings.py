@@ -10,9 +10,10 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.2/ref/settings/
 """
 
-# إعداد PyMySQL كبديل لـ mysqlclient للتوافق مع cPanel
+# إعداد PyMySQL كبديل لـ mysqlclient للتوافق مع cPanel و Django 5.2
 try:
     import pymysql
+    pymysql.version_info = (2, 2, 7, "final", 0)
     pymysql.install_as_MySQLdb()
 except ImportError:
     pass
@@ -962,10 +963,19 @@ PAGINATION_SETTINGS = {
     'ENABLE_SMART_PAGINATION': True,
 }
 
-# ✅ PHASE 3: Static files optimization
-STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'
-if not DEBUG:
-    STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
+# ✅ PHASE 3: Static files optimization & STORAGES for Django 5.2
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": (
+            "whitenoise.storage.CompressedStaticFilesStorage"
+            if not DEBUG
+            else "django.contrib.staticfiles.storage.StaticFilesStorage"
+        ),
+    },
+}
 WHITENOISE_MANIFEST_STRICT = False
 
 # ✅ PHASE 3: Media files optimization
@@ -1416,3 +1426,6 @@ if DEBUG:
 BACKUP_LOCAL_DIR = BASE_DIR / 'backups'
 DATA_UPLOAD_MAX_MEMORY_SIZE = 500 * 1024 * 1024  # 500 MB
 FILE_UPLOAD_MAX_MEMORY_SIZE = 500 * 1024 * 1024  # 500 MB
+
+# MariaDB compatibility: Ignore condition warnings for partial indexes and unique constraints
+SILENCED_SYSTEM_CHECKS = ['models.W036', 'models.W037']

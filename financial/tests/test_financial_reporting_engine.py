@@ -39,7 +39,7 @@ class TestFinancialReportingEngine:
         fiscal_year = FiscalYear.objects.create(name="FY2026", start_date="2026-01-01", end_date="2026-12-31")
         period = AccountingPeriod.objects.create(fiscal_year=fiscal_year, name="AUG2026", period_number=8, start_date="2026-08-01", end_date="2026-08-31", status="OPEN")
 
-        today = timezone.now().date()
+        today = period.start_date
         # Create balanced postings: Revenue 1000 EGP (Cash +1000, Rev +1000)
         lines1 = [
             {"account": cash_acc, "debit": Decimal("1000.00"), "credit": Decimal("0.00"), "description": "Cash debit"},

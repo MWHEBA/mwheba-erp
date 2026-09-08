@@ -94,21 +94,29 @@ def start_service(service_name, display_name):
 
 
 def start_mysql_direct(xampp_path):
-    """Start MySQL directly from XAMPP"""
-    mysql_exe = Path(xampp_path) / "mysql" / "bin" / "mysqld.exe"
+    """Start MySQL / MariaDB directly"""
+    mariadb_standalone = Path(r"C:\Users\UTD\mariadb-10.11\bin\mysqld.exe")
+    mariadb_ini = Path(r"C:\Users\UTD\mariadb-10.11\data\my.ini")
+    
+    if mariadb_standalone.exists():
+        mysql_exe = mariadb_standalone
+        args = [str(mysql_exe), f"--defaults-file={mariadb_ini}"]
+    else:
+        mysql_exe = Path(xampp_path) / "mysql" / "bin" / "mysqld.exe"
+        args = [str(mysql_exe), "--console"]
     
     if not mysql_exe.exists():
-        print_colored("❌ لم يتم العثور على MySQL", Colors.RED)
+        print_colored("❌ لم يتم العثور على MySQL / MariaDB", Colors.RED)
         return False
     
     try:
-        print_colored("🔧 محاولة تشغيل MySQL مباشرة...", Colors.YELLOW)
+        print_colored("🔧 محاولة تشغيل MySQL/MariaDB مباشرة...", Colors.YELLOW)
         subprocess.Popen(
-            [str(mysql_exe), "--console"],
+            args,
             creationflags=subprocess.CREATE_NO_WINDOW
         )
         time.sleep(3)
-        print_colored("✓ تم تشغيل MySQL مباشرة", Colors.GREEN)
+        print_colored("✓ تم تشغيل MySQL/MariaDB مباشرة", Colors.GREEN)
         return True
     except Exception as e:
         print_colored(f"❌ فشل تشغيل MySQL: {str(e)}", Colors.RED)
