@@ -412,8 +412,8 @@ pytest tests/e2e/ -v -s -m "not slow"
 ```
 
 ### متطلبات النظام
-- Python 3.9+
-- Django 4.2+
+- Python 3.11+
+- Django 5.2+
 - MySQL 8.0 (بيئة الإنتاج) أو SQLite (SQLite قد يفشل في concurrency tests)
 - RAM: 2GB+ للاختبارات الكبيرة
 

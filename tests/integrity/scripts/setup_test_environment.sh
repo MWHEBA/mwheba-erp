@@ -40,10 +40,10 @@ fi
 # Check Python version
 print_status "Checking Python version..."
 python_version=$(python3 --version 2>&1 | cut -d' ' -f2)
-required_version="3.9"
+required_version="3.11"
 
-if ! python3 -c "import sys; exit(0 if sys.version_info >= (3, 9) else 1)"; then
-    print_error "Python 3.9+ is required. Current version: $python_version"
+if ! python3 -c "import sys; exit(0 if sys.version_info >= (3, 11) else 1)"; then
+    print_error "Python 3.11+ is required. Current version: $python_version"
     exit 1
 fi
 print_success "Python version: $python_version"

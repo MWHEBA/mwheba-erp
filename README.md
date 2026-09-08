@@ -3,8 +3,8 @@
 
 <div align="center">
 
-![Django](https://img.shields.io/badge/Django-4.2%20LTS-092E20?style=for-the-badge&logo=django&logoColor=white)
-![Python](https://img.shields.io/badge/Python-3.9+-3776AB?style=for-the-badge&logo=python&logoColor=white)
+![Django](https://img.shields.io/badge/Django-5.2%20LTS-092E20?style=for-the-badge&logo=django&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white)
 ![MySQL](https://img.shields.io/badge/MySQL-Production%20Ready-4479A1?style=for-the-badge&logo=mysql&logoColor=white)
 ![Redis](https://img.shields.io/badge/Redis-Caching%20%26%20Celery-DC382D?style=for-the-badge&logo=redis&logoColor=white)
 ![Bootstrap](https://img.shields.io/badge/Bootstrap-5.3%20RTL-7952B3?style=for-the-badge&logo=bootstrap&logoColor=white)
@@ -12,7 +12,7 @@
 ![Security](https://img.shields.io/badge/RBAC-NIST%20Enterprise%20Level%202-success?style=for-the-badge)
 ![Accounting](https://img.shields.io/badge/Accounting-IAS%2021%20Compliant-orange?style=for-the-badge)
 
-**A high-performance, modular, multi-tenant enterprise resource planning (ERP) platform built on Django 4.2 LTS. Designed to power complex industrial and commercial operations — from high-volume commercial printing and packaging plants to advertising agencies, wholesale trading conglomerates, and contracting firms.**
+**A high-performance, modular, multi-tenant enterprise resource planning (ERP) platform built on Django 5.2 LTS. Designed to power complex industrial and commercial operations — from high-volume commercial printing and packaging plants to advertising agencies, wholesale trading conglomerates, and contracting firms.**
 
 [Executive Summary](#1-executive-summary) · [Multi-Industry Modularity](#2-multi-industry-operational-profiles) · [Dual-Layer Architecture](#3-the-dual-layer-governance-architecture) · [Deep Module Breakdown](#4-deep-module-breakdown--service-layer) · [RBAC & Security](#5-rbac--security-governance) · [Middleware Pipeline](#6-middleware-pipeline-architecture) · [Database & Caching](#7-database-transactions--caching-architecture) · [Installation & Setup](#8-installation--environment-setup) · [Testing & QA](#9-automated-testing--verification-suite) · [Deployment](#10-production-deployment--maintenance)
 
@@ -328,7 +328,8 @@ If an unhandled exception occurs during a complex multi-step operation (e.g., cr
 ## 8. Installation & Environment Setup
 
 ### System Prerequisites
-* Python 3.9+
+* Python 3.11+ (Python 3.10 – 3.13 supported)
+* Django 5.2 LTS
 * Database: MySQL 8.0+ (Production) or SQLite 3 (Development)
 * Redis 6.0+ (Recommended for caching and background tasks)
 * Git

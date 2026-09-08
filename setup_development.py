@@ -30,6 +30,7 @@ import fnmatch
 import hashlib
 import json
 import time
+import platform
 import django
 
 # إخفاء تحذيرات pkg_resources المهملة من coreapi
@@ -415,12 +416,59 @@ def get_database_type():
         return 'sqlite'
 
 
+def setup_mysql_autostart(db_exe, db_ini=None):
+    """إعداد تشغيل قاعدة البيانات تلقائياً عند بدء تشغيل Windows"""
+    try:
+        appdata = os.environ.get('APPDATA')
+        if not appdata:
+            return
+        startup_folder = Path(appdata) / "Microsoft" / "Windows" / "Start Menu" / "Programs" / "Startup"
+        if not startup_folder.exists():
+            return
+        
+        vbs_file = startup_folder / "Start_MariaDB_ERP.vbs"
+        args = f'""{db_exe}""'
+        if db_ini and Path(db_ini).exists():
+            args += f' --defaults-file=""{db_ini}""'
+        args += ' --console'
+        
+        vbs_content = f'''Set WshShell = CreateObject("WScript.Shell")
+Set objWMIService = GetObject("winmgmts:\\\\.\\root\\cimv2")
+Set colProcesses = objWMIService.ExecQuery("Select * from Win32_Process Where Name = 'mysqld.exe'")
+If colProcesses.Count = 0 Then
+    WshShell.Run "{args}", 0, False
+End If
+'''
+        vbs_file.write_text(vbs_content, encoding='utf-8')
+    except Exception:
+        pass
+
+
+def start_process_hidden(exe_path, args=""):
+    """تشغيل العملية كعملية مستقلة ومخفية تماماً بدون أي نافذة سوداء في الخلفية"""
+    try:
+        ps_cmd = f"Start-Process -FilePath '{exe_path}' -ArgumentList '{args}' -WindowStyle Hidden"
+        res = subprocess.run(['powershell', '-NoProfile', '-Command', ps_cmd], capture_output=True, text=True, timeout=10)
+        if res.returncode == 0:
+            return True
+    except Exception:
+        pass
+    try:
+        cmd_list = [str(exe_path)] + (args.split() if args else [])
+        creationflags = 0x08000000 | 0x00000200  # CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP
+        subprocess.Popen(cmd_list, creationflags=creationflags, close_fds=True)
+        return True
+    except Exception:
+        return False
+
+
 def check_mysql_connection():
-    """فحص الاتصال بـ MySQL قبل البدء"""
+    """فحص الاتصال بـ MySQL قبل البدء مع إغلاق الاتصال بنظافة"""
     try:
         from django.db import connection
         with connection.cursor() as cursor:
             cursor.execute("SELECT 1;")
+        connection.close()
         return True
     except Exception as e:
         error_msg = str(e).lower()
@@ -431,347 +479,62 @@ def check_mysql_connection():
         raise e
 
 
-def get_migrations_hash():
-    """حساب hash لجميع ملفات الـ migrations"""
-    try:
-        migrations_content = ""
-        project_root = Path.cwd()
-        
-        # البحث عن جميع ملفات migrations
-        for migration_file in project_root.rglob("migrations/*.py"):
-            if migration_file.name != "__init__.py":
-                try:
-                    with open(migration_file, 'r', encoding='utf-8') as f:
-                        migrations_content += f.read()
-                except:
-                    continue
-        
-        # حساب hash
-        return hashlib.md5(migrations_content.encode()).hexdigest()
-    except Exception as e:
-        print_warning(f"خطأ في حساب migrations hash: {e}")
-        return None
-
-
-def get_snapshot_info():
-    """قراءة معلومات الـ snapshot"""
-    snapshot_dir = Path(".db_snapshots")
-    info_file = snapshot_dir / "snapshot_info.json"
+def ensure_mysql_running():
+    """التحقق من عمل MySQL وتشغيله تلقائياً في الخلفية مع ضمان استمراره"""
+    mariadb_exe = Path(r"C:\Users\UTD\mariadb-10.11\bin\mysqld.exe")
+    mariadb_ini = Path(r"C:\Users\UTD\mariadb-10.11\data\my.ini")
+    xampp_paths = [
+        Path(r"C:\xampp\mysql\bin\mysqld.exe"),
+        Path(r"C:\Program Files\xampp\mysql\bin\mysqld.exe"),
+        Path(r"C:\Program Files (x86)\xampp\mysql\bin\mysqld.exe"),
+        Path(r"D:\xampp\mysql\bin\mysqld.exe"),
+    ]
     
-    if not info_file.exists():
-        return None
-    
-    try:
-        with open(info_file, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    except Exception as e:
-        print_warning(f"خطأ في قراءة snapshot info: {e}")
-        return None
-
-
-def create_snapshot(db_type):
-    """إنشاء snapshot من قاعدة البيانات الحالية"""
-    snapshot_dir = Path(".db_snapshots")
-    snapshot_dir.mkdir(exist_ok=True)
-    
-    print_colored("\n📸 جاري إنشاء Snapshot...", Colors.CYAN)
-    
-    try:
-        if db_type == 'sqlite':
-            # نسخ ملف SQLite
-            source = Path("db.sqlite3")
-            if not source.exists():
-                print_warning("ملف قاعدة البيانات غير موجود")
-                return False
-            
-            destination = snapshot_dir / "sqlite_snapshot.db"
-            shutil.copy2(source, destination)
-            print_success(f"تم نسخ SQLite snapshot ({source.stat().st_size / 1024:.1f} KB)")
-            
-        else:  # MySQL
-            from dotenv import load_dotenv
-            load_dotenv()
-            
-            db_name = os.getenv('DB_NAME', 'corporate_db')
-            db_user = os.getenv('DB_USER', 'root')
-            db_password = os.getenv('DB_PASSWORD', '')
-            db_host = os.getenv('DB_HOST', 'localhost')
-            
-            snapshot_file = snapshot_dir / "mysql_snapshot.sql"
-            
-            # محاولة إيجاد mysqldump في XAMPP
-            possible_paths = [
-                r"C:\xampp\mysql\bin\mysqldump.exe",
-                r"C:\Program Files\xampp\mysql\bin\mysqldump.exe",
-                r"D:\xampp\mysql\bin\mysqldump.exe",
-                "mysqldump",  # في PATH
-            ]
-            
-            mysqldump_path = None
-            for path in possible_paths:
-                if path == "mysqldump":
-                    # تجربة في PATH
-                    try:
-                        result = subprocess.run([path, "--version"], capture_output=True, timeout=5)
-                        if result.returncode == 0:
-                            mysqldump_path = path
-                            break
-                    except:
-                        continue
-                else:
-                    # تجربة مسار محدد
-                    if Path(path).exists():
-                        mysqldump_path = path
-                        break
-            
-            if not mysqldump_path:
-                print_warning("لم يتم العثور على mysqldump")
-                print_info("يمكنك تثبيت XAMPP أو إضافة MySQL bin إلى PATH")
-                return False
-            
-            # بناء أمر mysqldump
-            cmd = f'"{mysqldump_path}" -h {db_host} -u {db_user}'
-            if db_password:
-                cmd += f' -p{db_password}'
-            cmd += f' {db_name} > "{snapshot_file}"'
-            
-            print_info("جاري تصدير MySQL database...")
-            result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
-            
-            if result.returncode == 0 and snapshot_file.exists():
-                print_success(f"تم إنشاء MySQL snapshot ({snapshot_file.stat().st_size / 1024:.1f} KB)")
-            else:
-                print_warning("فشل إنشاء MySQL snapshot")
-                if result.stderr:
-                    print_warning(f"الخطأ: {result.stderr[:200]}")
-                return False
-        
-        # حفظ معلومات الـ snapshot
-        from datetime import datetime
-        
-        snapshot_info = {
-            "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "db_type": db_type,
-            "migrations_hash": get_migrations_hash(),
-            "django_version": django.get_version(),
-        }
-        
-        # محاولة الحصول على عدد المستخدمين
-        try:
-            from django.contrib.auth import get_user_model
-            User = get_user_model()
-            snapshot_info["total_users"] = User.objects.count()
-        except:
-            snapshot_info["total_users"] = 0
-        
-        info_file = snapshot_dir / "snapshot_info.json"
-        with open(info_file, 'w', encoding='utf-8') as f:
-            json.dump(snapshot_info, f, indent=2, ensure_ascii=False)
-        
-        print_success("تم حفظ معلومات الـ snapshot")
-        return True
-        
-    except Exception as e:
-        print_warning(f"خطأ في إنشاء snapshot: {e}")
-        return False
-
-
-def restore_snapshot(db_type):
-    """استعادة قاعدة البيانات من snapshot"""
-    snapshot_dir = Path(".db_snapshots")
-    
-    print_colored("\n♻️  جاري استعادة Snapshot...", Colors.CYAN)
-    
-    try:
-        if db_type == 'sqlite':
-            snapshot_file = snapshot_dir / "sqlite_snapshot.db"
-            
-            if not snapshot_file.exists():
-                print_warning("ملف SQLite snapshot غير موجود")
-                return False
-            
-            print_info("📦 جاري نسخ ملف قاعدة البيانات...")
-            
-            # حذف قاعدة البيانات الحالية
-            db_file = Path("db.sqlite3")
-            if db_file.exists():
-                print_info("   ⏳ حذف قاعدة البيانات القديمة...")
-                db_file.unlink()
-            
-            # نسخ الـ snapshot مع progress
-            print_info("   ⏳ نسخ البيانات من snapshot...")
-            shutil.copy2(snapshot_file, db_file)
-            
-            file_size_mb = db_file.stat().st_size / (1024 * 1024)
-            print_success(f"✅ تم استعادة SQLite snapshot بنجاح ({file_size_mb:.1f} MB)")
-            
-        else:  # MySQL
-            snapshot_file = snapshot_dir / "mysql_snapshot.sql"
-            
-            if not snapshot_file.exists():
-                print_warning("ملف MySQL snapshot غير موجود")
-                return False
-            
-            from dotenv import load_dotenv
-            load_dotenv()
-            
-            db_name = os.getenv('DB_NAME', 'corporate_db')
-            db_user = os.getenv('DB_USER', 'root')
-            db_password = os.getenv('DB_PASSWORD', '')
-            db_host = os.getenv('DB_HOST', 'localhost')
-            
-            # حذف جميع الجداول أولاً (إذا وجدت)
-            print_info("🗑️  حذف الجداول الحالية...")
-            sys.stdout.flush()  # فورس الطباعة
-            
-            try:
-                from django.db import connection
-                
-                with connection.cursor() as cursor:
-                    cursor.execute("SET FOREIGN_KEY_CHECKS = 0;")
-                    cursor.execute("SHOW TABLES;")
-                    tables = cursor.fetchall()
-                    
-                    if tables:
-                        print_info(f"   ⏳ جاري حذف {len(tables)} جدول...")
-                        sys.stdout.flush()
-                        
-                        for i, table in enumerate(tables, 1):
-                            cursor.execute(f"DROP TABLE IF EXISTS `{table[0]}`;")
-                            # طباعة progress كل 20 جدول
-                            if i % 20 == 0 or i == len(tables):
-                                print(f"\r   ℹ️  ⏳ تم حذف {i}/{len(tables)} جدول...", end='', flush=True)
-                        
-                        print()  # سطر جديد بعد الانتهاء
-                        print_success(f"✅ تم حذف {len(tables)} جدول")
-                        sys.stdout.flush()
-                    else:
-                        print_info("   ℹ️  لا توجد جداول للحذف")
-                        sys.stdout.flush()
-                    
-                    cursor.execute("SET FOREIGN_KEY_CHECKS = 1;")
-            except Exception as e:
-                print_info(f"   ℹ️  تخطي حذف الجداول: {e}")
-                sys.stdout.flush()
-            
-            # استعادة من snapshot
-            print_info("📥 استعادة البيانات من snapshot...")
-            sys.stdout.flush()
-            
-            # حساب حجم الملف
-            file_size_mb = snapshot_file.stat().st_size / (1024 * 1024)
-            print_info(f"   📊 حجم الملف: {file_size_mb:.1f} MB")
-            print_info("   ⏳ جاري استيراد البيانات (قد يستغرق 20-30 ثانية)...")
-            sys.stdout.flush()
-            
-            # محاولة إيجاد mysql في XAMPP
-            possible_paths = [
-                r"C:\xampp\mysql\bin\mysql.exe",
-                r"C:\Program Files\xampp\mysql\bin\mysql.exe",
-                r"D:\xampp\mysql\bin\mysql.exe",
-                "mysql",  # في PATH
-            ]
-            
-            mysql_path = None
-            for path in possible_paths:
-                if path == "mysql":
-                    try:
-                        result = subprocess.run([path, "--version"], capture_output=True, timeout=5)
-                        if result.returncode == 0:
-                            mysql_path = path
-                            break
-                    except:
-                        continue
-                else:
-                    if Path(path).exists():
-                        mysql_path = path
-                        break
-            
-            if not mysql_path:
-                print_warning("❌ لم يتم العثور على mysql client")
-                return False
-            
-            # بناء الأمر
-            cmd = f'"{mysql_path}" -h {db_host} -u {db_user}'
-            if db_password:
-                cmd += f' -p{db_password}'
-            cmd += f' {db_name} < "{snapshot_file}"'
-            
-            # تنفيذ الأمر مع عرض progress
-            import time
-            start_time = time.time()
-            
-            # تشغيل الأمر في background
-            process = subprocess.Popen(
-                cmd, 
-                shell=True, 
-                stdout=subprocess.PIPE, 
-                stderr=subprocess.PIPE,
-                text=True
-            )
-            
-            # عرض progress أثناء التنفيذ
-            dots = 0
-            while process.poll() is None:
-                time.sleep(1)
-                dots = (dots + 1) % 4
-                elapsed = int(time.time() - start_time)
-                progress_msg = f"   ⏳ جاري الاستيراد{'.' * dots}{' ' * (3 - dots)} ({elapsed}s)"
-                print(f"\r{progress_msg}", end='', flush=True)
-            
-            # الحصول على النتيجة
-            stdout, stderr = process.communicate()
-            elapsed_time = int(time.time() - start_time)
-            
-            # مسح سطر progress
-            print("\r" + " " * 80, end='\r', flush=True)
-            
-            if process.returncode == 0:
-                print_success(f"✅ تم استعادة MySQL snapshot بنجاح ({elapsed_time}s)")
-                sys.stdout.flush()
-            else:
-                print_warning("❌ فشل استعادة MySQL snapshot")
-                if stderr:
-                    print_warning(f"الخطأ: {stderr[:200]}")
-                sys.stdout.flush()
-                return False
-        
-        return True
-        
-    except Exception as e:
-        print_warning(f"❌ خطأ في استعادة snapshot: {e}")
-        return False
-
-
-def check_snapshot_compatibility(db_type):
-    """فحص توافق الـ snapshot مع الحالة الحالية"""
-    snapshot_info = get_snapshot_info()
-    
-    if not snapshot_info:
-        return False, "لا توجد معلومات snapshot"
-    
-    # فحص نوع قاعدة البيانات
-    if snapshot_info.get('db_type') != db_type:
-        return False, f"نوع قاعدة البيانات مختلف (snapshot: {snapshot_info.get('db_type')}, حالي: {db_type})"
-    
-    # فحص migrations hash
-    current_hash = get_migrations_hash()
-    snapshot_hash = snapshot_info.get('migrations_hash')
-    
-    if current_hash != snapshot_hash:
-        return False, "توجد migrations جديدة لم تكن موجودة في الـ snapshot"
-    
-    # فحص وجود ملف الـ snapshot
-    snapshot_dir = Path(".db_snapshots")
-    if db_type == 'sqlite':
-        snapshot_file = snapshot_dir / "sqlite_snapshot.db"
+    target_exe = None
+    target_ini = None
+    if mariadb_exe.exists():
+        target_exe = mariadb_exe
+        target_ini = mariadb_ini if mariadb_ini.exists() else None
     else:
-        snapshot_file = snapshot_dir / "mysql_snapshot.sql"
-    
-    if not snapshot_file.exists():
-        return False, "ملف الـ snapshot غير موجود"
-    
-    return True, "الـ snapshot متوافق"
+        for p in xampp_paths:
+            if p.exists():
+                target_exe = p
+                break
+
+    # ضبط التشغيل التلقائي عند بدء تشغيل الجهاز
+    if target_exe:
+        setup_mysql_autostart(target_exe, target_ini)
+
+    # إذا كانت قاعدة البيانات تعمل بالفعل
+    if check_mysql_connection():
+        return True
+
+    print_colored("⚠️  خادم قاعدة البيانات متوقف، جاري التشغيل التلقائي وضمان استمراره...", Colors.YELLOW)
+
+    # محاولة تشغيل كخدمة Windows أولاً
+    try:
+        subprocess.run(['net', 'start', 'mysql'], capture_output=True, timeout=5)
+        if check_mysql_connection():
+            return True
+    except Exception:
+        pass
+
+    if not target_exe:
+        return False
+
+    # تشغيل في الخلفية بدون أي نافذة سوداء
+    args = f'--defaults-file="{target_ini}"' if target_ini else ''
+    start_process_hidden(target_exe, args)
+
+    # انتظار استقرار الاتصال
+    for _ in range(15):
+        time.sleep(1)
+        if check_mysql_connection():
+            print_colored("✅ تم تشغيل خادم قاعدة البيانات بنجاح في الخلفية!", Colors.GREEN)
+            print_colored("📌 تم تفعيل التشغيل التلقائي مع فتح الجهاز (Windows Startup).", Colors.CYAN)
+            return True
+
+    return False
 
 
 def main():
@@ -800,31 +563,26 @@ def main():
 
     # طباعة العنوان
     print_header("ERP System - Development Setup")
+    print_colored(f"🐍 بيئة التشغيل: Python {platform.python_version()} | Django {django.get_version()}", Colors.CYAN)
     print_colored(f"🗄️  نوع قاعدة البيانات المكتشف: {db_type.upper()}", Colors.CYAN)
     
-    # فحص اتصال MySQL إذا كان مطلوب
+    # فحص اتصال MySQL إذا كان مطلوب والتشغيل التلقائي في الخلفية
     if db_type == 'mysql':
-        print_colored("\n🔍 فحص الاتصال بـ MySQL...", Colors.YELLOW)
+        print_colored("\n🔍 فحص الاتصال بـ MySQL/MariaDB...", Colors.YELLOW)
         
         try:
-            if not check_mysql_connection():
+            if not ensure_mysql_running():
                 print_colored("\n" + "="*60, Colors.RED)
-                print_colored("❌ خطأ: لا يمكن الاتصال بـ MySQL", Colors.RED + Colors.BOLD)
+                print_colored("❌ خطأ: تعذر تشغيل أو الاتصال بـ MySQL تلقائياً", Colors.RED + Colors.BOLD)
                 print_colored("="*60, Colors.RED)
-                print_colored("\n💡 الحلول الممكنة:", Colors.YELLOW)
-                print_colored("   1. تأكد من تشغيل MySQL أولاً", Colors.WHITE)
-                print_colored("      يمكنك استخدام: python start_db.py", Colors.GRAY)
-                print_colored("\n   2. أو شغّل XAMPP Control Panel يدوياً", Colors.WHITE)
-                print_colored("      وتأكد من تشغيل MySQL من هناك", Colors.GRAY)
-                print_colored("\n   3. تحقق من إعدادات الاتصال في ملف .env:", Colors.WHITE)
-                print_colored("      - DB_HOST (افتراضي: localhost)", Colors.GRAY)
-                print_colored("      - DB_PORT (افتراضي: 3306)", Colors.GRAY)
-                print_colored("      - DB_USER (افتراضي: root)", Colors.GRAY)
-                print_colored("      - DB_PASSWORD", Colors.GRAY)
+                print_colored("\n💡 يرجى التحقق من:", Colors.YELLOW)
+                print_colored("   1. تأكد من تشغيل MySQL يدوياً (python start_db.py)", Colors.WHITE)
+                print_colored("   2. أو شغّل XAMPP Control Panel", Colors.WHITE)
+                print_colored("   3. تحقق من بيانات .env (DB_USER, DB_PASSWORD, DB_NAME)", Colors.WHITE)
                 print_colored("\n" + "="*60 + "\n", Colors.RED)
                 sys.exit(1)
             else:
-                print_colored("✅ الاتصال بـ MySQL ناجح!", Colors.GREEN)
+                print_colored("✅ الاتصال بـ MySQL ناجح وقاعدة البيانات تعمل ومضبوطة!", Colors.GREEN)
         except Exception as e:
             print_colored("\n" + "="*60, Colors.RED)
             print_colored("❌ خطأ في الاتصال بقاعدة البيانات", Colors.RED + Colors.BOLD)
@@ -838,9 +596,30 @@ def main():
             sys.exit(1)
     
     
-    # تأكيد المتابعة للإعداد الجديد - تم إزالة السؤال للتشغيل المباشر
-    print_colored("\n🛠️  إعداد النظام الكامل", Colors.CYAN)
-    print_colored("سيتم تحميل جميع fixtures بدون استثناء", Colors.WHITE)
+    # سؤال تفاعلي لتحديد وضع قاعدة البيانات إذا لم يتم تحديد flag صريح
+    global reset_mode
+    if not auto_mode and '--reset' not in sys.argv and '--clean' not in sys.argv:
+        print_colored("\n" + "="*60, Colors.CYAN)
+        print_colored("🗄️  اختيار نمط التعامل مع قاعدة البيانات:", Colors.CYAN + Colors.BOLD)
+        print_colored("="*60, Colors.CYAN)
+        print_colored("   [1] وضع التحديث الآمن (الحفاظ على الجداول والبيانات الحية) 🛡️", Colors.GREEN)
+        print_colored("   [2] تصفير وإعادة تعيين كاملة (حذف جميع الجداول والبدء من الصفر) ⚠️", Colors.YELLOW)
+        
+        choice = input("\n👉 اختيارك (1 أو 2) [الافتراضي: 1]: ").strip()
+        if choice == "2":
+            confirm = input("⚠️  تأكيد: سيتم حذف جميع الجداول والبيانات نهائياً! هل تريد المتابعة؟ (yes/no): ").strip().lower()
+            if confirm in ['y', 'yes', 'نعم']:
+                reset_mode = True
+                print_colored("🔄 تم اختيار: تصفير وإعادة تعيين قاعدة البيانات بالكامل", Colors.YELLOW)
+            else:
+                reset_mode = False
+                print_colored("🛡️  تم الإلغاء، سيتم المتابعة بالوضع الآمن وحفظ البيانات", Colors.GREEN)
+        else:
+            reset_mode = False
+            print_colored("🛡️  تم اختيار: وضع التحديث الآمن (الحفاظ على البيانات)", Colors.GREEN)
+    
+    print_colored("\n🛠️  إعداد وتثبيت النظام", Colors.CYAN)
+    print_colored("سيتم تحميل بيانات وفيشرز النظام المعتمدة", Colors.WHITE)
     print_colored("- مستخدمين آمنين مع كلمات مرور مشفرة", Colors.GRAY)
     print_colored("- بيانات أساسية منظمة ومحدثة لجميع الموديولات", Colors.GRAY)
     print_colored("- نظام ERP متكامل للشركات", Colors.GRAY)
@@ -849,7 +628,7 @@ def main():
     # المرحلة 1: فحص / إعادة تعيين قاعدة البيانات
     # ======================================================
     if reset_mode:
-        print_step(1, TOTAL_STEPS, f"إعادة تعيين وتصفير قاعدة البيانات ({db_type.upper()})")
+        print_step(1, TOTAL_STEPS, f"إعادة تعيين ومسح قاعدة البيانات ({db_type.upper()})")
         if db_type == 'sqlite':
             db_path = Path("db.sqlite3")
             db_shm_path = Path("db.sqlite3-shm")
@@ -859,13 +638,13 @@ def main():
                     for extra_file in [db_path, db_shm_path, db_wal_path]:
                         if extra_file.exists():
                             extra_file.unlink()
-                    print_success("تم تصفير قاعدة بيانات SQLite بنجاح")
+                    print_success("تم مسح قاعدة بيانات SQLite بنجاح")
                 except Exception as e:
                     print_warning(f"خطأ في حذف قاعدة البيانات: {e}")
         else:
             try:
                 from django.db import connection
-                print_info("حذف جميع الجداول من MySQL (Reset Mode)...")
+                print_info("حذف ومسح جميع الجداول من MySQL (Reset Mode)...")
                 with connection.cursor() as cursor:
                     cursor.execute("SET FOREIGN_KEY_CHECKS = 0;")
                     cursor.execute("SHOW TABLES;")
@@ -873,9 +652,9 @@ def main():
                     for table in tables:
                         cursor.execute(f"DROP TABLE IF EXISTS `{table[0]}`;")
                     cursor.execute("SET FOREIGN_KEY_CHECKS = 1;")
-                print_success(f"تم تصفير {len(tables)} جدول من MySQL بنجاح")
+                print_success(f"تم مسح وحذف {len(tables)} جدول من MySQL بالكامل بنجاح")
             except Exception as e:
-                print_warning(f"خطأ في تصفير MySQL: {e}")
+                print_warning(f"خطأ في مسح جداول MySQL: {e}")
     else:
         print_step(1, TOTAL_STEPS, f"وضع التثبيت الآمن (Safe Mode - {db_type.upper()})")
         print_info("الحفاظ على الجداول والبيانات الحية دون مسح")
@@ -895,12 +674,11 @@ def main():
     # المرحلة 3: تحميل إعدادات وموديولات النظام الأساسية
     # ======================================================
     print_step(3, TOTAL_STEPS, "تحميل إعدادات وموديولات النظام")
-    core_fixtures = [
-        {"path": "core/fixtures/system_settings_final.json", "description": "إعدادات النظام"},
-        {"path": "core/fixtures/system_modules.json",        "description": "موديولات النظام"},
-    ]
-    core_loaded = load_fixtures_batch(core_fixtures, "تحميل إعدادات النظام...")
-    print_success(f"تم تحميل {core_loaded} من {len(core_fixtures)} ملف إعدادات")
+    load_fixture("core/fixtures/system_settings_final.json", "إعدادات النظام الأساسية")
+    
+    print_info("تحديث وتأكيد موديولات النظام (init_modules)...")
+    run_command(f'"{sys.executable}" manage.py init_modules', show_output=False)
+    print_success("تم تحديث وتهيئة موديولات النظام بنجاح")
 
     # ======================================================
     # المرحلة 4: الأدوار والصلاحيات وتأمين المدير العام
@@ -912,13 +690,19 @@ def main():
     if roles_fixture.exists():
         load_fixture("users/fixtures/roles.json", "الأدوار الأساسية")
     
-    # 2. توليد الصلاحيات المخصصة ومزامنتها مع الأدوار
-    print_info("توليد وتحديث الصلاحيات المخصصة للأدوار...")
-    run_command(f'"{sys.executable}" manage.py create_custom_permissions', show_output=False)
-    run_command(f'"{sys.executable}" manage.py update_roles_with_custom_permissions', show_output=False)
+    # 2. توليد الصلاحيات المخصصة للنظام المالي
+    try:
+        from financial.permissions import create_custom_permissions
+        create_custom_permissions()
+    except Exception as e:
+        print_warning(f"تحذير إنشاء الصلاحيات المالية المخصصة: {e}")
+
+    # 3. تأسيس ومزامنة الأدوار المعيارية الـ 10 والصلاحيات النظيفة
+    print_info("تأسيس وتحديث الأدوار المعيارية والصلاحيات (seed_clean_roles)...")
+    run_command(f'"{sys.executable}" manage.py seed_clean_roles', show_output=False)
     print_success("تم تحديث ومزامنة كافة الصلاحيات والأدوار بنجاح")
 
-    # 3. تأمين حساب admin الذري
+    # 4. تأمين حساب admin الذري
     print_info("تأمين حساب المدير العام admin...")
     try:
         from django.contrib.auth import get_user_model
@@ -1055,7 +839,8 @@ def main():
     print_step(12, TOTAL_STEPS, "الملخص النهائي")
     
     print_colored("🎉 تم إكمال إعداد وتأسيس النظام بنجاح!", Colors.GREEN + Colors.BOLD)
-    print_colored(f"\n🗄️  قاعدة البيانات: {db_type.upper()}", Colors.CYAN)
+    print_colored(f"\n🐍 بيئة التشغيل: Python {platform.python_version()} | Django {django.get_version()}", Colors.CYAN)
+    print_colored(f"🗄️  قاعدة البيانات: {db_type.upper()}", Colors.CYAN)
     print_colored("\n📊 الإحصائيات الشاملة:", Colors.CYAN)
     
     try:
@@ -1212,35 +997,6 @@ def main():
     print_colored("   👥 مستخدم: 46 صلاحية مخصصة (معظم الصلاحيات ماعدا الإدارية)", Colors.WHITE)
     print_colored("   👤 موظف: 3 صلاحيات مخصصة (إجازات وأذونات فقط)", Colors.WHITE)
     
-    # سؤال المستخدم عن حفظ snapshot
-    if not auto_mode:
-        print_colored("\n" + "="*60, Colors.CYAN)
-        print_colored("📸 حفظ Database Snapshot", Colors.CYAN + Colors.BOLD)
-        print_colored("="*60, Colors.CYAN)
-        print_colored("\n💡 فائدة الـ Snapshot:", Colors.YELLOW)
-        print_colored("   • استعادة سريعة للنظام (20-30 ثانية بدلاً من 3-5 دقائق)", Colors.WHITE)
-        print_colored("   • مفيد للتطوير والتجربة السريعة", Colors.WHITE)
-        print_colored("   • ضمان البدء بنفس البيانات دائماً", Colors.WHITE)
-        
-        save_snapshot = input("\nهل تريد حفظ snapshot للإعداد الحالي؟ (yes/no): ").strip().lower()
-        
-        if save_snapshot == "yes":
-            if create_snapshot(db_type):
-                print_colored("\n✅ تم حفظ Snapshot بنجاح!", Colors.GREEN + Colors.BOLD)
-                print_colored("📁 الموقع: .db_snapshots/", Colors.GRAY)
-                print_colored("\n💡 في المرة القادمة:", Colors.YELLOW)
-                print_colored("   سيتم سؤالك عن استعادة الـ Snapshot للإعداد السريع", Colors.WHITE)
-            else:
-                print_colored("\n⚠️  فشل حفظ الـ Snapshot", Colors.YELLOW)
-        else:
-            print_colored("\n⏭️  تم تخطي حفظ الـ Snapshot", Colors.GRAY)
-    else:
-        # في الوضع التلقائي، احفظ snapshot تلقائياً
-        print_colored("\n📸 حفظ Snapshot تلقائياً...", Colors.CYAN)
-        if create_snapshot(db_type):
-            print_colored("✅ تم حفظ Snapshot بنجاح!", Colors.GREEN)
-        else:
-            print_colored("⚠️  فشل حفظ Snapshot", Colors.YELLOW)
 
 
 if __name__ == "__main__":
