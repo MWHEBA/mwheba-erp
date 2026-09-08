@@ -620,13 +620,14 @@
               </div>
             </div>
 
-            <!-- شبكة الحقول المتناسقة لكارت الورق (المحددات العامة ثم الحاوية التابعة للمورد) -->
-            <div class="row g-3">
+            <!-- شبكة الحقول المتناسقة لكارت الورق (السطر الأول: مواصفات الخامة والمورد | السطر الثاني: مقاس الفرخ والأفرخ والتكلفة) -->
+            <!-- السطر الأول: هوية الخامة والمورد والمنشأ (12 عمود متوازن) -->
+            <div class="row g-3 mb-3">
               
-              <!-- 1. نوع الورق / الخامة -->
-              <div class="col-12 col-md-4" id="wrapper_paper_type">
+              <!-- 1. نوع الورق -->
+              <div class="col-12 col-md-3" id="wrapper_paper_type">
                 <label for="id_paper_type" class="form-label fw-bold">
-                  {% trans "نوع الورق / الخامة" %}
+                  {% trans "نوع الورق" %}
                 </label>
                 <select class="form-select select2-filter" id="id_paper_type" name="paper_type" dir="rtl">
                   {% if paper_types %}
@@ -673,206 +674,228 @@
                 <small class="text-muted d-block mt-1" id="paper_supplier_note">{% trans "ترشيح التجار الموفرين للخامة المحددة أولاً" %}</small>
               </div>
 
-              <!-- 3. عدد الأفرخ (Dual-Mode: حساب آلي مع إمكانية التثبيت اليدوي) -->
-              <div class="col-12 col-md-4" id="wrapper_paper_sheets_count">
-                <div class="d-flex align-items-center justify-content-between mb-1">
-                  <label class="form-label fw-bold mb-0">
-                    {% trans "عدد الأفرخ" %}
-                  </label>
-                  <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none text-muted" id="btn_toggle_manual_sheets" title="{% trans 'تبديل بين الحساب التلقائي والتعديل اليدوي للأفرخ' %}">
-                    <i class="fas fa-pen fa-xs me-1"></i><span class="small" id="toggle_manual_sheets_text">{% trans "تعديل يدوي" %}</span>
-                  </button>
-                </div>
-
-                <!-- وضع العرض التلقائي -->
-                <div id="box_auto_sheets_display" class="p-2 border rounded bg-white text-center">
-                  <div class="d-flex align-items-center justify-content-center gap-1 mb-1">
-                    <strong class="text-primary fs-5" id="display_cover_gross_sheets">{% if saved_paper_spec.sheets_needed %}{{ saved_paper_spec.sheets_needed }} فرخ{% else %}0 فرخ{% endif %}</strong>
-                    <span class="badge bg-secondary-subtle text-secondary small" id="display_cover_reams_breakdown">0 رزمة</span>
-                  </div>
-                  <div class="d-flex flex-wrap align-items-center justify-content-center gap-2 small text-muted">
-                    <span>{% trans "صافي:" %} <strong class="text-dark" id="display_cover_net_sheets">0</strong></span>
-                    <span>+</span>
-                    <span>{% trans "الهادر:" %}</span>
-                    <input type="number" min="0" step="1" class="form-control form-control-sm text-center fw-bold text-danger d-inline-block" style="width: 75px;" id="id_cover_waste_sheets" name="waste_sheets" value="{% if saved_waste_sheets %}{{ saved_waste_sheets }}{% elif form.waste_sheets.value %}{{ form.waste_sheets.value }}{% else %}20{% endif %}" title="{% trans 'أفرخ الهالك/الهادر القابلة للتعديل' %}">
-                  </div>
-                </div>
-
-                <!-- وضع التعديل اليدوي المخفي افتراضياً -->
-                <div id="box_manual_sheets_input" class="d-none">
-                  <div class="input-group">
-                    <input type="number" min="0" step="1" class="form-control text-center fw-bold" id="id_manual_gross_sheets" placeholder="0">
-                    <span class="input-group-text small bg-light">{% trans "فرخ يدوي" %}</span>
-                  </div>
-                  <small class="text-warning d-block mt-1"><i class="fas fa-lock me-1"></i>{% trans "تم تثبيت عدد الأفرخ يدوياً" %}</small>
-                </div>
+              <!-- 3. جرام الورق (GSM) -->
+              <div class="col-12 col-md-2" id="wrapper_paper_weight">
+                <label for="id_paper_weight" class="form-label fw-bold">
+                  {% trans "جرام الورق" %}
+                </label>
+                <select class="form-select select2-filter text-center" id="id_paper_weight" name="paper_weight" dir="rtl">
+                  {% if paper_weights %}
+                    {% for pw in paper_weights %}
+                      <option value="{{ pw.gsm }}" data-sheets-per-pack="{{ pw.sheets_per_pack|default:250 }}"
+                        {% if form.paper_weight.value %}
+                          {% if form.paper_weight.value == pw.gsm|stringformat:"s" %}selected{% endif %}
+                        {% else %}
+                          {% if pw.is_default %}selected
+                          {% elif pw.gsm == 300 %}selected
+                          {% elif forloop.first %}selected{% endif %}
+                        {% endif %}>
+                        {{ pw.gsm }} جم
+                      </option>
+                    {% endfor %}
+                  {% else %}
+                    <option value="150" data-sheets-per-pack="500">150 جم</option>
+                    <option value="170" data-sheets-per-pack="500">170 جم</option>
+                    <option value="200" data-sheets-per-pack="250">200 جم</option>
+                    <option value="250" data-sheets-per-pack="250">250 جم</option>
+                    <option value="300" data-sheets-per-pack="250" selected>300 جم</option>
+                    <option value="350" data-sheets-per-pack="125">350 جم</option>
+                  {% endif %}
+                </select>
+                <small class="text-muted d-block mt-1" id="paper_weight_note">{% trans "الأوزان المتاحة حسب الخامة والمورد ومقاس الفرخ" %}</small>
               </div>
 
-              <!-- حاوية مواصفات وأسعار الورق التابعة لتاجر الورق (خافتة افتراضياً عند عدم الاختيار ومطابقة لنمط الأوفست والزنكات) -->
-              <div id="cover_paper_pricing_fields_wrapper" class="col-12 supplier-dependent-section {% if not form.paper_price.value and not form.paper_supplier.value and not saved_paper_spec.paper_sheet_price and form.paper_source.value != 'warehouse' and form.paper_source.value != 'customer_supplied' %}is-dormant{% endif %}">
-                <div class="row g-3">
-                  <!-- 4. مقاس الفرخ المتاح -->
-                  <div class="col-12 col-md-4" id="wrapper_sheet_size">
-                    <label for="id_sheet_size" class="form-label fw-bold">
-                      {% trans "مقاس الفرخ" %}
+              <!-- 4. بلد المنشأ -->
+              <div class="col-12 col-md-3" id="wrapper_paper_origin">
+                <label for="id_paper_origin" class="form-label fw-bold">
+                  {% trans "بلد المنشأ" %}
+                </label>
+                <select class="form-select select2-filter" id="id_paper_origin" name="paper_origin" dir="rtl">
+                  {% if form.paper_origin.value %}
+                    {% for porig in paper_origins %}
+                      <option value="{{ porig.name }}" {% if form.paper_origin.value == porig.name or form.paper_origin.value == porig.id|stringformat:"s" %}selected{% endif %}>
+                        {{ porig.name }}
+                      </option>
+                    {% endfor %}
+                  {% else %}
+                    <option value="" selected>-- {% trans "يتحدد تلقائياً حسب خامة المورد" %} --</option>
+                  {% endif %}
+                </select>
+                <small class="text-muted d-block mt-1" id="paper_origin_note">{% trans "يتزامن تلقائياً مع بلد منشأ خامة المورد" %}</small>
+              </div>
+
+            </div>
+
+            <!-- السطر الثاني: مقاس الفرخ، عدد الأفرخ، سعر الفرخ، تكلفة الورق (داخل الحاوية التابعة للمورد) -->
+            <div id="cover_paper_pricing_fields_wrapper" class="supplier-dependent-section {% if not form.paper_price.value and not form.paper_supplier.value and not saved_paper_spec.paper_sheet_price and form.paper_source.value != 'warehouse' and form.paper_source.value != 'customer_supplied' %}is-dormant{% endif %}">
+              <div class="row g-3">
+                
+                <!-- 5. مقاس الفرخ المتاح -->
+                <div class="col-12 col-md-3" id="wrapper_sheet_size">
+                  <label for="id_sheet_size" class="form-label fw-bold">
+                    {% trans "مقاس الفرخ" %}
+                  </label>
+                  <select class="form-select select2-filter text-center" id="id_sheet_size" name="sheet_size" dir="rtl">
+                    {% if paper_sizes %}
+                      {% for psize in paper_sizes %}
+                        <option value="{{ psize.name }}" data-id="{{ psize.id }}" data-width="{{ psize.width }}" data-height="{{ psize.height }}" 
+                          {% if form.sheet_size.value == psize.name or saved_sheet_size == psize.name %}selected
+                          {% elif not form.sheet_size.value and not saved_sheet_size and forloop.first %}selected{% endif %}>
+                          {{ psize.name }} ({{ psize.width|floatformat:0 }}×{{ psize.height|floatformat:0 }} سم)
+                        </option>
+                      {% endfor %}
+                    {% else %}
+                      <option value="70x100" data-width="100" data-height="70" selected>70 × 100 سم (الفرخ القياسي الكبير)</option>
+                      <option value="66x88" data-width="88" data-height="66">66 × 88 سم (فرخ الكتب والملازم)</option>
+                      <option value="60x85" data-width="85" data-height="60">60 × 85 سم (فرخ تجاري خاص)</option>
+                    {% endif %}
+                  </select>
+                  <small class="text-muted d-block mt-1" id="sheet_size_note">{% trans "مقاسات الفرخ المتاحة للخامة لدى المورد المختار" %}</small>
+                </div>
+
+                <!-- 6. عدد الأفرخ (Dual-Mode: حساب آلي مع إمكانية التثبيت اليدوي) -->
+                <div class="col-12 col-md-3" id="wrapper_paper_sheets_count">
+                  <div class="d-flex align-items-center justify-content-between mb-1">
+                    <label class="form-label fw-bold mb-0">
+                      {% trans "عدد الأفرخ" %}
                     </label>
-                    <select class="form-select select2-filter text-center" id="id_sheet_size" name="sheet_size" dir="rtl">
-                      {% if paper_sizes %}
-                        {% for psize in paper_sizes %}
-                          <option value="{{ psize.name }}" data-id="{{ psize.id }}" data-width="{{ psize.width }}" data-height="{{ psize.height }}" 
-                            {% if form.sheet_size.value == psize.name or saved_sheet_size == psize.name %}selected
-                            {% elif not form.sheet_size.value and not saved_sheet_size and forloop.first %}selected{% endif %}>
-                            {{ psize.name }} ({{ psize.width|floatformat:0 }}×{{ psize.height|floatformat:0 }} سم)
-                          </option>
-                        {% endfor %}
-                      {% else %}
-                        <option value="70x100" data-width="100" data-height="70" selected>70 × 100 سم (الفرخ القياسي الكبير)</option>
-                        <option value="66x88" data-width="88" data-height="66">66 × 88 سم (فرخ الكتب والملازم)</option>
-                        <option value="60x85" data-width="85" data-height="60">60 × 85 سم (فرخ تجاري خاص)</option>
-                      {% endif %}
-                    </select>
-                    <small class="text-muted d-block mt-1" id="sheet_size_note">{% trans "مقاسات الفرخ المتاحة للخامة لدى المورد المختار" %}</small>
+                    <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none text-muted" id="btn_toggle_manual_sheets" title="{% trans 'تبديل بين الحساب التلقائي والتعديل اليدوي للأفرخ' %}">
+                      <i class="fas fa-pen fa-xs me-1"></i><span class="small" id="toggle_manual_sheets_text">{% trans "تعديل يدوي" %}</span>
+                    </button>
                   </div>
 
-                  <!-- 5. جرام الورق (GSM) -->
-                  <div class="col-12 col-md-4" id="wrapper_paper_weight">
-                    <label for="id_paper_weight" class="form-label fw-bold">
-                      {% trans "جرام الورق" %}
-                    </label>
-                    <select class="form-select select2-filter text-center" id="id_paper_weight" name="paper_weight" dir="rtl">
-                      {% if paper_weights %}
-                        {% for pw in paper_weights %}
-                          <option value="{{ pw.gsm }}" data-sheets-per-pack="{{ pw.sheets_per_pack|default:250 }}"
-                            {% if form.paper_weight.value %}
-                              {% if form.paper_weight.value == pw.gsm|stringformat:"s" %}selected{% endif %}
-                            {% else %}
-                              {% if pw.is_default %}selected
-                              {% elif pw.gsm == 300 %}selected
-                              {% elif forloop.first %}selected{% endif %}
-                            {% endif %}>
-                            {{ pw.gsm }} جم
-                          </option>
-                        {% endfor %}
-                      {% else %}
-                        <option value="150" data-sheets-per-pack="500">150 جم</option>
-                        <option value="170" data-sheets-per-pack="500">170 جم</option>
-                        <option value="200" data-sheets-per-pack="250">200 جم</option>
-                        <option value="250" data-sheets-per-pack="250">250 جم</option>
-                        <option value="300" data-sheets-per-pack="250" selected>300 جم</option>
-                        <option value="350" data-sheets-per-pack="125">350 جم</option>
-                      {% endif %}
-                    </select>
-                    <small class="text-muted d-block mt-1" id="paper_weight_note">{% trans "الأوزان المتاحة حسب الخامة والمورد ومقاس الفرخ" %}</small>
-                  </div>
-
-                  <!-- 6. بلد المنشأ -->
-                  <div class="col-12 col-md-4" id="wrapper_paper_origin">
-                    <label for="id_paper_origin" class="form-label fw-bold">
-                      {% trans "بلد المنشأ" %}
-                    </label>
-                    <select class="form-select select2-filter" id="id_paper_origin" name="paper_origin" dir="rtl">
-                      {% if form.paper_origin.value %}
-                        {% for porig in paper_origins %}
-                          <option value="{{ porig.name }}" {% if form.paper_origin.value == porig.name or form.paper_origin.value == porig.id|stringformat:"s" %}selected{% endif %}>
-                            {{ porig.name }}
-                          </option>
-                        {% endfor %}
-                      {% else %}
-                        <option value="" selected>-- {% trans "يتحدد تلقائياً حسب خامة المورد" %} --</option>
-                      {% endif %}
-                    </select>
-                    <small class="text-muted d-block mt-1" id="paper_origin_note">{% trans "يتزامن تلقائياً مع بلد منشأ خامة المورد" %}</small>
-                  </div>
-
-                  <!-- 7. سعر الفرخ ومحول الوحدات -->
-                  <div class="col-12 col-md-6" id="wrapper_paper_price_mode">
-                    <div class="d-flex justify-content-between align-items-center mb-1">
-                      <label for="id_paper_sheet_price" class="form-label fw-bold mb-0">
-                          <span id="paper_price_mode_label">{% trans "سعر الفرخ" %}</span>
-                      </label>
-                      <span id="paper_price_staleness_badge" class="badge d-none small"></span>
+                  <!-- وضع العرض التلقائي -->
+                  <div id="box_auto_sheets_display" class="p-2 border rounded bg-white text-center">
+                    <div class="d-flex align-items-center justify-content-center gap-1 mb-1">
+                      <strong class="text-primary fs-5" id="display_cover_gross_sheets">{% if saved_paper_spec.sheets_needed %}{{ saved_paper_spec.sheets_needed }} فرخ{% else %}0 فرخ{% endif %}</strong>
+                      <span class="badge bg-secondary-subtle text-secondary small" id="display_cover_reams_breakdown">0 رزمة</span>
                     </div>
+                    <div class="d-flex flex-wrap align-items-center justify-content-center gap-2 small text-muted">
+                      <span>{% trans "صافي:" %} <strong class="text-dark" id="display_cover_net_sheets">0</strong></span>
+                      <span>+</span>
+                      <span>{% trans "الهادر:" %}</span>
+                      <input type="number" min="0" step="1" class="form-control form-control-sm text-center fw-bold text-danger d-inline-block" style="width: 70px;" id="id_cover_waste_sheets" name="waste_sheets" value="{% if saved_waste_sheets %}{{ saved_waste_sheets }}{% elif form.waste_sheets.value %}{{ form.waste_sheets.value }}{% else %}20{% endif %}" title="{% trans 'أفرخ الهالك/الهادر القابلة للتعديل' %}">
+                    </div>
+                  </div>
+
+                  <!-- وضع التعديل اليدوي المخفي افتراضياً -->
+                  <div id="box_manual_sheets_input" class="d-none">
                     <div class="input-group">
-                      <input type="number" step="0.01" min="0" class="form-control text-center fw-bold" id="id_paper_sheet_price" name="paper_price" 
-                             value="{{ form.paper_price.value|default:'' }}" placeholder="0.00">
-                      <span class="input-group-text small bg-light" id="paper_currency_addon">{{ currency_symbol|default:functional_currency.symbol }}</span>
-                      <button type="button" class="btn btn-outline-primary btn-sm" id="btn_paper_calc_modal" data-bs-toggle="collapse" data-bs-target="#paper_unit_converter_collapse" title="{% trans 'فتح حاسبة تحويل سعر الرزمة أو الطن' %}">
-                        <i class="fas fa-calculator"></i>
-                      </button>
+                      <input type="number" min="0" step="1" class="form-control text-center fw-bold" id="id_manual_gross_sheets" placeholder="0">
+                      <span class="input-group-text small bg-light">{% trans "فرخ يدوي" %}</span>
                     </div>
-                    <!-- سعة الرزمة وتاريخ تحديث السعر والإنذار -->
-                    <div class="d-flex align-items-center justify-content-between mt-1 text-muted small flex-wrap gap-1">
-                      <div class="d-flex align-items-center gap-1">
-                        <i class="fas fa-boxes text-secondary me-1"></i>
-                        <span class="small">{% trans "سعة الرزمة:" %}</span>
-                        <strong class="text-secondary" id="val_sheets_per_pack">250</strong>
-                        <span class="small">{% trans "فرخ" %}</span>
-                        <input type="hidden" id="id_sheets_per_pack" name="sheets_per_pack" value="{{ form.sheets_per_pack.value|default:'250' }}" data-initial="{{ form.sheets_per_pack.value|default:'' }}">
-                      </div>
-                      <div id="paper_price_date_display" class="d-none small"></div>
-                    </div>
+                    <small class="text-warning d-block mt-1"><i class="fas fa-lock me-1"></i>{% trans "تم تثبيت عدد الأفرخ يدوياً" %}</small>
                   </div>
+                </div>
 
-                  <!-- 9. إجمالي تكلفة الورق -->
-                  <div class="col-12 col-md-6" id="wrapper_total_paper_cost">
-                    <label class="form-label fw-bold">
-                      {% trans "تكلفة الورق" %}
+                <!-- 7. سعر الفرخ ومحول الوحدات -->
+                <div class="col-12 col-md-3" id="wrapper_paper_price_mode">
+                  <div class="d-flex justify-content-between align-items-center mb-1">
+                    <label for="id_paper_sheet_price" class="form-label fw-bold mb-0">
+                        <span id="paper_price_mode_label">{% trans "سعر الفرخ" %}</span>
                     </label>
-                    <div class="form-control bg-light d-flex justify-content-between align-items-center">
-                      <span class="small text-muted">{% trans "الإجمالي:" %}</span>
-                      <strong class="text-primary fs-6" id="cover_paper_cost_display">{% if saved_paper_spec and saved_paper_spec.total_paper_cost %}{{ saved_paper_spec.total_paper_cost }}{% else %}0{% endif %} {{ currency_symbol|default:functional_currency.symbol }}</strong>
-                    </div>
+                    <span id="paper_price_staleness_badge" class="badge d-none small"></span>
                   </div>
+                  <div class="input-group">
+                    <input type="number" step="0.01" min="0" class="form-control text-center fw-bold" id="id_paper_sheet_price" name="paper_price" 
+                           value="{{ form.paper_price.value|default:'' }}" placeholder="0">
+                    <span class="input-group-text small bg-light" id="paper_currency_addon">{{ currency_symbol|default:functional_currency.symbol }}</span>
+                    <button type="button" class="btn btn-outline-primary btn-sm" id="btn_paper_calc_modal" data-bs-toggle="collapse" data-bs-target="#paper_unit_converter_collapse" title="{% trans 'فتح حاسبة تحويل سعر الرزمة أو الطن' %}">
+                      <i class="fas fa-calculator"></i>
+                    </button>
+                  </div>
+                  <!-- سعة الرزمة وتاريخ تحديث السعر والإنذار -->
+                  <div class="d-flex align-items-center justify-content-between mt-1 text-muted small flex-wrap gap-1">
+                    <div class="d-flex align-items-center gap-1">
+                      <i class="fas fa-boxes text-secondary me-1"></i>
+                      <span class="small">{% trans "سعة الرزمة:" %}</span>
+                      <strong class="text-secondary" id="val_sheets_per_pack">250</strong>
+                      <span class="small">{% trans "فرخ" %}</span>
+                      <input type="hidden" id="id_sheets_per_pack" name="sheets_per_pack" value="{{ form.sheets_per_pack.value|default:'250' }}" data-initial="{{ form.sheets_per_pack.value|default:'' }}">
+                    </div>
+                    <div id="paper_price_date_display" class="d-none small"></div>
+                  </div>
+                </div>
 
-                  <!-- انهيار حاسبة تحويل وحدات الشراء (فرخ / رزمة / طن) بالعملة الوظيفية -->
-                  <div class="col-12 collapse" id="paper_unit_converter_collapse">
-                    <div class="p-3 bg-white border rounded shadow-xs">
-                      <div class="row g-2 align-items-center">
-                        <div class="col-md-3">
-                          <label class="form-label small fw-bold text-secondary">{% trans "طريقة التسعير بالسوق:" %}</label>
-                          <div class="btn-group btn-group-sm w-100" role="group">
-                            <input type="radio" class="btn-check" name="price_input_mode" id="mode_sheet" value="sheet" checked>
-                            <label class="btn btn-outline-primary" for="mode_sheet">{% trans "بالفرخ" %}</label>
-                            <input type="radio" class="btn-check" name="price_input_mode" id="mode_ream" value="ream">
-                            <label class="btn btn-outline-primary" for="mode_ream">{% trans "بالرزمة" %}</label>
-                            <input type="radio" class="btn-check" name="price_input_mode" id="mode_ton" value="ton">
-                            <label class="btn btn-outline-primary" for="mode_ton">{% trans "بالطن" %}</label>
-                          </div>
-                        </div>
+                <!-- 8. إجمالي تكلفة الورق -->
+                <div class="col-12 col-md-3" id="wrapper_total_paper_cost">
+                  <label class="form-label fw-bold">
+                    {% trans "تكلفة الورق" %}
+                  </label>
+                  <div class="form-control bg-light d-flex justify-content-between align-items-center" style="min-height: 38px;">
+                    <span class="small text-muted">{% trans "الإجمالي:" %}</span>
+                    <strong class="text-primary fs-6" id="cover_paper_cost_display">{% if saved_paper_spec and saved_paper_spec.total_paper_cost %}{{ saved_paper_spec.total_paper_cost }}{% else %}0{% endif %} {{ currency_symbol|default:functional_currency.symbol }}</strong>
+                  </div>
+                  <small class="text-muted d-block mt-1">{% trans "حاصل ضرب عدد الأفرخ في سعر الفرخ" %}</small>
+                </div>
 
-                        <!-- إدخال سعر الرزمة (حسب سعة الرزمة 100-500) -->
-                        <div class="col-md-3 d-none" id="input_wrapper_ream">
-                          <label class="form-label small fw-bold text-secondary">{% trans "سعر الرزمة (رزمة كاملة):" %}</label>
-                          <div class="input-group input-group-sm">
-                            <input type="number" step="0.5" class="form-control text-center" id="input_ream_price" placeholder="0.00">
-                            <span class="input-group-text" id="pack_unit_addon">{{ currency_symbol|default:functional_currency.symbol }} / <span id="pack_addon_sheets">500</span> فرخ</span>
-                          </div>
-                        </div>
-
-                        <!-- إدخال سعر الطن بالعملة الوظيفية حصراً -->
-                        <div class="col-md-3 d-none" id="input_wrapper_ton">
-                          <label class="form-label small fw-bold text-secondary">{% trans "سعر الطن (بالعملة الوظيفية):" %}</label>
-                          <div class="input-group input-group-sm">
-                            <input type="number" step="10" class="form-control text-center" id="input_ton_price" placeholder="0.00">
-                            <span class="input-group-text">{{ currency_symbol|default:functional_currency.symbol }} / طن</span>
-                          </div>
-                        </div>
-
-                        <div class="col-md-3">
-                          <label class="form-label small fw-bold text-secondary">{% trans "الناتج لسعر الفرخ:" %}</label>
-                          <div class="p-1 bg-light text-center border rounded fw-bold text-success" id="calc_converted_sheet_display">
-                            0.00 {{ currency_symbol|default:functional_currency.symbol }}
-                          </div>
-                        </div>
-
-                        <div class="col-md-3 text-end pt-3">
-                          <button type="button" class="btn btn-sm btn-success px-3 fw-bold" id="btn_apply_converted_price">
-                            <i class="fas fa-check me-1"></i>{% trans "تطبيق في الكارت" %}
-                          </button>
+                <!-- انهيار حاسبة تحويل وحدات الشراء (تحويل من رزمة أو طن إلى فرخ) -->
+                <div class="col-12 collapse mt-2" id="paper_unit_converter_collapse">
+                  <div class="p-3 bg-white border border-primary-subtle rounded shadow-xs">
+                    <div class="row g-3 align-items-end">
+                      
+                      <!-- 1. طريقة التسعير بالسوق (بالرزمة أو بالطن) -->
+                      <div class="col-12 col-md-3">
+                        <label class="form-label small fw-bold text-dark mb-1">
+                          <i class="fas fa-calculator text-primary me-1"></i>{% trans "طريقة التسعير بالسوق:" %}
+                        </label>
+                        <div class="btn-group btn-group-sm w-100" role="group">
+                          <input type="radio" class="btn-check" name="price_input_mode" id="mode_ream" value="ream" checked>
+                          <label class="btn btn-outline-primary fw-bold" for="mode_ream">
+                            <i class="fas fa-boxes me-1"></i>{% trans "بالرزمة" %}
+                          </label>
+                          <input type="radio" class="btn-check" name="price_input_mode" id="mode_ton" value="ton">
+                          <label class="btn btn-outline-primary fw-bold" for="mode_ton">
+                            <i class="fas fa-weight-hanging me-1"></i>{% trans "بالطن" %}
+                          </label>
                         </div>
                       </div>
+
+                      <!-- 2. أ. إدخال سعر الرزمة (افتراضي) -->
+                      <div class="col-12 col-md-4" id="input_wrapper_ream">
+                        <label for="input_ream_price" class="form-label small fw-bold text-dark mb-1">
+                          {% trans "سعر الرزمة الكاملة:" %}
+                        </label>
+                        <div class="input-group input-group-sm">
+                          <input type="number" step="0.5" min="0" class="form-control text-center fw-bold" id="input_ream_price" placeholder="0">
+                          <span class="input-group-text bg-light small" id="pack_unit_addon">
+                            {{ currency_symbol|default:functional_currency.symbol }} / <strong id="pack_addon_sheets" class="mx-1">250</strong> {% trans "فرخ" %}
+                          </span>
+                        </div>
+                      </div>
+
+                      <!-- 2. ب. إدخال سعر الطن (عند التبديل للطن) -->
+                      <div class="col-12 col-md-4 d-none" id="input_wrapper_ton">
+                        <label for="input_ton_price" class="form-label small fw-bold text-dark mb-1">
+                          {% trans "سعر طن الورق الخام:" %}
+                        </label>
+                        <div class="input-group input-group-sm">
+                          <input type="number" step="10" min="0" class="form-control text-center fw-bold" id="input_ton_price" placeholder="0">
+                          <span class="input-group-text bg-light small">{{ currency_symbol|default:functional_currency.symbol }} / {% trans "طن" %}</span>
+                        </div>
+                      </div>
+
+                      <!-- 3. الناتج المحسوب لسعر الفرخ -->
+                      <div class="col-12 col-md-3">
+                        <label class="form-label small fw-bold text-dark mb-1">
+                          {% trans "الناتج لسعر الفرخ:" %}
+                        </label>
+                        <div class="form-control form-control-sm bg-light text-center border fw-bold text-success d-flex align-items-center justify-content-center" id="calc_converted_sheet_display" style="min-height: 31px;">
+                          0 {{ currency_symbol|default:functional_currency.symbol }}
+                        </div>
+                      </div>
+
+                      <!-- 4. زر تطبيق السعر في الكارت -->
+                      <div class="col-12 col-md-2">
+                        <button type="button" class="btn btn-sm btn-success w-100 fw-bold d-flex align-items-center justify-content-center gap-1" id="btn_apply_converted_price" title="{% trans 'اعتماد ونقل سعر الفرخ المحسوب إلى الكارت' %}">
+                          <i class="fas fa-check"></i>
+                          <span>{% trans "تطبيق في الكارت" %}</span>
+                        </button>
+                      </div>
+
                     </div>
                   </div>
+                </div>
                 </div>
               </div>
 
@@ -929,7 +952,7 @@
             <div class="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2">
               <div class="d-flex align-items-center gap-2">
                 <span class="fw-bold text-dark fs-6">
-                  <i class="fas fa-th-large text-primary me-2"></i>{% trans "المونتاج وتفريد الفرخ للماكينة" %}
+                  <i class="fas fa-th-large text-primary me-2"></i>{% trans "المونتاج وتجهيز الشيت" %}
                 </span>
                 <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1 small" id="step_studio_status_badge">
                   <i class="fas fa-info-circle me-1"></i><span id="step_studio_status_badge_text">{% trans "تجهيز فني ومونتاج" %}</span>
@@ -943,7 +966,7 @@
             <!-- شبكة حقول المونتاج المتناسقة بالعرض الكامل -->
             <div class="row g-3 align-items-center">
               <!-- 1. مقاس الشيت / تفصيل الفرخ للماكينة -->
-              <div class="col-12 col-md-5" id="wrapper_piece_size">
+              <div class="col-12 col-md-6" id="wrapper_piece_size">
                 <label for="id_piece_size" class="form-label fw-bold small text-muted">
                   {% trans "مقاس الشيت للماكينة" %}
                 </label>
@@ -965,7 +988,7 @@
               </div>
 
               <!-- 2. المونتاج (عدد القطع في مقاس الشيت) والـ Stepper -->
-              <div class="col-12 col-md-4" id="wrapper_montage_count">
+              <div class="col-12 col-md-6" id="wrapper_montage_count">
                 <label for="id_montage_count" class="form-label fw-bold small text-muted mb-1">
                   <i class="fas fa-th-large me-1"></i>{% trans "المونتاج (عدد القطع بالشيت)" %}
                 </label>
@@ -990,19 +1013,6 @@
                     <i class="fas fa-info-circle me-1"></i>{% trans "أقل من السقف" %}
                   </span>
                   <span class="ms-auto">{% trans "شامل هوامش البنسة والقص" %}</span>
-                </div>
-              </div>
-
-              <!-- 3. كارت استغلال الفرخ الخام -->
-              <div class="col-12 col-md-3" id="wrapper_parent_yield">
-                <label class="form-label fw-bold small text-muted mb-1 d-block text-center">
-                  {% trans "استغلال الفرخ الخام" %}
-                </label>
-                <div class="p-2 border rounded bg-light text-center" id="id_parent_sheet_yield_display">
-                  <div class="fw-bold text-success fs-5" id="parent_yield_val">
-                    {% if saved_paper_spec.parent_yield_val %}{{ saved_paper_spec.parent_yield_val }} قطع{% else %}-- قطعة{% endif %}
-                  </div>
-                  <small class="text-muted d-block" style="font-size: 0.75rem;">{% trans "إجمالي القطع من الفرخ الكامل" %}</small>
                 </div>
               </div>
 

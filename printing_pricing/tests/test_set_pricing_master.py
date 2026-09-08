@@ -69,7 +69,7 @@ class TestSetPricingMaster:
             defaults={'name': 'طباعة أوفست تجاري', 'category': 'printing'}
         )
 
-        # مورد محلي بالعملة الوظيفية
+        # مورد محلي بالعملة المحلية
         self.local_supplier = Supplier.objects.create(
             name='مطبعة الأهرام التجارية وفصل الألوان',
             is_active=True,

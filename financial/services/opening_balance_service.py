@@ -106,7 +106,7 @@ class OpeningBalancePostingService:
                         # Add credit line
                         rounding_line_needed = {'account': rounding_account, 'debit': Decimal('0.00'), 'credit': diff}
                 else:
-                    raise ValidationError(_("إجمالي المدين بالعملة الوظيفية ({}) لا يطابق إجمالي الدائن ({}). الفارق ({}) يتجاوز الحد المسموح.").format(total_debit, total_credit, diff))
+                    raise ValidationError(_("إجمالي المدين بالعملة المحلية ({}) لا يطابق إجمالي الدائن ({}). الفارق ({}) يتجاوز الحد المسموح.").format(total_debit, total_credit, diff))
 
             # 4. Check Database Idempotency
             existing_jv = JournalEntry.objects.filter(

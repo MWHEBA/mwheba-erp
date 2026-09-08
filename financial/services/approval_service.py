@@ -28,7 +28,7 @@ class ApprovalService:
         user=None
     ) -> Optional[EnterpriseApprovalRequest]:
         """
-        تقييم حدود القواعد بالعملة الوظيفية وإنشاء طلب الاعتماد وخطوات الاعتماد
+        تقييم حدود القواعد بالعملة المحلية وإنشاء طلب الاعتماد وخطوات الاعتماد
         """
         # Convert amount to functional EGP using ExchangeRateService if foreign
         func_amount = amount

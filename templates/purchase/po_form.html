@@ -728,7 +728,7 @@ $(document).ready(function() {
             $('#min-order-alert').remove();
         }
 
-        // المعادل بالعملة الوظيفية IAS 21
+        // المعادل بالعملة المحلية IAS 21
         let exchangeRate = parseFloat($('#id_exchange_rate').val()) || 1.0;
         let isForeign = parseFloat($('#id_currency').find(':selected').data('is-foreign') || 0) === 1;
         if (isForeign && exchangeRate !== 1.0) {

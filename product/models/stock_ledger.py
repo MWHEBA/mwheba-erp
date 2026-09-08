@@ -63,7 +63,7 @@ class StockLedgerEntry(models.Model):
         help_text=_("موجب للوارد، سالب للمنصرف")
     )
     unit_cost = models.DecimalField(
-        _("تكلفة الوحدة بالعملة الوظيفية"),
+        _("تكلفة الوحدة بالعملة المحلية"),
         max_digits=15,
         decimal_places=4,
         default=Decimal("0.0000")

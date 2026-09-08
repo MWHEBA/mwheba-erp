@@ -640,14 +640,14 @@ class PrintingOrder(BaseModel):
 
     @property
     def estimated_cost_functional(self):
-        """التكلفة المقدرة معبر عنها بالعملة الوظيفية للنظام وفق IAS 21"""
+        """التكلفة المقدرة معبر عنها بالعملة المحلية للنظام وفق IAS 21"""
         cost = self.estimated_cost or Decimal('0.00')
         rate = self.exchange_rate or Decimal('1.000000')
         return (cost * rate).quantize(Decimal('0.01'))
 
     @property
     def final_price_functional(self):
-        """السعر النهائي معبر عنه بالعملة الوظيفية للنظام وفق IAS 21"""
+        """السعر النهائي معبر عنه بالعملة المحلية للنظام وفق IAS 21"""
         price = self.final_price or Decimal('0.00')
         rate = self.exchange_rate or Decimal('1.000000')
         return (price * rate).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
@@ -673,7 +673,7 @@ class PrintingOrder(BaseModel):
 
     @property
     def profit_amount_functional(self):
-        """صافي الربح بالعملة الوظيفية وفق IAS 21"""
+        """صافي الربح بالعملة المحلية وفق IAS 21"""
         return (self.final_price_functional - self.estimated_cost_functional).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
 
 

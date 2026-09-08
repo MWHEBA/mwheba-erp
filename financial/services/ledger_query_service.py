@@ -313,7 +313,7 @@ class LedgerQueryService:
                 line.account.code.startswith('72010')
             )
 
-            # تحديث الرصيد التراكمي المحلي بالعملة الوظيفية
+            # تحديث الرصيد التراكمي المحلي بالعملة المحلية
             if is_debit_nature:
                 running_balance += (debit_val - credit_val)
             else:

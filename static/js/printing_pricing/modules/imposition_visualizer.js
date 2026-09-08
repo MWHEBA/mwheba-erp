@@ -836,7 +836,7 @@ const ImpositionVisualizer = (function() {
         <i class="fas fa-warehouse fa-2x me-3 text-info"></i>
         <div>
           <strong class="d-block mb-1">الخامة منصرفة مقصوصة جاهزة من مخزن المنشأة</strong>
-          <span class="small text-muted">مقاس الشيت (${formatDimension(pieceW)}×${formatDimension(pieceH)} سم) منصرف ومجهز مسبقاً ولا يتطلب تقطيع فرخ خام بالمقصدار.</span>
+          <span class="small text-muted">مقاس الشيت (${formatDimension(pieceW)}×${formatDimension(pieceH)} سم) منصرف ومجهز مسبقاً ولا يتطلب تقطيع فرخ خام.</span>
         </div>
       `;
       container.appendChild(notice);

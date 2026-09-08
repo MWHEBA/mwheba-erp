@@ -69,7 +69,7 @@ class SalesOrder(models.Model):
 
     status = models.CharField(_("الحالة"), max_length=30, choices=STATUS_CHOICES, default="DRAFT")
     total_amount = models.DecimalField(_("الإجمالي بعملة الفاتورة"), max_digits=15, decimal_places=2, default=Decimal("0.00"))
-    functional_amount = models.DecimalField(_("الإجمالي بالعملة الوظيفية"), max_digits=15, decimal_places=2, default=Decimal("0.00"))
+    functional_amount = models.DecimalField(_("الإجمالي بالعملة المحلية"), max_digits=15, decimal_places=2, default=Decimal("0.00"))
 
     # الشروط والدفعة المقدمة والحقول المخصصة
     required_down_payment = models.DecimalField(_("الدفعة المقدمة المطلوبة"), max_digits=15, decimal_places=2, default=Decimal("0.00"))
@@ -292,7 +292,7 @@ class SalesInvoice(models.Model):
 
     status = models.CharField(_("الحالة"), max_length=20, choices=STATUS_CHOICES, default="DRAFT")
     total_amount = models.DecimalField(_("الإجمالي بالعملة المخصصة"), max_digits=15, decimal_places=2, default=Decimal("0.00"))
-    functional_amount = models.DecimalField(_("الإجمالي بالعملة الوظيفية"), max_digits=15, decimal_places=2, default=Decimal("0.00"))
+    functional_amount = models.DecimalField(_("الإجمالي بالعملة المحلية"), max_digits=15, decimal_places=2, default=Decimal("0.00"))
 
     journal_entry = models.ForeignKey(JournalEntry, on_delete=models.SET_NULL, null=True, blank=True, verbose_name=_("القيد المحاسبي للإيراد"))
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, verbose_name=_("أنشئ بواسطة"))

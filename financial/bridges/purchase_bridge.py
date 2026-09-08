@@ -23,7 +23,7 @@ class PurchaseAccountingBridge:
     @classmethod
     def post_purchase_invoice(cls, purchase_id: int, user=None) -> Dict[str, Any]:
         """
-        إنشاء وترحيل القيد المحاسبي لفاتورة المشتريات بالعملة الوظيفية والأجنبية
+        إنشاء وترحيل القيد المحاسبي لفاتورة المشتريات بالعملة المحلية والأجنبية
         """
         from purchase.models.purchase import Purchase
 

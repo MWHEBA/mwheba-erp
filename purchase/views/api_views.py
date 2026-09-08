@@ -177,7 +177,7 @@ def ajax_create_product(request):
             min_stock_val = int(min_stock_raw) if not is_service else 0
             rate_decimal = Decimal(exchange_rate_raw) if Decimal(exchange_rate_raw) > 0 else Decimal('1.0')
 
-            # معالجة العملة الاسترشادية وقيمة التكلفة بالعملة الوظيفية (IAS 21)
+            # معالجة العملة الاسترشادية وقيمة التكلفة بالعملة المحلية (IAS 21)
             currency_obj = None
             if currency_id:
                 if str(currency_id).isdigit():

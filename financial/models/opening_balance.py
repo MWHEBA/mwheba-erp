@@ -192,8 +192,8 @@ class OpeningBalanceLine(models.Model):
     credit_foreign = models.DecimalField(_("دائن بالعملة الأجنبية"), max_digits=15, decimal_places=2, default=Decimal('0.00'))
     exchange_rate = models.DecimalField(_("سعر الصرف"), max_digits=12, decimal_places=6, default=Decimal('1.000000'))
 
-    debit = models.DecimalField(_("مدين (عملة وظيفية)"), max_digits=15, decimal_places=2, default=Decimal('0.00'), help_text=_("المبلغ بالعملة الوظيفية النظامية"))
-    credit = models.DecimalField(_("دائن (عملة وظيفية)"), max_digits=15, decimal_places=2, default=Decimal('0.00'), help_text=_("المبلغ بالعملة الوظيفية النظامية"))
+    debit = models.DecimalField(_("مدين (عملة وظيفية)"), max_digits=15, decimal_places=2, default=Decimal('0.00'), help_text=_("المبلغ بالعملة المحلية النظامية"))
+    credit = models.DecimalField(_("دائن (عملة وظيفية)"), max_digits=15, decimal_places=2, default=Decimal('0.00'), help_text=_("المبلغ بالعملة المحلية النظامية"))
 
     customer = models.ForeignKey("customer.Customer", null=True, blank=True, on_delete=models.PROTECT, verbose_name=_("العميل"))
     supplier = models.ForeignKey('supplier.Supplier', null=True, blank=True, on_delete=models.PROTECT, verbose_name=_("المورد"))
@@ -270,7 +270,7 @@ class OpeningBalanceLine(models.Model):
             if foreign_amt > 0 and func_amt > 0:
                 expected_func = (foreign_amt * self.exchange_rate).quantize(Decimal('0.01'))
                 if abs(expected_func - func_amt) > Decimal('0.05'):
-                    raise ValidationError(_("المبلغ بالعملة الوظيفية ({}) لا يطابق حاصل ضرب المبلغ الأجنبي في سعر الصرف ({}).").format(func_amt, expected_func))
+                    raise ValidationError(_("المبلغ بالعملة المحلية ({}) لا يطابق حاصل ضرب المبلغ الأجنبي في سعر الصرف ({}).").format(func_amt, expected_func))
 
     def save(self, *args, **kwargs):
         if self.batch_id:

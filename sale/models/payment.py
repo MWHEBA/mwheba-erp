@@ -78,7 +78,7 @@ class SalePayment(MonetaryTransactionMixin, PaymentAuditMixin, models.Model):
         help_text=_("المبلغ الفعلي المحصل بعملة الخزينة أو البنك"),
     )
     amount_functional = models.DecimalField(
-        _("المعادل بالعملة الوظيفية (EGP)"),
+        _("المعادل بالعملة المحلية (EGP)"),
         max_digits=15,
         decimal_places=2,
         default=Decimal("0.00"),

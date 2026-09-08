@@ -232,7 +232,7 @@ class Customer(models.Model):
     @property
     def available_prepaid_balance(self):
         """
-        Legacy Compatibility Wrapper: حساب الرصيد المسبق المتاح للعميل بالعملة الوظيفية (أو الافتراضية)
+        Legacy Compatibility Wrapper: حساب الرصيد المسبق المتاح للعميل
         """
         try:
             from financial.services.partner_advance_service import PartnerAdvanceService
@@ -416,7 +416,7 @@ class CustomerTransaction(models.Model):
     currency = models.CharField(_("العملة"), max_length=3, default="EGP")
     foreign_amount = models.DecimalField(_("المبلغ بالعملة الأجنبية"), max_digits=15, decimal_places=2, default=Decimal("0.00"))
     exchange_rate = models.DecimalField(_("سعر الصرف"), max_digits=12, decimal_places=6, default=Decimal("1.000000"))
-    functional_amount = models.DecimalField(_("المبلغ بالعملة الوظيفية (EGP)"), max_digits=15, decimal_places=2)
+    functional_amount = models.DecimalField(_("المبلغ (EGP)"), max_digits=15, decimal_places=2)
     open_amount = models.DecimalField(_("المبلغ المفتوح غير المسدد (EGP)"), max_digits=15, decimal_places=2)
     open_amount_functional = models.DecimalField(_("المبلغ المفتوح الوظيفي (EGP)"), max_digits=15, decimal_places=2, default=Decimal("0.00"))
     open_amount_foreign = models.DecimalField(_("المبلغ المفتوح غير المسدد (الأصلي)"), max_digits=15, decimal_places=2, default=Decimal("0.00"))

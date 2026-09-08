@@ -428,7 +428,7 @@ class CustomerAllocationAuditService:
                 advance_acc = AccountRoleRegistry.get_account(AccountRoleNames.CUSTOMER_ADVANCE_LIABILITY)
                 partner_acc_code = locked_customer.financial_account.code
                 
-                # حساب قيم المعادل بالعملة الوظيفية
+                # حساب قيم المعادل بالعملة المحلية
                 cp_rate = Decimal(str(getattr(customer_payments[0], "exchange_rate", 1.0) or 1.0)) if customer_payments else Decimal("1.0")
                 sale_rate = Decimal(str(getattr(sale, "exchange_rate", 1.0) or 1.0))
 

@@ -141,7 +141,7 @@ class ChartOfAccounts(models.Model):
         max_digits=15,
         decimal_places=2,
         default=Decimal("0.00"),
-        help_text=_("الرصيد الافتتاحي للحساب بالعملة الوظيفية (EGP)"),
+        help_text=_("الرصيد الافتتاحي للحساب بالعملة المحلية (EGP)"),
     )
     opening_balance_foreign = models.DecimalField(
         _("الرصيد الافتتاحي بالعملة الأجنبية"),

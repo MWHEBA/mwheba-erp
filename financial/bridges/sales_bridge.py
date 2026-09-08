@@ -23,7 +23,7 @@ class SalesAccountingBridge:
     @classmethod
     def post_sale_invoice(cls, sale_id: int, user=None) -> Dict[str, Any]:
         """
-        إنشاء وترحيل القيد المحاسبي لفاتورة المبيعات بالعملة الوظيفية والأجنبية
+        إنشاء وترحيل القيد المحاسبي لفاتورة المبيعات بالعملة المحلية والأجنبية
         """
         from sale.models.sale import Sale
 

@@ -86,7 +86,7 @@ class PurchaseOrder(models.Model):
 
     total_amount = models.DecimalField(_("الإجمالي بعملة الفاتورة"), max_digits=18, decimal_places=2, default=Decimal("0.00"))
     total_foreign = models.DecimalField(_("الإجمالي بالعملة الأجنبية"), max_digits=18, decimal_places=2, default=Decimal("0.00"))
-    functional_amount = models.DecimalField(_("الإجمالي بالعملة الوظيفية"), max_digits=18, decimal_places=2, default=Decimal("0.00"))
+    functional_amount = models.DecimalField(_("الإجمالي بالعملة المحلية"), max_digits=18, decimal_places=2, default=Decimal("0.00"))
 
     cost_center = models.ForeignKey(
         "financial.CostCenter",
@@ -279,7 +279,7 @@ class SupplierBill(models.Model):
     exchange_rate = models.DecimalField(_("سعر الصرف"), max_digits=10, decimal_places=4, default=Decimal("1.0000"))
 
     total_amount = models.DecimalField(_("إجمالي الفاتورة بعملة المورد"), max_digits=15, decimal_places=2)
-    functional_amount = models.DecimalField(_("إجمالي الفاتورة بالعملة الوظيفية"), max_digits=15, decimal_places=2)
+    functional_amount = models.DecimalField(_("إجمالي الفاتورة بالعملة المحلية"), max_digits=15, decimal_places=2)
 
     status = models.CharField(_("الحالة"), max_length=20, choices=STATUS_CHOICES, default="DRAFT")
 

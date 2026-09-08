@@ -27,7 +27,7 @@ const CurrencyEngine = (function () {
   }
 
   /**
-   * تحويل سعر الكتالوج الأساسي بالعملة الوظيفية إلى العملة الأجنبية المستهدفة بالقسمة على سعر الصرف
+   * تحويل سعر الكتالوج الأساسي بالعملة المحلية إلى العملة الأجنبية المستهدفة بالقسمة على سعر الصرف
    */
   function convertBaseToForeignPrice(baseCatalogPrice, exchangeRate) {
     const price = parseFloat(baseCatalogPrice) || 0;

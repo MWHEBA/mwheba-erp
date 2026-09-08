@@ -346,7 +346,7 @@
       <div class="col-md-6 col-12">
         <div class="p-3 bg-light rounded border h-100">
           <h6 class="fw-bold text-dark mb-3 border-bottom pb-2">
-            <i class="fas fa-th-large text-primary me-2"></i>{% trans "المونتاج وتفريد الفرخ" %}
+            <i class="fas fa-th-large text-primary me-2"></i>{% trans "المونتاج وتجهيز الشيت" %}
           </h6>
           <table class="table table-borderless table-sm small mb-0">
             <tbody>
@@ -751,7 +751,7 @@
                     <div>
                       <div class="fw-bold text-dark">{% trans "السعر النهائي للبيع" %}</div>
                       {% if order.exchange_rate != 1 %}
-                        <div class="text-muted small mt-1">{% trans "المعادل بالعملة الوظيفية:" %} {{ order.final_price_functional|smart_float:2 }} EGP</div>
+                        <div class="text-muted small mt-1">{% trans "المعادل بالعملة المحلية:" %} {{ order.final_price_functional|smart_float:2 }} EGP</div>
                       {% endif %}
                     </div>
                     <div class="text-end">

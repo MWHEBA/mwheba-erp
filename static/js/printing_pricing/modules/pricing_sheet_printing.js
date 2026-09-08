@@ -88,10 +88,13 @@ class PricingSheetPrintingSubsystem {
     }
     const currency = this.config.currencySymbol || '';
     const num = Number(amount || 0);
-    const formatted = num.toLocaleString('en-US', {
-      minimumFractionDigits: forceDecimals ? 2 : 0,
-      maximumFractionDigits: 2
-    });
+    const isWhole = Math.abs(num - Math.round(num)) < 0.00001;
+    const formatted = isWhole
+      ? Math.round(num).toLocaleString('en-US')
+      : num.toLocaleString('en-US', {
+          minimumFractionDigits: forceDecimals ? 2 : 0,
+          maximumFractionDigits: 2
+        });
     return currency ? `${formatted}\u00A0${currency}` : formatted;
   }
 
@@ -100,10 +103,13 @@ class PricingSheetPrintingSubsystem {
       return this.controller.formatNumber(amount, forceDecimals);
     }
     const num = Number(amount || 0);
-    return num.toLocaleString('en-US', {
-      minimumFractionDigits: forceDecimals ? 2 : 0,
-      maximumFractionDigits: 2
-    });
+    const isWhole = Math.abs(num - Math.round(num)) < 0.00001;
+    return isWhole
+      ? Math.round(num).toLocaleString('en-US')
+      : num.toLocaleString('en-US', {
+          minimumFractionDigits: forceDecimals ? 2 : 0,
+          maximumFractionDigits: 2
+        });
   }
 
   renderPressOptionsHtml(presses, selectedIdx = 0) {
@@ -1071,23 +1077,35 @@ class PricingSheetPrintingSubsystem {
       self.debouncedRecalculate();
     });
 
-    // 3. طريقة تسعير الورق ومحول الوحدات (بالفرخ / بالرزمة / بالطن)
+    // 3. طريقة تسعير الورق ومحول الوحدات (بالرزمة / بالطن)
     $(document).on('change', 'input[name="price_input_mode"]', function () {
       const mode = this.value;
-      if (mode === 'sheet') {
-        $('#input_wrapper_ream').addClass('d-none');
-        $('#input_wrapper_ton').addClass('d-none');
-      } else if (mode === 'ream') {
-        $('#input_wrapper_ream').removeClass('d-none');
-        $('#input_wrapper_ton').addClass('d-none');
-      } else if (mode === 'ton') {
+      if (mode === 'ton') {
         $('#input_wrapper_ton').removeClass('d-none');
         $('#input_wrapper_ream').addClass('d-none');
+      } else {
+        // بالرزمة افتراضياً
+        $('#input_wrapper_ream').removeClass('d-none');
+        $('#input_wrapper_ton').addClass('d-none');
       }
       self.updateConvertedSheetPrice();
     });
 
-    // حساب السعر المحول لحظياً عند كتابة سعر الرزمة أو الطن بالعملة الوظيفية
+    // عند فتح حاسبة تحويل الوحدات: مزامنة سعة الرزمة واحتساب السعر فوراً
+    $(document).on('show.bs.collapse', '#paper_unit_converter_collapse', function () {
+      const packCapacity = Math.max(1, PricingMath.parseSafeNumber($('#id_sheets_per_pack').val(), 250));
+      $('#pack_addon_sheets').text(packCapacity);
+      const currentSheetPrice = parseFloat($('#id_paper_sheet_price').val()) || 0;
+      const reamInput = $('#input_ream_price');
+      if ((!reamInput.val() || parseFloat(reamInput.val()) === 0) && currentSheetPrice > 0) {
+        const calcReam = currentSheetPrice * packCapacity;
+        const isReamWhole = Math.abs(calcReam - Math.round(calcReam)) < 0.00001;
+        reamInput.val(isReamWhole ? Math.round(calcReam).toString() : parseFloat(calcReam.toFixed(2)).toString());
+      }
+      self.updateConvertedSheetPrice();
+    });
+
+    // حساب السعر المحول لحظياً عند كتابة سعر الرزمة أو الطن بالعملة المحلية
     $(document).on('input', '#input_ream_price, #input_ton_price', function () {
       self.updateConvertedSheetPrice();
     });
@@ -1096,10 +1114,17 @@ class PricingSheetPrintingSubsystem {
     $(document).on('click', '#btn_apply_converted_price', function () {
       const converted = parseFloat($('#calc_converted_sheet_display').data('converted-price')) || 0;
       if (converted > 0) {
-        $('#id_paper_sheet_price').val(converted.toFixed(2));
+        const $sheetInput = $('#id_paper_sheet_price');
+        const isWhole = Math.abs(converted - Math.round(converted)) < 0.00001;
+        const valStr = isWhole ? Math.round(converted).toString() : parseFloat(converted.toFixed(2)).toString();
+        $sheetInput.val(valStr);
+        $sheetInput[0].dataset.manual = 'true';
+        $sheetInput.addClass('border-primary');
         $('#paper_unit_converter_collapse').collapse('hide');
+        self.renderManualPriceBadge($('#paper_price_staleness_badge'), $('#paper_price_date_display'));
+        self.updateSupplierDependentSections();
         self.recalculate();
-        self.showNotification(`تم تطبيق سعر الفرخ المحول: ${converted.toFixed(2)} ${self.config.currencySymbol}`, 'success');
+        self.showNotification(`تم تطبيق سعر الفرخ المحول: ${valStr} ${self.config.currencySymbol}`, 'success');
       }
     });
 
@@ -1841,7 +1866,8 @@ class PricingSheetPrintingSubsystem {
       this.api.getLivePaperPrice(paramsObj)
         .then(data => {
           const sheetPrice = parseFloat(data.price) || 0.0;
-          const formattedPrice = sheetPrice.toFixed(2);
+          const isWhole = Math.abs(sheetPrice - Math.round(sheetPrice)) < 0.00001;
+          const formattedPrice = isWhole ? Math.round(sheetPrice).toString() : parseFloat(sheetPrice.toFixed(2)).toString();
 
           // الحفاظ على السعر المحفوظ إذا طُلب صراحة ووجد سعر حالي صالح
           if (!options.preserveSavedPrice || !$paperInput.val() || parseFloat($paperInput.val()) === 0) {
@@ -2014,15 +2040,11 @@ class PricingSheetPrintingSubsystem {
    * حساب السعر المحول للفرخ من الرزمة أو الطن
    */
   updateConvertedSheetPrice() {
-    const mode = $('input[name="price_input_mode"]:checked').val() || 'sheet';
+    const mode = $('input[name="price_input_mode"]:checked').val() || 'ream';
     const display = $('#calc_converted_sheet_display');
     let converted = 0;
 
-    if (mode === 'ream') {
-      const reamPrice = parseFloat($('#input_ream_price').val()) || 0;
-      const packCapacity = Math.max(1, PricingMath.parseSafeNumber($('#id_sheets_per_pack').val(), 250));
-      converted = packCapacity > 0 ? (reamPrice / packCapacity) : 0;
-    } else if (mode === 'ton') {
+    if (mode === 'ton') {
       const tonPrice = parseFloat($('#input_ton_price').val()) || 0;
       const sheetOpt = $('#id_sheet_size option:selected');
       const sw = PricingMath.parseSafeNumber(sheetOpt.data('width'), 100) / 100;
@@ -2031,11 +2053,18 @@ class PricingSheetPrintingSubsystem {
       const sheetWeightTon = (sw * sh * gsm) / 1000000;
       converted = tonPrice * sheetWeightTon;
     } else {
-      converted = parseFloat($('#id_paper_sheet_price').val()) || 0;
+      // ream mode
+      const reamPrice = parseFloat($('#input_ream_price').val()) || 0;
+      const packCapacity = Math.max(1, PricingMath.parseSafeNumber($('#id_sheets_per_pack').val(), 250));
+      converted = packCapacity > 0 ? (reamPrice / packCapacity) : 0;
     }
 
     display.data('converted-price', converted);
-    display.text(`${converted.toFixed(2)} ${this.config.currencySymbol}`);
+    const isWhole = Math.abs(converted - Math.round(converted)) < 0.00001;
+    const formatted = isWhole
+      ? Math.round(converted).toLocaleString('en-US')
+      : parseFloat(converted.toFixed(2)).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+    display.text(`${formatted} ${this.config.currencySymbol}`);
   }
 
   /**
